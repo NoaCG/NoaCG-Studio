@@ -31,7 +31,7 @@ import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
-import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, unansweredStatus, type SeqRoadAsker } from './failedSends';
+import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
@@ -960,8 +960,10 @@ export async function unpublishControlShow(id: string): Promise<void> {
 // One per document: the renderer's resolve (its own rule, `controlOutputResolve`) runs only in
 // src/output/main.ts, never in a document that sends.
 let seqRoad: 'unknown' | 'present' | 'absent' = 'unknown';
-/** Statement timeouts (57014), and refusals (any other answered error), the protocol-2 resolve
- *  has answered in a row. */
+/** Read fresh, never narrowed: another resolve may have decided while this one was asked. */
+const givenUp = () => seqRoad === 'absent';
+/** Statement timeouts (57014), and refusals (`isRefusal`), the protocol-2 resolve has answered in
+ *  a row. Overlapping resolves (a dev build mounts the wire twice) each count. */
 const seqInRow = { timeouts: 0, refusals: 0 };
 
 /** Ask a protocol-2 resolve. `undefined` means use today's RPC (this server has no sequence road,
@@ -975,8 +977,11 @@ async function askSeqRoad(
   if (seqRoad === 'absent') return undefined;
   const { data, error, status } = await sb.rpc(rpc, args);
   seqInRow.timeouts = error?.code === '57014' ? seqInRow.timeouts + 1 : 0;
-  seqInRow.refusals = error && !unansweredStatus(status, error.code) ? seqInRow.refusals + 1 : 0;
+  seqInRow.refusals = error && isRefusal(status, error.code) ? seqInRow.refusals + 1 : 0;
   if (!error) {
+    // A resolve that answers after another one, overlapping it, gave up stays given up: the page
+    // already follows by row id.
+    if (givenUp()) return undefined;
     seqRoad = 'present';
     return { ok: true, value: data && typeof data === 'object' ? (data as Record<string, unknown>) : null };
   }
@@ -1464,8 +1469,13 @@ export async function sendControlVerb(opts: {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
-      // commit after a later press.
-      await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
+      // commit after a later press. By row id only once this server is known to have no sequence
+      // road: before this production's resolve answers, a send that way would have no per-graphic
+      // order and no mark saying so, so it counts as unanswered like the resolve itself (#1697).
+      await sendWithResend(async (signal) => {
+        if (seqRoad !== 'absent' && (await getSupabase())) throw unansweredError();
+        await sendHostedControlBatch(opts.slug, wire, signal);
+      }, resend);
     }
     noteSend(true);
   } catch (e) {

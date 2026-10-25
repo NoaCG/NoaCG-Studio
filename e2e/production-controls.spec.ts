@@ -198,10 +198,11 @@ test('published, a Take is pending until the command log answers, then logged, n
 // row id, where a send that commits late can air over a later Take. It used to go there for good
 // on any refused resolve, silently. Now a refusal is asked again, and a page that does end up
 // there (a server with no sequence road) says so under the on-air chip.
-async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | null): Promise<{ sendsSeq: () => number }> {
+async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | null): Promise<{ sendsSeq: () => number; sendsById: () => number }> {
   const backend = await standInBackend(page);
   let fixture: unknown = null;
   let seq = 0;
+  let byId = 0;
   await page.route(`${backend}/**`, async (route) => {
     const req = route.request();
     const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
@@ -214,6 +215,7 @@ async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown)
       seq += 1;
       return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, epoch: null, head: { graphics: {} }, skipped: [] }) });
     }
+    if (rpc === 'control_send_many') byId += 1;
     return route.fulfill({ status: 200, headers, body: '[]' });
   });
   await page.goto('/app#/home');
@@ -225,7 +227,7 @@ async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown)
   await page.goto(`/app#/production/${seeded.id}`);
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('verb-target')).toHaveText('To: 0 outputs');
-  return { sendsSeq: () => seq };
+  return { sendsSeq: () => seq, sendsById: () => byId };
 }
 
 test('a refused resolve is asked again, so the page keeps its order: no mark, and a Take goes numbered (#1697)', async ({ page }) => {
@@ -244,7 +246,18 @@ test('a refused resolve is asked again, so the page keeps its order: no mark, an
   expect(sendsSeq(), 'the Take went on the numbered road').toBeGreaterThan(0);
 });
 
-test('a page on a server with no sequence road marks its sends unordered (#1697)', async ({ page }) => {
+test('a press made before the resolve answers is not sent by row id (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const outage = { status: 503, body: { code: 'PGRST002', message: 'Could not query the database for the schema cache. Retrying.', details: null, hint: null } };
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? outage : null));
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toBeVisible({ timeout: 15_000 });
+  expect(sendsById(), 'nothing left with no per-graphic order').toBe(0);
+  expect(sendsSeq()).toBe(0);
+});
+
+test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   await publishedPage(page, (rpc, fixture) =>
     rpc === 'control_show_resolve'
@@ -253,7 +266,7 @@ test('a page on a server with no sequence road marks its sends unordered (#1697)
         ? { status: 200, body: [fixture] }
         : null,
   );
-  await expect(page.getByTestId('unordered-sends')).toHaveText('⚠ unordered sends');
+  await expect(page.getByTestId('unordered-sends')).toHaveText('⚠ order not guaranteed');
   await expect(page.getByTestId('unordered-sends')).toHaveAttribute('title', /Reload to try again/);
 });
 

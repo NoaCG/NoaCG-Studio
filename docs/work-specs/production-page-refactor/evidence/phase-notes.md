@@ -15,17 +15,22 @@ changes a spec's digest.
   server's press check (0071) orders a graphic's sends, so no client-side fallback can refuse a
   send that commits late. What put pages on protocol 1 was the rule: any answered error on the
   first resolve switched the page for good, silently. A page that sends now goes there at once only
-  on PGRST202, and otherwise after five refusals in a row (about 15 s on the resolve's backoff), so
-  a blip is asked again and a lasting fault still leaves the page working. A page on protocol 1
-  shows "unordered sends" under the on-air chip (both operator pages, `UnorderedSends`), and its
+  on PGRST202, and otherwise after five refusals in a row (a lapsed sign-in, 401, does not count),
+  so a blip is asked again and a lasting fault still leaves the page working. Until that verdict
+  no press goes by row id: it counts as unanswered, like the resolve. A page on protocol 1 shows
+  "order not guaranteed" under the on-air chip (both operator pages, `UnorderedSends`), and its
   automatic sends already hold (`sendsInOrder`, selectionAir.ts). The renderer's rule is unchanged:
   it sends nothing.
+- **Trap:** a dev build mounts the page's wire twice, so two resolves leave at once: a spec that
+  refuses only the first proves nothing (the second rescues the old code). The specs refuse two.
+- **Trap:** a press made before the resolve answered used to go by row id, unordered and unmarked.
 - **Trap:** a page that resolved on protocol 2 and then got PGRST202 on a reconnect (PostgREST's
   schema cache reloading after a migration) used to switch protocols mid-session, against D7. It
   now asks again. 42883 no longer counts as proof: it can come from inside the function body.
 - **Tests:** `scripts/failed-sends.test.mjs` pins the rule for both askers.
-  `e2e/production-controls.spec.ts` (offline) refuses the first resolve and checks the Take goes
-  numbered with no mark, and shows the mark on PGRST202. `e2e/configured/command-sequence.spec.ts`
+  `e2e/production-controls.spec.ts` (offline) refuses the first resolves and checks the Take goes
+  numbered with no mark, holds a press made during an outage, and shows the mark on PGRST202.
+  Each was mutation-tested against the old rule. `e2e/configured/command-sequence.spec.ts`
   refuses the first resolve with a 500, then holds a Take 6 s and presses Out: the late Take is
   left out and never airs. The configured election spec now also expects the mark on protocol 1.
 

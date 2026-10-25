@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, REFUSALS_BEFORE_ABSENT, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isUnanswered, rpcFailure, sendWithResend, seqRoadVerdict, unansweredError, unansweredStatus } =
+const { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, REFUSALS_BEFORE_ABSENT, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isRefusal, isUnanswered, rpcFailure, sendWithResend, seqRoadVerdict, unansweredError, unansweredStatus } =
   await import('../src/control/failedSends.ts');
 
 /** A send that fails with each of `failures` in turn, then lands, and a clock that sleeping moves.
@@ -192,6 +192,10 @@ test('a page that sends leaves the ordered road on proof the server has none, or
     assert.equal(seqRoadVerdict(status, code, row(50, 50), operator, false), 'ask-again', `unanswered ${status} ${code}`);
   }
   assert.equal(seqRoadVerdict(404, 'PGRST202', row(1), operator, true), 'ask-again', 'a road that answered once is not given up mid-session (a stale schema cache)');
+  assert.equal(seqRoadVerdict(401, 'PGRST301', row(50), operator, false), 'ask-again', 'a lapsed sign-in says nothing about the server');
+  assert.equal(isRefusal(401, 'PGRST301'), false);
+  assert.equal(isRefusal(500, 'XX000'), true);
+  assert.equal(isRefusal(503, 'PGRST002'), false);
   assert.equal(seqRoadVerdict(500, 'XX000', row(50), operator, true), 'ask-again');
 });
 
