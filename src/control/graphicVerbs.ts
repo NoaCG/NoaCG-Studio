@@ -280,7 +280,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const ledger = new Map<string, Entry[]>();
   let sendSeq = 0;
   /** This page's commands that move air's record (an update, an event, a stop), by the id they were
-   *  sent with, and their press number: a row heard back is told from another screen's by it, not by its figure. */
+   *  sent with, and their press number: a row heard back is told from another screen's by it, not
+   *  by its figure. */
   const ownFigures = new Map<string, { graphic: string; stamp: number }>();
   /** Air's record and the live marker as the ledger last accounted for them. A field that differs
    *  when next read moved with no row heard (a reseed): it stands over every entry, as another

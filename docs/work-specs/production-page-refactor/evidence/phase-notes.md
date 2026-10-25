@@ -13,8 +13,10 @@ changes a spec's digest.
   (https://github.com/NoaCG/NoaCG-Studio/pull/1730#issuecomment-6403006781). This branch began
   on `8da6005`.
 - **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
-  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated and nothing on the wire
-  changes. A revert brings back F1 to F3.
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated. The only wire change is
+  that this page mints the id of its own stop commands, which `sendControlVerb`
+  (hostedControl.ts) otherwise mints itself, so every row looks as before. A revert brings back F1
+  to F3.
 - **Defect.** The base came from about eight structures kept in step by hand (`sentFigures`,
   `landedFigures`, `parkedBooks`, `atPresses`, `replacedAt`, `stampOf` and the `applyHere`
   wrapper's booking), and each round opened an interleaving where two of them disagreed. F1: a
@@ -28,55 +30,87 @@ changes a spec's digest.
     own send that carries figures (a live press with its moved figures, a Take, Re-take, Update or
     Snap with its update data). An entry is pending until its answer, then landed; a send that did
     not reach the output leaves the ledger at once, so it is never a base and gives nothing back.
-  - *The base* (`baseOf`): the newest entry, by press number, that carries the field on the cue
-    the layer holds (`layerCue`); its figure while pending, or once landed until air's record took
-    that field past it; otherwise air's record, then the fallback.
-  - *Taken past* (`past`): a row heard takes its fields past every entry pressed no later than it
-    (this page's own row, by its id: its own send and older ones; another screen's row: all). A
-    move of air's record with no row (a reseed) is caught by comparing with the record the ledger
-    last accounted for (`seen`, `accounted`) and takes past all. This page's own apply here (the
-    fast road, or unpublished) is accounted as its own and takes nothing past (`applyOwn`).
+  - *The base* (`baseOf`): the newest entry by press number that carries the field decides alone:
+    its figure while pending, or once landed until air's record took that field past it; otherwise
+    air's record, then the fallback.
+  - *Taken past* (`past`, `passed`): a row heard takes its fields past every entry pressed no later
+    than it. This page's own row (known by its id) takes its own send and older ones past; one that
+    arrives already applied here (the fast road) only the older ones, since it says the command
+    committed. Another screen's row (or an id this page does not know) takes past every entry, and
+    a stop row every field. Another screen's bare cue and play rows take nothing past. A move of
+    air's record or of the live marker with no row (a reseed) is caught by comparing with what the
+    ledger last accounted for (`seen`, `accounted`) and takes past every entry. This page's own
+    moves (its command applied here, its marker written from an answer) are accounted as its own
+    and take nothing past (`applyOwn`).
+  - *Ids:* a stop now goes with this page's id too, like an update or an event, so this page's Out
+    heard back is known for its own.
   - *A late answer* writes into the cue only figures no landed send pressed after it carries
     (`unreplaced`, over the ledger). Write-on-acceptance, `savedAt` and `pressWrote` are unchanged.
-  - *Waits:* a live press also waits behind this page's own Take, Re-take, Update, Out and All out
-    of its graphic (`behind`, into the same `presses` map `afterPress` waits on, with the same
-    fallback bound). The Take itself waits for nothing new.
+  - *Waits:* a live press also waits for every one of this page's Takes, Re-takes, Updates, Outs
+    and All outs of its graphic still out (`behind`, `ownSends`), beside the press before it
+    (`presses`), with the same fallback bound. The live chain itself and the Take are unchanged.
   - *Instance:* a live press goes only while the live marker and this page's newest marker press
     out both name its cue (`holding`), at the press and after every wait.
   - Deleted: `sentFigures`/`holdFigures`, `Landed`/`landedFigures`, `parkedBooks`, `AtPress`/
     `atPresses`/`pressedAt`/`unmoved`, `replacedAt`, `stampOf`, `bookLanded`, `holdSent`,
-    `heardFigures` and the parked give-back in `sendWith`. The file went from 1056 to WC lines
-    (DIFFSTAT).
+    `heardFigures`, the parked give-back in `sendWith`, and `Layer`/`layerAt`/`layerCue` with
+    `failedMarkers` (the cue a figure went on is no longer needed: a Take's own figures stand over
+    the round before, and a marker move with no row takes every figure past).
 - **Departures from the diagnoser's wording, and why.**
   - *No separate `heard` state:* an own row heard takes its own entry (and older ones) past, which
-    is the same thing; an entry whose send failed is gone, so a late row of an unanswered send that
-    did commit takes the older landed figures past and air's record counts (its own test).
-  - *A small own-apply hook stays:* the five existing tests that move air's record with no row
-    (a reseed, another page's write) need the ledger to notice such a move, and with that check in
-    place the fast road's own apply must be marked as this page's, or it would take its own landed
-    figures past (the hockey scorebug on the fast road: 8, 9, 10). It books nothing.
-  - *Two existing tests now release their press with the fallback timer*: "a +1 pressed while a
-    Re-take is out counts from the Re-take's figure" and "a landed Take's figure stands again once
-    the newer Re-take and a +1 on it both fail". Their press now waits behind the Re-take (scope
-    item 2); each adds `assert.equal(r.sends.length, 2)` (the press waits) and fires the fallback.
-    No assertion changed or was removed.
-- **Tests (`scripts/graphic-verbs.test.mjs`, new, red on `8da6005` unless said):** F1 (9),
-  R14 restated (a fast +1 applied here and failed never becomes a base: 9, then 10), the hockey
-  scorebug on the fast road (green on `8da6005`; guards the own-apply hook), F2 (10, cue writes
-  8, 9, 10), F3 (nothing sent, the note), a press refused when this page's own Take of another cue
-  goes out during its save (green on `8da6005`; guards the `onLayer` half), a press waits behind
-  this page's Update, R7 (0, 1, 2, 3; green on `8da6005`, it guards "pending never beats a newer
-  landed send"), and an unanswered +1 whose row is heard later (green on `8da6005`).
-- **Independent walk (`scripts/graphic-verbs-walk.test.mjs`).** WALK
+    is the same thing.
+  - *A pending entry stays the base even when another screen's row was heard after its press*
+    (the spec's "while a send is pending", and the existing slow-road walk pins it); once it lands
+    it is past.
+  - *A small own-apply hook stays (`applyOwn`):* five existing tests move air's record with no row
+    (a reseed, another page's write), so the ledger must notice such a move, and then this page's
+    own apply here must be marked as its own, or it would take its own landed figures past (the
+    hockey scorebug on the fast road: 8, 9, 10). It books nothing.
+  - *An own row arriving already applied takes the older entries past:* found by the walk (an
+    Update applied here that got no answer but committed; its own test).
+- **Existing tests changed (no assertion weakened or removed).**
+  - "a +1 pressed while a Re-take is out counts from the Re-take's figure" and "a landed Take's
+    figure stands again once the newer Re-take and a +1 on it both fail": the press now waits
+    behind the Re-take (scope item 2); each adds `assert.equal(r.sends.length, 2)` and fires the
+    fallback, then asserts what it asserted before.
+  - "All out stops the folders first…": the stop now carries this page's id; its one assertion on
+    the stop goes through `sentAs`, which now also checks a stop's id and sets it aside.
+  - No test was deleted.
+- **New tests (`scripts/graphic-verbs.test.mjs`).** Red on `8da6005`: F1 (sends 9), R14 restated
+  (a fast +1 applied here that failed never becomes a base: 9, then 10), F2 (10, cue writes 8, 9,
+  10), F3 (nothing sent, the note), a live press waits behind this page's Update. Green on
+  `8da6005`, each guarding a rule here: the hockey scorebug on the fast road, a press refused when
+  this page's own Take of another cue goes out during its save (the `onLayer` half), R7 (0, 1, 2,
+  3: pending never beats a newer landed send), an unanswered +1 whose row is heard later, a +1
+  between another screen's Take rows, an Update applied here that committed unanswered.
+- **Independent walk (`scripts/graphic-verbs-walk.test.mjs`).** Written by a separate agent from
+  "What a press does" and the diagnoser's ledger rule, not from this code: the real verbs,
+  session, `claimAndApply`, `airedAfter`, `liveSelection`, `pressSend`; a modelled wire (FIFO per
+  graphic, protocol 2 staleness from the revision the page knew, lost commits, unanswered sends
+  that may commit, the 1.2 s slow window after a clock graphic's event), two pinned graphics,
+  own Takes, Re-takes, Updates, Outs and Snaps, another screen's Takes and corrections, held
+  saves, the fallback timer, rows heard one at a time in log order. Checks: INSTANCE, REFUSAL,
+  QUEUE-LIVE, QUEUE-OWN, STUCK, BASE, WRITE. Default 150 walks per road (about 2 s); run here at
+  2,000 and 10,000 per road: green on both roads (10,000: 269,703 and 263,487 presses, 1 min
+  19 s). On `8da6005` at 2,000 per road it fails INSTANCE (227 slow, 155 fast walks), QUEUE-OWN
+  (947, 1413), BASE (3, 5) and BASE-FROM-FAILED (1, 95). The repo's own slow-road walk also
+  passes at `BASE_WALKS=20000`.
+  - *What the rule costs, printed by the walk (not checked):* on this adversarial mix 6.3% (slow)
+    and 6.5% (fast) of committed ± figures did not move true air by exactly their step (8da6005:
+    6.4% and 7.6%). The usual cause is a send that got no answer but committed: the rule counts
+    it as gone, so the next press counts from air again.
 - **Mutation check.** MUT
 - **Traps.**
-  - A test rig whose `applyHere` moves `aired` must also be read as this page's own apply: wrap
-    it as `sendWith` does, or the ledger reads the move as a reseed.
-  - Rows are heard one at a time in log order on the page (`onRow`); a test that hears several
-    of this page's rows in one call still works, since each row takes past only entries pressed no
-    later than it.
-  - The barrier (`behind`) means a test that presses during this page's own Take, Update or Out
-    must answer that send or fire the fallback (`r.timers`) before the press sends.
+  - Rows reach the page by two roads, so the page cannot know where another screen's row sits in
+    the log against its own unheard sends; the ledger follows the diagnoser's rule (another
+    screen's row heard after a press stands over it). A walk that models one strictly ordered road
+    disagrees with that rule in a few cases; it is the rule, not the code, that decides them.
+  - A rig whose `applyHere` moves `aired` must go through the sender (as `sendWith` wraps it), or
+    the ledger reads the move as a reseed.
+  - The waits (`behind`) mean a test that presses during this page's own Take, Update or Out must
+    answer that send or fire the fallback (`r.timers`) before the press sends.
+  - The walk judges each send by what the page had processed: an answer delivered and a save
+    released in one step can reach the verbs in either order.
 
 ## Row 32a repair: the sent-figure base on the slow road
 
