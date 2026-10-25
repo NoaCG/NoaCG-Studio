@@ -65,6 +65,7 @@ import { createPlayoutSession, type AirPart, type DraftPart, type LogPart, type 
 import { createCueDraft, unsentNow, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
 import type { StorePart } from '../../control/storePart';
 import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, type ClockSpecs } from '../../control/airState';
+import { withoutOwnMarkers } from '../../control/liveCue';
 import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
@@ -1113,7 +1114,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
       // Each command once, on whichever road came first.
       heardFromOthers.current(items.filter((item) => !session.applied.has(item.msg)));
-      applyCommand(items);
+      // This page's own markers are the sender's to write (control/liveCue.ts `withoutOwnMarkers`).
+      applyCommand(withoutOwnMarkers(items, sentHere));
       heardMarkers.current(items);
     },
     [applyCommand, folderPlayout, session],

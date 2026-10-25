@@ -18,9 +18,17 @@ changes a spec's digest.
     `answerMarker`, `landedLate`). Take, Out and All out no longer mark after the send. Folder
     runs (`folderPlayout.ts`) and timed cues (`cueArmEngine.ts`) still write the marker after
     their answers, with the old `leftAlone` rule. On protocol 2 they write only what the sender
-    already wrote. On protocol 1 a write can land briefly under a newer press that is still out,
-    and that press's answer then decides. Moving those writes into the sender would change their
-    modules' contracts and test rigs, so it stays out of this fix.
+    already wrote. On protocol 1 (`pressedAgain` is always empty there) a folder Out answered late
+    can clear the marker after a newer press of this page has landed. That stays wrong until the
+    next marker write. Protocol 1 has no per-graphic order at all, and #1697 reworks it. Moving
+    those writes into the sender would change those modules' contracts and test rigs, so it stays
+    out of this fix.
+  - The page no longer moves the marker for this page's own cue markers heard back on either road
+    (`liveCue.ts` `withoutOwnMarkers` in `hearCommand`). The sender writes them from its answers,
+    and from the rows of presses that got none. Before this, a slow-road press's own row heard
+    late put its older cue over a newer press that had landed. A send of several batches books
+    each batch's markers on their own, so one batch landing and the next failing leaves the
+    first batch's cue.
   - A press that landed names its cue unless a newer marker press of this page landed (a late older
     answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
     puts back the newest press that landed, or the marker from before the first press still out.
@@ -61,6 +69,10 @@ changes a spec's digest.
   checker's N1 repro is red on `cad2f01`. Twenty mutants of the folds and the wiring are each
   killed. Browser: `e2e/playout-air-contract.spec.ts` and `e2e/playout-drills.spec.ts`, 12
   passed.
+- **Second assessment (/so) on `85ad242`: B+.** It found that a slow-road press's own row,
+  heard late, moved the marker through `claimAndApply`. That is fixed by `withoutOwnMarkers`. It
+  also found that a two-batch send booked only its last batch, which is now fixed and pinned. The
+  protocol-1 folder Out case is noted above.
 - **Independent assessment (/so) on `6312a90`: B.** It found two blocking holes in the late-row
   path. First, a late row of an older press marked over a newer landed one. That is fixed with
   the per-graphic newest-landed number. Second, a row heard before the timeout was lost. That

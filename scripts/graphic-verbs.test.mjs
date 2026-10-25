@@ -1421,6 +1421,18 @@ test('a late row of an older press never marks over a newer one that landed; wit
   assert.deepEqual(t.liveCue(), { Strap: 'c1' });
 });
 
+test('a send of two batches on one graphic books each: the first lands, the second fails, the marker shows the first (#1696)', async () => {
+  const { clearCueItems, takeCueItems } = await import('../src/control/cueItems.ts');
+  const r = rig({ fast: true });
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
+  const sending = r.verbs.send([clearCueItems('Strap'), takeCueItems({ id: 'c1', graphic: 'Strap', values: {} })], 'Out, then Next');
+  await settle();
+  assert.deepEqual(r.liveCue(), { Strap: 'c1' });
+  r.sends[0].answer.reject(Object.assign(new Error('refused'), { landed: 1 }));
+  await sending;
+  assert.deepEqual(r.liveCue(), {});
+});
+
 test('a send that throws before it goes leaves no marker press out (#1696)', async () => {
   const r = rig();
   r.sender.armSpecFor = () => {

@@ -7,7 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { answerMarker, landedLate, leftAlone, pressMarker, readLiveCue, withLiveCue } from '../src/control/liveCue.ts';
+import { answerMarker, landedLate, leftAlone, pressMarker, readLiveCue, withLiveCue, withoutOwnMarkers } from '../src/control/liveCue.ts';
 
 test('readLiveCue reads format 2, migrates format 1, and degrades to empty', () => {
   assert.deepEqual(readLiveCue({ v: 2, layers: { Bug: { cue: 'c1' }, Lower: { cue: 'c2' } } }), { Bug: 'c1', Lower: 'c2' });
@@ -85,4 +85,14 @@ test('the marker book: a press landed names its cue unless a newer one landed or
   book = landedLate(book, 'Bug', 7, 'c2');
   assert.deepEqual(answerMarker(book, { Bug: 'c2' }, 'Bug', 6, true), { book: {} });
   assert.equal(landedLate({}, 'Bug', 7, 'c2').Bug, undefined, 'no press out: nothing to book');
+});
+
+test("this page's own cue markers heard back are left to the sender; every other command stays (#1696)", () => {
+  const mine = (msg) => msg.oid === 'mine';
+  const items = [
+    { graphic: 'Bug', msg: { t: 'cue', cue: 'c1', oid: 'mine' } },
+    { graphic: 'Bug', msg: { t: 'play', oid: 'mine' } },
+    { graphic: 'Bug', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } },
+  ];
+  assert.deepEqual(withoutOwnMarkers(items, mine), items.slice(1));
 });

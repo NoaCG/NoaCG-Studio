@@ -246,17 +246,18 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const unanswered = new Map<string, MarkerSent>();
   const landedOn = (graphic: string, n: number) => newestLanded.set(graphic, Math.max(newestLanded.get(graphic) ?? 0, n));
 
-  /** Number a send's markers at its press: per graphic, the last one it carries. */
+  /** Number a send's markers at its press, batch by batch (each lands or fails on its own): per
+   *  graphic, the last one a batch carries. */
   const pressMarkers = (batches: ControlSendItem[][]): MarkerSent[] => {
     const live = session.air.get().liveCue;
-    const named = new Map<string, { cue: string | null; batch: number }>();
-    batches.forEach((batch, index) => {
-      for (const item of batch) if (item.msg.t === 'cue') named.set(item.graphic, { cue: item.msg.cue ?? null, batch: index });
-    });
-    return [...named].map(([graphic, { cue, batch }]) => {
-      const n = (markerPresses += 1);
-      markers = pressMarker(markers, live, graphic, n, cue);
-      return { graphic, n, cue, batch };
+    return batches.flatMap((batch, index) => {
+      const named = new Map<string, string | null>();
+      for (const item of batch) if (item.msg.t === 'cue') named.set(item.graphic, item.msg.cue ?? null);
+      return [...named].map(([graphic, cue]) => {
+        const n = (markerPresses += 1);
+        markers = pressMarker(markers, live, graphic, n, cue);
+        return { graphic, n, cue, batch: index };
+      });
     });
   };
   /** Settle them with what the send came to, and move the marker where the answers leave it. */

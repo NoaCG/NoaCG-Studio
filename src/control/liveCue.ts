@@ -175,3 +175,10 @@ export function landedLate(book: MarkerBook, graphic: string, n: number, cue: st
   if (!t || (t.landed !== null && t.landed.n > n)) return book;
   return { ...book, [graphic]: { ...t, landed: { n, cue }, named: [...t.named, cue] } };
 }
+
+/** Commands heard back from the server, without the cue markers this page sent: the sender writes
+ *  those from its answers and from the rows of presses that got none (graphicVerbs.ts), so a late
+ *  row of an older press of this page never moves the marker over a newer one (#1696). */
+export function withoutOwnMarkers<T extends { msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean): T[] {
+  return items.filter((item) => item.msg.t !== 'cue' || !mine(item.msg));
+}
