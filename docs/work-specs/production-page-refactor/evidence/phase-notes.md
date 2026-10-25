@@ -34,8 +34,11 @@ changes a spec's digest.
     number of the figures still out and the landed figure air's record has not taken.
   - A landed send is booked even when air's record already shows its figure (so it outranks an
     older Take still out), and the cue it went on is read when asked (`Layer`): its own Take's cue,
-    else the newest of this page's markers out at its press that did not fail, else the cue live
-    at its press. A failed send gives back only parked figures no newer send replaced, judged by
+    else the newest of this page's markers out at its press that did not fail, else what stood under
+    them at its press (the newest of this page's Takes that landed while a newer one was out, else
+    the live marker). A layer that names another cue only while a newer Take is out does not drop a
+    landed figure; air's record moving past it does (both found by the fresh second opinion's
+    longer walk: seeds 3822 and 7107 at 10,000). A failed send gives back only parked figures no newer send replaced, judged by
     each figure's own press number.
   - A throw before the send (a timed cue's bad spec) gives back what the press parked and held.
   - Each batch of a send settles by its own answer, as its markers already did: a folder Take
@@ -46,13 +49,15 @@ changes a spec's digest.
   press counts from it, and an older press landing after it books nothing over it.
 - **Tests (`scripts/graphic-verbs.test.mjs`).** The checker's three repros, an equal-figure
   correction from another screen, a Take that throws before it is sent, a two-batch send whose
-  second batch fails, and the hockey scorebug
+  second batch fails, a landed Take whose newer Re-take and +1 both fail, an Update sent while a
+  failed Take was out, and the hockey scorebug
   (a ⚡ goal whose slow row is heard while the first +1 is out, then +1 twice: 8, 9, 10); each red
   on `fc65f5a` except the equal-figure case, which guards the id rule. A randomized walk
   (`BASE_WALKS`, default 3000, about 17,500 checked presses) on the slow road: +1, Takes, Re-takes,
   Updates with typed corrections, another screen's corrections and Takes, answers landed, failed
   or refused in press order (one send in flight per graphic, protocol 2 refusing a press made
-  before it heard a committed foreign command), rows heard one at a time in log order. Oracle: the
+  before it heard a committed foreign command), rows heard one at a time in log order. Also run
+  green at `BASE_WALKS=60000` (49 s); the default stays at 3000 like `MARKER_WALKS`. Oracle: the
   newest own figure still out, else the newest landed own one unless another screen's row was
   heard after it, else air's record. Ten existing assertions now set the figure's id aside
   (`sentAs`, which asserts it is there); nothing else in them changed.
@@ -61,7 +66,8 @@ changes a spec's digest.
   (repros 1, 2, walk); booking only when air does not show the figure yet (walk); ignoring failed
   markers in the cue a figure went on (walk); the old give-back rule by the failing send's number
   (walk); no give-back on a throw before the send (its test); a failed multi-batch send settling
-  every batch as failed (its test).
+  every batch as failed (its test); dropping a landed figure while a newer Take is out (its test);
+  the live marker instead of a landed older Take under the presses out (its test).
 - **Traps.**
   - The walk's assertion runs inside the wire stub, which the sender catches as a send failure:
     record mismatches and assert after each step, or a wrong figure passes silently.
@@ -70,6 +76,8 @@ changes a spec's digest.
   - A model server that answers a newer send before an older one on the same graphic is not this
     product (`createGraphicFifo`, one send in flight per graphic); with it the page's marker is
     transiently behind and the base check is about the wrong instance.
+  - The default walk count does not reach every interleaving: the second opinion's 10,000 found two
+    that 3000 did not. Run a large `BASE_WALKS` once after any change here.
   - Value equality cannot tell an own row from another screen's equal figure; the id can. Keep the
     id on any new figure-carrying command this sender adds.
 

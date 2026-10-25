@@ -2552,3 +2552,60 @@ test('a send whose first batch landed and second failed keeps the first batch\'s
   r.sends[2].answer.resolve({ ...noneLeft });
   await next;
 });
+
+test('a landed Take\'s figure stands again once the newer Re-take and a +1 on it both fail', async () => {
+  const s2 = graphicCue('s2', 'Score', { home: '0' });
+  const s3 = graphicCue('s3', 'Score', { home: '3' });
+  const r = rig({ seed: false, liveCue: { Score: 's2' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [s2, s3], r.liveCue());
+  const taking = r.verbs.take(s3);
+  await settle();
+  const retaking = r.verbs.take(s2);
+  await settle();
+  // s3's Take lands; the marker stays on s2, whose Re-take is newer and still out.
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 2), '1');
+  // A blip: the Re-take and the +1 both fail. s3 is what airs.
+  r.sends[1].answer.reject(new Error('down'));
+  await retaking;
+  r.sends[2].answer.reject(new Error('down'));
+  await plus;
+  assert.equal(r.liveCue().Score, 's3');
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 3), '4');
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await next;
+});
+
+test('an Update sent while a failed Take was out counts on the cue an older landed Take left', async () => {
+  const s1 = graphicCue('s1', 'Score', { home: '7' });
+  const s2 = graphicCue('s2', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [s1, s2], r.liveCue());
+  const takeTwo = r.verbs.take(s2);
+  await settle();
+  const takeOne = r.verbs.take(s1);
+  await settle();
+  // s2's Take lands while the newer Take of s1 is still out: the marker waits on s1's answer.
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await takeTwo;
+  r.draft.s1 = { home: '14' };
+  const updating = r.verbs.update(view());
+  await settle();
+  assert.equal(homeSent(r, 2), '14');
+  // s1's Take fails: s2 is what airs, and the Update's 14 went onto it.
+  r.sends[1].answer.reject(new Error('down'));
+  await takeOne;
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await updating;
+  assert.equal(r.liveCue().Score, 's2');
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 3), '15');
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await plus;
+});

@@ -268,13 +268,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  it standing; this page's own Take, Update or Snap of the graphic clears it (`sendWith`). */
   type Landed = { figure: string; over: string | undefined; layer: Layer; stamp: number };
   /** The cue a send left its figures on: its own Take's, else that of the newest of this page's
-   *  Takes and Outs out at its press that did not fail, else the cue live at its press. Read when
-   *  asked, so an older Take that failed after the send landed gives back the cue that stood. */
+   *  Takes and Outs out at its press that did not fail, else what stood under them at its press
+   *  (the newest of this page's that landed while a newer one was out, else the live marker). Read
+   *  when asked, so an older Take that failed after the send landed gives back the cue that stood. */
   type Layer = { take?: string | null; out: readonly { n: number; cue: string | null }[]; live: string | null };
   const layerAt = (graphic: string, take?: string | null): Layer => ({
     ...(take !== undefined ? { take } : {}),
     out: (markers[graphic]?.out ?? []).map((p) => ({ n: p.n, cue: p.cue })),
-    live: session.air.get().liveCue[graphic] ?? null,
+    live: markers[graphic]?.landed ? markers[graphic].landed.cue : (session.air.get().liveCue[graphic] ?? null),
   });
   const layerCue = (layer: Layer): string | null => {
     if (layer.take !== undefined) return layer.take;
@@ -454,8 +455,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const aired = session.air.get().aired[graphic]?.[key];
     const book = landedFigures.get(graphic);
     const landed = book?.[key];
+    // Another cue on the layer only for now (a newer Take still out) does not drop the figure: the
+    // Take may fail and give its cue back. Air's record moving past it does.
     const standing = landed && aired === landed.over && layerCue(landed.layer) === onLayer(graphic) ? landed : undefined;
-    if (landed && !standing) delete book![key];
+    if (landed && aired !== landed.over) delete book![key];
     if (pending && !(standing && standing.stamp > pending.stamp)) return pending.figures[key];
     return standing ? standing.figure : (aired ?? fallback);
   };
