@@ -404,6 +404,17 @@ changes a spec's digest.
   another screen's change (refusal or heard command, the latest of them) and only a press sent
   after it ends it. That made the separate `after` time redundant; it is gone. Pinned, each part
   red without it.
+  *Eighth assessment on 97f502e: FAIL.* Its findings (1) and (3), a block ended too early or
+  kept after a later Take landed, are the review above, fixed in 970b41d. (2) A reopened page never
+  heard what another screen did while it was closed, and wrote its restored candidate back over it:
+  the log the page reads at boot now goes to the live candidates (sessionWire.ts `history`, an
+  extra file; selectionAir.ts `foreignHistory`), and the newest update of a candidate's fields
+  there decides. (4) Its own send that committed just after a reload looked like another screen's:
+  an update now counts as someone else's only when its values for the candidate's fields are none
+  of the candidates the layer holds, so an echo of this page's own send, or another desk sending
+  the same values, changes nothing. (5) A clock that steps back delays a block's end until it
+  passes again; an Out always ends it: noted, not changed. The walk now writes every update it
+  applies into a log the reloaded page reads, and fails without the boot check.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

@@ -164,6 +164,22 @@ test('the lifetime in order: resolve, reports, replay, seed, history, then the f
   stop();
 });
 
+test('the history a reopened page reads goes to the live candidates, oldest first (E7.1)', async () => {
+  const wire = scriptedWire();
+  const heard = [];
+  const page = fakePage({ history: (rows) => heard.push(rows.map((r) => r.id)) });
+  const { stop } = start(wire, page);
+  await flush();
+  wire.resolves.at(-1).resolve({ ok: true, value: RESOLVED });
+  await flush();
+  wire.replays.at(-1).resolve([]);
+  await flush();
+  wire.tails.at(-1).resolve([{ id: 992, graphic: 'lt', msg: { t: 'update' } }, { id: 990, graphic: 'lt', msg: { t: 'play' } }]);
+  await flush();
+  assert.deepEqual(heard, [[990, 992]]);
+  stop();
+});
+
 test('a resolve that fails is asked again, and the header says so until it answers', async () => {
   const wire = scriptedWire();
   const page = fakePage();

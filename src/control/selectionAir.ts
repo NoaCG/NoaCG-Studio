@@ -780,24 +780,55 @@ export function staleSelection(io: SelectionAirIo, graphics: readonly string[]):
   keepIn(io, air);
 }
 
+/** Whether an update's values for a live candidate's fields are none of the candidates the layer
+ *  holds: someone else put them there. Values equal to one it holds (this page's own send heard
+ *  late, after a reload; another desk following the same candidate) change nothing. */
+function fromElsewhere(l: SelectionLayer, msg: { t: string }): boolean {
+  if (msg.t !== 'update' || !(msg as { snd?: unknown }).snd) return false;
+  const data = (msg as { data?: unknown }).data;
+  if (!data || typeof data !== 'object') return false;
+  const held = [l.onAir, ...l.out.map((s) => s.target), ...(l.unknown?.candidates ?? [])].filter((t): t is AiredTarget => t !== null);
+  const fields = new Set(held.flatMap((t) => Object.keys(t.values)));
+  const keys = Object.keys(data).filter((key) => fields.has(key));
+  if (keys.length === 0) return false;
+  return !held.some((t) => keys.every((key) => String((data as Record<string, unknown>)[key]) === t.values[key]));
+}
+
 /** Commands this page heard for the first time that it did not send (`mine`: its own echo), from
- *  a stamped sender (server-written rows carry no stamp): an update another screen sent over the
- *  fields of a live candidate here makes that candidate not this page's alone, so nothing goes
- *  there on its own until an operator press of this page, sent after hearing it, lands. A
+ *  a stamped sender (server-written rows carry no stamp): an update that writes values of a live
+ *  candidate's fields that are none of its candidates' makes it not this page's alone, so nothing
+ *  goes there on its own until an operator press of this page, sent after hearing it, lands. A
  *  command that moves no field (a Next, an event, a marker) blocks nothing: a marker that moves
  *  makes the follow drop the layer. */
 export function foreignSelection(io: SelectionAirIo, items: readonly { graphic: string; msg: { t: string } }[], mine: (msg: unknown) => boolean): void {
   let air = io.part.get();
   for (const { graphic, msg } of items) {
     const l = air[graphic];
-    if (!l || msg.t !== 'update' || mine(msg) || !(msg as { snd?: unknown }).snd) continue;
-    const data = (msg as { data?: unknown }).data;
-    const fields = new Set([l.onAir, ...l.out.map((s) => s.target), ...(l.unknown?.candidates ?? [])].flatMap((t) => (t ? Object.keys(t.values) : [])));
-    if (!data || typeof data !== 'object' || !Object.keys(data).some((key) => fields.has(key))) continue;
+    if (!l || mine(msg) || !fromElsewhere(l, msg)) continue;
     air = reduceSelection(air, { t: 'stale', graphic, now: io.now() }).air;
   }
   keepIn(io, air);
 }
+
+/** The log a reopened page reads at boot, oldest first: what another screen did while this page
+ *  was closed is never heard, so the newest update of each live candidate's fields there decides.
+ *  If someone else wrote it, the restored candidate is not this page's alone. */
+export function foreignHistory(io: SelectionAirIo, rows: readonly { graphic: string; msg: { t: string } }[], mine: (msg: unknown) => boolean): void {
+  const newest = new Map<string, { t: string }>();
+  const air = io.part.get();
+  for (const { graphic, msg } of rows) {
+    const l = air[graphic];
+    if (l && msg.t === 'update' && (msg as { snd?: unknown }).snd && touches(l, msg)) newest.set(graphic, msg);
+  }
+  foreignSelection(io, [...newest].map(([graphic, msg]) => ({ graphic, msg })), mine);
+}
+
+const touches = (l: SelectionLayer, msg: { t: string }): boolean => {
+  const data = (msg as { data?: unknown }).data;
+  if (!data || typeof data !== 'object') return false;
+  const fields = new Set([l.onAir, ...l.out.map((s) => s.target), ...(l.unknown?.candidates ?? [])].flatMap((t) => (t ? Object.keys(t.values) : [])));
+  return Object.keys(data).some((key) => fields.has(key));
+};
 
 /** Whether an action carries field values (it reads some into its payload, or moves some): such
  *  an action cannot go from a page that does not know the cue on air, since the values would be

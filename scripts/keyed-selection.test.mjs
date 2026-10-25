@@ -959,6 +959,23 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual(air.readSelectionAir(JSON.stringify(raw), 9000), {}, 'a malformed block is not read');
   });
 
+  test('an update carrying values the layer holds changes nothing; the newest update in the log a reopened page reads decides (eighth assessment)', async () => {
+    const aino = ok(selectionOf('D1', 7)).values;
+    const stamped = (data, oid) => ({ t: 'update', oid, snd: { i: 'x', at: 0 }, data });
+    const blocked = (rows, live = true) => {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      if (live) air.foreignSelection(p, rows.map((msg) => ({ graphic: 'Card', msg })), () => false);
+      else air.foreignHistory(p, rows.map((msg) => ({ graphic: 'Card', msg })), () => false);
+      return !!card(p).held;
+    };
+    assert.equal(blocked([stamped(aino, 'echo')]), false, 'this page\'s own send heard after a reload, or another desk following the same candidate');
+    assert.equal(blocked([stamped({ ...aino, f1: '1' }, 'other')]), true, 'another count');
+    assert.equal(blocked([stamped({ f0: 'Someone' }, 'old'), stamped(aino, 'mine')], false), false, 'the log: this page wrote last');
+    assert.equal(blocked([stamped(aino, 'mine'), stamped({ f0: 'Someone' }, 'other')], false), true, 'the log: another screen wrote last');
+    assert.equal(blocked([stamped(aino, 'mine'), { t: 'update', oid: 'api', data: { f0: 'Someone' } }], false), false, 'an unstamped server row is not another screen');
+  });
+
   test('a block from a Take that did not land stays one when another screen\'s change or a refusal comes too; a reload keeps only the other screen\'s part (seventh assessment)', () => {
     for (const then of ['refusal', 'another screen']) {
       const p = io();
@@ -1480,6 +1497,8 @@ describe('generated walks: the layer against the output', () => {
     let before = [];
     // What another screen pressed, as the page hears it (ProductionPage hearCommand).
     let theirs = null;
+    // The production's log, oldest first, as far as updates go.
+    const rows = [];
     const hear = () => {
       if (!unheard) return;
       unheard = false;
@@ -1518,6 +1537,8 @@ describe('generated walks: the layer against the output', () => {
       if (lands) {
         applied = send.index;
         output = send.target;
+        // The log a reopened page reads: what this page's send wrote there.
+        if (send.target) rows.push({ graphic: 'Card', msg: { t: 'update', oid: `page-${send.index}`, snd: { i: 'me', at: 0 }, data: send.target.values } });
         if (send.press) trueMarker = send.target ? send.target.cueId : 'plain';
       }
       return lands ? 'landed' : fate ? 'skipped' : 'failed';
@@ -1672,6 +1693,7 @@ describe('generated walks: the layer against the output', () => {
         if (output && rnd() < 0.5) {
           output = { ...output, entity: '["D9",9]', values: { f0: 'Someone Else', f1: '1', f2: '-' } };
           theirs = { t: 'update', oid: `theirs-${head}`, snd: { i: 'them', at: clock }, data: { f0: 'Someone Else' } };
+          rows.push({ graphic: 'Card', msg: theirs });
           head += 1;
           unheard = true;
           seen.otherUpdate += 1;
@@ -1697,11 +1719,12 @@ describe('generated walks: the layer against the output', () => {
         seen.reload += 1;
         page.alive = false;
         page = { alive: true };
-        // The reopened page reads the log, another screen's command included.
-        if (unheard && theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], () => false);
         known = head;
         unheard = false;
         part.set(air.readSelectionAir(air.writeSelectionAir(part.get()), clock));
+        // The reopened page reads the log at boot (sessionWire.ts); a command another screen sent
+        // while it was closed is never heard otherwise.
+        air.foreignHistory(io(), rows, () => false);
         marker = trueMarker;
         seeded = true;
         reloaded = true;

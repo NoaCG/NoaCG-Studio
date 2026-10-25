@@ -93,6 +93,9 @@ export interface SessionWirePage {
   refreshData: () => void;
   /** A row as the action log names it, or null for a row it does not show. */
   describe: (row: ControlEventRow) => LogEntry | null;
+  /** The log this page read at boot, oldest first: what other screens did while it was closed
+   *  (control/selectionAir.ts `foreignHistory`). */
+  history?: (rows: readonly ControlEventRow[]) => void;
   /** The output's last heartbeat. */
   seenAt: (at: string) => void;
   /** The 30 s tick, for the header clock. */
@@ -166,6 +169,7 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     }
     const history = await io.hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
     if (!live()) return;
+    page().history?.([...history].sort((a, b) => a.id - b.id));
     const described = history.map((row) => page().describe(row)).filter((e): e is LogEntry => !!e);
     session.apply((parts) => ({ ...parts, log: logged(parts.log, described, io.appendLog) }));
     const off = await io.followControlLog({
