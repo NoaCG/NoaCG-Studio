@@ -24,7 +24,11 @@ import {
   addShowCue,
   graphicLayer,
   loadShows,
+  setFieldBindings,
   setShowCues,
+  setShowSeedData,
+  setShowSelections,
+  deleteShow,
   setShowGraphicLayer,
   updateShowCue,
   setGraphicSounds,
@@ -51,6 +55,9 @@ import {
   type TemplateType,
 } from '../model/types';
 import { publishGate } from '../validation/publishGate';
+import { readCollectionRecipe, selectionCheck, selectionWriteError } from '../control/sourceMapping';
+import type { CollectionRecipe, CueSelection, JsonObject, ProductionBindings } from '../model/productionData';
+import { clearLiveData, saveLiveData } from '../model/productionState';
 
 /** A prepared cue shipped with a pack graphic — label + field values, ready to Take. */
 export interface PackCue {
@@ -136,6 +143,9 @@ export interface PackGraphicFile {
 /** One row of a pack's WHOLE-SHOW rundown: a cue addressing a graphic by pool name. */
 export interface RundownCue extends PackCue {
   graphic: string;
+  /** The cue's live candidate (format v3, E7.2a): a recipe of the pack's `collections` and the
+   *  entity's key, kept outside the cue's values. */
+  selection?: CueSelection;
 }
 
 /** A parsed, normalized pack — what `installPack` consumes. */
@@ -152,6 +162,17 @@ export interface GraphicsPack {
    */
   rundown?: RundownCue[];
   brand?: PackBrand;
+  /**
+   * The production's DATA (format v3, docs/work-specs/playout-election-package/spec.md E7.2a):
+   * the seed tree its fields start from (resolved defaults, never a credential), the shared
+   * bindings by pool graphic name, and the collection recipes its candidate cues select from. No
+   * source is carried: a connector is registered again in the production that installs it, so the
+   * rebind is explicit (playout-api-mapping AC-4). An older build refuses a v3 file rather than
+   * install candidate cues as plain ones.
+   */
+  data?: JsonObject;
+  bindings?: ProductionBindings;
+  collections?: CollectionRecipe[];
 }
 
 /** The format marker every pack file carries — a fast, honest "this is not a pack" answer
@@ -209,7 +230,7 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
   if (!isRecord(raw) || raw.format !== PACK_FORMAT) {
     return { pack: null, error: 'That file is not a NoaCG graphics pack.' };
   }
-  if (raw.version !== 1 && raw.version !== 2) {
+  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3) {
     return {
       pack: null,
       error: 'This pack was made with a newer version of NoaCG Studio — update to import it.',
@@ -330,9 +351,11 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
       }
       const cueLabel = asString(entry.label).trim();
       if (!cueLabel) return { pack: null, error: `Cue ${i + 1} has no label.` };
+      if (entry.selection !== undefined && raw.version !== 3) return { pack: null, error: `Cue ${i + 1} has a live candidate, which needs a version 3 pack.` };
       rundown.push({
         graphic,
         label: cueLabel,
+        ...(entry.selection !== undefined ? { selection: entry.selection as CueSelection } : {}),
         values: stringValues(entry.values),
         ...(asString(entry.note) ? { note: asString(entry.note) } : {}),
         ...(accentColor(entry.accentColor) ? { accentColor: accentColor(entry.accentColor) } : {}),
@@ -346,10 +369,14 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
     if (!brand) return { pack: null, error: 'The pack’s brand is not readable.' };
   }
 
+  const production = packData(raw, seenNames, rundown);
+  if ('error' in production) return { pack: null, error: production.error };
+
   return {
     pack: {
       name,
       description: asString(raw.description).trim(),
+      ...production.data,
       graphics,
       ...(soundAssets.length ? {soundAssets} : {}),
       ...(rundown.length ? { rundown } : {}),
@@ -357,6 +384,57 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
     },
     error: null,
   };
+}
+
+const stringRecord = (v: unknown): v is Record<string, string> => isRecord(v) && Object.values(v).every((x) => typeof x === 'string');
+
+/**
+ * A v3 pack's production data, checked before anything installs: the seed is a record, every
+ * binding names a graphic of the pack, every recipe reads (`readCollectionRecipe`), and every live
+ * candidate passes the writer's own check (`selectionWriteError`) against them. A v1 or v2 file
+ * carrying any of it is refused, never installed without it.
+ */
+function packData(
+  raw: Record<string, unknown>,
+  names: ReadonlySet<string>,
+  rundown: RundownCue[],
+): { data: Pick<GraphicsPack, 'data' | 'bindings' | 'collections'> } | { error: string } {
+  if (raw.data === undefined && raw.bindings === undefined && raw.collections === undefined && !rundown.some((c) => c.selection !== undefined)) return { data: {} };
+  if (raw.version !== 3) return { error: 'The pack carries production data, which needs a version 3 pack.' };
+  const out: Pick<GraphicsPack, 'data' | 'bindings' | 'collections'> = {};
+  if (raw.data !== undefined) {
+    if (!isRecord(raw.data)) return { error: 'The pack’s production data is not a record.' };
+    out.data = raw.data as JsonObject;
+  }
+  if (raw.bindings !== undefined) {
+    if (!isRecord(raw.bindings)) return { error: 'The pack’s bindings are not readable.' };
+    for (const [graphic, fields] of Object.entries(raw.bindings)) {
+      if (!names.has(graphic)) return { error: `The pack binds “${graphic}”, which is not a graphic in this pack.` };
+      if (!stringRecord(fields)) return { error: `The pack’s bindings for “${graphic}” are not readable.` };
+    }
+    out.bindings = raw.bindings as ProductionBindings;
+  }
+  if (raw.collections !== undefined) {
+    if (!Array.isArray(raw.collections)) return { error: 'The pack’s collections are not a list.' };
+    for (const [i, recipe] of raw.collections.entries()) {
+      const read = readCollectionRecipe(recipe);
+      if (read.status !== 'ok') return { error: `Collection ${i + 1}: ${read.status === 'invalid' ? read.error : 'it was made by a newer version of NoaCG Studio'}.` };
+      if (!names.has(read.recipe.graphic)) return { error: `Collection ${i + 1} is for “${read.recipe.graphic}”, which is not a graphic in this pack.` };
+    }
+    if (new Set(raw.collections.map((r) => (r as { id: string }).id)).size !== raw.collections.length) return { error: 'Two collections of the pack share an id.' };
+    out.collections = raw.collections as CollectionRecipe[];
+    // A field a collection maps never also follows a shared value (the read gate's rule).
+    for (const recipe of out.collections) {
+      const bound = Object.keys(recipe.fields).find((f) => out.bindings?.[recipe.graphic]?.[f] !== undefined);
+      if (bound) return { error: `“${recipe.graphic}” field ${bound} is both a live candidate's and bound to a shared value.` };
+    }
+  }
+  for (const [i, cue] of rundown.entries()) {
+    if (cue.selection === undefined) continue;
+    const refused = selectionWriteError(cue, out.collections, cue.graphic, out.bindings);
+    if (refused) return { error: `Cue ${i + 1}: ${refused}` };
+  }
+  return { data: out };
 }
 
 /**
@@ -507,6 +585,9 @@ export async function installPack(
    *  Without it, each graphic keeps the stamp its file entry carries. */
   fromPack?: PackStamp,
 ): Promise<Show> {
+  // A pack's production data is a whole production's: its seed, live tree and candidates go into
+  // a production of their own, never over one that has its own.
+  if ((pack.data || pack.bindings || pack.collections) && dest?.kind === 'existing') throw new Error('This pack carries its production’s data, so it installs as a new production.');
   pack = await realizePack(pack);
   const failure = validatePack(pack);
   if (failure) throw new Error(failure);
@@ -556,6 +637,17 @@ export async function installPack(
     if (error) throw new Error(error);
   }
 
+  // The production's data (v3). Its production is new (refused above otherwise), so a step that
+  // fails takes the production back out: never one whose candidate cues landed as plain cues.
+  try {
+    installData(pack, show.id);
+  } catch (error) {
+    deleteShow(show.id);
+    clearLiveData(show.id);
+    await commitDurableWrites();
+    throw error;
+  }
+
   for (const g of pack.graphics) {
     const pooled = installed.graphics.find((p) => p.name === g.template.name);
     if (!pooled) continue;
@@ -595,6 +687,28 @@ export async function installPack(
 
   const final = loadShows().find((s) => s.id === show.id);
   return final ?? show;
+}
+
+/** A v3 pack's production data onto its new production: the seed, which the live tree starts from
+ *  as Reset to seed would make it, the shared bindings, then the recipes with the candidate cues
+ *  that select from them (one write). Throws a sentence on the first refusal. */
+function installData(pack: GraphicsPack, showId: string): void {
+  if (pack.data) {
+    setShowSeedData(showId, pack.data);
+    saveLiveData(showId, pack.data);
+  }
+  if (pack.bindings) {
+    const entries = Object.entries(pack.bindings).flatMap(([graphic, fields]) => Object.entries(fields).map(([fieldId, path]) => ({ graphic, fieldId, path })));
+    const stored = setFieldBindings(showId, entries).find((s) => s.id === showId)?.bindings ?? {};
+    if (entries.some((e) => stored[e.graphic]?.[e.fieldId] !== e.path)) throw new Error('The pack’s data connections could not all be made.');
+  }
+  if (pack.collections?.length) {
+    const cues = loadShows().find((s) => s.id === showId)?.cues ?? [];
+    // `setShowCues` wrote the rundown in order, so the pack's row i is the production's cue i.
+    const selections = new Map((pack.rundown ?? []).flatMap((c, i) => (c.selection && cues[i] ? [[cues[i].id, c.selection] as const] : [])));
+    const { error } = setShowSelections(showId, pack.collections, selections, selectionCheck);
+    if (error) throw new Error(error);
+  }
 }
 
 /** An asset stored as a Blob has no JSON form — embed it, the way every export does. */
@@ -668,20 +782,37 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
       {
         graphic,
         label: cue.label,
+        // A live candidate travels as its record; a later version's is left as it is, and the
+        // importing build judges it.
+        ...(cue.selection !== undefined ? { selection: structuredClone(cue.selection) } : {}),
         values: { ...cue.values },
         ...(cue.note ? { note: cue.note } : {}),
         ...(accentColor(cue.accentColor) ? { accentColor: accentColor(cue.accentColor) } : {}),
       },
     ];
   });
+  // The production's data (v3): its seed, its bindings and its recipes, never a source, so the
+  // file carries no connector, address or credential and an import rebinds explicitly.
+  const pooled = new Set(show.graphics.map((g) => g.name));
+  const bindings = Object.entries(structuredClone(show.bindings ?? {})).filter(([graphic, fields]) => pooled.has(graphic) && Object.keys(fields).length > 0);
+  // A recipe of a later version always travels, so the file is refused on import, never flattened.
+  const collections = structuredClone(show.collections ?? []).filter((r) => readCollectionRecipe(r).status === 'read-only' || pooled.has((r as { graphic?: unknown }).graphic as string));
+  const data = {
+    ...(show.data && Object.keys(show.data).length ? { data: structuredClone(show.data) } : {}),
+    // Bindings of a graphic no longer in the pool bind nothing, and would make the file refused.
+    ...(bindings.length ? { bindings: Object.fromEntries(bindings) } : {}),
+    // Likewise a recipe whose graphic has gone (its cues went with it).
+    ...(collections.length ? { collections } : {}),
+  };
   return {
     format: PACK_FORMAT,
-    version: soundAssets.length ? 2 : 1,
+    version: Object.keys(data).length || cues.some((c) => 'selection' in c) ? 3 : soundAssets.length ? 2 : 1,
     name: show.name,
     description: '',
     graphics,
     ...(soundAssets.length ? {soundAssets} : {}),
     ...(cues.length ? { cues } : {}),
+    ...data,
   };
 }
 

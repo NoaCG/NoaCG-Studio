@@ -5,6 +5,103 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 31, phase E7.2a: the selection writer and the election rehearsal package
+
+- **Previous verified `main` sha:** row 30 (E7.1) passed on `8ebb429` (repair #1704), and
+  deploy-verify succeeded on it. This branch began on `8eacb02`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated. A reverted build reads
+  every selection this build wrote (E7.1's reader stays) and refuses to change them
+  (`selectionFrozen` without the writer's allowance), so a candidate cue stays a candidate cue,
+  read and aired, with no menu to move it. It refuses a v3 pack file with "made with a newer
+  version". `public/packs/election-rehearsal*` goes with the revert.
+- **What landed.** The writer: `selectionWriteError` and `collectionEntities` in
+  `src/control/sourceMapping.ts`; `SelectionWrite` and the allowance in `selectionFrozen`
+  (`src/model/productionData.ts`); `setCueSelection` and `setShowSelections` in
+  `src/model/shows.ts`, both through `patchShowChecked` (rebased, so the check runs on the record
+  each door writes); the Live candidate menu in the cue editor (`CueEditor.tsx` `CandidateMenu`,
+  `ProductionPage.tsx` `candidatePicker` / `pickCandidate`). The package: graphics pack format v3
+  (`src/packs/graphicsPack.ts`: `data`, `bindings`, `collections`, a rundown cue's `selection`;
+  parse, install, export); the file-based source `packs/election-rehearsal/` (four graphics,
+  `manifest.json`, `starter/revision-1.json` and `-2.json`, `INSTALL.md`) built by
+  `scripts/build-production-pack.mjs` into `public/packs/election-rehearsal.noacgpack.json` with
+  the instructions and starter files beside it; tests.
+- **The contract, old and new.** Persisted records unchanged (E7.1's `Show.collections` and
+  `ShowCue.selection`, now written). Pack file: version 3, additive keys; an older build refuses
+  it. This reaches every production with a seed or bindings, not only candidate ones: its export
+  is now v3 (carrying the data an older export silently dropped), so an older build refuses that
+  file too. No wire, route or output change: outputs receive resolved values only.
+- **Decisions.**
+  - *The package's home* is the graphics pack (`src/packs/graphicsPack.ts`, `.noacgpack.json`)
+    from a file-based source under `packs/`, as Fight Night and the community shelf are: it is
+    the existing format that carries several native graphics (html, css, js, inlined fonts and
+    images) with a rundown, installs through Home's "Import a package file…" and exports from a
+    production. Not a wizard kit (catalog designs are generated code, not native sources) and not
+    the single-graphic dual package. The research folder's templates were inputs; the four
+    graphics are new (Manrope, one ink panel family, tabular figures, fromTo entrances).
+  - *"Install into an empty rehearsal production"*: the import makes a new production, empty
+    until the install writes it. A door to install into an existing production would be new UI
+    the taste rule asks to avoid; INSTALL.md says to rehearse in a production of its own.
+  - *"Import starter files without binding"*: the starter count is the pack's seed (`data`), the
+    shared bindings (party board, count bug) and the candidate recipe travel with it, so install
+    is the import and nothing is bound by hand. The live tree starts at the seed (Reset to seed).
+    A published production takes the same starter file through `/api/data/patch` (the configured
+    walk), as a results source would. `starter/revision-2.json` is the next count for a manual
+    replay through Data → Raw JSON.
+  - *Editorial and result data*: result paths are `external.election.*` (where E4/E5's source
+    writes); party codes, names, colours, titles, labels, headlines are cue values. The ticker
+    binds nothing. INSTALL.md has the two tables.
+  - *The writer's gate*: the record must pass `selectionGate` and name the entity by at least two
+    key parts (`selectionWriteError`); a one-part key passes the reader, so the writer refuses it
+    (row 30 trap). Both doors run it on the record they write; `selectionFrozen` lets exactly the
+    named cue change to exactly the bytes checked, never a later version's cue, and keeps every
+    other selection and the recipes byte for byte. Only an install writes recipes, once, and only
+    into a production that has none.
+  - *The menu*: one select in the editor head, listing each person of the current revision in key
+    order (never ranking order) plus Fixed values. A pick on the aired cue changes the record and
+    PREVIEW at once and air at ✎ Update (E7.1's capture), and the editor says "Not on air yet.
+    Press ✎ Update" while they differ. Fixed values detaches with what the candidate showed as the
+    cue's values in the same write (Fill); picking again reconnects. No new tab, no per-field
+    button. The E7.1 label line now shows only a reason (not ready, read-only).
+  - *Pause*: unchanged; a recipe's source Paused writes no tree, so nothing moves (E7.1, pinned).
+  - *Export*: `buildPack` writes the seed, bindings, recipes and cue selections, never
+    `Show.sources`, so no address, key or credential leaves, and an imported production rebinds
+    its source explicitly (E5 AC-4). A later-version recipe exported from this build makes the
+    file refused on import, never flattened.
+- **Files beyond the phase's list, and why.** `.dependency-cruiser.cjs` (packs may import
+  `control/sourceMapping.ts`, the one reader, and nothing else of control), `docs/GRAPHICS_PACKS.md`
+  (the format's v3 keys), `src/styles/playout-dashboard.css` (the menu), `scripts/build-production-pack.mjs`
+  (images/, the v3 keys, the files published beside a pack), `e2e/configured/expected-run.json`
+  (one more configured walk, 126).
+- **Verification.** Node `scripts/keyed-selection.test.mjs`: the writer's gate, the doors'
+  allowance (a pick, a move, a detach, an install; other bytes, another cue, a later version, a
+  vanished cue, the recipes), storage round trip, the menu's order and refusals, and the aired
+  cue keeping its person until an Update that sends one whole record (119 pass). Mutations, each
+  red: a one-part key allowed, the bytes not compared, a later version rewritable, a vanished cue
+  accepted, an install's recipe bytes ignored, a gained selection refused despite the write, the
+  kept loop ignoring the write, the menu unsorted, duplicates listed. Browser
+  `e2e/production-pack.spec.ts` (6 pass here): install, preview and Take all four on the program
+  monitor, two people with one number, the pick on air held until Update, Fixed values and
+  reconnect; export with assets (fonts, the portrait) byte for byte and reimport to the same
+  production; every v3 refusal and the failed-install cleanup; and, on a bare page, each graphic
+  taken again during its Out and an empty ticker starting when headlines arrive (red on the
+  graphics before `5a14e16`). Configured `election-selection.spec.ts` AC-1 walk (Actions): publish, the starter
+  count through `/api/data/patch`, all four on a browser output, the pick moving air at Update.
+- **Independent assessment.** A fresh read-only `/so` graded `c803696` A- (a failed install left
+  a half-made production; the v3 refusals untested; the v3 reach understated), all fixed in
+  `6e39e1f`; its re-read graded `ecbb419` A (the export dropping a recipe whose graphic has gone,
+  also raised by the automated review). The automated review then found the ticker stuck when taken
+  empty and a Take during an Out ending hidden, fixed in `5a14e16`; a final fresh read of
+  `5a14e16` graded it A (AGREE). Left as is: a failed install removes its production but not
+  the graphics already saved to the library (as every failed pack install before it); a retry's
+  `installOverlap` asks about the same-named copies.
+- **Traps.** `pkill -f "vite --port …"` kills the shell that runs it (its own command line
+  matches). A graphic whose Out is loose `gsap.to` tweens beside its entrance timeline ends hidden
+  when taken again mid-Out, since Play kills only the entrance: keep one timeline per graphic for
+  the entrance or the exit, and kill it on both. The job queue admits one broader job per commit: a failed run (here the #1647
+  headless shell missing) needs a new commit. A graphic whose entrance uses GSAP `.from()` ends
+  hidden when PREVIEW plays it twice in quick succession: name the end state (`fromTo`).
+
 ## Fix #1696: the live marker after an overtaking press fails
 
 - **Previous `main` sha:** `cad2f01` (this branch began there).

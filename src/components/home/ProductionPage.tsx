@@ -83,10 +83,10 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
-import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
+import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
-import { selectionGate } from '../../control/sourceMapping';
+import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
   fetchProductionData,
@@ -122,7 +122,7 @@ import type { SavedGraphic } from '../../model/packets';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
-import { setGraphicSounds } from '../../model/shows';
+import { setCueSelection, setGraphicSounds } from '../../model/shows';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
 import {
@@ -219,7 +219,7 @@ import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../../control/folderPlayout';
 import { startCueArmEngine, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
-import CueEditor, { useCueView, type CueCandidate, type OwnReader } from './CueEditor';
+import CueEditor, { useCueView, type CandidatePicker, type CueCandidate, type OwnReader } from './CueEditor';
 import CueActions from './CueActions';
 import ProductionShell from './ProductionShell';
 import ServerCueEditor from './ServerCueEditor';
@@ -417,6 +417,17 @@ function DraftView({ draft, cue, children }: { draft: Pick<CueDraft, 'part'>; cu
   return <>{children(useCueView(draft, cue))}</>;
 }
 const liveCueOf = (air: AirPart) => air.liveCue;
+
+/** The Live candidate menu's people per tree and recipe, so a render that did not change the tree
+ *  reads them again rather than walking and sorting the collection. */
+const listedPeople = new WeakMap<object, Map<string, ReturnType<typeof collectionEntities>>>();
+function entitiesIn(recipe: CollectionRecipe, tree: object): ReturnType<typeof collectionEntities> {
+  let byRecipe = listedPeople.get(tree);
+  if (!byRecipe) listedPeople.set(tree, (byRecipe = new Map()));
+  const key = JSON.stringify(recipe);
+  if (!byRecipe.has(key)) byRecipe.set(key, collectionEntities(recipe, tree));
+  return byRecipe.get(key)!;
+}
 const airedOf = (air: AirPart) => air.aired;
 const bootLiveOf = (air: AirPart) => air.bootLive;
 const entriesOf = (log: LogPart) => log.entries;
@@ -1458,6 +1469,57 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const take = candidateTake(cue);
     const label = gate.status === 'ok' ? `Live candidate: ${gate.recipe.key.map((path, i) => `${path} ${String(gate.selection.key[i])}`).join(', ')}` : 'Live candidate';
     return { readOnly: null, label, fields, values: take.status === 'ok' ? take.values : {}, notReady: take.status === 'refused' ? take.reason : null };
+  };
+  /** The writer's menu for the edited cue (E7.2a): the people each of its graphic's recipes
+   *  offers in this render's tree, and the cue's pick. Null for a cue no recipe serves, or one this
+   *  build reads only. */
+  const candidatePicker = (cue: ShowCue | null): CandidatePicker | null => {
+    const graphic = cue ? cueGraphicName(cue) : null;
+    if (!cue || !graphic || cue.source === 'playout' || selectionReadOnly(cue, show?.collections)) return null;
+    const recipes = (show?.collections ?? []).flatMap((raw) => {
+      const read = readCollectionRecipe(raw);
+      return read.status === 'ok' && read.recipe.graphic === graphic && read.recipe.key.length >= 2 ? [read.recipe] : [];
+    });
+    if (recipes.length === 0) return null;
+    const gate = selectionGate(cue, show?.collections, graphic, bindings);
+    const pick = gate.status === 'ok' ? JSON.stringify([gate.selection.recipe, gate.selection.key]) : null;
+    return {
+      // This cue on air with another person than it now picks: the picture changes at ✎ Update.
+      // Read by the editor from the session's own part, so a capture landing redraws the note.
+      waitsForUpdate:
+        liveCue[graphic] === cue.id
+          ? {
+              part: session.selections,
+              differs: (air) => {
+                const aired = airedSelectionOf(air, graphic);
+                return !!aired?.known && aired.cueId === cue.id && JSON.stringify([aired.selection.recipe, aired.selection.key]) !== pick;
+              },
+            }
+          : null,
+      options: recipes.map((recipe) => {
+        const listed = entitiesIn(recipe, liveData);
+        return { recipe: recipe.id, ...('problem' in listed ? { entities: [], problem: listed.problem } : { entities: listed.entities, problem: null }) };
+      }),
+      value: pick ?? (cue.selection === undefined ? '' : 'invalid'),
+      onPick: (recipe, key) => void pickCandidate(cue, recipe && key ? { v: SELECTION_VERSION, recipe, key } : null),
+    };
+  };
+  /** THE SELECTION WRITER's one door from this page (model/shows.ts `setCueSelection`): the
+   *  record is checked by the reader inside the write, on the record each door writes. Detaching
+   *  (Fill) keeps what the candidate shows now as the cue's own values. A cue on air keeps its
+   *  captured candidate until ✎ Update. */
+  const pickCandidate = async (cue: ShowCue, selection: CueSelection | null) => {
+    if (!show) return;
+    const take = selection === null ? candidateTake(cue) : null;
+    const snapshot = take?.status === 'ok' ? take.values : undefined;
+    // A rundown edit like any other: one undoable step, said only once it lands.
+    const saved = await writeRundown(
+      () => setCueSelection(show.id, cue.id, selection, selectionCheck, snapshot),
+      'Live candidate',
+      'The live candidate was not saved',
+    );
+    // Nothing resolved to hold: the cue keeps the values it had, and says so.
+    if (saved && cue.selection !== undefined && selection === null && !snapshot) setNote('Fixed values: the candidate could not be read, so the cue keeps its own values.');
   };
   /** `text` in the one form every field connected to `path` takes ("TRUE" is "1" for a toggle), or
    *  null when one cannot hold it or they need different forms (control/sheetSource.ts). */
@@ -3535,6 +3597,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onConnectPreview={(values) => setConnectPreview(values ? { graphic: poolGraphic.name, values } : null)}
             ownReader={ownReaderOf(poolGraphic)}
             candidate={candidateOf(editingCue)}
+            picker={candidatePicker(editingCue)}
             endsRow={() => {
               const auto = readAuto(editingCue);
               const nextId = nextGraphicCue(cues, editingCue.id);

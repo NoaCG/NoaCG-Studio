@@ -35,7 +35,10 @@ import {
 import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
 import { columnsFor, connectorPlan, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
-import { projectSource } from '../../control/sourceMapping';
+import { projectSource, type CollectionEntity } from '../../control/sourceMapping';
+import type { SelectionAir } from '../../control/selectionAir';
+import type { StorePart } from '../../control/storePart';
+import { useStorePart } from './useStorePart';
 import type { SourceListAdapter } from '../../control/externalSource';
 import { productionDataKey } from '../../control/productionDataApi';
 import { viewOf, type CueDraft, type CueText } from '../../control/cueDraft';
@@ -774,6 +777,64 @@ export interface CueCandidate {
   notReady: string | null;
 }
 
+/** The writer's menu (E7.2a): which person this cue shows, picked from what each of its graphic's
+ *  collection recipes holds now, or Fixed values. A pick is one write (ProductionPage
+ *  `pickCandidate`); Fixed values detaches the cue with what the candidate showed. */
+export interface CandidatePicker {
+  options: { recipe: string; entities: CollectionEntity[]; problem: string | null }[];
+  /** JSON of `[recipe, key]` for the cue's pick, '' for none, 'invalid' for one that does not read. */
+  value: string;
+  /** While the cue is live: whether what airs is another person than it picks now (✎ Update takes
+   *  the pick), read from the session's aired candidates. */
+  waitsForUpdate: { part: StorePart<SelectionAir>; differs: (air: SelectionAir) => boolean } | null;
+  onPick: (recipe: string | null, key: (string | number)[] | null) => void;
+}
+
+/** "Not on air yet" for a pick the layer has not taken: a readout of the aired candidates, so a
+ *  capture landing redraws this line and not the page. */
+function CandidateWaits({ waits, rehearsing }: { waits: NonNullable<CandidatePicker['waitsForUpdate']>; rehearsing: boolean }) {
+  const air = useStorePart(waits.part);
+  if (!waits.differs(air)) return null;
+  return (
+    <span className="pd-editor-fate pd-unsent-note" data-testid="cue-candidate-unsent">
+      Not {rehearsing ? 'on PROGRAM' : 'on air'} yet. Press ✎ Update
+    </span>
+  );
+}
+
+/** The menu itself: one option per person, in key order; the cue's own pick stays listed when the
+ *  count no longer holds it, so the menu never shows another person than the cue names. */
+function CandidateMenu({ picker }: { picker: CandidatePicker }) {
+  const many = picker.options.length > 1;
+  const listed = new Set(picker.options.flatMap((o) => o.entities.map((e) => JSON.stringify([o.recipe, e.key]))));
+  const options = (o: CandidatePicker['options'][number]) =>
+    o.entities.map((e) => (
+      <option key={JSON.stringify(e.key)} value={JSON.stringify([o.recipe, e.key])}>
+        {[e.label, e.key.join(' ')].filter(Boolean).join(' · ')}
+      </option>
+    ));
+  const missing = picker.value && picker.value !== 'invalid' && !listed.has(picker.value) ? (JSON.parse(picker.value) as [string, (string | number)[]]) : null;
+  return (
+    <select
+      className="pd-candidate-pick"
+      aria-label="Live candidate"
+      title={picker.options.map((o) => o.problem).filter(Boolean).join('; ') || 'Live candidate'}
+      value={picker.value}
+      data-testid="cue-candidate-pick"
+      onChange={(e) => {
+        if (e.target.value === '') return picker.onPick(null, null);
+        const [recipe, key] = JSON.parse(e.target.value) as [string, (string | number)[]];
+        picker.onPick(recipe, key);
+      }}
+    >
+      <option value="">Fixed values</option>
+      {picker.value === 'invalid' && <option value="invalid" disabled>Live candidate</option>}
+      {missing && <option value={picker.value}>{missing[1].join(' ')}</option>}
+      {many ? picker.options.map((o) => <optgroup key={o.recipe} label={o.recipe}>{options(o)}</optgroup>) : options(picker.options[0])}
+    </select>
+  );
+}
+
 /** A graphic's own Sheet reader, as Connect data… sees it (sheet-data-flow AC-10, C6). */
 export interface OwnReader {
   gate: OwnReaderGate;
@@ -911,6 +972,7 @@ export default function CueEditor({
   onConnectPreview,
   ownReader,
   candidate,
+  picker,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
@@ -979,6 +1041,8 @@ export default function CueEditor({
   ownReader: OwnReader;
   /** The edited cue's live candidate (E7.1), null when it has none. */
   candidate: CueCandidate | null;
+  /** Which person the cue shows (E7.2a), null when no collection serves its graphic. */
+  picker: CandidatePicker | null;
 }) {
   /** How many times the editor has rendered - published on its root as `data-renders`, beside the
    *  page's: e2e/playout-air-contract.spec.ts proves typing moves this one and not that one. */
@@ -1054,9 +1118,11 @@ export default function CueEditor({
             : null}
         </span>
         <CueOverflowNote keys={overflowKeys} descriptors={descriptors} />
-        {candidate && (
+        {picker && <CandidateMenu picker={picker} />}
+        {picker?.waitsForUpdate && !hasUnsent && <CandidateWaits waits={picker.waitsForUpdate} rehearsing={rehearsing} />}
+        {candidate && (!picker || candidate.readOnly || candidate.notReady) && (
           <span className={candidate.readOnly || candidate.notReady ? 'pd-unsent-note' : 'muted'} data-testid="cue-candidate">
-            {candidate.readOnly ?? (candidate.notReady ? `${candidate.label}. ${candidate.notReady}` : candidate.label)}
+            {candidate.readOnly ?? (candidate.notReady ? (picker ? candidate.notReady : `${candidate.label}. ${candidate.notReady}`) : candidate.label)}
           </span>
         )}
         <CueConnectData
@@ -1231,9 +1297,9 @@ export default function CueEditor({
                           </span>
                         </div>
                         {format ? (
-                          <textarea value={shown} placeholder="not ready" rows={3} readOnly tabIndex={-1} />
+                          <textarea value={shown} placeholder={candidate.notReady ? 'not ready' : ''} rows={3} readOnly tabIndex={-1} />
                         ) : (
-                          <input value={shown} placeholder="not ready" readOnly tabIndex={-1} />
+                          <input value={shown} placeholder={candidate.notReady ? 'not ready' : ''} readOnly tabIndex={-1} />
                         )}
                       </div>
                     );

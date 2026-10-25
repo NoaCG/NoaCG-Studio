@@ -1917,3 +1917,136 @@ describe('a marker this page moved decides nothing until its press is answered (
     assert.equal(air.airedValues(failed, 'Card', 'cue-a'), null);
   });
 });
+
+// ── THE WRITER (E7.2a): what the page writes, and what the write doors let it write ─────────────
+//
+// model/shows.ts `setCueSelection` (the cue editor's Live candidate menu) and `setShowSelections`
+// (a pack's install) write a selection only when `selectionWriteError` passes it, inside the write
+// on the record each door writes, and `selectionFrozen` lets that one cue change to those bytes and
+// nothing else. The browser half is e2e/production-pack.spec.ts (install, pick, Fill, export).
+describe('the selection writer (E7.2a)', () => {
+  const card = (selection) => (selection === undefined ? {} : { selection });
+  const writeError = (selection, collections = [RECIPE], bindings = {}) => mapping.selectionWriteError(card(selection), collections, 'Card', bindings);
+
+  test('it writes only a record the reader takes, named by district plus candidate', () => {
+    assert.equal(writeError(selectionOf('D1', 7)), null);
+    // One part passes the reader; the writer refuses it, since a number repeats across districts.
+    const one = { ...RECIPE, id: 'by-number', key: ['number'] };
+    assert.equal(mapping.selectionGate({ selection: { v: 1, recipe: 'by-number', key: [7] } }, [one], 'Card', {}).status, 'ok');
+    assert.match(writeError({ v: 1, recipe: 'by-number', key: [7] }, [one]), /district and its candidate number/);
+    assert.match(writeError({ v: 1, recipe: 'cands', key: ['D1'] }), /needs 2 parts/);
+    assert.match(writeError({ v: 1, recipe: 'nope', key: ['D1', 7] }), /does not have/);
+    assert.match(writeError(selectionOf('D1', 7), [RECIPE], { Card: { f0: 'api.name' } }), /follows a shared value/);
+    assert.match(writeError(selectionOf('D1', 7), [{ ...RECIPE, v: 2 }]), /later version/);
+    assert.match(writeError({ v: 2, recipe: 'cands', key: ['D1', 7] }), /later version/);
+    assert.match(writeError({ ...selectionOf('D1', 7), rank: 1 }), /not one this version reads/);
+    assert.match(writeError(undefined), /no live candidate/);
+    assert.equal(mapping.selectionWriteError({ selection: selectionOf('D1', 7) }, [RECIPE], 'Other', {}) !== null, true, 'another graphic');
+  });
+
+  describe('the doors let the writer change one cue, to its bytes, and nothing else', () => {
+    const cue = (id, extra = {}) => ({ id, sourceId: 'g1', label: id, values: { f0: 'x' }, ...extra });
+    const a = cue('a', { selection: selectionOf('D1', 7) });
+    const p = cue('p');
+    const later = cue('later', { selection: { v: 2, recipe: 'cands', pick: 'rank' } });
+    const show = (cues, collections = [RECIPE]) => ({ cues, collections });
+    const write = (cues, collections) => ({ cues: new Map(Object.entries(cues)), ...(collections ? { collections: JSON.stringify(collections) } : {}) });
+    const frozen = (before, after, w) => data.selectionFrozen(data.selectionKeep(before), after, undefined, w);
+    const b = selectionOf('D2', 7);
+
+    test('a pick, a move to another person and a detach pass with their own bytes', () => {
+      assert.equal(frozen(show([p]), show([{ ...p, selection: b }]), write({ p: JSON.stringify(b) })), null, 'a cue gains one');
+      assert.equal(frozen(show([a]), show([{ ...a, selection: b }]), write({ a: JSON.stringify(b) })), null, 'a move');
+      const detached = { ...a, values: { f0: 'Aino Aalto' } };
+      delete detached.selection;
+      assert.equal(frozen(show([a]), show([detached]), write({ a: 'null' })), null, 'Fill detaches');
+    });
+
+    test('other bytes, another cue, a later version, a vanished cue or the recipes are still refused', () => {
+      assert.ok(frozen(show([a]), show([{ ...a, selection: { ...b, key: ['D2', 8] } }]), write({ a: JSON.stringify(b) })), 'not the bytes it said');
+      const c = cue('c', { selection: selectionOf('D1', 8) });
+      assert.ok(frozen(show([a, c]), show([{ ...a, selection: b }, { ...c, selection: b }]), write({ a: JSON.stringify(b) })), 'another cue moved in the same write');
+      assert.ok(frozen(show([later]), show([{ ...later, selection: b }]), write({ later: JSON.stringify(b) })), 'a later version is never rewritten');
+      assert.ok(frozen(show([a]), show([]), write({ a: 'null' })), 'a write names a cue that is there');
+      assert.ok(frozen(show([a]), show([{ ...a, selection: b }], [{ ...RECIPE, schemaRevision: 4 }]), write({ a: JSON.stringify(b) })), 'the recipes stay');
+      assert.ok(frozen(show([a]), show([{ ...a, selection: b }])), 'and without the allowance nothing moves');
+    });
+
+    test('an install writes the recipes and its cues together, and only those', () => {
+      const none = { cues: [p, cue('q')] };
+      const installed = show([{ ...p, selection: b }, cue('q')]);
+      assert.equal(frozen(none, installed, write({ p: JSON.stringify(b) }, [RECIPE])), null);
+      assert.ok(frozen(none, installed, write({ p: JSON.stringify(b) }, [{ ...RECIPE, id: 'other' }])), 'other recipe bytes');
+      assert.ok(frozen(none, show([{ ...p, selection: b }, cue('q', { selection: b })]), write({ p: JSON.stringify(b) }, [RECIPE])), 'a cue it did not name');
+    });
+
+    test('a pick is one undoable step: undo and redo move the cue back and forth, a later version still never moves', () => {
+      const slice = (cues) => ({ cues, folders: [], graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [] });
+      const record = (cues) => ({ id: 's', version: 2, name: 'S', graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [], folders: [], cues, collections: [RECIPE], updatedAt: 'x' });
+      const picked = { ...a, selection: b };
+      const undo = replaceRundown(record([picked]), slice([picked]), slice([a]));
+      assert.equal(undo.refused, null);
+      assert.deepEqual(undo.show.cues[0].selection, selectionOf('D1', 7));
+      const detached = { ...a, values: { f0: 'Aino Aalto' } };
+      delete detached.selection;
+      assert.equal(replaceRundown(record([detached]), slice([detached]), slice([a])).refused, null, 'a Fill undone reconnects');
+      assert.equal(replaceRundown(record([a]), slice([a]), slice([detached])).refused, null, 'and redone detaches');
+      assert.ok(replaceRundown(record([later]), slice([later]), slice([{ ...later, selection: b }])).refused, 'a later version is never moved');
+    });
+
+    test('what is written reads back byte for byte through storage and both doors after it', () => {
+      const after = show([{ ...p, selection: b }]);
+      assert.equal(frozen(show([p]), after, write({ p: JSON.stringify(b) })), null);
+      const stored = JSON.parse(JSON.stringify(after));
+      assert.equal(data.selectionKeep(stored).cues.get('p').bytes, JSON.stringify(b));
+      // The next ordinary write of either door (a rename) keeps it; a page that cannot read a later
+      // version still refuses to change one.
+      assert.equal(frozen(stored, { ...stored, cues: [{ ...stored.cues[0], label: 'renamed' }] }), null);
+      assert.ok(frozen(show([later]), show([{ ...later, label: 'renamed' }])));
+    });
+  });
+
+  test('the menu lists each person once, in key order, whatever the ranking; a broken revision lists nobody', () => {
+    const names = (c) => mapping.collectionEntities(RECIPE, tree(c));
+    const ranked = names(collection(5, BASE));
+    assert.deepEqual(ranked, { entities: [{ key: ['D1', 7], label: 'Aino Aalto' }, { key: ['D1', 8], label: 'Cecilia Cole' }, { key: ['D2', 7], label: 'Bertta Berg' }] });
+    assert.deepEqual(names(collection(6, [...BASE].reverse())), ranked, 'a reordered ranking moves nobody in the menu');
+    assert.deepEqual(names(collection(5, [...BASE, BASE[0]])), { problem: 'two items share one key' });
+    assert.deepEqual(names(collection(5, [{ name: 'Nobody' }])), { problem: 'an item of the collection has no district' });
+    assert.deepEqual(names(collection(5, [])), { entities: [] });
+    const numbered = names(collection(5, [10, 2, 1].map((n) => person('D1', n, `P${n}`, 1)).concat([person('D1', '9', 'Text nine', 1)])));
+    assert.deepEqual(numbered.entities.map((e) => e.key[1]), [1, 2, 10, '9'], 'numbers by value, before a text key');
+    assert.ok('problem' in mapping.collectionEntities({ ...RECIPE, schemaRevision: 9 }, tree(collection(5, BASE))));
+  });
+
+  describe('a pick on the aired cue: the layer keeps its captured person until Update', () => {
+    const follow = (state, c, now = 2000) => air.reduceSelection(state, { t: 'follow', liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(c), mint: air.mintSend, now });
+    const airA = () => {
+      const p = pressed({}, 'cue-a', take(selectionOf('D1', 7), collection(5, BASE)));
+      return answered(p.air, p.seq, true);
+    };
+
+    test('the cue now picking B changes nothing on air: corrections still go for A', () => {
+      // The writer changed the record (cue-a now selects B); the layer is handed no cue, only its own.
+      const r = follow(airA(), collection(6, BASE.map((x) => ({ ...x, votes: x.votes + 1 }))));
+      assert.deepEqual(r.sends.map((s) => s.values.f0), ['Aino Aalto']);
+      assert.deepEqual(shown(r.air).selection, selectionOf('D1', 7));
+    });
+
+    test('Update to B takes B\'s whole record as one update, and the layer follows B from then on', () => {
+      const update = take(selectionOf('D2', 7), collection(5, BASE));
+      assert.deepEqual([update.status, update.revision, update.values], ['ok', 5, { f0: 'Bertta Berg', f1: '900', f2: 'Blue' }], 'every mapped field of one person, from one revision');
+      const p = pressed(airA(), 'cue-a', update);
+      const landed = answered(p.air, p.seq, true);
+      assert.deepEqual(shown(landed).selection, selectionOf('D2', 7));
+      const r = follow(landed, collection(6, BASE.map((x) => ({ ...x, votes: x.votes + 1 }))), 3000);
+      assert.deepEqual(r.sends.map((s) => s.values), [{ f0: 'Bertta Berg', f1: '901', f2: 'Blue' }]);
+    });
+
+    test('an Update to a person the count does not hold is refused whole, and A stays', () => {
+      const missing = take(selectionOf('D3', 7), collection(5, BASE));
+      assert.equal(missing.status, 'refused');
+      assert.deepEqual(shown(airA()).selection, selectionOf('D1', 7));
+    });
+  });
+});
