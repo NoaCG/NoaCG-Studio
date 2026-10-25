@@ -2933,3 +2933,46 @@ test('an Update applied here that got no answer, whose row arrives already appli
   r.sends[2].answer.resolve({ ...noneLeft });
   await goal;
 });
+
+test('two of this page\'s rows heard in one call take only their own sends past, not a newer one that landed', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  for (let n = 0; n < 3; n++) {
+    const plus = r.verbs.bump(view(), 'home', 1);
+    await settle();
+    r.sends[n].answer.resolve({ ...noneLeft });
+    await plus;
+  }
+  // A broadcast carries the first two rows together; the third's is not heard yet.
+  hearRows(r, [...r.sends[0].batches[0], ...r.sends[1].batches[0]]);
+  assert.equal(homeAired(r), '9');
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(sentHomes(r), ['8', '9', '10', '11']);
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await next;
+});
+
+test('a send still out stays the base however many sends follow it on its graphic', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const stuck = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  // Seventy sends of another field land meanwhile.
+  for (let n = 1; n <= 70; n++) {
+    const sent = r.verbs.send([[{ graphic: 'Score', msg: { t: 'update', data: { name: `n${n}` } } }]], 'Update');
+    r.sends[n].answer.resolve({ ...noneLeft });
+    await sent;
+  }
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.timers.at(-1)?.();
+  await settle();
+  assert.equal(sentHomes(r).at(-1), '9');
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await stuck;
+  await next;
+});

@@ -383,6 +383,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     }
   };
   const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], applied?: (msg: unknown) => boolean): T[] => {
+    // Before any of them: the page applies them all after this returns.
+    for (const graphic of new Set(items.map((item) => item.graphic))) accounted(graphic);
     for (const item of items) {
       // A command air's record is about to take. It takes its fields past every send pressed no
       // later than it: this page's own row past its own send and older ones, another screen's row
@@ -394,7 +396,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const own = mine?.graphic === item.graphic ? mine.stamp : null;
       const claimed = !!applied?.(item.msg);
       if ((!fields && item.msg.t !== 'stop') || (claimed && own === null)) continue;
-      accounted(item.graphic);
       passed(item.graphic, fields ? Object.keys(fields) : null, own === null ? Infinity : claimed ? own - 1 : own);
       if (!claimed) seen.set(item.graphic, { ...seen.get(item.graphic)!, aired: fields ? { ...seen.get(item.graphic)!.aired, ...fields } : {} });
     }
@@ -420,7 +421,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const cue = (item.msg as { cue?: string | null }).cue ?? null;
       markers = foreignMarker(markers, item.graphic, cue);
       // A row heard, not a move with no row: the figures of its Take are what take entries past.
-      accounted(item.graphic);
       seen.set(item.graphic, { ...seen.get(item.graphic)!, cue });
     }
     return rest;
@@ -480,8 +480,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         if (Object.keys(figures).length === 0) return [];
         accounted(graphic);
         const entry: Entry = { stamp, figures, landed: false, past: new Set() };
-        // Bounded: an entry this old has long been replaced by newer ones on its graphic.
-        ledger.set(graphic, [...(ledger.get(graphic) ?? []), entry].slice(-64));
+        // Bounded: a landed entry this old has long been replaced by newer ones on its graphic.
+        const kept = [...(ledger.get(graphic) ?? []), entry];
+        ledger.set(graphic, kept.filter((e, i) => !e.landed || i >= kept.length - 64));
         return [{ graphic, batch: index, entry }];
       }),
     );

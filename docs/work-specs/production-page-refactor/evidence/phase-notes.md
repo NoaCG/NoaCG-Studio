@@ -66,6 +66,10 @@ changes a spec's digest.
     (a reseed, another page's write), so the ledger must notice such a move, and then this page's
     own apply here must be marked as its own, or it would take its own landed figures past (the
     hockey scorebug on the fast road: 8, 9, 10). It books nothing.
+  - *A late answer after a newer landed Out:* `unreplaced` counts only newer landed sends that
+    carry the field, so a +1 answered after this page's own Out landed still writes its figure into
+    the cue it was drawn for (the old `replacedAt.all` did not). It committed before the Out (one
+    send at a time per graphic), so that figure did air on that cue; write-on-acceptance holds.
   - *An own row arriving already applied takes the older entries past:* found by the walk (an
     Update applied here that got no answer but committed; its own test).
 - **Existing tests changed (no assertion weakened or removed).**
@@ -129,6 +133,9 @@ changes a spec's digest.
     of another cue… during a held save…";
   - no wait behind this page's own sends: "a live press waits behind this page's own Update…";
     waiting only for the newest own send: both walks.
+  - accounting row by row inside one `heard` call: "two of this page's rows heard in one call…";
+    a size cap that drops pending entries: "a send still out stays the base however many sends
+    follow it…" (both found by this branch's review).
   - One mutant is equivalent and survives: letting an older entry stand when the newest is taken
     past. Every rule that takes a field past an entry also takes it past every older one, so no
     older entry can stand.
