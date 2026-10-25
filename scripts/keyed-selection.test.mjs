@@ -826,6 +826,24 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, card(p).held, card(p).revision], [['1500'], undefined, 6]);
   });
 
+  test('a revision that held, then read well and went, but failed to send: said "not sent" and sent again', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    let fail = true;
+    const send = (g, v) => (sends.push(v.f1), Promise.resolve(fail ? null : ANSWERED));
+    const nine = collection(9, [person('D1', 7, 'Aino Aalto', 1900)]);
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(nine, { fieldsOf: () => [text('f0')] }), send });
+    assert.equal(card(p).held?.revision, 9, 'revision 9 held: a field was missing');
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(nine), send });
+    await settle();
+    assert.deepEqual([sends, card(p).revision, card(p).held?.unsent], [['1900'], 5, true], 'it read well and went, and failed');
+    fail = false;
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(nine), send });
+    await settle();
+    assert.deepEqual([sends, card(p).revision, card(p).held], [['1900', '1900'], 9, undefined], 'sent again, and it landed');
+  });
+
   test('a layer the marker decides after a reload follows the newest tree in the same pass (assessment 7)', () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();

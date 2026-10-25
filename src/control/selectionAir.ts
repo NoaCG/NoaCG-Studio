@@ -239,7 +239,9 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
   // A failed send gives back the bound it raised (derived). A failed correction that nothing newer
   // of its entity stands over is said off air "not sent" until that revision goes again, unless
   // a hold has judged a newer one since.
-  if (!landed && !sent.press && sent.target && boundOf(next, sent.target) < sent.target.revision) {
+  // A hold at that very revision (a field was missing, then it read well and went) does not stand
+  // over it; a hold at a newer one does.
+  if (!landed && !sent.press && sent.target && sentOf(next, sent.target) < sent.target.revision && marksOf(next, sent.target).heldAt <= sent.target.revision) {
     const m = marksOf(next, sent.target);
     const held: SelectionHold = { reason: `the correction to revision ${sent.target.revision} was not sent`, since: m.held?.since ?? now, revision: null, unsent: true };
     return { layer: pruned(withMarks(next, sent.target, { ...m, held })) };
@@ -296,7 +298,8 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
     // revision set ends when it reads well; a "not sent" hold ends only by sending.
     const lifts = !!m.held && !m.held.unsent && (m.held.revision === null || m.held.revision === take.revision);
     // A revision whose send was lost may not have aired: it goes once more, nothing older does.
-    const newer = take.revision > floor || (take.revision === floor && take.revision > sent && (lifts || take.revision === m.lostAt));
+    // So does one held "not sent", at the revision that bounds it.
+    const newer = take.revision > floor || (take.revision === floor && take.revision > sent && (lifts || !!m.held?.unsent || take.revision === m.lostAt));
     if (newer && take.entity === believed.entity) {
       const seq = mint();
       const target: AiredTarget = { ...believed, revision: take.revision, values: take.values, at: now };
