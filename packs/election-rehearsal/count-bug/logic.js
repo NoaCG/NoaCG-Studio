@@ -5,7 +5,7 @@
    ends hidden. */
 
 (function () {
-  var entrance = null;
+  var motion = null; // the one timeline on stage: an entrance or an exit, never both
   var onAir = false;
 
   function shareOf() {
@@ -29,22 +29,22 @@
   };
 
   window.play = function () {
-    if (entrance) { entrance.kill(); }
+    if (motion) { motion.kill(); }
     onAir = true;
-    entrance = gsap.timeline();
-    entrance.set('#cb-root', { autoAlpha: 1 });
-    entrance.fromTo('.cb-bug', { x: 30, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' }, 0);
-    entrance.fromTo(['.cb-top', '.cb-line', '.cb-source'], { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.35, ease: 'power2.out', stagger: 0.06 }, 0.15);
-    entrance.fromTo('.cb-fill', { width: '0%' }, { width: shareOf() + '%', duration: 0.9, ease: 'power3.out' }, 0.3);
+    motion = gsap.timeline();
+    motion.set('#cb-root', { autoAlpha: 1 });
+    motion.fromTo('.cb-bug', { x: 30, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.5, ease: 'power3.out' }, 0);
+    motion.fromTo(['.cb-top', '.cb-line', '.cb-source'], { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.35, ease: 'power2.out', stagger: 0.06 }, 0.15);
+    motion.fromTo('.cb-fill', { width: '0%' }, { width: shareOf() + '%', duration: 0.9, ease: 'power3.out' }, 0.3);
   };
 
   window.stop = function () {
     onAir = false;
-    if (entrance) { entrance.kill(); }
-    gsap.to('.cb-bug', { x: 24, autoAlpha: 0, duration: 0.35, ease: 'power2.in' });
-    gsap.to('#cb-root', { autoAlpha: 0, duration: 0.35, delay: 0.05, onComplete: function () {
-      gsap.set('.cb-bug', { x: 0, autoAlpha: 1 });
-    } });
+    if (motion) { motion.kill(); }
+    motion = gsap.timeline();
+    motion.to('.cb-bug', { x: 24, autoAlpha: 0, duration: 0.35, ease: 'power2.in' }, 0);
+    motion.to('#cb-root', { autoAlpha: 0, duration: 0.35 }, 0.05);
+    motion.set('.cb-bug', { x: 0, autoAlpha: 1 });
   };
 
   window.next = function () {};

@@ -8,7 +8,7 @@
 
 (function () {
   var SPEED = 120; // px per second
-  var entrance = null;
+  var motion = null; // the one timeline on stage: an entrance or an exit, never both
   var crawl = null;
   var onAir = false;
   var pending = false;
@@ -52,6 +52,7 @@
     if (loop > 0 && x <= -loop) {
       x += loop;
       if (pending) { pending = false; loop = build(); }
+      if (loop <= 0) { halt(); }
     }
     gsap.set('.tk-crawl', { x: x });
   }
@@ -79,29 +80,31 @@
       el.textContent = parsed[key];
     }
     if (changed) {
-      if (onAir) { pending = true; } else { build(); }
+      // A crawl that holds nothing has stopped (no width to wrap at): headlines arriving on air
+      // start it again. A running one takes them at its next wrap.
+      if (onAir && (!crawl || loop <= 0)) { run(); } else if (onAir) { pending = true; } else { build(); }
     }
   };
 
   window.play = function () {
-    if (entrance) { entrance.kill(); }
+    if (motion) { motion.kill(); }
     onAir = true;
     pending = false;
-    entrance = gsap.timeline();
-    entrance.set('#tk-root', { autoAlpha: 1 });
-    entrance.fromTo('.tk-bar', { y: 90 }, { y: 0, duration: 0.55, ease: 'power3.out' }, 0);
-    entrance.fromTo('.tk-label', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35 }, 0.25);
+    motion = gsap.timeline();
+    motion.set('#tk-root', { autoAlpha: 1 });
+    motion.fromTo('.tk-bar', { y: 90 }, { y: 0, duration: 0.55, ease: 'power3.out' }, 0);
+    motion.fromTo('.tk-label', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35 }, 0.25);
     run();
   };
 
   window.stop = function () {
     onAir = false;
-    if (entrance) { entrance.kill(); }
-    gsap.to('.tk-bar', { y: 90, duration: 0.45, ease: 'power3.in' });
-    gsap.to('#tk-root', { autoAlpha: 0, duration: 0.2, delay: 0.4, onComplete: function () {
-      halt();
-      gsap.set('.tk-bar', { y: 0 });
-    } });
+    if (motion) { motion.kill(); }
+    motion = gsap.timeline();
+    motion.to('.tk-bar', { y: 90, duration: 0.45, ease: 'power3.in' }, 0);
+    motion.to('#tk-root', { autoAlpha: 0, duration: 0.2 }, 0.4);
+    motion.call(halt);
+    motion.set('.tk-bar', { y: 0 });
   };
 
   window.next = function () {};

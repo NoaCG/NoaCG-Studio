@@ -5,7 +5,7 @@
    ends hidden. */
 
 (function () {
-  var entrance = null;
+  var motion = null; // the one timeline on stage: an entrance or an exit, never both
   var onAir = false;
 
   function shareOf(text) {
@@ -72,29 +72,29 @@
   };
 
   window.play = function () {
-    if (entrance) { entrance.kill(); }
+    if (motion) { motion.kill(); }
     paintColours();
     onAir = true;
     var widths = barWidths();
-    entrance = gsap.timeline();
-    entrance.set('#pb-root', { autoAlpha: 1 });
-    entrance.fromTo('.pb-panel', { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.55, ease: 'power3.out' }, 0);
-    entrance.fromTo('.pb-head > *', { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, ease: 'power2.out', stagger: 0.08 }, 0.15);
-    entrance.fromTo('.pb-row', { x: -18, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.4, ease: 'power2.out', stagger: 0.04 }, 0.25);
+    motion = gsap.timeline();
+    motion.set('#pb-root', { autoAlpha: 1 });
+    motion.fromTo('.pb-panel', { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.55, ease: 'power3.out' }, 0);
+    motion.fromTo('.pb-head > *', { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, ease: 'power2.out', stagger: 0.08 }, 0.15);
+    motion.fromTo('.pb-row', { x: -18, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.4, ease: 'power2.out', stagger: 0.04 }, 0.25);
     var list = rows();
     for (var i = 0; i < list.length; i++) {
-      entrance.fromTo(list[i].querySelector('.pb-bar'), { width: '0%' }, { width: widths[i] + '%', duration: 0.9, ease: 'power3.out' }, 0.45 + i * 0.04);
+      motion.fromTo(list[i].querySelector('.pb-bar'), { width: '0%' }, { width: widths[i] + '%', duration: 0.9, ease: 'power3.out' }, 0.45 + i * 0.04);
     }
-    entrance.fromTo('.pb-foot', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4 }, 0.8);
+    motion.fromTo('.pb-foot', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4 }, 0.8);
   };
 
   window.stop = function () {
     onAir = false;
-    if (entrance) { entrance.kill(); }
-    gsap.to('.pb-panel', { y: 16, autoAlpha: 0, duration: 0.4, ease: 'power2.in' });
-    gsap.to('#pb-root', { autoAlpha: 0, duration: 0.4, delay: 0.05, onComplete: function () {
-      gsap.set('.pb-panel', { y: 0, autoAlpha: 1 });
-    } });
+    if (motion) { motion.kill(); }
+    motion = gsap.timeline();
+    motion.to('.pb-panel', { y: 16, autoAlpha: 0, duration: 0.4, ease: 'power2.in' }, 0);
+    motion.to('#pb-root', { autoAlpha: 0, duration: 0.4 }, 0.05);
+    motion.set('.pb-panel', { y: 0, autoAlpha: 1 });
   };
 
   window.next = function () {};

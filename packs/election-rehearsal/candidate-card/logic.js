@@ -5,7 +5,7 @@
    ends hidden. */
 
 (function () {
-  var entrance = null;
+  var motion = null; // the one timeline on stage: an entrance or an exit, never both
 
   function paintColour() {
     var rule = document.getElementById('f5');
@@ -38,22 +38,22 @@
   };
 
   window.play = function () {
-    if (entrance) { entrance.kill(); }
+    if (motion) { motion.kill(); }
     paintColour();
-    entrance = gsap.timeline();
-    entrance.set('#cc-root', { autoAlpha: 1 });
-    entrance.fromTo('.cc-card', { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 0.6, ease: 'power3.inOut' }, 0);
-    entrance.fromTo('.cc-portrait img', { scale: 1.12 }, { scale: 1, duration: 0.9, ease: 'power2.out' }, 0);
-    entrance.fromTo(['.cc-name', '.cc-sub'], { x: -24, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.45, ease: 'power3.out', stagger: 0.08 }, 0.3);
-    entrance.fromTo('.cc-figure > *', { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.4, ease: 'power2.out', stagger: 0.06 }, 0.42);
+    motion = gsap.timeline();
+    motion.set('#cc-root', { autoAlpha: 1 });
+    motion.fromTo('.cc-card', { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 0.6, ease: 'power3.inOut' }, 0);
+    motion.fromTo('.cc-portrait img', { scale: 1.12 }, { scale: 1, duration: 0.9, ease: 'power2.out' }, 0);
+    motion.fromTo(['.cc-name', '.cc-sub'], { x: -24, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.45, ease: 'power3.out', stagger: 0.08 }, 0.3);
+    motion.fromTo('.cc-figure > *', { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.4, ease: 'power2.out', stagger: 0.06 }, 0.42);
   };
 
   window.stop = function () {
-    if (entrance) { entrance.kill(); }
-    gsap.to('.cc-card', { clipPath: 'inset(0 100% 0 0)', duration: 0.45, ease: 'power3.in' });
-    gsap.to('#cc-root', { autoAlpha: 0, duration: 0.2, delay: 0.4, onComplete: function () {
-      gsap.set('.cc-card', { clipPath: 'inset(0 0% 0 0)' });
-    } });
+    if (motion) { motion.kill(); }
+    motion = gsap.timeline();
+    motion.to('.cc-card', { clipPath: 'inset(0 100% 0 0)', duration: 0.45, ease: 'power3.in' }, 0);
+    motion.to('#cc-root', { autoAlpha: 0, duration: 0.2 }, 0.4);
+    motion.set('.cc-card', { clipPath: 'inset(0 0% 0 0)' });
   };
 
   window.next = function () {};

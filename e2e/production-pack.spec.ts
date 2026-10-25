@@ -365,3 +365,33 @@ test('the election production exports and imports again with its fonts, picture,
   await takeCue(page, 'Aino Example');
   await expect(program(page, 'Candidate card').locator('#f2')).toHaveText('3,500');
 });
+
+// The four election graphics on a bare page, through their SPX entry points: a Take that
+// interrupts an Out ends visible and moving, and headlines given to an empty ticker on air start
+// its crawl.
+/** A graphic's SPX entry points, as a bare page calls them. */
+type Spx = { update(data: string): void; play(): void; stop(): void };
+test('the election graphics: a quick re-take ends on air, and an empty ticker starts when headlines arrive', async ({ page }) => {
+  const shipped = JSON.parse(readFileSync(ELECTION, 'utf8'));
+  const gsap = readFileSync(fileURLToPath(new URL('../src/assets/gsap.min.js', import.meta.url)), 'utf8');
+  for (const g of shipped.graphics as { name: string; html: string; css: string; js: string }[]) {
+    await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${g.css}</style><script>${gsap}</script></head><body>${g.html}<script>${g.js}</script></body></html>`);
+    const root = page.locator('[id$="-root"]').first();
+    if (g.name === 'Ticker') {
+      await page.evaluate(() => { (window as unknown as Spx).update(JSON.stringify({ f0: '' })); (window as unknown as Spx).play(); });
+      await page.waitForTimeout(700);
+      await page.evaluate(() => (window as unknown as Spx).update(JSON.stringify({ f0: 'First headline\nSecond headline' })));
+      await expect(page.locator('.tk-crawl')).toContainText('First headline');
+      const at = () => page.locator('.tk-crawl').evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m41);
+      const x = await at();
+      await expect.poll(at, { message: 'the crawl moves' }).toBeLessThan(x - 20);
+    } else {
+      await page.evaluate(() => (window as unknown as Spx).play());
+      await page.waitForTimeout(700);
+    }
+    await page.evaluate(() => { (window as unknown as Spx).stop(); setTimeout(() => (window as unknown as Spx).play(), 100); });
+    await page.waitForTimeout(1600);
+    await expect(root, `${g.name} is on air after a Take during its Out`).toHaveCSS('opacity', '1');
+    await expect(root).toHaveCSS('visibility', 'visible');
+  }
+});
