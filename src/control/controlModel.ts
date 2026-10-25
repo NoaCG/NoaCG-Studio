@@ -12,6 +12,7 @@ import { upgradeControls } from './controlUpgrades';
 import { slug } from '../model/slug';
 import { readPublishedProfile } from '../model/profile';
 import { splitBoundWrites, type PressVerb, type TreeWrite } from '../model/productionData';
+import type { PickGroup } from './liveControls';
 
 /** Map an SPX ftype to a control kind. The non-data ftypes carry no control at all.
  *  Exported for the OGraf exporter, which records the kind as a per-property vendor hint so
@@ -343,6 +344,11 @@ export interface ArrangedControl {
   /** The label names a field the surface reads from air ("+1 ANNA"), so the button holds a fixed
    *  slot. False once the production renamed it: the word is then the operator's own. */
   named: boolean;
+  /** A ONE-PRESS PICK (control/liveControls.ts `pickOptions`): the control is drawn as its label
+   *  and one button per option, each the event with that option. Absent: one button. It is filled
+   *  here, inside the arrangement, so every surface keeps the control's section, order, name, pin
+   *  and More placement. */
+  options?: PickGroup;
 }
 
 /** The controls of one graphic, split the three ways a surface draws them. */
@@ -413,6 +419,7 @@ export function arrangeFor(
 export function arrangeControls(
   buttons: ControlButton[],
   arrange: Record<string, ArrangeRead> | undefined,
+  pick?: (button: ControlButton) => PickGroup | null,
 ): ArrangedControls {
   // A control id is somebody's typed event name, so the lookup must not answer a function for a
   // control called `constructor` — the same guard `model/profile.ts` `own()` exists for.
@@ -447,7 +454,8 @@ export function arrangeControls(
   const more: ArrangedControl[] = [];
   const sections: [string, ArrangedControl[]][] = [];
   for (const r of resolved) {
-    const control: ArrangedControl = { button: r.button, label: r.label, named: r.named };
+    const options = pick?.(r.button);
+    const control: ArrangedControl = options ? { button: r.button, label: r.label, named: r.named, options } : { button: r.button, label: r.label, named: r.named };
     if (r.hidden) {
       more.push(control);
       continue;

@@ -28,6 +28,7 @@ import {
 } from '../blocks/behaviourData';
 import { deriveMachine } from '../blocks/animMachine';
 import { hasBehaviourRuntime } from '../templates/importedDesign/behaviourRuntime';
+import { missingLiveControls } from './liveControlsCheck';
 
 export interface ValidationIssue {
   rule: string;
@@ -371,6 +372,8 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
       const machineVerdict = validateMachine(data);
       for (const message of machineVerdict.errors) errors.push({ rule: 'machine', message });
       for (const message of machineVerdict.warnings) warnings.push({ rule: 'machine', message });
+      // A declared live operation left unmet (liveControlsCheck.ts) - advice, never a block.
+      if (data.machine) warnings.push(...missingLiveControls(data.machine, new Set(template.fields.map((f) => f.field))));
 
       // Machine data under an interpreter that predates the machine engine would parse but
       // never run — the frozen-interpreter pairing rule (templates/shared/animRuntime.ts).
@@ -444,16 +447,11 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
               });
             }
           }
-          // An adjust moves a FIGURE: a key no field carries sends nothing, and a field that is
-          // not a number would be "moved" from whatever parseInt makes of its text.
+          // An adjust moves a FIGURE: a field that is not a number would be "moved" from whatever
+          // parseInt makes of its text. A key no field carries is `controls-missing-live` above.
           for (const key of Object.keys(control.adjust ?? {})) {
             const field = fieldById.get(key);
-            if (!field) {
-              warnings.push({
-                rule: 'machine',
-                message: `Machine controls: "${control.event}" adjusts "${key}", but no field has that id.`,
-              });
-            } else if (field.ftype !== 'number') {
+            if (field && field.ftype !== 'number') {
               warnings.push({
                 rule: 'machine',
                 message: `Machine controls: "${control.event}" adjusts "${key}", which is a ${field.ftype} field, not a number.`,

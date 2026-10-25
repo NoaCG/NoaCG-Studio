@@ -79,7 +79,8 @@ fonts, and I will use them." A user who already gave a brief gets no examples.
    you finish by hand.
 4. **Inspect the operator surface, and show it to the user.** `noacg inspect ./my-graphic` prints
    the control panel NoaCG derives from your graphic - one input per field, one button per action,
-   the step semantics. If the operator cannot change what they will need to change, add the field;
+   the step semantics - and the same panel as LIVE (pressed on air) and PREP (typed before air).
+   A value that changes on air gets a declared control (`references/contract.md` §5b). If the operator cannot change what they will need to change, add the field;
    if an action is missing, it belongs in the machine - a type's, or one you author
    (`references/contract.md` §5). Read the printed BUTTONS against what the brief's operator must
    do live - a clean validate does not prove the actions exist - and read the INPUTS against

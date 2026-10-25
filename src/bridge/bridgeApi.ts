@@ -20,7 +20,8 @@ import { spxSteps } from '../blocks/animMachine';
 import { buttonLabel } from '../blocks/controlLabels';
 import { animationBreach } from '../blocks/animationRegion';
 import { publishGate } from '../validation/publishGate';
-import { eventButtons, fieldDescriptors, machineStateGroups, type ControlButton } from '../control/controlModel';
+import { continueEvents, eventButtons, fieldDescriptors, machineStateGroups, type ControlButton } from '../control/controlModel';
+import { livePanel, type LivePanel } from '../control/livePanel';
 import { ografContract } from '../control/ografContract';
 import { buildGraphicPackage } from '../export/noacgPackage';
 import { readOgrafPackage, type OgrafPackageRead, type PackageFiles } from '../export/targets/ografImport';
@@ -433,6 +434,8 @@ export interface BridgeInspection {
   /** Snap-able state groups (a NoaCG template with an explicit machine); empty otherwise. */
   stateGroups: Array<{ id: string; states: Array<{ id: string; name: string }> }>;
   steps: { count: number; stepped: boolean };
+  /** The same surface as PREP and LIVE (control/livePanel.ts). */
+  panel: LivePanel;
   notes: string[];
 }
 
@@ -441,16 +444,19 @@ export function inspect(input: { template?: SpxTemplate; manifest?: unknown }): 
   if (input.template) {
     const t = input.template;
     const count = Math.max(1, Number(t.settings.steps) || 1);
+    const descriptors = fieldDescriptors(t.fields);
+    const buttons = eventButtons(t.js);
     return {
-      descriptors: fieldDescriptors(t.fields),
-      buttons: eventButtons(t.js),
+      descriptors,
+      buttons,
       stateGroups: machineStateGroups(t.js),
       steps: { count, stepped: count > 1 },
+      panel: livePanel(descriptors, buttons, continueEvents(t.js)),
       notes: ['Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.'],
     };
   }
   const c = ografContract(input.manifest);
-  return { descriptors: c.descriptors, buttons: c.buttons, stateGroups: [], steps: c.steps, notes: c.notes };
+  return { descriptors: c.descriptors, buttons: c.buttons, stateGroups: [], steps: c.steps, panel: livePanel(c.descriptors, c.buttons, new Set()), notes: c.notes };
 }
 
 // ── Compose (what the CLI screenshots) ───────────────────────────────────────

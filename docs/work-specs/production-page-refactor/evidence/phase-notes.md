@@ -5,6 +5,123 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 32a, phase L1: pinned live controls
+
+- **Previous verified `main` sha:** row 31 (E7.2a) passed on `3295c9c` (PR #1724). This branch
+  began on `3295c9c`; main matched the brief (no `pinnedGraphics`, no `liveControls.ts`, no
+  `LiveControls.tsx`).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated and nothing on the wire
+  changes. A reverted build reads a profile with `pinnedGraphics` as v1 and ignores the key (the
+  generated page returns, pins are lost on its next arrangement write, never buttons); the
+  one-press pick returns to one ⚡ Select answer button and the Selected answer box returns to the
+  editor's main fields.
+- **What landed.**
+  - *Model:* `ShowProfile.pinnedGraphics` (`src/model/profile.ts`), additive optional in v1: read
+    degrades (a non-list is dropped, bad entries dropped, order kept), canonical form omits it when
+    empty, `withPinnedGraphic` and `withGraphicArrange(…, pool)` drop orphans against the pool (D7),
+    the validator warns on an orphan and errors only on a malformed list, `profileIsEmpty`,
+    `pinnedGraphicsOf` (read gate: a newer build's profile pins nothing).
+  - *Press safety, settled here (spec "What a press does", F1, F2):* in `src/control/graphicVerbs.ts`
+    every live press (event, pick, ± bump, snap) captures the cue on its layer at the press
+    (`instance`, the newest marker press of this page still out on the graphic, else the session's
+    live marker) and is refused after each wait (queue, save, tree) with "Nothing sent: the cue on
+    <graphic> changed." when another cue holds the layer; every live press of a graphic waits for
+    the one before it (`afterPress`, the old bound-press queue widened; other graphics never wait);
+    an unbound figure counts from the figure this page sent while that send is out, else from what
+    air was last sent (the session's `aired`, read at the press, not the render's copy), else the
+    stored cue, never a draft; a moved figure is written into the cue (`writeCue`, `writeLive`) only
+    once its send landed on the output.
+  - *Pure rules:* `src/control/liveControls.ts`: `liveSelection`, `liveBlocks`, `pickOptions`
+    (`PICK_CAP` 8), `pickButton`, `liveNumberFields`, `pickFields`. `ArrangedControl.options` filled
+    by `arrangeControls`' new `pick` argument (`src/control/controlModel.ts`).
+  - *Production page:* `src/components/home/LiveControls.tsx` (the LIVE stack, props only);
+    `CueActions.tsx` owns the ⚡ button (`actionButtonFor`, moved out of the page with its words)
+    and draws pick groups, the pin toggle and, in the stack, the block's graphic and cue;
+    `ProductionPage.tsx` builds one block per pinned graphic from `poolMachines` (now with
+    descriptors, default path, legality and state names per pool graphic) and mounts the stack;
+    `CueRundown.tsx` row menu "Pin live controls" / "Unpin live controls"; `CueEditor.tsx` puts a
+    pick group's field under ▸ Advanced (D8) and names it in the summary; `IconPin`.
+  - *Hosted page (AC-5):* `HostedControlPage.tsx` draws the LIVE stack (`hosted-live-stack`) from
+    the published profile's pins above its cue editor, in `liveBlocks` order, with one shared
+    `HostedLiveBlock` for the editor's block and every pinned one; a pinned press acts on the cue on
+    that graphic's layer through the page's own send and log. Every live press there (event, pick,
+    ±, snap) runs after the one before it on its graphic and only while the same cue holds the layer
+    (`figures.press`); a moved figure counts from what the page sent, then what air was sent, never
+    the staging buffer, and is staged only once the send landed. Pinning is not authored there, and
+    its PREP keeps the pick field as a box (D8 is the production page's editor).
+  - *Exported controller (AC-5):* `showExport.ts` bakes `pinned` (after the read gate, orphans
+    dropped; omitted when nothing is pinned) and pick groups into `arranged`
+    (`controlPanelHtml.ts` `pick`, only for the controller); `productionControllerHtml.ts` draws
+    the pinned blocks above its editor and counts a pinned press from what it sent (held at most a
+    send's window) or what the log aired. Its relay gives no answer to wait for, so a pinned press
+    stages into its drafts at the send; its editor's presses keep today's base, so their payloads
+    are unchanged (AC-7). Both are recorded in #1727.
+  - *Agent road (AC-9):* the skill's contract rule (§5b), SKILL.md step 4, `noacg inspect` prints
+    LIVE and PREP with one advisory line (`src/control/livePanel.ts`, `src/bridge/bridgeApi.ts`
+    `inspect().panel`), `noacg validate` reports `controls-missing-live` as a warning only for an
+    operator arrow with no `controls` entry or a `set`/`adjust` naming a missing field
+    (`src/validation/liveControlsCheck.ts`); the old "adjusts a missing field" `machine` warning
+    moved under that rule, so it is reported once.
+- **Fence.** The spec's "Maintainability plan" modules except E6's (`panelFeedback.ts`,
+  `panelRelay.ts`, `companion-module/src/presets.ts`, all untouched). Extra files and why:
+  `src/control/livePanel.ts` and `src/validation/liveControlsCheck.ts` (the CLI tests load them
+  in Node; `validateTemplate.ts` cannot be), `src/bridge/bridgeApi.ts` (where `inspect` is built),
+  `cli/src/bridgeClient.ts` (its type), `cli/skill/noacg-graphic/references/validator.md` and the
+  generated `cli/plugin/skills/` copies (build-skill), `src/components/icons.tsx` (the pin icon:
+  no pictographic emoji on these surfaces), `src/styles/playout-dashboard.css`,
+  `scripts/live-controls-catalog.test.mjs` (the pick rule over every catalog graphic needs a
+  browser, so it is the factory tier), and the e2e specs that drove the old two-step pick.
+- **Decisions.**
+  - *The "—" option is not a pick button.* Every answer board's Selected answer has an empty
+    option; a pick names a choice, so the group draws the letters only and the cap counts them.
+  - *The rule's reach is the declaration's:* beside the classic answer boards (qz01-qz12) and
+    imported quizzes, the match-ups' side pick (mu01-04), the head-to-heads' highlight (h201-04)
+    and the verdicts' call (vd01-04) qualify and gain a group; every other catalog family gains
+    none (`scripts/live-controls-catalog.test.mjs` pins the exact list and that no arrangement
+    moves).
+  - *Selected graphic's block keeps the page's own selection*; a pinned block presses with
+    `liveSelection`. The pin toggle sits in the ⚡ head beside Arrange (or at the end of the ± row
+    for a graphic with numbers only); with nothing pinned the block is today's, unwrapped, with
+    the pin toggle as its only new chrome. A block with no live controls is not drawn.
+  - *The refusal goes to the note line* (the verbs' existing refusal road, as the live-candidate
+    refusals do); the activity log carries the note.
+  - *Stack placement:* with pins the LIVE region always sits under the monitors (the live-first
+    order), as the spec's picture has it; without pins the old rule stands.
+- **AC-7 evidence (behaviour, payloads, geometry; not bytes).** `pressSend`, `eventPayload` and
+  every verb's payload are unchanged; `scripts/live-controls-catalog.test.mjs` arranges every
+  catalog graphic with and without the pick rule and asserts that no control's event, label,
+  section, order or bucket moves (only a pick group's control gains `options`, on exactly the
+  listed boards). The ⚡ block's measured heights (`e2e/live-actions-first.spec.ts`: duel score,
+  hockey scorebug, answer board) and the render counts (`e2e/playout-air-contract.spec.ts`) pass on
+  this tree. Chrome that differs with no pins: the pin toggle in the ⚡ head (or at the end of the
+  ± row); the exported controller's empty, hidden stack container; the cue editor's Advanced
+  summary naming a pick field on a board that has one.
+- **Verification run here (cloud worker, bounded).** Node: `scripts/graphic-verbs.test.mjs`,
+  `live-controls.test.mjs`, `control-profile.test.mjs`, `live-controls-catalog.test.mjs`,
+  `cli/test/unit.test.mjs`, `cli/scripts/build-skill.mjs --check`, `npm run gates -- run
+  --changed origin/main`, tsc (app and api), eslint, depcruise: all pass. Browser (queue, two
+  workers): production-controls, live-actions-first, quiz-live-consistency, playout-air-contract,
+  hosted-control, cross-tab: passed; the specs the pick change touched (production-data,
+  quiz-pilot, svg-examples, student-rehearsal, playout-rundown-feedback, dashboard-operator-walk,
+  and the edited import-svg-behaviour cases): passed. The configured cases
+  (`e2e/configured/hosted-control-profile.spec.ts` pinned and two-operator cases, and the
+  configured specs edited for the pick) need a backend and run in the configured suite only.
+  Mutation checks: `PICK_CAP` 8 to 9, the default-path exclusion, the set-field exclusion, the
+  instance check, the marker-out half of `onLayer`, the per-graphic queue, the sent-figure base,
+  the landed-figure binding to its record and cue, write-on-acceptance for `writeCue` and
+  `writeLive`, and the orphan drop each turn their Node test red.
+- **Traps.**
+  - A test rig whose session `air` part is empty makes every press look like a replacement: the
+    verbs rig now seeds `air` from its `liveCue` and `aired` options, and a press's drawn cue onto
+    the marker unless a test passes `seed: false` (the F1 and F2 rows do).
+  - The worktree has no `node_modules`: rolldown and Vite resolve the main checkout's. Catalog
+    templates need `DOMParser`, so a Node test of them runs in Chromium (the catalog-line-gate
+    pattern). The Playwright image had `chromium_headless_shell-1243` only; a symlink to `-1228`
+    under `/opt/pw-browsers` (no repo change, #1647).
+  - `e2e/playout-air-contract.spec.ts` S3 and the typing render-count case failed once when run
+    beside two heavy specs on two workers here and passed alone on the same tree; CI decides.
+
 ## Row 31, phase E7.2a: the selection writer and the election rehearsal package
 
 - **Previous verified `main` sha:** row 30 (E7.1) passed on `8ebb429` (repair #1704), and

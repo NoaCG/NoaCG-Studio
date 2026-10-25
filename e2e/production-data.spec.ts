@@ -964,8 +964,7 @@ test('a quiz revealed beside a running clock: bound values update both, the cloc
   await cues.nth(0).locator('.pd-cue-label').click();
   await page.getByTestId('verb-take').click();
   await expect(quiz.locator('#f0')).toHaveText('Which planet is largest?');
-  await page.getByTestId('cue-field-f6-opt-B').click();
-  await page.getByTestId('cue-action-select').click();
+  await page.getByTestId('cue-pick-select-B').click();
   await page.getByTestId('cue-action-lock').click();
   await page.getByTestId('cue-action-judge').click();
   await expect(chip).toHaveText('Reveal');

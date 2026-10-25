@@ -43,7 +43,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {}, airedFields = {} } = {}) {
+function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -120,6 +120,7 @@ function rig({ fast = false, published = 'slug-1', flushHeld = false, liveCue = 
       log.push(['patch', writes.map((w) => `${w.path}=${w.text}`).join(',')]);
     },
     writeCue: (cueId, values) => log.push(['writeCue', cueId, JSON.stringify(values)]),
+    savedValues: (cueId) => saved[cueId],
     writeLive: (cueId, values) => log.push(['writeLive', cueId, JSON.stringify(values)]),
     playoutVerb: async (cue, verb, label, options) => {
       log.push(['playoutVerb', cue.id, verb, label, JSON.stringify(options ?? {})]);
@@ -180,8 +181,22 @@ function rig({ fast = false, published = 'slug-1', flushHeld = false, liveCue = 
     clearTimeout: () => {},
   };
   const state = { sender };
-  const verbs = createGraphicVerbs(session, io, () => state.sender, () => page);
-  return { setOwed: (n) => (owedCount = n), timers, inFlight, state, session, verbs, log, sends, flushes, draft, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
+  // What this page believes is on air starts as the rig says: the live map and what each graphic
+  // was last sent (the `air` part a live press reads its instance and its base from).
+  session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { ...liveCue }, aired: { ...aired } } }));
+  const created = createGraphicVerbs(session, io, () => state.sender, () => page);
+  // A live press is drawn for the cue on air: unless a test says otherwise (`seed: false`), the
+  // cue a selection names live is what the session's marker names for its graphic, as on the page.
+  const seeded = (press) => (view, ...rest) => {
+    const cue = view.airCue ?? (view.editingIsLive ? view.editingCue : null);
+    const graphic = view.selectedGraphic;
+    if (seed && cue && graphic && !(graphic in session.air.get().liveCue)) {
+      session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, graphic, cue.id) } }));
+    }
+    return press(view, ...rest);
+  };
+  const verbs = { ...created, event: seeded(created.event), bump: seeded(created.bump), snap: seeded(created.snap) };
+  return { setOwed: (n) => (owedCount = n), timers, inFlight, state, session, verbs, log, sends, flushes, draft, saved, resolved, notes, debtCalls, sender, page, heads, liveCue: () => session.air.get().liveCue, moves: () => session.air.get().moves };
 }
 
 // ── The sender ──────────────────────────────────────────────────────────────────────────────────
@@ -674,7 +689,7 @@ test('Update of a cue not on air sends nothing; a server cue updates through the
 
 // ── ± bump (§4.2 row 7) ───────────────────────────────────────────────────────────────────────
 
-test('an unbound bump counts from what the render showed on air, writes the cue, then sends that one field', async () => {
+test('an unbound bump counts from what air was sent, sends that one field, and writes the cue once accepted', async () => {
   const r = rig({ flushHeld: true, aired: { Strap: { f3: '7' } } });
   const cue = graphicCue('c1', 'Strap', { f3: '1', f0: 'Name' });
   const bumping = r.verbs.bump(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }), 'f3', 1);
@@ -683,22 +698,23 @@ test('an unbound bump counts from what the render showed on air, writes the cue,
   assert.deepEqual(r.log, [['flush']]);
   r.flushes[0].resolve();
   await settle();
-  assert.deepEqual(r.log.slice(1, 3), [['writeCue', 'c1', '{"f3":"8"}'], ['send', 'Strap:update']]);
+  assert.deepEqual(r.log.slice(1), [['send', 'Strap:update']]);
   assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'update', data: { f3: '8' } });
   r.sends[0].answer.resolve({ ...noneLeft });
   await bumping;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'c1', '{"f3":"8"}']]);
 });
 
-test('an unbound bump with nothing aired counts from the cue as typed, then from 0', async () => {
+test('an unbound bump with nothing aired counts from the cue as stored, never a draft staged in PREP, then from 0', async () => {
   const r = rig();
   const cue = graphicCue('c1', 'Strap', { f3: '4' });
-  r.draft.c1 = { f3: '5' };
+  r.draft.c1 = { f3: '50' };
   const one = r.verbs.bump(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }), 'f3', -1);
   await settle();
-  assert.deepEqual(r.sends[0].batches[0][0].msg.data, { f3: '4' });
+  assert.deepEqual(r.sends[0].batches[0][0].msg.data, { f3: '3' });
   r.sends[0].answer.resolve({ ...noneLeft });
   await one;
-  const two = r.verbs.bump(sel({ editingCue: graphicCue('c2', 'Strap'), selectedGraphic: 'Strap', editingIsLive: true }), 'f9', 2);
+  const two = r.verbs.bump(sel({ editingCue: graphicCue('c2', 'Score'), selectedGraphic: 'Score', editingIsLive: true }), 'f9', 2);
   await settle();
   assert.deepEqual(r.sends[1].batches[0][0].msg.data, { f9: '2' });
   r.sends[1].answer.resolve({ ...noneLeft });
@@ -817,10 +833,11 @@ test('an event waits for the save, carries the ON-AIR cue as typed after the wai
   r.draft.a1 = { answer: 'typed' };
   r.flushes[0].resolve();
   await settle();
-  assert.deepEqual(r.log.slice(1, 3), [['writeLive', 'a1', '{"home":"5"}'], ['send', 'Score:event']]);
+  assert.deepEqual(r.log.slice(1), [['send', 'Score:event']]);
   assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'event', event: 'both', payload: { answer: 'typed' } });
   r.sends[0].answer.resolve({ ...noneLeft });
   await pressing;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeLive' || k === 'patch'), [['writeLive', 'a1', '{"home":"5"}'], ['patch', '']]);
 });
 
 test('an event with no payload sends the bare event, and nothing on a layer that is not up', async () => {
@@ -856,27 +873,31 @@ test('a bound event moves the tree only once it went, and not when the server sk
   }
 });
 
-test('a bound event waits for the press before it on its graphic; one that moves no bound field does not', async () => {
+test('every live press on a graphic waits for the one before it on that graphic, bound or not; another graphic does not wait (F2)', async () => {
   const tree = { Score: { home: '2' } };
   const r = rig({ bound: { Score: { home: 'match.home' } }, tree });
   const first = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), goal);
   const second = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), goal);
-  const free = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), reveal);
+  const third = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true }), reveal);
+  const other = r.verbs.event(sel({ selectedGraphic: 'Clock', selectedLayerLive: true }), { event: 'pause' });
   await settle();
-  // The first goal and the reveal are out; the second goal waits.
-  assert.deepEqual(r.sends.map((s) => s.batches[0][0].msg.event).sort(), ['goal', 'reveal']);
-  const goalAt = r.sends.findIndex((s) => s.batches[0][0].msg.event === 'goal');
+  // The first goal and the other graphic's press are out; the rest of Score's wait, in order.
+  assert.deepEqual(r.sends.map((s) => s.batches[0][0].msg.event), ['goal', 'pause']);
   tree.Score.home = '3';
-  r.sends[goalAt].answer.resolve({ ...noneLeft });
+  r.sends[0].answer.resolve({ ...noneLeft });
   await first;
   await settle();
   assert.equal(r.sends.length, 3);
   assert.equal(r.sends[2].batches[0][0].msg.event, 'goal');
   r.sends[2].answer.resolve({ ...noneLeft });
   await second;
+  await settle();
   assert.deepEqual(r.log.filter(([k]) => k === 'patch'), [['patch', 'match.home=3'], ['patch', 'match.home=4']]);
-  r.sends[1 - goalAt].answer.resolve({ ...noneLeft });
-  await free;
+  assert.equal(r.sends[3].batches[0][0].msg.event, 'reveal');
+  r.sends[3].answer.resolve({ ...noneLeft });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await third;
+  await other;
 });
 
 test('a bound event refused while the tree is unread sends nothing at all', async () => {
@@ -908,6 +929,7 @@ test('Snap waits for the save, then sends the snap and the ON-AIR values in one 
   await snapping;
   // A null group resets every group; with no cue on air the update carries nothing.
   const reset = r.verbs.snap(sel({ selectedGraphic: 'Quiz', selectedLayerLive: true }), null, 'x');
+  await settle();
   r.flushes[1].resolve();
   await settle();
   assert.deepEqual(r.sends[1].batches[0], [
@@ -1110,13 +1132,14 @@ test('the gaps the assessment found: what each press keeps, counts and says', as
     await e;
     assert.deepEqual(r.notes, ['Update failed: x', 'Event go failed: y']);
   });
-  await t.test('an adjust event writes the moved figure into the on-air cue', async () => {
+  await t.test('an adjust event writes the moved figure into the on-air cue once its send is accepted', async () => {
     const r = rig({ aired: { Score: { home: '4' } } });
     const pressing = r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: true, airCue: graphicCue('a1', 'Score') }), goal);
     await settle();
-    assert.deepEqual(r.log.find(([k]) => k === 'writeLive'), ['writeLive', 'a1', '{"home":"5"}']);
+    assert.equal(r.log.find(([k]) => k === 'writeLive'), undefined);
     r.sends[0].answer.resolve({ ...noneLeft });
     await pressing;
+    assert.deepEqual(r.log.find(([k]) => k === 'writeLive'), ['writeLive', 'a1', '{"home":"5"}']);
   });
 });
 
@@ -1829,4 +1852,388 @@ async function batchWalk(seed, steps) {
 
 test(`${MARKER_WALKS} seeded walks of sends of several batches and graphics: the marker names this page's newest landed press on each (#1696)`, async () => {
   for (let seed = 1; seed <= MARKER_WALKS; seed++) await batchWalk(seed, 30);
+});
+
+// ── Pinned live controls: what a live press does (docs/work-specs/pinned-live-controls/spec.md
+// "What a press does", F1 and F2; AC-2). A pinned block hands the verbs a selection built for its
+// own graphic (control/liveControls.ts `liveSelection`); these rows hold every wait. ─────────────
+
+const { liveSelection } = await import('../src/control/liveControls.ts');
+
+test('a press on a pinned graphic acts on that graphic\'s on-air cue, never on the selected one (AC-2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7', name: 'Katri' });
+  const quiz = graphicCue('q1', 'Strap', { f3: '2' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1', Strap: 'q1' }, aired: { Score: { home: '7' }, Strap: { f3: '2' } } });
+  const pinned = liveSelection('Score', [quiz, banner], r.liveCue());
+  const bumping = r.verbs.bump(pinned, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[0].batches, [[{ graphic: 'Score', msg: { t: 'update', data: { home: '8' } } }]]);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await bumping;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'b1', '{"home":"8"}']]);
+  const firing = r.verbs.event(pinned, { event: 'show', payload: ['name'] });
+  await settle();
+  assert.deepEqual(r.sends[1].batches, [[{ graphic: 'Score', msg: { t: 'event', event: 'show', payload: { name: 'Katri' } } }]]);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await firing;
+});
+
+test('a pinned graphic that is off air sends nothing, whatever is pressed', async () => {
+  const r = rig({ seed: false });
+  const off = liveSelection('Score', [graphicCue('b1', 'Score')], r.liveCue());
+  assert.equal(off.selectedLayerLive, false);
+  await r.verbs.bump(off, 'home', 1);
+  await r.verbs.event(off, goal);
+  await r.verbs.snap(off, null, 'x');
+  assert.equal(r.sends.length, 0);
+  assert.deepEqual(r.log, []);
+});
+
+test('a Take of another cue of the graphic during a held save refuses the press, which sends and writes nothing (F1)', async () => {
+  for (const press of ['bump', 'event', 'snap']) {
+    const banner = graphicCue('b1', 'Score', { home: '7' });
+    const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+    const view = liveSelection('Score', [banner], r.liveCue());
+    const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : press === 'event' ? r.verbs.event(view, goal) : r.verbs.snap(view, null, 'x');
+    await settle();
+    // Another cue of the banner is taken while the save is held.
+    r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'b2' } } }));
+    r.flushes[0].resolve();
+    await pressing;
+    assert.equal(r.sends.length, 0, press);
+    assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive' || k === 'patch'), [], press);
+    assert.deepEqual(r.notes, ['Nothing sent: the cue on Score changed.'], press);
+  }
+});
+
+test('a press refuses a cue this page\'s own Take is still taking off the layer (F1)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const taking = r.verbs.take(graphicCue('b2', 'Score', { home: '0' }));
+  await settle();
+  // The Take of b2 is out, unanswered; the marker still names b1.
+  assert.equal(r.liveCue().Score, 'b1');
+  await r.verbs.bump(view, 'home', 1);
+  assert.equal(r.sends.length, 1);
+  assert.deepEqual(r.notes, ['Nothing sent: the cue on Score changed.']);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+});
+
+test('a press drawn for a cue the layer no longer holds is refused at the press (F1)', async () => {
+  const r = rig({ seed: false, liveCue: { Score: 'b2' } });
+  const stale = sel({ selectedGraphic: 'Score', selectedLayerLive: true, airCue: graphicCue('b1', 'Score'), editingCue: graphicCue('b1', 'Score'), editingIsLive: true });
+  await r.verbs.event(stale, goal);
+  await r.verbs.bump(stale, 'home', 1);
+  assert.equal(r.sends.length, 0);
+  assert.equal(r.notes.length, 2);
+});
+
+test('two +1 presses inside one held round trip write 8 then 9, never 8 twice (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.equal(r.sends.length, 1);
+  assert.deepEqual(r.sends[0].batches[0][0].msg.data, { home: '8' });
+  // Air's record moves as the page's own monitor applied the first (published: `applyHere`).
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '8' } } } }));
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue').map((w) => w[2]), ['{"home":"8"}', '{"home":"9"}']);
+});
+
+test('a press released by the fallback while the one before is still out counts from the figure this page sent (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  void r.verbs.bump(view, 'home', 1);
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  // The first never answers and air's record never moved; the queue's fallback lets the second go.
+  r.timers[0]();
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+  // An adjust event counts from the same sent figure.
+  const r2 = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const v2 = liveSelection('Score', [banner], r2.liveCue());
+  void r2.verbs.event(v2, goal);
+  const goal2 = r2.verbs.event(v2, goal);
+  await settle();
+  r2.timers[0]();
+  await settle();
+  assert.equal(r2.sends.length, 2);
+  r2.sends[1].answer.resolve({ ...noneLeft });
+  await goal2;
+  assert.deepEqual(r2.log.filter(([k]) => k === 'writeLive'), [['writeLive', 'b1', '{"home":"9"}']]);
+});
+
+test('a refused or failed send writes nothing into the cue and says why (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const failing = r.verbs.bump(view, 'home', 1);
+  await settle();
+  r.sends[0].answer.reject(new Error('down'));
+  await failing;
+  const goalFailing = r.verbs.event(view, goal);
+  await settle();
+  r.sends[1].answer.reject(Object.assign(new Error('refused'), { stale: true }));
+  await goalFailing;
+  // Skipped by the server: not on the output, so not written either.
+  const skipped = r.verbs.bump(view, 'home', 1);
+  await settle();
+  r.sends[2].answer.resolve({ ...noneLeft, skipped: ['Score'] });
+  await skipped;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive' || k === 'patch'), []);
+  assert.equal(r.notes.length, 2);
+  // After the failures, the next press counts from air again, not from the figure that failed.
+  const again = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[3].batches[0][0].msg.data, { home: '8' });
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await again;
+});
+
+test('a correction typed into the on-air cue but not yet aired is never the next bump\'s base (AC-2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  // Typed (and saved) in PREP, not yet Updated: the cue says 20, air still shows 7.
+  r.draft.b1 = { home: '20' };
+  const view = liveSelection('Score', [{ ...banner, values: { home: '20' } }], r.liveCue());
+  const bumping = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][0].msg.data, { home: '8' });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await bumping;
+});
+
+test('a press after one that landed on the slow road counts from that figure until air\'s record moves (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  // Landed, but its row is not back: air's record still says 7.
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+  // Another screen moved it to 15 since: air's record is the base again.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '15' } } } }));
+  const third = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '16' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await third;
+});
+
+test('a landed figure is not the base on the next cue, nor after air\'s record moved back to it (F2)', async () => {
+  const a = graphicCue('a1', 'Score', { home: '0' });
+  const b = graphicCue('b1', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 'a1' }, aired: { Score: { home: '0' } } });
+  const one = r.verbs.bump(liveSelection('Score', [a, b], r.liveCue()), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await one;
+  // Cue B is taken with home 0: a new cue and a new record of what air was sent.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'b1' }, aired: { Score: { home: '0' } } } }));
+  const two = r.verbs.bump(liveSelection('Score', [a, b], r.liveCue()), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '1' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await two;
+  // On B, this page's Update puts the figure back to what the cue holds: air's record is the base.
+  const updating = r.verbs.update(liveSelection('Score', [a, b], r.liveCue()));
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '0' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await updating;
+  const three = r.verbs.bump(liveSelection('Score', [a, b], r.liveCue()), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[3].batches[0][0].msg.data, { home: '1' });
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await three;
+});
+
+test('a landed figure survives an update of another field arriving before its row (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7', name: 'Katri' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7', name: 'Katri' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  // Another page's name-only update arrives; the +1's own row has not.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '7', name: 'K.' } } } }));
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+});
+
+test('an unrelated write to air\'s record during a slow send does not lose the figure that landed (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7', name: 'Katri' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7', name: 'Katri' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  // Another page's name Update lands while the +1 is out; its own row is not back.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '7', name: 'K.' } } } }));
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+});
+
+test('a correction heard while a +1 is out stands over it: the next press counts from the correction (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  // Another screen corrects the score to 0 while the +1 is out.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '0' } } } }));
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '1' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+});
+
+test('a landed figure stays the base when the send that would replace it fails (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const failing = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.reject(new Error('down'));
+  await failing;
+  const third = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '9' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await third;
+});
+
+test('a failed older send gives back no landed figure a newer send replaced (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const failing = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  // The cue, staged at 0, is sent again and lands while the +1 is still out.
+  const updating = r.verbs.update(view());
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '0' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await updating;
+  r.sends[1].answer.reject(new Error('down'));
+  await failing;
+  const third = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  // The Update's 0 landed after the 8: the +1 counts from 0, never from the 8 the failure parked.
+  assert.deepEqual(r.sends[3].batches[0][0].msg.data, { home: '1' });
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await third;
+});
+
+test('a late older answer that landed books nothing over a figure a newer send landed (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const older = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][0].msg.data, { home: '8' });
+  // The cue, staged at 0, is sent again and lands while the +1 is still out.
+  const updating = r.verbs.update(view());
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '0' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await updating;
+  r.sends[0].answer.resolve({ ...noneLeft, pressedAgain: ['Score'] });
+  await older;
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '1' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await next;
+});
+
+test('a late older answer writes nothing into the cue over a figure a newer send landed (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '0' });
+  for (const press of ['bump', 'event']) {
+    const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+    const view = () => liveSelection('Score', [banner], r.liveCue());
+    const older = press === 'bump' ? r.verbs.bump(view(), 'home', 1) : r.verbs.event(view(), goal);
+    await settle();
+    // The cue, staged at 0, is sent again and lands while the older press is still out.
+    const updating = r.verbs.update(view());
+    await settle();
+    assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '0' }, press);
+    r.sends[1].answer.resolve({ ...noneLeft });
+    await updating;
+    r.sends[0].answer.resolve({ ...noneLeft, pressedAgain: ['Score'] });
+    await older;
+    assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive'), [], press);
+  }
+});
+
+test('an accepted press writes nothing over an edit to its field saved while it was out (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  for (const press of ['bump', 'event']) {
+    const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } }, saved: { b1: { home: '7' } } });
+    const view = () => liveSelection('Score', [banner], r.liveCue());
+    const pressing = press === 'bump' ? r.verbs.bump(view(), 'home', 1) : r.verbs.event(view(), goal);
+    await settle();
+    // A correction to 20 is typed and its debounce saves it while the press is out.
+    r.saved.b1 = { home: '20' };
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await pressing;
+    assert.deepEqual(r.log.filter(([k]) => k === 'writeCue' || k === 'writeLive'), [], press);
+  }
+  // A second press released before the first one wrote still writes its figure after it.
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } }, saved: { b1: { home: '7' } } });
+  r.page.writeCue = (cueId, values) => {
+    r.log.push(['writeCue', cueId, JSON.stringify(values)]);
+    r.saved[cueId] = { ...r.saved[cueId], ...values };
+  };
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const one = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await one;
+  const two = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await two;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'b1', '{"home":"8"}'], ['writeCue', 'b1', '{"home":"9"}']]);
 });

@@ -57,8 +57,10 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
   await page.getByTestId('verb-take').click();
   await expectMachineState(page, 'Question');
 
-  // The contestant says "B". The operator records it as DATA — the segmented row, then a
-  // live ✎ Update — and NOTHING paints: the pick is in the graphic, invisible.
+  // The contestant says "B". The operator records it as DATA — the segmented row under the
+  // editor's Advanced, then a live ✎ Update — and NOTHING paints: the pick is in the graphic,
+  // invisible.
+  await page.getByTestId('cue-advanced-toggle').click();
   await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-update').click();
   await expect(program.locator('#f6')).toHaveText('B');
@@ -69,8 +71,10 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
   await expect(chip).toHaveText('Locked, choice hidden');
   await expect(program.locator('.quiz')).toHaveClass(/quiz-locked/);
   await expect(program.locator('.quiz-option.quiz-sel')).toHaveCount(0);
-  // A late change is structurally impossible: select's arrows leave question/selected only.
-  await expect(page.getByTestId('cue-action-select')).toBeDisabled();
+  // A late change is structurally impossible: select's arrows leave question/selected only,
+  // so every one-press pick option is disabled.
+  await expect(page.getByTestId('cue-action-select').getByRole('button')).toHaveCount(4);
+  for (const letter of ['A', 'B', 'C', 'D']) await expect(page.getByTestId(`cue-pick-select-${letter}`)).toBeDisabled();
 
   // Reveal the choice — its own deliberate beat. NOW the pick shows, still locked.
   await page.getByTestId('cue-action-revealChoice').click();
@@ -135,9 +139,8 @@ test('the TV-style flow still stands: select paints immediately, lock follows, v
   await page.getByTestId('verb-take').click();
   await expectMachineState(page, 'Question');
 
-  // Select C on air (the millionaire drama: the pick shows the moment it is made)…
-  await page.getByTestId('cue-field-f6-opt-C').click();
-  await page.getByTestId('cue-action-select').click();
+  // Select C on air in one press (the millionaire drama: the pick shows the moment it is made)…
+  await page.getByTestId('cue-pick-select-C').click();
   await expect(chip).toHaveText('Answer selected');
   await expect(program.locator('.quiz-option').nth(2)).toHaveClass(/quiz-sel/);
 

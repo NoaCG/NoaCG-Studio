@@ -153,11 +153,10 @@ test('the seven SVG examples import with their fields and moments and run from o
   // ── Quiz: key B, take, the contestant picks B, lock, reveal. ──
   await selectCue(page, 'Quiz');
   await page.getByTestId('cue-field-f5-opt-B').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
   const quiz = air(page, 'Quiz');
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await expect(quiz.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await shot(page, 'quiz-selected');
   await page.getByRole('button', { name: /Lock it in/ }).click();

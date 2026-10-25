@@ -946,6 +946,7 @@ export default function CueEditor({
   descriptors,
   descriptorByKey,
   fieldGroups,
+  pickedFields,
   boundFields,
   resolved,
   cueImages,
@@ -1006,6 +1007,9 @@ export default function CueEditor({
   descriptors: FieldDescriptor[];
   descriptorByKey: ReadonlyMap<string, FieldDescriptor>;
   fieldGroups: CueFieldGroup[];
+  /** The fields a one-press pick group sets from LIVE (pinned live controls D8): kept editable
+   *  here under ▸ Advanced, for the hidden-choice flow. */
+  pickedFields: FieldDescriptor[];
   boundFields: (graphic: string | null) => Record<string, string>;
   resolved: ResolvedValues;
   cueImages: FieldImage[];
@@ -1450,12 +1454,22 @@ export default function CueEditor({
           <span className="pd-advanced-caret" aria-hidden="true">{advancedOpen ? '▾' : '▸'}</span>
           Advanced
           <span className="pd-advanced-sum" data-testid="cue-advanced-summary">
+            {pickedFields.map((d) => `${d.label} · `).join('')}
             Layer {editedLayer}
             {layerClash ? ' · shared' : ''}
           </span>
         </button>
         {advancedOpen && (
           <div className="pd-advanced-body" id="pd-advanced-graphic">
+            {pickedFields.map((d) => (
+              <FieldRow
+                key={d.key}
+                descriptor={{ ...d, label: `${d.key.toUpperCase()} · ${d.label}` }}
+                value={String(editingView.values[d.key] ?? d.defaultValue ?? '')}
+                onChange={(v) => editDraft({ values: { [d.key]: String(v) } })}
+                testIdPrefix="cue-field"
+              />
+            ))}
             <label className="pd-field pd-field-layer">
               <span>Playout layer</span>
               <input

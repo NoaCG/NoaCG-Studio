@@ -37,6 +37,9 @@ const {
   serializeShowProfile,
   validateShowProfile,
   withGraphicArrange,
+  withPinnedGraphic,
+  pinnedGraphicsOf,
+  profileIsEmpty,
 } = mod;
 
 /** The proof case's production (docs/CONTROL_PANEL_ANY_GRAPHIC.md §3): two boards. */
@@ -318,4 +321,65 @@ test('withGraphicArrange starts from empty on a profile this build cannot read',
   const made = withGraphicArrange({ v: 99, arrange: {} }, 'Votes board', { reveal: { order: 0 } });
   assert.equal(made.v, PROFILE_VERSION);
   assert.deepEqual(made.arrange, { 'Votes board': { reveal: { order: 0 } } });
+});
+
+// ── Pinned live controls (docs/work-specs/pinned-live-controls/spec.md D1, D7; AC-6) ─────────────
+
+const NAMES = Object.keys(POOL.controls);
+
+test('pins read in pin order; a malformed list is dropped and the rest of the profile kept', () => {
+  const read = readShowProfile({ ...goodProfile(), pinnedGraphics: ['Totals board', 'Votes board', 'Totals board', '', 7] });
+  assert.deepEqual(read.profile.pinnedGraphics, ['Totals board', 'Votes board']);
+  const bad = readShowProfile({ ...goodProfile(), pinnedGraphics: 'Totals board' });
+  assert.equal(bad.status, 'ok');
+  assert.equal(bad.profile.pinnedGraphics, undefined);
+  assert.deepEqual(bad.profile.arrange, goodProfile().arrange);
+});
+
+test('canonical form keeps pin order, leaves the key out when nothing is pinned, and round trips', () => {
+  const pinned = serializeShowProfile({ v: 1, arrange: {}, pinnedGraphics: ['Votes board', 'Totals board'] });
+  assert.equal(JSON.stringify(pinned), '{"v":1,"arrange":{},"pinnedGraphics":["Votes board","Totals board"]}');
+  assert.equal(JSON.stringify(serializeShowProfile({ v: 1, arrange: {}, pinnedGraphics: [] })), '{"v":1,"arrange":{}}');
+  assert.deepEqual(serializeShowProfile(readShowProfile(pinned).profile), pinned);
+  assert.deepEqual(profileForPublish(pinned), pinned);
+  assert.ok(profileIsEmpty(serializeShowProfile({ v: 1, arrange: {}, pinnedGraphics: [] })));
+  assert.ok(!profileIsEmpty(pinned));
+});
+
+test('a pin is appended, an unpin removes only it, and a name outside the pool is refused', () => {
+  const one = withPinnedGraphic(undefined, 'Totals board', true, NAMES);
+  assert.deepEqual(one, { v: 1, arrange: {}, pinnedGraphics: ['Totals board'] });
+  const two = withPinnedGraphic(one, 'Votes board', true, NAMES);
+  assert.deepEqual(two.pinnedGraphics, ['Totals board', 'Votes board']);
+  assert.deepEqual(withPinnedGraphic(two, 'Totals board', false, NAMES).pinnedGraphics, ['Votes board']);
+  assert.deepEqual(withPinnedGraphic(two, 'Not here', true, NAMES), two);
+  // A pin keeps the arrangement it was written over.
+  assert.deepEqual(withPinnedGraphic(goodProfile(), 'Votes board', true, NAMES).arrange, serializeShowProfile(goodProfile()).arrange);
+});
+
+test('an orphan pin is dropped by the next pin or arrangement write, and no other arrangement moves (D7)', () => {
+  const stored = { ...goodProfile(), arrange: { ...goodProfile().arrange, Gone: { x: { hidden: true } } }, pinnedGraphics: ['Gone', 'Totals board'] };
+  const pinWrite = withPinnedGraphic(stored, 'Votes board', true, NAMES);
+  assert.deepEqual(pinWrite.pinnedGraphics, ['Totals board', 'Votes board']);
+  assert.deepEqual(pinWrite.arrange, serializeShowProfile(stored).arrange);
+  const arrangeWrite = withGraphicArrange(stored, 'Votes board', { reveal: { pinned: true } }, NAMES);
+  assert.deepEqual(arrangeWrite.pinnedGraphics, ['Totals board']);
+  assert.ok(arrangeWrite.arrange.Gone, 'the gone graphic\'s arrangement is not the pin rule\'s to drop');
+  // Without the pool, an arrangement write keeps every pin (the older callers).
+  assert.deepEqual(withGraphicArrange(stored, 'Votes board', {}).pinnedGraphics, ['Gone', 'Totals board']);
+});
+
+test('the validator warns about an orphan pin and refuses only a malformed list', () => {
+  const orphan = validateShowProfile({ v: 1, arrange: {}, pinnedGraphics: ['Gone', 'Totals board'] }, POOL);
+  assert.deepEqual(errorsAt(orphan), []);
+  assert.deepEqual(warningsAt(orphan), ['pinnedGraphics[0]']);
+  assert.deepEqual(errorsAt(validateShowProfile({ v: 1, arrange: {}, pinnedGraphics: 'Totals board' }, POOL)), ['pinnedGraphics']);
+  assert.deepEqual(errorsAt(validateShowProfile({ v: 1, arrange: {}, pinnedGraphics: [3] }, POOL)), ['pinnedGraphics[0]']);
+});
+
+test('a profile from a newer build pins nothing and its pins cannot be edited here', () => {
+  const newer = { v: 2, arrange: {}, pinnedGraphics: ['Totals board'] };
+  assert.deepEqual(pinnedGraphicsOf(newer), []);
+  assert.deepEqual(pinnedGraphicsOf(undefined), []);
+  assert.deepEqual(pinnedGraphicsOf({ v: 1, arrange: {}, pinnedGraphics: ['Totals board'] }), ['Totals board']);
 });
