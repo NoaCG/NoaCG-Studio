@@ -3081,7 +3081,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             bumpLive,
           }
         : pinnedBlock(b.graphic);
-    if (!actions) return [];
+    // A graphic with no live controls draws no block, pinned or not.
+    if (!actions || (actions.events.length === 0 && actions.liveNumberFields.length === 0)) return [];
     const cueId = liveCue[b.graphic];
     return [{ graphic: b.graphic, pinned: b.pinned, selected: b.selected, cue: cueId ? (cues.find((c) => c.id === cueId)?.label ?? null) : null, actions }];
   });

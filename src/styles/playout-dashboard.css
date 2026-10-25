@@ -1393,12 +1393,13 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-live-block.selected > .pd-actions { box-shadow: inset 3px 0 0 var(--accent); }
 .pd-live-name { font-size: 12.5px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pd-live-cue { font-weight: 400; color: var(--text-dim, #9aa1ad); }
-.pd-pin-toggle { font-size: 12px; padding: 3px 8px; color: var(--text-dim, #9aa1ad); filter: grayscale(1); opacity: 0.7; }
-.pd-pin-toggle.on { filter: none; opacity: 1; border-color: var(--accent); }
+.pd-pin-toggle { font-size: 12px; padding: 3px 8px; color: var(--text-dim, #9aa1ad); line-height: 1; }
+.pd-pin-toggle:hover:not(:disabled) { color: var(--text); }
+.pd-pin-toggle.on { color: var(--accent); border-color: var(--accent); }
 .pd-live-numbers .pd-pin-toggle { margin-left: auto; }
 @media (max-width: 900px) {
   /* A finger's height on a phone (AC-10). */
-  .pd-live-stack .pd-action, .pd-live-stack .pd-live-number button, .pd-live-stack .pd-pin-toggle { min-height: 40px; }
+  .pd-live-stack button { min-height: 40px; }
 }
 
 /* RECOVERY - the snap picker, folded closed in the ⚡ block's head beside Arrange: the summary

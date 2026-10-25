@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import { useRef, type ComponentProps } from 'react';
 import CueActions from './CueActions';
 
 /** One block of the LIVE region: a graphic's ⚡ actions and ± numbers, its pin, and whether it is
@@ -19,13 +19,17 @@ export interface LiveBlockView {
  * pinned it is today's one block, unwrapped, with the pin on its head.
  */
 export default function LiveControls({ blocks, onPin, readOnly }: { blocks: LiveBlockView[]; onPin: (graphic: string, pinned: boolean) => void; readOnly: boolean }) {
+  /** How many times the stack has rendered, published as `data-renders`: typing in PREP must not
+   *  render it (e2e/playout-air-contract.spec.ts). */
+  const renders = useRef(0);
+  renders.current += 1;
   const pin = (b: LiveBlockView) => ({ pinned: b.pinned, disabled: readOnly, toggle: () => onPin(b.graphic, !b.pinned) });
   if (!blocks.some((b) => b.pinned)) {
     const only = blocks[0];
     return only ? <CueActions {...only.actions} pin={pin(only)} /> : null;
   }
   return (
-    <div className="pd-live-stack" data-testid="live-stack">
+    <div className="pd-live-stack" data-testid="live-stack" data-renders={renders.current}>
       {blocks.map((b) => (
         <div
           key={b.graphic}

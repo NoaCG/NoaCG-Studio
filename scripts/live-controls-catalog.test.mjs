@@ -28,7 +28,7 @@ test('pick groups appear exactly on the boards whose declaration names a few-opt
     entry,
     [
       `export { CATALOG } from '${src('templates/catalog.ts')}';`,
-      `export { eventButtons, continueEvents, fieldDescriptors } from '${src('control/controlModel.ts')}';`,
+      `export { arrangeControls, eventButtons, continueEvents, fieldDescriptors } from '${src('control/controlModel.ts')}';`,
       `export { pickOptions } from '${src('control/liveControls.ts')}';`,
     ].join('\n'),
   );
@@ -42,9 +42,10 @@ test('pick groups appear exactly on the boards whose declaration names a few-opt
   try {
     const page = await browser.newPage();
     await page.addScriptTag({ content: script });
-    const { groups, checked } = await page.evaluate(() => {
-      const { CATALOG, eventButtons, continueEvents, fieldDescriptors, pickOptions } = window.NOACG_LIVE;
+    const { groups, checked, moved } = await page.evaluate(() => {
+      const { CATALOG, arrangeControls, eventButtons, continueEvents, fieldDescriptors, pickOptions } = window.NOACG_LIVE;
       const groups = {};
+      const moved = [];
       let checked = 0;
       for (const variants of Object.values(CATALOG)) {
         for (const v of variants) {
@@ -59,11 +60,18 @@ test('pick groups appear exactly on the boards whose declaration names a few-opt
             return p ? [`${b.event}:${p.options.map((o) => o.value).join('')}`] : [];
           });
           if (found.length) groups[v.id] = found.join(' ');
+          // AC-7: with the pick rule applied, every control keeps its event, label, section,
+          // order and bucket; only a pick group's control gains `options`.
+          const before = arrangeControls(buttons, undefined);
+          const after = arrangeControls(buttons, undefined, (b) => pickOptions(b, descriptors, path, buttons));
+          const strip = (a) => JSON.stringify(a, (k, val) => (k === 'options' ? undefined : val));
+          if (strip(before) !== strip(after)) moved.push(v.id);
         }
       }
-      return { groups, checked };
+      return { groups, checked, moved };
     });
     assert.ok(checked > 50, `only ${checked} catalog graphics declare controls`);
+    assert.deepEqual(moved, [], 'a graphic whose arrangement the pick rule moved');
     const expected = {};
     // The classic answer boards: Select answer becomes its letters; Correct answer rides `judge`.
     for (const id of ['qz01', 'qz02', 'qz03', 'qz04']) expected[id] = 'select:ABCD';

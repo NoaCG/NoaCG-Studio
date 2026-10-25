@@ -4,6 +4,7 @@ import { pickButton } from '../../control/liveControls';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { ArrangeEntry, ShowProfile } from '../../model/profile';
 import ActionArranger from './ActionArranger';
+import { IconPin } from '../icons';
 
 /** What one graphic's ⚡ buttons are judged and pressed against: whether the layer is up, whether
  *  the machine accepts an event where it stands, the operator's word for a field, what the layer
@@ -150,13 +151,13 @@ export default function CueActions({
       onClick={pin.toggle}
       data-testid="live-pin"
     >
-      📌
+      <IconPin size={14} />
     </button>
   );
   const named = heading && (
     <span className="pd-live-name" data-testid="live-block-name">
       {heading.graphic}
-      {heading.cue && <span className="pd-live-cue"> · {heading.cue}</span>}
+      {heading.cue && heading.cue !== heading.graphic && <span className="pd-live-cue"> · {heading.cue}</span>}
     </span>
   );
   return (
