@@ -117,6 +117,14 @@ changes a spec's digest.
   heard late, moved the marker through `claimAndApply`. That is fixed by `withoutOwnMarkers`. It
   also found that a two-batch send booked only its last batch, which is now fixed and pinned. The
   protocol-1 folder Out case is noted above.
+- **Configured spec changed with #1710 merged in.** `e2e/configured/playout-resolve-race.spec.ts`
+  checked the chip read "on air" while the page's first resolve was held, before releasing it.
+  Since #1697 such a Take waits for that resolve within its resend window. When the wait runs
+  out, the Take is never sent, yet the fast road had already moved the marker. On main that left
+  the chip naming a Take that went nowhere (this issue), so the spec passed there. Here the
+  marker goes back, and the spec failed on `7516570` (configured run 40181100721). It now
+  releases the resolve while the Take waits, then checks the same things: on air here, staying
+  on air after the older answer, Out enabled, one entrance. Nothing is checked less.
 - **Independent assessment (/so) on `6312a90`: B.** It found two blocking holes in the late-row
   path. First, a late row of an older press marked over a newer landed one. That is fixed with
   the per-graphic newest-landed number. Second, a row heard before the timeout was lost. That

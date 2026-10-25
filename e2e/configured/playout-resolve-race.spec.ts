@@ -16,6 +16,11 @@
 // `setLiveCue` comment). The guard (control/airState.ts `seedFromResolve`) skips the seed when the
 // live map moved while the read was out.
 // The hold is in the browser, on the answer: the read reaches the server before the Take.
+//
+// Since #1697 a press made before that first resolve has decided the road waits for it, within the
+// press's own resend window (control/hostedControl.ts `roadDecided`), so the Take goes, and moves
+// the marker here, only once the answer is in. A press whose wait runs out is never sent, and its
+// marker goes back (#1696): so the answer is released while the Take waits.
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
@@ -65,14 +70,16 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
   const stage = page.getByTestId('program-stage');
   await expect(stage).toHaveAttribute('data-plays', '0');
   await page.getByTestId('verb-take').click();
-  await expect(chip).toContainText('on air:');
-  const taken = (await chip.textContent()) ?? '';
   expect(fulfilled, 'the resolve is still out when the Take is pressed').toBe(0);
+  // The Take waits for the road: nothing has gone, so nothing is marked on air yet.
+  await expect(chip).not.toContainText('on air:');
 
-  // The answer arrives, older than the Take: nothing on air, as far as it knows.
+  // The answer arrives, read before the Take: nothing on air, as far as it knows. The Take then goes.
   const answered = page.waitForResponse(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/);
   release();
   await answered;
+  await expect(chip).toContainText('on air:');
+  const taken = (await chip.textContent()) ?? '';
   await page.waitForTimeout(1_500);
   await expect(chip).toHaveText(taken);
   await expect(page.getByTestId('verb-out')).toBeEnabled();
