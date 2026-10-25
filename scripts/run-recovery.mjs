@@ -380,3 +380,23 @@ export function restoredObservation(doc, receipt, now) {
   }
   return true;
 }
+
+/** The owner-decision receipts an admission names, read at their commit on the remote's main:
+ * [{ path, sha256 }]. Refuses a missing receipt, a commit not on main, or no receipts at all. */
+export function ownerReceipts(db, doc, admission) {
+  const config = doc.manifest.recovery, { receipts, commit } = admission ?? {};
+  if (!config) throw new Error('Admission reads owner receipts from the recovery repository; this run has none');
+  if (!Array.isArray(receipts) || !receipts.length || receipts.some((p) => !safePath(p))
+      || new Set(receipts).size !== receipts.length || !revision(commit)) throw new Error('Admission needs the owner-decision receipt paths and the 40-hex commit on main that holds them');
+  const git = transports.get(db) ?? recoveryGit;
+  settings(config, git);
+  git(config.repository, ['fetch', '--no-tags', config.remote, 'refs/heads/main']);
+  try { git(config.repository, ['merge-base', '--is-ancestor', commit, 'FETCH_HEAD']); } catch { throw new Error(`Owner receipts commit ${commit} is not on main`); }
+  return receipts.map((p) => {
+    let bytes;
+    // Preserve the bytes, including the final newline, for hashing.
+    try { bytes = execFileSync('git', ['show', `${commit}:${p}`], { cwd: config.repository, timeout: 30_000, maxBuffer: 2 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }); }
+    catch { throw new Error(`Owner receipt ${p} is not at ${commit}`); }
+    return { path: p, sha256: sha(bytes) };
+  });
+}

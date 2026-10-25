@@ -1,16 +1,16 @@
 // gate: build
-// guards: scripts/run-recovery.mjs, scripts/run-supervisor.mjs
+// guards: scripts/run-recovery.mjs, scripts/run-supervisor.mjs, scripts/project-control.mjs
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { devNull, tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { continueProject, main, openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
+import { admitRun, continueProject, main, openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
 import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
-import { nextStep, recordStep } from './plan-run.mjs';
+import { nextStep, readPhases, readSteps, recordStep } from './plan-run.mjs';
 
 // Defense in depth: every child git process is restricted to the temporary file remote.
 process.env.GIT_ALLOW_PROTOCOL = 'file';
@@ -727,4 +727,117 @@ test('a ledger above git\'s old 2 MiB output buffer still merges on adoption', (
   assert.ok(Buffer.byteLength(ledger) > 2 * 1024 * 1024);
   assert.equal(readProject(ledger, f.now).status, 'paused');
   assert.match(ledger, /- paused for the night\n$/);
+});
+
+/** A three-phase project with phase 1 passed and phase 2 in flight, and owner receipts on the
+ * remote's main. `admit` runs the supervisor operation under the current block. */
+function admissionFixture(t) {
+  let owner;
+  const f = fixture(t, ['-e', ''], ({ manifest, wave, now, root, remote }) => {
+    manifest.id = 'plan-fixture-2030-01-01';
+    manifest.authorization.deadline = new Date(now + 72 * HOUR).toISOString();
+    const phase = (id, dependsOn = []) => ({ id, title: `Phase ${id}`, dependsOn, acceptance: [`${id} verified`], environment: 'controlled-fixture' });
+    const project = { version: 1, id: manifest.id, ownership: 'local-single-owner', authorization: manifest.authorization,
+      status: 'paused', reason: 'admission fixture only', phases: [phase('a'), phase('b', ['a']), phase('c', ['b'])] };
+    writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline}`)
+      .replace(/^1\. .+$/m, '1. Phase a\n2. Phase b\n3. Phase c'), project));
+    const repo = path.join(root, 'owner');
+    git(root, 'init', '-b', 'main', repo);
+    mkdirSync(path.join(repo, 'evidence'));
+    writeFileSync(path.join(repo, 'evidence', 'owner-decision.md'), 'The owner admits b2 and c2.\n');
+    gitRaw(repo, ['add', '.']); gitRaw(repo, ['commit', '-m', 'Owner decision']); gitRaw(repo, ['push', remote, 'HEAD:refs/heads/main']);
+    owner = git(repo, 'rev-parse', 'HEAD');
+  });
+  const wave = f.manifest.wave, at = f.now;
+  updateRun(f.db, f.manifest.id, 'start-block', { owner: 'session-a', deadline: new Date(at + 12 * HOUR).toISOString(), evidence: 'fixture block' }, at);
+  const record = (phase, event, detail, db = f.db, file = wave) => recordRun(db, f.manifest.id, phase, event, JSON.stringify(detail), { now: at, authority: blockOf(file) });
+  const merge = { mergeSha: 'a'.repeat(40) };
+  const pass = (id) => ({ actor: 'checker', mergeSha: merge.mergeSha, mergeChecks: 'all green', evidence: [{ criterion: `${id} verified`, evidence: 'fixture', environment: 'controlled-fixture' }] });
+  record(1, 'build', { actor: 'builder' }); record(1, 'landed', merge); record(1, 'check', { actor: 'checker' }); record(1, 'pass', pass('a'));
+  record(2, 'build', { actor: 'builder' });
+  const phase = (id, dependsOn) => ({ id, title: `Phase ${id}`, dependsOn, acceptance: [`${id} verified`], environment: 'controlled-fixture' });
+  const admission = (patch = {}) => ({ receipts: ['evidence/owner-decision.md'], commit: owner,
+    insert: [{ after: 'b', phases: [phase('b2', ['b'])] }, { after: 'c', phases: [phase('c2', ['c'])] }], ...patch });
+  const admit = (value, authority = blockOf(wave)) => admitRun(f.db, f.manifest.id, value, { now: at, authority });
+  return { ...f, wave, at, owner, record, merge, pass, phase, admission, admit };
+}
+
+test('an owner-receipted admission inserts phases after the last recorded one, and next names the inserted phase', (t) => {
+  const f = admissionFixture(t), before = readSteps(readFileSync(f.wave, 'utf8'));
+  assert.equal(f.admit(f.admission()).action, 'wait');
+  const text = readFileSync(f.wave, 'utf8');
+  assert.deepEqual(readPhases(text), ['Phase a', 'Phase b', 'Phase b2', 'Phase c', 'Phase c2']);
+  assert.deepEqual(readProject(text).phases.map((p) => p.id), ['a', 'b', 'b2', 'c', 'c2']);
+  assert.match(text, /^1\. Phase a\n2\. Phase b\n3\. Phase b2\n4\. Phase c\n5\. Phase c2$/m);
+  // Lines recorded before stay valid: phase 1 passed and phase 2 is still the one in flight.
+  assert.deepEqual(readSteps(text), before);
+  const [, admitted] = /^- \S+ admitted (.+)$/m.exec(text);
+  assert.deepEqual(JSON.parse(admitted), { commit: f.owner,
+    receipts: [{ path: 'evidence/owner-decision.md', sha256: hash('The owner admits b2 and c2.\n') }],
+    inserted: [{ id: 'b2', position: 3 }, { id: 'c2', position: 5 }], moved: [{ id: 'c', from: 3, to: 4 }] });
+  assert.equal(ledgerAt(f), text);
+  f.record(2, 'landed', f.merge); f.record(2, 'check', { actor: 'checker' }); f.record(2, 'pass', f.pass('b'));
+  // Five phases now: the midpoint retro comes first, as for any plan of that length.
+  assert.equal(nextStep(readFileSync(f.wave, 'utf8'), f.at).action, 'retro');
+  writeFileSync(f.wave, `${readFileSync(f.wave, 'utf8')}\n## Midpoint retro\n- on pace\n`);
+  assert.deepEqual(pick(nextStep(readFileSync(f.wave, 'utf8'), f.at)), { action: 'launch', phase: 3, step: 'build' });
+  f.record(3, 'build', { actor: 'builder' });
+  assert.match(readFileSync(f.wave, 'utf8'), /phase 3 build/);
+});
+const pick = ({ action, phase, step }) => ({ action, phase, step });
+
+test('a checkpoint restored after an admission reproduces the same project, ledger and next step', (t) => {
+  const f = admissionFixture(t);
+  f.admit(f.admission());
+  const restored = f.restore(f.at), text = readFileSync(restored.config.wave, 'utf8');
+  assert.equal(text, readFileSync(f.wave, 'utf8'));
+  assert.deepEqual(readProject(text), readProject(readFileSync(f.wave, 'utf8')));
+  assert.deepEqual(nextStep(text, f.at), nextStep(readFileSync(f.wave, 'utf8'), f.at));
+  updateRun(restored.db, f.manifest.id, 'start-block', { owner: 'session-b', deadline: new Date(f.at + HOUR).toISOString(), evidence: 'restored' }, f.at);
+  f.record(2, 'landed', f.merge, restored.db, restored.config.wave);
+  assert.match(ledgerAt(f), /admitted[\s\S]*phase 2 landed/);
+});
+
+test('admission is refused without receipts, off main, at or before a recorded phase, or as any other change', (t) => {
+  const f = admissionFixture(t), text = readFileSync(f.wave, 'utf8'), remote = ledgerAt(f);
+  const refusals = [
+    [f.admission({ receipts: [] }), /receipt paths/],
+    [f.admission({ commit: undefined }), /receipt paths/],
+    [f.admission({ receipts: ['evidence/missing.md'] }), /not at/],
+    [f.admission({ commit: f.manifest.packet.recovery.revision }), /not on main/],
+    [f.admission({ insert: [{ after: 'a', phases: [f.phase('a2', ['a'])] }] }), /only after phase 2/],
+    [f.admission({ insert: [{ after: 'missing', phases: [f.phase('x', [])] }] }), /only after phase 2/],
+    // Retitling, removing or reordering an admitted phase, or changing the deadline or objective, is not an insertion.
+    [f.admission({ insert: [{ after: 'c', phases: [{ ...f.phase('c', ['b']), title: 'Retitled' }] }] }), /Preserve phase order/],
+    [f.admission({ insert: [{ after: 'c', phases: [f.phase('d', ['e']), f.phase('e', [])] }] }), /Preserve phase order/],
+    [f.admission({ phases: [] }), /only inserts new phases/],
+    [f.admission({ deadline: new Date(f.at + 99 * HOUR).toISOString() }), /only inserts new phases/],
+    [f.admission({ insert: [{ after: 'c', phases: [f.phase('d', ['c'])], position: 1 }] }), /only inserts new phases/],
+    [f.admission({ insert: [] }), /only inserts new phases/],
+  ];
+  for (const [admission, why] of refusals) assert.throws(() => f.admit(admission), why);
+  assert.throws(() => f.admit(f.admission(), { ...blockOf(f.wave), epoch: 0 }), /Stale/);
+  assert.equal(readFileSync(f.wave, 'utf8'), text);
+  assert.equal(ledgerAt(f), remote);
+});
+
+test('an unadmitted edit of the phase list is still refused by the ledger, the supervisor and the checkpoint', (t) => {
+  const f = admissionFixture(t);
+  f.admit(f.admission());
+  const text = readFileSync(f.wave, 'utf8');
+  writeFileSync(f.wave, text.replace('5. Phase c2', '5. Phase c2\n6. Phase smuggled'));
+  assert.throws(() => f.record(2, 'landed', f.merge), /phase set or order changed/);
+  // Both the list and the project line edited consistently: the digests the admission wrote refuse it.
+  const project = readProject(text);
+  project.phases.push({ ...f.phase('smuggled', []), title: 'Phase smuggled' });
+  writeFileSync(f.wave, writeProject(text.replace('5. Phase c2', '5. Phase c2\n6. Phase smuggled'), project));
+  assert.throws(() => f.record(2, 'landed', f.merge), /Project\/control state differs/);
+  assert.throws(() => publishRun(f.db, f.manifest.id), /Restored project authorization or state differs/);
+});
+
+test('admit runs from the command line with the block authority file', async (t) => {
+  const f = admissionFixture(t), files = path.join(f.root, 'admission.json'), block = path.join(f.root, 'block.json');
+  writeFileSync(files, JSON.stringify(f.admission())); writeFileSync(block, JSON.stringify(blockOf(f.wave)));
+  assert.equal(await main(['admit', path.join(f.root, 'control.sqlite'), f.manifest.id, files, '--authority', block], { recoveryGit: f.transport }), 0);
+  assert.equal(readProject(ledgerAt(f)).phases.length, 5);
 });

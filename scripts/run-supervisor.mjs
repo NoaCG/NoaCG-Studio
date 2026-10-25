@@ -9,11 +9,11 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
+import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, ownerReceipts, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
 import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
-import { changeProject, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
+import { admitPhases, changeProject, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
 const LEASE_MS = 60_000;
@@ -190,6 +190,33 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
     db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
     publishRun(db, id);
     return result;
+  });
+}
+
+/** Admit owner-receipted phases into an active project: the phase list, `## Phases`, both
+ * project digests and one `admitted` ledger line change together, then the checkpoint publishes. */
+export function admitRun(db, id, admission, { now = Date.now(), authority } = {}) {
+  adoptAccepted(db, id);
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
+    const { doc } = rowFor(db, id);
+    assertCurrent(db, id, doc);
+    const text = readFileSync(doc.manifest.wave, 'utf8');
+    const project = checkedProject(doc, text, now);
+    if (!project) throw Error('Only a continuing project admits phases');
+    checkBlock(project, authority, now);
+    const receipts = ownerReceipts(db, doc, admission);
+    const locked = withLedgerLock(doc.manifest.wave, () => {
+      if (readFileSync(doc.manifest.wave, 'utf8') !== text) throw Error('Ledger changed; reconcile before admitting phases');
+      const admitted = admitPhases(project, text, admission, receipts, now);
+      writeFileSync(doc.manifest.wave, admitted.text);
+      wrote();
+      doc.projectAuthorization = immutableProject(admitted.project); doc.projectState = digest(admitted.project);
+      return {};
+    });
+    if (locked.refusal) throw Error(locked.refusal);
+    db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(doc), id);
+    publishRun(db, id);
+    return nextStep(readFileSync(doc.manifest.wave, 'utf8'), now);
   });
 }
 
@@ -446,8 +473,8 @@ function localRecovery() {
 
 export async function main(args = process.argv.slice(2), options = {}) {
   const [command, file, id, value] = args;
-  if (!file || !['register', 'restore', 'resume', 'continue', 'next', 'record', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'pause', 'finish', 'cancel'].includes(command)) {
-    process.stderr.write('Usage: run-supervisor.mjs continue <state-root> <plan> <owner> | register <db> <manifest.json> | restore|resume <db> <config.json> | next <db> <id> | record <db> <id> <phase> <event> [detail] [--authority <block.json>] | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
+  if (!file || !['register', 'restore', 'resume', 'continue', 'next', 'record', 'admit', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'pause', 'finish', 'cancel'].includes(command)) {
+    process.stderr.write('Usage: run-supervisor.mjs continue <state-root> <plan> <owner> | register <db> <manifest.json> | restore|resume <db> <config.json> | next <db> <id> | record <db> <id> <phase> <event> [detail] [--authority <block.json>] | admit <db> <id> <admission.json> --authority <block.json> | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
   }
   let db;
   try {
@@ -472,10 +499,11 @@ export async function main(args = process.argv.slice(2), options = {}) {
       if (!sameRepository(doc.manifest.recovery?.repositoryFullName, config.repositoryFullName)) throw new Error('Resume repository differs');
       output = await tickRun(db, config.id);
     }
-    else if (command === 'record') {
+    else if (command === 'record' || command === 'admit') {
       const at = args.indexOf('--authority');
       const authority = at < 0 ? undefined : JSON.parse(readFileSync(args[at + 1], 'utf8'));
-      output = recordRun(db, id, Number(value), args[4], args.slice(5, at < 0 ? undefined : at).join(' '), { authority });
+      output = command === 'admit' ? admitRun(db, id, JSON.parse(readFileSync(value, 'utf8')), { authority })
+        : recordRun(db, id, Number(value), args[4], args.slice(5, at < 0 ? undefined : at).join(' '), { authority });
     }
     else if (command === 'tick' || command === 'status') {
       const ids = id ? [id] : db.prepare('SELECT id FROM runs ORDER BY id').all().map((row) => row.id);
