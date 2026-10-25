@@ -107,6 +107,7 @@ import {
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
 import { SpaceModeToggle } from '../SpaceModeToggle';
+import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
 import { cueDataRows, hasSideFields, rowsForSide } from '../../control/cueData';
 import { groupCueFields } from '../../control/cueFieldGroups';
@@ -747,6 +748,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The follow's resolve has FAILED and is being asked again (a database or PostgREST outage).
    *  Before this the follow gave up on one failure and the page stayed silent until a reload. */
   const [resolveWaiting, setResolveWaiting] = useState(false);
+  /** This page's sends have no per-graphic order (protocol 1, hostedControl.ts `sendsInOrder`). */
+  const [unordered, setUnordered] = useState(false);
   /** Each graphic's last reported MACHINE state, keyed by pool name. Two sources converge on
    *  the same answer: the local PROGRAM monitor's own state replies (fresh — the stage posts
    *  one after every applied command), and the wire's {t:'live'} report rows, which also cover
@@ -1656,8 +1659,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // per-production layer names and collide freely.
     starting: () => {
       fastEventGraphicsRef.current = new Set();
+      setUnordered(false);
     },
     resolved: (resolved) => {
+      setUnordered(!resolved.seq);
       setOutputSeenAt(resolved.outputSeenAt);
       setPublishedStamp(resolved.output?.ver ?? null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
@@ -3394,6 +3399,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 </>
               )}
             </span>
+            {unordered && <UnorderedSends testId="unordered-sends" />}
             {/* Where TAKE sends the selection (C6, AC-16): the outputs, or this page only. */}
             <span className="pd-onair-line pd-target-line" data-testid="verb-target">
               {takeTarget}

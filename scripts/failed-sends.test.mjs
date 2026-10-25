@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isUnanswered, rpcFailure, sendWithResend, seqRoadVerdict, unansweredError, unansweredStatus } =
+const { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, REFUSALS_BEFORE_ABSENT, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isUnanswered, rpcFailure, sendWithResend, seqRoadVerdict, unansweredError, unansweredStatus } =
   await import('../src/control/failedSends.ts');
 
 /** A send that fails with each of `failures` in turn, then lands, and a clock that sleeping moves.
@@ -178,27 +178,31 @@ test('which answers mean the server did not answer, and how each is worded', () 
   assert.equal(refused.message, 'slow down');
 });
 
-test('a page that sends leaves the ordered road only on proof the server has none (#1697)', () => {
+test('a page that sends leaves the ordered road on proof the server has none, or a lasting refusal (#1697)', () => {
   const operator = { sends: true };
-  assert.equal(seqRoadVerdict(404, 'PGRST202', 0, operator, false), 'absent', 'no such function: the server has no sequence road');
-  assert.equal(seqRoadVerdict(404, '42883', 0, operator, false), 'absent');
-  // Each of these used to put the page on today's road, with no per-graphic order, for good.
-  for (const [status, code] of [[500, 'XX000'], [400, 'P0001'], [401, '42501'], [409, '40001'], [500, '40P01']]) {
-    assert.equal(seqRoadVerdict(status, code, 0, operator, false), 'ask-again', `${status} ${code}`);
+  const row = (refusals, timeouts = 0) => ({ refusals, timeouts });
+  assert.equal(seqRoadVerdict(404, 'PGRST202', row(1), operator, false), 'absent', 'no such function: the server has no sequence road');
+  // Each of these used to put the page on today's road, with no per-graphic order, at the first.
+  for (const [status, code] of [[500, 'XX000'], [400, 'P0001'], [401, '42501'], [409, '40001'], [500, '40P01'], [404, '42883'], [300, 'PGRST203']]) {
+    assert.equal(seqRoadVerdict(status, code, row(1), operator, false), 'ask-again', `${status} ${code}`);
   }
+  assert.equal(seqRoadVerdict(500, 'XX000', row(REFUSALS_BEFORE_ABSENT - 1), operator, false), 'ask-again');
+  assert.equal(seqRoadVerdict(500, 'XX000', row(REFUSALS_BEFORE_ABSENT), operator, false), 'absent', 'a lasting fault still leaves the page working');
   for (const [status, code] of [[0, undefined], [503, 'PGRST002'], [500, '57014']]) {
-    assert.equal(seqRoadVerdict(status, code, 50, operator, false), 'ask-again', `unanswered ${status} ${code}`);
+    assert.equal(seqRoadVerdict(status, code, row(50, 50), operator, false), 'ask-again', `unanswered ${status} ${code}`);
   }
-  assert.equal(seqRoadVerdict(404, 'PGRST202', 0, operator, true), 'ask-again', 'a road that answered once is not given up mid-session (a stale schema cache)');
+  assert.equal(seqRoadVerdict(404, 'PGRST202', row(1), operator, true), 'ask-again', 'a road that answered once is not given up mid-session (a stale schema cache)');
+  assert.equal(seqRoadVerdict(500, 'XX000', row(50), operator, true), 'ask-again');
 });
 
 test('a page that only follows keeps its old rule: any answer decides, and so do its timeouts', () => {
   const renderer = { sends: false, timeoutsBeforeAbsent: 3 };
-  assert.equal(seqRoadVerdict(500, 'XX000', 0, renderer, false), 'absent');
-  assert.equal(seqRoadVerdict(404, 'PGRST202', 0, renderer, true), 'absent');
-  assert.equal(seqRoadVerdict(503, 'PGRST002', 0, renderer, false), 'ask-again');
-  assert.equal(seqRoadVerdict(500, '57014', 2, renderer, false), 'ask-again');
-  assert.equal(seqRoadVerdict(500, '57014', 3, renderer, false), 'absent');
+  const row = (timeouts) => ({ refusals: 0, timeouts });
+  assert.equal(seqRoadVerdict(500, 'XX000', row(0), renderer, false), 'absent');
+  assert.equal(seqRoadVerdict(404, 'PGRST202', row(0), renderer, true), 'absent');
+  assert.equal(seqRoadVerdict(503, 'PGRST002', row(0), renderer, false), 'ask-again');
+  assert.equal(seqRoadVerdict(500, '57014', row(2), renderer, false), 'ask-again');
+  assert.equal(seqRoadVerdict(500, '57014', row(3), renderer, false), 'absent');
 });
 
 test('a notice stays until every graphic it was about has been sent again', () => {

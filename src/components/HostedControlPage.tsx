@@ -106,6 +106,7 @@ import {
   type VerbPress,
 } from './playoutKeys';
 import { SpaceModeToggle } from './SpaceModeToggle';
+import { UnorderedSends } from './UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../control/spaceMode';
 import { ReadyLine, useExpectedOutputs, useLivePresence } from './control/OutputHealth';
 import { ArmedTag, ProgramAutoChip, RowAutoChip } from './home/CueTiming';
@@ -1182,6 +1183,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             keptStates={keptStates}
             onKey={runVerb}
             cues={cues}
+            unordered={!show.seq}
           />
           </div>
 
@@ -1398,6 +1400,7 @@ function HostedVerbs({
   nextLabel,
   keptStates,
   onKey,
+  unordered,
 }: {
   cues: OutputCue[];
   selectedIsLive: boolean;
@@ -1418,6 +1421,8 @@ function HostedVerbs({
    *  empty once nothing is up for Update to keep. */
   keptStates: string;
   onKey: (verb: PlayoutVerb, press?: VerbPress) => void;
+  /** This page's sends have no per-graphic order (protocol 1). */
+  unordered: boolean;
 }) {
   const shortcuts = useCueShortcutSet(cues);
   usePlayoutVerbKeys(onKey, true, shortcuts.bindings);
@@ -1508,6 +1513,7 @@ function HostedVerbs({
             </>
           )}
         </span>
+        {unordered && <UnorderedSends testId="hosted-unordered" />}
         <SpaceModeToggle mode={spaceMode} onChange={onSpaceMode} testId="hosted-space-mode" />
       </span>
     </div>

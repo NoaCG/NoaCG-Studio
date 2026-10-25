@@ -5,6 +5,30 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Fix #1697: one refused resolve no longer costs a page its per-graphic order
+
+- **Previous verified `main` sha:** this branch began on `cad2f01`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated or stored, so a revert
+  leaves nothing behind.
+- **Decision: keep the order where the server has it, and say so where it does not.** Only the
+  server's press check (0071) orders a graphic's sends, so no client-side fallback can refuse a
+  send that commits late. What put pages on protocol 1 was the rule: any answered error on the
+  first resolve switched the page for good, silently. A page that sends now goes there at once only
+  on PGRST202, and otherwise after five refusals in a row (about 15 s on the resolve's backoff), so
+  a blip is asked again and a lasting fault still leaves the page working. A page on protocol 1
+  shows "unordered sends" under the on-air chip (both operator pages, `UnorderedSends`), and its
+  automatic sends already hold (`sendsInOrder`, selectionAir.ts). The renderer's rule is unchanged:
+  it sends nothing.
+- **Trap:** a page that resolved on protocol 2 and then got PGRST202 on a reconnect (PostgREST's
+  schema cache reloading after a migration) used to switch protocols mid-session, against D7. It
+  now asks again. 42883 no longer counts as proof: it can come from inside the function body.
+- **Tests:** `scripts/failed-sends.test.mjs` pins the rule for both askers.
+  `e2e/production-controls.spec.ts` (offline) refuses the first resolve and checks the Take goes
+  numbered with no mark, and shows the mark on PGRST202. `e2e/configured/command-sequence.spec.ts`
+  refuses the first resolve with a 500, then holds a Take 6 s and presses Out: the late Take is
+  left out and never airs. The configured election spec now also expects the mark on protocol 1.
+
 ## Row 30, phase E7.1: election read gate, keyed selectors and resolver
 
 - **Repair 1, 2026-10-25** (independent check `checker-p30-pp-p30c-e6f8` on `cfcf65b`: FAIL).

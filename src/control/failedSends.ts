@@ -84,25 +84,35 @@ export function unansweredStatus(status: number, code?: string): boolean {
  *  renderer's), which gives up on the new road after `timeoutsBeforeAbsent` statement timeouts. */
 export type SeqRoadAsker = { sends: true } | { sends: false; timeoutsBeforeAbsent: number };
 
+/** Refusals in a row (answers that are neither the road nor "no such function") before a page that
+ *  sends gives up on the new road: with the resolve's backoff, about 15 s of a server that keeps
+ *  refusing, so a blip passes and a lasting fault still leaves the page working. */
+export const REFUSALS_BEFORE_ABSENT = 5;
+
 /**
  * WHAT ONE FAILED PROTOCOL-2 RESOLVE DECIDES (hostedControl.ts `askSeqRoad`): `absent` puts the
  * page on today's road, by row id, for the rest of its life; `ask-again` decides nothing.
  *
  * Today's road has no per-graphic order: a press abandoned on its way that commits late airs over
- * a later Take. So a page that sends leaves the new road only on proof the server has none - "no
- * such function", before the road ever answered it - and asks again on any other refusal. One
- * transient 500 used to cost such a page its order for good, without a word (#1697). A page that
- * only follows loses no order on today's road, so any answer decides there, as do its timeouts.
+ * a later Take, so a page there shows it (`UnorderedSends`) and sends nothing on its own. A page
+ * that sends goes there at once only on PostgREST's "no such function", and otherwise only after
+ * REFUSALS_BEFORE_ABSENT refusals in a row; one transient 500 used to cost it its order for good,
+ * without a word (#1697). Never once the road has answered: a page does not change protocol
+ * mid-session. A page that only follows loses no order on today's road, so any answer decides
+ * there, as do its timeouts.
  */
 export function seqRoadVerdict(
   status: number,
   code: string | undefined,
-  timeoutsInRow: number,
+  inRow: { timeouts: number; refusals: number },
   asker: SeqRoadAsker,
   answeredBefore: boolean,
 ): 'absent' | 'ask-again' {
-  if (asker.sends) return !answeredBefore && (code === 'PGRST202' || code === '42883') ? 'absent' : 'ask-again';
-  if (code === '57014') return timeoutsInRow >= asker.timeoutsBeforeAbsent ? 'absent' : 'ask-again';
+  if (asker.sends) {
+    if (answeredBefore || unansweredStatus(status, code)) return 'ask-again';
+    return code === 'PGRST202' || inRow.refusals >= REFUSALS_BEFORE_ABSENT ? 'absent' : 'ask-again';
+  }
+  if (code === '57014') return inRow.timeouts >= asker.timeoutsBeforeAbsent ? 'absent' : 'ask-again';
   return unansweredStatus(status, code) ? 'ask-again' : 'absent';
 }
 

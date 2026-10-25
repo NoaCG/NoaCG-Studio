@@ -1030,6 +1030,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   gap: 4px;
 }
 .pd-onair-line { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.pd-unordered { color: var(--danger); }
 /* THE SPACE-MODE CHECKBOX, beside the key it changes. Quiet on purpose: it is read once when
    an operator sets up their habit and then never looked at again, so it takes the on-air
    chip's size and colour and none of the buttons' weight. */

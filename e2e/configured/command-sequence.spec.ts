@@ -233,8 +233,8 @@ test('a Take held on its way arrives after the Out, is left out, and never airs'
 // resolve used to put the operator page on today's road, by row id, for the rest of its life, where
 // nothing orders a graphic's sends: the held Take below then committed after the Out and aired. The
 // page now asks again (failedSends.ts `seqRoadVerdict`) and stays on the numbered road.
-// Mutation-tested: with the old rule the page sends by row id and never calls control_send_seq.
-test('an operator page whose first resolve is refused stays on the numbered road, and a held Take never airs over the later Out', async ({ page }) => {
+// On the old rule the page sends by row id, and the sendsInOrder check below fails.
+test('an operator page whose first resolves are refused stays on the numbered road, and a held Take never airs over the later Out', async ({ page }) => {
   test.setTimeout(360_000);
   await signIn(page);
   await page.keyboard.press('Escape');
@@ -245,7 +245,9 @@ test('an operator page whose first resolve is refused stays on the numbered road
   const resolves = { refused: 0, through: 0 };
   const op = await openOperator(page, hosted, (op) =>
     op.route('**/rest/v1/rpc/control_show_resolve', (route) => {
-      if (resolves.refused > 0) {
+      // The first TWO: a dev build mounts the page twice, so two resolves can leave at once, and an
+      // unrefused second one would rescue a page that gave up on the first.
+      if (resolves.refused >= 2) {
         resolves.through += 1;
         return route.continue();
       }
@@ -257,9 +259,10 @@ test('an operator page whose first resolve is refused stays on the numbered road
       });
     }),
   );
-  expect(resolves.refused, 'the first resolve was refused').toBe(1);
+  expect(resolves.refused, 'the first resolves were refused').toBe(2);
   expect(resolves.through, 'and the page asked again').toBeGreaterThan(0);
   expect(await op.evaluate(async (slug) => (await import('/src/control/hostedControl.ts')).sendsInOrder(slug), hosted), 'on the numbered road').toBe(true);
+  await expect(op.getByTestId('hosted-unordered')).toHaveCount(0);
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('0');
 
   // The Take is held 6 s on its way, every attempt of it; the operator presses Out 1.5 s later.

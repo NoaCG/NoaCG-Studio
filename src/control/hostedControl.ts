@@ -31,7 +31,7 @@ import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
-import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
+import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, unansweredStatus, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
@@ -957,9 +957,12 @@ export async function unpublishControlShow(id: string): Promise<void> {
  * land while it is open (D7), and a page that changed protocol under an operator would have two
  * cursors for one log. Anything else decides nothing: the caller asks again.
  */
+// One per document: the renderer's resolve (its own rule, `controlOutputResolve`) runs only in
+// src/output/main.ts, never in a document that sends.
 let seqRoad: 'unknown' | 'present' | 'absent' = 'unknown';
-/** Statement timeouts (57014) the protocol-2 resolve has answered in a row. */
-let seqTimeouts = 0;
+/** Statement timeouts (57014), and refusals (any other answered error), the protocol-2 resolve
+ *  has answered in a row. */
+const seqInRow = { timeouts: 0, refusals: 0 };
 
 /** Ask a protocol-2 resolve. `undefined` means use today's RPC (this server has no sequence road,
  *  learned now or before); a failure means nothing was decided and the caller asks again. */
@@ -971,19 +974,24 @@ async function askSeqRoad(
 ): Promise<RpcAnswer<Record<string, unknown> | null> | undefined> {
   if (seqRoad === 'absent') return undefined;
   const { data, error, status } = await sb.rpc(rpc, args);
-  seqTimeouts = error?.code === '57014' ? seqTimeouts + 1 : 0;
+  seqInRow.timeouts = error?.code === '57014' ? seqInRow.timeouts + 1 : 0;
+  seqInRow.refusals = error && !unansweredStatus(status, error.code) ? seqInRow.refusals + 1 : 0;
   if (!error) {
     seqRoad = 'present';
     return { ok: true, value: data && typeof data === 'object' ? (data as Record<string, unknown>) : null };
   }
-  if (seqRoadVerdict(status, error.code, seqTimeouts, asker, seqRoad === 'present') === 'ask-again') {
+  if (seqRoadVerdict(status, error.code, seqInRow, asker, seqRoad === 'present') === 'ask-again') {
     return { ok: false, error: error.message };
   }
   seqRoad = 'absent';
   console.info(
     `[control] ${rpc}: ${error.code ?? ''} ${error.message.slice(0, 160)} - ` +
-      (error.code === '57014' ? `${seqTimeouts} statement timeouts in a row` : 'this server has no sequence road') +
-      ', so this page follows and sends by row id, as before.',
+      (error.code === '57014'
+        ? `${seqInRow.timeouts} statement timeouts in a row`
+        : error.code === 'PGRST202'
+          ? 'this server has no sequence road'
+          : `${seqInRow.refusals} refusals in a row`) +
+      ', so this page follows and sends by row id, without per-graphic order.',
   );
   return undefined;
 }
@@ -995,8 +1003,8 @@ const seqSessions = new Map<string, SeqSession>();
 
 /** Whether this page's sends for `slug` go in order per graphic (protocol 2: each press numbered,
  *  an older one skipped once a later one applied). Not before the first resolve, and never on a
- *  page on protocol 1 (a server with no sequence road): there a send that commits late can air over a later one, so
- *  nothing may send on its own (control/selectionAir.ts holds instead). */
+ *  page on protocol 1 (`seqRoadVerdict`): there a send that commits late can air over a later one,
+ *  so the page shows it (`UnorderedSends`) and nothing may send on its own (selectionAir.ts holds). */
 export const sendsInOrder = (slug: string): boolean => seqSessions.has(slug);
 
 function seqPlanFor(slug: string, row: Record<string, unknown>): SeqPlan {

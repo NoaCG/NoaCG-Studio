@@ -102,15 +102,41 @@ test('before Publish, TAKE says it reaches this page only and PROGRAM stays labe
   await expect(page.getByTestId('program-air')).toHaveCount(0);
 });
 
-test('published, a Take is pending until the command log answers, then logged, never "on air confirmed"; a lost connection dims PROGRAM (C6)', async ({ page }) => {
-  test.setTimeout(90_000);
-  // Stand in the backend on the network, as playout-feedback-health.spec.ts does: no remote
-  // project and no credentials are involved.
+/** Stand in the backend on the network, as playout-feedback-health.spec.ts does: no remote
+ *  project and no credentials are involved. Answers its origin; the spec routes it. */
+async function standInBackend(page: Page): Promise<string> {
   const backend = 'https://status.supabase.test';
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: `
     export function loadBackendConfig() { return { url: '${backend}', anonKey: 'anon-test-key' }; }
     export function isBackendConfigured(cfg = loadBackendConfig()) { return Boolean(cfg.url && cfg.anonKey); }
   ` }));
+  return backend;
+}
+
+/** A published production of one lower third, saved here, and the resolve's answer for it. */
+async function seedPublishedProduction(page: Page) {
+  return page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
+    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
+    if (error || !doc) throw new Error(error ?? 'seed failed');
+    const show = createShowNamed('Evening News');
+    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+    setShowHostedSlug(show.id, 'status-slug');
+    setShowOutputSlug(show.id, 'status-output');
+    const current = loadShows().find((s) => s.id === show.id)!;
+    const output = await buildOutputPayload(current);
+    output.ver = await stampPayload(output, null);
+    return { id: show.id, title: show.name, output, live: {}, staged: {}, last_event_id: 0 };
+  });
+}
+
+test('published, a Take is pending until the command log answers, then logged, never "on air confirmed"; a lost connection dims PROGRAM (C6)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const backend = await standInBackend(page);
   let resolveFixture: unknown = null;
   let release: () => void = () => {};
   const held = new Promise<void>((r) => (release = r));
@@ -133,23 +159,7 @@ test('published, a Take is pending until the command log answers, then logged, n
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
-  const fixture = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { stampPayload } = await import('/src/control/payloadVersion.ts');
-    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
-    if (error || !doc) throw new Error(error ?? 'seed failed');
-    const show = createShowNamed('Evening News');
-    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
-    setShowHostedSlug(show.id, 'status-slug');
-    setShowOutputSlug(show.id, 'status-output');
-    const current = loadShows().find((s) => s.id === show.id)!;
-    const output = await buildOutputPayload(current);
-    output.ver = await stampPayload(output, null);
-    return { id: show.id, title: show.name, output, live: {}, staged: {}, last_event_id: 0 };
-  });
+  const fixture = await seedPublishedProduction(page);
   resolveFixture = fixture;
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${fixture.id}`);
@@ -181,6 +191,70 @@ test('published, a Take is pending until the command log answers, then logged, n
   await page.context().setOffline(false);
   await expect(air).toHaveAttribute('data-state', 'logged');
   await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true');
+});
+
+
+// ONE REFUSED RESOLVE NO LONGER COSTS THE PAGE ITS ORDER (#1697). A page on today's road sends by
+// row id, where a send that commits late can air over a later Take. It used to go there for good
+// on any refused resolve, silently. Now a refusal is asked again, and a page that does end up
+// there (a server with no sequence road) says so under the on-air chip.
+async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | null): Promise<{ sendsSeq: () => number }> {
+  const backend = await standInBackend(page);
+  let fixture: unknown = null;
+  let seq = 0;
+  await page.route(`${backend}/**`, async (route) => {
+    const req = route.request();
+    const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const rpc = new URL(req.url()).pathname.split('/').pop() ?? '';
+    const special = answer(rpc, fixture);
+    if (special) return route.fulfill({ status: special.status, headers, body: JSON.stringify(special.body) });
+    if (rpc === 'control_show_resolve') return route.fulfill({ status: 200, headers, body: JSON.stringify(fixture) });
+    if (rpc === 'control_send_seq') {
+      seq += 1;
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, epoch: null, head: { graphics: {} }, skipped: [] }) });
+    }
+    return route.fulfill({ status: 200, headers, body: '[]' });
+  });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  const seeded = await seedPublishedProduction(page);
+  fixture = seeded;
+  await settleDurableWrites(page);
+  await page.goto(`/app#/production/${seeded.id}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('verb-target')).toHaveText('To: 0 outputs');
+  return { sendsSeq: () => seq };
+}
+
+test('a refused resolve is asked again, so the page keeps its order: no mark, and a Take goes numbered (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  // The first TWO: a dev build mounts the page's wire twice, so two resolves leave at once, and an
+  // unrefused second one would rescue a page that gave up on the first.
+  let asked = 0;
+  const { sendsSeq } = await publishedPage(page, (rpc) =>
+    rpc === 'control_show_resolve' && asked++ < 2 ? { status: 500, body: { code: 'XX000', message: 'internal error', details: null, hint: null } } : null,
+  );
+  await expect.poll(() => asked, { message: 'the refused resolves were asked again' }).toBeGreaterThan(2);
+  await expect(page.getByTestId('unordered-sends')).toHaveCount(0);
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'logged');
+  expect(sendsSeq(), 'the Take went on the numbered road').toBeGreaterThan(0);
+});
+
+test('a page on a server with no sequence road marks its sends unordered (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  await publishedPage(page, (rpc, fixture) =>
+    rpc === 'control_show_resolve'
+      ? { status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.control_show_resolve', details: null, hint: null } }
+      : rpc === 'control_show_by_slug'
+        ? { status: 200, body: [fixture] }
+        : null,
+  );
+  await expect(page.getByTestId('unordered-sends')).toHaveText('⚠ unordered sends');
+  await expect(page.getByTestId('unordered-sends')).toHaveAttribute('title', /Reload to try again/);
 });
 
 test('the selected cue is still identifiable once it is on air, and the editor names which one', async ({
