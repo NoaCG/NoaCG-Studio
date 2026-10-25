@@ -250,25 +250,32 @@ describe('the read gate', () => {
 
 const people6 = () => [person('D1', 7, 'Aino Aalto', 1500, { party: 'Green' }), ...BASE.slice(1)];
 
+// One layer through the reducer: a press, its answer, a follow (one read against what airs).
+const pressed = (state, cueId, t, now = 1000) => air.reduceSelection(state, { t: 'press', graphic: 'Card', cueId, take: t, now });
+const answered = (state, seq, landed, now = 1100) => air.reduceSelection(state, { t: 'answer', graphic: 'Card', seq, landed, now }).air;
+const shown = (state) => air.airedOf(state, 'Card');
+const marks = (state) => Object.values(state.Card.marks)[0];
+
 describe('the aired instance', () => {
   const live = { Card: 'cue-a' };
   const captured = (c = collection(5, BASE), sel = selectionOf('D1', 7)) => {
     const t = take(sel, c);
     assert.equal(t.status, 'ok');
-    const pending = air.captureSelection({}, 'Card', 'cue-a', t, 1000);
-    return air.landedSelection(pending, 'Card', pending.Card);
+    const p = pressed({}, 'cue-a', t);
+    return answered(p.air, p.seq, true);
   };
-  const follow = (state, c, now = 2000, liveCue = live) => air.followSelection(state, liveCue, facts(c), now);
+  const follow = (state, c, now = 2000, liveCue = live) => air.reduceSelection(state, { t: 'follow', liveCue, seeded: true, facts: facts(c), now });
+  const reconcile = (state, liveCue, seeded) => air.reduceSelection(state, { t: 'follow', liveCue, seeded, facts: facts(collection(5, BASE), { readable: false }), now: 0 }).air;
 
   test('a count increase and a newer downward correction each go out once, whole', () => {
     let state = captured();
     const up = follow(state, collection(6, [person('D1', 7, 'Aino Aalto', 1500, { party: 'Green' }), ...BASE.slice(1)]));
     assert.deepEqual(up.sends.map(({ graphic, values }) => ({ graphic, values })), [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1500', f2: 'Green' } }]);
-    assert.equal(up.sends[0].advanced, up.air.Card);
+    assert.equal(shown(up.air).revision, 6, 'the page believes the correction it sent');
     state = up.air;
     const down = follow(state, collection(7, [person('D1', 7, 'Aino Aalto', 1400, { party: 'Green' }), ...BASE.slice(1)]), 3000);
     assert.deepEqual(down.sends.map((s) => s.values.f1), ['1400']);
-    assert.deepEqual([down.air.Card.revision, down.air.Card.at], [7, 3000]);
+    assert.deepEqual([shown(down.air).revision, shown(down.air).at], [7, 3000]);
   });
 
   test('older and duplicate revisions, read out of order, are rejected', () => {
@@ -279,18 +286,18 @@ describe('the aired instance', () => {
       assert.equal(r.air, state);
       state = r.air;
     }
-    assert.equal(state.Card.values.f1, '1400');
+    assert.equal(shown(state).values.f1, '1400');
   });
 
   test('it follows the selector captured at Take, never the cue as it is now (preview B, reload)', () => {
     const state = captured();
-    // The instance carries its own selector, so a preview of B, a draft or a changed record cannot
+    // The layer carries its own selector, so a preview of B, a draft or a changed record cannot
     // reach it: follow is handed no cue at all.
     const r = follow(air.readSelectionAir(air.writeSelectionAir(state)), collection(6, BASE.map((p) => ({ ...p, votes: p.votes + 1 }))));
     assert.deepEqual(r.sends.map(({ graphic, values }) => ({ graphic, values })), [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1201', f2: 'Green' } }]);
     const b = take(selectionOf('D2', 7), collection(6, BASE));
     assert.equal(b.status, 'ok', 'B is ready on its own');
-    assert.deepEqual(r.air.Card.selection, selectionOf('D1', 7));
+    assert.deepEqual(shown(r.air).selection, selectionOf('D1', 7));
   });
 
   test('a deleted person, a valid empty list, a malformed or duplicate collection hold A with reason, revision and age', () => {
@@ -304,47 +311,60 @@ describe('the aired instance', () => {
     for (const [c, reason, revision] of cases) {
       const r = follow(state, c, 4000);
       assert.deepEqual(r.sends, [], 'nothing is sent: the picture stays');
-      assert.deepEqual(r.air.Card.held, { reason, since: 4000, revision });
-      assert.deepEqual([r.air.Card.values, r.air.Card.revision, r.air.Card.at], [state.Card.values, 5, 1000]);
+      assert.deepEqual(shown(r.air).held, { reason, since: 4000, revision });
+      assert.deepEqual([shown(r.air).values, shown(r.air).revision, shown(r.air).at], [shown(state).values, 5, 1000]);
       const again = follow(r.air, c, 9000);
       assert.equal(again.air, r.air, 'a hold keeps its first time');
     }
     const first = follow(state, collection(6, []), 4000).air;
-    assert.deepEqual(follow(first, '{broken', 9000).air.Card.held, { reason: 'the collection is not JSON', since: 4000, revision: null }, 'another reason, the same hold: its age runs from the first');
+    assert.deepEqual(shown(follow(first, '{broken', 9000).air).held, { reason: 'the collection is not JSON', since: 4000, revision: null }, 'another reason, the same hold: its age runs from the first');
   });
 
   test('a hold ends with a newer revision that holds A again, or the aired one read well', () => {
     const held = follow(captured(), collection(6, []), 4000).air;
     const back = follow(held, collection(8, BASE), 5000);
     assert.equal(back.sends.length, 1);
-    assert.equal(back.air.Card.held, undefined);
+    assert.equal(shown(back.air).held, undefined);
     const malformed = follow(captured(), '{broken', 4000).air;
     const same = follow(malformed, collection(5, BASE), 5000);
-    assert.deepEqual([same.sends, same.air.Card.held], [[], undefined]);
+    assert.deepEqual([same.sends, shown(same.air).held], [[], undefined]);
+    // A hold the aired revision itself set (the graphic lost a mapped field) ends when that
+    // revision reads well again: nothing newer is needed (/so D5).
+    const lost = air.reduceSelection(captured(), { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(5, BASE), { fieldsOf: () => [text('f0')] }), now: 4000 }).air;
+    assert.equal(shown(lost).held?.revision, 5);
+    assert.equal(shown(follow(lost, collection(5, BASE), 5000).air).held, undefined);
   });
 
   test('an older revision cannot undo a hold a newer one set: it neither sends nor clears the warning', () => {
     const held = follow(captured(), collection(9, BASE.slice(1)), 4000).air;
-    assert.equal(held.Card.held.revision, 9);
+    assert.equal(shown(held).held.revision, 9);
     const late = follow(held, collection(8, BASE), 5000);
     assert.deepEqual(late.sends, []);
     assert.equal(late.air, held, 'revision 8 is older than what said Aino is gone');
     assert.equal(follow(held, collection(5, BASE), 5000).air, held, 'nor the aired revision read again');
     const blind = follow(held, undefined, 5100).air;
-    assert.equal(blind.Card.held.revision, null, 'the collection went missing');
+    assert.equal(shown(blind).held.revision, null, 'the collection went missing');
     assert.deepEqual(follow(blind, collection(8, BASE), 5200).sends, [], 'a read with no revision does not lower the bound revision 9 set');
     const newer = follow(held, collection(10, BASE), 6000);
     assert.equal(newer.sends.length, 1);
-    assert.equal(newer.air.Card.held, undefined);
+    assert.equal(shown(newer.air).held, undefined);
   });
 
   test('a re-read of the aired revision under a newer hold, after a read with no revision, does not clear the warning', () => {
     const gone = follow(captured(), collection(9, BASE.slice(1)), 4000).air;
     const blind = follow(gone, '{broken', 4500).air;
-    assert.deepEqual([blind.Card.held.revision, blind.Card.seen], [null, 9]);
+    assert.deepEqual([shown(blind).held.revision, marks(blind).heldAt], [null, 9]);
     const reread = follow(blind, collection(5, BASE), 5000);
     assert.deepEqual(reread.sends, []);
     assert.equal(reread.air, blind, 'revision 9 said Aino is gone; revision 5 read well is no recovery');
+  });
+
+  test('a press that fails after a hold keeps what the hold judged: an older read is still rejected', () => {
+    const held = follow(captured(), collection(9, BASE.slice(1)), 4000).air;
+    const update = pressed(held, 'cue-a', take(selectionOf('D1', 7), collection(10, BASE)), 4500);
+    const failed = answered(update.air, update.seq, false, 4600);
+    assert.equal(shown(failed).revision, 5, 'what airs is back');
+    assert.deepEqual(follow(failed, collection(8, BASE), 5000).sends, [], 'revision 8 is older than what said Aino is gone');
   });
 
   test('an older revision that would not resolve says nothing about the newer one on air', () => {
@@ -359,71 +379,73 @@ describe('the aired instance', () => {
     assert.deepEqual(other.sends, []);
   });
 
-  test('the instance goes when the layer airs another cue, or is off air once the page knows', () => {
+  test('the layer goes when its graphic airs another cue, or is off air once the page knows', () => {
     const state = captured();
-    assert.deepEqual(air.reconcileSelection(state, { Card: 'cue-b' }, false), {});
-    assert.equal(air.reconcileSelection(state, {}, false), state, 'not yet seeded: a restored instance waits');
-    assert.deepEqual(air.reconcileSelection(state, {}, true), {});
-    assert.equal(air.reconcileSelection(state, live, true), state);
-    assert.deepEqual(air.dropSelection(state, 'Card'), {});
+    assert.deepEqual(reconcile(state, { Card: 'cue-b' }, false), {});
+    assert.equal(reconcile(state, {}, false), state, 'not yet seeded: a restored layer waits');
+    assert.deepEqual(reconcile(state, {}, true), {});
+    assert.equal(reconcile(state, live, true), state);
   });
 
-  test('a capture is pending until its send is answered: neither forgotten nor followed before', () => {
+  test('a press is out until its answer: neither forgotten nor followed before; a reload holds it until the marker decides', () => {
     const t = take(selectionOf('D1', 7), collection(5, BASE));
-    const pending = air.captureSelection({}, 'Card', 'cue-a', t, 1000);
-    assert.equal(pending.Card.pending, true);
-    assert.equal(air.reconcileSelection(pending, { Card: 'cue-old' }, true), pending, 'the marker has not moved yet');
-    assert.equal(air.reconcileSelection(pending, {}, true), pending);
-    assert.deepEqual(follow(pending, collection(6, BASE)).sends, []);
-    const landed = air.landedSelection(pending, 'Card', pending.Card);
-    assert.equal(landed.Card.pending, undefined);
-    assert.equal(air.landedSelection(landed, 'Card', pending.Card), landed, 'only the instance that press wrote');
-    assert.equal(air.readSelectionAir(air.writeSelectionAir(pending)).Card.pending, undefined, 'a reload judges it by the marker');
+    const p = pressed({}, 'cue-a', t);
+    assert.equal(shown(p.air).pending, true);
+    assert.equal(reconcile(p.air, { Card: 'cue-old' }, true), p.air, 'the marker has not moved yet');
+    assert.equal(reconcile(p.air, {}, true), p.air);
+    assert.deepEqual(follow(p.air, collection(6, BASE)).sends, []);
+    const landed = answered(p.air, p.seq, true);
+    assert.equal(shown(landed).pending, false);
+    assert.equal(answered(landed, p.seq, true), landed, 'one answer per send');
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.air), 7000);
+    assert.deepEqual([shown(restored).known, shown(restored).held?.since], [false, 7000], 'a reload does not know whether it landed');
+    assert.deepEqual(reconcile(restored, { Card: 'cue-old' }, true), {}, 'the marker names neither: gone');
+    const decided = reconcile(restored, live, true);
+    assert.deepEqual([shown(decided).known, shown(decided).held, shown(decided).revision], [true, undefined, 5], 'the marker moved to it: it landed');
   });
 
-  test('a failed send gives back only its own layer, and only while nothing else wrote it', () => {
+  test('a failed press gives back only its own layer: what the output shows, with every later press standing', () => {
     const a = captured();
-    const other = { ...a, Bug: { ...a.Card, cueId: 'cue-bug' } };
-    const t = take(selectionOf('D2', 7), collection(5, BASE));
-    const written = air.captureSelection(other, 'Card', 'cue-b', t, 2000);
-    assert.deepEqual(air.undoSelection(written, 'Card', written.Card, a.Card), other);
-    const moved = { ...written, Card: { ...written.Card, revision: 9 } };
-    assert.equal(air.undoSelection(moved, 'Card', written.Card, a.Card), moved, 'a later write stands');
-    assert.deepEqual(air.undoSelection(air.captureSelection({}, 'Card', 'cue-b', t, 2000), 'Card', air.captureSelection({}, 'Card', 'cue-b', t, 2000).Card, undefined), air.captureSelection({}, 'Card', 'cue-b', t, 2000), 'not the same instance: stands');
+    const bug = air.reduceSelection(a, { t: 'press', graphic: 'Bug', cueId: 'cue-bug', take: take(selectionOf('D1', 8), collection(5, BASE)), now: 1500 });
+    const b = pressed(bug.air, 'cue-b', take(selectionOf('D2', 7), collection(5, BASE)), 2000);
+    const undone = answered(b.air, b.seq, false);
+    assert.equal(shown(undone).cueId, 'cue-a');
+    assert.equal(undone.Bug, bug.air.Bug, 'another layer stands');
+    const c = pressed(b.air, 'cue-c', take(selectionOf('D1', 8), collection(5, BASE)), 2100);
+    assert.equal(shown(answered(c.air, b.seq, false)).cueId, 'cue-c', 'a later press on the layer stands over an earlier failure');
   });
 
   test('a correction whose send failed keeps the aired revision, held, so the next read sends it again', () => {
     const state = captured();
     const sent = follow(state, collection(6, people6()));
     const [send] = sent.sends;
-    const unsent = air.settleSelection(sent.air, 'Card', send.advanced, false, 3000);
-    assert.deepEqual([unsent.Card.revision, unsent.Card.values, unsent.Card.held], [5, state.Card.values, { reason: 'the correction to revision 6 was not sent', since: 3000, revision: null, unsent: true }]);
+    const unsent = answered(sent.air, send.seq, false, 3000);
+    assert.deepEqual([shown(unsent).revision, shown(unsent).values, shown(unsent).held], [5, shown(state).values, { reason: 'the correction to revision 6 was not sent', since: 3000, revision: null, unsent: true }]);
     assert.equal(follow(unsent, collection(5, BASE), 3500).air, unsent, 'the aired revision read again does not end a "not sent" hold');
     const retry = follow(unsent, collection(6, people6()), 4000);
     assert.deepEqual(retry.sends.map((s) => s.values.f1), ['1500']);
-    assert.equal(retry.air.Card.held, undefined);
+    assert.equal(shown(retry.air).held, undefined);
   });
 
-  test('a correction whose send failed is rolled back even when a hold changed the instance meanwhile, and is sent again', () => {
+  test('a correction whose send failed is rolled back even when a hold was set meanwhile, and is sent again', () => {
     const state = captured();
     const sent = follow(state, collection(6, people6()));
     const [send] = sent.sends;
     const heldMeanwhile = follow(sent.air, '{broken', 2500).air;
-    assert.notEqual(heldMeanwhile.Card, send.advanced, 'the hold replaced the object');
-    const rolled = air.settleSelection(heldMeanwhile, 'Card', send.advanced, false, 3000);
-    assert.deepEqual([rolled.Card.revision, rolled.Card.values, rolled.Card.held.revision], [5, state.Card.values, null]);
+    const rolled = answered(heldMeanwhile, send.seq, false, 3000);
+    assert.deepEqual([shown(rolled).revision, shown(rolled).values, shown(rolled).held.revision], [5, shown(state).values, null]);
     const again = follow(rolled, collection(6, people6()), 4000);
     assert.deepEqual(again.sends.map((s) => s.values.f1), ['1500'], 'revision 6 goes out again once it reads well');
-    const pressed = air.captureSelection(sent.air, 'Card', 'cue-b', take(selectionOf('D2', 7), collection(6, BASE)), 2600);
-    assert.equal(air.settleSelection(pressed, 'Card', send.advanced, false, 3000), pressed, 'a later press stands');
+    const later = pressed(sent.air, 'cue-b', take(selectionOf('D2', 7), collection(6, BASE)), 2600);
+    assert.equal(shown(answered(later.air, send.seq, false, 3000)).cueId, 'cue-b', 'a later press stands');
   });
 
   test('a correction that fails after a newer revision held the card keeps that bound and that hold', () => {
     const six = follow(captured(), collection(6, people6()), 2000);
     const deleted = follow(six.air, collection(9, BASE.slice(1)), 2100).air;
-    assert.equal(deleted.Card.held.revision, 9);
-    const failed = air.settleSelection(deleted, 'Card', six.sends[0].advanced, false, 2200);
-    assert.deepEqual([failed.Card.revision, failed.Card.seen, failed.Card.held.revision], [5, 9, 9], 'back to what landed; the deletion still bounds and holds');
+    assert.equal(shown(deleted).held.revision, 9);
+    const failed = answered(deleted, six.sends[0].seq, false, 2200);
+    assert.deepEqual([shown(failed).revision, marks(failed).heldAt, shown(failed).held.revision], [5, 9, 9], 'back to what landed; the deletion still bounds and holds');
     const late = follow(failed, collection(8, BASE), 2300);
     assert.deepEqual(late.sends, [], 'revision 8 is older than the deletion');
     assert.equal(late.air, failed);
@@ -433,21 +455,21 @@ describe('the aired instance', () => {
     const state = captured();
     const six = follow(state, collection(6, people6()), 2000);
     const seven = follow(six.air, collection(7, [person('D1', 7, 'Aino Aalto', 1700)]), 2100);
-    let a = air.settleSelection(seven.air, 'Card', six.sends[0].advanced, false, 2200);
-    a = air.settleSelection(a, 'Card', seven.sends[0].advanced, false, 2300);
-    assert.deepEqual([a.Card.revision, a.Card.values], [5, state.Card.values], 'revision 5 is what air shows');
-    let b = air.settleSelection(seven.air, 'Card', six.sends[0].advanced, false, 2200);
-    assert.equal(b, seven.air, 'revision 7 is out and supersedes the failed 6');
-    b = air.settleSelection(b, 'Card', seven.sends[0].advanced, true, 2300);
-    assert.deepEqual([b.Card.revision, b.Card.values.f1, b.Card.confirmed.revision, b.Card.held], [7, '1700', 7, undefined]);
-    const c = air.settleSelection(air.settleSelection(seven.air, 'Card', seven.sends[0].advanced, true, 2300), 'Card', six.sends[0].advanced, false, 2400);
-    assert.deepEqual([c.Card.revision, c.Card.held], [7, undefined], 'an older failure after a newer landing changes nothing');
+    const a = answered(answered(seven.air, six.sends[0].seq, false, 2200), seven.sends[0].seq, false, 2300);
+    assert.deepEqual([shown(a).revision, shown(a).values], [5, shown(state).values], 'revision 5 is what air shows');
+    let b = answered(seven.air, six.sends[0].seq, false, 2200);
+    assert.deepEqual([shown(b).revision, shown(b).held], [7, undefined], 'revision 7 is out and supersedes the failed 6');
+    b = answered(b, seven.sends[0].seq, true, 2300);
+    assert.deepEqual([shown(b).revision, shown(b).values.f1, b.Card.onAir.revision, shown(b).held], [7, '1700', 7, undefined]);
+    const c = answered(answered(seven.air, seven.sends[0].seq, true, 2300), six.sends[0].seq, false, 2400);
+    assert.deepEqual([shown(c).revision, shown(c).held], [7, undefined], 'an older failure after a newer landing changes nothing');
   });
 
-  test('what is kept reads back; anything else is no instance', () => {
+  test('what is kept reads back; anything else is no layer', () => {
     const state = captured();
     assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state)), state);
-    for (const raw of [null, '', '{', 'null', '7', JSON.stringify({ v: 2, graphics: state }), JSON.stringify({ v: 1, graphics: { Card: { ...state.Card, revision: 'x' } } })]) {
+    const bad = (layer) => JSON.stringify({ v: 2, graphics: { Card: layer } });
+    for (const raw of [null, '', '{', 'null', '7', JSON.stringify({ v: 1, graphics: state }), bad({ ...state.Card, seq: 'x' }), bad({ ...state.Card, onAir: { ...state.Card.onAir, revision: 'x' } }), bad({ ...state.Card, marks: { k: { bound: null } } })]) {
       assert.deepEqual(air.readSelectionAir(raw), {}, String(raw));
     }
   });
@@ -527,7 +549,7 @@ describe('bounds, each at its edge, and linear work', () => {
   });
 });
 
-describe('the page\'s two doors onto the instances', () => {
+describe('the page\'s two doors onto the layers', () => {
   const io = (initial = {}) => {
     const part = storePart(initial);
     const kept = [];
@@ -535,60 +557,82 @@ describe('the page\'s two doors onto the instances', () => {
     return { part, kept, keep: (a) => { part.set(a); kept.push(a); }, now: () => clock, tick: (ms) => (clock += ms) };
   };
   const ok = (sel, rev = 5) => take(sel, collection(rev, BASE));
+  const card = (p) => air.airedOf(p.part.get(), 'Card');
+  const ANSWERED = { skipped: [], superseded: [], pressedAgain: [] };
+  const live = { Card: 'cue-a' };
+  const settle = () => new Promise((r) => setImmediate(r));
 
-  test('a press captures pending and keeps it; landed ends pending; undo gives back only its own layer', () => {
-    const p = io({ Bug: { cueId: 'bug', selection: selectionOf('D1', 8), entity: 'x', revision: 1, values: {}, at: 1 } });
+  test('a press is kept at once and is out until its answer; landed or failed, it follows the newest tree; a failure gives back what airs', () => {
+    const p = io();
+    air.pressSelection(p, 'Bug', 'bug', ok(selectionOf('D1', 8))).landed();
     let followed = 0;
     p.followNow = () => (followed += 1);
     const a = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
-    assert.equal(p.part.get().Card.pending, true);
-    assert.equal(p.kept.length, 1, 'kept in this browser at the press');
+    assert.equal(card(p).pending, true);
+    assert.equal(p.kept.length, 3, 'kept in this browser at the press');
     a.landed();
-    assert.equal(p.part.get().Card.pending, undefined);
-    assert.equal(followed, 1, 'a revision passed over while it was pending is followed at once');
+    assert.equal(card(p).pending, false);
+    assert.equal(followed, 1, 'a revision passed over while it was out is followed at once');
+    a.undo();
+    assert.equal(card(p).cueId, 'cue-a', 'one answer per press');
+    const bug = p.part.get().Bug;
     const b = air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)));
-    p.keep({ ...p.part.get(), Bug: { ...p.part.get().Bug, revision: 2 } });
     b.undo();
-    assert.equal(p.part.get().Card.cueId, 'cue-a', 'the layer gets back what it had');
-    assert.equal(p.part.get().Bug.revision, 2, 'another layer written meanwhile stands');
+    assert.equal(card(p).cueId, 'cue-a', 'the layer gets back what airs');
+    assert.equal(p.part.get().Bug, bug, 'another layer stands');
+    assert.equal(followed, 2, 'a failed press follows the newest tree too');
     const c = air.pressSelection(p, 'Card', 'cue-c', ok(selectionOf('D1', 8)));
     air.pressSelection(p, 'Card', 'cue-d', ok(selectionOf('D2', 7)));
     c.undo();
-    assert.equal(p.part.get().Card.cueId, 'cue-d', 'a later press on the layer stands over an earlier failure');
-    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    const none = air.pressSelection(p, 'Card', 'plain', { status: 'none' });
-    assert.equal(p.part.get().Card, undefined, 'a cue without a selection drops what the layer followed');
-    none.landed();
-    none.undo();
-    assert.equal(p.part.get().Card.cueId, 'cue-a');
+    assert.equal(card(p).cueId, 'cue-d', 'a later press on the layer stands over an earlier failure');
   });
 
-  test('two overlapping presses: the first answered, the second failed, the layer goes back to the first, settled, and follows again', () => {
+  test('a cue without a selection taken onto the layer: nothing is shown while it is out; failed, the candidate is back; landed, the layer goes', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const failed = air.pressSelection(p, 'Card', 'plain', { status: 'none' });
+    assert.equal(card(p), null, 'nothing candidate is shown while it is out');
+    failed.undo();
+    assert.equal(card(p).cueId, 'cue-a');
+    air.pressSelection(p, 'Card', 'plain', { status: 'none' }).landed();
+    air.followAired(p, { liveCue: { Card: 'plain' }, seeded: true, facts: facts(collection(5, BASE)), send: () => Promise.resolve(ANSWERED) });
+    assert.deepEqual(p.part.get(), {});
+    const q = io();
+    air.pressSelection(q, 'Card', 'plain', { status: 'none' }).landed();
+    assert.deepEqual(q.part.get(), {}, 'onto a layer with no candidate: nothing to follow');
+  });
+
+  test('overlapping presses: whatever answers first, the layer ends on what the output shows, and follows again', () => {
     const p = io();
     const first = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
     const second = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 8)));
     first.landed();
     second.undo();
-    assert.deepEqual([p.part.get().Card.selection, p.part.get().Card.pending], [selectionOf('D1', 7), undefined]);
-    assert.equal(air.followSelection(p.part.get(), { Card: 'cue-a' }, facts(collection(6, people6())), 2000).sends.length, 1, 'it follows the next revision');
-    let followed = 0;
-    p.followNow = () => (followed += 1);
-    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 8))).undo();
-    assert.equal(followed, 1, 'a failed press follows the newest tree too');
+    assert.deepEqual([card(p).selection, card(p).pending], [selectionOf('D1', 7), false]);
+    const sends = [];
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: (g, v) => (sends.push(v.f1), new Promise(() => {})) });
+    assert.deepEqual(sends, ['1500'], 'it follows the next revision');
     const r = io();
     air.pressSelection(r, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    const settled = r.part.get().Card;
     const u6 = air.pressSelection(r, 'Card', 'cue-a', ok(selectionOf('D1', 8)));
     const u7 = air.pressSelection(r, 'Card', 'cue-a', ok(selectionOf('D2', 7)));
     u6.undo();
     u7.undo();
-    assert.equal(r.part.get().Card, settled, 'both Updates failed, the first first: the settled capture is back, not the failed one');
+    assert.deepEqual([card(r).selection, card(r).pending], [selectionOf('D1', 7), false], 'both Updates failed: what airs is back');
     const q = io();
     const a = air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
     air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 8))).undo();
-    assert.equal(q.part.get().Card.pending, true, 'a first press still unanswered stays pending');
+    assert.equal(card(q).pending, true, 'a first press still unanswered stays out');
     a.landed();
-    assert.equal(q.part.get().Card.pending, undefined);
+    assert.equal(card(q).pending, false);
+    // Updates 6 and 7 of one candidate: 6 lands, then 7 fails. 6 is what airs (/so D3b).
+    const s = io();
+    air.pressSelection(s, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const six = air.pressSelection(s, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
+    const seven = air.pressSelection(s, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(7, [person('D1', 7, 'Aino Aalto', 1600)])));
+    six.landed();
+    seven.undo();
+    assert.deepEqual([card(s).revision, card(s).values.f1, card(s).pending], [6, '1500', false]);
   });
 
   test('following sends each newer revision through the page, holds one whose send failed, and judges nothing before the tree is readable', async () => {
@@ -597,55 +641,53 @@ describe('the page\'s two doors onto the instances', () => {
     const sends = [];
     const send = (graphic, values) => {
       sends.push([graphic, values.f1]);
-      return Promise.resolve(sends.length > 1 ? null : { skipped: [], superseded: [], pressedAgain: [] });
+      return Promise.resolve(sends.length > 1 ? null : ANSWERED);
     };
-    const live = { Card: 'cue-a' };
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6()), { readable: false }), send });
-    assert.deepEqual([sends, p.part.get().Card.held], [[], undefined], 'an unread published tree is not judged');
+    assert.deepEqual([sends, card(p).held], [[], undefined], 'an unread published tree is not judged');
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(undefined, { readable: false }), send });
-    assert.equal(p.part.get().Card.held, undefined, 'no false hold before the first read');
+    assert.equal(card(p).held, undefined, 'no false hold before the first read');
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
-    await new Promise((r) => setImmediate(r));
-    assert.deepEqual([sends, p.part.get().Card.revision, p.part.get().Card.held], [[['Card', '1500']], 6, undefined]);
+    await settle();
+    assert.deepEqual([sends, card(p).revision, card(p).held], [[['Card', '1500']], 6, undefined]);
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), send });
-    await new Promise((r) => setImmediate(r));
-    assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.held?.reason], [6, 'the correction to revision 7 was not sent']);
+    await settle();
+    assert.deepEqual([card(p).revision, card(p).held?.reason], [6, 'the correction to revision 7 was not sent']);
     const overtaken = io();
     air.pressSelection(overtaken, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
     air.followAired(overtaken, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve({ skipped: ['Card'], superseded: [], pressedAgain: [] }) });
-    await new Promise((r) => setImmediate(r));
-    assert.deepEqual([overtaken.part.get().Card.revision, overtaken.part.get().Card.confirmed.revision, overtaken.part.get().Card.held?.unsent], [5, 5, true], 'a correction a later press overtook did not land');
+    await settle();
+    assert.deepEqual([card(overtaken).revision, overtaken.part.get().Card.onAir.revision, card(overtaken).held?.unsent], [5, 5, true], 'a correction a later press overtook did not land');
     air.followAired(p, { liveCue: {}, seeded: true, facts: facts(collection(7, BASE)), send });
     assert.deepEqual(p.part.get(), {}, 'off air once the page knows: forgotten');
   });
 
-  test('a correction displaced by a Take that then fails is sent again: the layer goes back to what last landed', async () => {
-    const p = io();
-    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    const live = { Card: 'cue-a' };
-    let answer;
-    const sends = [];
-    const send = (graphic, values) => {
-      sends.push(values.f1);
-      return sends.length === 1 ? new Promise((r) => (answer = r)) : Promise.resolve({ skipped: [], superseded: [], pressedAgain: [] });
-    };
-    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
-    assert.equal(p.part.get().Card.revision, 6, 'the correction is out');
-    const b = air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7), 6));
-    answer(null);
-    await new Promise((r) => setImmediate(r));
-    b.undo();
-    const back = p.part.get().Card;
-    assert.deepEqual([back.cueId, back.revision, back.confirmed.revision], ['cue-a', 5, 5], 'neither send landed: revision 5 is what airs');
-    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
-    await new Promise((r) => setImmediate(r));
-    assert.deepEqual([sends, p.part.get().Card.revision], [['1500', '1500'], 6], 'and revision 6 goes again');
+  test('a correction out when a Take displaces it: failed, then the Take failing, revision 6 goes again; landed, then the Take failing, 6 is what airs', async () => {
+    for (const correction of ['failed', 'landed']) {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      let answer;
+      const sends = [];
+      const send = (graphic, values) => {
+        sends.push(values.f1);
+        return sends.length === 1 ? new Promise((r) => (answer = r)) : Promise.resolve(ANSWERED);
+      };
+      air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+      assert.equal(card(p).revision, 6, 'the correction is out');
+      const b = air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7), 6));
+      answer(correction === 'failed' ? null : ANSWERED);
+      await settle();
+      b.undo();
+      assert.deepEqual([card(p).cueId, card(p).revision, p.part.get().Card.onAir.revision], ['cue-a', correction === 'failed' ? 5 : 6, correction === 'failed' ? 5 : 6], correction);
+      air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+      await settle();
+      assert.deepEqual(sends, correction === 'failed' ? ['1500', '1500'] : ['1500'], `${correction}: revision 6 goes again only if it did not land`);
+    }
   });
 
-  test('restoring a displaced correction keeps a newer revision observed since: an older one read out of order is still rejected', async () => {
+  test('a correction displaced by a press keeps a newer revision observed since: an older one read out of order is still rejected', async () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    const live = { Card: 'cue-a' };
     const sends = [];
     const send = (graphic, values) => {
       sends.push(values.f1);
@@ -653,44 +695,48 @@ describe('the page\'s two doors onto the instances', () => {
     };
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(9, BASE.slice(1))), send });
-    assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.seen, p.part.get().Card.held?.revision], [6, 9, 9]);
+    assert.deepEqual([card(p).revision, card(p).held?.revision], [6, 9]);
     air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7), 9)).undo();
-    assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.seen], [5, 9], 'back to what landed, the bound revision 9 set kept');
+    assert.deepEqual([card(p).revision, card(p).held?.revision], [6, 9], 'the correction is still out; the deletion still holds');
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(8, people6())), send });
     assert.deepEqual(sends, ['1500'], 'revision 8 is older than what said Aino is gone');
-    assert.equal(p.part.get().Card.held?.revision, 9);
+    assert.equal(card(p).held?.revision, 9);
   });
 
-  test('a correction still out when the page went away is followed again after a reload', () => {
+  test('a reload: sends for the candidate on air are followed again; overlapping Updates of it come back as what landed (/so D1)', () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    air.followAired(p, { liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(collection(6, people6())), send: () => new Promise(() => {}) });
-    assert.equal(p.part.get().Card.revision, 6, 'out, not answered');
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: () => new Promise(() => {}) });
+    assert.equal(card(p).revision, 6, 'out, not answered');
     const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()));
-    assert.deepEqual([restored.Card.revision, restored.Card.confirmed.revision, restored.Card.values.f1], [5, 5, '1200']);
-    const again = air.followSelection(restored, { Card: 'cue-a' }, facts(collection(6, people6())), 9000);
+    assert.deepEqual([air.airedOf(restored, 'Card').revision, air.airedOf(restored, 'Card').values.f1], [5, '1200']);
+    const again = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(6, people6())), now: 9000 });
     assert.deepEqual(again.sends.map((x) => x.values.f1), ['1500'], 'revision 6 goes again');
+    const u = io();
+    air.pressSelection(u, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(u, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
+    air.pressSelection(u, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(7, [person('D1', 7, 'Aino Aalto', 1600)])));
+    const back = air.readSelectionAir(air.writeSelectionAir(u.part.get()));
+    assert.deepEqual([air.airedOf(back, 'Card').revision, air.airedOf(back, 'Card').known], [5, true], 'neither Update is known to have landed: 5 is what airs');
+    const sent = air.reduceSelection(back, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), now: 9000 });
+    assert.deepEqual(sent.sends.map((x) => x.values.f1), ['1600'], 'and the newest revision goes');
   });
 
-  test('an Update still unanswered when the page went away comes back as what last landed', () => {
+  test('a reload with an Update to another person on the same cue unanswered: not known who airs, held, nothing sent (/so D2)', () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    const update = air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
-    assert.deepEqual([p.part.get().Card.revision, p.part.get().Card.confirmed.revision], [6, 5], 'pending: 5 is what landed');
-    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()));
-    assert.deepEqual([restored.Card.revision, restored.Card.values.f1], [5, '1200']);
-    assert.deepEqual(air.followSelection(restored, { Card: 'cue-a' }, facts(collection(6, people6())), 9000).sends.map((x) => x.values.f1), ['1500'], 'revision 6 goes again');
-    update.landed();
-    assert.equal(p.part.get().Card.confirmed.revision, 6, 'landed, it is what airs');
-    assert.equal(air.readSelectionAir(air.writeSelectionAir(p.part.get())).Card.revision, 6);
-    const other = io();
-    air.pressSelection(other, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-    air.pressSelection(other, 'Card', 'cue-a', take(selectionOf('D2', 7), collection(6, people6())));
-    const moved = air.readSelectionAir(air.writeSelectionAir(other.part.get())).Card;
-    assert.deepEqual([moved.entity, moved.values.f0], [other.part.get().Card.entity, other.part.get().Card.values.f0], 'another person: no earlier values of someone else come back');
+    air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D2', 7), collection(6, people6())));
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
+    const view = air.airedOf(restored, 'Card');
+    assert.deepEqual([view.known, view.held?.reason, view.held?.since], [false, 'it is not known which candidate is on air after the page reloaded', 8000]);
+    const read = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(7, BASE)), now: 9000 });
+    assert.deepEqual(read.sends, [], 'the marker names the cue both share: still not known, nothing sent');
+    const q = { ...io(restored) };
+    air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D2', 7), 7)).landed();
+    assert.deepEqual([card(q).known, card(q).held, card(q).entity], [true, undefined, air.airedOf(p.part.get(), 'Card').entity], 'an operator press decides');
   });
 
-  test('a correction answering while an Update of the same candidate is out leaves the press to settle the layer', async () => {
+  test('a correction answering while an Update of the same candidate is out: its landing is what airs if the Update fails (/so D3a)', async () => {
     for (const outcome of ['landed', 'undo']) {
       const p = io();
       air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
@@ -700,35 +746,31 @@ describe('the page\'s two doors onto the instances', () => {
         sends.push(values.f1);
         return sends.length === 1 ? new Promise((r) => (answer = r)) : new Promise(() => {});
       };
-      air.followAired(p, { liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(collection(6, people6())), send });
+      air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
       const update = air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(7, [person('D1', 7, 'Aino Aalto', 1600)])));
-      answer({ skipped: [], superseded: [], pressedAgain: [] });
-      await new Promise((r) => setImmediate(r));
-      assert.equal(p.part.get().Card.pending, true, `${outcome}: the Update is still out`);
+      answer(ANSWERED);
+      await settle();
+      assert.equal(card(p).pending, true, `${outcome}: the Update is still out`);
       update[outcome]();
-      const card = p.part.get().Card;
-      assert.equal(card.pending, undefined, `${outcome}: its answer ends pending`);
-      if (outcome === 'landed') assert.deepEqual([card.revision, card.confirmed.revision], [7, 7]);
-      else {
-        assert.equal(card.revision, card.confirmed.revision, 'undone: back to what last landed');
-        air.followAired(p, { liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), send });
+      assert.equal(card(p).pending, false, `${outcome}: its answer ends it`);
+      assert.deepEqual([card(p).revision, p.part.get().Card.onAir.revision], outcome === 'landed' ? [7, 7] : [6, 6]);
+      if (outcome === 'undo') {
+        air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), send });
         assert.equal(sends.at(-1), '1600', 'and the newest revision is followed again');
       }
     }
   });
 
-  test('a later Update failing while an earlier one is out brings the earlier capture back as itself, for its own answer to settle', () => {
+  test('a later Update failing while an earlier one is out: the earlier one is still out, for its own answer to settle', () => {
     for (const outcome of ['landed', 'undo']) {
       const p = io();
       air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
       const first = air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
-      const out = p.part.get().Card;
       air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(7, [person('D1', 7, 'Aino Aalto', 1600)]))).undo();
-      assert.equal(p.part.get().Card, out, `${outcome}: the first Update, still out, is back unchanged`);
+      assert.deepEqual([card(p).revision, card(p).pending], [6, true], `${outcome}: the first Update is still out`);
       first[outcome]();
-      const card = p.part.get().Card;
-      assert.equal(card.pending, undefined, `${outcome}: its answer settles it`);
-      assert.deepEqual([card.revision, card.confirmed.revision], outcome === 'landed' ? [6, 6] : [5, 5]);
+      assert.equal(card(p).pending, false, `${outcome}: its answer settles it`);
+      assert.deepEqual([card(p).revision, p.part.get().Card.onAir.revision], outcome === 'landed' ? [6, 6] : [5, 5]);
     }
   });
 
@@ -741,8 +783,8 @@ describe('the page\'s two doors onto the instances', () => {
     a.landed();
     a.undo();
     air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)));
-    air.followAired(p, { liveCue: { Card: 'cue-a' }, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve(null) });
-    await new Promise((r) => setImmediate(r));
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve(null) });
+    await settle();
     assert.equal(p.part.get(), captured, 'nothing written after disposal');
     assert.equal(p.kept.length, 1);
   });
@@ -767,6 +809,215 @@ test('a candidate cue never goes out with its prepared values; the page reads on
   assert.equal(data.preparedCue({ selection: { v: 2 } }), false, 'a later version too');
   assert.equal(air.followsCandidates([{}], {}), false);
   assert.equal(air.followsCandidates([{}, { selection: selectionOf('D1', 7) }], {}), true);
-  const aired = air.captureSelection({}, 'Card', 'cue-gone', take(selectionOf('D1', 7), collection(5, BASE)), 1000);
+  const aired = air.reduceSelection({}, { t: 'press', graphic: 'Card', cueId: 'cue-gone', take: take(selectionOf('D1', 7), collection(5, BASE)), now: 1000 }).air;
   assert.equal(air.followsCandidates([{}], aired), true, 'its cue deleted, the layer still airs the candidate');
+});
+
+// ── Generated walks over every event, against a model of the output (/so, the transition table) ──
+//
+// Each walk drives the page's two doors with random events: a Take of cue A or cue B, an Update of
+// cue A to another person, a cue without a selection, answers that land, fail or are skipped in any
+// order, new and out-of-order tree reads, and reloads whose outstanding sends the server may or
+// may not have applied. The ORACLE is the server: it applies a send only when it lands and is newer
+// than the last it applied (seqSend.ts skips an older press). After every step:
+//   I1  what the layer records as on air is what the page was told landed last;
+//   I4  a correction is only ever sent for the entity the output shows, never while a press is out;
+//   I5  with nothing out, the layer shows the entity the output shows;
+// and at the end, once every answer is in and the tree has been read again, nothing is left out,
+// and the layer shows the newest revision of what airs, or holds.
+describe('generated walks: the layer against the output', () => {
+  const mulberry = (seed) => () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const ANSWERED = { skipped: [], superseded: [], pressedAgain: [] };
+  const SKIPPED = { skipped: ['Card'], superseded: [], pressedAgain: [] };
+  const settle = () => new Promise((r) => setImmediate(r));
+  const keyOf = (t) => (t ? JSON.stringify([t.cueId, t.entity]) : 'none');
+  const PICKS = [
+    ['cue-a', selectionOf('D1', 7)],
+    ['cue-a', selectionOf('D2', 7)],
+    ['cue-b', selectionOf('D2', 7)],
+    ['plain', null],
+  ];
+  const treeAt = (rnd, rev) => {
+    const r = rnd();
+    if (r < 0.1) return '{broken';
+    if (r < 0.18) return collection(rev, []);
+    if (r < 0.3) return collection(rev, [person('D2', 7, 'Bertta Berg', rev * 10 + 2)]);
+    return collection(rev, [person('D1', 7, 'Aino Aalto', rev * 10 + 1), person('D2', 7, 'Bertta Berg', rev * 10 + 2)]);
+  };
+
+  const seen = { press: 0, landed: 0, failed: 0, skipped: 0, correction: 0, reload: 0, unknown: 0, decided: 0, held: 0, unsent: 0, plain: 0 };
+  async function walk(seed, steps) {
+    const rnd = mulberry(seed);
+    const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
+    const log = [];
+    const fail = (msg) => assert.fail(`seed ${seed}: ${msg}\n  ${log.join('\n  ')}`);
+    // The server.
+    let index = 0;
+    let applied = 0;
+    let output = null;
+    let trueMarker = undefined;
+    // The page.
+    const part = storePart({});
+    let clock = 1000;
+    let page = { alive: true };
+    let told = null;
+    let toldIndex = 0;
+    let marker = undefined;
+    let seeded = false;
+    let reloaded = false;
+    let wasUnknown = false;
+    let rev = 1;
+    let tree = treeAt(rnd, rev);
+    const trees = [tree];
+    const out = [];
+    const io = () => {
+      const me = page;
+      return { part, keep: (a) => part.set(a), now: () => clock, followNow: () => followOnce(tree), alive: () => me.alive };
+    };
+    const serve = (send, fate) => {
+      const lands = fate && send.index > applied;
+      if (lands) {
+        applied = send.index;
+        output = send.target;
+        if (send.press) trueMarker = send.target ? send.target.cueId : 'plain';
+      }
+      return lands;
+    };
+    const check = (where) => {
+      const layer = part.get().Card;
+      const view = air.airedOf(part.get(), 'Card');
+      // What the layer records as on air is what it was told landed last, or (a reload the marker
+      // decided) what the output truly shows: never a guess.
+      // From a reload until the next landed answer the revision may lag (the follow sends the
+      // newest again; the drain checks it): the entity may not.
+      const same = (x, y) => keyOf(x) === keyOf(y) && (reloaded || (x?.revision ?? null) === (y?.revision ?? null));
+      if (layer && !layer.unknown && layer.onAir && !same(layer.onAir, told) && !same(layer.onAir, output)) fail(`${where}: I1 on air ${keyOf(layer.onAir)} r${layer.onAir.revision}, told ${keyOf(told)} r${told?.revision}, output ${keyOf(output)} r${output?.revision}`);
+      if (layer && !layer.unknown && layer.out.length === 0 && view && keyOf(view) !== keyOf(output)) fail(`${where}: I5 shows ${keyOf(view)}, output ${keyOf(output)}`);
+    };
+    const followOnce = (t) => {
+      air.followAired(io(), {
+        liveCue: marker === undefined ? {} : { Card: marker },
+        seeded,
+        facts: facts(t),
+        send: (graphic, values) => {
+          const layer = part.get().Card;
+          if (layer.out.some((s) => s.press)) fail('I4 a correction while a press is out');
+          if (keyOf(air.airedOf(part.get(), 'Card')) !== keyOf(output)) fail(`I4 correction for ${keyOf(air.airedOf(part.get(), 'Card'))} while output shows ${keyOf(output)}`);
+          seen.correction += 1;
+          return new Promise((resolve) => {
+            const target = { ...air.airedOf(part.get(), 'Card'), values };
+            out.push({ index: ++index, press: false, target, answer: (lands, skipped) => resolve(lands ? ANSWERED : skipped ? SKIPPED : null) });
+          });
+        },
+      });
+      // The send above saw the layer before its correction was recorded: fix the target's revision.
+      const layer = part.get().Card;
+      const last = out[out.length - 1];
+      if (layer && last && !last.press && last.target && layer.out.length && !layer.out[layer.out.length - 1].press) last.target = { ...last.target, revision: layer.out[layer.out.length - 1].target.revision };
+    };
+    const answerOne = async (i, fate) => {
+      const [send] = out.splice(i, 1);
+      const lands = serve(send, fate);
+      const skipped = fate && !lands;
+      log.push(`answer #${send.index} ${send.press ? 'press' : 'correction'} ${keyOf(send.target)} ${lands ? 'landed' : skipped ? 'skipped' : 'failed'}`);
+      seen[lands ? 'landed' : skipped ? 'skipped' : 'failed'] += 1;
+      if (lands && send.index > toldIndex) {
+        reloaded = false;
+        toldIndex = send.index;
+        told = send.target;
+        if (send.press) marker = send.target ? send.target.cueId : 'plain';
+      }
+      if (send.press) {
+        if (lands) send.closure.landed();
+        else send.closure.undo();
+      } else send.answer(lands, skipped);
+      await settle();
+    };
+    for (let step = 0; step < steps; step++) {
+      clock += 100;
+      const r = rnd();
+      if (r < 0.28) {
+        const [cueId, sel] = pick(PICKS);
+        const t = sel ? air.selectionTake({ selection: sel }, 'Card', facts(tree)) : { status: 'none' };
+        if (t.status === 'refused') continue;
+        const target = t.status === 'ok' ? { cueId, entity: t.entity, revision: t.revision, values: t.values } : null;
+        log.push(`press ${cueId} ${keyOf(target)} r${target?.revision ?? '-'}`);
+        seen.press += 1;
+        if (!target) seen.plain += 1;
+        const closure = air.pressSelection(io(), 'Card', cueId, t);
+        const layer = part.get().Card;
+        if (layer && layer.out.some((s) => s.press && s.seq === layer.seq)) out.push({ index: ++index, press: true, target, closure });
+        else if (!layer && target === null) {
+          // A cue without a selection onto a layer with none: the server still applies it.
+          out.push({ index: ++index, press: true, target, closure });
+        }
+      } else if (r < 0.58 && out.length > 0) {
+        const f = rnd();
+        await answerOne(Math.floor(rnd() * out.length), f < 0.6 ? true : false);
+      } else if (r < 0.78) {
+        rev += 1;
+        tree = treeAt(rnd, rev);
+        trees.push(tree);
+        log.push(`read r${rev}`);
+        followOnce(tree);
+      } else if (r < 0.9) {
+        const old = pick(trees);
+        log.push('read an older tree');
+        followOnce(old);
+      } else {
+        // A reload: the server settles every send still out, the page never hears.
+        for (const send of out.splice(0).sort((a, b) => a.index - b.index)) serve(send, rnd() < 0.6);
+        log.push(`reload (output ${keyOf(output)}, marker ${trueMarker})`);
+        seen.reload += 1;
+        page.alive = false;
+        page = { alive: true };
+        part.set(air.readSelectionAir(air.writeSelectionAir(part.get()), clock));
+        marker = trueMarker;
+        seeded = true;
+        reloaded = true;
+        told = part.get().Card?.unknown ? told : part.get().Card?.onAir ?? null;
+        toldIndex = applied;
+        followOnce(tree);
+      }
+      seeded = seeded || marker !== undefined;
+      const now = part.get().Card;
+      if (now?.unknown) seen.unknown += 1;
+      if (wasUnknown && now && !now.unknown) seen.decided += 1;
+      wasUnknown = !!now?.unknown;
+      const v = air.airedOf(part.get(), 'Card');
+      if (v?.held) seen.held += 1;
+      if (v?.held?.unsent) seen.unsent += 1;
+      check(`step ${step}`);
+    }
+    // Drain: every answer comes in, then the tree is read again until nothing more goes out.
+    for (let round = 0; round < 6; round++) {
+      while (out.length > 0) await answerOne(0, true);
+      followOnce(tree);
+      check(`drain ${round}`);
+    }
+    const layer = part.get().Card;
+    const view = air.airedOf(part.get(), 'Card');
+    if (layer && layer.out.length > 0) fail('sends still out after every answer');
+    if (view?.pending) fail('a press still out after every answer');
+    if (layer && !layer.unknown && view) {
+      const t = air.selectionTake({ selection: view.selection }, 'Card', facts(tree));
+      if (t.status === 'ok' && t.entity === view.entity && !view.held && view.revision !== t.revision) fail(`not following: shows r${view.revision}, tree r${t.revision}`);
+      if (t.status !== 'ok' && !view.held) fail('the tree does not resolve what airs, and nothing holds');
+      // Holding after a reload that lost a correction's answer, the layer names the last revision
+      // it knows landed; the person is the output's all the same.
+      if (keyOf(view) !== keyOf(output) || (!view.held && view.revision !== output?.revision)) fail(`after the drain shows ${keyOf(view)} r${view.revision}, output ${keyOf(output)} r${output?.revision}`);
+    }
+  }
+
+  test('4000 seeded walks of 20 events hold I1, I4 and I5 at every step and end settled', async () => {
+    for (let seed = 1; seed <= 4000; seed++) await walk(seed, 20);
+    // Every kind of event and every state was reached, many times over: the walks are not vacuous.
+    for (const [kind, n] of Object.entries(seen)) assert.ok(n >= 50, `${kind} reached ${n} times`);
+  });
 });

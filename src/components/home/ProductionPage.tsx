@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, followAired, followsCandidates, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedOf as airedCandidateOf, followAired, followsCandidates, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -2478,12 +2478,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectionAired,
     candidateFields,
     airedCandidateFields: (graphic) => {
-      const inst = session.selections.get()[graphic];
-      return inst && session.air.get().liveCue[graphic] === inst.cueId ? selectedFields({ selection: inst.selection }, show.collections) : [];
+      const aired = airedCandidateOf(session.selections.get(), graphic);
+      // Unknown which candidate airs: its fields are protected whichever cue the marker names.
+      return aired && (!aired.known || session.air.get().liveCue[graphic] === aired.cueId) ? selectedFields({ selection: aired.selection }, show.collections) : [];
     },
+    // Not known which candidate airs (restored mid-press): its fields are nobody's values to send.
     airedCandidate: (graphic, cueId) => {
-      const inst = session.selections.get()[graphic];
-      return inst && inst.cueId === cueId ? inst.values : null;
+      const aired = airedCandidateOf(session.selections.get(), graphic);
+      return aired && aired.known && aired.cueId === cueId ? aired.values : null;
     },
     boundNow,
     boundReady: boundPressReady,
