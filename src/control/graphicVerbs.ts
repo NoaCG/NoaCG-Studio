@@ -502,6 +502,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         if (reached(graphic, batch)) entry.landed = true;
         else ledger.set(graphic, (ledger.get(graphic) ?? []).filter((e) => e !== entry));
       }
+      // An Out that reached the output took the graphic off: nothing pressed before it is a base.
+      batches.forEach((batch, index) => {
+        for (const item of batch) if (item.msg.t === 'stop' && reached(item.graphic, index)) passed(item.graphic, null, stamp - 1);
+      });
     };
     if (!p.published) {
       // Not published: the verbs still drive the local PROGRAM monitor, which is what makes the

@@ -58,8 +58,12 @@ changes a spec's digest.
   - Deleted: `sentFigures`/`holdFigures`, `Landed`/`landedFigures`, `parkedBooks`, `AtPress`/
     `atPresses`/`pressedAt`/`unmoved`, `replacedAt`, `stampOf`, `bookLanded`, `holdSent`,
     `heardFigures`, the parked give-back in `sendWith`, and `Layer`/`layerAt`/`layerCue` with
-    `failedMarkers` (the cue a figure went on is no longer needed: a Take's own figures stand over
-    the round before, and a marker move with no row takes every figure past).
+    `failedMarkers`. The cue a figure went on is no longer needed: a Take's own figures stand over
+    the round before for the fields it carries; this page's Out that reached the output takes every
+    field of every send pressed before it past (a Take after it of a cue without a field counts that
+    field from the cue, as before); another screen's Take takes its fields past; and a marker move
+    with no row takes every figure past. Kept by cue, a +1 pressed between another screen's Take
+    rows was dropped once the Take's cue row was heard (its own test).
 - **Departures from the diagnoser's wording, and why.**
   - *No separate `heard` state:* an own row heard takes its own entry (and older ones) past, which
     is the same thing.
@@ -86,11 +90,15 @@ changes a spec's digest.
   - No test was deleted.
 - **New tests (`scripts/graphic-verbs.test.mjs`).** Red on `8da6005`: F1 (sends 9), R14 restated
   (a fast +1 applied here that failed never becomes a base: 9, then 10), F2 (10, cue writes 8, 9,
-  10), F3 (nothing sent, the note), a live press waits behind this page's Update. Green on
-  `8da6005`, each guarding a rule here: the hockey scorebug on the fast road, a press refused when
-  this page's own Take of another cue goes out during its save (the `onLayer` half), R7 (0, 1, 2,
-  3: pending never beats a newer landed send), an unanswered +1 whose row is heard later, a +1
-  between another screen's Take rows, an Update applied here that committed unanswered.
+  10), F3 (nothing sent, the note), a live press waits behind this page's Update, R7 (0, 1, 2, 3;
+  there on its wait count: it guards "pending never beats a newer landed send"), a +1 between
+  another screen's Take rows, two own rows heard in one call. Green on `8da6005`, each guarding a
+  rule here: the hockey scorebug on the fast road, a press refused when this page's own Take of
+  another cue goes out during its save (the `onLayer` half), an unanswered +1 whose row is heard
+  later, an Update applied here that committed unanswered, the pruning tests, a Re-take heard back
+  whole with its marker later, and this page's Out then a Take of a cue without a field (both
+  roads; found by the second opinion: without the Out's rule the fast road sent 6 where
+  `8da6005` sends 1).
 - **Independent walk (`scripts/graphic-verbs-walk.test.mjs`).** Written by a separate agent, not
   from this code. INSTANCE, REFUSAL, QUEUE and WRITE come from "What a press does"; BASE restates
   the diagnoser's ledger rule (with one clause that is this repair's own reading: an own row
@@ -142,6 +150,8 @@ changes a spec's digest.
     waiting only for the newest own send: both walks.
   - accounting row by row inside one `heard` call: "two of this page's rows heard in one call…"
     (found by this branch's review);
+  - a landed own Out taking nothing past: "after this page's Out lands, a Take of a cue without a
+    field…";
   - pruning (`settled`) dropping every landed entry: "a landed figure stays the base when the send
     that would replace it fails", both walks; dropping one while an older send is pending: "a
     landed figure heard back is not dropped while an older send is still out…";

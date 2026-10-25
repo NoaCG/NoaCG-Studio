@@ -3048,3 +3048,35 @@ test('a landed figure heard back is not dropped while an older send is still out
   r.sends[0].answer.resolve({ ...noneLeft });
   await third;
 });
+
+test('after this page\'s Out lands, a Take of a cue without a field leaves the round before no base for it, on either road', async () => {
+  for (const fast of [true, false]) {
+    const s1 = graphicCue('s1', 'Score', { home: '7', away: '4' });
+    const s2 = graphicCue('s2', 'Score', { home: '0' });
+    const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7', away: '4' } } });
+    const road = roads(r);
+    road.fast = fast;
+    const view = () => liveSelection('Score', [s1, s2], r.liveCue());
+    const plus = r.verbs.bump(view(), 'away', 1);
+    await settle();
+    r.sends[0].answer.resolve({ ...noneLeft });
+    await plus;
+    const off = r.verbs.out(view());
+    await settle();
+    r.sends[1].answer.resolve({ ...noneLeft });
+    await off;
+    const taking = r.verbs.take(s2);
+    await settle();
+    r.sends[2].answer.resolve({ ...noneLeft });
+    await taking;
+    assert.equal(r.liveCue().Score, 's2');
+    // On the slow road this page's record still holds s1's 4 until the rows come back; heard, the
+    // Out empties it.
+    if (!fast) for (const n of [0, 1, 2]) hearRows(r, r.sends[n].batches[0]);
+    const next = r.verbs.bump(view(), 'away', 1);
+    await settle();
+    assert.equal(r.sends[3].batches[0][0].msg.data.away, '1', fast ? 'fast' : 'slow');
+    r.sends[3].answer.resolve({ ...noneLeft });
+    await next;
+  }
+});
