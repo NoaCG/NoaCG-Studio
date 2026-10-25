@@ -397,7 +397,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const claimed = !!applied?.(item.msg);
       if ((!fields && item.msg.t !== 'stop') || (claimed && own === null)) continue;
       passed(item.graphic, fields ? Object.keys(fields) : null, own === null ? Infinity : claimed ? own - 1 : own);
-      if (!claimed) seen.set(item.graphic, { ...seen.get(item.graphic)!, aired: fields ? { ...seen.get(item.graphic)!.aired, ...fields } : {} });
+      const was = seen.get(item.graphic)!;
+      if (!claimed) seen.set(item.graphic, { ...was, aired: fields ? { ...was.aired, ...fields } : {} });
     }
     for (const item of items) {
       const oid = oidOf(item.msg);
