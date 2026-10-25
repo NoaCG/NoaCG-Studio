@@ -2845,7 +2845,11 @@ test('a Re-take that stalls past the fallback: the +1 it let go lands, and no fi
   await settle();
   r.sends[1].answer.resolve({ ...noneLeft });
   await one;
+  // The Re-take is still out: this press waits for it too, until its own fallback.
   const two = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(r.sends.length, 2);
+  r.timers.at(-1)?.();
   await settle();
   r.sends[2].answer.resolve({ ...noneLeft });
   await two;

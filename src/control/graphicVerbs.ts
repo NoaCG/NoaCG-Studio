@@ -247,23 +247,23 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       clearThroughBridge: async (note) => (alive() ? p.clearThroughBridge(note) : note),
     };
   };
-  /** Each graphic's last live press, and this page's own Take, Update or Out of it still out: what
-   *  the next live press there waits for (`afterPress`). */
+  /** Each graphic's last live press, which the next one waits for. */
   const presses = new Map<string, Promise<void>>();
-  /** The next live press on these graphics waits for this page's own send too, as it waits for the
-   *  press before it: a press never overlaps this page's Take, Re-take, Update or Out of its graphic
-   *  unless the fallback lets it go. */
+  /** Each graphic's own Takes, Updates and Outs of this page still out, all of which the next live
+   *  press there waits for too (`afterPress`): a press never overlaps one unless its own fallback
+   *  lets it go. */
+  const ownSends = new Map<string, Promise<void>>();
   const behind = <T>(graphics: readonly string[], run: Promise<T>): Promise<T> => {
     const done = run.then(
       () => {},
       () => {},
     );
     for (const graphic of graphics) {
-      const before = presses.get(graphic);
+      const before = ownSends.get(graphic);
       const settled = before ? Promise.all([before, done]).then(() => {}) : done;
-      presses.set(graphic, settled);
+      ownSends.set(graphic, settled);
       void settled.then(() => {
-        if (presses.get(graphic) === settled) presses.delete(graphic);
+        if (ownSends.get(graphic) === settled) ownSends.delete(graphic);
       });
     }
     return run;
@@ -627,7 +627,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
 
   /**
-   * A LIVE PRESS WAITS FOR THE ONE BEFORE IT on its graphic, then counts from what that press left:
+   * A LIVE PRESS WAITS FOR THE ONE BEFORE IT on its graphic, and for this page's own Takes, Updates
+   * and Outs of it still out (`behind`), then counts from what that press left:
    * the tree (`boundNow`) for a bound field, the sent figure for an unbound one. Two goals in one
    * round trip are two points (spec S1, e2e/configured/playout-adjust-race.spec.ts; pinned live
    * controls F2). The wait ends when the press before it has had a send's whole window and an
@@ -635,7 +636,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    * next press; past it, the press counts from what this page sent, or the tree as it stands.
    */
   const afterPress = (graphic: string, press: () => Promise<void>): Promise<void> => {
-    const before = presses.get(graphic);
+    const waits = [presses.get(graphic), ownSends.get(graphic)].filter((w): w is Promise<void> => !!w);
+    const before = waits.length > 0 ? Promise.all(waits) : undefined;
     let timer: unknown;
     const waited = before
       ? Promise.race([before, new Promise<void>((resolve) => (timer = io.setTimeout(resolve, RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS)))])
