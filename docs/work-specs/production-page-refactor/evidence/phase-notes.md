@@ -5,6 +5,69 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 32a repair: the sent-figure base on the slow road
+
+- **Previous verified `main` sha:** row 32a landed as `fc65f5a` (PR #1728) and failed its
+  independent check on the press-safety base rule
+  (https://github.com/NoaCG/NoaCG-Studio/pull/1728#issuecomment-6401685600). This branch began on
+  `d8dd130`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated. The only wire change is
+  an extra `oid` on this page's own update and event commands, which every consumer already
+  accepts (commandRoads.ts: the sender's own id is kept, `sendControlVerb` adds one otherwise).
+- **Defect.** On the slow road (air's record moves only when a row is heard back) `baseOf` and
+  `holdSent` decided "a newer command moved this field" by value inequality. A row of an OLDER own
+  send heard while a newer send was out moved `aired`, so the newer send's landed figure was never
+  booked: three quick +1 sent 8, 9, 9; a +1 after a new round's Take (home 0) sent 9 and wrote 9
+  into the new cue; a +1 during a Re-take counted from the round before (8 instead of 1), because
+  a Take or Update still out was never a sent-figure base.
+- **Fix (`src/control/graphicVerbs.ts` only).**
+  - Each update or event carrying figures leaves with this page's own id (`ownFigures`, bounded,
+    press number by id). `heard` (and the fast road's `applyHere`, wrapped) tells a row apart by
+    that id, never by its figure: an own row no newer than a send still out moves only the bar the
+    send books over (`AtPress.was`, landed `over`), and only while nothing else moved the field;
+    an own row as new as a booked figure or newer puts its own figure there; another screen's row
+    (or one with no known id) marks the field moved under every send out and drops every booked
+    figure for it. A direct move of `aired` with no row (a reseed) is still caught by value.
+  - A Take, Update or Snap holds every field it sends as a sent figure until its answer
+    (`holdFigures`), as a live press's moved figure always was. `baseOf` takes the newest by press
+    number of the figures still out and the landed figure air's record has not taken.
+  - A landed send is booked even when air's record already shows its figure (so it outranks an
+    older Take still out), and the cue it went on is read when asked (`Layer`): its own Take's cue,
+    else the newest of this page's markers out at its press that did not fail, else the cue live
+    at its press. A failed send gives back only parked figures no newer send replaced, judged by
+    each figure's own press number.
+  - A throw before the send (a timed cue's bad spec) gives back what the press parked and held.
+- **Fast-road case the checker called arguable (a Take or Update overlapping an older press).**
+  Settled by the same change: the Take or Update still out is the newest sent figure, so the next
+  press counts from it, and an older press landing after it books nothing over it.
+- **Tests (`scripts/graphic-verbs.test.mjs`).** The checker's three repros, an equal-figure
+  correction from another screen, a Take that throws before it is sent, and the hockey scorebug
+  (a ⚡ goal whose slow row is heard while the first +1 is out, then +1 twice: 8, 9, 10); each red
+  on `fc65f5a` except the equal-figure case, which guards the id rule. A randomized walk
+  (`BASE_WALKS`, default 3000, about 17,500 checked presses) on the slow road: +1, Takes, Re-takes,
+  Updates with typed corrections, another screen's corrections and Takes, answers landed, failed
+  or refused in press order (one send in flight per graphic, protocol 2 refusing a press made
+  before it heard a committed foreign command), rows heard one at a time in log order. Oracle: the
+  newest own figure still out, else the newest landed own one unless another screen's row was
+  heard after it, else air's record. Ten existing assertions now set the figure's id aside
+  (`sentAs`, which asserts it is there); nothing else in them changed.
+- **Mutation check.** Each of these turns a test red: own rows read as another screen's (repros 1,
+  2, walk); no hold for a Take or Update out (repro 3, walk); an older own row not moving the bar
+  (repros 1, 2, walk); booking only when air does not show the figure yet (walk); ignoring failed
+  markers in the cue a figure went on (walk); the old give-back rule by the failing send's number
+  (walk); no give-back on a throw before the send (its test).
+- **Traps.**
+  - The walk's assertion runs inside the wire stub, which the sender catches as a send failure:
+    record mismatches and assert after each step, or a wrong figure passes silently.
+  - The rig's `applyHere` is called on both roads and moves only the marker, so the wrapper
+    counts a command as applied here only when `aired` actually changed.
+  - A model server that answers a newer send before an older one on the same graphic is not this
+    product (`createGraphicFifo`, one send in flight per graphic); with it the page's marker is
+    transiently behind and the base check is about the wrong instance.
+  - Value equality cannot tell an own row from another screen's equal figure; the id can. Keep the
+    id on any new figure-carrying command this sender adds.
+
 ## Row 32a, phase L1: pinned live controls
 
 - **Previous verified `main` sha:** row 31 (E7.2a) passed on `3295c9c` (PR #1724). This branch
