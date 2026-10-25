@@ -268,54 +268,41 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     }
     return run;
   };
-  /** The cue a send left its figures on: its own Take's, else that of the newest of this page's
-   *  Takes and Outs out at its press that did not fail, else what stood under them at its press
-   *  (the newest of this page's that landed while a newer one was out, else the live marker). Read
-   *  when asked, so an older Take that failed after the send landed gives back the cue that stood. */
-  type Layer = { take?: string | null; out: readonly { n: number; cue: string | null }[]; live: string | null };
-  const layerAt = (graphic: string, take?: string | null): Layer => ({
-    ...(take !== undefined ? { take } : {}),
-    out: (markers[graphic]?.out ?? []).map((p) => ({ n: p.n, cue: p.cue })),
-    live: markers[graphic]?.landed ? markers[graphic].landed.cue : (session.air.get().liveCue[graphic] ?? null),
-  });
-  const layerCue = (layer: Layer): string | null => {
-    if (layer.take !== undefined) return layer.take;
-    const stood = layer.out.filter((p) => !failedMarkers.has(p.n));
-    return stood.length > 0 ? stood[stood.length - 1].cue : layer.live;
-  };
-
   // ── THE SENT-FIGURE LEDGER (pinned-live-controls "What a press does"): per graphic, in press
   // order, this page's own sends that carry figures (a live press, a Take, Re-take, Update or
   // Snap), each pending until its answer, then landed or gone. It is the one source of an unbound
   // field's base (`baseOf`). A send that did not reach the output leaves it at once: it is never a
   // base and gives nothing back. Order is the press number's, never an answer's or a row's. ──
-  /** One batch of one send on one graphic: its press number, its figures, the cue it went on
-   *  (`layerCue`), and the fields air's record took past it: its own row or a newer one heard,
-   *  another screen's, or a move with no row. */
-  type Entry = { stamp: number; figures: Record<string, string>; layer: Layer; landed: boolean; past: Set<string> };
+  /** One batch of one send on one graphic: its press number, its figures, and the fields air's
+   *  record took past it: its own row or a newer one heard, another screen's row heard after its
+   *  press, or a move with no row. */
+  type Entry = { stamp: number; figures: Record<string, string>; landed: boolean; past: Set<string> };
   const ledger = new Map<string, Entry[]>();
   let sendSeq = 0;
   /** This page's figure-carrying commands (an update, an event), by the id they were sent with, and
    *  their press number: a row heard back is told from another screen's by it, not by its figure. */
   const ownFigures = new Map<string, { graphic: string; stamp: number }>();
-  /** Air's record as the ledger last accounted for it. A field that differs when next read moved
-   *  with no row heard (a reseed): it stands over every entry, as another screen's row does. */
-  const seen = new Map<string, Record<string, string>>();
-  const passed = (graphic: string, keys: readonly string[], upTo = Infinity) => {
-    for (const entry of ledger.get(graphic) ?? []) if (entry.stamp <= upTo) for (const key of keys) entry.past.add(key);
+  /** Air's record and the live marker as the ledger last accounted for them. A field that differs
+   *  when next read moved with no row heard (a reseed): it stands over every entry, as another
+   *  screen's row does; a marker that moved so stands over every field. */
+  const seen = new Map<string, { aired: Record<string, string>; cue: string | null }>();
+  const passed = (graphic: string, keys: readonly string[] | null, upTo = Infinity) => {
+    for (const entry of ledger.get(graphic) ?? []) if (entry.stamp <= upTo) for (const key of keys ?? Object.keys(entry.figures)) entry.past.add(key);
   };
+  const airNow = (graphic: string) => ({ aired: { ...(session.air.get().aired[graphic] ?? {}) }, cue: session.air.get().liveCue[graphic] ?? null });
   const accounted = (graphic: string) => {
-    const now = session.air.get().aired[graphic] ?? {};
+    const now = airNow(graphic);
     const was = seen.get(graphic);
-    if (was) passed(graphic, [...new Set([...Object.keys(was), ...Object.keys(now)])].filter((key) => was[key] !== now[key]));
-    seen.set(graphic, { ...now });
+    if (was && was.cue !== now.cue) passed(graphic, null);
+    else if (was) passed(graphic, [...new Set([...Object.keys(was.aired), ...Object.keys(now.aired)])].filter((key) => was.aired[key] !== now.aired[key]));
+    seen.set(graphic, now);
   };
-  /** This page's own command applied here (the fast road, or unpublished): air's record moves past
-   *  no entry, and a send that then fails books nothing. */
+  /** This page's own move of air's record or marker (its command applied here on the fast road or
+   *  unpublished, its marker written from an answer): it takes no entry past. */
   const applyOwn = (graphics: readonly string[], apply: () => void) => {
     for (const graphic of graphics) accounted(graphic);
     apply();
-    for (const graphic of graphics) seen.set(graphic, { ...(session.air.get().aired[graphic] ?? {}) });
+    for (const graphic of graphics) seen.set(graphic, airNow(graphic));
   };
   /** The figures no send pressed after `stamp` replaced on the output: what a late answer may still
    *  write into the cue. */
@@ -340,7 +327,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
-    session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m: LiveCueMap) => graphics.reduce((acc, g) => withLiveCue(acc, g, cueId), m)) }));
+    applyOwn(graphics, () => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m: LiveCueMap) => graphics.reduce((acc, g) => withLiveCue(acc, g, cueId), m)) })));
 
   // ── THE MARKER'S PRESSES (#1696). Every Take and Out leaves through the one sender with a cue
   // marker, so the sender numbers them at the press and writes the marker from their answers:
@@ -359,9 +346,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  sender's to write from its answers, and every other cue row is somebody else's. */
   const own = new Set<string>();
   const landedOn = (graphic: string, n: number) => newestLanded.set(graphic, Math.max(newestLanded.get(graphic) ?? 0, n));
-  /** Marker presses that did not reach the output (bounded): a send's figures went on what stood
-   *  before them (`layerCue`). One heard landing after all leaves the set. */
-  const failedMarkers = new Set<number>();
 
   /** Number a send's markers at its press, batch by batch (each lands or fails on its own), and
    *  give each its id, which the send keeps (hostedControl.ts `sendControlVerb`). */
@@ -392,10 +376,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     for (const m of sent) {
       const reached = landed(m);
       if (reached) landedOn(m.graphic, m.n);
-      else {
-        failedMarkers.add(m.n);
-        for (const old of failedMarkers) if (failedMarkers.size > 1024) failedMarkers.delete(old);
-      }
       const step = answerMarker(markers, session.air.get().liveCue, m.graphic, m.n, reached);
       markers = step.book;
       if (step.write !== undefined) mark([m.graphic], step.write);
@@ -403,15 +383,18 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
   const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], applied?: (msg: unknown) => boolean): T[] => {
     for (const item of items) {
-      // A command air's record is about to take (one already applied here moves nothing). It takes
-      // its fields past every send pressed no later than it: this page's own row past its own
-      // send and older ones, another screen's row (or one with no id this page knows) past all.
+      // A command air's record is about to take. It takes its fields past every send pressed no
+      // later than it: this page's own row past its own send and older ones, another screen's row
+      // (or one with no id this page knows) past all. One this page already applied here moves
+      // nothing, and says only that it committed: older own sends are past it.
       const fields = figuresOf(item.msg);
-      if (!fields || applied?.(item.msg)) continue;
       const mine = ownFigures.get(oidOf(item.msg) ?? '');
+      const own = mine?.graphic === item.graphic ? mine.stamp : null;
+      const claimed = !!applied?.(item.msg);
+      if (!fields || (claimed && own === null)) continue;
       accounted(item.graphic);
-      passed(item.graphic, Object.keys(fields), mine?.graphic === item.graphic ? mine.stamp : Infinity);
-      seen.set(item.graphic, { ...seen.get(item.graphic), ...fields });
+      passed(item.graphic, Object.keys(fields), own === null ? Infinity : claimed ? own - 1 : own);
+      if (!claimed) seen.set(item.graphic, { ...seen.get(item.graphic)!, aired: { ...seen.get(item.graphic)!.aired, ...fields } });
     }
     for (const item of items) {
       const oid = oidOf(item.msg);
@@ -421,7 +404,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       // A newer press of this page landed: it stands over this one, on air and on the marker.
       if ((newestLanded.get(u.graphic) ?? 0) > u.n) continue;
       landedOn(u.graphic, u.n);
-      failedMarkers.delete(u.n);
       markers = landedLate(markers, u.graphic, u.n, u.cue);
       // A newer press still out decides with its own answer, and puts this one back if it fails.
       if (!markers[u.graphic]?.out.some((p) => p.n > u.n)) mark([u.graphic], u.cue);
@@ -431,7 +413,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // (another screen's, or one from an earlier mount of the page) is what stands over this
     // sender's presses out there until one lands: a failure gives it back.
     const rest = withoutOwnMarkers(items, (item) => own.has(oidOf(item.msg) ?? ''));
-    for (const item of rest) if (item.msg.t === 'cue' && !applied?.(item.msg)) markers = foreignMarker(markers, item.graphic, (item.msg as { cue?: string | null }).cue ?? null);
+    for (const item of rest) {
+      if (item.msg.t !== 'cue' || applied?.(item.msg)) continue;
+      const cue = (item.msg as { cue?: string | null }).cue ?? null;
+      markers = foreignMarker(markers, item.graphic, cue);
+      // A row heard, not a move with no row: the figures of its Take are what take entries past.
+      accounted(item.graphic);
+      seen.set(item.graphic, { ...seen.get(item.graphic)!, cue });
+    }
     return rest;
   };
 
@@ -460,14 +449,13 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     };
     return still;
   };
-  /** What an unbound field counts from: the newest entry of the ledger, by press, that carries it
-   *  on the cue the layer holds, while it is out, or once landed until air's record took it past;
-   *  else what air was last sent, else `fallback`. Never the cue as typed, so a correction staged
-   *  in PREP is not a base until Update airs it. */
+  /** What an unbound field counts from: the newest entry of the ledger, by press, that carries it,
+   *  while it is out, or once landed until air's record took it past; else what air was last sent,
+   *  else `fallback`.
+   *  Never the cue as typed, so a correction staged in PREP is not a base until Update airs it. */
   const baseOf = (graphic: string, key: string, fallback: string | undefined) => {
     accounted(graphic);
-    const cue = onLayer(graphic);
-    const carrying = (ledger.get(graphic) ?? []).filter((e) => key in e.figures && layerCue(e.layer) === cue);
+    const carrying = (ledger.get(graphic) ?? []).filter((e) => key in e.figures);
     const last = carrying[carrying.length - 1];
     if (last && !(last.landed && last.past.has(key))) return last.figures[key];
     return session.air.get().aired[graphic]?.[key] ?? fallback;
@@ -483,17 +471,13 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     if (!allOut && !session.alive()) return { ok: false, note: ENDED_NOTE };
     // Into the ledger, one entry per batch and graphic that carries figures, pending until the
     // answer: what a Take, an Update or a Snap sends counts as a press's figure does.
-    const layerOf = (graphic: string): Layer => {
-      const takes = batches.flat().filter((item) => item.graphic === graphic && item.msg.t === 'cue');
-      return layerAt(graphic, takes.length > 0 ? ((takes[takes.length - 1].msg as { cue?: string | null }).cue ?? null) : undefined);
-    };
     const entries = batches.flatMap((batch, index) =>
       [...new Set(batch.map((item) => item.graphic))].flatMap((graphic) => {
         const items = batch.filter((item) => item.graphic === graphic);
         const figures: Record<string, string> = Object.assign({}, ...items.map((item) => figuresOf(item.msg) ?? {}), moved ?? {});
         if (Object.keys(figures).length === 0) return [];
         accounted(graphic);
-        const entry: Entry = { stamp, figures, layer: layerOf(graphic), landed: false, past: new Set() };
+        const entry: Entry = { stamp, figures, landed: false, past: new Set() };
         // Bounded: an entry this old has long been replaced by newer ones on its graphic.
         ledger.set(graphic, [...(ledger.get(graphic) ?? []), entry].slice(-64));
         return [{ graphic, batch: index, entry }];
