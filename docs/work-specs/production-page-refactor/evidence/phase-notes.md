@@ -7,6 +7,31 @@ changes a spec's digest.
 
 ## Row 30, phase E7.1: election read gate, keyed selectors and resolver
 
+- **Repair 1, 2026-10-25** (independent check `checker-p30-pp-p30c-e6f8` on `cfcf65b`: FAIL).
+  - *F1, one revision aired with two contents.* A correction that got no answer marked its revision
+    as lost and was sent once more, but with the values of whatever read came next at that revision
+    number. A source that rewrote revision 3 (284, then 291) could put both on air, and
+    `airedValues` could offer values the output might not show (an Update with no answer at the
+    aired revision but with other values). Fix in `src/control/selectionAir.ts`: the lost bound
+    keeps the values that send carried (`Marks.lostValues`, additive in the kept format). Only
+    those values go again. A read of that revision with other values is a duplicate: it is held
+    off air ("this count arrived again with other values: press Update to send it") and never
+    sent. Two lost
+    sends at one revision with different values leave the values unknown, so neither goes again.
+    `airedValues` offers nothing while a send at the aired revision with other values may still
+    land. Pinned in `scripts/keyed-selection.test.mjs`: the checker's repro as a pure-reducer
+    test, the Update case, and the two-sends case, all red on `cfcf65b`. The generated walk now
+    rewrites the current revision with other values, most often right after a correction got no
+    answer. A new oracle fails when a correction carries a revision's second content while the
+    first may air. That walk is red on `cfcf65b` (seed 36), and 80,000 walks
+    (`SELECTION_WALKS=80000`) found no counterexample.
+  - *Mutation gaps (F4).* The unknown layer decided at its newest revision instead of its oldest
+    is now killed by a test that expects the newer revision to go once more. A resolver that
+    accepts a negative revision is killed by a new resolver test (the check was already there).
+  - *Hold line (F6).* The protocol-1 line is now "a newer count arrived: press Update to send it".
+    The Node test and the configured spec that pin it were updated, and nothing else changed.
+  - *Not in this repair.* F2 (a layer dropped on the marker's cue after a late-committing Take)
+    stays with #1696. The F1 fix does not touch that path.
 - **Previous verified `main` sha:** row 29 (E5.2) passed on `89abb9e`. This branch began on
   `be0cea0`.
 - **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
