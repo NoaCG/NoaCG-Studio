@@ -83,7 +83,8 @@ interface Marks {
    *  older is sent, and it is sent once more (it may not). */
   lostAt?: number;
   /** The values that send carried: only these go again at `lostAt`, and a read of that revision
-   *  with other values is a duplicate, held. Absent (kept by an earlier build): not known. */
+   *  with other values is a duplicate, held. Absent: not known (two sends at it carried different
+   *  values, or an earlier build kept it), so every read of it holds until a press. */
   lostValues?: Record<string, string>;
   held?: SelectionHold;
 }
@@ -188,7 +189,7 @@ const MOVED_REASON = 'a Take or an Out did not go through, so this page does not
 const UNANSWERED_REASON = 'a send got no answer, so it is not known which candidate is on air: press Update to send it';
 const STALE_REASON = 'another screen changed this card, so a newer count is not sent on its own: press Update to send it';
 const UNORDERED_REASON = 'a newer count arrived: press Update to send it';
-const DUPLICATE_REASON = 'the source sent this revision again with other values';
+const DUPLICATE_REASON = 'this count arrived again with other values: press Update to send it';
 
 /** Keep only the marks of the entities the layer may still show. */
 function pruned(l: SelectionLayer): SelectionLayer {
@@ -227,11 +228,15 @@ function addLost(m: Marks, t: AiredTarget): Marks {
   return m;
 }
 
-/** The lost bound over what airs after these sends, unless it is what airs. One at the aired
- *  revision with other values is kept too: the output may show either. */
+/** Whether a lost send may show something other than what airs: a newer revision, or the aired
+ *  one with other values (the output may show either). */
+const lostAbove = (m: Marks | undefined, onAir: AiredTarget): boolean =>
+  m?.lostAt !== undefined && (m.lostAt > onAir.revision || (m.lostAt === onAir.revision && !sameValues(m.lostValues, onAir.values)));
+
+/** The lost bound over what airs after these sends, unless it is what airs. */
 function lostOver(onAir: AiredTarget, m0: Marks, lostSends: readonly AiredTarget[]): Marks {
   const m = lostSends.reduce(addLost, m0);
-  if (m.lostAt === undefined || m.lostAt > onAir.revision || (m.lostAt === onAir.revision && !sameValues(m.lostValues, onAir.values))) return m;
+  if (m.lostAt === undefined || lostAbove(m, onAir)) return m;
   const { lostAt: _lostAt, lostValues: _lostValues, ...kept } = m;
   return kept;
 }
@@ -544,13 +549,9 @@ export function airedValues(air: SelectionAir, graphic: string, cueId: string): 
   const l = air[graphic];
   // Another screen changed the graphic since: what airs is not known to be these values.
   if (!l || l.unknown || l.blocked !== undefined || l.out.length > 0 || !l.onAir || l.onAir.cueId !== cueId) return null;
-  // A send whose answer was lost may have put a newer revision on air (a restored layer that is
-  // settling and not unknown lost sends for the candidate on air; at its own revision they carry
-  // its own values).
-  // One at the aired revision may carry other values.
-  const m = l.marks[markKey(l.onAir)];
-  if (m?.lostAt !== undefined && (m.lostAt > l.onAir.revision || (m.lostAt === l.onAir.revision && !sameValues(m.lostValues, l.onAir.values)))) return null;
-  return l.onAir.values;
+  // A send whose answer was lost may have put a newer revision on air, or the aired one with other
+  // values (a restored layer that is settling and not unknown lost sends for the candidate on air).
+  return lostAbove(l.marks[markKey(l.onAir)], l.onAir) ? null : l.onAir.values;
 }
 
 /**
@@ -618,7 +619,7 @@ const isTarget = (t: unknown): t is AiredTarget => {
 };
 const isMarks = (m: unknown): m is Marks => {
   const x = m as Partial<Marks> | null;
-  return !!x && typeof x.heldAt === 'number' && (x.lostAt === undefined || typeof x.lostAt === 'number') && (x.lostValues === undefined || (!!x.lostValues && typeof x.lostValues === 'object' && Object.values(x.lostValues).every((v) => typeof v === 'string'))) && (x.held === undefined || (typeof x.held.reason === 'string' && typeof x.held.since === 'number'));
+  return !!x && typeof x.heldAt === 'number' && (x.lostAt === undefined || typeof x.lostAt === 'number') && (x.lostValues === undefined || (!!x.lostValues && typeof x.lostValues === 'object' && !Array.isArray(x.lostValues) && Object.values(x.lostValues).every((v) => typeof v === 'string'))) && (x.held === undefined || (typeof x.held.reason === 'string' && typeof x.held.since === 'number'));
 };
 
 /**

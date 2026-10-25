@@ -1099,7 +1099,7 @@ describe('the page\'s two doors onto the layers', () => {
     assert.equal(air.airedValues(state, 'Card', 'cue-a'), null, 'r3 with 284 may air');
     const dup = read(state, r3(291));
     assert.deepEqual(dup.sends, [], 'r3 with other values is never sent');
-    assert.match(air.airedOf(dup.air, 'Card').held?.reason ?? '', /this revision again with other values/);
+    assert.match(air.airedOf(dup.air, 'Card').held?.reason ?? '', /this count arrived again with other values: press Update/);
     assert.equal(air.airedValues(dup.air, 'Card', 'cue-a'), null, 'nor offered');
     assert.equal(read(dup.air, r3(291)).air, dup.air, 'read again, nothing changes');
     const again = read(dup.air, r3(284));
@@ -1135,7 +1135,7 @@ describe('the page\'s two doors onto the layers', () => {
     p.tick(air.SETTLE_MS + 1);
     for (const c of [collection(6, people6()), r6]) air.followAired(p, { liveCue: live, seeded: true, facts: facts(c), send });
     assert.deepEqual(sends, ['1500'], 'r6 with 1500 or 1600 may air: neither is sent again');
-    assert.match(card(p).held?.reason ?? '', /this revision again with other values/);
+    assert.match(card(p).held?.reason ?? '', /this count arrived again with other values: press Update/);
     assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null);
   });
 

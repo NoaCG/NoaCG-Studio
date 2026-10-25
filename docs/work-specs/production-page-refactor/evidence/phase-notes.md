@@ -15,7 +15,8 @@ changes a spec's digest.
     aired revision but with other values). Fix in `src/control/selectionAir.ts`: the lost bound
     keeps the values that send carried (`Marks.lostValues`, additive in the kept format). Only
     those values go again. A read of that revision with other values is a duplicate: it is held
-    off air ("the source sent this revision again with other values") and never sent. Two lost
+    off air ("this count arrived again with other values: press Update to send it") and never
+    sent. Two lost
     sends at one revision with different values leave the values unknown, so neither goes again.
     `airedValues` offers nothing while a send at the aired revision with other values may still
     land. Pinned in `scripts/keyed-selection.test.mjs`: the checker's repro as a pure-reducer
