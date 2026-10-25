@@ -53,7 +53,7 @@ import {
   type LaneArm,
 } from './cueAuto.ts';
 import { clearCueItems, takeCueItems } from './cueItems.ts';
-import { leftAlone, withLiveCue } from './liveCue.ts';
+import { leftAlone, reachedOutput, withLiveCue } from './liveCue.ts';
 
 /** The shortest timer the engine sets, in ms. */
 const MIN_TIMER_MS = 15;
@@ -76,7 +76,7 @@ export interface CueArmPage {
   timedOff: boolean;
   cues: readonly ShowCue[];
   /** The page's sender (`sendVerb`): every road a press takes. */
-  send: (batches: ControlSendItem[][], label: string) => Promise<({ ok: true } & VerbSent) | { ok: false; note: string }>;
+  send: (batches: ControlSendItem[][], label: string) => Promise<({ ok: true } & VerbSent) | { ok: false; note: string; uncertain?: true; stale?: true }>;
   /** The cue as the operator currently sees it, draft over record. */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
   withBoundValues: (graphic: string, values: Record<string, string>) => Record<string, string>;
@@ -92,6 +92,10 @@ export interface CueArmPage {
   note: (text: string) => void;
   /** Published: the arm wire, while there is one. */
   wire: () => CueArmWire | null;
+  /** A timed end takes `cueId` onto the graphic's layer: a live candidate that layer follows must
+   *  know, or a correction sent while the Take is out would land on this cue's card
+   *  (control/selectionAir.ts `pressSelection`, a cue with no selection). */
+  selectionAired?: (graphic: string, cueId: string, take: { status: 'none' }, moves?: boolean) => { landed: () => void; undo: (failed?: { uncertain?: true; stale?: true }) => void };
 }
 
 /** What the page's effects hand the engine. */
@@ -151,7 +155,11 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
     // own view may trail; unpublished, this page's view is the only one.
     const out = playsOut(arm.then) && (p.published || p.liveCueOf()[graphic] === arm.cue);
     if (out) items.push(clearCueItems(graphic));
-    const next = arm.next ? p.cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
+    // A live candidate cue is never taken by a timed end (./cueAuto.ts `nextGraphicCue`), whatever an
+    // older arm named: it would air with its prepared values (E7.1).
+    const named = arm.next ? p.cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
+    const candidate = named?.selection !== undefined ? named : undefined;
+    const next = candidate ? undefined : named;
     const nextGraphic = next ? p.graphicOf(next) : null;
     if (next && nextGraphic) {
       // The draft already owns preparation. Its cloud acknowledgement must not delay the timer.
@@ -159,7 +167,8 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
       items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values) }));
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
-    const gone = !!arm.next && !(next && nextGraphic);
+    if (candidate) p.note(`${candidate.label} shows a live candidate, so a timed end does not take it.`);
+    const gone = !!arm.next && !candidate && !(next && nextGraphic);
     // Published, the server's fire row says "Auto Out sent" on every page; this one only adds what
     // went wrong here.
     if (!items.length) {
@@ -167,10 +176,24 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
       if (gone) p.note('The cue armed to be taken next is gone, so nothing was taken.');
       return;
     }
+    // Both the Take and the Out are presses on their layers: a correction neither follows them nor
+    // overtakes them.
+    const captured = next && nextGraphic ? p.selectionAired?.(nextGraphic, next.id, { status: 'none' }, true) : undefined;
+    const cleared = out && graphic !== nextGraphic ? p.selectionAired?.(graphic, '', { status: 'none' }, true) : undefined;
     const sent = await p.send(items, words);
     if (!sent.ok) {
+      captured?.undo(sent);
+      cleared?.undo(sent);
       p.note(sent.note);
       return;
+    }
+    if (captured) {
+      if (nextGraphic && reachedOutput(sent, nextGraphic)) captured.landed();
+      else captured.undo();
+    }
+    if (cleared) {
+      if (reachedOutput(sent, graphic)) cleared.landed();
+      else cleared.undo();
     }
     const stands = leftAlone(sent);
     p.setLiveCue((m) => {

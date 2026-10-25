@@ -83,8 +83,11 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
-import { resolveBindings, sourcePaths, type ResolvedValues } from '../../model/productionData';
-import { loadLiveData, saveLiveData, PRODUCTION_DATA_KEY } from '../../model/productionState';
+import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
+import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
+import { CANDIDATE_READ_MS, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { selectionGate } from '../../control/sourceMapping';
+import SelectionHolds from './SelectionHolds';
 import {
   fetchProductionData,
   patchProductionData,
@@ -164,6 +167,8 @@ import {
   firstPublishedSources,
   sendControlVerbs,
   untilAnswered,
+  sendsInOrder,
+  sentHere,
   verbAired,
   verbStale,
   verbsLanded,
@@ -212,7 +217,7 @@ import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../../control/folderPlayout';
 import { startCueArmEngine, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
-import CueEditor, { useCueView, type OwnReader } from './CueEditor';
+import CueEditor, { useCueView, type CueCandidate, type OwnReader } from './CueEditor';
 import CueActions from './CueActions';
 import ProductionShell from './ProductionShell';
 import ServerCueEditor from './ServerCueEditor';
@@ -1087,6 +1092,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       foldProgram((air, specs, now) => claimAndApply(air, items, session.applied, specs, now)),
     [session, foldProgram],
   );
+  /** Another screen's commands, told to the live candidates (control/selectionAir.ts
+   *  `foreignSelection`); set below, once the layers' io exists. */
+  const heardFromOthers = useRef<(items: { graphic: string; msg: ControlEventRow['msg'] }[]) => void>(() => {});
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
   const hearCommand = useCallback(
@@ -1100,9 +1108,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
         folderPlayout.settleMisses(settle);
       }
+      // Each command once, on whichever road came first.
+      heardFromOthers.current(items.filter((item) => !session.applied.has(item.msg)));
       applyCommand(items);
     },
-    [applyCommand, folderPlayout],
+    [applyCommand, folderPlayout, session],
   );
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
@@ -1289,6 +1299,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         fetchProductionData,
         patchProductionData,
         patchProductionDataBySlug,
+        every: (ms, run) => {
+          const timer = window.setInterval(run, ms);
+          return () => window.clearInterval(timer);
+        },
         onStorage: (listener) => {
           const onStorage = (e: StorageEvent) => {
             if (e.key === null || e.key === PRODUCTION_DATA_KEY) listener();
@@ -1358,6 +1372,81 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const graphic = graphicsRef.current?.find((g) => g.name === name);
     return graphic ? fieldDescriptors(templateForSavedGraphic(graphic, libraryRef.current).fields) : null;
   }, []);
+
+  // ── LIVE CANDIDATES (E7.1; control/selectionAir.ts): what a cue's selection resolves to in the
+  // newest tree, and the instances this page aired, kept in this browser across a reload. ──
+  const collectionsRef = useRef(show?.collections);
+  collectionsRef.current = show?.collections;
+  const publishedRef = useRef(!!hostedSlug);
+  publishedRef.current = !!hostedSlug;
+  const hostedSlugRef = useRef(hostedSlug);
+  hostedSlugRef.current = hostedSlug;
+  /** The newest tree and records a selection resolves against; a published tree still unread is
+   *  not one to take or judge from (control/selectionAir.ts `readable`). */
+  const selectionFacts = useCallback(
+    (): SelectionFacts => {
+      const data = session.data.get();
+      const slug = publishedRef.current ? hostedSlugRef.current : null;
+      return { collections: collectionsRef.current, bindings: bindingsRef.current, tree: data.liveData, fieldsOf, readable: !publishedRef.current || data.treeRead, ordered: !slug || sendsInOrder(slug) };
+    },
+    [session, fieldsOf],
+  );
+  /** The fields of a cue nothing typed or pressed here may move (E7.1): its candidate's, and every
+   *  field of a cue this build reads only (a later version's selection). */
+  const candidateFields = (cue: ShowCue): string[] =>
+    selectionReadOnly(cue, collectionsRef.current) ? (fieldsOf(cueGraphicName(cue) ?? '') ?? []).map((d) => d.key) : selectedFields(cue, collectionsRef.current);
+  useEffect(() => session.selections.set(readSelectionAir(loadSelectionAir(id))), [session, id]);
+  const keepSelections = useCallback(
+    (next: SelectionAir) => {
+      if (next === session.selections.get()) return;
+      session.selections.set(next);
+      saveSelectionAir(id, writeSelectionAir(next));
+    },
+    [session, id],
+  );
+  /** The follow pass, as the effect below runs it; set every render so it reads this render's facts. */
+  const followRef = useRef<() => void>(() => {});
+  // A layer whose sends' answers are lost (restored, or a press with no answer) waits out its
+  // settling before it decides or sends: one follow pass when it ends, so a quiet tree still gets one.
+  useEffect(
+    () =>
+      watchSettling(session.selections, {
+        now: () => Date.now(),
+        follow: () => followRef.current(),
+        setTimeout: (run, ms) => window.setTimeout(run, ms),
+        clearTimeout: (timer) => window.clearTimeout(timer),
+      }),
+    [session, id],
+  );
+  const selectionIo = useMemo<SelectionAirIo>(
+    () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current(), alive: session.alive }),
+    [session, keepSelections],
+  );
+  heardFromOthers.current = (items) => foreignSelection(selectionIo, items, sentHere);
+  /** A Take or an Update put this cue's selection on the layer (control/selectionAir.ts). */
+  const selectionAired = useCallback(
+    (graphic: string, cueId: string, take: SelectionTake, moves?: boolean) => pressSelection(selectionIo, graphic, cueId, take, moves),
+    [selectionIo],
+  );
+  /** Every candidate cue's resolution in this render's tree, made once: the rundown, PREVIEW, the
+   *  editor and the Take refusals all read it. A press resolves again from the newest tree. */
+  const candidates = useMemo(() => {
+    const facts = selectionFacts();
+    return new Map(cues.filter((c) => c.selection !== undefined).map((c) => [c.id, selectionTake(c, cueGraphicName(c), facts)] as const));
+    // The facts are read through refs; these are what they move with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cues, liveData, treeRead, hostedSlug, show?.collections, bindings, selectionFacts, cueGraphicName]);
+  const candidateTake = (cue: ShowCue): SelectionTake => candidates.get(cue.id) ?? selectionTake(cue, cueGraphicName(cue), selectionFacts());
+  /** The edited cue's live candidate as the editor shows it (E7.1). */
+  const candidateOf = (cue: ShowCue | null): CueCandidate | null => {
+    if (!cue || cue.selection === undefined) return null;
+    const fields = new Set(selectedFields(cue, show?.collections));
+    const gate = selectionGate(cue, show?.collections, cueGraphicName(cue), bindings);
+    if (gate.status === 'read-only') return { readOnly: gate.reason, label: '', fields, values: {}, notReady: null };
+    const take = candidateTake(cue);
+    const label = gate.status === 'ok' ? `Live candidate: ${gate.recipe.key.map((path, i) => `${path} ${String(gate.selection.key[i])}`).join(', ')}` : 'Live candidate';
+    return { readOnly: null, label, fields, values: take.status === 'ok' ? take.values : {}, notReady: take.status === 'refused' ? take.reason : null };
+  };
   /** `text` in the one form every field connected to `path` takes ("TRUE" is "1" for a toggle), or
    *  null when one cannot hold it or they need different forms (control/sheetSource.ts). */
   const sourceAccept = useCallback(
@@ -1712,12 +1801,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // list is the snap PICKER's and is empty without an explicit machine by design, while a
   // machine-less graphic's `enter` still has to read "Enter" (controlModel.ts says why).
   const stateNames = useMemo(() => (editorTemplate ? machineStateNames(editorTemplate.js) : {}), [editorTemplate]);
+  /** What a cue's live candidate puts on PREVIEW: its resolved values, or its fields blank while
+   *  it is not ready, so a preview never shows another candidate's values, or a stale prepared one. */
+  const candidateOverlay = (cue: ShowCue): Record<string, string> => {
+    const fields = selectedFields(cue, show?.collections);
+    if (!fields.length) return {};
+    const take = candidateTake(cue);
+    return take.status === 'ok' ? take.values : Object.fromEntries(fields.map((f) => [f, '']));
+  };
   // The PREVIEW settles with bound fields overlaid too, for the same reason Take does: the
   // monitor has to show what a Take would actually put on air, not the cue's prepared value. The
   // monitor reads the cue's values from the draft itself (D12) and settles them through this.
   const settleOf = (cue: ShowCue, values: Record<string, string>) =>
     JSON.stringify({
       ...withBoundValues(cueGraphicName(cue) ?? '', values),
+      ...candidateOverlay(cue),
       ...(connectPreview && connectPreview.graphic === cueGraphicName(cue) ? connectPreview.values : {}),
     });
   /** Which of the values being typed PREVIEW says do not fit - measured by the monitor
@@ -1914,13 +2012,38 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const verbPage = useRef<GraphicPage | null>(null);
   const verbs = useMemo(() => createGraphicVerbs(session, GRAPHIC_VERB_IO, () => verbSender.current!, () => verbPage.current!), [session]);
-  const { send: sendVerb, run: runVerb } = verbs;
+  const { send: sendVerb, run: runVerb, runSent } = verbs;
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
    *  unpublished only (control/productionDataSession.ts `dispatch` says why). */
   useEffect(() => {
     dataSession.dispatch(resolved, liveData, runVerb);
   }, [dataSession, resolved, liveData, dataKey, runVerb]);
+
+  /** LIVE CANDIDATES ON AIR follow their captured selector (control/selectionAir.ts): a newer
+   *  revision goes out as one update of every mapped field, anything else holds the picture. An
+   *  instance is forgotten when its layer airs another cue, or is off air once the page knows. */
+  // A production not loaded yet (a team production before its first fetch) knows nothing of air.
+  const selectionSeeded = !!show && (!hostedSlug || bootLive !== null);
+  // A collection nothing binds moves the tree without a row, so a published production with live
+  // candidates reads its tree on the connector's own cadence too.
+  // Asked at each tick, from the session's own part, so a capture never renders the page.
+  useEffect(
+    () => (hostedSlug ? dataSession.poll(CANDIDATE_READ_MS, () => followsCandidates(cuesRef.current, session.selections.get())) : undefined),
+    [dataSession, hostedSlug, session],
+  );
+  // What is live is read from the session's part, never the render's paced copy, which can trail a
+  // marker a Take has just moved and would forget the card it took.
+  followRef.current = () =>
+    followAired(selectionIo, {
+      liveCue: session.air.get().liveCue,
+      seeded: selectionSeeded,
+      facts: selectionFacts(),
+      send: (graphic, values) => runSent([[{ graphic, msg: { t: 'update', data: values } }]], 'Live candidate'),
+    });
+  useEffect(() => {
+    followRef.current();
+  }, [selectionIo, liveData, treeRead, liveCue, selectionSeeded, show?.collections, bindings, selectionFacts, runSent]);
 
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
@@ -2073,6 +2196,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     itemOf: playoutItemFor,
     graphicOf: graphicOfCue,
     slots: PLAYOUT_SLOTS,
+    selectionBlocker: (cue) => {
+      const take = candidateTake(cue);
+      return take.status === 'refused' ? take.reason : null;
+    },
   };
   const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn);
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => takeBlockerOf(target, takeContext);
@@ -2171,7 +2298,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return cue ? [{ cue, graphic }] : [];
       }),
       airedData,
-      boundFields,
+      // A live candidate's fields come from its source, like a bound field: never "unsent".
+      (graphic, cue) => {
+        const candidate = selectedFields(cue, show?.collections);
+        return candidate.length ? { ...boundFields(graphic), ...Object.fromEntries(candidate.map((f) => [f, 'candidate'])) } : boundFields(graphic);
+      },
     ),
     chipLabel: chipGraphic ? (cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic) : null,
   }));
@@ -2272,6 +2403,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     log: logAuto,
     note: setNote,
     wire: () => armWire.current,
+    selectionAired,
   };
   /** H, or a chip: hold a counting lane, or resume a held one. */
   const toggleHold = (graphic: string | null) => armEngine.current?.hold(graphic);
@@ -2369,6 +2501,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       await flushDraft(); await history.closeGroup();
     },
     boundFields,
+    selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
+    selectionAired,
+    candidateFields,
+    airedCandidateFields: (graphic) => {
+      const live = session.air.get().liveCue[graphic];
+      return [
+        ...new Set([
+          ...protectedSelections(session.selections.get(), graphic, live).flatMap((selection) => selectedFields({ selection }, show.collections)),
+          ...protectedFields(session.selections.get(), graphic, live),
+        ]),
+      ];
+    },
+    airedCandidate: (graphic, cueId) => airedValues(session.selections.get(), graphic, cueId),
+    selectionStale: (graphics) => staleSelection(selectionIo, graphics),
     boundNow,
     boundReady: boundPressReady,
     patchBound: patchBoundValues,
@@ -2462,6 +2608,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   })();
 
   folderPage.current = {
+    selectionAired,
     cues,
     folders: rundown.folders,
     members: rundown.members,
@@ -2509,7 +2656,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // meaning. Derived from the template alone, like everything else here: any graphic with a
   // number field gets the block, and no category is ever consulted.
   const eventPayloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
-  const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key));
+  /** A live candidate's fields come from its source, so they get no ± (E7.1). */
+  const candidateKeys = new Set(editingCue ? candidateFields(editingCue) : []);
+  const liveNumberFields = descriptors.filter((d) => d.kind === 'number' && !eventPayloadKeys.has(d.key) && !candidateKeys.has(d.key));
 
   /** Rows the edited cue can load (D3's binding) — the SHARED matcher, `control/cueData.ts`,
    *  so the hosted control page offers exactly the rows this page does. Live here (a dataset
@@ -3051,6 +3200,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             any more than the pictures may. And above 1366px the bar moves
             into the empty column beside PROGRAM, which spends that width and gives the monitors
             back the height the bar was using. Below it, the bar returns underneath. */}
+        <SelectionHolds
+          part={session.selections}
+          labelOf={(cueId) => cues.find((c) => c.id === cueId)?.label ?? null}
+          nextOf={(cueId, graphic) => {
+            const cue = cues.find((c) => c.id === cueId);
+            const take = cue ? selectionTake(cue, graphic, selectionFacts()) : null;
+            return take?.status === 'ok' ? take.selection.key : null;
+          }}
+        />
         <div className="pd-stagehead">
         <PlayoutMonitors
           // Server media goes through NoaCG Bridge whether or not the production is started, so
@@ -3358,6 +3516,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             fieldsOf={fieldsOf}
             onConnectPreview={(values) => setConnectPreview(values ? { graphic: poolGraphic.name, values } : null)}
             ownReader={ownReaderOf(poolGraphic)}
+            candidate={candidateOf(editingCue)}
             endsRow={() => {
               const auto = readAuto(editingCue);
               const nextId = nextGraphicCue(cues, editingCue.id);
@@ -3446,6 +3605,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       </section>
 
       <CueRundown
+        candidateValues={(cue) => (cue.selection === undefined ? null : candidateOverlay(cue))}
         accentPreview={accentPreview?.productionId === show.id ? accentPreview : null}
         onAccentPreview={(cueId, color) => setAccentPreview(color ? { productionId: show.id, cueId, color } : null)}
         show={show}

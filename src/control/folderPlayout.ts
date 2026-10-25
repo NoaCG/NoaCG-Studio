@@ -36,7 +36,7 @@ import { folderMode } from '../model/showFolders.ts';
 import { clearAllCueBatches, clearCueItems } from './cueItems.ts';
 import { cueOnAir } from './folderAir.ts';
 import { folderStep, type StepMember } from './folderStep.ts';
-import { leftAlone, withLiveCue } from './liveCue.ts';
+import { leftAlone, pressOuts, withLiveCue } from './liveCue.ts';
 import { clockRank, runTogether, togetherNote, togetherPlan } from './serverPlayout.ts';
 
 /** Why a run stopped: Out on its folder, All out (what lands after is cut), or the session's end
@@ -77,6 +77,9 @@ export interface FolderPage {
   setLiveCue: (fold: (map: LiveCueMap) => LiveCueMap) => void;
   /** One verb on the playout server, reporting nothing; null when the cue has no item. */
   serverVerb: (cue: ShowCue, verb: ServerVerb, label: string, options?: { cut?: boolean; takenAt?: number }) => Promise<ServerVerbOutcome | null>;
+  /** An Out on a graphic is a press on its live candidate's layer (control/selectionAir.ts
+   *  `pressOuts`). */
+  selectionAired?: (graphic: string, cueId: string, take: { status: 'none' }, moves: boolean) => { landed: () => void; undo: (failed?: { uncertain?: true; stale?: true }) => void };
   /** A graphic cue's Take, reporting nothing; null when its graphic is gone. */
   takeGraphic: (cue: ShowCue, label: string) => Promise<MemberTake | null>;
   /** A cue's own Take, as its TAKE button runs it. */
@@ -171,7 +174,9 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
       if (off && !off.ok) p.note(off.note);
       return;
     }
+    const settle = p.selectionAired ? pressOuts(p.selectionAired, [m.graphic]) : null;
     const sent = await p.send([clearCueItems(m.graphic)], 'Out');
+    settle?.(sent);
     if (!sent.ok) p.note(sent.note);
     else if (!leftAlone(sent).includes(m.graphic)) p.setLiveCue((lc) => withLiveCue(lc, m.graphic, null));
   };
@@ -223,7 +228,9 @@ export function createFolderPlayout(session: PlayoutSession, io: FolderPlayoutIo
   const graphicsOff = async (p: FolderPage, graphicCues: readonly ShowCue[]): Promise<string | null> => {
     const graphics = [...new Set(graphicCues.map(p.graphicOf).filter((g): g is string => !!g))];
     if (!graphics.length) return null;
+    const settle = p.selectionAired ? pressOuts(p.selectionAired, graphics) : null;
     const sent = await p.send(clearAllCueBatches(graphics), 'Out');
+    settle?.(sent);
     if (!sent.ok) return sent.note;
     const off = graphics.filter((g) => !leftAlone(sent).includes(g));
     p.setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));

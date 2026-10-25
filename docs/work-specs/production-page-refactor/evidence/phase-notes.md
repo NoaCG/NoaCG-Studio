@@ -5,6 +5,464 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 30, phase E7.1: election read gate, keyed selectors and resolver
+
+- **Previous verified `main` sha:** row 29 (E5.2) passed on `89abb9e`. This branch began on
+  `be0cea0`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated and nothing in this build
+  writes a selection, so a revert leaves no record behind it. What a reverted page would do with a
+  record a LATER build (E7.2a) wrote is the old behaviour: it ignores `ShowCue.selection` and airs
+  the cue's prepared values. That is why E7.2a must not land until this row has been deployed.
+  `spx-gfx-selection-air` (this browser's aired instances) is read by nothing once reverted.
+- **What landed.** The selection contract's formats in `src/model/productionData.ts`
+  (`CollectionRecipe`, `CueSelection`, `SELECTION_VERSION`, `selectionReadOnly`, `selectedFields`,
+  `collectionFields`, and the write-door predicate `selectionKeep` / `selectionFrozen`);
+  `Show.collections` and `ShowCue.selection` in `src/model/shows.ts`; `readCollectionRecipe`,
+  `selectionGate`, `entityOf` and `resolveSelection` in `src/control/sourceMapping.ts`; the aired
+  instance in the new `src/control/selectionAir.ts`; Take, Update and the refusals wired through
+  `graphicVerbs.ts`, `takeBlockers.ts` and the production page; the off-air hold line
+  (`SelectionHolds.tsx`); the editor's read-only candidate fields; tests.
+- **The contract, old and new.** Persisted, additive optional, each with its own `v: 1`, no
+  migration: `Show.collections[]` `{v, id, sourceId, schemaRevision, graphic, from, key: [paths],
+  fields: {<field id>: {from, format?, fallback?}}}` and `ShowCue.selection` `{v, recipe, key:
+  [parts]}`. A later `v` of either loads (its type allows it) and is read-only. The collection is
+  read from the production tree at `external.<sourceId>.<from>` as `{schemaRevision, revision,
+  items}`, or that object as JSON text (how a source route writes a value today). Browser storage,
+  new: `spx-gfx-selection-air`, per production, `{v: 1, graphics: {<graphic>: instance}}`. No wire,
+  route or output payload change: outputs receive resolved values only, so the output reader is
+  untouched (no es2017 or bundle change).
+- **Decisions.**
+  - *Where the recipe lives*: `Show.collections`, not `Show.sources[].config`, so nothing here
+    re-stamps a connector's configuration or bumps `configRevision` (#1691 is not reachable from
+    this row). A field map entry is E5.1's `RecipeValue`, so formats and fallbacks are the same
+    code; a field with no fallback is required.
+  - *Identity* is the ordered key paths' values compared as JSON (`7` and `"7"` are two keys), at
+    most four parts of at most 64 characters. Duplicates anywhere in the revision invalidate every
+    card of it, an item without a key part too; a missing key is `missing`, never another record.
+  - *One revision, one record*: `resolveSelection` reads one tree value, so a card cannot mix two
+    candidates or two revisions. 5000 items and 512 KiB of text at most, each pinned at its edge.
+  - *The read gate*: `selectionGate` says read-only for a later `v` of the selector or the recipe it
+    names; unusable otherwise (wrong graphic, unknown recipe, wrong key, or a mapped field that also
+    follows a shared binding, which would let a shared value overwrite the cue's own candidate).
+    Take, Update, Re-take, a folder's Take, a step, a direct trigger and a timed end all refuse it
+    with the reason; the editor is inert for a read-only cue and shows mapped fields read-only.
+  - *Both write doors* (the spec's words) are read as the two ways `patchShowChecked` writes (the
+    stored list, and the rebased re-run on the freshest copy), plus every undo
+    (`rundownHistory.replaceRundown`, personal and team), all asking `selectionFrozen`: recipes
+    byte for byte, every surviving cue's selection byte for byte, a later-version cue's every byte
+    and never removed, and no cue gaining a selection (a copy needs the writer, E7.2a). A refusal
+    re-reads the stored list, so the page never shows an edit that was not saved. The storage
+    seam's whole-record put (`upsertShows`, the sync pull) stores what it is given, which is how
+    the fixtures write records. A typed value on a mapped field is refused at
+    `updateShowCueChecked`, and a binding onto a mapped field at the one binding write.
+  - *Air*: Take captures the cue's selector, entity, revision and values at the press (given back
+    if the send fails); the layer then follows that selector only. A newer revision is sent as one
+    update of every mapped field; an older or equal one is rejected; anything that does not resolve
+    holds the picture and says why, which revision is showing and how old it is, until the
+    operator decides (Out, Take, or an Update that resolves). An explicit Update moves the aired
+    cue to the selection the cue now has only when that whole record resolves.
+  - *Recovery*: the instances are kept per production in this browser, so a reload, another
+    production and an app restart follow the aired selector. A page that did not take the layer
+    (another device) has no instance and sends nothing for it, so it can never retarget air. An
+    instance is forgotten when its layer airs another cue, or is off air once the page has read
+    what is live.
+  - *What would flatten a selector elsewhere is closed*: the published payload's cue list (the
+    hosted page and the exported controller) leaves candidate cues out, and a timed end never
+    takes one (`nextGraphicCue`), since the server fires those with prepared values.
+  - *Unsent*: a candidate's mapped fields are never "unsent" (like a bound field), and its rundown
+    row reads the candidate, not the prepared text.
+  - *Every other verb that sends a card's values*: Snap and a machine event send the aired
+    instance's values for a candidate's fields, or leave those fields out when this page holds no
+    instance; ± never moves a candidate's field; the hosted page's Snap goes without data when the
+    layer airs a cue it was not given (it used to fall back to the selected sibling's values).
+  - *The capture is pending until its send is answered*, so a marker that has not moved yet (the
+    slow road, a recovery) cannot make the page forget the card it just took; a failed send gives
+    back only its own layer, and only while nothing else wrote it since; a correction whose send
+    failed keeps the aired revision, held with "not sent", so the next read sends it again.
+  - *A candidate Take or Update waits for a published tree's first read*, and a production not
+    loaded yet (a team production before its fetch) forgets no kept instance.
+  - *Undo brings back a deleted candidate cue* with its selection: history slices are the
+    record's own bytes. Any other write still may not add a selection.
+- **Files beyond the phase's list, and why.** `src/control/selectionAir.ts` (the aired instance's
+  pure folds, testable in Node; the page rule wants behaviour in `src/control/`),
+  `src/control/playoutSession.ts` (its store part), `graphicVerbs.ts`, `takeBlockers.ts`,
+  `cueAuto.ts`, `cueDraft.ts` (the air seams that would otherwise take a candidate cue with its
+  prepared values), `src/control/hostedControl.ts` (the published cue list),
+  `src/control/productionDataSession.ts` (an older tree read answering late is passed over: without
+  it a slow read put an older tree back, and PREVIEW with it), `src/model/rundownHistory.ts` (undo
+  is a write door), `src/model/productionState.ts` (the instances' storage), `CueEditor.tsx`,
+  `CueRundown.tsx`, `SelectionHolds.tsx`, `ProductionPage.tsx` (the wiring), and
+  `scripts/graphic-verbs.test.mjs`, `scripts/production-data-session.test.mjs`,
+  `e2e/configured/expected-run.json`.
+- **Mutation checks**: 98 Node mutations, all red (43 of them added with the review rounds below). The first 39: every contract rule (duplicate keys, a missing
+  required field, the optional fallback, a valid empty list, an unknown B borrowing a record, typed
+  keys, the field fit, the schema revision, a missing key part), the gate (a later selector, a later
+  recipe, a shared binding, another graphic), every bound at its edge, the follow (newer only, the
+  hold, its first time, an older revision's hold, the aired cue only), the reconcile, the kept
+  format, the door predicate (collections, whole bytes, removal, gaining), the undo, the Take
+  blocker, the timed end, the verbs (Take refusal, the overlay, the undo, Update's refusal) and the
+  read ordering. The 16 after Assessment A+: the pending capture (made, skipped by reconcile and
+  follow, landed only for its own instance, cleared on reload), the scoped undo, the unsent
+  correction, the undo that restores a deleted cue, the verbs (landed, Take and Update undo, ±,
+  Snap's overlay and omission) and the older arm. In the browser, the read-gate walk passes on
+  this machine with the door in `patchShowChecked` and goes red with it removed; the two published
+  walks need the configured stack and run in Actions.
+- **Check and Assessment A+.** A fresh read-only session mapped every air-path change and answered
+  AGREE WITH CORRECTIONS: Snap and events flattening an aired candidate into prepared values, ±
+  airing a figure no revision holds, a capture dropped before its marker moved, a cold open
+  forgetting kept instances, the undo and the follow's failure bookkeeping, the hosted Snap's
+  sibling fallback, an undo of a deleted candidate cue refused for good, an older arm taking a
+  candidate, a Take before the published tree's first read, and three faults in the configured
+  walk (an out-of-order read that was not one, a wait on the server rather than the page, a check
+  that hit the wrong refusal). All are fixed above and pinned.
+- **`/check`.** The review's ten candidates: seven fixed (± on a read-only cue's field, a kept
+  record reading `null`, a false hold judged from an unread published tree, the timed end's note
+  naming a candidate cue as gone, repeated parsing, the page rendering on every capture, the
+  capture and follow folds living in the page rather than `selectionAir.ts`), one doc comment
+  moved, two left (a source whose revision restarts lower is ignored rather than held: E4's
+  revisions continue and are never reused, so that is a provider fault the contract's "reject
+  older" covers; the overlapping helpers went to simplify). Simplify: one recipe lookup in
+  `productionData.ts`, one resolution per candidate cue per render read by the rundown, PREVIEW,
+  the editor and the Take refusals, the published-tree rule moved into `selectionAir.ts`
+  (`readable`), one arm lookup, the store helpers and `useNow` reused, identical writes skipped, a
+  small parse cache. Left as reports: a per-cue "fixed fields" set to replace the `boundOf` marker
+  in `unsentNow`, one shared read-only field row in the editor, a per-collection key index, and a
+  reference fast path in `selectionFrozen`.
+- **The pull request's reviews.** Fifteen rounds of the automated pull request review, every finding
+  fixed and pinned:
+  a press that lands (or fails) follows the newest tree at once, since a revision that arrived
+  while it was pending was passed over and nothing else may come; the follow pass reads what is
+  live from the session's own part, never the render's paced copy; a machine event may read a
+  candidate's field, never move one, including the aired candidate of a cue deleted while a sibling
+  stays; the hosted page greys an action that carries field values while the layer airs a cue it
+  was not given; an older revision cannot undo a hold a newer one set; and corrections settle
+  against what last landed (`confirmed`), so overlapping sends that fail never leave an unsent
+  revision recorded as aired, and a capture restored after an overlapping failed press comes back
+  settled (two failed presses go back to the last settled capture, not the first failed one); the
+  newest revision judged (`seen`) bounds what is sent, and a read with no revision does not lower
+  it; a failed correction superseded by a newer one out changes nothing, and one failing after a
+  newer revision held the card keeps that bound and that hold. A failed correction is retried at
+  the next read, never at once, so a lasting outage cannot start a retry storm; the "not sent"
+  hold says so meanwhile. The configured walk's "no Take, advance or reset" check first counted markers and status
+  rows (the output's own rows during the outage, reload and restart); it now counts the commands
+  that move a card (`play`, `stop`, `next`, `snap`, `event`) and lists them on failure.
+  Round eight: a revision that moves only the collection writes no row, so a published page never
+  heard it; while a cue has a selection the page now reads the tree every 5 s
+  (`productionDataSession.poll`, `CANDIDATE_READ_MS`), and the configured walk ends on such a
+  write. A correction whose update a later press skipped or superseded no longer counts as landed
+  (`followAired` reads the verb's answer for its own graphic). Mutations: the poll's cadence, the
+  poll reading without a key, and the landed check ignoring an overtaken update, each red.
+  Round nine: the same holds for a press. A candidate Take or Update whose graphic a later press
+  skipped or superseded gives its capture back rather than landing it; one pressed again after
+  it lands. One predicate, `reachedOutput`, sits beside `leftAlone` in `src/control/liveCue.ts`
+  (an extra file, chosen so the verbs need no resolver import) and serves both roads. Mutations:
+  Take and Update each landing regardless, and the predicate ignoring `superseded`, each red.
+  Round ten: a page whose session was disposed writes no selection (`SelectionAirIo.alive`, the
+  session's own `alive`), so a late answer cannot overwrite what a reopened page of the
+  production captured; and a capture restored after a failed replacement Take, whose correction
+  was still out when it was displaced, goes back to what last landed, so the follow sends that
+  correction again. Mutations: the write ignoring `alive`, the restore keeping the unsettled
+  revision, and the restore keeping its `seen` bound, each red.
+  Round eleven: the exported controller (`controller.html`) and the SPX rundown copied every cue's
+  prepared values, so a candidate cue (a later-version one included) became an ordinary cue
+  there. One predicate, `preparedCue` in `productionData.ts`, now leaves such cues out of the
+  hosted page, the controller and the SPX rundown (`src/export/showExport.ts`, an extra file),
+  and the SPX fallback to pool entries is skipped when cues were left out. A re-read of the aired
+  revision clears a hold only when nothing newer was judged. The poll asks at each tick whether
+  anything follows a candidate (`followsCandidates`: an authored selection, or a captured
+  instance still on air after its cue was deleted). Mutations: the predicate, the hold floor, the
+  poll's question and the retained instance, each red in Node. The export wiring is checked by
+  the configured read-gate walk, which builds both exports; browser runs on this machine go
+  through the job queue, so it is proven by the configured-suite run on the pushed head.
+  Round twelve: one helper, `unsettledBack`, brings back an instance whose correction never
+  settled as what last landed, on undo of a failed replacement Take and on restoring kept air
+  after a reload, so the follow sends that correction again; a newer revision observed since
+  keeps its bound, so an older one read out of order is still rejected. Mutations: the bound
+  lowered regardless, the restore on reload skipped, and the undo skipping the helper, each red.
+  Round thirteen: an explicit Update of the candidate already aired keeps what last landed as
+  `confirmed` until it lands (`captureSelection`, `landedSelection`), so a page that went away
+  with it unanswered comes back as what the output shows and sends it again; an Update to another
+  person starts afresh. Mutations: the kept predecessor, its entity check, and the landing's
+  confirmation, each red.
+  Round fourteen: a correction that answers while a press of the same candidate is out leaves
+  that instance alone (`settleSelection`), so the press's own answer still finds it, ends pending
+  and confirms what landed; undone, it goes back to what last landed and the follow sends the
+  newest revision again. Mutation: settling over a pending press, red.
+  Round fifteen (a regression of round thirteen): a later Update failing while an earlier one is
+  out brought the earlier capture back through `unsettledBack` as a copy, so its own answer no
+  longer found it and the layer stayed pending. An unanswered capture now comes back as itself;
+  only an answered or settled one is rolled back. Mutation: the undo rolling back a pending
+  capture, red.
+- **The rewrite of `selectionAir.ts` (after round sixteen).** The coordinator asked for a fresh
+  read-only `/so` on `selectionAir.ts` alone before any further patch. Verdict: AGREE WITH
+  CORRECTIONS, REWRITE. The module never stored what the output shows; it rebuilt it from
+  press-time snapshots, object identity and three module-level sets, and every round was a case
+  where that rebuild went wrong. It found D1 (two overlapping Updates and a reload trusted the
+  newer one as aired, the open round-16 finding), D2 (a reload with an unanswered Update to
+  another person restored that person as aired), D3 (a send that landed under a failed press was
+  thrown away), D4 (a press could lower the bound), D5 (a hold the aired revision set never ended
+  when it read well again) and D6 (send order assumed, not stated).
+  *The new shape:* a layer records `onAir`, the landed send with the highest number (every send
+  is numbered in press order and seqSend.ts skips a press older than one applied, so the highest
+  landed is what airs), and `out`, the unanswered sends in order. What the page believes is the
+  newest send out, or `onAir`; an entity's bound is derived from what airs, what is out and the
+  newest revision a hold judged (`heldAt`), so a failed send gives back exactly what it raised.
+  One reducer (`reduceSelection`) takes a press, an answer or a follow. A reload with a press to
+  another cue or person unanswered is `unknown`: held, nothing sent, until the marker names a cue
+  only one candidate could be (at its oldest revision, so the follow resends anything newer) or
+  an operator press lands. The kept format is v2 (v1 never left this branch). The page's doors
+  are unchanged; three reads moved to `airedOf` (`ProductionPage.tsx` `airedCandidate`,
+  `airedCandidateFields`; `SelectionHolds.tsx`). Two pinned behaviours changed on purpose: D2
+  (now held as unknown) and D3 (the landed send is what airs).
+  *Evidence:* every earlier scenario ported to the event API and passing; 4000 seeded walks of
+  20 events (Takes, Updates to the same or another person, a cue without a selection, answers
+  landing, failing or skipped in any order, new and out-of-order reads, reloads whose sends the
+  server may or may not have applied), checked after every step against a model of the server
+  (I1 what is recorded as on air is what the page was told landed, or after a reload what truly
+  airs; I4 a correction only for the entity the output shows, never while a press is out; I5 with
+  nothing out, the output's entity), ending settled, with every kind of event and state reached
+  at least 50 times. The walks found two defects in the first draft, both fixed: a second reload
+  while unknown dropped the earlier candidates, and the marker deciding among sends for one
+  person took the newest revision rather than the oldest. 24 mutations of the reducer, each red;
+  three that first survived were a redundant check and a wrong hold-clearing (both removed) and
+  an untested case (pinned: a press that fails after a hold keeps what the hold judged).
+  *Known limit:* after a reload that lost a correction's answer, while the tree does not
+  resolve, the hold names the last revision known to have landed although the output may show a
+  newer one of the same person; the picture is held either way, and the first good read resends.
+  *Assessment A+ on the rewrite (a fresh read-only session): FAIL*, fixed in the next commits.
+  (1) A candidate's bound and hold were keyed by cue and entity only, so switching the card to
+  another recipe for the same key (preliminary to official) inherited the old source's revisions:
+  a target now carries its recipe's identity (id, source, schema revision, leaf) and the marks
+  are keyed by it; a recipe changed under a captured selector holds. (2) A reload with an Update
+  to another recipe unanswered kept the old recipe and could send its values: now unknown. (3) A
+  reload with the same cue taken without a selection unanswered re-adopted the old candidate:
+  such a take is remembered (`plains`), and a marker naming that cue keeps the layer unknown. (6)
+  A hold a revision set never ended when that same revision read well; now it ends and is sent.
+  (7) A layer the marker decides follows in the same pass. (8) The unknown hold line names the
+  graphic, not a guessed candidate, and every candidate's fields stay protected (`selections`).
+  (4) The walk now switches the card between two recipes, takes the same cue without a
+  selection, fails when a candidate on the marker's cue is forgotten, and holds I1 only to what
+  truly airs after a reload. Also from the automated review: send numbers were per layer and
+  restarted when a layer was removed and taken again, so a late answer could settle a new press;
+  they are now minted once per page (`mintSend`). (5) is not this PR's: `graphicVerbs.ts` leaves
+  the live-cue marker where it was when a later press overtook an earlier one (`pressedAgain`)
+  and that later press then fails, so the marker names a cue that no longer airs; this is on
+  `main` for every graphic, and here it makes the layer stop following (it sends nothing
+  wrong). Reported to the coordinator with a proposed patch; not widened into this PR.
+  Mutations of the reducer: 33, each red, including the two the assessment showed the earlier
+  walk missed (a follow forgetting a layer, a reload forgetting a known layer).
+  *Re-assessment on 127a69b: FAIL*, every earlier fix confirmed, three new findings fixed:
+  (1) a reload dropped the sends still out for the candidate on air, so the bound fell back and
+  an older revision could go out over one that had aired; such a send's revision is now kept
+  (`lostAt`): nothing older is sent, it is sent once more, and it stays until a send at or above
+  it lands (the walk then found the first draft dropped it on the next correction, and on a
+  press). The same holds for a marker decision. (2) After an in-app reopen a send of the page
+  that went away can still reach the server inside its resend window; a restored layer with
+  lost sends now waits `SETTLE_MS` (twice the resend window plus the attempt timeout) before it
+  decides or sends anything, and the page runs one follow when that ends. (3) Field protection
+  missed a press still out while the marker named the previous cue; the rule moved into the
+  module (`protectedSelections`) and protects every candidate the layer may show while a press
+  is out, unknown or settling. (4) On the published fast road the marker moves at the press and
+  nothing moves it back when the Take fails, so the layer stops following the candidate that
+  still airs: the same fail-safe class as #1696, reported to the coordinator. The walk now leaves
+  sends in flight across a reload and lets them reach the server later, lets time pass (past
+  the settling window too), drops a field now and then, and its server fails on a correction
+  applied over another person or over a newer revision. 41 mutations, each red; the walk alone
+  catches each of this round's defect classes.
+  From the automated review of 335dd51: a revision held for a missing field, then sent once it
+  read well, kept the hold's bound at that revision, so a failed send left no "not sent" hold and
+  was never retried; fixed (a failure is "not sent" unless a hold at a newer revision stands).
+  *Third assessment on 335dd51: FAIL*, every earlier fix confirmed, two send paths outside the
+  reducer could still air another person's values. (F1, F3) Snap and events read the candidate
+  the page believes (the newest send out) or, restored, a revision that may trail air: they now
+  get a candidate's values only from what airs and only while that is certain (`airedValues`:
+  nothing out, not unknown, no lost send above it), else they leave those fields alone; the walk
+  now checks that what it offers is exactly what the server's output shows (it found the
+  lost-send case at once). (F2) A timed end took the next plain cue on a layer without the layer
+  knowing, so a correction sent meanwhile could land on that cue's card: `cueArmEngine.ts` now
+  registers that Take through `selectionAired` (an extra file), and the follow waits for its
+  answer. (F4) The ordering model holds on protocol 2 only; a page that fell back to protocol 1
+  for its life has no per-graphic queue: reported to the coordinator. The SETTLE_MS comment now
+  says the server-side tail is closed by the stale and superseded refusals. 47 mutations, each
+  red.
+  *Protocol 1 (coordinator's ruling):* the general fallback risk predates this PR and is filed
+  separately, but the follow sends on its own, so on a page that fell back to protocol 1
+  (`askSeqRoad`) it would make that risk happen with nobody pressing anything. The follow now
+  sends only on the ordered road (`hostedControl.ts` `sendsInOrder`: a sequence session exists
+  for the slug, an extra export); otherwise the layer holds what airs, says off air that a
+  newer count arrived and Update sends it, and the operator's own presses still go.
+  Pinned in Node, in the walk (a read on protocol 1 must send nothing), and by a fourth
+  configured walk that forces the fallback (the resolve answered PGRST202): no correction on
+  its own, the hold shown, the operator's Update still airs the newer count (`minTests` 123 to 124).
+  48 mutations, each red.
+  From the automated review of 2dd893d: Snap and events composed from the ordinary cue the
+  marker still named could overwrite a candidate whose Take had reached the output but not been
+  answered; `airValues` (graphicVerbs.ts) now leaves out every field the layer protects as well
+  as the cue's own candidate fields. Pinned in `scripts/graphic-verbs.test.mjs`, red without it.
+  *Fourth assessment on 2dd893d: FAIL*, four findings, all fixed in 76ba41f. (F1) A Take that
+  failed with no answer could still commit late, while the layer took it back and sent the old
+  card's correction onto the new one. A failed send now says how it failed (graphicVerbs.ts
+  `Sent`: `uncertain` when the server did not answer, `stale` when it refused because another
+  screen changed the graphic). A press with no answer is treated like a send lost in a reload:
+  with the sends before it, it makes the layer settle and, for another card, not know which
+  airs, until the marker or a newer press that lands decides. A correction with no answer raises
+  the lost-revision bound. The page now follows once more whenever a layer stops settling, not
+  only after a load. (F3) A send refused as stale stops the automatic follow for that layer
+  (`blocked`, kept across a reload, shown as a hold, no Snap values) until an operator press of
+  this page lands: the page then knows the head, and a resend would pass the server's check.
+  (F2) ± refused only the edited cue's candidate fields: it now refuses the layer's protected
+  fields too, and ± and events ask again after the save wait. (F4) Protection now also comes from
+  the field keys captured with each candidate (`protectedFields`), so a recipe changed or removed
+  since cannot empty it. The hold line names the revision the output shows (`showing`), not one
+  still on its way. The walk now also answers sends with no answer (they may land later) and has
+  another screen take a plain card, which the server's per-sender base check refuses for any
+  send based before it; it found three of the cases above. 64 reducer and 9 verb mutations, each
+  red. The settle timer in ProductionPage has no Node test (it is a timer over `nextSettle`,
+  which has one).
+  On 063028f: the configured protocol-1 walk failed on CI twice on one commit (a real failure,
+  not a flake). It pressed Take on the card already live, and Take on a live card takes it off.
+  The hold lines told the operator the same wrong thing; they now say to press Update, and the
+  walk presses it. From the automated review of 720de72: a reload decided by the marker dropped
+  the candidate's hold, so a revision held for a missing field was never sent once the field came
+  back; the decision now keeps the hold. Pinned, red without it.
+  *Fifth assessment on 76ba41f: FAIL*, five findings, all fixed. (1) A Take moves this page's
+  own marker when it is sent (airState.ts `claimAndApply`, on the fast road), and nothing puts it
+  back when the Take does not land (#1696), so the marker could not decide a layer left not
+  knowing by that Take: it named the failed card, whose values then went onto the card on air.
+  A Take or an Out now tells the layer it moves the marker; when one does not land, the layer
+  stops following on its own (`blocked`, shown as "press Update to send it") and an unknown it
+  leaves is never decided by the marker (`unknown.pressed`). Both end when a press lands, and a
+  reload ends them, since a reopened page reads the marker from the server. The same rule
+  covers a later failed Take on a layer a reload left unknown, which the walk found. (2) A
+  refusal as stale on any road (event, Snap, ±, Next, a timed end) taught the head without
+  blocking the layer: the page's one sender now blocks every live candidate on the graphics the
+  refusal names (`staleSelection`; `staleError` names them). (3) An answer the page cannot read
+  may follow a press the server applied: it now counts as no answer (`unread`). Rejections that
+  never left the page still count as no answer; with (1) that only holds what airs. (4) Out and
+  a timed end's Out are presses on their layer, so a correction neither follows them nor
+  overtakes them. (5) A recipe's field map and key are part of its identity (`scope`), so a field
+  dropped from the map holds the candidate rather than leaving that field at its old count. The
+  walk now moves the marker at the press half the time, as the fast road does, and its stale
+  refusals go through the same hook as the page's; a layer the page stops following because of
+  #1696 is excused there only while it sends nothing. 87 reducer, verb and timed-end mutations,
+  each red; 579 gate tests pass.
+  From the automated review of 919258b: a press ended its candidate's hold when it was sent, so an
+  Update that then failed left a held revision that no later read would send. The hold now ends
+  only when the press lands. Pinned, red with the old behaviour.
+  *Sixth assessment on 1ed975c: FAIL*, four findings, all fixed. (1) Another screen's Update or
+  Take on the same cue reached this page only as frames: the marker stayed, so this page sent its
+  captured person back over the other screen's. A command heard from another sender (its stamp,
+  livePath.ts `withSender`) on a graphic with a live candidate, pressed after this page's last
+  landed press there (`pressedAt`; one pressed before it was overridden, or refused as stale on
+  protocol 2), now blocks that layer as a stale refusal does (`foreignSelection`, called from
+  ProductionPage `hearCommand`). Server rows and older senders carry no stamp and are left alone.
+  (2) A block from a Take or an Out that did not land lasted only until the next follow, which
+  dropped the layer on the marker this page had moved, and with it the protection of its fields,
+  so Snap or an event on the plain cue sent its own values onto the candidate's card. A layer so
+  blocked is no longer dropped or decided by the marker, and every blocked layer protects every
+  candidate it holds. The hold now says to take or update the card. (3) A press that landed below
+  a revision a hold judged ended the hold while its bound stayed, so that revision never went:
+  such a hold now stays. (4) A folder's Outs and All out are presses on their layers too
+  (`pressOuts`, in liveCue.ts so Node can load it, an extra file with folderPlayout.ts). The walk
+  now has another screen Update the card to another person under the same cue, heard through the
+  same hook as the page's; it found the press-time rule (a correction sent before hearing is not
+  a press). 14 new mutations, each red, and the earlier sets re-run red; 585 gate tests pass.
+  From the automated review of 1ed975c: the settle timer lived in ProductionPage, against this
+  directory's rule that a timer deciding what airs is a control module's; it is now
+  `watchSettling` in selectionAir.ts, its timers and clock injected, with a Node test (five
+  mutations, each red). Its two other findings (a blocked layer dropped on the marker, All out
+  not registered) were already fixed in 89314ab.
+  From the automated review of 89314ab: a press whose answer came after this page heard another
+  screen's newer change ended the block that change set, so the follow wrote over it again. A
+  block now keeps the press time of the newest foreign change (`after`), and a landed press ends
+  it only if it was sent after both that and the block itself. Pinned, red without each part.
+  *Seventh assessment on f29dc54: FAIL*, five findings, all fixed. (1) A block from a Take that did
+  not land became a plain stale block when another screen's change or a refusal came too, and the
+  follow then dropped the layer on the marker this page had moved: a block now keeps both causes
+  (`moved`, `stale`), and the follow returns while `moved` holds (after any settling ends). (2)
+  This page's late answer clearing another screen's newer block: fixed in 97a584e. (3) The
+  foreign check compared another machine's press time with this page's clock: it now uses only
+  this page's clock (when it heard the command), and each command counts once, on whichever road
+  came first (ProductionPage `hearCommand` filters by `session.applied`). (4) A duplicated tab
+  copies the sessionStorage instance id, so its commands read as this page's own: this page now
+  recognises its own echo by the command ids this page load sent (hostedControl.ts `sentHere`, in
+  memory only). (5) Value-less commands from a phone or another desk (Next, events, markers)
+  blocked the candidate: only an update that writes one of the candidate's fields blocks now; a
+  marker that moves makes the follow drop the layer as before. Two pages of one production that
+  both follow a candidate still block each other at the next revision, by design: each changed
+  the card under the other. A restored layer that did not know what airs now settles again from
+  the reload, since sends folded into it may still arrive; the walk found that once its checks no
+  longer excused a lost layer. The walk now also checks that while a candidate airs its fields
+  stay protected, whatever the marker names, and needs no exception for #1696 any more. The
+  `unknown.pressed` flag became redundant with the moved block and is gone. 15 new mutations,
+  each red; 589 gate tests pass.
+  From the automated review of 97f502e: a Take that did not land while a later one was out left a
+  block the later Take could not end once it landed, since it was sent before the failure. The
+  two causes now end by their own rule: `moved` holds the newest failed Take's number and any
+  later press of this page that lands ends it; `stale` holds when this page last learned of
+  another screen's change (refusal or heard command, the latest of them) and only a press sent
+  after it ends it. That made the separate `after` time redundant; it is gone. Pinned, each part
+  red without it.
+  *Eighth assessment on 97f502e: FAIL.* Its findings (1) and (3), a block ended too early or
+  kept after a later Take landed, are the review above, fixed in 970b41d. (2) A reopened page never
+  heard what another screen did while it was closed, and wrote its restored candidate back over it:
+  the log the page reads at boot now goes to the live candidates (sessionWire.ts `history`, an
+  extra file; selectionAir.ts `foreignHistory`), and the newest update of a candidate's fields
+  there decides. (4) Its own send that committed just after a reload looked like another screen's:
+  an update now counts as someone else's only when its values for the candidate's fields are none
+  of the candidates the layer holds, so an echo of this page's own send, or another desk sending
+  the same values, changes nothing. (5) A clock that steps back delays a block's end until it
+  passes again; an Out always ends it: noted, not changed. The walk now writes every update it
+  applies into a log the reloaded page reads, and fails without the boot check.
+  *Ninth assessment on 50046d8: FAIL.* The boot check ran after the first follow, so a reopened
+  page could still send its restored candidate over another screen's change, and the boot log
+  cannot say what happened while the page was closed: `hostedControlTail` reads the last 400 event
+  ids across every production on the server, and a failed read answers []. *D4, the coordinator's
+  ruling (option A):* after a reload, another production and back, or an app restart, a restored
+  live candidate holds what airs, shows that off air ("the page reopened: press Update to follow
+  again"), and sends nothing on its own until an operator press of this page lands
+  (`blocked.reopened`, set by `restored`). This is the spec's hold after a reload and meets AC-3 as
+  written: nothing is taken, advanced or reset, the held content and its age are visible, and
+  recovered program uses the aired selector. The boot-log check (sessionWire.ts `history`,
+  `foreignHistory`) is removed, so sessionWire.ts is back to main's. The configured AC-3 walk now
+  asserts, after each reopen, the hold line, that a newer revision does not air on its own and that
+  nothing was sent, and only then presses Update and asserts the newer count airs. The pinned
+  tests that had a restored layer follow on its own now assert the hold. The coordinator files the
+  show-scoped log read (option B) and the global tail's empty-on-failure as issues. The lower
+  findings are moot under D4 (a restored layer is held whatever the log says) or recorded: another
+  desk following the same candidate at a newer revision blocks this one until Update.
+  From the automated review of 333cfe1: a press and another screen's change in one clock tick had
+  equal times, so the press's late answer ended the block although it was sent first. A block now
+  orders by this page's send numbers, never by the clock: `stale` is the newest number minted when
+  the page learned of the change (a fresh one for a heard command or another road's refusal, the
+  refused send's own for a layer send), and a press ends it only with a higher number. A reopened
+  page's hold is set at 0, below any of its numbers. Pinned, red without it.
+  From the clearing assessment of 1886adb (pass with notes, two findings, both fixed): the Update a
+  reopen hold asks for takes the cue's current selection, which may be another candidate, and the
+  line named neither. The hold line now names the aired key and, when the cue now selects another,
+  says "Update would take <key>" (the AC-3 walk asserts both, and that the warning goes once the
+  selection is back). It reads the saved cue, so a selection typed but not yet saved is not seen.
+  A duplicate answer's head is the current one and may hold another screen's write since: learnt,
+  the next press passed as having seen it. From the clearing assessment of 83abe70: a superseded
+  answer carries the current head too, and teaching nothing from a duplicate lost an All out's
+  off. Both answers now teach only the graphics whose head this page wrote (`by` is its sender);
+  the server lets this page's later press over its own earlier one (0071 step 6). Pinned in
+  seq-send, each half red without it. A layer this page does not know (restored mid-press) still
+  names no key in its hold line: nothing is known to air, and Update says what it takes. A layer refusal's block keeps the refused send's number; sendWith's stale hook also mints a
+  fresh one through `staleSelection`, so a press between the two cannot end it.
+- **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
+  on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
+  nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything
+  else), so E7.2b writes the collection as JSON text at a leaf, which the resolver reads, and needs
+  that leaf to be written although no field binds it. *A published production's corrections are
+  sent by the page that took the card*: with that page closed, a correction waits for it. *Two tabs
+  of one production in one browser* both follow the kept instances, so a correction is sent twice
+  (an absolute update, so harmless) and the last tab to write keeps its copy. *A one-part key*
+  (the candidate number alone) passes the reader: E7.2a's writer must require district plus
+  candidate. *A team
+  production* goes through the same door predicate, but its server save is outside this row.
+
 ## Row 29, phase E5.2: Connect, sample, repair and reuse
 
 - **Previous verified `main` sha:** row 28 (E5.1) passed on `8bdec06`. This branch began on

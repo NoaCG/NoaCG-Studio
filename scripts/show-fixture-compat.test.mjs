@@ -24,8 +24,9 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import './lib/tsResolve.mjs';
 
-const { externalReadOnly, resolveBindings, sourceIdOf, sourcePaths } = await import('../src/model/productionData.ts');
-const { projectSource } = await import('../src/control/sourceMapping.ts');
+const data = await import('../src/model/productionData.ts');
+const { externalReadOnly, resolveBindings, sourceIdOf, sourcePaths } = data;
+const { projectSource, selectionGate } = await import('../src/control/sourceMapping.ts');
 const { readExternalRegistration } = await import('../src/control/externalSource.ts');
 const { hasLiveData } = await import('../src/control/liveData.ts');
 const { fillList, listFormatFor, starterRows } = await import('../src/control/contentFormats.ts');
@@ -269,4 +270,33 @@ test('a recipe of a later version (v 2) loads, keeps its last values on air, and
   assert.deepEqual([projected.writes, projected.held.readOnly], [{}, true]);
   const live = { ...liveData, external: { e1: { parties: 'KOK\t225000' } } };
   assert.equal(resolveBindings(live, record.bindings)['News Strip'].f0, 'KOK\t225000', 'the last value stays on air');
+});
+
+// E7.1 adds a live candidate selection (`Show.collections`, `ShowCue.selection`, additive
+// optional, each with its own `v`). A production saved before it has neither, so the read gate
+// keeps nothing and refuses nothing and it plays exactly as it did; one carrying a selection or a
+// recipe of a LATER version still loads, its cue is read-only and every byte is kept.
+test('a production saved before live candidates has none, refuses nothing and plays the same (E7.1)', () => {
+  const { selectionKeep, selectionFrozen } = data;
+  assert.deepEqual(showTypeErrors(show), []);
+  assert.equal(selectionKeep(show), null);
+  const edited = { ...show, cues: show.cues.map((c) => ({ ...c, label: `${c.label} (edited)` })) };
+  assert.equal(selectionFrozen(selectionKeep(show), edited), null);
+  for (const cue of show.cues) assert.equal(selectionGate(cue, show.collections, 'any', show.bindings).status, 'none');
+});
+
+test('a selection of a later version loads, its cue is read-only, and the write doors keep it byte for byte (E7.1)', () => {
+  const { selectionKeep, selectionFrozen, selectionReadOnly } = data;
+  const later = { v: 2, recipe: 'cands', pick: { rank: 1 } };
+  const recipe = { v: 1, id: 'cands', sourceId: 'e1', schemaRevision: 1, graphic: show.graphics[0].name, from: 'candidates', key: ['district', 'id'], fields: { f0: { from: 'name' } } };
+  const record = { ...show, collections: [recipe], cues: [{ ...show.cues[0], selection: later }, ...show.cues.slice(1)] };
+  assert.deepEqual(showTypeErrors(record), [], 'a later selection must still load');
+  assert.equal(selectionReadOnly(record.cues[0], record.collections), true);
+  assert.equal(selectionGate(record.cues[0], record.collections, show.graphics[0].name, record.bindings).status, 'read-only');
+  const kept = selectionKeep(record);
+  assert.match(selectionFrozen(kept, { ...record, cues: [{ ...record.cues[0], values: {} }, ...record.cues.slice(1)] }), /cannot change/);
+  assert.equal(selectionFrozen(kept, structuredClone(record)), null);
+  const laterRecipe = { ...record, collections: [{ v: 2, id: 'cands', anything: [1] }], cues: [{ ...show.cues[0], selection: { v: 1, recipe: 'cands', key: ['D1', 1] } }] };
+  assert.deepEqual(showTypeErrors(laterRecipe), [], 'a later recipe must still load');
+  assert.equal(selectionReadOnly(laterRecipe.cues[0], laterRecipe.collections), true);
 });

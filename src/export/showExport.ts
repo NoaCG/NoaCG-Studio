@@ -69,6 +69,7 @@ import {
 import type { SpxTemplate } from '../model/types';
 import type { SavedGraphic } from '../model/packets';
 import { graphicLayer, type Show } from '../model/shows';
+import { preparedCue } from '../model/productionData';
 import { readAuto } from '../control/cueAuto';
 
 /** Kept for API compatibility with callers/specs that passed backend coordinates; the
@@ -232,13 +233,15 @@ function spxRundownEntries(
 ): { entries: SpxRundownEntry[]; clipCues: number } {
   const poolIndex = new Map(show.graphics.map((g, i) => [g.id, i]));
   const cues = show.cues ?? [];
+  // A cue showing a live candidate is left out: SPX would play its prepared values (E7.1).
   const entries = cues.flatMap((cue): SpxRundownEntry[] => {
-    const i = cue.source === 'playout' ? undefined : poolIndex.get(cue.sourceId);
+    const i = cue.source === 'playout' || !preparedCue(cue) ? undefined : poolIndex.get(cue.sourceId);
     if (i === undefined) return [];
     return [{ template: i, description: cue.label || templates[i].settings.description, values: cue.values }];
   });
   const clipCues = cues.filter((cue) => cue.source === 'playout').length;
-  if (entries.length) return { entries, clipCues };
+  // The fallback below would bring a candidate's graphic back with its library values.
+  if (entries.length || !cues.every(preparedCue)) return { entries, clipCues };
   return {
     entries: show.graphics.map((g, i) => ({
       template: i,
@@ -343,9 +346,11 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
     // THE PRODUCTION CONTROLLER — the page the launcher opens: cue rundown + verbs +
     // PREVIEW/PROGRAM monitors + per-graphic capability modules, all through the relay.
     const byPoolId = new Map(show.graphics.map((g, i) => [g.id, panelGraphics[i]?.template.name ?? g.name]));
+    // A cue showing a live candidate is left out, as on the hosted page: its Take would send its
+    // prepared values (E7.1).
     const cues: EmittedCue[] = (show.cues ?? []).flatMap((cue) => {
       const graphicName = byPoolId.get(cue.sourceId);
-      if (!graphicName) return [];
+      if (!graphicName || !preparedCue(cue)) return [];
       return [{ id: cue.id, label: cue.label || graphicName, graphic: graphicName, values: { ...cue.values }, note: cue.note ?? '' }];
     });
     const first = panelGraphics[0]?.template;

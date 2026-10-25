@@ -122,6 +122,7 @@ interface Aim {
  * where; a drop a Play-through folder refuses says why while it hovers.
  */
 export default function CueRundown({
+  candidateValues,
   accentPreview,
   onAccentPreview,
   show,
@@ -177,6 +178,8 @@ export default function CueRundown({
   refreshRundown,
   refreshing,
 }: {
+  /** A live candidate cue's resolved values (E7.1), which its row reads instead of its prepared ones. */
+  candidateValues?: (cue: ShowCue) => Record<string, string> | null;
   accentPreview?: { cueId: string; color: string } | null;
   onAccentPreview: (cueId: string, color: string | null) => void;
   show: Show;
@@ -679,9 +682,10 @@ export default function CueRundown({
           // THE DIM SUMMARY after the name: what tells two cues of one graphic apart at a glance -
           // a graphic's first words ("Alexandra Riva"), a server item's own name. A graphic with
           // no words (a logo, a picture) falls back to its name, as the old second line did.
+          const shown = { ...view.values, ...candidateValues?.(cue) };
           const summary = poolEntry
             ? (wordFields.get(poolEntry.id) ?? [])
-                .map((d) => (view.values[d.key] ?? d.defaultValue).split('\n')[0].replace(/\s+/g, ' ').trim())
+                .map((d) => (shown[d.key] ?? d.defaultValue).split('\n')[0].replace(/\s+/g, ' ').trim())
                 .filter(Boolean)
                 .slice(0, 2)
                 .join(' · ') || cueGraphic || ''

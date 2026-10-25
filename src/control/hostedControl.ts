@@ -52,7 +52,7 @@ import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
 import { SHEET_LEASE_MS, initialStatus, type SheetLeaseDoor, type SheetReadState, type SheetStatus } from './sheetSource';
-import type { JsonObject } from '../model/productionData';
+import { preparedCue, type JsonObject } from '../model/productionData';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
@@ -408,8 +408,10 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
     }),
     DEFAULT_GRAPHICS_RESOLUTION,
   );
+  // A cue showing a live candidate is left out: the hosted page and an exported controller would
+  // take it with its prepared values, and the output receives resolved values only (E7.1).
   const cues: OutputCue[] = (show.cues ?? [])
-    .filter((c) => byId.has(c.sourceId))
+    .filter((c) => byId.has(c.sourceId) && preparedCue(c))
     .map((c) => {
       const auto = readAuto(c);
       const next = auto && takesNext(auto.then) ? nextGraphicCue(show.cues ?? [], c.id) : null;
@@ -991,6 +993,12 @@ async function askSeqRoad(
  *  exists for its slug. */
 const seqSessions = new Map<string, SeqSession>();
 
+/** Whether this page's sends for `slug` go in order per graphic (protocol 2: each press numbered,
+ *  an older one skipped once a later one applied). Not before the first resolve, and never on a
+ *  page that fell back to protocol 1: there a send that commits late can air over a later one, so
+ *  nothing may send on its own (control/selectionAir.ts holds instead). */
+export const sendsInOrder = (slug: string): boolean => seqSessions.has(slug);
+
 function seqPlanFor(slug: string, row: Record<string, unknown>): SeqPlan {
   const epoch = typeof row.epoch === 'string' ? row.epoch : null;
   const graphics = row.graphics && typeof row.graphics === 'object' ? (row.graphics as Record<string, HeadSummary>) : {};
@@ -1409,6 +1417,7 @@ export async function sendControlVerb(opts: {
     // Who pressed, and when, ride beside the id (livePath.ts `withSender`), so an output can time
     // the command from the press to its screen.
     const stamped: ControlSendItem = { graphic: item.graphic, msg: withSender(withOid(item.msg), now) };
+    rememberSent(stamped.msg);
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
@@ -1484,6 +1493,22 @@ export async function sendControlVerb(opts: {
   }
   return sent;
 }
+
+/** The ids of the commands this page load sent, in memory only: a duplicated tab copies the
+ *  instance id in sessionStorage (livePath.ts), never these, so its commands read as another
+ *  screen's. Bounded; the oldest goes first. */
+const sentIds = new Set<string>();
+function rememberSent(msg: unknown): void {
+  const oid = (msg as { oid?: unknown }).oid;
+  if (typeof oid !== 'string') return;
+  sentIds.add(oid);
+  if (sentIds.size > 2048) sentIds.delete(sentIds.values().next().value as string);
+}
+/** Whether this page load sent this command (its echo on either road). */
+export const sentHere = (msg: unknown): boolean => {
+  const oid = (msg as { oid?: unknown } | null)?.oid;
+  return typeof oid === 'string' && sentIds.has(oid);
+};
 
 /** Per control slug and graphic, the newest press this page has numbered. */
 const presses = createPressBook();
@@ -1598,7 +1623,7 @@ async function sendSeqVerb(
     resend.deadline - Date.now() < MIN_ATTEMPT_MS
       ? Promise.reject(unansweredError())
       : sendWithResend(async (signal) => {
-          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics);
+          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics, sender.id);
         }, resend);
   await (allOut ? send() : seqQueue.run(graphics, send));
   return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };

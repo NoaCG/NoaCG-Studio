@@ -38,18 +38,21 @@ import type { ControlSendItem } from './hostedControl';
 import type { ArmSpec } from './cueAuto';
 import type { LiveCueMap, VerbSent } from './liveCue';
 import type { ServerVerb } from './serverPlayout';
+import type { SelectionTake, SendFailure } from './selectionAir';
 import type { PlayoutSession } from './playoutSession';
 import type { createSendDebts } from './failedSends';
 import { ALL_OUT_CONFIRM_MS, allOutTargets } from './allOut.ts';
 import { moveLiveCue } from './airState.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { markerAuto } from './cueAuto.ts';
-import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS } from './failedSends.ts';
-import { leftAlone, withLiveCue } from './liveCue.ts';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
+import { leftAlone, pressOuts, reachedOutput, withLiveCue } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 
-/** What one send came to: landed, with what it left alone, or the note line's sentence. */
-export type Sent = ({ ok: true } & VerbSent) | { ok: false; note: string };
+/** What one send came to: landed, with what it left alone, or the note line's sentence.
+ *  `uncertain`: the server did not answer, so it may still commit; `stale`: the server refused it
+ *  because another screen changed a graphic first. */
+export type Sent = ({ ok: true } & VerbSent) | ({ ok: false; note: string } & SendFailure);
 
 /** A graphic cue's Take, as one cue's or a folder's whole Take says it. */
 interface GraphicTake {
@@ -120,6 +123,22 @@ export interface GraphicPage {
   flush: () => Promise<void>;
   /** A graphic's bound fields, field key to tree path. */
   boundFields: (graphic: string) => Record<string, string>;
+  /** What a Take or an Update of this cue may send for its live candidate, from the newest tree
+   *  (control/selectionAir.ts `selectionTake`). */
+  selectionFor: (cue: ShowCue, graphic: string) => SelectionTake;
+  /** The layer now airs this cue with this selection (none drops what it followed), captured at the
+   *  press: `landed` when its send is answered, `undo` when it failed. */
+  selectionAired: (graphic: string, cueId: string, take: SelectionTake, moves?: boolean) => { landed: () => void; undo: (failed?: SendFailure) => void };
+  /** A send was refused because another screen changed these graphics (control/selectionAir.ts
+   *  `staleSelection`). */
+  selectionStale: (graphics: readonly string[]) => void;
+  /** The fields a cue's live candidate shows (none for a cue without one). */
+  candidateFields: (cue: ShowCue) => readonly string[];
+  /** What the layer's aired candidate shows, when the instance this page holds airs this cue. */
+  airedCandidate: (graphic: string, cueId: string) => Record<string, string> | null;
+  /** The fields of the candidate this page holds on air on a graphic, whether or not its cue is
+   *  still in the rundown (a deleted cue leaves its picture up while a sibling stays). */
+  airedCandidateFields: (graphic: string) => readonly string[];
   /** One graphic's bound values from the newest tree (the one a press's write moves at once). */
   boundNow: (graphic: string) => Record<string, string>;
   /** Refuse a bound press while the published tree is unread, saying why; true when it may go. */
@@ -166,6 +185,8 @@ export interface GraphicVerbs {
   send: (batches: ControlSendItem[][], label: string, allOut?: boolean) => Promise<Sent>;
   /** Send, and say so if it failed. What it came to when it landed, or null when it did not. */
   run: (batches: ControlSendItem[][], label: string) => Promise<VerbSent | null>;
+  /** Send, and say so if it failed. What it came to, failure kind included. */
+  runSent: (batches: ControlSendItem[][], label: string) => Promise<Sent>;
   takeGraphic: (cue: ShowCue, label: string, direct?: boolean) => Promise<GraphicTake | null>;
   take: (cue: ShowCue) => Promise<void>;
   update: (sel: VerbSelection) => Promise<void>;
@@ -259,7 +280,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const landed = io.verbsLanded(e);
       p.debts().failed([...(io.verbSentItems(e) ?? marked[landed] ?? []), ...marked.slice(landed + 1).flat()], note);
       p.owed(true);
-      return { ok: false, note };
+      // Refused as stale on any road, this page learned the head: a live candidate there must not
+      // then follow on its own over the other screen's change.
+      if (io.verbStale(e)) {
+        const named = (e as { graphics?: unknown }).graphics;
+        page().selectionStale(Array.isArray(named) ? (named as string[]) : [...new Set(marked.flat().map((item) => item.graphic))]);
+      }
+      const uncertain = isUnanswered(e) || (e as { unread?: unknown }).unread === true;
+      return { ok: false, note, ...(io.verbStale(e) ? { stale: true as const } : uncertain ? { uncertain: true as const } : {}) };
     } finally {
       p.sending(-1);
     }
@@ -275,6 +303,12 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return sent.ok ? sent : null;
   };
   const run = (batches: ControlSendItem[][], label: string) => runWith(sender(), batches, label);
+  const runSent = async (batches: ControlSendItem[][], label: string): Promise<Sent> => {
+    const s = sender();
+    const sent = await sendWith(s, batches, label);
+    if (!sent.ok) s.note(sent.note);
+    return sent;
+  };
 
   /**
    * A PRESS MOVING A BOUND FIELD WAITS FOR THE ONE BEFORE IT on its graphic, then counts from the
@@ -308,13 +342,25 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const graphic = p.graphicOf(cue);
     if (!graphic) return null;
     await p.flush();
+    // A live candidate resolves whole from one revision, or the cue is not taken: an unknown B
+    // never airs B's prepared values, or A's (E7.1).
+    const selection = p.selectionFor(cue, graphic);
+    if (selection.status === 'refused') return { ok: false, note: `${cue.label}: ${selection.reason}` };
     // Bound fields come from the LIVE tree, not from what this cue stored when it was prepared
     // (plan §2.7): otherwise taking an old cue would re-air a stale score.
-    const values = { ...p.cueView(cue).values, ...p.resolvedOf(graphic) };
+    const values = { ...p.cueView(cue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
+    // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
+    const captured = p.selectionAired(graphic, cue.id, selection, true);
     const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
-    if (!sent.ok) return { ok: false, note: sent.note };
+    if (!sent.ok) {
+      captured.undo(sent);
+      return { ok: false, note: sent.note };
+    }
     // Superseded: this page's later press on the graphic stands, and its own handler set the chip.
     if (!leftAlone(sent).includes(graphic)) mark([graphic], cue.id);
+    // The capture lands only with the values on the output; a later press that overtook it stands.
+    if (reachedOutput(sent, graphic)) captured.landed();
+    else captured.undo();
     p.clearMisses([cue.id]);
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };
@@ -347,9 +393,20 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     }
     if (!editingCue || !graphic || !sel.editingIsLive) return;
     await p.flush();
+    // An explicit Update may move the aired cue to the selection it now has, only once that whole
+    // replacement resolves; refused, the layer keeps what it airs and follows (E7.1).
+    const selection = p.selectionFor(editingCue, graphic);
+    if (selection.status === 'refused') {
+      s.note(`${editingCue.label}: ${selection.reason}`);
+      return;
+    }
     // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
-    const data = { ...p.cueView(editingCue).values, ...p.resolvedOf(graphic) };
-    await runWith(s, [[{ graphic, msg: { t: 'update', data } }]], 'Update');
+    const data = { ...p.cueView(editingCue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
+    const captured = p.selectionAired(graphic, editingCue.id, selection);
+    const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data } }]], 'Update');
+    if (!sent.ok) s.note(sent.note);
+    if (sent.ok && reachedOutput(sent, graphic)) captured.landed();
+    else captured.undo(sent.ok ? undefined : sent);
   };
 
   /**
@@ -372,7 +429,19 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       });
       return;
     }
+    // A live candidate's field comes from its source only: a press would air a figure no
+    // revision holds (E7.1). The layer's own candidate counts too, and both are asked again after
+    // the wait, which a Take may have moved.
+    const fixed = () => p.candidateFields(editingCue).includes(fieldKey) || p.airedCandidateFields(graphic).includes(fieldKey);
+    if (fixed()) {
+      s.note(`${fieldKey.toUpperCase()} shows a live candidate, so it comes from its source.`);
+      return;
+    }
     await p.flush();
+    if (fixed()) {
+      s.note(`${fieldKey.toUpperCase()} shows a live candidate, so it comes from its source.`);
+      return;
+    }
     const base = p.aired[graphic]?.[fieldKey] ?? p.cueView(editingCue).values[fieldKey] ?? '0';
     const next = io.adjustedValue(base, delta);
     p.writeCue(editingCue.id, { [fieldKey]: next });
@@ -393,8 +462,17 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
 
   /** One graphic off, and its marker with it unless a later press stands. */
   const clearOne = async (s: VerbSender, graphic: string) => {
-    const sent = await runWith(s, [clearCueItems(graphic)], 'Out');
-    if (sent && !leftAlone(sent).includes(graphic)) mark([graphic], null);
+    // The layer knows an Out is on its way, so no correction follows it out or overtakes it.
+    const captured = page().selectionAired(graphic, '', { status: 'none' }, true);
+    const sent = await sendWith(s, [clearCueItems(graphic)], 'Out');
+    if (!sent.ok) {
+      s.note(sent.note);
+      captured.undo(sent);
+      return;
+    }
+    if (!leftAlone(sent).includes(graphic)) mark([graphic], null);
+    if (reachedOutput(sent, graphic)) captured.landed();
+    else captured.undo();
   };
 
   const out = async (sel: VerbSelection) => {
@@ -440,8 +518,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     });
     if (cleared.length === 0) return;
     p.clearing(true);
+    // Each Out is a press on its layer: no correction follows it out or overtakes it.
+    const settleOuts = pressOuts(p.selectionAired, cleared);
     try {
       const sent = await sendWith(s, clearAllCueBatches(cleared), 'All out', true);
+      settleOuts(sent);
       if (!sent.ok) {
         s.note(await p.clearThroughBridge(sent.note));
         return;
@@ -459,11 +540,34 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
 
   /** The data that belongs to AIR: the cue live on the selected layer, draft included. Events and
-   *  snaps act on the live graphic, so their values come from ITS cue, read after the wait. */
-  const airValues = (p: GraphicPage, sel: VerbSelection): Record<string, string> => (sel.airCue ? p.cueView(sel.airCue).values : {});
+   *  snaps act on the live graphic, so their values come from ITS cue, read after the wait. A live
+   *  candidate's fields are what its aired instance shows; with no instance here they are left out,
+   *  so the layer keeps what it shows rather than the cue's prepared text (E7.1). */
+  const airValues = (p: GraphicPage, sel: VerbSelection): Record<string, string> => {
+    if (!sel.airCue) return {};
+    const values = p.cueView(sel.airCue).values;
+    // The cue's own candidate fields, and every field the layer protects: a candidate's Take may
+    // have reached the output while the marker still names this cue (E7.1).
+    const fields = [...new Set([...p.candidateFields(sel.airCue), ...(sel.selectedGraphic ? p.airedCandidateFields(sel.selectedGraphic) : [])])];
+    if (fields.length === 0) return values;
+    const kept = Object.fromEntries(Object.entries(values).filter(([key]) => !fields.includes(key)));
+    const aired = sel.selectedGraphic ? p.airedCandidate(sel.selectedGraphic, sel.airCue.id) : null;
+    return aired ? { ...kept, ...aired } : kept;
+  };
 
   const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[]) => {
+    // An event may READ a live candidate's fields, never move one: that figure would be in no
+    // revision (E7.1).
+    // Asked again after the wait, which a Take may have moved.
+    const refused = () => {
+      const fixed = [...(sel.airCue ? p.candidateFields(sel.airCue) : []), ...p.airedCandidateFields(graphic)];
+      const moving = movedList.filter((key) => fixed.includes(key));
+      if (moving.length > 0) s.note(`${moving.map((key) => key.toUpperCase()).join(', ')} shows a live candidate, so it comes from its source.`);
+      return moving.length > 0;
+    };
+    if (refused()) return;
     await p.flush();
+    if (refused()) return;
     const values = airValues(p, sel);
     // A press that would move a SHARED value waits for the tree, and the EVENT waits with it.
     if (movedList.some((key) => bound[key]) && !p.boundReady()) return;
@@ -521,5 +625,5 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     );
   };
 
-  return { send, run, takeGraphic, take, update, bump, next, out, takeOff, allOut, event, snap };
+  return { send, run, runSent, takeGraphic, take, update, bump, next, out, takeOff, allOut, event, snap };
 }
