@@ -377,6 +377,26 @@ changes a spec's digest.
   screen's newer change ended the block that change set, so the follow wrote over it again. A
   block now keeps the press time of the newest foreign change (`after`), and a landed press ends
   it only if it was sent after both that and the block itself. Pinned, red without each part.
+  *Seventh assessment on f29dc54: FAIL*, five findings, all fixed. (1) A block from a Take that did
+  not land became a plain stale block when another screen's change or a refusal came too, and the
+  follow then dropped the layer on the marker this page had moved: a block now keeps both causes
+  (`moved`, `stale`), and the follow returns while `moved` holds (after any settling ends). (2)
+  This page's late answer clearing another screen's newer block: fixed in 97a584e. (3) The
+  foreign check compared another machine's press time with this page's clock: it now uses only
+  this page's clock (when it heard the command), and each command counts once, on whichever road
+  came first (ProductionPage `hearCommand` filters by `session.applied`). (4) A duplicated tab
+  copies the sessionStorage instance id, so its commands read as this page's own: this page now
+  recognises its own echo by the command ids this page load sent (hostedControl.ts `sentHere`, in
+  memory only). (5) Value-less commands from a phone or another desk (Next, events, markers)
+  blocked the candidate: only an update that writes one of the candidate's fields blocks now; a
+  marker that moves makes the follow drop the layer as before. Two pages of one production that
+  both follow a candidate still block each other at the next revision, by design: each changed
+  the card under the other. A restored layer that did not know what airs now settles again from
+  the reload, since sends folded into it may still arrive; the walk found that once its checks no
+  longer excused a lost layer. The walk now also checks that while a candidate airs its fields
+  stay protected, whatever the marker names, and needs no exception for #1696 any more. The
+  `unknown.pressed` flag became redundant with the moved block and is gone. 15 new mutations,
+  each red; 589 gate tests pass.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

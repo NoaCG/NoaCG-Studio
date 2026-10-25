@@ -1417,6 +1417,7 @@ export async function sendControlVerb(opts: {
     // Who pressed, and when, ride beside the id (livePath.ts `withSender`), so an output can time
     // the command from the press to its screen.
     const stamped: ControlSendItem = { graphic: item.graphic, msg: withSender(withOid(item.msg), now) };
+    rememberSent(stamped.msg);
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
@@ -1492,6 +1493,22 @@ export async function sendControlVerb(opts: {
   }
   return sent;
 }
+
+/** The ids of the commands this page load sent, in memory only: a duplicated tab copies the
+ *  instance id in sessionStorage (livePath.ts), never these, so its commands read as another
+ *  screen's. Bounded; the oldest goes first. */
+const sentIds = new Set<string>();
+function rememberSent(msg: unknown): void {
+  const oid = (msg as { oid?: unknown }).oid;
+  if (typeof oid !== 'string') return;
+  sentIds.add(oid);
+  if (sentIds.size > 2048) sentIds.delete(sentIds.values().next().value as string);
+}
+/** Whether this page load sent this command (its echo on either road). */
+export const sentHere = (msg: unknown): boolean => {
+  const oid = (msg as { oid?: unknown } | null)?.oid;
+  return typeof oid === 'string' && sentIds.has(oid);
+};
 
 /** Per control slug and graphic, the newest press this page has numbered. */
 const presses = createPressBook();

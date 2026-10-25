@@ -760,9 +760,9 @@ describe('the page\'s two doors onto the layers', () => {
       const raw = JSON.parse(air.writeSelectionAir(p.part.get()));
       raw.graphics.Card.blocked = { since: 'soon' };
       assert.deepEqual(air.readSelectionAir(JSON.stringify(raw), 9000), {}, 'a malformed block is not read');
-      const rawAt = JSON.parse(air.writeSelectionAir(p.part.get()));
-      rawAt.graphics.Card.pressedAt = 'then';
-      assert.deepEqual(air.readSelectionAir(JSON.stringify(rawAt), 9000), {}, 'nor a malformed press time');
+      const rawMoved = JSON.parse(air.writeSelectionAir(p.part.get()));
+      rawMoved.graphics.Card.blocked.moved = 'yes';
+      assert.deepEqual(air.readSelectionAir(JSON.stringify(rawMoved), 9000), {}, 'nor a malformed moved flag');
       air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7), 7)).landed();
       assert.equal(card(p).held, undefined, `${refused}: the operator's Take lifts it`);
       air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(8, [person('D1', 7, 'Aino Aalto', 1700)])), send });
@@ -827,20 +827,22 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, card(p).held?.reason], [[], 'its collection recipe changed since it was taken']);
   });
 
-  test('another screen\'s command on the card, pressed after this page\'s last landed press, blocks it; older ones, its own and unstamped ones do not (sixth assessment)', async () => {
+  test('another screen\'s update of a candidate\'s fields blocks it; its own echo, an unstamped row, a command that moves no field, or another card\'s fields do not (sixth assessment)', async () => {
     const sends = [];
     const send = (g, v) => (sends.push(v.f0), Promise.resolve(ANSWERED));
+    const mine = (msg) => msg.oid === 'mine';
     const cases = [
-      ['another screen after', { t: 'update', snd: { i: 'them', at: 5000 } }, true],
-      ['another screen before', { t: 'update', snd: { i: 'them', at: 500 } }, false],
-      ['this page', { t: 'update', snd: { i: 'me', at: 5000 } }, false],
-      ['a server row', { t: 'update' }, false],
-      ['a ping', { t: 'ping', snd: { i: 'them', at: 5000 } }, false],
+      ['another screen', { t: 'update', oid: 'theirs', snd: { i: 'x', at: 1 }, data: { f0: 'Someone' } }, true],
+      ['this page', { t: 'update', oid: 'mine', snd: { i: 'x', at: 1 }, data: { f0: 'Someone' } }, false],
+      ['a server row', { t: 'update', oid: 'theirs', data: { f0: 'Someone' } }, false],
+      ['a Next', { t: 'next', oid: 'theirs', snd: { i: 'x', at: 1 } }, false],
+      ['an event', { t: 'event', oid: 'theirs', snd: { i: 'x', at: 1 }, event: 'flash', data: { f0: 'Someone' } }, false],
+      ['other fields', { t: 'update', oid: 'theirs', snd: { i: 'x', at: 1 }, data: { f9: '2' } }, false],
     ];
     for (const [name, msg, blocks] of cases) {
       const p = io();
       air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-      air.foreignSelection(p, [{ graphic: 'Card', msg }, { graphic: 'Gone', msg }], 'me');
+      air.foreignSelection(p, [{ graphic: 'Card', msg }, { graphic: 'Gone', msg }], mine);
       sends.length = 0;
       air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
       await settle();
@@ -854,7 +856,7 @@ describe('the page\'s two doors onto the layers', () => {
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
     const update = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
     p.tick(1000);
-    air.foreignSelection(p, [{ graphic: 'Card', msg: { t: 'update', snd: { i: 'them', at: p.now() } } }], 'me');
+    air.foreignSelection(p, [{ graphic: 'Card', msg: { t: 'update', oid: 'theirs', snd: { i: 'them', at: 0 }, data: { f1: '1' } } }], () => false);
     p.tick(100);
     update.landed();
     const sends = [];
@@ -875,7 +877,7 @@ describe('the page\'s two doors onto the layers', () => {
     q.tick(50);
     const between = air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
     q.tick(100);
-    air.foreignSelection(q, [{ graphic: 'Card', msg: { t: 'update', snd: { i: 'them', at: q.now() } } }], 'me');
+    air.foreignSelection(q, [{ graphic: 'Card', msg: { t: 'update', oid: 'theirs', snd: { i: 'them', at: 0 }, data: { f1: '1' } } }], () => false);
     between.landed();
     assert.ok(card(q).held, 'the newer change still blocks');
     const raw = JSON.parse(air.writeSelectionAir(q.part.get()));
@@ -893,6 +895,34 @@ describe('the page\'s two doors onto the layers', () => {
     air.pressSelection(p, 'Card', 'plain', { status: 'none' }, true).landed();
     air.followAired(p, { liveCue: { Card: 'plain' }, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve(ANSWERED) });
     assert.deepEqual(p.part.get(), {}, 'the plain Take landed: the layer goes');
+  });
+
+  test('a block from a Take that did not land stays one when another screen\'s change or a refusal comes too; a reload keeps only the other screen\'s part (seventh assessment)', () => {
+    for (const then of ['refusal', 'another screen']) {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      air.pressSelection(p, 'Card', 'plain', { status: 'none' }, true).undo();
+      if (then === 'refusal') air.staleSelection(p, ['Card']);
+      else air.foreignSelection(p, [{ graphic: 'Card', msg: { t: 'update', oid: 'x', snd: { i: 'x', at: 0 }, data: { f0: 'Someone' } } }], () => false);
+      air.followAired(p, { liveCue: { Card: 'plain' }, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve(ANSWERED) });
+      assert.equal(card(p).cueId, 'cue-a', `${then}: not dropped on the marker this page moved`);
+      assert.deepEqual(air.protectedFields(p.part.get(), 'Card', 'plain'), ['f0', 'f1', 'f2'], `${then}: its fields stay protected`);
+      assert.match(card(p).held.reason, /did not go through/);
+      const reopened = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 9000);
+      assert.deepEqual(reopened.Card.blocked, { since: 1000, stale: true, ...(then === 'another screen' ? { after: 1000 } : {}) }, `${then}: a reopened page keeps the other screen's change`);
+    }
+  });
+
+  test('a reload of a layer that did not know what airs settles it again: sends folded into it may still arrive', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)), true).undo({ uncertain: true });
+    const reopened = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 99000);
+    assert.equal(reopened.Card.settling, 99000 + air.SETTLE_MS);
+    // Held by the Take that did not land, the layer still stops settling once that is over.
+    p.tick(air.SETTLE_MS + 1);
+    air.followAired(p, { liveCue: { Card: 'cue-b' }, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve(ANSWERED) });
+    assert.equal(air.nextSettle(p.part.get()), null);
   });
 
   test('a press that lands below a revision a hold judged keeps the hold, so that revision still goes (sixth assessment)', async () => {
@@ -1383,11 +1413,6 @@ describe('generated walks: the layer against the output', () => {
     let head = 0;
     let known = 0;
     let unheard = false;
-    // The marker this page moved itself and nobody has put back (#1696): a layer it made the page
-    // forget stays forgotten, which stops following but sends nothing wrong.
-    let moved = false;
-    let excused = false;
-    let pressedBefore = false;
     // What aired whenever another screen took over: a page that has not settled since may still
     // record it.
     let before = [];
@@ -1398,7 +1423,7 @@ describe('generated walks: the layer against the output', () => {
       unheard = false;
       known = head;
       marker = trueMarker;
-      if (theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], 'me');
+      if (theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], () => false);
       log.push(`the page heard another screen's Take (${trueMarker})`);
       // The marker moved: the page follows at once.
       followOnce(tree);
@@ -1455,14 +1480,12 @@ describe('generated walks: the layer against the output', () => {
       const offered = marker ? air.airedValues(part.get(), 'Card', marker) : null;
       if (offered && (!output || JSON.stringify(offered) !== JSON.stringify(output.values))) fail(`${where}: Snap would send ${JSON.stringify(offered)} while ${keyOf(output)} ${JSON.stringify(output?.values)} airs`);
       // A candidate this page put on air, on the cue the marker names, is never forgotten.
-      if ((moved || pressedBefore) && !layer) excused = true;
-      if (output && marker === output.cueId && !layer && !excused) fail(`${where}: the layer is gone while ${keyOf(output)} airs on the marker's cue`);
+      // While a candidate airs, Snap, events and ± leave its fields alone, whatever the marker
+      // names: else a plain cue's own values would go onto that candidate's card.
+      if (output && !unheard && air.protectedFields(part.get(), 'Card', marker).length === 0) fail(`${where}: ${keyOf(output)} airs and none of its fields is protected (marker ${marker})`);
+      if (output && marker === output.cueId && !layer) fail(`${where}: the layer is gone while ${keyOf(output)} airs on the marker's cue`);
     };
     const followOnce = (t, lossy = false, ordered = true) => {
-      // A layer that did not know what airs after a press of this page got no answer is dropped
-      // when the marker names none of its candidates; a send folded into it may still land, and the
-      // layer then stops following (fail-safe, as #1696).
-      if (part.get().Card?.unknown?.pressed) pressedBefore = true;
       air.followAired(io(), {
         liveCue: marker === undefined ? {} : { Card: marker },
         seeded,
@@ -1510,12 +1533,6 @@ describe('generated walks: the layer against the output', () => {
         told = send.target;
         if (send.press) {
           marker = send.target ? send.target.cueId : 'plain';
-          moved = false;
-          // Only an answer the layer still waited on brings it back to following.
-          if (waited) {
-            excused = false;
-            pressedBefore = false;
-          }
         }
       }
       if (send.press) {
@@ -1537,7 +1554,7 @@ describe('generated walks: the layer against the output', () => {
         log.push(`#${f.send.index} of the page that went away reached the server (${keyOf(output)})`);
         // The page hears what the server airs from its frames: the marker follows.
         marker = trueMarker;
-        if (unheard && theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], 'me');
+        if (unheard && theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], () => false);
         known = head;
         unheard = false;
       }
@@ -1563,10 +1580,7 @@ describe('generated walks: the layer against the output', () => {
         const closure = air.pressSelection(io(), 'Card', cueId, t, true);
         // On the fast road this page moves its own marker when it sends (airState.ts
         // claimAndApply), whatever the server later does with the press.
-        if (rnd() < 0.5) {
-          marker = target ? cueId : 'plain';
-          moved = true;
-        }
+        if (rnd() < 0.5) marker = target ? cueId : 'plain';
         const layer = part.get().Card;
         if (layer !== before) out.push({ index: ++index, seq: layer?.out[layer.out.length - 1]?.seq, base: known, press: true, target, closure });
         else if (!layer && target === null) {
@@ -1595,14 +1609,14 @@ describe('generated walks: the layer against the output', () => {
         before.push(output);
         if (output && rnd() < 0.5) {
           output = { ...output, entity: '["D9",9]', values: { f0: 'Someone Else', f1: '1', f2: '-' } };
-          theirs = { t: 'update', snd: { i: 'them', at: clock } };
+          theirs = { t: 'update', oid: `theirs-${head}`, snd: { i: 'them', at: clock }, data: { f0: 'Someone Else' } };
           head += 1;
           unheard = true;
           seen.otherUpdate += 1;
           log.push('another screen updated the card to another person');
           continue;
         }
-        theirs = { t: 'cue', snd: { i: 'them', at: clock } };
+        theirs = { t: 'cue', oid: `theirs-${head}`, snd: { i: 'them', at: clock } };
         output = null;
         trueMarker = 'other';
         head += 1;
@@ -1622,7 +1636,7 @@ describe('generated walks: the layer against the output', () => {
         page.alive = false;
         page = { alive: true };
         // The reopened page reads the log, another screen's command included.
-        if (unheard && theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], 'me');
+        if (unheard && theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], () => false);
         known = head;
         unheard = false;
         part.set(air.readSelectionAir(air.writeSelectionAir(part.get()), clock));

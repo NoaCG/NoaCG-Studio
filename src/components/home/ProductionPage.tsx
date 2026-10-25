@@ -88,7 +88,6 @@ import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCT
 import { CANDIDATE_READ_MS, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
-import { liveInstanceId } from '../../control/livePath';
 import {
   fetchProductionData,
   patchProductionData,
@@ -169,6 +168,7 @@ import {
   sendControlVerbs,
   untilAnswered,
   sendsInOrder,
+  sentHere,
   verbAired,
   verbStale,
   verbsLanded,
@@ -1108,10 +1108,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
         folderPlayout.settleMisses(settle);
       }
-      heardFromOthers.current(items);
+      // Each command once, on whichever road came first.
+      heardFromOthers.current(items.filter((item) => !session.applied.has(item.msg)));
       applyCommand(items);
     },
-    [applyCommand, folderPlayout],
+    [applyCommand, folderPlayout, session],
   );
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
@@ -1421,7 +1422,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current(), alive: session.alive }),
     [session, keepSelections],
   );
-  heardFromOthers.current = (items) => foreignSelection(selectionIo, items, liveInstanceId());
+  heardFromOthers.current = (items) => foreignSelection(selectionIo, items, sentHere);
   /** A Take or an Update put this cue's selection on the layer (control/selectionAir.ts). */
   const selectionAired = useCallback(
     (graphic: string, cueId: string, take: SelectionTake, moves?: boolean) => pressSelection(selectionIo, graphic, cueId, take, moves),
