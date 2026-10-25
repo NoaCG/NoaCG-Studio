@@ -61,7 +61,7 @@ interface Sent {
   cueId: string;
   target: AiredTarget | null;
   /** A Take or an Out: it moved this page's marker when it was sent (airState.ts
-   *  `claimAndApply`), and nothing puts the marker back if it does not land (#1696). */
+   *  `claimAndApply`), so the marker decides nothing while it is out. */
   moves?: true;
 }
 
@@ -485,11 +485,11 @@ export function reduceSelection(
 ): { air: SelectionAir; seq?: number };
 export function reduceSelection(
   air: SelectionAir,
-  ev: { t: 'follow'; liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; mint: () => number; now: number },
+  ev: { t: 'follow'; liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; mint: () => number; now: number; markersOut?: readonly string[] },
 ): { air: SelectionAir; sends: { graphic: string; seq: number; values: Record<string, string> }[] };
 export function reduceSelection(
   air: SelectionAir,
-  ev: (Exclude<SelectionEvent, { t: 'follow' }> & { graphic: string }) | { t: 'follow'; liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; mint: () => number; now: number },
+  ev: (Exclude<SelectionEvent, { t: 'follow' }> & { graphic: string }) | { t: 'follow'; liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; mint: () => number; now: number; markersOut?: readonly string[] },
 ): { air: SelectionAir; seq?: number; sends?: { graphic: string; seq: number; values: Record<string, string> }[] } {
   const put = (a: SelectionAir, graphic: string, layer: SelectionLayer | undefined): SelectionAir => {
     if (a[graphic] === layer) return a;
@@ -505,6 +505,10 @@ export function reduceSelection(
   let next = air;
   const sends: { graphic: string; seq: number; values: Record<string, string> }[] = [];
   for (const [graphic, layer] of Object.entries(air)) {
+    // A marker press of this page is out on the graphic: the marker names that press, not what airs,
+    // so it decides nothing until the press is answered (#1696). Its capture's answer follows again
+    // (`pressSelection`); a press that captured nothing waits for the next follow, a delay only.
+    if (ev.markersOut?.includes(graphic)) continue;
     const step = follow(layer, graphic, ev.liveCue[graphic], ev.seeded, ev.facts, ev.mint, ev.now);
     next = put(next, graphic, step.layer);
     if (step.send) sends.push({ graphic, ...step.send });
@@ -790,9 +794,16 @@ export type FollowSent = { ok: true; skipped: readonly string[]; superseded: rea
  */
 export function followAired(
   io: SelectionAirIo,
-  o: { liveCue: LiveCueMap; seeded: boolean; facts: SelectionFacts; send: (graphic: string, values: Record<string, string>) => Promise<FollowSent> },
+  o: {
+    liveCue: LiveCueMap;
+    seeded: boolean;
+    facts: SelectionFacts;
+    send: (graphic: string, values: Record<string, string>) => Promise<FollowSent>;
+    /** The graphics whose marker a press of this page moved and whose answer is not back yet. */
+    markersOut?: readonly string[];
+  },
 ): void {
-  const { air, sends } = reduceSelection(io.part.get(), { t: 'follow', liveCue: o.liveCue, seeded: o.seeded, facts: o.facts, mint: mintSend, now: io.now() });
+  const { air, sends } = reduceSelection(io.part.get(), { t: 'follow', liveCue: o.liveCue, seeded: o.seeded, facts: o.facts, mint: mintSend, now: io.now(), markersOut: o.markersOut });
   keepIn(io, air);
   for (const one of sends) {
     void o.send(one.graphic, one.values).then((sent) => {

@@ -173,6 +173,7 @@ import {
   verbAired,
   verbStale,
   verbsLanded,
+  verbsSkipped,
   verbSentItems,
   writePublishedSources,
   type ControlEventRow,
@@ -335,6 +336,7 @@ const GRAPHIC_VERB_IO: GraphicVerbIo = {
   verbStale,
   verbAired,
   verbsLanded,
+  verbsSkipped,
   verbSentItems,
   headsSay,
   headsStillOn,
@@ -1098,6 +1100,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Another screen's commands, told to the live candidates (control/selectionAir.ts
    *  `foreignSelection`); set below, once the layers' io exists. */
   const heardFromOthers = useRef<(items: { graphic: string; msg: ControlEventRow['msg'] }[]) => void>(() => {});
+  /** What the sender makes of commands heard back (control/graphicVerbs.ts `heard`): a marker press
+   *  that got no answer landing after all, and this page's own markers left to it. Set below, once
+   *  the verbs exist. */
+  const heardMarkers = useRef<
+    (items: { graphic: string; msg: ControlEventRow['msg'] }[], applied: (msg: unknown) => boolean) => { graphic: string; msg: ControlEventRow['msg'] }[]
+  >((items) => items);
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
   const hearCommand = useCallback(
@@ -1113,7 +1121,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
       // Each command once, on whichever road came first.
       heardFromOthers.current(items.filter((item) => !session.applied.has(item.msg)));
-      applyCommand(items);
+      // This page's own markers are the sender's to write (control/graphicVerbs.ts `heard`).
+      applyCommand(heardMarkers.current(items, (msg) => session.applied.has(msg)));
     },
     [applyCommand, folderPlayout, session],
   );
@@ -2018,6 +2027,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const verbPage = useRef<GraphicPage | null>(null);
   const verbs = useMemo(() => createGraphicVerbs(session, GRAPHIC_VERB_IO, () => verbSender.current!, () => verbPage.current!), [session]);
+  heardMarkers.current = (items, applied) => verbs.heard(items, applied);
   const { send: sendVerb, run: runVerb, runSent } = verbs;
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
@@ -2046,6 +2056,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       seeded: selectionSeeded,
       facts: selectionFacts(),
       send: (graphic, values) => runSent([[{ graphic, msg: { t: 'update', data: values } }]], 'Live candidate'),
+      markersOut: verbs.markersOut(),
     });
   useEffect(() => {
     followRef.current();

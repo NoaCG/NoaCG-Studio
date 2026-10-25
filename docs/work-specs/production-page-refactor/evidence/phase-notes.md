@@ -5,6 +5,136 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Fix #1696: the live marker after an overtaking press fails
+
+- **Previous `main` sha:** `cad2f01` (this branch began there).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is persisted, so a revert leaves
+  nothing behind.
+- **Decisions.**
+  - The one sender (`src/control/graphicVerbs.ts`) owns the marker's answers. Every Take and Out
+    leaves through it with a cue marker, so it numbers each marker press at the press and writes
+    the marker from the answers through pure folds in `src/control/liveCue.ts` (`pressMarker`,
+    `answerMarker`, `landedLate`). Take, Out and All out no longer mark after the send. Folder
+    runs (`folderPlayout.ts`) and timed cues (`cueArmEngine.ts`) still write the marker after
+    their answers, with the old `leftAlone` rule. On protocol 2 they write only what the sender
+    already wrote. On protocol 1 (`pressedAgain` is always empty there) a folder Out answered late
+    can clear the marker after a newer press of this page has landed. That stays wrong until the
+    next marker write. Protocol 1 has no per-graphic order at all, and #1697 reworks it. Moving
+    those writes into the sender would change those modules' contracts and test rigs, so it stays
+    out of this fix.
+  - The sender stamps each of its cue markers with an id (`mintOid`) at the press.
+    `hostedControl.ts` `sendControlVerb` keeps an id it is given. So the sender knows its own rows
+    exactly. `hearCommand` applies what `verbs.heard` hands back: every command except this
+    sender's own cue markers, which the sender writes from its answers and from the rows of
+    presses that got none. Every other cue row the page applies now becomes what a failed press
+    of this sender gives back (`foreignMarker`). That covers another screen's row, and a row from
+    an earlier mount of the page (a production left and reopened in the same tab, with a Take
+    still out). Before this, a slow-road press's own row heard late put its older cue over a
+    newer press that had landed. Two earlier ways of telling own rows apart were dropped. The
+    first was "this page load sent it", which also caught an earlier mount's row. The second was
+    "a press of this sender landed here", which lost the order between this sender's own rows and
+    its answers. A send of several batches books each batch's markers on their own, so one batch
+    landing and the next failing leaves the first batch's cue.
+  - A press that landed names its cue unless a newer marker press of this page landed (a late older
+    answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
+    puts back the newest press that landed, or the marker from before the first press still out.
+    It does not fall back to an older press that is still out: the marker names a press once it
+    lands. A fresh cue marker from another screen, heard while a press is out, becomes what stood
+    before (`foreignMarker`, from `verbs.heard`). Any later failure gives that marker back, even
+    after a later press of this page moved the marker over it. A restore is skipped when the
+    marker names a cue that none of these presses, nor that earlier marker, named. Then another
+    screen moved it in a way the page did not hear, and it stays. Only a marker the page has not
+    applied yet counts. A second arrival of one it already applied (its broadcast, then its
+    durable row) moves nothing. These rules come from the review of the PR: another screen taking
+    a cue that a press of this page also named, a duplicate echo, and a later local press over
+    another screen's marker. A press of this page that got no answer, whose row is heard after another screen's
+    marker, still marks: the durable road delivers rows in log order, so that row is the newer
+    commit. An All out is never refused, and a Take can be based on a head learned from a refusal.
+    The one case this misses is a broadcast that overtakes the durable rows. Another screen's Take
+    commits after this page's lost press, and its broadcast arrives before this page's own row.
+    Telling those apart needs the log's `seq` on every heard command, which broadcasts do not
+    carry. A rule that dropped such rows was tried and reverted: it broke the ordered cases. Two
+    more limits, both from the review. Another screen's row can be heard after this page's press
+    was answered as landed, even though that press committed after it, on a head learned from a
+    refusal. That row resets the baseline, so a later failure gives back the other screen's cue.
+    This was wrong before this change too. A cue row from an old writer carries no id. It never
+    counts as applied, so a second arrival of it rebases the track again.
+  - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
+    sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
+    old skip now make a real later press.
+  - A press with no answer goes back off the marker. If its row is heard later (`verbs.heard`,
+    from the page's `hearCommand`), it counts as landed when no newer press of this page has
+    landed on that graphic. It is marked unless a newer press is still out, and that newer press
+    puts it back if it fails. A row heard before the send gave up is already a landing
+    (`hostedControl.ts` `heard`, filled from the same row streams), so the sender does not repeat
+    that check.
+  - N1 (`selectionAir.ts`): the follow skips a graphic while this page has a marker press out
+    there (`markersOut`). That marker names the press, not what airs, so an unknown layer is not
+    decided from it, and `airedValues` cannot offer a Take that has no answer yet.
+- **Traps.**
+  - A press with no answer that committed leaves the marker unsure until its row arrives. The
+    walk checks the marker only when no row is still to come.
+  - A landed answer or a late row writes its cue without the other-screen check. If another
+    screen's newer row was heard first, the older cue wins until the next row. This was the same
+    before.
+  - A failed All out puts the marker back on the log's layers while the Bridge fallback clears
+    its slot. The marker names what the log says airs.
+  - On the slow road the marker does not move at the press, so it can lag while a newer press is
+    out. The answers still settle it.
+  - F2 from row 30 (a layer dropped while its candidate airs after a press with no answer commits
+    late) is not fixed here. It fails safe: the layer stops following.
+- **Evidence.** Held-answer tests in `scripts/graphic-verbs.test.mjs` (earlier lands, later
+  overtakes and fails, in both answer orders and on both roads; a late older answer; a failed Take
+  or Out restoring; another screen's marker kept; late rows, older and newer, against newer
+  presses that land, fail or are still out; a send that throws before it goes). A seeded walk of
+  2000 runs (`MARKER_WALKS`, also run at 20,000) checks the marker against a protocol-2 server
+  model. The first walk also has other screens' Takes: one applies at once, and this page's
+  earlier presses there are refused or skipped. Such a Take is generated only while no press of
+  this page there has committed with its answer still to come, which is the documented trap. The model covers answers lost before or after a commit, and rows heard at any time, each
+  passed through `verbs.heard` with what it hands back applied. The
+  walk and four of the tests are red on `cad2f01`. In `scripts/keyed-selection.test.mjs`, the
+  checker's N1 repro is red on `cad2f01`. A second walk, `batchWalk`, covers sends of several
+  batches and graphics. Twenty mutants of the folds and the wiring are each
+  killed. Browser: `e2e/playout-air-contract.spec.ts` and `e2e/playout-drills.spec.ts`, 12
+  passed.
+- **Fourth assessment (/so) on `fb87a5b`: A, PASS.** Its own walk ran 20,000 runs with sends of
+  one or two batches over three graphics, and found no counterexample. As it suggested, the repo
+  now has the same send shapes in a second walk (`batchWalk`: batches commit one at a time, a
+  send is refused or loses its answer at the batch it reached, rows come after). It passed
+  20,000 runs and kills the per-batch mutants. One mutant survives because it is equivalent: a
+  graphic appears once per send. The follow's wait while a marker press is out is commented
+  beside the guard.
+- **Third assessment (/so) on `1878636`: A-, PASS.** It found one non-blocking case: a press made
+  before the page was left and reopened, whose row arrived after reopening, was dropped as this
+  page's own. That is now scoped to the sender that pressed the graphic. It also found that the
+  page wiring had no Node test. The filtering moved into `verbs.heard`, so the walk now hears
+  every press's own row through it and applies what comes back.
+- **Second assessment (/so) on `85ad242`: B+.** It found that a slow-road press's own row,
+  heard late, moved the marker through `claimAndApply`. That is fixed by `withoutOwnMarkers`. It
+  also found that a two-batch send booked only its last batch, which is now fixed and pinned. The
+  protocol-1 folder Out case is noted above.
+- **Automated review on `52f4025`:** an earlier mount's row for c1, heard while the new sender's
+  own Take of c1 was out and then refused, was rolled back. That is fixed by the sender-stamped
+  ids above, and pinned. The press walk now delivers rows in commit order, as the durable road
+  does.
+- **Configured spec changed with #1710 merged in.** `e2e/configured/playout-resolve-race.spec.ts`
+  checked the chip read "on air" while the page's first resolve was held, before releasing it.
+  Since #1697 such a Take waits for that resolve within its resend window. When the wait runs
+  out, the Take is never sent, yet the fast road had already moved the marker. On main that left
+  the chip naming a Take that went nowhere (this issue), so the spec passed there. Here the
+  marker goes back, and the spec failed on `7516570` (configured run 40181100721). It now
+  releases the resolve while the Take waits, then checks the same things: on air here, staying
+  on air after the older answer, Out enabled, one entrance. Nothing is checked less. The old
+  scenario keeps its own test there, now with the right outcome. The resolve is held past the
+  Take's resend window, the Take is never sent, and the chip reads "nothing on air", before and
+  after the answer. `minTests` in `e2e/configured/expected-run.json` goes up by one for it.
+- **Independent assessment (/so) on `6312a90`: B.** It found two blocking holes in the late-row
+  path. First, a late row of an older press marked over a newer landed one. That is fixed with
+  the per-graphic newest-landed number. Second, a row heard before the timeout was lost. That
+  case is already a landing in `hostedControl.ts`. A further non-blocking case was also fixed:
+  a late row after a newer press failed is now marked. The sequences are pinned as tests.
+
 ## Fix #1697: one refused resolve no longer costs a page its per-graphic order
 
 - **Previous verified `main` sha:** this branch began on `cad2f01`.
