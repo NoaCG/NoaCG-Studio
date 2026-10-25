@@ -33,6 +33,8 @@
 //              heard since, its figure; otherwise this page's own air record, else the cue, else 0.
 //              One clause is the repair's own reading, not the diagnoser's: an own row arriving
 //              already applied takes only the older sends past.
+//              An Out (this page's or another screen's) heard empties the record, and this page's
+//              own Out that landed takes every own send pressed before it past for every field.
 //              Reported as BASE-FROM-FAILED when the figure sent counts from a gone send. How often
 //              a counted figure differs from what air truly showed is printed, not checked.
 //              Every check reads what the page knew at that send: an answer counts from the moment
@@ -108,6 +110,8 @@ const CUES = {
     ['s1', { home: '7', away: '3', name: 'Round 1' }],
     ['s2', { home: '0', away: '0', name: 'Round 2' }],
     ['s3', { home: '4', away: '1', name: 'Round 3' }],
+    // A cue with no `away`: Taken after an Out, the field is on no record (second opinion, 32a).
+    ['s4', { home: '2', name: 'Round 4' }],
   ],
   Quiz: [
     ['q1', { answer: 'A', qscore: '2', question: 'One' }],
@@ -218,7 +222,7 @@ async function walk(seed, road, steps) {
   const oracleBase = (g, f, cueId) => {
     const entry = sends.filter((S) => S.figures[g]?.[f] !== undefined && !FAILED.has(S.answer)).at(-1);
     if (entry && entry.answer === null) return { value: entry.figures[g][f], from: `pending send #${entry.idx}` };
-    if (entry && !entry.past.has(f)) return { value: entry.figures[g][f], from: `landed send #${entry.idx}` };
+    if (entry && !entry.past.has(f) && !entry.past.has('*')) return { value: entry.figures[g][f], from: `landed send #${entry.idx}` };
     const why = entry ? `send #${entry.idx} taken past` : 'no own entry';
     const record = session.air.get().aired[g]?.[f];
     if (record !== undefined) return { value: record, from: `${why}: this page's air record` };
@@ -420,6 +424,14 @@ async function walk(seed, road, steps) {
       // delivered it: a save released in the same step may run its press first).
       const know = () => {
         S.answer = S.delivered;
+        // This page's Out that landed took the graphic off: every own send pressed before it is
+        // taken past for every field, before its rows are heard.
+        if (S.answer === 'landed') {
+          for (const g of S.graphics) {
+            if (!S.items.some((i) => i.graphic === g && i.msg.t === 'stop')) continue;
+            for (const T of sends) if (T.idx < S.idx && T.figures[g]) T.past.add('*');
+          }
+        }
         S.answeredAt = ++seq;
       };
       return S.h.promise.then(
@@ -516,7 +528,8 @@ async function walk(seed, road, steps) {
     const rest = verbs.heard([item], (msg) => session.applied.has(msg));
     if (rest.length === 0 && row.own === null) trace.push(`    (the sender keeps it from the page)`);
     // The ledger's "taken past", from what this row is to the page (see `oracleBase`).
-    const fields = Object.keys(figuresIn(row.msg) ?? {});
+    // A stop (an Out, this page's or another screen's) moves every field: '*'.
+    const fields = row.msg.t === 'stop' ? ['*'] : Object.keys(figuresIn(row.msg) ?? {});
     const given = rest.some((r) => r.msg === row.msg);
     const claimed = given && session.applied.has(row.msg);
     const pass = (S) => {
@@ -597,8 +610,14 @@ async function walk(seed, road, steps) {
     const roll = random();
     if (on && roll < 0.3) press('retake', graphic, `Re-take ${on}`, () => verbs.take(cueById.get(on)), { cue: on });
     else if (on && roll < 0.55) press('update', graphic, `Update ${on}`, () => verbs.update(liveSelection(graphic, cues, session.air.get().liveCue)), { cue: on });
-    else if (on && roll < 0.62) press('out', graphic, `Out ${graphic}`, () => verbs.out(liveSelection(graphic, cues, session.air.get().liveCue)), { cue: null });
-    else {
+    else if (on && roll < 0.7) {
+      press('out', graphic, `Out ${graphic}`, () => verbs.out(liveSelection(graphic, cues, session.air.get().liveCue)), { cue: null });
+      // Often a Take right behind it, as a new round starts: half the time the cue with no `away`.
+      if (chance(0.6)) {
+        const cue = graphic === 'Score' && chance(0.5) ? cueById.get('s4') : pick(cuesOf(graphic).filter((c) => c.id !== on));
+        press('take', graphic, `Take ${cue.id}`, () => verbs.take(cue), { cue: cue.id });
+      }
+    } else {
       const cue = pick(cuesOf(graphic).filter((c) => c.id !== on));
       press('take', graphic, `Take ${cue.id}`, () => verbs.take(cue), { cue: cue.id });
     }
@@ -606,7 +625,16 @@ async function walk(seed, road, steps) {
   const anotherScreen = () => {
     const g = pick(['Score', 'Quiz']);
     foreign += 1;
-    if (chance(0.6)) {
+    if (chance(0.1)) {
+      trace.push(`  another screen takes ${g} out`);
+      commit(
+        [
+          { graphic: g, msg: { t: 'stop', oid: `other-${foreign}-s` } },
+          { graphic: g, msg: { t: 'cue', cue: null, oid: `other-${foreign}-c` } },
+        ],
+        null,
+      );
+    } else if (chance(0.6)) {
       const field = g === 'Score' ? pick(['home', 'away']) : pick(['qscore', 'answer']);
       const value = field === 'answer' ? pick(['A', 'B', 'C', 'D']) : String(Math.floor(random() * 15));
       trace.push(`  another screen corrects ${g} ${field}=${value}`);
