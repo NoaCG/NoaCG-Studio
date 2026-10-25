@@ -51,12 +51,13 @@ changes a spec's digest.
     applied yet counts. A second arrival of one it already applied (its broadcast, then its
     durable row) moves nothing. These rules come from the review of the PR: another screen taking
     a cue that a press of this page also named, a duplicate echo, and a later local press over
-    another screen's marker. A fresh foreign marker also makes this page's presses there that got no answer
-    older. Each such press committed before the foreign one, or was refused as stale after it. So
-    its row heard later moves nothing, through the book or through the page. On protocol 1 there is no
-    such order: a late own row after a foreign one can be an older echo or a newer late commit,
-    and the page cannot tell them apart. The protocol-2 rule stands there too. #1697 owns
-    protocol 1's lost ordering.
+    another screen's marker. A press of this page that got no answer, whose row is heard after another screen's
+    marker, still marks: the durable road delivers rows in log order, so that row is the newer
+    commit. An All out is never refused, and a Take can be based on a head learned from a refusal.
+    The one case this misses is a broadcast that overtakes the durable rows. Another screen's Take
+    commits after this page's lost press, and its broadcast arrives before this page's own row.
+    Telling those apart needs the log's `seq` on every heard command, which broadcasts do not
+    carry. A rule that dropped such rows was tried and reverted: it broke the ordered cases.
   - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
     sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
     old skip now make a real later press.

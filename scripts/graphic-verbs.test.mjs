@@ -1381,18 +1381,33 @@ test('a failed Take or Out puts back what was on air before it; another screen\'
   await Promise.all([first.taking, second.taking]);
   assert.deepEqual(z.liveCue(), { Strap: 'x1' });
 
-  // A Take that got no answer committed, then another screen's x1 was heard before its row: the late
-  // row marks nothing over x1.
-  const late = rig({ fast: true });
-  const lost = await pressTake(late, 'c1');
-  lost.send.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }] }));
-  await lost.taking;
-  const applyAll = (rows) => {
-    for (const item of late.verbs.heard(rows, (msg) => msg.oid.startsWith('oid-'), () => false)) late.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+  // A press that got no answer committed after another screen's x1 (an All out is never refused;
+  // a Take can be based on a head learned from a refusal): rows come in log order, so its row after
+  // x1's is the newer, and marks.
+  const noAnswer = (id) => Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: 'Strap', msg: { t: 'cue', cue: id, oid: `oid-${id}` } }] });
+  const heardRows = (rig_, rows) => {
+    for (const item of rig_.verbs.heard(rows, (msg) => msg.oid.startsWith('oid-'), () => false)) rig_.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
   };
-  applyAll([{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }]);
-  applyAll([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }]);
-  assert.deepEqual(late.liveCue(), { Strap: 'x1' });
+  const allOut = rig({ fast: true });
+  allOut.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c0' } } }));
+  const { clearCueItems } = await import('../src/control/cueItems.ts');
+  const clearing = allOut.verbs.send([clearCueItems('Strap')], 'All out', true);
+  await settle();
+  allOut.sends[0].answer.reject(Object.assign(noAnswer(null), { items: [{ graphic: 'Strap', msg: { t: 'cue', cue: null, oid: 'oid-out' } }] }));
+  await clearing;
+  heardRows(allOut, [{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }]);
+  heardRows(allOut, [{ graphic: 'Strap', msg: { t: 'cue', cue: null, oid: 'oid-out' } }]);
+  assert.deepEqual(allOut.liveCue(), {}, 'All out committed after x1');
+  const based = rig({ fast: true });
+  const refused = await pressTake(based, 'c1');
+  refused.send.answer.reject(Object.assign(new Error('stale'), { stale: true }));
+  await refused.taking;
+  const lost = await pressTake(based, 'c2');
+  lost.send.answer.reject(noAnswer('c2'));
+  await lost.taking;
+  heardRows(based, [{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }]);
+  heardRows(based, [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c2', oid: 'oid-c2' } }]);
+  assert.deepEqual(based.liveCue(), { Strap: 'c2' }, 'a Take based on the learned head');
 
   // The second arrival of another screen's marker the page already applied moves nothing: this
   // page's refused press still gives back what stood.
@@ -1634,6 +1649,11 @@ async function markerWalk(seed, steps) {
       // It applies at once: every press of this page before it on that graphic is then older than
       // the head (refused stale, or skipped), and its row is heard.
       const g = pick(calm);
+      // The log is in commit order: rows of this page's presses there that committed come first.
+      for (const p of presses.filter((q) => q.graphic === g && q.lost && q.reached && !q.heard)) {
+        p.heard = true;
+        hear(p);
+      }
       const cue = pick(['x1', 'x2', null]);
       applied[g] = presses.length;
       output[g] = cue;
