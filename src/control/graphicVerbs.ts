@@ -247,6 +247,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  newer than every press known to have landed on its graphic landed after all. A row heard
    *  before the send gave up already made it a landing (hostedControl.ts `heard`). */
   const unanswered = new Map<string, MarkerSent>();
+  /** The ids of those another screen's marker was heard over since: their rows move nothing. */
+  const overtaken = new Set<string>();
   const landedOn = (graphic: string, n: number) => newestLanded.set(graphic, Math.max(newestLanded.get(graphic) ?? 0, n));
 
   /** Number a send's markers at its press, batch by batch (each lands or fails on its own): per
@@ -275,7 +277,17 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
   const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean, applied?: (msg: unknown) => boolean): T[] => {
     for (const item of items) {
-      if (item.msg.t === 'cue' && !mine(item.msg) && !applied?.(item.msg)) markers = foreignMarker(markers, item.graphic, (item.msg as { cue?: string | null }).cue ?? null);
+      if (item.msg.t === 'cue' && !mine(item.msg) && !applied?.(item.msg)) {
+        markers = foreignMarker(markers, item.graphic, (item.msg as { cue?: string | null }).cue ?? null);
+        // A press of this page there that got no answer is older: it committed before this one, or
+        // was refused as stale after it, so its row heard later moves nothing.
+        for (const [oid, u] of unanswered) {
+          if (u.graphic !== item.graphic) continue;
+          unanswered.delete(oid);
+          overtaken.add(oid);
+        }
+        for (const oid of overtaken) if (overtaken.size > 256) overtaken.delete(oid);
+      }
       const oid = oidOf(item.msg);
       const u = oid ? unanswered.get(oid) : undefined;
       if (!oid || !u || u.graphic !== item.graphic) continue;
@@ -292,7 +304,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // than one it applied, so an older one airs only before it) or one its answers already wrote,
     // and applied it could only put an older cue back (#1696). Before that, it applies as it always
     // did: it may be an earlier mount's press, which nothing else would mark.
-    return withoutOwnMarkers(items, (item) => newestLanded.has(item.graphic) && mine(item.msg));
+    return withoutOwnMarkers(items, (item) => (newestLanded.has(item.graphic) || overtaken.has(oidOf(item.msg) ?? '')) && mine(item.msg));
   };
 
   // ── The one sender. ONE place a verb's commands go somewhere: the wire when published, the local

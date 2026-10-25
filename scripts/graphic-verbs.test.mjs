@@ -1381,6 +1381,19 @@ test('a failed Take or Out puts back what was on air before it; another screen\'
   await Promise.all([first.taking, second.taking]);
   assert.deepEqual(z.liveCue(), { Strap: 'x1' });
 
+  // A Take that got no answer committed, then another screen's x1 was heard before its row: the late
+  // row marks nothing over x1.
+  const late = rig({ fast: true });
+  const lost = await pressTake(late, 'c1');
+  lost.send.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }] }));
+  await lost.taking;
+  const applyAll = (rows) => {
+    for (const item of late.verbs.heard(rows, (msg) => msg.oid.startsWith('oid-'), () => false)) late.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+  };
+  applyAll([{ graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } }]);
+  applyAll([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }]);
+  assert.deepEqual(late.liveCue(), { Strap: 'x1' });
+
   // The second arrival of another screen's marker the page already applied moves nothing: this
   // page's refused press still gives back what stood.
   const d = rig({ fast: true });
@@ -1587,7 +1600,7 @@ async function markerWalk(seed, steps) {
     const late = presses.filter((p) => !p.heard && (p.lost || p.reached));
     // Another screen's Take, on a graphic where no press of this page has committed with its answer
     // or row still to come (one that did is the documented trap: its late answer marks over it).
-    const calm = graphics.filter((g) => !presses.some((p) => p.graphic === g && p.committed && p.reached && (!p.answered || (p.lost && !p.heard))));
+    const calm = graphics.filter((g) => !presses.some((p) => p.graphic === g && p.committed && p.reached && !p.answered));
     const kinds = ['press', 'press', ...(uncommitted.length ? ['commit', 'commit', 'refuse'] : []), ...(open.length ? ['lose'] : []), ...(open.some((p) => p.committed) ? ['answer', 'answer'] : []), ...(late.length ? ['late', 'late'] : []), ...(calm.length ? ['foreign'] : [])];
     const kind = pick(kinds);
     let acted;

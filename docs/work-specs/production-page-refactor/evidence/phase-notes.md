@@ -51,7 +51,9 @@ changes a spec's digest.
     applied yet counts. A second arrival of one it already applied (its broadcast, then its
     durable row) moves nothing. These rules come from the review of the PR: another screen taking
     a cue that a press of this page also named, a duplicate echo, and a later local press over
-    another screen's marker.
+    another screen's marker. A fresh foreign marker also makes this page's presses there that got no answer
+    older. Each such press committed before the foreign one, or was refused as stale after it. So
+    its row heard later moves nothing, through the book or through the page.
   - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
     sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
     old skip now make a real later press.
