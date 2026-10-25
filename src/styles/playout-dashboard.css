@@ -1092,6 +1092,19 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-cue-title:hover { border-color: var(--border); }
 .pd-cue-title:focus { border-color: var(--accent); background: var(--bg); outline: none; }
 .pd-editor-fate { font-size: 12px; }
+/* Which person a candidate cue shows (E7.2a): the cue title's quiet box, so the head stays one
+   row of facts about the cue rather than a form. */
+.pd-candidate-pick {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  max-width: 280px;
+}
+.pd-candidate-pick:focus { border-color: var(--accent); background: var(--bg); outline: none; }
 
 /* UNSENT CHANGES. Nothing on this surface airs by itself, which is deliberate - so the only way
    an operator learns that the values in front of them are not the values on air is if the

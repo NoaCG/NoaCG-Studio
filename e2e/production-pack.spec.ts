@@ -177,3 +177,132 @@ test('a broken or too-new pack is refused with a readable message', async ({ pag
   });
   await expect(card.locator('.status-bad')).toContainText('newer version of NoaCG Studio');
 });
+
+// THE ELECTION REHEARSAL PACKAGE (docs/work-specs/playout-election-package/spec.md, E7.2a, AC-1):
+// the shipped pack installs four graphics already connected (bindings, the candidate collection
+// recipe, three candidate cues and the first synthetic count), so preview and Take need no binding
+// by hand; the cue editor's Live candidate menu is the selection writer; and the production
+// exports and imports again with its fonts, its picture, its labels and its data.
+const ELECTION = fileURLToPath(new URL('../public/packs/election-rehearsal.noacgpack.json', import.meta.url));
+const program = (page: import('@playwright/test').Page, title: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${title}"]`);
+const previewFrame = (page: import('@playwright/test').Page) => page.frameLocator('[data-testid="production-preview"] iframe');
+const cueRow = (page: import('@playwright/test').Page, label: string) => page.getByTestId('cue-list').locator('.pd-cue').filter({ hasText: label }).first();
+async function takeCue(page: import('@playwright/test').Page, label: string) {
+  await cueRow(page, label).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  await page.getByTestId('verb-take').click();
+}
+async function installElection(page: import('@playwright/test').Page) {
+  await page.goto('/app#/home/productions');
+  await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(ELECTION);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
+}
+const stored = (page: import('@playwright/test').Page, name: string) =>
+  page.evaluate(async (n) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().filter((s) => s.name === n).map((s) => JSON.parse(JSON.stringify(s)));
+  }, name);
+
+test('the election package installs connected: preview and Take all four, and the Live candidate menu writes the cue', async ({ page }) => {
+  test.setTimeout(120_000);
+  await installElection(page);
+  const [show] = await stored(page, 'Election night rehearsal');
+  expect(show.graphics.map((g: { name: string; layer: number }) => [g.name, g.layer])).toEqual([['Party totals', 10], ['Candidate card', 20], ['Count bug', 30], ['Ticker', 40]]);
+  expect(show.collections).toHaveLength(1);
+  expect(show.cues.map((c: { selection?: unknown }) => c.selection ?? null)).toEqual([
+    null, null,
+    { v: 1, recipe: 'candidates', key: ['02', 101] },
+    { v: 1, recipe: 'candidates', key: ['01', 101] },
+    { v: 1, recipe: 'candidates', key: ['02', 103] },
+    null,
+  ]);
+  expect(Object.keys(show.bindings['Party totals'])).toHaveLength(22);
+  expect(show.sources).toBeUndefined();
+
+  // Every graphic previews and takes with the starter count, nothing bound by hand.
+  await cueRow(page, 'Party totals').locator('.pd-cue-label').click();
+  await expect(previewFrame(page).locator('#f7')).toHaveText('22.3%');
+  await takeCue(page, 'Party totals');
+  await expect(program(page, 'Party totals').locator('#f7')).toHaveText('22.3%');
+  await expect(program(page, 'Party totals').locator('#f8')).toHaveText('225,000');
+  await expect(program(page, 'Party totals').locator('#f54')).toHaveText('Synthetic rehearsal results, not a real count');
+  await takeCue(page, 'Count status');
+  await expect(program(page, 'Count bug').locator('#f2')).toHaveText('60 of 100 areas counted');
+  await takeCue(page, 'Headlines');
+  await expect(program(page, 'Ticker').locator('.tk-crawl')).toContainText('Counts shown here are synthetic rehearsal data');
+
+  // Two people with one number in two districts: each cue shows its own.
+  await cueRow(page, 'Leo Example').locator('.pd-cue-label').click();
+  await expect(previewFrame(page).locator('#f0')).toHaveText('Leo Example');
+  await takeCue(page, 'Aino Example');
+  const card = program(page, 'Candidate card');
+  await expect(card.locator('#f0')).toHaveText('Aino Example');
+  await expect(card.locator('#f1')).toHaveText('National Coalition · Uusimaa');
+  await expect(card.locator('#f2')).toHaveText('3,500');
+  await expect(page.getByTestId('cue-candidate-f0')).toContainText('Aino Example');
+
+  // THE WRITER: the aired cue now picks Sara. The record changes at once; the picture keeps Aino
+  // until Update, which then changes every field of the card together.
+  const pick = page.getByTestId('cue-candidate-pick');
+  await expect(pick).toHaveValue(JSON.stringify(['candidates', ['02', 101]]));
+  await pick.selectOption(JSON.stringify(['candidates', ['02', 103]]));
+  await expect.poll(async () => (await stored(page, 'Election night rehearsal'))[0].cues[2].selection).toEqual({ v: 1, recipe: 'candidates', key: ['02', 103] });
+  await expect(page.getByTestId('cue-candidate-unsent')).toBeVisible();
+  await expect(card.locator('#f0')).toHaveText('Aino Example');
+  await page.getByTestId('verb-update').click();
+  await expect(card.locator('#f0')).toHaveText('Sara Example');
+  await expect(card.locator('#f1')).toHaveText('Greens · Uusimaa');
+  await expect(card.locator('#f2')).toHaveText('2,100');
+  await expect(page.getByTestId('cue-candidate-unsent')).toHaveCount(0);
+
+  // FIXED VALUES detaches the cue with what the candidate showed; picking again reconnects it.
+  await pick.selectOption('');
+  await expect.poll(async () => {
+    const cue = (await stored(page, 'Election night rehearsal'))[0].cues[2];
+    return [cue.selection ?? null, cue.values.f0, cue.values.f2];
+  }).toEqual([null, 'Sara Example', '2,100']);
+  await expect(page.getByTestId('cue-field-f0')).toBeEditable();
+  await pick.selectOption(JSON.stringify(['candidates', ['02', 101]]));
+  await expect.poll(async () => (await stored(page, 'Election night rehearsal'))[0].cues[2].selection).toEqual({ v: 1, recipe: 'candidates', key: ['02', 101] });
+  await expect(page.getByTestId('cue-candidate-f0')).toContainText('Aino Example');
+});
+
+test('the election production exports and imports again with its fonts, picture, labels, picks and data', async ({ page }) => {
+  test.setTimeout(120_000);
+  await installElection(page);
+  await settleDurableWrites(page);
+  await page.getByTestId('production-home').click();
+  await page.getByTestId('home-nav-productions').click();
+  await page.getByTestId('export-production-row').click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('prod-export-pack').click()]);
+  const text = readFileSync(await download.path(), 'utf8');
+  const pack = JSON.parse(text);
+  const shipped = JSON.parse(readFileSync(ELECTION, 'utf8'));
+  expect(pack.version).toBe(3);
+  // Assets ride along byte for byte: each graphic's font, and the card's portrait silhouette.
+  expect(pack.graphics.map((g: { assets: { path: string; data: string }[] }) => g.assets)).toEqual(shipped.graphics.map((g: { assets: unknown }) => g.assets));
+  expect(pack.graphics[1].assets.map((a: { path: string }) => a.path)).toEqual(['fonts/manrope.woff2', 'images/portrait.svg']);
+  expect(pack.graphics.map((g: { html: string }) => g.html)).toEqual(shipped.graphics.map((g: { html: string }) => g.html));
+  expect([pack.data, pack.bindings, pack.collections]).toEqual([shipped.data, shipped.bindings, shipped.collections]);
+  expect(pack.cues.map((c: { label: string; selection?: unknown }) => [c.label, c.selection ?? null])).toEqual(shipped.cues.map((c: { label: string; selection?: unknown }) => [c.label, c.selection ?? null]));
+  // No source, address, key or credential travels: the rebind is explicit.
+  expect(pack.sources).toBeUndefined();
+  expect(text).not.toMatch(/data_key|dataKey|bearer|password|token/i);
+  await page.getByRole('button', { name: 'Close' }).click();
+
+  await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles({ name: 'again.noacgpack.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const [first, again] = await stored(page, 'Election night rehearsal');
+  expect(again).toBeTruthy();
+  const shape = (s: { graphics: { name: string; layer: number; template: { assets: unknown; fields: unknown } }[]; cues: { label: string; values: unknown; selection?: unknown }[]; data: unknown; bindings: unknown; collections: unknown }) => ({
+    graphics: s.graphics.map((g) => [g.name, g.layer, g.template.assets, g.template.fields]),
+    cues: s.cues.map((c) => [c.label, c.values, c.selection ?? null]),
+    data: s.data,
+    bindings: s.bindings,
+    collections: s.collections,
+  });
+  expect(shape(again)).toEqual(shape(first));
+  await takeCue(page, 'Aino Example');
+  await expect(program(page, 'Candidate card').locator('#f2')).toHaveText('3,500');
+});

@@ -189,7 +189,7 @@ test.describe('live candidates', () => {
     const aired = (await rows(w.showId)).length;
     await select(page, 'Card B');
     await expect(preview(page)).toHaveText(BERTTA);
-    await expect(page.getByTestId('cue-candidate')).toHaveText('Live candidate: district D2, candidate 7');
+    await expect(page.getByTestId('cue-candidate-pick')).toHaveValue(JSON.stringify(['cands', ['D2', 7]]));
     expect((await rows(w.showId)).length).toBe(aired);
     await expect(onAir(w)).toHaveText(AINO);
 

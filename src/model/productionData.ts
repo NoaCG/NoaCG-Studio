@@ -732,8 +732,9 @@ export function mappingEntries(graphic: string, rows: MappingRow[], choices: Rec
 //     which record value each field of the graphic shows;
 //   - `ShowCue.selection`, the CUE-OWNED selector: the recipe and the entity's key.
 // Read and judged by control/sourceMapping.ts (`selectionGate`, `resolveSelection`). E7.1 lands the
-// reader and the refusal only: nothing in this build writes either record, and the two write
-// doors of model/shows.ts keep both byte for byte (`selectionFrozen`).
+// reader and the refusal; E7.2a the one writer (model/shows.ts `setCueSelection`, and a pack's
+// install, `setShowSelections`), which writes only a record the reader reads. Every other write of
+// either door keeps both byte for byte (`selectionFrozen`).
 
 /** The collection recipe and the cue selector format this build reads. */
 export const SELECTION_VERSION = 1;
@@ -811,11 +812,11 @@ export interface SelectionRecord {
 /**
  * THE SELECTION READ GATE AT THE WRITE DOORS (E7.1, precedent model/shows.ts `setShowProfile`):
  * model/shows.ts `patchShowChecked` (both of its writes) and ./rundownHistory.ts `replaceRundown`
- * (a personal or a team undo) ask it. This build reads
- * live candidate selections and writes none, so a write that would change one is refused whole:
+ * (a personal or a team undo) ask it. Outside the one writer (`SelectionWrite`), a write that
+ * would change a live candidate selection is refused whole:
  * the collection recipes stay byte for byte, every surviving cue keeps its selection as it was, a
  * cue of a later version (`selectionReadOnly`) keeps every byte and is not removed, and no cue
- * gains a selection (a copy of one would need the writer, E7.2a) except one an undo brings back
+ * gains a selection except one an undo brings back
  * from the history (`restored`), whose bytes are the record's own from before. `before` is `selectionKeep`'s
  * answer for the record before the write. Left to a surface, the first older page to save the
  * production would flatten a selection into the cue's prepared values.
@@ -833,11 +834,29 @@ export function selectionKeep(show: SelectionRecord): { collections: string; cue
 
 const SELECTION_KEPT = 'This production has live candidate cues this version cannot change, so the edit was not saved.';
 
-export function selectionFrozen(before: ReturnType<typeof selectionKeep>, after: SelectionRecord, restored: ReadonlySet<string> = new Set()): string | null {
-  if (!before) return (after.collections !== undefined || (after.cues ?? []).some((c) => c.selection !== undefined && !restored.has(c.id))) ? SELECTION_KEPT : null;
-  if (JSON.stringify(after.collections ?? null) !== before.collections) return SELECTION_KEPT;
+/**
+ * What THE SELECTION WRITER (E7.2a: model/shows.ts `setCueSelection` and `setShowSelections`) may
+ * change in its one write, and to what: each named cue's selection to exactly these bytes
+ * (`JSON.stringify` of the record, "null" for one removed), and, when `collections` is given, the
+ * recipes to exactly those bytes. Everything else stays frozen as before. The writer checks the
+ * record with the reader (control/sourceMapping.ts `selectionWriteError`) before it asks.
+ */
+export interface SelectionWrite {
+  cues: ReadonlyMap<string, string>;
+  collections?: string;
+}
+
+export function selectionFrozen(before: ReturnType<typeof selectionKeep>, after: SelectionRecord, restored: ReadonlySet<string> = new Set(), write?: SelectionWrite): string | null {
+  if (JSON.stringify(after.collections ?? null) !== (write?.collections ?? before?.collections ?? 'null')) return SELECTION_KEPT;
   const now = new Map((after.cues ?? []).map((c) => [c.id, c] as const));
-  for (const [id, kept] of before.cues) {
+  // A write names cues that are there, each to its own bytes; a cue of a later version is never
+  // rewritten, since this build cannot read what it would replace.
+  for (const [id, bytes] of write?.cues ?? []) {
+    const cue = now.get(id);
+    if (!cue || before?.cues.get(id)?.whole || JSON.stringify(cue.selection ?? null) !== bytes) return SELECTION_KEPT;
+  }
+  for (const [id, kept] of before?.cues ?? []) {
+    if (write?.cues.has(id)) continue;
     const cue = now.get(id);
     if (!cue) {
       if (kept.whole) return SELECTION_KEPT;
@@ -845,6 +864,6 @@ export function selectionFrozen(before: ReturnType<typeof selectionKeep>, after:
     }
     if (JSON.stringify(kept.whole ? cue : cue.selection) !== kept.bytes) return SELECTION_KEPT;
   }
-  for (const cue of after.cues ?? []) if (cue.selection !== undefined && !before.cues.has(cue.id) && !restored.has(cue.id)) return SELECTION_KEPT;
+  for (const cue of after.cues ?? []) if (cue.selection !== undefined && !before?.cues.has(cue.id) && !restored.has(cue.id) && !write?.cues.has(cue.id)) return SELECTION_KEPT;
   return null;
 }

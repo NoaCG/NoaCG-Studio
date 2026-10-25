@@ -1,12 +1,17 @@
 // Assemble graphics packs (src/packs/graphicsPack.ts, format `noacg-pack` v1) from FILE-BASED
 // pack source directories: <pack>/manifest.json + one directory per graphic holding
-// template.html / style.css / logic.js and, optionally, a fonts/ folder whose files ride along
-// as inlined assets.
+// template.html / style.css / logic.js and, optionally, fonts/ and images/ folders whose files
+// ride along as inlined assets. A manifest may also carry the production's data (format v3): a
+// `data` file (the seed tree), `bindings` and `collections`, and a `selection` on a cue; and a
+// `publish` list of files copied beside the built pack (its instructions and starter files).
 //
 // With no argument it builds every pack the repo ships:
 //   packs/fight-night            -> public/packs/fight-night.noacgpack.json, the fixture
 //                                   e2e/production-pack.spec.ts imports (listed nowhere in the
 //                                   studio);
+//   packs/election-rehearsal     -> public/packs/election-rehearsal.noacgpack.json and its
+//                                   instructions and starter files in public/packs/election-rehearsal/
+//                                   (docs/work-specs/playout-election-package/spec.md, E7.2a);
 //   packs/community/<slug>       -> public/packs/community/<slug>.noacgpack.json plus its
 //                                   preview image, and public/packs/community/index.json - the
 //                                   seeded Community packs shelf the template wizard lists
@@ -29,19 +34,24 @@ const repo = dirname(dirname(fileURLToPath(import.meta.url)));
 // reproduces the same bytes.
 const readSource = (path) => readFileSync(path, 'utf8').replace(/\r\n?/g, '\n');
 
-const FONT_TYPES = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf' };
+const ASSET_TYPES = {
+  fonts: { '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf' },
+  images: { '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' },
+};
 
-/** A graphic's fonts/ folder as pack assets (`{ path, data }` with data URLs). */
-function fontAssets(dir) {
-  const fonts = join(dir, 'fonts');
-  if (!existsSync(fonts)) return [];
-  return readdirSync(fonts)
-    .filter((file) => FONT_TYPES[extname(file).toLowerCase()])
-    .sort()
-    .map((file) => ({
-      path: `fonts/${file}`,
-      data: `data:${FONT_TYPES[extname(file).toLowerCase()]};base64,${readFileSync(join(fonts, file)).toString('base64')}`,
-    }));
+/** A graphic's fonts/ and images/ folders as pack assets (`{ path, data }` with data URLs). */
+function folderAssets(dir) {
+  return Object.entries(ASSET_TYPES).flatMap(([folder, types]) => {
+    const root = join(dir, folder);
+    if (!existsSync(root)) return [];
+    return readdirSync(root)
+      .filter((file) => types[extname(file).toLowerCase()])
+      .sort()
+      .map((file) => ({
+        path: `${folder}/${file}`,
+        data: `data:${types[extname(file).toLowerCase()]};base64,${readFileSync(join(root, file)).toString('base64')}`,
+      }));
+  });
 }
 
 /** Read and check one pack source directory. Returns the pack object, or the refusals. */
@@ -107,7 +117,7 @@ function assemble(packDir, manifest = readManifest(packDir)) {
       if (!html.includes(`id="${m[1]}"`)) fail(`${where}: field ${m[1]} has no element id="${m[1]}"`);
     }
 
-    const assets = fontAssets(dir);
+    const assets = folderAssets(dir);
     return {
       name: entry.name,
       type: entry.type,
@@ -126,13 +136,25 @@ function assemble(packDir, manifest = readManifest(packDir)) {
     return cue;
   });
 
+  // The production's data (format v3): the seed tree from its file, the bindings by graphic name
+  // and the collection recipes. The studio's importer reads each with the one reader; here only
+  // the names are checked.
+  const data = manifest.data ? JSON.parse(readSource(join(packDir, manifest.data))) : undefined;
+  for (const graphic of Object.keys(manifest.bindings ?? {})) if (!names.has(graphic)) fail(`bindings name unknown graphic "${graphic}"`);
+  for (const recipe of manifest.collections ?? []) if (!names.has(recipe.graphic)) fail(`collection "${recipe.id}" is for unknown graphic "${recipe.graphic}"`);
+  const production = {
+    ...(data ? { data } : {}),
+    ...(manifest.bindings ? { bindings: manifest.bindings } : {}),
+    ...(manifest.collections ? { collections: manifest.collections } : {}),
+  };
   const pack = {
     format: 'noacg-pack',
-    version: 1,
+    version: Object.keys(production).length || cues.some((c) => c.selection) ? 3 : 1,
     name: manifest.name,
     description: manifest.description ?? '',
     graphics,
     ...(cues.length ? { cues } : {}),
+    ...production,
   };
   return { failures, pack };
 }
@@ -148,6 +170,16 @@ function buildOne(packDir, outDir, manifest) {
   }
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, `${slug}.noacgpack.json`), JSON.stringify(pack, null, 2) + '\n');
+  // The files a reader downloads beside the pack (instructions, starter files), as written.
+  const published = (manifest ?? readManifest(packDir)).publish ?? [];
+  if (published.length) {
+    const beside = join(outDir, slug);
+    rmSync(beside, { recursive: true, force: true });
+    for (const file of published) {
+      mkdirSync(dirname(join(beside, file)), { recursive: true });
+      writeFileSync(join(beside, file), readSource(join(packDir, file)));
+    }
+  }
   const bytes = JSON.stringify(pack).length;
   const cueCount = pack.cues?.length ?? 0;
   console.log(
@@ -207,5 +239,6 @@ if (process.argv[2]) {
   buildOne(process.argv[2], join(repo, 'public', 'packs'));
 } else {
   buildOne(join(repo, 'packs', 'fight-night'), join(repo, 'public', 'packs'));
+  buildOne(join(repo, 'packs', 'election-rehearsal'), join(repo, 'public', 'packs'));
   buildCommunityShelf();
 }

@@ -14,6 +14,8 @@ import {
   selectedFields,
   selectionFrozen,
   selectionKeep,
+  selectionReadOnly,
+  type SelectionWrite,
   sourcePaths,
   withBindings,
   type BindingEntry,
@@ -103,8 +105,9 @@ export interface ShowCue {
   /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-election-package/spec.md, E7.1). The
    *  live candidate this cue shows: a collection recipe of `Show.collections` and the entity's key,
    *  resolved by control/sourceMapping.ts `selectionGate` and `resolveSelection`. Absent on every
-   *  cue before it, which behaves exactly as it did. Nothing in this build writes it, and the write
-   *  doors keep it byte for byte (`selectionFrozen`); a later version makes the whole cue read-only. */
+   *  cue before it, which behaves exactly as it did. Written only by `setCueSelection` and a pack's
+   *  `setShowSelections` (E7.2a); every other write keeps it byte for byte (`selectionFrozen`), and
+   *  a later version makes the whole cue read-only. */
   selection?: CueSelection | { v: number; [later: string]: unknown };
 }
 
@@ -492,8 +495,8 @@ export interface Show {
   /** Soft-delete tombstone (hidden from the UI, kept so the delete syncs). See Packet.deleted. */
   deleted?: boolean;
   /** ADDITIVE OPTIONAL, each with its own `v` (E7.1): the shared collection recipes cues select
-   *  live candidates from (productionData `CollectionRecipe`). Kept byte for byte by every write
-   *  of this build (`selectionFrozen`), which has no writer for them. */
+   *  live candidates from (productionData `CollectionRecipe`). Written only by a pack's install
+   *  (`setShowSelections`); every other write keeps them byte for byte (`selectionFrozen`). */
   collections?: (CollectionRecipe | { v: number; [later: string]: unknown })[];
   /**
    * The TEAM that holds this production (docs/TEAMS_PLAN.md §4), present only on a record read
@@ -908,6 +911,8 @@ function patchShowChecked(
   showId: string,
   mutate: (show: Show, at: string) => boolean | string,
   rebased = false,
+  /** The selection writer's allowance (productionData `SelectionWrite`); every other write has none. */
+  write?: SelectionWrite,
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
@@ -920,7 +925,7 @@ function patchShowChecked(
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
-  const frozen = selectionFrozen(kept, show);
+  const frozen = selectionFrozen(kept, show, undefined, write);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
@@ -934,7 +939,7 @@ function patchShowChecked(
     const keptFresh = selectionKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
-    const frozenFresh = again ? selectionFrozen(keptFresh, fresh) : null;
+    const frozenFresh = again ? selectionFrozen(keptFresh, fresh, undefined, write) : null;
     if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
     return { value: JSON.stringify(list) };
@@ -1276,6 +1281,72 @@ export function updateShowCueChecked(
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
   }, Boolean(patch.stagedFrom));
+}
+
+/** Asked inside the selection writer's write, on the record that door is writing: why this cue may
+ *  not be saved with the selection it now carries (control/sourceMapping.ts `selectionWriteError`
+ *  on the cue, its graphic's name, the recipes and the shared bindings), or null. */
+export type SelectionCheck = (show: Show, cue: ShowCue) => string | null;
+
+/**
+ * THE SELECTION WRITER (docs/work-specs/playout-election-package/spec.md, E7.2a): the one write
+ * that gives a cue its live candidate, moves it to another, or detaches it. `selection` is the
+ * cue-owned record (`{v: 1, recipe, key}`, outside the cue's values); `null` detaches the cue, and
+ * `snapshot` then becomes its prepared values for those fields in the same write (Fill: what the
+ * candidate showed, held as ordinary values; reconnecting is another explicit pick). Rebased, so
+ * `check` judges the record each door writes, and allowed by `selectionFrozen` for this cue's
+ * selection only and only to these bytes. A cue of a later version (`selectionReadOnly`) is never
+ * rewritten. Air is the page's: a cue on air keeps its captured candidate until ✎ Update.
+ */
+export function setCueSelection(
+  showId: string,
+  cueId: string,
+  selection: CueSelection | null,
+  check: SelectionCheck,
+  snapshot?: Record<string, string>,
+): { shows: Show[]; error: string | null } {
+  const bytes = JSON.stringify(selection);
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return 'This cue was removed.';
+    if (selectionReadOnly(cue, show.collections)) return 'This cue’s live candidate was set up by a later version of NoaCG, so it is read-only here.';
+    if (JSON.stringify(cue.selection ?? null) === bytes && !snapshot) return false;
+    if (selection) {
+      cue.selection = structuredClone(selection);
+      const refused = check(show, cue);
+      if (refused) return refused;
+    } else {
+      delete cue.selection;
+      if (snapshot) cue.values = { ...cue.values, ...snapshot };
+    }
+    return true;
+  }, true, { cues: new Map([[cueId, bytes]]) });
+}
+
+/**
+ * A pack's install (packs/graphicsPack.ts `installPack`): the production's collection recipes and
+ * its cues' selections in ONE write, each selection judged by `check` with the recipes it lands
+ * with. Refused whole, so an install never leaves half its candidates connected.
+ */
+export function setShowSelections(
+  showId: string,
+  collections: CollectionRecipe[],
+  selections: ReadonlyMap<string, CueSelection>,
+  check: SelectionCheck,
+): { shows: Show[]; error: string | null } {
+  const cues = new Map([...selections].map(([id, s]) => [id, JSON.stringify(s)] as const));
+  return patchShowChecked(showId, (show) => {
+    if (show.collections !== undefined || show.cues?.some((c) => c.selection !== undefined)) return 'This production already has live candidates.';
+    show.collections = structuredClone(collections);
+    for (const [id, selection] of selections) {
+      const cue = show.cues?.find((c) => c.id === id);
+      if (!cue) return 'A cue of the pack was removed.';
+      cue.selection = structuredClone(selection);
+      const refused = check(show, cue);
+      if (refused) return `“${cue.label}”: ${refused}`;
+    }
+    return true;
+  }, true, { cues, collections: JSON.stringify(collections) });
 }
 
 /** Set or clear a cue's shortcut (model/cueShortcuts.ts). A key another cue holds is refused,

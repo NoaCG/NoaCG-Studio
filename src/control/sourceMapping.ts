@@ -646,6 +646,28 @@ export type SelectionResolve =
    */
   | { status: 'hold'; why: 'collection' | 'missing' | 'partial'; reason: string; revision: number | null };
 
+/** One revision of a recipe's collection as the tree holds it now, or why there is none. */
+function readCollection(recipe: CollectionRecipe, tree: unknown): { revision: number; items: unknown[] } | { why: 'collection'; reason: string; revision: number | null } {
+  const hold = (reason: string, revision: number | null) => ({ why: 'collection' as const, reason, revision });
+  let value: unknown = isObject(tree) ? atPath(tree as JsonValue, `${sourcePrefix(recipe.sourceId, 'external')}.${recipe.from}`) : undefined;
+  if (value === undefined) return hold('the collection has not arrived', null);
+  if (typeof value === 'string') {
+    if (value.length > MAX_COLLECTION_TEXT) return hold(`the collection is longer than ${MAX_COLLECTION_TEXT} characters`, null);
+    value = parsedText(value);
+    if (value === undefined) return hold('the collection is not JSON', null);
+  }
+  if (!isObject(value)) return hold('the collection is not a record', null);
+  const revision = value.revision;
+  if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) return hold('the collection has no revision', null);
+  if (value.schemaRevision !== recipe.schemaRevision) {
+    return hold(`the collection is schema revision ${JSON.stringify(value.schemaRevision)}, and its fields were mapped for ${recipe.schemaRevision}`, revision);
+  }
+  const items = value.items;
+  if (!Array.isArray(items)) return hold('the collection has no items', revision);
+  if (items.length > MAX_ITEMS) return hold(`the collection has more than ${MAX_ITEMS} items`, revision);
+  return { revision, items };
+}
+
 /**
  * Resolve every mapped field of ONE entity from ONE accepted revision. `fields` are the graphic's
  * fields as the reader sees them, null when it has none. Pure; linear in the collection's size.
@@ -653,22 +675,9 @@ export type SelectionResolve =
 export function resolveSelection(o: { recipe: CollectionRecipe; tree: unknown; key: readonly (string | number)[]; fields: FieldDescriptor[] | null }): SelectionResolve {
   const { recipe } = o;
   const hold = (why: 'collection' | 'missing' | 'partial', reason: string, revision: number | null): SelectionResolve => ({ status: 'hold', why, reason, revision });
-  let value: unknown = isObject(o.tree) ? atPath(o.tree as JsonValue, `${sourcePrefix(recipe.sourceId, 'external')}.${recipe.from}`) : undefined;
-  if (value === undefined) return hold('collection', 'the collection has not arrived', null);
-  if (typeof value === 'string') {
-    if (value.length > MAX_COLLECTION_TEXT) return hold('collection', `the collection is longer than ${MAX_COLLECTION_TEXT} characters`, null);
-    value = parsedText(value);
-    if (value === undefined) return hold('collection', 'the collection is not JSON', null);
-  }
-  if (!isObject(value)) return hold('collection', 'the collection is not a record', null);
-  const revision = value.revision;
-  if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) return hold('collection', 'the collection has no revision', null);
-  if (value.schemaRevision !== recipe.schemaRevision) {
-    return hold('collection', `the collection is schema revision ${JSON.stringify(value.schemaRevision)}, and its fields were mapped for ${recipe.schemaRevision}`, revision);
-  }
-  const items = value.items;
-  if (!Array.isArray(items)) return hold('collection', 'the collection has no items', revision);
-  if (items.length > MAX_ITEMS) return hold('collection', `the collection has more than ${MAX_ITEMS} items`, revision);
+  const read = readCollection(recipe, o.tree);
+  if ('why' in read) return hold(read.why, read.reason, read.revision);
+  const { revision, items } = read;
   const wanted = entityOf(o.key);
   let picked: Record<string, JsonValue> | null = null;
   const seen = new Set<string>();
@@ -700,4 +709,63 @@ export function resolveSelection(o: { recipe: CollectionRecipe; tree: unknown; k
     values[id] = text;
   }
   return { status: 'ok', revision, entity: wanted, values };
+}
+
+// THE WRITER (E7.2a): what the production page offers a candidate cue, and the check every write
+// of a selection passes (model/shows.ts `setCueSelection`, `setShowSelections` run it inside their
+// write, on the record each of their two doors writes).
+
+/**
+ * Why `cue` may not be written with the selection it now carries, or null. Only a record the read
+ * gate takes as usable (`selectionGate`), and only one whose collection names an entity by at least
+ * two parts: a candidate number alone is the same in every district, and the reader takes a
+ * one-part key, so the writer is where it is refused.
+ */
+export function selectionWriteError(
+  cue: { selection?: unknown },
+  collections: readonly unknown[] | undefined,
+  graphic: string | null,
+  bindings: Record<string, Record<string, string>> | undefined,
+): string | null {
+  const gate = selectionGate(cue, collections, graphic, bindings);
+  if (gate.status === 'none') return 'This cue has no live candidate to save.';
+  if (gate.status !== 'ok') return gate.reason;
+  if (gate.recipe.key.length < 2) return 'A live candidate is named by its district and its candidate number, and this collection names it by one key.';
+  return null;
+}
+
+export interface CollectionEntity {
+  key: (string | number)[];
+  /** The record's first mapped value, as text: the person, for a candidate card. */
+  label: string;
+}
+
+/**
+ * The entities one revision of `recipe`'s collection holds, in key order (never ranking order, so a
+ * list a ranking reorders does not move under the operator's pointer), or why there are none. An
+ * item without its key parts, or two sharing a key, make the list unusable, as they make
+ * `resolveSelection` hold. Linear in the collection's size, sorted after.
+ */
+export function collectionEntities(recipe: CollectionRecipe, tree: unknown): { entities: CollectionEntity[] } | { problem: string } {
+  const read = readCollection(recipe, tree);
+  if ('why' in read) return { problem: read.reason };
+  const first = Object.values(recipe.fields)[0]?.from;
+  const seen = new Set<string>();
+  const entities: (CollectionEntity & { entity: string })[] = [];
+  for (const item of read.items) {
+    if (!isObject(item)) return { problem: 'an item of the collection is not a record' };
+    const key: (string | number)[] = [];
+    for (const path of recipe.key) {
+      const part = atPath(item as JsonValue, path);
+      if (!keyPart(part)) return { problem: `an item of the collection has no ${path}` };
+      key.push(part);
+    }
+    const entity = entityOf(key);
+    if (seen.has(entity)) return { problem: 'two items share one key' };
+    seen.add(entity);
+    const shown = first === undefined ? undefined : atPath(item as JsonValue, first);
+    entities.push({ key, entity, label: typeof shown === 'string' || typeof shown === 'number' ? String(shown) : '' });
+  }
+  entities.sort((a, b) => (a.entity < b.entity ? -1 : a.entity > b.entity ? 1 : 0));
+  return { entities: entities.map(({ key, label }) => ({ key, label })) };
 }
