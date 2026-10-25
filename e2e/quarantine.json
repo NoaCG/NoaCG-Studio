@@ -17,6 +17,11 @@
       "count": 14,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39913149457"
     },
+    "e2e/configured/production-data-key.spec.ts": {
+      "since": "2026-10-25",
+      "count": 5,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40162651190"
+    },
     "e2e/configured/shared-lab-computer.spec.ts": {
       "since": "2026-10-23",
       "count": 2,
@@ -77,10 +82,6 @@
     "e2e/configured/playout-switch-mid-flight.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
-    },
-    "e2e/configured/production-data-key.spec.ts": {
-      "count": 4,
-      "last": "2026-10-23"
     },
     "e2e/configured/publish-output-default.spec.ts": {
       "count": 1,
