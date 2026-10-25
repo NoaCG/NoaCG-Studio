@@ -243,10 +243,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** Per graphic, the unbound figures this page sent that are not answered yet: the base the next
    *  press counts from while they are out (`baseOf`). */
   const sentFigures = new Map<string, Record<string, string>>();
-  /** Per graphic, figures whose send landed while air's record had not taken them yet (a slow-road
-   *  row not heard back): the base while that same record stands and the same cue holds the layer.
-   *  Any later write to air's record (the row coming back, an Update, a Take) is a new object. */
-  const landedFigures = new Map<string, { record: unknown; cue: string | null; figures: Record<string, string> }>();
+  /** Per graphic and field, a figure whose send landed while air's record had not taken it yet (a
+   *  slow-road row not heard back): the base while air's record still shows that field as it was
+   *  (`over`) and the same cue holds the layer. A write to another field leaves it standing; this
+   *  page's own Take, Update or Snap of the graphic clears it (`sendWith`). */
+  const landedFigures = new Map<string, Record<string, { figure: string; over: string | undefined; cue: string | null }>>();
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
@@ -351,11 +352,12 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const baseOf = (graphic: string, key: string, fallback: string | undefined) => {
     const pending = sentFigures.get(graphic)?.[key];
     if (pending !== undefined) return pending;
-    const record = session.air.get().aired[graphic];
-    const landed = landedFigures.get(graphic);
-    if (landed && (landed.record !== record || landed.cue !== onLayer(graphic))) landedFigures.delete(graphic);
-    else if (landed && key in landed.figures) return landed.figures[key];
-    return record?.[key] ?? fallback;
+    const aired = session.air.get().aired[graphic]?.[key];
+    const book = landedFigures.get(graphic);
+    const landed = book?.[key];
+    if (landed && aired === landed.over && landed.cue === onLayer(graphic)) return landed.figure;
+    if (landed) delete book![key];
+    return aired ?? fallback;
   };
   /** Hold these figures as sent until the send settles; one that landed and is not yet in air's
    *  record stays the base while that record stands and its cue still holds the layer. */
@@ -366,18 +368,28 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return (landed: boolean) => {
       if (sentFigures.get(graphic) === held) sentFigures.delete(graphic);
       if (!landed) return;
-      // Air's record already shows the figures (the fast road applied them here): nothing to book.
-      const now = session.air.get().aired[graphic];
-      if (now && Object.entries(figures).every(([key, figure]) => now[key] === figure)) return;
-      const before = landedFigures.get(graphic);
-      const kept = before && before.record === now && before.cue === cue ? before.figures : {};
-      landedFigures.set(graphic, { record: now, cue, figures: { ...kept, ...figures } });
+      const now = session.air.get().aired[graphic] ?? {};
+      const book = { ...(landedFigures.get(graphic) ?? {}) };
+      // A field air's record already shows (the fast road applied it here) needs no booking.
+      for (const [key, figure] of Object.entries(figures)) {
+        if (now[key] === figure) delete book[key];
+        else book[key] = { figure, over: now[key], cue };
+      }
+      landedFigures.set(graphic, book);
     };
   };
 
   // ── The one sender. ONE place a verb's commands go somewhere: the wire when published, the local
   // PROGRAM monitor always, so the two can never drift into two behaviours. ──
   const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false): Promise<Sent> => {
+    // A Take, Update, Snap or Out of a graphic replaces what air shows there: a landed figure that
+    // air's record had not taken yet is no longer the base (a press's own update books after this).
+    for (const item of batches.flat()) {
+      const book = landedFigures.get(item.graphic);
+      if (!book) continue;
+      if (item.msg.t === 'update') for (const key of Object.keys(item.msg.data ?? {})) delete book[key];
+      else if (item.msg.t !== 'event' && item.msg.t !== 'next') landedFigures.delete(item.graphic);
+    }
     // Nothing more goes for a closed production (§4.1 R3), except All out's clear: the panic control
     // pressed before the end still takes off what it named, since a clear can air nothing stale.
     if (!allOut && !session.alive()) return { ok: false, note: ENDED_NOTE };

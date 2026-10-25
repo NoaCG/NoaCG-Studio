@@ -2054,13 +2054,34 @@ test('a landed figure is not the base on the next cue, nor after air\'s record m
   assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '1' });
   r.sends[1].answer.resolve({ ...noneLeft });
   await two;
-  // On B, an Update puts the figure back to what stood before the press: air's record is the base.
-  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '0' } } } }));
+  // On B, this page's Update puts the figure back to what the cue holds: air's record is the base.
+  const updating = r.verbs.update(liveSelection('Score', [a, b], r.liveCue()));
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '0' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await updating;
   const three = r.verbs.bump(liveSelection('Score', [a, b], r.liveCue()), 'home', 1);
   await settle();
-  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '1' });
-  r.sends[2].answer.resolve({ ...noneLeft });
+  assert.deepEqual(r.sends[3].batches[0][0].msg.data, { home: '1' });
+  r.sends[3].answer.resolve({ ...noneLeft });
   await three;
+});
+
+test('a landed figure survives an update of another field arriving before its row (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7', name: 'Katri' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7', name: 'Katri' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  // Another page's name-only update arrives; the +1's own row has not.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '7', name: 'K.' } } } }));
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
 });
 
 test('an unrelated write to air\'s record during a slow send does not lose the figure that landed (F2)', async () => {

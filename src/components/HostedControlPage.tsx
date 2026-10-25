@@ -995,15 +995,21 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       if (Object.keys(sent).length === 0) return () => {};
       const held = { ...sentFigures.current[graphic], ...sent };
       sentFigures.current = { ...sentFigures.current, [graphic]: held };
+      // What air showed for these fields, and the cue on the layer, at the press.
+      const cue = liveCueRef.current[graphic] ?? null;
+      const over = Object.fromEntries(Object.keys(sent).map((key) => [key, airedRef.current[graphic]?.[key]]));
       return (landed) => {
         if (sentFigures.current[graphic] === held) {
           const { [graphic]: _settled, ...rest } = sentFigures.current;
           sentFigures.current = rest;
         }
-        if (!landed) return;
-        // The server took it, so it is what air was sent, whether or not its row is back yet.
-        airedRef.current = { ...airedRef.current, [graphic]: { ...airedRef.current[graphic], ...sent } };
-        setAiredData((prev) => ({ ...prev, [graphic]: { ...prev[graphic], ...sent } }));
+        if (!landed || (liveCueRef.current[graphic] ?? null) !== cue) return;
+        // The server took it, so it is what air was sent, whether or not its row is back yet; a
+        // field a newer command already moved (a Take, another page) keeps that newer figure.
+        const taken = Object.fromEntries(Object.entries(sent).filter(([key]) => airedRef.current[graphic]?.[key] === over[key]));
+        if (Object.keys(taken).length === 0) return;
+        airedRef.current = { ...airedRef.current, [graphic]: { ...airedRef.current[graphic], ...taken } };
+        setAiredData((prev) => ({ ...prev, [graphic]: { ...prev[graphic], ...taken } }));
       };
     },
   };
