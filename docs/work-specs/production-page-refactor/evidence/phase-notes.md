@@ -18,7 +18,8 @@ changes a spec's digest.
   on PGRST202, and otherwise after five refusals in a row (a lapsed sign-in, 401, does not count),
   so a blip is asked again and a lasting fault still leaves the page working. Until that verdict
   no press goes by row id: a press waits for the production's resolve within its resend window,
-  then goes numbered, or counts as unanswered like the resolve. A page on protocol 1 shows
+  then goes numbered, or counts as unanswered like the resolve. The wait is one per production, so
+  presses resume and take their numbers in the order they were made. A page on protocol 1 shows
   "order not guaranteed" under the on-air chip (both operator pages, `UnorderedSends`), and its
   automatic sends already hold (`sendsInOrder`, selectionAir.ts). The renderer's rule is unchanged:
   it sends nothing.
@@ -34,7 +35,8 @@ changes a spec's digest.
 - **Tests:** `scripts/failed-sends.test.mjs` pins the rule for both askers.
   `e2e/production-controls.spec.ts` (offline) refuses the first resolves and checks the Take goes
   numbered with no mark, holds a press made during an outage, sends a press made while the resolve
-  is on its way numbered once it answers, and shows the mark on PGRST202.
+  is on its way numbered once it answers, keeps two such presses in order, and shows the mark on
+  PGRST202.
   Each was mutation-tested against the old rule. `e2e/configured/command-sequence.spec.ts`
   refuses the first resolve with a 500, then holds a Take 6 s and presses Out: the late Take is
   left out and never airs. The configured election spec now also expects the mark on protocol 1.

@@ -198,11 +198,12 @@ test('published, a Take is pending until the command log answers, then logged, n
 // row id, where a send that commits late can air over a later Take. It used to go there for good
 // on any refused resolve, silently. Now a refusal is asked again, and a page that does end up
 // there (a server with no sequence road) says so under the on-air chip.
-async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | { delay: number } | null): Promise<{ sendsSeq: () => number; sendsById: () => number }> {
+async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | { delay: number } | null): Promise<{ sendsSeq: () => number; sendsById: () => number; numbered: { t: string; press: number }[] }> {
   const backend = await standInBackend(page);
   let fixture: unknown = null;
   let seq = 0;
   let byId = 0;
+  const numbered: { t: string; press: number }[] = [];
   await page.route(`${backend}/**`, async (route) => {
     const req = route.request();
     const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
@@ -214,6 +215,8 @@ async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown)
     if (rpc === 'control_show_resolve') return route.fulfill({ status: 200, headers, body: JSON.stringify(fixture) });
     if (rpc === 'control_send_seq') {
       seq += 1;
+      const body = req.postDataJSON() as { p_items: { msg: { t: string } }[]; p_sender: { press: number } };
+      numbered.push({ t: body.p_items[0].msg.t, press: body.p_sender.press });
       return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, epoch: null, head: { graphics: {} }, skipped: [] }) });
     }
     if (rpc === 'control_send_many') byId += 1;
@@ -228,7 +231,7 @@ async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown)
   await page.goto(`/app#/production/${seeded.id}`);
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('verb-target')).toHaveText('To: 0 outputs');
-  return { sendsSeq: () => seq, sendsById: () => byId };
+  return { sendsSeq: () => seq, sendsById: () => byId, numbered };
 }
 
 test('a refused resolve is asked again, so the page keeps its order: no mark, and a Take goes numbered (#1697)', async ({ page }) => {
@@ -269,6 +272,28 @@ test('a press made while the resolve is on its way waits for it and goes numbere
   await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'logged', { timeout: 15_000 });
   expect(sendsSeq(), 'it went numbered once the resolve answered').toBeGreaterThan(0);
   expect(sendsById()).toBe(0);
+});
+
+// Driven through the page's own send module, so the numbers are the page's: the Out leaves 50 ms
+// after the Take, both while the resolve is held. Fault-injected: with one wait per press and the
+// Out's waking first, the Out took the lower number and the Take then stood over it.
+test('two presses made while the resolve is on its way keep their order (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] });
+    const take = press('play');
+    await new Promise((r) => setTimeout(r, 50));
+    await Promise.all([take, press('stop')]);
+  }, showId);
+  const take = numbered.find((n) => n.t === 'play');
+  const out = numbered.find((n) => n.t === 'stop');
+  expect(take && out, 'both went numbered').toBeTruthy();
+  expect(take!.press, 'the Take is numbered before the Out it was pressed before').toBeLessThan(out!.press);
 });
 
 test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {

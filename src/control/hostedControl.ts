@@ -1001,11 +1001,22 @@ async function askSeqRoad(
   return undefined;
 }
 
+/** Per control slug, the one wait for its road in progress. Shared, so the presses waiting on it
+ *  resume in the order they were made and take their numbers in that order. */
+const roadWaits = new Map<string, Promise<void>>();
+
 /** Until this production's road is decided - its resolve answered on protocol 2, or the server has
- *  none - or `deadline` passes. At once with no backend: there is nothing to send to. */
-async function roadDecided(slug: string, deadline: number): Promise<void> {
-  if (!(await getSupabase().catch(() => null))) return;
-  while (!seqSessions.has(slug) && !givenUp() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+ *  none - or the first waiting press's `deadline` passes. At once with no backend. */
+function roadDecided(slug: string, deadline: number): Promise<void> {
+  let wait = roadWaits.get(slug);
+  if (!wait) {
+    wait = (async () => {
+      if (!(await getSupabase().catch(() => null))) return;
+      while (!seqSessions.has(slug) && !givenUp() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+    })().finally(() => roadWaits.delete(slug));
+    roadWaits.set(slug, wait);
+  }
+  return wait;
 }
 
 /** Per control slug, what this page knows of the head (seqSend.ts). Set by the resolve, kept
@@ -1416,15 +1427,19 @@ export async function sendControlVerb(opts: {
 }): Promise<VerbSent> {
   const now = Date.now();
   const { showId } = opts;
+  // A press made before this production's resolve has decided the road waits for it, within its own
+  // resend window: sent by row id instead, it would have no per-graphic order (#1697). One made
+  // while others still wait joins them, so it cannot be numbered ahead of them.
+  if (!seqSessions.has(opts.slug) || roadWaits.has(opts.slug)) {
+    await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
+  }
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
   const fastRoad = !!showId && !recovering.has(showId);
-  // A press made before this production's resolve has decided the road waits for it, within its own
-  // resend window: sent by row id instead, it would have no per-graphic order (#1697).
-  if (!seqSessions.has(opts.slug)) await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
-  // the operator had seen, read NOW, at the press - not when the send leaves (seqSend.ts).
+  // the operator had seen, read NOW, at the press (or as its road is decided) - not when the send
+  // leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
   const sender = session ? (opts.sender ?? pressSender(opts.slug, session, opts.items, !!opts.allOut)) : null;
   // A batch numbered at an earlier press leaves this page's monitor alone on every graphic the page
