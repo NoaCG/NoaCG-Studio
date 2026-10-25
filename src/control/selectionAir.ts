@@ -63,8 +63,6 @@ interface Sent {
   /** A Take or an Out: it moved this page's marker when it was sent (airState.ts
    *  `claimAndApply`), and nothing puts the marker back if it does not land (#1696). */
   moves?: true;
-  /** When a press was sent. */
-  at?: number;
 }
 
 /** Why a layer is held, since when, and the revision that said so (`unsent`: a correction whose
@@ -103,10 +101,11 @@ export interface SelectionLayer {
    *  server (a page left and reopened inside its resend window), so nothing is decided or sent. */
   settling?: number;
   /** Since when nothing is sent on its own, until an operator press of this page lands: another
-   *  screen changed the graphic (`stale`: when this page last learned so, a refusal or a command
-   *  heard, on this page's clock), or a Take or an Out did not land, so the marker it moved says
-   *  nothing about what airs (`moved`: the newest such press's number); both may hold. A later
-   *  press of this page that lands ends `moved`; only one sent after `stale` ends `stale`.
+   *  screen changed the graphic (`stale`: this page's newest send number when it learned so, by a
+   *  refusal or a command heard), or a Take or an Out did not land, so the marker it moved says
+   *  nothing about what airs (`moved`: the newest such press's number); both may hold. A press
+   *  of this page with a higher number that lands ends either: numbers, not times, so two events
+   *  in one clock tick are still ordered.
    *  `reopened`: the page was reopened (a reload, another production and back, an app restart),
    *  and what other screens did while it was closed is not known here; it ends as `stale` does. */
   blocked?: { since: number; stale?: number; moved?: number; reopened?: true };
@@ -246,7 +245,7 @@ export type SelectionEvent =
   | { t: 'press'; cueId: string; take: SelectionTake; seq: number; moves?: boolean; now: number }
   /** A send on another road was refused because another screen changed the graphic, or this page
    *  heard another screen's command on it. */
-  | { t: 'stale'; now: number }
+  | { t: 'stale'; now: number; mark: number }
   /** The send numbered `seq` was answered: it reached the output, or it did not. `uncertain`: it
    *  failed without the server saying no (no answer in time), so it may still commit; `stale`:
    *  the server refused it because another screen changed the graphic since. */
@@ -270,7 +269,7 @@ function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTak
   const l = l0 ?? { onAir: null, out: [], marks: {} };
   // An explicit press is the operator's decision: the entity's hold ends with it once it lands (a
   // later read judges again; one that fails keeps the hold, so the held revision still goes).
-  return { layer: { ...l, out: [...l.out, { seq, press: true, cueId, target, at: now, ...(moves ? { moves: true as const } : {}) }] }, seq };
+  return { layer: { ...l, out: [...l.out, { seq, press: true, cueId, target, ...(moves ? { moves: true as const } : {}) }] }, seq };
 }
 
 function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now: number, uncertain = false, stale = false): Step {
@@ -298,7 +297,7 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
     // (its marker move came after); another screen's change only by a press sent after it.
     const b = l.blocked;
     const keepMoved = b?.moved !== undefined && seq <= b.moved;
-    const keepStale = b?.stale !== undefined && (sent.at ?? NONE) < b.stale;
+    const keepStale = b?.stale !== undefined && seq <= b.stale;
     const block =
       b && (keepMoved || keepStale)
         ? { blocked: { since: b.since, ...(keepStale ? { stale: b.stale } : {}), ...(keepMoved ? { moved: b.moved } : {}) } }
@@ -311,7 +310,7 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
   const moved = sent.press && sent.moves === true;
   const block =
     moved || stale
-      ? { blocked: { ...left.blocked, since: left.blocked?.since ?? now, ...(stale ? { stale: Math.max(left.blocked?.stale ?? NONE, now) } : {}), ...(moved ? { moved: Math.max(left.blocked?.moved ?? 0, seq) } : {}) } }
+      ? { blocked: { ...left.blocked, since: left.blocked?.since ?? now, ...(stale ? { stale: Math.max(left.blocked?.stale ?? 0, seq) } : {}), ...(moved ? { moved: Math.max(left.blocked?.moved ?? 0, seq) } : {}) } }
       : {};
   const next: SelectionLayer = { ...left, ...block };
   // A press that failed with no answer may still commit: it is not known not to have aired, nor,
@@ -437,7 +436,7 @@ export function reduceLayer(l: SelectionLayer | undefined, graphic: string, ev: 
   if (ev.t === 'press') return press(l, ev.cueId, ev.take, ev.seq, ev.now, ev.moves);
   if (ev.t === 'stale') {
     if (!l) return { layer: l };
-    return { layer: { ...l, blocked: { ...l.blocked, since: l.blocked?.since ?? ev.now, stale: Math.max(l.blocked?.stale ?? NONE, ev.now) } } };
+    return { layer: { ...l, blocked: { ...l.blocked, since: l.blocked?.since ?? ev.now, stale: Math.max(l.blocked?.stale ?? 0, ev.mark) } } };
   }
   if (ev.t === 'answer') return answer(l, ev.seq, ev.landed, ev.now, ev.uncertain, ev.stale);
   return l ? follow(l, graphic, ev.live, ev.seeded, ev.facts, ev.mint, ev.now) : { layer: undefined };
@@ -607,7 +606,8 @@ function restored(raw: SelectionLayer, now: number): SelectionLayer {
   // (nothing read at boot can say so for certain), so it holds what airs until an operator press
   // of this page lands (AC-3: nothing is taken, advanced or reset, and the hold is shown).
   const { blocked: _blocked, ...rest } = raw;
-  const l: SelectionLayer = { ...rest, blocked: { since: now, stale: now, reopened: true } };
+  // Send numbers start afresh with the new page: any press of it that lands ends the hold.
+  const l: SelectionLayer = { ...rest, blocked: { since: now, stale: 0, reopened: true } };
   // Sends this layer folded into what it does not know may still arrive from the page that went
   // away: it settles again from the reload.
   if (l.out.length === 0) return l.unknown ? { ...l, settling: Math.max(l.settling ?? 0, now + SETTLE_MS) } : l;
@@ -778,7 +778,7 @@ export function followAired(
  *  there until an operator press of this page lands. */
 export function staleSelection(io: SelectionAirIo, graphics: readonly string[]): void {
   let air = io.part.get();
-  for (const graphic of graphics) air = reduceSelection(air, { t: 'stale', graphic, now: io.now() }).air;
+  for (const graphic of graphics) air = reduceSelection(air, { t: 'stale', graphic, now: io.now(), mark: mintSend() }).air;
   keepIn(io, air);
 }
 
@@ -807,7 +807,7 @@ export function foreignSelection(io: SelectionAirIo, items: readonly { graphic: 
   for (const { graphic, msg } of items) {
     const l = air[graphic];
     if (!l || mine(msg) || !fromElsewhere(l, msg)) continue;
-    air = reduceSelection(air, { t: 'stale', graphic, now: io.now() }).air;
+    air = reduceSelection(air, { t: 'stale', graphic, now: io.now(), mark: mintSend() }).air;
   }
   keepIn(io, air);
 }

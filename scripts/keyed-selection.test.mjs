@@ -477,7 +477,7 @@ describe('the aired instance', () => {
 
   test('what is kept reads back; anything else is no layer', () => {
     const state = captured();
-    assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state), 5000), { Card: { ...state.Card, blocked: { since: 5000, stale: 5000, reopened: true } } }, 'reopened, it holds');
+    assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state), 5000), { Card: { ...state.Card, blocked: { since: 5000, stale: 0, reopened: true } } }, 'reopened, it holds');
     const bad = (layer) => JSON.stringify({ v: 2, graphics: { Card: layer } });
     for (const raw of [null, '', '{', 'null', '7', JSON.stringify({ v: 1, graphics: state }), bad({ ...state.Card, out: [{ seq: 'x', press: true, target: null }] }), bad({ ...state.Card, onAir: { ...state.Card.onAir, revision: 'x' } }), bad({ ...state.Card, marks: { k: { bound: null } } })]) {
       assert.deepEqual(air.readSelectionAir(raw), {}, String(raw));
@@ -933,6 +933,18 @@ describe('the page\'s two doors onto the layers', () => {
     assert.ok(card(r).held, 'the Take after the Update did not land');
   });
 
+  test('a press and another screen\'s change in one clock tick are still ordered: the press sent first does not end the block (automated review)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const update = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
+    air.foreignSelection(p, [{ graphic: 'Card', msg: { t: 'update', oid: 'x', snd: { i: 'x', at: 0 }, data: { f0: 'Someone' } } }], () => false);
+    update.landed();
+    assert.ok(card(p).held, 'the same tick, the Update sent first: still blocked');
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null);
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    assert.equal(card(p).held, undefined, 'a press after it, in the same tick too, ends it');
+  });
+
   test('a second refusal or another screen\'s change after a press was sent keeps the block when that press lands', () => {
     for (const second of ['refusal', 'another screen']) {
       const p = io();
@@ -990,7 +1002,7 @@ describe('the page\'s two doors onto the layers', () => {
       assert.deepEqual(air.protectedFields(p.part.get(), 'Card', 'plain'), ['f0', 'f1', 'f2'], `${then}: its fields stay protected`);
       assert.match(card(p).held.reason, /did not go through/);
       const reopened = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 9000);
-      assert.deepEqual(reopened.Card.blocked, { since: 9000, stale: 9000, reopened: true }, `${then}: a reopened page holds what airs`);
+      assert.deepEqual(reopened.Card.blocked, { since: 9000, stale: 0, reopened: true }, `${then}: a reopened page holds what airs`);
     }
   });
 
