@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "fecce380349d78d641ae9bda10f4f40d086587644a2b0a09cd9f9d9b887815f0",
+  "authority": {
+    "status": "draft",
+    "source": "Owner request in master planning chat, 2026-10-25: create integrated CI/CD spec and Opus second-opinion prompt for work after production-page completion. Owner accepted daily detection for unrelated, non-critical regressions after selection qualification. Full proposal and implementation remain pending Opus review and owner acceptance."
+  },
+  "review": null
+}
