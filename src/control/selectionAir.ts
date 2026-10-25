@@ -106,8 +106,10 @@ export interface SelectionLayer {
    *  screen changed the graphic (`stale`: when this page last learned so, a refusal or a command
    *  heard, on this page's clock), or a Take or an Out did not land, so the marker it moved says
    *  nothing about what airs (`moved`: the newest such press's number); both may hold. A later
-   *  press of this page that lands ends `moved`; only one sent after `stale` ends `stale`. */
-  blocked?: { since: number; stale?: number; moved?: number };
+   *  press of this page that lands ends `moved`; only one sent after `stale` ends `stale`.
+   *  `reopened`: the page was reopened (a reload, another production and back, an app restart),
+   *  and what other screens did while it was closed is not known here; it ends as `stale` does. */
+  blocked?: { since: number; stale?: number; moved?: number; reopened?: true };
 }
 
 /** Every layer with a live candidate, by graphic name (the wire key, which is the layer). */
@@ -179,6 +181,7 @@ const mayShowAny = (l: SelectionLayer): boolean => pressOut(l) || !!l.unknown ||
 const pressOut = (l: SelectionLayer): boolean => l.out.some((s) => s.press);
 
 const UNKNOWN_REASON = 'it is not known which candidate is on air after the page reloaded';
+const REOPENED_REASON = 'the page reopened: press Update to follow again';
 const MOVED_REASON = 'a Take or an Out did not go through, so this page does not know what airs: take or update the card to send it';
 const UNANSWERED_REASON = 'a send got no answer, so it is not known which candidate is on air: press Update to send it';
 const STALE_REASON = 'another screen changed this card, so a newer count is not sent on its own: press Update to send it';
@@ -500,7 +503,7 @@ export function airedOf(air: SelectionAir, graphic: string): AiredView | null {
   }
   const believed = believedOf(l);
   if (!believed) return null;
-  const held = l.blocked ? { reason: l.blocked.moved ? MOVED_REASON : STALE_REASON, since: l.blocked.since, revision: null } : l.marks[markKey(believed)]?.held;
+  const held = l.blocked ? { reason: l.blocked.moved ? MOVED_REASON : l.blocked.reopened ? REOPENED_REASON : STALE_REASON, since: l.blocked.since, revision: null } : l.marks[markKey(believed)]?.held;
   const showing = l.onAir && sameEntity(l.onAir, believed) ? { revision: l.onAir.revision, at: l.onAir.at } : undefined;
   return { ...believed, held, pending: pressOut(l), known: true, ...(showing ? { showing } : {}) };
 }
@@ -600,12 +603,11 @@ const isMarks = (m: unknown): m is Marks => {
  */
 function restored(raw: SelectionLayer, now: number): SelectionLayer {
   // A reopened page reads the marker from the server, so it decides again, and a marker this page
-  // moved no longer blocks it; another screen's change still does.
-  const { blocked, ...rest } = raw;
-  const l: SelectionLayer = {
-    ...rest,
-    ...(blocked?.stale !== undefined ? { blocked: { since: blocked.stale, stale: blocked.stale } } : {}),
-  };
+  // moved no longer blocks it. What other screens did while it was closed is not known here
+  // (nothing read at boot can say so for certain), so it holds what airs until an operator press
+  // of this page lands (AC-3: nothing is taken, advanced or reset, and the hold is shown).
+  const { blocked: _blocked, ...rest } = raw;
+  const l: SelectionLayer = { ...rest, blocked: { since: now, stale: now, reopened: true } };
   // Sends this layer folded into what it does not know may still arrive from the page that went
   // away: it settles again from the reload.
   if (l.out.length === 0) return l.unknown ? { ...l, settling: Math.max(l.settling ?? 0, now + SETTLE_MS) } : l;
@@ -810,25 +812,6 @@ export function foreignSelection(io: SelectionAirIo, items: readonly { graphic: 
   keepIn(io, air);
 }
 
-/** The log a reopened page reads at boot, oldest first: what another screen did while this page
- *  was closed is never heard, so the newest update of each live candidate's fields there decides.
- *  If someone else wrote it, the restored candidate is not this page's alone. */
-export function foreignHistory(io: SelectionAirIo, rows: readonly { graphic: string; msg: { t: string } }[], mine: (msg: unknown) => boolean): void {
-  const newest = new Map<string, { t: string }>();
-  const air = io.part.get();
-  for (const { graphic, msg } of rows) {
-    const l = air[graphic];
-    if (l && msg.t === 'update' && (msg as { snd?: unknown }).snd && touches(l, msg)) newest.set(graphic, msg);
-  }
-  foreignSelection(io, [...newest].map(([graphic, msg]) => ({ graphic, msg })), mine);
-}
-
-const touches = (l: SelectionLayer, msg: { t: string }): boolean => {
-  const data = (msg as { data?: unknown }).data;
-  if (!data || typeof data !== 'object') return false;
-  const fields = new Set([l.onAir, ...l.out.map((s) => s.target), ...(l.unknown?.candidates ?? [])].flatMap((t) => (t ? Object.keys(t.values) : [])));
-  return Object.keys(data).some((key) => fields.has(key));
-};
 
 /** Whether an action carries field values (it reads some into its payload, or moves some): such
  *  an action cannot go from a page that does not know the cue on air, since the values would be

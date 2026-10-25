@@ -24,9 +24,9 @@
 // - the second (AC-3): a count increase and a newer downward correction each air once, whole; an
 //   older and a duplicate revision do not; a deleted person, malformed input and a valid empty list
 //   hold the picture with its reason and age shown off air; Pause holds and Resume sends the final
-//   values; a lost network recovers; a reload, another production and an app restart follow the
-//   AIRED selector, not the cue's current one; a collection-only write still airs; none of it
-//   takes, advances or resets the graphic.
+//   values; a lost network recovers; after a reload, another production and an app restart the
+//   page holds the AIRED selector, says so off air and sends nothing on its own until Update (D4);
+//   a collection-only write still airs; none of it takes, advances or resets the graphic.
 // - a page that fell back to protocol 1 (its resolve answered PGRST202) never sends a correction
 //   on its own: what airs is held, said off air, and the operator's Update still goes.
 // - the last: a page meeting a selection of a later version shows the cue read-only, refuses
@@ -310,25 +310,47 @@ test.describe('live candidates', () => {
     await revision(request, w, 10, collection(10, people(1370)));
     await expect(onAirLine(w)).toHaveText('1370', WIRE);
 
-    // RELOAD with the cue's selection changed under it: the layer follows the AIRED selector.
-    await withSelections(page, w.showId, { 'Card A': pick('D2', 7), 'Card B': pick('D2', 7) });
-    await revision(request, w, 11, collection(11, people(1380, 905)));
-    await expect(onAirLine(w)).toHaveText('1380', WIRE);
-    await expect(onAir(w)).toHaveText(AINO);
+    // A REOPENED PAGE (reload, another production and back, an app restart) does not know what other
+    // screens did while it was closed: it holds what airs, says so off air, sends nothing on its own,
+    // and follows again once the operator presses Update (D4, coordinator's ruling).
+    const reopened = async (p: Page, rev: number, votes: number, aired: string) => {
+      await expect(p.getByTestId('selection-hold'), 'the hold is said off air').toContainText('the page reopened', WIRE);
+      const sent = (await updates(w.showId)).length;
+      await revision(request, w, rev, collection(rev, people(votes, 900 + rev)));
+      await p.waitForTimeout(6000);
+      await expect(onAirLine(w), 'a newer revision does not air on its own').toHaveText(aired);
+      await expect(onAir(w)).toHaveText(AINO);
+      expect((await updates(w.showId)).length, 'nothing was sent on its own').toBe(sent);
+    };
+    const update = async (p: Page, votes: string) => {
+      await select(p, 'Card A');
+      await expect(p.getByTestId('verb-update')).toBeEnabled();
+      await p.getByTestId('verb-update').click();
+      await expect(onAirLine(w), 'the operator\'s Update airs the newer count').toHaveText(votes, WIRE);
+      await expect(p.getByTestId('selection-hold')).toHaveCount(0);
+    };
 
-    // ANOTHER PRODUCTION and back, then an app restart (a new page): still the aired selector.
+    // RELOAD with the cue's selection changed under it: the hold keeps the AIRED selector.
+    await withSelections(page, w.showId, { 'Card A': pick('D2', 7), 'Card B': pick('D2', 7) });
+    await reopened(page, 11, 1380, '1370');
+    // The cue's selection back to the aired person (another reload), so Update takes her again.
+    await withSelections(page, w.showId, { 'Card A': pick('D1', 7), 'Card B': pick('D2', 7) });
+    await expect(page.getByTestId('selection-hold')).toContainText('the page reopened', WIRE);
+    await update(page, '1380');
+
+    // ANOTHER PRODUCTION and back, then an app restart (a new page): each holds, then follows.
     await page.evaluate(async () => (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'home' }));
     await page.evaluate(async (id) => (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'production', id }), w.showId);
     await expect(page.getByTestId('production-page')).toBeVisible();
-    await revision(request, w, 12, collection(12, people(1390, 906)));
-    await expect(onAirLine(w)).toHaveText('1390', WIRE);
+    await reopened(page, 12, 1390, '1380');
+    await update(page, '1390');
     const url = page.url();
     await page.close();
     const restarted = await context.newPage();
     await restarted.goto(url);
     await expect(restarted.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
-    await revision(request, w, 13, collection(13, people(1400, 907)));
-    await expect(onAirLine(w)).toHaveText('1400', WIRE);
+    await reopened(restarted, 13, 1400, '1390');
+    await update(restarted, '1400');
     await expect(onAir(w)).toHaveText(AINO);
     // A feed that moves the collection alone writes no row this page hears: the page's own read of
     // the tree (every 5 s while a cue has a selection) still brings the correction to air.

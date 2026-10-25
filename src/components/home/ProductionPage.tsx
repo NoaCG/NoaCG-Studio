@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignHistory, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -1695,7 +1695,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // Take, so missing a hosted press would put its figure back the moment somebody took a cue.
     refreshData: () => void dataSession.refresh(),
     describe: (row) => describeLogRow(row, cueLabel, eventLabel),
-    history: (rows) => foreignHistory(selectionIo, rows, sentHere),
     seenAt: setOutputSeenAt,
     tick: () => setNow(wallClock()),
   };

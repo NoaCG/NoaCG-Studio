@@ -299,8 +299,11 @@ describe('the aired instance', () => {
     const state = captured();
     // The layer carries its own selector, so a preview of B, a draft or a changed record cannot
     // reach it: follow is handed no cue at all.
-    const r = follow(air.readSelectionAir(air.writeSelectionAir(state)), collection(6, BASE.map((p) => ({ ...p, votes: p.votes + 1 }))));
+    const r = follow(state, collection(6, BASE.map((p) => ({ ...p, votes: p.votes + 1 }))));
     assert.deepEqual(r.sends.map(({ graphic, values }) => ({ graphic, values })), [{ graphic: 'Card', values: { f0: 'Aino Aalto', f1: '1201', f2: 'Green' } }]);
+    // Reopened, it holds what airs, the aired selector, until an operator press lands (D4).
+    const reopened = follow(air.readSelectionAir(air.writeSelectionAir(state)), collection(6, BASE.map((p) => ({ ...p, votes: p.votes + 1 }))));
+    assert.deepEqual([reopened.sends, shown(reopened.air).selection, shown(reopened.air).held?.reason], [[], selectionOf('D1', 7), 'the page reopened: press Update to follow again']);
     const b = take(selectionOf('D2', 7), collection(6, BASE));
     assert.equal(b.status, 'ok', 'B is ready on its own');
     assert.deepEqual(shown(r.air).selection, selectionOf('D1', 7));
@@ -408,7 +411,7 @@ describe('the aired instance', () => {
     assert.equal(reconcile(restored, { Card: 'cue-old' }, true, 7000 + 1000), restored, 'while a send of the page that went away may still arrive, nothing is decided');
     assert.deepEqual(reconcile(restored, { Card: 'cue-old' }, true, settled(7000)), {}, 'the marker names neither: gone');
     const decided = reconcile(restored, live, true, settled(7000));
-    assert.deepEqual([shown(decided).known, shown(decided).held, shown(decided).revision], [true, undefined, 5], 'the marker moved to it: it landed');
+    assert.deepEqual([shown(decided).known, shown(decided).held?.reason, shown(decided).revision], [true, 'the page reopened: press Update to follow again', 5], 'the marker moved to it: it landed; held as reopened');
   });
 
   test('a failed press gives back only its own layer: what the output shows, with every later press standing', () => {
@@ -474,7 +477,7 @@ describe('the aired instance', () => {
 
   test('what is kept reads back; anything else is no layer', () => {
     const state = captured();
-    assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state)), state);
+    assert.deepEqual(air.readSelectionAir(air.writeSelectionAir(state), 5000), { Card: { ...state.Card, blocked: { since: 5000, stale: 5000, reopened: true } } }, 'reopened, it holds');
     const bad = (layer) => JSON.stringify({ v: 2, graphics: { Card: layer } });
     for (const raw of [null, '', '{', 'null', '7', JSON.stringify({ v: 1, graphics: state }), bad({ ...state.Card, out: [{ seq: 'x', press: true, target: null }] }), bad({ ...state.Card, onAir: { ...state.Card.onAir, revision: 'x' } }), bad({ ...state.Card, marks: { k: { bound: null } } })]) {
       assert.deepEqual(air.readSelectionAir(raw), {}, String(raw));
@@ -696,7 +699,7 @@ describe('the page\'s two doors onto the layers', () => {
     reopened.tick(air.SETTLE_MS + 1);
     const late = [];
     air.followAired(reopened, { liveCue: { Card: 'cue-b' }, seeded: true, facts: facts(collection(6, people6())), send: (g, v) => (late.push(v.f0), Promise.resolve(ANSWERED)) });
-    assert.deepEqual([card(reopened).cueId, late], ['cue-b', ['Bertta Berg']], 'the server\'s marker decides B, and B follows');
+    assert.deepEqual([card(reopened).cueId, late, card(reopened).held?.reason], ['cue-b', [], 'the page reopened: press Update to follow again'], 'the server\'s marker decides B; it holds until a press (D4)');
     // A definite failure gives back what airs at once.
     const d = io();
     air.pressSelection(d, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
@@ -784,9 +787,12 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual(sends, [], 'nothing on its own');
     assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null);
     const reopened = io(air.readSelectionAir(air.writeSelectionAir(p.part.get()), 1000));
+    assert.equal(reopened.part.get().Card.blocked.moved, undefined, 'a reopened page reads the marker from the server');
+    assert.match(card(reopened).held?.reason ?? '', /reopened/, 'and holds as reopened (D4)');
+    air.pressSelection(reopened, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
     air.followAired(reopened, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
     await settle();
-    assert.deepEqual(sends, ['1500'], 'a reopened page reads the marker from the server');
+    assert.deepEqual(sends, ['1500'], 'the operator\'s press there: following again');
     // An Update moves no marker: its failure gives back what airs, and following goes on.
     const u = io();
     air.pressSelection(u, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
@@ -959,24 +965,20 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual(air.readSelectionAir(JSON.stringify(raw), 9000), {}, 'a malformed block is not read');
   });
 
-  test('an update carrying values the layer holds changes nothing; the newest update in the log a reopened page reads decides (eighth assessment)', async () => {
+  test('an update carrying values the layer holds changes nothing; one with other values blocks (eighth assessment)', () => {
     const aino = ok(selectionOf('D1', 7)).values;
     const stamped = (data, oid) => ({ t: 'update', oid, snd: { i: 'x', at: 0 }, data });
-    const blocked = (rows, live = true) => {
+    const blocked = (rows) => {
       const p = io();
       air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
-      if (live) air.foreignSelection(p, rows.map((msg) => ({ graphic: 'Card', msg })), () => false);
-      else air.foreignHistory(p, rows.map((msg) => ({ graphic: 'Card', msg })), () => false);
+      air.foreignSelection(p, rows.map((msg) => ({ graphic: 'Card', msg })), () => false);
       return !!card(p).held;
     };
-    assert.equal(blocked([stamped(aino, 'echo')]), false, 'this page\'s own send heard after a reload, or another desk following the same candidate');
+    assert.equal(blocked([stamped(aino, 'echo')]), false, 'another desk following the same candidate');
     assert.equal(blocked([stamped({ ...aino, f1: '1' }, 'other')]), true, 'another count');
-    assert.equal(blocked([stamped({ f0: 'Someone' }, 'old'), stamped(aino, 'mine')], false), false, 'the log: this page wrote last');
-    assert.equal(blocked([stamped(aino, 'mine'), stamped({ f0: 'Someone' }, 'other')], false), true, 'the log: another screen wrote last');
-    assert.equal(blocked([stamped(aino, 'mine'), { t: 'update', oid: 'api', data: { f0: 'Someone' } }], false), false, 'an unstamped server row is not another screen');
   });
 
-  test('a block from a Take that did not land stays one when another screen\'s change or a refusal comes too; a reload keeps only the other screen\'s part (seventh assessment)', () => {
+  test('a block from a Take that did not land stays one when another screen\'s change or a refusal comes too; a reload holds as reopened (seventh assessment)', () => {
     for (const then of ['refusal', 'another screen']) {
       const p = io();
       air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
@@ -988,7 +990,7 @@ describe('the page\'s two doors onto the layers', () => {
       assert.deepEqual(air.protectedFields(p.part.get(), 'Card', 'plain'), ['f0', 'f1', 'f2'], `${then}: its fields stay protected`);
       assert.match(card(p).held.reason, /did not go through/);
       const reopened = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 9000);
-      assert.deepEqual(reopened.Card.blocked, { since: 1000, stale: 1000 }, `${then}: a reopened page keeps the other screen's change`);
+      assert.deepEqual(reopened.Card.blocked, { since: 9000, stale: 9000, reopened: true }, `${then}: a reopened page holds what airs`);
     }
   });
 
@@ -1110,7 +1112,7 @@ describe('the page\'s two doors onto the layers', () => {
     assert.equal(card(p).held?.revision, 9);
   });
 
-  test('a reload: sends for the candidate on air are followed again; overlapping Updates of it come back as what landed (/so D1)', () => {
+  test('a reload: sends for the candidate on air come back as what landed, and nothing goes on its own until a press (/so D1, D4)', () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send: () => new Promise(() => {}) });
@@ -1118,7 +1120,7 @@ describe('the page\'s two doors onto the layers', () => {
     const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
     assert.deepEqual([air.airedOf(restored, 'Card').revision, air.airedOf(restored, 'Card').values.f1], [5, '1200']);
     const again = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(6, people6())), mint: air.mintSend, now: 8000 + air.SETTLE_MS + 1 });
-    assert.deepEqual(again.sends.map((x) => x.values.f1), ['1500'], 'revision 6 goes again');
+    assert.deepEqual(again.sends, [], 'reopened: held (D4)');
     const u = io();
     air.pressSelection(u, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
     air.pressSelection(u, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(6, people6())));
@@ -1126,7 +1128,7 @@ describe('the page\'s two doors onto the layers', () => {
     const back = air.readSelectionAir(air.writeSelectionAir(u.part.get()), 8000);
     assert.deepEqual([air.airedOf(back, 'Card').revision, air.airedOf(back, 'Card').known], [5, true], 'neither Update is known to have landed: 5 is what airs');
     const sent = air.reduceSelection(back, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(7, [person('D1', 7, 'Aino Aalto', 1600)])), mint: air.mintSend, now: 8000 + air.SETTLE_MS + 1 });
-    assert.deepEqual(sent.sends.map((x) => x.values.f1), ['1600'], 'and the newest revision goes');
+    assert.deepEqual(sent.sends, [], 'nor the newest revision, until a press');
   });
 
   test('a reload with an Update to another person on the same cue unanswered: not known who airs, held, nothing sent (/so D2)', () => {
@@ -1139,6 +1141,7 @@ describe('the page\'s two doors onto the layers', () => {
     const read = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(7, BASE)), mint: air.mintSend, now: 8000 + air.SETTLE_MS + 1 });
     assert.deepEqual(read.sends, [], 'the marker names the cue both share: still not known, nothing sent');
     const q = { ...io(restored) };
+    q.tick(8000);
     air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D2', 7), 7)).landed();
     assert.deepEqual([card(q).known, card(q).held, card(q).entity], [true, undefined, air.airedOf(p.part.get(), 'Card').entity], 'an operator press decides');
   });
@@ -1226,7 +1229,7 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, card(p).held, card(p).revision], [['1500'], undefined, 6]);
   });
 
-  test('a hold survives a reload that the marker decides: the held revision is still sent once its field is back (automated review)', () => {
+  test('a reload that the marker decides keeps A and its hold, and sends nothing until a press (automated review, D4)', () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
     const sends = [];
@@ -1239,7 +1242,7 @@ describe('the page\'s two doors onto the layers', () => {
     const q = io(restored);
     q.tick(8000 + air.SETTLE_MS);
     air.followAired(q, { liveCue: live, seeded: true, facts: facts(nine), send });
-    assert.deepEqual([sends, card(q).cueId], [['1900'], 'cue-a'], 'the marker decided A, and revision 9 goes');
+    assert.deepEqual([sends, card(q).cueId, card(q).held?.reason], [[], 'cue-a', 'the page reopened: press Update to follow again'], 'the marker decided A; reopened, it holds');
   });
 
   test('an Update that fails keeps the hold it would have ended: the held revision still goes on the next read (automated review)', async () => {
@@ -1277,13 +1280,13 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, card(p).revision, card(p).held], [['1900', '1900'], 9, undefined], 'sent again, and it landed');
   });
 
-  test('a layer the marker decides after a reload follows the newest tree in the same pass (assessment 7)', () => {
+  test('a layer the marker decides after a reload is known, and holds as reopened (assessment 7, D4)', () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
     air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)));
     const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
     const read = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(6, people6())), mint: air.mintSend, now: 8000 + air.SETTLE_MS + 1 });
-    assert.deepEqual([air.airedOf(read.air, 'Card').known, read.sends.map((x) => x.values.f1)], [true, ['1500']]);
+    assert.deepEqual([air.airedOf(read.air, 'Card').known, read.sends], [true, []]);
   });
 
   test('a recipe changed under a captured selector holds the card: another source is not this candidate', () => {
@@ -1295,7 +1298,7 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, card(p).held?.reason], [[], 'its collection recipe changed since it was taken']);
   });
 
-  test('a reload that lost a correction\'s answer: nothing older than it is sent, and it goes once more (re-assessment 1)', () => {
+  test('a reload that lost a correction\'s answer sends nothing, older or not, until a press (re-assessment 1, D4)', () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7), 1)).landed();
     air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(3, people6())), send: () => new Promise(() => {}) });
@@ -1304,7 +1307,7 @@ describe('the page\'s two doors onto the layers', () => {
     const read = (state, c) => air.reduceSelection(state, { t: 'follow', liveCue: live, seeded: true, facts: facts(c), mint: air.mintSend, now: after });
     assert.deepEqual(read(restored, collection(2, BASE)).sends, [], 'revision 2 is older than the correction that may have aired');
     const again = read(restored, collection(3, people6()));
-    assert.deepEqual(again.sends.map((x) => x.values.f1), ['1500'], 'revision 3 goes once more');
+    assert.deepEqual(again.sends, [], 'nor revision 3: reopened, it holds');
     assert.deepEqual(read(again.air, collection(3, people6())).sends, [], 'once');
     // The same through a marker decision: A r1 on air, a Take of B and a Take of A r3 out.
     const q = io();
@@ -1313,7 +1316,7 @@ describe('the page\'s two doors onto the layers', () => {
     air.pressSelection(q, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(3, people6())));
     const back = air.readSelectionAir(air.writeSelectionAir(q.part.get()), 8000);
     assert.deepEqual(read(back, collection(2, BASE)).sends, [], 'decided A: nothing older than its Take at 3');
-    assert.deepEqual(read(back, collection(3, people6())).sends.map((x) => x.values.f1), ['1500']);
+    assert.deepEqual(read(back, collection(3, people6())).sends, []);
   });
 
   test('a restored layer decides nothing and sends nothing while a send of the page that went away may still arrive (re-assessment 2)', () => {
@@ -1325,7 +1328,7 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([early.sends, early.air], [[], restored], 'the Take of B may still land: A is not decided, nothing goes');
     const later = air.reduceSelection(restored, { t: 'follow', liveCue: { Card: 'cue-b' }, seeded: true, facts: facts(collection(2, BASE)), mint: air.mintSend, now: 8000 + air.SETTLE_MS + 1 });
     assert.equal(air.airedOf(later.air, 'Card').cueId, 'cue-b', 'it landed: B is decided');
-    assert.deepEqual(later.sends.map((x) => x.values.f0), ['Bertta Berg']);
+    assert.deepEqual(later.sends, [], 'reopened: it holds until a press');
   });
 
   test('while a press is out its candidate\'s fields are protected, whatever cue the marker still names (re-assessment 3)', () => {
@@ -1497,8 +1500,6 @@ describe('generated walks: the layer against the output', () => {
     let before = [];
     // What another screen pressed, as the page hears it (ProductionPage hearCommand).
     let theirs = null;
-    // The production's log, oldest first, as far as updates go.
-    const rows = [];
     const hear = () => {
       if (!unheard) return;
       unheard = false;
@@ -1537,8 +1538,6 @@ describe('generated walks: the layer against the output', () => {
       if (lands) {
         applied = send.index;
         output = send.target;
-        // The log a reopened page reads: what this page's send wrote there.
-        if (send.target) rows.push({ graphic: 'Card', msg: { t: 'update', oid: `page-${send.index}`, snd: { i: 'me', at: 0 }, data: send.target.values } });
         if (send.press) trueMarker = send.target ? send.target.cueId : 'plain';
       }
       return lands ? 'landed' : fate ? 'skipped' : 'failed';
@@ -1693,7 +1692,6 @@ describe('generated walks: the layer against the output', () => {
         if (output && rnd() < 0.5) {
           output = { ...output, entity: '["D9",9]', values: { f0: 'Someone Else', f1: '1', f2: '-' } };
           theirs = { t: 'update', oid: `theirs-${head}`, snd: { i: 'them', at: clock }, data: { f0: 'Someone Else' } };
-          rows.push({ graphic: 'Card', msg: theirs });
           head += 1;
           unheard = true;
           seen.otherUpdate += 1;
@@ -1722,9 +1720,6 @@ describe('generated walks: the layer against the output', () => {
         known = head;
         unheard = false;
         part.set(air.readSelectionAir(air.writeSelectionAir(part.get()), clock));
-        // The reopened page reads the log at boot (sessionWire.ts); a command another screen sent
-        // while it was closed is never heard otherwise.
-        air.foreignHistory(io(), rows, () => false);
         marker = trueMarker;
         seeded = true;
         reloaded = true;

@@ -415,6 +415,23 @@ changes a spec's digest.
   the same values, changes nothing. (5) A clock that steps back delays a block's end until it
   passes again; an Out always ends it: noted, not changed. The walk now writes every update it
   applies into a log the reloaded page reads, and fails without the boot check.
+  *Ninth assessment on 50046d8: FAIL.* The boot check ran after the first follow, so a reopened
+  page could still send its restored candidate over another screen's change, and the boot log
+  cannot say what happened while the page was closed: `hostedControlTail` reads the last 400 event
+  ids across every production on the server, and a failed read answers []. *D4, the coordinator's
+  ruling (option A):* after a reload, another production and back, or an app restart, a restored
+  live candidate holds what airs, shows that off air ("the page reopened: press Update to follow
+  again"), and sends nothing on its own until an operator press of this page lands
+  (`blocked.reopened`, set by `restored`). This is the spec's hold after a reload and meets AC-3 as
+  written: nothing is taken, advanced or reset, the held content and its age are visible, and
+  recovered program uses the aired selector. The boot-log check (sessionWire.ts `history`,
+  `foreignHistory`) is removed, so sessionWire.ts is back to main's. The configured AC-3 walk now
+  asserts, after each reopen, the hold line, that a newer revision does not air on its own and that
+  nothing was sent, and only then presses Update and asserts the newer count airs. The pinned
+  tests that had a restored layer follow on its own now assert the hold. The coordinator files the
+  show-scoped log read (option B) and the global tail's empty-on-failure as issues. The lower
+  findings are moot under D4 (a restored layer is held whatever the log says) or recorded: another
+  desk following the same candidate at a newer revision blocks this one until Update.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything
