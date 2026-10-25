@@ -2117,3 +2117,23 @@ test('a correction heard while a +1 is out stands over it: the next press counts
   r.sends[1].answer.resolve({ ...noneLeft });
   await second;
 });
+
+test('a landed figure stays the base when the send that would replace it fails (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const failing = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.reject(new Error('down'));
+  await failing;
+  const third = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '9' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await third;
+});

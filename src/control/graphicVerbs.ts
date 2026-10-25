@@ -388,12 +388,18 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false): Promise<Sent> => {
     // A Take, Update, Snap or Out of a graphic replaces what air shows there: a landed figure that
     // air's record had not taken yet is no longer the base (a press's own update books after this).
+    // Parked, not dropped: a send that does not reach the output gives them back.
+    const parked = new Map<string, NonNullable<ReturnType<typeof landedFigures.get>>>();
     for (const item of batches.flat()) {
       const book = landedFigures.get(item.graphic);
       if (!book) continue;
+      if (!parked.has(item.graphic)) parked.set(item.graphic, { ...book });
       if (item.msg.t === 'update') for (const key of Object.keys(item.msg.data ?? {})) delete book[key];
       else if (item.msg.t !== 'event' && item.msg.t !== 'next') landedFigures.delete(item.graphic);
     }
+    const unpark = (reached: (graphic: string) => boolean) => {
+      for (const [graphic, before] of parked) if (!reached(graphic)) landedFigures.set(graphic, { ...before, ...(landedFigures.get(graphic) ?? {}) });
+    };
     // Nothing more goes for a closed production (§4.1 R3), except All out's clear: the panic control
     // pressed before the end still takes off what it named, since a clear can air nothing stale.
     if (!allOut && !session.alive()) return { ok: false, note: ENDED_NOTE };
@@ -434,6 +440,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         allOut,
       });
       answerMarkers(pressed, (m) => reachedOutput(sent, m.graphic));
+      unpark((graphic) => reachedOutput(sent, graphic));
       p.note(p.debts().landed(marked.flat()));
       p.owed(p.debts().owed() > 0);
       p.loggedAt(io.now());
@@ -458,6 +465,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const uncertain = isUnanswered(e) || (e as { unread?: unknown }).unread === true;
       const skipped = io.verbsSkipped(e);
       answerMarkers(pressed, (m) => m.batch < landed && !skipped.includes(m.graphic));
+      unpark(() => false);
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
       if (uncertain && !stale) {
         for (const m of pressed) if (m.batch === landed) unanswered.set(m.oid, m);
