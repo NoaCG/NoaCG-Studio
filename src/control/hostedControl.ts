@@ -1001,6 +1001,11 @@ async function askSeqRoad(
   return undefined;
 }
 
+/** Control slugs the ordered resolve answered as no production: their road is decided too, and a
+ *  send there is the server's to refuse, as before. */
+const unknownSlugs = new Set<string>();
+const decided = (slug: string) => seqSessions.has(slug) || unknownSlugs.has(slug) || givenUp();
+
 /** Per control slug, the one wait for its road in progress. Shared, so the presses waiting on it
  *  resume in the order they were made and take their numbers in that order. */
 const roadWaits = new Map<string, Promise<void>>();
@@ -1012,7 +1017,7 @@ function roadDecided(slug: string, deadline: number): Promise<void> {
   if (!wait) {
     wait = (async () => {
       if (!(await getSupabase().catch(() => null))) return;
-      while (!seqSessions.has(slug) && !givenUp() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+      while (!decided(slug) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
     })().finally(() => roadWaits.delete(slug));
     roadWaits.set(slug, wait);
   }
@@ -1057,6 +1062,8 @@ export async function controlShowBySlug(slug: string): Promise<RpcAnswer<Resolve
   const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug }, { sends: true });
   if (next) {
     if (!next.ok) return next;
+    if (next.value) unknownSlugs.delete(slug);
+    else unknownSlugs.add(slug);
     return { ok: true, value: next.value ? readResolvedShow(next.value, seqPlanFor(slug, next.value)) : null };
   }
   seqSessions.delete(slug);
@@ -1430,9 +1437,7 @@ export async function sendControlVerb(opts: {
   // A press made before this production's resolve has decided the road waits for it, within its own
   // resend window: sent by row id instead, it would have no per-graphic order (#1697). One made
   // while others still wait joins them, so it cannot be numbered ahead of them.
-  if (!seqSessions.has(opts.slug) || roadWaits.has(opts.slug)) {
-    await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
-  }
+  if (!decided(opts.slug) || roadWaits.has(opts.slug)) await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
@@ -1497,7 +1502,7 @@ export async function sendControlVerb(opts: {
       // commit after a later press. By row id only once this server is known to have no sequence
       // road: a press whose wait for the resolve ran out counts as unanswered, like the resolve.
       await sendWithResend(async (signal) => {
-        if (!givenUp() && (await getSupabase().catch(() => null))) throw unansweredError();
+        if (!decided(opts.slug) && (await getSupabase().catch(() => null))) throw unansweredError();
         await sendHostedControlBatch(opts.slug, wire, signal);
       }, resend);
     }
@@ -1575,6 +1580,8 @@ export async function sendControlVerbs(
   opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender'> & { batches: ControlSendItem[][] },
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
+  // Every batch is numbered here, so the wait for the road comes first, as for one batch.
+  if (!decided(one.slug) || roadWaits.has(one.slug)) await roadDecided(one.slug, Date.now() + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
   const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };

@@ -296,6 +296,27 @@ test('two presses made while the resolve is on its way keep their order (#1697)'
   expect(take!.press, 'the Take is numbered before the Out it was pressed before').toBeLessThan(out!.press);
 });
 
+// All out, a verb of several batches, numbers them all at its press. Pressed the moment the resolve
+// lands, while an older Take still waits for it, it must still come after that Take.
+test('All out pressed as the resolve lands is numbered after an older waiting Take (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb, sendControlVerbs, sendsInOrder } = await import('/src/control/hostedControl.ts');
+    const take = sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
+    while (!sendsInOrder('status-slug')) await new Promise((r) => setTimeout(r, 2));
+    const allOut = sendControlVerbs({ slug: 'status-slug', showId, batches: [[{ graphic: 'Guest Strap', msg: { t: 'stop' } }]], allOut: true });
+    await Promise.all([take, allOut]);
+  }, showId);
+  const take = numbered.find((n) => n.t === 'play');
+  const out = numbered.find((n) => n.t === 'stop');
+  expect(take && out, 'both went numbered').toBeTruthy();
+  expect(take!.press, 'the Take is numbered before the All out pressed after it').toBeLessThan(out!.press);
+});
+
 test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   await publishedPage(page, (rpc, fixture) =>
