@@ -28,7 +28,7 @@ export default function SelectionHolds({ part, labelOf }: { part: StorePart<Sele
       {held.map(({ graphic, inst, held: h }) => (
         <p key={graphic} data-testid="selection-hold" data-graphic={graphic}>
           Holding {(inst.known && labelOf(inst.cueId)) || graphic} on air: {h.reason}.
-          {inst.known ? ` Showing revision ${inst.revision}, ${age(now - inst.at)} old.` : ` For ${age(now - h.since)}.`}
+          {inst.showing ? ` Showing revision ${inst.showing.revision}, ${age(now - inst.showing.at)} old.` : ` For ${age(now - h.since)}.`}
         </p>
       ))}
     </div>

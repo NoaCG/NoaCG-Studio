@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, SETTLE_MS, airedValues, followAired, followsCandidates, protectedSelections, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedValues, nextSettle, followAired, followsCandidates, protectedFields, protectedSelections, pressSelection, readSelectionAir, selectionTake, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -1400,11 +1400,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
   /** The follow pass, as the effect below runs it; set every render so it reads this render's facts. */
   const followRef = useRef<() => void>(() => {});
-  // Restored layers whose sends were lost wait out SETTLE_MS before they decide or send: one
-  // follow pass when it ends, so a quiet tree still gets one.
+  // A layer whose sends' answers are lost (restored, or a press with no answer) waits out its
+  // settling before it decides or sends: one follow pass when it ends, so a quiet tree still gets one.
   useEffect(() => {
-    const settled = window.setTimeout(() => followRef.current(), SETTLE_MS + 100);
-    return () => window.clearTimeout(settled);
+    let timer: number | undefined;
+    let armed: number | null = null;
+    const arm = () => {
+      const at = nextSettle(session.selections.get());
+      if (at === armed) return;
+      window.clearTimeout(timer);
+      armed = at;
+      if (at !== null) timer = window.setTimeout(() => ((armed = null), followRef.current()), Math.max(0, at - Date.now()) + 100);
+    };
+    arm();
+    const stop = session.selections.subscribe(arm);
+    return () => {
+      stop();
+      window.clearTimeout(timer);
+    };
   }, [session, id]);
   const selectionIo = useMemo<SelectionAirIo>(
     () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current(), alive: session.alive }),
@@ -1996,7 +2009,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const verbPage = useRef<GraphicPage | null>(null);
   const verbs = useMemo(() => createGraphicVerbs(session, GRAPHIC_VERB_IO, () => verbSender.current!, () => verbPage.current!), [session]);
-  const { send: sendVerb, run: runVerb } = verbs;
+  const { send: sendVerb, run: runVerb, runSent } = verbs;
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
    *  unpublished only (control/productionDataSession.ts `dispatch` says why). */
@@ -2023,11 +2036,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       liveCue: session.air.get().liveCue,
       seeded: selectionSeeded,
       facts: selectionFacts(),
-      send: (graphic, values) => runVerb([[{ graphic, msg: { t: 'update', data: values } }]], 'Live candidate'),
+      send: (graphic, values) => runSent([[{ graphic, msg: { t: 'update', data: values } }]], 'Live candidate'),
     });
   useEffect(() => {
     followRef.current();
-  }, [selectionIo, liveData, treeRead, liveCue, selectionSeeded, show?.collections, bindings, selectionFacts, runVerb]);
+  }, [selectionIo, liveData, treeRead, liveCue, selectionSeeded, show?.collections, bindings, selectionFacts, runSent]);
 
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
@@ -2488,9 +2501,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     selectionAired,
     candidateFields,
-    airedCandidateFields: (graphic) => [
-      ...new Set(protectedSelections(session.selections.get(), graphic, session.air.get().liveCue[graphic]).flatMap((selection) => selectedFields({ selection }, show.collections))),
-    ],
+    airedCandidateFields: (graphic) => {
+      const live = session.air.get().liveCue[graphic];
+      return [
+        ...new Set([
+          ...protectedSelections(session.selections.get(), graphic, live).flatMap((selection) => selectedFields({ selection }, show.collections)),
+          ...protectedFields(session.selections.get(), graphic, live),
+        ]),
+      ];
+    },
     airedCandidate: (graphic, cueId) => airedValues(session.selections.get(), graphic, cueId),
     boundNow,
     boundReady: boundPressReady,

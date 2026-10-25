@@ -76,7 +76,7 @@ export interface CueArmPage {
   timedOff: boolean;
   cues: readonly ShowCue[];
   /** The page's sender (`sendVerb`): every road a press takes. */
-  send: (batches: ControlSendItem[][], label: string) => Promise<({ ok: true } & VerbSent) | { ok: false; note: string }>;
+  send: (batches: ControlSendItem[][], label: string) => Promise<({ ok: true } & VerbSent) | { ok: false; note: string; uncertain?: true; stale?: true }>;
   /** The cue as the operator currently sees it, draft over record. */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
   withBoundValues: (graphic: string, values: Record<string, string>) => Record<string, string>;
@@ -95,7 +95,7 @@ export interface CueArmPage {
   /** A timed end takes `cueId` onto the graphic's layer: a live candidate that layer follows must
    *  know, or a correction sent while the Take is out would land on this cue's card
    *  (control/selectionAir.ts `pressSelection`, a cue with no selection). */
-  selectionAired?: (graphic: string, cueId: string, take: { status: 'none' }) => { landed: () => void; undo: () => void };
+  selectionAired?: (graphic: string, cueId: string, take: { status: 'none' }) => { landed: () => void; undo: (failed?: { uncertain?: true; stale?: true }) => void };
 }
 
 /** What the page's effects hand the engine. */
@@ -179,7 +179,7 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
     const captured = next && nextGraphic ? p.selectionAired?.(nextGraphic, next.id, { status: 'none' }) : undefined;
     const sent = await p.send(items, words);
     if (!sent.ok) {
-      captured?.undo();
+      captured?.undo(sent);
       p.note(sent.note);
       return;
     }
