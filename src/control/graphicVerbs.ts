@@ -305,6 +305,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     apply();
     for (const graphic of graphics) seen.set(graphic, airNow(graphic));
   };
+  /** The entries still able to decide something: every pending one, and every landed one with a
+   *  field that air's record has not taken past and no newer landed entry carries, or with a pending
+   *  entry older than it (which a late answer is judged against, `unreplaced`). The rest go. */
+  const settled = (list: readonly Entry[]) =>
+    list.filter((e, i) => !e.landed || list.slice(0, i).some((o) => !o.landed) || Object.keys(e.figures).some((key) => !e.past.has(key) && !list.slice(i + 1).some((n) => n.landed && key in n.figures)));
   /** The figures no send pressed after `stamp` replaced on the output: what a late answer may still
    *  write into the cue. */
   const unreplaced = (graphic: string, figures: Record<string, string>, stamp: number) => {
@@ -383,8 +388,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     }
   };
   const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], applied?: (msg: unknown) => boolean): T[] => {
-    // Before any of them: the page applies them all after this returns.
+    // Before any of them: the page applies them all after this returns, so what they will leave on
+    // air's record is booked as accounted only once the markers below have moved (`applyOwn`).
     for (const graphic of new Set(items.map((item) => item.graphic))) accounted(graphic);
+    const taken: { graphic: string; fields: Record<string, string> | undefined }[] = [];
     for (const item of items) {
       // A command air's record is about to take. It takes its fields past every send pressed no
       // later than it: this page's own row past its own send and older ones, another screen's row
@@ -397,8 +404,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const claimed = !!applied?.(item.msg);
       if ((!fields && item.msg.t !== 'stop') || (claimed && own === null)) continue;
       passed(item.graphic, fields ? Object.keys(fields) : null, own === null ? Infinity : claimed ? own - 1 : own);
-      const was = seen.get(item.graphic)!;
-      if (!claimed) seen.set(item.graphic, { ...was, aired: fields ? { ...was.aired, ...fields } : {} });
+      if (!claimed) taken.push({ graphic: item.graphic, fields });
     }
     for (const item of items) {
       const oid = oidOf(item.msg);
@@ -411,6 +417,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       markers = landedLate(markers, u.graphic, u.n, u.cue);
       // A newer press still out decides with its own answer, and puts this one back if it fails.
       if (!markers[u.graphic]?.out.some((p) => p.n > u.n)) mark([u.graphic], u.cue);
+    }
+    for (const { graphic, fields } of taken) {
+      const was = seen.get(graphic)!;
+      seen.set(graphic, { ...was, aired: fields ? { ...was.aired, ...fields } : {} });
     }
     // This sender's own markers are its answers' to write: applied, a late row of an older press
     // would put its cue back over a newer one (#1696). Every other cue row the page applies now
@@ -481,9 +491,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         if (Object.keys(figures).length === 0) return [];
         accounted(graphic);
         const entry: Entry = { stamp, figures, landed: false, past: new Set() };
-        // Bounded: a landed entry this old has long been replaced by newer ones on its graphic.
-        const kept = [...(ledger.get(graphic) ?? []), entry];
-        ledger.set(graphic, kept.filter((e, i) => !e.landed || i >= kept.length - 64));
+        ledger.set(graphic, [...settled(ledger.get(graphic) ?? []), entry]);
         return [{ graphic, batch: index, entry }];
       }),
     );

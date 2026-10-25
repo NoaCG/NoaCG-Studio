@@ -2976,3 +2976,46 @@ test('a send still out stays the base however many sends follow it on its graphi
   await stuck;
   await next;
 });
+
+test('a landed figure stays the base however many sends of other fields follow it unheard', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await plus;
+  for (let n = 1; n <= 70; n++) {
+    const sent = r.verbs.send([[{ graphic: 'Score', msg: { t: 'update', data: { name: `n${n}` } } }]], 'Update');
+    r.sends[n].answer.resolve({ ...noneLeft });
+    await sent;
+  }
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(sentHomes(r).at(-1), '9');
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  await next;
+});
+
+test('a Re-take that got no answer, heard back whole with its marker later, takes no newer landed figure past', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  r.draft.b1 = { home: '5' };
+  const retake = r.verbs.take(banner);
+  await settle();
+  r.sends[0].answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true }));
+  await retake;
+  delete r.draft.b1;
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await plus;
+  // The Re-take did commit, before the +1: its rows, marker included, arrive in one broadcast.
+  hearRows(r, r.sends[0].batches[0]);
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(sentHomes(r), ['5', '8', '9']);
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await next;
+});
