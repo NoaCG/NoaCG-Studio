@@ -266,6 +266,18 @@ test('the election package installs connected: preview and Take all four, and th
   await pick.selectOption(JSON.stringify(['candidates', ['02', 101]]));
   await expect.poll(async () => (await stored(page, 'Election night rehearsal'))[0].cues[2].selection).toEqual({ v: 1, recipe: 'candidates', key: ['02', 101] });
   await expect(page.getByTestId('cue-candidate-f0').locator('input')).toHaveValue('Aino Example');
+
+  // A record the reader refuses is never written, and the list the page is handed is untouched.
+  const refused = await page.evaluate(async () => {
+    const S = await import('/src/model/shows.ts');
+    const { selectionCheck } = await import('/src/control/sourceMapping.ts');
+    const show = S.loadShows().find((s) => s.name === 'Election night rehearsal')!;
+    const cue = show.cues![2];
+    const r = S.setCueSelection(show.id, cue.id, { v: 1, recipe: 'nowhere', key: ['02', 101] }, selectionCheck);
+    return { error: r.error, handed: r.shows.find((s) => s.id === show.id)!.cues![2].selection, stored: S.loadShows().find((s) => s.id === show.id)!.cues![2].selection };
+  });
+  expect(refused.error).toMatch(/does not have/);
+  expect([refused.handed, refused.stored]).toEqual([{ v: 1, recipe: 'candidates', key: ['02', 101] }, { v: 1, recipe: 'candidates', key: ['02', 101] }]);
 });
 
 test('the election production exports and imports again with its fonts, picture, labels, picks and data', async ({ page }) => {

@@ -36,6 +36,9 @@ import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../.
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
 import { columnsFor, connectorPlan, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
 import { projectSource, type CollectionEntity } from '../../control/sourceMapping';
+import type { SelectionAir } from '../../control/selectionAir';
+import type { StorePart } from '../../control/storePart';
+import { useStorePart } from './useStorePart';
 import type { SourceListAdapter } from '../../control/externalSource';
 import { productionDataKey } from '../../control/productionDataApi';
 import { viewOf, type CueDraft, type CueText } from '../../control/cueDraft';
@@ -781,9 +784,22 @@ export interface CandidatePicker {
   options: { recipe: string; entities: CollectionEntity[]; problem: string | null }[];
   /** JSON of `[recipe, key]` for the cue's pick, '' for none, 'invalid' for one that does not read. */
   value: string;
-  /** The cue is on air with another person than it picks now: ✎ Update takes the pick. */
-  waitsForUpdate: boolean;
+  /** While the cue is live: whether what airs is another person than it picks now (✎ Update takes
+   *  the pick), read from the session's aired candidates. */
+  waitsForUpdate: { part: StorePart<SelectionAir>; differs: (air: SelectionAir) => boolean } | null;
   onPick: (recipe: string | null, key: (string | number)[] | null) => void;
+}
+
+/** "Not on air yet" for a pick the layer has not taken: a readout of the aired candidates, so a
+ *  capture landing redraws this line and not the page. */
+function CandidateWaits({ waits, rehearsing }: { waits: NonNullable<CandidatePicker['waitsForUpdate']>; rehearsing: boolean }) {
+  const air = useStorePart(waits.part);
+  if (!waits.differs(air)) return null;
+  return (
+    <span className="pd-editor-fate pd-unsent-note" data-testid="cue-candidate-unsent">
+      Not {rehearsing ? 'on PROGRAM' : 'on air'} yet. Press ✎ Update
+    </span>
+  );
 }
 
 /** The menu itself: one option per person, in key order; the cue's own pick stays listed when the
@@ -1103,11 +1119,7 @@ export default function CueEditor({
         </span>
         <CueOverflowNote keys={overflowKeys} descriptors={descriptors} />
         {picker && <CandidateMenu picker={picker} />}
-        {picker?.waitsForUpdate && !hasUnsent && (
-          <span className="pd-editor-fate pd-unsent-note" data-testid="cue-candidate-unsent">
-            Not {rehearsing ? 'on PROGRAM' : 'on air'} yet. Press ✎ Update
-          </span>
-        )}
+        {picker?.waitsForUpdate && !hasUnsent && <CandidateWaits waits={picker.waitsForUpdate} rehearsing={rehearsing} />}
         {candidate && (!picker || candidate.readOnly || candidate.notReady) && (
           <span className={candidate.readOnly || candidate.notReady ? 'pd-unsent-note' : 'muted'} data-testid="cue-candidate">
             {candidate.readOnly ?? (candidate.notReady ? (picker ? candidate.notReady : `${candidate.label}. ${candidate.notReady}`) : candidate.label)}

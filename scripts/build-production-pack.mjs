@@ -177,7 +177,9 @@ function buildOne(packDir, outDir, manifest) {
     rmSync(beside, { recursive: true, force: true });
     for (const file of published) {
       mkdirSync(dirname(join(beside, file)), { recursive: true });
-      writeFileSync(join(beside, file), readSource(join(packDir, file)));
+      // Text as the pack's own sources are read (LF everywhere); anything else byte for byte.
+      if (/\.(md|json|csv|txt)$/i.test(file)) writeFileSync(join(beside, file), readSource(join(packDir, file)));
+      else copyFileSync(join(packDir, file), join(beside, file));
     }
   }
   const bytes = JSON.stringify(pack).length;

@@ -1312,9 +1312,10 @@ export function setCueSelection(
     if (selectionReadOnly(cue, show.collections)) return 'This cue’s live candidate was set up by a later version of NoaCG, so it is read-only here.';
     if (JSON.stringify(cue.selection ?? null) === bytes && !snapshot) return false;
     if (selection) {
-      cue.selection = structuredClone(selection);
-      const refused = check(show, cue);
+      // Judged on a copy first: a refusal leaves this read untouched, since the page is handed it.
+      const refused = check(show, { ...cue, selection });
       if (refused) return refused;
+      cue.selection = structuredClone(selection);
     } else {
       delete cue.selection;
       if (snapshot) cue.values = { ...cue.values, ...snapshot };
@@ -1337,14 +1338,16 @@ export function setShowSelections(
   const cues = new Map([...selections].map(([id, s]) => [id, JSON.stringify(s)] as const));
   return patchShowChecked(showId, (show) => {
     if (show.collections !== undefined || show.cues?.some((c) => c.selection !== undefined)) return 'This production already has live candidates.';
-    show.collections = structuredClone(collections);
+    // Judged whole on a copy first: a refusal leaves this read untouched.
+    const trial = { ...show, collections };
     for (const [id, selection] of selections) {
       const cue = show.cues?.find((c) => c.id === id);
       if (!cue) return 'A cue of the pack was removed.';
-      cue.selection = structuredClone(selection);
-      const refused = check(show, cue);
+      const refused = check(trial, { ...cue, selection });
       if (refused) return `“${cue.label}”: ${refused}`;
     }
+    show.collections = structuredClone(collections);
+    for (const [id, selection] of selections) show.cues!.find((c) => c.id === id)!.selection = structuredClone(selection);
     return true;
   }, true, { cues, collections: JSON.stringify(collections) });
 }

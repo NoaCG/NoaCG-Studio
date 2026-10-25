@@ -54,7 +54,7 @@ import {
   type TemplateType,
 } from '../model/types';
 import { publishGate } from '../validation/publishGate';
-import { readCollectionRecipe, selectionWriteError } from '../control/sourceMapping';
+import { readCollectionRecipe, selectionCheck, selectionWriteError } from '../control/sourceMapping';
 import type { CollectionRecipe, CueSelection, JsonObject, ProductionBindings } from '../model/productionData';
 import { saveLiveData } from '../model/productionState';
 
@@ -398,7 +398,7 @@ function packData(
   names: ReadonlySet<string>,
   rundown: RundownCue[],
 ): { data: Pick<GraphicsPack, 'data' | 'bindings' | 'collections'> } | { error: string } {
-  if (raw.data === undefined && raw.bindings === undefined && raw.collections === undefined) return { data: {} };
+  if (raw.data === undefined && raw.bindings === undefined && raw.collections === undefined && !rundown.some((c) => c.selection !== undefined)) return { data: {} };
   if (raw.version !== 3) return { error: 'The pack carries production data, which needs a version 3 pack.' };
   const out: Pick<GraphicsPack, 'data' | 'bindings' | 'collections'> = {};
   if (raw.data !== undefined) {
@@ -579,6 +579,9 @@ export async function installPack(
    *  Without it, each graphic keeps the stamp its file entry carries. */
   fromPack?: PackStamp,
 ): Promise<Show> {
+  // A pack's production data is a whole production's: its seed, live tree and candidates go into
+  // a production of their own, never over one that has its own.
+  if ((pack.data || pack.bindings || pack.collections) && dest?.kind === 'existing') throw new Error('This pack carries its production’s data, so it installs as a new production.');
   pack = await realizePack(pack);
   const failure = validatePack(pack);
   if (failure) throw new Error(failure);
@@ -643,10 +646,7 @@ export async function installPack(
     const cues = loadShows().find((s) => s.id === show.id)?.cues ?? [];
     // `setShowCues` wrote the rundown in order, so the pack's row i is the production's cue i.
     const selections = new Map((pack.rundown ?? []).flatMap((c, i) => (c.selection && cues[i] ? [[cues[i].id, c.selection] as const] : [])));
-    const names = new Map(installed.graphics.map((g) => [g.id, g.name]));
-    const { error } = setShowSelections(show.id, pack.collections, selections, (record, cue) =>
-      selectionWriteError(cue, record.collections, names.get(cue.sourceId) ?? null, record.bindings),
-    );
+    const { error } = setShowSelections(show.id, pack.collections, selections, selectionCheck);
     if (error) throw new Error(error);
   }
 
@@ -773,14 +773,17 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
   });
   // The production's data (v3): its seed, its bindings and its recipes, never a source, so the
   // file carries no connector, address or credential and an import rebinds explicitly.
+  const pooled = new Set(show.graphics.map((g) => g.name));
+  const bindings = Object.entries(structuredClone(show.bindings ?? {})).filter(([graphic, fields]) => pooled.has(graphic) && Object.keys(fields).length > 0);
   const data = {
     ...(show.data && Object.keys(show.data).length ? { data: structuredClone(show.data) } : {}),
-    ...(show.bindings && Object.keys(show.bindings).length ? { bindings: structuredClone(show.bindings) } : {}),
+    // Bindings of a graphic no longer in the pool bind nothing, and would make the file refused.
+    ...(bindings.length ? { bindings: Object.fromEntries(bindings) } : {}),
     ...(show.collections?.length ? { collections: structuredClone(show.collections) } : {}),
   };
   return {
     format: PACK_FORMAT,
-    version: Object.keys(data).length ? 3 : soundAssets.length ? 2 : 1,
+    version: Object.keys(data).length || cues.some((c) => 'selection' in c) ? 3 : soundAssets.length ? 2 : 1,
     name: show.name,
     description: '',
     graphics,

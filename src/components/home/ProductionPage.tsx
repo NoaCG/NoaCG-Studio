@@ -83,10 +83,10 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
-import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CueSelection, type ResolvedValues } from '../../model/productionData';
+import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
-import { collectionEntities, readCollectionRecipe, selectionGate, selectionWriteError } from '../../control/sourceMapping';
+import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
   fetchProductionData,
@@ -417,6 +417,17 @@ function DraftView({ draft, cue, children }: { draft: Pick<CueDraft, 'part'>; cu
   return <>{children(useCueView(draft, cue))}</>;
 }
 const liveCueOf = (air: AirPart) => air.liveCue;
+
+/** The Live candidate menu's people per tree and recipe, so a render that did not change the tree
+ *  reads them again rather than walking and sorting the collection. */
+const listedPeople = new WeakMap<object, Map<string, ReturnType<typeof collectionEntities>>>();
+function entitiesIn(recipe: CollectionRecipe, tree: object): ReturnType<typeof collectionEntities> {
+  let byRecipe = listedPeople.get(tree);
+  if (!byRecipe) listedPeople.set(tree, (byRecipe = new Map()));
+  const key = JSON.stringify(recipe);
+  if (!byRecipe.has(key)) byRecipe.set(key, collectionEntities(recipe, tree));
+  return byRecipe.get(key)!;
+}
 const airedOf = (air: AirPart) => air.aired;
 const bootLiveOf = (air: AirPart) => air.bootLive;
 const entriesOf = (log: LogPart) => log.entries;
@@ -1471,13 +1482,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     });
     if (recipes.length === 0) return null;
     const gate = selectionGate(cue, show?.collections, graphic, bindings);
-    // This cue on air with another person than it now picks: the picture changes at ✎ Update.
-    const aired = airedSelectionOf(session.selections.get(), graphic);
     const pick = gate.status === 'ok' ? JSON.stringify([gate.selection.recipe, gate.selection.key]) : null;
     return {
-      waitsForUpdate: !!aired?.known && aired.cueId === cue.id && liveCue[graphic] === cue.id && JSON.stringify([aired.selection.recipe, aired.selection.key]) !== pick,
+      // This cue on air with another person than it now picks: the picture changes at ✎ Update.
+      // Read by the editor from the session's own part, so a capture landing redraws the note.
+      waitsForUpdate:
+        liveCue[graphic] === cue.id
+          ? {
+              part: session.selections,
+              differs: (air) => {
+                const aired = airedSelectionOf(air, graphic);
+                return !!aired?.known && aired.cueId === cue.id && JSON.stringify([aired.selection.recipe, aired.selection.key]) !== pick;
+              },
+            }
+          : null,
       options: recipes.map((recipe) => {
-        const listed = collectionEntities(recipe, liveData);
+        const listed = entitiesIn(recipe, liveData);
         return { recipe: recipe.id, ...('problem' in listed ? { entities: [], problem: listed.problem } : { entities: listed.entities, problem: null }) };
       }),
       value: pick ?? (cue.selection === undefined ? '' : 'invalid'),
@@ -1490,12 +1510,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  captured candidate until ✎ Update. */
   const pickCandidate = async (cue: ShowCue, selection: CueSelection | null) => {
     if (!show) return;
-    await flushDraft();
     const take = selection === null ? candidateTake(cue) : null;
     const snapshot = take?.status === 'ok' ? take.values : undefined;
-    const result = setCueSelection(show.id, cue.id, selection, (record, c) => selectionWriteError(c, record.collections, record.graphics.find((g) => g.id === c.sourceId)?.name ?? null, record.bindings), snapshot);
-    setShows(result.shows);
-    if (result.error) setNote(result.error);
+    // A rundown edit like any other: one undoable step, said only once it lands.
+    const saved = await writeRundown(
+      () => setCueSelection(show.id, cue.id, selection, selectionCheck, snapshot),
+      'Live candidate',
+      'The live candidate was not saved',
+    );
+    // Nothing resolved to hold: the cue keeps the values it had, and says so.
+    if (saved && cue.selection !== undefined && selection === null && !snapshot) setNote('Fixed values: the candidate could not be read, so the cue keeps its own values.');
   };
   /** `text` in the one form every field connected to `path` takes ("TRUE" is "1" for a toggle), or
    *  null when one cannot hold it or they need different forms (control/sheetSource.ts). */

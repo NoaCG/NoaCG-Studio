@@ -1,7 +1,7 @@
 import type { Show, ShowCue, ShowFolder, PlayoutItem } from './shows';
 import type { SavedGraphic } from './packets';
 import { foldersContiguous, throughRefusal } from './showFolders.ts';
-import { selectionFrozen, selectionKeep } from './productionData.ts';
+import { selectionFrozen, selectionKeep, selectionReadOnly } from './productionData.ts';
 
 /** Only prepared rundown data. Air, publication, datasets and production metadata stay outside. */
 export interface RundownSlice {
@@ -84,8 +84,16 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
     updatedAt: new Date().toISOString(),
   };
   // An undo is a write like any other, except that a cue it brings back keeps the selection the
-  // record had: history copies are the record's own bytes.
-  const frozen = selectionFrozen(selectionKeep(show), next, new Set(copy.cues.map((c) => c.id)));
+  // record had: history copies are the record's own bytes. So does a cue whose live candidate the
+  // writer moved (E7.2a): undone or redone, it goes back to the selection it had, a cue of a later
+  // version excepted (`selectionFrozen` never rewrites one).
+  const moved = new Map<string, string>();
+  for (const cue of copy.cues) {
+    const now = show.cues?.find((c) => c.id === cue.id);
+    const to = JSON.stringify(cue.selection ?? null);
+    if (now && JSON.stringify(now.selection ?? null) !== to && !selectionReadOnly(cue, show.collections)) moved.set(cue.id, to);
+  }
+  const frozen = selectionFrozen(selectionKeep(show), next, new Set(copy.cues.map((c) => c.id)), moved.size ? { cues: moved } : undefined);
   return frozen ? { show: null, refused: frozen } : { show: next, refused: null };
 }
 

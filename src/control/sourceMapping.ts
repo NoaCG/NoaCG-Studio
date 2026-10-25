@@ -734,6 +734,27 @@ export function selectionWriteError(
   return null;
 }
 
+/** Key order as a person reads it: numbers by value (2 before 10), text by its characters, a
+ *  number before a text in the same place. */
+function byKey(a: readonly (string | number)[], b: readonly (string | number)[]): number {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x === y) continue;
+    if (typeof x === 'number' && typeof y === 'number') return x - y;
+    if (typeof x !== typeof y) return typeof x === 'number' ? -1 : 1;
+    return (x as string) < (y as string) ? -1 : 1;
+  }
+  return a.length - b.length;
+}
+
+/** `selectionWriteError` as the writer's doors ask it (model/shows.ts `SelectionCheck`): on the
+ *  record being written, for one of its cues, by the cue's pool graphic name. */
+export const selectionCheck = (
+  record: { graphics: readonly { id: string; name: string }[]; collections?: readonly unknown[]; bindings?: Record<string, Record<string, string>> },
+  cue: { sourceId: string; selection?: unknown },
+): string | null => selectionWriteError(cue, record.collections, record.graphics.find((g) => g.id === cue.sourceId)?.name ?? null, record.bindings);
+
 export interface CollectionEntity {
   key: (string | number)[];
   /** The record's first mapped value, as text: the person, for a candidate card. */
@@ -766,6 +787,6 @@ export function collectionEntities(recipe: CollectionRecipe, tree: unknown): { e
     const shown = first === undefined ? undefined : atPath(item as JsonValue, first);
     entities.push({ key, entity, label: typeof shown === 'string' || typeof shown === 'number' ? String(shown) : '' });
   }
-  entities.sort((a, b) => (a.entity < b.entity ? -1 : a.entity > b.entity ? 1 : 0));
+  entities.sort((a, b) => byKey(a.key, b.key));
   return { entities: entities.map(({ key, label }) => ({ key, label })) };
 }

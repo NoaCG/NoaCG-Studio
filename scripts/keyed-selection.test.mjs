@@ -1980,6 +1980,20 @@ describe('the selection writer (E7.2a)', () => {
       assert.ok(frozen(none, show([{ ...p, selection: b }, cue('q', { selection: b })]), write({ p: JSON.stringify(b) }, [RECIPE])), 'a cue it did not name');
     });
 
+    test('a pick is one undoable step: undo and redo move the cue back and forth, a later version still never moves', () => {
+      const slice = (cues) => ({ cues, folders: [], graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [] });
+      const record = (cues) => ({ id: 's', version: 2, name: 'S', graphics: [{ id: 'g1', name: 'Card' }], playoutItems: [], folders: [], cues, collections: [RECIPE], updatedAt: 'x' });
+      const picked = { ...a, selection: b };
+      const undo = replaceRundown(record([picked]), slice([picked]), slice([a]));
+      assert.equal(undo.refused, null);
+      assert.deepEqual(undo.show.cues[0].selection, selectionOf('D1', 7));
+      const detached = { ...a, values: { f0: 'Aino Aalto' } };
+      delete detached.selection;
+      assert.equal(replaceRundown(record([detached]), slice([detached]), slice([a])).refused, null, 'a Fill undone reconnects');
+      assert.equal(replaceRundown(record([a]), slice([a]), slice([detached])).refused, null, 'and redone detaches');
+      assert.ok(replaceRundown(record([later]), slice([later]), slice([{ ...later, selection: b }])).refused, 'a later version is never moved');
+    });
+
     test('what is written reads back byte for byte through storage and both doors after it', () => {
       const after = show([{ ...p, selection: b }]);
       assert.equal(frozen(show([p]), after, write({ p: JSON.stringify(b) })), null);
@@ -2000,6 +2014,8 @@ describe('the selection writer (E7.2a)', () => {
     assert.deepEqual(names(collection(5, [...BASE, BASE[0]])), { problem: 'two items share one key' });
     assert.deepEqual(names(collection(5, [{ name: 'Nobody' }])), { problem: 'an item of the collection has no district' });
     assert.deepEqual(names(collection(5, [])), { entities: [] });
+    const numbered = names(collection(5, [10, 2, 1].map((n) => person('D1', n, `P${n}`, 1)).concat([person('D1', '9', 'Text nine', 1)])));
+    assert.deepEqual(numbered.entities.map((e) => e.key[1]), [1, 2, 10, '9'], 'numbers by value, before a text key');
     assert.ok('problem' in mapping.collectionEntities({ ...RECIPE, schemaRevision: 9 }, tree(collection(5, BASE))));
   });
 
