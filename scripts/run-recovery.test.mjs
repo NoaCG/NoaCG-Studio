@@ -690,20 +690,17 @@ test('an accepted checkpoint is adopted and its ledger merged from version 1 to 
 });
 
 test('a version 2 checkpoint whose ledger blob was altered is refused', (t) => {
+  const tamper = (f) => replaceHead(f, { 'checkpoint.json': git(f.remote, 'show', `${refOf(f)}:checkpoint.json`),
+    'ledger.md': `${ledgerAt(f)}- an inserted line\n`, 'vercel.json': NO_DEPLOY });
   const f = fixture(t);
-  const tamper = () => {
-    const raw = git(f.remote, 'show', `${refOf(f)}:checkpoint.json`);
-    return replaceHead(f, { 'checkpoint.json': raw, 'ledger.md': `${ledgerAt(f)}- an inserted line\n`, 'vercel.json': NO_DEPLOY });
-  };
-  tamper();
+  tamper(f);
   assert.throws(() => f.restore(), /Recovery ledger blob differs from its checkpoint hash/);
   // An accepted-looking child of this store's head with an altered ledger is not adopted either.
   const g = projectFixture(t), block = blockOf(g.manifest.wave);
   lostPush(g);
   assert.throws(() => recordRun(g.db, g.manifest.id, 1, 'build', '{"actor":"builder"}', { now: g.now, authority: block }), /Could not resolve host/);
   g.inject(null);
-  const raw = git(g.remote, 'show', `${refOf(g)}:checkpoint.json`);
-  replaceHead(g, { 'checkpoint.json': raw, 'ledger.md': `${ledgerAt(g)}- an inserted line\n`, 'vercel.json': NO_DEPLOY });
+  tamper(g);
   const before = readFileSync(g.manifest.wave, 'utf8');
   assert.throws(() => recordRun(g.db, g.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: g.now, authority: block }), /Recovery ledger blob differs from its checkpoint hash/);
   assert.equal(readFileSync(g.manifest.wave, 'utf8'), before);
