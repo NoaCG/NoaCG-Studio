@@ -24,6 +24,21 @@ function held() {
 /** Let every settled promise run its continuations. */
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+/** What was sent, each figure command's own id checked and set aside: an update or an event with a
+ *  payload goes with this page's id, so its row heard back is known for this page's own
+ *  (graphicVerbs.ts `heard`). */
+function sentAs(sent) {
+  if (Array.isArray(sent)) return sent.map(sentAs);
+  if (sent && typeof sent === 'object' && 'msg' in sent) return { ...sent, msg: sentAs(sent.msg) };
+  if ((sent.t === 'update' && sent.data) || (sent.t === 'event' && sent.payload)) {
+    assert.equal(typeof sent.oid, 'string', `a ${sent.t} goes with this page's id`);
+    const rest = { ...sent };
+    delete rest.oid;
+    return rest;
+  }
+  return sent;
+}
+
 const graphicCue = (id, graphic, values = {}, extra = {}) => ({ id, sourceId: `g-${graphic}`, label: id.toUpperCase(), values, ...extra, graphic });
 const serverCue = (id) => ({ id, sourceId: `item-${id}`, source: 'playout', label: id.toUpperCase(), values: {} });
 const noneLeft = { skipped: [], superseded: [], pressedAgain: [] };
@@ -43,7 +58,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {} } = {}) {
+function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {}, ioWith = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -180,6 +195,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     },
     clearTimeout: () => {},
   };
+  Object.assign(io, ioWith);
   const state = { sender };
   // What this page believes is on air starts as the rig says: the live map and what each graphic
   // was last sent (the `air` part a live press reads its instance and its base from).
@@ -380,7 +396,7 @@ test('Take waits for the save, then reads the draft and the bound values as they
   r.resolved.Strap = { f2: '3-2', f0: 'bound wins' };
   r.flushes[0].resolve();
   await settle();
-  assert.deepEqual(r.sends[0].batches, [
+  assert.deepEqual(sentAs(r.sends[0].batches), [
     [
       { graphic: 'Strap', msg: { t: 'update', data: { f0: 'bound wins', f1: 'kept', f2: '3-2' } } },
       { graphic: 'Strap', msg: { t: 'play' } },
@@ -671,7 +687,7 @@ test('Update waits for the save and sends the full set, bound values over the dr
   r.resolved.Strap = { f0: 'tree' };
   r.flushes[0].resolve();
   await settle();
-  assert.deepEqual(r.sends[0].batches, [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'tree', f1: 'typed' } } }]]);
+  assert.deepEqual(sentAs(r.sends[0].batches), [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'tree', f1: 'typed' } } }]]);
   r.sends[0].answer.resolve({ ...noneLeft });
   await updating;
   // Update never moves the marker.
@@ -699,7 +715,7 @@ test('an unbound bump counts from what air was sent, sends that one field, and w
   r.flushes[0].resolve();
   await settle();
   assert.deepEqual(r.log.slice(1), [['send', 'Strap:update']]);
-  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'update', data: { f3: '8' } });
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0].msg), { t: 'update', data: { f3: '8' } });
   r.sends[0].answer.resolve({ ...noneLeft });
   await bumping;
   assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'c1', '{"f3":"8"}']]);
@@ -834,7 +850,7 @@ test('an event waits for the save, carries the ON-AIR cue as typed after the wai
   r.flushes[0].resolve();
   await settle();
   assert.deepEqual(r.log.slice(1), [['send', 'Score:event']]);
-  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'event', event: 'both', payload: { answer: 'typed' } });
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0].msg), { t: 'event', event: 'both', payload: { answer: 'typed' } });
   r.sends[0].answer.resolve({ ...noneLeft });
   await pressing;
   assert.deepEqual(r.log.filter(([k]) => k === 'writeLive' || k === 'patch'), [['writeLive', 'a1', '{"home":"5"}'], ['patch', '']]);
@@ -919,7 +935,7 @@ test('Snap waits for the save, then sends the snap and the ON-AIR values in one 
   r.draft.a1 = { q: 'typed' };
   r.flushes[0].resolve();
   await settle();
-  assert.deepEqual(r.sends[0].batches, [
+  assert.deepEqual(sentAs(r.sends[0].batches), [
     [
       { graphic: 'Quiz', msg: { t: 'snap', snap: { reveal: 'shown' } } },
       { graphic: 'Quiz', msg: { t: 'update', data: { q: 'typed' } } },
@@ -932,7 +948,7 @@ test('Snap waits for the save, then sends the snap and the ON-AIR values in one 
   await settle();
   r.flushes[1].resolve();
   await settle();
-  assert.deepEqual(r.sends[1].batches[0], [
+  assert.deepEqual(sentAs(r.sends[1].batches[0]), [
     { graphic: 'Quiz', msg: { t: 'snap', snap: null } },
     { graphic: 'Quiz', msg: { t: 'update', data: {} } },
   ]);
@@ -1183,7 +1199,7 @@ test('Update moves an aired cue to its new selection only once the whole replace
   const r = rig({ ...live, selections: { a: candidate({ f0: 'Bertta Berg' }, 5) } });
   const updating = r.verbs.update(sel({ editingCue: graphicCue('a', 'Strap', { f0: 'prepared' }), selectedGraphic: 'Strap', editingIsLive: true }));
   await settle();
-  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'update', data: { f0: 'Bertta Berg' } });
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0].msg), { t: 'update', data: { f0: 'Bertta Berg' } });
   assert.deepEqual(r.log.find(([k]) => k === 'aired'), ['aired', 'Strap', 'a', 'ok']);
   r.sends[0].answer.resolve({ ...noneLeft });
   await updating;
@@ -1303,7 +1319,7 @@ test('an event that moves a live candidate\'s field sends nothing; one that only
   assert.deepEqual(r.notes, ['F1 shows a live candidate, so it comes from its source.']);
   const reading = r.verbs.event(view, { event: 'show', payload: ['f1'] });
   await settle();
-  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'event', event: 'show', payload: { f1: '1200' } });
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0].msg), { t: 'event', event: 'show', payload: { f1: '1200' } });
   r.sends[0].answer.resolve({ ...noneLeft });
   await reading;
 });
@@ -1867,13 +1883,13 @@ test('a press on a pinned graphic acts on that graphic\'s on-air cue, never on t
   const pinned = liveSelection('Score', [quiz, banner], r.liveCue());
   const bumping = r.verbs.bump(pinned, 'home', 1);
   await settle();
-  assert.deepEqual(r.sends[0].batches, [[{ graphic: 'Score', msg: { t: 'update', data: { home: '8' } } }]]);
+  assert.deepEqual(sentAs(r.sends[0].batches), [[{ graphic: 'Score', msg: { t: 'update', data: { home: '8' } } }]]);
   r.sends[0].answer.resolve({ ...noneLeft });
   await bumping;
   assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'b1', '{"home":"8"}']]);
   const firing = r.verbs.event(pinned, { event: 'show', payload: ['name'] });
   await settle();
-  assert.deepEqual(r.sends[1].batches, [[{ graphic: 'Score', msg: { t: 'event', event: 'show', payload: { name: 'Katri' } } }]]);
+  assert.deepEqual(sentAs(r.sends[1].batches), [[{ graphic: 'Score', msg: { t: 'event', event: 'show', payload: { name: 'Katri' } } }]]);
   r.sends[1].answer.resolve({ ...noneLeft });
   await firing;
 });
@@ -2236,4 +2252,280 @@ test('an accepted press writes nothing over an edit to its field saved while it 
   r.sends[1].answer.resolve({ ...noneLeft });
   await two;
   assert.deepEqual(r.log.filter(([k]) => k === 'writeCue'), [['writeCue', 'b1', '{"home":"8"}'], ['writeCue', 'b1', '{"home":"9"}']]);
+});
+
+// ── THE SENT-FIGURE BASE ON THE SLOW ROAD (pinned-live-controls "What a press does", repair of
+// row 32a). This page's air record moves only when a row is heard back, so a row of an OLDER own
+// send can arrive while a newer one is out: it is no newer command, and the newer send's figure is
+// still the next press's base once it lands. A Take or an Update still out is a sent figure too. ──
+
+const { airedAfter } = await import('../src/control/outputRecovery.ts');
+/** Rows heard back, taken as the page takes them (ProductionPage `hearCommand`): the sender sees
+ *  them first, then air's record and the marker move for what it leaves to the page. */
+function hearRows(r, items) {
+  const rest = r.verbs.heard(items, () => false);
+  r.session.apply((parts) => ({
+    ...parts,
+    air: {
+      ...parts.air,
+      aired: rest.reduce((aired, item) => airedAfter(aired, item.graphic, item.msg), parts.air.aired),
+      liveCue: rest.reduce((map, item) => (item.msg.t === 'cue' ? withLiveCue(map, item.graphic, item.msg.cue ?? null) : map), parts.air.liveCue),
+    },
+  }));
+}
+const homeSent = (r, n) => r.sends[n].batches[0].find((item) => item.msg.t === 'update').msg.data.home;
+
+test('three quick +1 presses on the slow road send 8, 9, 10 when the first row is heard while the second is out', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const a = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await a;
+  const b = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 1), '9');
+  // The first press's row is heard while the second is out: air's record says 8.
+  hearRows(r, r.sends[0].batches[0]);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await b;
+  const c = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 2), '10');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await c;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue').map(([, , v]) => v), ['{"home":"8"}', '{"home":"9"}', '{"home":"10"}']);
+});
+
+test('the Take of a new round is the base once it lands, though an older +1\'s row is heard while it is out', async () => {
+  const s1 = graphicCue('s1', 'Score', { home: '7' });
+  const s2 = graphicCue('s2', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [s1, s2], r.liveCue());
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await plus;
+  const taking = r.verbs.take(s2);
+  await settle();
+  // The +1's row (8) is heard while the Take is out.
+  hearRows(r, r.sends[0].batches[0]);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await taking;
+  assert.equal(r.liveCue().Score, 's2');
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 2), '1');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await next;
+  assert.deepEqual(r.log.filter(([k]) => k === 'writeCue').at(-1), ['writeCue', 's2', '{"home":"1"}']);
+});
+
+test('a +1 pressed while a Re-take is out counts from the Re-take\'s figure, not the round before', async () => {
+  const s1 = graphicCue('s1', 'Score', { home: '7' });
+  const s2 = graphicCue('s2', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [s1, s2], r.liveCue());
+  const taking = r.verbs.take(s2);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  // Its row is not heard: air's record still says s1's 7. Re-take s2 goes out.
+  const retaking = r.verbs.take(s2);
+  await settle();
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 2), '1');
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await retaking;
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await plus;
+  // And the next press counts from that +1.
+  const again = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 3), '2');
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await again;
+});
+
+test('a correction from another screen heard while a +1 is out stands over it, though it carries the same figure as an older row', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const a = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await a;
+  const b = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  // Another screen's row puts 8 on air (no id this page sent): a newer command, whatever it says.
+  hearRows(r, [{ graphic: 'Score', msg: { t: 'update', data: { home: '8' }, oid: 'other-screen' } }]);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await b;
+  const c = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 2), '9');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await c;
+});
+
+const BASE_WALKS = Number(process.env.BASE_WALKS ?? 3000);
+
+/**
+ * One walk on the slow road: +1 presses, Takes, Re-takes and Updates of three cues on one graphic,
+ * another screen's corrections and Takes, answers landed, failed or refused in press order (one
+ * send in flight per graphic; a model server refuses a press made before it heard another screen's
+ * command committed ahead of it, as protocol 2 does), and rows heard back one at a time, in the
+ * log's order, whenever. Every +1 that
+ * goes is checked against the base rule: the newest of air's record and this page's landed or
+ * pending sent figures. An own figure still out is the newest; one that landed is, until another
+ * screen's command is heard after its press; otherwise air's record.
+ */
+async function baseWalk(seed, steps) {
+  const random = rng(seed);
+  const pick = (list) => list[Math.floor(random() * list.length)];
+  const cues = ['s1', 's2', 's3'].map((id, i) => graphicCue(id, 'Score', { home: String([7, 0, 3][i]), name: id }));
+  const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7', name: 's1' } } });
+  const trace = [];
+  /** What the page knows, in the order it learned it: its own sends at their press, and the rows of
+   *  other screens when heard. */
+  const known = [{ kind: 'initial' }];
+  const log = [];
+  let heardUpTo = 0;
+  let airedHome = '7';
+  const open = [];
+  const wrong = [];
+  const pushed = r.sends.push.bind(r.sends);
+  r.sends.push = (send) => {
+    const index = r.sends.length;
+    const items = send.batches.flat();
+    const update = items.find((item) => item.msg.t === 'update');
+    const isBump = items.length === 1 && update && Object.keys(update.msg.data).join() === 'home';
+    if (isBump) {
+      const own = known.filter((e) => e.kind === 'own' && e.state !== 'dropped');
+      const pending = own.filter((e) => e.state === 'pending').at(-1);
+      const newest = known.filter((e) => e.kind !== 'own' || e.state === 'landed').at(-1);
+      const base = newest.kind === 'own' ? (pending && known.indexOf(pending) > known.indexOf(newest) ? pending.home : newest.home) : (pending ? pending.home : airedHome);
+      // Recorded, not thrown: the send runs inside the verb, which would read a throw as a failure.
+      if (update.msg.data.home !== String(Number(base) + 1)) wrong.push(`seed ${seed}: send ${index} sent ${update.msg.data.home}, counting from ${base}\n${trace.join('\n')}`);
+    }
+    trace.push(`send ${index}: ${items.map((i) => `${i.msg.t}${i.msg.data ? JSON.stringify(i.msg.data) : i.msg.cue !== undefined ? `:${i.msg.cue}` : ''}`).join('+')}`);
+    known.push({ kind: 'own', index, state: 'pending', home: update?.msg.data.home, seen: heardUpTo });
+    open.push(index);
+    return pushed(send);
+  };
+  const entry = (index) => known.find((e) => e.kind === 'own' && e.index === index);
+  const answer = (index, fate) => {
+    open.splice(open.indexOf(index), 1);
+    const send = r.sends[index];
+    // Protocol 2: a press based on less than another screen committed before it is refused.
+    if (fate === 'landed' && log.slice(entry(index).seen).some((row) => !row.own)) {
+      entry(index).state = 'dropped';
+      trace.push(`answer ${index}: stale`);
+      send.answer.reject(Object.assign(new Error('changed'), { stale: true }));
+    } else if (fate === 'landed') {
+      entry(index).state = 'landed';
+      log.push(...send.batches.flat().map((item) => ({ ...item, own: true })));
+      trace.push(`answer ${index}: landed`);
+      send.answer.resolve({ ...noneLeft });
+    } else {
+      entry(index).state = 'dropped';
+      trace.push(`answer ${index}: failed`);
+      send.answer.reject(new Error('down'));
+    }
+  };
+  let foreign = 0;
+  for (let step = 0; step < steps; step++) {
+    const roll = random();
+    if (roll < 0.3) {
+      trace.push('press +1');
+      void r.verbs.bump(liveSelection('Score', cues, r.liveCue()), 'home', 1);
+    } else if (roll < 0.4) {
+      const cue = pick(cues);
+      if (random() < 0.5) r.draft[cue.id] = { home: String(Math.floor(random() * 20)) };
+      trace.push(`take ${cue.id} ${JSON.stringify(r.draft[cue.id] ?? {})}`);
+      void r.verbs.take(cue);
+    } else if (roll < 0.47) {
+      const view = liveSelection('Score', cues, r.liveCue());
+      if (view.editingCue && random() < 0.5) r.draft[view.editingCue.id] = { home: String(Math.floor(random() * 20)) };
+      trace.push('update');
+      void r.verbs.update(view);
+    } else if (roll < 0.72 && open.length > 0) {
+      // One send in flight per page and graphic (seqSend.ts `createGraphicFifo`): answers come in
+      // press order.
+      answer(open[0], random() < 0.85 ? 'landed' : 'failed');
+    } else if (roll < 0.8) {
+      foreign += 1;
+      const home = String(Math.floor(random() * 20));
+      trace.push(`another screen: ${random() < 0.7 ? 'correction' : 'take s3'} home ${home}`);
+      const take = trace.at(-1).includes('take');
+      log.push({ graphic: 'Score', msg: { t: 'update', data: take ? { home, name: 's3' } : { home }, oid: `other-${foreign}` } });
+      if (take) log.push({ graphic: 'Score', msg: { t: 'play', oid: `other-play-${foreign}` } }, { graphic: 'Score', msg: { t: 'cue', cue: 's3', oid: `other-cue-${foreign}` } });
+    } else if (heardUpTo < log.length) {
+      const row = log[heardUpTo++];
+      trace.push(`hear ${row.own ? 'own' : 'other'} ${row.msg.t}${row.msg.data ? JSON.stringify(row.msg.data) : ''}`);
+      if (row.msg.t === 'update' && 'home' in row.msg.data) {
+        airedHome = row.msg.data.home;
+        if (!row.own) known.push({ kind: 'foreign', home: row.msg.data.home });
+      }
+      hearRows(r, [{ graphic: row.graphic, msg: row.msg }]);
+    }
+    await settle();
+    assert.deepEqual(wrong, []);
+  }
+  // Settle what is still out, so nothing is left held.
+  while (open.length > 0) {
+    answer(open[0], 'landed');
+    await settle();
+  }
+  assert.deepEqual(wrong, []);
+}
+
+test('on the slow road every +1 counts from the newest of air\'s record and this page\'s landed or pending figures (walk)', async () => {
+  for (let seed = 1; seed <= BASE_WALKS; seed++) await baseWalk(seed, 40);
+});
+
+test('a Take that throws before it is sent leaves no figure held as sent', async () => {
+  const s1 = graphicCue('s1', 'Score', { home: '7' });
+  const timed = graphicCue('timed', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } } });
+  r.sender.armSpecFor = () => {
+    throw new Error('bad spec');
+  };
+  await assert.rejects(r.verbs.take(timed), /bad spec/);
+  const plus = r.verbs.bump(liveSelection('Score', [s1, timed], r.liveCue()), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 0), '8');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await plus;
+});
+
+test('the hockey scorebug: a ⚡ goal, then +1 twice, counts on when the goal\'s slow row is heard while the first +1 is out', async () => {
+  // As controlModel.ts `pressSend` says it: the moved figure rides in the event's payload, which is
+  // what air's record takes from the row (outputRecovery.ts `airedAfter`).
+  const pressSend = (button, boundMap, valueOf) => {
+    const fields = Object.fromEntries(Object.entries(button.adjust ?? {}).map(([key, delta]) => [key, String(Number(valueOf(key) ?? 0) + delta)]));
+    return { payload: fields, fields, tree: [] };
+  };
+  const scorebug = graphicCue('h1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'h1' }, aired: { Score: { home: '7' } }, ioWith: { pressSend } });
+  const view = () => liveSelection('Score', [scorebug], r.liveCue());
+  const goal = r.verbs.event(view(), { event: 'goalA', adjust: { home: 1 } });
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][0].msg.payload, { home: '8' });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await goal;
+  const one = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 1), '9');
+  // The goal's row comes back on the slow road (a graphic with a clock) while the +1 is out.
+  hearRows(r, r.sends[0].batches[0]);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await one;
+  const two = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 2), '10');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await two;
 });
