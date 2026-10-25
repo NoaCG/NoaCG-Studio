@@ -53,7 +53,10 @@ changes a spec's digest.
     a cue that a press of this page also named, a duplicate echo, and a later local press over
     another screen's marker. A fresh foreign marker also makes this page's presses there that got no answer
     older. Each such press committed before the foreign one, or was refused as stale after it. So
-    its row heard later moves nothing, through the book or through the page.
+    its row heard later moves nothing, through the book or through the page. On protocol 1 there is no
+    such order: a late own row after a foreign one can be an older echo or a newer late commit,
+    and the page cannot tell them apart. The protocol-2 rule stands there too. #1697 owns
+    protocol 1's lost ordering.
   - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
     sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
     old skip now make a real later press.
