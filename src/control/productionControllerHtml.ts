@@ -597,10 +597,8 @@ function feed(text) {
 // page sent counts until the log shows it back; after that the log's figure does. A value typed
 // into the editor and not yet aired is never that base. ──
 var airedVals = {};  // graphic -> field -> value, from the program rows of the log
-var sentVals = {};   // graphic -> field -> value this page sent that the log has not shown yet
-var sentAt = {};     // graphic -> field -> when it was sent: a send the log never shows stops counting
+var sentHolds = {};  // graphic -> field -> the sends this page made that the log has not shown yet, oldest first
 var SENT_HOLD_MS = 7000; // a send's whole window and an attempt's time, as graphicVerbs.ts waits
-var sentTok = {};    // graphic -> field -> the send that holds it, so a failed send releases only its own
 var sentSeq = 0;
 function programData(m) { return m.t === 'update' ? m.data : m.t === 'event' ? m.payload : null; }
 function noteSent(items) {
@@ -608,38 +606,38 @@ function noteSent(items) {
   items.forEach(function (it) {
     var data = it.stream !== 'preview' && it.msg ? programData(it.msg) : null;
     if (!data) return;
-    var held = sentVals[it.graphic] || (sentVals[it.graphic] = {});
-    var at = sentAt[it.graphic] || (sentAt[it.graphic] = {});
-    var tok = sentTok[it.graphic] || (sentTok[it.graphic] = {});
+    var holds = sentHolds[it.graphic] || (sentHolds[it.graphic] = {});
     for (var k in data) {
-      var had = Object.prototype.hasOwnProperty.call(held, k);
-      noted.push({ graphic: it.graphic, key: k, tok: ++sentSeq, before: had ? { value: held[k], at: at[k], tok: tok[k] } : null });
-      held[k] = String(data[k]);
-      at[k] = Date.now();
-      tok[k] = sentSeq;
+      var hold = { value: String(data[k]), at: Date.now(), tok: ++sentSeq };
+      // A send the log never showed stops counting after its window, so it is dropped here.
+      holds[k] = (holds[k] || []).filter(function (h) { return hold.at - h.at < SENT_HOLD_MS; });
+      holds[k].push(hold);
+      noted.push({ graphic: it.graphic, key: k, tok: hold.tok });
     }
   });
   return noted;
 }
-// What a failed send held goes back to what was held before it (an earlier send still out).
+// A send that failed holds nothing: the newest send still out (if any) is the held figure again.
 function releaseSent(noted) {
-  noted.slice().reverse().forEach(function (n) {
-    var tok = sentTok[n.graphic] || {};
-    if (tok[n.key] !== n.tok) return;
-    var held = sentVals[n.graphic] || {};
-    var at = sentAt[n.graphic] || {};
-    if (n.before) { held[n.key] = n.before.value; at[n.key] = n.before.at; tok[n.key] = n.before.tok; }
-    else { delete held[n.key]; delete at[n.key]; delete tok[n.key]; }
+  noted.forEach(function (n) {
+    var list = (sentHolds[n.graphic] || {})[n.key];
+    if (list) sentHolds[n.graphic][n.key] = list.filter(function (h) { return h.tok !== n.tok; });
   });
+}
+function heldOf(graphic, key) {
+  var list = (sentHolds[graphic] || {})[key] || [];
+  return list.length ? list[list.length - 1] : null;
 }
 function noteAired(row) {
   var data = row.stream !== 'preview' && row.msg ? programData(row.msg) : null;
   if (!data) return;
   var aired = airedVals[row.graphic] || (airedVals[row.graphic] = {});
-  var held = sentVals[row.graphic] || {};
+  var holds = sentHolds[row.graphic] || {};
   for (var k in data) {
     aired[k] = String(data[k]);
-    if (held[k] === aired[k]) delete held[k];
+    // The log shows a held figure: that send and every older one are answered; newer ones are out.
+    var list = holds[k] || [];
+    for (var i = list.length - 1; i >= 0; i--) if (list[i].value === aired[k]) { holds[k] = list.slice(i + 1); break; }
   }
 }
 // A cue's values as prepared, without the editor's unsent typing.
@@ -651,9 +649,8 @@ function preparedValue(cue, key) {
   return found;
 }
 function airBase(cue, key) {
-  var held = sentVals[cue.graphic] || {};
-  var at = (sentAt[cue.graphic] || {})[key] || 0;
-  if (Object.prototype.hasOwnProperty.call(held, key) && Date.now() - at < SENT_HOLD_MS) return held[key];
+  var held = heldOf(cue.graphic, key);
+  if (held && Date.now() - held.at < SENT_HOLD_MS) return held.value;
   var aired = airedVals[cue.graphic] || {};
   if (Object.prototype.hasOwnProperty.call(aired, key)) return aired[key];
   return preparedValue(cue, key);

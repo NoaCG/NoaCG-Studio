@@ -2173,12 +2173,20 @@ test('the EXPORTED controller draws a pinned graphic above the editor and presse
   await block.locator('.lb-number[data-field="f3"] button', { hasText: '+' }).click();
   await expect.poll(() => program().length).toBe(before + 3);
   expect(program()[before + 2]).toMatchObject({ graphic: 'House Score', msg: { t: 'update', data: { f3: '1' } } });
-  // A press whose send never reaches the relay holds nothing: the next press counts from air (1).
-  await ctl.route(`${origin}/relay/send`, (route) => route.abort(), { times: 1 });
-  const failed = ctl.waitForEvent('requestfailed', (r) => r.url().endsWith('/relay/send'));
-  await block.locator('.lb-number[data-field="f3"] button', { hasText: '+' }).click();
-  await failed;
-  await block.locator('.lb-number[data-field="f3"] button', { hasText: '+' }).click();
+  // Presses whose sends never reach the relay hold nothing: two held open together and then both
+  // failing, oldest first, leave the next press counting from air (1).
+  const plus = block.locator('.lb-number[data-field="f3"] button', { hasText: '+' });
+  const held: Route[] = [];
+  await ctl.route(`${origin}/relay/send`, (route) => void held.push(route), { times: 2 });
+  await plus.click();
+  await plus.click();
+  await expect.poll(() => held.length).toBe(2);
+  let failures = 0;
+  ctl.on('requestfailed', (r) => void (r.url().endsWith('/relay/send') && failures++));
+  await held[0].abort();
+  await held[1].abort();
+  await expect.poll(() => failures).toBe(2);
+  await plus.click();
   await expect.poll(() => program().length).toBe(before + 4);
   expect(program()[before + 3]).toMatchObject({ graphic: 'House Score', msg: { t: 'update', data: { f3: '2' } } });
   // …and the selection never moved.
