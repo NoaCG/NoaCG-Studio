@@ -126,6 +126,9 @@ export interface MarkerTrack {
   landed: MarkerPress | null;
   /** Every cue they and `before` named: a marker naming another was moved by another screen. */
   named: (string | null)[];
+  /** Another screen's cue marker was heard since the first of them: what it put up stands over a
+   *  press of this page that fails, whatever cue it names. */
+  foreign?: true;
 }
 
 /** Per graphic, while a marker press of this page is out on it. */
@@ -144,8 +147,8 @@ export function pressMarker(book: MarkerBook, live: LiveCueMap, graphic: string,
  * what the marker must now name (undefined: leave it). A press that landed names its cue, unless a
  * newer press of this page landed (a late older answer) or is still out (its own answer decides).
  * One that did not land puts the marker back on the newest that landed, or on what stood before
- * them, unless a newer press stands or the marker names a cue none of them did: another screen
- * moved it since. An older press still out does not count: the marker names it once it lands.
+ * them, unless a newer press stands, or another screen moved the marker since (its cue marker was
+ * heard, or the marker names a cue none of them did). An older press still out does not count: the marker names it once it lands.
  */
 export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string, n: number, landed: boolean): { book: MarkerBook; write?: string | null } {
   const t = book[graphic];
@@ -163,7 +166,7 @@ export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string
   if (newerLanded || out.some((p) => p.n > n)) return { book: next };
   if (landed) return { book: next, write: press.cue };
   const now = live[graphic] ?? null;
-  if (!t.named.includes(now)) return { book: next };
+  if (t.foreign || !t.named.includes(now)) return { book: next };
   const write = t.landed ? t.landed.cue : t.before;
   return write === now ? { book: next } : { book: next, write };
 }
@@ -174,6 +177,12 @@ export function landedLate(book: MarkerBook, graphic: string, n: number, cue: st
   const t = book[graphic];
   if (!t || (t.landed !== null && t.landed.n > n)) return book;
   return { ...book, [graphic]: { ...t, landed: { n, cue }, named: [...t.named, cue] } };
+}
+
+/** Another screen's cue marker was heard on `graphic` while a press of this page is out there. */
+export function foreignMarker(book: MarkerBook, graphic: string): MarkerBook {
+  const t = book[graphic];
+  return !t || t.foreign ? book : { ...book, [graphic]: { ...t, foreign: true } };
 }
 
 /** Commands heard back from the server, without the cue markers `own` claims: the sender writes

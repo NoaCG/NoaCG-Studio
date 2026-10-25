@@ -7,7 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { answerMarker, landedLate, leftAlone, pressMarker, readLiveCue, withLiveCue, withoutOwnMarkers } from '../src/control/liveCue.ts';
+import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, readLiveCue, withLiveCue, withoutOwnMarkers } from '../src/control/liveCue.ts';
 
 test('readLiveCue reads format 2, migrates format 1, and degrades to empty', () => {
   assert.deepEqual(readLiveCue({ v: 2, layers: { Bug: { cue: 'c1' }, Lower: { cue: 'c2' } } }), { Bug: 'c1', Lower: 'c2' });
@@ -94,4 +94,11 @@ test('withoutOwnMarkers drops only the cue markers it is told are owned (#1696)'
     { graphic: 'Bug', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } },
   ];
   assert.deepEqual(withoutOwnMarkers(items, (item) => item.msg.oid === 'mine'), items.slice(1));
+});
+
+test("another screen's cue marker heard while a press is out stands over that press failing, whatever cue it names (#1696)", () => {
+  let book = pressMarker({}, { Bug: 'c0' }, 'Bug', 1, 'c1');
+  book = foreignMarker(book, 'Bug');
+  assert.deepEqual(answerMarker(book, { Bug: 'c1' }, 'Bug', 1, false), { book: {} });
+  assert.equal(foreignMarker({}, 'Bug').Bug, undefined, 'no press out: nothing to note');
 });

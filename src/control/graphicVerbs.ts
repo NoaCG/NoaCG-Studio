@@ -48,7 +48,7 @@ import { oidOf } from './commandRoads.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
-import { answerMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
+import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
@@ -279,6 +279,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
   const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean): T[] => {
     for (const item of items) {
+      if (item.msg.t === 'cue' && !mine(item.msg)) markers = foreignMarker(markers, item.graphic);
       const oid = oidOf(item.msg);
       const u = oid ? unanswered.get(oid) : undefined;
       if (!oid || !u || u.graphic !== item.graphic) continue;
