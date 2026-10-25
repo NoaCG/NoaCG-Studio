@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, airedValues, nextSettle, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import { liveInstanceId } from '../../control/livePath';
@@ -1407,23 +1407,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const followRef = useRef<() => void>(() => {});
   // A layer whose sends' answers are lost (restored, or a press with no answer) waits out its
   // settling before it decides or sends: one follow pass when it ends, so a quiet tree still gets one.
-  useEffect(() => {
-    let timer: number | undefined;
-    let armed: number | null = null;
-    const arm = () => {
-      const at = nextSettle(session.selections.get());
-      if (at === armed) return;
-      window.clearTimeout(timer);
-      armed = at;
-      if (at !== null) timer = window.setTimeout(() => ((armed = null), followRef.current()), Math.max(0, at - Date.now()) + 100);
-    };
-    arm();
-    const stop = session.selections.subscribe(arm);
-    return () => {
-      stop();
-      window.clearTimeout(timer);
-    };
-  }, [session, id]);
+  useEffect(
+    () =>
+      watchSettling(session.selections, {
+        now: () => Date.now(),
+        follow: () => followRef.current(),
+        setTimeout: (run, ms) => window.setTimeout(run, ms),
+        clearTimeout: (timer) => window.clearTimeout(timer),
+      }),
+    [session, id],
+  );
   const selectionIo = useMemo<SelectionAirIo>(
     () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current(), alive: session.alive }),
     [session, keepSelections],

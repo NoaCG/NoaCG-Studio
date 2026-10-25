@@ -617,6 +617,39 @@ export const nextSettle = (air: SelectionAir): number | null => {
   return at.length > 0 ? Math.min(...at) : null;
 };
 
+/** The browser's timer, given to `watchSettling`. */
+export interface SettleTimers {
+  setTimeout: (run: () => void, ms: number) => number;
+  clearTimeout: (id: number | undefined) => void;
+}
+
+/**
+ * Follow once when the earliest settling layer stops settling, re-armed whenever the layers
+ * change. Returns the stop.
+ */
+export function watchSettling(part: StorePart<SelectionAir>, io: { now: () => number; follow: () => void } & SettleTimers): () => void {
+  let timer: number | undefined;
+  let armed: number | null = null;
+  const arm = () => {
+    const at = nextSettle(part.get());
+    if (at === armed) return;
+    io.clearTimeout(timer);
+    armed = at;
+    // A margin past the deadline, so the follow then finds it passed.
+    if (at !== null)
+      timer = io.setTimeout(() => {
+        armed = null;
+        io.follow();
+      }, Math.max(0, at - io.now()) + 100);
+  };
+  arm();
+  const stop = part.subscribe(arm);
+  return () => {
+    stop();
+    io.clearTimeout(timer);
+  };
+}
+
 /** The kept layers, or none: anything this build did not write reads as no layer, so a restored
  *  page holds rather than follows what it cannot read. */
 export function readSelectionAir(raw: string | null, now: number = Date.now()): SelectionAir {

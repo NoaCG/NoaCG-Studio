@@ -368,6 +368,11 @@ changes a spec's digest.
   now has another screen Update the card to another person under the same cue, heard through the
   same hook as the page's; it found the press-time rule (a correction sent before hearing is not
   a press). 14 new mutations, each red, and the earlier sets re-run red; 585 gate tests pass.
+  From the automated review of 1ed975c: the settle timer lived in ProductionPage, against this
+  directory's rule that a timer deciding what airs is a control module's; it is now
+  `watchSettling` in selectionAir.ts, its timers and clock injected, with a Node test (five
+  mutations, each red). Its two other findings (a blocked layer dropped on the marker, All out
+  not registered) were already fixed in 89314ab.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

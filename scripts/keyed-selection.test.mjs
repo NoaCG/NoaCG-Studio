@@ -874,6 +874,40 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, card(p).revision], [['1900'], 9]);
   });
 
+  test('the page follows once when the earliest layer stops settling, re-armed as the layers change, and stops cleanly', () => {
+    const p = io();
+    const timers = new Map();
+    let next = 0;
+    let follows = 0;
+    const stop = air.watchSettling(p.part, {
+      now: p.now,
+      follow: () => (follows += 1),
+      setTimeout: (run, ms) => (timers.set(++next, { run, ms }), next),
+      clearTimeout: (id) => timers.delete(id),
+    });
+    assert.equal(timers.size, 0, 'nothing settling: no timer');
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)), true).undo({ uncertain: true });
+    assert.deepEqual([...timers.values()].map((t) => t.ms), [air.SETTLE_MS + 100], 'armed for the end of the settling, with a margin');
+    const [[id, { run }]] = [...timers];
+    timers.delete(id);
+    run();
+    assert.equal(follows, 1, 'one follow when it ends');
+    p.part.set({});
+    assert.equal(timers.size, 0, 'nothing settling again: nothing armed');
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)), true).undo({ uncertain: true });
+    assert.equal(timers.size, 1);
+    p.part.set({});
+    assert.equal(timers.size, 0, 'the layers moved on: the old timer is cleared');
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)), true).undo({ uncertain: true });
+    stop();
+    assert.equal(timers.size, 0, 'stopped: the timer is cleared');
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D2', 7))).undo({ uncertain: true });
+    assert.equal(timers.size, 0, 'and no longer listens');
+  });
+
   test('a correction that failed with no answer may have aired: an older revision is not sent over it, and it goes once more', async () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
