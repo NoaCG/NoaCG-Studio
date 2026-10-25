@@ -80,3 +80,26 @@ export function leftAlone(sent: VerbSent): string[] {
 export function reachedOutput(sent: { readonly skipped: readonly string[]; readonly superseded: readonly string[] } | null, graphic: string): boolean {
   return !!sent && !sent.skipped.includes(graphic) && !sent.superseded.includes(graphic);
 }
+
+/** How a send failed (control/selectionAir.ts `SendFailure`). */
+interface OutFailure {
+  uncertain?: true;
+  stale?: true;
+}
+
+/** Outs on these graphics, as presses on their live candidates' layers (control/selectionAir.ts
+ *  `pressSelection`): no correction follows them out or overtakes them. Settle with what the
+ *  send came to. */
+export function pressOuts(
+  aired: (graphic: string, cueId: string, take: { status: 'none' }, moves: boolean) => { landed: () => void; undo: (failed?: OutFailure) => void },
+  graphics: readonly string[],
+): (sent: { ok: true; skipped: readonly string[]; superseded: readonly string[] } | ({ ok: false } & OutFailure)) => void {
+  const presses = graphics.map((graphic) => [graphic, aired(graphic, '', { status: 'none' }, true)] as const);
+  return (sent) => {
+    for (const [graphic, press] of presses) {
+      if (!sent.ok) press.undo(sent);
+      else if (reachedOutput(sent, graphic)) press.landed();
+      else press.undo();
+    }
+  };
+}

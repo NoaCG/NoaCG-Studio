@@ -85,9 +85,10 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, airedValues, nextSettle, followAired, followsCandidates, protectedFields, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedValues, nextSettle, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
+import { liveInstanceId } from '../../control/livePath';
 import {
   fetchProductionData,
   patchProductionData,
@@ -1091,6 +1092,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       foldProgram((air, specs, now) => claimAndApply(air, items, session.applied, specs, now)),
     [session, foldProgram],
   );
+  /** Another screen's commands, told to the live candidates (control/selectionAir.ts
+   *  `foreignSelection`); set below, once the layers' io exists. */
+  const heardFromOthers = useRef<(items: { graphic: string; msg: ControlEventRow['msg'] }[]) => void>(() => {});
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
   const hearCommand = useCallback(
@@ -1104,6 +1108,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
         folderPlayout.settleMisses(settle);
       }
+      heardFromOthers.current(items);
       applyCommand(items);
     },
     [applyCommand, folderPlayout],
@@ -1423,6 +1428,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     () => ({ part: session.selections, keep: keepSelections, now: () => Date.now(), followNow: () => followRef.current(), alive: session.alive }),
     [session, keepSelections],
   );
+  heardFromOthers.current = (items) => foreignSelection(selectionIo, items, liveInstanceId());
   /** A Take or an Update put this cue's selection on the layer (control/selectionAir.ts). */
   const selectionAired = useCallback(
     (graphic: string, cueId: string, take: SelectionTake, moves?: boolean) => pressSelection(selectionIo, graphic, cueId, take, moves),
@@ -2608,6 +2614,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   })();
 
   folderPage.current = {
+    selectionAired,
     cues,
     folders: rundown.folders,
     members: rundown.members,

@@ -812,6 +812,26 @@ test('a step: the graphic up goes off first, its answer moves liveCue, then the 
   assert.deepEqual(r.folders().folderSteps, { M: 'vt' });
 });
 
+test('a folder\'s Out is a press on each live candidate layer it clears, settled by its answer (E7.1)', async () => {
+  const r = folderRig({ folders: [MANUAL], cues: manualCues });
+  const presses = [];
+  r.page.selectionAired = (graphic, cueId, take, moves) => {
+    presses.push(['press', graphic, cueId, take.status, moves]);
+    return { landed: () => presses.push(['landed', graphic]), undo: () => presses.push(['undo', graphic]) };
+  };
+  r.live({ One: 'g1' });
+  r.hold();
+  const done = r.fp.step(MANUAL);
+  r.answer('flush');
+  await settle();
+  assert.deepEqual(presses, [['press', 'One', '', 'none', true]], 'registered before the Out goes');
+  r.answer('send Out');
+  await settle();
+  r.answer('g2');
+  await done;
+  assert.deepEqual(presses, [['press', 'One', '', 'none', true], ['landed', 'One']]);
+});
+
 test('a step whose graphic does not go off goes no further; the end goes back to the top; nothing left to take says so', async () => {
   const r = folderRig({ folders: [MANUAL], cues: manualCues });
   r.live({ One: 'g1' });

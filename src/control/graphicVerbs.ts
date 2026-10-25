@@ -46,7 +46,7 @@ import { moveLiveCue } from './airState.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
-import { leftAlone, reachedOutput, withLiveCue } from './liveCue.ts';
+import { leftAlone, pressOuts, reachedOutput, withLiveCue } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
@@ -518,8 +518,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     });
     if (cleared.length === 0) return;
     p.clearing(true);
+    // Each Out is a press on its layer: no correction follows it out or overtakes it.
+    const settleOuts = pressOuts(p.selectionAired, cleared);
     try {
       const sent = await sendWith(s, clearAllCueBatches(cleared), 'All out', true);
+      settleOuts(sent);
       if (!sent.ok) {
         s.note(await p.clearThroughBridge(sent.note));
         return;

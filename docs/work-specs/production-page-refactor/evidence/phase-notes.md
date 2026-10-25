@@ -350,6 +350,24 @@ changes a spec's digest.
   From the automated review of 919258b: a press ended its candidate's hold when it was sent, so an
   Update that then failed left a held revision that no later read would send. The hold now ends
   only when the press lands. Pinned, red with the old behaviour.
+  *Sixth assessment on 1ed975c: FAIL*, four findings, all fixed. (1) Another screen's Update or
+  Take on the same cue reached this page only as frames: the marker stayed, so this page sent its
+  captured person back over the other screen's. A command heard from another sender (its stamp,
+  livePath.ts `withSender`) on a graphic with a live candidate, pressed after this page's last
+  landed press there (`pressedAt`; one pressed before it was overridden, or refused as stale on
+  protocol 2), now blocks that layer as a stale refusal does (`foreignSelection`, called from
+  ProductionPage `hearCommand`). Server rows and older senders carry no stamp and are left alone.
+  (2) A block from a Take or an Out that did not land lasted only until the next follow, which
+  dropped the layer on the marker this page had moved, and with it the protection of its fields,
+  so Snap or an event on the plain cue sent its own values onto the candidate's card. A layer so
+  blocked is no longer dropped or decided by the marker, and every blocked layer protects every
+  candidate it holds. The hold now says to take or update the card. (3) A press that landed below
+  a revision a hold judged ended the hold while its bound stayed, so that revision never went:
+  such a hold now stays. (4) A folder's Outs and All out are presses on their layers too
+  (`pressOuts`, in liveCue.ts so Node can load it, an extra file with folderPlayout.ts). The walk
+  now has another screen Update the card to another person under the same cue, heard through the
+  same hook as the page's; it found the press-time rule (a correction sent before hearing is not
+  a press). 14 new mutations, each red, and the earlier sets re-run red; 585 gate tests pass.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

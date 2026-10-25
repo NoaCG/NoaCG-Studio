@@ -260,6 +260,15 @@ test('a refusal as stale on any send blocks the live candidates on the graphics 
   assert.equal((await unread).uncertain, true);
 });
 
+test('an All out with no answer tells each layer it may still have landed (E7.1)', async () => {
+  const r = rig({ liveCue: { Strap: 'c1' } });
+  const clearing = r.verbs.allOut();
+  await settle();
+  r.sends[0].answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true }));
+  await clearing;
+  assert.deepEqual(r.log.filter(([k]) => k === 'unaired'), [['unaired', 'Strap', '', 'uncertain']]);
+});
+
 test('Take and Out tell the layer they move the marker; Out is a press on the layer, settled by its answer (E7.1)', async () => {
   const r = rig({ liveCue: { Strap: 'c1' } });
   const presses = [];
@@ -547,7 +556,8 @@ test('All out stops the folders first, cuts each server cue in turn, clears the 
   outs[1].resolve(true);
   await settle();
   // What the heads say is read after the server cues went, not at the press.
-  assert.deepEqual(r.log, [['outUnnamed'], ['headsSay', 'slug-1'], ['clearing', true], ['send', 'Strap:stop+Strap:cue+Score:stop+Score:cue']]);
+  // Each Out is a press on its layer before it goes (E7.1).
+  assert.deepEqual(r.log, [['outUnnamed'], ['headsSay', 'slug-1'], ['clearing', true], ['aired', 'Strap', '', 'none'], ['aired', 'Score', '', 'none'], ['send', 'Strap:stop+Strap:cue+Score:stop+Score:cue']]);
   assert.equal(r.sends[0].allOut, true);
   // A clear sounds nothing.
   assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'stop', sound: false });
@@ -556,6 +566,7 @@ test('All out stops the folders first, cuts each server cue in turn, clears the 
   r.sends[0].answer.resolve({ ...noneLeft });
   await clearing;
   assert.deepEqual(r.liveCue(), {});
+  assert.deepEqual(r.log.filter(([k]) => k === 'landed'), [['landed', 'Strap', ''], ['landed', 'Score', '']], 'each Out settles its press');
   assert.deepEqual(r.log.filter(([k]) => k === 'headsStillOn' || k === 'clearing').slice(-2), [['headsStillOn', 'slug-1', 'Strap,Score', 5000], ['clearing', false]]);
   assert.deepEqual(r.notes, ['bridge: All out did not clear Score']);
 });

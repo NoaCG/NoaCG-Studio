@@ -760,6 +760,9 @@ describe('the page\'s two doors onto the layers', () => {
       const raw = JSON.parse(air.writeSelectionAir(p.part.get()));
       raw.graphics.Card.blocked = { since: 'soon' };
       assert.deepEqual(air.readSelectionAir(JSON.stringify(raw), 9000), {}, 'a malformed block is not read');
+      const rawAt = JSON.parse(air.writeSelectionAir(p.part.get()));
+      rawAt.graphics.Card.pressedAt = 'then';
+      assert.deepEqual(air.readSelectionAir(JSON.stringify(rawAt), 9000), {}, 'nor a malformed press time');
       air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7), 7)).landed();
       assert.equal(card(p).held, undefined, `${refused}: the operator's Take lifts it`);
       air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(8, [person('D1', 7, 'Aino Aalto', 1700)])), send });
@@ -822,6 +825,53 @@ describe('the page\'s two doors onto the layers', () => {
     const dropped = [{ ...RECIPE, fields: { f0: RECIPE.fields.f0, f2: RECIPE.fields.f2 } }];
     air.followAired(p, { liveCue: live, seeded: true, facts: { ...facts(collection(6, people6())), collections: dropped }, send: (g, v) => (sends.push(v), Promise.resolve(ANSWERED)) });
     assert.deepEqual([sends, card(p).held?.reason], [[], 'its collection recipe changed since it was taken']);
+  });
+
+  test('another screen\'s command on the card, pressed after this page\'s last landed press, blocks it; older ones, its own and unstamped ones do not (sixth assessment)', async () => {
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f0), Promise.resolve(ANSWERED));
+    const cases = [
+      ['another screen after', { t: 'update', snd: { i: 'them', at: 5000 } }, true],
+      ['another screen before', { t: 'update', snd: { i: 'them', at: 500 } }, false],
+      ['this page', { t: 'update', snd: { i: 'me', at: 5000 } }, false],
+      ['a server row', { t: 'update' }, false],
+      ['a ping', { t: 'ping', snd: { i: 'them', at: 5000 } }, false],
+    ];
+    for (const [name, msg, blocks] of cases) {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      air.foreignSelection(p, [{ graphic: 'Card', msg }, { graphic: 'Gone', msg }], 'me');
+      sends.length = 0;
+      air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+      await settle();
+      assert.deepEqual([sends.length, !!card(p).held], blocks ? [0, true] : [1, false], name);
+      assert.equal(p.part.get().Gone, undefined, `${name}: no layer is made`);
+    }
+  });
+
+  test('a Take that did not land keeps the layer and its protected fields while the marker names another cue (sixth assessment)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(p, 'Card', 'plain', { status: 'none' }, true).undo();
+    air.followAired(p, { liveCue: { Card: 'plain' }, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve(ANSWERED) });
+    assert.equal(card(p).cueId, 'cue-a', 'not forgotten on a marker this page moved');
+    assert.deepEqual(air.protectedFields(p.part.get(), 'Card', 'plain'), ['f0', 'f1', 'f2'], 'Snap and events on the plain cue leave them alone');
+    air.pressSelection(p, 'Card', 'plain', { status: 'none' }, true).landed();
+    air.followAired(p, { liveCue: { Card: 'plain' }, seeded: true, facts: facts(collection(6, people6())), send: () => Promise.resolve(ANSWERED) });
+    assert.deepEqual(p.part.get(), {}, 'the plain Take landed: the layer goes');
+  });
+
+  test('a press that lands below a revision a hold judged keeps the hold, so that revision still goes (sixth assessment)', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), Promise.resolve(ANSWERED));
+    const nine = collection(9, [person('D1', 7, 'Aino Aalto', 1900)]);
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(nine, { fieldsOf: () => [text('f0')] }), send });
+    air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), collection(8, [person('D1', 7, 'Aino Aalto', 1800)]))).landed();
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(nine), send });
+    await settle();
+    assert.deepEqual([sends, card(p).revision], [['1900'], 9]);
   });
 
   test('a correction that failed with no answer may have aired: an older revision is not sent over it, and it goes once more', async () => {
@@ -1249,7 +1299,7 @@ describe('generated walks: the layer against the output', () => {
     return collection(rev, [person('D1', 7, 'Aino Aalto', rev * 10 + 1), person('D2', 7, 'Bertta Berg', rev * 10 + 2)]);
   };
 
-  const seen = { press: 0, landed: 0, failed: 0, skipped: 0, correction: 0, reload: 0, unknown: 0, decided: 0, held: 0, unsent: 0, plain: 0, uncertain: 0, stale: 0, other: 0, blocked: 0 };
+  const seen = { press: 0, landed: 0, failed: 0, skipped: 0, correction: 0, reload: 0, unknown: 0, decided: 0, held: 0, unsent: 0, plain: 0, uncertain: 0, stale: 0, other: 0, otherUpdate: 0, blocked: 0 };
   async function walk(seed, steps) {
     const rnd = mulberry(seed);
     const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
@@ -1273,11 +1323,14 @@ describe('generated walks: the layer against the output', () => {
     // What aired whenever another screen took over: a page that has not settled since may still
     // record it.
     let before = [];
+    // What another screen pressed, as the page hears it (ProductionPage hearCommand).
+    let theirs = null;
     const hear = () => {
       if (!unheard) return;
       unheard = false;
       known = head;
       marker = trueMarker;
+      if (theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], 'me');
       log.push(`the page heard another screen's Take (${trueMarker})`);
       // The marker moved: the page follows at once.
       followOnce(tree);
@@ -1416,6 +1469,7 @@ describe('generated walks: the layer against the output', () => {
         log.push(`#${f.send.index} of the page that went away reached the server (${keyOf(output)})`);
         // The page hears what the server airs from its frames: the marker follows.
         marker = trueMarker;
+        if (unheard && theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], 'me');
         known = head;
         unheard = false;
       }
@@ -1467,9 +1521,20 @@ describe('generated walks: the layer against the output', () => {
         log.push('read an older tree');
         followOnce(old);
       } else if (r < 0.93) {
-        // Another screen takes a card without a selection: nothing of this page's that was sent
-        // before it heard may land, and nothing of this candidate's may go over that card.
+        // Another screen takes a card without a selection, or Updates the card on air to another
+        // person under the same cue: nothing of this page's that was sent before it heard may
+        // land, and nothing of this candidate's may go over that card.
         before.push(output);
+        if (output && rnd() < 0.5) {
+          output = { ...output, entity: '["D9",9]', values: { f0: 'Someone Else', f1: '1', f2: '-' } };
+          theirs = { t: 'update', snd: { i: 'them', at: clock } };
+          head += 1;
+          unheard = true;
+          seen.otherUpdate += 1;
+          log.push('another screen updated the card to another person');
+          continue;
+        }
+        theirs = { t: 'cue', snd: { i: 'them', at: clock } };
         output = null;
         trueMarker = 'other';
         head += 1;
@@ -1488,6 +1553,8 @@ describe('generated walks: the layer against the output', () => {
         seen.reload += 1;
         page.alive = false;
         page = { alive: true };
+        // The reopened page reads the log, another screen's command included.
+        if (unheard && theirs) air.foreignSelection(io(), [{ graphic: 'Card', msg: theirs }], 'me');
         known = head;
         unheard = false;
         part.set(air.readSelectionAir(air.writeSelectionAir(part.get()), clock));
