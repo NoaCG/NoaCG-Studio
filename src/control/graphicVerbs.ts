@@ -249,67 +249,73 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
   /** Each graphic's last live press, which the next one waits for. */
   const presses = new Map<string, Promise<void>>();
-  /** Per graphic, the figures this page sent that are not answered yet, each with its press number:
-   *  a live press's moved figures, and every field a Take, Update or Snap sends. The newest that
-   *  carries a field is the base the next press counts from while it is out (`baseOf`). */
-  const sentFigures = new Map<string, { stamp: number; figures: Record<string, string> }[]>();
-  const holdFigures = (graphic: string, stamp: number, figures: Record<string, string>) => {
-    const hold = { stamp, figures };
-    sentFigures.set(graphic, [...(sentFigures.get(graphic) ?? []), hold]);
-    return () => {
-      const rest = (sentFigures.get(graphic) ?? []).filter((h) => h !== hold);
-      if (rest.length > 0) sentFigures.set(graphic, rest);
-      else sentFigures.delete(graphic);
-    };
+  /** Each graphic's own Takes, Updates and Outs of this page still out, all of which the next live
+   *  press there waits for too (`afterPress`): a press never overlaps one unless its own fallback
+   *  lets it go. */
+  const ownSends = new Map<string, Promise<void>>();
+  const behind = <T>(graphics: readonly string[], run: Promise<T>): Promise<T> => {
+    const done = run.then(
+      () => {},
+      () => {},
+    );
+    for (const graphic of graphics) {
+      const before = ownSends.get(graphic);
+      const settled = before ? Promise.all([before, done]).then(() => {}) : done;
+      ownSends.set(graphic, settled);
+      void settled.then(() => {
+        if (ownSends.get(graphic) === settled) ownSends.delete(graphic);
+      });
+    }
+    return run;
   };
-  /** Per graphic and field, a figure whose send landed while air's record had not taken it yet (a
-   *  slow-road row not heard back), with its press number: the base while air's record still shows
-   *  that field as it was (`over`) and the same cue holds the layer. A write to another field leaves
-   *  it standing; this page's own Take, Update or Snap of the graphic clears it (`sendWith`). */
-  type Landed = { figure: string; over: string | undefined; layer: Layer; stamp: number };
-  /** The cue a send left its figures on: its own Take's, else that of the newest of this page's
-   *  Takes and Outs out at its press that did not fail, else what stood under them at its press
-   *  (the newest of this page's that landed while a newer one was out, else the live marker). Read
-   *  when asked, so an older Take that failed after the send landed gives back the cue that stood. */
-  type Layer = { take?: string | null; out: readonly { n: number; cue: string | null }[]; live: string | null };
-  const layerAt = (graphic: string, take?: string | null): Layer => ({
-    ...(take !== undefined ? { take } : {}),
-    out: (markers[graphic]?.out ?? []).map((p) => ({ n: p.n, cue: p.cue })),
-    live: markers[graphic]?.landed ? markers[graphic].landed.cue : (session.air.get().liveCue[graphic] ?? null),
-  });
-  const layerCue = (layer: Layer): string | null => {
-    if (layer.take !== undefined) return layer.take;
-    const stood = layer.out.filter((p) => !failedMarkers.has(p.n));
-    return stood.length > 0 ? stood[stood.length - 1].cue : layer.live;
-  };
-  const landedFigures = new Map<string, Record<string, Landed>>();
-  /** The books a Take, Out or Snap parked until its answer (`sendWith`), so a row heard meanwhile
-   *  reaches them as it reaches `landedFigures`. */
-  const parkedBooks = new Set<Map<string, Record<string, Landed>>>();
-  /** What air's record showed at each send's press for the fields it carries (`atPress`): a field
-   *  moved since by a NEWER command keeps that command's figure, and the send books none. `upTo`:
-   *  the send's own number; this page's commands numbered up to it are not newer than it. `moved`:
-   *  fields another screen's row moved since the press, whatever figure it carried. `layer`: where
-   *  its figures go. */
-  type AtPress = { graphic: string; upTo: number; layer: Layer; was: Record<string, string | undefined>; moved: Set<string> };
-  const atPresses = new Set<AtPress>();
-  const pressedAt = (graphic: string, upTo: number, layer: Layer): AtPress => {
-    const at = { graphic, upTo, layer, was: { ...(session.air.get().aired[graphic] ?? {}) }, moved: new Set<string>() };
-    atPresses.add(at);
-    return at;
-  };
-  /** A field the landed send may book over: nothing newer than the press moved it. */
-  const unmoved = (at: AtPress, key: string, now: Record<string, string>) => !at.moved.has(key) && now[key] === at.was[key];
-  /** This page's figure-carrying commands (an update, an event), by the id they were sent with, and
-   *  their press number: a row heard back is told from another screen's by it, not by its figure. */
-  const ownFigures = new Map<string, { graphic: string; stamp: number }>();
-  /** Per graphic, the press number of the newest send that reached the output and replaced its
-   *  fields (`all`) or one field (`keys`): a failed older send gives back no figure a newer one
-   *  replaced, and a late older answer that landed books none over it. */
+  // ── THE SENT-FIGURE LEDGER (pinned-live-controls "What a press does"): per graphic, in press
+  // order, this page's own sends that carry figures (a live press, a Take, Re-take, Update or
+  // Snap), each pending until its answer, then landed or gone. It is the one source of an unbound
+  // field's base (`baseOf`). A send that did not reach the output leaves it at once: it is never a
+  // base and gives nothing back. Order is the press number's, never an answer's or a row's. ──
+  /** One batch of one send on one graphic: its press number, its figures, and the fields air's
+   *  record took past it: its own row or a newer one heard, another screen's row heard after its
+   *  press, or a move with no row. */
+  type Entry = { stamp: number; figures: Record<string, string>; landed: boolean; past: Set<string> };
+  const ledger = new Map<string, Entry[]>();
   let sendSeq = 0;
-  const replacedAt = new Map<string, { all: number; keys: Record<string, number> }>();
-  /** Each landed send's press number, by the answer it returned. */
-  const stampOf = new WeakMap<object, number>();
+  /** This page's commands that move air's record (an update, an event, a stop), by the id they were
+   *  sent with, and their press number: a row heard back is told from another screen's by it, not
+   *  by its figure. */
+  const ownFigures = new Map<string, { graphic: string; stamp: number }>();
+  /** Air's record and the live marker as the ledger last accounted for them. A field that differs
+   *  when next read moved with no row heard (a reseed): it stands over every entry, as another
+   *  screen's row does; a marker that moved so stands over every field. */
+  const seen = new Map<string, { aired: Record<string, string>; cue: string | null }>();
+  const passed = (graphic: string, keys: readonly string[] | null, upTo = Infinity) => {
+    for (const entry of ledger.get(graphic) ?? []) if (entry.stamp <= upTo) for (const key of keys ?? Object.keys(entry.figures)) entry.past.add(key);
+  };
+  const airNow = (graphic: string) => ({ aired: { ...(session.air.get().aired[graphic] ?? {}) }, cue: session.air.get().liveCue[graphic] ?? null });
+  const accounted = (graphic: string) => {
+    const now = airNow(graphic);
+    const was = seen.get(graphic);
+    if (was && was.cue !== now.cue) passed(graphic, null);
+    else if (was) passed(graphic, [...new Set([...Object.keys(was.aired), ...Object.keys(now.aired)])].filter((key) => was.aired[key] !== now.aired[key]));
+    seen.set(graphic, now);
+  };
+  /** This page's own move of air's record or marker (its command applied here on the fast road or
+   *  unpublished, its marker written from an answer): it takes no entry past. */
+  const applyOwn = (graphics: readonly string[], apply: () => void) => {
+    for (const graphic of graphics) accounted(graphic);
+    apply();
+    for (const graphic of graphics) seen.set(graphic, airNow(graphic));
+  };
+  /** The entries still able to decide something: every pending one, and every landed one with a
+   *  field that air's record has not taken past and no newer landed entry carries, or with a pending
+   *  entry older than it (which a late answer is judged against, `unreplaced`). The rest go. */
+  const settled = (list: readonly Entry[]) =>
+    list.filter((e, i) => !e.landed || list.slice(0, i).some((o) => !o.landed) || Object.keys(e.figures).some((key) => !e.past.has(key) && !list.slice(i + 1).some((n) => n.landed && key in n.figures)));
+  /** The figures no send pressed after `stamp` replaced on the output: what a late answer may still
+   *  write into the cue. */
+  const unreplaced = (graphic: string, figures: Record<string, string>, stamp: number) => {
+    const newer = (ledger.get(graphic) ?? []).filter((e) => e.landed && e.stamp > stamp);
+    return Object.fromEntries(Object.entries(figures).filter(([key]) => !newer.some((e) => key in e.figures)));
+  };
   /** Per cue and field, the figure a press last wrote into the cue. */
   const pressWrote = new Map<string, string>();
   /** What a press reads of the cue's saved fields when it starts, and the fields still as they were
@@ -324,16 +330,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       return kept;
     };
   };
-  /** The figures no send newer than `sent` replaced: what a late answer may still write. */
-  const unreplaced = (graphic: string, figures: Record<string, string>, sent: object) => {
-    const stamp = stampOf.get(sent) ?? 0;
-    const r = replacedAt.get(graphic);
-    return r ? Object.fromEntries(Object.entries(figures).filter(([key]) => r.all <= stamp && (r.keys[key] ?? 0) <= stamp)) : figures;
-  };
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
-    session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m: LiveCueMap) => graphics.reduce((acc, g) => withLiveCue(acc, g, cueId), m)) }));
+    applyOwn(graphics, () => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m: LiveCueMap) => graphics.reduce((acc, g) => withLiveCue(acc, g, cueId), m)) })));
 
   // ── THE MARKER'S PRESSES (#1696). Every Take and Out leaves through the one sender with a cue
   // marker, so the sender numbers them at the press and writes the marker from their answers:
@@ -352,9 +352,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  sender's to write from its answers, and every other cue row is somebody else's. */
   const own = new Set<string>();
   const landedOn = (graphic: string, n: number) => newestLanded.set(graphic, Math.max(newestLanded.get(graphic) ?? 0, n));
-  /** Marker presses that did not reach the output (bounded): a send's figures went on what stood
-   *  before them (`layerCue`). One heard landing after all leaves the set. */
-  const failedMarkers = new Set<number>();
 
   /** Number a send's markers at its press, batch by batch (each lands or fails on its own), and
    *  give each its id, which the send keeps (hostedControl.ts `sendControlVerb`). */
@@ -385,22 +382,29 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     for (const m of sent) {
       const reached = landed(m);
       if (reached) landedOn(m.graphic, m.n);
-      else {
-        failedMarkers.add(m.n);
-        for (const old of failedMarkers) if (failedMarkers.size > 1024) failedMarkers.delete(old);
-      }
       const step = answerMarker(markers, session.air.get().liveCue, m.graphic, m.n, reached);
       markers = step.book;
       if (step.write !== undefined) mark([m.graphic], step.write);
     }
   };
   const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], applied?: (msg: unknown) => boolean): T[] => {
+    // Before any of them: the page applies them all after this returns, so what they will leave on
+    // air's record is booked as accounted only once the markers below have moved (`applyOwn`).
+    for (const graphic of new Set(items.map((item) => item.graphic))) accounted(graphic);
+    const taken: { graphic: string; fields: Record<string, string> | undefined }[] = [];
     for (const item of items) {
-      // A command air's record is about to take (one already applied here moves nothing).
+      // A command air's record is about to take. It takes its fields past every send pressed no
+      // later than it: this page's own row past its own send and older ones, another screen's row
+      // (or one with no id this page knows) past all. One this page already applied here moves
+      // nothing, and says only that it committed: older own sends are past it.
+      // A stop clears the record, every field.
       const fields = figuresOf(item.msg);
-      if (!fields || applied?.(item.msg)) continue;
       const mine = ownFigures.get(oidOf(item.msg) ?? '');
-      heardFigures(item.graphic, fields, mine && mine.graphic === item.graphic ? mine.stamp : null);
+      const own = mine?.graphic === item.graphic ? mine.stamp : null;
+      const claimed = !!applied?.(item.msg);
+      if ((!fields && item.msg.t !== 'stop') || (claimed && own === null)) continue;
+      passed(item.graphic, fields ? Object.keys(fields) : null, own === null ? Infinity : claimed ? own - 1 : own);
+      if (!claimed) taken.push({ graphic: item.graphic, fields });
     }
     for (const item of items) {
       const oid = oidOf(item.msg);
@@ -410,17 +414,26 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       // A newer press of this page landed: it stands over this one, on air and on the marker.
       if ((newestLanded.get(u.graphic) ?? 0) > u.n) continue;
       landedOn(u.graphic, u.n);
-      failedMarkers.delete(u.n);
       markers = landedLate(markers, u.graphic, u.n, u.cue);
       // A newer press still out decides with its own answer, and puts this one back if it fails.
       if (!markers[u.graphic]?.out.some((p) => p.n > u.n)) mark([u.graphic], u.cue);
+    }
+    for (const { graphic, fields } of taken) {
+      const was = seen.get(graphic)!;
+      seen.set(graphic, { ...was, aired: fields ? { ...was.aired, ...fields } : {} });
     }
     // This sender's own markers are its answers' to write: applied, a late row of an older press
     // would put its cue back over a newer one (#1696). Every other cue row the page applies now
     // (another screen's, or one from an earlier mount of the page) is what stands over this
     // sender's presses out there until one lands: a failure gives it back.
     const rest = withoutOwnMarkers(items, (item) => own.has(oidOf(item.msg) ?? ''));
-    for (const item of rest) if (item.msg.t === 'cue' && !applied?.(item.msg)) markers = foreignMarker(markers, item.graphic, (item.msg as { cue?: string | null }).cue ?? null);
+    for (const item of rest) {
+      if (item.msg.t !== 'cue' || applied?.(item.msg)) continue;
+      const cue = (item.msg as { cue?: string | null }).cue ?? null;
+      markers = foreignMarker(markers, item.graphic, cue);
+      // A row heard, not a move with no row: the figures of its Take are what take entries past.
+      seen.set(item.graphic, { ...seen.get(item.graphic)!, cue });
+    }
     return rest;
   };
 
@@ -431,170 +444,84 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const out = markers[graphic]?.out;
     return out && out.length > 0 ? out[out.length - 1].cue : (session.air.get().liveCue[graphic] ?? null);
   };
+  /** The cue a live press may act on now: the one the live marker names, while no press of this
+   *  page still out names another; false while they disagree. */
+  const holding = (graphic: string): string | null | false => {
+    const at = onLayer(graphic);
+    return at === (session.air.get().liveCue[graphic] ?? null) ? at : false;
+  };
   /** Capture the cue a live press acts on: the one its selection drew (null when it drew none), or
    *  false when the layer already holds another. `still` asks again after a wait and says why once. */
   const instance = (s: VerbSender, graphic: string, drawn: ShowCue | null) => {
-    const at = onLayer(graphic);
-    const captured = drawn && drawn.id !== at ? false : at;
+    const at = holding(graphic);
+    const captured = at === false || (drawn && drawn.id !== at) ? false : at;
     const still = () => {
-      if (captured !== false && onLayer(graphic) === captured) return true;
+      if (captured !== false && holding(graphic) === captured) return true;
       s.note(changedNote(graphic));
       return false;
     };
     return still;
   };
-  /** What an unbound field counts from: the newest, by press, of the figures this page sent that
-   *  are still out and those that landed and air's record has not taken; else what air was last
-   *  sent, else `fallback`. A Take, an Update or a Snap sends figures too. Never the cue as typed,
-   *  so a correction staged in PREP is not a base until Update airs it. */
+  /** What an unbound field counts from: the newest entry of the ledger, by press, that carries it,
+   *  while it is out, or once landed until air's record took it past; else what air was last sent,
+   *  else `fallback`.
+   *  Never the cue as typed, so a correction staged in PREP is not a base until Update airs it. */
   const baseOf = (graphic: string, key: string, fallback: string | undefined) => {
-    // The newest figure this page sent and has no answer for yet, the newest that landed and air's
-    // record has not taken, by press: a Take still out stands over an older landed +1, and a +1
-    // landed during that Take over the Take.
-    const pending = (sentFigures.get(graphic) ?? []).filter((h) => key in h.figures).reduce<{ stamp: number; figures: Record<string, string> } | undefined>((newest, h) => (!newest || h.stamp >= newest.stamp ? h : newest), undefined);
-    const aired = session.air.get().aired[graphic]?.[key];
-    const book = landedFigures.get(graphic);
-    const landed = book?.[key];
-    // Another cue on the layer only for now (a newer Take still out) does not drop the figure: the
-    // Take may fail and give its cue back. Air's record moving past it does.
-    const standing = landed && aired === landed.over && layerCue(landed.layer) === onLayer(graphic) ? landed : undefined;
-    if (landed && aired !== landed.over) delete book![key];
-    if (pending && !(standing && standing.stamp > pending.stamp)) return pending.figures[key];
-    return standing ? standing.figure : (aired ?? fallback);
-  };
-  /** Book what a landed send left, by its press number: the base while air's record shows that
-   *  field as it is now, whether or not it has taken the figure yet (a Take of this page still out
-   *  from before the press is older). One a newer command moved since the press keeps that
-   *  command's figure. */
-  const bookLanded = (book: Record<string, Landed>, at: AtPress, key: string, figure: string, stamp: number) => {
-    const now = session.air.get().aired[at.graphic] ?? {};
-    if (unmoved(at, key, now)) book[key] = { figure, over: now[key], layer: at.layer, stamp };
-    else delete book[key];
-  };
-  /** Hold these figures as sent until the send settles; one that landed and is not yet in air's
-   *  record stays the base while that record stands and its cue still holds the layer. Called just
-   *  before the press's send, which takes the next press number. */
-  const holdSent = (graphic: string, figures: Record<string, string>) => {
-    const from = sendSeq;
-    const at = pressedAt(graphic, from + 1, layerAt(graphic));
-    const release = holdFigures(graphic, from + 1, figures);
-    return (landed: boolean) => {
-      release();
-      atPresses.delete(at);
-      if (!landed) return;
-      const book = { ...(landedFigures.get(graphic) ?? {}) };
-      const r = replacedAt.get(graphic);
-      // One a send since the press replaced keeps what that send booked: a press's own update
-      // booked its figure there, and a newer one stands over a late older answer.
-      for (const [key, figure] of Object.entries(figures)) {
-        if (r && (r.all > from || (r.keys[key] ?? 0) > from)) continue;
-        bookLanded(book, at, key, figure, from + 1);
-      }
-      landedFigures.set(graphic, book);
-    };
-  };
-  /** A command of this page's own carrying figures, as air's record is about to take it: its row
-   *  heard back, or the command applied here at the press (the fast road). One no newer than a send
-   *  still out (a slow row of a press already counted on, or that send's own) is no newer command:
-   *  it moves only the bar the send books over, and only while nothing else moved that field. One
-   *  as new as a booked figure or newer puts its own figure there. Another screen's row (or one with
-   *  no id this page knows) moves the field under every send out and every figure booked. */
-  const heardFigures = (graphic: string, fields: Record<string, string>, stamp: number | null, record = session.air.get().aired) => {
-    const aired = record[graphic] ?? {};
-    const books = [landedFigures.get(graphic), ...[...parkedBooks].map((parked) => parked.get(graphic))].filter((b): b is Record<string, Landed> => !!b);
-    for (const [key, figure] of Object.entries(fields)) {
-      for (const at of atPresses) {
-        if (at.graphic !== graphic) continue;
-        if (stamp === null) at.moved.add(key);
-        else if (stamp <= at.upTo && aired[key] === at.was[key]) at.was[key] = figure;
-      }
-      for (const book of books) {
-        const entry = book[key];
-        if (!entry) continue;
-        if (stamp === null) delete book[key];
-        else if (stamp < entry.stamp) {
-          if (aired[key] === entry.over) entry.over = figure;
-        } else book[key] = { figure, over: figure, layer: entry.layer, stamp };
-      }
-    }
+    accounted(graphic);
+    const carrying = (ledger.get(graphic) ?? []).filter((e) => key in e.figures);
+    const last = carrying[carrying.length - 1];
+    if (last && !(last.landed && last.past.has(key))) return last.figures[key];
+    return session.air.get().aired[graphic]?.[key] ?? fallback;
   };
 
   // ── The one sender. ONE place a verb's commands go somewhere: the wire when published, the local
   // PROGRAM monitor always, so the two can never drift into two behaviours. ──
-  const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false): Promise<Sent> => {
-    // A Take, Update, Snap or Out of a graphic replaces what air shows there: a landed figure that
-    // air's record had not taken yet is no longer the base (a press's own update books after this).
-    // Parked, not dropped: a send that does not reach the output gives them back.
+  /** `moved`: the figures a live event moves on its graphic, which its payload may not carry. */
+  const sendWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, allOut = false, moved?: Record<string, string>): Promise<Sent> => {
     const stamp = ++sendSeq;
     // Nothing more goes for a closed production (§4.1 R3), except All out's clear: the panic control
     // pressed before the end still takes off what it named, since a clear can air nothing stale.
     if (!allOut && !session.alive()) return { ok: false, note: ENDED_NOTE };
-    const parked = new Map<string, Record<string, Landed>>();
-    for (const item of batches.flat()) {
-      const book = landedFigures.get(item.graphic);
-      if (!book) continue;
-      if (!parked.has(item.graphic)) parked.set(item.graphic, { ...book });
-      if (item.msg.t === 'update') for (const key of Object.keys(item.msg.data ?? {})) delete book[key];
-      else if (item.msg.t !== 'event' && item.msg.t !== 'next') landedFigures.delete(item.graphic);
-    }
-    parkedBooks.add(parked);
-    // What air's record showed at the press for the figures this send carries (`holdSent`), and the
-    // figures themselves, held as sent until the answer: what a Take or an Update sends is the base
-    // while it is out, as a live press's figure is.
-    const layerOf = (graphic: string): Layer => {
-      const takes = batches.flat().filter((item) => item.graphic === graphic && item.msg.t === 'cue');
-      return layerAt(graphic, takes.length > 0 ? ((takes[takes.length - 1].msg as { cue?: string | null }).cue ?? null) : undefined);
-    };
-    const atPress = new Map([...new Set(batches.flat().map((item) => item.graphic))].map((graphic) => [graphic, pressedAt(graphic, stamp, layerOf(graphic))]));
-    const releases = batches.flat().flatMap((item) => (item.msg.t === 'update' && item.msg.data ? [holdFigures(item.graphic, stamp, item.msg.data)] : []));
+    // Into the ledger, one entry per batch and graphic that carries figures, pending until the
+    // answer: what a Take, an Update or a Snap sends counts as a press's figure does.
+    const entries = batches.flatMap((batch, index) =>
+      [...new Set(batch.map((item) => item.graphic))].flatMap((graphic) => {
+        const items = batch.filter((item) => item.graphic === graphic);
+        const figures: Record<string, string> = Object.assign({}, ...items.map((item) => figuresOf(item.msg) ?? {}), moved ?? {});
+        if (Object.keys(figures).length === 0) return [];
+        accounted(graphic);
+        const entry: Entry = { stamp, figures, landed: false, past: new Set() };
+        ledger.set(graphic, [...settled(ledger.get(graphic) ?? []), entry]);
+        return [{ graphic, batch: index, entry }];
+      }),
+    );
     /** Settle them with what the send came to: `reached` says whether a batch's commands for a
      *  graphic reached the output (each batch lands or fails on its own). */
-    const unpark = (reached: (graphic: string, batch: number) => boolean) => {
-      for (const release of releases) release();
-      for (const [batch, item] of batches.flatMap((items, index) => items.map((it) => [index, it] as const))) {
-        if (!reached(item.graphic, batch) || item.msg.t === 'event' || item.msg.t === 'next') continue;
-        const r = replacedAt.get(item.graphic) ?? { all: 0, keys: {} };
-        if (item.msg.t === 'update') {
-          // The figures it landed are the base until air's record takes them, as a press's are.
-          const at = atPress.get(item.graphic)!;
-          const book = { ...(landedFigures.get(item.graphic) ?? {}) };
-          for (const [key, figure] of Object.entries(item.msg.data ?? {})) {
-            // A newer send already replaced it: a late older answer books nothing over that.
-            if (r.all > stamp || (r.keys[key] ?? 0) > stamp) continue;
-            r.keys[key] = stamp;
-            bookLanded(book, at, key, figure, stamp);
-          }
-          landedFigures.set(item.graphic, book);
-        } else r.all = Math.max(r.all, stamp);
-        replacedAt.set(item.graphic, r);
+    const settle = (reached: (graphic: string, batch: number) => boolean) => {
+      for (const { graphic, batch, entry } of entries) {
+        if (reached(graphic, batch)) entry.landed = true;
+        else ledger.set(graphic, (ledger.get(graphic) ?? []).filter((e) => e !== entry));
       }
-      for (const at of atPress.values()) atPresses.delete(at);
-      parkedBooks.delete(parked);
-      for (const [graphic, before] of parked) {
-        if (batches.some((items, index) => items.some((item) => item.graphic === graphic) && reached(graphic, index))) continue;
-        // Given back unless a send newer than the figure itself replaced it since.
-        const r = replacedAt.get(graphic);
-        const back = Object.fromEntries(Object.entries(before).filter(([key, entry]) => !r || (r.all <= entry.stamp && (r.keys[key] ?? 0) <= entry.stamp)));
-        landedFigures.set(graphic, { ...back, ...(landedFigures.get(graphic) ?? {}) });
-      }
+      // An Out that reached the output took the graphic off: nothing pressed before it is a base.
+      batches.forEach((batch, index) => {
+        for (const item of batch) if (item.msg.t === 'stop' && reached(item.graphic, index)) passed(item.graphic, null, stamp - 1);
+      });
     };
     if (!p.published) {
       // Not published: the verbs still drive the local PROGRAM monitor, which is what makes the
       // whole surface usable (and provable) offline. Nothing leaves the machine.
       const local = stampMarkers(batches);
-      for (const batch of local.batches) p.here(batch);
+      for (const batch of local.batches) applyOwn([...new Set(batch.map((item) => item.graphic))], () => p.here(batch));
       p.logSent(local.batches.flat());
       pressMarkers(local.pressed);
       answerMarkers(local.pressed, () => true);
-      unpark(() => true);
-      const done = { ok: true as const, skipped: [], superseded: [], pressedAgain: [] };
-      stampOf.set(done, stamp);
-      return done;
+      settle(() => true);
+      return { ok: true as const, skipped: [], superseded: [], pressedAgain: [] };
     }
     // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the same
     // countdown from the Take's own row (control/cueArmWire.ts). Every Take leaves here, whichever
     // control pressed it, so this is the one place that adds it. A throw before the send (a timed
-    // cue's spec) gives back what this press parked and held.
+    // cue's spec) leaves nothing pending in the ledger.
     let stamped: ControlSendItem[][];
     let pressed: MarkerSent[];
     let marked: ControlSendItem[][];
@@ -602,9 +529,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       ({ batches: stamped, pressed } = stampMarkers(batches));
       marked = stamped.map((batch) =>
         batch.map((item) => {
-          // A figure's command goes with this page's id, so its row heard back is known for this
-          // press's own (`heard`), never read as another screen's correction.
-          if (figuresOf(item.msg) && !oidOf(item.msg)) {
+          // A figure's command, or a stop, goes with this page's id, so its row heard back is known
+          // for this press's own (`heard`), never read as another screen's correction.
+          if ((figuresOf(item.msg) || item.msg.t === 'stop') && !oidOf(item.msg)) {
             const oid = mintOid();
             ownFigures.set(oid, { graphic: item.graphic, stamp });
             for (const old of ownFigures.keys()) if (ownFigures.size > 1024) ownFigures.delete(old);
@@ -616,7 +543,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         }),
       );
     } catch (e) {
-      unpark(() => false);
+      settle(() => false);
       throw e;
     }
     p.sending(1);
@@ -630,31 +557,21 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         slug: p.published,
         showId: p.showId,
         batches: marked,
-        // What applies here at the press is this page's own command, never a newer one's.
-        applyHere: (items) => {
-          const before = session.air.get().aired;
-          p.applyHere?.(items);
-          if (session.air.get().aired === before) return;
-          for (const item of items) {
-            const mine = ownFigures.get(oidOf(item.msg) ?? '');
-            const fields = figuresOf(item.msg);
-            if (fields && mine?.graphic === item.graphic) heardFigures(item.graphic, fields, mine.stamp, before);
-          }
-        },
+        // What applies here at the press is this page's own command: it takes air's record past no
+        // entry, and books nothing.
+        applyHere: (items) => applyOwn([...new Set(items.map((item) => item.graphic))], () => p.applyHere?.(items)),
         fastEvents: p.fastEvent,
         allOut,
       });
       answerMarkers(pressed, (m) => reachedOutput(sent, m.graphic));
-      unpark((graphic) => reachedOutput(sent, graphic));
+      settle((graphic) => reachedOutput(sent, graphic));
       p.note(p.debts().landed(marked.flat()));
       p.owed(p.debts().owed() > 0);
       p.loggedAt(io.now());
       // A graphic went up with nothing reporting that could air it: the status says "No output" in
       // red until something connects (playout-workflow-simplification AC-2). Never blocked.
       if (!allOut && !p.outputUsable() && marked.some((batch) => batch.some((item) => item.msg.t === 'play'))) p.noOutput();
-      const done = { ok: true as const, ...sent };
-      stampOf.set(done, stamp);
-      return done;
+      return { ok: true as const, ...sent };
     } catch (e) {
       // A verb whose picture MOVED HERE and then failed to send is a different sentence from one
       // that never happened: this monitor applied the commands before the round trip. A press
@@ -672,7 +589,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const uncertain = isUnanswered(e) || (e as { unread?: unknown }).unread === true;
       const skipped = io.verbsSkipped(e);
       answerMarkers(pressed, (m) => m.batch < landed && !skipped.includes(m.graphic));
-      unpark((graphic, batch) => batch < landed && !skipped.includes(graphic));
+      settle((graphic, batch) => batch < landed && !skipped.includes(graphic));
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
       if (uncertain && !stale) {
         for (const m of pressed) if (m.batch === landed) unanswered.set(m.oid, m);
@@ -696,8 +613,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  as it stands when it sends; the verbs below send with the page of their press. */
   const send = (batches: ControlSendItem[][], label: string, allOut = false) => sendWith(sender(), batches, label, allOut);
 
-  const runWith = async (p: VerbSender, batches: ControlSendItem[][], label: string): Promise<VerbSent | null> => {
-    const sent = await sendWith(p, batches, label);
+  const runWith = async (p: VerbSender, batches: ControlSendItem[][], label: string, moved?: Record<string, string>): Promise<VerbSent | null> => {
+    const sent = await sendWith(p, batches, label, false, moved);
     if (!sent.ok) p.note(sent.note);
     return sent.ok ? sent : null;
   };
@@ -710,7 +627,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
 
   /**
-   * A LIVE PRESS WAITS FOR THE ONE BEFORE IT on its graphic, then counts from what that press left:
+   * A LIVE PRESS WAITS FOR THE ONE BEFORE IT on its graphic, and for this page's own Takes, Updates
+   * and Outs of it still out (`behind`), then counts from what that press left:
    * the tree (`boundNow`) for a bound field, the sent figure for an unbound one. Two goals in one
    * round trip are two points (spec S1, e2e/configured/playout-adjust-race.spec.ts; pinned live
    * controls F2). The wait ends when the press before it has had a send's whole window and an
@@ -718,7 +636,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    * next press; past it, the press counts from what this page sent, or the tree as it stands.
    */
   const afterPress = (graphic: string, press: () => Promise<void>): Promise<void> => {
-    const before = presses.get(graphic);
+    const waits = [presses.get(graphic), ownSends.get(graphic)].filter((w): w is Promise<void> => !!w);
+    const before = waits.length > 0 ? Promise.all(waits) : undefined;
     let timer: unknown;
     const waited = before
       ? Promise.race([before, new Promise<void>((resolve) => (timer = io.setTimeout(resolve, RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS)))])
@@ -738,9 +657,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
 
   /** A graphic cue's Take, reporting nothing: its sentence comes back, for one cue or a folder's
    *  whole Take to say. Null when its graphic is gone. */
-  const takeGraphicWith = async (s: VerbSender, p: GraphicPage, cue: ShowCue, label: string, direct = false): Promise<GraphicTake | null> => {
+  const takeGraphicWith = (s: VerbSender, p: GraphicPage, cue: ShowCue, label: string, direct = false): Promise<GraphicTake | null> => {
     const graphic = p.graphicOf(cue);
-    if (!graphic) return null;
+    return graphic ? behind([graphic], takeOn(s, p, cue, graphic, label, direct)) : Promise.resolve(null);
+  };
+  const takeOn = async (s: VerbSender, p: GraphicPage, cue: ShowCue, graphic: string, label: string, direct: boolean): Promise<GraphicTake> => {
     await p.flush();
     // A live candidate resolves whole from one revision, or the cue is not taken: an unknown B
     // never airs B's prepared values, or A's (E7.1).
@@ -790,6 +711,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       return;
     }
     if (!editingCue || !graphic || !sel.editingIsLive) return;
+    await behind([graphic], updateOn(s, p, editingCue, graphic));
+  };
+  const updateOn = async (s: VerbSender, p: GraphicPage, editingCue: ShowCue, graphic: string) => {
     await p.flush();
     // An explicit Update may move the aired cue to the selection it now has, only once that whole
     // replacement resolves; refused, the layer keeps what it airs and follows (E7.1).
@@ -846,18 +770,13 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       }
       const next = io.adjustedValue(baseOf(graphic, fieldKey, editingCue.values[fieldKey] ?? '0'), delta);
       const unedited = savedAt(p, editingCue.id, [fieldKey]);
-      const settle = holdSent(graphic, { [fieldKey]: next });
-      let landed = false;
-      try {
-        const sent = await runWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
-        landed = !!sent && reachedOutput(sent, graphic);
-        // Written only once accepted: a refused or failed send writes nothing (the note says why),
-        // and a late answer writes nothing over a newer send's figure or a newer saved edit.
-        const write = landed && sent ? unedited(unreplaced(graphic, { [fieldKey]: next }, sent)) : {};
-        if (Object.keys(write).length > 0) p.writeCue(editingCue.id, write);
-      } finally {
-        settle(landed);
-      }
+      // The press number the send takes, which it takes at once.
+      const stamp = sendSeq + 1;
+      const sent = await runWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
+      // Written only once accepted: a refused or failed send writes nothing (the note says why),
+      // and a late answer writes nothing over a newer send's figure or a newer saved edit.
+      const write = sent && reachedOutput(sent, graphic) ? unedited(unreplaced(graphic, { [fieldKey]: next }, stamp)) : {};
+      if (Object.keys(write).length > 0) p.writeCue(editingCue.id, write);
     });
   };
 
@@ -874,7 +793,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
 
   /** One graphic off; the sender moves its marker from the answer. */
-  const clearOne = async (s: VerbSender, graphic: string) => {
+  const clearOne = (s: VerbSender, graphic: string) => behind([graphic], clearOn(s, graphic));
+  const clearOn = async (s: VerbSender, graphic: string) => {
     // The layer knows an Out is on its way, so no correction follows it out or overtakes it.
     const captured = page().selectionAired(graphic, '', { status: 'none' }, true);
     const sent = await sendWith(s, [clearCueItems(graphic)], 'Out');
@@ -933,7 +853,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // Each Out is a press on its layer: no correction follows it out or overtakes it.
     const settleOuts = pressOuts(p.selectionAired, cleared);
     try {
-      const sent = await sendWith(s, clearAllCueBatches(cleared), 'All out', true);
+      const sent = await behind(cleared, sendWith(s, clearAllCueBatches(cleared), 'All out', true));
       settleOuts(sent);
       if (!sent.ok) {
         s.note(await p.clearThroughBridge(sent.note));
@@ -997,17 +917,12 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT: the tree write is a separate row, so nothing
     // but this order keeps the two in step.
     const unedited = sel.airCue ? savedAt(p, sel.airCue.id, Object.keys(adjusted)) : null;
-    const settle = holdSent(graphic, adjusted);
-    let went = false;
-    let kept: Record<string, string> = {};
-    try {
-      const sent = await runWith(s, [[{ graphic, msg }]], `Event ${button.event}`);
-      // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
-      went = !!sent && ![...sent.skipped, ...sent.superseded].includes(graphic);
-      if (went && sent && unedited) kept = unedited(unreplaced(graphic, adjusted, sent));
-    } finally {
-      settle(went);
-    }
+    // The press number the send takes, which it takes at once.
+    const stamp = sendSeq + 1;
+    const sent = await runWith(s, [[{ graphic, msg }]], `Event ${button.event}`, adjusted);
+    // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
+    const went = !!sent && ![...sent.skipped, ...sent.superseded].includes(graphic);
+    const kept = went && unedited ? unedited(unreplaced(graphic, adjusted, stamp)) : {};
     // Accepted live values are persisted only now, outside preparation history: a refused or
     // failed press writes nothing into the cue, and a late answer nothing a newer send replaced.
     if (went && Object.keys(kept).length > 0 && sel.airCue) p.writeLive(sel.airCue.id, kept);
