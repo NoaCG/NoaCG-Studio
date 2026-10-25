@@ -35,6 +35,10 @@ changes a spec's digest.
     failed (a Codex finding). Before this, a slow-road press's own row heard late put its older cue
     over a newer press that had landed. A send of several batches books each batch's markers on
     their own, so one batch landing and the next failing leaves the first batch's cue.
+    A graphic that a batch which landed left alone still keeps its marker when a later batch fails
+    (the server skipped it under a newer press, an Update for instance). `sendControlVerbs` now
+    carries what the earlier batches skipped or superseded on its error (`hostedControl.ts`
+    `verbsSkipped`).
   - A press that landed names its cue unless a newer marker press of this page landed (a late older
     answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
     puts back the newest press that landed, or the marker from before the first press still out.

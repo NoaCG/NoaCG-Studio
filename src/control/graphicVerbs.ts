@@ -170,6 +170,7 @@ export interface GraphicVerbIo {
   verbStale: typeof import('./hostedControl').verbStale;
   verbAired: typeof import('./hostedControl').verbAired;
   verbsLanded: typeof import('./hostedControl').verbsLanded;
+  verbsSkipped: typeof import('./hostedControl').verbsSkipped;
   verbSentItems: typeof import('./hostedControl').verbSentItems;
   headsSay: typeof import('./hostedControl').headsSay;
   headsStillOn: typeof import('./hostedControl').headsStillOn;
@@ -356,7 +357,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const failedItems = io.verbSentItems(e) ?? marked[landed] ?? [];
       p.debts().failed([...failedItems, ...marked.slice(landed + 1).flat()], note);
       const uncertain = isUnanswered(e) || (e as { unread?: unknown }).unread === true;
-      answerMarkers(pressed, (m) => m.batch < landed);
+      const skipped = io.verbsSkipped(e);
+      answerMarkers(pressed, (m) => m.batch < landed && !skipped.includes(m.graphic));
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
       if (uncertain && !stale) {
         for (const item of failedItems) {

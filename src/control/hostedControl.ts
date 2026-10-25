@@ -1562,11 +1562,19 @@ export async function sendControlVerbs(
       landed += 1;
     }
   } catch (e) {
-    throw Object.assign(e as Error, { landed });
+    // What the batches before it came to rides along: a graphic one of them skipped did not get it.
+    throw Object.assign(e as Error, { landed, skipped: [...sent.skipped, ...sent.superseded] });
   }
   // Over the whole press, not per batch: a batch is not pressed again by this press's own next one.
   sent.pressedAgain = presses.since(one.slug, ...senders.filter((s): s is SenderBody => !!s));
   return sent;
+}
+
+/** The graphics the batches that landed before a failed `sendControlVerbs` batch left alone
+ *  (skipped or superseded): they did not get the press. */
+export function verbsSkipped(e: unknown): string[] {
+  const skipped = (e as { skipped?: unknown } | null)?.skipped;
+  return Array.isArray(skipped) ? skipped.filter((g): g is string => typeof g === 'string') : [];
 }
 
 /** How many batches of a `sendControlVerbs` press landed before the one that failed. */

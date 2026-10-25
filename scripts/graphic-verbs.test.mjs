@@ -144,6 +144,7 @@ function rig({ fast = false, published = 'slug-1', flushHeld = false, liveCue = 
     verbStale: (e) => e.stale === true,
     verbAired: (e) => e.aired === true,
     verbsLanded: (e) => e.landed ?? 0,
+    verbsSkipped: (e) => e.skipped ?? [],
     verbSentItems: (e) => e.items ?? null,
     headsSay: (slug) => {
       log.push(['headsSay', slug]);
@@ -1490,6 +1491,19 @@ test("this page's own cue markers heard back are the sender's on a graphic it pr
   }
 });
 
+test('a batch that landed but left a graphic alone, then a later batch failing: that graphic keeps its marker (#1696)', async () => {
+  const { clearCueItems } = await import('../src/control/cueItems.ts');
+  const r = rig();
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Strap: 'c1', Score: 's1' } } }));
+  const sending = r.verbs.send([clearCueItems('Strap'), clearCueItems('Score')], 'All out', true);
+  await settle();
+  // The first batch landed with Strap skipped (a newer press of this page stood there); the second
+  // failed.
+  r.sends[0].answer.reject(Object.assign(new Error('refused'), { landed: 1, skipped: ['Strap'] }));
+  await sending;
+  assert.deepEqual(r.liveCue(), { Strap: 'c1', Score: 's1' });
+});
+
 test('a send that throws before it goes leaves no marker press out (#1696)', async () => {
   const r = rig();
   r.sender.armSpecFor = () => {
@@ -1654,6 +1668,8 @@ async function batchWalk(seed, steps) {
       assert.equal(r.liveCue()[g] ?? null, output[g] ?? null, `seed ${seed} ${when}: marker on ${g}\n${trace.join('\n')}`);
     }
   };
+  /** The graphics the batches before `k` left alone: the server skipped them under a newer press. */
+  const before = (s, k) => s.recs.filter((rec) => rec.batch < k && !rec.reached).map((rec) => rec.graphic);
   /** Answer a send: `fate` landed (every batch committed), refused or lost at the batch it reached. */
   const answer = (s, fate) => {
     s.answered = true;
@@ -1661,12 +1677,12 @@ async function batchWalk(seed, steps) {
     if (fate === 'landed') {
       const skipped = s.recs.filter((rec) => !rec.reached).map((rec) => rec.graphic);
       s.answer.resolve({ ...noneLeft, skipped });
-    } else if (fate === 'refused') s.answer.reject(Object.assign(new Error('refused'), { landed: k }));
+    } else if (fate === 'refused') s.answer.reject(Object.assign(new Error('refused'), { landed: k, skipped: before(s, k) }));
     else {
       const lost = s.recs.filter((rec) => rec.batch === k);
       for (const rec of lost) rec.lost = true;
       if (random() < 0.5) lost.forEach(commit);
-      s.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, landed: k, items: lost.map((rec) => ({ graphic: rec.graphic, msg: { t: 'cue', cue: rec.cue, oid: `oid-${rec.n}` } })) }));
+      s.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, landed: k, skipped: before(s, k), items: lost.map((rec) => ({ graphic: rec.graphic, msg: { t: 'cue', cue: rec.cue, oid: `oid-${rec.n}` } })) }));
     }
   };
   for (let step = 0; step < steps; step++) {
