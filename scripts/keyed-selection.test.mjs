@@ -1105,6 +1105,10 @@ describe('the page\'s two doors onto the layers', () => {
     const again = read(dup.air, r3(284));
     assert.deepEqual(again.sends.map((s) => s.values.f1), ['284'], 'its own values go once more');
     assert.equal(air.airedOf(again.air, 'Card').held, undefined, 'and the hold ends');
+    const kept = JSON.parse(air.writeSelectionAir(state));
+    assert.deepEqual(Object.values(air.readSelectionAir(JSON.stringify(kept)).Card.marks)[0].lostValues, { f0: 'Bertta Berg', f1: '284', f2: '-' }, 'the lost values are kept');
+    Object.values(kept.graphics.Card.marks)[0].lostValues = ['284'];
+    assert.deepEqual(air.readSelectionAir(JSON.stringify(kept)), {}, 'kept as anything but field values: no layer');
   });
 
   test('an Update with no answer at the aired revision with other values: Snap gets nothing, and neither read of that revision sends (checker F1)', () => {
