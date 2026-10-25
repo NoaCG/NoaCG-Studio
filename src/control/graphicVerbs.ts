@@ -542,12 +542,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const takes = batches.flat().filter((item) => item.graphic === graphic && item.msg.t === 'cue');
       return layerAt(graphic, takes.length > 0 ? ((takes[takes.length - 1].msg as { cue?: string | null }).cue ?? null) : undefined);
     };
-    const atPress = new Map(batches.flat().map((item) => [item.graphic, pressedAt(item.graphic, stamp, layerOf(item.graphic))]));
+    const atPress = new Map([...new Set(batches.flat().map((item) => item.graphic))].map((graphic) => [graphic, pressedAt(graphic, stamp, layerOf(graphic))]));
     const releases = batches.flat().flatMap((item) => (item.msg.t === 'update' && item.msg.data ? [holdFigures(item.graphic, stamp, item.msg.data)] : []));
-    const unpark = (reached: (graphic: string) => boolean) => {
+    /** Settle them with what the send came to: `reached` says whether a batch's commands for a
+     *  graphic reached the output (each batch lands or fails on its own). */
+    const unpark = (reached: (graphic: string, batch: number) => boolean) => {
       for (const release of releases) release();
-      for (const item of batches.flat()) {
-        if (!reached(item.graphic) || item.msg.t === 'event' || item.msg.t === 'next') continue;
+      for (const [batch, item] of batches.flatMap((items, index) => items.map((it) => [index, it] as const))) {
+        if (!reached(item.graphic, batch) || item.msg.t === 'event' || item.msg.t === 'next') continue;
         const r = replacedAt.get(item.graphic) ?? { all: 0, keys: {} };
         if (item.msg.t === 'update') {
           // The figures it landed are the base until air's record takes them, as a press's are.
@@ -566,7 +568,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       for (const at of atPress.values()) atPresses.delete(at);
       parkedBooks.delete(parked);
       for (const [graphic, before] of parked) {
-        if (reached(graphic)) continue;
+        if (batches.some((items, index) => items.some((item) => item.graphic === graphic) && reached(graphic, index))) continue;
         // Given back unless a send newer than the figure itself replaced it since.
         const r = replacedAt.get(graphic);
         const back = Object.fromEntries(Object.entries(before).filter(([key, entry]) => !r || (r.all <= entry.stamp && (r.keys[key] ?? 0) <= entry.stamp)));
@@ -599,7 +601,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         batch.map((item) => {
           // A figure's command goes with this page's id, so its row heard back is known for this
           // press's own (`heard`), never read as another screen's correction.
-          if (((item.msg.t === 'update' && item.msg.data) || (item.msg.t === 'event' && item.msg.payload)) && !oidOf(item.msg)) {
+          if (figuresOf(item.msg) && !oidOf(item.msg)) {
             const oid = mintOid();
             ownFigures.set(oid, { graphic: item.graphic, stamp });
             for (const old of ownFigures.keys()) if (ownFigures.size > 1024) ownFigures.delete(old);
@@ -633,7 +635,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
           for (const item of items) {
             const mine = ownFigures.get(oidOf(item.msg) ?? '');
             const fields = figuresOf(item.msg);
-            if (fields && mine) heardFigures(item.graphic, fields, mine.stamp, before);
+            if (fields && mine?.graphic === item.graphic) heardFigures(item.graphic, fields, mine.stamp, before);
           }
         },
         fastEvents: p.fastEvent,
@@ -667,7 +669,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const uncertain = isUnanswered(e) || (e as { unread?: unknown }).unread === true;
       const skipped = io.verbsSkipped(e);
       answerMarkers(pressed, (m) => m.batch < landed && !skipped.includes(m.graphic));
-      unpark(() => false);
+      unpark((graphic, batch) => batch < landed && !skipped.includes(graphic));
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
       if (uncertain && !stale) {
         for (const m of pressed) if (m.batch === landed) unanswered.set(m.oid, m);

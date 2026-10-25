@@ -2529,3 +2529,26 @@ test('the hockey scorebug: a ⚡ goal, then +1 twice, counts on when the goal\'s
   r.sends[2].answer.resolve({ ...noneLeft });
   await two;
 });
+
+test('a send whose first batch landed and second failed keeps the first batch\'s figures as the base', async () => {
+  const { takeCueItems } = await import('../src/control/cueItems.ts');
+  const s1 = graphicCue('s1', 'Score', { home: '7' });
+  const s2 = graphicCue('s2', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 's1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [s1, s2], r.liveCue());
+  const plus = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await plus;
+  // A folder's Take: Score's batch commits, Strap's fails; no row is heard yet.
+  const taking = r.verbs.send([takeCueItems({ id: 's2', graphic: 'Score', values: { home: '0' } }), takeCueItems({ id: 'x1', graphic: 'Strap', values: {} })], 'Take');
+  await settle();
+  r.sends[1].answer.reject(Object.assign(new Error('down'), { landed: 1 }));
+  await taking;
+  assert.equal(r.liveCue().Score, 's2');
+  const next = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.equal(homeSent(r, 2), '1');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await next;
+});
