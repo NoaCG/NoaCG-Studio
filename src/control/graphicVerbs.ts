@@ -248,6 +248,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  (`over`) and the same cue holds the layer. A write to another field leaves it standing; this
    *  page's own Take, Update or Snap of the graphic clears it (`sendWith`). */
   const landedFigures = new Map<string, Record<string, { figure: string; over: string | undefined; cue: string | null }>>();
+  /** Per graphic, the press number of the newest send that reached the output and replaced its
+   *  fields (`all`) or one field (`keys`): a failed older send gives back no figure a newer one
+   *  replaced. */
+  let sendSeq = 0;
+  const replacedAt = new Map<string, { all: number; keys: Record<string, number> }>();
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
@@ -389,6 +394,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // A Take, Update, Snap or Out of a graphic replaces what air shows there: a landed figure that
     // air's record had not taken yet is no longer the base (a press's own update books after this).
     // Parked, not dropped: a send that does not reach the output gives them back.
+    const stamp = ++sendSeq;
     const parked = new Map<string, NonNullable<ReturnType<typeof landedFigures.get>>>();
     for (const item of batches.flat()) {
       const book = landedFigures.get(item.graphic);
@@ -397,8 +403,32 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       if (item.msg.t === 'update') for (const key of Object.keys(item.msg.data ?? {})) delete book[key];
       else if (item.msg.t !== 'event' && item.msg.t !== 'next') landedFigures.delete(item.graphic);
     }
+    // What air's record showed for the figures this send carries, at the press (`holdSent`).
+    const atPress = new Map(batches.flat().map((item) => [item.graphic, session.air.get().aired[item.graphic] ?? {}]));
     const unpark = (reached: (graphic: string) => boolean) => {
-      for (const [graphic, before] of parked) if (!reached(graphic)) landedFigures.set(graphic, { ...before, ...(landedFigures.get(graphic) ?? {}) });
+      for (const item of batches.flat()) {
+        if (!reached(item.graphic) || item.msg.t === 'event' || item.msg.t === 'next') continue;
+        const r = replacedAt.get(item.graphic) ?? { all: 0, keys: {} };
+        if (item.msg.t === 'update') {
+          // The figures it landed are the base until air's record takes them, as a press's are.
+          const was = atPress.get(item.graphic) ?? {};
+          const now = session.air.get().aired[item.graphic] ?? {};
+          const book = { ...(landedFigures.get(item.graphic) ?? {}) };
+          for (const [key, figure] of Object.entries(item.msg.data ?? {})) {
+            r.keys[key] = Math.max(r.keys[key] ?? 0, stamp);
+            if (now[key] === was[key] && now[key] !== figure) book[key] = { figure, over: now[key], cue: onLayer(item.graphic) };
+            else delete book[key];
+          }
+          landedFigures.set(item.graphic, book);
+        } else r.all = Math.max(r.all, stamp);
+        replacedAt.set(item.graphic, r);
+      }
+      for (const [graphic, before] of parked) {
+        if (reached(graphic)) continue;
+        const r = replacedAt.get(graphic);
+        const back = Object.fromEntries(Object.entries(before).filter(([key]) => !r || (r.all < stamp && (r.keys[key] ?? 0) < stamp)));
+        landedFigures.set(graphic, { ...back, ...(landedFigures.get(graphic) ?? {}) });
+      }
     };
     // Nothing more goes for a closed production (§4.1 R3), except All out's clear: the panic control
     // pressed before the end still takes off what it named, since a clear can air nothing stale.
@@ -411,6 +441,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       p.logSent(local.batches.flat());
       pressMarkers(local.pressed);
       answerMarkers(local.pressed, () => true);
+      unpark(() => true);
       return { ok: true, skipped: [], superseded: [], pressedAgain: [] };
     }
     // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the same

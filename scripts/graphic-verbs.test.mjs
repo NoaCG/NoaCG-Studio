@@ -2137,3 +2137,30 @@ test('a landed figure stays the base when the send that would replace it fails (
   r.sends[2].answer.resolve({ ...noneLeft });
   await third;
 });
+
+test('a failed older send gives back no landed figure a newer send replaced (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = () => liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const failing = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  // The cue, staged at 0, is sent again and lands while the +1 is still out.
+  const updating = r.verbs.update(view());
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '0' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await updating;
+  r.sends[1].answer.reject(new Error('down'));
+  await failing;
+  const third = r.verbs.bump(view(), 'home', 1);
+  await settle();
+  // The Update's 0 landed after the 8: the +1 counts from 0, never from the 8 the failure parked.
+  assert.deepEqual(r.sends[3].batches[0][0].msg.data, { home: '1' });
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await third;
+});
