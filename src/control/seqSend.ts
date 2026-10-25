@@ -174,14 +174,16 @@ export function settleAnswer(
   session: SeqSession,
   answer: SendAnswer | null,
   graphics: readonly string[],
+  sender: string,
 ): { outcome: 'landed' | 'superseded'; skipped: string[] } {
   // An answer this page cannot read came after the server may have applied the press: `unread`.
   if (!answer) throw Object.assign(new Error('the server answered in a way this page cannot read'), { unread: true });
-  // A duplicate's head is the current one, which may hold another screen's write made since this
-  // press applied: learnt here, the next press would carry it as seen and pass without this page
-  // ever hearing that change. Its own revision needs no learning: the server lets this page's
-  // later press over its own earlier one.
-  learnHead(session, answer.epoch, answer.ok && answer.duplicate ? {} : answer.graphics);
+  // A duplicate's or a superseded press's head is the current one, which may hold another screen's
+  // write made since: learnt, the next press would carry it as seen and pass without this page
+  // ever hearing that change. Only this page's own writes are learnt from it (an All out's off
+  // among them).
+  const own = (answer.ok && answer.duplicate) || (!answer.ok && answer.refused === 'superseded');
+  learnHead(session, answer.epoch, own ? Object.fromEntries(Object.entries(answer.graphics).filter(([, h]) => h?.by === sender)) : answer.graphics);
   if (answer.ok) return { outcome: 'landed', skipped: answer.skipped };
   if (answer.refused === 'superseded') return { outcome: 'superseded', skipped: [] };
   throw staleError(answer.stale.length > 0 ? answer.stale : graphics, answer.epochChanged);

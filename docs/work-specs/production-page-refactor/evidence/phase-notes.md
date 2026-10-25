@@ -444,9 +444,12 @@ changes a spec's digest.
   says "Update would take <key>" (the AC-3 walk asserts both, and that the warning goes once the
   selection is back). It reads the saved cue, so a selection typed but not yet saved is not seen.
   A duplicate answer's head is the current one and may hold another screen's write since: learnt,
-  the next press passed as having seen it. A duplicate now teaches the epoch only; the server lets
-  this page's later press over its own earlier one (0071 step 6). Pinned in seq-send, red without
-  it. A layer refusal's block keeps the refused send's number; sendWith's stale hook also mints a
+  the next press passed as having seen it. From the clearing assessment of 83abe70: a superseded
+  answer carries the current head too, and teaching nothing from a duplicate lost an All out's
+  off. Both answers now teach only the graphics whose head this page wrote (`by` is its sender);
+  the server lets this page's later press over its own earlier one (0071 step 6). Pinned in
+  seq-send, each half red without it. A layer this page does not know (restored mid-press) still
+  names no key in its hold line: nothing is known to air, and Update says what it takes. A layer refusal's block keeps the refused send's number; sendWith's stale hook also mints a
   fresh one through `staleSelection`, so a press between the two cannot end it.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves

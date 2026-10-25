@@ -65,40 +65,45 @@ test('answers are read defensively: only the two refusals and ok are answers at 
   assert.equal(readSendAnswer('ok'), null);
 });
 
-test('landed and duplicate both land, and teach the page the new revision', () => {
+test('landed and duplicate both land; a landed answer teaches the page the new revision', () => {
   const s = createSeqSession('E1', { A: { rev: 1 } });
-  assert.deepEqual(settleAnswer(s, readSendAnswer({ ok: true, epoch: 'E1', head: { graphics: { A: { rev: 3 } } } }), ['A']), {
+  assert.deepEqual(settleAnswer(s, readSendAnswer({ ok: true, epoch: 'E1', head: { graphics: { A: { rev: 3 } } } }), ['A'], 'me'), {
     outcome: 'landed',
     skipped: [],
   });
   assert.equal(s.revs.get('A'), 3);
-  assert.equal(settleAnswer(s, readSendAnswer({ ok: true, duplicate: true, epoch: 'E1', head: { graphics: {} } }), ['A']).outcome, 'landed');
+  assert.equal(settleAnswer(s, readSendAnswer({ ok: true, duplicate: true, epoch: 'E1', head: { graphics: {} } }), ['A'], 'me').outcome, 'landed');
 });
 
 test('a duplicate answer does not teach the page a revision another screen wrote since', () => {
   const s = createSeqSession('E1', { A: { rev: 3 } });
-  const answer = readSendAnswer({ ok: true, duplicate: true, epoch: 'E1', head: { graphics: { A: { rev: 5, by: 'other', press: 1 } } } });
-  assert.equal(settleAnswer(s, answer, ['A']).outcome, 'landed');
+  const answer = readSendAnswer({ ok: true, duplicate: true, epoch: 'E1', head: { graphics: { A: { rev: 5, by: 'other', press: 1 }, B: { rev: 4, on: false, by: 'me', press: 2 } } } });
+  assert.equal(settleAnswer(s, answer, ['A'], 'me').outcome, 'landed');
   assert.equal(s.revs.get('A'), 3);
+  // Its own write is learnt: an All out answered as a duplicate still knows B is off.
+  assert.equal(s.revs.get('B'), 4);
+  assert.equal(s.on.get('B'), false);
 });
 
 test('an All out hands back what it left alone, so a page does not mark those graphics off', () => {
   const s = createSeqSession('E1', {});
   const answer = readSendAnswer({ ok: true, epoch: 'E1', head: { graphics: {} }, skipped: ['X'] });
-  assert.deepEqual(settleAnswer(s, answer, ['X', 'Y']).skipped, ['X']);
+  assert.deepEqual(settleAnswer(s, answer, ['X', 'Y'], 'me').skipped, ['X']);
 });
 
 test('superseded says nothing: the page\'s own later press is what stands on air', () => {
   const s = createSeqSession('E1', {});
-  const answer = readSendAnswer({ ok: false, refused: 'superseded', epoch: 'E1', graphics: { A: { rev: 9 } } });
-  assert.equal(settleAnswer(s, answer, ['A']).outcome, 'superseded');
+  const answer = readSendAnswer({ ok: false, refused: 'superseded', epoch: 'E1', graphics: { A: { rev: 9, by: 'me', press: 8 }, B: { rev: 6, by: 'other', press: 1 } } });
+  assert.equal(settleAnswer(s, answer, ['A', 'B'], 'me').outcome, 'superseded');
   assert.equal(s.revs.get('A'), 9);
+  // Another screen's write since is not learnt from it: the next press on B must not pass as having seen it.
+  assert.equal(s.revs.get('B'), undefined);
 });
 
 /** The error `settleAnswer` throws for this answer. */
 function staleThrown(session, raw, graphics) {
   try {
-    settleAnswer(session, readSendAnswer(raw), graphics);
+    settleAnswer(session, readSendAnswer(raw), graphics, 'me');
   } catch (e) {
     return e;
   }
@@ -136,7 +141,7 @@ test('a press made against a republished production says that, not "another scre
 });
 
 test('an answer the page cannot read is an error, never a silent success', () => {
-  assert.throws(() => settleAnswer(createSeqSession('E1', {}), null, ['A']), /cannot read/);
+  assert.throws(() => settleAnswer(createSeqSession('E1', {}), null, ['A'], 'me'), /cannot read/);
 });
 
 /** A send that answers when told to. */

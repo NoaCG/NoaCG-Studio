@@ -1623,7 +1623,7 @@ async function sendSeqVerb(
     resend.deadline - Date.now() < MIN_ATTEMPT_MS
       ? Promise.reject(unansweredError())
       : sendWithResend(async (signal) => {
-          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics);
+          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics, sender.id);
         }, resend);
   await (allOut ? send() : seqQueue.run(graphics, send));
   return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };
