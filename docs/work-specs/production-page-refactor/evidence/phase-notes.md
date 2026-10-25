@@ -373,6 +373,10 @@ changes a spec's digest.
   `watchSettling` in selectionAir.ts, its timers and clock injected, with a Node test (five
   mutations, each red). Its two other findings (a blocked layer dropped on the marker, All out
   not registered) were already fixed in 89314ab.
+  From the automated review of 89314ab: a press whose answer came after this page heard another
+  screen's newer change ended the block that change set, so the follow wrote over it again. A
+  block now keeps the press time of the newest foreign change (`after`), and a landed press ends
+  it only if it was sent after both that and the block itself. Pinned, red without each part.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

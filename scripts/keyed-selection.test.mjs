@@ -849,6 +849,40 @@ describe('the page\'s two doors onto the layers', () => {
     }
   });
 
+  test('a press whose answer comes after another screen\'s newer change was heard does not end the block that change set (automated review)', async () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const update = air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
+    p.tick(1000);
+    air.foreignSelection(p, [{ graphic: 'Card', msg: { t: 'update', snd: { i: 'them', at: p.now() } } }], 'me');
+    p.tick(100);
+    update.landed();
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), Promise.resolve(ANSWERED));
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    await settle();
+    assert.deepEqual([sends, !!card(p).held], [[], true], 'still blocked: the Update was sent before the other screen\'s change');
+    assert.equal(air.airedValues(p.part.get(), 'Card', 'cue-a'), null);
+    p.tick(100);
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7), 6)).landed();
+    assert.equal(card(p).held, undefined, 'a press sent after it ends the block');
+    // A block already set by a refusal, then a newer change heard while an Update is out: the
+    // Update, sent between the two, does not end it.
+    const q = io();
+    air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    q.tick(50);
+    air.staleSelection(q, ['Card']);
+    q.tick(50);
+    const between = air.pressSelection(q, 'Card', 'cue-a', ok(selectionOf('D1', 7)));
+    q.tick(100);
+    air.foreignSelection(q, [{ graphic: 'Card', msg: { t: 'update', snd: { i: 'them', at: q.now() } } }], 'me');
+    between.landed();
+    assert.ok(card(q).held, 'the newer change still blocks');
+    const raw = JSON.parse(air.writeSelectionAir(q.part.get()));
+    raw.graphics.Card.blocked.after = 'later';
+    assert.deepEqual(air.readSelectionAir(JSON.stringify(raw), 9000), {}, 'a malformed block time is not read');
+  });
+
   test('a Take that did not land keeps the layer and its protected fields while the marker names another cue (sixth assessment)', () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();

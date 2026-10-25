@@ -106,8 +106,10 @@ export interface SelectionLayer {
   settling?: number;
   /** Since when nothing is sent on its own, until an operator press of this page lands: a send to
    *  this layer was refused because another screen changed the graphic (`stale`), or a Take or an
-   *  Out did not land, so the marker it moved says nothing about what airs. */
-  blocked?: { since: number; stale?: true };
+   *  Out did not land, so the marker it moved says nothing about what airs. `after`: the press
+   *  time of the newest command heard from another screen; only a press of this page sent after
+   *  that (and after `since`) ends the block. */
+  blocked?: { since: number; stale?: true; after?: number };
   /** When this page sent its last press on this layer that landed: another screen's command
    *  pressed before it was overridden by it (or refused as stale, protocol 2), one pressed after it
    *  was not. */
@@ -295,7 +297,10 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
       const { held, ...kept } = marksOf(next, sent.target);
       if (!held || held.revision === null || held.revision <= sent.target.revision) next = withMarks(next, sent.target, kept);
     }
-    return { layer: pruned(sent.press ? { ...settledLayer(next), pressedAt: Math.max(l.pressedAt ?? NONE, sent.at ?? NONE) } : next) };
+    // A press sent before the block began (or before another screen's change it was told of) does
+    // not supersede that change: the block stays.
+    const block = l.blocked && (sent.at ?? NONE) < Math.max(l.blocked.since, l.blocked.after ?? NONE) ? { blocked: l.blocked } : {};
+    return { layer: pruned(sent.press ? { ...settledLayer(next), ...block, pressedAt: Math.max(l.pressedAt ?? NONE, sent.at ?? NONE) } : next) };
   }
   const left: SelectionLayer = { ...l, out: l.out.filter((s) => s.seq !== seq) };
   // A Take or an Out that did not land left the marker where this page moved it when it sent, so
@@ -427,7 +432,8 @@ export function reduceLayer(l: SelectionLayer | undefined, graphic: string, ev: 
   if (ev.t === 'press') return press(l, ev.cueId, ev.take, ev.seq, ev.now, ev.moves);
   if (ev.t === 'stale') {
     if (!l || (ev.after !== undefined && ev.after <= (l.pressedAt ?? NONE))) return { layer: l };
-    return { layer: { ...l, blocked: { since: l.blocked?.since ?? ev.now, stale: true } } };
+    const after = ev.after === undefined ? l.blocked?.after : Math.max(l.blocked?.after ?? NONE, ev.after);
+    return { layer: { ...l, blocked: { since: l.blocked?.since ?? ev.now, stale: true, ...(after !== undefined ? { after } : {}) } } };
   }
   if (ev.t === 'answer') return answer(l, ev.seq, ev.landed, ev.now, ev.uncertain, ev.stale);
   return l ? follow(l, graphic, ev.live, ev.seeded, ev.facts, ev.mint, ev.now) : { layer: undefined };
@@ -676,7 +682,7 @@ export function readSelectionAir(raw: string | null, now: number = Date.now()): 
       Object.values(l.marks).every(isMarks) &&
       (l.settling === undefined || typeof l.settling === 'number') &&
       (l.pressedAt === undefined || typeof l.pressedAt === 'number') &&
-      (l.blocked === undefined || (!!l.blocked && typeof l.blocked.since === 'number' && (l.blocked.stale === undefined || l.blocked.stale === true))) &&
+      (l.blocked === undefined || (!!l.blocked && typeof l.blocked.since === 'number' && (l.blocked.stale === undefined || l.blocked.stale === true) && (l.blocked.after === undefined || typeof l.blocked.after === 'number'))) &&
       (l.unknown === undefined ||
         (typeof l.unknown.since === 'number' &&
           Array.isArray(l.unknown.candidates) &&
