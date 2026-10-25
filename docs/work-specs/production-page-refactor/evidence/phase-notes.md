@@ -294,7 +294,7 @@ changes a spec's digest.
   newer count arrived and the card must be taken again, and the operator's own presses still go.
   Pinned in Node, in the walk (a read on protocol 1 must send nothing), and by a fourth
   configured walk that forces the fallback (the resolve answered PGRST202): no correction on
-  its own, the hold shown, the operator's Take still airs the newer count (`minTests` 123 to 124).
+  its own, the hold shown, the operator's Update still airs the newer count (`minTests` 123 to 124).
   48 mutations, each red.
   From the automated review of 2dd893d: Snap and events composed from the ordinary cue the
   marker still named could overwrite a candidate whose Take had reached the output but not been

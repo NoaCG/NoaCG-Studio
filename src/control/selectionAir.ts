@@ -163,8 +163,8 @@ const believedOf = (l: SelectionLayer): AiredTarget | null => (l.out.length > 0 
 const pressOut = (l: SelectionLayer): boolean => l.out.some((s) => s.press);
 
 const UNKNOWN_REASON = 'it is not known which candidate is on air after the page reloaded';
-const STALE_REASON = 'another screen changed this card, so a newer count is not sent on its own: take the card again to update it';
-const UNORDERED_REASON = 'a newer count arrived, and this page cannot send it on its own (it sends without per-graphic order): take the card again to update it';
+const STALE_REASON = 'another screen changed this card, so a newer count is not sent on its own: press Update to send it';
+const UNORDERED_REASON = 'a newer count arrived, and this page cannot send it on its own (it sends without per-graphic order): press Update to send it';
 
 /** Keep only the marks of the entities the layer may still show. */
 function pruned(l: SelectionLayer): SelectionLayer {
@@ -326,7 +326,9 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
       const m = marksOf(l, onAir);
       const lostAt = Math.max(m.lostAt ?? NONE, newest);
       const { unknown: _unknown, ...known } = l;
-      const decided = pruned(withMarks({ ...known, onAir }, onAir, { heldAt: m.heldAt, ...(lostAt > onAir.revision ? { lostAt } : {}) }));
+      // Its hold stays: a revision held for a field that comes back is still sent then.
+      const { lostAt: _lost, ...kept } = m;
+      const decided = pruned(withMarks({ ...known, onAir }, onAir, { ...kept, ...(lostAt > onAir.revision ? { lostAt } : {}) }));
       return follow(decided, graphic, live, seeded, facts, mint, now);
     }
     return { layer: l };

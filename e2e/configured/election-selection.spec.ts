@@ -28,7 +28,7 @@
 //   AIRED selector, not the cue's current one; a collection-only write still airs; none of it
 //   takes, advances or resets the graphic.
 // - a page that fell back to protocol 1 (its resolve answered PGRST202) never sends a correction
-//   on its own: what airs is held, said off air, and the operator's Take still goes.
+//   on its own: what airs is held, said off air, and the operator's Update still goes.
 // - the last: a page meeting a selection of a later version shows the cue read-only, refuses
 //   Take and edit with the reason, and every write door keeps the record byte for byte.
 
@@ -339,7 +339,7 @@ test.describe('live candidates', () => {
     await clearPublishedShows(restarted).catch(() => {});
   });
 
-  test('a page that fell back to protocol 1 never sends a correction on its own: it holds what airs, and the operator\'s Take still goes', async ({ page, context, request }) => {
+  test('a page that fell back to protocol 1 never sends a correction on its own: it holds what airs, and the operator\'s Update still goes', async ({ page, context, request }) => {
     test.setTimeout(120_000);
     const w = await production(page, context, ['Card A', 'Card B']);
     // A server without the sequence road answers its resolve PGRST202: this page then sends by row
@@ -363,8 +363,12 @@ test.describe('live candidates', () => {
     await expect(onAirLine(w), 'what airs is held').toHaveText('1200');
     expect((await updates(w.showId)).length, 'no correction went on its own').toBe(before);
 
-    await take(page, 'Card A');
-    await expect(onAirLine(w), 'the operator\'s Take goes').toHaveText('1500', WIRE);
+    // Take on a live card takes it off, so the hold sends the operator to Update.
+    await expect(page.getByTestId('selection-hold')).toContainText('press Update to send it');
+    await select(page, 'Card A');
+    await expect(page.getByTestId('verb-update')).toBeEnabled();
+    await page.getByTestId('verb-update').click();
+    await expect(onAirLine(w), 'the operator\'s Update goes').toHaveText('1500', WIRE);
     await expect(page.getByTestId('selection-hold')).toHaveCount(0);
     await page.unrouteAll({ behavior: 'ignoreErrors' });
   });

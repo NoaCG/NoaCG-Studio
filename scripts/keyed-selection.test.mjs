@@ -941,6 +941,22 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, card(p).held, card(p).revision], [['1500'], undefined, 6]);
   });
 
+  test('a hold survives a reload that the marker decides: the held revision is still sent once its field is back (automated review)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), Promise.resolve(ANSWERED));
+    const nine = collection(9, [person('D1', 7, 'Aino Aalto', 1900)]);
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(nine, { fieldsOf: () => [text('f0')] }), send });
+    assert.equal(card(p).held?.revision, 9, 'revision 9 held: a field was missing');
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)));
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
+    const q = io(restored);
+    q.tick(8000 + air.SETTLE_MS);
+    air.followAired(q, { liveCue: live, seeded: true, facts: facts(nine), send });
+    assert.deepEqual([sends, card(q).cueId], [['1900'], 'cue-a'], 'the marker decided A, and revision 9 goes');
+  });
+
   test('a revision that held, then read well and went, but failed to send: said "not sent" and sent again', async () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
