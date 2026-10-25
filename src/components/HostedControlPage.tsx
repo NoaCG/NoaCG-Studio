@@ -154,11 +154,12 @@ const LOG_HISTORY_SPAN = 400;
  * a press does"): the figure this page sent while that send is out, else what air was last sent,
  * else the cue as published. Never the staging buffer, so a value staged and not aired is never a
  * press's base. `hold` keeps a press's figures as the base until its send settles; `settle(true)`
- * writes them into what air was sent, since the server took them.
+ * writes them into what air was sent, since the server took them, and answers the figures a newer
+ * command has not moved since: the only ones the press may still stage.
  */
 interface SentFigures {
   base: (graphic: string, key: string, fallback: string | undefined) => string | undefined;
-  hold: (graphic: string, figures: Record<string, string>) => (landed: boolean) => void;
+  hold: (graphic: string, figures: Record<string, string>) => (landed: boolean) => Record<string, string>;
   /** Run a live press after the one before it on its graphic, and only while the cue it was pressed
    *  for still holds the layer; otherwise it sends nothing and says why. */
   press: (graphic: string, run: () => Promise<void>) => void;
@@ -997,7 +998,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     },
     base: (graphic, key, fallback) => sentFigures.current[graphic]?.[key] ?? airedRef.current[graphic]?.[key] ?? fallback,
     hold: (graphic, sent) => {
-      if (Object.keys(sent).length === 0) return () => {};
+      if (Object.keys(sent).length === 0) return () => ({});
       const held = { ...sentFigures.current[graphic], ...sent };
       sentFigures.current = { ...sentFigures.current, [graphic]: held };
       // What air showed for these fields, and the cue on the layer, at the press.
@@ -1008,13 +1009,18 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           const { [graphic]: _settled, ...rest } = sentFigures.current;
           sentFigures.current = rest;
         }
-        if (!landed || (liveCueRef.current[graphic] ?? null) !== cue) return;
+        if (!landed) return {};
+        // Another cue took the layer: the press landed on its own cue, and air is that cue's now.
+        if ((liveCueRef.current[graphic] ?? null) !== cue) return sent;
         // The server took it, so it is what air was sent, whether or not its row is back yet; a
-        // field a newer command already moved (a Take, another page) keeps that newer figure.
-        const taken = Object.fromEntries(Object.entries(sent).filter(([key]) => airedRef.current[graphic]?.[key] === over[key]));
-        if (Object.keys(taken).length === 0) return;
-        airedRef.current = { ...airedRef.current, [graphic]: { ...airedRef.current[graphic], ...taken } };
-        setAiredData((prev) => ({ ...prev, [graphic]: { ...prev[graphic], ...taken } }));
+        // field a newer command already moved (an Update, another page) keeps that newer figure.
+        const current = Object.fromEntries(Object.entries(sent).filter(([key]) => [over[key], sent[key]].includes(airedRef.current[graphic]?.[key])));
+        const taken = Object.fromEntries(Object.entries(current).filter(([key]) => airedRef.current[graphic]?.[key] === over[key]));
+        if (Object.keys(taken).length > 0) {
+          airedRef.current = { ...airedRef.current, [graphic]: { ...airedRef.current[graphic], ...taken } };
+          setAiredData((prev) => ({ ...prev, [graphic]: { ...prev[graphic], ...taken } }));
+        }
+        return current;
       };
     },
   };
@@ -1045,9 +1051,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       );
       const settle = figures.hold(graphic, fields);
       const sent = await sendVerb([{ graphic, msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event } }]);
-      settle(sent);
+      const kept = settle(sent);
       if (!sent) return;
-      if (cue && Object.keys(fields).length > 0) stageShared(cue, fields);
+      if (cue && Object.keys(kept).length > 0) stageShared(cue, kept);
       // The next press on this graphic waits for the shared value it moved.
       await patchBound(tree);
     });
@@ -1064,8 +1070,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const data = { [key]: adjustedValue(figures.base(graphic, key, cue.values[key]), delta) };
       const settle = figures.hold(graphic, data);
       const sent = await sendVerb([{ graphic, msg: { t: 'update', data } }]);
-      settle(sent);
-      if (sent) stageShared(cue, data);
+      const kept = settle(sent);
+      if (Object.keys(kept).length > 0) stageShared(cue, kept);
     });
   };
   const pinnedBlock = (graphic: string, selected = false) => {
@@ -2197,14 +2203,14 @@ function HostedCueEditor({
     const typed = Object.fromEntries((e.payload ?? []).map((key) => [key, read(key)]));
     figures.press(pressed.graphic, async () => {
       const moving = new Set(movedKeys(e));
-      const { payload, fields: staged, tree } = pressSend(e, bound, (key) =>
+      const { payload, fields: moved, tree } = pressSend(e, bound, (key) =>
         moving.has(key) && !bound[key] ? figures.base(pressed.graphic, key, (sibling?.cue ?? pressed).values[key]) : key in typed ? typed[key] : read(key),
       );
-      const settle = figures.hold(pressed.graphic, staged);
+      const settle = figures.hold(pressed.graphic, moved);
       const sent = await onSend([
         { graphic: pressed.graphic, msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event } },
       ]);
-      settle(sent);
+      const staged = settle(sent);
       // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT, the same order the in-app ⚡ button keeps:
       // the tree write is a separate row by construction, reaching graphics this event never
       // touched, so nothing but this order stops a refused press moving every other bound graphic.
@@ -2242,11 +2248,11 @@ function HostedCueEditor({
     }
     const pressed = cue;
     figures.press(pressed.graphic, async () => {
-      const data = { [key]: adjustedValue(figures.base(pressed.graphic, key, pressed.values[key]), delta) };
-      const settle = figures.hold(pressed.graphic, data);
-      const sent = await onSend([{ graphic: pressed.graphic, msg: { t: 'update', data } }]);
-      settle(sent);
-      if (!sent) return;
+      const sending = { [key]: adjustedValue(figures.base(pressed.graphic, key, pressed.values[key]), delta) };
+      const settle = figures.hold(pressed.graphic, sending);
+      const sent = await onSend([{ graphic: pressed.graphic, msg: { t: 'update', data: sending } }]);
+      const data = settle(sent);
+      if (!sent || Object.keys(data).length === 0) return;
       if (shownCue.current !== pressed.id) {
         onStage(pressed, data);
         return;
