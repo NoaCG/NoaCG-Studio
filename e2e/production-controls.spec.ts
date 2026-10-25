@@ -2124,8 +2124,6 @@ test('the EXPORTED controller draws a pinned graphic above the editor and presse
   const { serve, rows } = relayServe(new Map(Object.entries(exported)));
   const origin = 'http://pinned-host.local';
   const ctl = await context.newPage();
-  ctl.on('pageerror', (e) => console.log('PAGEERROR', e.message)); // TEMP
-  (await import('node:fs')).writeFileSync('/tmp/claude-0/-home-user-NoaCG-Studio/879fa343-0bd4-592e-8269-d91c27e52961/scratchpad/controller.html', exported['controller.html']); // TEMP
   await routeOrigin(ctl, origin, serve);
   await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
   await expect(ctl.locator('#mode')).toContainText('SHOW');
