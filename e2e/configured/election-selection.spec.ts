@@ -29,9 +29,14 @@
 //   a collection-only write still airs; none of it takes, advances or resets the graphic.
 // - a page that fell back to protocol 1 (its resolve answered PGRST202) never sends a correction
 //   on its own: what airs is held, said off air, and the operator's Update still goes.
-// - the last: a page meeting a selection of a later version shows the cue read-only, refuses
-//   Take and edit with the reason, and every write door keeps the record byte for byte.
+// - a page meeting a selection of a later version shows the cue read-only, refuses Take and edit
+//   with the reason, and every write door keeps the record byte for byte.
+// - E7.2a, AC-1: the shipped election rehearsal package installs, publishes, takes its starter
+//   count through the data API as a results source would, and airs all four graphics on a browser
+//   output; the cue editor's Live candidate menu (the writer) moves the aired card at Update.
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { test, expect, type APIRequestContext, type APIResponse, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { publishProduction } from '../_publish';
@@ -85,7 +90,7 @@ async function rows(showId: string, graphic = 'Hairline') {
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({ id: r.id as number, t: r.msg?.t as string, data: r.msg?.data as Record<string, string> | undefined }));
 }
-const updates = async (showId: string) => (await rows(showId)).filter((r) => r.t === 'update').map((r) => r.data);
+const updates = async (showId: string, graphic = 'Hairline') => (await rows(showId, graphic)).filter((r) => r.t === 'update').map((r) => r.data);
 /** The commands that Take, advance, reset or clear the card: a Take is always a `play`, an advance
  *  a `next`, a reset a `snap` or a `stop`, a press an `event`. None of AC-3's events may add one.
  *  Updates are data, and markers and status rows (`cue`, `hello`, `live`, `ping`, `staged`) never
@@ -475,4 +480,51 @@ test.describe('live candidates', () => {
     await expect(page.getByTestId('production-page')).toBeVisible();
     expect(await stored(), 'byte for byte after a reload').toEqual(kept);
   });
+
+  test('AC-1 (E7.2a): the election package installs, publishes and airs all four graphics on a browser output', async ({ page, context, request }) => {
+    test.setTimeout(120_000);
+    await signIn(page);
+    await page.keyboard.press('Escape');
+    await clearPublishedShows(page);
+    await wipeMyGraphics(page);
+    await page.goto('/app#/home/productions');
+    const pack = fileURLToPath(new URL('../../public/packs/election-rehearsal.noacgpack.json', import.meta.url));
+    await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(pack);
+    await expect(page.getByTestId('production-page')).toBeVisible();
+    await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
+    const showId = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
+    await publishProduction(page);
+    await page.keyboard.press('Escape');
+    const { data_key: dataKey } = await tree(showId);
+    // The starter count, written as a results source writes it: the plain tree, the data key.
+    const starter = JSON.parse(readFileSync(fileURLToPath(new URL('../../packs/election-rehearsal/starter/revision-1.json', import.meta.url)), 'utf8'));
+    const answer = await request.patch('/api/data/patch', { headers: { authorization: `Bearer ${dataKey}` }, data: starter });
+    expect(answer.ok(), await answer.text()).toBe(true);
+    const outputSlug = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? null, showId);
+    const output = await context.newPage();
+    await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}`);
+    const on = (title: string, sel: string) => output.frameLocator(`iframe[title="${title}"]`).locator(sel);
+
+    await take(page, 'Party totals');
+    await expect(on('Party totals', '#f7'), 'a bound share, from the results').toHaveText('22.3%', WIRE);
+    await expect(on('Party totals', '#f5'), 'an editorial name, from the cue').toHaveText('National Coalition');
+    await take(page, 'Count status');
+    await expect(on('Count bug', '#f2')).toHaveText('60 of 100 areas counted', WIRE);
+    await take(page, 'Headlines');
+    await expect(on('Ticker', '.tk-crawl')).toContainText('Polls have closed', WIRE);
+    await take(page, 'Aino Example');
+    await expect(on('Candidate card', '#f0')).toHaveText('Aino Example', WIRE);
+    await expect(on('Candidate card', '#f2')).toHaveText('3,500');
+
+    // The writer: the aired cue picks Leo (the same number, another district); air keeps Aino
+    // until Update, which airs Leo's whole record as one update.
+    await page.getByTestId('cue-candidate-pick').selectOption(JSON.stringify(['candidates', ['01', 101]]));
+    await expect(page.getByTestId('cue-candidate-unsent')).toBeVisible();
+    await expect(on('Candidate card', '#f0')).toHaveText('Aino Example');
+    await page.getByTestId('verb-update').click();
+    await expect(on('Candidate card', '#f0')).toHaveText('Leo Example', WIRE);
+    expect((await updates(showId, 'Candidate card')).at(-1)).toMatchObject({ f0: 'Leo Example', f1: 'Finns Party · Helsinki', f2: '2,900', f5: '#E8B428' });
+    await output.close();
+  });
 });
+

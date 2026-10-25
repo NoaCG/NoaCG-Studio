@@ -240,7 +240,7 @@ test('the election package installs connected: preview and Take all four, and th
   await expect(card.locator('#f0')).toHaveText('Aino Example');
   await expect(card.locator('#f1')).toHaveText('National Coalition · Uusimaa');
   await expect(card.locator('#f2')).toHaveText('3,500');
-  await expect(page.getByTestId('cue-candidate-f0')).toContainText('Aino Example');
+  await expect(page.getByTestId('cue-candidate-f0').locator('input')).toHaveValue('Aino Example');
 
   // THE WRITER: the aired cue now picks Sara. The record changes at once; the picture keeps Aino
   // until Update, which then changes every field of the card together.
@@ -265,7 +265,7 @@ test('the election package installs connected: preview and Take all four, and th
   await expect(page.getByTestId('cue-field-f0')).toBeEditable();
   await pick.selectOption(JSON.stringify(['candidates', ['02', 101]]));
   await expect.poll(async () => (await stored(page, 'Election night rehearsal'))[0].cues[2].selection).toEqual({ v: 1, recipe: 'candidates', key: ['02', 101] });
-  await expect(page.getByTestId('cue-candidate-f0')).toContainText('Aino Example');
+  await expect(page.getByTestId('cue-candidate-f0').locator('input')).toHaveValue('Aino Example');
 });
 
 test('the election production exports and imports again with its fonts, picture, labels, picks and data', async ({ page }) => {
