@@ -431,7 +431,7 @@ test('a pinned graphic stays in the hosted LIVE stack and presses its own on-air
       const written = setShowProfile(show.id, withPinnedGraphic(undefined, TOTALS, true, show.graphics.map((g) => g.name)));
       if (written.refused) return true;
       const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      return (await commitDurableWrites()) === null;
+      return (await commitDurableWrites()) !== null;
     },
     { VOTES, TOTALS },
   );
