@@ -112,8 +112,8 @@ changes a spec's digest.
   QUEUE-LIVE, QUEUE-OWN, STUCK, BASE, WRITE. Default 150 walks per road (about 2 s); run here at
   2,000 and 10,000 per road: green on both roads (10,000: 266,075 and 261,558 presses, 1 min
   16 s). Its cues include one without a field, and this page's Out is often followed by a Take
-  (added after the second opinion's Out case; on `35e8397` it fails 8 of 2,000 fast walks). On `8da6005` at 2,000 per road it fails INSTANCE (227 slow, 155 fast walks), QUEUE-OWN
-  (947, 1413), BASE (3, 5) and BASE-FROM-FAILED (1, 95). The repo's own slow-road walk also
+  (added after the second opinion's Out case; on `35e8397` it fails 8 of 2,000 fast walks). The final walk on `8da6005` at 2,000 per road fails INSTANCE (275 slow, 211 fast walks),
+  QUEUE-OWN (909, 1437), BASE (15, 18) and BASE-FROM-FAILED (1, 84). The repo's own slow-road walk also
   passes at `BASE_WALKS=20000`.
   - *What the rule costs, printed by the walk (not checked):* on this adversarial mix 5.7% (slow)
     and 6.3% (fast) of committed ± figures did not move true air by exactly their step, at 2,000
@@ -163,12 +163,16 @@ changes a spec's digest.
   - Equivalent mutants, which survive: letting an older entry stand when the newest is taken past
     (every rule that takes a field past an entry takes it past every older one too), and keeping
     more entries than `settled` keeps (pruning only drops entries nothing can read).
-- **Gaps left, both as on `8da6005` and both only after the fallback timer let a press overtake
-  this page's own send (found by the second opinion):**
+- **Gaps left, all as on `8da6005` (found by the second opinions); the first two only after the
+  fallback timer let a press overtake this page's own send:**
   - On the fast road, this page's Take of s2 is applied here, a +1 is released by the fallback, and
     the Take then fails: the +1 sends 1 onto s1's layer and writes `{home:1}` into s2.
   - A +1 that got no answer but committed counts as gone, so the next +1 sends the same figure
     again (8, 8) until its row is heard; counting from air there is what the spec allows.
+  - Not needing the fallback, also as on `8da6005`: on the slow road with every send answered
+    and no row heard yet, a +1 on `away` (5), this page's Out, a Take of s2 (no `away`), then +1
+    on `away` counts from s1's record (4) and sends 5, writing `{away:5}` into s2; heard, the
+    Out's rows clear the record and the next press counts from the cue.
 - **Traps.**
   - Rows reach the page by two roads, so the page cannot know where another screen's row sits in
     the log against its own unheard sends; the ledger follows the diagnoser's rule (another
