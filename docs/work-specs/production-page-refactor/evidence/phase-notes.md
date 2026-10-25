@@ -347,6 +347,9 @@ changes a spec's digest.
   refusals go through the same hook as the page's; a layer the page stops following because of
   #1696 is excused there only while it sends nothing. 87 reducer, verb and timed-end mutations,
   each red; 579 gate tests pass.
+  From the automated review of 919258b: a press ended its candidate's hold when it was sent, so an
+  Update that then failed left a held revision that no later read would send. The hold now ends
+  only when the press lands. Pinned, red with the old behaviour.
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

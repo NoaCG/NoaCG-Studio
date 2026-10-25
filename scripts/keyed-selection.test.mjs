@@ -1015,6 +1015,23 @@ describe('the page\'s two doors onto the layers', () => {
     assert.deepEqual([sends, card(q).cueId], [['1900'], 'cue-a'], 'the marker decided A, and revision 9 goes');
   });
 
+  test('an Update that fails keeps the hold it would have ended: the held revision still goes on the next read (automated review)', async () => {
+    for (const fate of ['failed', 'skipped']) {
+      const p = io();
+      air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+      const sends = [];
+      const send = (g, v) => (sends.push(v.f1), Promise.resolve(ANSWERED));
+      const nine = collection(9, [person('D1', 7, 'Aino Aalto', 1900)]);
+      air.followAired(p, { liveCue: live, seeded: true, facts: facts(nine, { fieldsOf: () => [text('f0')] }), send });
+      assert.equal(card(p).held?.revision, 9, 'revision 9 held: a field was missing');
+      // The field is back; the operator presses Update, and it does not land.
+      air.pressSelection(p, 'Card', 'cue-a', take(selectionOf('D1', 7), nine)).undo();
+      air.followAired(p, { liveCue: live, seeded: true, facts: facts(nine), send });
+      await settle();
+      assert.deepEqual([sends, card(p).revision], [['1900'], 9], `${fate}: revision 9 goes`);
+    }
+  });
+
   test('a revision that held, then read well and went, but failed to send: said "not sent" and sent again', async () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();

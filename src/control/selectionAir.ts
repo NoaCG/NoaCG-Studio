@@ -257,14 +257,9 @@ function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTak
   // A cue without a selection onto a layer with none: nothing to follow.
   if (!l0 && !target) return { layer: undefined };
   const l = l0 ?? { onAir: null, out: [], marks: {} };
-  // An explicit press is the operator's decision: the entity's hold ends with it (a later read
-  // judges again), and its bound stays at least what airs, so an older read is still rejected.
-  let next: SelectionLayer = { ...l, out: [...l.out, { seq, press: true, cueId, target, ...(moves ? { moves: true as const } : {}) }] };
-  if (target) {
-    const { held: _held, ...kept } = marksOf(l, target);
-    next = withMarks(next, target, kept);
-  }
-  return { layer: next, seq };
+  // An explicit press is the operator's decision: the entity's hold ends with it once it lands (a
+  // later read judges again; one that fails keeps the hold, so the held revision still goes).
+  return { layer: { ...l, out: [...l.out, { seq, press: true, cueId, target, ...(moves ? { moves: true as const } : {}) }] }, seq };
 }
 
 function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now: number, uncertain = false, stale = false): Step {
@@ -279,6 +274,12 @@ function answer(l: SelectionLayer | undefined, seq: number, landed: boolean, now
     // What airs now is at or above a revision whose answer was lost: that bound is spent.
     const m = sent.target ? next.marks[markKey(sent.target)] : undefined;
     if (sent.target && m?.lostAt !== undefined && sent.target.revision >= m.lostAt) next = withMarks(next, sent.target, { ...m, lostAt: undefined });
+    // A press landed: its entity's hold ends, and its bound stays at least what airs, so an older
+    // read is still rejected.
+    if (sent.press && sent.target) {
+      const { held: _held, ...kept } = marksOf(next, sent.target);
+      next = withMarks(next, sent.target, kept);
+    }
     return { layer: pruned(sent.press ? settledLayer(next) : next) };
   }
   const left: SelectionLayer = { ...l, out: l.out.filter((s) => s.seq !== seq) };
