@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { isSigningOut } from '../backend/auth';
 import { isBackendConfigured } from '../backend/config';
 import { getSyncState, onSyncState, syncNow } from '../backend/syncController';
 import { getTeamState, subscribeTeamState, refreshTeams } from '../backend/teamProductions';
@@ -18,7 +19,8 @@ export default function AccountSaveNotice() {
   const paused = owner && !canAuthorAccount();
   // Ordinary saving belongs in the header. Keep recovery visible only when action is needed.
   const failed = sync.phase === 'error' || Object.values(teams.saving).includes('failed') || !!teams.loadError;
-  const visible = isBackendConfigured() && !!owner && (paused || failed);
+  // A Sign out the user pressed pauses the account until the page reloads; that is no recovery.
+  const visible = isBackendConfigured() && !!owner && !isSigningOut() && (paused || failed);
   // Reserve the actual wrapped height, including the bottom margins. The notice stays outside
   // the authoring gate, so recovery remains reachable, without covering a wizard or consent key.
   useLayoutEffect(() => {
