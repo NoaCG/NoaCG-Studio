@@ -31,7 +31,7 @@ import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
-import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
+import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
@@ -951,41 +951,88 @@ export async function unpublishControlShow(id: string): Promise<void> {
 
 /**
  * DOES THIS SERVER HAVE THE SEQUENCE ROAD (migration 0071)? Asked once per page load, by the first
- * resolve: the new resolve answers, or PostgREST says it has no such function (PGRST202) - or any
- * other answer that is not "unanswered" - and then this page runs today's protocol for the rest of
- * its life. A page is not switched mid-session: a live-path migration can land while it is open
- * (D7), and a page that changed protocol under an operator would have two cursors for one log.
- * "Unanswered" (the network, a 5xx gateway, 57014) decides nothing: the caller asks again.
+ * resolve: the new resolve answers, or the server proves it has none (`seqRoadVerdict` says what
+ * proves it, for a page that sends and for one that only follows), and then this page runs today's
+ * protocol for the rest of its life. A page is not switched mid-session: a live-path migration can
+ * land while it is open (D7), and a page that changed protocol under an operator would have two
+ * cursors for one log. Anything else decides nothing: the caller asks again.
  */
+// One per document: the renderer's resolve (its own rule, `controlOutputResolve`) runs only in
+// src/output/main.ts, never in a document that sends.
 let seqRoad: 'unknown' | 'present' | 'absent' = 'unknown';
-/** Statement timeouts (57014) the protocol-2 resolve has answered in a row. */
-let seqTimeouts = 0;
+/** Read fresh, never narrowed: another resolve may have decided while this one was asked. */
+const givenUp = () => seqRoad === 'absent';
+/** Statement timeouts (57014), and refusals (`isRefusal`), the protocol-2 resolve has answered in
+ *  a row. Overlapping resolves (a dev build mounts the wire twice) each count. */
+const seqInRow = { timeouts: 0, refusals: 0 };
 
 /** Ask a protocol-2 resolve. `undefined` means use today's RPC (this server has no sequence road,
- *  learned now or before); a failure means the server did not answer and nothing was decided.
- *  `timeoutsBeforeAbsent`: after that many statement timeouts in a row, give up on the new road
- *  for this page's life, as if the server had none. */
+ *  learned now or before); a failure means nothing was decided and the caller asks again. */
 async function askSeqRoad(
   sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
   rpc: string,
   args: Record<string, unknown>,
-  timeoutsBeforeAbsent = Infinity,
+  asker: SeqRoadAsker,
 ): Promise<RpcAnswer<Record<string, unknown> | null> | undefined> {
   if (seqRoad === 'absent') return undefined;
   const { data, error, status } = await sb.rpc(rpc, args);
-  seqTimeouts = error?.code === '57014' ? seqTimeouts + 1 : 0;
+  seqInRow.timeouts = error?.code === '57014' ? seqInRow.timeouts + 1 : 0;
+  seqInRow.refusals = error && isRefusal(status, error.code) ? seqInRow.refusals + 1 : 0;
   if (!error) {
+    // A resolve that answers after another one, overlapping it, gave up stays given up: the page
+    // already follows by row id.
+    if (givenUp()) return undefined;
     seqRoad = 'present';
     return { ok: true, value: data && typeof data === 'object' ? (data as Record<string, unknown>) : null };
   }
-  if (unansweredStatus(status, error.code) && seqTimeouts < timeoutsBeforeAbsent) return { ok: false, error: error.message };
+  if (seqRoadVerdict(status, error.code, seqInRow, asker, seqRoad === 'present') === 'ask-again') {
+    return { ok: false, error: error.message };
+  }
   seqRoad = 'absent';
   console.info(
     `[control] ${rpc}: ${error.code ?? ''} ${error.message.slice(0, 160)} - ` +
-      (error.code === '57014' ? `${seqTimeouts} statement timeouts in a row` : 'this server has no sequence road') +
-      ', so this page follows and sends by row id, as before.',
+      (error.code === '57014'
+        ? `${seqInRow.timeouts} statement timeouts in a row`
+        : error.code === 'PGRST202'
+          ? 'this server has no sequence road'
+          : `${seqInRow.refusals} refusals in a row`) +
+      ', so this page follows and sends by row id, without per-graphic order.',
   );
   return undefined;
+}
+
+/** Control slugs the ordered resolve last answered as no production. A press there asks the
+ *  resolve again (the production may exist by now). */
+const unknownSlugs = new Set<string>();
+/** This slug's sends are numbered, or never can be: nothing to wait for. */
+const roadKnown = (slug: string) => seqSessions.has(slug) || givenUp();
+
+/** Per control slug, the one wait for its road in progress. Shared, so the presses waiting on it
+ *  resume in the order they were made and take their numbers in that order. */
+const roadWaits = new Map<string, Promise<boolean>>();
+
+/**
+ * Until this production's road is known - its resolve answered on protocol 2, or the server has
+ * none - or the first waiting press's `deadline` passes. At once with no backend. Answers true when
+ * this wait's re-ask found no such production: a send there is the server's to refuse, by row id
+ * as before. A re-ask nobody answered by the deadline decides nothing, and the next press asks again.
+ */
+function roadDecided(slug: string, deadline: number): Promise<boolean> {
+  let wait = roadWaits.get(slug);
+  if (!wait) {
+    wait = (async () => {
+      if (!(await getSupabase().catch(() => null))) return false;
+      if (unknownSlugs.has(slug)) {
+        const late = new Promise<null>((resolve) => setTimeout(() => resolve(null), Math.max(0, deadline - Date.now())));
+        const answer = await Promise.race([controlShowBySlug(slug).catch(() => null), late]);
+        if (answer?.ok && !answer.value) return true;
+      }
+      while (!roadKnown(slug) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+      return false;
+    })().finally(() => roadWaits.delete(slug));
+    roadWaits.set(slug, wait);
+  }
+  return wait;
 }
 
 /** Per control slug, what this page knows of the head (seqSend.ts). Set by the resolve, kept
@@ -995,8 +1042,8 @@ const seqSessions = new Map<string, SeqSession>();
 
 /** Whether this page's sends for `slug` go in order per graphic (protocol 2: each press numbered,
  *  an older one skipped once a later one applied). Not before the first resolve, and never on a
- *  page that fell back to protocol 1: there a send that commits late can air over a later one, so
- *  nothing may send on its own (control/selectionAir.ts holds instead). */
+ *  page on protocol 1 (`seqRoadVerdict`): there a send that commits late can air over a later one,
+ *  so the page shows it (`UnorderedSends`) and nothing may send on its own (selectionAir.ts holds). */
 export const sendsInOrder = (slug: string): boolean => seqSessions.has(slug);
 
 function seqPlanFor(slug: string, row: Record<string, unknown>): SeqPlan {
@@ -1023,9 +1070,11 @@ export async function controlShowBySlug(slug: string): Promise<RpcAnswer<Resolve
   if (!sb) return { ok: false, error: 'no backend client' };
   // PROTOCOL 2 FIRST, today's resolve when the server has no sequence road (`seqRoad`). A resolve
   // nobody answered is a failure on either road, and the caller asks again.
-  const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug });
+  const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug }, { sends: true });
   if (next) {
     if (!next.ok) return next;
+    if (next.value) unknownSlugs.delete(slug);
+    else unknownSlugs.add(slug);
     return { ok: true, value: next.value ? readResolvedShow(next.value, seqPlanFor(slug, next.value)) : null };
   }
   seqSessions.delete(slug);
@@ -1137,7 +1186,7 @@ export async function controlOutputResolve(outputSlug: string): Promise<RpcAnswe
   // reports' seq baselines, the legacy check), and if that keeps running out of statement time
   // the renderer boots on today's resolve and follows by row id for this session (review
   // oldclients:F2). An operator page has a person to tell and keeps asking.
-  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug }, OUTPUT_RESOLVE_TIMEOUTS);
+  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug }, { sends: false, timeoutsBeforeAbsent: OUTPUT_RESOLVE_TIMEOUTS });
   if (next) return next.ok ? { ok: true, value: next.value ? readResolvedOutput(next.value, true) : null } : next;
   return controlOutputBySlug(outputSlug);
 }
@@ -1393,15 +1442,27 @@ export async function sendControlVerb(opts: {
   /** Protocol 2: this batch's number and base, taken at the press of a verb that leaves as several
    *  batches (`sendControlVerbs`). Absent, they are taken now. */
   sender?: SenderBody | null;
+  /** When the press was made, if before this call (`sendControlVerbs` may have waited for the road):
+   *  its resend window and its stamp run from the press. Absent, now. */
+  pressedAt?: number;
 }): Promise<VerbSent> {
-  const now = Date.now();
+  const now = opts.pressedAt ?? Date.now();
   const { showId } = opts;
+  // A press made before this production's resolve has decided the road waits for it, within its own
+  // resend window: sent by row id instead, it would have no per-graphic order (#1697). One made
+  // while others still wait joins them, so it cannot be numbered ahead of them.
+  const missing =
+    (!roadKnown(opts.slug) || roadWaits.has(opts.slug)) && (await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS));
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
   const fastRoad = !!showId && !recovering.has(showId);
+  // The hold-back runs on the clock as the send leaves, after any wait for the road; the press's own
+  // time still stamps it and bounds its resends.
+  const sentAt = Date.now();
   // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
-  // the operator had seen, read NOW, at the press - not when the send leaves (seqSend.ts).
+  // the operator had seen, read NOW, at the press (or as its road is decided) - not when the send
+  // leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
   const sender = session ? (opts.sender ?? pressSender(opts.slug, session, opts.items, !!opts.allOut)) : null;
   // A batch numbered at an earlier press leaves this page's monitor alone on every graphic the page
@@ -1424,14 +1485,14 @@ export async function sendControlVerb(opts: {
     // A clock-free graphic's event is an ordinary command and rides by the same rule as a Take.
     const isEvent = item.msg.t === 'event';
     const mayBeFast = !isEvent || !!opts.fastEvents?.(item.graphic);
-    const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= now;
+    const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= sentAt;
     // AN EVENT THAT DID NOT RIDE STILL HOLDS ITS GRAPHIC BACK, whichever reason kept it off: a
     // clock, a follower mid-catch-up, an unknown show, or an earlier hold. Otherwise the Take
     // behind it would ride the broadcast at about 90 ms while its own row was still in the
     // fan-out's 650 ms slow mode, and a renderer would apply the two in the wrong order.
     if (isEvent && !rides) {
       held.push(key);
-      slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
+      slowUntil.set(key, sentAt + SLOW_AFTER_EVENT_MS);
     }
     if (rides && !overtaken(item.graphic)) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
@@ -1456,7 +1517,10 @@ export async function sendControlVerb(opts: {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
-      // commit after a later press.
+      // commit after a later press. By row id only when decided so before the send: the server has
+      // no sequence road, or no such production. A press whose wait ran out without either counts as
+      // unanswered, like the resolve, and never turns into a send by row id on a retry (#1697).
+      if (!missing && !givenUp() && (await getSupabase().catch(() => null))) throw unansweredError();
       await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
     }
     noteSend(true);
@@ -1530,9 +1594,13 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
  * batches landed before it. Protocol 1 numbers nothing and sends exactly as one call per batch.
  */
 export async function sendControlVerbs(
-  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender'> & { batches: ControlSendItem[][] },
+  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
+  // Every batch is numbered here, so the wait for the road comes first, as for one batch. The first
+  // batch's resend window still runs from the press; a later one's from when it leaves, as before.
+  const pressedAt = Date.now();
+  if (!roadKnown(one.slug) || roadWaits.has(one.slug)) await roadDecided(one.slug, pressedAt + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
   const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
@@ -1555,7 +1623,9 @@ export async function sendControlVerbs(
         if (session && base) items = batch.filter((item) => (session.revs.get(item.graphic) ?? 0) <= (base[item.graphic] ?? 0));
         sent.skipped.push(...new Set(batch.filter((item) => !items.includes(item)).map((item) => item.graphic)));
       }
-      const each = items.length ? await sendControlVerb({ ...one, items, sender: senders[index] }) : { skipped: [], superseded: [], pressedAgain: [] };
+      const each = items.length
+        ? await sendControlVerb({ ...one, items, sender: senders[index], ...(index === 0 ? { pressedAt } : {}) })
+        : { skipped: [], superseded: [], pressedAgain: [] };
       waveLanded = Date.now();
       sent.skipped.push(...each.skipped);
       sent.superseded.push(...each.superseded);

@@ -102,15 +102,41 @@ test('before Publish, TAKE says it reaches this page only and PROGRAM stays labe
   await expect(page.getByTestId('program-air')).toHaveCount(0);
 });
 
-test('published, a Take is pending until the command log answers, then logged, never "on air confirmed"; a lost connection dims PROGRAM (C6)', async ({ page }) => {
-  test.setTimeout(90_000);
-  // Stand in the backend on the network, as playout-feedback-health.spec.ts does: no remote
-  // project and no credentials are involved.
+/** Stand in the backend on the network, as playout-feedback-health.spec.ts does: no remote
+ *  project and no credentials are involved. Answers its origin; the spec routes it. */
+async function standInBackend(page: Page): Promise<string> {
   const backend = 'https://status.supabase.test';
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: `
     export function loadBackendConfig() { return { url: '${backend}', anonKey: 'anon-test-key' }; }
     export function isBackendConfigured(cfg = loadBackendConfig()) { return Boolean(cfg.url && cfg.anonKey); }
   ` }));
+  return backend;
+}
+
+/** A published production of one lower third, saved here, and the resolve's answer for it. */
+async function seedPublishedProduction(page: Page) {
+  return page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
+    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
+    if (error || !doc) throw new Error(error ?? 'seed failed');
+    const show = createShowNamed('Evening News');
+    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+    setShowHostedSlug(show.id, 'status-slug');
+    setShowOutputSlug(show.id, 'status-output');
+    const current = loadShows().find((s) => s.id === show.id)!;
+    const output = await buildOutputPayload(current);
+    output.ver = await stampPayload(output, null);
+    return { id: show.id, title: show.name, output, live: {}, staged: {}, last_event_id: 0 };
+  });
+}
+
+test('published, a Take is pending until the command log answers, then logged, never "on air confirmed"; a lost connection dims PROGRAM (C6)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const backend = await standInBackend(page);
   let resolveFixture: unknown = null;
   let release: () => void = () => {};
   const held = new Promise<void>((r) => (release = r));
@@ -133,23 +159,7 @@ test('published, a Take is pending until the command log answers, then logged, n
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
-  const fixture = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { stampPayload } = await import('/src/control/payloadVersion.ts');
-    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
-    if (error || !doc) throw new Error(error ?? 'seed failed');
-    const show = createShowNamed('Evening News');
-    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
-    setShowHostedSlug(show.id, 'status-slug');
-    setShowOutputSlug(show.id, 'status-output');
-    const current = loadShows().find((s) => s.id === show.id)!;
-    const output = await buildOutputPayload(current);
-    output.ver = await stampPayload(output, null);
-    return { id: show.id, title: show.name, output, live: {}, staged: {}, last_event_id: 0 };
-  });
+  const fixture = await seedPublishedProduction(page);
   resolveFixture = fixture;
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${fixture.id}`);
@@ -181,6 +191,243 @@ test('published, a Take is pending until the command log answers, then logged, n
   await page.context().setOffline(false);
   await expect(air).toHaveAttribute('data-state', 'logged');
   await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true');
+});
+
+
+// ONE REFUSED RESOLVE NO LONGER COSTS THE PAGE ITS ORDER (#1697). A page on today's road sends by
+// row id, where a send that commits late can air over a later Take. It used to go there for good
+// on any refused resolve, silently. Now a refusal is asked again, and a page that does end up
+// there (a server with no sequence road) says so under the on-air chip.
+async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | { delay: number } | null): Promise<{ sendsSeq: () => number; sendsById: () => number; numbered: { t: string; press: number }[] }> {
+  const backend = await standInBackend(page);
+  let fixture: unknown = null;
+  let seq = 0;
+  let byId = 0;
+  const numbered: { t: string; press: number }[] = [];
+  await page.route(`${backend}/**`, async (route) => {
+    const req = route.request();
+    const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const rpc = new URL(req.url()).pathname.split('/').pop() ?? '';
+    const special = answer(rpc, fixture);
+    if (special && 'delay' in special) await new Promise((r) => setTimeout(r, special.delay));
+    else if (special) return route.fulfill({ status: special.status, headers, body: JSON.stringify(special.body) });
+    if (rpc === 'control_show_resolve') return route.fulfill({ status: 200, headers, body: JSON.stringify(fixture) });
+    if (rpc === 'control_send_seq') {
+      seq += 1;
+      const body = req.postDataJSON() as { p_items: { msg: { t: string } }[]; p_sender: { press: number } };
+      numbered.push({ t: body.p_items[0].msg.t, press: body.p_sender.press });
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, epoch: null, head: { graphics: {} }, skipped: [] }) });
+    }
+    if (rpc === 'control_send_many') byId += 1;
+    return route.fulfill({ status: 200, headers, body: '[]' });
+  });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  const seeded = await seedPublishedProduction(page);
+  fixture = seeded;
+  await settleDurableWrites(page);
+  await page.goto(`/app#/production/${seeded.id}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('verb-target')).toHaveText('To: 0 outputs');
+  return { sendsSeq: () => seq, sendsById: () => byId, numbered };
+}
+
+test('a refused resolve is asked again, so the page keeps its order: no mark, and a Take goes numbered (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  // The first TWO: a dev build mounts the page's wire twice, so two resolves leave at once, and an
+  // unrefused second one would rescue a page that gave up on the first.
+  let asked = 0;
+  const { sendsSeq } = await publishedPage(page, (rpc) =>
+    rpc === 'control_show_resolve' && asked++ < 2 ? { status: 500, body: { code: 'XX000', message: 'internal error', details: null, hint: null } } : null,
+  );
+  await expect.poll(() => asked, { message: 'the refused resolves were asked again' }).toBeGreaterThan(2);
+  await expect(page.getByTestId('unordered-sends')).toHaveCount(0);
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'logged');
+  expect(sendsSeq(), 'the Take went on the numbered road').toBeGreaterThan(0);
+});
+
+test('a press made before the resolve answers is not sent by row id (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const outage = { status: 503, body: { code: 'PGRST002', message: 'Could not query the database for the schema cache. Retrying.', details: null, hint: null } };
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? outage : null));
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toBeVisible({ timeout: 15_000 });
+  expect(sendsById(), 'nothing left with no per-graphic order').toBe(0);
+  expect(sendsSeq()).toBe(0);
+});
+
+test('a press made while the resolve is on its way waits for it and goes numbered (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  // Each resolve is held 3 s on its way; the reload's is in flight when the operator presses Take.
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'logged', { timeout: 15_000 });
+  expect(sendsSeq(), 'it went numbered once the resolve answered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+});
+
+// Driven through the page's own send module, so the numbers are the page's: the Out leaves 50 ms
+// after the Take, both while the resolve is held. Fault-injected: with one wait per press and the
+// Out's waking first, the Out took the lower number and the Take then stood over it.
+test('two presses made while the resolve is on its way keep their order (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] });
+    const take = press('play');
+    await new Promise((r) => setTimeout(r, 50));
+    await Promise.all([take, press('stop')]);
+  }, showId);
+  const take = numbered.find((n) => n.t === 'play');
+  const out = numbered.find((n) => n.t === 'stop');
+  expect(take && out, 'both went numbered').toBeTruthy();
+  expect(take!.press, 'the Take is numbered before the Out it was pressed before').toBeLessThan(out!.press);
+});
+
+// All out, a verb of several batches, numbers them all at its press. Pressed the moment the resolve
+// lands, while an older Take still waits for it, it must still come after that Take.
+test('All out pressed as the resolve lands is numbered after an older waiting Take (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb, sendControlVerbs, sendsInOrder } = await import('/src/control/hostedControl.ts');
+    const take = sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
+    while (!sendsInOrder('status-slug')) await new Promise((r) => setTimeout(r, 2));
+    const allOut = sendControlVerbs({ slug: 'status-slug', showId, batches: [[{ graphic: 'Guest Strap', msg: { t: 'stop' } }]], allOut: true });
+    await Promise.all([take, allOut]);
+  }, showId);
+  const take = numbered.find((n) => n.t === 'play');
+  const out = numbered.find((n) => n.t === 'stop');
+  expect(take && out, 'both went numbered').toBeTruthy();
+  expect(take!.press, 'the Take is numbered before the All out pressed after it').toBeLessThan(out!.press);
+});
+
+test('a press on a production the resolve called missing asks again, and goes numbered once it exists (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let exists = false;
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' && !exists ? { status: 200, body: null } : null));
+  exists = true;
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
+  }, showId);
+  expect(sendsSeq(), 'it went numbered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+});
+
+test('a Take whose resolve answers after its resend window is not sent late (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 6_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toBeVisible({ timeout: 15_000 });
+  // Past the resolve's answer: nothing left, numbered or not.
+  await page.waitForTimeout(4_000);
+  expect(sendsSeq(), 'the press did not air seconds after its window').toBe(0);
+  expect(sendsById()).toBe(0);
+});
+
+test('a stalled re-ask of a production called missing does not hold the press past its window (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let stall = false;
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) =>
+    rpc === 'control_show_resolve' ? (stall ? { delay: 30_000 } : { status: 200, body: null }) : null,
+  );
+  stall = true;
+  const showId = page.url().split('/production/')[1];
+  const settledIn = await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const started = Date.now();
+    await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] }).catch(() => null);
+    return Date.now() - started;
+  }, showId);
+  expect(settledIn, 'the press ended within its resend window').toBeLessThan(6_000);
+  expect(sendsSeq()).toBe(0);
+  expect(sendsById(), 'nothing went by row id').toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+// Two presses share the wait; it ends at the first one's deadline, and the resolve answers on the
+// ordered road while the second one still has time left. It must not then go by row id.
+test('a press left without a road when its wait ends never retries by row id (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let slow = true;
+  const { sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' && slow ? { delay: 60_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] }).catch(() => null);
+    const w = window as unknown as { presses: Promise<unknown>[] };
+    w.presses = [press('play')];
+    await new Promise((r) => setTimeout(r, 3_400));
+    w.presses.push(press('stop'));
+  }, showId);
+  // The wait ends near 3.75 s; the ordered road then answers, with the second press's window open.
+  await page.waitForTimeout(800);
+  slow = false;
+  await page.evaluate(async () => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    await controlShowBySlug('status-slug');
+    await Promise.all((window as unknown as { presses: Promise<unknown>[] }).presses);
+  });
+  expect(sendsById(), 'nothing went by row id').toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a re-ask nobody answered leaves the production to be asked again (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let answer: 'none' | 'stall' | 'exists' = 'none';
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) =>
+    rpc !== 'control_show_resolve' || answer === 'exists' ? null : answer === 'stall' ? { delay: 30_000 } : { status: 200, body: null },
+  );
+  const showId = page.url().split('/production/')[1];
+  const press = (t: 'play' | 'stop') =>
+    page.evaluate(
+      async ({ showId, t }) => {
+        const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+        await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] }).catch(() => null);
+      },
+      { showId, t },
+    );
+  answer = 'stall';
+  await press('play');
+  answer = 'exists';
+  await press('stop');
+  expect(sendsSeq(), 'the next press asked again and went numbered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  await publishedPage(page, (rpc, fixture) =>
+    rpc === 'control_show_resolve'
+      ? { status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.control_show_resolve', details: null, hint: null } }
+      : rpc === 'control_show_by_slug'
+        ? { status: 200, body: [fixture] }
+        : null,
+  );
+  await expect(page.getByTestId('unordered-sends')).toHaveText('⚠ order not guaranteed');
 });
 
 test('the selected cue is still identifiable once it is on air, and the editor names which one', async ({

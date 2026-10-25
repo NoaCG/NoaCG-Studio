@@ -379,6 +379,7 @@ test.describe('live candidates', () => {
     await take(page, 'Card A');
     await expect(onAirLine(w)).toHaveText('1200', WIRE);
     expect(await page.evaluate(async (slug) => (await import('/src/control/hostedControl.ts')).sendsInOrder(slug), w.slug), 'the page is on protocol 1').toBe(false);
+    await expect(page.getByTestId('unordered-sends'), 'and says so').toBeVisible();
     const before = (await updates(w.showId)).length;
 
     await revision(request, w, 2, collection(2, people(1500)));

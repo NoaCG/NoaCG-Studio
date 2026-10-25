@@ -5,6 +5,51 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Fix #1697: one refused resolve no longer costs a page its per-graphic order
+
+- **Previous verified `main` sha:** this branch began on `cad2f01`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated or stored, so a revert
+  leaves nothing behind.
+- **Decision: keep the order where the server has it, and say so where it does not.** Only the
+  server's press check (0071) orders a graphic's sends, so no client-side fallback can refuse a
+  send that commits late. What put pages on protocol 1 was the rule: any answered error on the
+  first resolve switched the page for good, silently. A page that sends now goes there at once only
+  on PGRST202, and otherwise after five refusals in a row (a lapsed sign-in, 401, does not count),
+  so a blip is asked again and a lasting fault still leaves the page working. Until that verdict
+  no press goes by row id: a press waits for the production's resolve within its resend window,
+  then goes numbered, or counts as unanswered like the resolve. The wait is one per production, so
+  presses resume and take their numbers in the order they were made; a press made while it runs
+  joins it, and All out waits before numbering its batches. A press on a production the resolve
+  answered as missing asks the resolve once more; still missing, the send is the server's to
+  refuse, as before; a re-ask nobody answers by the deadline decides nothing. The slow-event hold-back runs from
+  when the send leaves, after any wait, while a press's resend window still runs from the press,
+  so a Take whose resolve answers after that window never airs late. A page on protocol 1 shows
+  "order not guaranteed" under the on-air chip (both operator pages, `UnorderedSends`), and its
+  automatic sends already hold (`sendsInOrder`, selectionAir.ts). The renderer's rule is unchanged:
+  it sends nothing.
+- **Left as is (review):** a page that answered on protocol 2 and later gets PGRST202 (a rolled-back
+  migration) keeps asking rather than switch mid-session (D7). A dev build's double mount counts
+  each refusal twice; production mounts once.
+- **Trap:** a dev build mounts the page's wire twice, so two resolves leave at once: a spec that
+  refuses only the first proves nothing (the second rescues the old code). The specs refuse two.
+- **Trap:** a press made before the resolve answered used to go by row id, unordered and unmarked.
+- **Trap:** a send that re-checked "is the road decided?" on every retry could switch to row id
+  when the state changed mid-retry. Each press now decides its road once, before it sends.
+- **Trap:** fake backends that answer every RPC with `null` (publish-output-setup.spec.ts) make the
+  resolve say "no such production"; a wait that ignored that answer held All out until it failed.
+- **Trap:** a page that resolved on protocol 2 and then got PGRST202 on a reconnect (PostgREST's
+  schema cache reloading after a migration) used to switch protocols mid-session, against D7. It
+  now asks again. 42883 no longer counts as proof: it can come from inside the function body.
+- **Tests:** `scripts/failed-sends.test.mjs` pins the rule for both askers.
+  `e2e/production-controls.spec.ts` (offline) refuses the first resolves and checks the Take goes
+  numbered with no mark, holds a press made during an outage, sends a press made while the resolve
+  is on its way numbered once it answers, keeps two such presses in order, numbers an All out
+  pressed as the resolve lands after the older waiting Take, and shows the mark on PGRST202.
+  Each was mutation-tested against the old rule. `e2e/configured/command-sequence.spec.ts`
+  refuses the first resolve with a 500, then holds a Take 6 s and presses Out: the late Take is
+  left out and never airs. The configured election spec now also expects the mark on protocol 1.
+
 ## Row 30, phase E7.1: election read gate, keyed selectors and resolver
 
 - **Repair 1, 2026-10-25** (independent check `checker-p30-pp-p30c-e6f8` on `cfcf65b`: FAIL).
