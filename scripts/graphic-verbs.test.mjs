@@ -1108,6 +1108,23 @@ test('Snap and an event on an aired candidate send what its instance shows, neve
   await again;
 });
 
+test('Snap and an event on an ordinary cue leave alone the fields of a candidate whose Take is out on the layer (E7.1)', async () => {
+  const airCue = graphicCue('plain', 'Strap', { f0: 'prepared', f1: 'prepared', f2: 'own' });
+  const view = sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue });
+  const r = rig({ liveCue: { Strap: 'plain' }, airedFields: { Strap: ['f0', 'f1'] } });
+  const snapping = r.verbs.snap(view, null, 'enter');
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][1].msg.data, { f2: 'own' }, 'the candidate that may have aired keeps its fields');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await snapping;
+  const e = rig({ liveCue: { Strap: 'plain' }, airedFields: { Strap: ['f0', 'f1'] } });
+  const pressing = e.verbs.event(view, { event: 'flash', payload: ['f0', 'f2'] });
+  await settle();
+  assert.equal(JSON.stringify(e.sends[0]?.batches ?? []).includes('prepared'), false, 'nor does an event that reads them');
+  e.sends[0]?.answer.resolve({ ...noneLeft });
+  await pressing;
+});
+
 test('± on a live candidate\'s field sends nothing and writes nothing: it comes from its source', async () => {
   const r = rig({ liveCue: { Strap: 'a' }, candidates: { a: ['f1'] } });
   await r.verbs.bump(sel({ editingCue: graphicCue('a', 'Strap', { f1: '5' }), selectedGraphic: 'Strap', editingIsLive: true }), 'f1', 1);

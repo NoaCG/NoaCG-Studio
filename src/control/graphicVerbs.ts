@@ -506,11 +506,13 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   const airValues = (p: GraphicPage, sel: VerbSelection): Record<string, string> => {
     if (!sel.airCue) return {};
     const values = p.cueView(sel.airCue).values;
-    const fields = p.candidateFields(sel.airCue);
+    // The cue's own candidate fields, and every field the layer protects: a candidate's Take may
+    // have reached the output while the marker still names this cue (E7.1).
+    const fields = [...new Set([...p.candidateFields(sel.airCue), ...(sel.selectedGraphic ? p.airedCandidateFields(sel.selectedGraphic) : [])])];
     if (fields.length === 0) return values;
+    const kept = Object.fromEntries(Object.entries(values).filter(([key]) => !fields.includes(key)));
     const aired = sel.selectedGraphic ? p.airedCandidate(sel.selectedGraphic, sel.airCue.id) : null;
-    if (aired) return { ...values, ...aired };
-    return Object.fromEntries(Object.entries(values).filter(([key]) => !fields.includes(key)));
+    return aired ? { ...kept, ...aired } : kept;
   };
 
   const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[]) => {
