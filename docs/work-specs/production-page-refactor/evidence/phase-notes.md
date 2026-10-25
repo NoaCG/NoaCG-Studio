@@ -23,9 +23,12 @@ changes a spec's digest.
     next marker write. Protocol 1 has no per-graphic order at all, and #1697 reworks it. Moving
     those writes into the sender would change those modules' contracts and test rigs, so it stays
     out of this fix.
-  - The page no longer moves the marker for this page's own cue markers heard back on either road
-    (`liveCue.ts` `withoutOwnMarkers` in `hearCommand`). The sender writes them from its answers,
-    and from the rows of presses that got none. Before this, a slow-road press's own row heard
+  - The page no longer moves the marker for this page's own cue markers heard back, on either
+    road, on a graphic this sender pressed. `hearCommand` applies what `verbs.heard` hands back,
+    which uses `liveCue.ts` `withoutOwnMarkers`. The sender writes those markers from its answers,
+    and from the rows of presses that got none. A marker sent by an earlier mount of the page is
+    still applied: a production left and reopened in the same tab gets a new sender, which has
+    pressed nothing there yet. Before this, a slow-road press's own row heard
     late put its older cue over a newer press that had landed. A send of several batches books
     each batch's markers on their own, so one batch landing and the next failing leaves the
     first batch's cue.
@@ -64,11 +67,17 @@ changes a spec's digest.
   or Out restoring; another screen's marker kept; late rows, older and newer, against newer
   presses that land, fail or are still out; a send that throws before it goes). A seeded walk of
   2000 runs (`MARKER_WALKS`, also run at 20,000) checks the marker against a protocol-2 server
-  model. The model covers answers lost before or after a commit and rows heard at any time. The
+  model. The model covers answers lost before or after a commit, and rows heard at any time, each
+  passed through `verbs.heard` with what it hands back applied. The
   walk and four of the tests are red on `cad2f01`. In `scripts/keyed-selection.test.mjs`, the
   checker's N1 repro is red on `cad2f01`. Twenty mutants of the folds and the wiring are each
   killed. Browser: `e2e/playout-air-contract.spec.ts` and `e2e/playout-drills.spec.ts`, 12
   passed.
+- **Third assessment (/so) on `1878636`: A-, PASS.** It found one non-blocking case: a press made
+  before the page was left and reopened, whose row arrived after reopening, was dropped as this
+  page's own. That is now scoped to the sender that pressed the graphic. It also found that the
+  page wiring had no Node test. The filtering moved into `verbs.heard`, so the walk now hears
+  every press's own row through it and applies what comes back.
 - **Second assessment (/so) on `85ad242`: B+.** It found that a slow-road press's own row,
   heard late, moved the marker through `claimAndApply`. That is fixed by `withoutOwnMarkers`. It
   also found that a two-batch send booked only its last batch, which is now fixed and pinned. The

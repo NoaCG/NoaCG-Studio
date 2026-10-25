@@ -48,7 +48,7 @@ import { oidOf } from './commandRoads.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
-import { answerMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, type MarkerBook } from './liveCue.ts';
+import { answerMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
@@ -199,8 +199,11 @@ export interface GraphicVerbs {
   allOut: () => Promise<void>;
   event: (sel: VerbSelection, button: ControlButton) => Promise<void>;
   snap: (sel: VerbSelection, groupId: string | null, stateId: string) => Promise<void>;
-  /** Commands the server sent back: one of a marker press that got no answer landed after all. */
-  heard: (items: readonly { graphic: string; msg?: unknown }[]) => void;
+  /** Commands the server sent back, on either road: one of a marker press that got no answer may
+   *  have landed after all. Returns the ones the page still applies: all but this page's own cue
+   *  markers on graphics this sender pressed, which it writes from its answers (`mine`: this page
+   *  load sent it). */
+  heard: <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean) => T[];
   /** The graphics whose marker a press of this page moved and whose answer is not back yet: the
    *  marker says nothing yet about what airs there. */
   markersOut: () => string[];
@@ -244,6 +247,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  newer than every press known to have landed on its graphic landed after all. A row heard
    *  before the send gave up already made it a landing (hostedControl.ts `heard`). */
   const unanswered = new Map<string, MarkerSent>();
+  /** The graphics this sender has pressed a marker on: a marker of this page load on another came
+   *  from an earlier mount of the page, and the page applies it as it always did. */
+  const pressedOn = new Set<string>();
   const landedOn = (graphic: string, n: number) => newestLanded.set(graphic, Math.max(newestLanded.get(graphic) ?? 0, n));
 
   /** Number a send's markers at its press, batch by batch (each lands or fails on its own): per
@@ -256,6 +262,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       return [...named].map(([graphic, cue]) => {
         const n = (markerPresses += 1);
         markers = pressMarker(markers, live, graphic, n, cue);
+        pressedOn.add(graphic);
         return { graphic, n, cue, batch: index };
       });
     });
@@ -270,7 +277,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       if (step.write !== undefined) mark([m.graphic], step.write);
     }
   };
-  const heard = (items: readonly { graphic: string; msg?: unknown }[]) => {
+  const heard = <T extends { graphic: string; msg: { t: string } }>(items: readonly T[], mine: (msg: unknown) => boolean): T[] => {
     for (const item of items) {
       const oid = oidOf(item.msg);
       const u = oid ? unanswered.get(oid) : undefined;
@@ -283,6 +290,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       // A newer press still out decides with its own answer, and puts this one back if it fails.
       if (!markers[u.graphic]?.out.some((p) => p.n > u.n)) mark([u.graphic], u.cue);
     }
+    // A late row of an older press of this page, on the slow road (never claimed at the press),
+    // would put its cue back over a newer one (#1696).
+    return withoutOwnMarkers(items, (item) => pressedOn.has(item.graphic) && mine(item.msg));
   };
 
   // ── The one sender. ONE place a verb's commands go somewhere: the wire when published, the local

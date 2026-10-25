@@ -1364,9 +1364,9 @@ test('a Take that got no answer goes back off the marker, and its row heard late
   a.send.answer.reject(noAnswer('c1'));
   await a.taking;
   assert.deepEqual(r.liveCue(), {});
-  r.verbs.heard([{ graphic: 'Score', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }, { graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'other' } }]);
+  r.verbs.heard([{ graphic: 'Score', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }, { graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'other' } }], () => true);
   assert.deepEqual(r.liveCue(), {}, 'only its own row, on its own graphic');
-  r.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }]);
+  r.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }], () => true);
   assert.deepEqual(r.liveCue(), { Strap: 'c1' });
 
   // A newer press since: the older row heard late moves nothing.
@@ -1377,7 +1377,7 @@ test('a Take that got no answer goes back off the marker, and its row heard late
   const c = await pressTake(r2, 'c2');
   c.send.answer.resolve({ ...noneLeft });
   await c.taking;
-  r2.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }]);
+  r2.verbs.heard([{ graphic: 'Strap', msg: { t: 'cue', cue: 'c1', oid: 'oid-c1' } }], () => true);
   assert.deepEqual(r2.liveCue(), { Strap: 'c2' });
 });
 
@@ -1391,7 +1391,7 @@ test('a late row of an older press never marks over a newer one that landed; wit
   a.send.answer.reject(noAnswer('c1'));
   b.send.answer.resolve({ ...noneLeft });
   await Promise.all([a.taking, b.taking]);
-  r.verbs.heard(row);
+  r.verbs.heard(row, () => true);
   assert.deepEqual(r.liveCue(), { Strap: 'c2' });
 
   // No answer, then a newer Take is refused: the row heard later marks the older cue.
@@ -1404,7 +1404,7 @@ test('a late row of an older press never marks over a newer one that landed; wit
     two.send.answer.reject(new Error('refused'));
     await Promise.all([one.taking, two.taking]);
     assert.deepEqual(q.liveCue(), {}, order);
-    q.verbs.heard(row);
+    q.verbs.heard(row, () => true);
     assert.deepEqual(q.liveCue(), { Strap: 'c1' }, order);
   }
 
@@ -1414,7 +1414,7 @@ test('a late row of an older press never marks over a newer one that landed; wit
   older.send.answer.reject(noAnswer('c1'));
   await older.taking;
   const newer = await pressTake(t, 'c2');
-  t.verbs.heard(row);
+  t.verbs.heard(row, () => true);
   assert.deepEqual(t.liveCue(), { Strap: 'c2' }, 'not under the newer press still out');
   newer.send.answer.reject(new Error('refused'));
   await newer.taking;
@@ -1431,6 +1431,23 @@ test('a send of two batches on one graphic books each: the first lands, the seco
   r.sends[0].answer.reject(Object.assign(new Error('refused'), { landed: 1 }));
   await sending;
   assert.deepEqual(r.liveCue(), {});
+});
+
+test("this page's own cue markers heard back are the sender's on a graphic it pressed; a marker from an earlier mount of the page is applied (#1696)", async () => {
+  const r = rig({ fast: true });
+  const a = await pressTake(r, 'c1');
+  a.send.answer.resolve({ ...noneLeft });
+  await a.taking;
+  const rows = [
+    { graphic: 'Strap', msg: { t: 'cue', cue: 'c0', oid: 'mine' } },
+    { graphic: 'Strap', msg: { t: 'play', oid: 'mine' } },
+    { graphic: 'Strap', msg: { t: 'cue', cue: 'x1', oid: 'theirs' } },
+    { graphic: 'Score', msg: { t: 'cue', cue: 's0', oid: 'mine' } },
+  ];
+  const mine = (msg) => msg.oid === 'mine';
+  assert.deepEqual(r.verbs.heard(rows, mine), rows.slice(1));
+  // Reopened: a new sender has pressed nothing, so the page applies them all.
+  assert.deepEqual(rig().verbs.heard(rows, mine), rows);
 });
 
 test('a send that throws before it goes leaves no marker press out (#1696)', async () => {
@@ -1478,6 +1495,12 @@ async function markerWalk(seed, steps) {
       assert.equal(r.liveCue()[g] ?? null, output[g] ?? null, `seed ${seed} ${when}: marker on ${g}\n${trace.join('\n')}`);
     }
   };
+  // The page applies what the sender hands back, as `claimAndApply` would a row never claimed (a
+  // slow-road press of this page is claimed only by its row).
+  const hear = (p) => {
+    const rest = r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }], () => true);
+    for (const item of rest) r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: withLiveCue(parts.air.liveCue, item.graphic, item.msg.cue) } }));
+  };
   const commit = (p) => {
     p.committed = true;
     p.reached = p.n > (applied[p.graphic] ?? 0);
@@ -1489,7 +1512,8 @@ async function markerWalk(seed, steps) {
   for (let step = 0; step < steps; step++) {
     const open = presses.filter((p) => !p.answered);
     const uncommitted = open.filter((p) => !p.committed);
-    const late = presses.filter((p) => p.lost && !p.heard);
+    // A row still to come: of a press whose answer was lost, or of any press that landed.
+    const late = presses.filter((p) => !p.heard && (p.lost || p.reached));
     const kinds = ['press', 'press', ...(uncommitted.length ? ['commit', 'commit', 'refuse'] : []), ...(open.length ? ['lose'] : []), ...(open.some((p) => p.committed) ? ['answer', 'answer'] : []), ...(late.length ? ['late', 'late'] : [])];
     const kind = pick(kinds);
     let acted;
@@ -1510,16 +1534,20 @@ async function markerWalk(seed, steps) {
       p.answered = true;
       p.send.answer.reject(new Error('refused'));
     } else if (kind === 'lose') {
-      // Committed or not, its answer is lost; a row heard before the send gave up would have made it
-      // a landing (hostedControl.ts `heard`), so its row, if any, comes after.
+      // Committed or not, its answer is lost. Its row already heard, the send that gave up landed
+      // (hostedControl.ts `heard`); otherwise its row, if any, comes later.
       const p = (acted = pick(open));
-      p.answered = p.lost = true;
-      p.send.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }] }));
+      p.answered = true;
+      if (p.heard) p.send.answer.resolve({ ...noneLeft, skipped: p.reached ? [] : [p.graphic] });
+      else {
+        p.lost = true;
+        p.send.answer.reject(Object.assign(new Error('the server did not answer'), { unanswered: true, items: [{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }] }));
+      }
     } else {
       const p = (acted = pick(late));
       p.heard = true;
       if (!p.committed) commit(p);
-      if (p.reached) r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }]);
+      if (p.reached) hear(p);
     }
     trace.push(`${kind} ${JSON.stringify([acted.n, acted.graphic, acted.cue, !!acted.reached])} marker ${JSON.stringify(r.liveCue())}`);
     await settle();
@@ -1537,9 +1565,9 @@ async function markerWalk(seed, steps) {
   }
   await Promise.all(presses.map((p) => p.done));
   // Every row still to come arrives, in a random order.
-  for (const p of presses.filter((q) => q.lost && q.reached && !q.heard).sort(() => random() - 0.5)) {
+  for (const p of presses.filter((q) => q.reached && !q.heard).sort(() => random() - 0.5)) {
     p.heard = true;
-    r.verbs.heard([{ graphic: p.graphic, msg: { t: 'cue', cue: p.cue, oid: `oid-${p.n}` } }]);
+    hear(p);
   }
   check('at the end');
 }
