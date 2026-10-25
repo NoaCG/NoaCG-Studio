@@ -11,9 +11,11 @@
 // event holds that graphic on the slow road for 1.2 s) and the slow road (only heard rows move
 // this page's air record).
 //
-// THE ORACLE IS THE SPEC, NOT THE CODE. It reads nothing of graphicVerbs.ts but what a press sends,
-// writes and says, and checks it against its own model of the wire, the server log and what this
-// page has heard:
+// THE ORACLE. INSTANCE, REFUSAL, QUEUE and WRITE come from the spec; BASE restates the diagnoser's
+// ledger rule, so it proves the code keeps that rule, not that air is right (how often air differs
+// is printed). It reads nothing of graphicVerbs.ts but what a press sends, writes and says, and what
+// `heard` hands back to the page, and checks it against its own model of the wire, the server log
+// and what this page has heard:
 //   INSTANCE   a live press sends only while `liveCue[graphic]` is the cue it was drawn for and no
 //              marker press of this page naming another cue is still out.
 //   REFUSAL    a live press that sends nothing says exactly "Nothing sent: the cue on <graphic>
@@ -29,6 +31,8 @@
 //              6403006781; `oracleBase` has the rule): the newest own figure-carrying send by press
 //              that is not gone decides - pending, its figure; landed and not taken past by a row
 //              heard since, its figure; otherwise this page's own air record, else the cue, else 0.
+//              One clause is the repair's own reading, not the diagnoser's: an own row arriving
+//              already applied takes only the older sends past.
 //              Reported as BASE-FROM-FAILED when the figure sent counts from a gone send. How often
 //              a counted figure differs from what air truly showed is printed, not checked.
 //              Every check reads what the page knew at that send: an answer counts from the moment

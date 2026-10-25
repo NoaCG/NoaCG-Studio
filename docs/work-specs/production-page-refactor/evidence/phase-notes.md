@@ -87,8 +87,11 @@ changes a spec's digest.
   this page's own Take of another cue goes out during its save (the `onLayer` half), R7 (0, 1, 2,
   3: pending never beats a newer landed send), an unanswered +1 whose row is heard later, a +1
   between another screen's Take rows, an Update applied here that committed unanswered.
-- **Independent walk (`scripts/graphic-verbs-walk.test.mjs`).** Written by a separate agent from
-  "What a press does" and the diagnoser's ledger rule, not from this code: the real verbs,
+- **Independent walk (`scripts/graphic-verbs-walk.test.mjs`).** Written by a separate agent, not
+  from this code. INSTANCE, REFUSAL, QUEUE and WRITE come from "What a press does"; BASE restates
+  the diagnoser's ledger rule (with one clause that is this repair's own reading: an own row
+  arriving already applied takes only older sends past), so it proves the code keeps that rule,
+  not that air is right; how often air differs is printed, below. It runs the real verbs,
   session, `claimAndApply`, `airedAfter`, `liveSelection`, `pressSend`; a modelled wire (FIFO per
   graphic, protocol 2 staleness from the revision the page knew, lost commits, unanswered sends
   that may commit, the 1.2 s slow window after a clock graphic's event), two pinned graphics,
@@ -139,6 +142,12 @@ changes a spec's digest.
   - One mutant is equivalent and survives: letting an older entry stand when the newest is taken
     past. Every rule that takes a field past an entry also takes it past every older one, so no
     older entry can stand.
+- **Gaps left, both as on `8da6005` and both only after the fallback timer let a press overtake
+  this page's own send (found by the second opinion):**
+  - On the fast road, this page's Take of s2 is applied here, a +1 is released by the fallback, and
+    the Take then fails: the +1 sends 1 onto s1's layer and writes `{home:1}` into s2.
+  - A +1 that got no answer but committed counts as gone, so the next +1 sends the same figure
+    again (8, 8) until its row is heard; counting from air there is what the spec allows.
 - **Traps.**
   - Rows reach the page by two roads, so the page cannot know where another screen's row sits in
     the log against its own unheard sends; the ledger follows the diagnoser's rule (another
