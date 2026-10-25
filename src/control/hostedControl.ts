@@ -1002,30 +1002,33 @@ async function askSeqRoad(
 }
 
 /** Control slugs the ordered resolve last answered as no production. A press there asks the
- *  resolve once more (the production may exist by now); still none, the send is the server's to
- *  refuse, as before. */
+ *  resolve again (the production may exist by now). */
 const unknownSlugs = new Set<string>();
 /** This slug's sends are numbered, or never can be: nothing to wait for. */
-const settled = (slug: string) => seqSessions.has(slug) || givenUp();
-const decided = (slug: string) => settled(slug) || unknownSlugs.has(slug);
+const roadKnown = (slug: string) => seqSessions.has(slug) || givenUp();
 
 /** Per control slug, the one wait for its road in progress. Shared, so the presses waiting on it
  *  resume in the order they were made and take their numbers in that order. */
-const roadWaits = new Map<string, Promise<void>>();
+const roadWaits = new Map<string, Promise<boolean>>();
 
-/** Until this production's road is decided - its resolve answered on protocol 2, or the server has
- *  none - or the first waiting press's `deadline` passes. At once with no backend. */
-function roadDecided(slug: string, deadline: number): Promise<void> {
+/**
+ * Until this production's road is known - its resolve answered on protocol 2, or the server has
+ * none - or the first waiting press's `deadline` passes. At once with no backend. Answers true when
+ * this wait's re-ask found no such production: a send there is the server's to refuse, by row id
+ * as before. A re-ask nobody answered by the deadline decides nothing, and the next press asks again.
+ */
+function roadDecided(slug: string, deadline: number): Promise<boolean> {
   let wait = roadWaits.get(slug);
   if (!wait) {
     wait = (async () => {
-      if (!(await getSupabase().catch(() => null))) return;
-      // A re-ask nobody answered by the deadline decides nothing: the production may exist by now.
+      if (!(await getSupabase().catch(() => null))) return false;
       if (unknownSlugs.has(slug)) {
         const late = new Promise<null>((resolve) => setTimeout(() => resolve(null), Math.max(0, deadline - Date.now())));
-        if (!(await Promise.race([controlShowBySlug(slug).catch(() => null), late]))?.ok) unknownSlugs.delete(slug);
+        const answer = await Promise.race([controlShowBySlug(slug).catch(() => null), late]);
+        if (answer?.ok && !answer.value) return true;
       }
-      while (!decided(slug) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+      while (!roadKnown(slug) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+      return false;
     })().finally(() => roadWaits.delete(slug));
     roadWaits.set(slug, wait);
   }
@@ -1448,7 +1451,8 @@ export async function sendControlVerb(opts: {
   // A press made before this production's resolve has decided the road waits for it, within its own
   // resend window: sent by row id instead, it would have no per-graphic order (#1697). One made
   // while others still wait joins them, so it cannot be numbered ahead of them.
-  if (!settled(opts.slug) || roadWaits.has(opts.slug)) await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
+  const missing =
+    (!roadKnown(opts.slug) || roadWaits.has(opts.slug)) && (await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS));
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
@@ -1513,12 +1517,11 @@ export async function sendControlVerb(opts: {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
-      // commit after a later press. By row id only once this server is known to have no sequence
-      // road: a press whose wait for the resolve ran out counts as unanswered, like the resolve.
-      await sendWithResend(async (signal) => {
-        if (!decided(opts.slug) && (await getSupabase().catch(() => null))) throw unansweredError();
-        await sendHostedControlBatch(opts.slug, wire, signal);
-      }, resend);
+      // commit after a later press. By row id only when decided so before the send: the server has
+      // no sequence road, or no such production. A press whose wait ran out without either counts as
+      // unanswered, like the resolve, and never turns into a send by row id on a retry (#1697).
+      if (!missing && !givenUp() && (await getSupabase().catch(() => null))) throw unansweredError();
+      await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
     }
     noteSend(true);
   } catch (e) {
@@ -1597,7 +1600,7 @@ export async function sendControlVerbs(
   // Every batch is numbered here, so the wait for the road comes first, as for one batch. The first
   // batch's resend window still runs from the press; a later one's from when it leaves, as before.
   const pressedAt = Date.now();
-  if (!settled(one.slug) || roadWaits.has(one.slug)) await roadDecided(one.slug, pressedAt + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
+  if (!roadKnown(one.slug) || roadWaits.has(one.slug)) await roadDecided(one.slug, pressedAt + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
   const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };

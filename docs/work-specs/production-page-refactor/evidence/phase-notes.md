@@ -34,6 +34,8 @@ changes a spec's digest.
 - **Trap:** a dev build mounts the page's wire twice, so two resolves leave at once: a spec that
   refuses only the first proves nothing (the second rescues the old code). The specs refuse two.
 - **Trap:** a press made before the resolve answered used to go by row id, unordered and unmarked.
+- **Trap:** a send that re-checked "is the road decided?" on every retry could switch to row id
+  when the state changed mid-retry. Each press now decides its road once, before it sends.
 - **Trap:** fake backends that answer every RPC with `null` (publish-output-setup.spec.ts) make the
   resolve say "no such production"; a wait that ignored that answer held All out until it failed.
 - **Trap:** a page that resolved on protocol 2 and then got PGRST202 on a reconnect (PostgREST's

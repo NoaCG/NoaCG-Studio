@@ -365,6 +365,59 @@ test('a stalled re-ask of a production called missing does not hold the press pa
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
+// Two presses share the wait; it ends at the first one's deadline, and the resolve answers on the
+// ordered road while the second one still has time left. It must not then go by row id.
+test('a press left without a road when its wait ends never retries by row id (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let slow = true;
+  const { sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' && slow ? { delay: 60_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] }).catch(() => null);
+    const w = window as unknown as { presses: Promise<unknown>[] };
+    w.presses = [press('play')];
+    await new Promise((r) => setTimeout(r, 3_400));
+    w.presses.push(press('stop'));
+  }, showId);
+  // The wait ends near 3.75 s; the ordered road then answers, with the second press's window open.
+  await page.waitForTimeout(800);
+  slow = false;
+  await page.evaluate(async () => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    await controlShowBySlug('status-slug');
+    await Promise.all((window as unknown as { presses: Promise<unknown>[] }).presses);
+  });
+  expect(sendsById(), 'nothing went by row id').toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a re-ask nobody answered leaves the production to be asked again (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let answer: 'none' | 'stall' | 'exists' = 'none';
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) =>
+    rpc !== 'control_show_resolve' || answer === 'exists' ? null : answer === 'stall' ? { delay: 30_000 } : { status: 200, body: null },
+  );
+  const showId = page.url().split('/production/')[1];
+  const press = (t: 'play' | 'stop') =>
+    page.evaluate(
+      async ({ showId, t }) => {
+        const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+        await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] }).catch(() => null);
+      },
+      { showId, t },
+    );
+  answer = 'stall';
+  await press('play');
+  answer = 'exists';
+  await press('stop');
+  expect(sendsSeq(), 'the next press asked again and went numbered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
 test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   await publishedPage(page, (rpc, fixture) =>
