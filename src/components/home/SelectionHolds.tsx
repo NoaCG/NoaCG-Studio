@@ -27,7 +27,7 @@ export default function SelectionHolds({ part, labelOf }: { part: StorePart<Sele
     <div className="pd-unsent-note" role="status" data-testid="selection-holds">
       {held.map(({ graphic, inst, held: h }) => (
         <p key={graphic} data-testid="selection-hold" data-graphic={graphic}>
-          Holding {labelOf(inst.cueId) ?? graphic} on air: {h.reason}.
+          Holding {(inst.known && labelOf(inst.cueId)) || graphic} on air: {h.reason}.
           {inst.known ? ` Showing revision ${inst.revision}, ${age(now - inst.at)} old.` : ` For ${age(now - h.since)}.`}
         </p>
       ))}

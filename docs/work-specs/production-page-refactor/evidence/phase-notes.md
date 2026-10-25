@@ -230,6 +230,28 @@ changes a spec's digest.
   *Known limit:* after a reload that lost a correction's answer, while the tree does not
   resolve, the hold names the last revision known to have landed although the output may show a
   newer one of the same person; the picture is held either way, and the first good read resends.
+  *Assessment A+ on the rewrite (a fresh read-only session): FAIL*, fixed in the next commits.
+  (1) A candidate's bound and hold were keyed by cue and entity only, so switching the card to
+  another recipe for the same key (preliminary to official) inherited the old source's revisions:
+  a target now carries its recipe's identity (id, source, schema revision, leaf) and the marks
+  are keyed by it; a recipe changed under a captured selector holds. (2) A reload with an Update
+  to another recipe unanswered kept the old recipe and could send its values: now unknown. (3) A
+  reload with the same cue taken without a selection unanswered re-adopted the old candidate:
+  such a take is remembered (`plains`), and a marker naming that cue keeps the layer unknown. (6)
+  A hold a revision set never ended when that same revision read well; now it ends and is sent.
+  (7) A layer the marker decides follows in the same pass. (8) The unknown hold line names the
+  graphic, not a guessed candidate, and every candidate's fields stay protected (`selections`).
+  (4) The walk now switches the card between two recipes, takes the same cue without a
+  selection, fails when a candidate on the marker's cue is forgotten, and holds I1 only to what
+  truly airs after a reload. Also from the automated review: send numbers were per layer and
+  restarted when a layer was removed and taken again, so a late answer could settle a new press;
+  they are now minted once per page (`mintSend`). (5) is not this PR's: `graphicVerbs.ts` leaves
+  the live-cue marker where it was when a later press overtook an earlier one (`pressedAgain`)
+  and that later press then fails, so the marker names a cue that no longer airs; this is on
+  `main` for every graphic, and here it makes the layer stop following (it sends nothing
+  wrong). Reported to the coordinator with a proposed patch; not widened into this PR.
+  Mutations of the reducer: 33, each red, including the two the assessment showed the earlier
+  walk missed (a follow forgetting a layer, a reload forgetting a known layer).
 - **Traps for E7.2a and E7.2b.** *The page hears a published tree change from a row* (`sessionWire`
   on a `src` row) *or from its own 5 s read while a cue has a selection*: a correction that moves
   nothing bound reaches air up to 5 s later. E7.2b may give the page a sooner signal. *The source route writes strings at bound paths only* (migration 0101 refuses anything

@@ -2479,8 +2479,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     candidateFields,
     airedCandidateFields: (graphic) => {
       const aired = airedCandidateOf(session.selections.get(), graphic);
-      // Unknown which candidate airs: its fields are protected whichever cue the marker names.
-      return aired && (!aired.known || session.air.get().liveCue[graphic] === aired.cueId) ? selectedFields({ selection: aired.selection }, show.collections) : [];
+      // Unknown which candidate airs: every candidate's fields are protected, whichever cue the
+      // marker names.
+      if (!aired || (aired.known && session.air.get().liveCue[graphic] !== aired.cueId)) return [];
+      return [...new Set(aired.selections.flatMap((selection) => selectedFields({ selection }, show.collections)))];
     },
     // Not known which candidate airs (restored mid-press): its fields are nobody's values to send.
     airedCandidate: (graphic, cueId) => {

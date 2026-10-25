@@ -45,12 +45,17 @@ const RECIPE = {
   key: ['district', 'number'],
   fields: { f0: { from: 'name' }, f1: { from: 'votes' }, f2: { from: 'party', fallback: '-' } },
 };
+// The same card fed by a second source (an official count after a preliminary one), same key.
+const OFFICIAL = { ...RECIPE, id: 'official', sourceId: 'e2' };
+const officialOf = (district, num) => ({ v: 1, recipe: 'official', key: [district, num] });
 const person = (district, num, name, votes, extra = {}) => ({ district, number: num, name, votes, ...extra });
 const collection = (revision, items, extra = {}) => ({ schemaRevision: 3, revision, items, ...extra });
 const tree = (c) => ({ external: { e1: { candidates: c } } });
 const selectionOf = (district, num) => ({ v: 1, recipe: 'cands', key: [district, num] });
 const facts = (c, more = {}) => ({ collections: [RECIPE], bindings: {}, tree: tree(c), fieldsOf: (g) => (g === 'Card' ? FIELDS : null), ...more });
 const take = (sel, c, more) => air.selectionTake({ selection: sel }, 'Card', facts(c, more));
+// Both sources: the preliminary `e1` and the official `e2`, each its own collection.
+const both = (c1, c2, more = {}) => ({ collections: [RECIPE, OFFICIAL], bindings: {}, tree: { external: { e1: { candidates: c1 }, e2: { candidates: c2 } } }, fieldsOf: (g) => (g === 'Card' ? FIELDS : null), ...more });
 const resolve = (key, c, recipe = RECIPE, fields = FIELDS) => mapping.resolveSelection({ recipe, tree: tree(c), key, fields });
 
 const BASE = [person('D1', 7, 'Aino Aalto', 1200, { party: 'Green' }), person('D2', 7, 'Bertta Berg', 900, { party: 'Blue' }), person('D1', 8, 'Cecilia Cole', 800)];
@@ -59,7 +64,7 @@ describe('identity is district plus candidate', () => {
   test('two cues of one card select different people, including one number in two districts', () => {
     const a = take(selectionOf('D1', 7), collection(1, BASE));
     const b = take(selectionOf('D2', 7), collection(1, BASE));
-    assert.deepEqual(a, { status: 'ok', selection: selectionOf('D1', 7), entity: '["D1",7]', revision: 1, values: { f0: 'Aino Aalto', f1: '1200', f2: 'Green' } });
+    assert.deepEqual(a, { status: 'ok', selection: selectionOf('D1', 7), scope: '["cands","e1",3,"candidates"]', entity: '["D1",7]', revision: 1, values: { f0: 'Aino Aalto', f1: '1200', f2: 'Green' } });
     assert.deepEqual(b.values, { f0: 'Bertta Berg', f1: '900', f2: 'Blue' });
   });
 
@@ -774,6 +779,69 @@ describe('the page\'s two doors onto the layers', () => {
     }
   });
 
+  test('another recipe for the same key is another candidate: its revisions and holds are its own (assessment 1)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', air.selectionTake({ selection: selectionOf('D1', 7) }, 'Card', both(collection(50, BASE), collection(1, BASE)))).landed();
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), Promise.resolve(ANSWERED));
+    air.followAired(p, { liveCue: live, seeded: true, facts: both(collection(60, BASE.slice(1)), collection(1, BASE)), send });
+    assert.equal(card(p).held?.revision, 60, 'the preliminary count held at 60');
+    air.pressSelection(p, 'Card', 'cue-a', air.selectionTake({ selection: officialOf('D1', 7) }, 'Card', both(collection(60, BASE), collection(3, BASE)))).landed();
+    for (const r of [4, 10, 59]) air.followAired(p, { liveCue: live, seeded: true, facts: both(collection(60, BASE), collection(r, [person('D1', 7, 'Aino Aalto', r)])), send });
+    assert.deepEqual(sends, ['4', '10', '59'], 'the official count follows its own revisions');
+  });
+
+  test('a reload with an Update to another recipe unanswered: not known which airs, nothing sent from either (assessment 2)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', air.selectionTake({ selection: selectionOf('D1', 7) }, 'Card', both(collection(50, BASE), collection(3, BASE)))).landed();
+    air.pressSelection(p, 'Card', 'cue-a', air.selectionTake({ selection: officialOf('D1', 7) }, 'Card', both(collection(50, BASE), collection(3, BASE))));
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
+    assert.equal(air.airedOf(restored, 'Card').known, false);
+    const read = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: both(collection(51, BASE), collection(4, BASE)), mint: air.mintSend, now: 9000 });
+    assert.deepEqual(read.sends, []);
+    assert.deepEqual(air.airedOf(restored, 'Card').selections, [selectionOf('D1', 7), officialOf('D1', 7)], 'both selectors\' fields stay protected');
+  });
+
+  test('a reload with the same cue taken without a selection unanswered: the marker cannot tell, nothing is sent (assessment 3)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(p, 'Card', 'cue-a', { status: 'none' });
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
+    const read = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(6, people6())), mint: air.mintSend, now: 9000 });
+    assert.deepEqual([read.sends, air.airedOf(read.air, 'Card')?.known], [[], false]);
+    const other = air.reduceSelection(restored, { t: 'follow', liveCue: { Card: 'cue-z' }, seeded: true, facts: facts(collection(6, people6())), mint: air.mintSend, now: 9000 });
+    assert.deepEqual(other.air, {}, 'the marker names neither: gone');
+  });
+
+  test('a hold a revision set ends when that same revision reads well, and it is sent (assessment 6)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const send = (g, v) => (sends.push(v.f1), Promise.resolve(ANSWERED));
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6()), { fieldsOf: () => [text('f0')] }), send });
+    assert.deepEqual([sends, card(p).held?.revision], [[], 6], 'the graphic lost a mapped field at revision 6');
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6())), send });
+    assert.deepEqual([sends, card(p).held, card(p).revision], [['1500'], undefined, 6]);
+  });
+
+  test('a layer the marker decides after a reload follows the newest tree in the same pass (assessment 7)', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    air.pressSelection(p, 'Card', 'cue-b', ok(selectionOf('D2', 7)));
+    const restored = air.readSelectionAir(air.writeSelectionAir(p.part.get()), 8000);
+    const read = air.reduceSelection(restored, { t: 'follow', liveCue: live, seeded: true, facts: facts(collection(6, people6())), mint: air.mintSend, now: 9000 });
+    assert.deepEqual([air.airedOf(read.air, 'Card').known, read.sends.map((x) => x.values.f1)], [true, ['1500']]);
+  });
+
+  test('a recipe changed under a captured selector holds the card: another source is not this candidate', () => {
+    const p = io();
+    air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
+    const sends = [];
+    const moved = { ...RECIPE, sourceId: 'e9' };
+    air.followAired(p, { liveCue: live, seeded: true, facts: facts(collection(6, people6()), { collections: [moved], tree: { external: { e9: { candidates: collection(6, people6()) } } } }), send: (g, v) => (sends.push(v.f1), Promise.resolve(ANSWERED)) });
+    assert.deepEqual([sends, card(p).held?.reason], [[], 'its collection recipe changed since it was taken']);
+  });
+
   test('an answer to a send of a layer since removed never settles a later press: send numbers are never reused', async () => {
     const p = io();
     air.pressSelection(p, 'Card', 'cue-a', ok(selectionOf('D1', 7))).landed();
@@ -853,13 +921,17 @@ describe('generated walks: the layer against the output', () => {
   const ANSWERED = { skipped: [], superseded: [], pressedAgain: [] };
   const SKIPPED = { skipped: ['Card'], superseded: [], pressedAgain: [] };
   const settle = () => new Promise((r) => setImmediate(r));
-  const keyOf = (t) => (t ? JSON.stringify([t.cueId, t.entity]) : 'none');
+  const keyOf = (t) => (t ? JSON.stringify([t.cueId, t.scope, t.entity]) : 'none');
   const PICKS = [
     ['cue-a', selectionOf('D1', 7)],
     ['cue-a', selectionOf('D2', 7)],
+    ['cue-a', officialOf('D1', 7)],
     ['cue-b', selectionOf('D2', 7)],
+    ['cue-a', null],
     ['plain', null],
   ];
+  // Both sources read the same counts, so a walk can switch one card between them.
+  const factsOf = (c) => both(c, c);
   const treeAt = (rnd, rev) => {
     const r = rnd();
     if (r < 0.1) return '{broken';
@@ -916,12 +988,14 @@ describe('generated walks: the layer against the output', () => {
       const same = (x, y) => keyOf(x) === keyOf(y) && (reloaded || (x?.revision ?? null) === (y?.revision ?? null));
       if (layer && !layer.unknown && layer.onAir && !same(layer.onAir, told) && !same(layer.onAir, output)) fail(`${where}: I1 on air ${keyOf(layer.onAir)} r${layer.onAir.revision}, told ${keyOf(told)} r${told?.revision}, output ${keyOf(output)} r${output?.revision}`);
       if (layer && !layer.unknown && layer.out.length === 0 && view && keyOf(view) !== keyOf(output)) fail(`${where}: I5 shows ${keyOf(view)}, output ${keyOf(output)}`);
+      // A candidate this page put on air, on the cue the marker names, is never forgotten.
+      if (output && marker === output.cueId && !layer) fail(`${where}: the layer is gone while ${keyOf(output)} airs on the marker's cue`);
     };
     const followOnce = (t) => {
       air.followAired(io(), {
         liveCue: marker === undefined ? {} : { Card: marker },
         seeded,
-        facts: facts(t),
+        facts: factsOf(t),
         send: (graphic, values) => {
           const layer = part.get().Card;
           if (layer.out.some((s) => s.press)) fail('I4 a correction while a press is out');
@@ -961,9 +1035,9 @@ describe('generated walks: the layer against the output', () => {
       const r = rnd();
       if (r < 0.28) {
         const [cueId, sel] = pick(PICKS);
-        const t = sel ? air.selectionTake({ selection: sel }, 'Card', facts(tree)) : { status: 'none' };
+        const t = sel ? air.selectionTake({ selection: sel }, 'Card', factsOf(tree)) : { status: 'none' };
         if (t.status === 'refused') continue;
-        const target = t.status === 'ok' ? { cueId, entity: t.entity, revision: t.revision, values: t.values } : null;
+        const target = t.status === 'ok' ? { cueId, scope: t.scope, entity: t.entity, revision: t.revision, values: t.values } : null;
         log.push(`press ${cueId} ${keyOf(target)} r${target?.revision ?? '-'}`);
         seen.press += 1;
         if (!target) seen.plain += 1;
@@ -999,7 +1073,8 @@ describe('generated walks: the layer against the output', () => {
         marker = trueMarker;
         seeded = true;
         reloaded = true;
-        told = part.get().Card?.unknown ? told : part.get().Card?.onAir ?? null;
+        // The page was told nothing after the reload: I1 holds only to what truly airs.
+        told = null;
         toldIndex = applied;
         followOnce(tree);
       }
@@ -1024,7 +1099,7 @@ describe('generated walks: the layer against the output', () => {
     if (layer && layer.out.length > 0) fail('sends still out after every answer');
     if (view?.pending) fail('a press still out after every answer');
     if (layer && !layer.unknown && view) {
-      const t = air.selectionTake({ selection: view.selection }, 'Card', facts(tree));
+      const t = air.selectionTake({ selection: view.selection }, 'Card', factsOf(tree));
       if (t.status === 'ok' && t.entity === view.entity && !view.held && view.revision !== t.revision) fail(`not following: shows r${view.revision}, tree r${t.revision}`);
       if (t.status !== 'ok' && !view.held) fail('the tree does not resolve what airs, and nothing holds');
       // Holding after a reload that lost a correction's answer, the layer names the last revision

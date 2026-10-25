@@ -43,16 +43,21 @@ import type { StorePart } from './storePart';
 export interface AiredTarget {
   cueId: string;
   selection: CueSelection;
+  /** The recipe it was resolved through (id, source, schema revision, leaf): another recipe's
+   *  revisions and holds are not this one's, even for the same key. */
+  scope: string;
   entity: string;
   revision: number;
   values: Record<string, string>;
   at: number;
 }
 
-/** A send not answered yet. `target` null: a cue with no selection taken onto the layer. */
+/** A send not answered yet, for `cueId`. `target` null: a cue with no selection taken onto the
+ *  layer. */
 interface Sent {
   seq: number;
   press: boolean;
+  cueId: string;
   target: AiredTarget | null;
 }
 
@@ -81,9 +86,10 @@ export interface SelectionLayer {
   out: Sent[];
   /** Per entity the layer may show (`markKey`). */
   marks: Record<string, Marks>;
-  /** Restored with a press to another cue or entity unanswered: one of these airs, which is not
-   *  known. Held, nothing sent, until the marker or an operator press decides. */
-  unknown?: { since: number; candidates: AiredTarget[] };
+  /** Restored with a press to another cue or entity unanswered: one of these airs, or a cue
+   *  without a selection taken onto the layer (`plains`), which is not known. Held, nothing sent,
+   *  until the marker or an operator press decides. */
+  unknown?: { since: number; candidates: AiredTarget[]; plains?: string[] };
 }
 
 /** Every layer with a live candidate, by graphic name (the wire key, which is the layer). */
@@ -92,7 +98,7 @@ export type SelectionAir = Readonly<Record<string, SelectionLayer>>;
 /** What a Take or an Update of one cue may send for its selection. */
 export type SelectionTake =
   | { status: 'none' }
-  | { status: 'ok'; selection: CueSelection; entity: string; revision: number; values: Record<string, string> }
+  | { status: 'ok'; selection: CueSelection; scope: string; entity: string; revision: number; values: Record<string, string> }
   | { status: 'refused'; reason: string };
 
 /** The facts a selection is resolved against: the production's recipes and bindings, the live
@@ -114,7 +120,8 @@ function resolveOn(selection: unknown, graphic: string, facts: SelectionFacts): 
   if (gate.status !== 'ok') return { status: 'refused', reason: gate.reason };
   const resolved = resolveSelection({ recipe: gate.recipe, tree: facts.tree, key: gate.selection.key, fields: facts.fieldsOf(graphic) });
   if (resolved.status !== 'ok') return { status: 'refused', reason: `Not ready: ${resolved.reason}.`, hold: resolved };
-  return { status: 'ok', selection: gate.selection, entity: resolved.entity, revision: resolved.revision, values: resolved.values };
+  const { id, sourceId, schemaRevision, from } = gate.recipe;
+  return { status: 'ok', selection: gate.selection, scope: JSON.stringify([id, sourceId, schemaRevision, from]), entity: resolved.entity, revision: resolved.revision, values: resolved.values };
 }
 
 /**
@@ -132,8 +139,8 @@ export function selectionTake(cue: { selection?: unknown }, graphic: string | nu
 
 // ── The layer ──────────────────────────────────────────────────────────────────────────────────
 
-/** One entity on one cue: the marks' key. */
-const markKey = (t: AiredTarget): string => JSON.stringify([t.cueId, t.entity]);
+/** One entity on one cue through one recipe: the marks' key. */
+const markKey = (t: AiredTarget): string => JSON.stringify([t.cueId, t.scope, t.entity]);
 const sameEntity = (a: AiredTarget | null, b: AiredTarget | null): boolean => !!a && !!b && markKey(a) === markKey(b);
 
 /** What the page believes airs: the newest send still out, or what the output shows. */
@@ -158,13 +165,15 @@ const marksOf = (l: SelectionLayer, t: AiredTarget): Marks => l.marks[markKey(t)
 const withMarks = (l: SelectionLayer, t: AiredTarget, m: Marks): SelectionLayer => ({ ...l, marks: { ...l.marks, [markKey(t)]: m.held ? m : { heldAt: m.heldAt } } });
 const settledLayer = ({ unknown: _unknown, ...l }: SelectionLayer): SelectionLayer => l;
 
-/** The newest revision judged for one entity: what airs, what is out for it, what a hold judged
- *  (`t` itself counts only where it airs or is out). */
-function boundOf(l: SelectionLayer, t: AiredTarget): number {
-  let bound = marksOf(l, t).heldAt;
-  for (const x of [l.onAir, ...l.out.map((s) => s.target)]) if (x && sameEntity(x, t)) bound = Math.max(bound, x.revision);
-  return bound;
+/** The newest revision sent for one entity: what airs and what is out for it (`t` itself counts
+ *  only where it airs or is out). */
+function sentOf(l: SelectionLayer, t: AiredTarget): number {
+  let sent = NONE;
+  for (const x of [l.onAir, ...l.out.map((s) => s.target)]) if (x && sameEntity(x, t)) sent = Math.max(sent, x.revision);
+  return sent;
 }
+/** The newest revision judged for one entity: sent, or what a hold judged. */
+const boundOf = (l: SelectionLayer, t: AiredTarget): number => Math.max(marksOf(l, t).heldAt, sentOf(l, t));
 
 /** The events one layer changes by. */
 export type SelectionEvent =
@@ -186,13 +195,13 @@ interface Step {
 
 function press(l0: SelectionLayer | undefined, cueId: string, take: SelectionTake, seq: number, now: number): Step {
   if (take.status === 'refused') return { layer: l0 };
-  const target: AiredTarget | null = take.status === 'ok' ? { cueId, selection: take.selection, entity: take.entity, revision: take.revision, values: take.values, at: now } : null;
+  const target: AiredTarget | null = take.status === 'ok' ? { cueId, selection: take.selection, scope: take.scope, entity: take.entity, revision: take.revision, values: take.values, at: now } : null;
   // A cue without a selection onto a layer with none: nothing to follow.
   if (!l0 && !target) return { layer: undefined };
   const l = l0 ?? { onAir: null, out: [], marks: {} };
   // An explicit press is the operator's decision: the entity's hold ends with it (a later read
   // judges again), and its bound stays at least what airs, so an older read is still rejected.
-  let next: SelectionLayer = { ...l, out: [...l.out, { seq, press: true, target }] };
+  let next: SelectionLayer = { ...l, out: [...l.out, { seq, press: true, cueId, target }] };
   if (target) next = withMarks(next, target, { heldAt: marksOf(l, target).heldAt });
   return { layer: next, seq };
 }
@@ -227,13 +236,17 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
   if (l.unknown) {
     if (live === undefined) return { layer: seeded ? undefined : l };
     const matches = l.unknown.candidates.filter((c) => c.cueId === live);
+    const plain = l.unknown.plains?.includes(live) ?? false;
     if (matches.length === 0) return { layer: undefined };
+    // The marker's cue was also taken without a selection: it cannot tell which airs.
+    if (plain) return { layer: l };
     // The marker names a cue only one entity could be: that one airs, at its OLDEST revision any
     // send could have left (which of them landed is not known), so the follow sends anything newer
     // again and never takes a newer revision for aired when it was not.
     if (matches.every((c) => sameEntity(c, matches[0]))) {
       const onAir = matches.reduce((a, b) => (b.revision < a.revision ? b : a));
-      return { layer: pruned(withMarks(settledLayer({ ...l, onAir }), onAir, { heldAt: marksOf(l, onAir).heldAt })) };
+      const decided = pruned(withMarks(settledLayer({ ...l, onAir }), onAir, { heldAt: marksOf(l, onAir).heldAt }));
+      return follow(decided, graphic, live, seeded, facts, mint, now);
     }
     return { layer: l };
   }
@@ -244,16 +257,28 @@ function follow(l: SelectionLayer, graphic: string, live: string | undefined, se
   const take = resolveOn(believed.selection, graphic, facts);
   const m = marksOf(l, believed);
   const floor = boundOf(l, believed);
+  if (take.status === 'ok' && take.scope !== believed.scope) {
+    // The recipe the captured selector names was changed under it: another source's or schema's
+    // values are not this candidate's. Held until the operator takes it again.
+    const reason = 'its collection recipe changed since it was taken';
+    if (m.held?.reason === reason) return { layer: l };
+    return { layer: withMarks(l, believed, { heldAt: m.heldAt, held: { reason, since: m.held?.since ?? now, revision: null } }) };
+  }
   if (take.status === 'ok') {
-    if (take.revision > floor && take.entity === believed.entity) {
+    const sent = sentOf(l, believed);
+    // A hold that this very revision set (the graphic's fields were missing, say) or that no
+    // revision set ends when it reads well; a "not sent" hold ends only by sending.
+    const lifts = !!m.held && !m.held.unsent && (m.held.revision === null || m.held.revision === take.revision);
+    const newer = take.revision > floor || (take.revision === floor && take.revision > sent && lifts);
+    if (newer && take.entity === believed.entity) {
       const seq = mint();
       const target: AiredTarget = { ...believed, revision: take.revision, values: take.values, at: now };
-      const next = withMarks({ ...l, out: [...l.out, { seq, press: false, target }] }, believed, { heldAt: m.heldAt });
+      const next = withMarks({ ...l, out: [...l.out, { seq, press: false, cueId: believed.cueId, target }] }, believed, { heldAt: m.heldAt });
       return { layer: next, send: { seq, values: take.values } };
     }
-    // The newest revision judged reads well again (a malformed read passed, or the graphic's
-    // fields came back): the hold ends. An older revision is a re-read: nothing changes.
-    if (take.revision === floor && take.revision === believed.revision && m.held && !m.held.unsent && (m.held.revision === null || m.held.revision === believed.revision)) {
+    // The aired revision, newest judged, reads well again (a malformed read passed, or the
+    // graphic's fields came back): the hold ends. An older revision is a re-read: nothing changes.
+    if (take.revision === floor && take.revision === believed.revision && lifts) {
       return { layer: withMarks(l, believed, { heldAt: m.heldAt }) };
     }
     return { layer: l };
@@ -322,6 +347,8 @@ export interface AiredView extends AiredTarget {
   held?: SelectionHold;
   pending: boolean;
   known: boolean;
+  /** Every selector whose fields may be on air: the one shown, or, not known, each candidate's. */
+  selections: CueSelection[];
 }
 
 export function airedOf(air: SelectionAir, graphic: string): AiredView | null {
@@ -329,11 +356,12 @@ export function airedOf(air: SelectionAir, graphic: string): AiredView | null {
   if (!l) return null;
   if (l.unknown) {
     const last = l.unknown.candidates[l.unknown.candidates.length - 1];
-    return { ...last, held: { reason: UNKNOWN_REASON, since: l.unknown.since, revision: null }, pending: pressOut(l), known: false };
+    const selections = [...l.unknown.candidates, ...l.out.flatMap((s) => (s.target ? [s.target] : []))].map((c) => c.selection);
+    return { ...last, held: { reason: UNKNOWN_REASON, since: l.unknown.since, revision: null }, pending: pressOut(l), known: false, selections };
   }
   const believed = believedOf(l);
   if (!believed) return null;
-  return { ...believed, held: l.marks[markKey(believed)]?.held, pending: pressOut(l), known: true };
+  return { ...believed, held: l.marks[markKey(believed)]?.held, pending: pressOut(l), known: true, selections: [believed.selection] };
 }
 
 /** How often a published production with live candidates reads its tree: a collection nothing
@@ -359,6 +387,7 @@ const isTarget = (t: unknown): t is AiredTarget => {
   return (
     !!x &&
     typeof x.cueId === 'string' &&
+    typeof x.scope === 'string' &&
     typeof x.entity === 'string' &&
     Number.isInteger(x.revision) &&
     typeof x.at === 'number' &&
@@ -387,9 +416,10 @@ function restored(l: SelectionLayer, now: number): SelectionLayer {
   if (sameAsAir) return pruned({ ...l, out: [] });
   // Already not known (a reload before this one): every candidate it had still may air.
   const candidates = [...(l.unknown?.candidates ?? []), l.onAir, ...l.out.map((s) => s.target)].filter((t): t is AiredTarget => t !== null);
+  const plains = [...new Set([...(l.unknown?.plains ?? []), ...l.out.flatMap((s) => (s.target === null ? [s.cueId] : []))])];
   // A layer that showed nothing and had only a cue without a selection out: nothing to follow.
   if (candidates.length === 0) return { ...l, out: [] };
-  return pruned({ ...l, out: [], unknown: { since: l.unknown?.since ?? now, candidates } });
+  return pruned({ ...l, out: [], unknown: { since: l.unknown?.since ?? now, candidates, ...(plains.length > 0 ? { plains } : {}) } });
 }
 
 /** The kept layers, or none: anything this build did not write reads as no layer, so a restored
@@ -412,11 +442,16 @@ export function readSelectionAir(raw: string | null, now: number = Date.now()): 
       !!l &&
       (l.onAir === null || isTarget(l.onAir)) &&
       Array.isArray(l.out) &&
-      l.out.every((s) => !!s && Number.isInteger(s.seq) && typeof s.press === 'boolean' && (s.target === null || isTarget(s.target))) &&
+      l.out.every((s) => !!s && Number.isInteger(s.seq) && typeof s.press === 'boolean' && typeof s.cueId === 'string' && (s.target === null || isTarget(s.target))) &&
       !!l.marks &&
       typeof l.marks === 'object' &&
       Object.values(l.marks).every(isMarks) &&
-      (l.unknown === undefined || (typeof l.unknown.since === 'number' && Array.isArray(l.unknown.candidates) && l.unknown.candidates.length > 0 && l.unknown.candidates.every(isTarget)));
+      (l.unknown === undefined ||
+        (typeof l.unknown.since === 'number' &&
+          Array.isArray(l.unknown.candidates) &&
+          l.unknown.candidates.length > 0 &&
+          l.unknown.candidates.every(isTarget) &&
+          (l.unknown.plains === undefined || (Array.isArray(l.unknown.plains) && l.unknown.plains.every((c) => typeof c === 'string')))));
     if (!sane) continue;
     const layer = restored(l as SelectionLayer, now);
     if (layer.onAir || layer.unknown || layer.out.length > 0) out[graphic] = layer;
