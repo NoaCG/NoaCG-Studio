@@ -54,7 +54,7 @@ import {
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
-import { createSendDebts } from '../control/failedSends';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts } from '../control/failedSends';
 import { appendLogEntries, describeLogRow, eventLogLabel, logTime, noteEntry, type LogEntry } from '../control/eventLog';
 import {
   clearAllCueBatches,
@@ -159,6 +159,9 @@ const LOG_HISTORY_SPAN = 400;
 interface SentFigures {
   base: (graphic: string, key: string, fallback: string | undefined) => string | undefined;
   hold: (graphic: string, figures: Record<string, string>) => (landed: boolean) => void;
+  /** Run a live press after the one before it on its graphic, and only while the cue it was pressed
+   *  for still holds the layer; otherwise it sends nothing and says why. */
+  press: (graphic: string, run: () => Promise<void>) => void;
 }
 
 /** A graphic's machine state as a renderer reports it and as a monitor stage reads it. */
@@ -237,6 +240,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   airedRef.current = airedData;
   /** Per graphic, the figures this page's presses sent that are not answered yet (`figures`). */
   const sentFigures = useRef<Record<string, Record<string, string>>>({});
+  /** Per graphic, the last live press, which the next one waits for (`figures.press`). */
+  const livePresses = useRef(new Map<string, Promise<void>>());
   /**
    * THIS PAGE'S OWN STAGED EDITS, until the shared buffer shows them back (control/ownStaged.ts).
    * Everything that reads "what a Take of this cue sends" reads the buffer with these laid over
@@ -970,6 +975,22 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 
   /** What a moved figure counts from (`SentFigures`), shared by every live press on this page. */
   const figures: SentFigures = {
+    press: (graphic, run) => {
+      const at = liveCueRef.current[graphic] ?? null;
+      // The wait ends when the press before it has had a send's whole window (graphicVerbs.ts
+      // `afterPress`), so a link that never answers cannot hold the next press.
+      const before = livePresses.current.get(graphic);
+      const waited = before ? Promise.race([before, new Promise<void>((resolve) => setTimeout(resolve, RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS))]) : Promise.resolve();
+      const ran = waited.then(() => {
+        if ((liveCueRef.current[graphic] ?? null) === at) return run();
+        setError(`Nothing sent: the cue on ${graphic} changed.`);
+      });
+      const settled = ran.catch(() => {});
+      livePresses.current.set(graphic, settled);
+      void settled.then(() => {
+        if (livePresses.current.get(graphic) === settled) livePresses.current.delete(graphic);
+      });
+    },
     base: (graphic, key, fallback) => sentFigures.current[graphic]?.[key] ?? airedRef.current[graphic]?.[key] ?? fallback,
     hold: (graphic, sent) => {
       if (Object.keys(sent).length === 0) return () => {};
@@ -1001,14 +1022,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     if (!liveCueRef.current[graphic]) return;
     const cue = layerCueOf(graphic);
     if (!cue && actionCarriesValues(button)) return;
-    const values = cue ? cueValues(cue) : {};
-    const bound = boundFields(graphic);
-    const moving = new Set(movedKeys(button));
-    const { payload, fields, tree } = pressSend(button, bound, (key) =>
-      moving.has(key) && !bound[key] ? figures.base(graphic, key, cue?.values[key]) : values[key],
-    );
-    const settle = figures.hold(graphic, fields);
-    void sendVerb([{ graphic, msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event } }]).then((sent) => {
+    figures.press(graphic, async () => {
+      const values = cue ? cueValues(cue) : {};
+      const bound = boundFields(graphic);
+      const moving = new Set(movedKeys(button));
+      const { payload, fields, tree } = pressSend(button, bound, (key) =>
+        moving.has(key) && !bound[key] ? figures.base(graphic, key, cue?.values[key]) : values[key],
+      );
+      const settle = figures.hold(graphic, fields);
+      const sent = await sendVerb([{ graphic, msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event } }]);
       settle(sent);
       if (!sent) return;
       if (cue && Object.keys(fields).length > 0) stageShared(cue, fields);
@@ -1023,9 +1045,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       void patchBound([{ path, text: adjustedValue(boundValues[graphic]?.[key], delta), verb: 'adjust' }]);
       return;
     }
-    const data = { [key]: adjustedValue(figures.base(graphic, key, cue.values[key]), delta) };
-    const settle = figures.hold(graphic, data);
-    void sendVerb([{ graphic, msg: { t: 'update', data } }]).then((sent) => {
+    figures.press(graphic, async () => {
+      const data = { [key]: adjustedValue(figures.base(graphic, key, cue.values[key]), delta) };
+      const settle = figures.hold(graphic, data);
+      const sent = await sendVerb([{ graphic, msg: { t: 'update', data } }]);
       settle(sent);
       if (sent) stageShared(cue, data);
     });
@@ -2153,14 +2176,17 @@ function HostedCueEditor({
     const pressed = cue;
     const sibling = !live && onAir ? onAir : null;
     const read = sibling ? (key: string) => sibling.values[key] ?? '' : valueOf;
-    const moving = new Set(movedKeys(e));
-    const { payload, fields: staged, tree } = pressSend(e, bound, (key) =>
-      moving.has(key) && !bound[key] ? figures.base(pressed.graphic, key, (sibling?.cue ?? pressed).values[key]) : read(key),
-    );
-    const settle = figures.hold(pressed.graphic, staged);
-    void onSend([
-      { graphic: pressed.graphic, msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event } },
-    ]).then((sent) => {
+    // Read at the press: the boxes as they were when it was pressed are what it carries.
+    const typed = Object.fromEntries((e.payload ?? []).map((key) => [key, read(key)]));
+    figures.press(pressed.graphic, async () => {
+      const moving = new Set(movedKeys(e));
+      const { payload, fields: staged, tree } = pressSend(e, bound, (key) =>
+        moving.has(key) && !bound[key] ? figures.base(pressed.graphic, key, (sibling?.cue ?? pressed).values[key]) : key in typed ? typed[key] : read(key),
+      );
+      const settle = figures.hold(pressed.graphic, staged);
+      const sent = await onSend([
+        { graphic: pressed.graphic, msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event } },
+      ]);
       settle(sent);
       // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT, the same order the in-app ⚡ button keeps:
       // the tree write is a separate row by construction, reaching graphics this event never
@@ -2198,9 +2224,10 @@ function HostedCueEditor({
       return;
     }
     const pressed = cue;
-    const data = { [key]: adjustedValue(figures.base(pressed.graphic, key, pressed.values[key]), delta) };
-    const settle = figures.hold(pressed.graphic, data);
-    void onSend([{ graphic: pressed.graphic, msg: { t: 'update', data } }]).then((sent) => {
+    figures.press(pressed.graphic, async () => {
+      const data = { [key]: adjustedValue(figures.base(pressed.graphic, key, pressed.values[key]), delta) };
+      const settle = figures.hold(pressed.graphic, data);
+      const sent = await onSend([{ graphic: pressed.graphic, msg: { t: 'update', data } }]);
       settle(sent);
       if (!sent) return;
       if (shownCue.current !== pressed.id) {

@@ -2015,3 +2015,26 @@ test('a correction typed into the on-air cue but not yet aired is never the next
   r.sends[0].answer.resolve({ ...noneLeft });
   await bumping;
 });
+
+test('a press after one that landed on the slow road counts from that figure until air\'s record moves (F2)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '7' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  const view = liveSelection('Score', [banner], r.liveCue());
+  const first = r.verbs.bump(view, 'home', 1);
+  await settle();
+  // Landed, but its row is not back: air's record still says 7.
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await first;
+  const second = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.data, { home: '9' });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await second;
+  // Another screen moved it to 15 since: air's record is the base again.
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: { Score: { home: '15' } } } }));
+  const third = r.verbs.bump(view, 'home', 1);
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.data, { home: '16' });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await third;
+});

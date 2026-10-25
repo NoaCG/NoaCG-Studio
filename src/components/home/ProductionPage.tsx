@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, actionCarriesValues, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -2840,8 +2840,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     writeProfile(withPinnedGraphic(show.profile, graphic, pinned, poolNames));
   };
   /** Every graphic's arrangement at once, including one for a graphic no longer in the pool,
-   *  which no block can reach any more. The profile key goes, as it does for the last reset. */
-  const clearAllArrangements = () => profileWritten(deleteShowProfile(id));
+   *  which no block can reach any more. Pins are not arrangements and stay; with none, the profile
+   *  key goes, as it does for the last reset. */
+  const clearAllArrangements = () => {
+    const pins = pinnedGraphicsOf(show.profile).filter((name) => poolNames.includes(name));
+    writeProfile({ v: 1, arrange: {}, ...(pins.length > 0 ? { pinnedGraphics: pins } : {}) });
+  };
 
   // Grouped and ordered by the SHARED helper (controlModel `arrangeControls`), so the hosted
   // page's ⚡ block, the exported controller's and this one can never sort the author's sections
@@ -3052,7 +3056,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       arranged: arrangeControls(withLiveLabels(m.buttons, aired), arrangeFor(show.profile, graphic), (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
       actionButton: actionButtonFor({
         live,
-        legal: (event) => isEventLegal(m.legality, event, state),
+        // A layer holding a cue this page cannot see has no values to carry: such presses wait.
+        legal: (event) => isEventLegal(m.legality, event, state) && (!!sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
         labelOf: (key) => m.descriptors.find((d) => d.key === key)?.label,
         aired,
         fire: (b) => void verbs.event(sel, b),

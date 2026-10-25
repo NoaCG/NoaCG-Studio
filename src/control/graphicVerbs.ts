@@ -247,6 +247,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** Per graphic, the unbound figures this page sent that are not answered yet: the base the next
    *  press counts from while they are out (`baseOf`). */
   const sentFigures = new Map<string, Record<string, string>>();
+  /** Per graphic, figures whose send landed while air's record still showed what stood before it
+   *  (a slow-road row not heard back yet): the base until air's record moves. */
+  const landedFigures = new Map<string, Record<string, { figure: string; over: string | undefined }>>();
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
@@ -348,14 +351,28 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** What an unbound field counts from: the figure this page sent while that send is out, else
    *  what air was last sent, else `fallback`. Never the cue as typed, so a correction staged in
    *  PREP is not a base until Update airs it. */
-  const baseOf = (graphic: string, key: string, fallback: string | undefined) =>
-    sentFigures.get(graphic)?.[key] ?? session.air.get().aired[graphic]?.[key] ?? fallback;
-  /** Hold these figures as sent until the send settles. */
+  const baseOf = (graphic: string, key: string, fallback: string | undefined) => {
+    const pending = sentFigures.get(graphic)?.[key];
+    if (pending !== undefined) return pending;
+    const aired = session.air.get().aired[graphic]?.[key];
+    const landed = landedFigures.get(graphic)?.[key];
+    if (landed && aired === landed.over) return landed.figure;
+    if (landed) delete landedFigures.get(graphic)![key];
+    return aired ?? fallback;
+  };
+  /** Hold these figures as sent until the send settles; one that landed stays the base until air's
+   *  record moves off what it showed at the press. */
   const holdSent = (graphic: string, figures: Record<string, string>) => {
+    const air = session.air.get().aired[graphic] ?? {};
+    const over = Object.fromEntries(Object.keys(figures).map((key) => [key, air[key]]));
     const held = { ...(sentFigures.get(graphic) ?? {}), ...figures };
     sentFigures.set(graphic, held);
-    return () => {
+    return (landed: boolean) => {
       if (sentFigures.get(graphic) === held) sentFigures.delete(graphic);
+      if (!landed) return;
+      const book = { ...(landedFigures.get(graphic) ?? {}) };
+      for (const [key, figure] of Object.entries(figures)) book[key] = { figure, over: over[key] };
+      landedFigures.set(graphic, book);
     };
   };
 
@@ -599,12 +616,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       }
       const next = io.adjustedValue(baseOf(graphic, fieldKey, editingCue.values[fieldKey] ?? '0'), delta);
       const settle = holdSent(graphic, { [fieldKey]: next });
+      let landed = false;
       try {
         const sent = await runWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
+        landed = !!sent && reachedOutput(sent, graphic);
         // Written only once accepted: a refused or failed send writes nothing (the note says why).
-        if (sent && reachedOutput(sent, graphic)) p.writeCue(editingCue.id, { [fieldKey]: next });
+        if (landed) p.writeCue(editingCue.id, { [fieldKey]: next });
       } finally {
-        settle();
+        settle(landed);
       }
     });
   };
@@ -745,13 +764,13 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT: the tree write is a separate row, so nothing
     // but this order keeps the two in step.
     const settle = holdSent(graphic, adjusted);
-    let sent: VerbSent | null;
+    let sent: VerbSent | null = null;
     try {
       sent = await runWith(s, [[{ graphic, msg }]], `Event ${button.event}`);
     } finally {
-      settle();
+      // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
+      settle(!!sent && ![...sent.skipped, ...sent.superseded].includes(graphic));
     }
-    // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
     const went = !!sent && ![...sent.skipped, ...sent.superseded].includes(graphic);
     // Accepted live values are persisted only now, outside preparation history: a refused or
     // failed press writes nothing into the cue.

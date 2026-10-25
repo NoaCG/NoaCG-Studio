@@ -595,13 +595,16 @@ function feed(text) {
 // into the editor and not yet aired is never that base. ──
 var airedVals = {};  // graphic -> field -> value, from the program rows of the log
 var sentVals = {};   // graphic -> field -> value this page sent that the log has not shown yet
+var sentAt = {};     // graphic -> field -> when it was sent: a send the log never shows stops counting
+var SENT_HOLD_MS = 7000; // a send's whole window and an attempt's time, as graphicVerbs.ts waits
 function programData(m) { return m.t === 'update' ? m.data : m.t === 'event' ? m.payload : null; }
 function noteSent(items) {
   items.forEach(function (it) {
     var data = it.stream !== 'preview' && it.msg ? programData(it.msg) : null;
     if (!data) return;
     var held = sentVals[it.graphic] || (sentVals[it.graphic] = {});
-    for (var k in data) held[k] = String(data[k]);
+    var at = sentAt[it.graphic] || (sentAt[it.graphic] = {});
+    for (var k in data) { held[k] = String(data[k]); at[k] = Date.now(); }
   });
 }
 function noteAired(row) {
@@ -624,7 +627,8 @@ function preparedValue(cue, key) {
 }
 function airBase(cue, key) {
   var held = sentVals[cue.graphic] || {};
-  if (Object.prototype.hasOwnProperty.call(held, key)) return held[key];
+  var at = (sentAt[cue.graphic] || {})[key] || 0;
+  if (Object.prototype.hasOwnProperty.call(held, key) && Date.now() - at < SENT_HOLD_MS) return held[key];
   var aired = airedVals[cue.graphic] || {};
   if (Object.prototype.hasOwnProperty.call(aired, key)) return aired[key];
   return preparedValue(cue, key);
