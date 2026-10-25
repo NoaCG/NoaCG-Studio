@@ -236,9 +236,8 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   await expect(actions).toContainText('Lock it in');
   await expect(actions).toContainText('Reveal correct');
 
-  // The answer key and the contestant's pick, then to air.
+  // The answer key, then to air; the contestant's pick is one press once the board is live.
   await page.getByTestId('cue-field-f5-opt-A').click(); // Halti is the right answer
-  await page.getByTestId('cue-field-f6-opt-B').click(); // the contestant said Saana
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
 
@@ -247,7 +246,7 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   const air = page.frameLocator('[data-testid="program-stage"] iframe[title="Tunturi quiz"]');
   await expect(air.locator('.imported-design-look.imported-design-on')).toHaveCount(0); // the entrance is not a verdict
 
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click(); // the contestant said Saana
   await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
@@ -295,7 +294,7 @@ test('the rehearsal: a student draws a scoreboard and a quiz, both run from one 
   await selectCue(page, 'Tunturi quiz');
   await page.getByTestId('verb-take').click();
   const air2 = page.frameLocator('[data-testid="program-stage"] iframe[title="Tunturi quiz"]');
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await expect(air2.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
 
   // **THE DIRECT REVEAL IS NOT REACHABLE, AND THE BUTTON SAYS SO.** `ANSWER_BOARD_MACHINE` draws

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   adjustWords,
   controlName,
@@ -7,6 +7,7 @@ import {
   arrangeFor,
   advanceLabel,
   canAdvance,
+  continueEvents,
   hasSteps,
   eventButtons,
   eventLegality,
@@ -17,6 +18,7 @@ import {
   isEventLegal,
   machineStateGroups,
   machineStateNames,
+  movedKeys,
   movedStateNames,
   overflowNote,
   pressSend,
@@ -27,6 +29,8 @@ import {
   type ControlButton,
 } from '../control/controlModel';
 import { withLiveLabels } from '../blocks/controlLabels';
+import { liveNumberFields, pickButton, pickOptions } from '../control/liveControls';
+import { pinnedGraphicsOf } from '../model/profile';
 import { fetchProductionDataBySlug, patchProductionDataBySlug } from '../control/productionDataApi';
 import { accentColor, routeColor, outputSetupLabel } from '../model/outputSetup';
 import { slotAddress } from '../control/playoutLink';
@@ -145,6 +149,18 @@ const HOSTED_PANEL_VERBS: ReadonlySet<PanelVerb> = new Set<PanelVerb>([
 /** How far behind the log head the action log seeds its history — the in-app page's number. */
 const LOG_HISTORY_SPAN = 400;
 
+/**
+ * WHAT A MOVED FIGURE COUNTS FROM on this page (docs/work-specs/pinned-live-controls/spec.md "What
+ * a press does"): the figure this page sent while that send is out, else what air was last sent,
+ * else the cue as published. Never the staging buffer, so a value staged and not aired is never a
+ * press's base. `hold` keeps a press's figures as the base until its send settles; `settle(true)`
+ * writes them into what air was sent, since the server took them.
+ */
+interface SentFigures {
+  base: (graphic: string, key: string, fallback: string | undefined) => string | undefined;
+  hold: (graphic: string, figures: Record<string, string>) => (landed: boolean) => void;
+}
+
 /** A graphic's machine state as a renderer reports it and as a monitor stage reads it. */
 type MachineReport = { groups?: Record<string, string> } | null;
 
@@ -219,6 +235,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // declared before the effects that close over it.
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
+  /** Per graphic, the figures this page's presses sent that are not answered yet (`figures`). */
+  const sentFigures = useRef<Record<string, Record<string, string>>>({});
   /**
    * THIS PAGE'S OWN STAGED EDITS, until the shared buffer shows them back (control/ownStaged.ts).
    * Everything that reads "what a Take of this cue sends" reads the buffer with these laid over
@@ -933,17 +951,125 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * being operated from a phone, away from the machine running the renderer, when air and the
    * dashboard get out of step.
    */
-  const snapTo = (groupId: string | null, stateId: string) => {
-    if (!selectedGraphic || !selectedLayerCueId || !selectedCue) return;
-    const snap = { graphic: selectedGraphic, msg: { t: 'snap' as const, snap: groupId === null ? null : { [groupId]: stateId } } };
+  const snapOn = (graphic: string, groupId: string | null, stateId: string) => {
+    const layerCueId = liveCue[graphic] ?? null;
+    if (!layerCueId) return;
+    const layerCue = cues.find((c) => c.id === layerCueId) ?? null;
+    const snap = { graphic, msg: { t: 'snap' as const, snap: groupId === null ? null : { [groupId]: stateId } } };
     // The layer airs a cue this page was not given (a live candidate, E7.1): it has no values here
     // to send, so the snap goes alone and the layer keeps what it shows.
-    if (!selectedLayerCue) {
+    if (!layerCue) {
       void sendVerb([snap]);
       return;
     }
-    void sendVerb([snap, { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedLayerCue) } }]);
+    void sendVerb([snap, { graphic, msg: { t: 'update', data: cueValues(layerCue) } }]);
   };
+  const snapTo = (groupId: string | null, stateId: string) => {
+    if (selectedGraphic && selectedCue) snapOn(selectedGraphic, groupId, stateId);
+  };
+
+  /** What a moved figure counts from (`SentFigures`), shared by every live press on this page. */
+  const figures: SentFigures = {
+    base: (graphic, key, fallback) => sentFigures.current[graphic]?.[key] ?? airedRef.current[graphic]?.[key] ?? fallback,
+    hold: (graphic, sent) => {
+      if (Object.keys(sent).length === 0) return () => {};
+      const held = { ...sentFigures.current[graphic], ...sent };
+      sentFigures.current = { ...sentFigures.current, [graphic]: held };
+      return (landed) => {
+        if (sentFigures.current[graphic] === held) {
+          const { [graphic]: _settled, ...rest } = sentFigures.current;
+          sentFigures.current = rest;
+        }
+        if (!landed) return;
+        // The server took it, so it is what air was sent, whether or not its row is back yet.
+        airedRef.current = { ...airedRef.current, [graphic]: { ...airedRef.current[graphic], ...sent } };
+        setAiredData((prev) => ({ ...prev, [graphic]: { ...prev[graphic], ...sent } }));
+      };
+    },
+  };
+
+  // ── PINNED LIVE CONTROLS (docs/work-specs/pinned-live-controls/spec.md) ─────────────────────
+  //
+  // The published profile's pinned graphics, each drawn as a live block above the cue editor
+  // whatever cue is selected. Pinning is authored on the production page; here it is read. A press
+  // on a pinned block acts on the cue live on THAT graphic's layer, through this page's one door
+  // and log, never on the selection.
+  const pins = pinnedGraphicsOf(resolved?.profile).filter((graphic) => specByName.has(graphic));
+  /** The cue on a graphic's layer as this page knows it, or null for a cue it was not given. */
+  const layerCueOf = (graphic: string) => cues.find((c) => c.id === liveCueRef.current[graphic]) ?? null;
+  const pinnedEvent = (graphic: string, button: ControlButton) => {
+    if (!liveCueRef.current[graphic]) return;
+    const cue = layerCueOf(graphic);
+    if (!cue && actionCarriesValues(button)) return;
+    const values = cue ? cueValues(cue) : {};
+    const bound = boundFields(graphic);
+    const moving = new Set(movedKeys(button));
+    const { payload, fields, tree } = pressSend(button, bound, (key) =>
+      moving.has(key) && !bound[key] ? figures.base(graphic, key, cue?.values[key]) : values[key],
+    );
+    const settle = figures.hold(graphic, fields);
+    void sendVerb([{ graphic, msg: payload ? { t: 'event', event: button.event, payload } : { t: 'event', event: button.event } }]).then((sent) => {
+      settle(sent);
+      if (!sent) return;
+      if (cue && Object.keys(fields).length > 0) stageShared(cue, fields);
+      void patchBound(tree);
+    });
+  };
+  const pinnedBump = (graphic: string, key: string, delta: number) => {
+    const cue = layerCueOf(graphic);
+    if (!cue) return;
+    const path = boundFields(graphic)[key];
+    if (path) {
+      void patchBound([{ path, text: adjustedValue(boundValues[graphic]?.[key], delta), verb: 'adjust' }]);
+      return;
+    }
+    const data = { [key]: adjustedValue(figures.base(graphic, key, cue.values[key]), delta) };
+    const settle = figures.hold(graphic, data);
+    void sendVerb([{ graphic, msg: { t: 'update', data } }]).then((sent) => {
+      settle(sent);
+      if (sent) stageShared(cue, data);
+    });
+  };
+  const pinnedBlock = (graphic: string) => {
+    const cueId = liveCue[graphic] ?? null;
+    const cue = cues.find((c) => c.id === cueId) ?? null;
+    return (
+      <HostedLiveBlock
+        key={graphic}
+        spec={specByName.get(graphic)!}
+        arrange={arrangeFor(resolved?.profile, graphic)}
+        airedValues={cueId ? (airedData[graphic] ?? null) : null}
+        liveState={machineState[graphic] ?? null}
+        layerLive={!!cueId}
+        heading={{ graphic, cue: cue?.label ?? null }}
+        pinned
+        numbersLive={!!cue}
+        numbersTitle={(label) => (cue ? `Changes "${label}" on air immediately` : 'The graphic is not on air. Take the cue first.')}
+        blocked={(e) =>
+          cueId && !cue && actionCarriesValues(e)
+            ? 'The cue on air is not one this page can see, so this action, which carries its values, is pressed on the production page.'
+            : null
+        }
+        onEvent={(e) => pinnedEvent(graphic, e)}
+        onBump={(key, delta) => pinnedBump(graphic, key, delta)}
+        onSnap={(groupId, stateId) => snapOn(graphic, groupId, stateId)}
+      />
+    );
+  };
+  /** The LIVE stack: every pinned graphic's block in pin order, then the selected graphic's (`own`,
+   *  the editor's, which presses with the selection). A pinned selected graphic is drawn once, in
+   *  its pinned place. Undefined with nothing pinned: the page is then exactly what it was. */
+  const liveStack =
+    pins.length > 0
+      ? (own: ReactNode) => (
+          <div className="pd-live-stack" data-testid="hosted-live-stack">
+            {pins.map((graphic) =>
+              graphic === selectedGraphic && own ? <Fragment key={graphic}>{own}</Fragment> : pinnedBlock(graphic),
+            )}
+            {selectedGraphic && !pins.includes(selectedGraphic) && own}
+          </div>
+        )
+      : undefined;
   /** Clear the screen as the production page does (playout-workflow-simplification D11): what this
    *  page has up, what the server's heads say is on, and on a quiet production every graphic they
    *  have no word on, so a graphic whose cue marker went missing is not left up. Clearing… until
@@ -1230,8 +1356,12 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               bound={boundFields(selectedCue.graphic)}
               boundOf={(field) => boundValues[selectedCue.graphic]?.[field]}
               onPatchBound={patchBound}
+              figures={figures}
+              stack={liveStack}
+              stackPinned={pins.includes(selectedCue.graphic)}
             />
           )}
+          {!(selectedCue && spec) && liveStack?.(null)}
           {error && <p className="status-bad" data-testid="hosted-error">{error}</p>}
 
           {/* THE ACTIVITY LOG, the in-app dashboard's feed on the multi-operator surface: every
@@ -1521,6 +1651,279 @@ function HostedVerbs({
 }
 
 /**
+ * ONE GRAPHIC'S LIVE BLOCK: its ⚡ GRAPHIC ACTIONS and ± LIVE NUMBERS (docs/PLAYOUT_DASHBOARD.md
+ * §7b, §7c), in the in-app page's shape. Props only: what a press does is the caller's, so the
+ * selected cue's editor and a pinned graphic's block (docs/work-specs/pinned-live-controls/spec.md)
+ * draw one block and press their own way. With `heading` it is one block of the LIVE stack and
+ * names its graphic and the cue on its layer.
+ */
+function HostedLiveBlock({
+  spec,
+  arrange,
+  airedValues,
+  liveState,
+  layerLive,
+  heading,
+  selected,
+  pinned,
+  numbersLive,
+  numbersTitle,
+  blocked,
+  onEvent,
+  onBump,
+  onSnap,
+}: {
+  spec: PanelGraphicSpec;
+  arrange: Record<string, ArrangeRead> | undefined;
+  /** What the graphic was last told to show, or null when it is not on air. */
+  airedValues: Record<string, string> | null;
+  liveState: { groups?: Record<string, string> } | null;
+  /** The graphic's layer is up. */
+  layerLive: boolean;
+  heading?: { graphic: string; cue: string | null };
+  selected?: boolean;
+  pinned?: boolean;
+  /** The ± pairs act now. */
+  numbersLive: boolean;
+  numbersTitle: (label: string) => string;
+  /** Why this action cannot go from here, or null. */
+  blocked: (e: ControlButton) => string | null;
+  onEvent: (e: ControlButton) => void;
+  onBump: (key: string, delta: number) => void;
+  onSnap: (groupId: string | null, stateId: string) => void;
+}) {
+  const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
+  const descriptorByKey = useMemo(() => new Map(descriptors.map((d) => [d.key, d])), [descriptors]);
+  const events = useMemo(() => eventButtons(spec.js), [spec.js]);
+  const path = useMemo(() => continueEvents(spec.js), [spec.js]);
+  /** Ordered, named, pinned and hidden by the SHARED rule (controlModel `arrangeControls`), so
+   *  this page, the in-app one and the exported controller cannot present one production's
+   *  controls three ways; a one-press pick is drawn inside that arrangement. A label naming a
+   *  field ("+1 {f0|P1}") reads it from what the graphic was last SENT, never from the boxes: the
+   *  press acts on air, so the button names the player the audience sees. */
+  const arranged = useMemo(
+    () => arrangeControls(withLiveLabels(events, airedValues), arrange, (b) => pickOptions(b, descriptors, path, events)),
+    [events, arrange, airedValues, descriptors, path],
+  );
+  const legality = useMemo(() => eventLegality(spec.js), [spec.js]);
+  const stateGroups = useMemo(() => machineStateGroups(spec.js), [spec.js]);
+  const stateNames = useMemo(() => machineStateNames(spec.js), [spec.js]);
+  const stacked = !!heading;
+  // In the stack a pinned graphic off air has nothing to act on, and says so on its chip.
+  const off = stacked && !layerLive;
+
+  /**
+   * A ⚡ button's hover, in the BUTTON'S OWN WORDS. A greyed one explains itself through the
+   * shared `illegalEventTitle` (the wording row P landed on the in-app dashboard and the graphic
+   * control page), so the enabled hover is free to say what the press DOES instead of hedging
+   * about when it is allowed. It asks `isEventLegal` with the same three arguments the button's
+   * own `disabled` does, so the greying and the sentence explaining it cannot disagree.
+   *
+   * `section` is the heading DRAWN over the button, which `controlName` folds into the name so
+   * five presses labelled "+1" are told apart by the word above them. Empty `moved` words mean
+   * everything the press moves is a hidden holder (the reported-field pattern), which has no
+   * operator name and so gets no clause rather than its field id.
+   */
+  const eventHint = (e: ControlButton, label: string, section?: string) => {
+    if (off) return 'The graphic is not on air. Take the cue first.';
+    if (!isEventLegal(legality, e.event, liveState)) return illegalEventTitle(label);
+    const name = controlName(label, section);
+    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label, {
+      delta: !labelCarriesDelta(e, label),
+    });
+    return moved
+      ? `Fires ${name} on the live graphic and moves ${moved} with it.`
+      : `Fires ${name} on the live graphic.`;
+  };
+
+  /** One ⚡ button. The block draws the same button pinned, in its section and under "More", and
+   *  three copies of this press would drift apart. The DECLARATION (`e`) decides what the press
+   *  sends and whether it greys; the arrangement decides only the word and where it sits. A
+   *  ONE-PRESS PICK is its label and one button per option, the option last sent reading active. */
+  const actionButton = ({ button: e, label, named, options }: ArrangedControl, section?: string) => {
+    const why = blocked(e);
+    const disabled = off || !isEventLegal(legality, e.event, liveState) || !!why;
+    if (options) {
+      const active = airedValues?.[options.field];
+      return (
+        <span key={e.event} className="pd-pick" role="group" aria-label={label} data-testid={`hosted-action-${e.event}`}>
+          <span className="pd-pick-label">{label}</span>
+          {options.options.map((o) => (
+            <button
+              key={o.value}
+              className={`pd-action pd-pick-option${active === o.value ? ' active' : ''}`}
+              aria-pressed={active === o.value}
+              disabled={disabled}
+              title={why ?? (disabled ? eventHint(e, label, section) : `Fires ${controlName(label, section)} on the live graphic with ${o.label}.`)}
+              onClick={() => onEvent(pickButton(e, options, o.value))}
+              data-testid={`hosted-pick-${e.event}-${o.value}`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </span>
+      );
+    }
+    return (
+      <button
+        key={e.event}
+        disabled={disabled}
+        // A label naming a player holds a FIXED slot (the in-app page's rule): a name sent mid-show
+        // never moves the buttons under the operator's finger.
+        className={[stacked ? 'pd-action' : '', e.destructive ? 'ctl-event-destructive' : '', named ? 'named' : ''].filter(Boolean).join(' ') || undefined}
+        onClick={() => onEvent(e)}
+        title={why ?? eventHint(e, label, section)}
+      >
+        ⚡ {label}
+      </button>
+    );
+  };
+
+  const name = heading && (
+    <span className="pd-live-name" data-testid="hosted-live-block-name">
+      {heading.graphic}
+      {heading.cue && <span className="pd-live-cue"> · {heading.cue}</span>}
+    </span>
+  );
+  const stateLabel = formatMachineState(stateNames, liveState);
+  const chip = heading && (
+    <span className="pd-state-chip" data-testid="hosted-live-block-state">
+      {!layerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
+    </span>
+  );
+
+  const actionsBlock = events.length > 0 && (
+    /* ⚡ GRAPHIC ACTIONS (docs/PLAYOUT_DASHBOARD.md §7b), in the in-app page's shape: a header
+       saying these act ON AIR, the buttons GROUPED BY SECTION, and the recovery snap folded in
+       the head. They were a flat wall of buttons here once: the author's own sections were
+       published in `machine.controls` and thrown away by the surface with the smallest screen. */
+    <div className="pd-actions" data-testid="hosted-actions">
+      <div className="pd-actions-head">
+        <span
+          className="pd-actions-kicker"
+          title="These fire the graphic’s own beats on the layer that is on air, immediately, with this cue’s values as typed in its fields."
+        >
+          {heading ? '⚡' : <>⚡ GRAPHIC ACTIONS <b className="pd-actions-air">act on air</b></>}
+        </span>
+        {name}
+        {chip}
+        {/* RECOVERY, folded closed in the head: the snap is not how a graphic is driven. */}
+        {stateGroups.length > 0 && (
+          <span className="pd-actions-tools">
+            <details className="pd-actions-recovery" data-testid="hosted-actions-recovery">
+              <summary title="Jumps the live graphic straight to a state with no animation and re-sends this cue’s values. For when air and this page are out of step (a renderer restart, a missed press).">
+                Recovery
+              </summary>
+              <select
+                className="pd-snap"
+                value=""
+                disabled={!layerLive}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  if (v === '::reset') onSnap(null, '');
+                  else {
+                    const i = v.indexOf(':');
+                    onSnap(v.slice(0, i), v.slice(i + 1));
+                  }
+                }}
+                title="RECOVERY. Jumps the live graphic straight to a state with no animation."
+                data-testid="hosted-snap"
+              >
+                <option value="">Snap to state…</option>
+                <option value="::reset">⟲ Back to start (visual reset)</option>
+                {stateGroups.map((g) =>
+                  g.states.map((s) => (
+                    <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
+                      {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
+                    </option>
+                  )),
+                )}
+              </select>
+            </details>
+          </span>
+        )}
+      </div>
+      {/* PINNED, above the sections: the in-app page's shape. */}
+      {arranged.pinned.length > 0 && (
+        <div className="pd-actions-row pd-actions-pinned" data-testid="hosted-actions-pinned">
+          {arranged.pinned.map((c) => actionButton(c))}
+        </div>
+      )}
+      <div className="pd-actions-groups">
+        {arranged.sections.map(([section, controls]) => {
+          // ONE expression decides both whether the heading is drawn and whether the hover
+          // borrows it, so a hover can never name a word that is not on screen.
+          const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
+          return (
+            <div key={section} className="pd-actions-section">
+              {heading && <h4>{heading}</h4>}
+              <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
+            </div>
+          );
+        })}
+        {/* HIDDEN, behind one disclosure. It matters most HERE: this is the surface a class
+            drives from a phone, away from the app, so a control the production tucked away is
+            still one tap from the operator who turns out to need it. */}
+        {arranged.more.length > 0 && (
+          <details className="pd-actions-more" data-testid="hosted-actions-more">
+            <summary>More ({arranged.more.length})</summary>
+            <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
+          </details>
+        )}
+      </div>
+    </div>
+  );
+
+  // ± LIVE NUMBERS: every number field no ⚡ event carries as payload (that one is set by its
+  // own action, control/liveControls.ts `liveNumberFields`).
+  const numberFields = liveNumberFields(descriptors, events);
+  const liveNumbers = numberFields.length > 0 && (
+    <div className="pd-editor-events pd-live-numbers" data-testid="hosted-live-numbers">
+      {events.length === 0 && name}
+      {events.length === 0 && chip}
+      {numberFields.map((d) => {
+        // One sentence for both halves of the pair: they act on the same field, so a hover that
+        // differed between − and + would be saying something that is not true.
+        const stepTitle = numbersTitle(d.label);
+        return (
+          <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
+            <span className="pd-live-number-label">{d.label}</span>
+            <button disabled={!numbersLive} title={stepTitle} onClick={() => onBump(d.key, -1)} data-testid={`hosted-live-number-${d.key}-down`}>
+              −
+            </button>
+            <button disabled={!numbersLive} title={stepTitle} onClick={() => onBump(d.key, 1)} data-testid={`hosted-live-number-${d.key}-up`}>
+              +
+            </button>
+          </span>
+        );
+      })}
+    </div>
+  );
+
+  if (!heading) {
+    return (
+      <>
+        {actionsBlock}
+        {liveNumbers}
+      </>
+    );
+  }
+  if (!actionsBlock && !liveNumbers) return null;
+  return (
+    <div
+      className={`pd-live-block${selected ? ' selected' : ''}${pinned ? ' pinned' : ''}`}
+      data-testid="hosted-live-block"
+      data-graphic={heading.graphic}
+      data-selected={selected || undefined}
+    >
+      {actionsBlock}
+      {liveNumbers}
+    </div>
+  );
+}
+
+/**
  * The selected cue's editor. Field edits go to the SHARED staging buffer, so every operator's
  * page follows them; nothing airs until an explicit take (or ✎ Update on a live layer). The
  * graphic's saved ENTRIES ride the panel spec read-only — picking one stages its values exactly
@@ -1548,6 +1951,9 @@ function HostedCueEditor({
   bound,
   boundOf,
   onPatchBound,
+  figures,
+  stack,
+  stackPinned,
 }: {
   cue: OutputCue;
   spec: PanelGraphicSpec;
@@ -1595,19 +2001,18 @@ function HostedCueEditor({
   /** Move the SHARED value. The rows come back for every graphic bound to the path, so this is
    *  the one write the editor makes that is not about this cue at all. */
   onPatchBound: (writes: TreeWrite[]) => Promise<void>;
+  /** What a moved figure counts from, and the hold on what a press sent (the page's `figures`). */
+  figures: SentFigures;
+  /** The production pins graphics: this graphic's live block is drawn by this, above the editor,
+   *  in the LIVE stack, rather than inside it. */
+  stack?: (own: ReactNode) => ReactNode;
+  /** This graphic is itself pinned: its block in the stack is its pinned one. */
+  stackPinned?: boolean;
 }) {
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const fieldGroups = useMemo(() => groupCueFields(descriptors), [descriptors]);
   const descriptorByKey = useMemo(() => new Map(descriptors.map((d) => [d.key, d])), [descriptors]);
   const events = useMemo(() => eventButtons(spec.js), [spec.js]);
-  /** Ordered, named, pinned and hidden by the SHARED rule (controlModel `arrangeControls`), so
-   *  this page, the in-app one and the exported controller cannot present one production's
-   *  controls three ways. No profile is the generated panel, unchanged. */
-  // A label naming a field ("+1 {f0|P1}") reads it from what the graphic was last SENT, never from
-  // the boxes: the press acts on air, so the button names the player the audience sees.
-  const arranged = useMemo(() => arrangeControls(withLiveLabels(events, airedValues), arrange), [events, arrange, airedValues]);
-  const legality = useMemo(() => eventLegality(spec.js), [spec.js]);
-  const stateGroups = useMemo(() => machineStateGroups(spec.js), [spec.js]);
   /** Local echo for instant typing; the shared buffer reconciles it as its rows arrive. */
   const [echo, setEcho] = useState<Record<string, string>>({});
   const [entryId, setEntryId] = useState('');
@@ -1730,237 +2135,115 @@ function HostedCueEditor({
     Object.fromEntries(descriptors.map((d) => [d.key, d.label])),
   );
 
-  /**
-   * A ⚡ button's hover, in the BUTTON'S OWN WORDS. A greyed one explains itself through the
-   * shared `illegalEventTitle` (the wording row P landed on the in-app dashboard and the graphic
-   * control page), so the enabled hover is free to say what the press DOES instead of hedging
-   * about when it is allowed. It used to name the machine's event id and "where the graph allows
-   * it" in both states - two vocabularies an operator meets nowhere else on this page, on the one
-   * surface a student drives WITHOUT the app.
-   *
-   * It asks `isEventLegal` with the same three arguments the button's own `disabled` does, so the
-   * greying and the sentence explaining it cannot disagree.
-   *
-   * `section` is the heading DRAWN over the button, which `controlName` folds into the name so
-   * five presses labelled "+1" are told apart by the word above them. Empty `moved` words mean
-   * everything the press moves is a hidden holder (the reported-field pattern), which has no
-   * operator name and so gets no clause rather than its field id.
-   */
-  const eventHint = (e: ControlButton, label: string, section?: string) => {
-    if (!isEventLegal(legality, e.event, liveState)) return illegalEventTitle(label);
-    const name = controlName(label, section);
-    const moved = adjustWords(e, (key) => descriptorByKey.get(key)?.label, {
-      delta: !labelCarriesDelta(e, label),
-    });
-    return moved
-      ? `Fires ${name} on the live graphic and moves ${moved} with it.`
-      : `Fires ${name} on the live graphic.`;
-  };
-
-  /** One ⚡ button. The block draws the same button pinned, in its section and under "More", and
-   *  three copies of this press would drift apart. The DECLARATION (`e`) decides what the press
-   *  sends and whether it greys; the arrangement decides only the word and where it sits, and
-   *  `section` is the heading over it where the block draws one. */
   /** The layer airs a cue this page was not given (a live candidate, E7.1): an action that reads or
    *  moves field values would take them from the cue selected here, so only one carrying none goes. */
   const blindAir = (e: ControlButton) => !live && layerLive && !onAir && actionCarriesValues(e);
-  const actionButton = ({ button: e, label, named }: ArrangedControl, section?: string) => (
-    <button
-      key={e.event}
-      disabled={!isEventLegal(legality, e.event, liveState) || blindAir(e)}
-      // A label naming a player holds a FIXED slot (the in-app page's rule): a name sent mid-show
-      // never moves the buttons under the operator's finger.
-      className={[e.destructive ? 'ctl-event-destructive' : '', named ? 'named' : ''].filter(Boolean).join(' ') || undefined}
-      onClick={() => {
-        // The press acts on AIR: with a sibling cue of this graphic on air, it reads and stages
-        // that cue's values, never the boxes of the one being prepared here.
-        const sibling = !live && onAir ? onAir : null;
-        const { payload, fields: staged, tree } = pressSend(e, bound, sibling ? (key) => sibling.values[key] ?? '' : valueOf);
-        // An `adjust` field (a goal's +1) rode moved by its delta: stage the new figure into the
-        // shared buffer at once (the live-number bump's rule, so every open page follows and the
-        // next press counts from it). A BOUND field is not among them - it is not this cue's.
-        const moved = Object.keys(staged).length > 0;
-        if (moved && sibling) onStage(sibling.cue, staged);
-        else if (moved) {
+  /** The cue on screen now, for a press whose answer arrives after the selection moved on. */
+  const shownCue = useRef(cue.id);
+  shownCue.current = cue.id;
+
+  /**
+   * The ⚡ PRESS on the selected cue's graphic. It acts on AIR: with a sibling cue of this graphic
+   * on air, it reads and stages that cue's values, never the boxes of the one being prepared here.
+   * A figure it MOVES counts from what this page sent while that send is out and from what air was
+   * last sent otherwise, never from a value staged and not aired, and is staged only once the send
+   * went (docs/work-specs/pinned-live-controls/spec.md "What a press does").
+   */
+  const fire = (e: ControlButton) => {
+    const pressed = cue;
+    const sibling = !live && onAir ? onAir : null;
+    const read = sibling ? (key: string) => sibling.values[key] ?? '' : valueOf;
+    const moving = new Set(movedKeys(e));
+    const { payload, fields: staged, tree } = pressSend(e, bound, (key) =>
+      moving.has(key) && !bound[key] ? figures.base(pressed.graphic, key, (sibling?.cue ?? pressed).values[key]) : read(key),
+    );
+    const settle = figures.hold(pressed.graphic, staged);
+    void onSend([
+      { graphic: pressed.graphic, msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event } },
+    ]).then((sent) => {
+      settle(sent);
+      // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT, the same order the in-app ⚡ button keeps:
+      // the tree write is a separate row by construction, reaching graphics this event never
+      // touched, so nothing but this order stops a refused press moving every other bound graphic.
+      if (!sent) return;
+      // An `adjust` field (a goal's +1) rode moved: stage the new figure into the shared buffer, so
+      // every open page follows. A BOUND field is not among them - it is not this cue's.
+      if (Object.keys(staged).length > 0) {
+        if (sibling) onStage(sibling.cue, staged);
+        else if (shownCue.current !== pressed.id) onStage(pressed, staged);
+        else {
           setEcho((v) => ({ ...v, ...staged }));
           setEntryId('');
           stageNow(staged);
           onPreview({ ...currentValues(), ...staged });
         }
-        void onSend([
-          {
-            graphic: cue.graphic,
-            msg: payload ? { t: 'event', event: e.event, payload } : { t: 'event', event: e.event },
-          },
-          // THE SHARED VALUE MOVES ONLY IF THE EVENT WENT, the same order the in-app ⚡ button
-          // already keeps. The tree write is a separate row by
-          // construction - it reaches graphics this event never touched - so nothing but this
-          // order stops a refused press moving every other bound graphic.
-        ]).then((sent) => { if (sent) void onPatchBound(tree); });
-      }}
-      title={blindAir(e) ? 'The cue on air is not one this page can see, so this action, which carries its values, is pressed on the production page.' : eventHint(e, label, section)}
-    >
-      ⚡ {label}
-    </button>
-  );
+      }
+      void onPatchBound(tree);
+    });
+  };
+
+  /**
+   * ± LIVE NUMBERS, the production page's quick-bump: one press sends a PARTIAL update carrying
+   * just the bumped field and, once it went, stages the same value into the shared buffer (so
+   * every open page follows), never touching the other staged edits: a bump must not publish a
+   * half-typed name. It counts from what this page sent or air was last sent, never the buffer.
+   */
+  const bump = (key: string, delta: number) => {
+    // A BOUND FIELD TAKES THE OTHER ROAD (plan §2.9's Phase 3, AC-7): the figure belongs to the
+    // production, not to this cue, so the press moves the shared value and every graphic bound to
+    // it follows through the ordinary diff. Nothing is staged and nothing is echoed.
+    const path = bound[key];
+    if (path) {
+      void onPatchBound([{ path, text: adjustedValue(boundOf(key), delta), verb: 'adjust' }]);
+      return;
+    }
+    const pressed = cue;
+    const data = { [key]: adjustedValue(figures.base(pressed.graphic, key, pressed.values[key]), delta) };
+    const settle = figures.hold(pressed.graphic, data);
+    void onSend([{ graphic: pressed.graphic, msg: { t: 'update', data } }]).then((sent) => {
+      settle(sent);
+      if (!sent) return;
+      if (shownCue.current !== pressed.id) {
+        onStage(pressed, data);
+        return;
+      }
+      setEcho((v) => ({ ...v, ...data }));
+      setEntryId('');
+      // Immediate, not the typing debounce: the value just aired. Typing still in the debounce
+      // goes into the buffer with it, never onto air: the update above carried the bumped field alone.
+      stageNow(data);
+      onPreview({ ...currentValues(), ...data });
+    });
+  };
 
   /** LIVE ACTIONS FIRST, the in-app page's order (docs/research/control-surfaces-review-2026-10-02
    *  slice 4): a graphic with ⚡ actions is operated through them, so they come straight after the
    *  head and the setup fields follow; a graphic with none keeps the fields first. */
   const liveFirst = events.length > 0;
-  const actionsBlock = events.length > 0 && (
-    /* ⚡ GRAPHIC ACTIONS (docs/PLAYOUT_DASHBOARD.md §7b), in the in-app page's shape: a header
-       saying these act ON AIR, the buttons GROUPED BY SECTION, one line of inline help, and the
-       recovery snap folded at the foot. They were a flat wall of buttons here once: the author's
-       own sections were published in `machine.controls` and thrown away by the surface with the
-       smallest screen and the least room to guess. */
-    <div className="pd-actions" data-testid="hosted-actions">
-      {/* COMPACT, the in-app page's shape (owner, 2026-10-03): one head line, what the block is
-          for in the kicker's hover, the sections side by side under it. */}
-      <div className="pd-actions-head">
-        <span
-          className="pd-actions-kicker"
-          title="These fire the graphic’s own beats on the layer that is on air, immediately, with this cue’s values as typed in its fields."
-        >
-          ⚡ GRAPHIC ACTIONS <b className="pd-actions-air">act on air</b>
-        </span>
-        {/* RECOVERY, folded closed in the head: the snap is not how a graphic is driven. */}
-        {stateGroups.length > 0 && (
-          <span className="pd-actions-tools">
-            <details className="pd-actions-recovery" data-testid="hosted-actions-recovery">
-              <summary title="Jumps the live graphic straight to a state with no animation and re-sends this cue’s values. For when air and this page are out of step (a renderer restart, a missed press).">
-                Recovery
-              </summary>
-              <select
-                className="pd-snap"
-                value=""
-                disabled={!layerLive}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) return;
-                  if (v === '::reset') onSnap(null, '');
-                  else {
-                    const i = v.indexOf(':');
-                    onSnap(v.slice(0, i), v.slice(i + 1));
-                  }
-                }}
-                title="RECOVERY. Jumps the live graphic straight to a state with no animation."
-                data-testid="hosted-snap"
-              >
-                <option value="">Snap to state…</option>
-                <option value="::reset">⟲ Back to start (visual reset)</option>
-                {stateGroups.map((g) =>
-                  g.states.map((s) => (
-                    <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
-                      {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
-                    </option>
-                  )),
-                )}
-              </select>
-            </details>
-          </span>
-        )}
-      </div>
-      {/* PINNED, above the sections: the in-app page's shape. */}
-      {arranged.pinned.length > 0 && (
-        <div className="pd-actions-row pd-actions-pinned" data-testid="hosted-actions-pinned">
-          {arranged.pinned.map((c) => actionButton(c))}
-        </div>
-      )}
-      <div className="pd-actions-groups">
-        {arranged.sections.map(([section, controls]) => {
-          // ONE expression decides both whether the heading is drawn and whether the hover
-          // borrows it, so a hover can never name a word that is not on screen.
-          const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
-          return (
-            <div key={section} className="pd-actions-section">
-              {heading && <h4>{heading}</h4>}
-              <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
-            </div>
-          );
-        })}
-        {/* HIDDEN, behind one disclosure. It matters most HERE: this is the surface a class
-            drives from a phone, away from the app, so a control the production tucked away is
-            still one tap from the operator who turns out to need it. */}
-        {arranged.more.length > 0 && (
-          <details className="pd-actions-more" data-testid="hosted-actions-more">
-            <summary>More ({arranged.more.length})</summary>
-            <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
-          </details>
-        )}
-      </div>
-    </div>
-  );
-  const liveNumbers = (
-    <>
-    {/* ± LIVE NUMBERS — the production page's quick-bump, on the surface a class actually
-        operates from (the cloud-first door): one press sends a PARTIAL update carrying just
-        the bumped field, stages the same value into the shared buffer (so every open page
-        follows), and never touches the other staged edits — a bump must not publish a
-        half-typed name. Number fields an ⚡ event carries as payload are excluded: those are
-        set by their own action. */}
-    {(() => {
-      const payloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
-      const numberFields = descriptors.filter((d) => d.kind === 'number' && !payloadKeys.has(d.key));
-      if (numberFields.length === 0) return null;
-      const bump = (key: string, delta: number) => {
-        // A BOUND FIELD TAKES THE OTHER ROAD (plan §2.9's Phase 3, AC-7): the figure belongs to
-        // the production, not to this cue, so the press moves the shared value and every graphic
-        // bound to it follows through the ordinary diff. Nothing is staged and nothing is
-        // echoed - a bound field is never a cue value, and the new figure arrives the way a
-        // feed's would.
-        const path = bound[key];
-        if (path) {
-          void onPatchBound([{ path, text: adjustedValue(boundOf(key), delta), verb: 'adjust' }]);
-          return;
-        }
-        const next = adjustedValue(valueOf(key), delta);
-        setEcho((v) => ({ ...v, [key]: next }));
-        setEntryId('');
-        // Immediate, not the typing debounce: the value just aired, so the shared buffer
-        // must say so now (the loadEntry precedent). Typing still in the debounce goes into
-        // the buffer with it, never onto air: the update below carries the bumped field alone.
-        stageNow({ [key]: next });
-        onPreview({ ...currentValues(), [key]: next });
-        onSend([{ graphic: cue.graphic, msg: { t: 'update', data: { [key]: next } } }]);
-      };
-      return (
-        <div className="pd-editor-events pd-live-numbers" data-testid="hosted-live-numbers">
-          {numberFields.map((d) => {
-            // One sentence for both halves of the pair: they act on the same field, so a
-            // hover that differed between − and + would be saying something that is not true.
-            const stepTitle = live
-              ? `Changes "${d.label}" on air immediately`
-              : 'This cue is not on air. Take it first.';
-            return (
-              <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
-                <span className="pd-live-number-label">{d.label}</span>
-                <button
-                  disabled={!live}
-                  title={stepTitle}
-                  onClick={() => bump(d.key, -1)}
-                  data-testid={`hosted-live-number-${d.key}-down`}
-                >
-                  −
-                </button>
-                <button
-                  disabled={!live}
-                  title={stepTitle}
-                  onClick={() => bump(d.key, 1)}
-                  data-testid={`hosted-live-number-${d.key}-up`}
-                >
-                  +
-                </button>
-              </span>
-            );
-          })}
-        </div>
-      );
-    })()}
-    </>
+  /** This graphic's live block: inside the editor as always, or, when the production pins
+   *  graphics, as the selected one of the LIVE stack drawn above it. */
+  const liveBlock = (heading?: { graphic: string; cue: string | null }) => (
+    <HostedLiveBlock
+      spec={spec}
+      arrange={arrange}
+      airedValues={airedValues}
+      liveState={liveState}
+      layerLive={layerLive}
+      heading={heading}
+      selected={!!heading}
+      pinned={stackPinned}
+      numbersLive={live}
+      numbersTitle={(label) => (live ? `Changes "${label}" on air immediately` : 'This cue is not on air. Take it first.')}
+      blocked={(e) =>
+        blindAir(e) ? 'The cue on air is not one this page can see, so this action, which carries its values, is pressed on the production page.' : null
+      }
+      onEvent={fire}
+      onBump={bump}
+      onSnap={onSnap}
+    />
   );
 
-  return (
+  const editor = (
     <div className={`pd-editor${live ? ' live' : ''}`} data-testid="hosted-cue-editor">
       <div className="pd-editor-head">
         <span className="pd-editor-kicker">EDITING {live ? 'ON-AIR CUE' : 'PREVIEW CUE'}</span>
@@ -2004,8 +2287,7 @@ function HostedCueEditor({
         )}
       </div>
 
-      {liveFirst && actionsBlock}
-      {liveFirst && liveNumbers}
+      {!stack && liveFirst && liveBlock()}
 
       {/* THE SETUP FOLD, the in-app editor's: offered only under live actions, and folded it reads
           back what the cue is set to. */}
@@ -2157,7 +2439,16 @@ function HostedCueEditor({
       </div>
       )}
 
-      {!liveFirst && liveNumbers}
+      {!stack && !liveFirst && liveBlock()}
     </div>
+  );
+  // PINNED LIVE CONTROLS: the LIVE stack above the editor, this graphic's block in it.
+  return stack ? (
+    <>
+      {stack(liveBlock({ graphic: cue.graphic, cue: onAir?.cue.label ?? null }))}
+      {editor}
+    </>
+  ) : (
+    editor
   );
 }

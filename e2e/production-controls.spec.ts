@@ -2085,3 +2085,94 @@ test('the EXPORTED controller carries both SPACE modes, read off the relay: prev
   await ben.click();
   await expect(take).toHaveText(/→ PREVIEW/);
 });
+
+// ── PINNED LIVE CONTROLS ON THE EXPORTED CONTROLLER (docs/work-specs/pinned-live-controls/spec.md
+// AC-5) ─────────────────────────────────────────────────────────────────────────────────────────
+// The pin is baked at export like ARRANGE. The controller draws the pinned graphic's block above
+// the editor whatever cue is selected, and a press there acts on THAT graphic's on-air cue with the
+// payload shape an editor press has always sent, counted from what air was sent rather than from a
+// value staged in the editor and not aired.
+
+test('the EXPORTED controller draws a pinned graphic above the editor and presses its on-air cue', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const exported = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { withPinnedGraphic } = await import('/src/model/profile.ts');
+    const show = shows.createShowNamed('Pinned Night');
+    shows.addGraphicToShow(show.id, { ...variantById('sb03')!.create({}), name: 'House Score' });
+    shows.addGraphicToShow(show.id, { ...variantById('sb22')!.create({}), name: 'Podiums' });
+    const added = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.setShowGraphicLayer(show.id, added.graphics[0].id, 20);
+    shows.setShowGraphicLayer(show.id, added.graphics[1].id, 21);
+    const [scoreCue, podiumCue] = added.cues!;
+    shows.updateShowCue(show.id, scoreCue.id, { label: 'Score up' });
+    shows.updateShowCue(show.id, podiumCue.id, { label: 'Podiums up' });
+    const pool = added.graphics.map((g) => g.name);
+    shows.setShowProfile(show.id, withPinnedGraphic(undefined, 'House Score', true, pool));
+    const zip = await buildShowZipFor(shows.loadShows().find((s) => s.id === show.id)!, 'html-overlay');
+    const files: Record<string, string> = {};
+    for (const n of Object.keys(zip.files)) {
+      if (!zip.files[n].dir && /\.(html|json)$/.test(n)) files[n.replace(/^[^/]+\//, '')] = await zip.file(n)!.async('string');
+    }
+    return files;
+  });
+
+  const { serve, rows } = relayServe(new Map(Object.entries(exported)));
+  const origin = 'http://pinned-host.local';
+  const ctl = await context.newPage();
+  ctl.on('pageerror', (e) => console.log('PAGEERROR', e.message)); // TEMP
+  (await import('node:fs')).writeFileSync('/tmp/claude-0/-home-user-NoaCG-Studio/879fa343-0bd4-592e-8269-d91c27e52961/scratchpad/controller.html', exported['controller.html']); // TEMP
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await expect(ctl.locator('#mode')).toContainText('SHOW');
+
+  // THE STACK: one pinned block, above the editor, greyed until its graphic is on air.
+  const block = ctl.locator('#live-stack .live-block');
+  await expect(block).toHaveCount(1);
+  await expect(block.locator('.lb-name')).toHaveText('House Score');
+  await expect(block.locator('.lb-cue')).toHaveText('not on air');
+  const goalA = block.getByRole('button', { name: '⚡ Goal A' });
+  await expect(goalA).toBeDisabled();
+  expect(
+    await ctl.evaluate(() => !!(document.getElementById('live-stack')!.compareDocumentPosition(document.getElementById('editor')!) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    'the LIVE stack sits above the editor',
+  ).toBe(true);
+
+  // Both graphics on air. The pinned graphic's own cue draws its controls once, in the stack.
+  await ctl.locator('.cue', { hasText: 'Score up' }).click();
+  await expect(ctl.locator('#editor-events button', { hasText: 'Goal A' })).toHaveCount(0);
+  await ctl.locator('#v-take').click();
+  await expect(block.locator('.lb-cue')).toHaveText('Score up', { timeout: 10_000 });
+  await expect(goalA).toBeEnabled();
+
+  // A correction typed into the score's cue and NOT aired: never the base of a pinned press.
+  await ctl.locator('.field', { hasText: /^F1 · / }).locator('input[type="number"]').fill('20');
+
+  await ctl.locator('.cue', { hasText: 'Podiums up' }).click();
+  await ctl.locator('#v-take').click();
+  await expect(ctl.locator('.cue', { hasText: 'Podiums up' })).toHaveClass(/on-air/, { timeout: 10_000 });
+  // The selected graphic's own controls stay in its editor.
+  await expect(ctl.locator('#editor-events').getByRole('button', { name: '⚡ Spotlight' })).toBeVisible();
+
+  const program = () => rows.filter((r) => r.stream === 'program');
+  const before = program().length;
+  await goalA.click();
+  await expect.poll(() => program().length).toBe(before + 1);
+  // The payload shape an editor press sends, on the PINNED graphic, counted from air (0), not 20.
+  expect(program()[before]).toMatchObject({ graphic: 'House Score', msg: { t: 'event', event: 'goalA', payload: { f1: '1' } } });
+  await goalA.click();
+  await expect.poll(() => program().length).toBe(before + 2);
+  expect((program()[before + 1].msg as { payload: Record<string, string> }).payload).toEqual({ f1: '2' });
+
+  // The ± pair on the pinned block is the editor's partial update, on the pinned graphic.
+  await block.locator('.lb-number[data-field="f3"] button', { hasText: '+' }).click();
+  await expect.poll(() => program().length).toBe(before + 3);
+  expect(program()[before + 2]).toMatchObject({ graphic: 'House Score', msg: { t: 'update', data: { f3: '1' } } });
+  // …and the selection never moved.
+  await expect(ctl.locator('#ed-name')).toHaveText('Podiums up');
+  await ctl.close();
+});

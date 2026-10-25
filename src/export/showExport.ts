@@ -54,6 +54,7 @@ import {
 import { EXPORT_TARGETS } from './registry';
 import { emitGraphic, renderShowControlPanelHtml } from '../control/controlPanelHtml';
 import { arrangeFor } from '../control/controlModel';
+import { pinnedGraphicsOf } from '../model/profile';
 import { renderProductionControllerHtml, type EmittedCue } from '../control/productionControllerHtml';
 import { stripHostedReceiver } from '../control/hostedReceiver';
 // The library->air gate (docs/ARCHITECTURE.md §3, export -> validation): a production export is
@@ -96,6 +97,17 @@ export function showGraphicLayer(graphic: Pick<SavedGraphic, 'layer'>): number {
  *  `spxLayersInOrder`): the operator's stored layers in their own order, renumbered from 1. */
 export function spxShowLayers(graphics: Pick<SavedGraphic, 'layer'>[]): number[] {
   return spxLayersInOrder(graphics.map(showGraphicLayer));
+}
+
+/** The production's pinned graphics as the controller names them (`names[i]` is pool graphic i's
+ *  template name), in pin order; nothing when none is pinned, so an unpinned package's payload is
+ *  what it always was. */
+function pinnedFor(show: Show, names: readonly string[]): { pinned?: string[] } {
+  const pinned = pinnedGraphicsOf(show.profile).flatMap((pin) => {
+    const i = show.graphics.findIndex((g) => g.name === pin);
+    return i >= 0 && names[i] ? [names[i]] : [];
+  });
+  return pinned.length > 0 ? { pinned } : {};
 }
 
 /** A pool graphic's export-ready template: the LIVE library record (embedded snapshot only as
@@ -374,11 +386,16 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
             inlineAssets: true,
             entries,
             arrange: arrangeFor(show.profile, show.graphics[i]?.name),
+            pick: true,
           }),
           file: `${slug(template.name)}/${slug(template.name)}.html`,
           layer: showGraphicLayer(show.graphics[i]),
         })),
         cues,
+        // PINNED LIVE CONTROLS (docs/work-specs/pinned-live-controls/spec.md), baked like ARRANGE:
+        // past the profile's version gate, by the pool name, each named by its template's name as
+        // the controller knows it; a pin naming no graphic in the pool is dropped (D7).
+        ...pinnedFor(show, panelGraphics.map(({ template }) => template.name)),
         width: first?.resolution.width ?? 1920,
         height: first?.resolution.height ?? 1080,
       }),
