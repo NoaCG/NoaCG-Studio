@@ -8,7 +8,7 @@ here is a real count, and nothing here reads a real results service.
 ## Install
 
 1. Download `election-rehearsal.noacgpack.json`.
-2. In NoaCG Studio, open **Productions** and drop the file on **Import a package**.
+2. In NoaCG Studio, open **Productions**, press **Import a package file…** and choose the file.
 3. A new production opens, named "Election night rehearsal". It holds the four graphics, a
    six-cue rundown and the first synthetic count. There is nothing to connect by hand.
 
@@ -51,9 +51,10 @@ and votes all change together, from the same count.
 ## Rehearsing a new count (offline: replay or manual)
 
 The production starts at revision 1 (`starter/revision-1.json`). To rehearse the next count by
-hand, open **Setup → Data**, open **Raw JSON**, paste the whole of `starter/revision-2.json` and
-apply it. The figures move on air without retaking anything. This is a manual replay of synthetic
-data, and the graphics say so in their source lines.
+hand, open **Setup → Data…**, then **Advanced → Raw JSON**, paste the whole of
+`starter/revision-2.json` and press **Apply JSON**. The figures move on air without retaking
+anything. This is a manual replay of synthetic data, and the graphics say so in their source
+lines.
 
 A live results source is connected later as its own step: it writes the same paths
 (`external.election.…`), and an exported or imported copy of this production never carries a
@@ -61,7 +62,7 @@ source or a key, so you connect it again in each production that uses it.
 
 ## Exporting and importing again
 
-**Export → Graphics pack** writes the whole production into one file: the graphics with their
-fonts and the portrait silhouette, the rundown, each candidate cue's pick, the bindings and the
-current starting data. Importing that file builds the same production again. No source address,
+**Setup → Export… → Graphics pack** writes the whole production into one file: the graphics
+with their fonts and the portrait silhouette, the rundown, each candidate cue's pick, the
+bindings and the starting data. Importing that file builds the same production again. No source address,
 key or password is ever in the file.
