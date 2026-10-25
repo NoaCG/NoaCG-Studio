@@ -45,6 +45,11 @@ const canonicalPath = (file) => {
 // and holds no app source, so its tree turns Vercel deployments off and has no workflows to run.
 const RECOVERY_REFS = `refs/heads/${RECOVERY_BRANCH_PREFIX}`;
 const NO_DEPLOY = `${JSON.stringify({ git: { deploymentEnabled: false } })}\n`;
+// Version 2 keeps the wave ledger, the part that grows with every recorded step, as its own blob
+// beside checkpoint.json, which names its sha256. 256 KiB bounds the document; 8 MiB bounds the
+// ledger, about twenty times a finished 47-phase plan's, and still a cheap fetch and read.
+// Version 1 checkpoints (ledger inline) are still read.
+const DOCUMENT_LIMIT = 256 * 1024, LEDGER_LIMIT = 8 * 1024 * 1024, LEDGER_FILE = 'ledger.md';
 const refFor = (id) => {
   if (!runId(id)) throw new Error('Invalid recovery run id');
   return `${RECOVERY_REFS}${id}`;
@@ -148,6 +153,19 @@ function verifySource(config, r, published, git) {
   }
 }
 
+/** A checkpoint's document and ledger; a version 2 ledger blob is trusted only at its recorded hash. */
+function readCheckpoint(git, repository, commit) {
+  const snapshot = JSON.parse(git(repository, ['show', `${commit}:checkpoint.json`]));
+  if (snapshot.version === 1) return snapshot;
+  if (snapshot.version !== 2 || !/^[a-f0-9]{64}$/.test(snapshot.ledgerSha256 ?? '')) throw new Error('Unknown recovery checkpoint version');
+  const object = `${commit}:${LEDGER_FILE}`;
+  if (!(Number(git(repository, ['cat-file', '-s', object])) <= LEDGER_LIMIT)) throw new Error('Recovery ledger exceeds 8 MiB');
+  // Preserve the bytes, including the final newline, for hashing.
+  const bytes = execFileSync('git', ['cat-file', 'blob', object], { cwd: repository, timeout: 30_000, maxBuffer: LEDGER_LIMIT + 1, windowsHide: true });
+  if (sha(bytes) !== snapshot.ledgerSha256) throw new Error('Recovery ledger blob differs from its checkpoint hash');
+  return { version: 2, doc: snapshot.doc, ledger: bytes.toString('utf8') };
+}
+
 /** Publish before dispatch. A rejected/unknown push cannot authorize an external action. */
 export function publishRun(db, id) {
   const git = transports.get(db) ?? recoveryGit;
@@ -170,16 +188,18 @@ export function publishRun(db, id) {
   for (const packet of [durableDoc.packet, durableDoc.manifest.packet]) {
     if (packet.restoredGithub) packet.restoredGithub = githubObservations(packet.restoredGithub);
   }
-  const payload = JSON.stringify({ version: 1, doc: durableDoc, ledger });
-  if (Buffer.byteLength(payload) > 256 * 1024) throw new Error('Recovery checkpoint exceeds 256 KiB; use committed evidence references');
+  if (Buffer.byteLength(ledger) > LEDGER_LIMIT) throw new Error('Recovery ledger exceeds 8 MiB');
+  const payload = JSON.stringify({ version: 2, doc: durableDoc, ledgerSha256: sha(ledger) });
+  if (Buffer.byteLength(payload) > DOCUMENT_LIMIT) throw new Error('Recovery checkpoint exceeds 256 KiB; use committed evidence references');
   const ref = refFor(id);
   if (old && git(config.repository, ['show', `${old}:checkpoint.json`]) === payload) {
     if (remoteHead(git, config, ref) !== old) throw superseded();
     return old;
   }
   const blob = git(config.repository, ['hash-object', '-w', '--stdin'], payload);
+  const ledgerBlob = git(config.repository, ['hash-object', '-w', '--stdin'], ledger);
   const vercel = git(config.repository, ['hash-object', '-w', '--stdin'], NO_DEPLOY);
-  const tree = git(config.repository, ['mktree'], `100644 blob ${blob}\tcheckpoint.json\n100644 blob ${vercel}\tvercel.json\n`);
+  const tree = git(config.repository, ['mktree'], `100644 blob ${blob}\tcheckpoint.json\n100644 blob ${ledgerBlob}\t${LEDGER_FILE}\n100644 blob ${vercel}\tvercel.json\n`);
   // Keep the actual source tree reachable after its feature branch has been deleted.
   const commit = git(config.repository, ['commit-tree', tree, ...(old ? ['-p', old] : []), '-p', r.revision], `Recovery checkpoint ${id}\n`);
   try {
@@ -218,12 +238,12 @@ function adoptLocked(db, id) {
   if (!head || !revision(remote) || remote === head) return false;
   git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
   if (git(config.repository, ['rev-list', '--parents', '-n', '1', remote]).split(' ')[1] !== head) return false;
-  const snapshot = JSON.parse(git(config.repository, ['show', `${remote}:checkpoint.json`]));
-  if (snapshot.version !== 1 || snapshot.doc?.manifest?.id !== id
+  const snapshot = readCheckpoint(git, config.repository, remote);
+  if (snapshot.doc?.manifest?.id !== id
       || snapshot.doc.restoration?.generation !== doc.restoration?.generation) return false;
   // Merge the accepted ledger with what was written locally since this store last published
   // (a Wake: line, a midpoint retro, an unsupervised plan-run record); refuse a real conflict.
-  const published = JSON.parse(git(config.repository, ['show', `${head}:checkpoint.json`])).ledger;
+  const published = readCheckpoint(git, config.repository, head).ledger;
   const local = readFileSync(doc.manifest.wave, 'utf8');
   const ledger = mergeLedger(git, config.repository, local, published, snapshot.ledger, ref);
   // The durable copy omits the local adapter and paths; this store's own manifest supplies them.
@@ -273,6 +293,7 @@ export function activeProject(db, config, plan, now = Date.now()) {
     .split('\n').map((line) => line.split(/\s+/)).filter(([, ref]) => own(ref));
   const active = refs.filter(([sha, ref]) => {
     git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
+    // Both versions carry the document inline; only the ledger moved to its own blob.
     const { doc } = JSON.parse(git(config.repository, ['show', `${sha}:checkpoint.json`]));
     return doc?.manifest?.kind === 'plan' && doc.status === 'active' && now < Date.parse(doc.manifest.authorization.deadline);
   }).map(([, ref]) => ref.slice(RECOVERY_REFS.length));
@@ -298,9 +319,8 @@ export function restoreRun(db, config, now = Date.now()) {
   const ref = refFor(config.id);
   git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
   const checkpoint = git(config.repository, ['rev-parse', 'FETCH_HEAD']);
-  const raw = git(config.repository, ['show', `${checkpoint}:checkpoint.json`]);
-  const snapshot = JSON.parse(raw), { doc, ledger } = snapshot;
-  if (snapshot.version !== 1 || doc?.manifest?.id !== config.id
+  const { doc, ledger } = readCheckpoint(git, config.repository, checkpoint);
+  if (doc?.manifest?.id !== config.id
       || !sameRepository(doc.manifest.recovery?.repositoryFullName, config.repositoryFullName)) throw new Error('Recovery checkpoint identity differs');
   const r = validateState(doc, ledger);
   verifySource(config, r, checkpoint, git);

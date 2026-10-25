@@ -89,7 +89,33 @@ function receipt(doc, now) {
 
 const HOUR = 3_600_000;
 const blockOf = (wave) => readProject(readFileSync(wave, 'utf8')).block;
-const ledgerAt = (f) => JSON.parse(git(f.remote, 'show', `refs/heads/claude/noacg-recovery/${f.manifest.id}:checkpoint.json`)).ledger;
+const refOf = (f) => `refs/heads/claude/noacg-recovery/${f.manifest.id}`;
+// Untrimmed, so a ledger's bytes compare exactly.
+const gitRaw = (cwd, args, input) => execFileSync('git', ['-c', 'user.name=Recovery Test', '-c', 'user.email=recovery@example.test', ...args],
+  { cwd, input, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+/** A checkpoint as { version, doc, ledger }: version 1 holds the ledger inline, version 2 as ledger.md. */
+const checkpointAt = (f, rev = refOf(f)) => {
+  const snapshot = JSON.parse(git(f.remote, 'show', `${rev}:checkpoint.json`));
+  return snapshot.version === 1 ? snapshot : { ...snapshot, ledger: gitRaw(f.remote, ['show', `${rev}:ledger.md`]) };
+};
+const ledgerAt = (f) => checkpointAt(f).ledger;
+/** Replace the remote head with a commit of the same parents holding `files`; the store follows when `db` is given. */
+function replaceHead(f, files, db) {
+  const ref = refOf(f), head = git(f.remote, 'rev-parse', ref);
+  const parents = git(f.remote, 'rev-list', '--parents', '-n', '1', head).split(' ').slice(1);
+  const tree = gitRaw(f.remote, ['mktree'], Object.entries(files).map(([name, text]) =>
+    `100644 blob ${gitRaw(f.remote, ['hash-object', '-w', '--stdin'], text).trim()}\t${name}\n`).join('')).trim();
+  const commit = gitRaw(f.remote, ['commit-tree', tree, ...parents.flatMap((p) => ['-p', p])], 'rewritten checkpoint\n').trim();
+  git(f.remote, 'update-ref', ref, commit, head);
+  if (db) { git(f.source, 'fetch', '--no-tags', 'origin', ref); db.prepare('UPDATE recovery_heads SET sha=?').run(commit); }
+  return commit;
+}
+const NO_DEPLOY = '{"git":{"deploymentEnabled":false}}\n';
+/** The current remote checkpoint rewritten as a version 1 checkpoint, the format published before ledger.md. */
+const asVersion1 = (f, db) => {
+  const { doc, ledger } = checkpointAt(f);
+  return replaceHead(f, { 'checkpoint.json': JSON.stringify({ version: 1, doc, ledger }), 'vercel.json': NO_DEPLOY }, db);
+};
 
 /** A 72-hour project named as `continue` finds it; `open` starts a block on the original host,
  * `inFlight` also records a build there. */
@@ -199,7 +225,7 @@ test('a continued project with a recorded wait is owned by the new session, whic
 });
 
 const pushes = (args) => args[0] === 'push';
-const remoteLedger = (f) => JSON.parse(git(f.remote, 'show', `refs/heads/claude/noacg-recovery/${f.manifest.id}:checkpoint.json`));
+const remoteLedger = (f) => checkpointAt(f);
 
 test('a refused checkpoint publication leaves the ledger and the store as they were, so a retry works', (t) => {
   const f = projectFixture(t), block = blockOf(f.manifest.wave), before = readFileSync(f.manifest.wave, 'utf8');
@@ -479,7 +505,7 @@ test('durable checkpoints omit adapter configuration while preserving local cred
   // checkpoint tree turns Vercel deployments off, so no preview is built or fails for it.
   const branch = `refs/heads/claude/noacg-recovery/${f.manifest.id}`;
   assert.match(git(f.remote, 'rev-parse', branch), /^[a-f0-9]{40}$/);
-  assert.equal(git(f.remote, 'ls-tree', '--name-only', branch), 'checkpoint.json\nvercel.json');
+  assert.equal(git(f.remote, 'ls-tree', '--name-only', branch), 'checkpoint.json\nledger.md\nvercel.json');
   assert.deepEqual(JSON.parse(git(f.remote, 'show', `${branch}:vercel.json`)), { git: { deploymentEnabled: false } });
   assert.equal(git(f.remote, 'for-each-ref', '--format=%(refname)', 'refs/noacg-recovery/'), '');
 });
@@ -579,4 +605,106 @@ test('automatic adapter observations cannot export auxiliary token or raw-respon
   for (const commit of git(g.remote, 'log', '--format=%H', ref, '--', 'checkpoint.json').split('\n')) {
     assert.ok(!git(g.remote, 'show', `${commit}:checkpoint.json`).includes(sentinel));
   }
+});
+
+const lostPush = (f) => {
+  let down = false;
+  f.inject((args, call) => {
+    if (down && args[0] === 'ls-remote') throw new Error('Could not resolve host: github.com');
+    if (pushes(args)) { call(); down = true; throw new Error('Connection reset'); }
+    return call();
+  });
+};
+
+test('the ledger rides as its own hashed blob, so a ledger far above 256 KiB still checkpoints', (t) => {
+  const f = fixture(t);
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}${'- phase 9 check {"receipt":"a long checker receipt"}\n'.repeat(20_000)}`);
+  const ledger = readFileSync(f.manifest.wave, 'utf8');
+  assert.ok(Buffer.byteLength(ledger) > 1024 * 1024);
+  updateRun(f.db, f.manifest.id, 'wait', { kind: 'dependency', reason: 'a long ledger', until: null });
+  const raw = git(f.remote, 'show', `${refOf(f)}:checkpoint.json`), snapshot = JSON.parse(raw);
+  assert.ok(Buffer.byteLength(raw) < 256 * 1024);
+  assert.equal(snapshot.version, 2); assert.equal(snapshot.ledger, undefined); assert.equal(snapshot.ledgerSha256, hash(ledger));
+  assert.equal(git(f.remote, 'ls-tree', '--name-only', refOf(f)), 'checkpoint.json\nledger.md\nvercel.json');
+  assert.equal(ledgerAt(f), ledger);
+  // Restoring from it brings back the exact ledger.
+  assert.equal(readFileSync(f.restore().config.wave, 'utf8'), ledger);
+});
+
+test('the 256 KiB cap still bounds the checkpoint document, and 8 MiB the ledger', (t) => {
+  const f = fixture(t), before = git(f.remote, 'rev-parse', refOf(f));
+  const doc = docFor(f.db);
+  doc.packet.decisions = ['x'.repeat(300 * 1024)];
+  f.db.prepare('UPDATE runs SET doc=?').run(JSON.stringify(doc));
+  assert.throws(() => publishRun(f.db, f.manifest.id), /Recovery checkpoint exceeds 256 KiB/);
+  doc.packet.decisions = [];
+  f.db.prepare('UPDATE runs SET doc=?').run(JSON.stringify(doc));
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}${'x'.repeat(8 * 1024 * 1024)}\n`);
+  assert.throws(() => publishRun(f.db, f.manifest.id), /Recovery ledger exceeds 8 MiB/);
+  assert.equal(git(f.remote, 'rev-parse', refOf(f)), before);
+});
+
+test('an unchanged version 2 state publishes nothing new', (t) => {
+  const f = fixture(t), head = git(f.remote, 'rev-parse', refOf(f));
+  assert.equal(JSON.parse(git(f.remote, 'show', `${head}:checkpoint.json`)).version, 2);
+  assert.equal(publishRun(f.db, f.manifest.id), head);
+  assert.equal(git(f.remote, 'rev-parse', refOf(f)), head);
+});
+
+test('a version 1 checkpoint already on the remote is restored, and its next publication is version 2', (t) => {
+  const f = fixture(t);
+  updateRun(f.db, f.manifest.id, 'wait', { kind: 'dependency', reason: 'before the format change', until: null });
+  const ledger = readFileSync(f.manifest.wave, 'utf8'), v1 = asVersion1(f);
+  assert.equal(git(f.remote, 'ls-tree', '--name-only', v1), 'checkpoint.json\nvercel.json');
+  const restored = f.restore();
+  assert.equal(restored.result.checkpoint, v1);
+  assert.equal(readFileSync(restored.config.wave, 'utf8'), ledger);
+  assert.equal(docFor(restored.db).wait.kind, 'dependency');
+  assert.equal(checkpointAt(f).version, 2);
+  assert.equal(git(f.remote, 'rev-list', '--parents', '-n', '1', refOf(f)).split(' ')[1], v1);
+  assert.equal(ledgerAt(f), ledger);
+});
+
+test('an accepted checkpoint is adopted and its ledger merged from version 1 to 2 and from 2 to 2', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave);
+  asVersion1(f, f.db);
+  // v1 base, v2 accepted: the lost push publishes version 2 on top of the version 1 head.
+  lostPush(f);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: block }), /Could not resolve host/);
+  f.inject(null);
+  assert.equal(checkpointAt(f).version, 2);
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}Wake: fixture host, next check-in 12:00\n`);
+  recordRun(f.db, f.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: f.now, authority: block });
+  let ledger = readFileSync(f.manifest.wave, 'utf8');
+  for (const kept of [/phase 1 build \{"actor":"builder"\}/, /^Wake: fixture host/m, /phase 1 landed/]) assert.match(ledger, kept);
+  assert.equal(ledgerAt(f), ledger);
+  // v2 base, v2 accepted: an accepted pause rewrites the Project line while a note is added at the end.
+  lostPush(f);
+  assert.throws(() => updateRun(f.db, f.manifest.id, 'pause', 'end of block', f.now), /Could not resolve host/);
+  f.inject(null);
+  writeFileSync(f.manifest.wave, `${readFileSync(f.manifest.wave, 'utf8')}- paused for the night\n`);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /refuses work: paused/);
+  ledger = readFileSync(f.manifest.wave, 'utf8');
+  assert.equal(readProject(ledger, f.now).status, 'paused');
+  assert.match(ledger, /phase 1 landed[\s\S]*- paused for the night\n$/);
+});
+
+test('a version 2 checkpoint whose ledger blob was altered is refused', (t) => {
+  const f = fixture(t);
+  const tamper = () => {
+    const raw = git(f.remote, 'show', `${refOf(f)}:checkpoint.json`);
+    return replaceHead(f, { 'checkpoint.json': raw, 'ledger.md': `${ledgerAt(f)}- an inserted line\n`, 'vercel.json': NO_DEPLOY });
+  };
+  tamper();
+  assert.throws(() => f.restore(), /Recovery ledger blob differs from its checkpoint hash/);
+  // An accepted-looking child of this store's head with an altered ledger is not adopted either.
+  const g = projectFixture(t), block = blockOf(g.manifest.wave);
+  lostPush(g);
+  assert.throws(() => recordRun(g.db, g.manifest.id, 1, 'build', '{"actor":"builder"}', { now: g.now, authority: block }), /Could not resolve host/);
+  g.inject(null);
+  const raw = git(g.remote, 'show', `${refOf(g)}:checkpoint.json`);
+  replaceHead(g, { 'checkpoint.json': raw, 'ledger.md': `${ledgerAt(g)}- an inserted line\n`, 'vercel.json': NO_DEPLOY });
+  const before = readFileSync(g.manifest.wave, 'utf8');
+  assert.throws(() => recordRun(g.db, g.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: g.now, authority: block }), /Recovery ledger blob differs from its checkpoint hash/);
+  assert.equal(readFileSync(g.manifest.wave, 'utf8'), before);
 });
