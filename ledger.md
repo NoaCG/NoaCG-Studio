@@ -242,3 +242,4 @@ Recorded 2026-10-20T21:05Z by coordinator session_01G2tYJMYPHvnLs4cUDdVALb (clou
 - 2026-10-25T18:48:29.364Z phase 32 repair {"actor":"repairer-p32-pp-p32r-f797","nonce":"pp-p32r-f797","source":"d8dd1304910736437486d6f9f9cd9e401ac65589"}
 - 2026-10-25T20:04:16.909Z phase 32 landed {"mergeSha":"8da60058b50721ed37f159c0740884401a6e84a9","pr":1730}
 - 2026-10-25T20:04:20.065Z phase 32 check {"actor":"checker-p32-pp-p32c2-aa0f","nonce":"pp-p32c2-aa0f","mergeSha":"8da60058b50721ed37f159c0740884401a6e84a9"}
+- 2026-10-25T20:39:36.521Z phase 32 fail product: after repair #1730 (8da6005) press-safety base and instance check still wrong in 3 reproduced sequences (failed fast-road +1 resurrected as base, new in repair; two failed overlapping sends lose a landed figure; press sent onto another screen's cue while own Re-take out); 2 repair guards untested. Checker checker-p32-pp-p32c2-aa0f. https://github.com/NoaCG/NoaCG-Studio/pull/1730#issuecomment-6402935653
