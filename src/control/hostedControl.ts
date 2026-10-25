@@ -1442,6 +1442,9 @@ export async function sendControlVerb(opts: {
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
   const fastRoad = !!showId && !recovering.has(showId);
+  // The hold-back runs on the clock as the send leaves, after any wait for the road; the press's own
+  // time still stamps it and bounds its resends.
+  const sentAt = Date.now();
   // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
   // the operator had seen, read NOW, at the press (or as its road is decided) - not when the send
   // leaves (seqSend.ts).
@@ -1467,14 +1470,14 @@ export async function sendControlVerb(opts: {
     // A clock-free graphic's event is an ordinary command and rides by the same rule as a Take.
     const isEvent = item.msg.t === 'event';
     const mayBeFast = !isEvent || !!opts.fastEvents?.(item.graphic);
-    const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= now;
+    const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= sentAt;
     // AN EVENT THAT DID NOT RIDE STILL HOLDS ITS GRAPHIC BACK, whichever reason kept it off: a
     // clock, a follower mid-catch-up, an unknown show, or an earlier hold. Otherwise the Take
     // behind it would ride the broadcast at about 90 ms while its own row was still in the
     // fan-out's 650 ms slow mode, and a renderer would apply the two in the wrong order.
     if (isEvent && !rides) {
       held.push(key);
-      slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
+      slowUntil.set(key, sentAt + SLOW_AFTER_EVENT_MS);
     }
     if (rides && !overtaken(item.graphic)) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
