@@ -5,6 +5,50 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Fix #1696: the live marker after an overtaking press fails
+
+- **Previous `main` sha:** `cad2f01` (this branch began there).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is persisted, so a revert leaves
+  nothing behind.
+- **Decisions.**
+  - The one sender (`src/control/graphicVerbs.ts`) owns the marker's answers. Every Take and Out
+    leaves through it with a cue marker, so it numbers each marker press at the press and writes
+    the marker from the answers through pure folds in `src/control/liveCue.ts` (`pressMarker`,
+    `answerMarker`, `landedLate`). Take, Out and All out no longer mark after the send. Folder
+    runs and timed cues still write the marker after their answer as before; they write the same
+    value the sender already wrote.
+  - A press that landed names its cue unless a newer marker press of this page landed (a late older
+    answer) or is still out. One that did not land (refused, skipped, superseded, or no answer)
+    puts back the newest press that landed, or the marker from before the first press still out.
+    It does not fall back to an older press that is still out: the marker names a press once it
+    lands. Before a restore, the marker must still name a cue that these presses or that earlier
+    marker named. Otherwise another screen moved it, and it stays.
+  - `pressedAgain` no longer decides the marker. It counted any later press, so an Update or a Next
+    sent after a Take kept that Take's landed cue off the marker. The two Node tests that pinned the
+    old skip now make a real later press.
+  - A press with no answer goes back off the marker. If its row is heard later while it is still
+    this page's newest marker press on that graphic, it is marked (`verbs.heard`, from the page's
+    `hearCommand`).
+  - N1 (`selectionAir.ts`): the follow skips a graphic while this page has a marker press out
+    there (`markersOut`). That marker names the press, not what airs, so an unknown layer is not
+    decided from it, and `airedValues` cannot offer a Take that has no answer yet.
+- **Traps.**
+  - A late commit of a press with no answer is marked only while it is still the newest marker
+    press on its graphic. An older one that commits late after a newer press failed is not
+    followed. The server applies it then, so the marker can trail the output until the next
+    press. This is not worse than before.
+  - On the slow road the marker does not move at the press, so it can lag while a newer press is
+    out. The answers still settle it.
+  - F2 from row 30 (a layer dropped while its candidate airs after a press with no answer commits
+    late) is not fixed here. It fails safe: the layer stops following.
+- **Evidence.** Held-answer tests in `scripts/graphic-verbs.test.mjs` (earlier lands, later
+  overtakes and fails, in both answer orders and on both roads; a late older answer; a failed Take
+  or Out restoring; another screen's marker kept; a row heard late). A seeded walk of 2000 runs
+  (`MARKER_WALKS`) checks the marker against a protocol-2 server model. The walk and four of the
+  tests are red on `cad2f01`. In `scripts/keyed-selection.test.mjs`, the checker's N1 repro is red
+  on `cad2f01`. Fifteen mutants of the folds and the wiring are each killed.
+
 ## Row 30, phase E7.1: election read gate, keyed selectors and resolver
 
 - **Repair 1, 2026-10-25** (independent check `checker-p30-pp-p30c-e6f8` on `cfcf65b`: FAIL).

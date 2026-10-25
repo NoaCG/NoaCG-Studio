@@ -103,3 +103,75 @@ export function pressOuts(
     }
   };
 }
+
+/** One press of this page that writes a graphic's marker (a Take's cue, or null for an Out), by
+ *  its number in press order. */
+interface MarkerPress {
+  n: number;
+  cue: string | null;
+}
+
+/**
+ * THIS PAGE'S MARKER PRESSES ON ONE GRAPHIC, from the first one pressed while none was out (#1696).
+ * The fast road moves the marker at the press (./airState.ts `claimAndApply`), so the answers must
+ * leave it where this page's presses left the output: on the newest that landed, never under a
+ * newer one still out, and back when one fails.
+ */
+export interface MarkerTrack {
+  /** The marker when the first of them was pressed: what stands when none of them lands. */
+  before: string | null;
+  /** Not answered yet, in press order. */
+  out: MarkerPress[];
+  /** The newest that landed. */
+  landed: MarkerPress | null;
+  /** Every cue they and `before` named: a marker naming another was moved by another screen. */
+  named: (string | null)[];
+}
+
+/** Per graphic, while a marker press of this page is out on it. */
+export type MarkerBook = Readonly<Record<string, MarkerTrack>>;
+
+/** A press of number `n` sent a marker naming `cue` on `graphic`; `live` is the marker as it stood. */
+export function pressMarker(book: MarkerBook, live: LiveCueMap, graphic: string, n: number, cue: string | null): MarkerBook {
+  const t = book[graphic];
+  const before = live[graphic] ?? null;
+  const track: MarkerTrack = t ?? { before, out: [], landed: null, named: [before] };
+  return { ...book, [graphic]: { ...track, out: [...track.out, { n, cue }], named: [...track.named, cue] } };
+}
+
+/**
+ * Press `n`'s answer on `graphic`: `landed` when its values reached the output. Returns the book and
+ * what the marker must now name (undefined: leave it). A press that landed names its cue, unless a
+ * newer press of this page landed (a late older answer) or is still out (its own answer decides).
+ * One that did not land puts the marker back on the newest that landed, or on what stood before
+ * them, unless a newer press stands or the marker names a cue none of them did: another screen
+ * moved it since. An older press still out does not count: the marker names it once it lands.
+ */
+export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string, n: number, landed: boolean): { book: MarkerBook; write?: string | null } {
+  const t = book[graphic];
+  const press = t?.out.find((p) => p.n === n);
+  if (!t || !press) return { book };
+  const out = t.out.filter((p) => p.n !== n);
+  const newerLanded = t.landed !== null && t.landed.n > n;
+  const kept = landed && !newerLanded ? press : t.landed;
+  let next: MarkerBook;
+  if (out.length > 0) next = { ...book, [graphic]: { ...t, out, landed: kept } };
+  else {
+    const { [graphic]: _done, ...rest } = book;
+    next = rest;
+  }
+  if (newerLanded || out.some((p) => p.n > n)) return { book: next };
+  if (landed) return { book: next, write: press.cue };
+  const now = live[graphic] ?? null;
+  if (!t.named.includes(now)) return { book: next };
+  const write = t.landed ? t.landed.cue : t.before;
+  return write === now ? { book: next } : { book: next, write };
+}
+
+/** Press `n`, which got no answer, was heard landing after all while it is this page's newest marker
+ *  press on `graphic`: an older press still out no longer marks over it when it lands. */
+export function landedLate(book: MarkerBook, graphic: string, n: number, cue: string | null): MarkerBook {
+  const t = book[graphic];
+  if (!t || (t.landed !== null && t.landed.n > n)) return book;
+  return { ...book, [graphic]: { ...t, landed: { n, cue } } };
+}

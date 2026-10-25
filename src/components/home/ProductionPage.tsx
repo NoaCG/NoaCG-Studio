@@ -1095,6 +1095,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Another screen's commands, told to the live candidates (control/selectionAir.ts
    *  `foreignSelection`); set below, once the layers' io exists. */
   const heardFromOthers = useRef<(items: { graphic: string; msg: ControlEventRow['msg'] }[]) => void>(() => {});
+  /** A marker press of this page that got no answer, heard landing after all (control/graphicVerbs.ts
+   *  `heard`); set below, once the verbs exist. */
+  const heardMarkers = useRef<(items: { graphic: string; msg: ControlEventRow['msg'] }[]) => void>(() => {});
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
   const hearCommand = useCallback(
@@ -1111,6 +1114,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Each command once, on whichever road came first.
       heardFromOthers.current(items.filter((item) => !session.applied.has(item.msg)));
       applyCommand(items);
+      heardMarkers.current(items);
     },
     [applyCommand, folderPlayout, session],
   );
@@ -2012,6 +2016,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const verbPage = useRef<GraphicPage | null>(null);
   const verbs = useMemo(() => createGraphicVerbs(session, GRAPHIC_VERB_IO, () => verbSender.current!, () => verbPage.current!), [session]);
+  heardMarkers.current = verbs.heard;
   const { send: sendVerb, run: runVerb, runSent } = verbs;
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
@@ -2040,6 +2045,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       seeded: selectionSeeded,
       facts: selectionFacts(),
       send: (graphic, values) => runSent([[{ graphic, msg: { t: 'update', data: values } }]], 'Live candidate'),
+      markersOut: verbs.markersOut(),
     });
   useEffect(() => {
     followRef.current();

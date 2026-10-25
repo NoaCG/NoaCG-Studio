@@ -1886,3 +1886,34 @@ describe('generated walks: the layer against the output', () => {
     for (const [kind, n] of Object.entries(seen)) assert.ok(n >= 50, `${kind} reached ${n} times`);
   });
 });
+
+describe('a marker this page moved decides nothing until its press is answered (#1696)', () => {
+  // The row 30 re-checker's N1: Take A (it moves the marker), a plain cue after it, the plain cue
+  // gets no answer, and the follow after the settling reads the marker the unanswered Take moved.
+  const repro = () => {
+    const a = take(selectionOf('D1', 7), collection(5, BASE));
+    const one = air.reduceSelection({}, { t: 'press', graphic: 'Card', cueId: 'cue-a', take: a, seq: air.mintSend(), moves: true, now: 1000 });
+    const two = air.reduceSelection(one.air, { t: 'press', graphic: 'Card', cueId: 'cue-p', take: { status: 'none' }, seq: air.mintSend(), now: 1010 });
+    return air.reduceSelection(two.air, { t: 'answer', graphic: 'Card', seq: two.seq, landed: false, uncertain: true, now: 1020 }).air;
+  };
+  const follow = (state, liveCue, markersOut) =>
+    air.reduceSelection(state, { t: 'follow', liveCue, seeded: true, facts: facts(collection(5, BASE)), mint: air.mintSend, now: 1020 + air.SETTLE_MS + 1, markersOut });
+
+  test('while the Take is out, the layer neither decides nor offers its values as aired', () => {
+    const state = repro();
+    const r = follow(state, { Card: 'cue-a' }, ['Card']);
+    assert.equal(r.air, state);
+    assert.deepEqual(r.sends, []);
+    assert.equal(air.airedValues(r.air, 'Card', 'cue-a'), null);
+    // Without the sender's word the moved marker decides: the hazard this guards.
+    assert.notEqual(air.airedValues(follow(state, { Card: 'cue-a' }).air, 'Card', 'cue-a'), null);
+  });
+
+  test('answered, the marker the sender leaves decides: landed, A airs; failed, the layer is dropped', () => {
+    const landed = follow(repro(), { Card: 'cue-a' }, []).air;
+    assert.deepEqual(air.airedValues(landed, 'Card', 'cue-a'), { f0: 'Aino Aalto', f1: '1200', f2: 'Green' });
+    const failed = follow(repro(), {}, []).air;
+    assert.equal(failed.Card, undefined);
+    assert.equal(air.airedValues(failed, 'Card', 'cue-a'), null);
+  });
+});
