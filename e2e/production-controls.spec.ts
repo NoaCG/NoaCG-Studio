@@ -198,7 +198,7 @@ test('published, a Take is pending until the command log answers, then logged, n
 // row id, where a send that commits late can air over a later Take. It used to go there for good
 // on any refused resolve, silently. Now a refusal is asked again, and a page that does end up
 // there (a server with no sequence road) says so under the on-air chip.
-async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | null): Promise<{ sendsSeq: () => number; sendsById: () => number }> {
+async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | { delay: number } | null): Promise<{ sendsSeq: () => number; sendsById: () => number }> {
   const backend = await standInBackend(page);
   let fixture: unknown = null;
   let seq = 0;
@@ -209,7 +209,8 @@ async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown)
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
     const rpc = new URL(req.url()).pathname.split('/').pop() ?? '';
     const special = answer(rpc, fixture);
-    if (special) return route.fulfill({ status: special.status, headers, body: JSON.stringify(special.body) });
+    if (special && 'delay' in special) await new Promise((r) => setTimeout(r, special.delay));
+    else if (special) return route.fulfill({ status: special.status, headers, body: JSON.stringify(special.body) });
     if (rpc === 'control_show_resolve') return route.fulfill({ status: 200, headers, body: JSON.stringify(fixture) });
     if (rpc === 'control_send_seq') {
       seq += 1;
@@ -257,6 +258,19 @@ test('a press made before the resolve answers is not sent by row id (#1697)', as
   expect(sendsSeq()).toBe(0);
 });
 
+test('a press made while the resolve is on its way waits for it and goes numbered (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  // Each resolve is held 3 s on its way; the reload's is in flight when the operator presses Take.
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'logged', { timeout: 15_000 });
+  expect(sendsSeq(), 'it went numbered once the resolve answered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+});
+
 test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   await publishedPage(page, (rpc, fixture) =>
@@ -267,7 +281,6 @@ test('a page on a server with no sequence road says its order is not guaranteed 
         : null,
   );
   await expect(page.getByTestId('unordered-sends')).toHaveText('⚠ order not guaranteed');
-  await expect(page.getByTestId('unordered-sends')).toHaveAttribute('title', /Reload to try again/);
 });
 
 test('the selected cue is still identifiable once it is on air, and the editor names which one', async ({

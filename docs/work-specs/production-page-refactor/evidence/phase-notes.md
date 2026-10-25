@@ -17,10 +17,14 @@ changes a spec's digest.
   first resolve switched the page for good, silently. A page that sends now goes there at once only
   on PGRST202, and otherwise after five refusals in a row (a lapsed sign-in, 401, does not count),
   so a blip is asked again and a lasting fault still leaves the page working. Until that verdict
-  no press goes by row id: it counts as unanswered, like the resolve. A page on protocol 1 shows
+  no press goes by row id: a press waits for the production's resolve within its resend window,
+  then goes numbered, or counts as unanswered like the resolve. A page on protocol 1 shows
   "order not guaranteed" under the on-air chip (both operator pages, `UnorderedSends`), and its
   automatic sends already hold (`sendsInOrder`, selectionAir.ts). The renderer's rule is unchanged:
   it sends nothing.
+- **Left as is (review):** a page that answered on protocol 2 and later gets PGRST202 (a rolled-back
+  migration) keeps asking rather than switch mid-session (D7). A dev build's double mount counts
+  each refusal twice; production mounts once.
 - **Trap:** a dev build mounts the page's wire twice, so two resolves leave at once: a spec that
   refuses only the first proves nothing (the second rescues the old code). The specs refuse two.
 - **Trap:** a press made before the resolve answered used to go by row id, unordered and unmarked.
@@ -29,7 +33,8 @@ changes a spec's digest.
   now asks again. 42883 no longer counts as proof: it can come from inside the function body.
 - **Tests:** `scripts/failed-sends.test.mjs` pins the rule for both askers.
   `e2e/production-controls.spec.ts` (offline) refuses the first resolves and checks the Take goes
-  numbered with no mark, holds a press made during an outage, and shows the mark on PGRST202.
+  numbered with no mark, holds a press made during an outage, sends a press made while the resolve
+  is on its way numbered once it answers, and shows the mark on PGRST202.
   Each was mutation-tested against the old rule. `e2e/configured/command-sequence.spec.ts`
   refuses the first resolve with a 500, then holds a Take 6 s and presses Out: the late Take is
   left out and never airs. The configured election spec now also expects the mark on protocol 1.

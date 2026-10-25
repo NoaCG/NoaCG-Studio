@@ -1659,10 +1659,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // per-production layer names and collide freely.
     starting: () => {
       fastEventGraphicsRef.current = new Set();
-      setUnordered(false);
     },
     resolved: (resolved) => {
-      setUnordered(!resolved.seq);
+      // Protocol 1 is the whole document's for good (hostedControl.ts `seqRoad`), so the mark is
+      // never cleared, not even while a reconnect's resolve waits.
+      if (!resolved.seq) setUnordered(true);
       setOutputSeenAt(resolved.outputSeenAt);
       setPublishedStamp(resolved.output?.ver ?? null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);

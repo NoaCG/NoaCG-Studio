@@ -6,7 +6,7 @@
  */
 export function UnorderedSends({ testId }: { testId: string }) {
   return (
-    <span className="pd-onair-line pd-unordered" title="A late send can air over a later one. Reload to try again." data-testid={testId}>
+    <span className="pd-onair-line pd-unordered" data-testid={testId}>
       ⚠ order not guaranteed
     </span>
   );

@@ -1001,6 +1001,13 @@ async function askSeqRoad(
   return undefined;
 }
 
+/** Until this production's road is decided - its resolve answered on protocol 2, or the server has
+ *  none - or `deadline` passes. At once with no backend: there is nothing to send to. */
+async function roadDecided(slug: string, deadline: number): Promise<void> {
+  if (!(await getSupabase().catch(() => null))) return;
+  while (!seqSessions.has(slug) && !givenUp() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+}
+
 /** Per control slug, what this page knows of the head (seqSend.ts). Set by the resolve, kept
  *  current by the follow's frames and by every answer; `sendControlVerb` sends proto 2 when one
  *  exists for its slug. */
@@ -1413,6 +1420,9 @@ export async function sendControlVerb(opts: {
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
   const fastRoad = !!showId && !recovering.has(showId);
+  // A press made before this production's resolve has decided the road waits for it, within its own
+  // resend window: sent by row id instead, it would have no per-graphic order (#1697).
+  if (!seqSessions.has(opts.slug)) await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
   // the operator had seen, read NOW, at the press - not when the send leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
@@ -1470,10 +1480,9 @@ export async function sendControlVerb(opts: {
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
       // commit after a later press. By row id only once this server is known to have no sequence
-      // road: before this production's resolve answers, a send that way would have no per-graphic
-      // order and no mark saying so, so it counts as unanswered like the resolve itself (#1697).
+      // road: a press whose wait for the resolve ran out counts as unanswered, like the resolve.
       await sendWithResend(async (signal) => {
-        if (seqRoad !== 'absent' && (await getSupabase())) throw unansweredError();
+        if (!givenUp() && (await getSupabase().catch(() => null))) throw unansweredError();
         await sendHostedControlBatch(opts.slug, wire, signal);
       }, resend);
     }

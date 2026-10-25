@@ -100,12 +100,12 @@ export function isRefusal(status: number, code?: string): boolean {
  *
  * Today's road has no per-graphic order: a press abandoned on its way that commits late airs over
  * a later Take, so a page there shows it (`UnorderedSends`) and sends nothing on its own, and no
- * press goes that way before this verdict (hostedControl.ts `sendControlVerb`). A page
+ * press goes that way before this verdict (hostedControl.ts `roadDecided`). A page
  * that sends goes there at once only on PostgREST's "no such function", and otherwise only after
  * REFUSALS_BEFORE_ABSENT refusals in a row; one transient 500 used to cost it its order for good,
- * without a word (#1697). Never once the road has answered: a page does not change protocol
- * mid-session. A page that only follows loses no order on today's road, so any answer decides
- * there, as do its timeouts.
+ * without a word (#1697). Never once the road has answered: a page that sends does not change
+ * protocol mid-session. A page that only follows loses no order on today's road, so any answer
+ * decides there, as do its timeouts (its rule from before #1697, unchanged).
  */
 export function seqRoadVerdict(
   status: number,
