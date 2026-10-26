@@ -220,7 +220,7 @@ test('the graphics topic has one page per type, each with its file, layers and n
     ['quiz', 'quiz.svg', ['Question', 'Answer A', 'Selected A', 'Correct A', 'Wrong A', 'Locked in', 'Answer box D']],
     ['svg-vote', 'live-vote.svg', ['Option 1', 'Bar 1', 'Percent 1', 'Winner 1', 'Vote badge']],
     ['countdowns', 'countdown.svg', ['05:00', 'Timer bar', 'Warning', 'Paused', 'Time up']],
-    ['end-credits', 'end-credits.svg', ['Heading', 'Credits']],
+    ['end-credits', 'end-credits.svg', ['Credits']],
     ['tickers', 'ticker.svg', ['Kicker', 'Story', 'Kicker box', 'Panel']],
   ];
   for (const [id, file, names] of types) {
@@ -241,11 +241,11 @@ test('the graphics topic has one page per type, each with its file, layers and n
     for (const name of names) await expect(type).toContainText(name);
     const layers = type.locator('.layers > ul > li > .lyr .nm');
     const moments = !['end-credits', 'tickers'].includes(id);
-    expect(await layers.allTextContents()).toEqual(moments ? ['Text', 'Moments', 'Board'] : ['Text', 'Board']);
+    expect(await layers.allTextContents()).toEqual(id === 'end-credits' ? ['Text'] : moments ? ['Text', 'Moments', 'Board'] : ['Text', 'Board']);
   }
-  // ONE example file per type, so a student never meets two structures for the same graphic
-  // (owner, 2026-09-21). The lower-third variants are gone and stay gone.
-  await expect(page.locator('a[href*="lower-third"]')).toHaveCount(0);
+  // One lower-third file in the complete examples gallery; no retired variant links return.
+  await expect(page.locator('a[href*="lower-third"]')).toHaveCount(1);
+  await expect(page.locator('#svg-example-files a[href="/docs/examples/svg-examples/lower-third.svg"]')).toHaveCount(1);
   // The Layer names page opens with the system: the three layers, the row rule, one full tree
   // and the table of every name, generated from words.json so it cannot drift from the matcher.
   const layerNames = page.locator('#svg-layers');

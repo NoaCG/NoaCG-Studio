@@ -61,7 +61,7 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
         fields, images: [], outlines: [], fonts: [],
         behaviour: {
           kind: 'recipe', recipe: 'credits', layers: {},
-          fields: { credits: fields.findIndex((f) => f.title === 'Credits') },
+          fields: { credits: fields.findIndex((f) => f.title === 'Programme text') },
           options: { artwork: true },
         },
       },
@@ -77,6 +77,9 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
   for (const { motion, html } of documents) {
     await page.goto('about:blank');
     await page.setContent(html);
+    // Static authoring previews seek with callbacks suppressed, so the original drawing must
+    // remain visible before Take. Playback itself hides it until entrance/fonts are ready.
+    await expect(page.locator('.imported-design-credits')).toHaveCSS('visibility', 'visible');
     await page.evaluate(() => (window as unknown as { play(): void }).play());
     await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${motion}: the roll starts after its entrance`).toBe(true);
     await expect.poll(() => page.locator('.imported-design-box').evaluate((el) => {
@@ -143,8 +146,10 @@ test('imported artwork credits preserve the complete design and roll off the who
     }));
   }, readFileSync(ARTWORK_CREDITS_SVG, 'utf8'));
   await dropSvg(page, ARTWORK_CREDITS_SVG);
-  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('credits');
-  await expect(page.getByTestId('map-svg-recipe-credits').locator('option:checked')).toHaveText('Credits');
+  // A single Illustrator text object needs no special layer name or second binding step.
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  await expect(page.getByTestId('map-svg-recipe-credits').locator('option:checked')).toHaveText('Programme text');
   await intoProduction(page, 'Night sky credits', 'Night sky');
   await settleDurableWrites(page);
   await page.getByTestId('verb-take').click();

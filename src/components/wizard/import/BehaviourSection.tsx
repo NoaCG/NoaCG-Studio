@@ -577,6 +577,9 @@ export default function BehaviourSection({
                     kind: 'recipe',
                     recipe: want,
                     layers: {},
+                    // Choosing Credits is enough for a design with one text object, whatever
+                    // Illustrator named it. Multiple objects still require an explicit pick.
+                    ...(want === 'credits' && onFields.length === 1 ? { fields: { credits: onFields[0].candidateId } } : {}),
                     ...(wanted.rows ? { rows: Array.from({ length: wanted.rows.min }, emptyRecipeRow) } : {}),
                     options: {},
                   };

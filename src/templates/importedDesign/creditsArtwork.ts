@@ -7,8 +7,7 @@ import { creditsClass } from './creditsRoll';
 export function creditsArtworkCss(prefix: string): string {
   return `/* The output frame clips the roll; the SVG must retain text beyond its artboard. */
 .${prefix}-art { overflow: visible; }
-.${prefix}-credits-travel { visibility: hidden; }
-.${prefix}-credits-travel[data-noacg-rolling] { visibility: visible; }`;
+.${prefix}-credits-travel[data-noacg-stopped] { visibility: hidden; }`;
 }
 
 export function creditsArtworkRuntimeJs(prefix: string, frameHeight: number): string {
@@ -49,7 +48,10 @@ function stopCreditsRoll() {
   if (noacgCreditsTween) noacgCreditsTween.kill();
   noacgCreditsTween = null;
   var artwork = creditsArtwork();
-  if (artwork) artwork.travel.removeAttribute('data-noacg-rolling');
+  if (artwork) {
+    artwork.travel.removeAttribute('data-noacg-rolling');
+    artwork.travel.setAttribute('data-noacg-stopped', '');
+  }
 }
 
 function noacgCreditsRoll() {
@@ -84,6 +86,7 @@ function noacgCreditsRoll() {
       travel.setAttribute('transform', 'translate(' + (inverse.c * position.y) + ' ' + (inverse.d * position.y) + ')');
     };
     paint();
+    travel.removeAttribute('data-noacg-stopped');
     travel.setAttribute('data-noacg-rolling', '');
     noacgCreditsBuiltAt = speed;
     noacgCreditsLast = {

@@ -254,7 +254,7 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
        them; everything else is untouched. -->
   <div class="${PREFIX}">
     <div class="${PREFIX}-box">
-${inlineSvg}${clockHolder}${creditsHolder}${behaviour ? behaviour.html(artworkFields.length) : ''}
+${artworkRoll ? '    <!-- prettier-ignore -->\n' : ''}${inlineSvg}${clockHolder}${creditsHolder}${behaviour ? behaviour.html(artworkFields.length) : ''}
     </div>
   </div>`,
   });

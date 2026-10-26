@@ -97,3 +97,17 @@ example and qualify the examples before publishing a complete SVG import example
 - Browser/playout acceptance is pending. Local job `j-4703` was queued but RAM remains
   below the existing floor; authoritative GitHub Actions checks will supply browser evidence.
   Publication remains blocked until those checks and the landing workflow pass.
+- First PR CI run `40303018279` at `7d3e85854`: factory and catalog checks passed;
+  browser checks verified legacy playback, universal entrances and 14 individual behavior
+  examples. The artwork journey caught formatter-inserted whitespace in three original
+  text runs. New artwork SVGs now carry a formatter-ignore marker so their contents survive
+  code formatting unchanged. Two new example checks used layer-role selectors for field
+  roles; they now resolve the real field ids and keep their score/position assertions.
+- Documentation checks exposed the removed legacy Heading/Board assumptions and missing
+  replacement figures. The guide now asserts the new Text-only structure, keeps both figure
+  slots and uses the new native artwork preview. The actual import-step capture is attached
+  by the example qualification journey and will replace the older fields PNG before landing.
+- Explicitly choosing Credits now binds a sole enabled text candidate without requiring
+  a special layer name. The independent fixture exercises this with Programme text.
+- Repair also shortened the updated orchestrator instructions to the existing 170-line cap;
+  the shared-instruction checker passes without changing its limits.

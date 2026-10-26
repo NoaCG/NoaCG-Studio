@@ -268,6 +268,12 @@ interface Example { slug: string; name: string; recipe: string | null }
 const examples = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-examples/examples.json', import.meta.url), 'utf8')) as Example[];
 const selection: Record<string, string> = { vote: 'poll', countdown: 'timer' };
 const role = (air: FrameLocator, name: string) => air.locator(`[data-noacg-role~="${name}"]`);
+async function fieldLayer(air: FrameLocator, name: string, row: string) {
+  const id = await air.locator('svg').first().evaluate((_, pick) =>
+    (window as unknown as { noacgFieldFor(role: string, key: string): string | null }).noacgFieldFor(pick.name, pick.row), { name, row });
+  expect(id, `${name}/${row} binds an artwork field`).toMatch(/^f\d+$/);
+  return air.locator(`[id="${id}"]`);
+}
 
 async function fill(page: Page, air: FrameLocator, title: string, value: string) {
   const field = await air.locator('svg').first().evaluate((_, name) => {
@@ -290,7 +296,7 @@ test('the advertised behavior inventory equals the live import registry', async 
 });
 
 for (const example of examples.filter((entry) => entry.recipe)) {
-  test(`${example.name}: its Illustrator export imports and its controls change the output`, async ({ page }) => {
+  test(`${example.name}: its Illustrator export imports and its controls change the output`, async ({ page }, testInfo) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/app');
@@ -303,6 +309,11 @@ for (const example of examples.filter((entry) => entry.recipe)) {
     } else {
       await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(selection[example.recipe!] ?? example.recipe!);
       await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+    }
+    if (example.recipe === 'credits') {
+      await expect(page.locator('.wz-stage').first()).not.toHaveAttribute('data-doc-pending', '1');
+      await expect(page.locator('.wz-stage').first()).toHaveAttribute('data-doc-rev', /\d/);
+      await testInfo.attach('Credits import fields', { body: await page.screenshot(), contentType: 'image/png' });
     }
     await intoProduction(page, example.name, `${example.name} qualification`);
     await settleDurableWrites(page);
@@ -319,7 +330,7 @@ for (const example of examples.filter((entry) => entry.recipe)) {
         break;
       case 'score':
         await page.getByTestId('cue-action-score1').click();
-        await expect(role(air, 'score/1')).toHaveText('1');
+        await expect(await fieldLayer(air, 'score', '1')).toHaveText('1');
         break;
       case 'countdown':
         await page.getByTestId('cue-action-pause').click();
@@ -328,12 +339,14 @@ for (const example of examples.filter((entry) => entry.recipe)) {
         await expect(role(air, 'paused')).not.toHaveClass(/imported-design-on/);
         break;
       case 'ranking': {
-        const before = await role(air, 'competitor/3').evaluate((el) => el.getBoundingClientRect().top);
-        const firstPlace = await role(air, 'competitor/1').evaluate((el) => el.getBoundingClientRect().top);
+        const competitor = await fieldLayer(air, 'competitor', '3');
+        const leader = await fieldLayer(air, 'competitor', '1');
+        const before = await competitor.evaluate((el) => el.getBoundingClientRect().top);
+        const firstPlace = await leader.evaluate((el) => el.getBoundingClientRect().top);
         expect(before).toBeGreaterThan(firstPlace + 1);
         await fill(page, air, 'Points 3', '99');
         await page.getByTestId('verb-update').click();
-        await expect.poll(() => role(air, 'competitor/3').evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(firstPlace, 0);
+        await expect.poll(() => competitor.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(firstPlace, 0);
         break;
       }
       case 'vote':
