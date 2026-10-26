@@ -85,8 +85,32 @@ changes a spec's digest.
     makes the check go red (measured).
   - Chromium 71 parses dynamic `import()`, `import.meta` and BigInt but not `?.`, `??` or
     `export * as`: the check parses at ecmaVersion 2020 and refuses those three.
-- **Touched files against `42c48f9`:** FILELIST
-- **Mutation checks:** MUTATIONS
+- **Touched files against `42c48f9`:** `src/model/ografTyped.ts` (new), `src/model/shows.ts`, `src/model/rundownHistory.ts`,
+  `src/model/productionData.ts`, `src/control/selectionAir.ts`, `src/control/cueAuto.ts`,
+  `src/control/graphicVerbs.ts`, `src/components/home/ProductionPage.tsx`, `src/output/main.ts`,
+  `scripts/check-output-reader.mjs` (new), `scripts/ograf-typed.test.mjs` (new),
+  `scripts/graphic-verbs.test.mjs`, `scripts/fixtures/ograf-typed/*.ograf.json` (new),
+  `package.json` (the check's script and `acorn` as a declared dev dependency, already installed
+  through eslint), `package-lock.json`, and this file. Inside the spec's fence (`types.ts` and
+  `shows.ts`, command validation, the output) except: `rundownHistory.ts` (the undo is a write
+  door, as in E7.1), `productionData.ts` (`preparedCue`, the one predicate the hosted page, the
+  exported controller, the SPX rundown and a timed end read), `selectionAir.ts` (`selectionTake`,
+  the one question every Take, Update and Take refusal asks), `cueAuto.ts`, `graphicVerbs.ts` and
+  `ProductionPage.tsx` (the live presses and the editor's read-only line). No exporter,
+  `ografContract.ts`, `ografSchema.ts`, `ografImport.ts`, `ografHost.ts`, `foreignOgraf.ts`,
+  `sourceMapping.ts` or wire type changed: exported packages and the native wire are unchanged
+  byte for byte.
+- **Mutation checks:** 37 source mutations, each red: a pinned schema hash; each bound changed by one; the
+  closed object, the enum, required, null read as missing, a package pattern run, the lossless
+  number and JSON checks, a later version or another standard read as readable, the wire reader
+  reading nothing, the hold (a `play` let through, an update not lifting it), an action envelope
+  on a cue read as readable, the whole-cue freeze, a removed read-only cue, a gained envelope with
+  and without kept cues, an unsupported keyword not noted, the colour, maximum and multipleOf
+  checks, the receipt's key order, an action without a schema taking arguments; both writes of
+  `patchShowChecked` and the undo without the door; `selectionTake`, `preparedCue` and
+  `nextGraphicCue` without the refusal; each of the three live presses without it; the output's
+  call of the gate. The after-build check goes red on a built bundle with `?.`, `??` or
+  `export * as` appended, and on a build whose `main.ts` no longer calls the gate.
 
 ## Row 32d (L2.2, project phase 36): type and colour per graphic and cue
 
