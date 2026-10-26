@@ -412,14 +412,45 @@ const WEIGHT_NAMES: Record<number, string> = {
 };
 /**
  * The weights a typeface can really draw (R1.2b.2), for a font family or stack: a bundled face's
- * own range in steps of 100, so a choice never falls back to a browser-synthesised bold; a face the
- * app does not bundle, Regular to Extra bold. Named as type menus name them.
+ * own range in steps of 100, so a choice never falls back to a browser-synthesised bold (Bebas
+ * Neue and Anton answer Regular alone); an IMPORTED face (`imported` names the families a
+ * template ships as its own files) Regular alone, because its one file declares no weight and
+ * whatever it really is, a heavier request would be drawn synthesised; any other family, Regular
+ * to Extra bold. Named as type menus name them.
  */
-export function fontWeights(family: string): { value: number; label: string }[] {
-  const [low, high] = fontByStack(family)?.weights ?? [400, 800];
+export function fontWeights(family: string, imported: readonly string[] = []): { value: number; label: string }[] {
+  const named = stackFamily(family);
+  const isImported = !!named && imported.some((f) => fontNameKey(f) === fontNameKey(named));
+  const [low, high] = isImported ? [400, 400] : fontByStack(family)?.weights ?? [400, 800];
   const weights: { value: number; label: string }[] = [];
   for (let w = Math.ceil(low / 100) * 100; w <= high; w += 100) weights.push({ value: w, label: WEIGHT_NAMES[w] });
   return weights;
+}
+
+/** The first family a `font-family` value names, unquoted. */
+function stackFamily(value: string): string | null {
+  return (/^\s*"([^"]+)"/.exec(value) ?? /^\s*'([^']+)'/.exec(value) ?? /^\s*([^,]+)/.exec(value))?.[1]?.trim() ?? null;
+}
+
+/**
+ * A `font-weight` value clamped to the nearest weight the face can really draw
+ * ({@link fontWeights}), so `--display-weight: 800` on Bebas Neue or an imported face asks for
+ * Regular instead of a bold the browser would invent by smearing the outlines. A value that is
+ * not a plain weight (`var(...)`, `bolder`) is left as written.
+ */
+export function clampFontWeight(value: string, family: string, imported: readonly string[] = []): string {
+  const trimmed = value.trim();
+  const asked = trimmed === 'normal' ? 400 : trimmed === 'bold' ? 700 : /^\d{3}$/.test(trimmed) ? Number(trimmed) : null;
+  if (asked === null) return value;
+  const real = fontWeights(family, imported).map((w) => w.value);
+  if (real.length === 0 || real.includes(asked)) return value;
+  const nearest = real.reduce((best, w) => (Math.abs(w - asked) < Math.abs(best - asked) ? w : best), real[0]);
+  return String(nearest);
+}
+
+/** The families a stylesheet ships as imported files (their `/* Imported font` blocks). */
+export function importedFontFamilies(css: string): string[] {
+  return [...css.matchAll(/\/\* Imported font[^*]*\*\/\s*@font-face\s*\{[^}]*?font-family:\s*"([^"]+)"/g)].map((m) => m[1]);
 }
 
 /**
@@ -584,8 +615,9 @@ export function customFontFaceCss(font: CustomFont): string {
   font-family: "${font.family}";
   src: url("${font.asset.path}") format("${font.format}");
   font-display: swap;          /* show fallback text until the font loads */
-  /* Single file: the browser synthesizes bold/italic. Add more @font-face rules
-     with their own files for true weights. */
+  /* Single file: its weights are unknown, so the style controls offer Regular only and a
+     heavier heading weight is drawn as this file is. Add more @font-face rules with their
+     own files and font-weight for true weights. */
 }`;
 }
 

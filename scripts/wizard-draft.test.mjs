@@ -300,3 +300,33 @@ test('buildDraftTemplate: the Finish name, the font stack, declared overrides on
     await browser.close();
   }
 });
+
+test('buildDraftTemplate: the heading weight is one the chosen face really draws', async () => {
+  const scripts = await Promise.all([
+    browserScript(src('components/wizard/draft.ts'), 'NOACG_DRAFT'),
+    browserScript(src('templates/catalog.ts'), 'NOACG_CATALOG'),
+  ]);
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    for (const content of scripts) await page.addScriptTag({ content });
+    const seen = await page.evaluate(() => {
+      const { initialDraft, mergeDraft, buildDraftTemplate } = window.NOACG_DRAFT;
+      const cssVar = (css, name) => new RegExp(`--${name}:\\s*([^;]+);`).exec(css)?.[1]?.trim() ?? null;
+      // lt33: a sport-family strap whose default face is Bebas Neue, one static weight.
+      const variant = window.NOACG_CATALOG.variantById('lt33');
+      const picked = mergeDraft(initialDraft(), { category: variant.category, variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) });
+      const weightOf = (patch) => cssVar(buildDraftTemplate(variant, mergeDraft(picked, patch)).css, 'display-weight');
+      return {
+        bebas: weightOf({}),
+        bebasAsked900: weightOf({ cssVarOverrides: { 'display-weight': '900' } }),
+        archivoAsked900: weightOf({ fontId: 'archivo', cssVarOverrides: { 'display-weight': '900' } }),
+      };
+    });
+    assert.equal(seen.bebas, '400', 'the family weight is clamped to Bebas Neue\'s one weight');
+    assert.equal(seen.bebasAsked900, '400', 'an override the face cannot draw is clamped too');
+    assert.equal(seen.archivoAsked900, '900', 'a weight the face has is kept');
+  } finally {
+    await browser.close();
+  }
+});

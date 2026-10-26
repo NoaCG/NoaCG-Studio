@@ -5,6 +5,22 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 32d prerequisite: phase 0 item 2, real heading weights
+
+- **Base:** `1dcf26d` (row 32c passed). **Revert:** `git revert <merge sha>` in an isolated
+  worktree, then `/check` and `/queue-merge`; a graphic built meanwhile keeps its clamped weight.
+- **What:** the heading weight is one the face really draws. `fontWeights(family, imported)`
+  answers Regular alone for Bebas Neue, Anton and an imported face (one file, no declared
+  weight); `clampFontWeight` moves `--display-weight` to the nearest real weight wherever it is
+  written: the build's tokens (`rootVarsCss`), a look (`applyLookToTemplate`), the wizard's
+  overrides (`buildDraftTemplate`). The Style panel's weight row and the editor's artwork weight
+  list offer only real weights. Visible on one catalog design, lt43 (Bebas Neue at the sport
+  family's 800, drawn as a smeared synthetic bold; now Bebas as drawn). 70 others change CSS
+  only (Oswald 800 to 700, Space Grotesk 800 to 700: their maximum, which the browser drew).
+- **Decision:** clamping, not `font-synthesis: none`. CasparCG 2.3's Chromium 71 ignores
+  `font-synthesis` (it arrived in Chromium 97), so only a clamp holds there; a literal
+  `font-weight: 700` a design writes for its own default face stays the design's.
+
 ## Row 32c (L2.1b, project phase 35): place and size in receivers and exports
 
 - **Previous verified `main` sha:** `9866960` (row 32 passed, PR #1735; row 32b passed on

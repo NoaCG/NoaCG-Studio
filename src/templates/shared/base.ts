@@ -17,6 +17,7 @@ import {
   numericFaceFor,
   numericFontFaceCss,
   numericFontStack,
+  clampFontWeight,
   type BundledFont,
 } from '../../model/fonts';
 import { TOKEN_VARS, type ThemeTokens, tokenVarsCss } from '../../model/themeTokens';
@@ -241,7 +242,13 @@ export function rootVarsCss(
       : `\n  --type-scale: ${o.typeScale};                  /* text-only size multiplier (on top of --scale) */`;
   // `--font-numeric` is the one token that follows the CHOSEN typeface rather than the family,
   // so the family default is replaced here with the answer for the face actually in use.
-  const tokens = opts.tokens && { ...opts.tokens, fontNumeric: resolveNumericStack(o) };
+  // `--display-weight` is clamped to a weight the chosen face really has: the sport family's 800
+  // on Bebas Neue (one weight) would otherwise be a bold the browser synthesises.
+  const tokens = opts.tokens && {
+    ...opts.tokens,
+    fontNumeric: resolveNumericStack(o),
+    displayWeight: clampFontWeight(opts.tokens.displayWeight, headingStack, o.customFont ? [o.customFont.family] : []),
+  };
   const tokenLines = tokens && opts.consumerCss ? tokenVarsCss(tokens, opts.consumerCss) : '';
   // When that answer is a bundled SIBLING rather than the heading face, its bytes have to ship
   // too. Emitted here because this is the one place that knows the token was declared at all -
