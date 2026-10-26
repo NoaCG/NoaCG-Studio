@@ -3,7 +3,7 @@
 // embedded one, or a comment naming what playout must supply. Pure text from the import's font
 // matches, tested in Node (scripts/svg-font-css.test.mjs).
 
-import { customFontFaceCss, fontFaceCss, FONTS, type BundledFont } from '../../model/fonts';
+import { bundledFaceRules, customFontFaceCss, fontFaceCss, FONTS, type BundledFont } from '../../model/fonts';
 import type { DesignSvg } from '../../model/wizard';
 
 /** A bundled face declared under the name the artwork asks for - same file, second name. The
@@ -21,12 +21,7 @@ function aliasFontFaceCss(font: BundledFont, family: string, weight?: number): s
     : `  font-weight: ${pinned};            /* the name says this one weight, and the artwork states no other: pin the variable file to it */`;
   return `/* Bundled open-source font (the file ships with the export - no internet at playout).
    Declared as "${family}" because that is the name this artwork's own CSS asks for; the file is ${font.family}. */
-@font-face {
-  font-family: "${family}";
-  src: url("fonts/${font.file}") format("woff2");
-${weightLine}
-  font-display: swap;          /* show fallback text until the font loads */
-}`;
+${bundledFaceRules(family, font, weightLine)}`;
 }
 
 /**
