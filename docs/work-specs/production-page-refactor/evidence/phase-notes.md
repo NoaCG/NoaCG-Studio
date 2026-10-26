@@ -68,7 +68,9 @@ changes a spec's digest.
   pinned as a test, since main's reader becomes this one when this lands.
 - **Limits:** an exported package's relay receiver sets the variables and declares no faces: the
   package ships every face its graphic and cues name at export, so a face chosen after the export
-  needs a new one. `/output`, PROGRAM and the hosted page go through `output/stage.ts`, which
+  needs a new one. When a row changes the face, the receiver runs the template's `update()` again
+  with the same values once the face has loaded, the refit a fit handed to `document.fonts.ready`
+  would otherwise never get; the export dialog measures each box in the face its fold sets. `/output`, PROGRAM and the hosted page go through `output/stage.ts`, which
   declares the faces. Each bake's parity is held at row 32c's `RESIDUAL_BOUND` 1000 (max measured
   551; unstyled 4720 to 67746), not loosened.
 - **Touched files against `ffe53a0`:** `cli/plugin/skills/noacg-graphic/references/contract.md`, `cli/plugin/skills/noacg-graphic/references/validator.md`, `cli/skill/noacg-graphic/references/contract.md`, `cli/skill/noacg-graphic/references/validator.md`, `cli/src/bridgeClient.ts`, `cli/src/commands/inspect.ts`, `cli/test/unit.test.mjs`, `docs/work-specs/production-page-refactor/evidence/phase-notes.md`, `e2e/import-svg-behaviour.spec.ts`, `e2e/playout-adjust-documents.spec.ts`, `e2e/playout-adjust.spec.ts`, `e2e/production-controls.spec.ts`, `scripts/cue-adjust.test.mjs`, `scripts/lib/tsResolve.mjs`, `src/bridge/bridgeApi.ts`, `src/components/home/CueAdjust.tsx`, `src/components/home/PlayoutMonitors.tsx`, `src/components/home/ProductionPage.tsx`, `src/components/home/exportAppearances.ts`, `src/components/home/measureCue.ts`, `src/control/adjustGeometry.ts`, `src/control/appearanceRuntime.ts`, `src/control/cueAdjust.ts`, `src/control/cueStyle.ts`, `src/control/exportAppearance.ts`, `src/export/showExport.ts`, `src/export/targets/ograf.ts`, `src/model/adjust.ts`, `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`, `src/styles/playout-dashboard.css`.
