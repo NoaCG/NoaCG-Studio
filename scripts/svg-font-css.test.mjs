@@ -65,6 +65,10 @@ test('a bundled face under the artwork\'s own name is an alias pinned to the wei
   assert.equal(weightOf(css([{ family: 'Archivo-Heavy', fontId: 'archivo', weight: 950 }]), 'Archivo-Heavy'), '900');
   // A name that states no weight keeps the whole range, as the bundled declaration does.
   assert.equal(weightOf(css([{ family: 'Archivo-Narrow', fontId: 'archivo' }]), 'Archivo-Narrow'), '400 900');
+  // A STATIC file (one weight) is never pinned: it declares 100-900, so a bold the artwork asks
+  // for draws the file as it is rather than a synthesised smear.
+  assert.equal(weightOf(css([{ family: 'BebasNeue-Bold', fontId: 'bebas-neue', weight: 700 }]), 'BebasNeue-Bold'), '100 900');
+  assert.equal(weightOf(css([{ family: 'Anton-Regular', fontId: 'anton' }]), 'Anton-Regular'), '100 900');
 });
 
 test('an embedded face is the custom declaration; a bundled id wins over it', () => {

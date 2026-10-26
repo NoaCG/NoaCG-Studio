@@ -5,21 +5,32 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
-## Row 32d prerequisite: phase 0 item 2, real heading weights
+## Row 32d prerequisite: phase 0 item 2, no synthesised bold, real heading weights
 
 - **Base:** `1dcf26d` (row 32c passed). **Revert:** `git revert <merge sha>` in an isolated
-  worktree, then `/check` and `/queue-merge`; a graphic built meanwhile keeps its clamped weight.
-- **What:** the heading weight is one the face really draws. `fontWeights(family, imported)`
-  answers Regular alone for Bebas Neue, Anton and an imported face (one file, no declared
-  weight); `clampFontWeight` moves `--display-weight` to the nearest real weight wherever it is
-  written: the build's tokens (`rootVarsCss`), a look (`applyLookToTemplate`), the wizard's
-  overrides (`buildDraftTemplate`). The Style panel's weight row and the editor's artwork weight
-  list offer only real weights. Visible on one catalog design, lt43 (Bebas Neue at the sport
-  family's 800, drawn as a smeared synthetic bold; now Bebas as drawn). 70 others change CSS
-  only (Oswald 800 to 700, Space Grotesk 800 to 700: their maximum, which the browser drew).
-- **Decision:** clamping, not `font-synthesis: none`. CasparCG 2.3's Chromium 71 ignores
-  `font-synthesis` (it arrived in Chromium 97), so only a clamp holds there; a literal
-  `font-weight: 700` a design writes for its own default face stays the design's.
+  worktree, then `/check` and `/queue-merge`; a graphic built meanwhile keeps its CSS.
+- **What:** Bebas Neue, Anton (one static weight each) and an imported face (one file, no known
+  weight) declare `font-weight: 100 900` in their `@font-face`: the heading, label and supporting
+  faces (`faceWeightLine`), an imported SVG's alias of a static face (`svgFonts.ts`, never pinned)
+  and an imported face (`customFontFaceCss`). Blink synthesises a bold only when the matched face's
+  declared range tops out below 600, so every request, the heading token or a literal
+  `font-weight: 700` (316 designs write 600 to 900), draws the file as it is. The menus offer real
+  weights only (`fontWeights(family, imported)`: Regular for those three); the build
+  (`rootVarsCss`) and the wizard's overrides (`buildDraftTemplate`) write `--display-weight`
+  clamped to a real weight of a face the app knows (`clampFontWeight`; a system or installed family
+  is never narrowed). A look is not clamped: rewriting the stored weight there would lose it for a
+  later look on a face with a bold.
+- **Decision, and the departure from item 2's wording:** the spec names a clamp or
+  `font-synthesis: none`. `font-synthesis` arrived in Chromium 97, so CasparCG 2.3's Chromium 71
+  ignores it; a clamp alone leaves literal weights smearing after a face swap. The range
+  descriptor (honoured since Chromium 62) is the mechanism; the clamp keeps the CSS honest.
+  First cut (clamp only) was Assessment B in its independent review for exactly that.
+- **Visible:** lt43 (Bebas Neue at the sport family's 800) drew a smeared synthetic bold; now
+  Bebas as drawn, same box. 75 other designs change CSS only (an Oswald or Space Grotesk 800 to
+  their real 700, or Bebas Neue and Anton's descriptor).
+- **Not reached:** saved graphics and earlier exports keep their old `400 400` face until rebuilt
+  or retyped (#1746 has the latin-ext half of the same gap). The builder's own UI faces
+  (`wizard-and-dialogs.css`, the join page, the video fonts) still declare 400: outside the graphic.
 
 ## Row 32c (L2.1b, project phase 35): place and size in receivers and exports
 

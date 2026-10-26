@@ -427,9 +427,9 @@ const WEIGHT_NAMES: Record<number, string> = {
  * The weights a typeface can really draw (R1.2b.2), for a font family or stack: a bundled face's
  * own range in steps of 100, so a choice never falls back to a browser-synthesised bold (Bebas
  * Neue and Anton answer Regular alone); an IMPORTED face (`imported` names the families a
- * template ships as its own files) Regular alone, because its one file declares no weight and
- * whatever it really is, a heavier request would be drawn synthesised; any other family, Regular
- * to Extra bold. Named as type menus name them.
+ * template ships as its own files) Regular alone, because its one file's weights are unknown (it
+ * declares 100-900 so that no request is synthesised, see `customFontFaceCss`); any other family,
+ * Regular to Extra bold. Named as type menus name them.
  */
 export function fontWeights(family: string, imported: readonly string[] = []): { value: number; label: string }[] {
   const named = stackFamily(family);
