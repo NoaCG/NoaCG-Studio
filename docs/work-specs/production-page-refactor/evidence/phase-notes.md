@@ -66,14 +66,17 @@ changes a spec's digest.
     last render's offer stood between a replacement and the press (the /so on `2e514a4`).
   - *Ran is not done*: the module shows "Running on the graphic" after `result` and what `settled`
     says after; with no `settled` in 15 s it reads "Not confirmed" and the press is never sent again.
-  - *The offer is capped at 96,000 characters* at whole graphics (`more` says so), well inside a
-    Realtime broadcast; the module forgets an offer when it re-joins or loses the page.
+  - *The offer is capped at 64 KiB of UTF-8* at whole graphics (`more` says so), well inside a
+    Realtime broadcast; the module forgets an offer when it re-joins or loses the page. A cue the
+    press names wins over the selection's in the dispatcher's hold (the /so on `64654e1`).
   - *A missed offer is recovered*: the 4 s `beat` carries `actionsVer` beside `ver` and `rowsVer`,
     and a module holding an older offer asks the page again (`panel_hello`), as it does for a missed
     state (Codex P2 on `2e514a4`). An older module ignores the field.
   - *The hosted control page* runs no graphic actions: it publishes an empty offer, so a panel
     drops what the production page offered, and refuses a press `not-here`.
-  - *Bounds* (relay and page alike, each pinned at its edge with a mutation): target 1 to 128
+  - *Bounds* (relay and page, each pinned at its edge with a mutation; the page measures compact
+    JSON and the relay jsonb's spaced text, and `[:cntrl:]` may refuse a little more than `\p{Cc}`,
+    so the relay is never the laxer): target 1 to 128
     characters, capability id kind plus 1 to 96, instance up to 128, arguments an object of at
     most 4096 characters of JSON nested at most 8 deep, measured only after the size cap, so a
     hostile argument costs time linear in its size on both sides; at most 32 graphics of 48

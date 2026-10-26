@@ -165,7 +165,7 @@ test("the production page's rows go to a panel as drawn, with a collapsed folder
 await import('./lib/tsResolve.mjs');
 const { readFileSync } = await import('node:fs');
 const {
-  ACTIONS_PROTOCOL, ACTION_VERB, ACTION_ARGS_MAX_CHARS, ACTION_ARGS_MAX_DEPTH, ACTION_CAPS_MAX, ACTION_GRAPHICS_MAX, ACTION_OFFER_MAX_CHARS, CAP_ID,
+  ACTIONS_PROTOCOL, ACTION_VERB, ACTION_ARGS_MAX_CHARS, ACTION_ARGS_MAX_DEPTH, ACTION_CAPS_MAX, ACTION_GRAPHICS_MAX, ACTION_OFFER_MAX_BYTES, CAP_ID,
   ActionsRing, capabilityPress, foreignCapabilities, graphicCapabilities, judgeAction, panelGraphic, readActionPress, wireActions,
 } = await import('../src/control/panelActions.ts');
 const { arrangeControls, fieldDescriptors } = await import('../src/control/controlModel.ts');
@@ -245,18 +245,20 @@ test('the actions event carries `av` and no `v`, so a module that predates it ig
   assert.equal(w.more, true);
 });
 
-test('an offer larger than a broadcast should carry is cut at a whole graphic, and says more', () => {
-  assert.equal(ACTION_OFFER_MAX_CHARS, 96_000);
-  // The largest the counts allow, with long labels: 32 graphics of 48 capabilities.
-  const cap = (i) => ({ id: `event:e${i}`, kind: 'event', label: 'L'.repeat(60), place: 'section', section: 'S'.repeat(40), args: null, allowed: true, invocable: true });
+test('an offer larger than a broadcast should carry is cut at a whole graphic by its UTF-8 bytes, and says more', () => {
+  assert.equal(ACTION_OFFER_MAX_BYTES, 64 * 1024);
+  const bytesOf = (g) => Buffer.byteLength(JSON.stringify(g)) + 1;
+  // The largest the counts allow, labelled in a script of three bytes a character: what fits in
+  // characters would not fit in bytes.
+  const cap = (i) => ({ id: `event:e${i}`, kind: 'event', label: '得点'.repeat(30), place: 'section', section: '試合'.repeat(20), args: null, allowed: true, invocable: true });
   const big = Array.from({ length: ACTION_GRAPHICS_MAX }, (_, i) => ({ graphic: `Graphic ${i}`, pinned: false, live: 'cue', cue: 'Cue', caps: Array.from({ length: ACTION_CAPS_MAX }, (_, j) => cap(j)) }));
   const w = wireActions({ relay: true, graphics: big }, { actionsVer: 1, page: 'p', claim: 1 });
-  const chars = w.graphics.reduce((n, g) => n + JSON.stringify(g).length + 1, 0);
-  assert.ok(chars <= ACTION_OFFER_MAX_CHARS, `${chars}`);
+  const bytes = w.graphics.reduce((n, g) => n + bytesOf(g), 0);
+  assert.ok(bytes <= ACTION_OFFER_MAX_BYTES, `${bytes}`);
   assert.ok(w.graphics.length > 0 && w.graphics.length < big.length);
   assert.equal(w.more, true);
   // One graphic more would have broken the cap: nothing is cut that fits.
-  assert.ok(chars + JSON.stringify(big[w.graphics.length]).length + 1 > ACTION_OFFER_MAX_CHARS);
+  assert.ok(bytes + bytesOf(big[w.graphics.length]) > ACTION_OFFER_MAX_BYTES);
 });
 
 /** A relayed press as `panel_press` (0103) forwards it. */

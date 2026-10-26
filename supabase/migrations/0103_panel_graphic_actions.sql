@@ -19,8 +19,9 @@
 -- target of 1 to 128 characters with no control characters; a capability id `event:`, `step:` or
 -- `foreign:` and up to 96 such characters; an instance of up to 128; `args` absent or an object of
 -- at most 4096 characters of JSON whose containers nest at most 8 deep (the object itself is 1),
--- measured only after the size cap, so the walk is bounded. The same numbers are
--- src/control/panelActions.ts `ACTION_ARGS_MAX_CHARS` and `ACTION_ARGS_MAX_DEPTH`.
+-- measured only after the size cap, so the walk is bounded. The page checks the same numbers
+-- (src/control/panelActions.ts `ACTION_ARGS_MAX_CHARS`, `ACTION_ARGS_MAX_DEPTH`) on the compact JSON
+-- text, which is never longer than jsonb's spaced one, so the relay is the stricter of the two.
 --
 -- `panel_relay()` answers the verbs this relay takes, so a page can tell a database that has this
 -- migration from one that does not and say so, instead of offering keys the relay would refuse.

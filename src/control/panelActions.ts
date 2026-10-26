@@ -36,12 +36,15 @@ export const ACTION_VERB = 'graphic-action';
 /** At most this many graphics, and capabilities per graphic, go to a panel (`more` says so). */
 export const ACTION_GRAPHICS_MAX = 32;
 export const ACTION_CAPS_MAX = 48;
-/** And at most this many characters of graphics in one `actions` event, well inside a Realtime
- *  broadcast's limit: the graphics that do not fit are left out and `more` says so. */
-export const ACTION_OFFER_MAX_CHARS = 96_000;
+/** And at most this many UTF-8 bytes of graphics in one `actions` event, well inside a Realtime
+ *  broadcast's limit whatever the labels' script: the graphics that do not fit are left out and
+ *  `more` says so. */
+export const ACTION_OFFER_MAX_BYTES = 64 * 1024;
 
-/** The relay's bounds, the same numbers as `panel_action_fault` in 0103: an argument object's JSON
- *  text, and how deep its containers nest (the object itself is level 1). */
+/** The relay's bounds (`panel_action_fault` in 0103): an argument object's JSON text, and how deep
+ *  its containers nest (the object itself is level 1). The page measures the compact text and the
+ *  relay jsonb's spaced one, so the page is never the stricter of the two: whatever the relay
+ *  passes, the page passes. */
 export const ACTION_ARGS_MAX_CHARS = 4096;
 export const ACTION_ARGS_MAX_DEPTH = 8;
 
@@ -265,10 +268,11 @@ export interface ActionsMeta {
 /** The `actions` feedback event (protocol §10.2): no `v`, so a module that predates it ignores it. */
 export function wireActions(a: PanelActions, m: ActionsMeta) {
   const graphics: PanelGraphic[] = [];
-  let chars = 0;
+  const utf8 = new TextEncoder();
+  let bytes = 0;
   for (const g of a.graphics.slice(0, ACTION_GRAPHICS_MAX)) {
-    chars += JSON.stringify(g).length + 1;
-    if (chars > ACTION_OFFER_MAX_CHARS) break;
+    bytes += utf8.encode(JSON.stringify(g)).length + 1;
+    if (bytes > ACTION_OFFER_MAX_BYTES) break;
     graphics.push(g);
   }
   return {

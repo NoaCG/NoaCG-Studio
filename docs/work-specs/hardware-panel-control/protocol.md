@@ -302,7 +302,7 @@ dialog and advertises `relay: false`, and the module says the server needs an up
 ### 10.2 The offer (`actions`, page to panels)
 
 Published like `state`: on each change, on `want`, after joining. At most 32 graphics of 48
-capabilities each, and at most 96,000 characters of graphics (cut at a whole graphic, `more`). The page's `beat` also carries `actionsVer`; a module holding an older offer
+capabilities each, and at most 64 KiB of UTF-8 of graphics (cut at a whole graphic, `more`). The page's `beat` also carries `actionsVer`; a module holding an older offer
 calls `panel_hello`, so a missed `actions` event is sent again (§7.1).
 
 ```json

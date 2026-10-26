@@ -467,7 +467,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    *  held to that cue the same way. `still` asks again after a wait and says why once. */
   const instance = (s: VerbSender, graphic: string, drawn: ShowCue | null, named?: string) => {
     const at = holding(graphic);
-    const want = drawn?.id ?? named;
+    // A named cue wins: it is the one the key was drawn for, whatever selection the press carries.
+    const want = named ?? drawn?.id;
     const captured = at === false || (want !== undefined && want !== at) ? false : at;
     const still = () => {
       if (captured !== false && holding(graphic) === captured) return true;
