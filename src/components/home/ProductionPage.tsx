@@ -121,9 +121,13 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import type { SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
+import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, COLOUR_VARS } from '../../control/cueStyle';
+import { FONTS } from '../../model/fonts';
+import { getCssVariable } from '../../model/cssVars';
+import type { PreviewStyle } from './measureCue';
 import { measureCue } from './measureCue';
 import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
-import type { AdjustPatch } from '../../model/adjust';
+import type { AdjustPatch, FontRef } from '../../model/adjust';
 import CueAdjust from './CueAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
@@ -448,6 +452,8 @@ const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
 interface MeasureInput {
   template: SpxTemplate;
   values: Record<string, string>;
+  /** The type and colour the cue airs in (phase 2), applied before the settle. */
+  style: PreviewStyle | null;
 }
 const bootLiveOf = (air: AirPart) => air.bootLive;
 const entriesOf = (log: LogPart) => log.entries;
@@ -1985,15 +1991,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Adjust writes still in the history's queue: a Take waits for them (`appearanceOf`). */
   const adjustWrites = useMemo(() => pendingWrites(), []);
   const writeAdjust = (mutation: () => { shows: Show[]; error: string | null }, label: string) => adjustWrites.hold(history.write(mutation, label));
+  /** The production's own templates: where an imported face's bytes and a graphic's heading come from. */
+  const poolTemplates = useMemo(() => (show?.graphics ?? []).map((g) => templateForSavedGraphic(g, library)), [show?.graphics, library]);
+  const styleCtx = useMemo(() => styleContextFor(poolTemplates), [poolTemplates]);
   const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library) => {
     const g = record?.graphics.find((x) => x.id === cue.sourceId);
     if (!g || cue.source === 'playout') return null;
     const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
-    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere);
+    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, styleCtx);
+  };
+  /** What a document is told to draw a cue's style in: its variables and the faces they name, the
+   *  imported ones' bytes from the production's own copies. A surface compares it by `id`, never
+   *  by its text, which an imported face can run to megabytes. */
+  const previewStyleOf = (state: ReturnType<typeof adjustStateOf> | null | undefined): PreviewStyle | null => {
+    const style = state?.style;
+    return state && style ? { id: state.styleId, vars: style.vars ?? null, faces: facesCss(style.fonts, assetDataIn(poolTemplates)) } : null;
   };
   /** One document at a time measures the adjusted cues PREVIEW has not shown (components/home/measureCue.ts). */
   const measurer = useMemo(
-    () => createMeasurer(session.geometry, { measure: (input) => measureCue((input as MeasureInput).template, (input as MeasureInput).values) }, session.alive),
+    () => createMeasurer(session.geometry, { measure: (input) => measureCue((input as MeasureInput).template, (input as MeasureInput).values, (input as MeasureInput).style) }, session.alive),
     [session],
   );
   const measureJobs = (record: Show, lib = library): MeasureJob[] =>
@@ -2001,7 +2017,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const g = record.graphics.find((x) => x.id === cue.sourceId);
       if (!g || cue.source === 'playout' || (g.adjust === undefined && cue.adjust === undefined)) return [];
       const values = airedValuesOf(cue);
-      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage), input: { template: templateForSavedGraphic(g, lib), values } satisfies MeasureInput }];
+      const state = adjustStateOf(cue, record, lib);
+      const styleId = state?.measureStyleId ?? '';
+      const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(state) };
+      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
     });
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
   // the identity a cue's box was measured for.
@@ -3463,13 +3482,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           }
           settleOf={settleOf}
           previewLook={{ part: session.geometry as StorePart<unknown>, of: () => (previewCue ? (adjustStateOf(previewCue)?.look ?? null) : null) }}
+          previewStyle={previewStyleOf(previewCue ? adjustStateOf(previewCue) : null)}
           guides={adjustOpen && !!previewCue && previewCue.id === editingCue?.id}
           measure={(() => {
             const g = previewCue && previewCue.source !== 'playout' ? graphicByPoolId.get(previewCue.sourceId) : undefined;
             if (!previewCue || !g || (!adjustOpen && g.adjust === undefined && previewCue.adjust === undefined)) return null;
             const cueId = previewCue.id;
+            const styleId = adjustStateOf(previewCue)?.measureStyleId ?? '';
             return {
-              keyOf: (data: string) => measureId(g.id, designEditedAt(g, library), cueId, JSON.parse(data) as Record<string, string>, stage),
+              keyOf: (data: string) => measureId(g.id, designEditedAt(g, library), cueId, JSON.parse(data) as Record<string, string>, stage, styleId),
               onMeasured: (key: string, m: Measurement) => session.geometry.set((part) => measured(part, cueId, g.id, key, m)),
             };
           })()}
@@ -3805,6 +3826,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     setOnlyThisCue(null);
                     writeAdjust(() => promoteCueAdjust(show.id, editingCue.id), `Adjust ${g.name}`);
                   }}
+                  style={(() => {
+                    const template = templateForSavedGraphic(g, library);
+                    const { css } = template;
+                    const reach = styleReach(template);
+                    const design: Record<string, string> = {};
+                    for (const k of ['font-heading', 'font-numeric', ...COLOUR_VARS]) {
+                      const v = getCssVariable(css, k);
+                      if (v !== null) design[k] = v;
+                    }
+                    return {
+                      reach,
+                      artwork: g.type === 'imported-design',
+                      imported: styleCtx.imported,
+                      bundled: FONTS,
+                      design,
+                      asDesigned: (row: 'type' | 'colour') => write(asDesignedPatch(row, scope, g.adjust, reach)),
+                      designedFace: () => write({ font: asDesignedPatch('type', scope, g.adjust, reach).font }),
+                      pickFace: (next: FontRef, weight: string) => write(facePickPatch(next, weight, scope, g.adjust, design, styleCtx.imported)),
+                    };
+                  })()}
                 />
               );
             })()}

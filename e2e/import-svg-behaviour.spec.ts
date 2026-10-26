@@ -153,6 +153,17 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
   await intoProduction(page, 'Match scorebug', 'Saturday Match');
   await settleDurableWrites(page);
 
+  // The artwork draws its own type and fills, so Adjust offers place and size and says what else
+  // it does in one line, with no Type or Colour row that would change nothing (playout-adjustments
+  // spec AC-10). Closed again, so the pack's frames below are unchanged.
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('adjust-place')).toBeVisible();
+  await expect(page.getByTestId('adjust-larger')).toBeVisible();
+  await expect(page.getByTestId('adjust-style-none')).toHaveText('Type and colour: as designed (imported artwork)');
+  await expect(page.getByTestId('adjust-type')).toHaveCount(0);
+  await expect(page.getByTestId('adjust-colour')).toHaveCount(0);
+  await page.getByTestId('cue-adjust-toggle').click();
+
   // The scores arrived as NUMBER fields, so the panel offers them as steppers — the generic
   // control model doing it, with nothing in this template asking for it.
   const live = page.getByTestId('live-numbers');
@@ -1400,6 +1411,12 @@ test('imported board: the EXPORTED CONTROLLER carries the same warning, in the s
   await intoProduction(page, 'Overflow quiz', 'Relay Night');
   await page.getByTestId('cue-field-f0').fill('A'.repeat(400));
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
+  // The typed value reaches the record after the draft's own delay (control/cueDraft.ts), which
+  // the warning can beat: the export below reads the record, so wait for the value to be in it.
+  await expect.poll(() => page.evaluate(async () => {
+    const shows = await import('/src/model/shows.ts');
+    return shows.loadShows().find((s) => s.name === 'Relay Night')?.cues?.[0]?.values.f0?.length ?? 0;
+  })).toBe(400);
   await settleDurableWrites(page);
 
   const b64 = await page.evaluate(async (production) => {

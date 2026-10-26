@@ -324,6 +324,74 @@ test('an adjusted production over the relay: the bake, the Take\'s place and siz
   await expect(air.locator('#f1')).toHaveText('Guest', { timeout: 6000 });
   expect(await transformOf(air)).toBe(css(built.ben));
 
+  // A row that changes the face refits once the face is in: the template's fits measured the old
+  // one, so the same values go to update() a second time. A colour alone moves no text: once.
+  await air.evaluate(() => {
+    const w = window as unknown as { update: (d: string) => void; __updates: number };
+    const own = w.update;
+    w.__updates = 0;
+    w.update = (d: string) => { w.__updates += 1; own(d); };
+  });
+  const updates = () => air.evaluate(() => (window as unknown as { __updates: number }).__updates);
+  const heading = '"Bebas Neue", "Arial Narrow", sans-serif';
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: { ...built.ben, vars: { accent: '#ff7a00' } } });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#ff7a00');
+  await air.waitForTimeout(800);
+  expect(await updates(), 'a colour: one update').toBe(1);
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: { ...built.ben, vars: { accent: '#ff7a00', 'font-heading': heading } } });
+  await expect.poll(updates, { timeout: 6000, message: 'a face: the update, then the refit once it loaded' }).toBe(3);
+  await air.waitForTimeout(800);
+  expect(await updates(), 'and no more').toBe(3);
+  // The refit sends the values on air, never the row that asked: a value that arrives in the same
+  // poll as a face change is still on air once the face is in.
+  await ctl.evaluate(async ({ heading, ben }) => {
+    const post = (msg: unknown) => fetch('/relay/send', { method: 'POST', body: JSON.stringify({ graphic: 'Placed Strap', stream: 'program', msg }) });
+    await post({ t: 'update', data: { f1: 'Guest' }, appearance: { ...ben, vars: { 'font-heading': heading.replace('Bebas Neue', 'Oswald') } } });
+    await post({ t: 'update', data: { f1: 'Later' } });
+  }, { heading, ben: built.ben });
+  await expect(air.locator('#f1')).toHaveText('Later', { timeout: 6000 });
+  await air.waitForTimeout(1200);
+  await expect(air.locator('#f1'), 'the refit did not put the older value back').toHaveText('Later');
+  // Nor an event's payload the template refused: the refit sends what the template took. The
+  // template's own dispatch is stood in for here, taking 'ok' and refusing 'no' as a transition
+  // or sound guard does.
+  const f0 = await air.locator('#f0').textContent();
+  await air.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w.__dispatch = w.noacgDispatch;
+    w.noacgDispatch = (event: string, payload: Record<string, string>) => {
+      if (event === 'ok') (w.noacgApplyPayload as (p: Record<string, string>) => void)(payload);
+    };
+  });
+  await ctl.evaluate(async ({ heading, ben }) => {
+    const post = (msg: unknown) => fetch('/relay/send', { method: 'POST', body: JSON.stringify({ graphic: 'Placed Strap', stream: 'program', msg }) });
+    await post({ t: 'update', data: { f1: 'Later' }, appearance: { ...ben, vars: { 'font-heading': heading.replace('Bebas Neue', 'Anton') } } });
+    await post({ t: 'event', event: 'no', payload: { f1: 'Refused' } });
+    await post({ t: 'event', event: 'ok', payload: { f0: 'Accepted' } });
+  }, { heading, ben: built.ben });
+  await expect(air.locator('#f0')).toHaveText('Accepted', { timeout: 6000 });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toContain('Anton');
+  await air.waitForTimeout(1200);
+  await expect(air.locator('#f1'), 'a refused payload never airs through the refit').toHaveText('Later');
+  await expect(air.locator('#f0'), 'an accepted one stays').toHaveText('Accepted');
+  await air.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w.noacgDispatch = w.__dispatch;
+  });
+  await send('Placed Strap', { t: 'update', data: { f0: f0 ?? '' } });
+  await expect(air.locator('#f0')).toHaveText(f0 ?? '', { timeout: 6000 });
+  // Back to the design's face for the steps below.
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toBe('');
+  // The comparison is with the face APPLIED, a bake's included, never only the rows seen: a face
+  // the file put on itself, then a row back to the design's own, refits too.
+  await air.evaluate((heading) => {
+    (window as unknown as { noacgApplyAppearance: (a: unknown) => boolean }).noacgApplyAppearance({ v: 1, vars: { 'font-heading': heading } });
+  }, heading);
+  const beforeDesigned = await updates();
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
+  await expect.poll(updates, { timeout: 6000, message: 'back to the design: the update, then the refit' }).toBe(beforeDesigned + 2);
+
   // Rule 4: a reload puts back the last one applied, read off the log, then off the baseline.
   for (let i = 0; i < 2; i++) {
     await air.reload({ waitUntil: 'load' });

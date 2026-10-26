@@ -23,13 +23,28 @@ import {
   measureId,
   pivotZone,
   resolveFrame,
+  measureStyleKey,
+  styleKey,
   type AppearanceFrame,
+  type AppearanceStyle,
   type AppliedAppearance,
   type EffectiveAdjust,
   type GeometryLimit,
   type Measurement,
   type Size,
 } from './cueAdjust.ts';
+
+/** What a cue's style resolves against (control/cueStyle.ts `styleContextFor`): the production's
+ *  imported faces and the resolve that turns a fold into variables and faces. Handed in rather
+ *  than imported: the face registry it reads (model/fonts.ts) loads a bundled text file, which
+ *  the plain-Node tests of the playout modules that import this one cannot load. */
+export interface StyleContext {
+  imported: readonly { family: string; assetPath: string }[];
+  resolve: (eff: Pick<EffectiveAdjust, 'vars' | 'font'>, imported: StyleContext['imported']) => AppearanceStyle | null;
+}
+
+/** No style: a surface that resolves none (a production's own context comes from cueStyle.ts). */
+export const NO_STYLE_CONTEXT: StyleContext = { imported: [], resolve: () => null };
 
 export interface GeometryEntry {
   /** The identity the measurement was taken for. */
@@ -180,6 +195,11 @@ export interface CueAdjustState {
   frame: AppearanceFrame | null;
   /** What PREVIEW applies. */
   look: AppliedAppearance;
+  /** The style half (phase 2), null for none, and its key, what a surface compares to know it changed. */
+  style: AppearanceStyle | null;
+  styleId: string;
+  /** The part of the style the measured box depends on (cueAdjust.ts `measureStyleKey`). */
+  measureStyleId: string;
   /** What a Take or a full Update carries (rule 2): undefined for a graphic nobody adjusted. */
   send: AppliedAppearance | undefined;
 }
@@ -263,18 +283,26 @@ export function cueAdjustState(
   applied: AppliedAppearance | null | undefined,
   /** Another cue of the same graphic has its own record. */
   adjustedElsewhere: boolean,
+  /** What the style resolves against (phase 2): the production's imported faces. */
+  styleCtx: StyleContext = NO_STYLE_CONTEXT,
 ): CueAdjustState {
   const eff = effectiveAdjust(graphic.adjust, cue.adjust);
-  const { m, fresh } = geometryOf(geometry, cue.id, graphic.id, measureId(graphic.id, graphic.savedAt, cue.id, values, stage));
+  const style = styleCtx.resolve(eff, styleCtx.imported);
+  const styleId = styleKey(appearanceOf(null, style));
+  const measureStyleId = measureStyleKey(appearanceOf(null, style));
+  const { m, fresh } = geometryOf(geometry, cue.id, graphic.id, measureId(graphic.id, graphic.savedAt, cue.id, values, stage, measureStyleId));
   const frame = resolveFrame(eff, m, frameSize, stage);
   return {
+    style,
+    styleId,
+    measureStyleId,
     eff,
     m,
     fresh,
     limit: geometryLimit(m, frameSize),
     pivot: pivotZone(eff, m?.info ?? m?.paint ?? null, frameSize),
     frame,
-    look: appearanceOf(frame),
-    send: appearanceToSend(frame, eff, applied, adjustedElsewhere),
+    look: appearanceOf(frame, style),
+    send: appearanceToSend(frame, eff, applied, adjustedElsewhere, style),
   };
 }

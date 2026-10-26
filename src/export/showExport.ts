@@ -57,6 +57,7 @@ import { arrangeFor } from '../control/controlModel';
 import { pinnedGraphicsOf } from '../model/profile';
 import { renderProductionControllerHtml, type EmittedCue } from '../control/productionControllerHtml';
 import type { ExportAppearances } from '../control/exportAppearance';
+import { withAppearanceFaces } from '../control/cueStyle';
 import { stripHostedReceiver } from '../control/hostedReceiver';
 // The library->air gate (docs/ARCHITECTURE.md §3, export -> validation): a production export is
 // the other door a library draft leaves through, and it is gated like the publish.
@@ -115,6 +116,20 @@ function pinnedFor(show: Show, names: readonly string[]): { pinned?: string[] } 
   return pinned.length > 0 ? { pinned } : {};
 }
 
+/** What an export needs to ship the faces a production's appearances name: the appearances, and
+ *  the pool's templates (where an imported face's bytes are), built once per export and only if
+ *  some graphic names a face. */
+interface AppearanceFaces {
+  show: Show;
+  appearances?: ExportAppearances;
+  pool: () => SpxTemplate[];
+}
+
+function appearanceFaces(show: Show, library: GraphicDoc[], appearances?: ExportAppearances): AppearanceFaces {
+  let pool: SpxTemplate[] | null = null;
+  return { show, appearances, pool: () => (pool ??= show.graphics.map((g) => templateForSavedGraphic(g, library))) };
+}
+
 /** A pool graphic's export-ready template: the LIVE library record (embedded snapshot only as
  *  the fallback), NO hosted receiver (rule 1), its own playout layer (rule 2), and — on a slug
  *  collision inside the package — a suffixed NAME, so every per-target packager that derives
@@ -124,8 +139,16 @@ async function exportTemplateFor(
   library: GraphicDoc[],
   usedSlugs: Set<string>,
   layer = showGraphicLayer(graphic),
+  faces?: AppearanceFaces,
 ): Promise<SpxTemplate> {
   let template = templateForSavedGraphic(graphic, library);
+  // Every face this graphic's appearances name ships with it (phase 2): its default's and each of
+  // its cues', so the exported controller's relay can set any of them (control/cueStyle.ts).
+  if (faces?.appearances) {
+    const named = [faces.appearances.graphics[graphic.id], ...(faces.show.cues ?? []).filter((c) => c.sourceId === graphic.id).map((c) => faces.appearances!.cues[c.id])]
+      .flatMap((a) => a?.fonts ?? []);
+    if (named.length > 0) template = withAppearanceFaces(template, named, faces.pool());
+  }
   let name = graphic.name;
   let n = 2;
   while (usedSlugs.has(slug(name))) name = `${graphic.name} ${n++}`;
@@ -164,8 +187,9 @@ export async function buildShowZip(show: Show, opts?: ShowExportOptions): Promis
   const fieldGraphics: ProductionFieldGraphic[] = [];
   const packaged: PackagedGraphic[] = [];
   const spxLayers = spxShowLayers(show.graphics);
+  const faces = appearanceFaces(show, library, opts?.appearances);
   for (const [i, graphic] of show.graphics.entries()) {
-    const template = await exportTemplateFor(graphic, library, usedSlugs, spxLayers[i]);
+    const template = await exportTemplateFor(graphic, library, usedSlugs, spxLayers[i], faces);
     const name = slug(template.name);
     folderNames.push(name);
     packaged.push({ poolName: graphic.name, template });
@@ -334,8 +358,9 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
   const usedSlugs = new Set<string>();
   const panelGraphics: { template: SpxTemplate; entries: ReturnType<typeof entriesForSavedGraphic> }[] = [];
   let subPanel = '';
+  const faces = appearanceFaces(show, library, opts?.appearances);
   for (const graphic of show.graphics) {
-    const template = await exportTemplateFor(graphic, library, usedSlugs);
+    const template = await exportTemplateFor(graphic, library, usedSlugs, undefined, faces);
     const entries = entriesForSavedGraphic(graphic, library);
     const sub = await target.build(template, {
       entries,

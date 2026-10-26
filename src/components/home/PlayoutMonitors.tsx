@@ -6,8 +6,9 @@ import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
 import type { CueDraft } from '../../control/cueDraft';
 import { staleWords, type AirState, type LostHop } from '../../control/playoutStatus';
-import { postPreviewCmd, PREVIEW_BOX_TYPE, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
-import { frameCss, qualifyStep, readMeasurement, safeInsets, QUALIFY_GAP_MS, type AppliedAppearance, type Measurement } from '../../control/cueAdjust';
+import { postPreviewCmd, PREVIEW_BOX_TYPE, PREVIEW_RESTYLED_TYPE, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
+import { frameCss, isIdentity, qualifyStep, readMeasurement, safeInsets, QUALIFY_GAP_MS, type AppliedAppearance, type Measurement } from '../../control/cueAdjust';
+import type { PreviewStyle } from './measureCue';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
 import { lengthText } from './clipLength';
 import { useServerThumbnail } from './serverThumbnail';
@@ -80,6 +81,7 @@ export default function PlayoutMonitors({
   previewLook = null,
   guides = false,
   measure = null,
+  previewStyle = null,
 }: {
   /** The production's stage: both monitors' shape, never the selected cue's. */
   stage: Resolution;
@@ -139,6 +141,9 @@ export default function PlayoutMonitors({
   /** Measure the previewed cue after each settle, for the identity `key`: on while its graphic is
    *  adjusted or the block is open, so a production nobody adjusts measures nothing. */
   measure?: { keyOf: (settleData: string) => string; onMeasured: (key: string, m: Measurement) => void } | null;
+  /** The previewed cue's type and colour (phase 2), told to its document before each settle, as the
+   *  output stage tells a graphic's. */
+  previewStyle?: PreviewStyle | null;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
   const previewView = useCueView(draft, previewCue);
@@ -201,6 +206,35 @@ export default function PlayoutMonitors({
       timers.forEach(clearTimeout);
     };
   }, []);
+  /** TYPE AND COLOUR: the style the PREVIEW document was last told, '' for none. A new document
+   *  starts with none, so its load tells it again before the settle; the document holds that settle
+   *  until the faces are in. */
+  const styleKey = previewStyle?.id ?? '';
+  const styleSent = useRef('');
+  const styleRef = useRef(previewStyle);
+  styleRef.current = previewStyle;
+  const postStyle = useCallback(() => {
+    const want = styleRef.current?.id ?? '';
+    if (want === styleSent.current) return;
+    styleSent.current = want;
+    postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'style', vars: styleRef.current?.vars ?? null, faces: styleRef.current?.faces ?? '' });
+  }, []);
+  useEffect(() => {
+    postStyle();
+  }, [styleKey, postStyle]);
+  const settleRef = useRef(settleData);
+  settleRef.current = settleData;
+  // A face that loaded after the settle's own wait refits the graphic again: measure that.
+  useEffect(() => {
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== previewIframe.current?.contentWindow) return;
+      const msg = ev.data as { type?: string; refit?: boolean } | undefined;
+      if (msg?.type !== PREVIEW_RESTYLED_TYPE || !msg.refit) return;
+      if (measureRef.current && settleRef.current) settlePreview(settleRef.current);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [settlePreview]);
   const measureKey = measure && settleData ? measure.keyOf(settleData) : null;
   useEffect(() => {
     if (!previewDoc || !settleData) return;
@@ -298,8 +332,12 @@ export default function PlayoutMonitors({
                   title="Cue preview"
                   sandbox="allow-scripts"
                   srcDoc={previewDoc}
-                  onLoad={() => settlePreview(settleData)}
-                  data-appearance={look?.frame ? JSON.stringify(look) : undefined}
+                  onLoad={() => {
+                    styleSent.current = '';
+                    postStyle();
+                    settlePreview(settleData);
+                  }}
+                  data-appearance={look && !isIdentity(look) ? JSON.stringify(look) : undefined}
                   style={{
                     position: 'absolute',
                     left: 0,

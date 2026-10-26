@@ -31,7 +31,8 @@ import {
 } from '../preview/previewProtocol';
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
 import type { ControlMessage } from '../control/controlModel';
-import { frameCss, isIdentity, readAppearance, type AppliedAppearance } from '../control/cueAdjust';
+import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
+import { facesCss } from '../control/cueStyle';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
@@ -269,6 +270,8 @@ export function createOutputStage(
     budgetKeys: Set<string>;
     onRelease: () => void;
     whenLoaded: Promise<void>;
+    /** The style its document was last told (control/cueAdjust.ts `styleKey`), '' for none. */
+    styled?: string;
   }
 
   /** Each graphic's current frame, by key. */
@@ -290,6 +293,26 @@ export function createOutputStage(
     iframe.style.transformOrigin = css.origin;
     if (look) iframe.dataset.appearance = JSON.stringify(look);
     else delete iframe.dataset.appearance;
+  };
+  /** An imported face's bytes, for a declaration's `src`: the graphic's own copy of the file first,
+   *  then any graphic of this production that ships it (the production holds a face once). */
+  const assetData = (graphic: string, src: string): string | null => {
+    const own = frames.get(graphic)?.spec.assets.find((a) => a.path === src);
+    if (own) return own.data;
+    for (const f of frames.values()) {
+      const found = f.spec.assets.find((a) => a.path === src);
+      if (found) return found.data;
+    }
+    return null;
+  };
+  /** TYPE AND COLOUR (phase 2): unlike the frame transform, style lives in the document, so it is
+   *  told to the graphic's current document whenever it changes and to each new one it moves to. */
+  const paintStyle = (frame: Frame) => {
+    const look = appearances.get(frame.key);
+    const key = styleKey(look);
+    if ((frame.styled ?? '') === key) return;
+    frame.styled = key;
+    postTo(frame, { cmd: 'style', vars: look?.vars ?? null, faces: facesCss(look?.fonts, (src) => assetData(frame.key, src)) });
   };
   const overflow = new Map<string, string[]>();
   const motion = new Map<string, number>();
@@ -619,6 +642,7 @@ export function createOutputStage(
           if (isIdentity(look)) appearances.delete(graphic);
           else appearances.set(graphic, look);
           paintAppearance(frames.get(graphic)!.iframe, graphic);
+          paintStyle(frames.get(graphic)!);
         }
         post(graphic, { cmd: 'update', data: JSON.stringify(msg.data ?? {}) });
         break;
@@ -735,6 +759,7 @@ export function createOutputStage(
           adopt(frame);
           // The graphic's place and size go with it onto its new document.
           paintAppearance(frame.iframe, frame.key);
+          paintStyle(frame);
           // Its graphic's values reach it before any Take can, and showing it paints nothing: its
           // document sits in its invisible start state.
           if (data && Object.keys(data).length > 0) postTo(frame, { cmd: 'update', data: JSON.stringify(data) });

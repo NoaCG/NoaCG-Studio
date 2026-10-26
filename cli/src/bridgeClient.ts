@@ -92,6 +92,8 @@ export interface BridgeInspection {
     steppers: string[];
     prep: string[];
   };
+  /** What a production's Adjust can change on it, in one line. Absent from an older bridge. */
+  adjustable?: string;
   notes: string[];
 }
 

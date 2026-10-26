@@ -20,6 +20,7 @@ import {
   PREVIEW_CMD_ERROR_TYPE,
   PREVIEW_HELD_TYPE,
   PREVIEW_READY_TYPE,
+  PREVIEW_RESTYLED_TYPE,
   FRAME_HOLD_CAP_MS,
 } from './previewProtocol';
 import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
@@ -382,6 +383,105 @@ window.addEventListener('unhandledrejection', function (ev) {
       }
     });
   }
+  /* TYPE AND COLOUR (previewProtocol.ts 'style'). The variables go on documentElement, which no
+     reset under the graphic's root wipes, and REPLACE the ones set before; the faces they name are
+     declared in one stylesheet of this command's own. The queue waits while those faces load,
+     capped as a Take's font wait is, then the graphic is refitted (below), but only when
+     something that moves the text changed (the faces, the heading or numeric face, the heading
+     weight): a colour moves nothing, and a fit replayed for it is work, or a credits roll
+     re-rendered mid-air. THE LATEST-REQUEST GUARD: a load that completes after a newer style was
+     applied does nothing, so a slow face never refits the graphic over the selection that
+     replaced it. */
+  var styleSeq = 0;
+  var styleSet = [];
+  var styleMetric = '|||'; /* the design's own: no faces, no type variables */
+  var styleOwed = false;
+  /* The values the graphic was last given: a design that fits in update() rather than on
+     fonts.ready measured the fallback when its face came in after the 400 ms hold, so a late
+     refit gives it the same values again. */
+  var lastData = null;
+  /* An event the template accepts writes its payload into the fields (animRuntime.ts
+     noacgApplyPayload) after the update that set lastData, so a late refit would put the old
+     values back: the values replayed take each applied payload in. A refused event applies none. */
+  var payloadsKept = false;
+  function keepPayloads() {
+    if (payloadsKept || typeof window.noacgApplyPayload !== 'function') return;
+    payloadsKept = true;
+    var apply = window.noacgApplyPayload;
+    window.noacgApplyPayload = function (payload) {
+      if (lastData != null && payload && typeof payload === 'object') {
+        try {
+          var cur = JSON.parse(lastData) || {};
+          for (var k in payload) if (Object.prototype.hasOwnProperty.call(payload, k)) cur[k] = payload[k];
+          lastData = JSON.stringify(cur);
+        } catch (e) {}
+      }
+      return apply.apply(this, arguments);
+    };
+  }
+  function applyStyle(msg) {
+    keepPayloads();
+    var seq = ++styleSeq;
+    var given = msg.vars || {};
+    var metric = [msg.faces || '', given['font-heading'] || '', given['font-numeric'] || '', given['display-weight'] || ''].join('|');
+    /* A refit a newer style overtook is still owed: its face may be the one now loading. */
+    var refit = styleOwed || metric !== styleMetric;
+    styleMetric = metric;
+    styleOwed = refit;
+    var root = document.documentElement;
+    for (var i = 0; i < styleSet.length; i++) root.style.removeProperty('--' + styleSet[i]);
+    styleSet = [];
+    var vars = msg.vars || {};
+    for (var k in vars) {
+      if (!Object.prototype.hasOwnProperty.call(vars, k) || typeof vars[k] !== 'string') continue;
+      root.style.setProperty('--' + k, vars[k]);
+      styleSet.push(k);
+    }
+    var sheet = document.getElementById('noacg-appearance-faces');
+    if (msg.faces) {
+      if (!sheet) {
+        sheet = document.createElement('style');
+        sheet.id = 'noacg-appearance-faces';
+        (document.head || root).appendChild(sheet);
+      }
+      /* The same faces are not declared again: a fresh declaration is a fresh face, and an
+         Update that only changes a colour would draw the fallback until it loaded. */
+      if (sheet.textContent !== msg.faces) sheet.textContent = msg.faces;
+    } else if (sheet) {
+      sheet.parentNode.removeChild(sheet);
+    }
+    var loads = [];
+    if (document.fonts && document.fonts.forEach) {
+      document.fonts.forEach(function (face) {
+        /* A face an earlier style started is waited for too: the faces are kept, not re-declared. */
+        if (face.status === 'unloaded') { try { loads.push(face.load().then(null, function () {})); } catch (e) {} }
+        else if (face.status === 'loading' && face.loaded) loads.push(face.loaded.then(null, function () {}));
+      });
+    }
+    waiting = true;
+    var released = false;
+    function release() {
+      if (released) return;
+      released = true;
+      waiting = false;
+      drain();
+    }
+    setTimeout(release, 400);
+    Promise.all(loads).then(function () {
+      if (seq !== styleSeq) return release();
+      styleOwed = false;
+      var late = released;
+      /* THE REFIT is the template's own update(), never its font-ready callbacks: a staged
+         design's (templates/shared/stageFit.ts, 312 of the 325 that have one) is a one-time
+         calibration that, run again, keeps one row of each reserve, and a credits roll's
+         re-renders the roll. A face in by the time the hold lets go is fitted by the Update the
+         style rides (or PREVIEW's settle on this answer); one that came later gets the last
+         values again. A data update never starts a transition. */
+      if (refit && late && lastData != null) { try { window.update && window.update(lastData); } catch (e) {} }
+      try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_RESTYLED_TYPE)}, seq: seq, refit: refit }, '*'); } catch (e) {}
+      release();
+    });
+  }
   window.addEventListener('message', function (ev) {
     if (ev.source !== window.parent) return;
     var msg = ev.data;
@@ -391,17 +491,19 @@ window.addEventListener('unhandledrejection', function (ev) {
   });
   function run(msg) {
     if (msg.cmd === 'update') {
+      lastData = msg.data;
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
       afterFonts(function () {
         try {
-          if (msg.data != null) window.update && window.update(msg.data);
+          if (msg.data != null) { lastData = msg.data; window.update && window.update(msg.data); }
           window.play && window.play();
         } catch (e) {}
         report(window);
       });
     } else if (msg.cmd === 'settle') {
       afterFonts(function () {
+        if (msg.data != null) lastData = msg.data;
         settle(window, msg.data);
         /* An identified settle answers with the whole measurement (settleGraphic.ts measureGraphic). */
         if (typeof msg.id === 'number') measureBox(window, msg.id);
@@ -420,6 +522,7 @@ window.addEventListener('unhandledrejection', function (ev) {
          before the clock that needed it reads it. Every event rewrites it (to null when there
          is no instant), so it always reads as the most recent event's. */
       window.noacgEventAt = (typeof msg.at === 'number' && msg.at > 0) ? msg.at : null;
+      keepPayloads();
       try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
     } else if (msg.cmd === 'measure') {
       if (typeof msg.id === 'number') measureBox(window, msg.id);
@@ -443,6 +546,8 @@ window.addEventListener('unhandledrejection', function (ev) {
          leaves any opacity the template itself set exactly as it was. */
       if (msg.on) document.documentElement.style.setProperty('opacity', '0', 'important');
       else document.documentElement.style.removeProperty('opacity');
+    } else if (msg.cmd === 'style') {
+      applyStyle(msg);
     } else if (msg.cmd === 'snap') {
       // Recovery semantics (docs/CLOUD_PLAYOUT.md §3): the output renderer restores a live
       // graphic's pose instantly — timers arm unless the sender says otherwise, exactly like
