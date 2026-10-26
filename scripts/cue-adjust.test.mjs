@@ -874,15 +874,17 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     assert.deepEqual(bebas.fonts[0].weight, [100, 900]);
   });
 
-  test('the heading weight is clamped to the face in effect; an imported face is Regular and declares 100-900', () => {
-    const w = (font, weight, imported = [], heading = null) =>
-      St.resolveStyle(eff({ v: 1, font, vars: { 'display-weight': weight } }, undefined), imported, heading).vars['display-weight'];
-    assert.equal(w({ fontId: 'bebas-neue' }, '800'), '400');
-    assert.equal(w({ fontId: 'inter' }, '900'), '800');
-    assert.equal(w(undefined, '900', [], fontStack(fontById('anton'))), '400', 'no face chosen: the design\'s own heading');
-    assert.equal(w(undefined, '900', [], '"Futura", Arial'), '900', 'a face the app does not ship is never narrowed');
+  test('the heading weight goes as written; an imported face declares 100-900 and offers Regular', () => {
+    const w = (font, weight, imported = []) =>
+      St.resolveStyle(eff({ v: 1, font, vars: { 'display-weight': weight } }, undefined), imported).vars['display-weight'];
+    // Never clamped: the token weights a sibling's numbers too (Saira under Oswald reaches 900),
+    // and a static face declares every weight, so 800 on Bebas Neue is drawn as the file is.
+    assert.equal(w({ fontId: 'oswald' }, '800'), '800');
+    assert.equal(w({ fontId: 'bebas-neue' }, '800'), '800');
     const imported = [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }];
-    assert.equal(w(brand, '700', imported), '400');
+    assert.deepEqual(St.weightsFor('"Brand Sans", Arial', imported).map((x) => x.value), [400], 'the Type row offers Regular');
+    assert.deepEqual(St.weightsFor(fontStack(fontById('bebas-neue')), []).map((x) => x.value), [400]);
+    assert.deepEqual(St.weightsFor(fontStack(fontById('archivo')), []).map((x) => x.value), [400, 500, 600, 700, 800, 900]);
     const style = St.resolveStyle(eff({ v: 1, font: brand }, undefined), imported);
     assert.deepEqual(style.fonts, [{ family: 'Brand Sans', src: 'fonts/brand-sans.woff2', weight: [100, 900] }]);
     assert.equal(St.resolveStyle(eff({ v: 1, font: brand }, undefined), []), null, 'a face no pool graphic ships any more resolves to nothing');

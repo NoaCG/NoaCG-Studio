@@ -11,11 +11,10 @@
 // Pure and Node-tested (scripts/cue-adjust.test.mjs).
 
 import { readAdjust, type AdjustPatch, type FontRef } from '../model/adjust.ts';
-import { cssPaintsWith, getCssVariable } from '../model/cssVars.ts';
+import { cssPaintsWith } from '../model/cssVars.ts';
 import {
   FONTS,
   LATIN_EXT_RANGE,
-  clampFontWeight,
   fontStack,
   fontWeights,
   latinExtFile,
@@ -34,19 +33,16 @@ export interface ImportedFace {
   tabularFigures?: boolean;
 }
 
-/** What a cue's style resolves against: the production's imported faces, and the graphic's own
- *  `--font-heading` (the heading weight is clamped against it when no face is chosen). */
+/** What a cue's style resolves against: the imported faces the production ships. */
 export interface StyleContext {
   imported: readonly ImportedFace[];
-  designHeading: string | null;
 }
 
-export const NO_STYLE_CONTEXT: StyleContext = { imported: [], designHeading: null };
+export const NO_STYLE_CONTEXT: StyleContext = { imported: [] };
 
-/** The style context of one graphic among its production's: every imported face the pool ships,
- *  and the graphic's own heading. */
-export function styleContextFor(pool: readonly { css: string; assets: readonly { path: string }[] }[], graphic: { css: string }): StyleContext {
-  return { imported: importedFacesOf(pool), designHeading: getCssVariable(graphic.css, 'font-heading') };
+/** The style context of a production: every imported face its pool ships. */
+export function styleContextFor(pool: readonly { css: string; assets: readonly { path: string }[] }[]): StyleContext {
+  return { imported: importedFacesOf(pool) };
 }
 
 /** An imported face's bytes by asset path, read from the production's own copies. */
@@ -110,15 +106,15 @@ export function headingStackOf(ref: FontRef | 'designed' | undefined, imported: 
 
 /**
  * RESOLVE THE STYLE OF A FOLD: the variables to set and the faces they name, or null when it sets
- * nothing. `designHeading` is the graphic's own `--font-heading`, which the heading weight is
- * clamped against when the fold names no face. An empty variable or a 'designed' face sets nothing
- * (it is "as designed" at its scope). Collisions, two faces of one family from different files,
+ * nothing. An empty variable or a 'designed' face sets nothing (it is "as designed" at its scope).
+ * The heading weight goes as written, never clamped to the face: it also weights the numbers a
+ * sibling face draws (Saira under Oswald reaches 900), and a static or imported face declares
+ * every weight, so no value is drawn as a synthesised bold. Collisions, two faces of one family from different files,
  * are refused at the fold: the first declaration wins.
  */
 export function resolveStyle(
   eff: Pick<EffectiveAdjust, 'vars' | 'font'>,
   imported: readonly ImportedFace[],
-  designHeading: string | null = null,
 ): AppearanceStyle | null {
   const vars: Record<string, string> = {};
   const fonts: FontDeclaration[] = [];
@@ -130,21 +126,16 @@ export function resolveStyle(
   };
   for (const [k, v] of Object.entries(eff.vars ?? {})) if (v !== '') vars[k] = v;
   const face = faceOf(eff.font, imported);
-  let heading = designHeading;
   if (face && 'bundled' in face) {
-    heading = vars['font-heading'] = fontStack(face.bundled);
+    vars['font-heading'] = fontStack(face.bundled);
     vars['font-numeric'] = numericFontStack(face.bundled);
     declare(bundledDeclarations(face.bundled));
     const sibling = numericFaceFor(face.bundled);
     if (sibling) declare(bundledDeclarations(sibling));
   } else if (face) {
-    heading = vars['font-heading'] = `"${face.imported.family}", Arial, sans-serif`;
+    vars['font-heading'] = `"${face.imported.family}", Arial, sans-serif`;
     vars['font-numeric'] = numericFontStack(face.imported);
     declare([{ family: face.imported.family, src: face.imported.assetPath, weight: [100, 900] }]);
-  }
-  if (vars['display-weight'] && heading) {
-    const families = face && 'imported' in face ? [face.imported.family] : imported.map((f) => f.family);
-    vars['display-weight'] = clampFontWeight(vars['display-weight'], heading, families);
   }
   if (Object.keys(vars).length === 0 && fonts.length === 0) return null;
   return { ...(Object.keys(vars).length > 0 ? { vars } : {}), ...(fonts.length > 0 ? { fonts } : {}) };

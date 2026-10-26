@@ -269,12 +269,11 @@ export function cueAdjustState(
   applied: AppliedAppearance | null | undefined,
   /** Another cue of the same graphic has its own record. */
   adjustedElsewhere: boolean,
-  /** What the style resolves against (phase 2): the production's imported faces and the graphic's
-   *  own `--font-heading`. */
+  /** What the style resolves against (phase 2): the production's imported faces. */
   styleCtx: StyleContext = NO_STYLE_CONTEXT,
 ): CueAdjustState {
   const eff = effectiveAdjust(graphic.adjust, cue.adjust);
-  const style = resolveStyle(eff, styleCtx.imported, styleCtx.designHeading);
+  const style = resolveStyle(eff, styleCtx.imported);
   const styleId = styleKey(appearanceOf(null, style));
   const { m, fresh } = geometryOf(geometry, cue.id, graphic.id, measureId(graphic.id, graphic.savedAt, cue.id, values, stage, styleId));
   const frame = resolveFrame(eff, m, frameSize, stage);

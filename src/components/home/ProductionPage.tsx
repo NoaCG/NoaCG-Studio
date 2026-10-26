@@ -121,7 +121,7 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import type { SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { asDesignedPatch, assetDataIn, facesCss, importedFacesOf, styleContextFor, styleReach, COLOUR_VARS } from '../../control/cueStyle';
+import { asDesignedPatch, assetDataIn, facesCss, styleContextFor, styleReach, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
 import { getCssVariable } from '../../model/cssVars';
 import type { PreviewStyle } from './measureCue';
@@ -1993,12 +1993,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const writeAdjust = (mutation: () => { shows: Show[]; error: string | null }, label: string) => adjustWrites.hold(history.write(mutation, label));
   /** The production's own templates: where an imported face's bytes and a graphic's heading come from. */
   const poolTemplates = useMemo(() => (show?.graphics ?? []).map((g) => templateForSavedGraphic(g, library)), [show?.graphics, library]);
+  const styleCtx = useMemo(() => styleContextFor(poolTemplates), [poolTemplates]);
   const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library) => {
     const g = record?.graphics.find((x) => x.id === cue.sourceId);
     if (!g || cue.source === 'playout') return null;
     const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
-    const ctx = styleContextFor(poolTemplates, templateForSavedGraphic(g, lib));
-    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, ctx);
+    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, styleCtx);
   };
   /** What a document is told to draw a cue's style in: its variables and the faces they name, the
    *  imported ones' bytes from the production's own copies. */
@@ -3835,7 +3835,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     return {
                       reach,
                       artwork: g.type === 'imported-design',
-                      imported: importedFacesOf(poolTemplates),
+                      imported: styleCtx.imported,
                       bundled: FONTS,
                       design,
                       asDesigned: (row: 'type' | 'colour') => write(asDesignedPatch(row, scope, g.adjust, reach)),
