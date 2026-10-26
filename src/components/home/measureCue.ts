@@ -6,7 +6,7 @@
 // The frame is sandboxed like every preview surface and scaled to a speck in a corner (below).
 
 import { composeDocument } from '../../preview/composeDocument';
-import { postPreviewCmd, PREVIEW_BOX_TYPE } from '../../preview/previewProtocol';
+import { postPreviewCmd, PREVIEW_BOX_TYPE, PREVIEW_RESTYLED_TYPE } from '../../preview/previewProtocol';
 import { qualifyStep, readMeasurement, QUALIFY_GAP_MS, type Measurement } from '../../control/cueAdjust';
 import type { SpxTemplate } from '../../model/types';
 
@@ -17,6 +17,8 @@ let serial = 0;
 
 /** The type and colour a document is told to draw in (previewProtocol.ts `style`). */
 export interface PreviewStyle {
+  /** The style's identity (control/cueAdjust.ts `styleKey`), so a surface compares it, not the bytes. */
+  id: string;
   vars: Record<string, string> | null;
   faces: string;
 }
@@ -54,9 +56,14 @@ export function measureCue(template: SpxTemplate, values: Record<string, string>
       resolve(m);
     };
     const cap = setTimeout(() => done(null), MEASURE_CAP_MS);
+    const settle = () => {
+      asked = ++serial;
+      postPreviewCmd(iframe.contentWindow, { cmd: 'settle', data: JSON.stringify(values), id: asked });
+    };
     const onMessage = (ev: MessageEvent) => {
       if (ev.source !== iframe.contentWindow) return;
       const msg = ev.data as { type?: string; id?: number } | undefined;
+      if (msg?.type === PREVIEW_RESTYLED_TYPE && asked < 0) return settle();
       if (!msg || msg.type !== PREVIEW_BOX_TYPE || msg.id !== asked) return;
       const m = readMeasurement(msg);
       if (!m) return done(null);
@@ -72,10 +79,11 @@ export function measureCue(template: SpxTemplate, values: Record<string, string>
     };
     window.addEventListener('message', onMessage);
     iframe.addEventListener('load', () => {
-      // The style first: the document holds the settle behind it until its faces have loaded.
-      if (style) postPreviewCmd(iframe.contentWindow, { cmd: 'style', vars: style.vars, faces: style.faces });
-      asked = ++serial;
-      postPreviewCmd(iframe.contentWindow, { cmd: 'settle', data: JSON.stringify(values), id: asked });
+      // The style first, and the settle only once the document says its faces are in: its own
+      // queue lets a settle through after 400 ms, and a box measured in the fallback face would be
+      // stored as this style's.
+      if (!style) return settle();
+      postPreviewCmd(iframe.contentWindow, { cmd: 'style', vars: style.vars, faces: style.faces });
     });
     iframe.srcdoc = composeDocument(template, { liveControl: true });
     document.body.appendChild(iframe);

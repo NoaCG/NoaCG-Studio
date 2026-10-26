@@ -2512,6 +2512,16 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
   await expect(page.getByTestId('adjust-type')).toBeVisible();
   await expect(page.getByTestId('adjust-colour-accent')).toBeVisible();
   await expect(page.getByTestId('adjust-style-none')).toHaveCount(0);
+  // As designed on a row that already is writes nothing: an empty record would make the graphic
+  // count as adjusted (measured, an appearance on every Take) with nothing on screen to show it.
+  await page.getByTestId('adjust-type-designed').click();
+  await page.getByTestId('adjust-colour-designed').click();
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return [s.graphics[0].adjust ?? null, ...(s.cues ?? []).map((c) => c.adjust ?? null)];
+  }, showId)).toEqual([null, null, null]);
 
   // The graphic's default: Archivo, Bold, an orange accent. PREVIEW takes each at once.
   await page.getByTestId('adjust-typeface').selectOption({ label: 'Archivo' });

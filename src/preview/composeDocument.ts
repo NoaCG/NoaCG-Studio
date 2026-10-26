@@ -420,13 +420,24 @@ window.addEventListener('unhandledrejection', function (ev) {
   /* TYPE AND COLOUR (previewProtocol.ts 'style'). The variables go on documentElement, which no
      reset under the graphic's root wipes, and REPLACE the ones set before; the faces they name are
      declared in one stylesheet of this command's own. The queue waits while those faces load,
-     capped as a Take's font wait is, then the template's font-ready fits run again. THE
-     LATEST-REQUEST GUARD: a load that completes after a newer style was applied does nothing, so
-     a slow face never refits the graphic over the selection that replaced it. */
+     capped as a Take's font wait is, then the template's font-ready fits run again, but only when
+     something that moves the text changed (the faces, the heading or numeric face, the heading
+     weight): a colour moves nothing, and a fit replayed for it is work, or a credits roll
+     re-rendered mid-air. THE LATEST-REQUEST GUARD: a load that completes after a newer style was
+     applied does nothing, so a slow face never refits the graphic over the selection that
+     replaced it. */
   var styleSeq = 0;
   var styleSet = [];
+  var styleMetric = '|||'; /* the design's own: no faces, no type variables */
+  var styleOwed = false;
   function applyStyle(msg) {
     var seq = ++styleSeq;
+    var given = msg.vars || {};
+    var metric = [msg.faces || '', given['font-heading'] || '', given['font-numeric'] || '', given['display-weight'] || ''].join('|');
+    /* A refit a newer style overtook is still owed: its face may be the one now loading. */
+    var refit = styleOwed || metric !== styleMetric;
+    styleMetric = metric;
+    styleOwed = refit;
     var root = document.documentElement;
     for (var i = 0; i < styleSet.length; i++) root.style.removeProperty('--' + styleSet[i]);
     styleSet = [];
@@ -450,7 +461,9 @@ window.addEventListener('unhandledrejection', function (ev) {
     var loads = [];
     if (document.fonts && document.fonts.forEach) {
       document.fonts.forEach(function (face) {
+        /* A face an earlier style started is waited for too, or this one would refit before it. */
         if (face.status === 'unloaded') { try { loads.push(face.load().then(null, function () {})); } catch (e) {} }
+        else if (face.status === 'loading' && face.loaded) loads.push(face.loaded.then(null, function () {}));
       });
     }
     waiting = true;
@@ -464,9 +477,10 @@ window.addEventListener('unhandledrejection', function (ev) {
     setTimeout(release, 400);
     Promise.all(loads).then(function () {
       if (seq !== styleSeq) return release();
-      var hooks = window.__noacgFontHooks || [];
+      styleOwed = false;
+      var hooks = refit ? window.__noacgFontHooks || [] : [];
       for (var h = 0; h < hooks.length; h++) { try { hooks[h].call(document.fonts, document.fonts); } catch (e) {} }
-      try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_RESTYLED_TYPE)}, seq: seq }, '*'); } catch (e) {}
+      try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_RESTYLED_TYPE)}, seq: seq, refit: refit }, '*'); } catch (e) {}
       release();
     });
   }

@@ -59,8 +59,9 @@ export interface PreviewErrorMessage {
  */
 export const PREVIEW_READY_TYPE = 'spx-preview-ready';
 
-/** A document answered a `style` command: its faces loaded (or the cap passed) and its fits ran
- *  again, so what was measured before it no longer stands. `seq` counts the styles it applied. */
+/** A document answered a `style` command: its faces loaded (or failed). `refit` says its fits ran
+ *  again because something that moves the text changed, so what was measured before no longer
+ *  stands; a colour alone answers false. `seq` counts the styles it applied. */
 export const PREVIEW_RESTYLED_TYPE = 'spx-preview-restyled';
 export interface PreviewReadyMessage {
   scriptError?: string | null;

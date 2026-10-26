@@ -901,6 +901,8 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     const pool = [{ css: `/* Imported font (your file). */\n@font-face {\n  font-family: "Brand Sans";\n  src: url("fonts/brand-sans.woff2") format("woff2");\n}`, assets: [{ path: 'fonts/brand-sans.woff2' }] }];
     assert.deepEqual(St.importedFacesOf(pool), [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
     assert.deepEqual(St.importedFacesOf([{ ...pool[0], assets: [] }]), [], 'a face whose file the graphic does not carry is not offered');
+    const spaced = 'fonts/My Font.ttf';
+    assert.deepEqual(St.importedFacesOf([{ css: pool[0].css.replace('fonts/brand-sans.woff2', spaced), assets: [{ path: spaced }] }]), [], 'a file a record cannot name is not offered');
   });
 
   test('the wire carries names and numbers only, and a reader keeps what it knows', () => {
@@ -910,7 +912,7 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     assert.equal(JSON.stringify(sent).includes('base64'), false, 'never bytes');
     assert.equal(A.isIdentity(A.appearanceOf(null, style)), false, 'a style alone is not the identity');
     assert.equal(A.readAppearance({ v: 1, vars: { accent: 'red;}x' } }), null, 'a value that could leave its declaration');
-    assert.equal(A.readAppearance({ v: 1, vars: { 'not-a-var': '1' } }), null);
+    assert.deepEqual(A.readAppearance({ v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 }, vars: { 'later-var': '1', accent: '#f00' } }), { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 }, vars: { accent: '#f00' } }, 'a variable a later build adds is dropped, never the place and size');
     assert.equal(A.readAppearance({ v: 1, fonts: [{ family: 'A', src: 'https://x/y.woff2', weight: [400, 400] }] }), null, 'a src off the asset road');
     assert.ok(!A.appearanceEquals(sent, A.appearanceOf(sent.frame, null)), 'a change of style alone is a change');
     assert.ok(A.appearanceEquals(sent, A.readAppearance(JSON.parse(JSON.stringify(sent)))));

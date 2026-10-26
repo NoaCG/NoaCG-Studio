@@ -209,12 +209,12 @@ export default function PlayoutMonitors({
   /** TYPE AND COLOUR: the style the PREVIEW document was last told, '' for none. A new document
    *  starts with none, so its load tells it again before the settle; the document holds that settle
    *  until the faces are in. */
-  const styleKey = previewStyle ? JSON.stringify(previewStyle) : '';
+  const styleKey = previewStyle?.id ?? '';
   const styleSent = useRef('');
   const styleRef = useRef(previewStyle);
   styleRef.current = previewStyle;
   const postStyle = useCallback(() => {
-    const want = styleRef.current ? JSON.stringify(styleRef.current) : '';
+    const want = styleRef.current?.id ?? '';
     if (want === styleSent.current) return;
     styleSent.current = want;
     postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'style', vars: styleRef.current?.vars ?? null, faces: styleRef.current?.faces ?? '' });
@@ -228,7 +228,8 @@ export default function PlayoutMonitors({
   useEffect(() => {
     const onMessage = (ev: MessageEvent) => {
       if (ev.source !== previewIframe.current?.contentWindow) return;
-      if ((ev.data as { type?: string } | undefined)?.type !== PREVIEW_RESTYLED_TYPE) return;
+      const msg = ev.data as { type?: string; refit?: boolean } | undefined;
+      if (msg?.type !== PREVIEW_RESTYLED_TYPE || !msg.refit) return;
       if (measureRef.current && settleRef.current) settlePreview(settleRef.current);
     };
     window.addEventListener('message', onMessage);

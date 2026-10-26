@@ -10,7 +10,7 @@
 //
 // Pure and Node-tested (scripts/cue-adjust.test.mjs).
 
-import { readAdjust, type AdjustPatch, type FontRef } from '../model/adjust.ts';
+import { readAdjust, readFont, type AdjustPatch, type FontRef } from '../model/adjust.ts';
 import { cssPaintsWith } from '../model/cssVars.ts';
 import { styleTerm } from '../model/styleVocabulary.ts';
 import { SVG_TEXT_FIT_MARKER } from '../templates/shared/textFit.ts';
@@ -105,7 +105,9 @@ export function importedFacesOf(templates: readonly { css: string; assets: reado
     for (const m of t.css.matchAll(/\/\* Imported font[^*]*\*\/\s*@font-face\s*\{([^}]*)\}/g)) {
       const family = /font-family:\s*"([^"]+)"/.exec(m[1])?.[1];
       const assetPath = /url\("?(fonts\/[^")]+)"?\)/.exec(m[1])?.[1];
-      if (!family || !assetPath || !t.assets.some((a) => a.path === assetPath)) continue;
+      // Only a face a record can name (model/adjust.ts `readFont`): an older save's file name with
+      // spaces or brackets would be offered and then dropped by the write, the pick snapping back.
+      if (!family || !assetPath || !t.assets.some((a) => a.path === assetPath) || !readFont({ family, assetPath })) continue;
       if (!out.some((f) => f.family === family && f.assetPath === assetPath)) out.push({ family, assetPath });
     }
   }

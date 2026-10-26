@@ -2001,10 +2001,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, styleCtx);
   };
   /** What a document is told to draw a cue's style in: its variables and the faces they name, the
-   *  imported ones' bytes from the production's own copies. */
-  const previewStyleOf = (cue: ShowCue | null): PreviewStyle | null => {
-    const style = cue ? adjustStateOf(cue)?.style : null;
-    return style ? { vars: style.vars ?? null, faces: facesCss(style.fonts, assetDataIn(poolTemplates)) } : null;
+   *  imported ones' bytes from the production's own copies. A surface compares it by `id`, never
+   *  by its text, which an imported face can run to megabytes. */
+  const previewStyleOf = (state: ReturnType<typeof adjustStateOf> | null | undefined): PreviewStyle | null => {
+    const style = state?.style;
+    return state && style ? { id: state.styleId, vars: style.vars ?? null, faces: facesCss(style.fonts, assetDataIn(poolTemplates)) } : null;
   };
   /** One document at a time measures the adjusted cues PREVIEW has not shown (components/home/measureCue.ts). */
   const measurer = useMemo(
@@ -2016,8 +2017,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const g = record.graphics.find((x) => x.id === cue.sourceId);
       if (!g || cue.source === 'playout' || (g.adjust === undefined && cue.adjust === undefined)) return [];
       const values = airedValuesOf(cue);
-      const styleId = adjustStateOf(cue, record, lib)?.styleId ?? '';
-      const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(cue) };
+      const state = adjustStateOf(cue, record, lib);
+      const styleId = state?.styleId ?? '';
+      const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(state) };
       return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
     });
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
@@ -3480,7 +3482,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           }
           settleOf={settleOf}
           previewLook={{ part: session.geometry as StorePart<unknown>, of: () => (previewCue ? (adjustStateOf(previewCue)?.look ?? null) : null) }}
-          previewStyle={previewStyleOf(previewCue)}
+          previewStyle={previewStyleOf(previewCue ? adjustStateOf(previewCue) : null)}
           guides={adjustOpen && !!previewCue && previewCue.id === editingCue?.id}
           measure={(() => {
             const g = previewCue && previewCue.source !== 'playout' ? graphicByPoolId.get(previewCue.sourceId) : undefined;

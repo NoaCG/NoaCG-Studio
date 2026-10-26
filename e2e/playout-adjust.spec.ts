@@ -229,8 +229,11 @@ async function styledStage(page: Page, imported = false) {
     const w = window as unknown as Record<string, unknown>;
     w.__stage = createOutputStage(root, { v: 1, resolution: RES, graphics: [spec], cues: [] }, { fit: () => ({ width: 1920, height: 1080 }) });
     w.__restyled = [];
+    w.__refit = [];
     window.addEventListener('message', (ev) => {
-      if ((ev.data as { type?: string })?.type === 'spx-preview-restyled') (w.__restyled as number[]).push((ev.data as { seq: number }).seq);
+      if ((ev.data as { type?: string })?.type !== 'spx-preview-restyled') return;
+      (w.__restyled as number[]).push((ev.data as { seq: number }).seq);
+      (w.__refit as boolean[]).push((ev.data as { refit: boolean }).refit);
     });
     const iframe = root.querySelector('iframe[title="L3"]') as HTMLIFrameElement;
     for (let i = 0; i < 100 && iframe.style.visibility !== 'visible'; i++) await new Promise((r) => setTimeout(r, 100));
@@ -311,6 +314,12 @@ test('a chosen face reaches the document through the stage: every glyph of the n
   expect(fonts.length).toBeGreaterThan(0);
   expect(fonts.filter((f) => !f.custom), 'no glyph of the name from a system face').toEqual([]);
   expect(new Set(fonts.map((f) => f.family.replace(/\s+(Regular|Bold|Variable).*$/i, ''))).size, `one family: ${JSON.stringify(fonts)}`).toBe(1);
+  // A colour alone moves no text: it is applied, and no fit runs for it (a credits roll would
+  // re-render mid-air, and PREVIEW would settle again for nothing).
+  await sendStyle(page, { v: 1, font: { fontId: 'archivo' }, vars: { 'display-weight': '700', accent: '#00a3ff' } });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __refit: boolean[] }).__refit)).toEqual([true, false]);
+  expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--accent'))).toBe('#00a3ff');
+  expect(await doc.locator('html').evaluate(() => (window as unknown as { __refits: number }).__refits), 'no fit ran for the colour').toBe(seen.refits);
   // Taken off: an identity puts the design back.
   await page.evaluate(async () => {
     const A = await import('/src/control/cueAdjust.ts');
@@ -332,6 +341,19 @@ test('the latest request wins: a slow face that loads after a newer choice does 
   await page.waitForTimeout(2_500);
   expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--font-heading'))).toContain('Inter');
   expect(await page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled), 'only the newer style refitted').toEqual([2]);
+});
+
+test('a refit a colour change overtook is still done: the face it waited for is the one now loading', async ({ page }) => {
+  await page.route('**/fonts/archivo*.woff2', async (route) => {
+    await new Promise((r) => setTimeout(r, 800));
+    await route.continue();
+  });
+  await styledStage(page);
+  await sendStyle(page, { v: 1, font: { fontId: 'archivo' } });
+  await sendStyle(page, { v: 1, font: { fontId: 'archivo' }, vars: { accent: '#ff7a00' } });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([2]);
+  expect(await page.evaluate(() => (window as unknown as { __refit: boolean[] }).__refit), 'the newer, colour-only style carries the refit the face owed').toEqual([true]);
+  expect(await page.frameLocator('iframe[title="L3"]').locator('html').evaluate(() => document.fonts.check('700 48px "Archivo"', 'A')), 'and runs it once the face is in').toBe(true);
 });
 
 test('an imported face reaches the document by its asset path, and draws the name from its own file', async ({ page }) => {

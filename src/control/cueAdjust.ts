@@ -246,13 +246,16 @@ export function appearanceOf(frame: AppearanceFrame | null, style?: AppearanceSt
 const APPLIED_VARS = new Set([...STYLE_VARS, 'font-heading', 'font-numeric']);
 const FONT_SRC = /^fonts\/[\w./-]+\.(?:woff2|woff|ttf|otf)$/i;
 
-/** An appearance's variables, checked: undefined for none, null for any this build cannot apply. */
+/** An appearance's variables, checked: undefined for none, null for a value that could leave its
+ *  declaration. A name this build does not know is dropped, never the appearance (rule 4: a
+ *  reader keeps what it knows), so a later build's new variable still airs its place and size. */
 function readVarsOf(raw: unknown): Record<string, string> | undefined | null {
   if (raw === undefined) return undefined;
   if (!raw || typeof raw !== 'object') return null;
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (!APPLIED_VARS.has(k) || !styleValue(v) || v.trim() === '') return null;
+    if (!APPLIED_VARS.has(k)) continue;
+    if (!styleValue(v) || v.trim() === '') return null;
     out[k] = v.trim();
   }
   return Object.keys(out).length > 0 ? out : undefined;

@@ -333,7 +333,7 @@ function StyleRows({
               ))}
             </span>
           )}
-          <button type="button" className={typeSet ? '' : 'on'} aria-pressed={!typeSet} disabled={locked} onClick={() => style.asDesigned('type')} data-testid="adjust-type-designed">
+          <button type="button" className={typeSet ? '' : 'on'} aria-pressed={!typeSet} disabled={locked} onClick={() => typeSet && style.asDesigned('type')} data-testid="adjust-type-designed">
             As designed
           </button>
         </div>
@@ -351,7 +351,7 @@ function StyleRows({
               testId={`adjust-colour-${k}`}
             />
           ))}
-          <button type="button" className={colourSet ? '' : 'on'} aria-pressed={!colourSet} disabled={locked} onClick={() => style.asDesigned('colour')} data-testid="adjust-colour-designed">
+          <button type="button" className={colourSet ? '' : 'on'} aria-pressed={!colourSet} disabled={locked} onClick={() => colourSet && style.asDesigned('colour')} data-testid="adjust-colour-designed">
             As designed
           </button>
         </div>
