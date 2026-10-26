@@ -112,8 +112,10 @@ changes a spec's digest.
   database; staging gets it through post-land like production, and if post-land HOLDS it there
   the AC-4 walk on hosted-latency fails at its first collection check until it applies.
 - **The rehearsal record (software/replay grade, browser outputs).** Cloud worker, 2026-10-26
-  04:20 to 05:10 UTC, the final run on the branch's final code commit `89718fb` at about 05:10
-  (later commits change notes and tests only), a local stack
+  04:20 to 05:25 UTC. The recorded run is on commit `89718fb`; later commits change notes, tests,
+  the runbook and 0102's self-check (a revision-gap step, the function bodies unchanged; the
+  changed file was applied again and its self-check passed), and the full spec passed again on
+  the final head. A local stack
   (`supabase start`, CLI 2.111.0) with every migration through 0102, the dev server's real
   `/api/data/source`, the agent as its own process from `replay-agent.json`, the replay server in
   the same process as the walk. Hashes (sha256, first 16 hex; the server prints them whole):
@@ -140,6 +142,9 @@ changes a spec's digest.
   after the empty list (3,650 in that run, before revision 4 carried Aino's correction). On the
   final code, person-deleted shows the card at 3,640 with the board and bug unchanged; a last full
   run of the spec (7 of 7) measured 3008, 2019, 1890, 1888, 5401 and 4886 for the same steps. (They overlap because the walk airs all four at once, which a show would not.)
+  Manual actions during the rehearsal: none beyond registering the source and stopping the agent
+  at the end. The runbook's recovery procedures are each walked in the specs it names, not with
+  this package and the replay together.
   **Grade:** software/replay rehearsal on browser outputs, PASS. Real-studio grade (CasparCG/
   Bridge, OBS) is parent phase S, not run here. Official live-feed access and election-day feed
   qualification: unverified, no access exists; nothing here is a broadcaster readiness claim.
@@ -174,6 +179,10 @@ changes a spec's digest.
   context's collections, and three timeline mutations; browser (4) the Connect write's middle
   fallback, the publish's collections-only retry, the shared writer's fallback loop, `pruneSources`
   without the collections.
+- **The automated PR review (on `c602d75`), both fixed:** the no-0102 walk now waits for the
+  local save before its reload (`settleDurableWrites`); the runbook copies the agent's
+  configuration beside the `replay` folder, since `caFile` is read relative to the configuration
+  file (the steps were run as written: the agent read revision 1 from the replay server).
 - **Check.** Review (code-review skill, high, delegated; scope matched): 9 findings, 7 fixed: a
   collection leaf above or below a bound path (or another collection's) would have replaced that
   subtree, now refused in both the evaluator and 0102; the publish retry now drops `collections`

@@ -31,11 +31,20 @@ are typed by the operator; no result fills them.
 1. Import `election-rehearsal.noacgpack.json` (Productions, **Import a package file…**) and
    publish the production. Use a production of its own, never the one you go on air with.
 2. Register the source on the production: the record in `replay-source.json`, with `endpoint`
-   set to the replay server's address. Connect data has no way yet to register a source that only
-   an agent can reach (#1734): in this rehearsal it is written by the same model call Connect data
-   makes (`connectConnectorSource`), as the configured walk does. The pack's bindings already
-   follow `external.election.*`, so no field is connected by hand.
-3. On the machine that runs the agent (Node 22 and a clone of this repository, nothing else):
+   set to the replay server's address. The pack's bindings already follow `external.election.*`,
+   so no field is connected by hand. The published app has no way yet to register a source that
+   only an agent can reach (#1734), so for now this step needs a development build of NoaCG
+   (`npm run dev`): with the production open, run in the browser console
+
+   ```js
+   const S = await import('/src/model/shows.ts');
+   const show = S.loadShows().find((s) => s.name === 'Election night rehearsal');
+   S.connectConnectorSource(show.id, <the replay-source.json record>, [], null);
+   ```
+
+   which is the write Connect data makes, and the one the configured walk makes.
+3. On the machine that runs the agent (Node 22 and a clone of this repository, nothing else),
+   from the repository's folder:
 
    ```bash
    node scripts/election-replay-server.mjs --dir replay --port 8443 --timeline package
@@ -43,11 +52,14 @@ are typed by the operator; no result fills them.
 
    It writes `replay/ca.pem` and `replay/token` and prints each step's sha256. Copy those lines
    into the rehearsal record.
-4. Start the agent with the two credentials in its environment, never in a file:
+4. Copy the agent's configuration beside the `replay` folder (its `caFile` is read relative to
+   the configuration file), then start the agent with the two credentials in its environment,
+   never in a file:
 
    ```bash
+   cp docs/work-specs/playout-election-package/replay-agent.json agent.json
    NOACG_SOURCE_REPLAY="$(cat replay/token)" NOACG_DATA_KEY=<the production's data key> \
-     node scripts/external-data-connector.mjs --config docs/work-specs/playout-election-package/replay-agent.json \
+     node scripts/external-data-connector.mjs --config agent.json \
      --send https://<your NoaCG>/api/data/source
    ```
 
@@ -112,14 +124,17 @@ hand, so that case is not measured. The full record is in the phase notes.
 
 ## Recovery by hand
 
-| What happens | What to do |
-| --- | --- |
-| Wrong figures arrive | On the Data page, press **Pause** on the **Another system** card. The agent keeps reading but nothing new reaches air; **Resume** sends the latest values once. (A connector has no Pause button of its own in the sources line yet.) |
-| A card must show something the results do not | Pick **Fixed values** in the cue's Live candidate menu: the cue keeps what it showed, no count changes it. Pick a candidate again to reconnect. |
-| The agent stops | Restart it with the same command. It claims again and continues after the last revision the production took. If the old process died without letting go, it waits about 30 s and says so. |
-| The replay server stops | The fields keep their values. Restart it; a restarted server makes a new certificate and token, so restart the agent with the new token too. |
-| The page that took a card was closed | Reopen it; it says what airs. Press **✎ Update** on the card to send the current count. |
-| The rehearsal must end now | **■ All out**, then stop the agent (Ctrl+C lets its claim go) and the replay server. |
+None of these was needed in the software rehearsal. Each is walked elsewhere, as noted; none
+was walked with this package and the replay together.
+
+| What happens | What to do | Where it is walked |
+| --- | --- | --- |
+| Wrong figures arrive | On the Data page, press **Pause** on the **Another system** card. The agent keeps reading but nothing new reaches air; **Resume** sends the latest values once. (A connector has no Pause button of its own in the sources line yet.) | `e2e/configured/external-data-connector.spec.ts` (the agent's revisions held, then Resume), `production-data-key.spec.ts` |
+| A card must show something the results do not | Pick **Fixed values** in the cue's Live candidate menu: the cue keeps what it showed, no count changes it. Pick a candidate again to reconnect. | `e2e/production-pack.spec.ts` (this package, offline) |
+| The agent stops | Restart it with the same command. It claims again and continues after the last revision the production took. If the old process died without letting go, it waits about 30 s and says so. | `e2e/configured/external-data-connector.spec.ts` (kill and restart) |
+| The replay server stops | The fields keep their values. Restart it; a restarted server makes a new certificate and token, so restart the agent with the new token too. | `e2e/configured/external-data-connector.spec.ts` (the provider gone, its credential rotated) |
+| The page that took a card was closed | Reopen it; it says what airs. Press **✎ Update** on the card to send the current count. | `e2e/configured/election-selection.spec.ts` AC-3 (reload, another production, a restart) |
+| The rehearsal must end now | **■ All out**, then stop the agent (Ctrl+C lets its claim go) and the replay server. | `e2e/configured/all-out-from-heads.spec.ts` (All out in general) |
 
 ## Rollback
 

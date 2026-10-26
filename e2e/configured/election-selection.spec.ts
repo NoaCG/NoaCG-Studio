@@ -52,6 +52,7 @@ import { fileURLToPath } from 'node:url';
 import { test, expect, type APIRequestContext, type APIResponse, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { publishProduction } from '../_publish';
+import { settleDurableWrites } from '../_durable';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 import { makeTestCertificate, makeToken, startReplayServer } from '../../scripts/election-replay-server.mjs';
@@ -572,7 +573,8 @@ test.describe('live candidates', () => {
     expect((await row()).collections).toBeNull();
     await expect(page.getByTestId('production-note')).toHaveCount(0);
     // Once the server has the column (0102 applied), the page that opens the production gives the
-    // row its collections, only because the row has none.
+    // row its collections, only because the row has none. The local save of the source lands first.
+    await settleDurableWrites(page);
     await page.unrouteAll({ behavior: 'ignoreErrors' });
     await page.reload();
     await expect(page.getByTestId('production-page')).toBeVisible();
