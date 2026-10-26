@@ -25,7 +25,7 @@ async function load(entry) {
 }
 
 const fonts = await load(path.join(projectRoot, 'src/model/fonts.ts'));
-const { fontWeights, knownFace, importedFontFamilies, customFontFaceCss, fontById, fontStack, fontFaceCss, labelFontFaceCss, supportingFontFaceCss } = fonts;
+const { fontWeights, knownFace, tokenWeights, numericFontStack, importedFontFamilies, customFontFaceCss, fontById, fontStack, fontFaceCss, labelFontFaceCss, supportingFontFaceCss } = fonts;
 const { applyLookToTemplate } = await load(path.join(projectRoot, 'src/model/packets.ts'));
 const { getCssVariable } = await load(path.join(projectRoot, 'src/model/cssVars.ts'));
 const { rootVarsCss } = await load(path.join(projectRoot, 'src/templates/shared/base.ts'));
@@ -41,6 +41,14 @@ test('the weights offered are the face\'s own: single-weight and imported faces 
   assert.deepEqual(values(fontStack(fontById('archivo'))), [400, 500, 600, 700, 800, 900]);
   assert.deepEqual(values('"Brand Sans", Arial, sans-serif', ['Brand Sans']), [400], 'an imported face: Regular until its weights are known');
   assert.deepEqual(values('"Brand Sans", Arial, sans-serif'), [400, 500, 600, 700, 800], 'a family the template does not ship is not narrowed');
+});
+
+test('the weight row counts the numbers\' sibling face: Anton draws one weight, its Saira numbers draw 400-900', () => {
+  const anton = fontById('anton');
+  const sorted = (set) => [...set].sort();
+  assert.deepEqual(sorted(tokenWeights(fontStack(anton), numericFontStack(anton))), ['400', '500', '600', '700', '800', '900'], 'a scoreboard on Anton');
+  assert.deepEqual(sorted(tokenWeights(fontStack(anton), undefined)), ['400'], 'a design with no live numbers declares no --font-numeric');
+  assert.equal(tokenWeights('"Futura", Arial', undefined), null, 'an unknown heading face is not narrowed');
 });
 
 test('a face the app knows is bundled or imported; any other family is left alone', () => {
