@@ -2534,7 +2534,7 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
   await page.getByTestId('adjust-colour-accent').fill('#00aaff');
   await expect.poll(() => rootVar('preview', '--accent')).toBe('#00aaff');
   await expect.poll(() => rootVar('preview', '--font-heading')).toContain('Archivo');
-  await expect(summary).toHaveText(/only this cue · accent/);
+  await expect(summary).toHaveText(/only this cue · Archivo Bold accent/);
   // As designed on its Colour row: the design's own accent, while the graphic's stays orange.
   await page.getByTestId('adjust-colour-designed').click();
   await expect.poll(() => rootVar('preview', '--accent')).toBe('');
