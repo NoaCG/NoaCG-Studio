@@ -265,7 +265,9 @@ test('each target bakes the graphic\'s place and size into its files, painting w
       expect(file, `${target}: ${g.name}'s file in ${paths.filter((p) => p.startsWith(`${target}/`)).join(', ')}`).toBeTruthy();
       expect(served.files.get(file!.replace(/__host\.html$/, 'graphic.mjs'))!.toString()).toContain('noacgApplyAppearance(');
       expect(served.files.get(`plain-${file!}`.replace(/__host\.html$/, 'graphic.mjs'))!.toString()).not.toContain('noacgApplyAppearance');
-      const r = await residuals(renderer, `plain-${file!}`, file!, look, target === 'html-overlay' ? 'autoplay' : 'play', [600, 4_000]);
+      // Landed only: mid-entrance, two mounts of one file differ by when each started on the clock
+      // (0 to 6,234 px across CI runs), which says nothing about the transform.
+      const r = await residuals(renderer, `plain-${file!}`, file!, look, target === 'html-overlay' ? 'autoplay' : 'play', [4_000]);
       rows.push(`${target} ${g.name}: ${r.map((s) => `${s.ms}ms painted ${s.painted} noise ${s.noise} residual ${s.residual}`).join(' | ')}`);
       for (const s of r) expect(s.residual, `${target} ${g.name} at ${s.ms} ms:\n${rows.join('\n')}`).toBeLessThanOrEqual(RESIDUAL_BOUND);
     }
