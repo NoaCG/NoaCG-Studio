@@ -116,13 +116,18 @@ changes a spec's digest.
   settle it, and the unscaled file is identical over eight mounts). The merge group of this PR
   failed on exactly that. So a target is compared pixel by pixel against any pixel within one of
   it at a channel tolerance of 48 (`differingShifted`): the two states come out under 700, a 2 px
-  misplacement 6,196, a 3 px one 8,881, the bake removed 13,299; bound unchanged at 1,000. qz01
+  misplacement 6,196, a 3 px one 8,881, the bake removed 13,299. The bound is unchanged at 1,000,
+  but the metric under it is looser than the sweep's (tolerance 48, not 24, and one pixel of
+  shift): a misplacement of a pixel or less, or colour drift under 48, passes. qz01
   left the target test because its board keeps moving after it lands (2,144 px from itself); it
   stays in the sweep. The merge group also failed `production-controls.spec.ts`'s #1697 "re-ask
   nobody answered" test: it switched its stand-in to stall before the page's own first resolve
   had answered "missing", so on a slow runner that resolve stalled too and the press had nothing to
-  re-ask. Fault-injected (the first resolve stalled): the same failure at line 418. The test now
-  waits for that answer (#1742, closed by this PR). The
+  re-ask. Fault-injected (the first resolve stalled): the same failure at line 418. Waiting for
+  the stand-in to have answered is not enough either: the page may not have read the answer yet,
+  and the play press then skips the re-ask and the test passes without testing it. The test now
+  asks once inside the page and awaits the answer, and asserts the play press's re-ask reached the
+  stall (red with the re-ask removed). #1742, closed by this PR. The
   queue wants `chromium_headless_shell-1228`; this image has `-1243` (symlinked, #1647).
 - **Fence (touched against `9866960`):** `e2e/hosted-control.spec.ts`, `e2e/local-relay.spec.ts`,
   `e2e/playout-adjust-documents.spec.ts` (new), `e2e/production-controls.spec.ts` (the export

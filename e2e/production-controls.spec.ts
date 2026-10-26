@@ -399,20 +399,24 @@ test('a press left without a road when its wait ends never retries by row id (#1
 test('a re-ask nobody answered leaves the production to be asked again (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   let answer: 'none' | 'stall' | 'exists' = 'none';
-  let calledMissing = 0;
+  let stalled = 0;
   const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => {
     if (rpc !== 'control_show_resolve' || answer === 'exists') return null;
-    if (answer === 'stall') return { delay: 30_000 };
-    calledMissing += 1;
+    if (answer === 'stall') {
+      stalled += 1;
+      return { delay: 30_000 };
+    }
     return { status: 200, body: null };
   });
-  // The page's own first resolve must have answered "no such production" before the next one
-  // stalls: only a production the page was told is missing gets asked again by a press. Switched
-  // before that answer (a slow runner, merge-group run 40294074273, #1742), the page's first
-  // resolve stalls too, nothing is ever called missing, and the second press has nothing to re-ask.
-  await expect.poll(() => calledMissing, { message: "the page's first resolve answered" }).toBeGreaterThan(0);
-  await page.evaluate(() => new Promise((r) => setTimeout(r, 0)));
   const showId = page.url().split('/production/')[1];
+  // Only a production the page was told is missing gets asked again by a press, so the page must
+  // have taken a "no such production" answer before the press. Its own first resolve is no proof
+  // of that: the stand-in can have answered while the page has not yet read it (merge-group run
+  // 40294074273, #1742). Ask once here and await the answer inside the page.
+  await page.evaluate(async () => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    await controlShowBySlug('status-slug');
+  });
   const press = (t: 'play' | 'stop') =>
     page.evaluate(
       async ({ showId, t }) => {
@@ -423,6 +427,7 @@ test('a re-ask nobody answered leaves the production to be asked again (#1697)',
     );
   answer = 'stall';
   await press('play');
+  expect(stalled, 'the press asked again and nobody answered').toBeGreaterThan(0);
   answer = 'exists';
   await press('stop');
   expect(sendsSeq(), 'the next press asked again and went numbered').toBeGreaterThan(0);
