@@ -30,7 +30,8 @@ changes a spec's digest.
     held; the undo is unchanged (it refuses a toggle's undo with E1.1's words, so the switch is its
     own inverse). The editor's head row has a "Typed data" box; while it is on, the declared
     fields read out (`Typed`) and are never "unsent".
-  - *The send* (`typedForSend`, the page's `typedFor`): Take, ✎ Update, a folder's Take, a direct
+  - *The send* (`typedForSend`; the decision the page asks is `control/typedSend.ts`
+    `typedSendFor` with its memo, wired by the page's `typedFor`, after Codex P1 on `ab0c8c9`): Take, ✎ Update, a folder's Take, a direct
     trigger and a step carry `{t: 'update', data: {}, typed: <envelope>}`; a bound declared field
     takes the tree's JSON at its path through the typed target adapter (`typedTargetValue`: never
     from text, an unsupported node never replaced), the whole is validated once and must fit 64
@@ -44,7 +45,11 @@ changes a spec's digest.
     (to the composed document as its data JSON, to a foreign layer as `updateAction(values)`),
     never into `mergedData`; any other envelope is E1.1's refusal and hold. A typed graphic never
     reports (`typedHolds`), so its bank stays before its first typed row and a reboot replays the
-    envelopes from the log; E1.2b owns a typed baseline. A data road's native update (`src`) on a
+    envelopes from the log; E1.2b owns a typed baseline. A frame that replaces it (a newer body,
+    the swapper) is given the typed values it airs (`heldData`, Codex P1 on `ab0c8c9`). Every stage
+    applies the same rule, the page's PROGRAM monitor included, and the page rebuilds PROGRAM with
+    the envelope it aired (`AirPart.typedAired`, `typedAfter`, `restoreItems`; Codex P2 on
+    `6e0ac4f`). A data road's native update (`src`) on a
     typed graphic moves its look only, never its data; an operator's native update (a native cue
     taken on that layer) ends typed mode.
   - *E5's typed values* (the route's half of the adapter, `projectSource`): a bound leaf that only
@@ -64,6 +69,11 @@ changes a spec's digest.
     rows resolve bound fields to text (0048), which a typed graphic must not take, and the page's
     unpublished dispatch leaves out a graphic airing typed data. A typed live follow is a
     follow-up issue, not this row.
+  - *A legacy `/update` or a feed* aimed at a graphic airing typed data moves nothing on air (its
+    row carries `src`): it writes text into native fields, and a typed graphic takes its data from
+    its envelope only. The caller's answer is unchanged; the next Take or Update of the cue airs
+    the tree's typed values. This is the one place AC-3's "legacy `/update` keeps its semantics"
+    narrows, and only for typed graphics, which did not exist before this row (the /so on `6e0ac4f`).
   - *Live presses* (event, ±, Snap) on a layer airing typed data still send nothing ("Live
     controls do not reach typed data yet."): typed actions are E2's and E6.2's. A timed end never
     takes a cue that carries typed data, and a cue with a live candidate takes none.
@@ -112,9 +122,18 @@ changes a spec's digest.
   ("not a source report"), any value at any path (a number at a collection leaf), and no value rule
   (a record at a bound path). One mutation is equivalent and was not run: the rebased run of
   `setCueTyped` comparing its bytes, which a single-tab Node store cannot reach.
-- **Follow-ups** (issues): a typed live follow of bound values (outputs keep the last Take or
-  Update until the next); the exported hosted receiver of a declared graphic reading a typed row's
-  empty `data`; and E1.2b's own list (replay, baseline, the renderer round trip).
+- **Follow-ups**: #1760 (a typed live follow of bound values: outputs keep the last Take or
+  Update until the next), #1761 (the exported hosted receiver of a declared graphic reading a typed
+  row's empty `data`), and E1.2b's own list (replay, baseline, the renderer round trip).
+- **Reviews.** `/check`: the code review's 10 findings, 8 fixed and 2 not defects (the hosted page
+  already leaves typed cues out; the undo's refusal); simplify applied in-diff cleanups and
+  reported wider ones (one payload outcome for selection and typed, the resolver skipping typed
+  fields, `JsonValue` stage data, a generic frozen-member allowance). Codex on `ab0c8c9`: two P1,
+  both fixed (the swapper's typed values; the decision moved to `src/control/`); on `6e0ac4f`: two
+  P2, both fixed (PROGRAM's data-road rule; PROGRAM's rebuild). /so on `ab0c8c9`: AGREE WITH
+  CORRECTIONS, Assessment A (two wrong comments in `ografTyped.ts`, fixed); on `6e0ac4f`: AGREE
+  WITH CORRECTIONS, Assessment A (the silent legacy `/update` on a typed graphic, named above).
+  The verdict on the final head is in the pull request.
 - **Touched files against `a5360d4`:** `api/_lib/dataTick.ts`, `api/data/[...path].ts`,
   `docs/work-specs/production-page-refactor/evidence/phase-notes.md`,
   `e2e/configured/expected-run.json`, `e2e/configured/ograf-typed-data.spec.ts` (new),
@@ -126,6 +145,8 @@ changes a spec's digest.
   `src/control/cueDraft.ts` (a type), `src/control/cueItems.ts`, `src/control/graphicVerbs.ts`,
   `src/control/hostedControl.ts` (the published fields), `src/control/livePath.ts` (the entry's
   `typed`), `src/control/selectionAir.ts`, `src/control/sourceMapping.ts`,
+  `src/control/typedSend.ts` (new), `src/control/airState.ts` (PROGRAM's typed air),
+  `src/control/playoutSession.ts` (a type),
   `src/model/fieldModel.ts`, `src/model/importTemplate.ts`, `src/model/ografTyped.ts`,
   `src/model/shows.ts`, `src/model/types.ts`, `src/output/main.ts`, `src/output/stage.ts`,
   `src/styles/playout-dashboard.css`, `supabase/migrations/0104_typed_source_values.sql` (new).

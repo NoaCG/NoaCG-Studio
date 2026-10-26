@@ -17,6 +17,7 @@
 // Every write is one synchronous `apply(fold)`, parts set in a fixed order (D4). No React and only
 // `.ts` runtime imports, so a Node test drives it as it is.
 
+import type { TypedValues } from '../model/ografTyped.ts';
 import type { AppliedOnce } from './commandRoads';
 import type { CueArms } from './cueAuto';
 import type { LogEntry } from './eventLog';
@@ -107,6 +108,9 @@ export interface AirPart {
   /** What each graphic holds applied of its place and size (./cueAdjust.ts `lookAfter`), as the
    *  renderer holds it: kept while the graphic is off air. ADDITIVE OPTIONAL: absent is none. */
   looks?: AppliedLooks;
+  /** The typed OGraf envelope each graphic airs (E1.2a), as sent: what rebuilds PROGRAM in place
+   *  of its empty native data. ADDITIVE OPTIONAL: absent is none. */
+  typedAired?: Readonly<Record<string, TypedValues>>;
 }
 
 export const NO_AIR: AirPart = { liveCue: {}, moves: 0, aired: {}, clocks: {}, speaking: {}, commands: 0, reports: null, bootReplay: null, bootLive: null };

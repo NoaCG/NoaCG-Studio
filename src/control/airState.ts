@@ -36,6 +36,7 @@ import {
 } from './matchClockWire.ts';
 import { airedAfter, type AiredMap, type ReplayItem } from './outputRecovery.ts';
 import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
+import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
 /** The clocks each graphic's published markup carries, by the name the wire uses. A graphic
  *  carries one kind or the other, never both. */
@@ -59,8 +60,26 @@ export function rememberAired(air: AirPart, items: readonly ControlSendItem[]): 
   // The place and size each graphic holds applied, by the same commands (./cueAdjust.ts rules 1, 3).
   const was = air.looks ?? {};
   const looks = items.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), was);
-  if (aired === air.aired && looks === was) return air;
-  return { ...air, aired, ...(looks === was ? {} : { looks }) };
+  const typedWas = air.typedAired ?? {};
+  const typedAired = items.reduce<Record<string, TypedValues>>((next, item) => typedAfter(next, item.graphic, item.msg), typedWas);
+  if (aired === air.aired && looks === was && typedAired === typedWas) return air;
+  return { ...air, aired, ...(looks === was ? {} : { looks }), ...(typedAired === typedWas ? {} : { typedAired }) };
+}
+
+/**
+ * The typed envelope a graphic airs after one command (E1.2a), by the output's own rule
+ * (model/ografTyped.ts `typedOutputGate`): a values update airs its envelope; a data road's native
+ * update (`src`) leaves it; an operator's native update replaces it; an Out ends it.
+ */
+export function typedAfter(prev: Record<string, TypedValues>, graphic: string, msg: ControlSendItem['msg']): Record<string, TypedValues> {
+  if (msg.t === 'update') {
+    const envelope = 'typed' in msg ? typedValuesOf(msg.typed) : null;
+    if (envelope) return { ...prev, [graphic]: envelope };
+    if ((msg as { src?: unknown }).src !== undefined || !(graphic in prev)) return prev;
+  } else if (msg.t !== 'stop' || !(graphic in prev)) return prev;
+  const next = { ...prev };
+  delete next[graphic];
+  return next;
 }
 
 /**
@@ -296,6 +315,16 @@ export function restoreItems(
     // (`looks` was seeded from the reports, so an entry cleared since is cleared, not the report's.)
     const look = replaying ? reportedLook(report) : air.looks?.[graphic];
     const items: ReplayItem[] = [];
+    // A graphic this page aired typed data on is rebuilt with that envelope, never its empty native
+    // data (E1.2a); a report never banks typed values, so a replay is not this page's to fill.
+    const typed = replaying ? undefined : air.typedAired?.[graphic];
+    if (typed) {
+      items.push({ graphic, msg: { t: 'update', data: {}, typed, ...(look ? { appearance: look } : {}) } });
+      if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
+      else items.push({ graphic, msg: { t: 'play' } });
+      all.push(...items);
+      continue;
+    }
     if (data || look) items.push({ graphic, msg: { t: 'update', data: data ?? {}, ...(look ? { appearance: look } : {}) } });
     if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
     // Without a state the graphic plays in, unless the replayed rows carry its entrance.

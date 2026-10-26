@@ -1,4 +1,4 @@
-// guards: src/model/ografTyped.ts, src/control/typedSend.ts, src/model/shows.ts, src/model/importTemplate.ts, src/model/rundownHistory.ts, src/control/cueItems.ts, src/control/livePath.ts, src/control/hostedControl.ts, src/output/main.ts, src/output/stage.ts, src/components/home/ProductionPage.tsx, scripts/fixtures/ograf-typed/**
+// guards: src/model/ografTyped.ts, src/control/typedSend.ts, src/control/airState.ts, src/control/playoutSession.ts, src/model/shows.ts, src/model/importTemplate.ts, src/model/rundownHistory.ts, src/control/cueItems.ts, src/control/livePath.ts, src/control/hostedControl.ts, src/output/main.ts, src/output/stage.ts, src/components/home/ProductionPage.tsx, scripts/fixtures/ograf-typed/**
 //
 // TYPED OGRAF DATA, THE WRITING SIDE (docs/work-specs/playout-ograf-contract/spec.md, E1.2a), in
 // Node. The reading side is scripts/ograf-typed.test.mjs; the route's half of the typed target
@@ -36,6 +36,8 @@ const {
 const { takeCueItems } = await import('../src/control/cueItems.ts');
 const { readLiveEntry } = await import('../src/control/livePath.ts');
 const { typedSendFor, createTypedSendMemo } = await import('../src/control/typedSend.ts');
+const { rememberAired, restoreItems, typedAfter } = await import('../src/control/airState.ts');
+const { NO_AIR } = await import('../src/control/playoutSession.ts');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const stranger = JSON.parse(readFileSync(path.join(root, 'scripts/fixtures/ograf-typed/stranger.ograf.json'), 'utf8'));
@@ -310,6 +312,26 @@ test('the output: typed values air as they are; a data road\'s text never replac
   assert.match(main, /if \(animate && \(gate\.values \|\| msg\.appearance\)\) stage\.apply\(/);
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
   assert.match(stage, /post\(graphic, \{ cmd: 'update', data: JSON\.stringify\(typedData \?\? msg\.data \?\? \{\}\) \}\);/);
+});
+
+test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\'s own rule', () => {
+  const typedUpdate = { t: 'update', data: {}, typed: envelope() };
+  let air = rememberAired({ ...NO_AIR, liveCue: { Board: 'c1' } }, [{ graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }]);
+  assert.deepEqual(air.typedAired, { Board: envelope() });
+  // A data road's text leaves it; the rebuilt monitor gets the envelope, never the empty native data.
+  air = rememberAired(air, [{ graphic: 'Board', msg: { t: 'update', data: { round: '3' }, src: 'api' } }]);
+  assert.deepEqual(air.typedAired, { Board: envelope() });
+  const { items } = restoreItems(air, {}, { clocks: new Map(), pairs: new Map() });
+  assert.deepEqual(items, [{ graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }]);
+  // An operator's native update replaces it, and an Out ends it.
+  assert.deepEqual(typedAfter({ Board: envelope() }, 'Board', { t: 'update', data: { f0: 'x' } }), {});
+  assert.deepEqual(typedAfter({ Board: envelope() }, 'Board', { t: 'stop' }), {});
+  const native = rememberAired(NO_AIR, [{ graphic: 'Board', msg: { t: 'update', data: { f0: 'x' } } }]);
+  assert.equal(native.typedAired, undefined, 'a native page keeps its air part as it was');
+  // Every stage, the page's monitors included, applies the same rule as the output's gate.
+  const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
+  assert.match(stage, /if \(\(msg as \{ src\?: unknown \}\)\.src !== undefined\) dataless = true;/);
+  assert.match(stage, /if \(dataless\) break;/);
 });
 
 // ── The outputs' capability ──────────────────────────────────────────────────────────────────

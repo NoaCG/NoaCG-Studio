@@ -621,18 +621,31 @@ export function createOutputStage(
   };
   window.addEventListener('message', onMessage);
 
+  /** Graphics whose data on this stage is a typed envelope's (E1.2a). */
+  const typedAiring = new Set<string>();
   const apply = (graphic: string, msg: ControlEventRow['msg']) => {
     // A status row has no OGraf meaning either; ografCallFor drops whatever it cannot map.
     // TYPED DATA (E1.2a): an update's envelope values are the graphic's data as they are, never
     // strings; one this build cannot read sends no data at all (the output's gate refused it first).
     const typedMember = msg.t === 'update' && 'typed' in msg && msg.typed !== undefined;
     const typedData = typedMember ? (typedValuesOf(msg.typed)?.values ?? null) : null;
+    // The output's rule (model/ografTyped.ts `typedOutputGate`), here for every stage, the page's
+    // PROGRAM monitor included: on a graphic airing typed data, a data road's native update (`src`)
+    // moves its look only, and an operator's native update ends the typed data.
+    let dataless = typedMember && !typedData;
+    if (msg.t === 'update') {
+      if (typedData) typedAiring.add(graphic);
+      else if (!typedMember && typedAiring.has(graphic)) {
+        if ((msg as { src?: unknown }).src !== undefined) dataless = true;
+        else typedAiring.delete(graphic);
+      }
+    }
     const foreignLayer = foreign.get(graphic);
     if (foreignLayer) {
       // A foreign package takes no place and size yet (after E3): its data only, and an update that
       // carried nothing else reaches it not at all.
       if (typedData) return foreignLayer.send({ t: 'update', data: typedData as unknown as Record<string, string> });
-      if (typedMember) return;
+      if (dataless) return;
       if (msg.t === 'update' && 'appearance' in msg && msg.appearance !== undefined) {
         if (Object.keys(msg.data ?? {}).length === 0) return;
         return foreignLayer.send({ t: 'update', data: msg.data });
@@ -651,7 +664,7 @@ export function createOutputStage(
           paintAppearance(frames.get(graphic)!.iframe, graphic);
           paintStyle(frames.get(graphic)!);
         }
-        if (typedMember && !typedData) break;
+        if (dataless) break;
         post(graphic, { cmd: 'update', data: JSON.stringify(typedData ?? msg.data ?? {}) });
         break;
       }
