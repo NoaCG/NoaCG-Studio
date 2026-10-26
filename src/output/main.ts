@@ -577,6 +577,14 @@ async function boot(): Promise<void> {
         () => {
           reportTimers.delete(graphic);
           changedReports.delete(graphic);
+          // A HELD GRAPHIC NEVER REPORTS (E1.1, `typedRefused`): its bank stays before the refused
+          // command, so a reboot replays that command and is held again, rather than recovering
+          // the previous cue's values from a baseline past it. Asked at the moment of writing, so
+          // a report scheduled before the hold banks nothing either.
+          if (typedRefused.has(graphic)) {
+            forcedReports.delete(graphic);
+            return;
+          }
           const data = mergedData.get(graphic) ?? {};
           // The place and size held applied ride the report's `state` (playout adjustments: stored
           // as sent, so no migration): what a boot restores, never newer preparation (rule 4).
@@ -804,7 +812,8 @@ async function boot(): Promise<void> {
       } else if (row.msg.t !== 'ping') {
         for (const [graphic, at] of bankedAt) {
           // A catch-up replays rows from the oldest bank; rows before this graphic's do not count.
-          if (seq <= at) continue;
+          // A held graphic keeps its bank where it is (see the report above).
+          if (seq <= at || typedRefused.has(graphic)) continue;
           const since = (sinceBank.get(graphic) ?? 0) + 1;
           sinceBank.set(graphic, since);
           if (since < REBANK_AFTER) continue;

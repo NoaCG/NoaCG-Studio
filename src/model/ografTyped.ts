@@ -66,6 +66,12 @@ export const TYPED_MAX_VALUE_NODES = 10000;
 
 type Json = Record<string, unknown>;
 
+/** An own enumerable property, whatever its name: `__proto__` included, which plain assignment
+ *  would hand to the prototype setter and so drop. */
+function put<T>(target: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
 const isRecord = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
 const own = (o: object, key: string) => Object.prototype.hasOwnProperty.call(o, key);
 
@@ -691,14 +697,14 @@ export function migrateToTyped(description: OgrafDescription, native: Record<str
       continue;
     }
     if (!node || node.type === 'unsupported') {
-      values[key] = text;
+      put(values, key, text);
       receipt.kept.push(key);
       continue;
     }
     const read = fromNative(node, text);
     if ('reason' in read) receipt.refused.push({ at: key, reason: read.reason });
     else {
-      values[key] = read.value;
+      put(values, key, read.value);
       receipt.converted.push(key);
     }
   }
@@ -718,6 +724,6 @@ export function migrateToTyped(description: OgrafDescription, native: Record<str
 /** The native strings a typed envelope stands for: the way back, the inverse of `migrateToTyped`. */
 export function nativeOf(envelope: TypedValues): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const key of Object.keys(envelope.values).sort()) out[key] = toNative(envelope.values[key]);
+  for (const key of Object.keys(envelope.values).sort()) put(out, key, toNative(envelope.values[key]));
   return out;
 }

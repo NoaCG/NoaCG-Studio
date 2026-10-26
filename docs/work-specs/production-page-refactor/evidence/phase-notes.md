@@ -63,6 +63,11 @@ changes a spec's digest.
     after its refused `update` never airs the previous cue's values. The reason shows in the
     graphic's READY line ("reload this output", which brings a renderer that reads it once one is
     deployed). The output's seen report advertises nothing yet: that is E1.2a's negotiation.
+    A held graphic never REPORTS (the report's write and the re-bank both skip it), so its recovery
+    bank stays before the refused command and a reboot replays it and is held again, instead of
+    recovering the previous cue's values from a baseline past it (Codex P1 on `2388373`). The hold
+    lifts on any native `update`, a partial one included; E1.2b, which owns replay and the
+    baseline, decides whether only a full update may lift it (the /so note).
   - *L2.1 and L2.2*: `appearance` (with its style members) is a native member beside `data`,
     outside the envelope; the reader never reads it, and a message without `typed` passes byte for
     byte.
@@ -71,8 +76,8 @@ changes a spec's digest.
     (`"01"`, `"1.0"`, `"yes"` and loosely spaced JSON are refused, never guessed), keeps an
     undeclared key and an unsupported field as their string, and validates the whole. The receipt
     `{v, standard, schema, input, output, converted, kept, refused}` uses content hashes and
-    sorted lists, so the same input gives the same bytes in any order. No SQL migration is in this
-    row.
+    sorted lists, so the same input gives the same bytes in any order. A field named `__proto__` is
+    written as an own property both ways (Codex P2 on `2388373`). No SQL migration is in this row.
   - *Bounds*, each pinned at its edge: nesting 16, 2000 schema nodes per manifest, 10000 value
     nodes per envelope. `readJson` is iterative and every node is visited once.
 - **Traps.**
@@ -83,8 +88,19 @@ changes a spec's digest.
   - The after-build check must follow the output entry's import graph: the reader's words live in
     a shared chunk, and are tree-shaken away when the gate is removed from `main.ts`, which is what
     makes the check go red (measured).
+  - A refusal that lives only in the renderer's memory is lost at a reboot unless the graphic's
+    recovery bank stays before it: the hold has to reach the report path, not only the stage.
   - Chromium 71 parses dynamic `import()`, `import.meta` and BigInt but not `?.`, `??` or
     `export * as`: the check parses at ecmaVersion 2020 and refuses those three.
+- **Check and reviews.** `/check`: the code review raised 10 candidates and 9 were fixed (the
+  output hold, the event and ± refusals, the pinned block through the verbs rather than a dropped
+  cue, the read-only editor, an action envelope on a cue, `export * as`, acorn declared, the READY
+  error that never cleared); one stays a report (`typedKeep`/`typedFrozen` mirror E7.1's pair, and
+  merging them reworks E7.1's door). Simplify applied the in-diff cleanups and reported two that
+  reach unchanged code (one shared `canonicalJson` with `control/externalSource.ts`, the GDD
+  colour patterns shared with `ografSchema.ts`). Codex on `2388373`: two findings, both fixed
+  above (P1 the held graphic's report, P2 `__proto__`). The first /so (on `2388373`) answered
+  AGREE, Assessment A; the verdict on the final head is in the pull request.
 - **Touched files against `42c48f9`:** `src/model/ografTyped.ts` (new), `src/model/shows.ts`, `src/model/rundownHistory.ts`,
   `src/model/productionData.ts`, `src/control/selectionAir.ts`, `src/control/cueAuto.ts`,
   `src/control/graphicVerbs.ts`, `src/components/home/ProductionPage.tsx`, `src/output/main.ts`,
@@ -100,7 +116,7 @@ changes a spec's digest.
   `ografContract.ts`, `ografSchema.ts`, `ografImport.ts`, `ografHost.ts`, `foreignOgraf.ts`,
   `sourceMapping.ts` or wire type changed: exported packages and the native wire are unchanged
   byte for byte.
-- **Mutation checks:** 37 source mutations, each red: a pinned schema hash; each bound changed by one; the
+- **Mutation checks:** 41 source mutations, each red: a pinned schema hash; each bound changed by one; the
   closed object, the enum, required, null read as missing, a package pattern run, the lossless
   number and JSON checks, a later version or another standard read as readable, the wire reader
   reading nothing, the hold (a `play` let through, an update not lifting it), an action envelope
@@ -109,7 +125,8 @@ changes a spec's digest.
   checks, the receipt's key order, an action without a schema taking arguments; both writes of
   `patchShowChecked` and the undo without the door; `selectionTake`, `preparedCue` and
   `nextGraphicCue` without the refusal; each of the three live presses without it; the output's
-  call of the gate. The after-build check goes red on a built bundle with `?.`, `??` or
+  call of the gate; a held graphic's report and its re-bank; `__proto__` written by assignment,
+  each way. The after-build check goes red on a built bundle with `?.`, `??` or
   `export * as` appended, and on a build whose `main.ts` no longer calls the gate.
 
 ## Row 32d (L2.2, project phase 36): type and colour per graphic and cue

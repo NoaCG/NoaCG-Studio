@@ -303,6 +303,12 @@ test('the output reader: a native message is not read, an envelope is refused, n
   const main = readFileSync(path.join(root, 'src/output/main.ts'), 'utf8');
   const gate = main.indexOf('const typed = typedOutputGate(typedRefused, graphic, incoming);');
   assert.ok(gate > 0 && gate < main.indexOf("if (verb === 'update' ||", gate) && gate < main.indexOf('stage.apply(row.graphic', gate));
+  // A held graphic never reports, so a reboot's recovery replays the refused command and holds
+  // again: the report's write and the re-bank both skip it.
+  const report = main.indexOf('const scheduleReport = ');
+  const held = main.indexOf('if (typedRefused.has(graphic)) {', report);
+  assert.ok(report > 0 && held > report && held < main.indexOf('controlOutputReport(', report), 'the report skips a held graphic before it writes');
+  assert.match(main, /if \(seq <= at \|\| typedRefused\.has\(graphic\)\) continue;/);
 });
 
 test('the output holds a refused graphic: a Take\'s play after its refused update never airs old values', () => {
@@ -410,6 +416,19 @@ test('migration reads by the declared type only, losslessly or not at all', () =
   for (const patch of [{ round: '01' }, { round: '7' }]) assert.equal(refused(patch).envelope, null);
   // A graphic without a data schema, or a native one, is never migrated.
   assert.equal(migrateToTyped(describeOgraf({}), base).envelope, null);
+});
+
+test('a property named __proto__ survives the migration both ways', () => {
+  const d = describeOgraf(stranger);
+  const native = JSON.parse('{"__proto__":"keep me","title":"Title","teams":"[{\\"name\\":\\"H\\",\\"score\\":1}]"}');
+  const { envelope: env, receipt } = migrateToTyped(d, native);
+  assert.deepEqual(receipt.refused, []);
+  assert.deepEqual(receipt.kept, ['__proto__']);
+  assert.ok(Object.prototype.hasOwnProperty.call(env.values, '__proto__'));
+  assert.equal(Object.getPrototypeOf(env.values), Object.prototype);
+  const back = nativeOf(env);
+  assert.deepEqual(Object.keys(back), ['__proto__', 'teams', 'title']);
+  assert.equal(JSON.stringify(back), JSON.stringify(Object.fromEntries(Object.keys(native).sort().map((k) => [k, native[k]]))));
 });
 
 test('the receipt is deterministic: the same input in any order gives the same envelope and receipt', () => {
