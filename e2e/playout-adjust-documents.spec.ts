@@ -418,6 +418,21 @@ test('each target bakes the graphic\'s type and colour, painting what the design
     await filesOf(built.out[target].restyled, `restyled-${target}`, served.files);
     await filesOf(built.out[target].plain, `plain-${target}`, served.files);
   }
+  // THE FONT CLOSURE, read off each package itself rather than off a render: the renderer below
+  // serves any bundled face beside a file, which would hide a package that forgot to ship one.
+  // lt01 is drawn in Inter, so Archivo is in a package only because its appearance names it:
+  // as its own file beside the graphic (a folder package) or inlined into it (a single file),
+  // read in lt01's own folder (a controller page carries the app's faces for itself).
+  const lt01 = built.graphics[0].name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const carries = (prefix: string, family: string, file: string) =>
+    [...served.files.entries()].some(([path, bytes]) =>
+      path.startsWith(`${prefix}/`) && path.includes(`/${lt01}/`) &&
+      (path.endsWith(`/fonts/${file}`) ||
+        (/\.(html|mjs|js|css)$/.test(path) && new RegExp(`@font-face\\s*\\{[^}]*font-family:\\s*"${family}"[^}]*url\\("?data:`).test(bytes.toString('utf8')))));
+  for (const target of TARGETS) {
+    expect(carries(target, 'Archivo', 'archivo.woff2'), `${target}: the baked package ships the face its appearance names`).toBe(true);
+    expect(carries(`plain-${target}`, 'Archivo', 'archivo.woff2'), `${target}: and the unstyled one does not, so the check can see it`).toBe(false);
+  }
   const renderer = await openRenderer(browser, served);
   const paths = [...served.files.keys()];
   const rows: string[] = [];
