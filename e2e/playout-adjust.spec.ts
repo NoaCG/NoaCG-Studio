@@ -5,7 +5,7 @@
 // (AC-2, AC-8, AC-10), and the /output renderer booting from a report that carries an appearance
 // (AC-9's renderer half), with only the backend stood in for as in output-ready.spec.ts. The arithmetic
 // is scripts/cue-adjust.test.mjs; the operator's flow is e2e/production-controls.spec.ts.
-// covers: src/preview/settleGraphic.ts, src/components/home/measureCue.ts, src/output/stage.ts, src/output/main.ts, src/control/cueAdjust.ts
+// covers: src/preview/settleGraphic.ts, src/components/home/measureCue.ts, src/output/stage.ts, src/output/main.ts, src/control/cueAdjust.ts, src/control/cueStyle.ts, src/preview/composeDocument.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 
@@ -194,4 +194,152 @@ test('the /output renderer restores the appearance its report holds, and only fo
   await expect(page.locator('iframe[title="Bug"]')).not.toHaveAttribute('data-appearance', /.*/);
   // A boot is no new Take: nothing played.
   await expect(page.locator('body')).toHaveAttribute('data-plays', '0');
+});
+
+/**
+ * TYPE AND COLOUR THROUGH THE STAGE (phase 2; AC-5 and AC-6's document half). The style an
+ * appearance carries goes into the graphic's own document (control/cueStyle.ts, the composed
+ * document's `style` command), so these read inside the frame: the face Chromium really used for
+ * a name with Nordic and Central-European letters (its per-node platform-font report), the weight
+ * and colour the root variables give, the template's font-ready fits running again, and the
+ * latest-request guard.
+ */
+const NAME = 'Åsa Öberg-Ærø Šimon Žáková';
+
+async function styledStage(page: Page, imported = false) {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app#/home');
+  await page.evaluate(async ({ imported }) => {
+    const { createOutputStage } = await import('/src/output/stage.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const assets: { path: string; data: string }[] = [];
+    if (imported) {
+      const bytes = new Uint8Array(await (await fetch('/fonts/anton.woff2')).arrayBuffer());
+      let bin = '';
+      for (const b of bytes) bin += String.fromCharCode(b);
+      assets.push({ path: 'fonts/brand-import.woff2', data: `data:font/woff2;base64,${btoa(bin)}` });
+    }
+    const t = variantById('lt01')!.create({});
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    root.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px';
+    document.body.appendChild(root);
+    const RES = { width: 1920, height: 1080, label: '1080p' };
+    const spec = { key: 'L3', html: t.html, css: t.css, js: t.js, assets, resolution: RES, fps: 50, layer: 20 };
+    const w = window as unknown as Record<string, unknown>;
+    w.__stage = createOutputStage(root, { v: 1, resolution: RES, graphics: [spec], cues: [] }, { fit: () => ({ width: 1920, height: 1080 }) });
+    w.__restyled = [];
+    window.addEventListener('message', (ev) => {
+      if ((ev.data as { type?: string })?.type === 'spx-preview-restyled') (w.__restyled as number[]).push((ev.data as { seq: number }).seq);
+    });
+    const iframe = root.querySelector('iframe[title="L3"]') as HTMLIFrameElement;
+    for (let i = 0; i < 100 && iframe.style.visibility !== 'visible'; i++) await new Promise((r) => setTimeout(r, 100));
+  }, { imported });
+  return page.frameLocator('iframe[title="L3"]');
+}
+
+/** Send a fold's resolved style to the stage as Take sends it. */
+async function sendStyle(page: Page, record: unknown, imported: { family: string; assetPath: string }[] = []) {
+  await page.evaluate(async ({ record, imported, name }) => {
+    const A = await import('/src/control/cueAdjust.ts');
+    const St = await import('/src/control/cueStyle.ts');
+    const style = St.resolveStyle(A.effectiveAdjust(record, undefined), imported);
+    const stage = (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage;
+    stage.apply('L3', { t: 'update', data: { f0: name }, appearance: A.appearanceOf(null, style) });
+  }, { record, imported, name: NAME });
+}
+
+/** The fonts Chromium drew the name line with, by the frame's own DOM. */
+async function platformFonts(page: Page) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('DOM.enable');
+  await cdp.send('CSS.enable');
+  const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
+  const find = (n: { nodeName: string; contentDocument?: unknown; children?: unknown[]; nodeId: number }, pred: (n: never) => boolean): number | null => {
+    if (pred(n as never)) return n.nodeId;
+    for (const c of [...((n.children as never[]) ?? []), ...(n.contentDocument ? [n.contentDocument as never] : [])]) {
+      const hit = find(c, pred);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  const frameDoc = find(root as never, (n: { nodeName: string; frameId?: string; documentURL?: string; nodeType?: number }) => n.nodeName === '#document' && n !== (root as never));
+  const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: frameDoc!, selector: '#f0' });
+  const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+  await cdp.detach();
+  return fonts.map((f) => ({ family: f.familyName, custom: f.isCustomFont }));
+}
+
+test('a chosen face reaches the document through the stage: every glyph of the name in it, at its weight, and the fits run again', async ({ page }) => {
+  const doc = await styledStage(page);
+  // The template's font-ready fits were recorded as it loaded: count the ones a style runs again.
+  await doc.locator('html').evaluate(() => {
+    const w = window as unknown as { __noacgFontHooks: (() => void)[]; __refits: number };
+    w.__refits = 0;
+    w.__noacgFontHooks.push(() => (w.__refits += 1));
+  });
+  const before = await doc.locator('#f0').evaluate((el) => getComputedStyle(el).fontFamily);
+  await sendStyle(page, { v: 1, font: { fontId: 'archivo' }, vars: { 'display-weight': '700', accent: '#ff7a00' } });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1]);
+  const seen = await doc.locator('html').evaluate((html) => {
+    const f0 = document.getElementById('f0')!;
+    const draw = (font: string) => {
+      const c = document.createElement('canvas');
+      c.width = 1400;
+      c.height = 90;
+      const ctx = c.getContext('2d')!;
+      ctx.font = font;
+      ctx.fillText(f0.textContent ?? '', 4, 70);
+      return c.toDataURL();
+    };
+    return {
+      root: { accent: html.style.getPropertyValue('--accent'), weight: html.style.getPropertyValue('--display-weight') },
+      text: f0.textContent,
+      family: getComputedStyle(f0).fontFamily,
+      weightIfPainted: getComputedStyle(f0).fontWeight,
+      refits: (window as unknown as { __refits: number }).__refits,
+      fallbackDiffers: draw('700 48px "Archivo", Arial, sans-serif') !== draw('700 48px Arial, sans-serif'),
+    };
+  });
+  expect(seen.root).toEqual({ accent: '#ff7a00', weight: '700' });
+  expect(seen.text).toBe(NAME);
+  expect(before).not.toContain('Archivo');
+  expect(seen.family).toContain('Archivo');
+  expect(seen.refits, 'the template\'s font-ready fits ran again').toBeGreaterThanOrEqual(1);
+  expect(seen.fallbackDiffers, 'the fallback stack draws the name differently, so its use would show').toBe(true);
+  const fonts = await platformFonts(page);
+  expect(fonts.length).toBeGreaterThan(0);
+  expect(fonts.filter((f) => !f.custom), 'no glyph of the name from a system face').toEqual([]);
+  expect(new Set(fonts.map((f) => f.family.replace(/\s+(Regular|Bold|Variable).*$/i, ''))).size, `one family: ${JSON.stringify(fonts)}`).toBe(1);
+  // Taken off: an identity puts the design back.
+  await page.evaluate(async () => {
+    const A = await import('/src/control/cueAdjust.ts');
+    (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: {}, appearance: A.IDENTITY });
+  });
+  await expect.poll(() => doc.locator('html').evaluate((h) => h.style.getPropertyValue('--font-heading'))).toBe('');
+});
+
+test('the latest request wins: a slow face that loads after a newer choice does nothing', async ({ page }) => {
+  // Archivo's file answers late; Inter's at once.
+  await page.route('**/fonts/archivo*.woff2', async (route) => {
+    await new Promise((r) => setTimeout(r, 1_500));
+    await route.continue();
+  });
+  const doc = await styledStage(page);
+  await sendStyle(page, { v: 1, font: { fontId: 'archivo' } });
+  await sendStyle(page, { v: 1, font: { fontId: 'inter' } });
+  // Long enough for Archivo to have arrived.
+  await page.waitForTimeout(2_500);
+  expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--font-heading'))).toContain('Inter');
+  expect(await page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled), 'only the newer style refitted').toEqual([2]);
+});
+
+test('an imported face reaches the document by its asset path, and draws the name from its own file', async ({ page }) => {
+  const doc = await styledStage(page, true);
+  await sendStyle(page, { v: 1, font: { family: 'Brand Import', assetPath: 'fonts/brand-import.woff2' } }, [{ family: 'Brand Import', assetPath: 'fonts/brand-import.woff2' }]);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1]);
+  await doc.locator('#f0').evaluate((el) => (el.textContent = 'JAKE MORRISON'));
+  expect(await doc.locator('#f0').evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Brand Import');
+  const fonts = await platformFonts(page);
+  expect(fonts.filter((f) => !f.custom), JSON.stringify(fonts)).toEqual([]);
 });
