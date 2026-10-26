@@ -884,9 +884,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** The data that belongs to AIR: the cue live on the selected layer, draft included. Events and
    *  snaps act on the live graphic, so their values come from ITS cue, read after the wait. A live
    *  candidate's fields are what its aired instance shows; with no instance here they are left out,
-   *  so the layer keeps what it shows rather than the cue's prepared text (E7.1). */
+   *  so the layer keeps what it shows rather than the cue's prepared text (E7.1). A cue carrying
+   *  typed data (model/ografTyped.ts) gives none: its native strings are not what it shows (E1.1). */
   const airValues = (p: GraphicPage, sel: VerbSelection): Record<string, string> => {
-    if (!sel.airCue) return {};
+    if (!sel.airCue || sel.airCue.typed !== undefined) return {};
     const values = p.cueView(sel.airCue).values;
     // The cue's own candidate fields, and every field the layer protects: a candidate's Take may
     // have reached the output while the marker still names this cue (E7.1).

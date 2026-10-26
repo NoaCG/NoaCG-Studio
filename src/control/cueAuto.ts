@@ -17,6 +17,7 @@
 
 import type { CueAuto, CueEnd, ShowCue } from '../model/shows';
 import { clockText, FINAL_S } from './serverState.ts';
+import { preparedCue } from '../model/productionData.ts';
 
 /** An end action more than this late is MISSED and never runs (§2.5, the owner's point 2). */
 export const LATE_LIMIT_MS = 5_000;
@@ -60,13 +61,14 @@ export function playsOut(then: CueEnd): boolean {
  * looking past server cues the way a clip's Play next looks past graphics. Null when there is none,
  * which is also the last cue's case. Resolved when the cue is armed, so reordering after the Take
  * does not change it. A next cue showing a live candidate is null too: a timed end takes it with
- * no candidate check, here or on the server, so it is never taken that way (E7.1).
+ * no candidate check, here or on the server, so it is never taken that way (E7.1). Nor is one carrying
+ * typed data (E1.1), which would air as its native strings.
  */
-export function nextGraphicCue(cues: readonly Pick<ShowCue, 'id' | 'source' | 'selection'>[], cueId: string): string | null {
+export function nextGraphicCue(cues: readonly Pick<ShowCue, 'id' | 'source' | 'selection' | 'typed'>[], cueId: string): string | null {
   const at = cues.findIndex((c) => c.id === cueId);
   if (at < 0) return null;
   const next = cues.slice(at + 1).find((c) => c.source !== 'playout');
-  return next && next.selection === undefined ? next.id : null;
+  return next && preparedCue(next) ? next.id : null;
 }
 
 /** One lane's countdown. */

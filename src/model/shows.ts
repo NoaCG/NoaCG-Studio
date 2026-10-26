@@ -27,6 +27,7 @@ import {
 } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
+import { typedFrozen, typedKeep, type TypedValues } from './ografTyped';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
@@ -114,6 +115,12 @@ export interface ShowCue {
    *  cue's own exception to its graphic's place and size (`SavedGraphic.adjust`), member by member;
    *  absent inherits all of it. Read only through ./adjust.ts `readAdjust`. */
   adjust?: AdjustRecord | { v: number; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-contract/spec.md, E1.1). A
+   *  foreign OGraf Graphic's typed values, beside `values` and never inside them, read only through
+   *  ./ografTyped.ts `readTypedEnvelope`. This build writes none (E1.2a is the writer): every write
+   *  keeps it byte for byte (`typedFrozen`), a cue carrying one never airs from here
+   *  (`typedSendRefusal`), and one this build cannot read makes the whole cue read-only. */
+  typed?: TypedValues | { v?: unknown; [later: string]: unknown };
 }
 
 /** Where a prepared message came from, kept on its cue. */
@@ -1010,11 +1017,12 @@ function patchShowChecked(
   if (!show) return { shows: visible(), error: null };
   const at = nowIso();
   const kept = selectionKeep(show);
+  const typed = typedKeep(show);
   const result = mutate(show, at);
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
-  const frozen = selectionFrozen(kept, show, undefined, write);
+  const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
@@ -1026,9 +1034,10 @@ function patchShowChecked(
     const fresh = list.find((s) => s.id === showId && !s.deleted);
     if (!fresh) return { refused: 'This production was removed in another tab.' };
     const keptFresh = selectionKeep(fresh);
+    const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
-    const frozenFresh = again ? selectionFrozen(keptFresh, fresh, undefined, write) : null;
+    const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh)) : null;
     if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
     return { value: JSON.stringify(list) };
