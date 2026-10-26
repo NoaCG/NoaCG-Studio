@@ -12,6 +12,11 @@ import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
 import { lengthText } from './clipLength';
 import { useServerThumbnail } from './serverThumbnail';
 import { useCueView } from './CueEditor';
+import { useStorePart } from './useStorePart';
+import { storePart, type StorePart } from '../../control/storePart';
+
+/** A part nobody writes, for a monitor with nothing to subscribe to (hooks run unconditionally). */
+const NO_PART = storePart<unknown>(null);
 
 /**
  * A SERVER CLIP'S PICTURE on a monitor (docs/CLIP_PLAYBACK_PLAN.md §6.3): its thumbnail, marked
@@ -126,8 +131,9 @@ export default function PlayoutMonitors({
    *  it): their names are the last known. */
   serverLost?: LostHop | null;
   /** The previewed cue's place and size (control/adjustGeometry.ts `cueAdjustState`), applied to its
-   *  frame exactly as the output stage applies it. */
-  previewLook?: AppliedAppearance | null;
+   *  frame exactly as the output stage applies it. Read here, under the session's `geometry` part, so
+   *  a measurement redraws this monitor and not the page. */
+  previewLook?: { part: StorePart<unknown>; of: () => AppliedAppearance | null } | null;
   /** Draw the safe area over PREVIEW (while the Adjust block is open). */
   guides?: boolean;
   /** Measure the previewed cue after each settle, for the identity `key`: on while its graphic is
@@ -257,7 +263,9 @@ export default function PlayoutMonitors({
   // graphic's frame sits at its origin at its own resolution, unscaled, exactly where the output
   // stage puts it. A 720p or portrait graphic then shows here where and how large PROGRAM shows it.
   const fit = stageBox.width && stageBox.height ? Math.min(stageBox.width / stage.width, stageBox.height / stage.height) : 0;
-  const lookCss = frameCss(previewLook);
+  useStorePart(previewLook?.part ?? NO_PART);
+  const look = previewLook?.of() ?? null;
+  const lookCss = frameCss(look);
   const inset = safeInsets(stage);
 
   return (
@@ -291,7 +299,7 @@ export default function PlayoutMonitors({
                   sandbox="allow-scripts"
                   srcDoc={previewDoc}
                   onLoad={() => settlePreview(settleData)}
-                  data-appearance={previewLook?.frame ? JSON.stringify(previewLook) : undefined}
+                  data-appearance={look?.frame ? JSON.stringify(look) : undefined}
                   style={{
                     position: 'absolute',
                     left: 0,

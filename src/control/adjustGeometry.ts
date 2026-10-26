@@ -14,8 +14,10 @@
 import type { StorePart } from './storePart';
 import type { Zone9 } from '../model/adjust';
 import {
+  appearanceEquals,
   appearanceOf,
   appearanceToSend,
+  IDENTITY,
   effectiveAdjust,
   geometryLimit,
   measureId,
@@ -80,7 +82,15 @@ export interface MeasurerIo {
  * identity no longer wanted is dropped, so a slow answer never overwrites a newer one. `drain`
  * answers when nothing is queued or running (Publish waits on it, capped by its caller).
  */
-export function createMeasurer(part: StorePart<GeometryPart>, io: MeasurerIo, alive: () => boolean = () => true) {
+export function createMeasurer(
+  part: StorePart<GeometryPart>,
+  io: MeasurerIo,
+  alive: () => boolean = () => true,
+  timers: { setTimeout: (run: () => void, ms: number) => unknown; clearTimeout: (t: unknown) => void } = {
+    setTimeout: (run, ms) => setTimeout(run, ms),
+    clearTimeout: (t) => clearTimeout(t as ReturnType<typeof setTimeout>),
+  },
+) {
   let wanted = new Map<string, MeasureJob>();
   let running: MeasureJob | null = null;
   let idle: (() => void)[] = [];
@@ -112,9 +122,14 @@ export function createMeasurer(part: StorePart<GeometryPart>, io: MeasurerIo, al
       wanted = new Map(jobs.map((j) => [j.cueId, j] as const));
       next();
     },
-    drain: (): Promise<void> =>
+    /** Answers once nothing is queued or running, or after `capMs`, whichever is first. */
+    drain: (capMs: number): Promise<void> =>
       new Promise((resolve) => {
-        idle.push(resolve);
+        const timer = timers.setTimeout(resolve, capMs);
+        idle.push(() => {
+          timers.clearTimeout(timer);
+          resolve();
+        });
         settleIdle();
       }),
   };
@@ -137,6 +152,12 @@ export interface CueAdjustState {
   look: AppliedAppearance;
   /** What a Take or a full Update carries (rule 2): undefined for a graphic nobody adjusted. */
   send: AppliedAppearance | undefined;
+}
+
+/** A waiting change (the fate line, the rundown row): what a Take or Update of the cue would carry
+ *  differs from what its graphic holds applied. Nothing waits for a graphic nobody adjusted. */
+export function placeWaiting(state: Pick<CueAdjustState, 'send'> | null, applied: AppliedAppearance | null | undefined): boolean {
+  return !!state?.send && !appearanceEquals(state.send, applied ?? IDENTITY);
 }
 
 export function cueAdjustState(

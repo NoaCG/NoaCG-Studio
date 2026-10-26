@@ -694,6 +694,40 @@ test('Update waits for the save and sends the full set, bound values over the dr
   assert.equal(r.moves(), 0);
 });
 
+test('Take and Update carry the place and size read after the wait; without one their update is as it was (playout adjustments)', async () => {
+  const before = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+  const after = { v: 1, frame: { dx: 20, dy: 0, s: 0.95, ox: 120, oy: 961 } };
+  const r = rig({ flushHeld: true });
+  let look = before;
+  r.page.appearanceOf = (cue, graphic) => (cue.id === 'c1' && graphic === 'Strap' ? look : undefined);
+  const cue = graphicCue('c1', 'Strap', { f0: 'A' });
+  const taking = r.verbs.take(cue);
+  await settle();
+  // A nudge written while the Take waits for its save: the Take carries the newer one.
+  look = after;
+  r.flushes[0].resolve();
+  await settle();
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0]), { graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  const updating = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }));
+  await settle();
+  r.flushes[1].resolve();
+  await settle();
+  assert.deepEqual(sentAs(r.sends[1].batches), [[{ graphic: 'Strap', msg: { t: 'update', data: { f0: 'A' }, appearance: after } }]]);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await updating;
+  // A cue the page has nothing for: the update carries no field at all.
+  look = undefined;
+  const plain = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Strap', editingIsLive: true }));
+  await settle();
+  r.flushes[2].resolve();
+  await settle();
+  assert.equal('appearance' in r.sends[2].batches[0][0].msg, false);
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await plain;
+});
+
 test('Update of a cue not on air sends nothing; a server cue updates through the server verb while it is up', async () => {
   const r = rig();
   await r.verbs.update(sel({ editingCue: graphicCue('c1', 'Strap'), selectedGraphic: 'Strap', editingIsLive: false }));

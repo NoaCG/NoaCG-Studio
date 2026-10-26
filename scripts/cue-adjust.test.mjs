@@ -306,6 +306,24 @@ describe('measurements: identified and qualified', () => {
     assert.deepEqual(G.geometryOf(part, 'c2', 'g', 'x'), { m: strap(), fresh: false }, 'never measured: its graphic\'s newest');
   });
 
+  test('a change waits while what a Take would send differs from what is applied; nothing waits unadjusted', () => {
+    const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+    assert.equal(G.placeWaiting({ send: undefined }, undefined), false);
+    assert.equal(G.placeWaiting({ send: look }, look), false);
+    assert.equal(G.placeWaiting({ send: look }, undefined), true);
+    assert.equal(G.placeWaiting({ send: A.IDENTITY }, look), true, 'a reset waits too');
+    assert.equal(G.placeWaiting({ send: A.IDENTITY }, undefined), false);
+  });
+
+  test('Publish waits for the measurer only so long', async () => {
+    const part = storePart(G.NO_GEOMETRY);
+    const measurer = G.createMeasurer(part, { measure: () => new Promise(() => {}) });
+    measurer.want([{ cueId: 'c1', graphicId: 'g', id: 'x', input: 1 }]);
+    const t = Date.now();
+    await measurer.drain(30);
+    assert.ok(Date.now() - t < 1000);
+  });
+
   test('the background measurer drops an answer for an identity no longer wanted', async () => {
     const part = storePart(G.NO_GEOMETRY);
     const answers = [];
@@ -316,7 +334,7 @@ describe('measurements: identified and qualified', () => {
     await new Promise((r) => setTimeout(r, 0));
     assert.equal(part.get().byCue.c1, undefined, 'the old answer is not kept');
     answers.shift()();
-    await measurer.drain();
+    await measurer.drain(1000);
     assert.equal(part.get().byCue.c1.id, 'new');
     assert.equal(part.get().byCue.c1.m.info.w, 200);
   });

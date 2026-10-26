@@ -2381,4 +2381,50 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await page.getByTestId('verb-update').click();
   await expect.poll(() => look('program')).toBeNull();
   await expect(program).toHaveAttribute('data-plays', '1');
+
+  // The export dialog says place and size are not in a package, only while the production has any.
+  const exportDialog = async () => {
+    await page.getByTestId('production-setup').click();
+    await page.getByTestId('export-production').click();
+    await expect(page.getByTestId('production-export-dialog')).toBeVisible();
+  };
+  await exportDialog();
+  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
+  await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
+  await page.getByTestId('adjust-smaller').click();
+  await expect(page.getByTestId('adjust-size')).toHaveValue('95');
+  await exportDialog();
+  await expect(page.getByTestId('prod-export-adjust')).toContainText('not in any package');
+});
+
+/**
+ * AC-3 AS THE OPERATOR READS IT: the readability line under Size, from the board's own measured
+ * smallest text, on the two catalog boards the receipt measured (qz01 Arena Quiz, qz05 Arena Split).
+ */
+test('Adjust reads a quiz board\'s smallest text and warns when a smaller size would break the floor', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Arena Quiz');
+  const showId = await openProductionWithCurrent(page, 'Quiz Adjust');
+  await addCatalogGraphic(page, showId, 'Arena Split');
+  const floor = page.getByTestId('adjust-floor');
+  const px = async () => Number(/smallest text ([\d.]+) px/.exec((await floor.textContent()) ?? '')?.[1]);
+
+  await page.locator('.pd-cue', { hasText: 'Arena Quiz' }).first().click();
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(floor).toHaveAttribute('data-tone', 'ok');
+  expect(Math.abs((await px()) - 22)).toBeLessThanOrEqual(1);
+  // The receipt's fit for a 240 px band, 84 %: under the 20 px floor, amber, no remedy yet.
+  await page.getByTestId('adjust-size').fill('84');
+  await page.getByTestId('adjust-size').press('Enter');
+  await expect(floor).toHaveAttribute('data-tone', 'amber');
+  await expect(floor).not.toContainText('lower-third');
+  // Half size: red, and the remedy is named.
+  await page.getByTestId('adjust-size').fill('47');
+  await page.getByTestId('adjust-size').press('Enter');
+  await expect(floor).toHaveAttribute('data-tone', 'red');
+  await expect(floor).toContainText('use a lower-third graphic');
+
+  await page.locator('.pd-cue', { hasText: 'Arena Split' }).first().click();
+  await expect(floor).toHaveAttribute('data-tone', 'ok');
+  expect(Math.abs((await px()) - 26)).toBeLessThanOrEqual(1);
 });

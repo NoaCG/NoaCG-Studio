@@ -2,6 +2,8 @@ import { useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { ZONES, type AdjustPatch, type Zone9 } from '../../model/adjust';
 import { adjustWords, floorEstimate, zoneWords, type GeometryLimit } from '../../control/cueAdjust';
 import type { CueAdjustState } from '../../control/adjustGeometry';
+import type { StorePart } from '../../control/storePart';
+import { useStorePart } from './useStorePart';
 
 /**
  * THE ADJUST BLOCK (docs/work-specs/playout-adjustments/spec.md, "What the operator sees", phase 1):
@@ -17,7 +19,8 @@ export default function CueAdjust({
   scope,
   onlyThisCue,
   setOnlyThisCue,
-  state,
+  measured,
+  stateOf,
   category,
   open,
   setOpen,
@@ -35,7 +38,10 @@ export default function CueAdjust({
   scope: 'cue' | 'graphic';
   onlyThisCue: boolean;
   setOnlyThisCue: (on: boolean) => void;
-  state: CueAdjustState;
+  /** The session's measurements: subscribed here, so a measurement redraws this block, not the page. */
+  measured: StorePart<unknown>;
+  /** The cue's fold, measurement and resolution as they stand (control/adjustGeometry.ts). */
+  stateOf: () => CueAdjustState;
   /** The graphic's category, for the readability floor. */
   category: string;
   open: boolean;
@@ -48,6 +54,8 @@ export default function CueAdjust({
   /** Make the cue's exception the graphic's default. */
   promote: () => void;
 }) {
+  useStorePart(measured);
+  const state = stateOf();
   const { eff, m, fresh, limit } = state;
   const s = eff.scale ?? 1;
   const x = eff.x ?? 0;
