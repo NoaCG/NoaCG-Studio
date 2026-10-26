@@ -79,9 +79,10 @@ The software rehearsal of phase E7.2b is in
 | Party totals and count bug | on air as soon as the revision is applied |
 | An aired candidate card | the page hears the revision from the count bug's or party board's row at once; a revision that changes only candidates waits for the page's own read, every 5 s |
 
-A revision that changes only the candidates can therefore reach air up to about 12 s after the
-provider changed (2 s poll, 5 s revision gap, 5 s page read). The measured times are in the
-phase notes.
+Measured in the software rehearsal: about 2 to 3 s from the replay moving to the picture
+changing when the party board or count bug moves too, and about 5 s when only the candidates
+change. The worst case for a candidates-only change is about 12 s (2 s poll, 5 s revision gap,
+5 s page read). The full record is in the phase notes.
 
 ## Operating limits
 
