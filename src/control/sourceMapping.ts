@@ -518,8 +518,11 @@ export function projectSource(o: {
 // the route writes each published collection recipe's leaf of this source as the JSON text of the
 // payload's object there, one accepted revision whole, and migration 0102 lets exactly those
 // leaves through beside the bound ones. Nothing here makes an update row: an unbound leaf moves
-// the tree only, so outputs keep receiving resolved values only. What every page would refuse
-// (not a record, no revision, no items, too many, too long) is held here instead of written.
+// the tree only, so outputs keep receiving resolved values only. What no page could read (not a
+// record, no revision, no items, too many, too long) is held here instead of written; a schema
+// revision the recipe was not mapped for is written, and each page holds its cards with that
+// reason. A leaf above or below a bound path or another collection's leaf is never written: text
+// there would replace the subtree, or land inside text.
 
 /** At most this many published recipes are read; a longer list holds every collection leaf. */
 export const MAX_PUBLISHED_COLLECTIONS = 64;
@@ -534,15 +537,19 @@ function projectCollections(
   if (raw === undefined || raw === null) return;
   const prefix = `${sourcePrefix(sourceId, 'external')}.`;
   if (!Array.isArray(raw) || raw.length > MAX_PUBLISHED_COLLECTIONS) {
-    out.hold('collections', `the production's collections are not a list of at most ${MAX_PUBLISHED_COLLECTIONS}`);
+    // Not a leaf (a path cannot hold brackets), so it cannot be mistaken for one.
+    out.hold('[collections]', `the production's collections are not a list of at most ${MAX_PUBLISHED_COLLECTIONS}`);
     return;
   }
   const leaves = new Set<string>();
   for (const entry of raw) {
     const read = readCollectionRecipe(entry);
-    if (read.status === 'ok' && read.recipe.sourceId === sourceId && !bound.has(prefix + read.recipe.from)) leaves.add(read.recipe.from);
+    if (read.status === 'ok' && read.recipe.sourceId === sourceId) leaves.add(read.recipe.from);
   }
+  const taken = [...[...bound].map((p) => p.slice(prefix.length)), ...leaves];
+  const nests = (leaf: string) => taken.some((other) => other.startsWith(`${leaf}.`) || leaf.startsWith(`${other}.`));
   for (const leaf of [...leaves].sort()) {
+    if (bound.has(prefix + leaf) || nests(leaf)) continue;
     const value = isObject(payload) ? atPath(payload as JsonValue, leaf) : undefined;
     if (value === undefined) {
       out.missing.push(leaf);

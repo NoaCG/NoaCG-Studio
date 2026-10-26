@@ -656,6 +656,11 @@ describe('replay server', () => {
       assert.equal(person(byStep['person-deleted'], ...PACKAGE_DELETED), undefined);
       assert.deepEqual(byStep['empty-collection'].payload.candidates.items, []);
       assert.equal(byStep['count-01'].providerEventTime, '2027-02-20T18:14:00Z');
+      // What the record names: every step's sha256, the same text for the same count.
+      assert.deepEqual(server.digests.map((d) => d.name), server.steps);
+      assert.equal(server.digests[1].sha256, server.digests[2].sha256);
+      assert.equal(server.digests[0].sha256, server.digests[4].sha256);
+      assert.match(server.digests[3].sha256, /^[0-9a-f]{64}$/);
     } finally {
       await server.close();
     }

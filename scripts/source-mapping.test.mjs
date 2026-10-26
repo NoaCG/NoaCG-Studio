@@ -699,6 +699,14 @@ describe('E7.2b: a collection leaf through the route', () => {
     assert.deepEqual(out.unfit, ['bound']);
   });
 
+  test('a leaf above or below a bound path or another collection\'s leaf is never written', () => {
+    const payload = { parties: revision(1, []), status: { now: revision(1, []) }, a: revision(1, []), b: { c: revision(1, []) } };
+    const out = run(payload, [recipe({ id: 'up', from: 'parties' }), recipe({ id: 'down', from: 'status.now' }), recipe({ id: 'a', from: 'a' }), recipe({ id: 'b', from: 'b' }), recipe({ id: 'bc', from: 'b.c' })], {
+      bindings: { Bug: { f0: 'external.e1.parties.KOK.votes', f1: 'external.e1.status' } },
+    });
+    assert.deepEqual(Object.keys(out.writes), ['external.e1.a']);
+  });
+
   test('one leaf read by two recipes is written once; a missing collection is missing, not cleared', () => {
     const out = run({ candidates: revision(3, []) }, [recipe(), recipe({ id: 'again', graphic: 'Other' })]);
     assert.deepEqual(out.writes, { 'external.e1.candidates': JSON.stringify(revision(3, [])) });
@@ -743,7 +751,7 @@ describe('E7.2b: a collection leaf through the route', () => {
     for (const raw of [Array.from({ length: 65 }, () => recipe()), { 0: recipe() }, 'candidates']) {
       const out = run(payload, raw);
       assert.equal('external.e1.candidates' in out.writes, false);
-      assert.match(out.problems.collections, /not a list of at most 64/);
+      assert.match(out.problems['[collections]'], /not a list of at most 64/);
     }
     const long = Array.from({ length: 1_000_000 }, () => recipe());
     const wide = [recipe({ from: `${'a.'.repeat(200_000)}a` }), recipe({ fields: Object.fromEntries(Array.from({ length: 100_000 }, (_, i) => [`f${i}`, { from: 'x' }])) })];

@@ -611,10 +611,10 @@ export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCu
   // extra round trip, only on the instances that need it, and only until they are migrated.
   if (error === 'moved') throw new PublishBehind(RACED);
   if (error) {
-    // An instance behind only on 0102 keeps its sources and profile; one further behind loses the
-    // three, as before.
+    // An instance behind only on 0102 (PGRST204 naming the column) keeps its sources and profile;
+    // any other error retries as before, without the three.
     const { collections: _new, ...withoutCollections } = published;
-    let retry = await writeControlShow(sb, withoutCollections, expected);
+    let retry = error.code === 'PGRST204' ? await writeControlShow(sb, withoutCollections, expected) : error;
     if (retry && retry !== 'moved') {
       const { profile: _dropped, sources: _unknown, ...withoutProfile } = withoutCollections;
       retry = await writeControlShow(sb, withoutProfile, expected);
@@ -701,8 +701,8 @@ export async function writePublishedSources(showId: string, show: Pick<Show, 'bi
 }
 
 /**
- * A row published before migration 0097 has never had its sources written (NULL): give it this
- * page's, and only while it is still NULL, so it can never replace sources another page wrote in
+ * A row published before migration 0097 has never had its sources written (NULL), or before 0102
+ * its collections: give it this page's, and only while it is still NULL, so it can never replace sources another page wrote in
  * the meantime. Answers whether this write set them; false when the row had them already (or has
  * no such column). Throws when the write itself failed, so the caller can try the same again.
  */
@@ -715,7 +715,14 @@ export async function firstPublishedSources(showId: string, show: Pick<Show, 'bi
   if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] }));
   if (error?.code === 'PGRST204' || error?.code === '42703') return false;
   if (error) throw new Error(error.message);
-  return (data ?? []).length > 0;
+  const wrote = (data ?? []).length > 0;
+  // A row published with sources before 0102 has none of its collections: give it this page's, the
+  // same way, only while it has none.
+  if (!wrote && (show.collections ?? []).length > 0) {
+    const late = await sb.from('control_shows').update({ collections: show.collections }).eq('id', showId).is('collections', null).select('id');
+    if (late.error && late.error.code !== 'PGRST204' && late.error.code !== '42703') throw new Error(late.error.message);
+  }
+  return wrote;
 }
 
 /** What `control_source_lease` and `control_source_commit` answer (migration 0097). */

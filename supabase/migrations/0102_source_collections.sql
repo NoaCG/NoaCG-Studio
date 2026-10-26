@@ -248,8 +248,12 @@ begin
     else
       -- A collection leaf takes the JSON text of one revision, in place of nothing, of the text an
       -- earlier revision left, or of the collection as an object (a pack's starter seed).
+      -- Never above or below a bound path or another collection's leaf: text there would replace
+      -- that subtree, or land inside text.
       v_fits := v_path = any(v_collected)
-        and (v_data #> v_seg is null or jsonb_typeof(v_data #> v_seg) in ('null', 'string', 'object'));
+        and (v_data #> v_seg is null or jsonb_typeof(v_data #> v_seg) in ('null', 'string', 'object'))
+        and not exists (select 1 from unnest(v_bound || v_collected) o(path)
+                         where starts_with(o.path, v_path || '.') or starts_with(v_path, o.path || '.'));
     end if;
     for v_i in 1 .. coalesce(array_length(v_seg, 1), 1) - 1 loop
       v_fits := v_fits and coalesce(jsonb_typeof(v_data #> v_seg[1:v_i]), 'null') in ('object', 'null');
@@ -431,28 +435,41 @@ begin
       raise exception '0102 self-check failed: a moved claim was not refused';
     end if;
 
+    -- A collection above a bound path, or nested in another collection, is never written.
+    update public.control_shows set collections = jsonb_build_array(v_recipe, v_recipe || '{"id":"up","from":"count"}',
+                                                                   v_recipe || '{"id":"inner","from":"cands.more"}') where id = v_show;
+    update public.control_shows set bindings = '{"Board":{"f0":"external.e1.count.n"}}' where id = v_show;
+    update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":4}',
+                                               jsonb_build_object('external.e1.count', 'up', 'external.e1.cands', 'outer', 'external.e1.cands.more', 'inner'));
+    if (v_a->'skipped') is distinct from '["external.e1.cands", "external.e1.count", "external.e1.cands.more"]'::jsonb then
+      raise exception '0102 self-check failed: a nested collection leaf was written (%)', v_a;
+    end if;
+    update public.control_shows set bindings = '{"Board":{"f0":"external.e1.count"}}', collections = jsonb_build_array(v_recipe) where id = v_show;
+
     -- A hostile list names nothing: more than 64 recipes, not a list, a path too deep or not a path.
+    update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;
     update public.control_shows set collections = (select jsonb_agg(v_recipe) from generate_series(1, 65)) where id = v_show;
-    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":4}', jsonb_build_object('external.e1.cands', 'held'));
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":5}', jsonb_build_object('external.e1.cands', 'held'));
     if (v_a->'skipped') is distinct from '["external.e1.cands"]'::jsonb then
       raise exception '0102 self-check failed: a list of 65 recipes named a leaf (%)', v_a;
     end if;
     update public.control_shows set collections = (select jsonb_agg(v_recipe) from generate_series(1, 64)) where id = v_show;
     update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;
-    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":5}', jsonb_build_object('external.e1.cands', 'kept'));
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":6}', jsonb_build_object('external.e1.cands', 'kept'));
     if (v_a->'skipped') is distinct from '[]'::jsonb then
       raise exception '0102 self-check failed: a list of 64 recipes named no leaf (%)', v_a;
     end if;
     update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;
     update public.control_shows set collections = v_recipe where id = v_show;
-    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":6}', jsonb_build_object('external.e1.cands', 'no'));
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":7}', jsonb_build_object('external.e1.cands', 'no'));
     if (v_a->'skipped') is distinct from '["external.e1.cands"]'::jsonb then
       raise exception '0102 self-check failed: a recipe that is not in a list named a leaf (%)', v_a;
     end if;
     update public.control_shows set collections = jsonb_build_array(v_recipe || '{"from":"a.b.c.d.e.f.g.h.i"}', v_recipe || jsonb_build_object('from', repeat('a', 100000) || '.'))
      where id = v_show;
     update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;
-    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":7}',
+    v_a := public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":8}',
                                                jsonb_build_object('external.e1.a.b.c.d.e.f.g.h.i', 'deep', 'external.e1.' || repeat('a', 100000) || '.', 'bad'));
     if jsonb_array_length(v_a->'skipped') is distinct from 2 then
       raise exception '0102 self-check failed: a path too deep or not a path named a leaf';

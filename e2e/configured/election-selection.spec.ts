@@ -568,6 +568,12 @@ test.describe('live candidates', () => {
     await expect.poll(async () => ((await row()).sources ?? []).map((s: { id: string }) => s.id), WIRE).toEqual(['election']);
     expect((await row()).collections).toBeNull();
     await expect(page.getByTestId('production-note')).toHaveCount(0);
+    // Once the server has the column (0102 applied), the page that opens the production gives the
+    // row its collections, only because the row has none.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await page.reload();
+    await expect(page.getByTestId('production-page')).toBeVisible();
+    await expect.poll(async () => ((await row()).collections ?? []).map((c: { id: string }) => c.id), WIRE).toEqual(['candidates']);
   });
 
   test('AC-4 (E7.2b): the replay through the trusted agent drives all four graphics on the published production', async ({ page, context, baseURL }, info) => {

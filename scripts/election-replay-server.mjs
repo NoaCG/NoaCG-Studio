@@ -151,6 +151,8 @@ export async function startReplayServer({ token, cert, key, clock = Date.now, st
   return {
     url: `https://${host.includes(':') ? `[${host}]` : host}:${bound}/results`,
     steps: steps.map((s) => s.name),
+    /** Each step's text by its sha256, as the rehearsal record names it. */
+    digests: steps.map((s) => ({ name: s.name, sha256: digest(s.text).toString('hex') })),
     step: () => steps[step()].name,
     /** Move the timeline to step `i` (from the clock's present reading). */
     at: (i) => void (start = clock() - i * stepMs),
@@ -194,7 +196,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   process.stdout.write(`replay server at ${server.url}\ncertificate ${certFile}\ntoken in ${path.join(dir, 'token')}\n`);
   // What the rehearsal record names: each step's text by its sha256 (docs/work-specs/
   // playout-election-package/rehearsal.md).
-  const timeline = arg('--timeline') === 'package' ? packageTimeline() : replayTimeline();
-  for (const s of timeline) process.stdout.write(`step ${s.name} sha256 ${digest(s.text).toString('hex')}\n`);
+  for (const s of server.digests) process.stdout.write(`step ${s.name} sha256 ${s.sha256}\n`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close().then(() => process.exit(0)));
 }

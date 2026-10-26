@@ -2072,7 +2072,7 @@ export function setOwnReaderStops(showId: string, edit: { add?: readonly string[
 function pruneSources(show: Show): void {
   if (!show.sources) return;
   // A source a collection recipe reads (E7.2b) is in use though no field binds it.
-  const collected = new Set((show.collections ?? []).map((c) => (typeof c.sourceId === 'string' ? c.sourceId : null)));
+  const collected = new Set((show.collections ?? []).map((c) => (c && typeof c === 'object' && typeof c.sourceId === 'string' ? c.sourceId : null)));
   const sources = show.sources.filter((s) => s.inbox || collected.has(s.id) || sourcePaths(show.bindings, s.id).length > 0);
   if (sources.length > 0) show.sources = sources;
   else delete show.sources;
