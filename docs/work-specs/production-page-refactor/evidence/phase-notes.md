@@ -5,6 +5,136 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 35 (E1.2a, project phase 39): the typed OGraf writer
+
+- **Previous verified `main` sha:** `a5360d4` (row 34 passed, PR #1757). This branch was built on
+  it. Before editing, main matched the brief: E1.1's read gate refused every envelope read-only
+  (`typedSendRefusal`, `typedFrozen` refusing any gained or changed envelope, the output holding a
+  graphic on any `typed` member), and nothing wrote one.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. The revert leaves 0104 applied, which is
+  harmless: a reverted route sends text only, which 0104 takes as 0102 did. Typed data already
+  written stays on its cues byte for byte, and a reverted build reads it as E1.1 did: the cue is
+  refused on air with the reason, and an output of this build that still holds a typed graphic
+  ends that the next time a native cue is taken on its layer. Turning typed data off before a
+  revert gives every value back as text (below), which is the clean way out.
+- **What landed.**
+  - *The declaration* (`SpxTemplate.ograf`, its own `v`, read only through
+    `readOgrafDeclared`): a stranger's OGraf manifest is kept on the graphic its zip imported
+    (`model/importTemplate.ts`); ours (`v_noacg`) never is, so every NoaCG graphic stays native.
+  - *The writer* `setCueTyped` (`model/shows.ts`): On reads the cue's native strings through the
+    declared schema with E1.1's `migrateToTyped` and its receipt (losslessly or not at all; a
+    refusal writes nothing and says which field and why); Off writes `nativeOf` back into the
+    cue's values and removes the envelope. Rebased, and allowed at both doors for that cue and
+    those bytes only (`typedFrozen`'s `write`); a copy carries an envelope the record already
+    held; the undo is unchanged (it refuses a toggle's undo with E1.1's words, so the switch is its
+    own inverse). The editor's head row has a "Typed data" box; while it is on, the declared
+    fields read out (`Typed`) and are never "unsent".
+  - *The send* (`typedForSend`, the page's `typedFor`): Take, ✎ Update, a folder's Take, a direct
+    trigger and a step carry `{t: 'update', data: {}, typed: <envelope>}`; a bound declared field
+    takes the tree's JSON at its path through the typed target adapter (`typedTargetValue`: never
+    from text, an unsupported node never replaced), the whole is validated once and must fit 64
+    KiB, or nothing is dispatched and the stored data is untouched. Every Take refusal asks it
+    (`selectionBlocker`), memoised per envelope so a keystroke does not validate again.
+  - *The outputs' capability*: an output of this build puts `typed: 1` in its Presence entry
+    (`TYPED_READER`); a published page sends an envelope only while its Presence for this
+    production is joined and every output entry says it reads one, and otherwise refuses in one
+    line ("Reload Old output: it cannot read typed data yet.").
+  - *The output* (`typedOutputGate`): a readable values envelope on an `update` airs its values
+    (to the composed document as its data JSON, to a foreign layer as `updateAction(values)`),
+    never into `mergedData`; any other envelope is E1.1's refusal and hold. A typed graphic never
+    reports (`typedHolds`), so its bank stays before its first typed row and a reboot replays the
+    envelopes from the log; E1.2b owns a typed baseline. A data road's native update (`src`) on a
+    typed graphic moves its look only, never its data; an operator's native update (a native cue
+    taken on that layer) ends typed mode.
+  - *E5's typed values* (the route's half of the adapter, `projectSource`): a bound leaf that only
+    declared fields read (`typed: true` on the published panel field, `typedPublishedFields`) is
+    written as the JSON the provider sent, with no list, format or fallback; a leaf read by a typed
+    and a text field holds. Migration `0104_typed_source_values.sql` lets a bound path take a
+    non-text value (0088's `production_data_may_replace` still judges it: a scalar or a list of
+    scalars, never a record); a collection leaf stays text. Against a database without 0104 the
+    route sends the text alone and tells the agent the typed values were not taken.
+- **Decisions.**
+  - *Where the schema lives before E3*: on the graphic's template, as the manifest it came with.
+    E3 owns the foreign library entry (package bytes, hashes, hosting); this row needed only a
+    graphic that declares a schema, and the importer already read the manifest.
+  - *Native strings stay the editing surface* until E2's typed forms: On converts them, Off gives
+    them back, and nothing in this row edits a typed value in place.
+  - *Bound typed values reach air with Take and ✎ Update*, not by themselves: the server's live
+    rows resolve bound fields to text (0048), which a typed graphic must not take, and the page's
+    unpublished dispatch leaves out a graphic airing typed data. A typed live follow is a
+    follow-up issue, not this row.
+  - *Live presses* (event, ±, Snap) on a layer airing typed data still send nothing ("Live
+    controls do not reach typed data yet."): typed actions are E2's and E6.2's. A timed end never
+    takes a cue that carries typed data, and a cue with a live candidate takes none.
+  - *The hosted page, the exported controller, the SPX rundown* still leave typed cues out
+    (E1.1's `preparedCue`): they have no capability check of their own.
+  - *The size cap* is 64 KiB of the envelope's UTF-8 JSON, the size a source report's row keeps to.
+  - *E1.1's seams changed here, and where*: `typedSendRefusal` now refuses live presses only and
+    `selectionTake` refuses only an envelope this build cannot read; `readTypedWire` returns a
+    values update's values; `typedOutputGate` takes `{held, airing}`; `typedFrozen` takes the
+    writer's allowance and lets a copy carry a held envelope; `ografTyped.ts` imports
+    `contentHash.ts` as before. E6.1's protocol is untouched.
+- **Traps.**
+  - The api functions import with `.js` specifiers, and most of `src` with `.ts`, which Node's
+    own type stripping needs for tests run without `scripts/lib/tsResolve.mjs`: a module both
+    sides import (as `ografTyped.ts` would have been) breaks one or the other. The route's half
+    of the adapter therefore needs nothing from `ografTyped.ts` (a published `typed: true`), and
+    `types.ts` shapes `ograf` without importing it, or `tsconfig.api.json` reaches it.
+  - The production page's unsent check compares the cue's native values with what was sent; a
+    typed Take sends `data: {}`, so without the typed exemption every typed Take read as "2
+    changes not on PROGRAM".
+  - Scratch Postgres: the stubs live outside the scratchpad (`/var/tmp`), since `/tmp/claude-0`
+    is reset to 0700 and the `postgres` user cannot reach it; 0078 and 0085 (storage) are skipped.
+  - `pg_cron` is absent from a plain Postgres 16: strip its `create extension` and stub `cron.*`.
+- **Verification.** Node: `scripts/ograf-typed-writer.test.mjs` (new), `ograf-typed`,
+  `graphic-verbs`, `source-mapping`, `connector-sample` (the route against a stand-in database,
+  the pre-0104 fallback included), `cue-arm-engine`, `data-tick`, `keyed-selection`,
+  `cue-adjust`, `import-zip-thumbnail`, `show-fixture-compat`, `panel-feedback`, `db-push`.
+  Migration 0104 applied with every migration before it to a scratch Postgres 16 (Supabase
+  stubs), its self-check calling the report: a number, a boolean and a list written at bound paths,
+  one update row with the field as text, a record skipped, a number refused at a collection leaf
+  and at an unbound path. Browser: the configured walk `e2e/configured/ograf-typed-data.spec.ts`
+  (CI's configured suite; a cloud machine has no Docker), a local walk of the editor's switch,
+  Take and Off against the page's own monitors (PROGRAM showed "Anna" and "2"), and the
+  offline selection the PR names.
+- **Mutation checks** (each red, restored after): the 64 KiB cap to 65537; the writer's bytes
+  check; a copy of an existing cue gaining an envelope; a data road's `src` update applying its
+  data; the capability `>=` to `>`; the joined check; the Presence entry keeping `typed` 0; an
+  unsupported node taking a source value; the whole validation of the send; the schema hash check;
+  a values envelope on any verb; the importer keeping a manifest past the bounds; the importer
+  keeping ours; marking every published field typed; the route's typed-and-text hold; a list
+  adapter on a typed leaf; the route's fallback condition; the published `typed` flag dropped by
+  `descriptorsOf`; a timed end taking a typed cue; Take without the typed refusal; a page with no
+  `typedFor` sending a typed cue as text; `takeCueItems` dropping `typed`; the writer writing a
+  read-only cue; `selectionTake` passing a read-only envelope; a typed graphic reporting
+  (`typedHolds` without `airing`). 0104's self-check against three mutations: 0102's text-only rule
+  ("not a source report"), any value at any path (a number at a collection leaf), and no value rule
+  (a record at a bound path). One mutation is equivalent and was not run: the rebased run of
+  `setCueTyped` comparing its bytes, which a single-tab Node store cannot reach.
+- **Follow-ups** (issues): a typed live follow of bound values (outputs keep the last Take or
+  Update until the next); the exported hosted receiver of a declared graphic reading a typed row's
+  empty `data`; and E1.2b's own list (replay, baseline, the renderer round trip).
+- **Touched files against `a5360d4`:** `api/_lib/dataTick.ts`, `api/data/[...path].ts`,
+  `docs/work-specs/production-page-refactor/evidence/phase-notes.md`,
+  `e2e/configured/expected-run.json`, `e2e/configured/ograf-typed-data.spec.ts` (new),
+  `scripts/connector-sample.test.mjs`, `scripts/cue-arm-engine.test.mjs`,
+  `scripts/graphic-verbs.test.mjs`, `scripts/ograf-typed-writer.test.mjs` (new),
+  `scripts/ograf-typed.test.mjs`, `scripts/source-mapping.test.mjs`,
+  `src/components/home/CueEditor.tsx`, `src/components/home/ProductionPage.tsx`,
+  `src/control/controlModel.ts` (the `update` message's optional `typed`), `src/control/cueArmEngine.ts`,
+  `src/control/cueDraft.ts` (a type), `src/control/cueItems.ts`, `src/control/graphicVerbs.ts`,
+  `src/control/hostedControl.ts` (the published fields), `src/control/livePath.ts` (the entry's
+  `typed`), `src/control/selectionAir.ts`, `src/control/sourceMapping.ts`,
+  `src/model/fieldModel.ts`, `src/model/importTemplate.ts`, `src/model/ografTyped.ts`,
+  `src/model/shows.ts`, `src/model/types.ts`, `src/output/main.ts`, `src/output/stage.ts`,
+  `src/styles/playout-dashboard.css`, `supabase/migrations/0104_typed_source_values.sql` (new).
+  Outside the spec's named seams: `importTemplate.ts` (where a manifest is first read),
+  `livePath.ts` (the seen report is the Presence entry), `cueArmEngine.ts` and `cueDraft.ts` (a
+  timed end and the unsent line), the api route and tick (E5's route half), `hostedControl.ts`
+  (publish). `ografContract.ts`, `ograf.ts`, `ografImport.ts`, `ografHost.ts`, `foreignOgraf.ts` and
+  every exporter are unchanged: exported packages and the native wire are unchanged byte for byte.
+
 ## Row 34 (E6.1, project phase 38): declared native and typed foreign actions through Companion
 
 - **Previous verified `main` sha:** `a9356fb` (row 33 passed, PR #1756). This branch was built on
