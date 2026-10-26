@@ -153,6 +153,17 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
   await intoProduction(page, 'Match scorebug', 'Saturday Match');
   await settleDurableWrites(page);
 
+  // The artwork draws its own type and fills, so Adjust offers place and size and says what else
+  // it does in one line, with no Type or Colour row that would change nothing (playout-adjustments
+  // spec AC-10). Closed again, so the pack's frames below are unchanged.
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('adjust-place')).toBeVisible();
+  await expect(page.getByTestId('adjust-larger')).toBeVisible();
+  await expect(page.getByTestId('adjust-style-none')).toHaveText('Type and colour: as designed (imported artwork)');
+  await expect(page.getByTestId('adjust-type')).toHaveCount(0);
+  await expect(page.getByTestId('adjust-colour')).toHaveCount(0);
+  await page.getByTestId('cue-adjust-toggle').click();
+
   // The scores arrived as NUMBER fields, so the panel offers them as steppers — the generic
   // control model doing it, with nothing in this template asking for it.
   const live = page.getByTestId('live-numbers');
