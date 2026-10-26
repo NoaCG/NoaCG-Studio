@@ -131,13 +131,14 @@ const digest = (text) => createHash('sha256').update(String(text)).digest();
  * Start the server. `token` is the bearer credential it accepts, `cert`/`key` its PEM pair.
  * Answers `{ url, step(), at(i), close() }`; `url` is the /results address.
  */
-export async function startReplayServer({ token, cert, key, clock = Date.now, stepMs = DEFAULT_STEP_MS, host = '127.0.0.1', port = 0, timeline = 'research' }) {
+export async function startReplayServer({ token, cert, key, clock = Date.now, stepMs = DEFAULT_STEP_MS, host = '127.0.0.1', port = 0, timeline = 'research', onStep = () => {} }) {
   if (!token) throw new Error('the replay server needs a bearer token');
   if (!(Number.isFinite(stepMs) && stepMs > 0)) throw new Error('stepMs must be a positive number of milliseconds');
   if (timeline !== 'research' && timeline !== 'package') throw new Error('timeline must be research or package');
   const steps = timeline === 'package' ? packageTimeline() : replayTimeline();
   const expected = digest(`Bearer ${token}`);
   let start = null;
+  let served = -1;
   const step = () => (start === null ? 0 : Math.min(steps.length - 1, Math.max(0, Math.floor((clock() - start) / stepMs))));
   const answer = (res, status, body, headers = {}) => {
     res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers });
@@ -150,7 +151,13 @@ export async function startReplayServer({ token, cert, key, clock = Date.now, st
     // Compared as digests, so the comparison takes the same time whatever was sent.
     if (!timingSafeEqual(digest(req.headers.authorization ?? ''), expected)) return answer(res, 401, '{"error":"unauthorized"}', { 'www-authenticate': 'Bearer' });
     if (start === null) start = clock();
-    const { name, text } = steps[step()];
+    const at = step();
+    // The first read of each step, so a person can time a step from the moment it was served.
+    if (at !== served) {
+      served = at;
+      onStep(steps[at].name, clock());
+    }
+    const { name, text } = steps[at];
     answer(res, 200, text, { 'x-replay-step': name });
   });
   await new Promise((resolve, reject) => {
@@ -202,7 +209,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const { cert, key, certFile } = makeTestCertificate(dir);
   const token = makeToken();
   writeFileSync(path.join(dir, 'token'), token, { mode: 0o600 });
-  const server = await startReplayServer({ token, cert, key, port: Number(arg('--port') ?? 0), stepMs: Number(arg('--step-ms') ?? DEFAULT_STEP_MS), timeline: arg('--timeline') ?? 'research' });
+  const server = await startReplayServer({
+    token,
+    cert,
+    key,
+    port: Number(arg('--port') ?? 0),
+    stepMs: Number(arg('--step-ms') ?? DEFAULT_STEP_MS),
+    timeline: arg('--timeline') ?? 'research',
+    onStep: (name, at) => process.stdout.write(`served ${name} at ${new Date(at).toISOString()}\n`),
+  });
   process.stdout.write(`replay server at ${server.url}\ncertificate ${certFile}\ntoken in ${path.join(dir, 'token')}\n`);
   // What the rehearsal record names: each step's text by its sha256 (docs/work-specs/
   // playout-election-package/rehearsal.md).

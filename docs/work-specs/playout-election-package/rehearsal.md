@@ -48,11 +48,13 @@ are typed by the operator; no result fills them.
    from the repository's folder:
 
    ```bash
-   node scripts/election-replay-server.mjs --dir replay --port 8443 --timeline package
+   node scripts/election-replay-server.mjs --dir replay --port 8443 --timeline package --step-ms 60000
    ```
 
    It writes `replay/ca.pem` and `replay/token` and prints each step's sha256. Copy those lines
-   into the rehearsal record.
+   into the rehearsal record. The timeline starts at the agent's first read and moves one step a
+   minute (eight steps, then it stays on the last); without `--step-ms` a step lasts 5 s, too short
+   to watch. Each time a step is first served the server prints `served <step> at <time>`.
 4. Copy the agent's configuration beside the `replay` folder (its `caFile` is read relative to
    the configuration file), then start the agent with the two credentials in its environment,
    never in a file:
@@ -61,12 +63,16 @@ are typed by the operator; no result fills them.
    cp docs/work-specs/playout-election-package/replay-agent.json agent.json
    NOACG_SOURCE_REPLAY="$(cat replay/token)" NOACG_DATA_KEY=<the production's data key> \
      node scripts/external-data-connector.mjs --config agent.json \
-     --send https://<your NoaCG>/api/data/source
+     --send <the NoaCG address the production is published on>/api/data/source
    ```
 
+   (While step 2 needs a development build, that is the development server's own address.)
+
    Its log says `claimed: epoch 1` and the first revision arrives within a few seconds.
-5. Open the production's output URL in a browser, then Take **Party totals**, **Count status**,
-   **Headlines** and a candidate.
+5. Within the first minute, open the production's output URL in a browser and Take **Party
+   totals**, **Count status**, **Headlines** and a candidate. Then watch each step arrive: the time
+   from a `served` line to the picture changing is the step's time for the record (steps that
+   only hold, such as the duplicate, the older count and the malformed answer, change nothing).
 
 ## The rehearsal record
 

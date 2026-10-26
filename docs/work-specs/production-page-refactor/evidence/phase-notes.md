@@ -115,10 +115,12 @@ changes a spec's digest.
   database; staging gets it through post-land like production, and if post-land HOLDS it there
   the AC-4 walk on hosted-latency fails at its first collection check until it applies.
 - **The rehearsal record (software/replay grade, browser outputs).** Cloud worker, 2026-10-26
-  04:20 to 05:25 UTC. The recorded run is on commit `89718fb`; later commits change notes, tests,
-  the runbook and 0102's self-check (a revision-gap step, the function bodies unchanged; the
-  changed file was applied again and its self-check passed), and the full spec passed again on
-  the final head. A local stack
+  04:20 to 05:50 UTC. The recorded run is on commit `89718fb`. Later commits change notes,
+  tests, the runbook, 0102's self-check (a revision-gap step) and its recipe source comparison
+  (strict, as the route's), the route's clash check (every v 1 recipe of the source counts, as in
+  0102) and the replay server's step log; each changed migration was applied again with its
+  self-check passing, and the election and connector specs passed again on the final code (the
+  head named in the PR). A local stack
   (`supabase start`, CLI 2.111.0) with every migration through 0102, the dev server's real
   `/api/data/source`, the agent as its own process from `replay-agent.json`, the replay server in
   the same process as the walk. Hashes (sha256, first 16 hex; the server prints them whole):
@@ -185,7 +187,10 @@ changes a spec's digest.
 - **The automated PR review (on `c602d75`), both fixed:** the no-0102 walk now waits for the
   local save before its reload (`settleDurableWrites`); the runbook copies the agent's
   configuration beside the `replay` folder, since `caFile` is read relative to the configuration
-  file (the steps were run as written: the agent read revision 1 from the replay server).
+  file (the agent steps were run as written: the agent read revision 1 from the replay server).
+  The seventh assessment then found the manual timeline too fast to follow (5 s steps): the
+  runbook now runs it a step a minute (`--step-ms 60000`) and the server prints each step as it is
+  first served, so a person can time it; checked by running the server and agent as written.
 - **Check.** Review (code-review skill, high, delegated; scope matched): 9 findings, 7 fixed: a
   collection leaf above or below a bound path (or another collection's) would have replaced that
   subtree, now refused in both the evaluator and 0102; the publish retry now drops `collections`

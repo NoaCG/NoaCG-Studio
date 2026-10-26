@@ -625,7 +625,8 @@ describe('replay server', () => {
 
   test('the package timeline (E7.2b): the same eight events, in the package\'s own results, read through the agent', async () => {
     const clock = fakeClock();
-    const server = await startReplayServer({ token, cert, key, clock: clock.now, stepMs: 5000, timeline: 'package' });
+    const served = [];
+    const server = await startReplayServer({ token, cert, key, clock: clock.now, stepMs: 5000, timeline: 'package', onStep: (name, at) => served.push([name, at]) });
     try {
       const c = createConnector({ config: localConfig(server.url), credential: token, ca: cert, clock, random: () => 0, send: async () => {}, log: () => {} });
       const seen = [];
@@ -664,6 +665,9 @@ describe('replay server', () => {
       assert.equal(server.digests[1].sha256, server.digests[2].sha256);
       assert.equal(server.digests[0].sha256, server.digests[4].sha256);
       assert.match(server.digests[3].sha256, /^[0-9a-f]{64}$/);
+      // Each step is announced once, at its first read, with the time it was served.
+      assert.deepEqual(served.map(([name]) => name), server.steps);
+      assert.deepEqual(served.map(([, at]) => at - served[0][1]), server.steps.map((_, i) => i * 5000));
     } finally {
       await server.close();
     }

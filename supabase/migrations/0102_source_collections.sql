@@ -233,7 +233,7 @@ begin
   select coalesce(array_agg(distinct 'external.' || p_source || '.' || (c.value->>'from')), '{}') into v_collected
   from jsonb_array_elements(case when jsonb_typeof(v_collections) = 'array' and jsonb_array_length(v_collections) <= 64
                                  then v_collections else '[]'::jsonb end) c
-  where jsonb_typeof(c.value) = 'object' and c.value->'v' = '1'::jsonb and c.value->>'sourceId' = p_source
+  where jsonb_typeof(c.value) = 'object' and c.value->'v' = '1'::jsonb and c.value->'sourceId' = to_jsonb(p_source)
     and jsonb_typeof(c.value->'from') = 'string' and c.value->>'from' ~ '^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){0,7}$';
 
   v_snapshot := coalesce(v_read.snapshot, '{}'::jsonb);
