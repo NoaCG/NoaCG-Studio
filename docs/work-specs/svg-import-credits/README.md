@@ -55,6 +55,15 @@ example and qualify the examples before publishing a complete SVG import example
 
 ## Execution record
 
+- Owner authorized a fresh browser-level diagnostic pass after issue #1747. The new isolated
+  checkout is `C:/Users/ahonemi/.codex/worktrees/credits-pop-diagnostic/NoaCG-Studio`, starting
+  from `374c20c43e38af1466e2df58c6c1a2ee21a7e41b` and reconciled with main
+  `2d44c447b8e7a7ebc5ce189fc1d8873adc0c2b24`. No other worker runs in this checkout.
+  Goal and acceptance criteria remain unchanged. The next diagnostic records the runtime's
+  existing rectangle reads and actual text, SVG and CSS matrices, then compares the paused
+  endpoint across painted frames. The original half-pixel assertions use the original readings.
+  No production repair is proposed until that browser evidence identifies the cause.
+
 - Starting checkout: `8abde8e7103715f21ccf7384f08cb1dbc22a9bfa`.
 - Owned worktree: `C:/Users/ahonemi/.codex/worktrees/ba33/NoaCG-Studio`.
 - Owned branch: `codex/svg-credits-artwork`.

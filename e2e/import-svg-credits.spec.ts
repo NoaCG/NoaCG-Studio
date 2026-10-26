@@ -43,7 +43,7 @@ import { dropSvg, intoProduction } from './_svg-import';
 const CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-roll.svg', import.meta.url));
 const ARTWORK_CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-artwork.svg', import.meta.url));
 
-test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting for fonts', async ({ page }) => {
+test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting for fonts', async ({ page }, testInfo) => {
   // Exercise the compiled template on a blank page: the motion picker changes entrance length
   // after SVG assembly, so measuring at the original call time can leave the last line on air.
   await page.goto('/app');
@@ -80,6 +80,19 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
     // Static authoring previews seek with callbacks suppressed, so the original drawing must
     // remain visible before Take. Playback itself hides it until entrance/fonts are ready.
     await expect(page.locator('.imported-design-credits')).toHaveCSS('visibility', 'visible');
+    // Record the runtime's existing reads without adding layout reads to its measurement path.
+    // Keep the first start/end assertions independent of later diagnostic animation frames.
+    await page.locator('.imported-design-credits').evaluate((el) => {
+      const w = window as unknown as { creditsBoundsReads: unknown[] };
+      w.creditsBoundsReads = [];
+      const read = el.getBoundingClientRect.bind(el);
+      el.getBoundingClientRect = () => {
+        const rect = read();
+        w.creditsBoundsReads.push({ at: performance.now(), top: rect.top, bottom: rect.bottom,
+          height: rect.height, transform: el.parentElement!.getAttribute('transform') });
+        return rect;
+      };
+    });
     await page.evaluate(() => (window as unknown as { play(): void }).play());
     await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${motion}: the roll starts after its entrance`).toBe(true);
     await expect.poll(() => page.locator('.imported-design-box').evaluate((el) => {
@@ -96,6 +109,38 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
       const end = el.getBoundingClientRect().bottom;
       return { start, end, frameTop: frame.top, frameBottom: frame.bottom, transform: el.getAttribute('transform'), measured: w.noacgCreditsLast };
     });
+    const diagnostics = await page.locator('.imported-design-credits').evaluate(async (el) => {
+      const w = window as unknown as {
+        creditsBoundsReads: unknown[];
+        noacgCreditsTween: { targets(): { y: number }[] };
+      };
+      const matrix = (m: DOMMatrix | null) => m && [m.a, m.b, m.c, m.d, m.e, m.f];
+      const snapshot = () => {
+        const text = el as SVGGraphicsElement;
+        const box = text.getBBox();
+        const bounds = text.getBoundingClientRect();
+        const travel = text.parentElement!;
+        const parent = travel.parentElement as unknown as SVGGraphicsElement;
+        const unit = document.querySelector('.imported-design-box')!;
+        return {
+          top: bounds.top, bottom: bounds.bottom,
+          box: { x: box.x, y: box.y, width: box.width, height: box.height },
+          textMatrix: matrix(text.getScreenCTM()), parentMatrix: matrix(parent.getScreenCTM()),
+          travel: travel.getAttribute('transform'), unitTransform: getComputedStyle(unit).transform,
+          targetY: w.noacgCreditsTween.targets()[0].y, fonts: document.fonts.status,
+          runs: Array.from(text.querySelectorAll('tspan')).map((run) => ({
+            text: run.textContent, font: getComputedStyle(run).font,
+            top: run.getBoundingClientRect().top, bottom: run.getBoundingClientRect().bottom,
+          })),
+        };
+      };
+      const immediate = snapshot();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const nextFrame = snapshot();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      return { reads: w.creditsBoundsReads, immediate, nextFrame, painted: snapshot() };
+    });
+    await testInfo.attach(`${motion} credits bounds`, { body: JSON.stringify({ geometry, diagnostics }, null, 2), contentType: 'application/json' });
     expect(Math.abs(geometry.start - geometry.frameBottom), `${motion}: the first glyph starts at the output's bottom: ${JSON.stringify(geometry)}`).toBeLessThan(0.5);
     expect(Math.abs(geometry.end - geometry.frameTop), `${motion}: the final glyph clears the output's top: ${JSON.stringify(geometry)}`).toBeLessThan(0.5);
     expect(geometry.transform).toBe('translate(820 85)');
