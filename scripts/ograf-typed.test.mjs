@@ -354,6 +354,9 @@ test('both write doors: an envelope is kept byte for byte, a read-only cue in ev
   // A record without typed cues has nothing to keep and passes every write.
   assert.equal(typedKeep(showWith([native])), null);
   assert.equal(typedFrozen(null, { cues: [native] }), null);
+  // A record with no typed cue gains none either, but an undo may bring one back.
+  assert.equal(typedFrozen(null, { cues: [native, ok] }), TYPED_KEPT);
+  assert.equal(typedFrozen(null, { cues: [native, ok] }, new Set(['a'])), null);
   // The second door: an undo brings back a deleted cue with its own bytes, and is refused when it
   // would change a read-only cue.
   const without = showWith([later, native]);

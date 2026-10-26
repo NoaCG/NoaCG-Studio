@@ -743,21 +743,21 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     else captured.undo(sent.ok ? undefined : sent);
   };
 
+  /** A live press on a layer airing a cue with typed OGraf data sends nothing from here, and says
+   *  why (model/ografTyped.ts, E1.1): its fields are not its native strings, so a figure counted
+   *  or read from them would air something the cue does not hold. A pinned block presses here too. */
+  const typedRefused = (s: VerbSender, cue: ShowCue | null): boolean => {
+    const why = cue ? typedSendRefusal(cue) : null;
+    if (cue && why) s.note(`${cue.label}: ${why}`);
+    return !!why;
+  };
+
   /**
    * One press bumps a number field ON AIR: a PARTIAL update carrying just that field, plus the same
    * value into the edited cue so the cue and the air cannot drift apart. PARTIAL on purpose: a bump
    * must never publish a half-typed name. A BOUND field takes the other road: the press moves the
    * production tree, counted from the TREE, and nothing is written into this cue (plan §2.7, §2.9).
    */
-  /** A live press on a layer airing a cue with typed OGraf data sends nothing from here, and says
-   *  why (model/ografTyped.ts, E1.1): its fields are not its native strings, so a figure counted
-   *  or read from them would air something the cue does not hold. A pinned block presses here too. */
-  const typedRefused = (s: VerbSender, cue: ShowCue | null): boolean => {
-    const why = cue ? typedSendRefusal(cue) : null;
-    if (why) s.note(`${cue?.label}: ${why}`);
-    return !!why;
-  };
-
   const bump = async (sel: VerbSelection, fieldKey: string, delta: number) => {
     const s = sender();
     const p = page();

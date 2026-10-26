@@ -28,6 +28,7 @@
 // Pure (model layer): no DOM, so the output renderer and Node share it. Runtime imports carry `.ts`.
 
 import { contentHash } from './contentHash.ts';
+import type { JsonValue } from './productionData';
 
 /** THE PINNED STANDARD: the EBU OGraf revision every descriptor and envelope is read against. The
  *  seven schema files are the bytes `src/export/targets/ografSchema.ts` was transcribed from
@@ -63,8 +64,6 @@ export const TYPED_MAX_SCHEMA_NODES = 2000;
 /** Value nodes one envelope may carry. */
 export const TYPED_MAX_VALUE_NODES = 10000;
 
-export type JsonPrimitive = string | number | boolean | null;
-export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 type Json = Record<string, unknown>;
 
 const isRecord = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -142,11 +141,12 @@ const NOT_CARRIED = new Set([
 ]);
 
 const TYPES = new Set(['string', 'number', 'integer', 'boolean', 'object', 'array']);
-const COLOUR: Record<string, { pattern: string; colour: 'rrggbb' | 'rrggbbaa'; test: RegExp }> = {
-  'color-rrggbb': { pattern: '^#[0-9a-f]{6}$', colour: 'rrggbb', test: /^#[0-9a-f]{6}$/ },
-  'color-rrggbbaa': { pattern: '^#[0-9a-f]{8}$', colour: 'rrggbbaa', test: /^#[0-9a-f]{8}$/ },
+const COLOUR: Record<string, { pattern: string; colour: 'rrggbb' | 'rrggbbaa' }> = {
+  'color-rrggbb': { pattern: '^#[0-9a-f]{6}$', colour: 'rrggbb' },
+  'color-rrggbbaa': { pattern: '^#[0-9a-f]{8}$', colour: 'rrggbbaa' },
 };
-const COLOUR_TEST = { rrggbb: COLOUR['color-rrggbb'].test, rrggbbaa: COLOUR['color-rrggbbaa'].test };
+/** Our own expression for each colour, never the package's. */
+const COLOUR_TEST = { rrggbb: /^#[0-9a-f]{6}$/, rrggbbaa: /^#[0-9a-f]{8}$/ };
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
@@ -191,8 +191,7 @@ function readNode(raw: unknown, at: string, path: string, depth: number, budget:
   if (own(raw, 'pattern') && !(node.colour && raw.pattern === COLOUR[node.gddType ?? '']?.pattern)) note('pattern', 'only the GDD colour patterns are supported');
   const numeric = type === 'number' || type === 'integer';
   for (const key of ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'] as const) {
-    if (!own(raw, key)) continue;
-    if (!numeric) continue;
+    if (!numeric || !own(raw, key)) continue;
     const v = raw[key];
     if (!isFiniteNumber(v) || (key === 'multipleOf' && v <= 0)) note(key, 'must be a finite number' + (key === 'multipleOf' ? ' above 0' : ''));
     else node[key] = v;
@@ -366,7 +365,7 @@ function walkValue(node: TypedNode, v: unknown, at: string, errors: TypedError[]
   }
   if (isRecord(v) && node.properties) {
     if (node.closed) {
-      const declared = new Set(node.properties.map((p) => p.key));
+      const declared = declaredKeys(node);
       for (const key of Object.keys(v)) if (!declared.has(key)) errors.push({ at: at ? `${at}.${key}` : key, reason: 'not a declared property' });
     }
     for (const { key, required, node: child } of node.properties) {
@@ -379,6 +378,14 @@ function walkValue(node: TypedNode, v: unknown, at: string, errors: TypedError[]
       walkValue(child, v[key], childAt, errors);
     }
   }
+}
+
+/** A closed object's declared keys as a set, made once per node, not once per value. */
+const declaredSets = new WeakMap<TypedNode, Set<string>>();
+function declaredKeys(node: TypedNode): Set<string> {
+  let set = declaredSets.get(node);
+  if (!set) declaredSets.set(node, (set = new Set((node.properties ?? []).map((p) => p.key))));
+  return set;
 }
 
 /** A node's declared values as a set, made once per node: a long list is not searched per value. */
@@ -469,6 +476,8 @@ export type TypedRead =
   | { status: 'ok'; envelope: TypedEnvelope }
   | { status: 'read-only'; reason: string };
 
+const VALUES_KEYS = new Set(['v', 'kind', 'standard', 'schema', 'values']);
+const ACTION_KEYS = new Set(['v', 'kind', 'standard', 'schema', 'action', 'args']);
 const LATER = 'was saved by a later version of NoaCG';
 const OTHER_STANDARD = 'was made for another OGraf revision';
 const UNREADABLE = 'cannot be read';
@@ -483,12 +492,12 @@ export function readTypedEnvelope(raw: unknown): TypedRead {
   if (raw.standard !== OGRAF_STANDARD.commit) return { status: 'read-only', reason: OTHER_STANDARD };
   if (typeof raw.schema !== 'string' || !raw.schema) return { status: 'read-only', reason: UNREADABLE };
   if (raw.kind === 'values') {
-    if (Object.keys(raw).some((k) => !['v', 'kind', 'standard', 'schema', 'values'].includes(k))) return { status: 'read-only', reason: UNREADABLE };
+    if (Object.keys(raw).some((k) => !VALUES_KEYS.has(k))) return { status: 'read-only', reason: UNREADABLE };
     if (!isRecord(raw.values) || readJson(raw.values)) return { status: 'read-only', reason: UNREADABLE };
     return { status: 'ok', envelope: raw as unknown as TypedValues };
   }
   if (raw.kind === 'action') {
-    if (Object.keys(raw).some((k) => !['v', 'kind', 'standard', 'schema', 'action', 'args'].includes(k))) return { status: 'read-only', reason: UNREADABLE };
+    if (Object.keys(raw).some((k) => !ACTION_KEYS.has(k))) return { status: 'read-only', reason: UNREADABLE };
     if (typeof raw.action !== 'string' || !raw.action) return { status: 'read-only', reason: UNREADABLE };
     if (own(raw, 'args') && readJson(raw.args)) return { status: 'read-only', reason: UNREADABLE };
     return { status: 'ok', envelope: raw as unknown as TypedActionCall };
@@ -497,7 +506,7 @@ export function readTypedEnvelope(raw: unknown): TypedRead {
 }
 
 /** A cue's typed data: values only. An action envelope on a cue is malformed, so read-only. */
-export function readCueTyped(cue: { typed?: unknown }): TypedRead {
+function readCueTyped(cue: { typed?: unknown }): TypedRead {
   const read = readTypedEnvelope(cue.typed);
   return read.status === 'ok' && read.envelope.kind !== 'values' ? { status: 'read-only', reason: UNREADABLE } : read;
 }
@@ -589,8 +598,9 @@ export const TYPED_KEPT = 'This production has typed cues this version cannot ch
  * whose bytes are the record's own from before.
  */
 export function typedFrozen(before: TypedKept | null, after: TypedRecord, restored: ReadonlySet<string> = new Set()): string | null {
+  if (!before) return (after.cues ?? []).some((c) => c.typed !== undefined && !restored.has(c.id)) ? TYPED_KEPT : null;
   const now = new Map((after.cues ?? []).map((c) => [c.id, c] as const));
-  for (const [id, kept] of before?.cues ?? []) {
+  for (const [id, kept] of before.cues) {
     const cue = now.get(id);
     if (!cue) {
       if (kept.whole) return TYPED_KEPT;
@@ -598,7 +608,7 @@ export function typedFrozen(before: TypedKept | null, after: TypedRecord, restor
     }
     if (JSON.stringify(kept.whole ? cue : cue.typed) !== kept.bytes) return TYPED_KEPT;
   }
-  for (const cue of after.cues ?? []) if (cue.typed !== undefined && !before?.cues.has(cue.id) && !restored.has(cue.id)) return TYPED_KEPT;
+  for (const cue of after.cues ?? []) if (cue.typed !== undefined && !before.cues.has(cue.id) && !restored.has(cue.id)) return TYPED_KEPT;
   return null;
 }
 
