@@ -59,9 +59,9 @@ export interface PreviewErrorMessage {
  */
 export const PREVIEW_READY_TYPE = 'spx-preview-ready';
 
-/** A document answered a `style` command: its faces loaded (or failed). `refit` says its fits ran
- *  again because something that moves the text changed, so what was measured before no longer
- *  stands; a colour alone answers false. `seq` counts the styles it applied. */
+/** A document answered a `style` command: its faces loaded (or failed). `refit` says something
+ *  that moves the text changed, so what was measured before no longer stands; a colour alone
+ *  answers false. `seq` counts the styles it applied. */
 export const PREVIEW_RESTYLED_TYPE = 'spx-preview-restyled';
 export interface PreviewReadyMessage {
   scriptError?: string | null;
@@ -131,8 +131,8 @@ export type PreviewCmd =
    * `vars` (`:root` variables by name without dashes, set on `document.documentElement`, which no
    * reset under the graphic's root touches) and `faces` (the `@font-face` rules the variables name,
    * control/cueStyle.ts `facesCss`). Null `vars` and '' `faces` put the design back. The command
-   * holds the queue while the named faces load (capped like a Take's font wait), then the
-   * template's own font-ready fits run again and the document answers `PREVIEW_RESTYLED_TYPE`; a
+   * holds the queue while the named faces load (capped like a Take's font wait), refits the graphic
+   * through its own update() when its face came after the cap, and answers `PREVIEW_RESTYLED_TYPE`; a
    * load that completes after a newer `style` does nothing (the latest-request guard).
    */
   | { cmd: 'style'; vars: Record<string, string> | null; faces: string }

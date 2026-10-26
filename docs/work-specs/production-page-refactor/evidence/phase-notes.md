@@ -36,18 +36,17 @@ changes a spec's digest.
     Type row offers the face's real weights and those of the face `--font-numeric` names
     (`weightsFor`, the wizard's `tokenWeights` rule), so a scoreboard on Anton keeps its Saira
     numbers' weights and a lower third on Anton has no weight buttons.
-  - The refit is the template's own: the composed document records the callbacks the template
-    hands `document.fonts.ready` while it loads and runs them again once a new face is in, so
-    whatever fit runtime a production's copy carries refits through its own code. The queue is
-    held at most 400 ms for a face to load, and a `seq` makes the latest request win, so a slow
-    face never refits over the selection that replaced it. The measurement identity includes
-    the faces and the variables that can move text (`measureStyleKey`), never a colour, so another
-    face or weight remeasures the box and a colour pick holds no Take. The document refits only
-    when such a member changed, keeps an unchanged face's declaration (a colour-only Update never
-    flashes the fallback of a large imported file), and the hidden measurer waits for its answer.
-    A design whose fit runs on `update()` rather than `document.fonts.ready` (203 of the 528
-    catalog designs, lt01 among them) refits through the Update the style rides, and is given the
-    same values again when its face arrives after the hold.
+  - The refit is the template's own `update()` with the values on air, never its font-ready
+    callbacks: 312 of the 325 catalog designs that hand one to `document.fonts.ready` are staged,
+    and that callback is a one-time calibration which, run again, keeps one row of each reserve
+    (card80's three-row reserve fell from 90 to 30 px); the other 13 are credits rolls, which it
+    re-renders. A face in by the time the 400 ms hold lets go is fitted by the Update the style
+    rides (PREVIEW settles again on the document's answer, the measurer settles only after it);
+    one that came later gets the last values again. A `seq` makes the latest request win, and a
+    refit a colour change overtook is still owed. The measurement identity includes the faces and
+    the variables that can move text (`measureStyleKey`), never a colour, so another face or
+    weight remeasures the box and a colour pick holds no Take. An unchanged face keeps its
+    declaration, so a colour-only Update never flashes the fallback of a large imported file.
   - An imported SVG reaches no Type or Colour row (`styleReach`): its `<text>` layers carry the
     artwork's own face and fills, so the canvas reset's inherited `--font-heading` never reaches
     them. `cssPaintsWith` alone counted that reset rule for every template; 528 catalog designs

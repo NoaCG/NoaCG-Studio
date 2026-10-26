@@ -270,40 +270,6 @@ window.addEventListener('unhandledrejection', function (ev) {
 </script>`
     : '';
 
-  // THE TEMPLATE'S OWN FONT-READY FITS, RECORDED (playout adjustments, phase 2). Every catalog fit
-  // runtime (templates/shared/stageFit.ts, textFit.ts, the imported designs' fit ladder, credits)
-  // re-measures from scratch once `document.fonts.ready` resolves, because its first pass measured
-  // the fallback face. A typeface changed at runtime is the same event, so the live-control
-  // document keeps each callback the template hands `fonts.ready` while it loads and the `style`
-  // command runs them again once the new face is in: one refit, through the template's own code,
-  // whatever runtime version a production's copy carries. Recording stops at `load`, so nothing
-  // the bootstrap below waits on is kept.
-  const fontHooksTag = options.liveControl
-    ? `<script id="spx-font-hooks">
-(function () {
-  var fonts = document.fonts;
-  var hooks = window.__noacgFontHooks = [];
-  if (!fonts) return;
-  var desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(fonts), 'ready');
-  if (!desc || !desc.get) return;
-  var recording = true;
-  window.addEventListener('load', function () { recording = false; });
-  Object.defineProperty(fonts, 'ready', {
-    configurable: true,
-    get: function () {
-      var p = desc.get.call(fonts);
-      if (!recording) return p;
-      p.then = function (ok, bad) {
-        if (recording && typeof ok === 'function' && hooks.indexOf(ok) < 0) hooks.push(ok);
-        return Promise.prototype.then.call(p, ok, bad);
-      };
-      return p;
-    },
-  });
-})();
-</script>\n`
-    : '';
-
   // The live-control bootstrap (see ComposeOptions.liveControl): a command channel over
   // postMessage in place of contentWindow/contentDocument access. `waitFonts` mirrors the
   // fonts-ready cap the settle bootstrap folds into `run` above; here it gates every 'play'
@@ -420,7 +386,7 @@ window.addEventListener('unhandledrejection', function (ev) {
   /* TYPE AND COLOUR (previewProtocol.ts 'style'). The variables go on documentElement, which no
      reset under the graphic's root wipes, and REPLACE the ones set before; the faces they name are
      declared in one stylesheet of this command's own. The queue waits while those faces load,
-     capped as a Take's font wait is, then the template's font-ready fits run again, but only when
+     capped as a Take's font wait is, then the graphic is refitted (below), but only when
      something that moves the text changed (the faces, the heading or numeric face, the heading
      weight): a colour moves nothing, and a fit replayed for it is work, or a credits roll
      re-rendered mid-air. THE LATEST-REQUEST GUARD: a load that completes after a newer style was
@@ -485,8 +451,12 @@ window.addEventListener('unhandledrejection', function (ev) {
       if (seq !== styleSeq) return release();
       styleOwed = false;
       var late = released;
-      var hooks = refit ? window.__noacgFontHooks || [] : [];
-      for (var h = 0; h < hooks.length; h++) { try { hooks[h].call(document.fonts, document.fonts); } catch (e) {} }
+      /* THE REFIT is the template's own update(), never its font-ready callbacks: a staged
+         design's (templates/shared/stageFit.ts, 312 of the 325 that have one) is a one-time
+         calibration that, run again, keeps one row of each reserve, and a credits roll's
+         re-renders the roll. A face in by the time the hold lets go is fitted by the Update the
+         style rides (or PREVIEW's settle on this answer); one that came later gets the last
+         values again. A data update never starts a transition. */
       if (refit && late && lastData != null) { try { window.update && window.update(lastData); } catch (e) {} }
       try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_RESTYLED_TYPE)}, seq: seq, refit: refit }, '*'); } catch (e) {}
       release();
@@ -874,10 +844,10 @@ window.addEventListener('unhandledrejection', function (ev) {
   if (/<\/body>/i.test(html)) {
     html = html.replace(
       /<\/body>/i,
-      `${captureTag}\n${fontHooksTag}${jsTag}${settleTag}${liveControlTag}${simulateTag}${canvasControlTag}\n</body>`,
+      `${captureTag}\n${jsTag}${settleTag}${liveControlTag}${simulateTag}${canvasControlTag}\n</body>`,
     );
   } else {
-    html = html + captureTag + fontHooksTag + jsTag + settleTag + liveControlTag + simulateTag + canvasControlTag;
+    html = html + captureTag + jsTag + settleTag + liveControlTag + simulateTag + canvasControlTag;
   }
 
   return html;

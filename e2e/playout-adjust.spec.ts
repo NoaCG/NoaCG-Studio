@@ -201,8 +201,8 @@ test('the /output renderer restores the appearance its report holds, and only fo
  * appearance carries goes into the graphic's own document (control/cueStyle.ts, the composed
  * document's `style` command), so these read inside the frame: the face Chromium really used for
  * a name with Nordic and Central-European letters (its per-node platform-font report), the weight
- * and colour the root variables give, the template's font-ready fits running again, and the
- * latest-request guard.
+ * and colour the root variables give, the refit through the template's own update(), the
+ * reserves a staged design calibrated, and the latest-request guard.
  */
 const NAME = 'Åsa Öberg-Ærø Šimon Žáková';
 
@@ -274,20 +274,8 @@ async function platformFonts(page: Page) {
   return fonts.map((f) => ({ family: f.familyName, custom: f.isCustomFont }));
 }
 
-test('a chosen face reaches the document through the stage: every glyph of the name in it, at its weight, and the fits run again', async ({ page }) => {
-  // lt66 hands its fit to `document.fonts.ready` (325 of the catalog's 528 designs do; the rest
-  // fit on `update()`, which the style rides): count the template's OWN fits a style runs again.
-  const doc = await styledStage(page, false, 'lt66');
-  const recorded = await doc.locator('html').evaluate(() => {
-    const w = window as unknown as { __noacgFontHooks: ((...a: unknown[]) => unknown)[]; __refits: number };
-    w.__refits = 0;
-    for (let i = 0; i < w.__noacgFontHooks.length; i++) {
-      const own = w.__noacgFontHooks[i];
-      w.__noacgFontHooks[i] = function (this: unknown, ...a: unknown[]) { w.__refits += 1; return own.apply(this, a); };
-    }
-    return w.__noacgFontHooks.length;
-  });
-  expect(recorded, "the template's own font-ready fits were recorded as it loaded").toBeGreaterThan(0);
+test('a chosen face reaches the document through the stage: every glyph of the name in it, at its weight', async ({ page }) => {
+  const doc = await styledStage(page);
   const before = await doc.locator('#f0').evaluate((el) => getComputedStyle(el).fontFamily);
   await sendStyle(page, { v: 1, font: { fontId: 'archivo' }, vars: { 'display-weight': '700', accent: '#ff7a00' } });
   await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1]);
@@ -307,7 +295,6 @@ test('a chosen face reaches the document through the stage: every glyph of the n
       text: f0.textContent,
       family: getComputedStyle(f0).fontFamily,
       weightIfPainted: getComputedStyle(f0).fontWeight,
-      refits: (window as unknown as { __refits: number }).__refits,
       fallbackDiffers: draw('700 48px "Archivo", Arial, sans-serif') !== draw('700 48px Arial, sans-serif'),
     };
   });
@@ -315,18 +302,16 @@ test('a chosen face reaches the document through the stage: every glyph of the n
   expect(seen.text).toBe(NAME);
   expect(before).not.toContain('Archivo');
   expect(seen.family).toContain('Archivo');
-  expect(seen.refits, 'the template\'s font-ready fits ran again').toBeGreaterThanOrEqual(1);
   expect(seen.fallbackDiffers, 'the fallback stack draws the name differently, so its use would show').toBe(true);
   const fonts = await platformFonts(page);
   expect(fonts.length).toBeGreaterThan(0);
   expect(fonts.filter((f) => !f.custom), 'no glyph of the name from a system face').toEqual([]);
   expect(new Set(fonts.map((f) => f.family.replace(/\s+(Regular|Bold|Variable).*$/i, ''))).size, `one family: ${JSON.stringify(fonts)}`).toBe(1);
-  // A colour alone moves no text: it is applied, and no fit runs for it (a credits roll would
-  // re-render mid-air, and PREVIEW would settle again for nothing).
+  // A colour alone moves no text: it is applied and answers no refit, so PREVIEW does not settle
+  // again for nothing.
   await sendStyle(page, { v: 1, font: { fontId: 'archivo' }, vars: { 'display-weight': '700', accent: '#00a3ff' } });
   await expect.poll(() => page.evaluate(() => (window as unknown as { __refit: boolean[] }).__refit)).toEqual([true, false]);
   expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--accent'))).toBe('#00a3ff');
-  expect(await doc.locator('html').evaluate(() => (window as unknown as { __refits: number }).__refits), 'no fit ran for the colour').toBe(seen.refits);
   // Taken off: an identity puts the design back.
   await page.evaluate(async () => {
     const A = await import('/src/control/cueAdjust.ts');
@@ -387,6 +372,20 @@ test('a design that fits in update() is given its values again when its face arr
   const updates = await doc.locator('html').evaluate(() => (window as unknown as { __updates: string[] }).__updates);
   expect(updates.length, JSON.stringify(updates)).toBe(2);
   expect(updates[1], 'the same values, once the face is in').toBe(updates[0]);
+});
+
+test('a staged design keeps the reserves it calibrated when its face changes', async ({ page }) => {
+  // card80's font-ready callback is the staged runtime's one-time calibration: run again it takes
+  // every line for a new row and keeps one row of each multi-row reserve. A face change refits
+  // through update() against the reserves the design measured instead.
+  const doc = await styledStage(page, false, 'card80');
+  const rooms = () => doc.locator('html').evaluate(() => [...document.querySelectorAll('[data-stage-room]')].map((el) => el.getAttribute('data-stage-room')));
+  const before = await rooms();
+  expect(before.length, 'the design calibrated its staged lines').toBeGreaterThan(0);
+  await sendStyle(page, { v: 1, font: { fontId: 'archivo' } });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __refit: boolean[] }).__refit)).toEqual([true]);
+  expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--font-heading'))).toContain('Archivo');
+  expect(await rooms(), 'every reserve as the design calibrated it').toEqual(before);
 });
 
 test('an imported face reaches the document by its asset path, and draws the name from its own file', async ({ page }) => {
