@@ -5,6 +5,219 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 32 (E7.2b, project phase 34): election replay rehearsal to hosted data and outputs
+
+- **Previous verified `main` sha:** `87c95f1` (row 32b passed, PR #1732). This branch began on
+  `87c95f1`. Before editing, main had the selection writer and the four-graphic package (row 31),
+  the replay server (row 26), and no E7.2b rehearsal or runbook.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0102 is additive and stays applied:
+  a reverted page stops writing `control_shows.collections` and a reverted route stops passing it,
+  so the report writes bound leaves only, as before. A collection text already in the tree stays
+  and is still read by the candidate cues (E7.1's resolver reads text or an object). The database
+  writes only what the route hands it, so a reverted route writes no collection leaf whatever a
+  page still publishes.
+- **Migration 0102 (`0102_source_collections.sql`), live-path** (header: "control_shows gains
+  `collections`; control_source_context_by_key answers it and control_source_report_by_key also
+  writes a published collection leaf of its own source"). Authorised by the coordinator on
+  2026-10-26 (option A, under extensions.md "E4 and E6 may extend their existing backend validation
+  boundary"). If post-landing reports it HELD (a renderer seen in the last ten minutes), the
+  landed app works without it: the page falls back to writing bindings and sources, and the
+  route reads no collections.
+- **What landed.**
+  - *The database:* a nullable `control_shows.collections`; `control_source_context_by_key`
+    answers it; `control_source_report_by_key` also writes `external.<source>.<from>` when a v 1
+    published recipe of THAT source names `from` (a dotted path of at most 8 keys), from a list of
+    at most 64 (anything else names none), as text, over nothing, an earlier revision's text or a
+    seed's object. Every 0101 fence and limit is unchanged; a bound leaf keeps 0088's value rules.
+    No update row comes from an unbound leaf.
+  - *The route and evaluator:* `projectSource` takes `collections` and writes each published
+    recipe's leaf of the source as `JSON.stringify` of the payload's object there
+    (`src/control/sourceMapping.ts` `projectCollections`); what every page would refuse (not a
+    record, no integer revision, no items, over 5,000 items, over 512 Ki characters) is held with
+    its reason, and a recipe that holds the whole source holds its collection too. A leaf also
+    bound by a field stays the binding's.
+  - *The page:* publish, Connect and Pause write `collections` beside `bindings` and `sources`
+    (`hostedControl.ts`, the page's sources writer); an instance without 0102 answers PGRST204 and
+    the page retries without it, keeping sources and profile (then the older fallback).
+    `pruneSources` keeps a source a collection recipe reads (`shows.ts`).
+  - *The rehearsal:* the replay server's `timeline: 'package'` (`--timeline package`), the
+    package's own results in a provider's shape (votes as numbers, `observed_at`, the candidates
+    as one collection), the same eight events; it prints each step's sha256. The source record
+    and agent configuration (`docs/work-specs/playout-election-package/replay-source.json`,
+    `replay-agent.json`); the runbook (`rehearsal.md`).
+- **The contract, old and new.**
+  - Persisted (database, new, additive): `control_shows.collections` = the page's
+    `Show.collections` verbatim, e.g. `[{"v":1,"id":"candidates","sourceId":"election",
+    "schemaRevision":1,"graphic":"Candidate card","from":"candidates","key":["district",
+    "candidate"],"fields":{...}}]`; NULL = never written (an older page, or a row published before
+    0102). Old: no column.
+  - Wire (route to database): `p_writes` may now hold a collection leaf, e.g.
+    `{"external.election.summary.status":"Preliminary","external.election.candidates":
+    "{\"schemaRevision\":1,\"revision\":2,\"items\":[...]}"}`. Old: bound paths only. The agent's
+    envelope and the route's answer are unchanged.
+  - Context (database to route): adds `collections` (the column). An older route ignores it.
+  - An older page publishing no collections: the column stays NULL, the route projects no
+    collection leaf and the report writes what 0101 wrote (pinned in `source-mapping.test.mjs`,
+    "no collections ... projects exactly as before", and by 0101's own self-check run against 0102's
+    functions, below).
+  - Callers: the source route (context and report, service role only); the owner's page (publish,
+    `writePublishedSources`, `firstPublishedSources`, through the owner's row policy). No output,
+    audience or tick function reads the column.
+- **Decisions.**
+  - *Why a migration* (row 30 trap 1): 0101 writes a path only when `control_shows.bindings`
+    names it, and the collection is not a legacy binding (extensions.md "Live selection"; a
+    synthetic binding would also send the whole collection to outputs as an update row). Recorded
+    in the stop-and-tell to the coordinator and its answer.
+  - *The collection travels as the provider sends it* (`{schemaRevision, revision, items}`): the
+    provider's own schema revision stays checkable by the recipe, and its own revision is what
+    the page judges. The route checks only what every page would refuse.
+  - *E5 mapping in the rehearsal:* the replay source's recipe formats the party votes
+    (`225000` to `225,000`, en-GB, no decimals) and the count's time (`observed_at` to `20:14`,
+    Europe/Helsinki, `show: time`); shares and statuses are identity leaves. The count bug's
+    "Updated" field therefore shows `20:14` where the starter seed shows `Updated 20:14`.
+  - *The ticker stays editorial* (row 31's split); the four graphics air on the published
+    production, three of them from the results.
+  - *Revisions 4 and 5 change the candidates alone*, so the rehearsal measures the slower road
+    (row 30 trap 2): nothing bound moves, no row, and the page hears it at its own 5 s read.
+    Revision 4 also corrects the aired candidate (Aino, 3,650 to 3,640), so that road is timed on
+    the output itself (from the second assessment).
+  - *No sooner signal:* the measured candidate-only time is about 5 s. The walk now fails a step
+    that moves a bound field above 10 s and a candidates-only step above 13 s (red when the page's
+    read is made 15 s); `CANDIDATE_READ_MS` itself is pinned at 5000 in `keyed-selection.test.mjs`.
+    The arithmetic worst case (about 12 s: poll, revision gap and read stacked) is not measured,
+    since the walk spaces its steps by hand. A database row for an unbound leaf would be a row that
+    resolves to nothing.
+  - *Registration:* Connect data cannot register an agent-only source (#1734, opened here, P2):
+    the rehearsal writes `replay-source.json` through `connectConnectorSource`, the call Connect
+    data makes. Recorded in the runbook as an operating limit.
+- **Row 30 traps, carried.** (1) the collection leaf written although no field binds it: 0102 and
+  `projectCollections`, each pinned (self-check; `source-mapping.test.mjs`; `connector-sample
+  .test.mjs`, the route passing the context's collections). (2) Measured, recorded in the runbook,
+  bounded in the walk (13 s). (3) The page that took the card sends its corrections: runbook
+  limit and recovery (reopen, Update). (4) Two tabs: confirmed by reading `followAired` (each tab
+  sends the same whole record); not widened. (5) The aired instance keeps its person: the walk
+  airs Aino through every step, Sara's deletion makes Sara's cue not ready and moves only Aino's
+  own correction onto the aired card, the valid empty list holds Aino with its reason and age off
+  air.
+- **A behaviour found, not changed:** a newer revision re-sends an aired card's whole record even
+  when its person's values did not change (`followAired`, E7.1's design): one update row per aired
+  card per revision, the picture unchanged. Seen in an earlier run of the walk and now pinned in
+  `keyed-selection.test.mjs` ("a newer revision with the aired person unchanged sends the same
+  whole record once"); recorded as a runbook limit. Two tabs are read from the code, not run.
+- **Hosted timing:** the walk's bounds (10 s and 13 s) were set from local runs (about 2 to 3 s
+  and 5 s). The configured run on hosted staging adds round trips; a red there is a bound to
+  check against that run's timings, not a run to retry.
+- **Compatibility, one more case:** a page of an older build never writes `collections`, so if
+  such a page changes or removes a recipe after a newer page published it, the route keeps
+  writing the old leaf until a page of this build writes the row again. The leaf is unbound: no
+  update row and no picture change follow. Post-landing: the configured runs need 0102 on their
+  database; staging gets it through post-land like production, and if post-land HOLDS it there
+  the AC-4 walk on hosted-latency fails at its first collection check until it applies.
+- **The rehearsal record (software/replay grade, browser outputs).** Cloud worker, 2026-10-26
+  04:20 to 05:50 UTC. The recorded run is on commit `89718fb`. Later commits change notes,
+  tests, the runbook, 0102's self-check (a revision-gap step) and its recipe source comparison
+  (strict, as the route's), the route's clash check (every v 1 recipe of the source counts, as in
+  0102) and the replay server's step log; each changed migration was applied again with its
+  self-check passing, and the election and connector specs passed again on the final code (the
+  head named in the PR). A local stack
+  (`supabase start`, CLI 2.111.0) with every migration through 0102, the dev server's real
+  `/api/data/source`, the agent as its own process from `replay-agent.json`, the replay server in
+  the same process as the walk. Hashes (sha256, first 16 hex; the server prints them whole):
+  package file `public/packs/election-rehearsal.noacgpack.json` `a51b45aef4dd2149`,
+  `replay-source.json` `91d28a8ca978798c`, `replay-agent.json` `465f0ad501e13a62`; steps
+  count-01 and older `c2834d09010331c0`, count-increase and duplicate `85a9408c2c85795b`,
+  correction-down `590b69bde44713f3`, malformed `0269d0cf52b560df`, person-deleted
+  `f8be6ffc6a520f71`, empty-collection `39e5843ecb2c27ba`. Clock and cadence: agent poll 2 s, one
+  revision per source per 5 s, unchanged receipts every 15 s, the page's own read every 5 s.
+  Provider move to picture on the final code (ms), with earlier runs on this branch in brackets:
+  count-increase 2666 [2362, 2657, 1819, 2254, 3201, 2680] (board, bug and card all moved);
+  correction-down 2029 [2041, 2089, 2050, 2053, 2088, 1509] (card 3,650, KOK 224,100); older 1904
+  and malformed 1894 (held by the agent, nothing moved); person-deleted 4872 (the aired card to
+  3,640 on the output, candidates only, through the page's 5 s read; that run's clock also
+  covered Sara's refused Take, so it is an upper bound; the final walk times the card alone:
+  4635; earlier runs timed only Sara's refused Take: 4579 to 5051); empty collection 4831 [4819 to 4908] (the hold said off
+  air); duplicate receipt 16049. The walk fails a bound-field step above 10 s and a candidates-only
+  step above 13 s; a 15 s page read turned it red. Renderer payloads: every card update is one
+  whole record of one revision (f0 to f5), exactly one after revision 3 (3,640); no update row carries
+  the collection; each graphic's only transport row is its Take; neither credential is in the
+  agent's log. Captures: eight output PNGs per run (`output-<step>.png` in the run's results, not
+  committed). I looked at count-01, correction-down and empty-collection: the board, bug, ticker
+  and card render whole, the figures are the asserted ones, and the card held its last values
+  after the empty list (3,650 in that run, before revision 4 carried Aino's correction). On the
+  final code, person-deleted shows the card at 3,640 with the board and bug unchanged; a last full
+  run of the spec (7 of 7) measured 3008, 2019, 1890, 1888, 5401 and 4886 for the same steps. (They overlap because the walk airs all four at once, which a show would not.)
+  Manual actions during the rehearsal: none beyond registering the source and stopping the agent
+  at the end. The runbook's recovery procedures are each walked in the specs it names, not with
+  this package and the replay together.
+  **Grade:** software/replay rehearsal on browser outputs, PASS. Real-studio grade (CasparCG/
+  Bridge, OBS) is parent phase S, not run here. Official live-feed access and election-day feed
+  qualification: unverified, no access exists; nothing here is a broadcaster readiness claim.
+- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
+  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
+  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
+  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
+  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
+  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
+- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
+  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
+  phase S.
+- **Files beyond the phase's list, and why.** `supabase/migrations/0102_source_collections.sql`
+  (authorised, above); `api/data/[...path].ts` and `src/control/sourceMapping.ts` (the route's
+  projection); `src/control/hostedControl.ts`, `src/components/home/ProductionPage.tsx` (the page
+  publishes the collections); `src/model/shows.ts` (`pruneSources`); `docs/DATA_API.md` (the wire);
+  `e2e/production-pack.spec.ts` (the prune walk); `e2e/configured/expected-run.json` (two more
+  configured walks, 128).
+- **Verification.** Node: `source-mapping.test.mjs`, `connector-sample.test.mjs`,
+  `external-data-connector.test.mjs` (138) and `keyed-selection.test.mjs` pass; gates
+  `--changed origin/main` (536 tests) pass. SQL: 0102 applied on a fresh local stack, its
+  self-check passing, and 0101's self-check passing when run after 0102 (the fences unchanged).
+  Browser, local stack, final code: `election-selection.spec.ts` 7 of 7 (AC-1 to AC-4, the no-0102
+  walk), `external-data-connector.spec.ts` 4 of 4, `production-pack.spec.ts` 7 of 7. Mutation
+  checks, each red: SQL (15) the allowance off, any source, any version, the list cap at 63 and
+  65, nine keys, an unanchored path, a seed's object refused, the context without collections, a
+  bound leaf skipping 0088's rule, nesting under a bound path, nesting under another collection,
+  the revision gap at 4.9 s and 5.1 s (0102's own self-check now pins 0101's gap on the replaced
+  function, from the fourth assessment), a non-list read; Node (15) any source, a bound leaf taken (a first pass survived; the test was
+  tightened), the list cap at 63 and 65, not a record, a negative revision, no items, the item and
+  text caps, a hostile string read, a missing collection unreported, the route dropping the
+  context's collections, and three timeline mutations; browser (4) the Connect write's middle
+  fallback, the publish's collections-only retry, the shared writer's fallback loop, `pruneSources`
+  without the collections.
+- **The automated PR review (on `c602d75`), both fixed:** the no-0102 walk now waits for the
+  local save before its reload (`settleDurableWrites`); the runbook copies the agent's
+  configuration beside the `replay` folder, since `caFile` is read relative to the configuration
+  file (the agent steps were run as written: the agent read revision 1 from the replay server).
+  The seventh assessment then found the manual timeline too fast to follow (5 s steps): the
+  runbook now runs it a step a minute (`--step-ms 60000`) and the server prints each step as it is
+  first served, so a person can time it; checked by running the server and agent as written.
+  The eighth: the runbook runs the replay in a folder outside the clone (its token and key can
+  never be committed); a restarted replay server resumes with `--from-step <n>` (checked: it
+  served correction-down first); and a binding of the whole source (`external.<id>`) now blocks
+  every collection leaf in the route as it does in 0102 (pinned, a mutation red).
+- **Check.** Review (code-review skill, high, delegated; scope matched): 9 findings, 7 fixed: a
+  collection leaf above or below a bound path (or another collection's) would have replaced that
+  subtree, now refused in both the evaluator and 0102; the publish retry now drops `collections`
+  only for PGRST204 naming it; a row published before 0102 gets its collections from the page that
+  opens it (only while NULL); a null entry in `collections`; the list-level hold no longer uses a
+  leaf's name; the comment on what the route holds; the replay server prints the digests of the
+  steps it serves. Left: re-serialising the collection on an unchanged receipt (at most one per
+  15 s) and the extra request on an instance behind 0102 (temporary). Simplify (four reviewers,
+  delegated): one `collectionShape` for the page's read and the route's write; one
+  `writeNewestColumns` for the published columns; the plan as an object; the package timeline's
+  `next`; one `installElection` and one graphics loop in the spec; another source's recipe is not
+  read whole. It also caught the walk's "only the Takes" check reading a graphic the package does
+  not have (always empty); removed, the per-graphic check stays. Skipped: a digest instead of the
+  collection text in the read state's snapshot (needs another migration for a few hundred KiB),
+  sharing the replay helpers across two specs, `pruneSources` through the strict recipe reader (a
+  later version's recipe must keep its source alive).
+- **Traps.** Do not mutate source files while a browser job runs on the dev server: Vite reloads
+  the page mid-walk and the walks fail as "the page reopened" (seen once here, rerun clean). A
+  failed `supabase start` stops every container; iterate a migration by starting the stack
+  without it and applying it with `psql` inside `begin; ... rollback;`. The repository's commit
+  hook refuses Co-Authored-By trailers. The unchanged receipt reaches `status.state` only after
+  the 15 s receipt gap: wait 25 s for it, never the 20 s wire wait.
+
 ## Row 32b (L2.1, project phase 33): playout adjustments, place and size
 
 - **Previous verified `main` sha:** `e07a5d8` (row 32a passed after PR #1731). This branch began

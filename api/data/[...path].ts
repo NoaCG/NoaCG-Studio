@@ -427,7 +427,7 @@ async function source(req: Request): Promise<Response> {
     // A changed report is evaluated as sent; an unchanged one against the accepted payload again, so
     // a field bound since that revision is filled (the database writes only paths never written).
     if (acquisition.status === 'changed' || acquisition.status === 'unchanged') {
-      const context = await rpc<{ entry: unknown; payload: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]> } | null>(
+      const context = await rpc<{ entry: unknown; payload: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]>; collections?: unknown } | null>(
         'control_source_context_by_key',
         { p_key: key, p_source: envelope.sourceId },
       );
@@ -445,6 +445,9 @@ async function source(req: Request): Promise<Response> {
         lists: registration?.lists,
         mapping: registration?.mapping,
         configRevision: registration?.configRevision,
+        // E7.2b: the published collection recipes' leaves of this source (migration 0102; an
+        // instance without it answers none, and only bound leaves are written, as before).
+        collections: context.collections,
       });
     }
     const [answer, wanted] = await Promise.all([

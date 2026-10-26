@@ -395,3 +395,25 @@ test('the election graphics: a quick re-take ends on air, and an empty ticker st
     await expect(root).toHaveCSS('visibility', 'visible');
   }
 });
+
+// E7.2b: the replay source registered on the installed package (the runbook's file,
+// docs/work-specs/playout-election-package/replay-source.json) stays while only the candidates'
+// collection reads it: a source no field binds is otherwise pruned by any Connect write.
+test('the replay source stays registered while only the candidate collection reads it', async ({ page }) => {
+  await installElection(page);
+  const source = JSON.parse(readFileSync(fileURLToPath(new URL('../docs/work-specs/playout-election-package/replay-source.json', import.meta.url)), 'utf8'));
+  const after = await page.evaluate(async (source) => {
+    const S = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const show = S.loadShows().find((s) => s.name === 'Election night rehearsal')!;
+    // No field follows the source any more: only the recipe of the candidate card reads it.
+    for (const [graphic, fields] of Object.entries(show.bindings ?? {})) for (const fieldId of Object.keys(fields)) S.setFieldBinding(show.id, graphic, fieldId, null);
+    const error = S.connectConnectorSource(show.id, source, [], null).error;
+    await commitDurableWrites();
+    const saved = S.loadShows().find((s) => s.id === show.id)!;
+    return { error, bindings: saved.bindings ?? {}, sources: (saved.sources ?? []).map((s) => s.id) };
+  }, source);
+  expect(after.error).toBeNull();
+  expect(Object.values(after.bindings).flatMap((f) => Object.keys(f))).toEqual([]);
+  expect(after.sources).toEqual(['election']);
+});

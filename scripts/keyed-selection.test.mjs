@@ -289,6 +289,14 @@ describe('the aired instance', () => {
     assert.deepEqual([shown(down.air).revision, shown(down.air).at], [7, 3000]);
   });
 
+  test('a newer revision with the aired person unchanged sends the same whole record once (a runbook limit, E7.2b)', () => {
+    const state = captured();
+    const r = follow(state, collection(6, BASE));
+    assert.deepEqual(r.sends.map((s) => s.values), [shown(state).values]);
+    assert.equal(shown(r.air).revision, 6);
+    assert.deepEqual(follow(r.air, collection(6, BASE), 3000).sends, [], 'and once only');
+  });
+
   test('older and duplicate revisions, read out of order, are rejected', () => {
     let state = follow(captured(), collection(7, [person('D1', 7, 'Aino Aalto', 1400)])).air;
     for (const old of [collection(6, [person('D1', 7, 'Aino Aalto', 1500)]), collection(7, [person('D1', 7, 'Aino Aalto', 9999)]), collection(5, BASE)]) {

@@ -210,8 +210,13 @@ are the ones above. It never takes, continues, resets or clears a graphic.
 fields to `external.<id>.<leaf>`: `external.e1.status` reads `status` from the answer, and a list
 (`external.e1.candidates`) goes through the list adapter its leaf names in `lists` (`lines`,
 `schedule` or `credits`). A record is one row of its values in order; an empty list clears the
-field; anything else (an object, null, a list with no adapter) keeps the field as it is. The
-production's record is non-secret: never a credential, and never a local destination (`mode`,
+field; anything else (an object, null, a list with no adapter) keeps the field as it is. A live
+candidates' collection (a recipe in the production's `collections`, `docs/work-specs/
+playout-election-package/spec.md`) is the exception no field binds: the route writes its leaf,
+`external.<id>.<from>`, as the JSON text of the object the answer holds there (`{schemaRevision,
+revision, items}`, one revision whole; migration 0102). It appends no update row. The
+election rehearsal's files are `docs/work-specs/playout-election-package/replay-source.json` and
+`replay-agent.json`. The production's record is non-secret: never a credential, and never a local destination (`mode`,
 `caFile`), which only the agent's own file may name.
 
 **Install and run** (the steps the configured walk and the phase receipt follow):
