@@ -36,8 +36,8 @@ const GROUND = [10, 20, 30];
  *  moved both ways. */
 const SWEEP_LOOK: AppliedAppearance = { v: 1, frame: { dx: -137, dy: -61, s: 0.85, ox: 600, oy: 900 } };
 /** Pixels the root may paint differently from the frame beyond the frame's own mount-to-mount
- *  difference (each judged at e2e/_ografParity.ts's channel tolerance): antialiasing along edges drawn under a transform of their own (qz01's skewed
- *  badges at 108 % differ by 831). The OGraf parity spec's bound (e2e/_ografParity.ts). qz01 with
+ *  difference (each judged at e2e/_ografParity.ts's channel tolerance): antialiasing along edges drawn under a transform of their own (a skewed badge
+ *  at 108 % differs by about 800). The OGraf parity spec's bound (e2e/_ografParity.ts). qz01 with
  *  the rect mapping removed is 2,328 over the frame. */
 const RESIDUAL_BOUND = 1_000;
 /** Designs measured beside the viewport-unit ones: two that fit their text to measured boxes, the
@@ -226,14 +226,17 @@ test('each target bakes the graphic\'s place and size into its files, painting w
     const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
     const show = shows.createShowNamed('Placed Show');
     // lt01 to the other side and 10 % smaller: a preset against its measured box, a size about it.
-    for (const id of ['lt01', 'qz01']) {
+    // Two designs that hold still once landed: a target is compared on its landed frame, and a
+    // design that keeps moving there (qz01's board differs from itself by up to 2,144 px across
+    // mounts) cannot be told apart from its bake by one reference pair.
+    for (const id of ['lt01', 'sb14']) {
       const tpl = variantById(id)!.create({} as never);
       const { doc } = createGraphic(tpl, { name: tpl.name });
       shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
     }
     const pool = shows.loadShows().find((s) => s.id === show.id)!;
     shows.setGraphicAdjust(show.id, pool.graphics[0].id, { place: 'br', scale: 0.9 });
-    // qz01 larger and down, so a fit that read rects through the transform would refit its words.
+    // sb14 larger and down, so a fit that read rects through the transform would refit its words.
     shows.setGraphicAdjust(show.id, pool.graphics[1].id, { y: 40, scale: 1.08 });
     const fresh = shows.loadShows().find((s) => s.id === show.id)!;
     const out: Record<string, { baked: string; plain: string; looks: Record<string, unknown> }> = {};
