@@ -705,6 +705,8 @@ describe('E7.2b: a collection leaf through the route', () => {
       bindings: { Bug: { f0: 'external.e1.parties.KOK.votes', f1: 'external.e1.status' } },
     });
     assert.deepEqual(Object.keys(out.writes), ['external.e1.a']);
+    // A binding of the whole source sits above every leaf, as the database counts it.
+    assert.deepEqual(run({ a: revision(1, []) }, [recipe({ id: 'a', from: 'a' })], { bindings: { Bug: { f0: 'external.e1' } } }).writes, {});
     // A recipe this build cannot use still counts for clashes, as the database counts it.
     const beside = run({ x: { y: revision(1, []) } }, [recipe({ id: 'bad', key: [], from: 'x' }), recipe({ id: 'xy', from: 'x.y' })]);
     assert.deepEqual(beside.writes, {});

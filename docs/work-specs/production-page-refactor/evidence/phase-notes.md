@@ -191,6 +191,10 @@ changes a spec's digest.
   The seventh assessment then found the manual timeline too fast to follow (5 s steps): the
   runbook now runs it a step a minute (`--step-ms 60000`) and the server prints each step as it is
   first served, so a person can time it; checked by running the server and agent as written.
+  The eighth: the runbook runs the replay in a folder outside the clone (its token and key can
+  never be committed); a restarted replay server resumes with `--from-step <n>` (checked: it
+  served correction-down first); and a binding of the whole source (`external.<id>`) now blocks
+  every collection leaf in the route as it does in 0102 (pinned, a mutation red).
 - **Check.** Review (code-review skill, high, delegated; scope matched): 9 findings, 7 fixed: a
   collection leaf above or below a bound path (or another collection's) would have replaced that
   subtree, now refused in both the evaluator and 0102; the publish retry now drops `collections`

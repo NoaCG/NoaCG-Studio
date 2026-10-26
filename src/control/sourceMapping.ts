@@ -507,7 +507,13 @@ export function projectSource(o: {
     else if (result === null) unfit.push(leaf);
     else writes[path] = result;
   }
-  projectCollections(o.collections, o.sourceId, o.payload, new Set(paths), { writes, missing, hold });
+  // Every bound path of the source counts for clashes, the bare `external.<id>` too (as 0102 counts it).
+  const bound = new Set(
+    Object.values(o.bindings ?? {})
+      .flatMap((fields) => (isObject(fields) ? Object.values(fields) : []))
+      .filter((p): p is string => typeof p === 'string' && (p === prefix.slice(0, -1) || p.startsWith(prefix))),
+  );
+  projectCollections(o.collections, o.sourceId, o.payload, bound, { writes, missing, hold });
   return { writes, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: RECIPE_VERSION, configRevision: recipe.configRevision } : null } };
 }
 
@@ -553,8 +559,10 @@ function projectCollections(
     if (read.status === 'ok') leaves.add(read.recipe.from);
   }
   // A leaf equal to, above or below a bound path or another collection's leaf is never written.
-  const taken = [...[...bound].map((p) => p.slice(prefix.length)), ...named];
-  const clashes = (leaf: string) => taken.some((other) => (other !== leaf && (other.startsWith(`${leaf}.`) || leaf.startsWith(`${other}.`))) || bound.has(prefix + leaf));
+  const taken = [...[...bound].filter((p) => p.startsWith(prefix)).map((p) => p.slice(prefix.length)), ...named];
+  // A binding of the whole source sits above every leaf.
+  const whole = bound.has(prefix.slice(0, -1));
+  const clashes = (leaf: string) => whole || taken.some((other) => (other !== leaf && (other.startsWith(`${leaf}.`) || leaf.startsWith(`${other}.`))) || bound.has(prefix + leaf));
   for (const leaf of [...leaves].sort()) {
     if (clashes(leaf)) continue;
     const value = isObject(payload) ? atPath(payload as JsonValue, leaf) : undefined;

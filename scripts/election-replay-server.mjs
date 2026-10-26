@@ -27,7 +27,9 @@
 // run only (`makeTestCertificate`, by openssl), so the agent keeps TLS validation on by trusting
 // just that one. Never a Vercel function (the function budget, docs/DEPLOYMENT.md).
 //
-//   node scripts/election-replay-server.mjs [--port <n>] [--step-ms <n>] [--timeline package] --dir <folder>
+//   node scripts/election-replay-server.mjs [--port <n>] [--step-ms <n>] [--timeline package] [--from-step <n>] --dir <folder>
+//
+// `--from-step` starts the timeline at that step at once (a restarted server resuming a rehearsal).
 //
 // writes `ca.pem` and `token` (mode 0600) into the folder and prints the address, never the token.
 
@@ -222,5 +224,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // What the rehearsal record names: each step's text by its sha256 (docs/work-specs/
   // playout-election-package/rehearsal.md).
   for (const s of server.digests) process.stdout.write(`step ${s.name} sha256 ${s.sha256}\n`);
+  const from = arg('--from-step');
+  if (from !== undefined) {
+    const i = Number(from);
+    if (!Number.isInteger(i) || i < 0 || i >= server.steps.length) throw new Error(`--from-step is 0 to ${server.steps.length - 1}`);
+    server.at(i);
+  }
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close().then(() => process.exit(0)));
 }
