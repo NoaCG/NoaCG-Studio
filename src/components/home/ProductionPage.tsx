@@ -121,7 +121,9 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import type { SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { assetDataIn, facesCss, styleContextFor } from '../../control/cueStyle';
+import { asDesignedPatch, assetDataIn, facesCss, importedFacesOf, styleContextFor, styleReach, COLOUR_VARS } from '../../control/cueStyle';
+import { FONTS } from '../../model/fonts';
+import { getCssVariable } from '../../model/cssVars';
 import type { PreviewStyle } from './measureCue';
 import { measureCue } from './measureCue';
 import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
@@ -3822,6 +3824,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     setOnlyThisCue(null);
                     writeAdjust(() => promoteCueAdjust(show.id, editingCue.id), `Adjust ${g.name}`);
                   }}
+                  style={(() => {
+                    const css = templateForSavedGraphic(g, library).css;
+                    const reach = styleReach(css);
+                    const design: Record<string, string> = {};
+                    for (const k of ['font-heading', ...COLOUR_VARS]) {
+                      const v = getCssVariable(css, k);
+                      if (v !== null) design[k] = v;
+                    }
+                    return {
+                      reach,
+                      artwork: g.type === 'imported-design',
+                      imported: importedFacesOf(poolTemplates),
+                      bundled: FONTS,
+                      design,
+                      asDesigned: (row: 'type' | 'colour') => write(asDesignedPatch(row, scope, g.adjust, reach)),
+                      designedFace: () => write({ font: asDesignedPatch('type', scope, g.adjust, reach).font }),
+                    };
+                  })()}
                 />
               );
             })()}

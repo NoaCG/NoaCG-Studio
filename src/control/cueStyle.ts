@@ -10,7 +10,7 @@
 //
 // Pure and Node-tested (scripts/cue-adjust.test.mjs).
 
-import type { FontRef } from '../model/adjust.ts';
+import { readAdjust, type AdjustPatch, type FontRef } from '../model/adjust.ts';
 import { cssPaintsWith, getCssVariable } from '../model/cssVars.ts';
 import {
   FONTS,
@@ -187,6 +187,25 @@ export function styleReach(css: string): StyleReach {
 }
 
 export const reachesAny = (r: StyleReach) => r.family || r.weight || r.colours.length > 0;
+
+/**
+ * "AS DESIGNED" ON A ROW, as one patch at the scope shown. The graphic's default: the row's members
+ * are removed. A cue's exception: where the graphic still sets one, the cue masks it (an empty
+ * variable, a 'designed' face), so the cue shows the design while the graphic's other cues keep
+ * theirs; where it does not, the cue's own is removed. Either way `keepStyle` is written, which
+ * keeps a production look off this scope (phase 3); a reset removes it with the record.
+ */
+export function asDesignedPatch(row: 'type' | 'colour', scope: 'cue' | 'graphic', graphicRaw: unknown, reach: StyleReach): AdjustPatch {
+  const g = readAdjust(graphicRaw);
+  const graphicVars = g.status === 'ok' ? (g.record.vars ?? {}) : {};
+  const graphicFont = g.status === 'ok' ? g.record.font : undefined;
+  const masks = (set: boolean) => (scope === 'cue' && set ? '' : null);
+  const vars: Record<string, string | null> = {};
+  for (const k of row === 'type' ? ['display-weight'] : reach.colours) vars[k] = masks(!!graphicVars[k]);
+  const patch: AdjustPatch = { vars, keepStyle: true };
+  if (row === 'type') patch.font = scope === 'cue' && graphicFont !== undefined && graphicFont !== 'designed' ? 'designed' : null;
+  return patch;
+}
 
 /** The weights the Type row offers for the face in effect: the face's real ones (Regular alone for
  *  a static or an imported face). */
