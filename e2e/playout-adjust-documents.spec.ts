@@ -11,7 +11,8 @@
 // 2. THE BAKES, one per target (html-overlay, CasparCG, SPX, OGraf and H2R): a production package
 //    built with a placed and resized graphic, its baked file rendered alone, against the same
 //    target's file built without place and size, in a frame transformed by the stage's own
-//    transform: what `/output` does to a document, done to this one. Compared once landed.
+//    transform: what `/output` does to a document, done to this one. Compared once landed, as the
+//    closest of two mounts each (`closestLanded`).
 //
 // Frames are compared after the same time on a paused page clock. A design that paints two different
 // frames from one document mounted twice (a marquee, a loop) is compared net of that: the residual
@@ -163,6 +164,20 @@ async function residuals(page: Page, framed: string, rooted: string, look: Appli
   });
 }
 
+/**
+ * A baked file against the same target's file framed by the stage, once landed, as the CLOSEST of
+ * two mounts each. An exported design can land in one of two settled states from mount to mount
+ * (sb14's card, 3,401 px apart, both as the plain file), so one reference pair cannot tell a
+ * state from a bake; a correct bake matches the reference in whichever state they share, and a
+ * missing or wrong one is the transform's distance apart in every pair.
+ */
+async function closestLanded(page: Page, framed: string, rooted: string, look: AppliedAppearance, start: Start) {
+  const refs = [await framesOf(page, framed, look, start, [4_000]), await framesOf(page, framed, look, start, [4_000])].map((f) => f[0]);
+  const roots = [await framesOf(page, rooted, null, start, [4_000]), await framesOf(page, rooted, null, start, [4_000])].map((f) => f[0]);
+  const pairs = refs.flatMap((ref) => roots.map((root) => differing(ref, root)));
+  return { painted: painted(refs[0]), spread: differing(refs[0], refs[1]), closest: Math.min(...pairs) };
+}
+
 test('the sweep: every viewport-unit design paints the same with the transform on its root as in a transformed frame', async ({ page, browser }) => {
   test.setTimeout(120_000);
   await page.goto('/app');
@@ -270,9 +285,9 @@ test('each target bakes the graphic\'s place and size into its files, painting w
       expect(served.files.get(`plain-${file!}`.replace(/__host\.html$/, 'graphic.mjs'))!.toString()).not.toContain('noacgApplyAppearance');
       // Landed only: mid-entrance, two mounts of one file differ by when each started on the clock
       // (0 to 6,234 px across CI runs), which says nothing about the transform.
-      const r = await residuals(renderer, `plain-${file!}`, file!, look, target === 'html-overlay' ? 'autoplay' : 'play', [4_000]);
-      rows.push(`${target} ${g.name}: ${r.map((s) => `${s.ms}ms painted ${s.painted} noise ${s.noise} residual ${s.residual}`).join(' | ')}`);
-      for (const s of r) expect(s.residual, `${target} ${g.name} at ${s.ms} ms:\n${rows.join('\n')}`).toBeLessThanOrEqual(RESIDUAL_BOUND);
+      const r = await closestLanded(renderer, `plain-${file!}`, file!, look, target === 'html-overlay' ? 'autoplay' : 'play');
+      rows.push(`${target} ${g.name}: painted ${r.painted} spread ${r.spread} closest ${r.closest}`);
+      expect(r.closest, `${target} ${g.name}:\n${rows.join('\n')}`).toBeLessThanOrEqual(RESIDUAL_BOUND);
     }
   }
   console.log(rows.join('\n'));
