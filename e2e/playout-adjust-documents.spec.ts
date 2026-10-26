@@ -40,7 +40,9 @@ const SWEEP_LOOK: AppliedAppearance = { v: 1, frame: { dx: -137, dy: -61, s: 0.8
 /** Pixels the root may paint differently from the frame beyond the frame's own mount-to-mount
  *  difference (each judged at e2e/_ografParity.ts's channel tolerance): antialiasing along edges drawn under a transform of their own (a skewed badge
  *  at 108 % differs by about 800). The OGraf parity spec's bound (e2e/_ografParity.ts). qz01 with
- *  the rect mapping removed is 2,328 over the frame. */
+ *  the rect mapping removed is 2,328 over the frame. The target test holds the same bound on
+ *  `differingShifted` (channel tolerance 48, one pixel of shift), where both raster states of a
+ *  scaled frame come out under 700. */
 const RESIDUAL_BOUND = 1_000;
 /** Designs measured beside the viewport-unit ones: two that fit their text to measured boxes, the
  *  hugging strap and the full-width band of the phase-1 receipt. */
@@ -174,7 +176,7 @@ const RASTER_TOLERANCE = 48;
  * apart (sb14 at 108 %, the framed reference and the baked root alike: 2,298 to 3,541 px apart
  * exactly, 428 this way); re-applying the transform after landing does not settle it. Both states
  * are what `/output` may show. A real misplacement stays far over the bound: 2 px is 6,196 and
- * 3 px is 8,881 on the same frame, the bake removed is 17,000 and more.
+ * 3 px is 8,881 on the same frame, the bake removed is 13,299.
  */
 function differingShifted(a: Buffer, b: Buffer): number {
   const pa = decodePng(a);
