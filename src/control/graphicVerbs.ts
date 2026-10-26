@@ -160,8 +160,8 @@ export interface GraphicPage {
   boundNow: (graphic: string) => Record<string, string>;
   /** Refuse a bound press while the published tree is unread, saying why; true when it may go. */
   boundReady: () => boolean;
-  /** Move the production tree (an operator press). */
-  patchBound: (writes: TreeWrite[]) => Promise<void>;
+  /** Move the production tree (an operator press); false when the write did not land. */
+  patchBound: (writes: TreeWrite[]) => Promise<boolean | void>;
   /** Write a cue's values as an edit (the ± bump on an unbound field). */
   writeCue: (cueId: string, values: Record<string, string>) => void;
   /** A cue's values as saved now (the draft's last save included), read when a press settles. */
@@ -237,6 +237,10 @@ const figuresOf = (msg: { t: string }): Record<string, string> | undefined => {
   const m = msg as { t: string; data?: Record<string, string>; payload?: Record<string, string> };
   return m.t === 'update' ? m.data : m.t === 'event' ? m.payload : undefined;
 };
+
+/** A press whose shared-value write did not land (productionDataSession.ts `BOUND_NOT_MOVED`;
+ *  spelled here so this module needs no import of the session). */
+const SHARED_NOT_MOVED = 'The shared value did not move';
 
 /** Refused at the session's end: nothing more is sent for a production that is closed (§4.1 R3). */
 const ENDED_NOTE = 'This production is closed, so nothing was sent.';
@@ -790,7 +794,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const { s, refused } = noting(sender());
     const p = page();
     const { editingCue, selectedGraphic: graphic } = sel;
-    if (!editingCue || !graphic || !sel.editingIsLive) return { outcome: 'refused', note: `${graphic ?? 'The graphic'} is off air` };
+    if (!editingCue || !graphic || !sel.editingIsLive) {
+      // On air with a cue this page does not hold is not off air: there is no cue to count from.
+      const why = graphic && sel.selectedLayerLive ? `The cue on ${graphic} is not one this page holds` : `${graphic ?? 'The graphic'} is off air`;
+      return { outcome: 'refused', note: why };
+    }
     if (typedRefused(s, editingCue)) return refused('typed data');
     const still = instance(s, graphic, editingCue);
     if (!still()) return refused(changedNote(graphic));
@@ -800,8 +808,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         await p.flush();
         if (!still()) return refused(changedNote(graphic));
         if (!p.boundReady()) return refused('The production data is not read yet.');
-        await p.patchBound([{ path, text: io.adjustedValue(p.boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
-        return { outcome: 'accepted' };
+        const landed = await p.patchBound([{ path, text: io.adjustedValue(p.boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
+        return landed === false ? { outcome: 'failed', note: SHARED_NOT_MOVED } : { outcome: 'accepted' };
       });
     }
     // A live candidate's field comes from its source only: a press would air a figure no
@@ -983,7 +991,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // Accepted live values are persisted only now, outside preparation history: a refused or
     // failed press writes nothing into the cue, and a late answer nothing a newer send replaced.
     if (went && Object.keys(kept).length > 0 && sel.airCue) p.writeLive(sel.airCue.id, kept);
-    if (went) await p.patchBound(tree);
+    // The event went but its shared value did not move: that half failed, and the press says so.
+    if (went && (await p.patchBound(tree)) === false) return { outcome: 'failed', note: SHARED_NOT_MOVED };
     return doneOf(outcome, graphic);
   };
 

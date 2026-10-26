@@ -268,3 +268,23 @@ test('a hostile offer is read in bounded time: at most 32 graphics of 48 capabil
 	assert.equal(read.more, true)
 	assert.ok(ms < 200, `read took ${ms} ms`)
 })
+
+test('a settled that arrives before the press RPC answers is kept, and Done does not cover it', async () => {
+	const { relay, panel } = await answering()
+	relay.autoResult = null
+	// The page answers on the topic before the RPC's own HTTP answer comes back.
+	const original = relay.press.bind(relay)
+	relay.press = async (key, press) => {
+		relay.emit('result', { v: 1, id: press.id, panel: 'k1', outcome: 'ran' })
+		relay.emit('settled', {
+			av: 2,
+			id: press.id,
+			outcome: 'refused',
+			note: 'Nothing sent: the cue on Scorebug changed.',
+		})
+		return original(key, press)
+	}
+	const out = await panel.pressAction('Scorebug', 'event:goal')
+	assert.equal(out.ok, true)
+	assert.equal(panel.lastPress, 'Nothing sent: the cue on Scorebug changed.')
+})

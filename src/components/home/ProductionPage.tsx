@@ -86,7 +86,7 @@ import type { Resolution, SpxTemplate } from '../../model/types';
 import { typedSendRefusal } from '../../model/ografTyped';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, actionCarriesValues, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -240,7 +240,7 @@ import { rundownActions, useRundownAuthoring } from './useRundownAuthoring';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, usePanelAnswer } from '../control/PanelControl';
 import { PANEL_VERBS, panelClip, rundownPanelRows, type PanelVerb } from '../../control/panelFeedback';
-import { capabilityPress, panelGraphic, type PanelGraphic, type PanelOffer } from '../../control/panelActions';
+import { graphicControls, panelGraphic, runCapability, type PanelGraphic, type PanelOffer } from '../../control/panelActions';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
@@ -3137,34 +3137,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     list: () => {
       const pins = new Set(pinnedGraphicsOf(show.profile));
       const graphics: PanelGraphic[] = [];
-      for (const [graphic, m] of poolMachines) {
-        const sel = liveSelection(graphic, cues, liveCue);
-        const live = sel.selectedLayerLive ? (liveCue[graphic] ?? null) : null;
-        const state = machineStates[graphic] ?? null;
-        const aired = live ? (airedData[graphic] ?? null) : null;
-        const g = panelGraphic({
-          graphic,
-          pinned: pins.has(graphic),
-          live,
-          cue: sel.airCue?.label ?? null,
-          arranged: arrangeControls(withLiveLabels(m.buttons, aired), arrangeFor(show.profile, graphic), (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
-          numbers: liveNumbersOf(m.descriptors, m.buttons, sel.editingCue ? candidateFields(sel.editingCue) : []),
-          legal: (event) => isEventLegal(m.legality, event, state) && (!!sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
-          stepping: sel.editingIsLive,
-          aired,
-        });
+      for (const graphic of poolMachines.keys()) {
+        const g = panelGraphic(liveControlsOf(graphic, pins.has(graphic)));
         if (g) graphics.push(g);
       }
       return { graphics };
     },
-    act: (run) => {
-      const m = poolMachines.get(run.graphic);
-      const press = m && capabilityPress(run, m.buttons, (b) => pickOptions(b, m.descriptors, m.path, m.buttons));
-      if (!press) return Promise.resolve({ outcome: 'refused', note: `that action is no longer on ${run.graphic}` });
-      const sel = liveSelection(run.graphic, cues, liveCue);
-      return 'event' in press ? verbs.event(sel, press.event) : verbs.bump(sel, press.step, press.delta);
-    },
+    act: (run) => runCapability(run, poolMachines.get(run.graphic), liveSelection(run.graphic, cues, liveCue), verbs),
   });
+  /** One pool graphic's live controls for the selection a press on it uses (control/panelActions.ts
+   *  `graphicControls`): what its pinned block draws, and what a panel is offered. */
+  const liveControlsOf = (graphic: string, pinned: boolean) => {
+    const sel = liveSelection(graphic, cues, liveCue);
+    const live = sel.selectedLayerLive ? (liveCue[graphic] ?? null) : null;
+    return graphicControls({
+      graphic,
+      pinned,
+      machine: poolMachines.get(graphic)!,
+      sel,
+      live,
+      state: machineStates[graphic] ?? null,
+      aired: live ? (airedData[graphic] ?? null) : null,
+      arrange: arrangeFor(show.profile, graphic),
+      candidate: sel.editingCue ? candidateFields(sel.editingCue) : [],
+    });
+  };
 
   // What a panel's keys show (protocol.md §8), from the same values the verb bar greys with. Read
   // only while the page answers a panel, at each publish and each press.
@@ -3218,7 +3215,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const sel = liveSelection(graphic, cues, liveCue);
     const live = sel.selectedLayerLive;
     const state = machineStates[graphic] ?? null;
-    const aired = live ? (airedData[graphic] ?? null) : null;
+    // The arrangement, numbers and greying a panel is offered too (`liveControlsOf`).
+    const g = liveControlsOf(graphic, true);
     return {
       ...shared,
       events: m.buttons,
@@ -3228,16 +3226,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       stateGroups: m.stateGroups,
       snapTo: (groupId, stateId) => verbs.snap(sel, groupId, stateId),
       selectedGraphic: graphic,
-      arranged: arrangeControls(withLiveLabels(m.buttons, aired), arrangeFor(show.profile, graphic), (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
+      arranged: g.arranged,
       actionButton: actionButtonFor({
         live,
-        // A layer holding a cue this page cannot see has no values to carry: such presses wait.
-        legal: (event) => isEventLegal(m.legality, event, state) && (!!sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
+        legal: g.legal,
         labelOf: (key) => m.descriptors.find((d) => d.key === key)?.label,
-        aired,
+        aired: g.aired,
         fire: (b) => void verbs.event(sel, b),
       }),
-      liveNumberFields: liveNumbersOf(m.descriptors, m.buttons, sel.editingCue ? candidateFields(sel.editingCue) : []),
+      liveNumberFields: [...g.numbers],
       editingIsLive: sel.editingIsLive,
       bumpLive: (key, delta) => verbs.bump(sel, key, delta),
     };

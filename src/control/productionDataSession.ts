@@ -52,7 +52,8 @@ export interface ProductionDataSession {
   /** The owner editing the tree (the Data workspace): one call, one write. */
   setLiveData: (next: JsonObject) => void;
   /** An operator press moving a bound value (the ± stepper, an event's `adjust`). */
-  patchBoundValues: (writes: TreeWrite[]) => Promise<void>;
+  /** Answers false when the write did not land (the note line says why). */
+  patchBoundValues: (writes: TreeWrite[]) => Promise<boolean>;
   /** A SOURCE READER's write (control/sheetSource.ts): a merge patch of the connected paths that
    *  changed. Answers true when it landed, false when nothing did (it is tried again), or the
    *  paths the published row does not bind yet, which were left out while the rest landed.
@@ -74,6 +75,9 @@ export interface ProductionDataSession {
    *  to; a tree the part no longer holds is passed over, since the render for the newer one follows. */
   dispatch: (resolved: ResolvedValues, tree: JsonObject, send: DataSend) => void;
 }
+
+/** A press's shared-value write that did not land, as the note line says it. */
+export const BOUND_NOT_MOVED = 'The shared value did not move';
 
 export function createProductionDataSession(session: PlayoutSession, io: ProductionDataIo): ProductionDataSession {
   const part = session.data;
@@ -236,12 +240,12 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
      * press first while `treeRead` is false.
      */
     patchBoundValues: async (writes) => {
-      if (writes.length === 0) return;
+      if (writes.length === 0) return true;
       const before = part.get().liveData;
       const next = withTreeWrites(before, writes);
       const patch = replacementPatch(before, next);
-      if (Object.keys(patch).length === 0) return;
-      await operatorWrite(mode, next, patch, 'The shared value did not move');
+      if (Object.keys(patch).length === 0) return true;
+      return operatorWrite(mode, next, patch, BOUND_NOT_MOVED);
     },
 
     /**

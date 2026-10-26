@@ -3194,3 +3194,21 @@ test('a live press that sends nothing answers refused with the reason: off air, 
     assert.equal(r.sends.length, 0, press);
   }
 });
+
+test('a bound press whose shared value did not move answers failed, not accepted (E6.1)', async () => {
+  for (const press of ['event', 'bump']) {
+    const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
+    r.page.patchBound = async () => false;
+    const view = sel({ selectedGraphic: 'Score', selectedLayerLive: true, editingCue: graphicCue('s1', 'Score'), editingIsLive: true, airCue: graphicCue('s1', 'Score') });
+    const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : r.verbs.event(view, goal);
+    await settle();
+    r.sends[0]?.answer.resolve({ ...noneLeft });
+    assert.deepEqual(await pressing, { outcome: 'failed', note: 'The shared value did not move' }, press);
+  }
+});
+
+test('a step on a layer airing a cue this page does not hold says so, not off air (E6.1)', async () => {
+  const r = rig({ seed: false, liveCue: { Score: 'elsewhere' } });
+  const view = liveSelection('Score', [], r.liveCue());
+  assert.deepEqual(await r.verbs.bump(view, 'home', 1), { outcome: 'refused', note: 'The cue on Score is not one this page holds' });
+});

@@ -174,6 +174,9 @@ export function usePanelAnswer(opts: {
         setLast(report);
         if (report.verdict.outcome !== 'ran') {
           note.current?.(`${report.panel}: ${pressWords(report)} refused, ${report.verdict.note ?? report.verdict.outcome}`);
+        } else if (report.settled && report.settled.outcome !== 'accepted') {
+          // Ran, then refused or failed after the wait, or unanswered: said where a refusal is.
+          note.current?.(`${report.panel}: ${pressWords(report)} ${report.settled.outcome === 'unknown' ? 'not confirmed' : report.settled.outcome}, ${report.settled.note ?? report.settled.outcome}`);
         }
       },
     });
@@ -379,7 +382,11 @@ export function PanelDialog({
                 {answer.last && (
                   <p className="hint" data-testid="panel-last">
                     Last press: {answer.last.panel}, {pressWords(answer.last)}:{' '}
-                    {answer.last.verdict.outcome === 'ran' ? 'done' : `refused, ${answer.last.verdict.note ?? answer.last.verdict.outcome}`}
+                    {answer.last.verdict.outcome !== 'ran'
+                      ? `refused, ${answer.last.verdict.note ?? answer.last.verdict.outcome}`
+                      : answer.last.settled && answer.last.settled.outcome !== 'accepted'
+                        ? `${answer.last.settled.outcome === 'unknown' ? 'not confirmed' : answer.last.settled.outcome}, ${answer.last.settled.note ?? ''}`
+                        : 'done'}
                   </p>
                 )}
               </section>

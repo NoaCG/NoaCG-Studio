@@ -97,6 +97,8 @@ export interface PanelPressReport {
   /** A graphic action's own words ("Goal +1 on Scorebug"). */
   action?: string;
   verdict: PressVerdict;
+  /** What a graphic action that ran came to, in a second report once the dispatcher answered. */
+  settled?: PressDone;
   at: number;
 }
 
@@ -108,7 +110,8 @@ export async function panelRelayActions(): Promise<boolean | null> {
   const sb = await getSupabase();
   if (!sb) return null;
   const { data, error } = await sb.rpc('panel_relay', {});
-  if (error) return /panel_relay|PGRST202|does not exist|schema cache/i.test(`${error.code ?? ''} ${error.message}`) ? false : null;
+  // Only "there is no such function" means an older database; anything else is asked again.
+  if (error) return error.code === 'PGRST202' || /could not find the function/i.test(error.message) ? false : null;
   const verbs = (data as { verbs?: unknown } | null)?.verbs;
   return Array.isArray(verbs) && verbs.includes(ACTION_VERB);
 }
@@ -291,17 +294,28 @@ export function answerPanel(opts: {
       return;
     }
     const offer = opts.actions?.() ?? null;
-    const judged = offer ? judgeAction(press, actionsNow(), actionRing.get(press.seen)) : { refused: 'not-here' as const, note: 'Graphic actions are not on this page' };
+    // The offer as it stands, read once for the judgement and the words.
+    const current = actionsNow();
+    const judged =
+      'invalid' in press
+        ? { refused: 'invalid' as const, note: `the press is out of bounds (${press.invalid})` }
+        : offer
+          ? judgeAction(press, current, actionRing.get(press.seen))
+          : { refused: 'not-here' as const, note: 'Graphic actions are not on this page' };
     const verdict: PressVerdict = 'run' in judged ? { outcome: 'ran' } : { outcome: judged.refused, note: judged.note };
     memory.remember(press.pressId, verdict, now);
     send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: verdict.outcome, ...(verdict.note ? { note: verdict.note } : {}) });
     // The control's own words where the page still offers it, else its id.
-    const label = actionsNow().graphics.find((g) => g.graphic === press.target)?.caps.find((c) => c.id === press.cap)?.label;
-    const words = `${label ?? press.cap.slice(press.cap.indexOf(':') + 1)} on ${press.target}`;
-    opts.onPress({ panel: press.panel.label, verb: ACTION_VERB, action: words, verdict, at: now });
+    const named = 'invalid' in press ? null : press;
+    const label = named && current.graphics.find((g) => g.graphic === named.target)?.caps.find((c) => c.id === named.cap)?.label;
+    const words = named ? `${label || named.cap.slice(named.cap.indexOf(':') + 1)} on ${named.target}` : 'A graphic action';
+    const report: PanelPressReport = { panel: press.panel.label, verb: ACTION_VERB, action: words, verdict, at: now };
+    opts.onPress(report);
     if (!('run' in judged) || !offer) return;
     const settle = (d: PressDone) => {
       if (!stopped) send('settled', { av: 2, id: press.pressId, panel: press.panel.id, outcome: d.outcome, ...(d.note ? { note: d.note } : {}) });
+      // The page's own record says what it came to too, a refusal after the wait included.
+      opts.onPress({ ...report, settled: d, at: Date.now() });
       // The press moved what the keys show.
       setTimeout(() => publish(), 0);
     };
@@ -415,8 +429,11 @@ export function answerPanel(opts: {
     });
     ch.subscribe();
     await joinFeed(answer.feedback_topic);
+    /** Asked at the start, and again every 15 beats (a minute) until it says yes: 0103 may be
+     *  applied while this page answers. */
+    let relayAsked = 0;
     const askRelay = () => {
-      if (relays !== null || stopped) return;
+      if (relays === true || stopped || (relays === false && ++relayAsked % 15 !== 0)) return;
       void panelRelayActions().then((r) => {
         if (r === null || stopped) return;
         relays = r;

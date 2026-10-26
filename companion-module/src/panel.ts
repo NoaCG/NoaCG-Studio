@@ -47,6 +47,9 @@ export const RESULT_MS = 1_500
 /** What the last-press variable says while a press waits for the page's answer. */
 export const PENDING_SENTENCE = 'Sent, waiting for the operator page'
 
+/** At most this many graphic actions wait for their `settled` at once. */
+const UNSETTLED_MAX = 64
+
 /** How long a refused key flashes. */
 export const FLASH_MS = 1_200
 /** The rejoin backoff, then every 8 s. */
@@ -486,6 +489,12 @@ export class PanelClient {
 					resolve(r)
 				})
 			})
+			// A graphic action says what it came to after it ran (`settled`), which can arrive before
+			// this RPC's own answer: it is listened for from now. Bounded, oldest first.
+			if (press.verb === ACTION_VERB) {
+				this.#unsettled.set(press.id, seq)
+				for (const id of this.#unsettled.keys()) if (this.#unsettled.size > UNSETTLED_MAX) this.#unsettled.delete(id)
+			}
 			// Sent and not yet answered: the last-press variable says so, apart from done and refused.
 			tell(PENDING_SENTENCE)
 			this.#opts.onChange?.()
@@ -498,6 +507,7 @@ export class PanelClient {
 					answer = await this.#relay.press(this.#key, press)
 				} catch (err) {
 					this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
+					this.#unsettled.delete(press.id)
 					return refused(`NoaCG offline: ${(err as Error).message}`)
 				}
 			}
@@ -512,15 +522,14 @@ export class PanelClient {
 				}
 				return refused(refusalSentence(code(answer.refused), answer.note))
 			}
-			// A graphic action says what it came to after it ran (`settled`).
-			if (press.verb === ACTION_VERB) this.#unsettled.set(press.id, seq)
 			const result = await answered
 			// Only a press that ran settles; the rest are forgotten now.
 			if (result?.outcome !== 'ran') this.#unsettled.delete(press.id)
 			if (!result) return refused('No answer from the operator page')
 			if (result.outcome !== 'ran') return refused(outcomeSentence(result), result)
 			const sentence = outcomeSentence(result)
-			tell(sentence)
+			// A graphic action that already settled has said what it came to; "Done" must not cover it.
+			if (press.verb !== ACTION_VERB || this.#unsettled.has(press.id)) tell(sentence)
 			this.#opts.onChange?.()
 			return { ok: true, sentence, result }
 		}

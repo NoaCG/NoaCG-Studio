@@ -18,8 +18,12 @@
 // Runtime imports carry `.ts` so Node resolves them; everything else is a type.
 
 import type { FieldDescriptor } from '../model/fieldModel';
-import type { ArrangedControl, ArrangedControls, ControlButton } from './controlModel';
-import { pickButton } from './liveControls.ts';
+import type { ArrangeRead, ArrangedControl, ArrangedControls, ControlButton } from './controlModel';
+import type { VerbSelection } from './graphicVerbs';
+import { arrangeControls, isEventLegal } from './controlModel.ts';
+import { withLiveLabels } from '../blocks/controlLabels.ts';
+import { actionCarriesValues } from './selectionAir.ts';
+import { liveNumberFields, pickButton, pickOptions } from './liveControls.ts';
 import { describeOgraf, readJson, validateActionArgs, type TypedNode } from '../model/ografTyped.ts';
 
 /** The graphic-actions protocol. The panel protocol stays 1 for every existing message and verb. */
@@ -121,6 +125,50 @@ export interface GraphicControls {
 }
 
 const offAir = (graphic: string) => `${graphic} is off air`;
+
+/** What the page reads one pool graphic's controls from (its template's declaration, parsed once). */
+export interface PoolMachine {
+  buttons: ControlButton[];
+  descriptors: FieldDescriptor[];
+  /** The events Continue walks: a payload riding one of these is preparation, never a pick. */
+  path: ReadonlySet<string>;
+  legality: Record<string, Record<string, string[]>>;
+}
+
+/**
+ * ONE GRAPHIC'S LIVE CONTROLS, AS A BLOCK DRAWS THEM AND A PANEL IS OFFERED THEM: the arrangement
+ * (ARRANGE, the live labels, the picks), the ± numbers and the greying, for the selection a press
+ * on that graphic uses. One function, so the screen and a panel cannot disagree about a control.
+ */
+export function graphicControls(g: {
+  graphic: string;
+  pinned: boolean;
+  machine: PoolMachine;
+  sel: VerbSelection;
+  /** The cue live on the layer, as the live map names it (the instance), or null off air. */
+  live: string | null;
+  /** The graphic's machine state as it last answered. */
+  state: Parameters<typeof isEventLegal>[2];
+  /** What air was last sent on the layer, when it is live. */
+  aired: Record<string, string> | null;
+  arrange: Record<string, ArrangeRead> | undefined;
+  /** The fields the edited cue's live candidate supplies (no stepper for them). */
+  candidate: readonly string[];
+}): GraphicControls {
+  const m = g.machine;
+  return {
+    graphic: g.graphic,
+    pinned: g.pinned,
+    live: g.live,
+    cue: g.sel.airCue?.label ?? null,
+    arranged: arrangeControls(withLiveLabels(m.buttons, g.aired), g.arrange, (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
+    numbers: liveNumberFields(m.descriptors, m.buttons, g.candidate),
+    // A layer holding a cue this page cannot see has no values to carry: such presses wait.
+    legal: (event) => isEventLegal(m.legality, event, g.state) && (!!g.sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
+    stepping: g.sel.editingIsLive,
+    aired: g.aired,
+  };
+}
 
 /**
  * A NATIVE GRAPHIC'S CAPABILITIES: every control its live block draws, in the block's order
@@ -248,34 +296,48 @@ export interface ActionPress {
   panel: { id: string; label: string };
 }
 
+/** A press that is a graphic action but out of the relay's bounds: answered `invalid`, never run. */
+export interface OutOfBounds {
+  invalid: string;
+  pressId: string;
+  claim: number;
+  panel: { id: string; label: string };
+}
+
+/** Whether `text` holds more than `max` characters, counted as the relay counts them (code
+ *  points), stopping at `max + 1`. */
+function longer(text: string, max: number): boolean {
+  if (text.length <= max) return false;
+  let n = 0;
+  for (const _ of text) if (++n > max) return true;
+  return false;
+}
+
 /**
- * Read a relayed `graphic-action` press, or null when it is not one. The bounds are the relay's own,
- * checked again here because this page is the second boundary (AC-3). Linear in the payload: the
- * argument object is walked once, iteratively, by E1's `readJson`, before its text is measured.
+ * Read a relayed `graphic-action` press: the press, an `OutOfBounds` naming the bound it broke (so
+ * the page answers it rather than leaving the panel waiting), or null when it is not a graphic
+ * action or carries no press id and claim to answer by. The bounds are the relay's own, checked
+ * again here because this page is the second boundary (AC-3). Linear in the payload: the argument
+ * object is walked once, iteratively, by E1's `readJson`, before its text is measured.
  */
-export function readActionPress(p: unknown): ActionPress | null {
+export function readActionPress(p: unknown): ActionPress | OutOfBounds | null {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
   const o = p as Record<string, unknown>;
-  if (o.verb !== ACTION_VERB || o.v !== ACTIONS_PROTOCOL) return null;
-  if (typeof o.target !== 'string' || !o.target || !TEXT_128.test(o.target)) return null;
-  if (typeof o.instance !== 'string' || !TEXT_128.test(o.instance)) return null;
-  if (typeof o.cap !== 'string' || !CAP_ID.test(o.cap)) return null;
-  if (typeof o.seen !== 'number' || !Number.isInteger(o.seen) || o.seen < 0) return null;
-  if (typeof o.press_id !== 'string' || typeof o.claim !== 'number') return null;
+  if (o.verb !== ACTION_VERB || typeof o.press_id !== 'string' || typeof o.claim !== 'number') return null;
+  const raw = (o.panel ?? {}) as Record<string, unknown>;
+  const panel = { id: typeof raw.id === 'string' ? raw.id : '', label: typeof raw.label === 'string' ? raw.label : 'A panel' };
+  const out = (invalid: string): OutOfBounds => ({ invalid, pressId: o.press_id as string, claim: o.claim as number, panel });
+  if (o.v !== ACTIONS_PROTOCOL) return out('a graphic action of another protocol');
+  if (typeof o.target !== 'string' || !o.target || !TEXT_128.test(o.target)) return out('target');
+  if (typeof o.instance !== 'string' || !TEXT_128.test(o.instance)) return out('instance');
+  if (typeof o.cap !== 'string' || !CAP_ID.test(o.cap)) return out('cap');
+  if (typeof o.seen !== 'number' || !Number.isInteger(o.seen) || o.seen < 0) return out('seen');
   const args = o.args ?? {};
-  if (typeof args !== 'object' || args === null || Array.isArray(args)) return null;
-  if (readJson(args, ACTION_ARGS_MAX_DEPTH) !== null || JSON.stringify(args).length > ACTION_ARGS_MAX_CHARS) return null;
-  const panel = (o.panel ?? {}) as Record<string, unknown>;
-  return {
-    target: o.target,
-    seen: o.seen,
-    pressId: o.press_id,
-    claim: o.claim,
-    cap: o.cap,
-    instance: o.instance,
-    args: args as Record<string, unknown>,
-    panel: { id: typeof panel.id === 'string' ? panel.id : '', label: typeof panel.label === 'string' ? panel.label : 'A panel' },
-  };
+  if (typeof args !== 'object' || args === null || Array.isArray(args)) return out('args');
+  const fault = readJson(args, ACTION_ARGS_MAX_DEPTH);
+  if (fault !== null) return out(`args: ${fault}`);
+  if (longer(JSON.stringify(args), ACTION_ARGS_MAX_CHARS)) return out('args-size');
+  return { target: o.target, seen: o.seen, pressId: o.press_id, claim: o.claim, cap: o.cap, instance: o.instance, args: args as Record<string, unknown>, panel };
 }
 
 /** The last published actions, by `actionsVer`, as the panel state's ring is (panelFeedback.ts). */
@@ -341,6 +403,19 @@ export function judgeAction(press: ActionPress, now: PanelActions, then: PanelAc
   if (errors.length > 0) return { refused: 'invalid', note: `${cap.label}: ${errors[0].at ? `${errors[0].at} ` : ''}${errors[0].reason}` };
   if (!cap.allowed) return { refused: 'not-allowed', note: cap.note ?? `${cap.label} is not allowed right now` };
   return { run: { graphic: press.target, cap, args: press.args } };
+}
+
+/** RUN A JUDGED CAPABILITY through the page's one dispatcher, with the selection a press on that
+ *  graphic uses (`liveSelection`): the block's own verb, the block's own button. */
+export function runCapability(
+  run: ActionRun,
+  machine: PoolMachine | undefined,
+  sel: VerbSelection,
+  verbs: { event: (sel: VerbSelection, button: ControlButton) => Promise<PressDone>; bump: (sel: VerbSelection, field: string, delta: number) => Promise<PressDone> },
+): Promise<PressDone> {
+  const press = machine && capabilityPress(run, machine.buttons, (b) => pickOptions(b, machine.descriptors, machine.path, machine.buttons));
+  if (!press) return Promise.resolve({ outcome: 'refused', note: `that action is no longer on ${run.graphic}` });
+  return 'event' in press ? verbs.event(sel, press.event) : verbs.bump(sel, press.step, press.delta);
 }
 
 /** What a capability presses, from the graphic's declared controls: the event button (a pick's

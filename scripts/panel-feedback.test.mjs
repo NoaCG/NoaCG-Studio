@@ -249,28 +249,39 @@ test('the actions event carries `av` and no `v`, so a module that predates it ig
 const actionPress = (over = {}) => ({ v: 2, verb: ACTION_VERB, target: 'Quiz', seen: 4, press_id: 'deck01:1', claim: 7, panel: { id: 'k', label: 'Desk' }, cap: 'event:choose', instance: 'cue_q1', args: { option: 'A' }, ...over });
 const offered = (over = {}) => ({ relay: true, graphics: [panelGraphic(controls(over))] });
 
-test('a relayed press is read only within the relay\'s own bounds, each pinned at its edge', () => {
+test('a relayed press is read only within the relay\'s own bounds, each pinned at its edge; one past a bound is answered, never dropped', () => {
+  const ok = (over) => {
+    const r = readActionPress(actionPress(over));
+    return !!r && !('invalid' in r);
+  };
+  const out = (over) => readActionPress(actionPress(over))?.invalid;
   assert.equal(readActionPress(actionPress()).cap, 'event:choose');
-  assert.equal(readActionPress(actionPress({ v: 1 })), null);
+  // Not a graphic action, or nothing to answer it by: not this reader's.
   assert.equal(readActionPress(actionPress({ verb: 'take' })), null);
-  assert.equal(readActionPress(actionPress({ target: '' })), null);
-  assert.ok(readActionPress(actionPress({ target: 'x'.repeat(128) })));
-  assert.equal(readActionPress(actionPress({ target: 'x'.repeat(129) })), null);
-  assert.ok(readActionPress(actionPress({ cap: `event:${'x'.repeat(96)}` })));
-  assert.equal(readActionPress(actionPress({ cap: `event:${'x'.repeat(97)}` })), null);
-  assert.equal(readActionPress(actionPress({ cap: 'paste:x' })), null);
-  assert.equal(readActionPress(actionPress({ cap: 'event:a\u0007' })), null);
-  assert.ok(readActionPress(actionPress({ instance: 'x'.repeat(128) })));
-  assert.equal(readActionPress(actionPress({ instance: 'x'.repeat(129) })), null);
-  assert.equal(readActionPress(actionPress({ args: [1] })), null);
+  assert.equal(readActionPress(actionPress({ press_id: 7 })), null);
+  // Out of bounds: answered `invalid` with the bound, under the press's own id and claim.
+  assert.deepEqual(readActionPress(actionPress({ v: 1 })), { invalid: 'a graphic action of another protocol', pressId: 'deck01:1', claim: 7, panel: { id: 'k', label: 'Desk' } });
+  assert.equal(out({ target: '' }), 'target');
+  assert.ok(ok({ target: 'x'.repeat(128) }));
+  assert.equal(out({ target: 'x'.repeat(129) }), 'target');
+  assert.ok(ok({ cap: `event:${'x'.repeat(96)}` }));
+  assert.equal(out({ cap: `event:${'x'.repeat(97)}` }), 'cap');
+  assert.equal(out({ cap: 'paste:x' }), 'cap');
+  assert.equal(out({ cap: 'event:a\u0007' }), 'cap');
+  assert.ok(ok({ instance: 'x'.repeat(128) }));
+  assert.equal(out({ instance: 'x'.repeat(129) }), 'instance');
+  assert.equal(out({ args: [1] }), 'args');
   // `{"t":"…"}` is the string and eight characters.
   assert.deepEqual([ACTION_ARGS_MAX_CHARS, ACTION_ARGS_MAX_DEPTH], [4096, 8]);
-  assert.ok(readActionPress(actionPress({ args: { t: 'x'.repeat(4088) } })));
-  assert.equal(readActionPress(actionPress({ args: { t: 'x'.repeat(4089) } })), null);
+  assert.ok(ok({ args: { t: 'x'.repeat(4088) } }));
+  assert.equal(out({ args: { t: 'x'.repeat(4089) } }), 'args-size');
+  // Counted in characters as the relay counts them, not in UTF-16 units: 4088 emoji are 4096.
+  assert.ok(ok({ args: { t: '\u{1F600}'.repeat(4088) } }));
+  assert.equal(out({ args: { t: '\u{1F600}'.repeat(4089) } }), 'args-size');
   let deep = 1;
   for (let i = 0; i < 7; i++) deep = [deep];
-  assert.ok(readActionPress(actionPress({ args: { d: deep } })), 'the object and seven more levels');
-  assert.equal(readActionPress(actionPress({ args: { d: [deep] } })), null, 'one more is refused');
+  assert.ok(ok({ args: { d: deep } }), 'the object and seven more levels');
+  assert.equal(out({ args: { d: [deep] } }), 'args: nested deeper than 8', 'one more is refused');
   // The relay's regular expressions say the same as the page's: one source of truth in the SQL.
   const sql = readFileSync(new URL('../supabase/migrations/0103_panel_graphic_actions.sql', import.meta.url), 'utf8');
   assert.match(sql, /length\(v_args::text\) > 4096/);
@@ -282,7 +293,7 @@ test('a relayed press is read only within the relay\'s own bounds, each pinned a
 test('hostile argument input is refused in time linear in its size (AC-3)', () => {
   const time = (args) => {
     const t = process.hrtime.bigint();
-    assert.equal(readActionPress(actionPress({ args })), null);
+    assert.ok(readActionPress(actionPress({ args })).invalid);
     return Number(process.hrtime.bigint() - t) / 1e6;
   };
   // Deep nesting is refused at its depth, never followed (and never overflows the stack).
@@ -290,7 +301,9 @@ test('hostile argument input is refused in time linear in its size (AC-3)', () =
   for (let i = 0; i < 100_000; i++) deep = { d: deep };
   // Wide input is refused by the value count before its text is ever made.
   const wide = { list: Array.from({ length: 200_000 }, (_, i) => i) };
-  const ms = [time(deep), time(wide)];
+  // One long string is measured to its bound and no further.
+  const long = { t: 'x'.repeat(5_000_000) };
+  const ms = [time(deep), time(wide), time(long)];
   assert.ok(ms.every((m) => m < 500), `took ${ms.join(', ')} ms`);
 });
 
