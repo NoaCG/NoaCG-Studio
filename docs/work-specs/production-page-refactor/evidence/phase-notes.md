@@ -130,7 +130,9 @@ changes a spec's digest.
   reported wider ones (one payload outcome for selection and typed, the resolver skipping typed
   fields, `JsonValue` stage data, a generic frozen-member allowance). Codex on `ab0c8c9`: two P1,
   both fixed (the swapper's typed values; the decision moved to `src/control/`); on `6e0ac4f`: two
-  P2, both fixed (PROGRAM's data-road rule; PROGRAM's rebuild). /so on `ab0c8c9`: AGREE WITH
+  P2, both fixed (PROGRAM's data-road rule; PROGRAM's rebuild); on `bd818da`: one P2, fixed (the
+  page's own dispatch leaves out a graphic by what was last applied to it, `withoutTypedAir`, not
+  by its cue's switch). /so on `ab0c8c9`: AGREE WITH
   CORRECTIONS, Assessment A (two wrong comments in `ografTyped.ts`, fixed); on `6e0ac4f`: AGREE
   WITH CORRECTIONS, Assessment A (the silent legacy `/update` on a typed graphic, named above).
   The verdict on the final head is in the pull request.

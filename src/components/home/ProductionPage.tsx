@@ -64,7 +64,7 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type AirPart, type DraftPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
 import { createCueDraft, unsentNow, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
 import type { StorePart } from '../../control/storePart';
-import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, type ClockSpecs } from '../../control/airState';
+import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, withoutTypedAir, type ClockSpecs } from '../../control/airState';
 import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
@@ -451,6 +451,8 @@ const PLACE_UNSENT = '@place';
 /** How long Publish waits for the adjusted cues to be measured. */
 const PUBLISH_MEASURE_CAP_MS = 8_000;
 const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
+const NO_TYPED_AIR: NonNullable<AirPart['typedAired']> = {};
+const typedAiredOf = (air: AirPart) => air.typedAired ?? NO_TYPED_AIR;
 /** What the background measurer composes for one cue. */
 interface MeasureInput {
   template: SpxTemplate;
@@ -2263,9 +2265,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
    *  unpublished only (control/productionDataSession.ts `dispatch` says why). */
   // A graphic airing typed data (E1.2a) is left out: its bound values are typed and go with ✎ Update
-  // in its envelope, never as the text this dispatch resolves.
-  const typedAir = useMemo(() => new Set(Object.entries(liveCue).filter(([, id]) => cues.find((c) => c.id === id)?.typed !== undefined).map(([g]) => g)), [liveCue, cues]);
-  const dispatched = useMemo(() => (typedAir.size ? Object.fromEntries(Object.entries(resolved).filter(([g]) => !typedAir.has(g))) : resolved), [resolved, typedAir]);
+  // in its envelope, never as the text this dispatch resolves. What it airs is what was last
+  // applied to it (the air part's `typedAired`), never what its cue is set to now.
+  const typedAired = usePacedPart(session.air, typedAiredOf);
+  const dispatched = useMemo(() => withoutTypedAir(resolved, typedAired), [resolved, typedAired]);
   useEffect(() => {
     dataSession.dispatch(dispatched, liveData, runVerb);
   }, [dataSession, dispatched, liveData, dataKey, runVerb]);

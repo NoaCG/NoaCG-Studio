@@ -66,6 +66,14 @@ export function rememberAired(air: AirPart, items: readonly ControlSendItem[]): 
   return { ...air, aired, ...(looks === was ? {} : { looks }), ...(typedAired === typedWas ? {} : { typedAired }) };
 }
 
+/** The resolved bound values the page's own dispatch sends (./productionDataSession.ts), without
+ *  the graphics airing typed data (E1.2a): what they air was last applied to them, and their bound
+ *  values go with ✎ Update in their envelope, never as this text. */
+export function withoutTypedAir<T extends Record<string, unknown>>(resolved: T, typedAired: Readonly<Record<string, unknown>>): T {
+  const typed = Object.keys(typedAired);
+  return typed.length ? (Object.fromEntries(Object.entries(resolved).filter(([g]) => !typed.includes(g))) as T) : resolved;
+}
+
 /**
  * The typed envelope a graphic airs after one command (E1.2a), by the output's own rule
  * (model/ografTyped.ts `typedOutputGate`): a values update airs its envelope; a data road's native

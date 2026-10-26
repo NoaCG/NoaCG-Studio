@@ -36,7 +36,7 @@ const {
 const { takeCueItems } = await import('../src/control/cueItems.ts');
 const { readLiveEntry } = await import('../src/control/livePath.ts');
 const { typedSendFor, createTypedSendMemo } = await import('../src/control/typedSend.ts');
-const { rememberAired, restoreItems, typedAfter } = await import('../src/control/airState.ts');
+const { rememberAired, restoreItems, typedAfter, withoutTypedAir } = await import('../src/control/airState.ts');
 const { NO_AIR } = await import('../src/control/playoutSession.ts');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -328,6 +328,10 @@ test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\
   assert.deepEqual(typedAfter({ Board: envelope() }, 'Board', { t: 'stop' }), {});
   const native = rememberAired(NO_AIR, [{ graphic: 'Board', msg: { t: 'update', data: { f0: 'x' } } }]);
   assert.equal(native.typedAired, undefined, 'a native page keeps its air part as it was');
+  // The page's own dispatch leaves out a graphic by what was last applied to it, not by its cue.
+  const resolved = { Board: { round: '3' }, Strap: { f0: 'x' } };
+  assert.deepEqual(withoutTypedAir(resolved, air.typedAired), { Strap: { f0: 'x' } });
+  assert.equal(withoutTypedAir(resolved, {}), resolved);
   // Every stage, the page's monitors included, applies the same rule as the output's gate.
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
   assert.match(stage, /if \(\(msg as \{ src\?: unknown \}\)\.src !== undefined\) dataless = true;/);
