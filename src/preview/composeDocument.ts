@@ -12,7 +12,7 @@ import { flexGapShimTag } from '../assets/flexGapSupport';
 import { soundBridgeJs } from '../assets/soundBridge';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
-import { settleGraphic, reportGraphicBox } from './settleGraphic';
+import { settleGraphic, reportGraphicBox, measureGraphic } from './settleGraphic';
 import {
   PREVIEW_CMD_TYPE,
   PREVIEW_STATE_TYPE,
@@ -279,6 +279,7 @@ window.addEventListener('unhandledrejection', function (ev) {
 (function () {
   ${serializeHelper(settleGraphic, 'settle')}
   ${serializeHelper(reportGraphicBox, 'report')}
+  ${serializeHelper(measureGraphic, 'measureBox')}
   function waitFonts(cb) {
     if (document.fonts && document.fonts.ready) {
       var done = false;
@@ -402,7 +403,9 @@ window.addEventListener('unhandledrejection', function (ev) {
     } else if (msg.cmd === 'settle') {
       afterFonts(function () {
         settle(window, msg.data);
-        report(window);
+        /* An identified settle answers with the whole measurement (settleGraphic.ts measureGraphic). */
+        if (typeof msg.id === 'number') measureBox(window, msg.id);
+        else report(window);
       });
     } else if (msg.cmd === 'stop') {
       var priorQuiet = window.noacgSoundQuiet === true;
@@ -419,7 +422,8 @@ window.addEventListener('unhandledrejection', function (ev) {
       window.noacgEventAt = (typeof msg.at === 'number' && msg.at > 0) ? msg.at : null;
       try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
     } else if (msg.cmd === 'measure') {
-      report(window);
+      if (typeof msg.id === 'number') measureBox(window, msg.id);
+      else report(window);
     } else if (msg.cmd === 'warm') {
       /* THE WARM PASS (previewProtocol.ts 'warm'): the update runs HERE, in the queue, so a Take
          sent after it lands after it and airs its own values; what it threw is part of the answer,

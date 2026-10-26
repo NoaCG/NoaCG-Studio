@@ -35,6 +35,7 @@ import {
   type SpeakingClockPair,
 } from './matchClockWire.ts';
 import { airedAfter, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
 
 /** The clocks each graphic's published markup carries, by the name the wire uses. A graphic
  *  carries one kind or the other, never both. */
@@ -55,7 +56,11 @@ export function moveLiveCue(air: AirPart, next: LiveCueMap | ((map: LiveCueMap) 
  *  graphic. The same part when nothing changed. */
 export function rememberAired(air: AirPart, items: readonly ControlSendItem[]): AirPart {
   const aired = items.reduce<AiredMap>((next, item) => airedAfter(next, item.graphic, item.msg), air.aired);
-  return aired === air.aired ? air : { ...air, aired };
+  // The place and size each graphic holds applied, by the same commands (./cueAdjust.ts rules 1, 3).
+  const was = air.looks ?? {};
+  const looks = items.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), was);
+  if (aired === air.aired && looks === was) return air;
+  return { ...air, aired, ...(looks === was ? {} : { looks }) };
 }
 
 /**
@@ -229,9 +234,23 @@ export function seedFromResolve(
     }
     if (Object.keys(values).length > 0) seed[graphic] = values;
   }
+  // What each renderer reports it holds applied of place and size, then the rows after the reports.
+  // A command applied here while the read was out is newer than every report: the looks stay.
+  let looks: AppliedLooks = { ...(air.looks ?? {}) };
+  // A report is the renderer's word for its graphic: no appearance in it clears an older entry.
+  if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
+    const look = reportedLook(report);
+    if (look) looks = { ...looks, [graphic]: look };
+    else if (graphic in looks) {
+      const { [graphic]: _cleared, ...rest } = looks;
+      looks = rest;
+    }
+  }
+  looks = replay.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), looks);
   return {
     ...moveLiveCue(air, resolved.liveCue),
     aired: { ...air.aired, ...seed },
+    looks,
     clocks,
     speaking,
     bootReplay: replay,
@@ -272,8 +291,12 @@ export function restoreItems(
     const held = pair ? speaking[graphic] : undefined;
     if (base && pair && held) data = { ...base, ...held };
     const groups = replaying ? report?.state?.groups : machineStates[graphic]?.groups;
+    // Its place and size go with the first data write (rule 4: what was applied, never what is
+    // prepared): the report's while its rows replay, else what this page aired.
+    // (`looks` was seeded from the reports, so an entry cleared since is cleared, not the report's.)
+    const look = replaying ? reportedLook(report) : air.looks?.[graphic];
     const items: ReplayItem[] = [];
-    if (data) items.push({ graphic, msg: { t: 'update', data } });
+    if (data || look) items.push({ graphic, msg: { t: 'update', data: data ?? {}, ...(look ? { appearance: look } : {}) } });
     if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
     // Without a state the graphic plays in, unless the replayed rows carry its entrance.
     else if (!rows.some((item) => item.msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });

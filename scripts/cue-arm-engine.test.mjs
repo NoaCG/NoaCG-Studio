@@ -304,6 +304,18 @@ test('Out and next cue: the Out, then the next cue\'s Take with its bound values
   r.engine.stop();
 });
 
+test('the next cue\'s Take carries its place and size, as every Take does (playout adjustments rule 2)', async () => {
+  const r = rig({ cues: [timed('a', 2, 'out-next'), manual('b')] });
+  const look = { v: 1, frame: { dx: 1200, dy: 0, s: 0.8, ox: 530, oy: 961 } };
+  r.page.appearanceOf = (cue, graphic) => (cue.id === 'b' && graphic === 'B' ? look : undefined);
+  r.engine.onMarker(take('a'));
+  r.setLive({ A: 'a' });
+  r.engine.onProgramState('A');
+  await r.advance(2000);
+  assert.deepEqual(r.sent[0].batches[1][0], { graphic: 'B', msg: { t: 'update', data: { name: 'b', bound: '1' }, appearance: look } });
+  r.engine.stop();
+});
+
 test('an Out whose layer no longer holds the cue sends nothing and says so', async () => {
   const r = rig();
   r.engine.onMarker(take('a'));

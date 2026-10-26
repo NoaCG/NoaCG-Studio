@@ -6,11 +6,17 @@ import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
 import type { CueDraft } from '../../control/cueDraft';
 import { staleWords, type AirState, type LostHop } from '../../control/playoutStatus';
-import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
+import { postPreviewCmd, PREVIEW_BOX_TYPE, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
+import { frameCss, qualifyStep, readMeasurement, safeInsets, QUALIFY_GAP_MS, type AppliedAppearance, type Measurement } from '../../control/cueAdjust';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
 import { lengthText } from './clipLength';
 import { useServerThumbnail } from './serverThumbnail';
 import { useCueView } from './CueEditor';
+import { useStorePart } from './useStorePart';
+import { storePart, type StorePart } from '../../control/storePart';
+
+/** A part nobody writes, for a monitor with nothing to subscribe to (hooks run unconditionally). */
+const NO_PART = storePart<unknown>(null);
 
 /**
  * A SERVER CLIP'S PICTURE on a monitor (docs/CLIP_PLAYBACK_PLAN.md §6.3): its thumbnail, marked
@@ -71,6 +77,9 @@ export default function PlayoutMonitors({
   programChip = null,
   air = null,
   serverLost = null,
+  previewLook = null,
+  guides = false,
+  measure = null,
 }: {
   /** The production's stage: both monitors' shape, never the selected cue's. */
   stage: Resolution;
@@ -121,20 +130,84 @@ export default function PlayoutMonitors({
   /** The hop that stopped answering while server cues are up (NoaCG Bridge, or CasparCG behind
    *  it): their names are the last known. */
   serverLost?: LostHop | null;
+  /** The previewed cue's place and size (control/adjustGeometry.ts `cueAdjustState`), applied to its
+   *  frame exactly as the output stage applies it. Read here, under the session's `geometry` part, so
+   *  a measurement redraws this monitor and not the page. */
+  previewLook?: { part: StorePart<unknown>; of: () => AppliedAppearance | null } | null;
+  /** Draw the safe area over PREVIEW (while the Adjust block is open). */
+  guides?: boolean;
+  /** Measure the previewed cue after each settle, for the identity `key`: on while its graphic is
+   *  adjusted or the block is open, so a production nobody adjusts measures nothing. */
+  measure?: { keyOf: (settleData: string) => string; onMeasured: (key: string, m: Measurement) => void } | null;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
   const previewView = useCueView(draft, previewCue);
   const settleData = previewCue && previewView ? settleOf(previewCue, previewView.values) : '';
   const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
   const programThumb = useServerThumbnail(programClip?.name ?? null);
+  /**
+   * THE MEASUREMENT, IDENTIFIED (playout adjustments): each settle goes with a number, which its
+   * answer echoes; the number names the identity the settle was for, so an answer for values typed
+   * over since is never this cue's box. A second answer 250 ms later must agree with the first
+   * (`qualify`) before the session keeps it.
+   */
+  const measureRef = useRef(measure);
+  measureRef.current = measure;
+  const asked = useRef(new Map<number, { key: string; first: Measurement | null; tries: number; done: (key: string, m: Measurement) => void }>());
+  const serial = useRef(0);
+  /** The 250 ms asks still waiting: a new settle cancels them, so an older identity is never
+   *  measured over the newer values. */
+  const retries = useRef(new Set<ReturnType<typeof setTimeout>>());
   const settlePreview = useCallback((data: string) => {
-    postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
+    retries.current.forEach(clearTimeout);
+    retries.current.clear();
+    const want = measureRef.current;
+    if (!want) {
+      postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
+      return;
+    }
+    asked.current.clear();
+    const id = ++serial.current;
+    asked.current.set(id, { key: want.keyOf(data), first: null, tries: 0, done: want.onMeasured });
+    postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data, id });
   }, []);
+  useEffect(() => {
+    const timers = retries.current;
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.source !== previewIframe.current?.contentWindow) return;
+      const msg = ev.data as { type?: string; id?: number } | undefined;
+      if (!msg || msg.type !== PREVIEW_BOX_TYPE || typeof msg.id !== 'number') return;
+      const job = asked.current.get(msg.id);
+      asked.current.delete(msg.id);
+      const m = readMeasurement(msg);
+      if (!job || !m) return;
+      const step = qualifyStep(job.first, m, job.tries);
+      if ('done' in step) {
+        job.done(job.key, step.done);
+        return;
+      }
+      if ('giveUp' in step) return;
+      const t = setTimeout(() => {
+        timers.delete(t);
+        const id = ++serial.current;
+        asked.current.set(id, { ...job, first: step.again, tries: step.tries });
+        postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'measure', id });
+      }, QUALIFY_GAP_MS);
+      timers.add(t);
+    };
+    window.addEventListener('message', onMessage);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      timers.forEach(clearTimeout);
+    };
+  }, []);
+  const measureKey = measure && settleData ? measure.keyOf(settleData) : null;
   useEffect(() => {
     if (!previewDoc || !settleData) return;
     const t = setTimeout(() => settlePreview(settleData), 150);
     return () => clearTimeout(t);
-  }, [previewDoc, settleData, settlePreview]);
+    // A new identity to measure (the block opened, the copy changed) settles again.
+  }, [previewDoc, settleData, settlePreview, measureKey]);
   /**
    * WHICH OF THE VALUES BEING TYPED DO NOT FIT — the warn half of the owner's fit ruling
    * (docs/SVG_IMPORT_PLAN.md §3). The graphic on PREVIEW has already settled with exactly the
@@ -185,16 +258,15 @@ export default function PlayoutMonitors({
   const stageAspect = `${stage.width} / ${stage.height}`;
   // A lost hop matters only while server cues are up; a lost connection always does.
   const stale = staleWords(air?.state === 'stale', serverLayers.length > 0 ? serverLost : null);
-  // CONTAIN, not width-fill (`Math.min`, the same arithmetic as src/output/stage.ts): the frame
-  // is the production's shape now, so a cue of another shape has to fit inside it rather than
-  // overflow its height.
-  const fit =
-    previewTemplate && stageBox.width && stageBox.height
-      ? Math.min(
-          stageBox.width / previewTemplate.resolution.width,
-          stageBox.height / previewTemplate.resolution.height,
-        )
-      : 0;
+  // ONE COORDINATE SYSTEM WITH PROGRAM (playout adjustments, "Geometry"): the whole production
+  // stage is fitted to the monitor (`Math.min`, the arithmetic of src/output/stage.ts) and the
+  // graphic's frame sits at its origin at its own resolution, unscaled, exactly where the output
+  // stage puts it. A 720p or portrait graphic then shows here where and how large PROGRAM shows it.
+  const fit = stageBox.width && stageBox.height ? Math.min(stageBox.width / stage.width, stageBox.height / stage.height) : 0;
+  useStorePart(previewLook?.part ?? NO_PART);
+  const look = previewLook?.of() ?? null;
+  const lookCss = frameCss(look);
+  const inset = safeInsets(stage);
 
   return (
     <div
@@ -217,28 +289,37 @@ export default function PlayoutMonitors({
               style={{ aspectRatio: stageAspect }}
               data-testid="production-preview"
             >
-              <iframe
-                ref={previewIframe}
-                title="Cue preview"
-                sandbox="allow-scripts"
-                srcDoc={previewDoc}
-                onLoad={() => settlePreview(settleData)}
-                style={{
-                  position: 'absolute',
-                  // CENTRED IN THE STAGE, the same way src/output/stage.ts centres its own:
-                  // origin at the frame's middle, then translated back by half the SCALED
-                  // size. Percentage translates would compound with the scale.
-                  left: '50%',
-                  top: '50%',
-                  width: previewTemplate.resolution.width,
-                  height: previewTemplate.resolution.height,
-                  border: 0,
-                  transformOrigin: '0 0',
-                  transform: `translate(${(-previewTemplate.resolution.width * (fit || 1)) / 2}px, ${
-                    (-previewTemplate.resolution.height * (fit || 1)) / 2
-                  }px) scale(${fit || 1})`,
-                }}
-              />
+              <div
+                className="pd-pvw-stage"
+                style={{ width: stage.width, height: stage.height, transform: `scale(${fit || 1})` }}
+              >
+                <iframe
+                  ref={previewIframe}
+                  title="Cue preview"
+                  sandbox="allow-scripts"
+                  srcDoc={previewDoc}
+                  onLoad={() => settlePreview(settleData)}
+                  data-appearance={look?.frame ? JSON.stringify(look) : undefined}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    width: previewTemplate.resolution.width,
+                    height: previewTemplate.resolution.height,
+                    border: 0,
+                    transform: lookCss.transform || undefined,
+                    transformOrigin: lookCss.origin || undefined,
+                  }}
+                />
+                {guides && (
+                  <div
+                    className="pd-pvw-guides"
+                    aria-hidden="true"
+                    data-testid="preview-guides"
+                    style={{ left: inset.left, top: inset.top, right: inset.right, bottom: inset.bottom }}
+                  />
+                )}
+              </div>
             </div>
           ) : previewServer ? (
             // A cue over the playout server's own library: its still and length, since the page

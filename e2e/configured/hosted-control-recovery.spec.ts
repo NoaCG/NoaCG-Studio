@@ -151,3 +151,68 @@ test('a fresh operator page boots, takes its first cue, and holds it on air', as
   await op.close();
   await clearPublishedShows(page);
 });
+
+// PLACE AND SIZE SURVIVE A RECONNECT (docs/work-specs/playout-adjustments/spec.md AC-9, the renderer
+// half). The production page adjusts the graphic and publishes; the hosted page takes the cue with
+// the published appearance; then the /output renderer and the hosted page's PROGRAM are reloaded and
+// both come back with the appearance from the renderer's report, with no new Take. Node pins the
+// rules (scripts/cue-adjust.test.mjs); e2e/playout-adjust.spec.ts boots /output from a stood-in report.
+test('an adjusted cue comes back placed after the output and the hosted PROGRAM reload', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await bootstrapGraphic(page);
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
+  const showName = `Adjust Recovery ${Date.now()}`;
+  await openProductionWithCurrent(page, showName);
+  // The graphic's default: bottom-right at 95 %, written as the Adjust block writes it.
+  await page.evaluate(async (name) => {
+    const shows = await import('/src/model/shows.ts');
+    const s = shows.loadShows().find((x) => x.name === name)!;
+    shows.setGraphicAdjust(s.id, s.graphics[0].id, { place: 'br', scale: 0.95, anchor: 'bl' });
+    await new Promise((r) => setTimeout(r));
+  }, showName);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  await page.keyboard.press('Escape');
+  const slugs = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.name === name);
+    return { hosted: s?.hostedSlug ?? '', output: s?.outputSlug ?? '' };
+  }, showName);
+  expect(slugs.hosted && slugs.output).toBeTruthy();
+
+  const air = await context.newPage();
+  await air.goto(`/output?production=${encodeURIComponent(slugs.output)}&debug=1`);
+  await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
+  const op = await context.newPage();
+  await op.goto(`/app?control=${encodeURIComponent(slugs.hosted)}`);
+  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  await op.getByTestId('hosted-take-cue').click();
+  await expect(op.getByTestId('hosted-action-log-row')).toHaveCount(3, { timeout: 30_000 });
+
+  // The published appearance reached air and the hosted PROGRAM: placed right, at 95 %.
+  const outputFrame = air.locator('iframe[data-layer]').first();
+  const programFrame = op.getByTestId('hosted-program-stage').locator('iframe').first();
+  await expect(outputFrame).toHaveAttribute('data-appearance', /"s":0.95/, { timeout: 30_000 });
+  const look = await outputFrame.getAttribute('data-appearance');
+  expect(JSON.parse(look!).frame.dx).toBeGreaterThan(600);
+  await expect(programFrame).toHaveAttribute('data-appearance', look!);
+
+  // Reconnect: the renderer reports it beside its state (800 ms debounce), then both pages reload.
+  await air.waitForTimeout(2_000);
+  await air.reload();
+  await expect(air.locator('iframe[data-layer]').first()).toHaveAttribute('data-appearance', look!, { timeout: 60_000 });
+  await op.reload();
+  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  await expect(op.getByTestId('hosted-program-stage').locator('iframe').first()).toHaveAttribute('data-appearance', look!, { timeout: 30_000 });
+  // No new Take: the log still holds the one take's three rows.
+  await expect(op.getByTestId('hosted-action-log-row')).toHaveCount(3);
+
+  await air.close();
+  await op.close();
+  await clearPublishedShows(page);
+});

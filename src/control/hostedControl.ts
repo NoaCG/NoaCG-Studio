@@ -9,11 +9,12 @@ import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownC
 // library at publish time (docs/SAVED_CONTENT_MODEL.md §4) — the hosted page renders them as
 // a read-only switcher, so picking one stages its data and airing it stays a deliberate take.
 
+import type { AppliedAppearance } from './cueAdjust';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { isBackendConfigured, loadBackendConfig } from '../backend/config';
 import { publishAudio } from '../backend/productionAudio';
-import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/shows';
+import { graphicLayer, type CueAuto, type CueEnd, type Show, type ShowCue } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
@@ -149,6 +150,10 @@ export interface OutputCue {
    *  before timed cues, and the hosted page then takes it as one. */
   auto?: CueAuto;
   next?: string;
+  /** ADDITIVE OPTIONAL (playout adjustments, phase 1): the place and size this cue's Take and
+   *  Update carry, resolved at Publish against the box the production page measured. The hosted
+   *  page applies it and does not edit it. Absent: the cue's graphic was never adjusted. */
+  appearance?: AppliedAppearance;
 }
 
 /** What the hosted page airs for one cue, scoped to its own staged edits (cueStaging.ts). */
@@ -200,7 +205,9 @@ export type LiveReportMap = Record<
   string,
   {
     data?: Record<string, string>;
-    state?: { groups?: Record<string, string> } | null;
+    /** The machine state, and (playout adjustments) `appearance`: the place and size the renderer
+     *  holds applied, kept here because the report's RPC stores `state` as sent, so no migration. */
+    state?: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null;
     at?: string;
     event?: number;
     /** Protocol 2 only: the same baseline in the per-production sequence (0071). */
@@ -396,7 +403,13 @@ async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): 
 /** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
  *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
  *  graphic name. Async because Blob assets serialize to data URLs. */
-export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<OutputPayload> {
+export async function buildOutputPayload(
+  show: Show,
+  library: GraphicDoc[] = loadGraphics(),
+  /** Each cue's place and size as the production page resolved it (playout adjustments): what the
+   *  hosted page's Take and Update carry. Absent, no cue carries one. */
+  appearanceOf?: (cue: ShowCue) => AppliedAppearance | undefined,
+): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
   const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
   // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
@@ -426,6 +439,10 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         ...(c.note ? { note: c.note } : {}),
         ...(auto ? { auto } : {}),
         ...(next ? { next } : {}),
+        ...((() => {
+          const appearance = appearanceOf?.(c);
+          return appearance ? { appearance } : {};
+        })()),
       };
     });
   const itemById = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
@@ -508,7 +525,7 @@ export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = 
  *  the two surfaces must agree on the cue list). Prunes log rows older than 7 days (the 0029
  *  owner DELETE policy) so a 24/7 output URL never grows the log without bound.
  *  Returns every capability slug, or null offline. */
-export async function publishControlShow(show: Show): Promise<PublishedCapabilities | null> {
+export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCue) => AppliedAppearance | undefined): Promise<PublishedCapabilities | null> {
   // THE LIBRARY->AIR GATE, before anything else - including the backend check: an invalid
   // graphic cannot publish, and that is true of this function whoever calls it and wherever it
   // runs (validation/productionGate.ts - the same publishGate the community door runs). A
@@ -517,7 +534,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   assertProductionGate(show.graphics, library);
   const sb = await getSupabase();
   if (!sb) return null;
-  const raw = await buildOutputPayload(show, library);
+  const raw = await buildOutputPayload(show, library, appearanceOf);
   const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
   // THE VERSION STAMP (payloadVersion.ts): the previous stamp, read as ONE field so the
   // multi-megabyte payload is not downloaded to learn it. A production published for the first
@@ -1269,7 +1286,7 @@ export async function controlOutputReportSeq(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string> } | null,
+  state: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null,
   baseline: {
     /** The last seq applied, and the epoch it belongs to: the server banks the seq only in that
      *  epoch (a republish the renderer has not seen yet must not get a baseline from a gone log). */
@@ -1308,7 +1325,7 @@ export async function controlOutputReport(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string> } | null,
+  state: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null,
   /** The last log row applied when this truth was captured — the graphic's recovery baseline. */
   lastEventId: number | null = null,
 ): Promise<void> {

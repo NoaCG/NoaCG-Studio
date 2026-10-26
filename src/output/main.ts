@@ -59,6 +59,7 @@ import { pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
 import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
+import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
@@ -562,7 +563,11 @@ async function boot(): Promise<void> {
           reportTimers.delete(graphic);
           changedReports.delete(graphic);
           const data = mergedData.get(graphic) ?? {};
-          const state = stage.states.get(graphic) ?? null;
+          // The place and size held applied ride the report's `state` (playout adjustments: stored
+          // as sent, so no migration): what a boot restores, never newer preparation (rule 4).
+          const machine = stage.states.get(graphic) ?? null;
+          const look = stage.appearances.get(graphic);
+          const state = look ? { ...(machine ?? {}), appearance: look } : machine;
           // Byte-identical truth needs no second write (the 1 s state poll answers every second),
           // unless the write is due for its baseline.
           const key = JSON.stringify([data, state]);
@@ -885,6 +890,9 @@ async function boot(): Promise<void> {
     const mine = resolved.live[key];
     if (!mine) continue;
     if (mine.data || mine.state?.groups) touched.add(key);
+    // Its place and size first, with the data half: the frame takes them before anything shows.
+    const look = reportedLook(mine);
+    if (look) stage.apply(key, { t: 'update', data: {}, appearance: look });
     if (mine.data) {
       mergedData.set(key, { ...mine.data });
       stage.apply(key, { t: 'update', data: mine.data });

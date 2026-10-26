@@ -77,8 +77,10 @@ export type PreviewCmd =
   | { cmd: 'stop'; sound?: false }
   | { cmd: 'next' }
   | { cmd: 'update'; data: string }
-  | { cmd: 'settle'; data: string }
-  | { cmd: 'measure' }
+  // `id` (playout adjustments): an identified settle or measure answers with the whole measurement
+  // under that id (preview/settleGraphic.ts `measureGraphic`); without it, the plain box as before.
+  | { cmd: 'settle'; data: string; id?: number }
+  | { cmd: 'measure'; id?: number }
   // `at` carries the ControlMessage's own instant (see control/controlModel.ts): a graphic that
   // runs a clock anchors it to that rather than to its local Date.now(), so two renderers given
   // the same log row agree. Absent for an editor-driven dispatch, which has neither.

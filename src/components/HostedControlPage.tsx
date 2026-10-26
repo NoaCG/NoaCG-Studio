@@ -88,6 +88,7 @@ import {
   type VerbSent,
 } from '../control/hostedControl';
 import { airedAfter, type AiredMap } from '../control/outputRecovery';
+import { IDENTITY, lookAfter, publishedAppearance, reportedLook, type AppliedLooks } from '../control/cueAdjust';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
@@ -241,6 +242,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // declared before the effects that close over it.
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
+  /** The place and size each graphic holds applied (playout adjustments), from the reports and the
+   *  rows since: what a rebuilt PROGRAM restores, and what decides an explicit identity on a Take. */
+  const looksRef = useRef<AppliedLooks>({});
   /** Per graphic, the figures this page's presses sent that are not answered yet (`figures`). */
   const sentFigures = useRef<Record<string, Record<string, string>>>({});
   /** Per graphic, the last live press, which the next one waits for (`figures.press`). */
@@ -330,6 +334,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         bootReplay.current = null;
         // …and remember what it put on air, which is what makes "not sent yet" honest.
         setAiredData((prev) => airedAfter(prev, item.graphic, msg));
+        looksRef.current = lookAfter(looksRef.current, item.graphic, msg);
       }
     }
   }, []);
@@ -390,6 +395,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // 0034), seeded before following so old rows can never overwrite a newer fact.
       setLiveCue(resolved.liveCue);
       setMachineState(Object.fromEntries(Object.entries(resolved.live).map(([g, report]) => [g, report?.state ?? null])));
+      looksRef.current = (bootReplay.current ?? []).reduce<AppliedLooks>(
+        (looks, item) => lookAfter(looks, item.graphic, item.msg),
+        Object.fromEntries(Object.entries(resolved.live).flatMap(([graphic, report]) => {
+          const look = reportedLook(report);
+          return look ? [[graphic, look] as const] : [];
+        })),
+      );
       // The unsent baseline starts at what each live graphic REPORTED applying, and what the rows
       // after that report aired — a page opened mid-show must not announce changes against a
       // baseline it never saw aired.
@@ -587,7 +599,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     (cue: OutputCue | null, values?: Record<string, string>) => {
       if (!cue) return;
       previewRef.current?.apply([
-        { graphic: cue.graphic, msg: { t: 'update', data: values ?? cue.values } },
+        // Its published place and size, so PREVIEW shows where the Take puts it.
+        { graphic: cue.graphic, msg: { t: 'update', data: values ?? cue.values, appearance: cue.appearance ?? IDENTITY } },
         { graphic: cue.graphic, msg: { t: 'play' } },
       ]);
     },
@@ -635,7 +648,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const groups = machineStateRef.current[graphic]?.groups;
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
       const dataItem = data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
+      // Its place and size first (rule 4): the report's at boot, else what this page has seen since.
+      const look = replay ? reportedLook(reportsRef.current[graphic]) : looksRef.current[graphic];
       programRef.current?.apply([
+        ...(look ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: look } }] : []),
         ...dataItem,
         ...(groups
           ? [{ graphic, msg: { t: 'snap' as const, snap: groups } }]
@@ -921,7 +937,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const takeCue = (cue: OutputCue, direct = false) => {
     const ownAuto = cue.auto?.then === 'out' ? cue.auto : cue.auto?.then === 'out-next' ? { ...cue.auto, then: 'out' as const } : undefined;
     const auto = direct ? ownAuto ? markerAuto({ auto: ownAuto, next: null }) : null : markerFor(cue);
-    return sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto, direct }));
+    const appearance = publishedAppearance(cue, cues, looksRef.current[cue.graphic]);
+    return sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto, direct, ...(appearance ? { appearance } : {}) }));
   };
   /**
    * A TIMED CUE'S END ACTION, sent once: the server said `ok` to this page's fire (cueArmWire.ts).
@@ -933,7 +950,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // The server checked the lane still holds the cue before it said ok; this page's view may trail it.
     if (playsOut(arm.then)) batches.push(clearCueItems(graphic));
     const next = arm.next ? cues.find((c) => c.id === arm.next) : undefined;
-    if (next) batches.push(takeCueItems({ id: next.id, graphic: next.graphic, values: cueValues(next), auto: markerFor(next) }));
+    const appearance = next ? publishedAppearance(next, cues, looksRef.current[next.graphic]) : undefined;
+    if (next) batches.push(takeCueItems({ id: next.id, graphic: next.graphic, values: cueValues(next), auto: markerFor(next), ...(appearance ? { appearance } : {}) }));
     const gone = !!arm.next && !next;
     if (batches.length && !(await sendVerbs(batches))) return;
     if (gone) setError(batches.length ? 'The cue armed to be taken next is gone, so only Out ran.' : 'The cue armed to be taken next is gone, so nothing was taken.');
@@ -949,7 +967,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   };
   const updateLive = () => {
     if (selectedGraphic && selectedCue && selectedIsLive) {
-      void sendVerb([{ graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } }]);
+      const appearance = publishedAppearance(selectedCue, cues, looksRef.current[selectedGraphic]);
+      void sendVerb([{ graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue), ...(appearance ? { appearance } : {}) } }]);
     }
   };
   /**
