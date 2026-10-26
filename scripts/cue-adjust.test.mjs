@@ -672,11 +672,20 @@ describe('the export resolver (phase 1b)', () => {
     assert.deepEqual(r.cues.n1, { v: 1 });
   });
 
-  test('only a preset or a size needs a box', () => {
-    assert.equal(X.needsBox({ v: 1, x: 4 }), false);
+  test('a preset, a size or a sideways nudge needs a box; a nudge down does not', () => {
+    assert.equal(X.needsBox({ v: 1, y: 4 }), false);
+    assert.equal(X.needsBox({ v: 1, x: 0 }), false);
     assert.equal(X.needsBox({ v: 1, x: 4 }, { v: 1, scale: 0.95 }), true);
     assert.equal(X.needsBox(undefined, { v: 1, place: 'tl' }), true);
     assert.equal(X.needsBox({ v: 1, scale: 1 }), false);
+  });
+
+  test('a band spanning the frame drops a sideways nudge in a package, as on the stage', () => {
+    assert.equal(X.needsBox({ v: 1, x: 40 }), true, 'so the export measures it');
+    const band = { info: { x: 0, y: 900, w: 1920, h: 120 }, paint: { x: 0, y: 900, w: 1920, h: 120 } };
+    const r = X.exportAppearances({ graphics: [{ id: 'w', adjust: { v: 1, x: 40, y: -20 } }] }, () => HD, { graphics: { w: band }, cues: {} });
+    assert.equal(r.graphics.w.frame.dx, 0, 'no horizontal move: it would cut the band\'s edge');
+    assert.equal(r.graphics.w.frame.dy, -20, 'the nudge up still applies');
   });
 });
 

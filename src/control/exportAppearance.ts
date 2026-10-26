@@ -45,10 +45,11 @@ export function adjustedGraphics<G extends PoolGraphic>(graphics: readonly G[], 
   return graphics.filter((g) => g.adjust !== undefined || cues.some((c) => c.sourceId === g.id && cueAdjusted(c)));
 }
 
-/** Whether a fold needs a box to resolve: a preset, or a size about the box's own point. */
+/** Whether a fold needs a box to resolve: a preset, a size about the box's own point, or a
+ *  sideways nudge, which a band spanning the frame drops (`resolveFrame`), as on the stage. */
 export function needsBox(graphicAdjust: unknown, cueAdjust?: unknown): boolean {
   const eff = effectiveAdjust(graphicAdjust, cueAdjust);
-  return eff.place !== undefined || (eff.scale !== undefined && eff.scale !== 1);
+  return eff.place !== undefined || (eff.scale !== undefined && eff.scale !== 1) || (eff.x ?? 0) !== 0;
 }
 
 /** Resolve every adjusted graphic and its cues; undefined when the production holds none. */
