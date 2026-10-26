@@ -624,12 +624,12 @@
     }
    ],
    "fontCss": [
-    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue.woff2\") format(\"woff2\");\n  font-weight: 400 400;  /* variable font: covers this weight range */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
+    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue.woff2\") format(\"woff2\");\n  font-weight: 100 900;        /* one static weight: declared for every request, so a bold is never synthesised */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
     "@font-face {\n  font-family: \"Inter-Medium\";\n  src: url(\"fonts/inter.woff2\") format(\"woff2\");\n  font-weight: 500;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */\n  font-display: swap;          /* show fallback text until the font loads */\n}"
    ],
    "emit": {
     "html": "d12dddab7e6ac02514b5de13b3000d453fb790ffb900fcc609ee8f477701e8fb",
-    "css": "6657b85fc88ab0827d49e8417874f1a8ee9db1792c0d473a04c93e1c3597a1eb",
+    "css": "a734becb4fcdecb39c3e02eb969a7eae75f88efd364b9ff5539ad91d88791c4b",
     "js": "fb74c3164c1fd1e2997c8413e271005c18de5a963b8d365acff43b06195a103b"
    },
    "runtime": {
@@ -17515,12 +17515,12 @@
     }
    ],
    "fontCss": [
-    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue.woff2\") format(\"woff2\");\n  font-weight: 400 400;  /* variable font: covers this weight range */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
+    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue.woff2\") format(\"woff2\");\n  font-weight: 100 900;        /* one static weight: declared for every request, so a bold is never synthesised */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
     "/* UNRESOLVED FONT: DejaVu Sans - the SVG references this family but no file ships\n   with the template, so playout falls back to whatever the machine has installed. If the\n   playout machine has the font, this is fine; otherwise import the file in the Style panel. */"
    ],
    "emit": {
     "html": "e18717d5164c21179a1c8f2ab5ddd85acb43f0546e4d7d7c5fccf513e60bf333",
-    "css": "20cb3da3a0324e5c595c5206f9433bb2e5a28b453015cf0ba65e667b54e7c5a9",
+    "css": "214ce20c9609c2032b085567f9e0aa36ee6c0f9c77d19f8cb30fcbc22842a690",
     "js": "fb74c3164c1fd1e2997c8413e271005c18de5a963b8d365acff43b06195a103b"
    },
    "runtime": {

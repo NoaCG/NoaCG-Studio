@@ -1,11 +1,12 @@
 // gate: build
-// guards: src/model/fonts.ts, src/model/packets.ts, src/templates/shared/base.ts, src/components/wizard/draft/core.ts
+// guards: src/model/fonts.ts, src/templates/shared/base.ts
 //
-// A HEADING WEIGHT IS ONE THE FACE REALLY HAS (playout-adjustments spec, "Typography reliability"
-// item 2). Bebas Neue and Anton are one static weight and an imported face is one file that
-// declares none, so `--display-weight: 700` on them was a bold the browser synthesised by smearing
-// the outlines. The choices offered follow `fontWeights()`, and every road that writes the weight
-// (the build's tokens, a look, the wizard's overrides) clamps it with `clampFontWeight()`.
+// NO BOLD IS SYNTHESISED, AND A HEADING WEIGHT IS ONE THE FACE REALLY HAS (playout-adjustments spec,
+// "Typography reliability" item 2). Bebas Neue and Anton are one static weight and an imported face
+// is one file that declares none, so any weight of 600 or more on them was a bold the browser
+// invented by smearing the outlines. Their `@font-face` now declares 100-900, so every request
+// draws the file as it is; the choices offered follow `fontWeights()`, and the build and the
+// wizard write the heading weight clamped to a real one (`clampFontWeight()`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -23,7 +24,7 @@ async function load(entry) {
 }
 
 const fonts = await load(path.join(projectRoot, 'src/model/fonts.ts'));
-const { fontWeights, clampFontWeight, importedFontFamilies, customFontFaceCss, fontById, fontStack, fontFaceCss } = fonts;
+const { fontWeights, clampFontWeight, importedFontFamilies, customFontFaceCss, fontById, fontStack, fontFaceCss, labelFontFaceCss, supportingFontFaceCss } = fonts;
 const { applyLookToTemplate } = await load(path.join(projectRoot, 'src/model/packets.ts'));
 const { getCssVariable } = await load(path.join(projectRoot, 'src/model/cssVars.ts'));
 const { rootVarsCss } = await load(path.join(projectRoot, 'src/templates/shared/base.ts'));
@@ -48,6 +49,19 @@ test('a weight is clamped to the nearest real one, and anything else is left alo
   assert.equal(clampFontWeight('600', fontStack(fontById('inter'))), '600', 'a real weight stays');
   assert.equal(clampFontWeight('900', fontStack(fontById('inter'))), '800', 'Inter stops at 800');
   assert.equal(clampFontWeight('var(--w)', bebas), 'var(--w)');
+  assert.equal(clampFontWeight('900', '"Futura", Arial'), '900', 'a family the app does not ship is never narrowed');
+});
+
+test('a single-weight face and an imported face declare 100-900, so no request is a synthesised bold', () => {
+  // Blink synthesises a bold only when the matched face's declared range tops out below 600.
+  const top = (css) => [...css.matchAll(/font-weight:\s*(\d+)(?:\s+(\d+))?;/g)].map((m) => Number(m[2] ?? m[1]));
+  for (const id of ['bebas-neue', 'anton']) {
+    for (const css of [fontFaceCss(fontById(id)), labelFontFaceCss(fontById(id)), supportingFontFaceCss(fontById(id), 'why')]) {
+      assert.ok(top(css).length > 0 && top(css).every((w) => w >= 600), `${id}: ${css}`);
+    }
+  }
+  assert.ok(top(customFontFaceCss(custom)).every((w) => w >= 600) && top(customFontFaceCss(custom)).length > 0, 'the imported face');
+  assert.match(fontFaceCss(fontById('archivo')), /font-weight: 400 900;/, 'a variable face keeps the range it covers');
 });
 
 test('an imported face is read back from the stylesheet that ships it', () => {
@@ -69,11 +83,10 @@ test('the build emits a weight the chosen face has: the sport family on Bebas Ne
   assert.equal(getCssVariable(built('archivo', custom), 'display-weight'), '400', 'an imported face draws its file as it is');
 });
 
-test('a look that swaps to a single-weight or imported face clamps the heading weight', () => {
+test('a look that swaps to a single-weight face keeps the stored weight, and the face cannot smear it', () => {
   const template = { id: 't', name: 't', html: '<div></div>', js: '', assets: [], fields: [],
     css: `${fontFaceCss(fontById('archivo'))}\n\n${built('archivo')}\n.name { font-weight: var(--display-weight); }` };
-  assert.equal(getCssVariable(template.css, 'display-weight'), '800');
-  assert.equal(getCssVariable(applyLookToTemplate(template, { palette: {}, fontId: 'bebas-neue' }).css, 'display-weight'), '400');
-  assert.equal(getCssVariable(applyLookToTemplate(template, { palette: {}, customFont: custom }).css, 'display-weight'), '400');
-  assert.equal(getCssVariable(applyLookToTemplate(template, { palette: {}, fontId: 'inter' }).css, 'display-weight'), '800', 'a face that has the weight keeps it');
+  const looked = applyLookToTemplate(template, { palette: {}, fontId: 'bebas-neue' }).css;
+  assert.equal(getCssVariable(looked, 'display-weight'), '800', 'not rewritten: a later look on a face with a bold gets it back');
+  assert.match(looked, /fonts\/bebas-neue\.woff2[^}]*font-weight: 100 900;/, 'the swapped-in face declares every weight');
 });

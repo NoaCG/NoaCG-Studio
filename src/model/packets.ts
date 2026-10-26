@@ -24,8 +24,6 @@ import {
   ensureNumericFontFace,
   fontByStack,
   numericFontStack,
-  clampFontWeight,
-  importedFontFamilies,
   type CustomFont,
 } from './fonts';
 import { getDefaultBrandId, hydrateBrand, loadLegacyBrand, type ProjectBrand } from './brand';
@@ -419,14 +417,6 @@ export function applyLookToTemplate(template: SpxTemplate, brand: ProjectBrand):
     setIf(name, value);
     // A carried kicker face may name a bundled family this template has never bundled.
     if (name === 'font-label') css = ensureFontFace(css, fontByStack(value), '--font-label points at this face.');
-  }
-  // A heading weight the face now in use cannot draw would be a synthesised bold: clamp it to
-  // the nearest real one (model/fonts.ts `clampFontWeight`), after both the swap and the tokens.
-  const heading = getCssVariable(css, 'font-heading');
-  const weight = getCssVariable(css, 'display-weight');
-  if (heading !== null && weight !== null) {
-    const clamped = clampFontWeight(weight, heading, importedFontFamilies(css));
-    if (clamped !== weight) css = setCssVariable(css, 'display-weight', clamped);
   }
 
   // ── THE MARK, INTO A SLOT THE GRAPHIC ALREADY HAS ───────────────────────────────────────

@@ -22,7 +22,7 @@ import {
   type StyleTerm,
 } from '../../model/styleVocabulary';
 import { contrastRatio, looksLikeColor, parseCssColor } from '../../model/cssVars';
-import { FONTS, fontByStack, fontStack, fontWeights } from '../../model/fonts';
+import { FONTS, fontByStack, fontStack, fontWeights, knownFace } from '../../model/fonts';
 import { formatCssLength, parseCssLength } from '../../blocks/cssLength';
 import ColorField from './ColorField';
 
@@ -217,7 +217,7 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
     // Only the weights the heading face really draws: Bebas Neue, Anton and an imported face
     // offer Regular alone, so no choice here is a bold the browser would synthesise.
     const heading = byName.get('font-heading');
-    const real = heading ? new Set(fontWeights(heading, importedFonts).map((w) => String(w.value))) : null;
+    const real = heading && knownFace(heading, importedFonts) ? new Set(fontWeights(heading, importedFonts).map((w) => String(w.value))) : null;
     const weightChoices = real ? WEIGHT_CHOICES.filter((w) => real.has(w)) : WEIGHT_CHOICES;
     return (
       <div className="field-row" key={name} data-testid={`style-var-${name}`}>

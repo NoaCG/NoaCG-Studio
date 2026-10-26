@@ -313,8 +313,8 @@ test('buildDraftTemplate: the heading weight is one the chosen face really draws
     const seen = await page.evaluate(() => {
       const { initialDraft, mergeDraft, buildDraftTemplate } = window.NOACG_DRAFT;
       const cssVar = (css, name) => new RegExp(`--${name}:\\s*([^;]+);`).exec(css)?.[1]?.trim() ?? null;
-      // lt33: a sport-family strap whose default face is Bebas Neue, one static weight.
-      const variant = window.NOACG_CATALOG.variantById('lt33');
+      // lt43: a sport-family strap (heading weight 800) whose default face is Bebas Neue, one static weight.
+      const variant = window.NOACG_CATALOG.variantById('lt43');
       const picked = mergeDraft(initialDraft(), { category: variant.category, variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) });
       const weightOf = (patch) => cssVar(buildDraftTemplate(variant, mergeDraft(picked, patch)).css, 'display-weight');
       return {
