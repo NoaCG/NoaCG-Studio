@@ -97,9 +97,11 @@ export default function CueAdjust({
   const resize = (by: number) => {
     if (!sizeOff) step({ scale: by });
   };
-  /** Arrow keys nudge while focus is inside the block, and only there (never in a typed box). */
+  /** Arrow keys nudge while focus is inside the block, and only there (never in a typed box or
+   *  the typeface select, whose arrows choose a face). */
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'SELECT') return;
     const n = stepOf(e);
     const move: Record<string, [number, number]> = { ArrowLeft: [-n, 0], ArrowRight: [n, 0], ArrowUp: [0, -n], ArrowDown: [0, n] };
     const d = move[e.key];

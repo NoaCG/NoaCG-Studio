@@ -204,7 +204,7 @@ test('the /output renderer restores the appearance its report holds, and only fo
  * and colour the root variables give, the refit through the template's own update(), the
  * reserves a staged design calibrated, and the latest-request guard.
  */
-const NAME = 'Åsa Öberg-Ærø Šimon Žáková';
+const NAME = 'Åsa Öberg-Ærø Šimon Žáková A\u030A';
 
 async function styledStage(page: Page, imported = false, design = 'lt01') {
   await page.setViewportSize({ width: 1920, height: 1080 });
@@ -271,7 +271,7 @@ async function platformFonts(page: Page) {
   const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: frameDoc!, selector: '#f0' });
   const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
   await cdp.detach();
-  return fonts.map((f) => ({ family: f.familyName, custom: f.isCustomFont }));
+  return fonts.map((f) => ({ family: f.familyName, custom: f.isCustomFont, glyphs: f.glyphCount }));
 }
 
 test('a chosen face reaches the document through the stage: every glyph of the name in it, at its weight', async ({ page }) => {
@@ -305,6 +305,12 @@ test('a chosen face reaches the document through the stage: every glyph of the n
   expect(seen.fallbackDiffers, 'the fallback stack draws the name differently, so its use would show').toBe(true);
   const fonts = await platformFonts(page);
   expect(fonts.length).toBeGreaterThan(0);
+  // Every letter is shaped in the face: the report counts at least one glyph per visible letter
+  // (the decomposed Å among them). Spaces and the joined mark are left free, since where the line
+  // wraps decides whether they are shaped.
+  const letters = [...new Intl.Segmenter().segment(NAME)].filter((g) => g.segment.trim()).length;
+  expect(fonts.reduce((n, f) => n + f.glyphs, 0), `every letter in the face: ${JSON.stringify(fonts)}`).toBeGreaterThanOrEqual(letters);
+  expect(seen.weightIfPainted, 'the chosen weight, which the variable face draws').toBe('700');
   expect(fonts.filter((f) => !f.custom), 'no glyph of the name from a system face').toEqual([]);
   expect(new Set(fonts.map((f) => f.family.replace(/\s+(Regular|Bold|Variable).*$/i, ''))).size, `one family: ${JSON.stringify(fonts)}`).toBe(1);
   // A colour alone moves no text: it is applied and answers no refit, so PREVIEW does not settle

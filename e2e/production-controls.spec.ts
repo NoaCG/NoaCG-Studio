@@ -2526,6 +2526,16 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
   // The graphic's default: Archivo, Bold, an orange accent. PREVIEW takes each at once.
   await page.getByTestId('adjust-typeface').selectOption({ label: 'Archivo' });
   await expect.poll(() => rootVar('preview', '--font-heading')).toContain('Archivo');
+  // The select's arrows choose a face; they never nudge the graphic as the block's arrows do.
+  await page.getByTestId('adjust-typeface').press('ArrowDown');
+  await page.getByTestId('adjust-typeface').press('ArrowUp');
+  await expect(page.getByTestId('adjust-typeface')).toHaveValue('b:archivo');
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const a = (loadShows().find((x) => x.id === id)!.graphics[0].adjust ?? {}) as Record<string, unknown>;
+    return { x: a.x ?? null, y: a.y ?? null };
+  }, showId), 'no nudge from the select').toEqual({ x: null, y: null });
   await page.getByTestId('adjust-weight').getByRole('button', { name: 'Bold', exact: true }).click();
   await expect.poll(() => rootVar('preview', '--display-weight')).toBe('700');
   await page.getByTestId('adjust-colour-accent').fill('#ff7a00');
