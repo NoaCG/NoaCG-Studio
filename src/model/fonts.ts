@@ -474,22 +474,6 @@ function stackFamily(value: string): string | null {
   return (/^\s*"([^"]+)"/.exec(value) ?? /^\s*'([^']+)'/.exec(value) ?? /^\s*([^,]+)/.exec(value))?.[1]?.trim() ?? null;
 }
 
-/**
- * A `font-weight` value clamped to the nearest weight a face the app knows can really draw
- * ({@link fontWeights}), so the stylesheet says what is drawn: `--display-weight: 800` on Bebas
- * Neue or an imported face reads Regular. A value that is not a plain weight (`var(...)`,
- * `bolder`) and a face the app does not ship are left as written.
- */
-export function clampFontWeight(value: string, family: string, imported: readonly string[] = []): string {
-  const trimmed = value.trim();
-  const asked = trimmed === 'normal' ? 400 : trimmed === 'bold' ? 700 : /^\d{3}$/.test(trimmed) ? Number(trimmed) : null;
-  if (asked === null || !knownFace(family, imported)) return value;
-  const real = fontWeights(family, imported).map((w) => w.value);
-  if (real.length === 0 || real.includes(asked)) return value;
-  const nearest = real.reduce((best, w) => (Math.abs(w - asked) < Math.abs(best - asked) ? w : best), real[0]);
-  return String(nearest);
-}
-
 /** The families a stylesheet ships as imported files (their `/* Imported font` blocks). */
 export function importedFontFamilies(css: string): string[] {
   return [...css.matchAll(/\/\* Imported font[^*]*\*\/\s*@font-face\s*\{[^}]*?font-family:\s*"([^"]+)"/g)].map((m) => m[1]);

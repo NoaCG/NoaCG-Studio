@@ -13,36 +13,36 @@ changes a spec's digest.
 - **What:** Bebas Neue, Anton (one static weight each) and an imported face (one file, no known
   weight) declare `font-weight: 100 900` in their `@font-face`: both rules of the heading, label
   and supporting faces (`faceWeightLine` is `bundledFaceRules`' weight line, so the latin and
-  latin-ext rules always agree; two ranges would make Chromium treat them as two faces and lose Š
-  and Ž at 800), the builder's own previews of the faces (`ensureAppFontFace`, `registerAppFont`,
-  `wizard-and-dialogs.css`, so the SVG placement canvas shows what airs), an imported SVG's alias
-  of a static face (`svgFonts.ts`, never pinned) and an imported face (`customFontFaceCss`). Blink synthesises a bold only when the matched face's
-  declared range tops out below 600, so every request, the heading token or a literal
-  `font-weight: 700` (most catalog designs write one), draws the file as it is. The menus offer
-  real weights only (`fontWeights(family, imported)`: Regular for those three); the build
-  (`rootVarsCss`) and the wizard's overrides (`buildDraftTemplate`) write `--display-weight`
-  clamped to a real weight of a face the app knows (`clampFontWeight`; a system or installed family
-  is never narrowed). A look is not clamped: rewriting the stored weight there would lose it for a
-  later look on a face with a bold.
+  latin-ext rules always agree; two ranges would make Chromium treat them as two faces and lose
+  Š and Ž at 800), an imported SVG's alias of a static face (`svgFonts.ts`, never pinned), an
+  imported face (`customFontFaceCss`), and the builder's own previews of the faces
+  (`ensureAppFontFace`, `registerAppFont`, `wizard-and-dialogs.css`, so the SVG placement canvas
+  shows what airs). Blink synthesises a bold only when the matched face's declared range tops
+  out below 600, so every request, the heading token or a literal `font-weight: 700`, draws the
+  file as it is. The menus offer real weights only (`fontWeights(family, imported)`: Regular for
+  those three, a system family untouched); the wizard's Style row is hidden where that leaves
+  one.
 - **Decision, and the departure from item 2's wording:** the spec names a clamp or
   `font-synthesis: none`. `font-synthesis` arrived in Chromium 97, so CasparCG 2.3's Chromium 71
-  ignores it; a clamp alone leaves literal weights smearing after a face swap. The range
-  descriptor (honoured since Chromium 62) is the mechanism; the clamp keeps the CSS honest.
-  First cut (clamp only) was Assessment B in its independent review for exactly that.
+  ignores it; the range descriptor is honoured since Chromium 62 and covers literal weights.
+  The `--display-weight` token is **not** clamped: it also weights the numbers a sibling face
+  draws (Saira under Oswald or Anton reaches 900), and a clamp tried in review lightened 13
+  sport designs' scorelines from 800 to 700. Five independent reviews shaped this; each round's
+  correction is in the PR body.
 - **For phase 2:** a `FontDeclaration` a composed document is told for a static or imported face
   must declare 100-900, not the spec's `[400, 400]` (its interface comment predates this), or a
-  literal bold smears again on Chromium 71; the real weights to offer are `fontWeights()`. The
-  weight row of the wizard's Style panel is hidden on a face with one real weight, never one
-  dead button.
+  literal bold smears again on Chromium 71; the weights the Type row offers are `fontWeights()`,
+  and the weight it writes is not clamped, for the same scoreline reason.
 - **Visible:** lt43 (Bebas Neue at the sport family's 800) drew a smeared synthetic bold; now
   Bebas as drawn, same box. lt07, lt33, lt61, ls08 and card83, the other Bebas Neue and Anton
   defaults, render pixel-identical before and after: **the spec's Fonts finding that all six
   defaults are synthesised bold holds for lt43 only** (lt61 and card83 write 400, lt33 is the
-  cinematic family at 400, lt07 and ls08 ask for no bold). 75 other designs change CSS only (an
-  Oswald or Space Grotesk 800 to their real 700, or Bebas Neue and Anton's descriptor).
+  cinematic family at 400, lt07 and ls08 ask for no bold). Those six are the only designs whose
+  CSS changes.
 - **Not reached:** saved graphics and earlier exports keep their old `400 400` face until rebuilt
-  or retyped (#1746 has the latin-ext half of the same gap). The join page and the video fonts
-  still declare 400: they draw no graphic.
+  or retyped (#1746 has the latin-ext half of the same gap); the editor's artwork weight list for
+  an SVG alias family (#1749). The join page and the video fonts still declare 400: they draw no
+  graphic.
 
 ## Row 32c (L2.1b, project phase 35): place and size in receivers and exports
 
