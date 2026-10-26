@@ -3236,11 +3236,12 @@ test('a panel press on a layer airing a cue this page cannot see is held to the 
   assert.equal(held.sends.length, 0);
 });
 
-test('a cue a panel key names wins over the cue its selection drew (E6.1)', async () => {
-  // The selection carries a fresher cue than the key was drawn for: the press is held to the key's.
-  const banner = graphicCue('b2', 'Score', { home: '7' });
-  const r = rig({ seed: false, liveCue: { Score: 'b2' } });
-  const view = liveSelection('Score', [banner], r.liveCue());
-  assert.deepEqual(await r.verbs.event(view, { event: 'go' }, 'b1'), { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' });
-  assert.equal(r.sends.length, 0);
+test('a press whose selection and key name different cues goes nowhere, whichever is on the layer (E6.1)', async () => {
+  for (const [drawn, named, onLayer] of [['b2', 'b1', 'b2'], ['b1', 'b2', 'b2']]) {
+    const cue = graphicCue(drawn, 'Score', { home: '7' });
+    const r = rig({ seed: false, liveCue: { Score: onLayer } });
+    const view = { ...liveSelection('Score', [cue], { Score: drawn }), selectedLayerLive: true };
+    assert.deepEqual(await r.verbs.event(view, { event: 'go' }, named), { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' }, `${drawn}/${named}`);
+    assert.equal(r.sends.length, 0, `${drawn}/${named}`);
+  }
 });

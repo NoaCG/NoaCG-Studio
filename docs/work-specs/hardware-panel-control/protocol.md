@@ -362,5 +362,5 @@ apply. `result` (protocol 1) says it ran; `settled` follows:
 
 `unknown` is a send the server did not answer: it may still commit, and the press is never sent
 again. The dispatcher holds the press to `instance` after every wait, as it holds a button's press
-to the cue its selection drew. A module shows a press that ran as running until its `settled`, and
+to the cue its selection drew, and refuses it when the two disagree. A module shows a press that ran as running until its `settled`, and
 as not confirmed when none comes in 15 s.

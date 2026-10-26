@@ -69,8 +69,9 @@ changes a spec's digest.
     A `settled` stands for a lost `result` too, before or after the 1.5 s wait, so a confirmed +1
     never reads as "no answer" and invites a second press (Codex P2 on `c8b6b69`).
   - *The offer is capped at 64 KiB of UTF-8* at whole graphics (`more` says so), well inside a
-    Realtime broadcast; the module forgets an offer when it re-joins or loses the page. A cue the
-    press names wins over the selection's in the dispatcher's hold (the /so on `64654e1`).
+    Realtime broadcast; the module forgets an offer when it re-joins or loses the page. A press whose
+    selection drew one cue and whose key named another is refused in the dispatcher, whichever is on
+    the layer (the /so on `64654e1` and `c8b6b69`).
   - *A missed offer is recovered*: the 4 s `beat` carries `actionsVer` beside `ver` and `rowsVer`,
     and a module holding an older offer asks the page again (`panel_hello`), as it does for a missed
     state (Codex P2 on `2e514a4`). An older module ignores the field.
