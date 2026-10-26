@@ -334,6 +334,33 @@ test('each target bakes the graphic\'s place and size into its files, painting w
   await renderer.context().close();
 });
 
+test('an export measures a placed graphic in the face its fold sets, so a narrower face lands on its own corner', async ({ page }) => {
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  await awaitDurableReady(page);
+  const frames = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
+    const frameFor = async (adjust: unknown) => {
+      const show = shows.createShowNamed('Placed Show');
+      const tpl = variantById('lt01')!.create({} as never);
+      const { doc } = createGraphic(tpl, { name: tpl.name });
+      shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+      const g = shows.loadShows().find((x) => x.id === show.id)!.graphics[0];
+      shows.setGraphicAdjust(show.id, g.id, adjust as never);
+      const appearances = await measureExportAppearances(shows.loadShows().find((x) => x.id === show.id)!, 'html-overlay');
+      return (appearances!.graphics[g.id] as { frame?: { dx: number } }).frame ?? null;
+    };
+    return { designed: await frameFor({ v: 1, place: 'br' }), bebas: await frameFor({ v: 1, place: 'br', font: { fontId: 'bebas-neue' } }) };
+  });
+  expect(frames.designed, 'the placed graphic has a frame').toBeTruthy();
+  expect(frames.bebas, 'and so does the retyped one').toBeTruthy();
+  // Bebas Neue is condensed: its box is narrower, so the same corner is a longer way right.
+  expect(frames.bebas!.dx, JSON.stringify(frames)).toBeGreaterThan(frames.designed!.dx + 5);
+});
+
 test('each target bakes the graphic\'s type and colour, painting what the design restyled in its own stylesheet paints', async ({ page, browser }) => {
   test.setTimeout(120_000);
   await page.goto('/app');

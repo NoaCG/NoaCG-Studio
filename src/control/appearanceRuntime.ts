@@ -143,6 +143,22 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
     return true;
   };
   apply.readable = readable;
+  // What of an appearance can move text: the faces and the heading weight, never a colour.
+  apply.typeOf = function (a) {
+    var v = (a && a.vars) || {};
+    return [v['font-heading'] || '', v['font-numeric'] || '', v['display-weight'] || ''].join('|');
+  };
+  // Resolves once the faces an appearance names have loaded (or failed), for a refit after them.
+  apply.loaded = function (a) {
+    var v = (a && a.vars) || {};
+    var fonts = document.fonts;
+    if (!fonts || !fonts.load || typeof Promise === 'undefined') return null;
+    var w = v['display-weight'] || '400';
+    var asks = [];
+    if (v['font-heading']) asks.push(fonts.load(w + ' 1em ' + v['font-heading']).then(null, function () {}));
+    if (v['font-numeric']) asks.push(fonts.load(w + ' 1em ' + v['font-numeric']).then(null, function () {}));
+    return Promise.all(asks);
+  };
   return apply;
 })();`;
 

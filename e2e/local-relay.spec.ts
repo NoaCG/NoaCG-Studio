@@ -324,6 +324,28 @@ test('an adjusted production over the relay: the bake, the Take\'s place and siz
   await expect(air.locator('#f1')).toHaveText('Guest', { timeout: 6000 });
   expect(await transformOf(air)).toBe(css(built.ben));
 
+  // A row that changes the face refits once the face is in: the template's fits measured the old
+  // one, so the same values go to update() a second time. A colour alone moves no text: once.
+  await air.evaluate(() => {
+    const w = window as unknown as { update: (d: string) => void; __updates: number };
+    const own = w.update;
+    w.__updates = 0;
+    w.update = (d: string) => { w.__updates += 1; own(d); };
+  });
+  const updates = () => air.evaluate(() => (window as unknown as { __updates: number }).__updates);
+  const heading = '"Bebas Neue", "Arial Narrow", sans-serif';
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: { ...built.ben, vars: { accent: '#ff7a00' } } });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#ff7a00');
+  await air.waitForTimeout(800);
+  expect(await updates(), 'a colour: one update').toBe(1);
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: { ...built.ben, vars: { accent: '#ff7a00', 'font-heading': heading } } });
+  await expect.poll(updates, { timeout: 6000, message: 'a face: the update, then the refit once it loaded' }).toBe(3);
+  await air.waitForTimeout(800);
+  expect(await updates(), 'and no more').toBe(3);
+  // Back to the design's face for the steps below.
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toBe('');
+
   // Rule 4: a reload puts back the last one applied, read off the log, then off the baseline.
   for (let i = 0; i < 2; i++) {
     await air.reload({ waitUntil: 'load' });

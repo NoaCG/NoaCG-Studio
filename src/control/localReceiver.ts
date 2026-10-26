@@ -45,6 +45,21 @@ ${looks ? `
   // one applied, kept with the baseline so a reload puts it back before anything paints.
   ${APPEARANCE_RUNTIME_JS}
   var look = null;
+  // A row that changes the face: the template's fits measured the old one (a fit handed to
+  // document.fonts.ready ran once, at load), so once the new face is in, the same values go to
+  // update() again, a refit through the template's own code. A newer row wins.
+  var typeNow = noacgApplyAppearance.typeOf(null);
+  var typeSeq = 0;
+  function refitAfter(m) {
+    if (!noacgApplyAppearance.readable(m.appearance)) return;
+    var type = noacgApplyAppearance.typeOf(m.appearance);
+    if (type === typeNow) return;
+    typeNow = type;
+    var seq = ++typeSeq;
+    var data = JSON.stringify(m.data || {});
+    var loaded = noacgApplyAppearance.loaded(m.appearance);
+    if (loaded) loaded.then(function () { if (seq === typeSeq && typeof update === 'function') update(data); });
+  }
   function lookOf(m) {
     return m && m.t === 'update' && noacgApplyAppearance.readable(m.appearance) ? m.appearance : undefined;
   }
@@ -62,6 +77,7 @@ ${looks ? `
     else if (m.t === 'update' && typeof update === 'function') ${looks ? `{
       noacgApplyAppearance(m.appearance);
       update(JSON.stringify(m.data || {}));
+      refitAfter(m);
     }` : 'update(JSON.stringify(m.data || {}));'}
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
