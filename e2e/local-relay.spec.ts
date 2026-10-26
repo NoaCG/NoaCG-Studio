@@ -8,6 +8,7 @@ import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { relayServe, routeOrigin } from './_relay';
+import { awaitDurableReady } from './_durable';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 
 // The LOCAL-CONTROL door (offline local control, no command line): the overlay package
@@ -241,6 +242,8 @@ test('an adjusted production over the relay: the bake, the Take\'s place and siz
   test.setTimeout(120_000);
   await page.goto('/app');
   await page.keyboard.press('Escape');
+  // The seed below writes through the model's mutators: the store must have hydrated first.
+  await awaitDurableReady(page);
   const built = await page.evaluate(async () => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');

@@ -26,6 +26,7 @@ import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { decodePng } from '../scripts/png-decode.mjs';
 import { differing } from './_ografParity';
+import { awaitDurableReady } from './_durable';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 import { bakeAppearance } from '../src/control/appearanceRuntime';
 
@@ -214,6 +215,8 @@ test('each target bakes the graphic\'s place and size into its files, painting w
   test.setTimeout(120_000);
   await page.goto('/app');
   await page.keyboard.press('Escape');
+  // The seed below writes through the model's mutators: the store must have hydrated first.
+  await awaitDurableReady(page);
   const TARGETS = ['html-overlay', 'casparcg', 'spx', 'ograf', 'h2r'];
   const built = await page.evaluate(async (targets) => {
     const { variantById } = await import('/src/templates/catalog.ts');
