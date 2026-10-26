@@ -291,8 +291,9 @@ export function importLook(json: string): { looks: SavedLook[] | null; error: st
 
 // ── Capturing + applying a look ──────────────────────────────────────────────
 
-/** The generated @font-face block both bundled and imported fonts carry. */
-const FONT_BLOCK_RE = /\/\* (?:Bundled open-source|Imported) font[\s\S]*?\}/;
+/** The generated @font-face block both bundled and imported fonts carry, with a bundled face's
+ *  latin-ext rule right after it (model/fonts.ts `bundledFaceRules`), so a swap replaces both. */
+const FONT_BLOCK_RE = /\/\* (?:Bundled open-source|Imported) font[\s\S]*?\}(?:\s*@font-face \{[^}]*-latin-ext\.woff2[^}]*\})?/;
 
 /**
  * Read the CURRENT template's look (colors straight from its :root vars — including any
