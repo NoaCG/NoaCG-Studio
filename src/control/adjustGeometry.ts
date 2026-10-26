@@ -94,7 +94,7 @@ export function createMeasurer(
   let wanted = new Map<string, MeasureJob>();
   /** Cues a press waits on: measured before anything else. */
   const urgent = new Set<string>();
-  const waiters = new Set<(cueId: string) => void>();
+  const waiters = new Set<(finished: MeasureJob) => void>();
   let running: MeasureJob | null = null;
   let idle: (() => void)[] = [];
   const settleIdle = () => {
@@ -119,7 +119,7 @@ export function createMeasurer(
         // press asks for it (`now`).
         if (!m && wanted.get(job.cueId)?.id === job.id) wanted.delete(job.cueId);
         urgent.delete(job.cueId);
-        for (const wake of [...waiters]) wake(job.cueId);
+        for (const wake of [...waiters]) wake(job);
         next();
       });
   };
@@ -137,9 +137,10 @@ export function createMeasurer(
     now: (job: MeasureJob, capMs: number): Promise<void> =>
       new Promise((resolve) => {
         if (!due(job)) return resolve();
-        const wake = (finished: string | null) => {
-          // Another cue's attempt ended: this one's is still coming.
-          if (finished !== null && finished !== job.cueId && due(job)) return;
+        const wake = (finished: MeasureJob | null) => {
+          // Another attempt ended (another cue's, or this cue's for an older identity): this one's
+          // is still coming.
+          if (finished !== null && (finished.cueId !== job.cueId || finished.id !== job.id) && due(job)) return;
           waiters.delete(wake);
           timers.clearTimeout(timer);
           resolve();

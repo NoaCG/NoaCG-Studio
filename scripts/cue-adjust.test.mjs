@@ -356,6 +356,22 @@ describe('measurements: identified and qualified', () => {
     assert.ok(Date.now() - t < 1000);
   });
 
+  test('a Take waits for its own identity, not an older attempt of the same cue', async () => {
+    const part = storePart(G.NO_GEOMETRY);
+    const answers = new Map();
+    const measurer = G.createMeasurer(part, { measure: (input) => new Promise((resolve) => answers.set(input, () => resolve(strap()))) });
+    // The first identity is being measured when the values change and a Take asks for the new one.
+    measurer.want([{ cueId: 'c', graphicId: 'g', id: 'old', input: 'old' }]);
+    let done = false;
+    const taking = measurer.now({ cueId: 'c', graphicId: 'g', id: 'new', input: 'new' }, 1000).then(() => (done = true));
+    answers.get('old')();
+    await new Promise((r) => setTimeout(r, 0));
+    assert.equal(done, false, 'the old attempt ending does not release the Take');
+    answers.get('new')();
+    await taking;
+    assert.equal(part.get().byCue.c.id, 'new');
+  });
+
   test('Publish waits for the measurer only so long', async () => {
     const part = storePart(G.NO_GEOMETRY);
     const measurer = G.createMeasurer(part, { measure: () => new Promise(() => {}) });
