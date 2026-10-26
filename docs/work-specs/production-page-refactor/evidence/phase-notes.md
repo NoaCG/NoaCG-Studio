@@ -77,6 +77,14 @@ changes a spec's digest.
   dialog measures each box in the face its fold sets. `/output`, PROGRAM and the hosted page go through `output/stage.ts`, which
   declares the faces. Each bake's parity is held at row 32c's `RESIDUAL_BOUND` 1000 (max measured
   551; unstyled 4720 to 67746), not loosened.
+  An imported face sets live numbers in the bundled JetBrains Mono, which ships with it: the
+  import's comment block records no measured digits, so `importedFacesOf` gives no
+  `tabularFigures` and an absent flag reads as cannot (the `model/fonts.ts` rule). Recording the
+  measure there is a follow-up. A late refit in the composed document replays the last `update`
+  payload, which carries every field today; a phase 3 send with an appearance and empty data
+  would replay `{}`, so 38a refits with the values on air as `localReceiver.ts` does.
+  The closure check reads Archivo off lt01's packages; sb14's Saira sibling is held in Node
+  (`withAppearanceFaces`) and by the render only.
 - **Touched files against `9e84a1d`** (`git diff --name-only 9e84a1d HEAD`): `cli/plugin/skills/noacg-graphic/references/contract.md`, `cli/plugin/skills/noacg-graphic/references/validator.md`, `cli/skill/noacg-graphic/references/contract.md`, `cli/skill/noacg-graphic/references/validator.md`, `cli/src/bridgeClient.ts`, `cli/src/commands/inspect.ts`, `cli/test/unit.test.mjs`, `docs/work-specs/production-page-refactor/evidence/phase-notes.md`, `e2e/import-svg-behaviour.spec.ts`, `e2e/local-relay.spec.ts`, `e2e/playout-adjust-documents.spec.ts`, `e2e/playout-adjust.spec.ts`, `e2e/production-controls.spec.ts`, `scripts/cue-adjust.test.mjs`, `scripts/lib/tsResolve.mjs`, `src/bridge/bridgeApi.ts`, `src/components/home/CueAdjust.tsx`, `src/components/home/PlayoutMonitors.tsx`, `src/components/home/ProductionPage.tsx`, `src/components/home/exportAppearances.ts`, `src/components/home/measureCue.ts`, `src/control/adjustGeometry.ts`, `src/control/appearanceRuntime.ts`, `src/control/cueAdjust.ts`, `src/control/cueStyle.ts`, `src/control/exportAppearance.ts`, `src/control/localReceiver.ts`, `src/export/showExport.ts`, `src/export/targets/ograf.ts`, `src/model/adjust.ts`, `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`, `src/styles/playout-dashboard.css`.
 
 ## Row 32d prerequisite: phase 0 item 2, no synthesised bold, real heading weights

@@ -121,13 +121,13 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import type { SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { asDesignedPatch, assetDataIn, facesCss, styleContextFor, styleReach, COLOUR_VARS } from '../../control/cueStyle';
+import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
 import { getCssVariable } from '../../model/cssVars';
 import type { PreviewStyle } from './measureCue';
 import { measureCue } from './measureCue';
 import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
-import type { AdjustPatch } from '../../model/adjust';
+import type { AdjustPatch, FontRef } from '../../model/adjust';
 import CueAdjust from './CueAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
@@ -3843,6 +3843,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                       design,
                       asDesigned: (row: 'type' | 'colour') => write(asDesignedPatch(row, scope, g.adjust, reach)),
                       designedFace: () => write({ font: asDesignedPatch('type', scope, g.adjust, reach).font }),
+                      pickFace: (next: FontRef, weight: string) => write(facePickPatch(next, weight, scope, g.adjust, design, styleCtx.imported)),
                     };
                   })()}
                 />

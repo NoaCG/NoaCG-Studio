@@ -71,6 +71,8 @@ export default function CueAdjust({
     asDesigned: (row: 'type' | 'colour') => void;
     /** The typeface alone back to the design's, at the scope shown. */
     designedFace: () => void;
+    /** A face chosen, with the weight in effect (`control/cueStyle.ts` `facePickPatch`). */
+    pickFace: (next: FontRef, weight: string) => void;
   } | null;
 }) {
   useStorePart(measured);
@@ -293,15 +295,10 @@ function StyleRows({
   const weight = vars['display-weight'] || '';
   const typeSet = chosen !== '' || weight !== '';
   const colourSet = reach.colours.some((k) => vars[k]);
-  // A weight the new face does not draw goes with the old face, or the summary would name a bold
-  // that is never drawn (the face's one weight is drawn as it is).
   const pickFace = (key: string) => {
     if (!key) return style.designedFace();
     const [family, assetPath] = key.slice(2).split('|');
-    const next: FontRef = key.startsWith('b:') ? { fontId: key.slice(2) } : { family, assetPath };
-    const keeps = weightsFor(next, style.design, style.imported);
-    const drops = weight !== '' && (keeps.length < 2 || !keeps.some((w) => String(w.value) === weight));
-    write(drops ? { font: next, vars: { 'display-weight': null } } : { font: next });
+    style.pickFace(key.startsWith('b:') ? { fontId: key.slice(2) } : { family, assetPath }, weight);
   };
   return (
     <>

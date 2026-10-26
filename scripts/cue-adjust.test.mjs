@@ -896,6 +896,17 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     assert.equal(St.resolveStyle(eff({ v: 1, font: brand }, undefined), []), null, 'a face no pool graphic ships any more resolves to nothing');
   });
 
+  test('a face pick drops a weight the new face cannot draw, masking the graphic\'s at cue scope', () => {
+    const bebas = { fontId: 'bebas-neue' };
+    const pick = (weight, scope, graphic) => St.facePickPatch(bebas, weight, scope, graphic, {}, []);
+    assert.deepEqual(St.facePickPatch({ fontId: 'oswald' }, '700', 'graphic', {}, {}, []), { font: { fontId: 'oswald' } }, 'a weight the face draws stays');
+    assert.deepEqual(pick('', 'cue', {}), { font: bebas }, 'no weight in effect: nothing to drop');
+    assert.deepEqual(pick('700', 'graphic', { v: 1, vars: { 'display-weight': '700' } }), { font: bebas, vars: { 'display-weight': null } });
+    // The cue inherits the graphic's Extra bold: removing the cue's own key would leave it showing.
+    assert.deepEqual(pick('800', 'cue', { v: 1, vars: { 'display-weight': '800' } }), { font: bebas, vars: { 'display-weight': '' } });
+    assert.deepEqual(pick('800', 'cue', {}), { font: bebas, vars: { 'display-weight': null } }, 'the cue\'s own weight, nothing under it');
+  });
+
   test('the asset road: bundled files by path, an imported face by its bytes, a face with none left out', () => {
     const style = St.resolveStyle(eff({ v: 1, font: brand }, undefined), [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
     const css = St.facesCss(style.fonts, (src) => (src === 'fonts/brand-sans.woff2' ? 'data:font/woff2;base64,AAAA' : null));

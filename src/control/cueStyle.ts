@@ -275,6 +275,25 @@ export function asDesignedPatch(row: 'type' | 'colour', scope: 'cue' | 'graphic'
   return patch;
 }
 
+/** A face picked on the Type row. A weight in effect that the new face does not draw goes with the
+ *  old face, or the summary would name a bold the face never draws; at cue scope a weight the
+ *  graphic sets is masked, the rule `asDesignedPatch` keeps, since removing the cue's own key would
+ *  let the graphic's show through. */
+export function facePickPatch(
+  next: FontRef,
+  weight: string,
+  scope: 'cue' | 'graphic',
+  graphicRaw: unknown,
+  design: Readonly<Record<string, string>>,
+  imported: readonly ImportedFace[],
+): AdjustPatch {
+  const keeps = weightsFor(next, design, imported);
+  if (weight === '' || (keeps.length > 1 && keeps.some((w) => String(w.value) === weight))) return { font: next };
+  const g = readAdjust(graphicRaw);
+  const graphicSets = g.status === 'ok' && !!g.record.vars?.['display-weight'];
+  return { font: next, vars: { 'display-weight': scope === 'cue' && graphicSets ? '' : null } };
+}
+
 /** The weights the Type row offers for the face in effect (chosen, else the design's): its real
  *  ones (Regular alone for a static or an imported face), and those of the face the design's
  *  `--font-numeric` then names, since the heading weight also weights those numbers (Saira under
