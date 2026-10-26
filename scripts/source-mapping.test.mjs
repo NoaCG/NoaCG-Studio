@@ -690,8 +690,8 @@ describe('E7.2b: a collection leaf through the route', () => {
   });
 
   test('another source\'s recipe, a later version, an invalid recipe and a bound leaf write no collection', () => {
-    const payload = { candidates: revision(1, [aino]), other: revision(1, []), later: revision(1, []), bound: revision(1, []) };
-    const out = run(payload, [recipe({ sourceId: 'e2', from: 'other' }), recipe({ v: 2, from: 'later' }), recipe({ key: [] , from: 'bound' }), { not: 'a recipe' }], {
+    const payload = { candidates: revision(1, [aino]), other: revision(1, []), later: revision(1, []), bound: revision(1, []), bad: revision(1, []) };
+    const out = run(payload, [recipe({ sourceId: 'e2', from: 'other' }), recipe({ v: 2, from: 'later' }), recipe({ id: 'bound', from: 'bound' }), recipe({ id: 'bad', key: [], from: 'bad' }), { not: 'a recipe' }], {
       bindings: { Bug: { f0: 'external.e1.bound' } },
     });
     assert.deepEqual(Object.keys(out.writes), []);
