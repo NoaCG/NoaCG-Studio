@@ -5,7 +5,7 @@
 // (AC-2, AC-8, AC-10), and the /output renderer booting from a report that carries an appearance
 // (AC-9's renderer half), with only the backend stood in for as in output-ready.spec.ts. The arithmetic
 // is scripts/cue-adjust.test.mjs; the operator's flow is e2e/production-controls.spec.ts.
-// covers: src/preview/settleGraphic.ts, src/preview/measureCue.ts, src/output/stage.ts, src/output/main.ts, src/control/cueAdjust.ts
+// covers: src/preview/settleGraphic.ts, src/components/home/measureCue.ts, src/output/stage.ts, src/output/main.ts, src/control/cueAdjust.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 
@@ -13,11 +13,11 @@ type Rect = { x: number; y: number; w: number; h: number };
 type Measured = { info: Rect | null; paint: Rect | null; minText: number | null } | null;
 
 /** Measure a catalog design settled with its own field defaults, as the production page does for a
- *  cue PREVIEW has not shown (preview/measureCue.ts). */
+ *  cue PREVIEW has not shown (components/home/measureCue.ts). */
 async function measureDesign(page: Page, id: string): Promise<Measured> {
   return page.evaluate(async (variant) => {
     const { variantById } = await import('/src/templates/catalog.ts');
-    const { measureCue } = await import('/src/preview/measureCue.ts');
+    const { measureCue } = await import('/src/components/home/measureCue.ts');
     const { seedValues } = await import('/src/model/shows.ts');
     const template = variantById(variant)!.create({});
     return measureCue(template, seedValues(template.fields));

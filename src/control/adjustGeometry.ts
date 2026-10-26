@@ -9,7 +9,7 @@
 //
 // Two roads write it: PREVIEW's own document after each settle (home/PlayoutMonitors.tsx), and a
 // background measurer for the adjusted cues PREVIEW has not shown (`createMeasurer`, its browser half
-// behind `io.measure`, preview/measureCue.ts). Node-tested with a fake `measure`.
+// behind `io.measure`, components/home/measureCue.ts). Node-tested with a fake `measure`.
 
 import type { StorePart } from './storePart';
 import type { Zone9 } from '../model/adjust';

@@ -121,7 +121,7 @@ import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGr
 import type { SavedGraphic } from '../../model/packets';
 import { appearanceEquals, IDENTITY, measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, measured, type MeasureJob } from '../../control/adjustGeometry';
-import { measureCue } from '../../preview/measureCue';
+import { measureCue } from './measureCue';
 import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
 import type { AdjustPatch } from '../../model/adjust';
 import CueAdjust from './CueAdjust';
@@ -1973,7 +1973,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
     return cueAdjustState(g, cue, frameOf(g), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere);
   };
-  /** One document at a time measures the adjusted cues PREVIEW has not shown (preview/measureCue.ts). */
+  /** One document at a time measures the adjusted cues PREVIEW has not shown (components/home/measureCue.ts). */
   const measurer = useMemo(
     () => createMeasurer(session.geometry, { measure: (input) => measureCue((input as MeasureInput).template, (input as MeasureInput).values) }, session.alive),
     [session],

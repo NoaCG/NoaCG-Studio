@@ -5,10 +5,10 @@
 //
 // The frame is sandboxed like every preview surface and scaled to a speck in a corner (below).
 
-import { composeDocument } from './composeDocument';
-import { postPreviewCmd, PREVIEW_BOX_TYPE } from './previewProtocol';
-import { qualifyStep, readMeasurement, QUALIFY_GAP_MS, type Measurement } from '../control/cueAdjust';
-import type { SpxTemplate } from '../model/types';
+import { composeDocument } from '../../preview/composeDocument';
+import { postPreviewCmd, PREVIEW_BOX_TYPE } from '../../preview/previewProtocol';
+import { qualifyStep, readMeasurement, QUALIFY_GAP_MS, type Measurement } from '../../control/cueAdjust';
+import type { SpxTemplate } from '../../model/types';
 
 /** How long one cue may take before it has no measurement. */
 const MEASURE_CAP_MS = 5_000;

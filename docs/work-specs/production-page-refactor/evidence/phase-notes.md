@@ -53,7 +53,7 @@ changes a spec's digest.
     never on the show. Two roads write it: PREVIEW after each settle (only while the graphic is
     adjusted or the block is open, so a production nobody adjusts measures nothing and
     `playout-air-contract`'s render counts hold), and a background measurer, one hidden frame at a
-    time (`src/preview/measureCue.ts`), for adjusted cues PREVIEW has not shown.
+    time (`src/components/home/measureCue.ts`), for adjusted cues PREVIEW has not shown.
   - *PREVIEW in stage coordinates* (`PlayoutMonitors.tsx`): the production stage is fitted to the
     monitor and the graphic's frame sits at its origin unscaled, as on the output; the safe area
     is drawn while the block is open.
@@ -100,7 +100,7 @@ changes a spec's digest.
   `src/model/adjust.ts` (new), `src/model/cueClipboard.ts`, `src/model/packets.ts`,
   `src/model/rundownHistory.ts`, `src/model/shows.ts`, `src/model/teamShowMerge.ts`,
   `src/output/main.ts`, `src/output/stage.ts`, `src/preview/composeDocument.ts`,
-  `src/preview/measureCue.ts` (new), `src/preview/previewProtocol.ts`,
+  `src/components/home/measureCue.ts` (new), `src/preview/previewProtocol.ts`,
   `src/preview/settleGraphic.ts`, `src/styles/playout-dashboard.css`, and this file. L1's seams
   changed: `CueEditor` gains an `adjust` slot; `takeCueItems` an optional `appearance`.
 
