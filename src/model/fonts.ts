@@ -673,7 +673,8 @@ export function customFontStack(font: CustomFont): string {
  */
 export function registerAppFont(family: string, dataUrl: string): Promise<void> {
   try {
-    const face = new FontFace(family, `url(${dataUrl})`);
+    // Every weight, as `customFontFaceCss` declares it: the builder previews the file as it airs.
+    const face = new FontFace(family, `url(${dataUrl})`, { weight: '100 900' });
     return face
       .load()
       .then((f) => {
