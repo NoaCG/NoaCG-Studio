@@ -314,6 +314,17 @@ export function styleKey(a: AppliedAppearance | null | undefined): string {
   return JSON.stringify([vars, (a.fonts ?? []).map((f) => [f.family, f.src, f.weight, f.style ?? '', f.unicodeRange ?? ''])]);
 }
 
+/** The colour roles: they paint and never move text. */
+const PAINT_ONLY = new Set(['accent', 'text-color', 'text-dim', 'panel-bg']);
+
+/** The part of a style a measured box depends on: the faces and every variable that can move
+ *  text, never a colour. A box measured in one accent holds for another, so a colour pick never
+ *  holds a Take for a new measurement. */
+export function measureStyleKey(a: AppliedAppearance | null | undefined): string {
+  const vars = Object.fromEntries(Object.entries(a?.vars ?? {}).filter(([k]) => !PAINT_ONLY.has(k)));
+  return styleKey({ v: 1, ...(Object.keys(vars).length > 0 ? { vars } : {}), ...(a?.fonts ? { fonts: a.fonts } : {}) });
+}
+
 /** Two appearances apply the same transform (to a hundredth of a px) and the same style. */
 export function appearanceEquals(a: AppliedAppearance | null | undefined, b: AppliedAppearance | null | undefined): boolean {
   if (styleKey(a) !== styleKey(b)) return false;

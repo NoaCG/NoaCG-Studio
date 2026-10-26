@@ -928,7 +928,17 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     assert.ok(G.placeWaiting(state, null), 'a style not yet sent waits');
     // The measurement is the style's too: another face reflows the box.
     assert.notEqual(state.styleId, '');
-    assert.notEqual(A.measureId('g', 't', 'c', {}, HD, state.styleId), A.measureId('g', 't', 'c', {}, HD));
+    // A colour moves no text: the box measured in one accent holds for another, so a colour pick
+    // never holds a Take for a new measurement. A face or a weight is part of the box's identity.
+    const ctx = St.styleContextFor([]);
+    const stateWith = (adjust) => G.cueAdjustState({ ...graphic, adjust }, cue, HD, HD, {}, G.NO_GEOMETRY, null, false, ctx);
+    assert.equal(state.measureStyleId, '', 'a colour alone is not part of the identity');
+    assert.equal(stateWith({ v: 1, vars: { accent: '#00a3ff', 'text-dim': '#ccc' } }).measureStyleId, '');
+    const archivo = stateWith({ v: 1, font: { fontId: 'archivo' } }).measureStyleId;
+    assert.notEqual(archivo, '');
+    assert.equal(stateWith({ v: 1, font: { fontId: 'archivo' }, vars: { accent: '#00a3ff' } }).measureStyleId, archivo, 'a colour beside a face changes nothing');
+    assert.notEqual(stateWith({ v: 1, font: { fontId: 'archivo' }, vars: { 'display-weight': '800' } }).measureStyleId, archivo, 'a weight does');
+    assert.notEqual(A.measureId('g', 't', 'c', {}, HD, archivo), A.measureId('g', 't', 'c', {}, HD));
   });
 });
 

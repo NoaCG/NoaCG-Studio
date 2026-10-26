@@ -23,6 +23,7 @@ import {
   measureId,
   pivotZone,
   resolveFrame,
+  measureStyleKey,
   styleKey,
   type AppearanceFrame,
   type AppearanceStyle,
@@ -194,9 +195,11 @@ export interface CueAdjustState {
   frame: AppearanceFrame | null;
   /** What PREVIEW applies. */
   look: AppliedAppearance;
-  /** The style half (phase 2), null for none, and its key, part of the measurement's identity. */
+  /** The style half (phase 2), null for none, and its key, what a surface compares to know it changed. */
   style: AppearanceStyle | null;
   styleId: string;
+  /** The part of the style the measured box depends on (cueAdjust.ts `measureStyleKey`). */
+  measureStyleId: string;
   /** What a Take or a full Update carries (rule 2): undefined for a graphic nobody adjusted. */
   send: AppliedAppearance | undefined;
 }
@@ -286,11 +289,13 @@ export function cueAdjustState(
   const eff = effectiveAdjust(graphic.adjust, cue.adjust);
   const style = styleCtx.resolve(eff, styleCtx.imported);
   const styleId = styleKey(appearanceOf(null, style));
-  const { m, fresh } = geometryOf(geometry, cue.id, graphic.id, measureId(graphic.id, graphic.savedAt, cue.id, values, stage, styleId));
+  const measureStyleId = measureStyleKey(appearanceOf(null, style));
+  const { m, fresh } = geometryOf(geometry, cue.id, graphic.id, measureId(graphic.id, graphic.savedAt, cue.id, values, stage, measureStyleId));
   const frame = resolveFrame(eff, m, frameSize, stage);
   return {
     style,
     styleId,
+    measureStyleId,
     eff,
     m,
     fresh,

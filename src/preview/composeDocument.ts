@@ -454,14 +454,18 @@ window.addEventListener('unhandledrejection', function (ev) {
         sheet.id = 'noacg-appearance-faces';
         (document.head || root).appendChild(sheet);
       }
-      sheet.textContent = msg.faces;
+      /* The same faces are not declared again: a fresh declaration is a fresh face, and an
+         Update that only changes a colour would draw the fallback until it loaded. */
+      if (sheet.textContent !== msg.faces) sheet.textContent = msg.faces;
     } else if (sheet) {
       sheet.parentNode.removeChild(sheet);
     }
     var loads = [];
     if (document.fonts && document.fonts.forEach) {
       document.fonts.forEach(function (face) {
+        /* A face an earlier style started is waited for too: the faces are kept, not re-declared. */
         if (face.status === 'unloaded') { try { loads.push(face.load().then(null, function () {})); } catch (e) {} }
+        else if (face.status === 'loading' && face.loaded) loads.push(face.loaded.then(null, function () {}));
       });
     }
     waiting = true;

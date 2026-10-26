@@ -206,10 +206,10 @@ test('the /output renderer restores the appearance its report holds, and only fo
  */
 const NAME = 'Åsa Öberg-Ærø Šimon Žáková';
 
-async function styledStage(page: Page, imported = false) {
+async function styledStage(page: Page, imported = false, design = 'lt01') {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app#/home');
-  await page.evaluate(async ({ imported }) => {
+  await page.evaluate(async ({ imported, design }) => {
     const { createOutputStage } = await import('/src/output/stage.ts');
     const { variantById } = await import('/src/templates/catalog.ts');
     const assets: { path: string; data: string }[] = [];
@@ -219,7 +219,7 @@ async function styledStage(page: Page, imported = false) {
       for (const b of bytes) bin += String.fromCharCode(b);
       assets.push({ path: 'fonts/brand-import.woff2', data: `data:font/woff2;base64,${btoa(bin)}` });
     }
-    const t = variantById('lt01')!.create({});
+    const t = variantById(design)!.create({});
     document.body.innerHTML = '';
     const root = document.createElement('div');
     root.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px';
@@ -237,7 +237,7 @@ async function styledStage(page: Page, imported = false) {
     });
     const iframe = root.querySelector('iframe[title="L3"]') as HTMLIFrameElement;
     for (let i = 0; i < 100 && iframe.style.visibility !== 'visible'; i++) await new Promise((r) => setTimeout(r, 100));
-  }, { imported });
+  }, { imported, design });
   return page.frameLocator('iframe[title="L3"]');
 }
 
@@ -274,13 +274,19 @@ async function platformFonts(page: Page) {
 }
 
 test('a chosen face reaches the document through the stage: every glyph of the name in it, at its weight, and the fits run again', async ({ page }) => {
-  const doc = await styledStage(page);
-  // The template's font-ready fits were recorded as it loaded: count the ones a style runs again.
-  await doc.locator('html').evaluate(() => {
-    const w = window as unknown as { __noacgFontHooks: (() => void)[]; __refits: number };
+  // lt66 hands its fit to `document.fonts.ready` (325 of the catalog's 528 designs do; the rest
+  // fit on `update()`, which the style rides): count the template's OWN fits a style runs again.
+  const doc = await styledStage(page, false, 'lt66');
+  const recorded = await doc.locator('html').evaluate(() => {
+    const w = window as unknown as { __noacgFontHooks: ((...a: unknown[]) => unknown)[]; __refits: number };
     w.__refits = 0;
-    w.__noacgFontHooks.push(() => (w.__refits += 1));
+    for (let i = 0; i < w.__noacgFontHooks.length; i++) {
+      const own = w.__noacgFontHooks[i];
+      w.__noacgFontHooks[i] = function (this: unknown, ...a: unknown[]) { w.__refits += 1; return own.apply(this, a); };
+    }
+    return w.__noacgFontHooks.length;
   });
+  expect(recorded, "the template's own font-ready fits were recorded as it loaded").toBeGreaterThan(0);
   const before = await doc.locator('#f0').evaluate((el) => getComputedStyle(el).fontFamily);
   await sendStyle(page, { v: 1, font: { fontId: 'archivo' }, vars: { 'display-weight': '700', accent: '#ff7a00' } });
   await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1]);
@@ -364,4 +370,15 @@ test('an imported face reaches the document by its asset path, and draws the nam
   expect(await doc.locator('#f0').evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Brand Import');
   const fonts = await platformFonts(page);
   expect(fonts.filter((f) => !f.custom), JSON.stringify(fonts)).toEqual([]);
+  // A colour-only Update keeps the loaded face itself: declared again, it would be a new face that
+  // draws the fallback until it loads, a flash on air for a large imported file.
+  const brandFaces = () => doc.locator('html').evaluate(() => {
+    const out: { marked: boolean; status: string }[] = [];
+    document.fonts.forEach((f) => { if (f.family.replace(/"/g, '') === 'Brand Import') out.push({ marked: !!(f as unknown as { __kept?: boolean }).__kept, status: f.status }); });
+    return out;
+  });
+  await doc.locator('html').evaluate(() => document.fonts.forEach((f) => { if (f.family.replace(/"/g, '') === 'Brand Import') (f as unknown as { __kept?: boolean }).__kept = true; }));
+  await sendStyle(page, { v: 1, font: { family: 'Brand Import', assetPath: 'fonts/brand-import.woff2' }, vars: { accent: '#00a3ff' } }, [{ family: 'Brand Import', assetPath: 'fonts/brand-import.woff2' }]);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1, 2]);
+  expect(await brandFaces(), 'the same loaded face, never declared again').toEqual([{ marked: true, status: 'loaded' }]);
 });

@@ -2018,7 +2018,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (!g || cue.source === 'playout' || (g.adjust === undefined && cue.adjust === undefined)) return [];
       const values = airedValuesOf(cue);
       const state = adjustStateOf(cue, record, lib);
-      const styleId = state?.styleId ?? '';
+      const styleId = state?.measureStyleId ?? '';
       const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(state) };
       return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
     });
@@ -3488,7 +3488,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             const g = previewCue && previewCue.source !== 'playout' ? graphicByPoolId.get(previewCue.sourceId) : undefined;
             if (!previewCue || !g || (!adjustOpen && g.adjust === undefined && previewCue.adjust === undefined)) return null;
             const cueId = previewCue.id;
-            const styleId = adjustStateOf(previewCue)?.styleId ?? '';
+            const styleId = adjustStateOf(previewCue)?.measureStyleId ?? '';
             return {
               keyOf: (data: string) => measureId(g.id, designEditedAt(g, library), cueId, JSON.parse(data) as Record<string, string>, stage, styleId),
               onMeasured: (key: string, m: Measurement) => session.geometry.set((part) => measured(part, cueId, g.id, key, m)),
