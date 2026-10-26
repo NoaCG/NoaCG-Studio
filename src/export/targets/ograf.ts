@@ -1,6 +1,6 @@
 import { scriptKind } from '../../model/scriptKind';
 import { APPEARANCE_RUNTIME_JS } from '../../control/appearanceRuntime';
-import type { AppliedAppearance } from '../../control/cueAdjust';
+import { isIdentity, type AppliedAppearance } from '../../control/cueAdjust';
 import { prepareOutRuntime } from '../../blocks/animMigration';
 // OGraf export: packages the template as an EBU OGraf v1 Graphic — a manifest
 // (<slug>.ograf.json) plus a JS entry point (graphic.mjs) exporting a Web Component that
@@ -1223,7 +1223,7 @@ function timelineFunctionNames(template: SpxTemplate): string[] {
 
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
 function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB, appearance?: AppliedAppearance): string {
-  const baked = appearance?.frame ? appearance : undefined;
+  const baked = appearance && !isIdentity(appearance) ? appearance : undefined;
   const stepCount = ografStepCount(template);
   const machine = parseAnimData(template.js)?.machine;
   const timelineNames = timelineFunctionNames(template);

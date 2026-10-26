@@ -11,6 +11,7 @@ import { activeEntryValues, CONTROLLER_TARGET } from '../../export/showExport';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import type { Show } from '../../model/shows';
 import { measureCue } from './measureCue';
+import { styleContextFor } from '../../control/cueStyle';
 
 export async function measureExportAppearances(show: Show, targetId: string): Promise<ExportAppearances | undefined> {
   const cues = show.cues ?? [];
@@ -33,5 +34,6 @@ export async function measureExportAppearances(show: Show, targetId: string): Pr
       if (c.sourceId === g.id && c.source !== 'playout' && needsBox(g.adjust, c.adjust)) measured[c.id] = await measure(g.id, c.values);
     }
   }
-  return exportAppearances(show, (id) => templates.get(id)!.resolution, { graphics, cues: measured });
+  const imported = styleContextFor(show.graphics.map((g) => templateForSavedGraphic(g, lib))).imported;
+  return exportAppearances(show, (id) => templates.get(id)!.resolution, { graphics, cues: measured }, imported);
 }

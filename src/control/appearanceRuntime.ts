@@ -31,7 +31,7 @@
 // prototypes, installed once, and maps only rects of elements under a transformed host, so a
 // renderer page's own reads are untouched.
 
-import type { AppliedAppearance } from './cueAdjust.ts';
+import { isIdentity, type AppliedAppearance } from './cueAdjust.ts';
 
 /** The id the bake's own `<script>` tag carries; the import door leaves it out (model/importTemplate.ts). */
 export const APPEARANCE_SCRIPT_ID = 'noacg-appearance';
@@ -87,11 +87,39 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
     RP.getClientRects = function () { return hosts.length ? list(this.commonAncestorContainer, rangeRects0.call(this)) : rangeRects0.call(this); };
   }
   var num = function (n) { return typeof n === 'number' && isFinite(n); };
-  // Whether this build can apply an appearance: version 1, and a frame (if any) of numbers.
+  // Style variables this build sets: names of the brand vocabulary, values that cannot leave their
+  // declaration (control/cueAdjust.ts reads them the same way).
+  var varsReadable = function (v) {
+    if (v === undefined) return true;
+    if (!v || typeof v !== 'object') return false;
+    for (var k in v) {
+      if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+      if (!/^[a-z][a-z-]{0,40}$/.test(k) || typeof v[k] !== 'string' || /[;{}<>\\\\]|url\\(/i.test(v[k])) return false;
+    }
+    return true;
+  };
+  // Whether this build can apply an appearance: version 1, a frame (if any) of numbers, and
+  // style variables (if any) it can set. Faces are the package's own (the bake ships them).
   var readable = function (a) {
     if (!a || typeof a !== 'object' || a.v !== 1) return false;
     var f = a.frame;
+    if (!varsReadable(a.vars)) return false;
     return f === undefined || !!(f && num(f.dx) && num(f.dy) && num(f.s) && f.s > 0 && num(f.ox) && num(f.oy));
+  };
+  // TYPE AND COLOUR (phase 2): the variables go on the host as inline custom properties, which win
+  // over the design's own :root values and which no reset under the graphic's root touches, and
+  // REPLACE the ones set before (rule 3), so a baked default and a cue's style from the relay
+  // never stack. Set before the document's own fits run when the bake applies at load.
+  var setVars = function (el, v) {
+    var had = el.__noacgVars || [];
+    for (var i = 0; i < had.length; i++) el.style.removeProperty('--' + had[i]);
+    var now = [];
+    for (var k in v || {}) {
+      if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
+      el.style.setProperty('--' + k, v[k]);
+      now.push(k);
+    }
+    el.__noacgVars = now;
   };
   // Apply an appearance to the host, replacing the one it holds. Answers false, and changes
   // nothing, for anything this build cannot read. A host no longer on the page leaves the list
@@ -111,6 +139,7 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
       el.style.transformOrigin = '';
       el.style.clipPath = '';
     }
+    setVars(el, a.vars);
     return true;
   };
   apply.readable = readable;
@@ -118,7 +147,7 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
 })();`;
 
 /**
- * THE BAKE (`bakeAppearance` in the spec): a graphic's place and size as a script of its own that
+ * THE BAKE (`bakeAppearance` in the spec): a graphic's place, size, type and colour as a script of its own that
  * applies it to the document's root at load, exactly as a receiver applies an appearance a row
  * carries, so a relay row replaces it rather than adding to it. Every single-file and SPX target
  * bakes through this one function (export/targets/*); an OGraf Graphic applies the same runtime to
@@ -126,7 +155,7 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
  * adjusted keeps its bytes. A tag of its own, by id, which the import door leaves out.
  */
 export function bakeAppearance(appearance: AppliedAppearance | undefined): { id: string; js: string }[] {
-  return appearance?.frame
+  return appearance && !isIdentity(appearance)
     ? [{ id: APPEARANCE_SCRIPT_ID, js: `${APPEARANCE_RUNTIME_JS}\nnoacgApplyAppearance(${JSON.stringify(appearance)});` }]
     : [];
 }

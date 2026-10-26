@@ -58,6 +58,10 @@ export interface PreviewErrorMessage {
  * have had their chance, capped at `FRAME_HOLD_CAP_MS`. Sent only by a `liveControl` document.
  */
 export const PREVIEW_READY_TYPE = 'spx-preview-ready';
+
+/** A document answered a `style` command: its faces loaded (or the cap passed) and its fits ran
+ *  again, so what was measured before it no longer stands. `seq` counts the styles it applied. */
+export const PREVIEW_RESTYLED_TYPE = 'spx-preview-restyled';
 export interface PreviewReadyMessage {
   scriptError?: string | null;
   sounds?: { n: number; of: number; bytes: number; error: string | null };
@@ -121,6 +125,16 @@ export type PreviewCmd =
    *  composeDocument.ts) — so a sender should always state `timers` explicitly: `false` for a
    *  design-view park, `true` for renderer recovery (the output stage does). */
   | { cmd: 'snap'; assignments: Record<string, string> | null; timers?: boolean }
+  /**
+   * TYPE AND COLOUR (playout adjustments, phase 2): replace the style this document holds with
+   * `vars` (`:root` variables by name without dashes, set on `document.documentElement`, which no
+   * reset under the graphic's root touches) and `faces` (the `@font-face` rules the variables name,
+   * control/cueStyle.ts `facesCss`). Null `vars` and '' `faces` put the design back. The command
+   * holds the queue while the named faces load (capped like a Take's font wait), then the
+   * template's own font-ready fits run again and the document answers `PREVIEW_RESTYLED_TYPE`; a
+   * load that completes after a newer `style` does nothing (the latest-request guard).
+   */
+  | { cmd: 'style'; vars: Record<string, string> | null; faces: string }
   /**
    * The legacy simulator lifecycle, distinct from the plain
    * 'play'/'stop'/'next' above: these prefer the house builder contract (`buildInTimeline`/

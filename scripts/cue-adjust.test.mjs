@@ -1,4 +1,4 @@
-// guards: src/control/appearanceRuntime.ts, src/control/exportAppearance.ts, src/control/localReceiver.ts, src/model/adjust.ts, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/model/teamShowMerge.ts, src/model/cueClipboard.ts, src/model/rundownHistory.ts, src/control/cueItems.ts, src/control/airState.ts, src/model/shows.ts
+// guards: src/control/cueStyle.ts, src/control/appearanceRuntime.ts, src/control/exportAppearance.ts, src/control/localReceiver.ts, src/model/adjust.ts, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/model/teamShowMerge.ts, src/model/cueClipboard.ts, src/model/rundownHistory.ts, src/control/cueItems.ts, src/control/airState.ts, src/model/shows.ts
 //
 // PLACE AND SIZE FROM RECORD TO AIR (docs/work-specs/playout-adjustments/spec.md, phase 1), in Node:
 // the record and its one reader, the fold of a cue over its graphic member by member (AC-4), the
@@ -12,7 +12,7 @@
 
 import test, { after, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -23,6 +23,8 @@ import './lib/tsResolve.mjs';
 const adjust = await import('../src/model/adjust.ts');
 const A = await import('../src/control/cueAdjust.ts');
 const G = await import('../src/control/adjustGeometry.ts');
+const St = await import('../src/control/cueStyle.ts');
+const { fontById, fontStack, LATIN_EXT_RANGE } = await import('../src/model/fonts.ts');
 const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
 const { copyClip, pasteCopies } = await import('../src/model/cueClipboard.ts');
 const { liveRundownRefusal } = await import('../src/model/rundownHistory.ts');
@@ -805,5 +807,226 @@ describe('the bake and the root runtime (phase 1b)', () => {
     } finally {
       Object.assign(globalThis, saved);
     }
+  });
+});
+
+describe('type and colour (phase 2): the record, the fold, the resolve', () => {
+  const archivo = { fontId: 'archivo' };
+  const brand = { family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' };
+
+  test('the reader keeps style members it can apply and drops the rest', () => {
+    const read = adjust.readAdjust({
+      v: 1,
+      vars: { accent: '#ff7a00', 'text-color': '', 'font-heading': 'Comic', bogus: '1', 'panel-bg': 'red; } body { x', 'display-weight': '700' },
+      font: archivo,
+      keepStyle: true,
+    });
+    assert.deepEqual(read.record, { v: 1, vars: { accent: '#ff7a00', 'text-color': '', 'display-weight': '700' }, font: archivo, keepStyle: true },
+      'font-heading follows font, an unknown name and a value that could leave its declaration are not read; an empty value (as designed) is');
+    assert.deepEqual(adjust.readAdjust({ v: 1, font: 'designed' }).record.font, 'designed');
+    assert.equal(adjust.readAdjust({ v: 1, font: { family: 'X', assetPath: '../../etc' } }).record.font, undefined, 'an asset path outside fonts/');
+    assert.equal(adjust.readAdjust({ v: 1, font: { fontId: 'Archivo Black!' } }).record.font, undefined);
+  });
+
+  test('a patch merges variables key by key; a null removes one key, then the member', () => {
+    let r = adjust.patchAdjust(undefined, { vars: { accent: '#f00' } });
+    r = adjust.patchAdjust(r, { vars: { 'text-color': '#fff' }, font: archivo });
+    assert.deepEqual(r, { v: 1, vars: { accent: '#f00', 'text-color': '#fff' }, font: archivo });
+    r = adjust.patchAdjust(r, { vars: { accent: null, 'text-color': null } });
+    assert.deepEqual(r, { v: 1, font: archivo });
+    assert.equal(adjust.patchAdjust(r, { font: null }), undefined);
+    assert.equal(adjust.patchAdjust({ v: 2 }, { vars: { accent: '#f00' } }), adjust.ADJUST_READ_ONLY, 'a later record is refused');
+  });
+
+  test('AC-6: a cue overrides the graphic per property, inherits the rest, and its reset reveals the graphic', () => {
+    const graphic = { v: 1, vars: { accent: '#ff7a00', 'display-weight': '800' }, font: archivo };
+    const cueAccent = { v: 1, vars: { accent: '#00aaff' } };
+    let e = eff(graphic, cueAccent);
+    assert.deepEqual(e.vars, { accent: '#00aaff', 'display-weight': '800' }, 'the cue sets the accent alone');
+    assert.deepEqual(e.font, archivo, 'and still takes the graphic\'s face');
+    assert.ok(e.own.includes('vars') && !e.own.includes('font'));
+    // "As designed" at the cue: the cue masks the graphic's value with an empty one.
+    e = eff(graphic, { v: 1, vars: { accent: '' }, font: 'designed', keepStyle: true });
+    const style = St.resolveStyle(e, []);
+    assert.deepEqual(style.vars, { 'display-weight': '800' }, 'the design\'s accent and face, the graphic\'s weight');
+    assert.equal(style.fonts, undefined);
+    // Reset of the cue (its record removed) reveals the graphic's.
+    e = eff(graphic, undefined);
+    assert.equal(St.resolveStyle(e, []).vars.accent, '#ff7a00');
+    // Promotion moves the cue's style onto the graphic in one record.
+    assert.deepEqual(adjust.patchAdjust(graphic, { vars: { accent: '#00aaff' } }).vars, { accent: '#00aaff', 'display-weight': '800' });
+  });
+
+  test('a bundled face resolves to its stack, its numbers and both its files; never bytes', () => {
+    const style = St.resolveStyle(eff({ v: 1, font: archivo }, undefined), []);
+    assert.equal(style.vars['font-heading'], fontStack(fontById('archivo')));
+    assert.equal(style.vars['font-numeric'], 'var(--font-heading)', 'Archivo holds a digit\'s width itself');
+    assert.deepEqual(style.fonts, [
+      { family: 'Archivo', src: 'fonts/archivo.woff2', weight: [400, 900] },
+      { family: 'Archivo', src: 'fonts/archivo-latin-ext.woff2', weight: [400, 900], unicodeRange: LATIN_EXT_RANGE },
+    ]);
+    // Oswald's numbers are set in its paired sibling, which ships too.
+    const oswald = St.resolveStyle(eff({ v: 1, font: { fontId: 'oswald' } }, undefined), []);
+    assert.deepEqual(oswald.fonts.map((f) => f.src), ['fonts/oswald.woff2', 'fonts/oswald-latin-ext.woff2', 'fonts/saira.woff2', 'fonts/saira-latin-ext.woff2']);
+    assert.match(oswald.vars['font-numeric'], /Saira/);
+    // A static face declares every weight, so no request is a synthesised bold (phase 0 item 2).
+    const bebas = St.resolveStyle(eff({ v: 1, font: { fontId: 'bebas-neue' } }, undefined), []);
+    assert.deepEqual(bebas.fonts[0].weight, [100, 900]);
+  });
+
+  test('the heading weight goes as written; an imported face declares 100-900 and offers Regular', () => {
+    const w = (font, weight, imported = []) =>
+      St.resolveStyle(eff({ v: 1, font, vars: { 'display-weight': weight } }, undefined), imported).vars['display-weight'];
+    // Never clamped: the token weights a sibling's numbers too (Saira under Oswald reaches 900),
+    // and a static face declares every weight, so 800 on Bebas Neue is drawn as the file is.
+    assert.equal(w({ fontId: 'oswald' }, '800'), '800');
+    assert.equal(w({ fontId: 'bebas-neue' }, '800'), '800');
+    const imported = [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }];
+    assert.deepEqual(St.weightsFor({ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }, {}, imported).map((x) => x.value), [400], 'the Type row offers Regular');
+    assert.deepEqual(St.weightsFor({ fontId: 'bebas-neue' }, {}, []).map((x) => x.value), [400]);
+    assert.deepEqual(St.weightsFor({ fontId: 'archivo' }, {}, []).map((x) => x.value), [400, 500, 600, 700, 800, 900]);
+    const style = St.resolveStyle(eff({ v: 1, font: brand }, undefined), imported);
+    assert.deepEqual(style.fonts, [{ family: 'Brand Sans', src: 'fonts/brand-sans.woff2', weight: [100, 900] }]);
+    assert.equal(St.resolveStyle(eff({ v: 1, font: brand }, undefined), []), null, 'a face no pool graphic ships any more resolves to nothing');
+  });
+
+  test('the asset road: bundled files by path, an imported face by its bytes, a face with none left out', () => {
+    const style = St.resolveStyle(eff({ v: 1, font: brand }, undefined), [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
+    const css = St.facesCss(style.fonts, (src) => (src === 'fonts/brand-sans.woff2' ? 'data:font/woff2;base64,AAAA' : null));
+    assert.match(css, /font-family: "Brand Sans"; src: url\("data:font\/woff2;base64,AAAA"\); font-weight: 100 900;/);
+    assert.equal(St.facesCss(style.fonts, () => null), '', 'no bytes: no dead declaration');
+    const bundled = St.facesCss(St.resolveStyle(eff({ v: 1, font: archivo }, undefined), []).fonts);
+    assert.match(bundled, /url\("fonts\/archivo\.woff2"\)/);
+    assert.match(bundled, /url\("fonts\/archivo-latin-ext\.woff2"\)[^}]*unicode-range: U\+0100/);
+    const pool = [{ css: `/* Imported font (your file). */\n@font-face {\n  font-family: "Brand Sans";\n  src: url("fonts/brand-sans.woff2") format("woff2");\n}`, assets: [{ path: 'fonts/brand-sans.woff2' }] }];
+    assert.deepEqual(St.importedFacesOf(pool), [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
+    assert.deepEqual(St.importedFacesOf([{ ...pool[0], assets: [] }]), [], 'a face whose file the graphic does not carry is not offered');
+  });
+
+  test('the wire carries names and numbers only, and a reader keeps what it knows', () => {
+    const style = St.resolveStyle(eff({ v: 1, font: archivo, vars: { accent: '#ff7a00' } }, undefined), []);
+    const sent = A.appearanceOf({ dx: 10, dy: 0, s: 1, ox: 0, oy: 0 }, style);
+    assert.deepEqual(A.readAppearance(JSON.parse(JSON.stringify({ ...sent, later: { tween: 200 } }))), sent, 'round trip, an unknown member ignored');
+    assert.equal(JSON.stringify(sent).includes('base64'), false, 'never bytes');
+    assert.equal(A.isIdentity(A.appearanceOf(null, style)), false, 'a style alone is not the identity');
+    assert.equal(A.readAppearance({ v: 1, vars: { accent: 'red;}x' } }), null, 'a value that could leave its declaration');
+    assert.equal(A.readAppearance({ v: 1, vars: { 'not-a-var': '1' } }), null);
+    assert.equal(A.readAppearance({ v: 1, fonts: [{ family: 'A', src: 'https://x/y.woff2', weight: [400, 400] }] }), null, 'a src off the asset road');
+    assert.ok(!A.appearanceEquals(sent, A.appearanceOf(sent.frame, null)), 'a change of style alone is a change');
+    assert.ok(A.appearanceEquals(sent, A.readAppearance(JSON.parse(JSON.stringify(sent)))));
+  });
+
+  test('rule 2 with style: a styled cue sends its style; resetting every scope sends the identity', () => {
+    const graphic = { id: 'g1', savedAt: 't', adjust: { v: 1, vars: { accent: '#ff7a00' } } };
+    const cue = { id: 'c1' };
+    const state = G.cueAdjustState(graphic, cue, HD, HD, {}, G.NO_GEOMETRY, null, false);
+    assert.deepEqual(state.send, { v: 1, vars: { accent: '#ff7a00' } });
+    const reset = G.cueAdjustState({ ...graphic, adjust: undefined }, cue, HD, HD, {}, G.NO_GEOMETRY, state.send, false);
+    assert.deepEqual(reset.send, A.IDENTITY, 'the applied style is taken off with an explicit identity');
+    assert.ok(G.placeWaiting(state, null), 'a style not yet sent waits');
+    // The measurement is the style's too: another face reflows the box.
+    assert.notEqual(state.styleId, '');
+    assert.notEqual(A.measureId('g', 't', 'c', {}, HD, state.styleId), A.measureId('g', 't', 'c', {}, HD));
+  });
+});
+
+describe('what an author and an agent learn is adjustable (phase 2)', () => {
+  const pack = JSON.parse(readFileSync(new URL('../e2e/fixtures/agent-made/vote-show.noacgpack.json', import.meta.url), 'utf8'));
+
+  test('an agent-made board that paints with the contract is adjustable in what it paints, and validate is quiet', () => {
+    assert.equal(pack.graphics.length, 2);
+    for (const g of pack.graphics) {
+      const reach = St.styleReach(g);
+      const line = St.adjustableLine(g);
+      assert.ok(line.startsWith('place and size, '), `${g.name}: ${line}`);
+      assert.equal(line.includes('typeface'), reach.family, g.name);
+      for (const c of St.COLOUR_VARS) assert.equal(reach.colours.includes(c), St.adjustableLine({ ...g, css: g.css.replaceAll(`var(--${c})`, 'red') }) !== line, `${g.name} ${c}`);
+      assert.equal(St.styleContractUnpainted(g), null, g.name);
+    }
+  });
+
+  test('a stylesheet that paints none of it says so in one line, and validate gives one non-blocking finding', () => {
+    const css = ':root { --accent: #f00; --font-heading: "Inter"; }\n.box { color: #fff; background: #123; font-family: Arial; }';
+    const t = { css, js: '' };
+    assert.equal(St.adjustableLine(t), 'place and size; type and colour stay as designed (its stylesheet paints with none of the contract variables)');
+    assert.equal(St.styleContractUnpainted(t)?.rule, 'style-contract-unpainted');
+    assert.equal(St.adjustableLine(null), St.adjustableLine(t), 'an OGraf manifest read on its own: place and size');
+  });
+
+  test('an imported SVG reaches none: its text carries the artwork\'s own face, whatever the canvas reset inherits', () => {
+    const css = ':root { --font-heading: "Inter"; --accent: #f00; }\nhtml, body { font-family: var(--font-heading); }';
+    assert.equal(St.styleReach({ css, js: '' }).family, true, 'an HTML design inherits the face from the reset');
+    assert.equal(St.reachesAny(St.styleReach({ css, js: 'function fitSvgText(el) {}' })), false);
+  });
+});
+
+describe('the Type row\'s weights (phase 2)', () => {
+  const design = (numbers) => ({ 'font-heading': '"Archivo", Arial, sans-serif', ...(numbers ? { 'font-numeric': '"Archivo", Arial, sans-serif' } : {}) });
+  const values = (font, d) => St.weightsFor(font, d, []).map((w) => w.value);
+
+  test('a face with one weight offers its numbers\' sibling\'s weights where the design draws live numbers', () => {
+    assert.deepEqual(values({ fontId: 'anton' }, design(true)), [400, 500, 600, 700, 800, 900], 'Anton heading, Saira numbers');
+    assert.deepEqual(values({ fontId: 'anton' }, design(false)), [400], 'no live numbers: Anton alone, so the row is hidden');
+    assert.deepEqual(values({ fontId: 'bebas-neue' }, design(false)), [400]);
+    assert.deepEqual(values(undefined, design(false)), values({ fontId: 'archivo' }, design(false)), 'as designed reads the design\'s own face');
+  });
+});
+
+describe('type and colour in a package (phase 2)', () => {
+  test('the export resolves a style alone, with no box, for the graphic and each cue', () => {
+    const show = {
+      graphics: [{ id: 'g', adjust: { v: 1, vars: { accent: '#ff7a00' }, font: { fontId: 'archivo' } } }],
+      cues: [{ id: 'c1', sourceId: 'g' }, { id: 'c2', sourceId: 'g', adjust: { v: 1, vars: { accent: '' } } }],
+    };
+    const out = X.exportAppearances(show, () => HD, { graphics: {}, cues: {} });
+    assert.equal(out.graphics.g.vars.accent, '#ff7a00');
+    assert.equal(out.graphics.g.frame, undefined);
+    assert.equal(out.cues.c1.vars.accent, '#ff7a00', 'a cue inherits the default');
+    assert.equal(out.cues.c2.vars.accent, undefined, 'a cue as designed carries no accent, so the relay takes the default off');
+    assert.match(out.cues.c2.vars['font-heading'], /Archivo/);
+    assert.equal(X.needsBox(show.graphics[0].adjust), false, 'nothing is measured for a style');
+  });
+
+  test('a style alone bakes one tagged script, ES5', () => {
+    const [bake, ...rest] = R.bakeAppearance({ v: 1, vars: { accent: '#ff7a00' } });
+    assert.equal(rest.length, 0);
+    assert.equal(bake.id, R.APPEARANCE_SCRIPT_ID);
+    assert.doesNotMatch(bake.js, /=>|\blet\b|\bconst\b|`|\?\./);
+  });
+
+  test('the runtime sets the variables on the host and replaces them; a value it cannot set changes nothing', () => {
+    const saved = { Element: globalThis.Element, Range: globalThis.Range, document: globalThis.document };
+    try {
+      const props = new Map();
+      const host = { style: { setProperty: (k, v) => props.set(k, v), removeProperty: (k) => props.delete(k) }, isConnected: true };
+      globalThis.Element = class {};
+      globalThis.Range = class {};
+      globalThis.document = { documentElement: host };
+      const apply = new Function(`${R.APPEARANCE_RUNTIME_JS}\nreturn noacgApplyAppearance;`)();
+      assert.equal(apply({ v: 1, vars: { accent: '#ff7a00', 'font-heading': '"Archivo", Arial, sans-serif' } }), true);
+      assert.deepEqual(Object.fromEntries(props), { '--accent': '#ff7a00', '--font-heading': '"Archivo", Arial, sans-serif' });
+      // Rule 3: a cue's style from the relay replaces the baked one, never stacks on it.
+      apply({ v: 1, vars: { 'text-color': '#fff' } });
+      assert.deepEqual(Object.fromEntries(props), { '--text-color': '#fff' });
+      assert.equal(apply({ v: 1, vars: { accent: 'red; } body { display: none' } }), false);
+      assert.deepEqual(Object.fromEntries(props), { '--text-color': '#fff' }, 'kept what it had');
+      apply({ v: 1 });
+      assert.equal(props.size, 0, 'the identity puts the design back');
+    } finally {
+      Object.assign(globalThis, saved);
+    }
+  });
+
+  test('every face a package\'s appearances name ships in it: bundled by reference, imported with its bytes', () => {
+    const style = St.resolveStyle(eff({ v: 1, font: { fontId: 'oswald' } }, undefined), []);
+    const t = { css: ':root { --font-heading: "Inter", Arial; }', assets: [] };
+    const out = St.withAppearanceFaces(t, style.fonts, []);
+    for (const f of ['oswald.woff2', 'oswald-latin-ext.woff2', 'saira.woff2', 'saira-latin-ext.woff2']) assert.ok(out.css.includes(`fonts/${f}`), f);
+    assert.equal(St.withAppearanceFaces(out, style.fonts, []).css, out.css, 'idempotent');
+    const asset = { path: 'fonts/brand.woff2', data: 'data:font/woff2;base64,AAAA' };
+    const imported = St.withAppearanceFaces(t, [{ family: 'Brand', src: 'fonts/brand.woff2', weight: [100, 900] }], [{ assets: [asset] }]);
+    assert.match(imported.css, /\/\* Imported font[\s\S]*font-family: "Brand";[\s\S]*url\("fonts\/brand\.woff2"\)/);
+    assert.deepEqual(imported.assets, [asset], 'the file travels with the graphic that names it');
+    assert.equal(St.withAppearanceFaces(t, [{ family: 'Gone', src: 'fonts/gone.woff2', weight: [100, 900] }], []), t, 'no bytes anywhere: nothing declared');
   });
 });

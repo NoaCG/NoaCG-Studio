@@ -1,5 +1,8 @@
-import { type KeyboardEvent, type MouseEvent } from 'react';
-import { ZONES, type AdjustPatch, type Zone9 } from '../../model/adjust';
+import { useEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { ZONES, type AdjustPatch, type FontRef, type Zone9 } from '../../model/adjust';
+import { formatCssColor, parseCssColor, pickerHex } from '../../model/cssVars';
+import { styleTerm } from '../../model/styleVocabulary';
+import { reachesAny, weightsFor, type ImportedFace, type StyleReach } from '../../control/cueStyle';
 import { adjustWords, floorEstimate, zoneWords, type GeometryLimit } from '../../control/cueAdjust';
 import type { CueAdjustState } from '../../control/adjustGeometry';
 import type { StorePart } from '../../control/storePart';
@@ -29,6 +32,7 @@ export default function CueAdjust({
   step,
   reset,
   promote,
+  style = null,
 }: {
   graphicName: string;
   /** How many cues the graphic has. */
@@ -54,6 +58,20 @@ export default function CueAdjust({
   reset: (scope: 'cue' | 'graphic') => void;
   /** Make the cue's exception the graphic's default. */
   promote: () => void;
+  /** TYPE AND COLOUR (phase 2): what the design paints with, the faces on offer, the design's own
+   *  values, and the writes. "As designed" puts a row back to the design at the scope shown. */
+  style?: {
+    reach: StyleReach;
+    /** An imported design: its type and colour are the artwork's own. */
+    artwork: boolean;
+    imported: readonly ImportedFace[];
+    bundled: readonly { id: string; family: string }[];
+    /** The design's own `--font-heading`, `--font-numeric` (where it draws live numbers) and colour values. */
+    design: Record<string, string>;
+    asDesigned: (row: 'type' | 'colour') => void;
+    /** The typeface alone back to the design's, at the scope shown. */
+    designedFace: () => void;
+  } | null;
 }) {
   useStorePart(measured);
   const state = stateOf();
@@ -91,6 +109,7 @@ export default function CueAdjust({
     nudge(d[0], d[1]);
   };
   const why = whyWords(limit, m, fresh);
+  const styleSum = style ? styleWords(eff.vars, eff.font, style.bundled) : '';
   // A typed x, y or size is one write when the edit is over (Enter or leaving the box, never a pause:
   // 8 on the way to 84 would size the graphic), and a second operator's change to the same record
   // never replaces what is being typed (./useDeferredEdits.ts).
@@ -118,7 +137,7 @@ export default function CueAdjust({
         <span className="pd-advanced-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
         Adjust
         <span className="pd-advanced-sum" data-testid="cue-adjust-summary">
-          {where} · {words || 'as designed'}
+          {where} · {[words, styleSum].filter(Boolean).join(', ') || 'as designed'}
           {kept}
         </span>
       </button>
@@ -189,6 +208,7 @@ export default function CueAdjust({
               </span>
             )}
           </div>
+          {style && <StyleRows style={style} vars={eff.vars ?? {}} font={eff.font} locked={locked} write={write} />}
           <div className="pd-adjust-row">
             {scope === 'cue' && ownCue ? (
               <>
@@ -217,6 +237,158 @@ export default function CueAdjust({
         </div>
       )}
     </div>
+  );
+}
+
+/** A face reference as one select value: '' is as designed. */
+const faceKey = (f: FontRef | 'designed' | undefined) => (!f || f === 'designed' ? '' : 'fontId' in f ? `b:${f.fontId}` : `i:${f.family}|${f.assetPath}`);
+
+/** The style a fold sets, in a few words for the summary: the face, its weight, the colours. */
+function styleWords(
+  vars: Record<string, string> | undefined,
+  font: FontRef | 'designed' | undefined,
+  bundled: readonly { id: string; family: string }[],
+): string {
+  const parts: string[] = [];
+  if (font && font !== 'designed') parts.push('fontId' in font ? (bundled.find((b) => b.id === font.fontId)?.family ?? font.fontId) : font.family);
+  const weight = vars?.['display-weight'];
+  if (weight) parts.push(WEIGHT_WORD[weight] ?? weight);
+  const colours = (['accent', 'text-color', 'text-dim', 'panel-bg'] as const).filter((k) => vars?.[k]);
+  if (colours.length) parts.push(colours.map((k) => styleTerm(k).label.toLowerCase()).join(' and '));
+  return parts.join(' ');
+}
+
+const WEIGHT_WORD: Record<string, string> = { '400': 'Regular', '500': 'Medium', '600': 'Semibold', '700': 'Bold', '800': 'Extra bold', '900': 'Black' };
+
+/**
+ * The Type and Colour rows: a typeface, its REAL weights (none drawn for a face with one), and a
+ * swatch per contract colour the design paints with (`cssPaintsWith`), so no control is dead. A
+ * design that paints none says so in one line.
+ */
+function StyleRows({
+  style,
+  vars,
+  font,
+  locked,
+  write,
+}: {
+  style: NonNullable<Parameters<typeof CueAdjust>[0]['style']>;
+  vars: Record<string, string>;
+  font: FontRef | 'designed' | undefined;
+  locked: boolean;
+  write: (patch: AdjustPatch) => void;
+}) {
+  const { reach } = style;
+  if (!reachesAny(reach)) {
+    return (
+      <p className="muted pd-adjust-why" data-testid="adjust-style-none">
+        Type and colour: as designed{style.artwork ? ' (imported artwork)' : ''}
+      </p>
+    );
+  }
+  const chosen = faceKey(font);
+  const weights = weightsFor(font, style.design, style.imported);
+  const weight = vars['display-weight'] || '';
+  const typeSet = chosen !== '' || weight !== '';
+  const colourSet = reach.colours.some((k) => vars[k]);
+  const pickFace = (key: string) => {
+    if (!key) return style.designedFace();
+    if (key.startsWith('b:')) return write({ font: { fontId: key.slice(2) } });
+    const [family, assetPath] = key.slice(2).split('|');
+    write({ font: { family, assetPath } });
+  };
+  return (
+    <>
+      {(reach.family || reach.weight) && (
+        <div className="pd-adjust-row" data-testid="adjust-type">
+          <span className="pd-adjust-label">Type</span>
+          {reach.family && (
+            <select aria-label="Typeface" value={chosen} disabled={locked} onChange={(e) => pickFace(e.target.value)} data-testid="adjust-typeface">
+              <option value="">As designed</option>
+              {style.bundled.map((b) => (
+                <option key={b.id} value={`b:${b.id}`}>
+                  {b.family}
+                </option>
+              ))}
+              {style.imported.map((f) => (
+                <option key={`${f.family}|${f.assetPath}`} value={`i:${f.family}|${f.assetPath}`}>
+                  {f.family}
+                </option>
+              ))}
+            </select>
+          )}
+          {reach.weight && weights.length > 1 && (
+            <span className="pd-adjust-weights" role="group" aria-label="Weight" data-testid="adjust-weight">
+              {weights.map((w) => (
+                <button
+                  key={w.value}
+                  type="button"
+                  className={weight === String(w.value) ? 'on' : ''}
+                  aria-pressed={weight === String(w.value)}
+                  disabled={locked}
+                  onClick={() => write({ vars: { 'display-weight': String(w.value) } })}
+                >
+                  {w.label}
+                </button>
+              ))}
+            </span>
+          )}
+          <button type="button" className={typeSet ? '' : 'on'} aria-pressed={!typeSet} disabled={locked} onClick={() => style.asDesigned('type')} data-testid="adjust-type-designed">
+            As designed
+          </button>
+        </div>
+      )}
+      {reach.colours.length > 0 && (
+        <div className="pd-adjust-row" data-testid="adjust-colour">
+          <span className="pd-adjust-label">Colour</span>
+          {reach.colours.map((k) => (
+            <Swatch
+              key={k}
+              label={styleTerm(k).label}
+              value={vars[k] || style.design[k] || '#000000'}
+              disabled={locked}
+              onPick={(v) => write({ vars: { [k]: v } })}
+              testId={`adjust-colour-${k}`}
+            />
+          ))}
+          <button type="button" className={colourSet ? '' : 'on'} aria-pressed={!colourSet} disabled={locked} onClick={() => style.asDesigned('colour')} data-testid="adjust-colour-designed">
+            As designed
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** One colour, picked with the system swatch and written once the pick is made (its `change`, not
+ *  every `input` while dragging). The value keeps the alpha it had: a translucent panel stays so. */
+function Swatch({ label, value, disabled, onPick, testId }: { label: string; value: string; disabled: boolean; onPick: (v: string) => void; testId: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onChange = () => {
+      const picked = parseCssColor(el.value);
+      const was = parseCssColor(valueRef.current);
+      if (!picked) return;
+      pickRef.current(formatCssColor({ ...picked, a: was?.a ?? 1, form: was?.form ?? picked.form }));
+    };
+    el.addEventListener('change', onChange);
+    return () => el.removeEventListener('change', onChange);
+  }, []);
+  // One element for the swatch's life (the listener is on it), its colour set from the value.
+  useEffect(() => {
+    if (ref.current) ref.current.value = pickerHex(value);
+  }, [value]);
+  return (
+    <label className="pd-adjust-swatch">
+      <span>{label}</span>
+      <input ref={ref} type="color" aria-label={label} defaultValue={pickerHex(value)} disabled={disabled} data-testid={testId} />
+    </label>
   );
 }
 

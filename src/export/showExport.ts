@@ -57,6 +57,7 @@ import { arrangeFor } from '../control/controlModel';
 import { pinnedGraphicsOf } from '../model/profile';
 import { renderProductionControllerHtml, type EmittedCue } from '../control/productionControllerHtml';
 import type { ExportAppearances } from '../control/exportAppearance';
+import { withAppearanceFaces } from '../control/cueStyle';
 import { stripHostedReceiver } from '../control/hostedReceiver';
 // The library->air gate (docs/ARCHITECTURE.md §3, export -> validation): a production export is
 // the other door a library draft leaves through, and it is gated like the publish.
@@ -124,8 +125,16 @@ async function exportTemplateFor(
   library: GraphicDoc[],
   usedSlugs: Set<string>,
   layer = showGraphicLayer(graphic),
+  faces?: { show: Show; appearances?: ExportAppearances },
 ): Promise<SpxTemplate> {
   let template = templateForSavedGraphic(graphic, library);
+  // Every face this graphic's appearances name ships with it (phase 2): its default's and each of
+  // its cues', so the exported controller's relay can set any of them (control/cueStyle.ts).
+  if (faces?.appearances) {
+    const named = [faces.appearances.graphics[graphic.id], ...(faces.show.cues ?? []).filter((c) => c.sourceId === graphic.id).map((c) => faces.appearances!.cues[c.id])]
+      .flatMap((a) => a?.fonts ?? []);
+    template = withAppearanceFaces(template, named, faces.show.graphics.map((g) => templateForSavedGraphic(g, library)));
+  }
   let name = graphic.name;
   let n = 2;
   while (usedSlugs.has(slug(name))) name = `${graphic.name} ${n++}`;
@@ -165,7 +174,7 @@ export async function buildShowZip(show: Show, opts?: ShowExportOptions): Promis
   const packaged: PackagedGraphic[] = [];
   const spxLayers = spxShowLayers(show.graphics);
   for (const [i, graphic] of show.graphics.entries()) {
-    const template = await exportTemplateFor(graphic, library, usedSlugs, spxLayers[i]);
+    const template = await exportTemplateFor(graphic, library, usedSlugs, spxLayers[i], { show, appearances: opts?.appearances });
     const name = slug(template.name);
     folderNames.push(name);
     packaged.push({ poolName: graphic.name, template });
@@ -335,7 +344,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
   const panelGraphics: { template: SpxTemplate; entries: ReturnType<typeof entriesForSavedGraphic> }[] = [];
   let subPanel = '';
   for (const graphic of show.graphics) {
-    const template = await exportTemplateFor(graphic, library, usedSlugs);
+    const template = await exportTemplateFor(graphic, library, usedSlugs, undefined, { show, appearances: opts?.appearances });
     const entries = entriesForSavedGraphic(graphic, library);
     const sub = await target.build(template, {
       entries,

@@ -1,5 +1,6 @@
-// PLACE AND SIZE IN A PACKAGE (docs/work-specs/playout-adjustments/spec.md, phase 1b): what the
-// production export bakes into each graphic's files and what the exported controller's cues carry.
+// PLACE, SIZE, TYPE AND COLOUR IN A PACKAGE (docs/work-specs/playout-adjustments/spec.md, phases 1b
+// and 2): what the production export bakes into each graphic's files and what the exported
+// controller's cues carry. Style needs no box: it resolves from the record alone.
 //
 // A package has no `/output` stage: each graphic is a page of its own, at its own resolution, so a
 // preset resolves against that page's safe area (the graphic's frame is its stage). For a graphic
@@ -18,6 +19,7 @@
 // Pure and Node-tested (scripts/cue-adjust.test.mjs); the measuring is the caller's.
 
 import { appearanceOf, effectiveAdjust, resolveFrame, type AppliedAppearance, type Measurement, type Size } from './cueAdjust.ts';
+import { resolveStyle, type ImportedFace } from './cueStyle.ts';
 
 /** The baked default per pool graphic id, and the appearance per cue id. */
 export interface ExportAppearances {
@@ -57,6 +59,8 @@ export function exportAppearances(
   show: { graphics: readonly PoolGraphic[]; cues?: readonly RundownCue[] },
   frameOf: (graphicId: string) => Size,
   measured: { graphics: Readonly<Record<string, Measurement | null>>; cues: Readonly<Record<string, Measurement | null>> },
+  /** The imported faces the production ships (phase 2's style resolves a face by identity). */
+  imported: readonly ImportedFace[] = [],
 ): ExportAppearances | undefined {
   const cues = show.cues ?? [];
   const adjusted = adjustedGraphics(show.graphics, cues);
@@ -64,10 +68,12 @@ export function exportAppearances(
   const out: ExportAppearances = { graphics: {}, cues: {} };
   for (const g of adjusted) {
     const frame = frameOf(g.id);
-    out.graphics[g.id] = appearanceOf(resolveFrame(effectiveAdjust(g.adjust, undefined), measured.graphics[g.id] ?? null, frame, frame));
+    const own = effectiveAdjust(g.adjust, undefined);
+    out.graphics[g.id] = appearanceOf(resolveFrame(own, measured.graphics[g.id] ?? null, frame, frame), resolveStyle(own, imported));
     for (const c of cues) {
       if (c.sourceId !== g.id || c.source === 'playout') continue;
-      out.cues[c.id] = appearanceOf(resolveFrame(effectiveAdjust(g.adjust, c.adjust), measured.cues[c.id] ?? null, frame, frame));
+      const fold = effectiveAdjust(g.adjust, c.adjust);
+      out.cues[c.id] = appearanceOf(resolveFrame(fold, measured.cues[c.id] ?? null, frame, frame), resolveStyle(fold, imported));
     }
   }
   return out;

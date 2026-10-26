@@ -2476,6 +2476,93 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
 });
 
 /**
+ * TYPE AND COLOUR FROM THE PRODUCTION PAGE (docs/work-specs/playout-adjustments/spec.md, phase 2;
+ * AC-6's per-graphic and per-cue half as the operator meets it). The style goes into each graphic's
+ * document as `:root` variables on its root element, so this reads them there, on PREVIEW and on
+ * PROGRAM, and counts entrances (`data-plays`) to show Update applies them with no replay. The
+ * rendered-face claims are e2e/playout-adjust.spec.ts and scripts/cue-adjust.test.mjs.
+ */
+test('Adjust retypes and recolours a lower third: a cue colour overrides the graphic colour, As designed returns, Update airs it with no replay', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'Type Night');
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
+    shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  const rootVar = (where: 'preview' | 'program', name: string) =>
+    page
+      .frameLocator(where === 'preview' ? '[data-testid="production-preview"] iframe' : '[data-testid="program-stage"] iframe')
+      .locator('html')
+      .evaluate((el, n) => el.style.getPropertyValue(n), name)
+      .catch(() => null);
+  const designAccent = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { templateForSavedGraphic, loadGraphics } = await import('/src/model/library.ts');
+    const { getCssVariable } = await import('/src/model/cssVars.ts');
+    return getCssVariable(templateForSavedGraphic(loadShows().find((s) => s.id === id)!.graphics[0], loadGraphics()).css, 'accent');
+  }, showId);
+  const summary = page.getByTestId('cue-adjust-summary');
+
+  await page.locator('.pd-cue').first().click();
+  await page.getByTestId('cue-adjust-toggle').click();
+  // The rows the design paints with, and nothing it does not.
+  await expect(page.getByTestId('adjust-type')).toBeVisible();
+  await expect(page.getByTestId('adjust-colour-accent')).toBeVisible();
+  await expect(page.getByTestId('adjust-style-none')).toHaveCount(0);
+
+  // The graphic's default: Archivo, Bold, an orange accent. PREVIEW takes each at once.
+  await page.getByTestId('adjust-typeface').selectOption({ label: 'Archivo' });
+  await expect.poll(() => rootVar('preview', '--font-heading')).toContain('Archivo');
+  await page.getByTestId('adjust-weight').getByRole('button', { name: 'Bold', exact: true }).click();
+  await expect.poll(() => rootVar('preview', '--display-weight')).toBe('700');
+  await page.getByTestId('adjust-colour-accent').fill('#ff7a00');
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
+  await expect(summary).toHaveText(/all 2 Hairline cues · Archivo Bold accent/);
+  // Nothing reaches PROGRAM by being prepared.
+  await page.getByTestId('verb-take').click();
+  const program = page.getByTestId('program-stage');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  await expect.poll(() => rootVar('program', '--accent')).toBe('#ff7a00');
+  await expect.poll(() => rootVar('program', '--font-heading')).toContain('Archivo');
+
+  // The second cue's own accent overrides the graphic's and keeps its face.
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-colour-accent').fill('#00aaff');
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#00aaff');
+  await expect.poll(() => rootVar('preview', '--font-heading')).toContain('Archivo');
+  await expect(summary).toHaveText(/only this cue · Archivo Bold accent/);
+  // As designed on its Colour row: the design's own accent, while the graphic's stays orange.
+  await page.getByTestId('adjust-colour-designed').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('');
+  await expect(page.getByTestId('adjust-colour-designed')).toHaveAttribute('aria-pressed', 'true');
+  expect(designAccent).toBeTruthy();
+  // Stop the exception: the graphic's orange is back.
+  await page.getByTestId('adjust-stop-exception').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
+
+  // AC-8 for style: a change to the cue on air waits; ✎ Update airs it with no replay.
+  await page.locator('.pd-cue').first().click();
+  await page.getByTestId('adjust-colour-accent').fill('#22cc66');
+  await expect(page.locator('.pd-editor-fate')).toContainText('1 change not');
+  expect(await rootVar('program', '--accent')).toBe('#ff7a00');
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => rootVar('program', '--accent')).toBe('#22cc66');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  // Type as designed, then Reset: Update takes every variable off PROGRAM.
+  await page.getByTestId('adjust-type-designed').click();
+  await expect.poll(() => rootVar('preview', '--font-heading')).toBe('');
+  await page.getByTestId('adjust-reset').click();
+  await expect(summary).toHaveText(/as designed/);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => rootVar('program', '--accent')).toBe('');
+  await expect(program).toHaveAttribute('data-plays', '1');
+});
+
+/**
  * AC-3 AS THE OPERATOR READS IT: the readability line under Size, from the board's own measured
  * smallest text, on the two catalog boards the receipt measured (qz01 Arena Quiz, qz05 Arena Split).
  */
