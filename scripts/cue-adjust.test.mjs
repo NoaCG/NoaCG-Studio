@@ -24,6 +24,7 @@ const adjust = await import('../src/model/adjust.ts');
 const A = await import('../src/control/cueAdjust.ts');
 const G = await import('../src/control/adjustGeometry.ts');
 const St = await import('../src/control/cueStyle.ts');
+const TextFit = await import('../src/templates/shared/textFit.ts');
 const { fontById, fontStack, LATIN_EXT_RANGE } = await import('../src/model/fonts.ts');
 const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
 const { copyClip, pasteCopies } = await import('../src/model/cueClipboard.ts');
@@ -969,6 +970,7 @@ describe('what an author and an agent learn is adjustable (phase 2)', () => {
     const css = ':root { --font-heading: "Inter"; --accent: #f00; }\nhtml, body { font-family: var(--font-heading); }';
     assert.equal(St.styleReach({ css, js: '' }).family, true, 'an HTML design inherits the face from the reset');
     assert.equal(St.reachesAny(St.styleReach({ css, js: 'function fitSvgText(el) {}' })), false);
+    assert.equal(St.SVG_DESIGN_MARKER, TextFit.SVG_TEXT_FIT_MARKER, 'the marker the imported SVG design emits');
   });
 });
 

@@ -12,7 +12,6 @@
 
 import { readAdjust, readFont, type AdjustPatch, type FontRef } from '../model/adjust.ts';
 import { cssPaintsWith } from '../model/cssVars.ts';
-import { SVG_TEXT_FIT_MARKER } from '../templates/shared/textFit.ts';
 import type { AssetFile } from '../model/types.ts';
 import {
   FONTS,
@@ -212,9 +211,14 @@ export interface StyleReach {
   colours: (typeof COLOUR_VARS)[number][];
 }
 
+/** An imported SVG design's fit ladder, by the marker templates/shared/textFit.ts names
+ *  (`SVG_TEXT_FIT_MARKER`; control may not import templates, and scripts/cue-adjust.test.mjs holds
+ *  the two equal). */
+export const SVG_DESIGN_MARKER = 'function fitSvgText';
+
 export function styleReach(template: { css: string; js: string }): StyleReach {
   const { css } = template;
-  if (template.js.includes(SVG_TEXT_FIT_MARKER)) return { family: false, weight: false, colours: [] };
+  if (template.js.includes(SVG_DESIGN_MARKER)) return { family: false, weight: false, colours: [] };
   return {
     family: cssPaintsWith(css, 'font-heading'),
     weight: cssPaintsWith(css, 'display-weight'),
