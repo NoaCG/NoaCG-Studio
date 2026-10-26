@@ -144,26 +144,35 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
     if (motion === 'pop') {
       // Browser A/B diagnosis: retain the original assertions below and compare the same
       // document with the pre-repair hide/measure order. This probe has no weaker pass gate.
-      const oldOrder = html
-        .replace(/travel\.removeAttribute\('data-noacg-stopped'\);\s*(var text = artwork\.text\.getBoundingClientRect\(\);)/, '$1')
+      const earlyReveal = /travel\.removeAttribute\('data-noacg-stopped'\);\s*(var text = artwork\.text\.getBoundingClientRect\(\);)/;
+      expect(html).toMatch(earlyReveal);
+      const oldOrder = html.replace(earlyReveal, '$1')
         .replace("travel.setAttribute('data-noacg-rolling', '');", "travel.removeAttribute('data-noacg-stopped');\n    travel.setAttribute('data-noacg-rolling', '');");
       expect(oldOrder).not.toBe(html);
-      const probe = await page.context().newPage();
-      try {
-        await probe.setContent(oldOrder);
-        await probe.evaluate(() => (window as unknown as { play(): void }).play());
-        await expect.poll(() => probe.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
-        const control = await probe.locator('.imported-design-credits').evaluate((el) => {
-          const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void }; noacgCreditsLast: unknown };
-          w.noacgCreditsTween.pause();
-          w.noacgCreditsTween.progress(0);
-          const start = el.getBoundingClientRect().top;
-          w.noacgCreditsTween.progress(1);
-          return { start, end: el.getBoundingClientRect().bottom, measured: w.noacgCreditsLast };
-        });
-        await testInfo.attach('Pop hidden-measurement control', { body: JSON.stringify(control, null, 2), contentType: 'application/json' });
-      } finally {
-        await probe.close();
+      const variants = [
+        ['hidden-measurement', oldOrder],
+        ['transparent-measurement', oldOrder.replace('visibility: hidden;', 'opacity: 0;')],
+        ['relayout-measurement', oldOrder.replace('var text = artwork.text.getBoundingClientRect();',
+          'travel.removeChild(artwork.text); travel.appendChild(artwork.text); var text = artwork.text.getBoundingClientRect();')],
+      ];
+      for (const [name, source] of variants) {
+        const probe = await page.context().newPage();
+        try {
+          await probe.setContent(source);
+          await probe.evaluate(() => (window as unknown as { play(): void }).play());
+          await expect.poll(() => probe.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+          const control = await probe.locator('.imported-design-credits').evaluate((el) => {
+            const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void }; noacgCreditsLast: unknown };
+            w.noacgCreditsTween.pause();
+            w.noacgCreditsTween.progress(0);
+            const start = el.getBoundingClientRect().top;
+            w.noacgCreditsTween.progress(1);
+            return { start, end: el.getBoundingClientRect().bottom, measured: w.noacgCreditsLast };
+          });
+          await testInfo.attach(`Pop ${name} control`, { body: JSON.stringify(control, null, 2), contentType: 'application/json' });
+        } finally {
+          await probe.close();
+        }
       }
     }
     expect(Math.abs(geometry.start - geometry.frameBottom), `${motion}: the first glyph starts at the output's bottom: ${JSON.stringify(geometry)}`).toBeLessThan(0.5);
