@@ -687,11 +687,11 @@ test.describe('live candidates', () => {
       // Aino on the output; Sara's cue is not ready to Take.
       await step(6, 'person-deleted', 13_000, async () => {
         await expect(on('Candidate card', '#f2')).toHaveText('3,640', WIRE);
-        expect(await accepted()).toBe(4);
-        await select(page, 'Sara Example');
-        await expect(page.getByTestId('verb-take')).toHaveAttribute('title', /revision 4 has no district "02", candidate 103/, WIRE);
-        await expect(page.getByTestId('verb-take')).toBeDisabled();
       });
+      expect(await accepted()).toBe(4);
+      await select(page, 'Sara Example');
+      await expect(page.getByTestId('verb-take')).toHaveAttribute('title', /revision 4 has no district "02", candidate 103/, WIRE);
+      await expect(page.getByTestId('verb-take')).toBeDisabled();
       // A valid empty list: Aino stays on air, the hold and its age said off air.
       await step(7, 'empty-collection', 13_000, async () => {
         await expect.poll(accepted, WIRE).toBe(5);

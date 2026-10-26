@@ -404,6 +404,14 @@ begin
       raise exception '0102 self-check failed: the collection leaf appended a row (% rows)', v_n;
     end if;
 
+    -- 0101's revision gap still holds here: a second revision inside 5 s is refused, nothing written.
+    update public.production_source_snapshots set changed_at = now() - interval '4.9 seconds' where show_id = v_show;
+    if public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":2}',
+         jsonb_build_object('external.e1.cands', 'too soon'))->>'refused' is distinct from 'too_soon'
+       or (select s.data #>> '{external,e1,cands}' from public.control_shows s where s.id = v_show) is distinct from v_text then
+      raise exception '0102 self-check failed: a second revision inside 5 s was accepted';
+    end if;
+
     -- A bound leaf keeps 0088's value rules: an object there is not replaced by text.
     update public.control_shows set data = jsonb_set(data, '{external,e1,count}', '{"held":true}') where id = v_show;
     update public.production_source_snapshots set changed_at = now() - interval '5 seconds' where show_id = v_show;

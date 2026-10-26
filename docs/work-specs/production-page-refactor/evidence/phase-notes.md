@@ -127,8 +127,9 @@ changes a spec's digest.
   count-increase 2666 [2362, 2657, 1819, 2254, 3201, 2680] (board, bug and card all moved);
   correction-down 2029 [2041, 2089, 2050, 2053, 2088, 1509] (card 3,650, KOK 224,100); older 1904
   and malformed 1894 (held by the agent, nothing moved); person-deleted 4872 (the aired card to
-  3,640 on the output, candidates only, through the page's 5 s read; earlier runs timed Sara's
-  refused Take instead: 4579 to 5051); empty collection 4831 [4819 to 4908] (the hold said off
+  3,640 on the output, candidates only, through the page's 5 s read; that run's clock also
+  covered Sara's refused Take, so it is an upper bound; the final walk times the card alone:
+  4635; earlier runs timed only Sara's refused Take: 4579 to 5051); empty collection 4831 [4819 to 4908] (the hold said off
   air); duplicate receipt 16049. The walk fails a bound-field step above 10 s and a candidates-only
   step above 13 s; a 15 s page read turned it red. Renderer payloads: every card update is one
   whole record of one revision (f0 to f5), exactly one after revision 3 (3,640); no update row carries
@@ -163,10 +164,11 @@ changes a spec's digest.
   self-check passing, and 0101's self-check passing when run after 0102 (the fences unchanged).
   Browser, local stack, final code: `election-selection.spec.ts` 7 of 7 (AC-1 to AC-4, the no-0102
   walk), `external-data-connector.spec.ts` 4 of 4, `production-pack.spec.ts` 7 of 7. Mutation
-  checks, each red: SQL (13) the allowance off, any source, any version, the list cap at 63 and
+  checks, each red: SQL (15) the allowance off, any source, any version, the list cap at 63 and
   65, nine keys, an unanchored path, a seed's object refused, the context without collections, a
-  bound leaf skipping 0088's rule, nesting under a bound path, nesting under another collection, a
-  non-list read; Node (15) any source, a bound leaf taken (a first pass survived; the test was
+  bound leaf skipping 0088's rule, nesting under a bound path, nesting under another collection,
+  the revision gap at 4.9 s and 5.1 s (0102's own self-check now pins 0101's gap on the replaced
+  function, from the fourth assessment), a non-list read; Node (15) any source, a bound leaf taken (a first pass survived; the test was
   tightened), the list cap at 63 and 65, not a record, a negative revision, no items, the item and
   text caps, a hostile string read, a missing collection unreported, the route dropping the
   context's collections, and three timeline mutations; browser (4) the Connect write's middle
@@ -754,15 +756,6 @@ changes a spec's digest.
     `Show.sources`, so no address, key or credential leaves, and an imported production rebinds
     its source explicitly (E5 AC-4). A later-version recipe exported from this build makes the
     file refused on import, never flattened.
-- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
-  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
-  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
-  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
-  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
-  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
-- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
-  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
-  phase S.
 - **Files beyond the phase's list, and why.** `.dependency-cruiser.cjs` (packs may import
   `control/sourceMapping.ts`, the one reader, and nothing else of control), `docs/GRAPHICS_PACKS.md`
   (the format's v3 keys), `src/styles/playout-dashboard.css` (the menu), `scripts/build-production-pack.mjs`
@@ -1076,15 +1069,6 @@ changes a spec's digest.
     loaded yet (a team production before its fetch) forgets no kept instance.
   - *Undo brings back a deleted candidate cue* with its selection: history slices are the
     record's own bytes. Any other write still may not add a selection.
-- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
-  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
-  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
-  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
-  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
-  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
-- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
-  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
-  phase S.
 - **Files beyond the phase's list, and why.** `src/control/selectionAir.ts` (the aired instance's
   pure folds, testable in Node; the page rule wants behaviour in `src/control/`),
   `src/control/playoutSession.ts` (its store part), `graphicVerbs.ts`, `takeBlockers.ts`,
@@ -1548,15 +1532,6 @@ changes a spec's digest.
   - *Export*: the SPX package's "What SPX does not carry" names each connector, its endpoint and a
     recipe this build reads (a later one is left out, never printed), and says to register it in
     the new production and start its agent there: the rebind is explicit.
-- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
-  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
-  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
-  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
-  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
-  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
-- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
-  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
-  phase S.
 - **Files beyond the phase's list, and why.** `src/control/connectorReview.ts` is new: the writer
   adapter could not live in `productionDataSession.ts` (the live tree, never the show record) or in
   `sourceMapping.ts` (the api imports it, and `shows.ts` would come with it), and `model/` cannot
@@ -1666,15 +1641,6 @@ changes a spec's digest.
     ties, each well under a second; formatters are made once per format, not per cell.
   - *E7.1's seam*: `recipeItems` returns a list's items in recipe order with identity checked; a
     keyed selector is a separate argument that reads them by id, without rewriting shared bindings.
-- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
-  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
-  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
-  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
-  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
-  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
-- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
-  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
-  phase S.
 - **Files beyond the phase's list, and why.** `src/model/productionData.ts` holds the recipe types
   and the read-only gate: `sourceMapping.ts` already imports it at runtime, so the api typecheck
   sees nothing new, while a type import of `shows.ts` would pull the whole page model into it and
@@ -1795,15 +1761,6 @@ changes a spec's digest.
     old timing now pins this one).
   - *`--send` is https*, or plain http to this machine only (a local stack). The agent needs no npm
     packages: a clone and Node 22 are the whole install.
-- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
-  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
-  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
-  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
-  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
-  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
-- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
-  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
-  phase S.
 - **Files beyond the phase's list, and why.** `src/control/externalSource.ts` (the contract: the
   registration, the envelope, `projectPayload`, the limits), `src/control/contentFormats.ts` (the
   cell fold was quadratic: 200 KB of spaces took 47 s; now a scan, equal to the old regex on 200 000
@@ -3243,15 +3200,6 @@ changes a spec's digest.
   - Selection, PREVIEW and staged edits already had their own words (the cursor, PREVIEW's label,
     the unsent line and ✎ Update); they are unchanged.
   - No new confirmation protocol, renderer acknowledgement or composite renderer.
-- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
-  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
-  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
-  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
-  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
-  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
-- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
-  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
-  phase S.
 - **Files beyond the phase's list, and why.** `src/control/liveData.ts` (the gate and removal
   rules, Node-testable), `src/model/shows.ts` (`setGraphicCopyScript`, the copy write),
   `src/control/playoutStatus.ts` (`programAir`, `takeTargets`: the existing Node status contract),
@@ -3489,15 +3437,6 @@ changes a spec's digest.
   - "Offline e2e: the receipt": the offline suite has no backend, so it cannot hold a receipt;
     it covers the card, the Connect flow, the example and the sender file, and the receipt's
     words are in `data-pause`; the receipt within 5 s is the configured walk.
-- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
-  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
-  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
-  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
-  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
-  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
-- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
-  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
-  phase S.
 - **Files beyond the phase's list, and why.** `api/_lib/dataIngest.ts` (the held answers),
   `src/control/productionDataSession.ts` and `scripts/production-data-session.test.mjs` (the
   owner's Data view names its production, so it takes the owner's door),
@@ -3603,15 +3542,6 @@ changes a spec's digest.
     the Data overview and the connected-field mark name the kind ("News feed: …", "about every
     5 min"); a connected feed list says "Connected to News feed: …" with Disconnect, as there is no
     source to edit.
-- **The route's real size limit.** One revision's payload is at most 256 KiB as the database
-  measures it (its jsonb text): 1,475 candidates of the package's shape fit, 1,476 do not, checked
-  against Postgres and pinned in `source-mapping.test.mjs` (which reads `c_payload_bytes` from
-  0102). The page's caps (5,000 items, 512 Ki characters) cannot be reached through this route. A
-  value typed by hand into the candidate list is replaced whole by the next revision (no 0088
-  rule on that leaf, by design: one accepted revision whole); the runbook says to use Fixed values.
-- **Left for the laptop helper (non-gating):** the scratch CasparCG/Bridge and OBS walks of the
-  four graphics on this row's merge SHA (spec row E7.2b). The real-studio grade stays parent
-  phase S.
 - **Files beyond the phase's list, and why.** `src/control/sheetSource.ts` (the reader's `read`,
   cadence and lease options, kind-aware leaves), `src/control/hostedControl.ts` (the published
   lease's length), `src/model/productionData.ts` (the `feed.` prefix), `src/model/shows.ts`

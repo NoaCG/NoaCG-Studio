@@ -103,7 +103,7 @@ export function packageTimeline() {
     d.candidates.items.find((c) => c.district === '02' && c.candidate === 101).votes = 3650;
     d.parties.KOK = { share: '22.3%', votes: 224_100 };
   });
-  // Revisions 4 and 5 change the candidates alone (the time of the count included), so nothing a
+  // Revisions 4 and 5 change the candidates alone (the time of the count stays), so nothing a
   // field binds moves: the page hears them only from its own read of the tree.
   const rev4 = next(rev3, 4, (d) => {
     d.candidates.items = d.candidates.items.filter((c) => !(c.district === PACKAGE_DELETED[0] && c.candidate === PACKAGE_DELETED[1]));
