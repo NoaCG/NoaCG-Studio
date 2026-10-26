@@ -13,13 +13,20 @@
 //   6 person-deleted     revision 4, candidate FI2027_02_104 gone from the list
 //   7 empty-collection   revision 5, the candidate list valid and empty
 //
+// `timeline: 'package'` serves the election rehearsal package's own results instead
+// (packs/election-rehearsal/starter, phase E7.2b): the same eight steps, in a provider's shape
+// that the package's E5 recipe maps (votes as numbers, the time of the count as `observed_at`,
+// the candidates as one collection `{schemaRevision, revision, items}` keyed by district plus
+// candidate). Revision 3 corrects Aino Example and the Coalition downward, revision 4 drops Sara
+// Example (02/103), revision 5 has no candidates.
+//
 // The timeline starts at the first authorized read, so an agent that is slow to boot still sees
 // step 0; then the step is (clock() - start) / stepMs, held at the last, so it is exact under a
 // fake clock, and `at(i)` moves it by hand. It runs beside the agent with a certificate made for that
 // run only (`makeTestCertificate`, by openssl), so the agent keeps TLS validation on by trusting
 // just that one. Never a Vercel function (the function budget, docs/DEPLOYMENT.md).
 //
-//   node scripts/election-replay-server.mjs [--port <n>] [--step-ms <n>] --dir <folder>
+//   node scripts/election-replay-server.mjs [--port <n>] [--step-ms <n>] [--timeline package] --dir <folder>
 //
 // writes `ca.pem` and `token` (mode 0600) into the folder and prints the address, never the token.
 
@@ -57,16 +64,64 @@ export function replayTimeline() {
   ];
 }
 
+const PACKAGE_STARTER = path.join(ROOT, 'packs/election-rehearsal/starter');
+/** The candidate the package timeline drops at revision 4: district and candidate number. */
+export const PACKAGE_DELETED = ['02', 103];
+
+/** One count of the package as a provider would answer it. */
+function providerCount(file, revision, observedAt) {
+  const { summary, parties, candidates } = JSON.parse(readFileSync(path.join(PACKAGE_STARTER, file), 'utf8')).external.election;
+  const { updated: _shownByTheRecipe, ...counted } = summary;
+  return {
+    fixture: true,
+    note: 'Synthetic rehearsal results. Not an election count.',
+    revision,
+    observed_at: observedAt,
+    summary: counted,
+    parties: Object.fromEntries(Object.entries(parties).map(([code, p]) => [code, { share: p.share, votes: Number(p.votes.replace(/,/g, '')) }])),
+    candidates: { ...candidates, revision },
+  };
+}
+
+/** The package timeline (E7.2b): the starter's two counts, then the same events as the research one. */
+export function packageTimeline() {
+  const text = (doc) => `${JSON.stringify(doc, null, 2)}\n`;
+  const first = providerCount('revision-1.json', 1, '2027-02-20T18:14:00Z');
+  const second = providerCount('revision-2.json', 2, '2027-02-20T18:31:00Z');
+  const rev3 = structuredClone(second);
+  Object.assign(rev3, { revision: 3, observed_at: '2027-02-20T18:33:00Z' });
+  rev3.candidates.revision = 3;
+  rev3.candidates.items.find((c) => c.district === '02' && c.candidate === 101).votes = 3650;
+  rev3.parties.KOK.votes = 224_100;
+  const rev4 = structuredClone(rev3);
+  Object.assign(rev4, { revision: 4, observed_at: '2027-02-20T18:35:00Z' });
+  rev4.candidates = { ...rev4.candidates, revision: 4, items: rev4.candidates.items.filter((c) => !(c.district === PACKAGE_DELETED[0] && c.candidate === PACKAGE_DELETED[1])) };
+  const rev5 = { ...structuredClone(rev4), revision: 5, observed_at: '2027-02-20T18:37:00Z' };
+  rev5.candidates = { ...rev5.candidates, revision: 5, items: [] };
+  const correction = text(rev3);
+  return [
+    { name: 'count-01', text: text(first) },
+    { name: 'count-increase', text: text(second) },
+    { name: 'duplicate', text: text(second) },
+    { name: 'correction-down', text: correction },
+    { name: 'older', text: text(first) },
+    { name: 'malformed', text: correction.slice(0, Math.floor(correction.length / 2)) },
+    { name: 'person-deleted', text: text(rev4) },
+    { name: 'empty-collection', text: text(rev5) },
+  ];
+}
+
 const digest = (text) => createHash('sha256').update(String(text)).digest();
 
 /**
  * Start the server. `token` is the bearer credential it accepts, `cert`/`key` its PEM pair.
  * Answers `{ url, step(), at(i), close() }`; `url` is the /results address.
  */
-export async function startReplayServer({ token, cert, key, clock = Date.now, stepMs = DEFAULT_STEP_MS, host = '127.0.0.1', port = 0 }) {
+export async function startReplayServer({ token, cert, key, clock = Date.now, stepMs = DEFAULT_STEP_MS, host = '127.0.0.1', port = 0, timeline = 'research' }) {
   if (!token) throw new Error('the replay server needs a bearer token');
   if (!(Number.isFinite(stepMs) && stepMs > 0)) throw new Error('stepMs must be a positive number of milliseconds');
-  const steps = replayTimeline();
+  if (timeline !== 'research' && timeline !== 'package') throw new Error('timeline must be research or package');
+  const steps = timeline === 'package' ? packageTimeline() : replayTimeline();
   const expected = digest(`Bearer ${token}`);
   let start = null;
   const step = () => (start === null ? 0 : Math.min(steps.length - 1, Math.max(0, Math.floor((clock() - start) / stepMs))));
@@ -125,13 +180,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const arg = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
   const dir = arg('--dir');
   if (!dir) {
-    process.stderr.write('usage: election-replay-server.mjs --dir <folder> [--port <n>] [--step-ms <n>]\n');
+    process.stderr.write('usage: election-replay-server.mjs --dir <folder> [--port <n>] [--step-ms <n>] [--timeline package]\n');
     process.exit(1);
   }
   const { cert, key, certFile } = makeTestCertificate(dir);
   const token = makeToken();
   writeFileSync(path.join(dir, 'token'), token, { mode: 0o600 });
-  const server = await startReplayServer({ token, cert, key, port: Number(arg('--port') ?? 0), stepMs: Number(arg('--step-ms') ?? DEFAULT_STEP_MS) });
+  const server = await startReplayServer({ token, cert, key, port: Number(arg('--port') ?? 0), stepMs: Number(arg('--step-ms') ?? DEFAULT_STEP_MS), timeline: arg('--timeline') ?? 'research' });
   process.stdout.write(`replay server at ${server.url}\ncertificate ${certFile}\ntoken in ${path.join(dir, 'token')}\n`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close().then(() => process.exit(0)));
 }

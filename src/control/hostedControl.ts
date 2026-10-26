@@ -576,6 +576,9 @@ export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCu
     // policy reads the column: a Sheet link grants reading, and no output or audience function
     // selects it.
     sources: show.sources ?? [],
+    // The COLLECTION RECIPES too (migration 0102, E7.2b): a source's agent writes each one's leaf
+    // through the source route only while the row names it. Read by the route alone.
+    collections: show.collections ?? [],
     // The control PROFILE travels at publish for the same reason the bindings do: how this
     // production arranges its controls is AUTHORED state, like the panel and the
     // payload, and the hosted surfaces must not have to guess it (migration 0058,
@@ -608,8 +611,14 @@ export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCu
   // extra round trip, only on the instances that need it, and only until they are migrated.
   if (error === 'moved') throw new PublishBehind(RACED);
   if (error) {
-    const { profile: _dropped, sources: _unknown, ...withoutProfile } = published;
-    const retry = await writeControlShow(sb, withoutProfile, expected);
+    // An instance behind only on 0102 keeps its sources and profile; one further behind loses the
+    // three, as before.
+    const { collections: _new, ...withoutCollections } = published;
+    let retry = await writeControlShow(sb, withoutCollections, expected);
+    if (retry && retry !== 'moved') {
+      const { profile: _dropped, sources: _unknown, ...withoutProfile } = withoutCollections;
+      retry = await writeControlShow(sb, withoutProfile, expected);
+    }
     if (retry === 'moved') throw new PublishBehind(RACED);
     // The retry failing means the error was never about this column — report the ORIGINAL, which
     // is the one that describes what is actually wrong.
@@ -677,12 +686,14 @@ export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCu
  * published. Throws on a refusal, or when it matched no row, so the page can say the change has not
  * reached the server and try again.
  */
-export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<void> {
+export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
   const write = (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).select('id');
-  let { data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] });
-  // PGRST204: an instance that has not run 0097 has no `sources` column; the bindings still go.
+  let { data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [], collections: show.collections ?? [] });
+  // PGRST204: an instance that has not run 0102 has no `collections` column, one before 0097 no
+  // `sources` either; what it has still goes.
+  if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] }));
   if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {} }));
   if (error) throw new Error(error.message);
   // Signed out, or no longer this account's row: the write matches nothing and says nothing.
@@ -695,15 +706,13 @@ export async function writePublishedSources(showId: string, show: Pick<Show, 'bi
  * the meantime. Answers whether this write set them; false when the row had them already (or has
  * no such column). Throws when the write itself failed, so the caller can try the same again.
  */
-export async function firstPublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<boolean> {
+export async function firstPublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Promise<boolean> {
   const sb = await getSupabase();
   if (!sb) return false;
-  const { data, error } = await sb
-    .from('control_shows')
-    .update({ bindings: show.bindings ?? {}, sources: show.sources ?? [] })
-    .eq('id', showId)
-    .is('sources', null)
-    .select('id');
+  const write = (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).is('sources', null).select('id');
+  let { data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [], collections: show.collections ?? [] });
+  // Without 0102 the collections wait for the next publish.
+  if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] }));
   if (error?.code === 'PGRST204' || error?.code === '42703') return false;
   if (error) throw new Error(error.message);
   return (data ?? []).length > 0;

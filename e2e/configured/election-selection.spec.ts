@@ -2,6 +2,8 @@
 // covers: src/control/graphicVerbs.ts, src/control/takeBlockers.ts, src/control/productionDataSession.ts
 // covers: src/components/home/ProductionPage.tsx, src/components/home/CueEditor.tsx, src/components/home/SelectionHolds.tsx
 // covers: src/model/productionState.ts, src/control/hostedControl.ts
+// covers: api/data/?...path?.ts, scripts/election-replay-server.mjs, scripts/external-data-connector.mjs
+// covers: supabase/migrations/0102_source_collections.sql, src/model/shows.ts
 //
 // LIVE CANDIDATES ON A PUBLISHED PRODUCTION (docs/work-specs/playout-election-package/spec.md,
 // phase E7.1; AC-2, AC-3 as far as the read gate and the resolver reach), against the configured
@@ -34,14 +36,25 @@
 // - E7.2a, AC-1: the shipped election rehearsal package installs, publishes, takes its starter
 //   count through the data API as a results source would, and airs all four graphics on a browser
 //   output; the cue editor's Live candidate menu (the writer) moves the aired card at Update.
+// - E7.2b, AC-4 (software/replay grade): the same package on its published production, its results
+//   read from the election replay server by the trusted agent (E4) through the source route, the
+//   party board and count bug through the source's E5 recipe and the candidates as the published
+//   collection's leaf (migration 0102). The whole timeline drives the four graphics on a browser
+//   output: what each renderer receives, what the output shows, a capture per step, and the time
+//   from the provider's change to the picture (docs/work-specs/playout-election-package/
+//   rehearsal.md). Loopback replay only: no claim about a real results feed or studio.
 
-import { readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, expect, type APIRequestContext, type APIResponse, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { publishProduction } from '../_publish';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
+import { makeTestCertificate, makeToken, startReplayServer } from '../../scripts/election-replay-server.mjs';
 
 test.skip(!haveCreds || !SERVICE_ROLE_KEY, 'E2E_EMAIL / E2E_PASSWORD / SUPABASE_SERVICE_ROLE_KEY unset - configured-mode spec');
 
@@ -525,6 +538,152 @@ test.describe('live candidates', () => {
     await expect(on('Candidate card', '#f0')).toHaveText('Leo Example', WIRE);
     expect((await updates(showId, 'Candidate card')).at(-1)).toMatchObject({ f0: 'Leo Example', f1: 'Finns Party · Helsinki', f2: '2,900', f5: '#E8B428' });
     await output.close();
+  });
+
+  test('AC-4 (E7.2b): the replay through the trusted agent drives all four graphics on the published production', async ({ page, context, request, baseURL }, info) => {
+    test.setTimeout(120_000);
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'election-replay-'));
+    const repo = (file: string) => fileURLToPath(new URL(`../../${file}`, import.meta.url));
+    const tls = makeTestCertificate(path.join(dir, 'replay'));
+    const token = makeToken();
+    // One step lasts a day: the walk moves the provider's timeline by hand.
+    const replay = await startReplayServer({ token, cert: tls.cert, key: tls.key, stepMs: 86_400_000, timeline: 'package' });
+    let agent: ReturnType<typeof spawn> | null = null;
+    let log = '';
+    try {
+      await signIn(page);
+      await page.keyboard.press('Escape');
+      await clearPublishedShows(page);
+      await wipeMyGraphics(page);
+      await page.goto('/app#/home/productions');
+      await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(repo('public/packs/election-rehearsal.noacgpack.json'));
+      await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
+      const showId = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
+      await publishProduction(page);
+      await page.keyboard.press('Escape');
+
+      // The source, registered as the runbook's file says (the write Connect data makes); the pack's
+      // bindings already follow `external.election.*`, so no field is connected by hand.
+      const registration = JSON.parse(readFileSync(repo('docs/work-specs/playout-election-package/replay-source.json'), 'utf8'));
+      const source = { ...registration, config: { ...registration.config, endpoint: replay.url } };
+      const refused = await page.evaluate(async ({ id, source }) => (await import('/src/model/shows.ts')).connectConnectorSource(id, source as never, [], null).error, { id: showId, source });
+      expect(refused).toBeNull();
+      // The row carries the source and the collection recipe at once (no new publish).
+      await expect.poll(async () => {
+        const { data } = await admin().from('control_shows').select('sources, collections').eq('id', showId).single();
+        return [(data?.sources ?? []).map((s: { id: string }) => s.id), (data?.collections ?? []).map((c: { id: string }) => c.id)];
+      }, WIRE).toEqual([['election'], ['candidates']]);
+      const { data_key: dataKey } = await tree(showId);
+
+      // The agent, as installed (docs/DATA_API.md), with the runbook's configuration.
+      const config = { ...JSON.parse(readFileSync(repo('docs/work-specs/playout-election-package/replay-agent.json'), 'utf8')), endpoint: replay.url };
+      writeFileSync(path.join(dir, 'agent.json'), JSON.stringify(config));
+      agent = spawn(process.execPath, [repo('scripts/external-data-connector.mjs'), '--config', path.join(dir, 'agent.json'), '--send', `${baseURL}/api/data/source`], {
+        env: { ...process.env, NOACG_DATA_KEY: dataKey, NOACG_SOURCE_REPLAY: token },
+        stdio: ['ignore', 'ignore', 'pipe'],
+        windowsHide: true,
+      });
+      agent.stderr!.on('data', (chunk) => (log += chunk));
+      const accepted = async () => (await admin().from('production_source_snapshots').select('accepted_revision').eq('show_id', showId).eq('source_id', 'election').maybeSingle()).data?.accepted_revision ?? 0;
+      const state = async () => (await admin().from('production_source_snapshots').select('status').eq('show_id', showId).eq('source_id', 'election').maybeSingle()).data?.status?.state;
+      await expect.poll(accepted, WIRE).toBe(1);
+      // Through the source route: the collection is one revision's JSON text (not the seed's object),
+      // and the count bug's time is the recipe's own formatting of the provider's `observed_at`.
+      const first = (await tree(showId)).data as { external: { election: { candidates: unknown; summary: { updated: string } } } };
+      expect(typeof first.external.election.candidates).toBe('string');
+      expect(JSON.parse(first.external.election.candidates as string)).toMatchObject({ schemaRevision: 1, revision: 1 });
+      expect(first.external.election.summary.updated).toBe('20:14');
+
+      const outputSlug = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.outputSlug ?? null, showId);
+      const output = await context.newPage();
+      await output.setViewportSize({ width: 1280, height: 720 });
+      await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}`);
+      const on = (title: string, sel: string) => output.frameLocator(`iframe[title="${title}"]`).locator(sel);
+      const capture = async (name: string) => info.attach(`output-${name}`, { body: await output.screenshot(), contentType: 'image/png' });
+
+      await take(page, 'Party totals');
+      await expect(on('Party totals', '#f8'), 'votes through the recipe').toHaveText('225,000', WIRE);
+      await take(page, 'Count status');
+      await expect(on('Count bug', '#f4'), 'the time through the recipe').toHaveText('20:14', WIRE);
+      await take(page, 'Headlines');
+      await expect(on('Ticker', '.tk-crawl')).toContainText('Polls have closed', WIRE);
+      await take(page, 'Aino Example');
+      await expect(on('Candidate card', '#f2')).toHaveText('3,500', WIRE);
+      await capture('count-01');
+      const takes = await transport(showId);
+
+      // Each provider step, timed from the move to the picture.
+      const timings: Record<string, number> = {};
+      const step = async (i: number, name: string, check: () => Promise<void>) => {
+        const started = Date.now();
+        replay.at(i);
+        await check();
+        timings[name] = Date.now() - started;
+        await capture(name);
+      };
+      await step(1, 'count-increase', async () => {
+        await expect(on('Party totals', '#f8')).toHaveText('228,000', WIRE);
+        await expect(on('Count bug', '#f2')).toHaveText('61 of 100 areas counted', WIRE);
+        await expect(on('Candidate card', '#f2')).toHaveText('3,700', WIRE);
+      });
+      // The duplicate is unchanged; it reads as a receipt (at most every 15 s), never a revision.
+      await step(2, 'duplicate', async () => {
+        await expect.poll(state, { timeout: 25_000 }).toBe('unchanged');
+        expect(await accepted()).toBe(2);
+      });
+      await step(3, 'correction-down', async () => {
+        await expect(on('Candidate card', '#f2')).toHaveText('3,650', WIRE);
+        await expect(on('Party totals', '#f8')).toHaveText('224,100', WIRE);
+      });
+      const corrected = await updates(showId, 'Candidate card');
+      // Each card update is one whole record from one revision.
+      expect(corrected.slice(-2)).toEqual([
+        expect.objectContaining({ f0: 'Aino Example', f1: 'National Coalition · Uusimaa', f2: '3,700', f3: 'Counting', f5: '#2F6FD6' }),
+        expect.objectContaining({ f0: 'Aino Example', f1: 'National Coalition · Uusimaa', f2: '3,650', f3: 'Counting', f5: '#2F6FD6' }),
+      ]);
+      // An older revision and malformed input: held by the agent, nothing moves.
+      await step(4, 'older', async () => expect.poll(state, WIRE).toBe('stale'));
+      await step(5, 'malformed', async () => expect.poll(state, WIRE).toBe('invalid'));
+      expect(await accepted()).toBe(3);
+      expect(await updates(showId, 'Candidate card')).toEqual(corrected);
+      // Sara is deleted: the aired card (Aino) is untouched, and Sara's cue is not ready to Take.
+      await step(6, 'person-deleted', async () => {
+        await expect.poll(accepted, WIRE).toBe(4);
+        await select(page, 'Sara Example');
+        await expect(page.getByTestId('verb-take')).toHaveAttribute('title', /revision 4 has no district "02", candidate 103/, WIRE);
+        await expect(page.getByTestId('verb-take')).toBeDisabled();
+      });
+      // A valid empty list: Aino stays on air, the hold and its age said off air.
+      await step(7, 'empty-collection', async () => {
+        await expect.poll(accepted, WIRE).toBe(5);
+        await expect(page.getByTestId('selection-hold')).toContainText('revision 5 holds no candidates', WIRE);
+      });
+      await expect(on('Candidate card', '#f0')).toHaveText('Aino Example');
+      await expect(on('Candidate card', '#f2')).toHaveText('3,650');
+      expect(await updates(showId, 'Candidate card')).toEqual(corrected);
+      // No provider step took, advanced, reset or cleared anything: the only transport is the Takes.
+      expect(await transport(showId)).toEqual(takes);
+      for (const graphic of ['Party totals', 'Count bug', 'Ticker', 'Candidate card']) {
+        expect((await rows(showId, graphic)).filter((r) => MOVES.has(r.t)).map((r) => r.t), graphic).toEqual(['play']);
+      }
+      // No update row ever carried the collection: outputs receive resolved values only.
+      for (const graphic of ['Party totals', 'Count bug', 'Ticker', 'Candidate card']) {
+        expect(JSON.stringify(await updates(showId, graphic)), graphic).not.toContain('schemaRevision');
+      }
+      expect(log).not.toContain(token);
+      expect(log).not.toContain(dataKey);
+      info.annotations.push({ type: 'replay timings (ms, provider move to picture)', description: JSON.stringify(timings) });
+      console.log(`E7.2b replay timings (ms): ${JSON.stringify(timings)}`);
+      await output.close();
+    } finally {
+      if (agent && agent.exitCode === null) {
+        const gone = new Promise((resolve) => agent!.once('exit', resolve));
+        agent.kill('SIGTERM');
+        await gone;
+      }
+      await replay.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

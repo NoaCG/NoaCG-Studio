@@ -1659,7 +1659,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // newer sources, unless the row has never had any (published before migration 0097); every
   // change after it is, a return to that first value included.
   // Keys sorted: a record read back from the server (jsonb reorders keys) is not a change.
-  const sourcesPlan = hostedSlug ? canonical([bindings ?? {}, show?.sources ?? []]) : null;
+  const sourcesPlan = hostedSlug ? canonical([bindings ?? {}, show?.sources ?? [], show?.collections ?? []]) : null;
   const sourcesPlanRef = useRef(sourcesPlan);
   sourcesPlanRef.current = sourcesPlan;
   const sourcesWriter = useRef<ReturnType<typeof latestWriter<string>> | null>(null);
@@ -1668,8 +1668,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     let noted = false;
     const writer = latestWriter(
       async (plan: string) => {
-        const [planBindings, planSources] = JSON.parse(plan) as [Show['bindings'], Show['sources']];
-        await writePublishedSources(id, { bindings: planBindings, sources: planSources });
+        const [planBindings, planSources, planCollections] = JSON.parse(plan) as [Show['bindings'], Show['sources'], Show['collections']];
+        await writePublishedSources(id, { bindings: planBindings, sources: planSources, collections: planCollections });
         for (const source of planSources ?? []) sourceStatus.poke(source.id);
       },
       {
@@ -1690,9 +1690,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const first = () => {
       const plan = sourcesPlanRef.current;
       if (!live || !plan) return;
-      const [planBindings, planSources] = JSON.parse(plan) as [Show['bindings'], Show['sources']];
+      const [planBindings, planSources, planCollections] = JSON.parse(plan) as [Show['bindings'], Show['sources'], Show['collections']];
       if (!planSources?.length) return;
-      firstPublishedSources(id, { bindings: planBindings, sources: planSources })
+      firstPublishedSources(id, { bindings: planBindings, sources: planSources, collections: planCollections })
         .then((wrote) => {
           if (live && wrote) for (const source of planSources) sourceStatus.poke(source.id);
         })

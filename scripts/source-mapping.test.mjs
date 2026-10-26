@@ -1,4 +1,4 @@
-// guards: src/control/sourceMapping.ts, src/control/externalSource.ts, src/control/contentFormats.ts, src/control/sheetSource.ts, api/_lib/dataTick.ts, api/data/[...path].ts, src/model/productionData.ts, supabase/migrations/0101_production_source_snapshots.sql
+// guards: src/control/sourceMapping.ts, src/control/externalSource.ts, src/control/contentFormats.ts, src/control/sheetSource.ts, api/_lib/dataTick.ts, api/data/[...path].ts, src/model/productionData.ts, supabase/migrations/0101_production_source_snapshots.sql, supabase/migrations/0102_source_collections.sql
 //
 // THE SHARED EVALUATOR AND THE SOURCE ROUTE'S OWN EDGES (docs/work-specs/playout-external-connectors/
 // spec.md, phase E4.2; AC-2, AC-4), in Node against the real modules:
@@ -12,7 +12,12 @@
 //   - the route's body cap, 256 KiB, at its edge, declared or counted, before any database call;
 //   - E5.1's recipe (docs/work-specs/playout-api-mapping/spec.md, AC-2, AC-4): each v1 operation,
 //     every bound at its edge, the holds (an invalid recipe, payload, number, date or row), a later
-//     version read-only, and a source with no recipe projecting exactly as before.
+//     version read-only, and a source with no recipe projecting exactly as before;
+//   - E7.2b's collection leaf (docs/work-specs/playout-election-package/spec.md, AC-4): each
+//     published collection recipe of this source writes its leaf as one revision's JSON text,
+//     with no binding; another source's, a later version's or a bound leaf's does not; what a page
+//     would refuse is held; a hostile list is refused linearly. Migration 0102's self-check pins
+//     the database half.
 // The fence, the revision gap, the 64 KiB row, the budget and the receipt gap live in the database:
 // migration 0101's self-check pins each at its edge, and e2e/configured/external-data-connector
 // .spec.ts drives them through the real route.
@@ -653,6 +658,105 @@ describe('a recipe\'s refusals below the list level, and payloads at the edge of
     const fmt = (locale) => recipe({ v: { from: 'v', format: { kind: 'number', locale, decimals: 0 } } });
     assert.equal(mapping.readSourceRecipe(fmt('en-US-u-nu-arab'), 'e1', 2).status, 'invalid');
     assert.equal(mapping.readSourceRecipe(fmt('en-US'), 'e1', 2).status, 'ok');
+  });
+});
+
+describe('E7.2b: a collection leaf through the route', () => {
+  const recipe = (over = {}) => ({ v: 1, id: 'cands', sourceId: 'e1', schemaRevision: 1, graphic: 'Card', from: 'candidates', key: ['district', 'candidate'], fields: { f0: { from: 'name' } }, ...over });
+  const revision = (rev, items) => ({ schemaRevision: 1, revision: rev, items });
+  const aino = { district: '02', candidate: 101, name: 'Aino Example', votes: 3500 };
+  const bindings = { Bug: { f0: 'external.e1.status' } };
+  const fields = { Bug: [text('f0')] };
+  const run = (payload, collections, over = {}) =>
+    mapping.projectSource({ sourceId: 'e1', payload, bindings: over.bindings ?? bindings, fieldsOf: (g) => fields[g] ?? null, collections, ...over.more });
+
+  test('a published recipe of this source writes its unbound leaf as the JSON text of one revision', () => {
+    const payload = { status: 'Counting', candidates: revision(2, [aino]) };
+    const out = run(payload, [recipe()]);
+    assert.deepEqual(out.writes, { 'external.e1.status': 'Counting', 'external.e1.candidates': JSON.stringify(revision(2, [aino])) });
+    // The page's resolver reads that text back to the same one entity and revision.
+    const tree = { external: { e1: { candidates: out.writes['external.e1.candidates'] } } };
+    const read = mapping.resolveSelection({ recipe: recipe(), tree, key: ['02', 101], fields: [text('f0')] });
+    assert.deepEqual(read, { status: 'ok', revision: 2, entity: '["02",101]', values: { f0: 'Aino Example' } });
+  });
+
+  test('no collections (an older page, an instance without 0102) projects exactly as before', () => {
+    const payload = { status: 'Counting', candidates: revision(2, [aino]) };
+    const before = mapping.projectSource({ sourceId: 'e1', payload, bindings, fieldsOf: (g) => fields[g] ?? null });
+    assert.deepEqual(run(payload, undefined), before);
+    assert.deepEqual(run(payload, null), before);
+    assert.deepEqual(run(payload, []), before);
+    assert.deepEqual(before.writes, { 'external.e1.status': 'Counting' });
+  });
+
+  test('another source\'s recipe, a later version, an invalid recipe and a bound leaf write no collection', () => {
+    const payload = { candidates: revision(1, [aino]), other: revision(1, []), later: revision(1, []), bound: revision(1, []) };
+    const out = run(payload, [recipe({ sourceId: 'e2', from: 'other' }), recipe({ v: 2, from: 'later' }), recipe({ key: [] , from: 'bound' }), { not: 'a recipe' }], {
+      bindings: { Bug: { f0: 'external.e1.bound' } },
+    });
+    assert.deepEqual(Object.keys(out.writes), []);
+    // The bound leaf is the legacy binding's: an object there is unfit, as it always was.
+    assert.deepEqual(out.unfit, ['bound']);
+  });
+
+  test('one leaf read by two recipes is written once; a missing collection is missing, not cleared', () => {
+    const out = run({ candidates: revision(3, []) }, [recipe(), recipe({ id: 'again', graphic: 'Other' })]);
+    assert.deepEqual(out.writes, { 'external.e1.candidates': JSON.stringify(revision(3, [])) });
+    const gone = run({ status: 'x' }, [recipe()]);
+    assert.equal('external.e1.candidates' in gone.writes, false);
+    assert.deepEqual(gone.missing, ['candidates']);
+  });
+
+  test('what every page would refuse is held with its reason, never written', () => {
+    const held = (value) => run({ candidates: value }, [recipe()]);
+    for (const [value, problem] of [
+      ['{"revision":1}', 'the collection is not a record'],
+      [[aino], 'the collection is not a record'],
+      [{ schemaRevision: 1, items: [] }, 'the collection has no revision'],
+      [{ schemaRevision: 1, revision: -1, items: [] }, 'the collection has no revision'],
+      [{ schemaRevision: 1, revision: 1.5, items: [] }, 'the collection has no revision'],
+      [{ schemaRevision: 1, revision: 1 }, 'the collection has no items'],
+    ]) {
+      const out = held(value);
+      assert.equal('external.e1.candidates' in out.writes, false, JSON.stringify(value));
+      assert.equal(out.problems.candidates, problem);
+    }
+  });
+
+  test('the bounds at their edges: 5000 items and 512 Ki characters of text are written, one more is held', () => {
+    const items = (n) => Array.from({ length: n }, (_, i) => ({ district: 'D', candidate: i }));
+    assert.ok('external.e1.candidates' in run({ candidates: revision(1, items(5000)) }, [recipe()]).writes);
+    assert.equal(run({ candidates: revision(1, items(5001)) }, [recipe()]).problems.candidates, 'the collection has more than 5000 items');
+    const padded = (length) => {
+      const base = JSON.stringify({ schemaRevision: 1, revision: 1, items: [], pad: '' }).length;
+      return { schemaRevision: 1, revision: 1, items: [], pad: 'x'.repeat(length - base) };
+    };
+    assert.equal(JSON.stringify(padded(512 * 1024)).length, 512 * 1024);
+    assert.ok('external.e1.candidates' in run({ candidates: padded(512 * 1024) }, [recipe()]).writes);
+    assert.equal(run({ candidates: padded(512 * 1024 + 1) }, [recipe()]).problems.candidates, 'the collection is longer than 524288 characters');
+  });
+
+  test('a hostile list of recipes: 64 are read, 65 or not a list hold every collection leaf; linear either way', () => {
+    const payload = { candidates: revision(1, [aino]) };
+    assert.equal(mapping.MAX_PUBLISHED_COLLECTIONS, 64);
+    assert.ok('external.e1.candidates' in run(payload, Array.from({ length: 64 }, () => recipe())).writes);
+    for (const raw of [Array.from({ length: 65 }, () => recipe()), { 0: recipe() }, 'candidates']) {
+      const out = run(payload, raw);
+      assert.equal('external.e1.candidates' in out.writes, false);
+      assert.match(out.problems.collections, /not a list of at most 64/);
+    }
+    const long = Array.from({ length: 1_000_000 }, () => recipe());
+    const wide = [recipe({ from: `${'a.'.repeat(200_000)}a` }), recipe({ fields: Object.fromEntries(Array.from({ length: 100_000 }, (_, i) => [`f${i}`, { from: 'x' }])) })];
+    const started = performance.now();
+    run(payload, long);
+    run(payload, wide);
+    assert.ok(performance.now() - started < 1000);
+  });
+
+  test('a recipe that holds the whole source holds its collection too', () => {
+    const out = mapping.projectSource({ sourceId: 'e1', payload: { candidates: revision(1, [aino]) }, bindings, fieldsOf: (g) => fields[g] ?? null, mapping: { v: 2 }, configRevision: 1, collections: [recipe()] });
+    assert.deepEqual(out.writes, {});
+    assert.equal(out.held.readOnly, true);
   });
 });
 

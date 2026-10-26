@@ -101,6 +101,18 @@ describe('a report goes through the registration\'s recipe', () => {
     const answer = await res.json();
     assert.deepEqual(answer.provenance, { sourceId: 'e1', recipe: { v: 1, configRevision: 1 } });
   });
+
+  test('E7.2b: the published collections the context answers reach the writes as one revision\'s text', async () => {
+    reset();
+    const recipe = { v: 1, id: 'cands', sourceId: 'e1', schemaRevision: 1, graphic: 'Card', from: 'candidates', key: ['district', 'candidate'], fields: { f0: { from: 'name' } } };
+    const context = db.rpc.control_source_context_by_key();
+    db.rpc.control_source_context_by_key = () => ({ ...context, collections: [recipe] });
+    const candidates = { schemaRevision: 1, revision: 1, items: [{ district: '02', candidate: 101, name: 'Aino Example' }] };
+    const acquisition = { v: 1, sourceId: 'e1', configRevision: 1, ownerEpoch: 2, acceptedRevision: 1, checkedAt: '2026-10-24T12:00:00.000Z', status: 'changed', payload: { parties: { kok: { share: 20.84 } }, candidates } };
+    assert.equal((await post({ v: 1, op: 'report', sourceId: 'e1', claim: 'agent:abc', acquisition })).status, 200);
+    const report = db.calls.find((c) => c.rpc === 'control_source_report_by_key');
+    assert.deepEqual(report.args.p_writes, { 'external.e1.share': '20,8', 'external.e1.candidates': JSON.stringify(candidates) });
+  });
 });
 
 describe('op "sample"', () => {

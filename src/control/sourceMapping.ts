@@ -453,6 +453,8 @@ export function projectSource(o: {
   lists?: Readonly<Record<string, SourceListAdapter>>;
   mapping?: unknown;
   configRevision?: number;
+  /** The production's published collection recipes (`Show.collections`, E7.2b), as stored. */
+  collections?: unknown;
 }): SourceProjection {
   const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
   const paths = [...new Set(sourcePaths(o.bindings, o.sourceId).map((p) => p.path).filter((p) => p.startsWith(prefix) && p.length > prefix.length))].sort();
@@ -505,7 +507,71 @@ export function projectSource(o: {
     else if (result === null) unfit.push(leaf);
     else writes[path] = result;
   }
+  projectCollections(o.collections, o.sourceId, o.payload, new Set(paths), { writes, missing, hold });
   return { writes, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: RECIPE_VERSION, configRevision: recipe.configRevision } : null } };
+}
+
+// ── E7.2b: a collection through the source route ─────────────────────────────────────────────
+//
+// A live candidate's collection is read by the page from the tree, at `external.<source>.<from>`
+// (below), and no field binds that leaf: the cue's selection, not a shared binding, reads it. So
+// the route writes each published collection recipe's leaf of this source as the JSON text of the
+// payload's object there, one accepted revision whole, and migration 0102 lets exactly those
+// leaves through beside the bound ones. Nothing here makes an update row: an unbound leaf moves
+// the tree only, so outputs keep receiving resolved values only. What every page would refuse
+// (not a record, no revision, no items, too many, too long) is held here instead of written.
+
+/** At most this many published recipes are read; a longer list holds every collection leaf. */
+export const MAX_PUBLISHED_COLLECTIONS = 64;
+
+function projectCollections(
+  raw: unknown,
+  sourceId: string,
+  payload: unknown,
+  bound: ReadonlySet<string>,
+  out: { writes: Record<string, string>; missing: string[]; hold: (leaf: string, problem: string) => void },
+): void {
+  if (raw === undefined || raw === null) return;
+  const prefix = `${sourcePrefix(sourceId, 'external')}.`;
+  if (!Array.isArray(raw) || raw.length > MAX_PUBLISHED_COLLECTIONS) {
+    out.hold('collections', `the production's collections are not a list of at most ${MAX_PUBLISHED_COLLECTIONS}`);
+    return;
+  }
+  const leaves = new Set<string>();
+  for (const entry of raw) {
+    const read = readCollectionRecipe(entry);
+    if (read.status === 'ok' && read.recipe.sourceId === sourceId && !bound.has(prefix + read.recipe.from)) leaves.add(read.recipe.from);
+  }
+  for (const leaf of [...leaves].sort()) {
+    const value = isObject(payload) ? atPath(payload as JsonValue, leaf) : undefined;
+    if (value === undefined) {
+      out.missing.push(leaf);
+      continue;
+    }
+    if (!isObject(value)) {
+      out.hold(leaf, 'the collection is not a record');
+      continue;
+    }
+    const revision = value.revision;
+    if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) {
+      out.hold(leaf, 'the collection has no revision');
+      continue;
+    }
+    if (!Array.isArray(value.items)) {
+      out.hold(leaf, 'the collection has no items');
+      continue;
+    }
+    if (value.items.length > MAX_ITEMS) {
+      out.hold(leaf, `the collection has more than ${MAX_ITEMS} items`);
+      continue;
+    }
+    const text = JSON.stringify(value);
+    if (text.length > MAX_COLLECTION_TEXT) {
+      out.hold(leaf, `the collection is longer than ${MAX_COLLECTION_TEXT} characters`);
+      continue;
+    }
+    out.writes[prefix + leaf] = text;
+  }
 }
 
 // ── E7.1: keyed selectors ────────────────────────────────────────────────────────────────────
