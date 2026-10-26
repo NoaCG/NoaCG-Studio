@@ -84,8 +84,12 @@ changes a spec's digest.
     block and PREVIEW subscribe to the `geometry` part themselves, and the page reads it only
     through `drawnDraft`, which renders the page when the waiting-change marks it draws differ.
     The journey reads the page's render count across a qualified measurement on a paused clock.
-  - *A Take reads the newest record* at the moment it sends (`latestShow`), not the record of the
-    render it was pressed from, which can be seconds older behind a held save.
+  - *A Take or Update reads the newest record:* when an Adjust press is still in the history's
+    queue it waits for it (capped 1 s) and reads the record from the store, so ← then Update airs
+    the ←; otherwise it reads the newest render's record at the moment it sends. A production
+    nobody adjusts answers at once, with no turn added to the press.
+  - *Foreign packages* (after E3) never receive an appearance: the stage forwards an update's data
+    only, and an appearance-only update not at all.
   - *PREVIEW changes for every production*: a 720p or portrait graphic in a 1080p production now
     sits at the stage origin on PREVIEW as it does on PROGRAM and the output, where it was centred.
   - *A Take of a placed cue nothing has measured yet* (just after a reload, a timed-out background
