@@ -689,7 +689,15 @@ describe('the bake and the root runtime (phase 1b)', () => {
     assert.equal(rest.length, 0);
     assert.equal(bake.id, R.APPEARANCE_SCRIPT_ID);
     assert.ok(bake.js.endsWith(`noacgApplyAppearance(${JSON.stringify(look)});`));
-    assert.doesNotThrow(() => new Function(bake.js), 'ES5 that parses');
+    assert.doesNotThrow(() => new Function(bake.js), 'it parses');
+  });
+
+  test('what the bake and the relay receiver emit is ES5, for CasparCG 2.3\'s Chromium 71', () => {
+    const look = { v: 1, frame: { dx: 1, dy: 2, s: 0.5, ox: 3, oy: 4 } };
+    for (const [what, js] of [['the bake', R.bakeAppearance(look)[0].js], ['the relay receiver', localReceiverJs('X', { appearance: true })]]) {
+      // No arrows, let/const, template strings or optional chaining (scripts/spx-text.test.mjs).
+      assert.doesNotMatch(js, /=>|\blet\b|\bconst\b|`|\?\./, what);
+    }
   });
 
   test('the relay receiver of a production nobody adjusted keeps its bytes (AC-10)', () => {
