@@ -14,6 +14,12 @@ import type { VerbSelection } from './graphicVerbs';
 
 /** Every surface's refusal of a live press that another cue took the layer from, before it sent. */
 export const changedNote = (graphic: string) => `Nothing sent: the cue on ${graphic} changed.`;
+/** A live press on a graphic with nothing on its layer. */
+export const offAirNote = (graphic: string) => `${graphic} is off air`;
+/** A live press on a layer airing a cue this page does not hold: there is no cue to count from. */
+export const unheldNote = (graphic: string) => `The cue on ${graphic} is not one this page holds`;
+/** A press's shared-value write that did not land (control/productionDataSession.ts). */
+export const SHARED_NOT_MOVED = 'The shared value did not move';
 
 /** D5: a pick group draws at most this many option buttons; above it the control stays one
  *  button reading the field. */

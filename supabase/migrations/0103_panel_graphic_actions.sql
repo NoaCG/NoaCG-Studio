@@ -97,8 +97,8 @@ begin
   if v_seen::numeric < 0 or v_seen::numeric <> trunc(v_seen::numeric) then
     return jsonb_build_object('ok', false, 'refused', 'bad-press');
   end if;
-  if v_verb is null or v_verb not in ('take', 'retake', 'update', 'next', 'out', 'select-prev', 'select-next',
-       'pause', 'resume', 'pause-toggle', 'all-out', 'select-cue', 'take-cue', 'trigger-cue', 'graphic-action') then
+  -- One list of the verbs this relay takes: `panel_relay`'s, which a page reads too.
+  if v_verb is null or not (public.panel_relay()->'verbs') ? v_verb then
     return jsonb_build_object('ok', false, 'refused', 'not-a-panel-verb');
   end if;
   if v_verb = 'graphic-action' then

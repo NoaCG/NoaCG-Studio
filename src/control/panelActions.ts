@@ -23,7 +23,8 @@ import type { VerbSelection } from './graphicVerbs';
 import { arrangeControls, isEventLegal } from './controlModel.ts';
 import { withLiveLabels } from '../blocks/controlLabels.ts';
 import { actionCarriesValues } from './selectionAir.ts';
-import { liveNumberFields, pickButton, pickOptions } from './liveControls.ts';
+import { liveNumberFields, offAirNote, pickButton, pickOptions, unheldNote } from './liveControls.ts';
+import { VersionRing } from './panelFeedback.ts';
 import { describeOgraf, readJson, validateActionArgs, type TypedNode } from '../model/ografTyped.ts';
 
 /** The graphic-actions protocol. The panel protocol stays 1 for every existing message and verb. */
@@ -108,7 +109,6 @@ export const STEP_ARGS: TypedNode = {
 
 export interface GraphicControls {
   graphic: string;
-  pinned: boolean;
   /** The cue live on the graphic's layer, as `liveSelection` resolves it, and its label. */
   live: string | null;
   cue: string | null;
@@ -124,10 +124,8 @@ export interface GraphicControls {
   aired: Record<string, string> | null;
 }
 
-const offAir = (graphic: string) => `${graphic} is off air`;
-
 /** What the page reads one pool graphic's controls from (its template's declaration, parsed once). */
-export interface PoolMachine {
+export interface ControlsMachine {
   buttons: ControlButton[];
   descriptors: FieldDescriptor[];
   /** The events Continue walks: a payload riding one of these is preparation, never a pick. */
@@ -142,8 +140,7 @@ export interface PoolMachine {
  */
 export function graphicControls(g: {
   graphic: string;
-  pinned: boolean;
-  machine: PoolMachine;
+  machine: ControlsMachine;
   sel: VerbSelection;
   /** The cue live on the layer, as the live map names it (the instance), or null off air. */
   live: string | null;
@@ -158,7 +155,6 @@ export function graphicControls(g: {
   const m = g.machine;
   return {
     graphic: g.graphic,
-    pinned: g.pinned,
     live: g.live,
     cue: g.sel.airCue?.label ?? null,
     arranged: arrangeControls(withLiveLabels(m.buttons, g.aired), g.arrange, (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
@@ -180,7 +176,7 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
   const caps: PanelCapability[] = [];
   const control = (c: ArrangedControl, place: PanelCapability['place'], section?: string) => {
     const allowed = live && g.legal(c.button.event);
-    const note = !live ? offAir(g.graphic) : allowed ? undefined : `${c.label} cannot fire in the graphic's state now`;
+    const note = !live ? offAirNote(g.graphic) : allowed ? undefined : `${c.label} cannot fire in the graphic's state now`;
     const options = c.options?.options;
     caps.push({
       id: `event:${c.button.event}`,
@@ -201,7 +197,7 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
   for (const c of g.arranged.more) control(c, 'more');
   for (const d of g.numbers) {
     const allowed = live && g.stepping;
-    const note = !live ? offAir(g.graphic) : allowed ? undefined : `The cue on ${g.graphic} is not one this page holds`;
+    const note = !live ? offAirNote(g.graphic) : allowed ? undefined : unheldNote(g.graphic);
     caps.push({ id: `step:${d.key}`, kind: 'step', label: d.label, place: 'section', args: STEP_ARGS, allowed, ...(note ? { note } : {}), invocable: true });
   }
   return caps.filter((c) => CAP_ID.test(c.id)).slice(0, ACTION_CAPS_MAX);
@@ -209,10 +205,10 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
 
 /** One pool graphic as a panel sees it, or null when it has nothing to press or a name the relay
  *  cannot carry (a graphic with no live controls draws no block either). */
-export function panelGraphic(g: GraphicControls): PanelGraphic | null {
+export function panelGraphic(g: GraphicControls, pinned: boolean): PanelGraphic | null {
   if (!g.graphic || !TEXT_128.test(g.graphic)) return null;
   const caps = graphicCapabilities(g);
-  return caps.length > 0 ? { graphic: g.graphic, pinned: g.pinned, live: g.live, cue: g.cue, caps } : null;
+  return caps.length > 0 ? { graphic: g.graphic, pinned, live: g.live, cue: g.cue, caps } : null;
 }
 
 /** A foreign action a manifest declares that cannot be offered, and why. */
@@ -276,9 +272,6 @@ export function wireActions(a: PanelActions, m: ActionsMeta) {
   };
 }
 
-export function actionsChanged(prev: PanelActions | null, next: PanelActions): boolean {
-  return !prev || JSON.stringify(prev) !== JSON.stringify(next);
-}
 
 // ── A relayed graphic action ────────────────────────────────────────────────────────────────────
 
@@ -341,20 +334,7 @@ export function readActionPress(p: unknown): ActionPress | OutOfBounds | null {
 }
 
 /** The last published actions, by `actionsVer`, as the panel state's ring is (panelFeedback.ts). */
-export class ActionsRing {
-  readonly #size: number;
-  readonly #by = new Map<number, PanelActions>();
-  constructor(size = 64) {
-    this.#size = size;
-  }
-  put(ver: number, a: PanelActions): void {
-    this.#by.set(ver, a);
-    while (this.#by.size > this.#size) this.#by.delete(this.#by.keys().next().value as number);
-  }
-  get(ver: number): PanelActions | undefined {
-    return this.#by.get(ver);
-  }
-}
+export class ActionsRing extends VersionRing<PanelActions> {}
 
 export type ActionOutcome = 'stale' | 'not-allowed' | 'not-here' | 'invalid';
 
@@ -396,7 +376,7 @@ export function judgeAction(press: ActionPress, now: PanelActions, then: PanelAc
   if (!drawn || !sameDeclaration(cap, drawn)) return { refused: 'stale', note: `${cap.label} changed on ${press.target} since the key was drawn` };
   if (!cap.invocable) return { refused: 'not-here', note: `${cap.label} cannot be pressed from a panel` };
   if ((graphic.live ?? '') !== press.instance) {
-    return graphic.live ? { refused: 'stale', note: `the cue on ${press.target} changed` } : { refused: 'not-allowed', note: offAir(press.target) };
+    return graphic.live ? { refused: 'stale', note: `the cue on ${press.target} changed` } : { refused: 'not-allowed', note: offAirNote(press.target) };
   }
   const args = Object.keys(press.args).length === 0 && !cap.args ? undefined : press.args;
   const errors = validateActionArgs({ id: cap.id, name: cap.label, args: cap.args }, args);
@@ -409,7 +389,7 @@ export function judgeAction(press: ActionPress, now: PanelActions, then: PanelAc
  *  graphic uses (`liveSelection`): the block's own verb, the block's own button. */
 export function runCapability(
   run: ActionRun,
-  machine: PoolMachine | undefined,
+  machine: ControlsMachine | undefined,
   sel: VerbSelection,
   verbs: { event: (sel: VerbSelection, button: ControlButton) => Promise<PressDone>; bump: (sel: VerbSelection, field: string, delta: number) => Promise<PressDone> },
 ): Promise<PressDone> {

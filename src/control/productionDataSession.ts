@@ -16,6 +16,7 @@
 // imported, so `scripts/production-data-session.test.mjs` drives it with fakes.
 
 import { applyPatch, diffResolved, getPath, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
+import { SHARED_NOT_MOVED } from './liveControls.ts';
 import type { ControlSendItem } from './hostedControl';
 import type { fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
 import type { DataPart, PlayoutSession } from './playoutSession';
@@ -75,9 +76,6 @@ export interface ProductionDataSession {
    *  to; a tree the part no longer holds is passed over, since the render for the newer one follows. */
   dispatch: (resolved: ResolvedValues, tree: JsonObject, send: DataSend) => void;
 }
-
-/** A press's shared-value write that did not land, as the note line says it. */
-export const BOUND_NOT_MOVED = 'The shared value did not move';
 
 export function createProductionDataSession(session: PlayoutSession, io: ProductionDataIo): ProductionDataSession {
   const part = session.data;
@@ -245,7 +243,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       const next = withTreeWrites(before, writes);
       const patch = replacementPatch(before, next);
       if (Object.keys(patch).length === 0) return true;
-      return operatorWrite(mode, next, patch, BOUND_NOT_MOVED);
+      return operatorWrite(mode, next, patch, SHARED_NOT_MOVED);
     },
 
     /**

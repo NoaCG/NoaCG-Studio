@@ -366,9 +366,11 @@ const CAPS_MAX = 48
 /** Read an `actions` payload: the actions, `'newer'` for an actions protocol this module does not
  *  speak, or null when it is not one. Bounded: at most 32 graphics of 48 capabilities are read. */
 export function readActions(p: unknown): PanelActions | 'newer' | null {
-	if (!isObject(p) || num(p.av) === null) return null
-	if (num(p.av) !== ACTIONS_PROTOCOL) return 'newer'
-	if (num(p.actionsVer) === null || typeof p.page !== 'string' || !Array.isArray(p.graphics)) return null
+	const av = isObject(p) ? num(p.av) : null
+	if (!isObject(p) || av === null) return null
+	if (av !== ACTIONS_PROTOCOL) return 'newer'
+	const actionsVer = num(p.actionsVer)
+	if (actionsVer === null || typeof p.page !== 'string' || !Array.isArray(p.graphics)) return null
 	const graphics: ActionGraphic[] = []
 	for (const g of p.graphics.slice(0, GRAPHICS_MAX)) {
 		if (!isObject(g) || typeof g.graphic !== 'string' || !g.graphic || !TEXT_128.test(g.graphic)) continue
@@ -376,6 +378,8 @@ export function readActions(p: unknown): PanelActions | 'newer' | null {
 		for (const c of Array.isArray(g.caps) ? g.caps.slice(0, CAPS_MAX) : []) {
 			if (!isObject(c) || typeof c.id !== 'string' || !CAP_ID.test(c.id)) continue
 			const kind = c.id.slice(0, c.id.indexOf(':')) as Capability['kind']
+			// A foreign descriptor is never pressed, whatever the payload says.
+			const invocable = kind !== 'foreign' && c.invocable === true
 			const options = Array.isArray(c.options)
 				? c.options
 						.filter(isObject)
@@ -394,10 +398,9 @@ export function readActions(p: unknown): PanelActions | 'newer' | null {
 				args: isObject(c.args) && typeof c.args.type === 'string' ? (c.args as ArgSchema) : null,
 				...(options ? { options } : {}),
 				...(typeof c.active === 'string' ? { active: c.active } : {}),
-				// A foreign descriptor is never pressed, whatever the payload says.
-				allowed: c.allowed === true && kind !== 'foreign' && c.invocable === true,
+				allowed: invocable && c.allowed === true,
 				...(typeof c.note === 'string' && c.note ? { note: c.note } : {}),
-				invocable: kind !== 'foreign' && c.invocable === true,
+				invocable,
 			})
 		}
 		graphics.push({
@@ -410,7 +413,7 @@ export function readActions(p: unknown): PanelActions | 'newer' | null {
 	}
 	return {
 		av: ACTIONS_PROTOCOL,
-		actionsVer: num(p.actionsVer)!,
+		actionsVer,
 		page: p.page,
 		claim: num(p.claim) ?? 0,
 		relay: p.relay === true,
@@ -448,13 +451,12 @@ export function capabilityState(
 	const g = actions.graphics.find((x) => x.graphic === graphic)
 	const cap = g?.caps.find((c) => c.id === id)
 	if (!g || !cap) return { state: 'unknown', note: `That action is not on ${graphic}` }
-	if (!actions.relay)
-		return { state: 'refused', note: 'Graphic actions wait for a NoaCG server update', cap, live: g.live }
+	const base = { cap, live: g.live }
+	if (!actions.relay) return { state: 'refused', note: 'Graphic actions wait for a NoaCG server update', ...base }
 	if (!cap.invocable)
-		return { state: 'refused', note: cap.note ?? `${cap.label} cannot be pressed from a panel`, cap, live: g.live }
-	return cap.allowed
-		? { state: 'allowed', note: cap.label, cap, live: g.live }
-		: { state: 'refused', note: cap.note ?? 'Not allowed right now', cap, live: g.live }
+		return { state: 'refused', note: cap.note ?? `${cap.label} cannot be pressed from a panel`, ...base }
+	if (!cap.allowed) return { state: 'refused', note: cap.note ?? 'Not allowed right now', ...base }
+	return { state: 'allowed', note: cap.label, ...base }
 }
 
 /** A payload's protocol version, for the "update the module" check. */

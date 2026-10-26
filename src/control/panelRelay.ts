@@ -26,10 +26,10 @@ import {
   type PressVerdict,
 } from './panelFeedback';
 import {
+  ACTIONS_PROTOCOL,
   ACTION_VERB,
   ActionsRing,
   NO_ACTIONS,
-  actionsChanged,
   judgeAction,
   readActionPress,
   wireActions,
@@ -229,7 +229,9 @@ export function answerPanel(opts: {
   const ring = new SnapshotRing();
   const actionRing = new ActionsRing();
   let actionsVer = 0;
+  /** The offer last published, and its JSON, which the next one is compared with. */
   let shownActions: PanelActions | null = null;
+  let shownActionsJson = '';
   /** Whether `panel_press` relays graphic actions; null until asked. */
   let relays: boolean | null = null;
   let claim = 0;
@@ -252,9 +254,11 @@ export function answerPanel(opts: {
   /** Publish the graphic actions when they changed, or always when `force` (protocol §10.2). */
   const publishActions = (force: boolean) => {
     const next = actionsNow();
-    if (actionsChanged(shownActions, next)) {
+    const json = JSON.stringify(next);
+    if (json !== shownActionsJson) {
       actionsVer++;
       shownActions = next;
+      shownActionsJson = json;
       actionRing.put(actionsVer, next);
     } else if (!force) return;
     send('actions', wireActions(shownActions ?? next, { actionsVer, page, claim }));
@@ -277,22 +281,31 @@ export function answerPanel(opts: {
     send('state', wireState(shown ?? snap, meta()));
   };
 
-  /** A GRAPHIC ACTION (protocol §10.4): the claim and the press id as every press, then the page's
-   *  judgement against what it advertises, then the one dispatcher; `result` says it ran (protocol
-   *  1, so every module reads it), `settled` what it came to. */
-  const onActionMessage = (payload: unknown) => {
-    const press = readActionPress(payload);
-    if (!press || stopped) return;
+  /** Every press, before it is judged (protocol §6.2 steps 1 and 2): another claim's is not this
+   *  page's (a higher one replaced it), and a press id handled lately is answered `duplicate` and
+   *  runs nothing. False when the press goes no further. */
+  const admit = (press: { claim: number; pressId: string; panel: { id: string } }, now: number): boolean => {
+    if (stopped) return false;
     if (press.claim !== claim) {
       if (press.claim > claim) replaced('another page');
-      return;
+      return false;
     }
-    const now = Date.now();
     const done = memory.get(press.pressId, now);
-    if (done) {
-      send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: 'duplicate', note: done.note });
-      return;
-    }
+    if (done) send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: 'duplicate', note: done.note });
+    return !done;
+  };
+  /** Remember what a press came to and answer it (`result`, protocol 1, which every module reads). */
+  const answer = (press: { pressId: string; panel: { id: string } }, verdict: PressVerdict, now: number) => {
+    memory.remember(press.pressId, verdict, now);
+    send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: verdict.outcome, ...(verdict.note ? { note: verdict.note } : {}) });
+  };
+
+  /** A GRAPHIC ACTION (protocol §10.4): admitted as every press, then the page's judgement against
+   *  what it advertises, then the one dispatcher; `result` says it ran, `settled` what it came to. */
+  const onActionMessage = (payload: unknown) => {
+    const press = readActionPress(payload);
+    const now = Date.now();
+    if (!press || !admit(press, now)) return;
     const offer = opts.actions?.() ?? null;
     // The offer as it stands, read once for the judgement and the words.
     const current = actionsNow();
@@ -303,8 +316,7 @@ export function answerPanel(opts: {
           ? judgeAction(press, current, actionRing.get(press.seen))
           : { refused: 'not-here' as const, note: 'Graphic actions are not on this page' };
     const verdict: PressVerdict = 'run' in judged ? { outcome: 'ran' } : { outcome: judged.refused, note: judged.note };
-    memory.remember(press.pressId, verdict, now);
-    send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: verdict.outcome, ...(verdict.note ? { note: verdict.note } : {}) });
+    answer(press, verdict, now);
     // The control's own words where the page still offers it, else its id.
     const named = 'invalid' in press ? null : press;
     const label = named && current.graphics.find((g) => g.graphic === named.target)?.caps.find((c) => c.id === named.cap)?.label;
@@ -313,7 +325,7 @@ export function answerPanel(opts: {
     opts.onPress(report);
     if (!('run' in judged) || !offer) return;
     const settle = (d: PressDone) => {
-      if (!stopped) send('settled', { av: 2, id: press.pressId, panel: press.panel.id, outcome: d.outcome, ...(d.note ? { note: d.note } : {}) });
+      if (!stopped) send('settled', { av: ACTIONS_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: d.outcome, ...(d.note ? { note: d.note } : {}) });
       // The page's own record says what it came to too, a refusal after the wait included.
       opts.onPress({ ...report, settled: d, at: Date.now() });
       // The press moved what the keys show.
@@ -328,21 +340,11 @@ export function answerPanel(opts: {
       return;
     }
     const press = readPress(payload);
-    if (!press || stopped) return;
-    if (press.claim !== claim) {
-      if (press.claim > claim) replaced('another page');
-      return;
-    }
     const now = Date.now();
-    const done = memory.get(press.pressId, now);
-    if (done) {
-      send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: 'duplicate', note: done.note });
-      return;
-    }
+    if (!press || !admit(press, now)) return;
     const verdict = judgePress(press, opts.snapshot(), ring.get(press.seen), opts.runs) ?? { outcome: 'ran' as const };
-    memory.remember(press.pressId, verdict, now);
     if (verdict.outcome === 'ran') opts.run(press.verb, press.target);
-    send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: verdict.outcome, ...(verdict.note ? { note: verdict.note } : {}) });
+    answer(press, verdict, now);
     opts.onPress({ panel: press.panel.label, verb: press.verb, verdict, at: now });
     // The press moved what the keys show; publish as soon as the page has drawn it.
     if (verdict.outcome === 'ran') setTimeout(() => publish(), 0);
@@ -407,10 +409,12 @@ export function answerPanel(opts: {
     // of this tab carries on under the same claim (L4), so it carries on counting from where the
     // page before it stopped, for the same reason.
     const before = handedOn(opts.slug);
-    ver = before && before.claim === claim ? Math.max(claim * 1_000_000, before.ver) : claim * 1_000_000;
-    if (before && before.claim === claim) rowsVer = before.rowsVer;
+    const same = !!before && before.claim === claim;
+    const resumed = (count: number | undefined) => (same ? Math.max(claim * 1_000_000, count ?? 0) : claim * 1_000_000);
+    ver = resumed(before?.ver);
+    if (same) rowsVer = before.rowsVer;
     // The graphic actions count the same way, for the same reason.
-    actionsVer = before && before.claim === claim ? Math.max(claim * 1_000_000, before.actionsVer ?? 0) : claim * 1_000_000;
+    actionsVer = resumed(before?.actionsVer);
     const ch = sb.channel(answer.press_topic, { config: { private: true } });
     pressChannel = ch;
     ch.on('broadcast', { event: 'press' }, (m: { payload: unknown }) => onPressMessage(m.payload));

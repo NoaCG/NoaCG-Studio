@@ -172,12 +172,9 @@ export function usePanelAnswer(opts: {
       },
       onPress: (report) => {
         setLast(report);
-        if (report.verdict.outcome !== 'ran') {
-          note.current?.(`${report.panel}: ${pressWords(report)} refused, ${report.verdict.note ?? report.verdict.outcome}`);
-        } else if (report.settled && report.settled.outcome !== 'accepted') {
-          // Ran, then refused or failed after the wait, or unanswered: said where a refusal is.
-          note.current?.(`${report.panel}: ${pressWords(report)} ${report.settled.outcome === 'unknown' ? 'not confirmed' : report.settled.outcome}, ${report.settled.note ?? report.settled.outcome}`);
-        }
+        // A refusal, or a graphic action that ran and then was refused, failed or went unanswered.
+        const outcome = outcomeWords(report);
+        if (outcome !== 'done') note.current?.(`${report.panel}: ${pressWords(report)} ${outcome}`);
       },
     });
     answer.current = a;
@@ -218,6 +215,14 @@ export function usePanelAnswer(opts: {
 /** What a press was, in the operator's words: a graphic action names itself. */
 function pressWords(report: PanelPressReport): string {
   return report.action ?? verbWords(report.verb as PanelVerb);
+}
+
+/** What a press came to, in the operator's words: done, or what stopped it and why. */
+function outcomeWords(report: PanelPressReport): string {
+  const { verdict, settled } = report;
+  if (verdict.outcome !== 'ran') return `refused, ${verdict.note ?? verdict.outcome}`;
+  if (!settled || settled.outcome === 'accepted') return 'done';
+  return `${settled.outcome === 'unknown' ? 'not confirmed' : settled.outcome}, ${settled.note ?? settled.outcome}`;
 }
 
 export type PanelTone = 'ok' | 'idle' | 'held' | 'off';
@@ -382,11 +387,7 @@ export function PanelDialog({
                 {answer.last && (
                   <p className="hint" data-testid="panel-last">
                     Last press: {answer.last.panel}, {pressWords(answer.last)}:{' '}
-                    {answer.last.verdict.outcome !== 'ran'
-                      ? `refused, ${answer.last.verdict.note ?? answer.last.verdict.outcome}`
-                      : answer.last.settled && answer.last.settled.outcome !== 'accepted'
-                        ? `${answer.last.settled.outcome === 'unknown' ? 'not confirmed' : answer.last.settled.outcome}, ${answer.last.settled.note ?? ''}`
-                        : 'done'}
+                    {outcomeWords(answer.last)}
                   </p>
                 )}
               </section>
