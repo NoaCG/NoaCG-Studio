@@ -283,3 +283,81 @@ Research §6.4 measured 192 ms p50 through Companion's Generic HTTP and a local 
 page dispatching a synthetic key event. This build removes the forwarder, calls `onVerb` directly
 on receipt, and keeps the RPC to one indexed key lookup, one update and one `realtime.send`. The
 module keeps its HTTPS connection alive between presses. Nothing on the path waits on feedback.
+
+## 10. Graphic actions (actions protocol 2)
+
+Added by `docs/work-specs/playout-companion-actions/spec.md` (E6.1) and migration
+`0103_panel_graphic_actions.sql`. Every message and verb above is unchanged and stays `v` 1.
+
+### 10.1 Compatibility
+
+A module reads `v` on every feedback payload and stops at a number it does not know (§8), so the
+two new feedback events carry `av` (the actions protocol, 2) and no `v`: a module that predates
+them ignores them. A module presses a graphic action only after a page advertised it, so an older
+page is never sent one. A module meeting an `av` it does not speak refuses graphic actions with
+"update the module" and keeps every transport key. A database without 0103 refuses the verb
+`not-a-panel-verb`; the page learns that from `panel_relay` (absent there), says so in its Panel
+dialog and advertises `relay: false`, and the module says the server needs an update.
+
+### 10.2 The offer (`actions`, page to panels)
+
+Published like `state`: on each change, on `want`, after joining. At most 32 graphics of 48
+capabilities each.
+
+```json
+{
+  "av": 2, "actionsVer": 12000003, "page": "k3j9x0q2m4n8b1c5", "claim": 12, "relay": true, "more": false,
+  "graphics": [{
+    "graphic": "House Score", "pinned": false, "live": "cue_8f2a", "cue": "Final",
+    "caps": [
+      { "id": "event:goalA", "kind": "event", "label": "Goal HOME", "place": "section", "section": "Goal",
+        "args": null, "allowed": true, "invocable": true },
+      { "id": "event:choose", "kind": "event", "label": "Answer", "place": "pinned",
+        "args": { "path": "", "type": "object", "closed": true, "properties": [
+          { "key": "option", "required": true, "node": { "path": "option", "type": "string", "enum": ["A", "B"] } }] },
+        "options": [{ "value": "A", "label": "Answer A" }, { "value": "B", "label": "Answer B" }], "active": "B",
+        "allowed": true, "invocable": true },
+      { "id": "step:f1", "kind": "step", "label": "Home", "place": "section", "args": { "...": "delta -1 or 1" },
+        "allowed": true, "invocable": true }
+    ]
+  }]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `actionsVer` | counts like `ver`, from the claim's million; a press names the one its key was drawn from |
+| `graphics[]` | every pool graphic with live controls; the target kind is the pool graphic, and `pinned` is presentation only |
+| `live` | the cue live on the graphic's layer (the instance a press names), or null off air |
+| `caps[].id` | `event:<event>`, `step:<field>` or `foreign:<action id>`; the only key a saved button is matched by |
+| `caps[].args` | the argument object's schema in E1's typed model (`src/model/ografTyped.ts` `TypedNode`), or null |
+| `allowed`, `note` | the page's own greying of that control, and why not |
+| `invocable` | false for a foreign OGraf action: a descriptor only, refused `not-here` |
+
+### 10.3 The press
+
+`panel_press(p_key, {v: 2, verb: "graphic-action", target, seen, id, cap, instance, args})`:
+`target` is the pool graphic (1 to 128 characters, no control characters), `seen` the offer's
+`actionsVer`, `cap` the capability id (its kind and up to 96 characters), `instance` the cue the
+key showed live (up to 128, empty off air), `args` an object of at most 4096 characters of JSON
+nested at most 8 deep. Anything else is `bad-press` with a `note` naming the bound. Forwarded on
+`pnp-` as `{v: 2, verb, target, seen, press_id, claim, panel, cap, instance, args}`.
+
+### 10.4 The page
+
+The claim and the press id as §6.2 steps 1 and 2 (a duplicate runs nothing). Then, against the
+offer now and the one at `seen` (a ring of 64): `stale` when `seen` is gone, the graphic or the
+capability id is no longer offered, its declaration changed since `seen`, or `instance` is not the
+cue live now; `not-here` for a foreign descriptor or a page that runs none (the hosted control
+page); `not-allowed` off air or greyed; `invalid` when `args` fail the schema. Otherwise it runs
+through the page's own verbs (`control/graphicVerbs.ts` `event`, or `bump` for a step) with the
+selection `liveSelection` builds for that graphic, never the page's selection, so the dispatcher's
+per-graphic queue, sent-figure base, write-on-acceptance and instance check after every wait all
+apply. `result` (protocol 1) says it ran; `settled` follows:
+
+| Event | Payload |
+|---|---|
+| `settled` | `{av: 2, id, panel, outcome: 'accepted' or 'refused' or 'failed' or 'unknown', note?}` |
+
+`unknown` is a send the server did not answer: it may still commit, and the press is never sent
+again.
