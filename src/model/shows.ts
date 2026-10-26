@@ -1434,7 +1434,14 @@ export function setCueSelection(
  * lost and the graphic's package is untouched. Rebased, and allowed by `typedFrozen` for this cue
  * and these bytes only; a read-only cue, or one whose graphic declares no schema, is never written.
  */
-export function setCueTyped(showId: string, cueId: string, on: boolean): { shows: Show[]; error: string | null; receipt: TypedReceipt | null } {
+export function setCueTyped(
+  showId: string,
+  cueId: string,
+  on: boolean,
+  /** The graphic's declaration as the page reads it (its library version, as its fields are);
+   *  absent, the production's own copy of the graphic. */
+  ograf?: unknown,
+): { shows: Show[]; error: string | null; receipt: TypedReceipt | null } {
   const plan = (show: Show): { error: string } | { typed: TypedValues | null; values: Record<string, string>; receipt: TypedReceipt | null } | null => {
     const cue = show.cues?.find((c) => c.id === cueId);
     if (!cue) return { error: 'This cue was removed.' };
@@ -1447,7 +1454,7 @@ export function setCueTyped(showId: string, cueId: string, on: boolean): { shows
     }
     if (cue.typed !== undefined) return null;
     const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
-    const declared = readOgrafDeclared(graphic?.template.ograf);
+    const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
     if (declared.status !== 'ok' || !declared.fields) return { error: 'This cue’s graphic declares no typed data.' };
     const { envelope, receipt } = migrateToTyped(declared.description, cue.values);
     if (!envelope) return { error: `Typed data was not turned on: ${receipt.refused.map((r) => (r.at ? `${r.at} ${r.reason}` : r.reason)).join('; ')}.` };

@@ -171,6 +171,11 @@ test('AC-2, AC-4: the writer turns typed data on and off through the doors; save
     shows.addGraphicToShow(plain.id, { ...template, name: 'Strap', ograf: undefined });
     const plainCue = shows.loadShows().find((s) => s.id === plain.id).cues[0];
     assert.equal(shows.setCueTyped(plain.id, plainCue.id, true).error, 'This cue’s graphic declares no typed data.');
+    // The page hands the writer the declaration it reads (the graphic's library version), which
+    // wins over the production's own copy.
+    shows.updateShowCueChecked(plain.id, plainCue.id, { values: native });
+    assert.equal(shows.setCueTyped(plain.id, plainCue.id, true, declared).error, null);
+    assert.deepEqual(shows.loadShows().find((s) => s.id === plain.id).cues[0].typed, envelope());
   } finally {
     globalThis.localStorage = previous;
   }
@@ -266,6 +271,8 @@ test('the output: typed values air as they are; a data road\'s text never replac
   const typedApply = main.indexOf('if (gate.values || gate.dropData) {', gate);
   assert.ok(gate > 0 && typedApply > gate && typedApply < main.indexOf('mergedData.set(row.graphic, merged);', gate), 'typed data never reaches mergedData');
   assert.match(main, /typed: TYPED_READER,/);
+  // A data road's update with no look applies nothing (a foreign Graphic would get updateAction({})).
+  assert.match(main, /if \(animate && \(gate\.values \|\| msg\.appearance\)\) stage\.apply\(/);
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
   assert.match(stage, /post\(graphic, \{ cmd: 'update', data: JSON\.stringify\(typedData \?\? msg\.data \?\? \{\}\) \}\);/);
 });

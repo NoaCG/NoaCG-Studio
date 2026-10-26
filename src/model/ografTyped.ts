@@ -798,8 +798,9 @@ export const DECLARED_VERSION = 1;
 
 /**
  * A GRAPHIC'S OGRAF DECLARATION, on its template (`SpxTemplate.ograf`): the manifest of the package
- * it was imported from, kept opaque and byte for byte, for its schema and its actions. Its own `v`.
- * Only a stranger's manifest is kept (model/importTemplate.ts); E3 adds the package's own bytes.
+ * it was imported from, kept whole as its JSON and never rewritten, for its schema and its actions.
+ * Its own `v`. Only a stranger's manifest within this reader's bounds is kept
+ * (model/importTemplate.ts); E3 adds the package's own bytes.
  */
 export interface OgrafDeclared {
   v: typeof DECLARED_VERSION;
@@ -860,22 +861,10 @@ export function typedPublishedFields<F extends { field: string }>(fields: F[], o
   return fields.map((f) => (keys.has(f.field) ? { ...f, typed: true as const } : f));
 }
 
-/** The longest typed member one command may carry, as UTF-8 JSON: the source route's row cap. */
+/** The longest typed member one command may carry, as UTF-8 JSON: the size a source report's row
+ *  keeps to (0101's 64 KiB), so a typed command is never the one row far larger than the rest. */
 export const TYPED_MAX_SEND_BYTES = 65536;
 
-const utf8Length = (text: string): number => {
-  let n = 0;
-  for (let i = 0; i < text.length; i += 1) {
-    const c = text.charCodeAt(i);
-    if (c < 0x80) n += 1;
-    else if (c < 0x800) n += 2;
-    else if (c >= 0xd800 && c <= 0xdbff) {
-      n += 4;
-      i += 1;
-    } else n += 3;
-  }
-  return n;
-};
 
 /**
  * THE TYPED TARGET ADAPTER, the page's half (E1.2a; the route's is control/sourceMapping.ts
@@ -926,7 +915,7 @@ export function typedForSend(
   const typed: TypedValues = { v: TYPED_VERSION, kind: 'values', standard: OGRAF_STANDARD.commit, schema: envelope.schema, values };
   const whole = typedValuesFault(declared, typed);
   if (whole) return { status: 'refused', reason: whole };
-  if (utf8Length(JSON.stringify(typed)) > TYPED_MAX_SEND_BYTES) return { status: 'refused', reason: `This cue’s typed data is larger than one command takes (${TYPED_MAX_SEND_BYTES / 1024} KiB).` };
+  if (new TextEncoder().encode(JSON.stringify(typed)).length > TYPED_MAX_SEND_BYTES) return { status: 'refused', reason: `This cue’s typed data is larger than one command takes (${TYPED_MAX_SEND_BYTES / 1024} KiB).` };
   return { status: 'ok', typed };
 }
 

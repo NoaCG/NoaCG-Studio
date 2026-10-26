@@ -4,9 +4,10 @@
 -- phase E1.2a: E5's typed values reach a foreign field in E1's envelope, never as E5's strings).
 --
 -- The source route's evaluator (src/control/sourceMapping.ts `projectSource`) writes a bound leaf
--- that only typed fields read (a published panel field carrying its manifest's property schema,
--- `typed`) as the JSON value the provider sent, checked against that schema, instead of text. The
--- page reads it from the tree when it takes or updates the cue and puts it in the cue's envelope.
+-- that only typed fields read (a published panel field its manifest declares, marked `typed`) as
+-- the JSON value the provider sent instead of text. The page reads it from the tree when it takes
+-- or updates the cue, checks it against the field's declared schema, and puts it in the cue's
+-- envelope. A path that already holds text takes a list only after it is cleared (0088's rule).
 -- 0102's report refused any value that was not a string. Here a BOUND path takes any value
 -- 0088's rules allow there (`production_data_may_replace`: a string, a number, a boolean or a list
 -- of them, over nothing or a value of its kind), which is what /patch has always written into the

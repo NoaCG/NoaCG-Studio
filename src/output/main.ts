@@ -724,7 +724,9 @@ async function boot(): Promise<void> {
       touched.add(graphic);
       const msg = incoming as Extract<ControlMessage, { t: 'update' }>;
       const look = msg.appearance ? { appearance: msg.appearance } : {};
-      if (animate) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look });
+      // A data road's update with no look moves nothing here: an empty update would reach a
+      // foreign Graphic as `updateAction({})`.
+      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look });
       if (road) live.applied(road, incoming, receivedAt);
       return;
     }

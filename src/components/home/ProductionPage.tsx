@@ -1434,10 +1434,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return graphic ? fieldDescriptors(templateForSavedGraphic(graphic, libraryRef.current).fields) : null;
   }, []);
   /** A pool graphic's OGraf declaration (E1.2a), from its library version as its fields are. */
-  const declaredOf = useCallback((name: string): DeclaredRead => {
+  const templateOgrafOf = useCallback((name: string): unknown => {
     const graphic = graphicsRef.current?.find((g) => g.name === name);
-    return readOgrafDeclared(graphic ? templateForSavedGraphic(graphic, libraryRef.current).ograf : undefined);
+    return graphic ? templateForSavedGraphic(graphic, libraryRef.current).ograf : undefined;
   }, []);
+  const declaredOf = useCallback((name: string): DeclaredRead => readOgrafDeclared(templateOgrafOf(name)), [templateOgrafOf]);
   const livePresenceRef = useRef(livePresence);
   livePresenceRef.current = livePresence;
 
@@ -1465,6 +1466,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const typedFor = useCallback(
     (cue: ShowCue, graphic: string): TypedSend => {
       if (cue.typed === undefined) return { status: 'none' };
+      // A live candidate's values are resolved as text (E7.1): the two do not combine.
+      if (cue.selection !== undefined) return { status: 'refused', reason: 'A cue with a live candidate takes no typed data.' };
       const declared = declaredOf(graphic);
       const nodes = new Map(declared.status === 'ok' && declared.fields ? (declared.fields.properties ?? []).map((p) => [p.key, p.node] as const) : []);
       const data = session.data.get();
@@ -1479,10 +1482,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const send = typedForSend(cue, declared, bound);
       if (send.status !== 'ok') return send;
       const presence = livePresenceRef.current;
-      const outputs = typedOutputsRefusal(publishedRef.current, presence.status, presence.peers);
+      // Peers of another production (the view before its rejoin) are not this one's outputs.
+      const outputs = typedOutputsRefusal(publishedRef.current, presence.showId === id ? presence.status : 'joining', presence.peers);
       return outputs ? { status: 'refused', reason: outputs } : send;
     },
-    [session, declaredOf],
+    [session, declaredOf, id],
   );
   /** The fields of a cue nothing typed or pressed here may move (E7.1): its candidate's, and every
    *  field of a cue this build reads only (a later version's selection). */
@@ -1557,13 +1561,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const typedSwitch = (cue: ShowCue | null): CueTypedSwitch | null => {
     const graphic = cue ? cueGraphicName(cue) : null;
     const declared = graphic ? declaredOf(graphic) : null;
-    if (!cue || cue.source === 'playout' || declared?.status !== 'ok' || !declared.fields || typedReadOnly(cue)) return null;
+    if (!cue || cue.source === 'playout' || cue.selection !== undefined || declared?.status !== 'ok' || !declared.fields || typedReadOnly(cue)) return null;
     return {
       on: cue.typed !== undefined,
       note: typedNote?.cueId === cue.id ? typedNote.note : null,
       toggle: async (on) => {
         if (!show || !(await flushDraft())) return;
-        const result = setCueTyped(show.id, cue.id, on);
+        const result = setCueTyped(show.id, cue.id, on, templateOgrafOf(graphic!));
         setShows(result.shows);
         const failure = result.error ?? (await commitDurableWrites());
         setTypedNote(failure ? { cueId: cue.id, note: failure } : null);
@@ -2568,8 +2572,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return cue ? [{ cue, graphic }] : [];
       }),
       airedData,
-      // A live candidate's fields come from its source, like a bound field: never "unsent".
+      // A live candidate's fields come from its source, like a bound field: never "unsent". Nor a
+      // typed cue's (E1.2a): its native strings wait for Off, and its data is its envelope.
       (graphic, cue) => {
+        if (cue.typed !== undefined) return Object.fromEntries(Object.keys(cue.values).map((f) => [f, 'typed']));
         const candidate = selectedFields(cue, show?.collections);
         return candidate.length ? { ...boundFields(graphic), ...Object.fromEntries(candidate.map((f) => [f, 'candidate'])) } : boundFields(graphic);
       },

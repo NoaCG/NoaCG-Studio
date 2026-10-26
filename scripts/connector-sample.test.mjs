@@ -150,7 +150,8 @@ describe('E1.2a: a field a foreign OGraf manifest declares takes the value as th
       { 'external.e1.home.name': 'Home' },
     ]);
     const answer = await res.json();
-    assert.deepEqual(answer.problems, { 'home.score': 'typed values wait for a NoaCG server update', 'home.live': 'typed values wait for a NoaCG server update' });
+    const waits = 'the database did not take typed values: it may need a NoaCG server update';
+    assert.deepEqual(answer.problems, { 'home.score': waits, 'home.live': waits });
     assert.deepEqual(answer.unfit.sort(), ['home.live', 'home.score']);
   });
 

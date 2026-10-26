@@ -504,7 +504,7 @@ async function source(req: Request): Promise<Response> {
 // table is service role only and its rows go with their production.
 
 /** What a typed value says while the database takes only text (before migration 0104). */
-const TYPED_WAITS = 'typed values wait for a NoaCG server update';
+const TYPED_WAITS = 'the database did not take typed values: it may need a NoaCG server update';
 
 /** An ask older than this is not waited on any more: the page reads through the hosted fetcher. */
 const SAMPLE_WAIT_MS = 60_000;

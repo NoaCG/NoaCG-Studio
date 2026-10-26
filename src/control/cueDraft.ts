@@ -50,6 +50,8 @@ export interface CueRecord {
   values: Record<string, string>;
   /** A live candidate's selector (model/shows.ts `ShowCue.selection`), when it has one. */
   selection?: unknown;
+  /** Its typed OGraf data (model/shows.ts `ShowCue.typed`, E1.2a), when it has some. */
+  typed?: unknown;
 }
 
 /** An edit: a new label, a new note, or some fields' values. */

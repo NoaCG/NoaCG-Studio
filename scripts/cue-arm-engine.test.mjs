@@ -486,6 +486,18 @@ test('a next cue that shows a live candidate is never taken by a timed end, what
   r.engine.stop();
 });
 
+test('nor one that carries typed OGraf data: its native strings are not its data (E1.2a)', async () => {
+  const r = rig({ cues: [timed('a', 2, 'next'), manual('b')] });
+  r.engine.onMarker(take('a'));
+  assert.equal(r.arms().A.next, 'b', 'armed before the cue had typed data');
+  r.page.cues = [timed('a', 2, 'next'), { ...manual('b'), typed: { v: 1, kind: 'values', standard: 'x', schema: 'y', values: {} } }];
+  r.engine.onProgramState('A');
+  await r.advance(2000);
+  assert.equal(r.sent.length, 0);
+  assert.deepEqual(r.notes, ['b has typed data, so a timed end does not take it.']);
+  r.engine.stop();
+});
+
 test('a timed end\'s Out is a press on its layer too, settled by its answer, so no correction overtakes it (E7.1)', async () => {
   for (const [answer, outcome] of [
     [OK, ['landed']],
