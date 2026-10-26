@@ -12,7 +12,7 @@
 
 import test, { after, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -927,6 +927,36 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     // The measurement is the style's too: another face reflows the box.
     assert.notEqual(state.styleId, '');
     assert.notEqual(A.measureId('g', 't', 'c', {}, HD, state.styleId), A.measureId('g', 't', 'c', {}, HD));
+  });
+});
+
+describe('what an author and an agent learn is adjustable (phase 2)', () => {
+  const pack = JSON.parse(readFileSync(new URL('../e2e/fixtures/agent-made/vote-show.noacgpack.json', import.meta.url), 'utf8'));
+
+  test('an agent-made board that paints with the contract is adjustable in what it paints, and validate is quiet', () => {
+    assert.equal(pack.graphics.length, 2);
+    for (const g of pack.graphics) {
+      const reach = St.styleReach(g);
+      const line = St.adjustableLine(g);
+      assert.ok(line.startsWith('place and size, '), `${g.name}: ${line}`);
+      assert.equal(line.includes('typeface'), reach.family, g.name);
+      for (const c of St.COLOUR_VARS) assert.equal(reach.colours.includes(c), St.adjustableLine({ ...g, css: g.css.replaceAll(`var(--${c})`, 'red') }) !== line, `${g.name} ${c}`);
+      assert.equal(St.styleContractUnpainted(g), null, g.name);
+    }
+  });
+
+  test('a stylesheet that paints none of it says so in one line, and validate gives one non-blocking finding', () => {
+    const css = ':root { --accent: #f00; --font-heading: "Inter"; }\n.box { color: #fff; background: #123; font-family: Arial; }';
+    const t = { css, js: '' };
+    assert.equal(St.adjustableLine(t), 'place and size; type and colour stay as designed (its stylesheet paints with none of the contract variables)');
+    assert.equal(St.styleContractUnpainted(t)?.rule, 'style-contract-unpainted');
+    assert.equal(St.adjustableLine(null), St.adjustableLine(t), 'an OGraf manifest read on its own: place and size');
+  });
+
+  test('an imported SVG reaches none: its text carries the artwork\'s own face, whatever the canvas reset inherits', () => {
+    const css = ':root { --font-heading: "Inter"; --accent: #f00; }\nhtml, body { font-family: var(--font-heading); }';
+    assert.equal(St.styleReach({ css, js: '' }).family, true, 'an HTML design inherits the face from the reset');
+    assert.equal(St.reachesAny(St.styleReach({ css, js: 'function fitSvgText(el) {}' })), false);
   });
 });
 

@@ -3825,8 +3825,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     writeAdjust(() => promoteCueAdjust(show.id, editingCue.id), `Adjust ${g.name}`);
                   }}
                   style={(() => {
-                    const css = templateForSavedGraphic(g, library).css;
-                    const reach = styleReach(css);
+                    const template = templateForSavedGraphic(g, library);
+                    const { css } = template;
+                    const reach = styleReach(template);
                     const design: Record<string, string> = {};
                     for (const k of ['font-heading', ...COLOUR_VARS]) {
                       const v = getCssVariable(css, k);

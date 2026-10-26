@@ -12,6 +12,8 @@
 
 import { readAdjust, type AdjustPatch, type FontRef } from '../model/adjust.ts';
 import { cssPaintsWith } from '../model/cssVars.ts';
+import { styleTerm } from '../model/styleVocabulary.ts';
+import { SVG_TEXT_FIT_MARKER } from '../templates/shared/textFit.ts';
 import type { AssetFile } from '../model/types.ts';
 import {
   FONTS,
@@ -197,14 +199,17 @@ export function facesCss(fonts: readonly FontDeclaration[] | undefined, assetDat
 
 /** What a graphic's stylesheet paints with, which decides the rows drawn: the typeface, the heading
  *  weight, and each colour role (model/cssVars.ts `cssPaintsWith`), so a dead control is never
- *  drawn. */
+ *  drawn. An imported SVG reaches none: its `<text>` layers carry the artwork's own face and fill,
+ *  so the canvas reset's inherited `--font-heading` never reaches them. */
 export interface StyleReach {
   family: boolean;
   weight: boolean;
   colours: (typeof COLOUR_VARS)[number][];
 }
 
-export function styleReach(css: string): StyleReach {
+export function styleReach(template: { css: string; js: string }): StyleReach {
+  const { css } = template;
+  if (template.js.includes(SVG_TEXT_FIT_MARKER)) return { family: false, weight: false, colours: [] };
   return {
     family: cssPaintsWith(css, 'font-heading'),
     weight: cssPaintsWith(css, 'display-weight'),
@@ -213,6 +218,30 @@ export function styleReach(css: string): StyleReach {
 }
 
 export const reachesAny = (r: StyleReach) => r.family || r.weight || r.colours.length > 0;
+
+/** What a production's Adjust can change on a graphic, in one line (`noacg inspect`): place and
+ *  size always, then what its stylesheet paints with. No stylesheet (an OGraf manifest read on its
+ *  own) or none of the contract painted says so, so an imported SVG or an agent-made graphic is
+ *  never promised a row it does not have. */
+export function adjustableLine(template: { css: string; js: string } | null): string {
+  const reach = template && styleReach(template);
+  if (!reach || !reachesAny(reach)) return 'place and size; type and colour stay as designed (its stylesheet paints with none of the contract variables)';
+  const parts = ['place and size'];
+  if (reach.family) parts.push('typeface');
+  if (reach.weight) parts.push('heading weight');
+  for (const c of reach.colours) parts.push(`${styleTerm(c).label.toLowerCase()} colour`);
+  return parts.join(', ');
+}
+
+/** `noacg validate`'s non-blocking finding for a stylesheet that paints with none of the contract
+ *  variables: it plays, but a production can only move and size it. Null when it paints any. */
+export function styleContractUnpainted(template: { css: string; js: string }): { rule: 'style-contract-unpainted'; message: string } | null {
+  if (reachesAny(styleReach(template))) return null;
+  return {
+    rule: 'style-contract-unpainted',
+    message: 'No rule paints with --font-heading, --display-weight, --accent, --text-color, --text-dim or --panel-bg, so a production can change only its place and size. Paint the type and colours it should be able to change with var(--...).',
+  };
+}
 
 /**
  * "AS DESIGNED" ON A ROW, as one patch at the scope shown. The graphic's default: the row's members

@@ -25,6 +25,7 @@ export function describeInspection(i: BridgeInspection): string {
   lines.push(`Steps: ${i.steps.count === -1 ? 'dynamic' : i.steps.count}${i.steps.stepped ? ' (» Next advances)' : ''}`);
   if (i.stateGroups.length) lines.push(`State groups: ${i.stateGroups.map((g) => `${g.id} [${g.states.map((s) => s.name).join(', ')}]`).join('; ')}`);
   if (i.panel) lines.push('', ...describePanel(i.descriptors, i.panel));
+  if (i.adjustable) lines.push(`Adjustable: ${i.adjustable}`);
   for (const n of i.notes) lines.push(`Note: ${n}`);
   return lines.join('\n');
 }

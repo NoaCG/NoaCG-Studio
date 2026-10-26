@@ -108,7 +108,9 @@ they work; drop it and the graphic still PLAYS but the studio cannot edit it.
   `--panel-bg`; the typeface through `--font-heading` (and `--font-numeric` where live numbers
   are set); every dimension is `calc(Npx * var(--scale))` and every font-size additionally
   `* var(--type-scale)`. Declare them in `:root` with your values; write no other hard-coded
-  colours. That is how the Style panel, brands and kits retint a graphic.
+  colours. That is how the Style panel, brands and kits retint a graphic. A production's Adjust
+  changes the typeface and each colour only where a rule paints with its variable, so a graphic
+  that wants them adjustable paints with the variables and ships a real `@font-face` for its face.
 - **The ANIMATION region.** All motion lives between these two EXACT markers in `template.js`:
   ```js
   /* == ANIMATION (generated — the Animation panel rewrites this block) == */
