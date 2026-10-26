@@ -1411,6 +1411,12 @@ test('imported board: the EXPORTED CONTROLLER carries the same warning, in the s
   await intoProduction(page, 'Overflow quiz', 'Relay Night');
   await page.getByTestId('cue-field-f0').fill('A'.repeat(400));
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
+  // The typed value reaches the record after the draft's own delay (control/cueDraft.ts), which
+  // the warning can beat: the export below reads the record, so wait for the value to be in it.
+  await expect.poll(() => page.evaluate(async () => {
+    const shows = await import('/src/model/shows.ts');
+    return shows.loadShows().find((s) => s.name === 'Relay Night')?.cues?.[0]?.values.f0?.length ?? 0;
+  })).toBe(400);
   await settleDurableWrites(page);
 
   const b64 = await page.evaluate(async (production) => {
