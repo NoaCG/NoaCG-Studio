@@ -59,7 +59,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, typedSends = null, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {}, ioWith = {} } = {}) {
+function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, typedSends = null, typedAiring = null, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {}, ioWith = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -125,6 +125,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     // What a typed cue sends (model/ografTyped.ts `typedForSend`, E1.2a): a page that sends none
     // has no `typedFor`, unless the test gives it answers.
     ...(typedSends ? { typedFor: (cue) => typedSends[cue.id] ?? { status: 'none' } } : {}),
+    ...(typedAiring ? { typedAiring: (graphic) => typedAiring.includes(graphic) } : {}),
     selectionAired: (graphic, cueId, take) => {
       log.push(['aired', graphic, cueId, take.status]);
       return { landed: () => log.push(['landed', graphic, cueId]), undo: (failed) => log.push(['unaired', graphic, cueId, ...(failed?.uncertain ? ['uncertain'] : failed?.stale ? ['stale'] : [])]) };
@@ -1024,6 +1025,16 @@ test('no live press sends from a layer airing a cue with typed data, a pinned bl
   await settle();
   assert.equal(r.sends.length, 0);
   assert.deepEqual(r.notes, Array(3).fill('T1: Live controls do not reach typed data yet.'));
+  // A layer still airing typed data after its cue's switch went off presses nothing either (E1.2a).
+  const off = graphicCue('t1', 'Score', { score: '3' });
+  const airing = rig({ liveCue: { Score: 't1' }, typedAiring: ['Score'] });
+  const stillTyped = liveSelection('Score', [off], { Score: 't1' });
+  await airing.verbs.event(stillTyped, { event: 'goal', adjust: { score: 1 }, payload: ['score'] });
+  await airing.verbs.bump(stillTyped, 'score', 1);
+  await airing.verbs.snap(stillTyped, 'reveal', 'shown');
+  await settle();
+  assert.equal(airing.sends.length, 0);
+  assert.deepEqual(airing.notes, Array(3).fill('T1: Live controls do not reach typed data yet.'));
   // A native cue on the same block presses as before.
   const native = graphicCue('n1', 'Score', { score: '3' });
   const plain = rig({ liveCue: { Score: 'n1' } });

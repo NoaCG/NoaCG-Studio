@@ -147,6 +147,9 @@ export interface GraphicPage {
    *  outputs' capability asked (model/ografTyped.ts `typedForSend`, `typedOutputsRefusal`; E1.2a).
    *  Absent: this page sends no typed data, and a cue carrying it is refused. */
   typedFor?: (cue: ShowCue, graphic: string) => TypedSend;
+  /** The graphic airs typed data now, by what was last applied to it (control/airState.ts
+   *  `typedAired`), whatever its cue's switch says since. */
+  typedAiring?: (graphic: string) => boolean;
   /** The layer now airs this cue with this selection (none drops what it followed), captured at the
    *  press: `landed` when its send is answered, `undo` when it failed. */
   selectionAired: (graphic: string, cueId: string, take: SelectionTake, moves?: boolean) => { landed: () => void; undo: (failed?: SendFailure) => void };
@@ -784,10 +787,13 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
 
   /** A live press on a layer airing a cue with typed OGraf data sends nothing from here, and says
    *  why (model/ografTyped.ts, E1.1): its fields are not its native strings, so a figure counted
-   *  or read from them would air something the cue does not hold. A pinned block presses here too. */
-  const typedRefused = (s: VerbSender, cue: ShowCue | null): string | null => {
-    const why = cue ? typedSendRefusal(cue) : null;
-    if (!cue || !why) return null;
+   *  or read from them would air something the cue does not hold. A pinned block presses here too.
+   *  So does a layer still airing typed data after its cue's switch went off (E1.2a): a native
+   *  press there would end the typed data before any Take or Update. */
+  const typedRefused = (s: VerbSender, cue: ShowCue | null, graphic: string): string | null => {
+    if (!cue) return null;
+    const why = typedSendRefusal(cue) ?? (page().typedAiring?.(graphic) ? 'Live controls do not reach typed data yet.' : null);
+    if (!why) return null;
     s.note(`${cue.label}: ${why}`);
     return `${cue.label}: ${why}`;
   };
@@ -815,7 +821,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const { editingCue, selectedGraphic: graphic } = sel;
     // On air with a cue this page does not hold is not off air: there is no cue to count from.
     if (!editingCue || !graphic || !sel.editingIsLive) return refused(graphic && sel.selectedLayerLive ? unheldNote(graphic) : offAirNote(graphic ?? 'The graphic'));
-    const typed = typedRefused(s, editingCue);
+    const typed = typedRefused(s, editingCue, graphic);
     if (typed) return refused(typed);
     const still = instance(s, graphic, editingCue, named);
     if (!still()) return refused(changedNote(graphic));
@@ -1023,7 +1029,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return Promise.resolve(refused(offAirNote(graphic ?? 'The graphic')));
-    const typed = typedRefused(s, sel.airCue);
+    const typed = typedRefused(s, sel.airCue, graphic);
     if (typed) return Promise.resolve(refused(typed));
     const still = instance(s, graphic, sel.airCue, named);
     if (!still()) return Promise.resolve(refused(changedNote(graphic)));
@@ -1039,7 +1045,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return;
-    if (typedRefused(s, sel.airCue)) return;
+    if (typedRefused(s, sel.airCue, graphic)) return;
     const still = instance(s, graphic, sel.airCue);
     if (!still()) return;
     await afterPress(graphic, async () => {

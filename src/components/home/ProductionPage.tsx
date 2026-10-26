@@ -2796,6 +2796,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     boundFields,
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     typedFor,
+    typedAiring: (graphic) => graphic in (session.air.get().typedAired ?? NO_TYPED_AIR),
     selectionAired,
     candidateFields,
     airedCandidateFields: (graphic) => {

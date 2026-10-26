@@ -77,7 +77,9 @@ changes a spec's digest.
     the tree's typed values. This is the one place AC-3's "legacy `/update` keeps its semantics"
     narrows, and only for typed graphics, which did not exist before this row (the /so on `6e0ac4f`).
   - *Live presses* (event, ±, Snap) on a layer airing typed data still send nothing ("Live
-    controls do not reach typed data yet."): typed actions are E2's and E6.2's. A timed end never
+    controls do not reach typed data yet."): typed actions are E2's and E6.2's. That holds while
+    the layer still airs typed data after its cue's switch went off (`GraphicPage.typedAiring`,
+    Codex P2 on `44899be`). A timed end never
     takes a cue that carries typed data, and a cue with a live candidate takes none.
   - *The hosted page, the exported controller, the SPX rundown* still leave typed cues out
     (E1.1's `preparedCue`): they have no capability check of their own.
@@ -135,7 +137,8 @@ changes a spec's digest.
   P2, both fixed (PROGRAM's data-road rule; PROGRAM's rebuild); on `bd818da`: one P2, fixed (the
   page's own dispatch leaves out a graphic by what was last applied to it, `withoutTypedAir`, not
   by its cue's switch); on `6999549`: one P2, fixed (a page opened after a typed Take seeds the
-  envelope from the boot's rows). /so on `ab0c8c9`: AGREE WITH
+  envelope from the boot's rows); on `44899be`: one P2, fixed (live presses refused by what the
+  layer airs, not only by the cue's envelope). /so on `ab0c8c9`: AGREE WITH
   CORRECTIONS, Assessment A (two wrong comments in `ografTyped.ts`, fixed); on `6e0ac4f`: AGREE
   WITH CORRECTIONS, Assessment A (the silent legacy `/update` on a typed graphic, named above).
   The verdict on the final head is in the pull request.
