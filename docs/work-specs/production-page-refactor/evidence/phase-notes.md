@@ -102,8 +102,9 @@ changes a spec's digest.
   air.
 - **A behaviour found, not changed:** a newer revision re-sends an aired card's whole record even
   when its person's values did not change (`followAired`, E7.1's design): one update row per aired
-  card per revision, the picture unchanged. Read in `followAired` and seen in an earlier run of the
-  walk (before revision 4 carried Aino's correction); recorded as a runbook limit.
+  card per revision, the picture unchanged. Seen in an earlier run of the walk and now pinned in
+  `keyed-selection.test.mjs` ("a newer revision with the aired person unchanged sends the same
+  whole record once"); recorded as a runbook limit. Two tabs are read from the code, not run.
 - **Compatibility, one more case:** a page of an older build never writes `collections`, so if
   such a page changes or removes a recipe after a newer page published it, the route keeps
   writing the old leaf until a page of this build writes the row again. The leaf is unbound: no
@@ -111,7 +112,8 @@ changes a spec's digest.
   database; staging gets it through post-land like production, and if post-land HOLDS it there
   the AC-4 walk on hosted-latency fails at its first collection check until it applies.
 - **The rehearsal record (software/replay grade, browser outputs).** Cloud worker, 2026-10-26
-  04:20 to 05:10 UTC, the final run on this branch's final code at about 05:10, a local stack
+  04:20 to 05:10 UTC, the final run on the branch's final code commit `89718fb` at about 05:10
+  (later commits change notes and tests only), a local stack
   (`supabase start`, CLI 2.111.0) with every migration through 0102, the dev server's real
   `/api/data/source`, the agent as its own process from `replay-agent.json`, the replay server in
   the same process as the walk. Hashes (sha256, first 16 hex; the server prints them whole):

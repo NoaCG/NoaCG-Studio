@@ -92,7 +92,8 @@ hand, so that case is not measured. The full record is in the phase notes.
   last values; reopening the page holds what airs and says so, and **✎ Update** sends the
   current count again.
 - **Two tabs of one production** both follow the same aired card. Each sends the same whole
-  record, so the picture does not change; keep one tab open as the habit.
+  record, so the picture does not change; keep one tab open as the habit. (Read from the code;
+  the rehearsal did not run two tabs.)
 - **A new count sends the aired card's record again** even when that person's figures did not
   change (one update row per aired card per revision; the picture is the same).
 - **A card on air keeps its person.** A correction to another candidate never moves an aired
@@ -124,5 +125,7 @@ hand, so that case is not measured. The full record is in the phase notes.
 
 Pause **Another system** on the Data page, or stop the agent, and leave the output on its last state. To return to the starter
 data, use **Reset to seed** on the Data page, or reinstall the package into a new production.
-Reverting phase E7.2b's change leaves the published collections read by nothing: the candidate
-card then shows only what the starter seed or an operator wrote.
+Reverting phase E7.2b's change leaves the published collections read by nothing, and the route
+writes no new candidate list. The last list it wrote stays in the production's data, so the
+candidate cues keep showing that revision until a new one arrives some other way (Data → Raw
+JSON, or `/api/data/patch`).
