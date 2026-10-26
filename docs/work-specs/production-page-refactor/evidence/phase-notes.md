@@ -98,24 +98,29 @@ changes a spec's digest.
   when its person's values did not change (`followAired`, E7.1's design): one update row per aired
   card per revision, the picture unchanged. The walk allows at most one such repeat and requires
   it to equal the last record. Recorded as a runbook limit.
-- **The rehearsal record (software/replay grade, browser outputs, cloud worker, local stack with
-  migrations through 0102, dev server's real `/api/data/source`, 2026-10-26 04:2x UTC, branch
-  head before this note `22d53c7`).** Package file `public/packs/election-rehearsal.noacgpack.json`
-  sha256 `a51b45aef4dd2149...`; `replay-source.json` `91d28a8ca978798c...`; `replay-agent.json`
-  `465f0ad501e13a62...` (prefixes; the server prints full hashes); replay steps (sha256 prefix):
-  count-01 `c2834d09010331c0`, count-increase and duplicate `85a9408c2c85795b`, correction-down
-  (after the share fix in this branch) printed at the server's start, older = count-01, malformed
-  `73886d5ed2365b01`, person-deleted and empty-collection printed at start. Clock and cadence:
-  agent poll 2 s, one revision per 5 s, receipts every 15 s, page read 5 s. Provider move to
-  picture, three runs (ms): count-increase 2362, 2657, 1819 (board, bug and card); correction-down
-  2041, 2089, 2050 (card 3,650 and KOK 224,100); older 1905, 1900, 1902 and malformed 1891, 1903,
-  1895 (held by the agent, nothing moved); person-deleted (candidates only) 4579, 5001; empty
-  collection (candidates only) 4886, 4823; duplicate receipt 16056, 16049. Renderer payloads: each
-  card update one whole record of one revision (f0 to f5); no update row ever carried the
-  collection; the only transport rows are the four Takes; neither credential in the agent's log.
-  Captures: eight output PNGs per run, attached to the run's results (not committed); looked at
-  count-01, correction-down and empty-collection: the board, bug, ticker and card render whole,
-  figures as asserted, the card held at 3,650 after the empty list.
+- **The rehearsal record (software/replay grade, browser outputs).** Cloud worker, 2026-10-26
+  around 05:00 UTC, the branch's final code (the head this PR's review covers), a local stack
+  (`supabase start`, CLI 2.111.0) with every migration through 0102, the dev server's real
+  `/api/data/source`, the agent as its own process from `replay-agent.json`, the replay server in
+  the same process as the walk. Hashes (sha256, first 16 hex; the server prints them whole):
+  package file `public/packs/election-rehearsal.noacgpack.json` `a51b45aef4dd2149`,
+  `replay-source.json` `91d28a8ca978798c`, `replay-agent.json` `465f0ad501e13a62`; steps
+  count-01 and older `c2834d09010331c0`, count-increase and duplicate `85a9408c2c85795b`,
+  correction-down `590b69bde44713f3`, malformed `0269d0cf52b560df`, person-deleted
+  `073501110b890038`, empty-collection `39e5843ecb2c27ba`. Clock and cadence: agent poll 2 s, one
+  revision per source per 5 s, unchanged receipts every 15 s, the page's own read every 5 s.
+  Provider move to picture on the final code (ms), with the four earlier runs on this branch in
+  brackets: count-increase 3201 [2362, 2657, 1819, 2254] (board, bug and card all moved);
+  correction-down 2088 [2041, 2089, 2050, 2053] (card 3,650, KOK 224,100); older 1904 and malformed
+  1903 (held by the agent, nothing moved); person-deleted 5051 [4579, 5001, 4928] and empty
+  collection 4908 [4886, 4823, 4819] (candidates only: the page's 5 s read); duplicate receipt
+  16038. Renderer payloads: every card update is one whole record of one revision (f0 to f5), at
+  most one repeat of the same record after the candidates-only revision; no update row carries
+  the collection; each graphic's only transport row is its Take; neither credential is in the
+  agent's log. Captures: eight output PNGs per run (`output-<step>.png` in the run's results, not
+  committed). I looked at count-01, correction-down and empty-collection: the board, bug, ticker
+  and card render whole, the figures are the asserted ones, and the card holds 3,650 after the
+  empty list. (They overlap because the walk airs all four at once, which a show would not.)
   **Grade:** software/replay rehearsal on browser outputs, PASS. Real-studio grade (CasparCG/
   Bridge, OBS) is parent phase S, not run here. Official live-feed access and election-day feed
   qualification: unverified, no access exists; nothing here is a broadcaster readiness claim.
@@ -125,20 +130,37 @@ changes a spec's digest.
   publishes the collections); `src/model/shows.ts` (`pruneSources`); `docs/DATA_API.md` (the wire);
   `e2e/production-pack.spec.ts` (the prune walk); `e2e/configured/expected-run.json` (two more
   configured walks, 128).
-- **Verification.** Node: `source-mapping.test.mjs` 62, `connector-sample.test.mjs` 12,
-  `external-data-connector.test.mjs` 63, gates `--changed origin/main` (536 tests) all pass. SQL:
-  0102 applied on a fresh local stack (`supabase start`, CLI 2.111.0, every migration), its
+- **Verification.** Node: `source-mapping.test.mjs`, `connector-sample.test.mjs`,
+  `external-data-connector.test.mjs` (138) and `keyed-selection.test.mjs` pass; gates
+  `--changed origin/main` (536 tests) pass. SQL: 0102 applied on a fresh local stack, its
   self-check passing, and 0101's self-check passing when run after 0102 (the fences unchanged).
-  Browser, local stack: `election-selection.spec.ts` all 7 walks pass (AC-1 to AC-4, the no-0102
-  publish), `external-data-connector.spec.ts` 4 pass, `production-pack.spec.ts` 7 pass. Mutation
-  checks, each red: SQL (11) the allowance off, any source, any version, the list cap at 63 and
+  Browser, local stack, final code: `election-selection.spec.ts` 7 of 7 (AC-1 to AC-4, the no-0102
+  walk), `external-data-connector.spec.ts` 4 of 4, `production-pack.spec.ts` 7 of 7. Mutation
+  checks, each red: SQL (13) the allowance off, any source, any version, the list cap at 63 and
   65, nine keys, an unanchored path, a seed's object refused, the context without collections, a
-  bound leaf skipping 0088's rule, a non-list read; Node (15) any source, a bound leaf taken (a
-  first pass survived; the test was tightened), the list cap at 63 and 65, not a record, a
-  negative revision, no items, the item and text caps, a hostile string read, a missing
-  collection unreported, the route dropping the context's collections, and three timeline
-  mutations; browser (3) the Connect write's middle fallback, the publish's collections-only
-  retry, `pruneSources` without the collections.
+  bound leaf skipping 0088's rule, nesting under a bound path, nesting under another collection, a
+  non-list read; Node (15) any source, a bound leaf taken (a first pass survived; the test was
+  tightened), the list cap at 63 and 65, not a record, a negative revision, no items, the item and
+  text caps, a hostile string read, a missing collection unreported, the route dropping the
+  context's collections, and three timeline mutations; browser (4) the Connect write's middle
+  fallback, the publish's collections-only retry, the shared writer's fallback loop, `pruneSources`
+  without the collections.
+- **Check.** Review (code-review skill, high, delegated; scope matched): 9 findings, 7 fixed: a
+  collection leaf above or below a bound path (or another collection's) would have replaced that
+  subtree, now refused in both the evaluator and 0102; the publish retry now drops `collections`
+  only for PGRST204 naming it; a row published before 0102 gets its collections from the page that
+  opens it (only while NULL); a null entry in `collections`; the list-level hold no longer uses a
+  leaf's name; the comment on what the route holds; the replay server prints the digests of the
+  steps it serves. Left: re-serialising the collection on an unchanged receipt (at most one per
+  15 s) and the extra request on an instance behind 0102 (temporary). Simplify (four reviewers,
+  delegated): one `collectionShape` for the page's read and the route's write; one
+  `writeNewestColumns` for the published columns; the plan as an object; the package timeline's
+  `next`; one `installElection` and one graphics loop in the spec; another source's recipe is not
+  read whole. It also caught the walk's "only the Takes" check reading a graphic the package does
+  not have (always empty); removed, the per-graphic check stays. Skipped: a digest instead of the
+  collection text in the read state's snapshot (needs another migration for a few hundred KiB),
+  sharing the replay helpers across two specs, `pruneSources` through the strict recipe reader (a
+  later version's recipe must keep its source alive).
 - **Traps.** Do not mutate source files while a browser job runs on the dev server: Vite reloads
   the page mid-walk and the walks fail as "the page reopened" (seen once here, rerun clean). A
   failed `supabase start` stops every container; iterate a migration by starting the stack
