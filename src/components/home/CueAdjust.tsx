@@ -388,7 +388,8 @@ function Swatch({ label, value, disabled, onPick, testId }: { label: string; val
     if (ref.current) ref.current.value = pickerHex(value);
   }, [value]);
   return (
-    <label className="pd-adjust-swatch" title={label}>
+    <label className="pd-adjust-swatch">
+      <span>{label}</span>
       <input ref={ref} type="color" aria-label={label} defaultValue={pickerHex(value)} disabled={disabled} data-testid={testId} />
     </label>
   );

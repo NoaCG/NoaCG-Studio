@@ -1218,7 +1218,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-adjust-floor, .pd-adjust-why { font-size: 12px; }
 .pd-adjust button.on { border-color: var(--amber); }
 .pd-adjust-weights { display: inline-flex; flex-wrap: wrap; gap: 2px; }
-.pd-adjust-swatch { display: inline-flex; }
+.pd-adjust-swatch { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); margin-right: 4px; }
 .pd-adjust-swatch input { width: 32px; height: 24px; padding: 0 2px; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; }
 .pd-adjust select { max-width: 180px; }
 .pd-advanced-toggle {
