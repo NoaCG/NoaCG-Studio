@@ -5,6 +5,62 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 32d (L2.2, project phase 36): type and colour per graphic and cue
+
+- **Previous verified `main` sha:** `BASE_SHA`, carrying both phase 0 prerequisites: item 1
+  (latin-ext faces, #1744, merged `fc5a4b4a19b7efac7ff3f799d51e64177eeb713e`) and item 2 (no
+  synthesised bold, #1745, merged `ITEM2_SHA`). Before editing, main applied place and size on
+  every surface and bake (rows 32 to 32c); no surface set a typeface or a colour per cue.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no message kind: the record
+  gains optional members (`vars`, `font`, `keepStyle`) a reverted build reads as absent, and the
+  wire's `appearance` gains `vars` and `fonts`, which a reverted reader drops (below). A package
+  exported meanwhile keeps its baked style.
+- **What:** the Adjust block gains a Type row (typeface by identity, the face's real weights, "As
+  designed") and a Colour row (a swatch per contract colour the design paints with, "As
+  designed"), at the graphic's or the cue's scope. The fold is key by key, the cue over the
+  graphic (`effectiveAdjust`); `resolveStyle` turns it into root variables (`--font-heading`
+  and the `--font-numeric` it implies included) and a declaration per face, never bytes: each
+  surface reads `src` from its own asset road (`facesCss`; bundled files beside the document,
+  an imported face from the production's own copy). PREVIEW, the measurer, PROGRAM and `/output`
+  tell the composed document through a new `style` command; a bake sets the variables on its host
+  at load and ships every face any appearance names (`withAppearanceFaces`).
+- **Decisions:**
+  - "As designed" at a cue's scope MASKS what the graphic sets (an empty variable, a `'designed'`
+    face), so one cue shows the design while the graphic's other cues keep its style; where the
+    graphic sets nothing the cue's own member is removed. It writes `keepStyle: true`, which phase
+    3's production look reads; a Reset removes it with the record.
+  - A face declares `100 900` for a static or imported face, not the spec's `[400, 400]` (item 2's
+    "For phase 2"), and the weight goes as written, never clamped, for the sibling numbers.
+  - The refit is the template's own: the composed document records the callbacks the template
+    hands `document.fonts.ready` while it loads and runs them again once a new face is in, so
+    whatever fit runtime a production's copy carries refits through its own code. The queue is
+    held at most 400 ms for a face to load, and a `seq` makes the latest request win, so a slow
+    face never refits over the selection that replaced it. The measurement identity includes
+    the style, so another face remeasures the box.
+  - An imported SVG reaches no Type or Colour row (`styleReach`): its `<text>` layers carry the
+    artwork's own face and fills, so the canvas reset's inherited `--font-heading` never reaches
+    them. `cssPaintsWith` alone counted that reset rule for every template; 528 catalog designs
+    were measured and most really draw their type through it, so only the SVG variant (its
+    `SVG_TEXT_FIT_MARKER`) is excluded.
+  - `style-contract-unpainted` is added in the bridge's `validate`, not `validateTemplate`, so the
+    editor does not warn on every imported SVG. `font-without-face` is phase 0 item 3 and not here.
+- **Traps:** a Swatch remounted by `key={value}` loses its native `change` listener mid-drag;
+  it keeps one input and sets its value from an effect. Plain-Node imports of `fonts.ts` need the
+  `?raw` hooks in `scripts/lib/tsResolve.mjs`. The parity references differ by show folder, so
+  `fileIn(prefix)` finds them.
+- **Receivers that do not know the style members ignore them** (finding 8): today's main reader
+  (`readAppearance`, run once against `git show origin/main:src/control/cueAdjust.ts`) reads a
+  styled appearance as its frame alone and a style-only one as the identity, so an older
+  `/output`, relay or package keeps its place and size and draws the design's own type. Not
+  pinned as a test, since main's reader becomes this one when this lands.
+- **Limits:** an exported package's relay receiver sets the variables and declares no faces: the
+  package ships every face its graphic and cues name at export, so a face chosen after the export
+  needs a new one. `/output`, PROGRAM and the hosted page go through `output/stage.ts`, which
+  declares the faces. Each bake's parity is held at row 32c's `RESIDUAL_BOUND` 1000 (max measured
+  551; unstyled 4720 to 67746), not loosened.
+- **Touched files against `BASE_SHA`:** FILE_LIST
+
 ## Row 32d prerequisite: phase 0 item 2, no synthesised bold, real heading weights
 
 - **Base:** `1dcf26d` (row 32c passed), reconciled with `fc5a4b4` (item 1, #1744, merged).
