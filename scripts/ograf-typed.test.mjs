@@ -61,7 +61,7 @@ test('the pinned standard is the revision the export gate was transcribed from',
   const schemas = Object.entries(OGRAF_STANDARD.files).filter(([file]) => file.startsWith('specification/json-schemas/'));
   assert.equal(schemas.length, Object.keys(baseline.files).length, 'every published schema file is pinned, and nothing more');
   for (const [file, hash] of schemas) {
-    const url = published + file.replace(/^specification\//, 'specification/');
+    const url = published + file;
     assert.equal(baseline.files[url]?.sha256, hash, `${file} is the bytes the transcription records`);
   }
   // Prose and TypeScript of the same commit ride beside them; never a second revision.
