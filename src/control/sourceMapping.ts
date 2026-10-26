@@ -542,14 +542,18 @@ function projectCollections(
     return;
   }
   const leaves = new Set<string>();
+  // Every v 1 recipe of this source with a path counts for clashes, as migration 0102 counts them,
+  // even one this build cannot use; only a usable one is written.
+  const named: string[] = [];
   for (const entry of raw) {
     // Another source's recipe is never read whole.
     if (!isObject(entry) || entry.sourceId !== sourceId) continue;
+    if (entry.v === SELECTION_VERSION && recipePath(entry.from)) named.push(entry.from);
     const read = readCollectionRecipe(entry);
     if (read.status === 'ok') leaves.add(read.recipe.from);
   }
   // A leaf equal to, above or below a bound path or another collection's leaf is never written.
-  const taken = [...[...bound].map((p) => p.slice(prefix.length)), ...leaves];
+  const taken = [...[...bound].map((p) => p.slice(prefix.length)), ...named];
   const clashes = (leaf: string) => taken.some((other) => (other !== leaf && (other.startsWith(`${leaf}.`) || leaf.startsWith(`${other}.`))) || bound.has(prefix + leaf));
   for (const leaf of [...leaves].sort()) {
     if (clashes(leaf)) continue;

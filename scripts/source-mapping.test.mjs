@@ -705,6 +705,9 @@ describe('E7.2b: a collection leaf through the route', () => {
       bindings: { Bug: { f0: 'external.e1.parties.KOK.votes', f1: 'external.e1.status' } },
     });
     assert.deepEqual(Object.keys(out.writes), ['external.e1.a']);
+    // A recipe this build cannot use still counts for clashes, as the database counts it.
+    const beside = run({ x: { y: revision(1, []) } }, [recipe({ id: 'bad', key: [], from: 'x' }), recipe({ id: 'xy', from: 'x.y' })]);
+    assert.deepEqual(beside.writes, {});
   });
 
   test('one leaf read by two recipes is written once; a missing collection is missing, not cleared', () => {

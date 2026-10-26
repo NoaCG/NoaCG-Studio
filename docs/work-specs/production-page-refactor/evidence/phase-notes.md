@@ -14,9 +14,9 @@ changes a spec's digest.
   `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0102 is additive and stays applied:
   a reverted page stops writing `control_shows.collections` and a reverted route stops passing it,
   so the report writes bound leaves only, as before. A collection text already in the tree stays
-  and is still read by the candidate cues (E7.1's resolver reads text or an object). To stop the
-  database writing collection leaves for a page that still publishes them, restore 0101's two
-  functions in a new migration.
+  and is still read by the candidate cues (E7.1's resolver reads text or an object). The database
+  writes only what the route hands it, so a reverted route writes no collection leaf whatever a
+  page still publishes.
 - **Migration 0102 (`0102_source_collections.sql`), live-path** (header: "control_shows gains
   `collections`; control_source_context_by_key answers it and control_source_report_by_key also
   writes a published collection leaf of its own source"). Authorised by the coordinator on
@@ -105,6 +105,9 @@ changes a spec's digest.
   card per revision, the picture unchanged. Seen in an earlier run of the walk and now pinned in
   `keyed-selection.test.mjs` ("a newer revision with the aired person unchanged sends the same
   whole record once"); recorded as a runbook limit. Two tabs are read from the code, not run.
+- **Hosted timing:** the walk's bounds (10 s and 13 s) were set from local runs (about 2 to 3 s
+  and 5 s). The configured run on hosted staging adds round trips; a red there is a bound to
+  check against that run's timings, not a run to retry.
 - **Compatibility, one more case:** a page of an older build never writes `collections`, so if
   such a page changes or removes a recipe after a newer page published it, the route keeps
   writing the old leaf until a page of this build writes the row again. The leaf is unbound: no

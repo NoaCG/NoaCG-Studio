@@ -12,7 +12,8 @@
 --   page beside `bindings` and `sources` (publish, connect, Pause), through the owner's row policy.
 --   Like `sources` it is the operators' only: no output or audience function selects it. NULL is
 --   "never written" (a row published before this migration, or by an older page): nothing new is
---   written for it until its next publish.
+--   written for it until a page of the new build publishes, or opens the production and fills the
+--   column while it is still NULL.
 -- - `control_source_context_by_key` answers it beside the bindings, so the route's evaluator
 --   (src/control/sourceMapping.ts) projects each published recipe's leaf of the source.
 -- - `control_source_report_by_key` writes such a leaf too, as text: only under this source's own

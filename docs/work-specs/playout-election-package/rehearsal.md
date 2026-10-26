@@ -5,8 +5,9 @@ election graphics on a published production with results read from the election 
 what to record, how to recover by hand, and the limits measured.
 
 **What this grades.** The software and replay rehearsal on browser outputs, and nothing else.
-The results are synthetic and come from a replay server on the same machine as the agent
-(loopback). This is not a test in the real studio (CasparCG/Bridge, OBS: parent phase S), and it
+The recorded run used a local database stack and NoaCG's development server (the same route and
+database functions a deployment runs). The results are synthetic and come from a replay server
+on the same machine as the agent (loopback). This is not a test in the real studio (CasparCG/Bridge, OBS: parent phase S), and it
 does not qualify an official live results feed: no official feed access or contract exists yet,
 so election-day feed qualification stays unverified. Nothing here is a readiness claim for any
 broadcaster.
