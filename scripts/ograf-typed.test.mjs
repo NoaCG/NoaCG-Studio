@@ -1,4 +1,4 @@
-// guards: src/model/ografTyped.ts, src/model/shows.ts, src/model/rundownHistory.ts, src/model/productionData.ts, src/control/selectionAir.ts, src/control/cueAuto.ts, src/control/liveControls.ts, src/control/graphicVerbs.ts, src/output/main.ts, src/export/targets/ografSchema.ts, scripts/ograf-schema-baseline.json, scripts/fixtures/ograf-typed/**
+// guards: src/model/ografTyped.ts, src/model/shows.ts, src/model/rundownHistory.ts, src/model/productionData.ts, src/control/selectionAir.ts, src/control/cueAuto.ts, src/control/liveControls.ts, src/output/main.ts, src/export/targets/ografSchema.ts, scripts/ograf-schema-baseline.json, scripts/fixtures/ograf-typed/**
 //
 // TYPED OGRAF DATA, THE READING SIDE (docs/work-specs/playout-ograf-contract/spec.md, E1.1), in Node:
 //   - AC-1: the pinned standard is the one authority (its schema hashes are the bytes the export
@@ -26,7 +26,7 @@ const typed = await import('../src/model/ografTyped.ts');
 const {
   OGRAF_STANDARD, TYPED_VERSION, TYPED_MAX_DEPTH, TYPED_MAX_SCHEMA_NODES, TYPED_MAX_VALUE_NODES, TYPED_KEPT,
   describeOgraf, validateTyped, validateActionArgs, readJson, canonicalJson, readTypedEnvelope, typedReadOnly,
-  typedSendRefusal, readTypedWire, typedKeep, typedFrozen, migrateToTyped, nativeOf,
+  typedSendRefusal, readTypedWire, typedOutputGate, typedKeep, typedFrozen, migrateToTyped, nativeOf,
 } = typed;
 const { validateOgrafManifest } = await import('../src/export/targets/ografSchema.ts');
 const { preparedCue } = await import('../src/model/productionData.ts');
@@ -186,15 +186,27 @@ test('typed action arguments validate, and an action without a schema takes none
   assert.deepEqual(validateActionArgs(highlight, { team: 2, colour: '#ff000080', pulse: { times: 3, fast: true } }), []);
   assert.deepEqual(validateActionArgs(highlight, { team: 4 }), [{ at: 'team', reason: 'above the maximum 3' }]);
   assert.deepEqual(validateActionArgs(highlight, { pulse: { times: 0 } }), [
-    { at: 'pulse.times', reason: 'below the minimum 1' },
     { at: 'team', reason: 'required' },
-  ].sort((a, b) => (a.at < b.at ? 1 : -1)));
+    { at: 'pulse.times', reason: 'below the minimum 1' },
+  ]);
   assert.deepEqual(validateActionArgs(highlight, undefined), [{ at: '', reason: '"highlight" needs its arguments' }]);
   assert.deepEqual(validateActionArgs(reset, undefined), []);
   assert.deepEqual(validateActionArgs(reset, {}), [{ at: '', reason: '"reset" takes no arguments' }]);
 });
 
 test('bounded and linear on hostile input', () => {
+  // The bounds, each at its edge with its own number: changing one turns this red.
+  assert.deepEqual([TYPED_MAX_DEPTH, TYPED_MAX_SCHEMA_NODES, TYPED_MAX_VALUE_NODES], [16, 2000, 10000]);
+  const nested = (n) => {
+    let v = 0;
+    for (let i = 0; i < n; i++) v = [v];
+    return v;
+  };
+  assert.equal(readJson(nested(16)), null);
+  assert.equal(readJson(nested(17)), 'nested deeper than 16');
+  const props = (n) => ({ type: 'object', properties: Object.fromEntries(Array.from({ length: n }, (_, i) => [`p${i}`, { type: 'string' }])) });
+  assert.deepEqual(describeOgraf({ schema: props(1999) }).notes, []);
+  assert.equal(describeOgraf({ schema: props(2000) }).notes[0].reason, 'more than 2000 schema nodes');
   // Depth: a value nested far past the bound is refused without walking it all, or the stack.
   let deep = 'x';
   for (let i = 0; i < 200000; i++) deep = [deep];
@@ -238,6 +250,8 @@ test('the envelope: read, later, another revision, malformed', () => {
     assert.equal(why(bad), 'cannot be read', JSON.stringify(bad));
   }
   assert.equal(typedReadOnly({ typed: envelope({ v: 3 }) }), true);
+  // A cue holds values: an action envelope there is malformed, so the cue is read-only.
+  assert.equal(typedReadOnly({ typed: { v: 1, kind: 'action', standard: OGRAF_STANDARD.commit, schema: schemaHash, action: 'reset' } }), true);
   assert.equal(typedReadOnly({ typed: envelope() }), false);
   assert.equal(typedReadOnly({}), false);
 });
@@ -259,13 +273,14 @@ test('a page never sends a cue that carries typed data, with the reason; a nativ
   assert.equal(nextGraphicCue(cues, 'b'), 'c');
 });
 
-test('L1: a pinned native block never carries a typed envelope', () => {
+test('L1: a pinned block is native: the cue it presses with carries no envelope, or it sends nothing', () => {
   const cues = [{ id: 'n', sourceId: 'g', label: 'Native', values: { f0: 'x' } }, { id: 't', sourceId: 'g', label: 'Typed', values: { f0: 'x' }, typed: envelope() }];
-  assert.equal(liveSelection('Board', cues, { Board: 'n' }).airCue.id, 'n');
-  // The layer airs a typed cue (another screen, a later build): the block has no cue to press with.
-  const sel = liveSelection('Board', cues, { Board: 't' });
-  assert.equal(sel.airCue, null);
-  assert.equal(sel.editingCue, null);
+  assert.equal(typedSendRefusal(liveSelection('Board', cues, { Board: 'n' }).airCue), null);
+  // The layer airs a typed cue (another screen, a later build): every live press refuses it, which
+  // scripts/graphic-verbs.test.mjs drives through the verbs.
+  assert.ok(typedSendRefusal(liveSelection('Board', cues, { Board: 't' }).airCue));
+  // The pinned block's own record, the profile, holds graphic names only.
+  assert.equal(typedSendRefusal({}), null);
 });
 
 // ── The output's read gate ───────────────────────────────────────────────────────────────────
@@ -286,8 +301,24 @@ test('the output reader: a native message is not read, an envelope is refused, n
   assert.ok(readTypedWire({ t: 'event', event: 'highlight', typed: 'garbage' }).reason.includes('cannot be read'));
   // The output source refuses before it applies anything: the gate sits in front of the stage.
   const main = readFileSync(path.join(root, 'src/output/main.ts'), 'utf8');
-  const gate = main.indexOf('const typed = readTypedWire(incoming);');
+  const gate = main.indexOf('const typed = typedOutputGate(typedRefused, graphic, incoming);');
   assert.ok(gate > 0 && gate < main.indexOf("if (verb === 'update' ||", gate) && gate < main.indexOf('stage.apply(row.graphic', gate));
+});
+
+test('the output holds a refused graphic: a Take\'s play after its refused update never airs old values', () => {
+  const held = new Map();
+  const typedUpdate = { t: 'update', data: { f0: 'stale' }, typed: envelope() };
+  assert.deepEqual(typedOutputGate(held, 'Board', typedUpdate), { apply: false, changed: true });
+  assert.deepEqual(typedOutputGate(held, 'Board', typedUpdate), { apply: false, changed: false });
+  assert.equal(held.get('Board'), 'This output cannot show typed data yet: reload this output.');
+  for (const msg of [{ t: 'play' }, { t: 'next' }, { t: 'snap', snap: null }, { t: 'event', event: 'go' }]) assert.deepEqual(typedOutputGate(held, 'Board', msg), { apply: false, changed: false }, msg.t);
+  // Another graphic is untouched; taking this one off always goes.
+  assert.deepEqual(typedOutputGate(held, 'Other', { t: 'play' }), { apply: true, changed: false });
+  assert.deepEqual(typedOutputGate(held, 'Board', { t: 'stop' }), { apply: true, changed: false });
+  // A native update gives it its data again and lifts the hold.
+  assert.deepEqual(typedOutputGate(held, 'Board', { t: 'update', data: { f0: 'fresh' } }), { apply: true, changed: true });
+  assert.equal(held.size, 0);
+  assert.deepEqual(typedOutputGate(held, 'Board', { t: 'play' }), { apply: true, changed: false });
 });
 
 test('AC-3: legacy /update and /patch bodies are read exactly as before; an envelope is never flattened into a field', () => {

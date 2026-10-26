@@ -1,4 +1,4 @@
-// guards: src/control/graphicVerbs.ts, src/control/selectionAir.ts, src/control/cueItems.ts, src/control/liveCue.ts, src/control/allOut.ts, src/control/playoutSession.ts
+// guards: src/control/graphicVerbs.ts, src/control/selectionAir.ts, src/control/cueItems.ts, src/control/liveCue.ts, src/control/allOut.ts, src/control/playoutSession.ts, src/control/liveControls.ts, src/model/ografTyped.ts
 //
 // THE PRODUCTION PAGE'S WEB-GRAPHIC VERBS, run in Node with a scripted page and a scripted wire
 // (production-page refactor spec §4.2, phase 12). Every answer here is held until the test releases
@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 const { createGraphicVerbs } = await import('../src/control/graphicVerbs.ts');
 const { createPlayoutSession } = await import('../src/control/playoutSession.ts');
 const { withLiveCue } = await import('../src/control/liveCue.ts');
+const { OGRAF_STANDARD } = await import('../src/model/ografTyped.ts');
 
 /** A promise the test settles. */
 function held() {
@@ -1005,6 +1006,27 @@ test('Snap waits for the save, then sends the snap and the ON-AIR values in one 
   await reset;
   await r.verbs.snap(sel({ selectedGraphic: 'Quiz', selectedLayerLive: false }), null, 'x');
   assert.equal(r.sends.length, 2);
+});
+
+test('no live press sends from a layer airing a cue with typed data, a pinned block\'s included, and each says why (E1.1, L1)', async () => {
+  const typed = { v: 1, kind: 'values', standard: OGRAF_STANDARD.commit, schema: 'x', values: { score: 3 } };
+  const cue = graphicCue('t1', 'Score', { score: '3' }, { typed });
+  const r = rig({ liveCue: { Score: 't1' } });
+  // The selection a pinned block presses with: the cue live on its graphic's layer.
+  const pinned = liveSelection('Score', [cue], { Score: 't1' });
+  assert.equal(pinned.airCue, cue);
+  await r.verbs.event(pinned, { event: 'goal', adjust: { score: 1 }, payload: ['score'] });
+  await r.verbs.bump(pinned, 'score', 1);
+  await r.verbs.snap(pinned, 'reveal', 'shown');
+  await settle();
+  assert.equal(r.sends.length, 0);
+  assert.deepEqual(r.notes, Array(3).fill('T1: This cue’s typed data needs a newer version of NoaCG to go on air.'));
+  // A native cue on the same block presses as before.
+  const native = graphicCue('n1', 'Score', { score: '3' });
+  const plain = rig({ liveCue: { Score: 'n1' } });
+  void plain.verbs.event(liveSelection('Score', [native], { Score: 'n1' }), { event: 'go' });
+  await settle();
+  assert.equal(plain.sends.length, 1);
 });
 
 // ── One sender (§4.1 R4) ─────────────────────────────────────────────────────────────────────

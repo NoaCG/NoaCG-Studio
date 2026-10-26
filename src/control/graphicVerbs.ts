@@ -61,6 +61,7 @@ import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSend
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 import { changedNote } from './liveControls.ts';
+import { typedSendRefusal } from '../model/ografTyped.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
  *  `uncertain`: the server did not answer, so it may still commit; `stale`: the server refused it
@@ -748,11 +749,21 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    * must never publish a half-typed name. A BOUND field takes the other road: the press moves the
    * production tree, counted from the TREE, and nothing is written into this cue (plan §2.7, §2.9).
    */
+  /** A live press on a layer airing a cue with typed OGraf data sends nothing from here, and says
+   *  why (model/ografTyped.ts, E1.1): its fields are not its native strings, so a figure counted
+   *  or read from them would air something the cue does not hold. A pinned block presses here too. */
+  const typedRefused = (s: VerbSender, cue: ShowCue | null): boolean => {
+    const why = cue ? typedSendRefusal(cue) : null;
+    if (why) s.note(`${cue?.label}: ${why}`);
+    return !!why;
+  };
+
   const bump = async (sel: VerbSelection, fieldKey: string, delta: number) => {
     const s = sender();
     const p = page();
     const { editingCue, selectedGraphic: graphic } = sel;
     if (!editingCue || !graphic || !sel.editingIsLive) return;
+    if (typedRefused(s, editingCue)) return;
     const still = instance(s, graphic, editingCue);
     if (!still()) return;
     const path = p.boundFields(graphic)[fieldKey];
@@ -884,10 +895,9 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** The data that belongs to AIR: the cue live on the selected layer, draft included. Events and
    *  snaps act on the live graphic, so their values come from ITS cue, read after the wait. A live
    *  candidate's fields are what its aired instance shows; with no instance here they are left out,
-   *  so the layer keeps what it shows rather than the cue's prepared text (E7.1). A cue carrying
-   *  typed data (model/ografTyped.ts) gives none: its native strings are not what it shows (E1.1). */
+   *  so the layer keeps what it shows rather than the cue's prepared text (E7.1). */
   const airValues = (p: GraphicPage, sel: VerbSelection): Record<string, string> => {
-    if (!sel.airCue || sel.airCue.typed !== undefined) return {};
+    if (!sel.airCue) return {};
     const values = p.cueView(sel.airCue).values;
     // The cue's own candidate fields, and every field the layer protects: a candidate's Take may
     // have reached the output while the marker still names this cue (E7.1).
@@ -947,6 +957,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return Promise.resolve();
+    if (typedRefused(s, sel.airCue)) return Promise.resolve();
     const still = instance(s, graphic, sel.airCue);
     if (!still()) return Promise.resolve();
     const bound = p.boundFields(graphic);
@@ -961,6 +972,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return;
+    if (typedRefused(s, sel.airCue)) return;
     const still = instance(s, graphic, sel.airCue);
     if (!still()) return;
     await afterPress(graphic, async () => {

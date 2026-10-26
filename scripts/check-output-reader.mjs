@@ -14,8 +14,8 @@
 // output.html. This check reads what was actually BUILT, never the source:
 //
 //   1. the module graph the built output page loads (its entry and every static import) parses,
-//      and none of it holds syntax Chromium 71 cannot parse (`?.`, `??`, and what ES2021+ adds,
-//      which the parser itself refuses at ecmaVersion 2020);
+//      and none of it holds syntax Chromium 71 cannot parse (`?.`, `??` and `export * as`, which
+//      ES2020 added, and what ES2021+ adds, which the parser itself refuses at ecmaVersion 2020);
 //   2. the typed read gate (src/model/ografTyped.ts `readTypedWire`) is in that graph: its
 //      refusal words ship to every output, so an output that meets an envelope refuses it.
 //
@@ -31,8 +31,11 @@ import { measured } from './measured.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
-/** Words only the typed read gate says; finding them proves the reader shipped. */
-export const READER_WORDS = ['This output cannot show typed data yet', 'This output cannot read this command'];
+/** Words only the typed read gate says (src/model/ografTyped.ts `readTypedWire`) and only the
+ *  output's call of it says (src/output/main.ts): finding all three proves the gate shipped, and
+ *  is called, in what an output loads. The call's place in front of the stage is pinned in Node
+ *  (scripts/ograf-typed.test.mjs). */
+export const READER_WORDS = ['This output cannot show typed data yet', 'This output cannot read this command', 'typed data refused for'];
 
 /** The syntax Chromium 71 cannot parse that ecmaVersion 2020 still accepts, at its position. */
 export function unparseable(code) {
@@ -42,6 +45,7 @@ export function unparseable(code) {
     if (!node || typeof node.type !== 'string') return;
     if (node.type === 'ChainExpression') found.push({ at: node.start, what: 'optional chaining' });
     if (node.type === 'LogicalExpression' && node.operator === '??') found.push({ at: node.start, what: 'nullish coalescing' });
+    if (node.type === 'ExportAllDeclaration' && node.exported) found.push({ at: node.start, what: '`export * as`' });
     for (const key of Object.keys(node)) {
       const child = node[key];
       if (Array.isArray(child)) child.forEach(walk);
@@ -85,7 +89,7 @@ function main() {
   const seen = new Set();
   const queue = [join(dist, entries[0].replace(/^\//, ''))];
   const problems = [];
-  let reader = false;
+  const shipped = new Set();
   while (queue.length) {
     const file = queue.shift();
     if (seen.has(file)) continue;
@@ -99,13 +103,13 @@ function main() {
       continue;
     }
     for (const { at, what } of parsed.found) problems.push(`${file.slice(dist.length + 1)}:${at}: ${what}, which CasparCG 2.3's Chromium 71 cannot parse`);
-    if (READER_WORDS.every((words) => code.includes(words))) reader = true;
+    for (const words of READER_WORDS) if (code.includes(words)) shipped.add(words);
     for (const spec of importsOf(parsed.ast)) {
       if (spec.startsWith('.') || spec.startsWith('/')) queue.push(spec.startsWith('/') ? join(dist, spec.slice(1)) : resolve(dirname(file), spec));
     }
   }
   measured(seen.size, 'output bundle modules parsed');
-  if (!reader) problems.push('the typed read gate (src/model/ografTyped.ts readTypedWire) is not in the output bundle');
+  for (const words of READER_WORDS) if (!shipped.has(words)) problems.push(`the typed read gate's "${words}" is not in the output bundle`);
   if (problems.length) {
     console.error(`check-output-reader: ${problems.length} problem(s) in the built output:\n  ${problems.join('\n  ')}`);
     process.exit(1);

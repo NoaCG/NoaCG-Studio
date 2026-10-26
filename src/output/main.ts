@@ -61,7 +61,7 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
-import { readTypedWire } from '../model/ografTyped';
+import { typedOutputGate } from '../model/ografTyped';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 
@@ -242,7 +242,9 @@ async function boot(): Promise<void> {
   });
   /** Graphics a command carrying typed data reached (model/ografTyped.ts `readTypedWire`, E1.1),
    *  with the reason: this build neither renders it nor turns it into strings, and says so in the
-   *  graphic's READY line until a reload brings a renderer that reads it. */
+   *  graphic's READY line. Until a native `update` gives the graphic its data again, nothing but a
+   *  `stop` reaches it: a Take's `play` after its refused `update` would air the previous cue's
+   *  values. */
   const typedRefused = new Map<string, string>();
   const withRefusals = (): ReadonlyMap<string, GraphicCheck> => {
     if (typedRefused.size === 0) return checks;
@@ -691,12 +693,13 @@ async function boot(): Promise<void> {
       return;
     }
     // THE READ GATE (E1.1): a command carrying typed data is refused whole, never applied as its
-    // native members; the row itself stays in the log as it came.
-    const typed = readTypedWire(incoming);
-    if (typed) {
-      console.warn(`output: "${graphic}" ${typed.reason}`);
-      typedRefused.set(graphic, typed.reason);
-      readyChanged();
+    // native members; the row itself stays in the log as it came. The graphic is held from then
+    // until a native update replaces its data (see `typedRefused`).
+    const typed = typedOutputGate(typedRefused, graphic, incoming);
+    if (typed.changed) readyChanged();
+    if (!typed.apply) {
+      if (typed.changed) console.warn(`output: typed data refused for "${graphic}": ${typedRefused.get(graphic)}`);
+      touched.add(graphic);
       return;
     }
     // A graphic a command has reached is never warmed (READY above): it holds the operator's values.

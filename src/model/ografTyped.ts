@@ -496,9 +496,15 @@ export function readTypedEnvelope(raw: unknown): TypedRead {
   return { status: 'read-only', reason: UNREADABLE };
 }
 
+/** A cue's typed data: values only. An action envelope on a cue is malformed, so read-only. */
+export function readCueTyped(cue: { typed?: unknown }): TypedRead {
+  const read = readTypedEnvelope(cue.typed);
+  return read.status === 'ok' && read.envelope.kind !== 'values' ? { status: 'read-only', reason: UNREADABLE } : read;
+}
+
 /** Whether a cue's typed data is one this build cannot read: the whole cue is then read-only. */
 export function typedReadOnly(cue: { typed?: unknown }): boolean {
-  return readTypedEnvelope(cue.typed).status === 'read-only';
+  return readCueTyped(cue).status === 'read-only';
 }
 
 /**
@@ -507,7 +513,7 @@ export function typedReadOnly(cue: { typed?: unknown }): boolean {
  * airs here: sending its native strings would air something other than its data.
  */
 export function typedSendRefusal(cue: { typed?: unknown }): string | null {
-  const read = readTypedEnvelope(cue.typed);
+  const read = readCueTyped(cue);
   if (read.status === 'absent') return null;
   if (read.status === 'read-only') return `This cue’s typed data ${read.reason}, so it is read-only here.`;
   return 'This cue’s typed data needs a newer version of NoaCG to go on air.';
@@ -525,6 +531,29 @@ export function readTypedWire(msg: unknown): { reason: string } | null {
   return read.status === 'ok'
     ? { reason: 'This output cannot show typed data yet: reload this output.' }
     : { reason: `This output cannot read this command’s data (it ${read.reason}): reload this output.` };
+}
+
+/**
+ * THE OUTPUT'S HOLD, one command at a time (src/output/main.ts): `held` is the graphics refused
+ * so far, with the reason. A command carrying an envelope is refused and holds its graphic; while
+ * held, only a `stop` (taking it off is always safe) and a native `update` (which gives it its data
+ * again and lifts the hold) reach it, so a Take's `play` after its refused `update` never airs the
+ * previous cue's values. `changed` says the held set moved.
+ */
+export function typedOutputGate(held: Map<string, string>, graphic: string, msg: unknown): { apply: boolean; changed: boolean } {
+  const refused = readTypedWire(msg);
+  if (refused) {
+    const changed = held.get(graphic) !== refused.reason;
+    held.set(graphic, refused.reason);
+    return { apply: false, changed };
+  }
+  if (!held.has(graphic)) return { apply: true, changed: false };
+  const verb = isRecord(msg) ? msg.t : undefined;
+  if (verb === 'update') {
+    held.delete(graphic);
+    return { apply: true, changed: true };
+  }
+  return { apply: verb === 'stop', changed: false };
 }
 
 // ── The write doors ──────────────────────────────────────────────────────────────────────────

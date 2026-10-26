@@ -32,9 +32,7 @@ export interface PickGroup {
  */
 export function liveSelection(graphic: string, cues: readonly ShowCue[], liveCue: LiveCueMap): VerbSelection {
   const id = Object.prototype.hasOwnProperty.call(liveCue, graphic) ? (liveCue[graphic] ?? null) : null;
-  // A pinned block is native: a cue carrying typed OGraf data (E1.1) is no cue of its, so a press
-  // there sends nothing rather than that cue's native strings.
-  const cue = id ? (cues.find((c) => c.id === id && c.source !== 'playout' && c.typed === undefined) ?? null) : null;
+  const cue = id ? (cues.find((c) => c.id === id && c.source !== 'playout') ?? null) : null;
   return {
     selectedCue: cue,
     selectedGraphic: graphic,
