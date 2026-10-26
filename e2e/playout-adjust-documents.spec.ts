@@ -18,6 +18,7 @@
 // is what the root paints differently beyond what the frame paints differently from itself.
 // The arithmetic is scripts/cue-adjust.test.mjs; the receivers' restore is local-relay.spec.ts and
 // hosted-control.spec.ts.
+// covers: src/templates/**
 // covers: src/control/appearanceRuntime.ts, src/control/exportAppearance.ts, src/components/home/exportAppearances.ts, src/export/targets/**, src/export/showExport.ts
 
 import { test, expect, type Browser, type Page } from '@playwright/test';

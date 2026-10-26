@@ -76,10 +76,11 @@ changes a spec's digest.
     need a box (a preset or a size): a graphic with the values its file loads with (the overlay's
     baked sample, the definition's defaults for every other target), and cues only for the overlay
     package, the one with a controller. Nothing adjusted, nothing measured.
-  - *A limit, as on the hosted page*: the controller sends the placement resolved at export. A name
-    typed longer in the controller keeps the preset's offset for the exported box (nudges and size
-    need no box); receivers never measure, so the fix is re-exporting, as a hosted page's
-    placements are those of its last Publish.
+  - *A limit, as on the hosted page*: every placement in a package is resolved at export. A name
+    typed longer in the controller, or sent by a CasparCG client or an SPX rundown, keeps the
+    preset's offset for the exported box (nudges and size need no box); receivers and baked files
+    never measure, so the fix is re-exporting, as a hosted page's placements are those of its last
+    Publish.
   - *The hosted receiver's identity*: it reports no appearance after an identity, as the `/output`
     renderer does. No bake ever sits under it (the production export strips it and nothing else
     emits it), so there is nothing an identity would have to keep off across a reload.
