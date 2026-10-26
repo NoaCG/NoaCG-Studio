@@ -158,7 +158,7 @@ test('a fresh operator page boots, takes its first cue, and holds it on air', as
 // both come back with the appearance from the renderer's report, with no new Take. Node pins the
 // rules (scripts/cue-adjust.test.mjs); e2e/playout-adjust.spec.ts boots /output from a stood-in report.
 test('an adjusted cue comes back placed after the output and the hosted PROGRAM reload', async ({ page, context }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(120_000);
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);

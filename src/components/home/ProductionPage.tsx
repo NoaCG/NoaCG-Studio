@@ -2669,8 +2669,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphicOf: cueGraphicName,
     cueView,
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
-    // Read after the wait, off the newest record: the place and size a Take or Update carries.
-    appearanceOf: (cue) => adjustStateOf(cuesRef.current.find((c) => c.id === cue.id) ?? cue, loadShows().find((x) => x.id === id) ?? show)?.send,
+    // Read after the wait (this object is the render's): the place and size a Take or Update carries.
+    appearanceOf: (cue) => adjustStateOf(cuesRef.current.find((c) => c.id === cue.id) ?? cue)?.send,
     flush: async () => {
       await flushDraft(); await history.closeGroup();
     },

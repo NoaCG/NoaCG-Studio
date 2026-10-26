@@ -47,7 +47,8 @@ describe('the record and its reader', () => {
     });
     assert.deepEqual(adjust.readAdjust({ v: 2, place: 'br' }), { status: 'read-only' });
     assert.deepEqual(adjust.readAdjust({ v: 1, place: 'nowhere', x: 'a', scale: -1 }).record, { v: 1 }, 'bad members are not read');
-    assert.equal(adjust.readAdjust({ v: 1, scale: 99 }).record.scale, adjust.SCALE_MAX);
+    assert.equal(adjust.readAdjust({ v: 1, scale: 99 }).record.scale, 4, 'the size stops at 400 %');
+    assert.equal(adjust.readAdjust({ v: 1, scale: 0.01 }).record.scale, 0.25, 'and at 25 %');
   });
 
   test('a patch writes over the record, keeps members it does not know, and a null removes one', () => {
@@ -95,6 +96,13 @@ describe('AC-1: a lower third moves to the other side and nudges precisely', () 
     near(right(composed(LT, nudged)), 1800 - 13, 'moved 13 px left');
   });
 
+  test('the presets are the safe area of base.ts zoneDecls: left and right 120, top 86, bottom 119 at 1080p', () => {
+    assert.deepEqual(A.presetPoint('tl', HD), { x: 120, y: 86 });
+    assert.deepEqual(A.presetPoint('br', HD), { x: 1800, y: 961 });
+    assert.deepEqual(A.presetPoint('mc', HD), { x: 960, y: 540 });
+    assert.deepEqual(A.presetPoint('br', { width: 3840, height: 2160 }), { x: 3600, y: 1922 }, 'scaled with the stage');
+  });
+
   test('a longer name re-measured keeps the right edge on the inset and the anchor unchanged', () => {
     const record = { v: 1, place: 'br', anchor: 'bl' };
     const longer = { ...LT, w: 520 };
@@ -106,7 +114,7 @@ describe('AC-1: a lower third moves to the other side and nudges precisely', () 
 
   test('a nudge never takes a frame off the stage', () => {
     const frame = A.resolveFrame(eff({ v: 1, x: 99999 }, undefined), strap(), HD, HD);
-    assert.ok(frame.dx <= 1920 - 8);
+    assert.equal(frame.dx, 1912, 'at most the stage width less 8 px');
   });
 });
 
@@ -172,6 +180,11 @@ describe('AC-3: the oversized quiz assessed per board', () => {
     const votes = A.floorEstimate(26, 0.47, 'quiz');
     assert.deepEqual([votes.tone, votes.px], ['red', 12.2]);
     assert.equal(A.floorEstimate(26, 1, 'quiz').tone, 'ok');
+    // Red below 16 px whatever the category; 16 itself is amber under the 20 px floor.
+    assert.equal(A.floorEstimate(15.9, 1, 'quiz').tone, 'red');
+    assert.equal(A.floorEstimate(16, 1, 'quiz').tone, 'amber');
+    assert.equal(A.floorEstimate(19.9, 1, 'quiz').tone, 'amber');
+    assert.equal(A.floorEstimate(20, 1, 'quiz').tone, 'ok');
     assert.equal(A.floorEstimate(null, 1, 'quiz'), null);
     // The floor moves with the category's (model/designRules.ts): a corner bug answers to 16.
     assert.equal(A.floorEstimate(17, 1, 'corner-bug').tone, 'ok');
@@ -252,6 +265,9 @@ describe('measurements: identified and qualified', () => {
     const a = { info: { x: 0, y: 0, w: 100, h: 10 }, paint: { x: 0, y: 0, w: 200, h: 20 }, minText: 20 };
     const moving = { info: { x: 40, y: 0, w: 100, h: 10 }, paint: { x: 0, y: 0, w: 200.5, h: 20 }, minText: 20 };
     assert.deepEqual(A.qualify(a, moving), { info: null, paint: moving.paint, minText: 20 });
+    const off = (n) => ({ ...a, info: { ...a.info, x: n } });
+    assert.notEqual(A.qualify(a, off(1)).info, null, '1 px agrees');
+    assert.equal(A.qualify(a, off(1.5)).info, null, '1.5 px does not');
   });
 
   test('the session keeps the last measurement of a cue while its new identity is measured', () => {

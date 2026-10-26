@@ -5,6 +5,105 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 32b (L2.1, project phase 33): playout adjustments, place and size
+
+- **Previous verified `main` sha:** `e07a5d8` (row 32a passed after PR #1731). This branch began
+  on `e07a5d8`; before editing, main had no `AdjustRecord` and no `appearance` on `update`.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated. A record written in the
+  meantime stays on the show and is ignored by the reverted build (an unknown member); a report's
+  `state.appearance` is ignored by the reverted renderer; a frame keeps its transform only until
+  that renderer reloads.
+- **Gate (narrowed 2026-10-25):** L2 AC-1 to AC-4, AC-8, AC-9's renderer half, AC-10's
+  unchanged-production part, the export dialog's disclosure. Place and size only; no style, ghost
+  view, tween, receiver, overlay or bake.
+- **Design taken (and where it departs from the spec's wording, why).**
+  - *The record* (`src/model/adjust.ts`): `{ v: 1, place?, x?, y?, scale?, anchor? }` on
+    `SavedGraphic.adjust` (the default) and `ShowCue.adjust` (the exception), one reader
+    (`readAdjust`): a later `v` is kept and refused at every door with one wording. Departure:
+    members this build does not know are ignored on read but **kept on write** (the spec says
+    dropped), so a phase-2 record edited by a phase-1 build does not lose its style.
+  - *Doors* (`src/model/shows.ts`): `setGraphicAdjust`, `setCueAdjust`, `promoteCueAdjust` (one
+    write), and `stepAdjust`, which adds a nudge or size step to the record **as it stands when the
+    write runs**: the journey caught three quick ← presses landing as 2 px when the step was
+    computed from the render's copy. Re-add by name keeps `adjust` like `layer`; Publish's refresh
+    and a duplicate keep it by construction; copy and paste copies it (`cueClipboard.ts`).
+  - *Merge* (`teamShowMerge.ts` `keepCueExceptions`): where our side cleared a cue's exception and
+    the default it moved onto did not survive (probe 1, a concurrent pool-layer edit), the
+    exception comes back; probe 2 needs nothing (both halves kept). An operator's plain reset is
+    not undone.
+  - *Undo:* every write goes through the rundown history. `liveRundownRefusal` ignores `adjust`
+    when it compares a source on air, so Ctrl+Z of an adjustment is allowed while the graphic airs
+    (it changes nothing on air by itself).
+  - *Resolve* (`src/control/cueAdjust.ts`): fold member by member, identity after; presets on the
+    stage's safe area (120/86/119 at 1080p, `zoneDecls`); pivot = the preset's zone, else the
+    anchor, else the box's zone; a band (painted extent touching both frame edges) takes vertical
+    nudge only; no information box, no preset; no measurement, nudge and size about the anchor's
+    point of the frame. A nudge is clamped to the stage less 8 px so a frame stays partly on stage.
+  - *The wire:* `update.appearance?: { v: 1, frame?: { dx, dy, s, ox, oy } }`, absent frame = the
+    identity. Take and ✎ Update carry it (`GraphicPage.appearanceOf`, read after the wait off the
+    newest record); the ± block, Snap, data rows and events carry none (rule 1). A graphic with no
+    record at either scope, nothing applied and no sibling exception sends no field (AC-10). **The
+    press ledger, instance check and press queue in `graphicVerbs.ts` are untouched**: the field
+    rides the same messages, and the ledger reads `data` only.
+  - *Measurement:* `measureGraphic` (`src/preview/settleGraphic.ts`, serialized into the
+    live-control document) answers an identified `settle` or `measure` (`id`) with the clipped
+    information box, painted extent and smallest text; qualified when two answers 250 ms apart
+    agree within 1 px. Held in a new session part, `geometry` (`src/control/adjustGeometry.ts`),
+    never on the show. Two roads write it: PREVIEW after each settle (only while the graphic is
+    adjusted or the block is open, so a production nobody adjusts measures nothing and
+    `playout-air-contract`'s render counts hold), and a background measurer, one hidden frame at a
+    time (`src/preview/measureCue.ts`), for adjusted cues PREVIEW has not shown.
+  - *PREVIEW in stage coordinates* (`PlayoutMonitors.tsx`): the production stage is fitted to the
+    monitor and the graphic's frame sits at its origin unscaled, as on the output; the safe area
+    is drawn while the block is open.
+  - *Stage* (`src/output/stage.ts`): the transform on the frame NoaCG owns, `data-appearance` on
+    it, kept across stop, swap and rebuild of the document; `appearances` exposed for the report.
+  - *Recovery:* the renderer's report carries the appearance inside `state` (the RPCs store
+    `state` as sent), so **no migration and no new parameter**; the spec says "beside `state`",
+    and a new report parameter would have been a migration, which this row may not add. Boot
+    applies it before the data half; `airState` seeds `looks` from the reports and the rows after
+    them, and `restoreItems` puts it on the first update of a rebuilt PROGRAM; the hosted page does
+    the same from its reports and the rows it has seen.
+  - *Hosted page:* applies, never edits. Publish measures the adjusted cues of the copy being
+    published (capped 8 s) and writes each cue's resolved appearance into the payload
+    (`OutputCue.appearance`); the hosted Take, timed next cue and ✎ Update carry it, an identity
+    when the graphic holds one or a sibling cue has one. Departure: the spec names a staged record
+    per cue in the hosted buffer; the hosted page has no Adjust block until phase 3, so nothing
+    stages a record and the buffer is untouched (its values never override the appearance).
+  - *UI* (`src/components/home/CueAdjust.tsx`, props only): one disclosure in the settings strip,
+    closed by default, its summary naming the scope and state ("all 2 Hairline cues ·
+    bottom-right, 95 %", "only this cue · bottom-left", "as designed", "· 1 cue keeps its own");
+    nine-point grid with the pivot dotted, arrows (1 px, Shift 10), typed x and y, Size − and +
+    (5 %, Shift 1 %) with typed percent, the floor line, "Only this cue", "Use for all N cues",
+    "Stop this cue's exception", "Reset <graphic> to as designed". Arrow keys bind only inside the
+    block. A waiting change counts in the fate line and the rundown row like an unsent value.
+  - *Export dialog:* one line when the production holds any record: place and size are not in any
+    package.
+- **Not built (outside the narrowed gate):** the rundown row glyph for an adjusted cue (the
+  summary line names it instead); the "placed right, left-aligned" note; the pack install dialog's
+  line; receivers, bakes and the exported controller (row 32c).
+- **Traps.** Playwright's `locator.textContent()` on an absent element waits out the whole test,
+  which reads like a hung page. The queue wants `chromium_headless_shell-1228`; this image has
+  `-1243` (symlinked, #1647). A dev server started by hand on the worktree's port makes the offline
+  guard refuse the run: stop it first.
+- **Fence (touched against `e07a5d8`):** `e2e/configured/hosted-control-recovery.spec.ts`,
+  `e2e/playout-adjust.spec.ts` (new), `e2e/production-controls.spec.ts`,
+  `scripts/cue-adjust.test.mjs` (new), `src/components/HostedControlPage.tsx`,
+  `src/components/home/CueAdjust.tsx` (new), `src/components/home/CueEditor.tsx` (one prop),
+  `src/components/home/PlayoutMonitors.tsx`, `src/components/home/ProductionExportDialog.tsx`,
+  `src/components/home/ProductionPage.tsx`, `src/components/home/useProductionPublish.ts`,
+  `src/control/adjustGeometry.ts` (new), `src/control/airState.ts`, `src/control/controlModel.ts`
+  (the type), `src/control/cueAdjust.ts` (new), `src/control/cueItems.ts`,
+  `src/control/graphicVerbs.ts` (the optional `appearanceOf` and two call sites; no ledger,
+  instance or queue change), `src/control/hostedControl.ts`, `src/control/playoutSession.ts`,
+  `src/model/adjust.ts` (new), `src/model/cueClipboard.ts`, `src/model/packets.ts`,
+  `src/model/rundownHistory.ts`, `src/model/shows.ts`, `src/model/teamShowMerge.ts`,
+  `src/output/main.ts`, `src/output/stage.ts`, `src/preview/composeDocument.ts`,
+  `src/preview/measureCue.ts` (new), `src/preview/previewProtocol.ts`,
+  `src/preview/settleGraphic.ts`, `src/styles/playout-dashboard.css`, and this file. L1's seams
+  changed: `CueEditor` gains an `adjust` slot; `takeCueItems` an optional `appearance`.
+
 ## Row 32a last repair: one ledger for the sent-figure base
 
 - **Previous verified `main` sha:** the first repair landed as `8da6005` (PR #1730) and failed
