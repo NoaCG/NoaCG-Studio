@@ -219,7 +219,9 @@ export const FONTS: BundledFont[] = [
   // ── The 2026-08 growth set (docs/GOALS_ARCHIVE.md "Student release" step 5): every style family
   // gets at least three strong faces, and the catalog gains its first serifs. All variable
   // latin-subset woff2 from Google Fonts, OFL 1.1 - each copyright line is appended to
-  // src/assets/OFL.txt (the licence follows the bytes, src/export/AGENTS.md).
+  // src/assets/OFL.txt (the licence follows the bytes, src/export/AGENTS.md). Every face, these
+  // and the seven above, also ships Google's latin-ext file of the same version beside it
+  // (`latinExtFile`), fetched with the same axes so its outlines match the latin file's.
   {
     id: 'playfair-display',
     family: 'Playfair Display',
@@ -332,6 +334,19 @@ export function fontById(id: string): BundledFont {
 }
 
 /**
+ * The Latin Extended-A/B range Google ships as the `latin-ext` subset (Š š Ž ž Ł ő ğ ...).
+ * Each bundled `file` is the `latin` subset only, so every bundled face has a second file for
+ * these letters; without it "Šimon Žáková" sets its Š and Ž in the fallback stack.
+ */
+export const LATIN_EXT_RANGE =
+  'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF';
+
+/** The bundled face's `latin-ext` file, beside its `latin` one under public/fonts/. */
+export function latinExtFile(font: BundledFont): string {
+  return font.file.replace(/\.woff2$/, '-latin-ext.woff2');
+}
+
+/**
  * A bundled face's `font-weight` descriptor. A variable file declares the range it covers. A STATIC
  * file (Bebas Neue, Anton: one weight) declares the whole 100-900: a heavier request then matches
  * the file as it is drawn, and the browser never paints a synthesised bold, which Blink adds only
@@ -344,15 +359,32 @@ export function faceWeightLine(font: BundledFont): string {
     : `  font-weight: ${font.weights[0]} ${font.weights[1]};  /* variable font: covers this weight range */`;
 }
 
-/** The visible @font-face rule generated into template CSS (exports 1:1). */
+/**
+ * The two `@font-face` rules of one bundled face under `family`: the latin file with no
+ * `unicode-range` (so it still answers every letter it has, a decomposed "A + ring" included),
+ * then the latin-ext file limited to {@link LATIN_EXT_RANGE}. Declared second, the latin-ext
+ * rule is the one the browser tries first for a letter in its range.
+ */
+export function bundledFaceRules(family: string, font: BundledFont, weightLine = faceWeightLine(font)): string {
+  return `@font-face {
+  font-family: "${family}";
+  src: url("fonts/${font.file}") format("woff2");
+${weightLine}
+  font-display: swap;          /* show fallback text until the font loads */
+}
+@font-face {
+  font-family: "${family}";
+  src: url("fonts/${latinExtFile(font)}") format("woff2");
+${weightLine}
+  font-display: swap;
+  unicode-range: ${LATIN_EXT_RANGE};  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */
+}`;
+}
+
+/** The visible @font-face rules generated into template CSS (exports 1:1). */
 export function fontFaceCss(font: BundledFont): string {
   return `/* Bundled open-source font (the file ships with the export — no internet at playout). */
-@font-face {
-  font-family: "${font.family}";
-  src: url("fonts/${font.file}") format("woff2");
-${faceWeightLine(font)}
-  font-display: swap;          /* show fallback text until the font loads */
-}`;
+${bundledFaceRules(font.family, font)}`;
 }
 
 /** Full font-family value for CSS (family + fallback stack). */
@@ -368,12 +400,7 @@ export function fontStack(font: BundledFont): string {
 export function labelFontFaceCss(font: BundledFont): string {
   return `/* Design-owned label font (bundled OFL file — ships with the export, offline at playout).
    The Style panel's font picker swaps the heading face above; this one belongs to the design. */
-@font-face {
-  font-family: "${font.family}";
-  src: url("fonts/${font.file}") format("woff2");
-${faceWeightLine(font)}
-  font-display: swap;          /* show fallback text until the font loads */
-}`;
+${bundledFaceRules(font.family, font)}`;
 }
 
 /**
@@ -400,12 +427,7 @@ export function numericFontFaceCss(font: BundledFont): string {
 export function supportingFontFaceCss(font: BundledFont, why: string): string {
   return `/* Supporting face (bundled OFL file — ships with the export, offline at playout).
    ${why} */
-@font-face {
-  font-family: "${font.family}";
-  src: url("fonts/${font.file}") format("woff2");
-${faceWeightLine(font)}
-  font-display: swap;          /* show fallback text until the font loads */
-}`;
+${bundledFaceRules(font.family, font)}`;
 }
 
 /**
@@ -651,7 +673,8 @@ export function customFontStack(font: CustomFont): string {
  */
 export function registerAppFont(family: string, dataUrl: string): Promise<void> {
   try {
-    const face = new FontFace(family, `url(${dataUrl})`);
+    // Every weight, as `customFontFaceCss` declares it: the builder previews the file as it airs.
+    const face = new FontFace(family, `url(${dataUrl})`, { weight: '100 900' });
     return face
       .load()
       .then((f) => {

@@ -1005,6 +1005,10 @@ test('every export target carries the fonts its own code references', async ({ p
     await lone.goto(`file://${onDisk.replace(/\\/g, '/')}`);
     const faces = await lone.evaluate(async () => {
       await document.fonts.ready;
+      // A face limited by `unicode-range` (a bundled face's latin-ext file) is fetched only when
+      // the page draws a letter in its range, so each one is loaded here on purpose: every
+      // declared face, used yet or not, must resolve from the file alone.
+      await Promise.all(Array.from(document.fonts).map((f) => f.load().catch(() => undefined)));
       return Array.from(document.fonts).map((f) => `${f.family.replace(/["']/g, '')}:${f.status}`);
     });
     await lone.close();

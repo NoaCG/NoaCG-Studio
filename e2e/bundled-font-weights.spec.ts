@@ -4,7 +4,8 @@
 //
 // A blank page at a root path, so `url("fonts/<file>")` resolves to `/fonts/<file>` as beside
 // /output, holding the generated `@font-face` of Bebas Neue (one static weight) and of an imported
-// face (one file, no declared weight), then the same word at weight 400 and at 800. Chromium
+// face (one file, no declared weight), then the same word at weight 400 and at 800 (for Bebas Neue a
+// name with Š and Ž, so its latin-ext rule is drawn too). Chromium
 // smears a bold onto a face whose declared range tops out below 600, so the two pictures differed;
 // with the face declared over 100-900 they are the same pixels. Archivo, a variable face, is the
 // control: its 800 must still differ from its 400, or the comparison would prove nothing.
@@ -12,8 +13,12 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const WORD = 'JAKE MORRISON';
+/** Latin and Latin Extended letters together: a bundled face is two rules (its latin file and its
+ *  latin-ext file), and both must declare the same weights or Chromium treats them as two faces
+ *  at 800 and Š and Ž lose theirs. */
+const NAME = 'ŠIMON ŽÁKOVÁ JAKE';
 
-async function pictures(page: Page, kind: 'bundled' | 'imported', fontId: string) {
+async function pictures(page: Page, kind: 'bundled' | 'imported', fontId: string, word = WORD) {
   return page.evaluate(async ({ kind, fontId, word }) => {
     const { fontById, fontFaceCss, customFontFaceCss } = await import('/src/model/fonts.ts');
     const face = fontById(fontId);
@@ -37,7 +42,7 @@ async function pictures(page: Page, kind: 'bundled' | 'imported', fontId: string
     };
     await document.fonts.load(`800 80px "${family}"`, word);
     return { regular: draw(400), heavy: draw(800), loaded: document.fonts.check(`400 80px "${family}"`, word) };
-  }, { kind, fontId, word: WORD });
+  }, { kind, fontId, word });
 }
 
 test('Bebas Neue and an imported face draw 800 exactly as 400; a variable face still has its bold', async ({ page }) => {
@@ -45,14 +50,14 @@ test('Bebas Neue and an imported face draw 800 exactly as 400; a variable face s
     route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><body></body>' }));
   await page.goto('/bundled-font-weights-probe');
 
-  const bebas = await pictures(page, 'bundled', 'bebas-neue');
-  expect(bebas.loaded, 'Bebas Neue loaded').toBe(true);
-  expect(bebas.heavy === bebas.regular, 'Bebas Neue at 800 is drawn as the file is, no synthesised bold').toBe(true);
+  const bebas = await pictures(page, 'bundled', 'bebas-neue', NAME);
+  expect(bebas.loaded, 'Bebas Neue loaded, both files').toBe(true);
+  expect(bebas.heavy === bebas.regular, 'Bebas Neue at 800, Š and Ž included, is drawn as the files are, no synthesised bold').toBe(true);
 
   const imported = await pictures(page, 'imported', 'anton');
   expect(imported.loaded, 'the imported face loaded').toBe(true);
   expect(imported.heavy === imported.regular, 'an imported face at 800 is drawn as the file is').toBe(true);
 
-  const archivo = await pictures(page, 'bundled', 'archivo');
+  const archivo = await pictures(page, 'bundled', 'archivo', NAME);
   expect(archivo.heavy === archivo.regular, 'Archivo, a variable face, really draws a heavier 800').toBe(false);
 });
