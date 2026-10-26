@@ -132,3 +132,15 @@ example and qualify the examples before publishing a complete SVG import example
 - The third-run fields capture had the correct artwork count but still showed a blank boundary
   frame. Capture now pauses the real roll at one quarter and requires the first text run fully
   inside the output, so its replacement PNG must show the artwork rather than its empty start.
+- Fourth run `40310207442` at `43d47d318` passed the complete example qualification and produced
+  the final 1280 by 720 fields screenshot, now replacing the canonical public PNG. It shows
+  the original credits in frame and zero editable text fields. Build and documentation pass.
+- The strict Pop test still found a 1.0874-pixel endpoint residue. Its recorded parent matrix
+  was fully settled, ruling out entrance motion as the remaining cause. The transformed text's
+  bounds differed from its rest bounds. The final repair reads and corrects the actual start
+  and end poses while hidden, then runs one constant-speed tween between those measured poses.
+  No frame padding or assertion tolerance was added. Browser confirmation is pending.
+- Independent review mutation-tested that coordinate change: the prior runtime reproduced
+  start `1080.0302734375`, end `1.08740234375`; calibration produced `1080` and `0`.
+  Unchanged geometry, calibrated duration and cancellation also passed in the emitted-runtime
+  model. Full review covered the final 104 paths with six findings fixed and none remaining.

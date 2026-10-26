@@ -76,13 +76,23 @@ function noacgCreditsRoll() {
     // vertical vector mapped into the parent's coordinates also handles rotated/scaled groups.
     var startY = frame.bottom - text.top;
     var endY = frame.top - text.bottom;
-    var distance = startY - endY;
-    var speed = creditsLiveSpeed();
-    var duration = distance / (90 * frame.height / ${frameHeight} * speed);
-    var position = { y: startY };
+    var position = { y: 0 };
     var paint = function () {
       travel.setAttribute('transform', 'translate(' + (inverse.c * position.y) + ' ' + (inverse.d * position.y) + ')');
     };
+    // SVG text bounds can change when a preceding CSS scale gives way to translated artwork.
+    // Read the actual two endpoint poses while hidden, rather than extrapolating both from
+    // the rest rectangle. Correct in screen pixels through the same inverse vector.
+    position.y = startY;
+    paint();
+    startY += frame.bottom - artwork.text.getBoundingClientRect().top;
+    position.y = endY;
+    paint();
+    endY += frame.top - artwork.text.getBoundingClientRect().bottom;
+    var distance = startY - endY;
+    var speed = creditsLiveSpeed();
+    var duration = distance / (90 * frame.height / ${frameHeight} * speed);
+    position.y = startY;
     paint();
     travel.removeAttribute('data-noacg-stopped');
     travel.setAttribute('data-noacg-rolling', '');
