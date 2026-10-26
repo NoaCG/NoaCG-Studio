@@ -1,6 +1,6 @@
 // EVERY BUNDLED FACE SETS "Åsa Öberg-Ærø Šimon Žáková" IN ITSELF, NEVER A FALLBACK
 // (playout-adjustments spec, "Typography reliability" item 1; the string is AC-5's).
-// covers: src/model/fonts.ts, public/fonts
+// covers: src/model/fonts.ts, public/fonts/*.woff2
 //
 // A blank page at a root path, so `url("fonts/<file>")` resolves to `/fonts/<file>` as it does
 // beside /output, holding each face's own generated `@font-face` rules and one node per face with
