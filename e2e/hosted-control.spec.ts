@@ -400,6 +400,75 @@ test('a hosted graphic whose channel never delivers a row still catches up from 
   await graphic.close();
 });
 
+// PLACE AND SIZE on the hosted plane (docs/work-specs/playout-adjustments/spec.md, phase 1b, AC-9's
+// receiver half): an update that carries an appearance puts it on the page's root; a data row keeps
+// it (rule 1); the receiver REPORTS the last one beside its machine state, as the /output renderer
+// does, and a boot restores it from that report, which is the only place an undated report's
+// appearance survives (its boot resumes from the log head). A dated report then replays the rows
+// after it, so the last one applied wins (rule 4). A version this build does not know is ignored.
+const LOOK_A = { v: 1, frame: { dx: -40, dy: 0, s: 1, ox: 120, oy: 961 } };
+const LOOK_B = { v: 1, frame: { dx: 20, dy: -30, s: 0.9, ox: 120, oy: 961 } };
+const lookCss = (a: { frame: { dx: number; dy: number; s: number } }) => `translate(${a.frame.dx}px, ${a.frame.dy}px) scale(${a.frame.s})`;
+
+for (const dated of [false, true]) {
+  test(`a hosted graphic restores its place and size from ${dated ? 'a dated' : 'an undated'} report, applies a row's, and reports it`, async ({ page, context }) => {
+    test.setTimeout(120_000);
+    const html = receiverHost(await receiverBlock(page));
+    // Undated: the report is all there is (the boot resumes at the head, 5). Dated: row 4, after the
+    // report's event 3, carries B, which is newer than the report's A and must win.
+    const log = dated ? [{ id: 4, graphic: 'Board', msg: { t: 'update', data: { f0: 'AFTER' }, appearance: LOOK_B } }] : [];
+    const later: { id: number; graphic: string; msg: unknown }[] = [];
+    const reports: { p_state?: { appearance?: unknown } }[] = [];
+    const graphic = await context.newPage();
+    let socket: import('@playwright/test').WebSocketRoute | null = null;
+    await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => { socket = ws; });
+    await graphic.route('https://bootref.supabase.co/**', (route) => {
+      const name = new URL(route.request().url()).pathname.split('/').pop();
+      const body = route.request().postDataJSON() as { p_after?: number };
+      if (name === 'control_show_by_slug') {
+        const mine = { data: { f0: 'REPORTED' }, state: { appearance: LOOK_A }, ...(dated ? { event: 3 } : {}) };
+        return route.fulfill({ json: [{ id: 'show-1', last_event_id: dated ? 4 : 5, live: { Board: mine } }] });
+      }
+      if (name === 'control_tail') return route.fulfill({ json: [...log, ...later].filter((r) => r.id > Number(body.p_after ?? 0)) });
+      if (name === 'control_report') reports.push(body as never);
+      return route.fulfill({ json: [] });
+    });
+    await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+    await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+    const transform = () => graphic.evaluate(() => document.documentElement.style.transform);
+    // A live row: in the log for any tail read, and delivered on the socket.
+    let next = dated ? 5 : 6;
+    const deliver = (msg: unknown) => {
+      const row = { id: next++, graphic: 'Board', msg };
+      later.push(row);
+      socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: row } } }));
+    };
+
+    await expect(graphic.locator('#f0')).toHaveText(dated ? 'AFTER' : 'REPORTED', { timeout: 30_000 });
+    await expect.poll(transform).toBe(lookCss(dated ? LOOK_B : LOOK_A));
+
+    // A row's appearance replaces it; a data row keeps it; a later version is ignored.
+    await expect.poll(() => socket !== null).toBe(true);
+    deliver({ t: 'update', data: { f0: 'B' }, appearance: LOOK_B });
+    await expect(graphic.locator('#f0')).toHaveText('B', { timeout: 10_000 });
+    expect(await transform()).toBe(lookCss(LOOK_B));
+    deliver({ t: 'update', data: { f0: 'C' } });
+    deliver({ t: 'update', data: { f0: 'D' }, appearance: { v: 2, frame: { dx: 1, dy: 1, s: 3, ox: 0, oy: 0 } } });
+    await expect(graphic.locator('#f0')).toHaveText('D', { timeout: 10_000 });
+    expect(await transform()).toBe(lookCss(LOOK_B));
+    // …and reports it, so the next boot finds it.
+    await expect.poll(() => reports.at(-1)?.p_state?.appearance, { timeout: 10_000 }).toEqual(LOOK_B);
+
+    // An identity takes it off, and the report then carries none.
+    deliver({ t: 'update', data: { f0: 'E' }, appearance: { v: 1 } });
+    await expect(graphic.locator('#f0')).toHaveText('E', { timeout: 10_000 });
+    expect(await transform()).toBe('');
+    await expect.poll(() => reports.at(-1)?.p_state ?? null, { timeout: 10_000 }).toBeNull();
+
+    await graphic.close();
+  });
+}
+
 test('the receiver block emits the SAME baseline rule the app renderer applies', async () => {
   // ONE RULE, TWO FORMS. `control/outputRecovery.ts` decides where a boot starts reading the
   // control log; the receiver block cannot import it (it ships as text inside a graphic's own JS,
