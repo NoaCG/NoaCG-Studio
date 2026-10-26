@@ -32,7 +32,18 @@ import {
   type Measurement,
   type Size,
 } from './cueAdjust.ts';
-import { resolveStyle, NO_STYLE_CONTEXT, type StyleContext } from './cueStyle.ts';
+
+/** What a cue's style resolves against (control/cueStyle.ts `styleContextFor`): the production's
+ *  imported faces and the resolve that turns a fold into variables and faces. Handed in rather
+ *  than imported: the face registry it reads (model/fonts.ts) loads a bundled text file, which
+ *  the plain-Node tests of the playout modules that import this one cannot load. */
+export interface StyleContext {
+  imported: readonly { family: string; assetPath: string }[];
+  resolve: (eff: Pick<EffectiveAdjust, 'vars' | 'font'>, imported: StyleContext['imported']) => AppearanceStyle | null;
+}
+
+/** No style: a surface that resolves none (a production's own context comes from cueStyle.ts). */
+export const NO_STYLE_CONTEXT: StyleContext = { imported: [], resolve: () => null };
 
 export interface GeometryEntry {
   /** The identity the measurement was taken for. */
@@ -273,7 +284,7 @@ export function cueAdjustState(
   styleCtx: StyleContext = NO_STYLE_CONTEXT,
 ): CueAdjustState {
   const eff = effectiveAdjust(graphic.adjust, cue.adjust);
-  const style = resolveStyle(eff, styleCtx.imported);
+  const style = styleCtx.resolve(eff, styleCtx.imported);
   const styleId = styleKey(appearanceOf(null, style));
   const { m, fresh } = geometryOf(geometry, cue.id, graphic.id, measureId(graphic.id, graphic.savedAt, cue.id, values, stage, styleId));
   const frame = resolveFrame(eff, m, frameSize, stage);

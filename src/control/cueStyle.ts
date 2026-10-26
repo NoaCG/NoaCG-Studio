@@ -12,7 +12,6 @@
 
 import { readAdjust, readFont, type AdjustPatch, type FontRef } from '../model/adjust.ts';
 import { cssPaintsWith } from '../model/cssVars.ts';
-import { styleTerm } from '../model/styleVocabulary.ts';
 import { SVG_TEXT_FIT_MARKER } from '../templates/shared/textFit.ts';
 import type { AssetFile } from '../model/types.ts';
 import {
@@ -30,6 +29,7 @@ import {
   type BundledFont,
 } from '../model/fonts.ts';
 import type { AppearanceStyle, EffectiveAdjust, FontDeclaration } from './cueAdjust.ts';
+import type { StyleContext as GeometryStyleContext } from './adjustGeometry.ts';
 
 /** An imported face a pool graphic of the production ships: what the Type row offers beside the
  *  bundled faces, and what an `{ family, assetPath }` reference resolves to. */
@@ -40,16 +40,15 @@ export interface ImportedFace {
   tabularFigures?: boolean;
 }
 
-/** What a cue's style resolves against: the imported faces the production ships. */
-export interface StyleContext {
+/** What a cue's style resolves against (control/adjustGeometry.ts `StyleContext`): the imported
+ *  faces the production ships, and this module's resolve. */
+export interface StyleContext extends GeometryStyleContext {
   imported: readonly ImportedFace[];
 }
 
-export const NO_STYLE_CONTEXT: StyleContext = { imported: [] };
-
 /** The style context of a production: every imported face its pool ships. */
 export function styleContextFor(pool: readonly { css: string; assets: readonly { path: string }[] }[]): StyleContext {
-  return { imported: importedFacesOf(pool) };
+  return { imported: importedFacesOf(pool), resolve: resolveStyle };
 }
 
 /** An imported face's bytes by asset path, read from the production's own copies. */
@@ -96,6 +95,9 @@ export function withAppearanceFaces<T extends { css: string; assets: AssetFile[]
 
 /** The colour roles the Colour row offers, in its order. */
 export const COLOUR_VARS = ['accent', 'text-color', 'text-dim', 'panel-bg'] as const;
+
+/** Each colour role in the words `noacg inspect` prints (model/styleVocabulary.ts's labels). */
+const COLOUR_WORD: Record<(typeof COLOUR_VARS)[number], string> = { accent: 'accent', 'text-color': 'text', 'text-dim': 'secondary text', 'panel-bg': 'panel' };
 
 /** The faces a set of templates ships as imported files (their `/* Imported font` blocks whose
  *  file is one of the template's own assets), each once. */
@@ -232,7 +234,7 @@ export function adjustableLine(template: { css: string; js: string } | null): st
   const parts = ['place and size'];
   if (reach.family) parts.push('typeface');
   if (reach.weight) parts.push('heading weight');
-  for (const c of reach.colours) parts.push(`${styleTerm(c).label.toLowerCase()} colour`);
+  for (const c of reach.colours) parts.push(`${COLOUR_WORD[c]} colour`);
   return parts.join(', ');
 }
 

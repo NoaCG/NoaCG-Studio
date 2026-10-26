@@ -921,9 +921,9 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
   test('rule 2 with style: a styled cue sends its style; resetting every scope sends the identity', () => {
     const graphic = { id: 'g1', savedAt: 't', adjust: { v: 1, vars: { accent: '#ff7a00' } } };
     const cue = { id: 'c1' };
-    const state = G.cueAdjustState(graphic, cue, HD, HD, {}, G.NO_GEOMETRY, null, false);
+    const state = G.cueAdjustState(graphic, cue, HD, HD, {}, G.NO_GEOMETRY, null, false, St.styleContextFor([]));
     assert.deepEqual(state.send, { v: 1, vars: { accent: '#ff7a00' } });
-    const reset = G.cueAdjustState({ ...graphic, adjust: undefined }, cue, HD, HD, {}, G.NO_GEOMETRY, state.send, false);
+    const reset = G.cueAdjustState({ ...graphic, adjust: undefined }, cue, HD, HD, {}, G.NO_GEOMETRY, state.send, false, St.styleContextFor([]));
     assert.deepEqual(reset.send, A.IDENTITY, 'the applied style is taken off with an explicit identity');
     assert.ok(G.placeWaiting(state, null), 'a style not yet sent waits');
     // The measurement is the style's too: another face reflows the box.
