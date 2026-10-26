@@ -1,4 +1,6 @@
 import { scriptKind } from '../../model/scriptKind';
+import { APPEARANCE_RUNTIME_JS } from '../../control/appearanceRuntime';
+import type { AppliedAppearance } from '../../control/cueAdjust';
 import { prepareOutRuntime } from '../../blocks/animMigration';
 // OGraf export: packages the template as an EBU OGraf v1 Graphic — a manifest
 // (<slug>.ograf.json) plus a JS entry point (graphic.mjs) exporting a Web Component that
@@ -1220,7 +1222,8 @@ function timelineFunctionNames(template: SpxTemplate): string[] {
 }
 
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
-function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB): string {
+function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB, appearance?: AppliedAppearance): string {
+  const baked = appearance?.frame ? appearance : undefined;
   const stepCount = ografStepCount(template);
   const machine = parseAnimData(template.js)?.machine;
   const timelineNames = timelineFunctionNames(template);
@@ -1299,7 +1302,14 @@ const TEMPLATE_HTML = ${JSON.stringify(sources.html)};
 // studio's \`html, body\` and \`:root\` ARE the canvas), so the design lays out against its own
 // canvas, and the renderer's page, which no rule inside a shadow tree reaches anyway, stays as it was.
 const GRAPHIC_ID = ${JSON.stringify(graphicId)};
-
+${baked ? `
+// PLACE AND SIZE, baked from the production that exported this package (docs/work-specs/
+// playout-adjustments/spec.md, phase 1b): applied to the canvas as it is claimed, by the same
+// runtime an exported overlay applies to its own root, with the canvas's rect reads mapped back so
+// the design measures what it measures unadjusted.
+${APPEARANCE_RUNTIME_JS}
+const APPEARANCE = ${JSON.stringify(baked)};
+` : ''}
 // The canvas is the element in the shadow root that carries the attribute (see _claimCanvas):
 // the box the template's \`html, body\` rule describes, made a block (all: initial makes it
 // display:inline, where width and height do nothing) and the containing block its design
@@ -1898,7 +1908,8 @@ class Graphic extends HTMLElement {
     root.appendChild(style);
     const canvas = document.createElement('div');
     canvas.setAttribute('data-noacg-graphic', GRAPHIC_ID);
-    root.appendChild(canvas);
+    root.appendChild(canvas);${baked ? `
+    noacgApplyAppearance(APPEARANCE, canvas);` : ''}
     return canvas;
   }
 
@@ -2217,6 +2228,8 @@ export interface OgrafPackageOptions {
   lib?: OgrafLibPaths;
   /** NoaCG's `v_noacg` vendor block. Absent = plain OGraf, exactly as before. */
   noacg?: NoacgVendorBlock;
+  /** The production's place and size for this graphic, baked onto the canvas (phase 1b). */
+  appearance?: AppliedAppearance;
   /** A preview raster to ship as the manifest's `thumbnails[0]` - the bridge's bench shot.
    *  `data` is the image bytes (a Blob, raw bytes, or a base64 string). */
   thumbnail?: { file: string; data: Blob | Uint8Array | string; width: number; height: number };
@@ -2253,7 +2266,7 @@ export async function addOgrafPackage(
   };
 
   write(`${slug(template.name)}.ograf.json`, JSON.stringify(manifest, null, 2));
-  write('graphic.mjs', graphicModule(template, lib));
+  write('graphic.mjs', graphicModule(template, lib, opts.appearance));
   // The ID table travels with every package (LiveOS inherits it here too): an OGraf host's
   // data keys ARE these field ids, and only the package can say what each one means.
   write(
@@ -2363,7 +2376,7 @@ export const ografTarget: ExportTarget = {
     const zip = new JSZip();
     const root = zip.folder(slug(template.name))!;
     const usage = ctx?.graphicUsage ?? 'live';
-    const manifest = await addOgrafPackage(root, template, usage);
+    const manifest = await addOgrafPackage(root, template, usage, { appearance: ctx?.appearance });
     const live = usage !== 'post-production';
     if (live && manifest.customActions) root.file(SPX_CUSTOM_ACTIONS_FILE, SPX_CUSTOM_ACTIONS_JS);
     root.file(

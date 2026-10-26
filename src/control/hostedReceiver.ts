@@ -13,6 +13,7 @@ import { loadBackendConfig } from '../backend/config';
 // supposed to behave like.
 import { CONTROL_POLL_MS } from './hostedControl';
 import { RECEIVER_FOLLOW_FROM_JS } from './outputRecovery';
+import { APPEARANCE_RUNTIME_JS } from './appearanceRuntime';
 import { refFromSupabaseUrl } from './realtimeControl';
 
 const OPEN = '/* == HOSTED CONTROL (Supabase log) — edit or delete this whole block == */';
@@ -70,6 +71,17 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
 
   ${RECEIVER_FOLLOW_FROM_JS}
 
+  // PLACE AND SIZE (docs/work-specs/playout-adjustments/spec.md, phase 1b): an update that carries
+  // an 'appearance' puts it on this document's root (./appearanceRuntime.ts); one without keeps
+  // what is applied. LOOK is the last one applied, reported with the machine state as the /output
+  // renderer reports its own, so a boot from a report with no event id still restores it.
+  ${APPEARANCE_RUNTIME_JS}
+  var look = null;
+  function applyLook(a) {
+    if (!noacgApplyAppearance(a)) return;
+    look = a.frame ? a : null;
+  }
+
   // AN RPC EITHER ANSWERED OR FAILED, and this block must never confuse the two. A dropped
   // request says nothing about the show, so it is reported AS a failure (the ok flag) and the
   // caller retries; concluding from it is what used to leave a hosted graphic dead for a whole
@@ -122,7 +134,10 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
       if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(priorQuiet);
     }
     else if (m.t === 'next' && typeof next === 'function') next();
-    else if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
+    else if (m.t === 'update' && typeof update === 'function') {
+      applyLook(m.appearance);
+      update(JSON.stringify(m.data || {}));
+    }
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
     else return; // 'staged' / 'live' meta rows are for control pages, not for us
@@ -155,6 +170,12 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     clearTimeout(reportTimer);
     reportTimer = setTimeout(function () {
       var state = (typeof noacgMachineState === 'function') ? noacgMachineState() : null;
+      if (look) {
+        var withLook = {}, key;
+        for (key in (state || {})) withLook[key] = state[key];
+        withLook.appearance = look;
+        state = withLook;
+      }
       rpc('control_report', { p_slug: SLUG, p_graphic: GRAPHIC, p_data: harvest(), p_state: state });
     }, 800);
   }
@@ -299,6 +320,9 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     if (typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
     var mine = (row.live || {})[GRAPHIC];
     if (mine) {
+      // The place and size it last reported, before anything paints: a report with no event id
+      // resumes from the log head, so no row after it would bring this back.
+      if (mine.state && mine.state.appearance) applyLook(mine.state.appearance);
       // Reset is two operations, and recovery is both: the data half, then the visual half
       // (snap arms timers — recovery semantics).
       if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
