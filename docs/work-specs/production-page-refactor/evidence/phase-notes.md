@@ -80,9 +80,21 @@ changes a spec's digest.
     block. A waiting change counts in the fate line and the rundown row like an unsent value.
   - *Export dialog:* one line when the production holds any record: place and size are not in any
     package.
+  - *Measurements never render the page* ("typing a value never renders the page"): the Adjust
+    block and PREVIEW subscribe to the `geometry` part themselves, and the page reads it only
+    through `drawnDraft`, which renders the page when the waiting-change marks it draws differ.
+    The journey reads the page's render count across a qualified measurement on a paused clock.
+  - *A Take reads the newest record* at the moment it sends (`latestShow`), not the record of the
+    render it was pressed from, which can be seconds older behind a held save.
+  - *PREVIEW changes for every production*: a 720p or portrait graphic in a 1080p production now
+    sits at the stage origin on PREVIEW as it does on PROGRAM and the output, where it was centred.
+  - *Publish and a cue never measured:* Publish measures every adjusted cue of the copy it publishes
+    (capped 8 s). A cue whose document cannot be measured (it answers nothing) publishes its nudge
+    and size about the frame's anchor point, without its preset.
 - **Not built (outside the narrowed gate):** the rundown row glyph for an adjusted cue (the
   summary line names it instead); the "placed right, left-aligned" note; the pack install dialog's
   line; receivers, bakes and the exported controller (row 32c).
+- **Follow-ups:** #1733 (the rundown glyph, the pack install line, the nudge dead zone).
 - **Traps.** Playwright's `locator.textContent()` on an absent element waits out the whole test,
   which reads like a hung page. The queue wants `chromium_headless_shell-1228`; this image has
   `-1243` (symlinked, #1647). A dev server started by hand on the worktree's port makes the offline

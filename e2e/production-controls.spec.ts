@@ -2324,11 +2324,41 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   // Closed, it says what the graphic is: as designed, and nothing is measured or moved.
   await expect(summary).toHaveText(/as designed/);
   expect(await look('preview')).toBeNull();
+
   await page.getByTestId('cue-adjust-toggle').click();
   await expect(page.getByTestId('preview-guides')).toBeVisible();
   // Measured: the pivot shows on the grid and the readability line appears.
   await expect(page.getByTestId('adjust-floor')).toHaveText(/smallest text \d/);
   await expect(page.getByTestId('adjust-why')).toHaveCount(0);
+
+  // A MEASUREMENT NEVER RENDERS THE PAGE (src/components/home/AGENTS.md, "typing a value never
+  // renders the page"): it redraws the block and PREVIEW, which subscribe to it themselves. On the
+  // paused clock: a name typed longer, PREVIEW's settle (150 ms) and first answer, the draft's save
+  // (300 ms), and only then the second answer 250 ms after the first, which qualifies and is kept.
+  // The page's render count is read across that last step alone, and the block says it landed.
+  const pageRenders = () => page.getByTestId('production-page').evaluate((el) => Number(el.getAttribute('data-renders')));
+  const field = page.getByTestId('cue-field-f0');
+  await field.click();
+  await field.press('End');
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await field.pressSequentially(' Jr');
+  await page.clock.runFor(160);
+  await page.waitForTimeout(600);
+  await page.clock.runFor(150);
+  // The save lands in the store a moment later (model/durableStore.ts): wait until the page is still.
+  await expect.poll(async () => {
+    const at = await pageRenders();
+    await page.waitForTimeout(400);
+    return (await pageRenders()) - at;
+  }).toBe(0);
+  await expect(page.getByTestId('adjust-why')).toHaveText('measuring');
+  const before = await pageRenders();
+  await page.clock.runFor(150);
+  await expect(page.getByTestId('adjust-why')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect((await pageRenders()) - before, 'the measurement rendered the page').toBe(0);
+  await page.clock.resume();
+  await page.getByTestId('adjust-place-tl').focus();
 
   // AC-1: bottom-right, then three 1 px and one 10 px nudge with the keys inside the block.
   await page.getByTestId('adjust-place-br').click();
