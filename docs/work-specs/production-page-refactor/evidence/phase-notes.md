@@ -41,7 +41,12 @@ changes a spec's digest.
     whatever fit runtime a production's copy carries refits through its own code. The queue is
     held at most 400 ms for a face to load, and a `seq` makes the latest request win, so a slow
     face never refits over the selection that replaced it. The measurement identity includes
-    the style, so another face remeasures the box.
+    the faces and the variables that can move text (`measureStyleKey`), never a colour, so another
+    face or weight remeasures the box and a colour pick holds no Take. The document refits only
+    when such a member changed, keeps an unchanged face's declaration (a colour-only Update never
+    flashes the fallback of a large imported file), and the hidden measurer waits for its answer.
+    A design whose fit runs on `update()` rather than `document.fonts.ready` (203 of the 528
+    catalog designs, lt01 among them) refits through the Update the style rides.
   - An imported SVG reaches no Type or Colour row (`styleReach`): its `<text>` layers carry the
     artwork's own face and fills, so the canvas reset's inherited `--font-heading` never reaches
     them. `cssPaintsWith` alone counted that reset rule for every template; 528 catalog designs
@@ -49,7 +54,10 @@ changes a spec's digest.
     `SVG_TEXT_FIT_MARKER`) is excluded.
   - `style-contract-unpainted` is added in the bridge's `validate`, not `validateTemplate`, so the
     editor does not warn on every imported SVG. `font-without-face` is phase 0 item 3 and not here.
-- **Traps:** a Swatch remounted by `key={value}` loses its native `change` listener mid-drag;
+- **Traps:** `control/adjustGeometry.ts` must not import `control/cueStyle.ts`: it reads
+  `model/fonts.ts`, which loads a bundled text file through the bundler, and every plain-Node test
+  of a module importing the session failed to load. The resolve comes in with the style context.
+  A Swatch remounted by `key={value}` loses its native `change` listener mid-drag;
   it keeps one input and sets its value from an effect. Plain-Node imports of `fonts.ts` need the
   `?raw` hooks in `scripts/lib/tsResolve.mjs`. The parity references differ by show folder, so
   `fileIn(prefix)` finds them.
