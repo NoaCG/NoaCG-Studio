@@ -654,6 +654,9 @@ describe('replay server', () => {
       assert.equal(byStep['correction-down'].payload.parties.KOK.votes, 224_100);
       assert.equal(person(byStep['correction-down'], ...PACKAGE_DELETED)?.name, 'Sara Example');
       assert.equal(person(byStep['person-deleted'], ...PACKAGE_DELETED), undefined);
+      // Revision 4 corrects the aired candidate and nothing a field binds.
+      assert.equal(person(byStep['person-deleted'], '02', 101).votes, 3640);
+      assert.deepEqual([byStep['person-deleted'].payload.observed_at, byStep['person-deleted'].payload.parties], [byStep['correction-down'].payload.observed_at, byStep['correction-down'].payload.parties]);
       assert.deepEqual(byStep['empty-collection'].payload.candidates.items, []);
       assert.equal(byStep['count-01'].providerEventTime, '2027-02-20T18:14:00Z');
       // What the record names: every step's sha256, the same text for the same count.

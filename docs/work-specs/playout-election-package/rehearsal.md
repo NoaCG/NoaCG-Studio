@@ -81,7 +81,7 @@ The software rehearsal of phase E7.2b is in
 
 Measured in the software rehearsal: about 2 to 3 s from the replay moving to the picture
 changing when the party board or count bug moves too, and about 5 s when only the candidates
-change; the walk fails above 10 s and 13 s. By arithmetic, a candidates-only change can take
+change (an aired card corrected on the output); the walk fails above 10 s and 13 s. By arithmetic, a candidates-only change can take
 about 12 s at worst (2 s poll, 5 s revision gap, 5 s page read); the walk spaces its steps by
 hand, so that case is not measured. The full record is in the phase notes.
 

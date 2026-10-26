@@ -768,6 +768,8 @@ describe('E7.2b: a collection leaf through the route', () => {
     const pack = JSON.parse(readFileSync(new URL('../packs/election-rehearsal/manifest.json', import.meta.url), 'utf8'));
     assert.equal(ext.readExternalRegistration(source).ok, true);
     assert.deepEqual([agent.sourceId, agent.configRevision], [source.id, source.config.configRevision]);
+    // The runbook's cadence: the agent reads every 2 s.
+    assert.equal(agent.pollMs, 2000);
     const bound = [...new Set(Object.values(pack.bindings).flatMap((f) => Object.values(f)))];
     for (const step of packageTimeline()) {
       let payload;

@@ -682,9 +682,12 @@ test.describe('live candidates', () => {
       await step(5, 'malformed', 10_000, async () => expect.poll(state, WIRE).toBe('invalid'));
       expect(await accepted()).toBe(3);
       expect(await updates(showId, 'Candidate card')).toEqual(corrected);
-      // Sara is deleted: the aired card (Aino) is untouched, and Sara's cue is not ready to Take.
+      // Revision 4 changes the candidates alone: Sara is deleted, and Aino is corrected again with
+      // nothing a field binds moving, so the page hears it at its own read. The aired card follows
+      // Aino on the output; Sara's cue is not ready to Take.
       await step(6, 'person-deleted', 13_000, async () => {
-        await expect.poll(accepted, WIRE).toBe(4);
+        await expect(on('Candidate card', '#f2')).toHaveText('3,640', WIRE);
+        expect(await accepted()).toBe(4);
         await select(page, 'Sara Example');
         await expect(page.getByTestId('verb-take')).toHaveAttribute('title', /revision 4 has no district "02", candidate 103/, WIRE);
         await expect(page.getByTestId('verb-take')).toBeDisabled();
@@ -695,12 +698,9 @@ test.describe('live candidates', () => {
         await expect(page.getByTestId('selection-hold')).toContainText('revision 5 holds no candidates', WIRE);
       });
       await expect(on('Candidate card', '#f0')).toHaveText('Aino Example');
-      await expect(on('Candidate card', '#f2')).toHaveText('3,650');
-      // Revision 4 still holds Aino unchanged: the page may follow it with the same whole record
-      // (an absolute update, the picture unchanged), never with another person's or older values.
-      const later = (await updates(showId, 'Candidate card')).slice(corrected.length);
-      expect(later.length).toBeLessThanOrEqual(1);
-      for (const d of later) expect(d).toEqual(corrected.at(-1));
+      await expect(on('Candidate card', '#f2')).toHaveText('3,640');
+      // After revision 3: one whole record at revision 4, and nothing from the empty revision 5.
+      expect((await updates(showId, 'Candidate card')).slice(corrected.length)).toEqual([{ ...corrected.at(-1), f2: '3,640' }]);
       for (const graphic of ELECTION_GRAPHICS) {
         const logged = await rows(showId, graphic);
         // No provider step took, advanced, reset or cleared anything: the only transport is the Take.

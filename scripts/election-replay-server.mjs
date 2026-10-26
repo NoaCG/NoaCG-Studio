@@ -18,7 +18,8 @@
 // that the package's E5 recipe maps (votes as numbers, the time of the count as `observed_at`,
 // the candidates as one collection `{schemaRevision, revision, items}` keyed by district plus
 // candidate). Revision 3 corrects Aino Example and the Coalition downward, revision 4 drops Sara
-// Example (02/103), revision 5 has no candidates; 4 and 5 change nothing but the candidates.
+// Example (02/103) and corrects Aino again, revision 5 has no candidates; 4 and 5 change nothing
+// but the candidates.
 //
 // The timeline starts at the first authorized read, so an agent that is slow to boot still sees
 // step 0; then the step is (clock() - start) / stepMs, held at the last, so it is exact under a
@@ -106,6 +107,7 @@ export function packageTimeline() {
   // field binds moves: the page hears them only from its own read of the tree.
   const rev4 = next(rev3, 4, (d) => {
     d.candidates.items = d.candidates.items.filter((c) => !(c.district === PACKAGE_DELETED[0] && c.candidate === PACKAGE_DELETED[1]));
+    d.candidates.items.find((c) => c.district === '02' && c.candidate === 101).votes = 3640;
   });
   const rev5 = next(rev4, 5, (d) => {
     d.candidates.items = [];

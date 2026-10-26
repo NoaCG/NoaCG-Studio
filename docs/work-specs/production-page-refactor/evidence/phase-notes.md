@@ -80,6 +80,8 @@ changes a spec's digest.
     production, three of them from the results.
   - *Revisions 4 and 5 change the candidates alone*, so the rehearsal measures the slower road
     (row 30 trap 2): nothing bound moves, no row, and the page hears it at its own 5 s read.
+    Revision 4 also corrects the aired candidate (Aino, 3,650 to 3,640), so that road is timed on
+    the output itself (from the second assessment).
   - *No sooner signal:* the measured candidate-only time is about 5 s. The walk now fails a step
     that moves a bound field above 10 s and a candidates-only step above 13 s (red when the page's
     read is made 15 s); `CANDIDATE_READ_MS` itself is pinned at 5000 in `keyed-selection.test.mjs`.
@@ -95,15 +97,21 @@ changes a spec's digest.
   bounded in the walk (13 s). (3) The page that took the card sends its corrections: runbook
   limit and recovery (reopen, Update). (4) Two tabs: confirmed by reading `followAired` (each tab
   sends the same whole record); not widened. (5) The aired instance keeps its person: the walk
-  airs Aino through every step, Sara's deletion makes Sara's cue not ready and never touches the
-  aired card, the valid empty list holds Aino with its reason and age off air.
+  airs Aino through every step, Sara's deletion makes Sara's cue not ready and moves only Aino's
+  own correction onto the aired card, the valid empty list holds Aino with its reason and age off
+  air.
 - **A behaviour found, not changed:** a newer revision re-sends an aired card's whole record even
   when its person's values did not change (`followAired`, E7.1's design): one update row per aired
-  card per revision, the picture unchanged. The walk allows at most one such repeat and requires
-  it to equal the last record. Recorded as a runbook limit.
+  card per revision, the picture unchanged. Read in `followAired` and seen in an earlier run of the
+  walk (before revision 4 carried Aino's correction); recorded as a runbook limit.
+- **Compatibility, one more case:** a page of an older build never writes `collections`, so if
+  such a page changes or removes a recipe after a newer page published it, the route keeps
+  writing the old leaf until a page of this build writes the row again. The leaf is unbound: no
+  update row and no picture change follow. Post-landing: the configured runs need 0102 on their
+  database; staging gets it through post-land like production, and if post-land HOLDS it there
+  the AC-4 walk on hosted-latency fails at its first collection check until it applies.
 - **The rehearsal record (software/replay grade, browser outputs).** Cloud worker, 2026-10-26
-  04:20 to 04:37 UTC (the bounds and size test added after the assessment re-ran at about
-  05:05), on the branch's final code, a local stack
+  04:20 to 05:10 UTC, the final run on this branch's final code at about 05:10, a local stack
   (`supabase start`, CLI 2.111.0) with every migration through 0102, the dev server's real
   `/api/data/source`, the agent as its own process from `replay-agent.json`, the replay server in
   the same process as the walk. Hashes (sha256, first 16 hex; the server prints them whole):
@@ -111,20 +119,22 @@ changes a spec's digest.
   `replay-source.json` `91d28a8ca978798c`, `replay-agent.json` `465f0ad501e13a62`; steps
   count-01 and older `c2834d09010331c0`, count-increase and duplicate `85a9408c2c85795b`,
   correction-down `590b69bde44713f3`, malformed `0269d0cf52b560df`, person-deleted
-  `073501110b890038`, empty-collection `39e5843ecb2c27ba`. Clock and cadence: agent poll 2 s, one
+  `f8be6ffc6a520f71`, empty-collection `39e5843ecb2c27ba`. Clock and cadence: agent poll 2 s, one
   revision per source per 5 s, unchanged receipts every 15 s, the page's own read every 5 s.
-  Provider move to picture on the final code (ms), with the four earlier runs on this branch in
-  brackets: count-increase 3201 [2362, 2657, 1819, 2254] (board, bug and card all moved);
-  correction-down 2088 [2041, 2089, 2050, 2053] (card 3,650, KOK 224,100); older 1904 and malformed
-  1903 (held by the agent, nothing moved); person-deleted 5051 [4579, 5001, 4928] and empty
-  collection 4908 [4886, 4823, 4819] (candidates only: the page's 5 s read); duplicate receipt
-  16038. Renderer payloads: every card update is one whole record of one revision (f0 to f5), at
-  most one repeat of the same record after the candidates-only revision; no update row carries
+  Provider move to picture on the final code (ms), with earlier runs on this branch in brackets:
+  count-increase 2666 [2362, 2657, 1819, 2254, 3201, 2680] (board, bug and card all moved);
+  correction-down 2029 [2041, 2089, 2050, 2053, 2088, 1509] (card 3,650, KOK 224,100); older 1904
+  and malformed 1894 (held by the agent, nothing moved); person-deleted 4872 (the aired card to
+  3,640 on the output, candidates only, through the page's 5 s read; earlier runs timed Sara's
+  refused Take instead: 4579 to 5051); empty collection 4831 [4819 to 4908] (the hold said off
+  air); duplicate receipt 16049. The walk fails a bound-field step above 10 s and a candidates-only
+  step above 13 s; a 15 s page read turned it red. Renderer payloads: every card update is one
+  whole record of one revision (f0 to f5), exactly one after revision 3 (3,640); no update row carries
   the collection; each graphic's only transport row is its Take; neither credential is in the
   agent's log. Captures: eight output PNGs per run (`output-<step>.png` in the run's results, not
   committed). I looked at count-01, correction-down and empty-collection: the board, bug, ticker
-  and card render whole, the figures are the asserted ones, and the card holds 3,650 after the
-  empty list. (They overlap because the walk airs all four at once, which a show would not.)
+  and card render whole, the figures are the asserted ones, and the card held its last values
+  after the empty list (3,650 in that run, before revision 4 carried Aino's correction). (They overlap because the walk airs all four at once, which a show would not.)
   **Grade:** software/replay rehearsal on browser outputs, PASS. Real-studio grade (CasparCG/
   Bridge, OBS) is parent phase S, not run here. Official live-feed access and election-day feed
   qualification: unverified, no access exists; nothing here is a broadcaster readiness claim.
