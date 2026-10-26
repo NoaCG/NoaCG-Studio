@@ -34,6 +34,7 @@
 
 import { resolveSelection, selectionGate, type SelectionResolve } from './sourceMapping.ts';
 import type { CueSelection } from '../model/productionData';
+import { typedSendRefusal } from '../model/ografTyped.ts';
 import type { FieldDescriptor } from '../model/fieldModel';
 import { reachedOutput, type LiveCueMap } from './liveCue.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS } from './failedSends.ts';
@@ -159,7 +160,11 @@ function resolveOn(selection: unknown, graphic: string, facts: SelectionFacts): 
  * cue with no selection is `none`; one this build cannot read, or whose entity does not resolve
  * in the tree as it is now, is refused with the reason (an unknown B is never ready).
  */
-export function selectionTake(cue: { selection?: unknown }, graphic: string | null, facts: SelectionFacts): SelectionTake {
+export function selectionTake(cue: { selection?: unknown; typed?: unknown }, graphic: string | null, facts: SelectionFacts): SelectionTake {
+  // Typed OGraf data never airs from this build (model/ografTyped.ts, E1.1): every Take, Update and
+  // Take refusal asks here, so a cue carrying it is refused on all of them with the reason.
+  const typed = typedSendRefusal(cue);
+  if (typed) return { status: 'refused', reason: typed };
   if (cue.selection === undefined) return { status: 'none' };
   if (!graphic) return { status: 'refused', reason: 'This cue’s graphic is gone.' };
   if (facts.readable === false) return { status: 'refused', reason: 'This production’s shared values are still loading.' };

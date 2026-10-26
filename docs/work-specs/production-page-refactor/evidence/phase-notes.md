@@ -5,6 +5,138 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 33 (E1.1, project phase 37): typed OGraf contract model and read gate
+
+- **Previous verified `main` sha:** `42c48f9` (row 32d passed, PR #1753). This branch was built on
+  it. Before editing, nothing in `src` carried a typed OGraf envelope, a descriptor of one or a
+  read gate for it (`ografContract.ts` flattens a schema into native string descriptors only).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated, no wire member and no
+  message kind is added, and this build writes no envelope, so a revert leaves no record behind.
+  What a reverted build does with an envelope a LATER build (E1.2a) wrote is the old behaviour: it
+  ignores `ShowCue.typed` and would air the cue's native strings, and an old output applies the
+  native members of such a command. That is why E1.2a must not land until this row is deployed,
+  and why it sends an envelope only to an output whose report says it reads one.
+- **What landed.** `src/model/ografTyped.ts`, pure and shared by the pages, the output and Node:
+  the pinned standard, descriptors, validation, the envelope and its readers, the read gate at
+  the doors, on the page and on the output, and migration with its receipt.
+  `ShowCue.typed` (additive optional, its own `v`) in `model/shows.ts`.
+  `scripts/check-output-reader.mjs` (after-build) over the BUILT output bundle.
+- **Decisions.**
+  - *The pinned standard* is `ebu/ograf` at `c821671` (the full-stack plan's reference). Its seven
+    schema files are byte for byte the ones `ografSchema.ts` was transcribed from
+    (`scripts/ograf-schema-baseline.json`, which the test holds `OGRAF_STANDARD` to), and the prose
+    and TypeScript files are pinned by hash from the same commit. The current `ebu/ograf` head,
+    `164fb10`, has identical bytes for all eleven files (checked 2026-10-26), so no newer revision
+    was selected and no compatibility difference exists to record. The fixtures are three EBU
+    examples of that commit (scoreboard, weather, bar chart) and one stranger's manifest with
+    nested objects, lists, numeric and boolean enums, required and default values, an asset path,
+    unsupported keywords and typed action arguments. The EBU examples break only the extra
+    renderer rule `ografSchema.ts` adds (a custom element id), never the schema.
+  - *What is carried.* Types, `properties`, `required`, `items`, `enum` (of the node's own type),
+    the numeric, length and item-count bounds, `additionalProperties` true or false, the GDD
+    types (a `file-path` is an asset, its identity the string; a colour is checked by our own
+    expression). An assertion or applicator keyword this reader does not implement (`oneOf`,
+    `$ref`, `const`, `patternProperties`, ...) is a note at its exact schema path and makes its
+    node `unsupported`, whose value is kept as it is. Any other keyword is an annotation, as the
+    standard's own examples write `label` and `order`. A package's `pattern` is never run: only
+    the GDD colour patterns are supported, so a hostile expression costs nothing.
+  - *`multipleOf`* tolerates binary rounding only (4 units in the last place of the quotient), so
+    `0.3` is a multiple of `0.1` and `1000000000.5` is not a multiple of `1` (Codex P2 on `ae5f96e`).
+  - *Null and missing* stay distinct: missing is allowed unless required, null is never a GDD value.
+  - *The envelope* `{v: 1, kind: 'values', standard, schema, values}` on a cue (`schema` is the
+    content hash of the manifest's schema as declared), and `{v: 1, kind: 'action', standard,
+    schema, action, args?}` for a press (E6 and E1.2a use it). A later `v`, another `standard`, an
+    unknown member or a malformed one is read-only, its bytes kept; an action envelope on a cue is
+    malformed.
+  - *Both write doors* are read as for E7.1: `patchShowChecked`'s two writes and the undo
+    (`rundownHistory.replaceRundown`), all asking `typedFrozen`: an envelope byte for byte, a
+    read-only cue in every byte and never removed, and no cue gaining one except one an undo brings
+    back. A refusal re-reads the stored list.
+  - *The page.* There is no writer, so a cue carrying ANY envelope never airs from this build:
+    `selectionTake` refuses it with the reason, and every Take, Update, Re-take, folder Take, step
+    and direct trigger asks it; `preparedCue` leaves it out of the hosted page's cue list, the
+    exported controller, the SPX rundown and a timed end; a live press (event, ±, Snap) on a layer
+    airing one sends nothing and says why, which is what a pinned block presses through (L1); the
+    editor shows it read-only with the reason.
+  - *The output* refuses a command carrying a `typed` member before it applies anything
+    (`typedOutputGate`), never as its native members, and holds that graphic: only a `stop` and a
+    native `update` reach it until such an update gives it its data again, so a Take's `play`
+    after its refused `update` never airs the previous cue's values. The reason shows in the
+    graphic's READY line ("reload this output", which brings a renderer that reads it once one is
+    deployed). The output's seen report advertises nothing yet: that is E1.2a's negotiation.
+    A held graphic never REPORTS (the report's write and the re-bank both skip it), so its recovery
+    bank stays before the refused command and a reboot replays it and is held again, instead of
+    recovering the previous cue's values from a baseline past it (Codex P1 on `2388373`). The hold
+    lifts on any native `update`, a partial one included; E1.2b, which owns replay and the
+    baseline, decides whether only a full update may lift it (the /so note). While held, the
+    graphic also pins the production's oldest recovery bank, so `REBANK_AFTER`'s bound on a
+    reboot's catch-up is suspended for it until the hold lifts (bounded by the catch-up's own page
+    limit); nothing in this build can hold a graphic, and E1.2b owns that cost too.
+  - *L2.1 and L2.2*: `appearance` (with its style members) is a native member beside `data`,
+    outside the envelope; the reader never reads it, and a message without `typed` passes byte for
+    byte.
+  - *Migration* is pure and writes nothing stored: `migrateToTyped` reads each declared field's
+    native string by its declared type, only when `nativeOf` gives the same string back
+    (`"01"`, `"1.0"`, `"yes"` and loosely spaced JSON are refused, never guessed), keeps an
+    undeclared key and an unsupported field as their string, and validates the whole. The receipt
+    `{v, standard, schema, input, output, converted, kept, refused}` uses content hashes and
+    sorted lists, so the same input gives the same bytes in any order. A field named `__proto__` is
+    written as an own property both ways (Codex P2 on `2388373`), and the assembled values must
+    fit the envelope's own bounds or nothing is written (Codex P2 on `ae5f96e`). No SQL migration is in this row.
+  - *Bounds*, each pinned at its edge: nesting 16, 2000 schema nodes per manifest, 10000 value
+    nodes per envelope. `readJson` is iterative and every node is visited once.
+- **Traps.**
+  - The standard's examples use `label` and `additionalProperties: false`: a reader that treats
+    every unknown keyword as unsupported refuses the EBU's own scoreboard.
+  - The output gate refusing one command at a time let the `play` of a Take through after its
+    refused `update`; the hold is what closes it.
+  - The after-build check must follow the output entry's import graph: the reader's words live in
+    a shared chunk, and are tree-shaken away when the gate is removed from `main.ts`, which is what
+    makes the check go red (measured).
+  - A refusal that lives only in the renderer's memory is lost at a reboot unless the graphic's
+    recovery bank stays before it: the hold has to reach the report path, not only the stage.
+  - Chromium 71 parses dynamic `import()`, `import.meta` and BigInt but not `?.`, `??` or
+    `export * as`: the check parses at ecmaVersion 2020 and refuses those three.
+- **Check and reviews.** `/check`: the code review raised 10 candidates and 9 were fixed (the
+  output hold, the event and ± refusals, the pinned block through the verbs rather than a dropped
+  cue, the read-only editor, an action envelope on a cue, `export * as`, acorn declared, the READY
+  error that never cleared); one stays a report (`typedKeep`/`typedFrozen` mirror E7.1's pair, and
+  merging them reworks E7.1's door). Simplify applied the in-diff cleanups and reported two that
+  reach unchanged code (one shared `canonicalJson` with `control/externalSource.ts`, the GDD
+  colour patterns shared with `ografSchema.ts`). Codex on `2388373`: two findings, both fixed
+  above (P1 the held graphic's report, P2 `__proto__`); on `ae5f96e`: two more, both fixed (P2 the
+  envelope bound in migration, P2 the `multipleOf` tolerance); CodeQL's no-op replace in the test,
+  fixed. /so on `2388373` and on `ae5f96e`: AGREE, Assessment A; the verdict on the final head is
+  in the pull request.
+- **Touched files against `42c48f9`:** `src/model/ografTyped.ts` (new), `src/model/shows.ts`, `src/model/rundownHistory.ts`,
+  `src/model/productionData.ts`, `src/control/selectionAir.ts`, `src/control/cueAuto.ts`,
+  `src/control/graphicVerbs.ts`, `src/components/home/ProductionPage.tsx`, `src/output/main.ts`,
+  `scripts/check-output-reader.mjs` (new), `scripts/ograf-typed.test.mjs` (new),
+  `scripts/graphic-verbs.test.mjs`, `scripts/fixtures/ograf-typed/*.ograf.json` (new),
+  `package.json` (the check's script and `acorn` as a declared dev dependency, already installed
+  through eslint), `package-lock.json`, and this file. Inside the spec's fence (`types.ts` and
+  `shows.ts`, command validation, the output) except: `rundownHistory.ts` (the undo is a write
+  door, as in E7.1), `productionData.ts` (`preparedCue`, the one predicate the hosted page, the
+  exported controller, the SPX rundown and a timed end read), `selectionAir.ts` (`selectionTake`,
+  the one question every Take, Update and Take refusal asks), `cueAuto.ts`, `graphicVerbs.ts` and
+  `ProductionPage.tsx` (the live presses and the editor's read-only line). No exporter,
+  `ografContract.ts`, `ografSchema.ts`, `ografImport.ts`, `ografHost.ts`, `foreignOgraf.ts`,
+  `sourceMapping.ts` or wire type changed: exported packages and the native wire are unchanged
+  byte for byte.
+- **Mutation checks:** 43 source mutations, each red: a pinned schema hash; each bound changed by one; the
+  closed object, the enum, required, null read as missing, a package pattern run, the lossless
+  number and JSON checks, a later version or another standard read as readable, the wire reader
+  reading nothing, the hold (a `play` let through, an update not lifting it), an action envelope
+  on a cue read as readable, the whole-cue freeze, a removed read-only cue, a gained envelope with
+  and without kept cues, an unsupported keyword not noted, the colour, maximum and multipleOf
+  checks, the receipt's key order, an action without a schema taking arguments; both writes of
+  `patchShowChecked` and the undo without the door; `selectionTake`, `preparedCue` and
+  `nextGraphicCue` without the refusal; each of the three live presses without it; the output's
+  call of the gate; a held graphic's report and its re-bank; `__proto__` written by assignment,
+  each way; the old relative `multipleOf` tolerance; the whole-envelope bound in migration. The after-build check goes red on a built bundle with `?.`, `??` or
+  `export * as` appended, and on a build whose `main.ts` no longer calls the gate.
+
 ## Row 32d (L2.2, project phase 36): type and colour per graphic and cue
 
 - **Previous verified `main` sha:** `1dcf26d` (row 32c passed). This branch was built on

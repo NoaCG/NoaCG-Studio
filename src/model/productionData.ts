@@ -786,10 +786,11 @@ export function selectionReadOnly(cue: { selection?: unknown }, collections: rea
   return laterThan((cue.selection as { v?: unknown } | null)?.v, SELECTION_VERSION) || laterThan(recipeOf(cue, collections)?.v, SELECTION_VERSION);
 }
 
-/** Whether a cue's own prepared values are what it airs: not a cue showing a live candidate.
- *  Every road that sends a cue's values without resolving it (the hosted page, the exported
- *  controller and SPX rundown) leaves such a cue out, read-only or not (E7.1). */
-export const preparedCue = (cue: { selection?: unknown }): boolean => cue.selection === undefined;
+/** Whether a cue's own prepared values are what it airs: not a cue showing a live candidate, nor
+ *  one carrying typed OGraf data (model/ografTyped.ts, E1.1). Every road that sends a cue's values
+ *  without resolving it (the hosted page, the exported controller and SPX rundown, a timed end)
+ *  leaves such a cue out, read-only or not (E7.1). */
+export const preparedCue = (cue: { selection?: unknown; typed?: unknown }): boolean => cue.selection === undefined && cue.typed === undefined;
 
 /** The fields a cue's selection shows (its recipe's field map), whatever their state. */
 export function selectedFields(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): string[] {

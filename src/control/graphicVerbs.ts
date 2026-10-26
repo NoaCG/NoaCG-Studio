@@ -61,6 +61,7 @@ import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSend
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 import { changedNote } from './liveControls.ts';
+import { typedSendRefusal } from '../model/ografTyped.ts';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
  *  `uncertain`: the server did not answer, so it may still commit; `stale`: the server refused it
@@ -742,6 +743,15 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     else captured.undo(sent.ok ? undefined : sent);
   };
 
+  /** A live press on a layer airing a cue with typed OGraf data sends nothing from here, and says
+   *  why (model/ografTyped.ts, E1.1): its fields are not its native strings, so a figure counted
+   *  or read from them would air something the cue does not hold. A pinned block presses here too. */
+  const typedRefused = (s: VerbSender, cue: ShowCue | null): boolean => {
+    const why = cue ? typedSendRefusal(cue) : null;
+    if (cue && why) s.note(`${cue.label}: ${why}`);
+    return !!why;
+  };
+
   /**
    * One press bumps a number field ON AIR: a PARTIAL update carrying just that field, plus the same
    * value into the edited cue so the cue and the air cannot drift apart. PARTIAL on purpose: a bump
@@ -753,6 +763,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const { editingCue, selectedGraphic: graphic } = sel;
     if (!editingCue || !graphic || !sel.editingIsLive) return;
+    if (typedRefused(s, editingCue)) return;
     const still = instance(s, graphic, editingCue);
     if (!still()) return;
     const path = p.boundFields(graphic)[fieldKey];
@@ -946,6 +957,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return Promise.resolve();
+    if (typedRefused(s, sel.airCue)) return Promise.resolve();
     const still = instance(s, graphic, sel.airCue);
     if (!still()) return Promise.resolve();
     const bound = p.boundFields(graphic);
@@ -960,6 +972,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return;
+    if (typedRefused(s, sel.airCue)) return;
     const still = instance(s, graphic, sel.airCue);
     if (!still()) return;
     await afterPress(graphic, async () => {

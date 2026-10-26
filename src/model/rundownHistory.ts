@@ -2,6 +2,7 @@ import type { Show, ShowCue, ShowFolder, PlayoutItem } from './shows';
 import type { SavedGraphic } from './packets';
 import { foldersContiguous, throughRefusal } from './showFolders.ts';
 import { selectionFrozen, selectionKeep, selectionReadOnly } from './productionData.ts';
+import { typedFrozen, typedKeep } from './ografTyped.ts';
 
 /** Only prepared rundown data. Air, publication, datasets and production metadata stay outside. */
 export interface RundownSlice {
@@ -101,7 +102,8 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
     const to = JSON.stringify(cue.selection ?? null);
     if (now && JSON.stringify(now.selection ?? null) !== to && !selectionReadOnly(cue, show.collections)) moved.set(cue.id, to);
   }
-  const frozen = selectionFrozen(selectionKeep(show), next, new Set(copy.cues.map((c) => c.id)), moved.size ? { cues: moved } : undefined);
+  const restored = new Set(copy.cues.map((c) => c.id));
+  const frozen = selectionFrozen(selectionKeep(show), next, restored, moved.size ? { cues: moved } : undefined) ?? typedFrozen(typedKeep(show), next, restored);
   return frozen ? { show: null, refused: frozen } : { show: next, refused: null };
 }
 

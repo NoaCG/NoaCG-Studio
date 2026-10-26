@@ -83,6 +83,7 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution, SpxTemplate } from '../../model/types';
+import { typedSendRefusal } from '../../model/ografTyped';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, actionCarriesValues, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
@@ -1501,8 +1502,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cues, liveData, treeRead, hostedSlug, show?.collections, bindings, selectionFacts, cueGraphicName]);
   const candidateTake = (cue: ShowCue): SelectionTake => candidates.get(cue.id) ?? selectionTake(cue, cueGraphicName(cue), selectionFacts());
-  /** The edited cue's live candidate as the editor shows it (E7.1). */
+  /** The edited cue's live candidate as the editor shows it (E7.1). A cue carrying typed OGraf
+   *  data is read-only here, with the reason (model/ografTyped.ts, E1.1). */
   const candidateOf = (cue: ShowCue | null): CueCandidate | null => {
+    const typed = cue ? typedSendRefusal(cue) : null;
+    if (typed) return { readOnly: typed, label: '', fields: new Set(), values: {}, notReady: null };
     if (!cue || cue.selection === undefined) return null;
     const fields = new Set(selectedFields(cue, show?.collections));
     const gate = selectionGate(cue, show?.collections, cueGraphicName(cue), bindings);

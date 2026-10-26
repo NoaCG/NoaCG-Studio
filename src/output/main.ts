@@ -61,6 +61,7 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
+import { typedOutputGate } from '../model/ografTyped';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 
@@ -239,7 +240,21 @@ async function boot(): Promise<void> {
   const recovered = new Promise<void>((resolve) => {
     markRecovered = resolve;
   });
-  const readiness = () => outputReadiness({ graphics: stage.graphics, checks, held: stage.held, version: heldVersion, catchingUp, chg });
+  /** Graphics a command carrying typed data reached (model/ografTyped.ts `readTypedWire`, E1.1),
+   *  with the reason: this build neither renders it nor turns it into strings, and says so in the
+   *  graphic's READY line. Until a native `update` gives the graphic its data again, nothing but a
+   *  `stop` reaches it: a Take's `play` after its refused `update` would air the previous cue's
+   *  values. */
+  const typedRefused = new Map<string, string>();
+  const withRefusals = (): ReadonlyMap<string, GraphicCheck> => {
+    if (typedRefused.size === 0) return checks;
+    const merged = new Map(checks);
+    for (const [graphic, error] of typedRefused) {
+      merged.set(graphic, { ...(checks.get(graphic) ?? { silent: false, fontsFailed: [], fontsLoading: [], imagesBroken: [] }), done: true, error });
+    }
+    return merged;
+  };
+  const readiness = () => outputReadiness({ graphics: stage.graphics, checks: withRefusals(), held: stage.held, version: heldVersion, catchingUp, chg });
   // `presence` is joined below; nothing here runs before it exists.
   const readyChanged = () => {
     // Worded only where it is shown: a playout box's main thread is the one that must not miss frames.
@@ -562,6 +577,14 @@ async function boot(): Promise<void> {
         () => {
           reportTimers.delete(graphic);
           changedReports.delete(graphic);
+          // A HELD GRAPHIC NEVER REPORTS (E1.1, `typedRefused`): its bank stays before the refused
+          // command, so a reboot replays that command and is held again, rather than recovering
+          // the previous cue's values from a baseline past it. Asked at the moment of writing, so
+          // a report scheduled before the hold banks nothing either.
+          if (typedRefused.has(graphic)) {
+            forcedReports.delete(graphic);
+            return;
+          }
           const data = mergedData.get(graphic) ?? {};
           // The place and size held applied ride the report's `state` (playout adjustments: stored
           // as sent, so no migration): what a boot restores, never newer preparation (rule 4).
@@ -677,6 +700,16 @@ async function boot(): Promise<void> {
       if (road) live.duplicate(incoming);
       return;
     }
+    // THE READ GATE (E1.1): a command carrying typed data is refused whole, never applied as its
+    // native members; the row itself stays in the log as it came. The graphic is held from then
+    // until a native update replaces its data (see `typedRefused`).
+    const typed = typedOutputGate(typedRefused, graphic, incoming);
+    if (typed.changed) readyChanged();
+    if (!typed.apply) {
+      if (typed.changed) console.warn(`output: typed data refused for "${graphic}": ${typedRefused.get(graphic)}`);
+      touched.add(graphic);
+      return;
+    }
     // A graphic a command has reached is never warmed (READY above): it holds the operator's values.
     const verb = incoming.t;
     if (verb === 'update' || verb === 'play' || verb === 'stop' || verb === 'next' || verb === 'event' || verb === 'snap') touched.add(graphic);
@@ -779,7 +812,8 @@ async function boot(): Promise<void> {
       } else if (row.msg.t !== 'ping') {
         for (const [graphic, at] of bankedAt) {
           // A catch-up replays rows from the oldest bank; rows before this graphic's do not count.
-          if (seq <= at) continue;
+          // A held graphic keeps its bank where it is (see the report above).
+          if (seq <= at || typedRefused.has(graphic)) continue;
           const since = (sinceBank.get(graphic) ?? 0) + 1;
           sinceBank.set(graphic, since);
           if (since < REBANK_AFTER) continue;
