@@ -469,6 +469,16 @@ export function knownFace(family: string, imported: readonly string[] = []): boo
   return !!fontByStack(family) || (!!named && imported.some((f) => fontNameKey(f) === fontNameKey(named)));
 }
 
+/** The weights the heading weight token really draws, as strings, or null where a face is not
+ *  known (then nothing is narrowed). The token also weights the numbers a sibling face draws
+ *  (Saira under Anton or Oswald), so the face `--font-numeric` names counts too; a design that
+ *  draws no live numbers declares no `--font-numeric`. */
+export function tokenWeights(heading: string | undefined, numeric: string | undefined, imported: readonly string[] = []): Set<string> | null {
+  if (!heading || !knownFace(heading, imported)) return null;
+  const faces = [heading, ...(numeric && knownFace(numeric, imported) ? [numeric] : [])];
+  return new Set(faces.flatMap((f) => fontWeights(f, imported).map((w) => String(w.value))));
+}
+
 /** The first family a `font-family` value names, unquoted. */
 function stackFamily(value: string): string | null {
   return (/^\s*"([^"]+)"/.exec(value) ?? /^\s*'([^']+)'/.exec(value) ?? /^\s*([^,]+)/.exec(value))?.[1]?.trim() ?? null;

@@ -22,7 +22,7 @@ import {
   type StyleTerm,
 } from '../../model/styleVocabulary';
 import { contrastRatio, looksLikeColor, parseCssColor } from '../../model/cssVars';
-import { FONTS, fontByStack, fontStack, fontWeights, knownFace } from '../../model/fonts';
+import { FONTS, fontByStack, fontStack, tokenWeights } from '../../model/fonts';
 import { formatCssLength, parseCssLength } from '../../blocks/cssLength';
 import ColorField from './ColorField';
 
@@ -214,10 +214,9 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
 
   const renderWeight = (name: string, value: string) => {
     const term = styleTerm(name);
-    // Only the weights the heading face really draws: Bebas Neue, Anton and an imported face
-    // offer Regular alone, so no choice here is a bold the browser would synthesise.
-    const heading = byName.get('font-heading');
-    const real = heading && knownFace(heading, importedFonts) ? new Set(fontWeights(heading, importedFonts).map((w) => String(w.value))) : null;
+    // Only the weights the faces really draw (`tokenWeights`): Bebas Neue, Anton and an imported
+    // face offer Regular alone, so no choice here is a bold the browser would synthesise.
+    const real = tokenWeights(byName.get('font-heading'), byName.get('font-numeric'), importedFonts);
     const offered = real ? WEIGHT_CHOICES.filter((w) => real.has(w)) : WEIGHT_CHOICES;
     // A face with one real weight leaves nothing to choose: the row is hidden, never one greyed
     // button (the wizard's rule, a control is offered only where it can change the graphic).

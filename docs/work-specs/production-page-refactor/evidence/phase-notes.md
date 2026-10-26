@@ -76,9 +76,10 @@ changes a spec's digest.
   shows what airs). Blink synthesises a bold only when the matched face's declared range tops
   out below 600, so every request, the heading token or a literal `font-weight: 700`, draws the
   file as it is. The menus offer real weights only (`fontWeights(family, imported)`: Regular for
-  those three, a system family untouched); the wizard's Style row is hidden where that leaves
-  one, and shows the weight the design stores, chosen, where the face stops short of it (the
-  sport family's 800 on Oswald, 69 designs, also weights their Saira numbers). An imported
+  those three, a system family untouched). The wizard's Style row offers the weights of the
+  heading face and of the face `--font-numeric` names (`tokenWeights`: a scoreboard on Anton
+  still weights its Saira numbers 400-900, a lower third on Anton has no row), and shows the
+  weight the design stores, chosen, where the faces stop short of it. An imported
   variable file now follows the requested weight along its axis instead of smearing Regular.
 - **Decision, and the departure from item 2's wording:** the spec names a clamp or
   `font-synthesis: none`. `font-synthesis` arrived in Chromium 97, so CasparCG 2.3's Chromium 71
