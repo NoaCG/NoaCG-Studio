@@ -189,6 +189,13 @@ export function placeWaiting(state: Pick<CueAdjustState, 'send'> | null, applied
   return !!state?.send && !appearanceEquals(state.send, applied ?? IDENTITY);
 }
 
+/** A Take or Update of this cue must wait (capped) for a measurement of its values as they are now:
+ *  its preset or its size resolves against the box, and the box it holds is for other values or
+ *  none (a longer name typed just before the press, a feed moving a bound value). */
+export function pressWaitsForBox(state: Pick<CueAdjustState, 'eff' | 'fresh'> | null): boolean {
+  return !!state && !state.fresh && (!!state.eff.place || (state.eff.scale ?? 1) !== 1);
+}
+
 export function cueAdjustState(
   graphic: { id: string; savedAt: string; adjust?: unknown },
   cue: { id: string; adjust?: unknown },

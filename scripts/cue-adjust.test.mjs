@@ -372,6 +372,27 @@ describe('measurements: identified and qualified', () => {
     assert.equal(part.get().byCue.c.id, 'new');
   });
 
+  test('a longer name typed just before a Take is measured first, and the edge lands on the inset', async () => {
+    const graphic = { id: 'g', savedAt: 's1', adjust: { v: 1, place: 'br', anchor: 'bl' } };
+    const cue = { id: 'c' };
+    const idOf = (values) => A.measureId('g', 's1', 'c', values, HD);
+    const stateOf = (values, part) => G.cueAdjustState(graphic, cue, HD, HD, values, part.get(), undefined, false);
+    const longer = { ...LT, w: 520 };
+    const part = storePart(G.measured(G.NO_GEOMETRY, 'c', 'g', idOf({ name: 'Ann' }), strap()));
+    assert.equal(G.pressWaitsForBox(stateOf({ name: 'Ann' }, part)), false, 'measured for these values: no wait');
+    const typed = { name: 'Annabel Longname' };
+    const stale = stateOf(typed, part);
+    assert.equal(G.pressWaitsForBox(stale), true, 'a box for other values makes the press wait');
+    assert.ok(right(composed(longer, stale.send.frame)) > 1800 + 100, 'the old box would put the wider strap past the inset');
+    const measurer = G.createMeasurer(part, { measure: async () => strap(longer) });
+    await measurer.now({ cueId: 'c', graphicId: 'g', id: idOf(typed), input: typed }, 1000);
+    const fresh = stateOf(typed, part);
+    assert.equal(fresh.fresh, true);
+    near(right(composed(longer, fresh.send.frame)), 1800, 'measured again, the edge sits on the inset');
+    assert.equal(G.pressWaitsForBox({ eff: eff({ v: 1, x: 4 }, undefined), fresh: false }), false, 'a nudge alone never waits');
+    assert.equal(G.pressWaitsForBox({ eff: eff({ v: 1, scale: 0.95 }, undefined), fresh: false }), true, 'a size resolves about the box too');
+  });
+
   test('Publish waits for the measurer only so long', async () => {
     const part = storePart(G.NO_GEOMETRY);
     const measurer = G.createMeasurer(part, { measure: () => new Promise(() => {}) });

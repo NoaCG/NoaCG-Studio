@@ -120,7 +120,7 @@ import { createSheetInbox } from '../../audience/sheetMessages';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedAppearance, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
-import { createMeasurer, cueAdjustState, measured, placeWaiting, type MeasureJob } from '../../control/adjustGeometry';
+import { createMeasurer, cueAdjustState, measured, placeWaiting, pressWaitsForBox, type MeasureJob } from '../../control/adjustGeometry';
 import { measureCue } from './measureCue';
 import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
 import type { AdjustPatch } from '../../model/adjust';
@@ -2692,15 +2692,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     cueView,
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
     // Read after the wait (this object is the render's): the place and size a Take or Update carries.
-    // A cue with a preset and no measurement of its own yet is measured first, capped, so the Take
-    // airs its placement rather than one without the preset.
+    // A cue whose preset or size has no measurement of its values as they are now (never measured,
+    // or a name typed just before the press) is measured first, capped, so the Take airs its
+    // placement for the box it shows rather than for an older one.
     // An Adjust press still being written goes first (capped), and the record is then read from the
     // store, not from a render: ← then Take airs the ←. A production nobody adjusts answers at once.
     appearanceOf: (taken) => {
       const resolveFor = (record: Show | null): AppliedAppearance | undefined | Promise<AppliedAppearance | undefined> => {
         const cue = record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
         const state = adjustStateOf(cue, record);
-        if (!state?.eff.place || session.geometry.get().byCue[cue.id] || !record) return state?.send;
+        if (!state || !pressWaitsForBox(state) || !record) return state?.send;
         const job = measureJobs(record).find((j) => j.cueId === cue.id);
         return job ? measurer.now(job, TAKE_MEASURE_CAP_MS).then(() => adjustStateOf(cue, record)?.send) : state.send;
       };
