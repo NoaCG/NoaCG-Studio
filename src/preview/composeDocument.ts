@@ -461,9 +461,7 @@ window.addEventListener('unhandledrejection', function (ev) {
     var loads = [];
     if (document.fonts && document.fonts.forEach) {
       document.fonts.forEach(function (face) {
-        /* A face an earlier style started is waited for too, or this one would refit before it. */
         if (face.status === 'unloaded') { try { loads.push(face.load().then(null, function () {})); } catch (e) {} }
-        else if (face.status === 'loading' && face.loaded) loads.push(face.loaded.then(null, function () {}));
       });
     }
     waiting = true;
