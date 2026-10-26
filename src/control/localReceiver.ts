@@ -45,20 +45,20 @@ ${looks ? `
   // one applied, kept with the baseline so a reload puts it back before anything paints.
   ${APPEARANCE_RUNTIME_JS}
   var look = null;
-  // A row that changes the face: the template's fits measured the old one (a fit handed to
-  // document.fonts.ready ran once, at load), so once the new face is in, the values on air go to
-  // update() again, a refit through the template's own code. MERGED, read when the face is in, never
-  // the row that asked: a row that arrived meanwhile (a score, the next cue) must not be undone.
-  // A newer face change takes the refit over.
-  var typeNow = noacgApplyAppearance.typeOf(null);
+  // A row that changes the type on the root (a face, the heading weight, or back to the design's,
+  // a bake's included): the template's fits measured the old one (a fit handed to
+  // document.fonts.ready ran once, at load), so once the face in effect is in, the values on air
+  // go to update() again, a refit through the template's own code. MERGED, read when the face is
+  // in, never the row that asked: a row that arrived meanwhile must not be undone. A newer change
+  // takes the refit over.
   var typeSeq = 0;
-  function refitAfter(m) {
-    if (!noacgApplyAppearance.readable(m.appearance)) return;
-    var type = noacgApplyAppearance.typeOf(m.appearance);
-    if (type === typeNow) return;
-    typeNow = type;
+  function typeHere() {
+    var t = document.documentElement.__noacgType;
+    return t === undefined ? noacgApplyAppearance.typeOf(null) : t;
+  }
+  function refit() {
     var seq = ++typeSeq;
-    var loaded = noacgApplyAppearance.loaded(m.appearance);
+    var loaded = noacgApplyAppearance.loaded();
     if (loaded) loaded.then(function () { if (seq === typeSeq && typeof update === 'function') update(JSON.stringify(merged)); });
   }
   function lookOf(m) {
@@ -76,9 +76,10 @@ ${looks ? `
     }
     else if (m.t === 'next' && typeof next === 'function') next();
     else if (m.t === 'update' && typeof update === 'function') ${looks ? `{
+      var typeBefore = typeHere();
       noacgApplyAppearance(m.appearance);
       update(JSON.stringify(m.data || {}));
-      refitAfter(m);
+      if (typeHere() !== typeBefore) refit();
     }` : 'update(JSON.stringify(m.data || {}));'}
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
@@ -274,6 +275,7 @@ ${looks ? `
       for (k = 0; k < mine.length; k++) track(mine[k]);${looks ? `
       // The last place and size applied, on air or not, an identity included (it took a baked
       // default off); a graphic the relay never placed keeps whatever its file baked.
+      var bootType = typeHere();
       if (look) noacgApplyAppearance(look);` : ''}
       if (airFrom === 0) {          // never played, or stopped since: blank is the right picture
         cursor = head;
@@ -290,7 +292,9 @@ ${looks ? `
       for (k = 0; k < mine.length; k++) { if (mine[k].id >= airFrom) apply(mine[k].msg); }
       // …and the data again, because a "snap" in the replay resets the graphic first and clears
       // the inline styles the DATA layer owns (an empty image field hides itself with one).
-      if (typeof update === 'function') update(JSON.stringify(merged));
+      if (typeof update === 'function') update(JSON.stringify(merged));${looks ? `
+      // A restored look in another face than the file loaded with: refit once it is in.
+      if (typeHere() !== bootType) refit();` : ''}
 
       // Follow live from the last row the REPLAY actually covered, never from the head the ping
       // answered: that head is older by everything that arrived while the log was being read,

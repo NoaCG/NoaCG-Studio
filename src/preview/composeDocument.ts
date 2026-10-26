@@ -294,7 +294,7 @@ window.addEventListener('unhandledrejection', function (ev) {
       var p = desc.get.call(fonts);
       if (!recording) return p;
       p.then = function (ok, bad) {
-        if (typeof ok === 'function' && hooks.indexOf(ok) < 0) hooks.push(ok);
+        if (recording && typeof ok === 'function' && hooks.indexOf(ok) < 0) hooks.push(ok);
         return Promise.prototype.then.call(p, ok, bad);
       };
       return p;
@@ -430,6 +430,10 @@ window.addEventListener('unhandledrejection', function (ev) {
   var styleSet = [];
   var styleMetric = '|||'; /* the design's own: no faces, no type variables */
   var styleOwed = false;
+  /* The values the graphic was last given: a design that fits in update() rather than on
+     fonts.ready measured the fallback when its face came in after the 400 ms hold, so a late
+     refit gives it the same values again. */
+  var lastData = null;
   function applyStyle(msg) {
     var seq = ++styleSeq;
     var given = msg.vars || {};
@@ -480,8 +484,10 @@ window.addEventListener('unhandledrejection', function (ev) {
     Promise.all(loads).then(function () {
       if (seq !== styleSeq) return release();
       styleOwed = false;
+      var late = released;
       var hooks = refit ? window.__noacgFontHooks || [] : [];
       for (var h = 0; h < hooks.length; h++) { try { hooks[h].call(document.fonts, document.fonts); } catch (e) {} }
+      if (refit && late && lastData != null) { try { window.update && window.update(lastData); } catch (e) {} }
       try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_RESTYLED_TYPE)}, seq: seq, refit: refit }, '*'); } catch (e) {}
       release();
     });
@@ -495,17 +501,19 @@ window.addEventListener('unhandledrejection', function (ev) {
   });
   function run(msg) {
     if (msg.cmd === 'update') {
+      lastData = msg.data;
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
       afterFonts(function () {
         try {
-          if (msg.data != null) window.update && window.update(msg.data);
+          if (msg.data != null) { lastData = msg.data; window.update && window.update(msg.data); }
           window.play && window.play();
         } catch (e) {}
         report(window);
       });
     } else if (msg.cmd === 'settle') {
       afterFonts(function () {
+        if (msg.data != null) lastData = msg.data;
         settle(window, msg.data);
         /* An identified settle answers with the whole measurement (settleGraphic.ts measureGraphic). */
         if (typeof msg.id === 'number') measureBox(window, msg.id);

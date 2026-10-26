@@ -367,6 +367,28 @@ test('a refit a colour change overtook is still done: the face it waited for is 
   expect(waited, `the refit waited for the face (${Math.round(waited)} ms after the colour)`).toBeGreaterThan(2_000);
 });
 
+test('a design that fits in update() is given its values again when its face arrives after the hold', async ({ page }) => {
+  // lt01 fits on update(), not on document.fonts.ready. Archivo answers 3 s late, past the 400 ms
+  // the queue holds, so the Update the style rides fits the fallback: the late refit sends the
+  // same values again.
+  await page.route('**/fonts/archivo*.woff2', async (route) => {
+    await new Promise((r) => setTimeout(r, 3_000));
+    await route.continue();
+  });
+  const doc = await styledStage(page);
+  await doc.locator('html').evaluate(() => {
+    const w = window as unknown as { update: (d: string) => void; __updates: string[] };
+    const own = w.update;
+    w.__updates = [];
+    w.update = (d: string) => { w.__updates.push(d); own(d); };
+  });
+  await sendStyle(page, { v: 1, font: { fontId: 'archivo' } });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled), { timeout: 10_000 }).toEqual([1]);
+  const updates = await doc.locator('html').evaluate(() => (window as unknown as { __updates: string[] }).__updates);
+  expect(updates.length, JSON.stringify(updates)).toBe(2);
+  expect(updates[1], 'the same values, once the face is in').toBe(updates[0]);
+});
+
 test('an imported face reaches the document by its asset path, and draws the name from its own file', async ({ page }) => {
   const doc = await styledStage(page, true);
   await sendStyle(page, { v: 1, font: { family: 'Brand Import', assetPath: 'fonts/brand-import.woff2' } }, [{ family: 'Brand Import', assetPath: 'fonts/brand-import.woff2' }]);

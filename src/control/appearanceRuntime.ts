@@ -124,6 +124,11 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
   // Apply an appearance to the host, replacing the one it holds. Answers false, and changes
   // nothing, for anything this build cannot read. A host no longer on the page leaves the list
   // here too: an OGraf Graphic rendering frames offline claims a new canvas per frame.
+  // What of an appearance can move text: the faces and the heading weight, never a colour.
+  var typeOf = function (a) {
+    var v = (a && a.vars) || {};
+    return [v['font-heading'] || '', v['font-numeric'] || '', v['display-weight'] || ''].join('|');
+  };
   var apply = function (a, host) {
     if (!readable(a)) return false;
     var f = a.frame;
@@ -140,23 +145,26 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
       el.style.clipPath = '';
     }
     setVars(el, a.vars);
+    // The type now on the host, so a receiver compares with what is applied (a bake's included).
+    el.__noacgType = typeOf(a);
     return true;
   };
   apply.readable = readable;
-  // What of an appearance can move text: the faces and the heading weight, never a colour.
-  apply.typeOf = function (a) {
-    var v = (a && a.vars) || {};
-    return [v['font-heading'] || '', v['font-numeric'] || '', v['display-weight'] || ''].join('|');
-  };
-  // Resolves once the faces an appearance names have loaded (or failed), for a refit after them.
-  apply.loaded = function (a) {
-    var v = (a && a.vars) || {};
+  apply.typeOf = typeOf;
+  // Resolves once the faces in effect on the document's root have loaded (or failed), the
+  // design's own when nothing is set, for a refit after them.
+  apply.loaded = function () {
     var fonts = document.fonts;
-    if (!fonts || !fonts.load || typeof Promise === 'undefined') return null;
-    var w = v['display-weight'] || '400';
+    if (!fonts || !fonts.load || typeof Promise === 'undefined' || !window.getComputedStyle) return null;
+    var cs = window.getComputedStyle(document.documentElement);
+    var read = function (n) { return (cs.getPropertyValue('--' + n) || '').replace(/^\s+|\s+$/g, ''); };
+    var w = read('display-weight') || '400';
     var asks = [];
-    if (v['font-heading']) asks.push(fonts.load(w + ' 1em ' + v['font-heading']).then(null, function () {}));
-    if (v['font-numeric']) asks.push(fonts.load(w + ' 1em ' + v['font-numeric']).then(null, function () {}));
+    var stacks = [read('font-heading'), read('font-numeric')];
+    for (var i = 0; i < stacks.length; i++) {
+      if (!stacks[i]) continue;
+      try { asks.push(fonts.load(w + ' 1em ' + stacks[i]).then(null, function () {})); } catch (e) {}
+    }
     return Promise.all(asks);
   };
   return apply;

@@ -355,6 +355,14 @@ test('an adjusted production over the relay: the bake, the Take\'s place and siz
   // Back to the design's face for the steps below.
   await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
   await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toBe('');
+  // The comparison is with the face APPLIED, a bake's included, never only the rows seen: a face
+  // the file put on itself, then a row back to the design's own, refits too.
+  await air.evaluate((heading) => {
+    (window as unknown as { noacgApplyAppearance: (a: unknown) => boolean }).noacgApplyAppearance({ v: 1, vars: { 'font-heading': heading } });
+  }, heading);
+  const beforeDesigned = await updates();
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
+  await expect.poll(updates, { timeout: 6000, message: 'back to the design: the update, then the refit' }).toBe(beforeDesigned + 2);
 
   // Rule 4: a reload puts back the last one applied, read off the log, then off the baseline.
   for (let i = 0; i < 2; i++) {
