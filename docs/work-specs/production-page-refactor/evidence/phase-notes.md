@@ -8,18 +8,18 @@ changes a spec's digest.
 ## Row 32d prerequisite: phase 0 item 2, no synthesised bold, real heading weights
 
 - **Base:** `1dcf26d` (row 32c passed), reconciled with `fc5a4b4` (item 1, #1744, merged).
-  **Revert:** `git revert <merge sha>` in an isolated worktree, then `/check` and `/queue-merge`;
-  a graphic built meanwhile keeps its CSS.
+  **Revert:** `git revert -m 1 <merge sha>` in an isolated worktree, then `/check` and
+  `/queue-merge`; a graphic built meanwhile keeps its CSS.
 - **What:** Bebas Neue, Anton (one static weight each) and an imported face (one file, no known
   weight) declare `font-weight: 100 900` in their `@font-face`: both rules of the heading, label
   and supporting faces (`faceWeightLine` is `bundledFaceRules`' weight line, so the latin and
   latin-ext rules always agree; two ranges would make Chromium treat them as two faces and lose Š
   and Ž at 800), the builder's own previews of the faces (`ensureAppFontFace`, `registerAppFont`,
-  `wizard-and-dialogs.css`, so the SVG placement canvas shows what airs), an imported SVG's alias of a static face (`svgFonts.ts`, never pinned)
-  and an imported face (`customFontFaceCss`). Blink synthesises a bold only when the matched face's
+  `wizard-and-dialogs.css`, so the SVG placement canvas shows what airs), an imported SVG's alias
+  of a static face (`svgFonts.ts`, never pinned) and an imported face (`customFontFaceCss`). Blink synthesises a bold only when the matched face's
   declared range tops out below 600, so every request, the heading token or a literal
-  `font-weight: 700` (316 designs write 600 to 900), draws the file as it is. The menus offer real
-  weights only (`fontWeights(family, imported)`: Regular for those three); the build
+  `font-weight: 700` (most catalog designs write one), draws the file as it is. The menus offer
+  real weights only (`fontWeights(family, imported)`: Regular for those three); the build
   (`rootVarsCss`) and the wizard's overrides (`buildDraftTemplate`) write `--display-weight`
   clamped to a real weight of a face the app knows (`clampFontWeight`; a system or installed family
   is never narrowed). A look is not clamped: rewriting the stored weight there would lose it for a
@@ -29,6 +29,11 @@ changes a spec's digest.
   ignores it; a clamp alone leaves literal weights smearing after a face swap. The range
   descriptor (honoured since Chromium 62) is the mechanism; the clamp keeps the CSS honest.
   First cut (clamp only) was Assessment B in its independent review for exactly that.
+- **For phase 2:** a `FontDeclaration` a composed document is told for a static or imported face
+  must declare 100-900, not the spec's `[400, 400]` (its interface comment predates this), or a
+  literal bold smears again on Chromium 71; the real weights to offer are `fontWeights()`. The
+  weight row of the wizard's Style panel is hidden on a face with one real weight, never one
+  dead button.
 - **Visible:** lt43 (Bebas Neue at the sport family's 800) drew a smeared synthetic bold; now
   Bebas as drawn, same box. lt07, lt33, lt61, ls08 and card83, the other Bebas Neue and Anton
   defaults, render pixel-identical before and after: **the spec's Fonts finding that all six

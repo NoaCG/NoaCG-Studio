@@ -105,6 +105,17 @@ test('style step: font and size choices land in the rebuilt preview', async ({ p
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Playfair Display');
   await page.getByTestId('font-select').first().selectOption({ label: 'Space Grotesk' });
   await expect.poll(() => previewVar(page, '--font-heading')).toContain('Space Grotesk');
+  // The heading weight offers the face's real weights only, and nothing on a face with one:
+  // Bebas Neue is a single static weight, so its row is gone rather than one dead button.
+  await page.getByTestId('wz-design-colors').locator('summary').click();
+  const weightRow = page.getByTestId('style-var-display-weight');
+  await expect(weightRow.getByRole('button')).toHaveText(['400', '500', '600', '700']);
+  await page.getByTestId('font-select').first().selectOption({ label: 'Bebas Neue' });
+  await expect.poll(() => previewVar(page, '--font-heading')).toContain('Bebas Neue');
+  await expect(weightRow).toHaveCount(0);
+  await page.getByTestId('font-select').first().selectOption({ label: 'Space Grotesk' });
+  await expect(weightRow.getByRole('button')).toHaveText(['400', '500', '600', '700']);
+  await page.getByTestId('wz-design-colors').locator('summary').click();
   // Size and position are TUNING and sit behind a disclosure too. The PALETTE is what this
   // step now leads with alone: every other decision here has a good per-design default and a
   // collapsed row naming it. Open it to reach the knobs (see components/CLAUDE.md).
