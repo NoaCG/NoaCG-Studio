@@ -1,4 +1,4 @@
-// guards: src/model/ografTyped.ts, src/model/shows.ts, src/model/importTemplate.ts, src/model/rundownHistory.ts, src/control/cueItems.ts, src/control/livePath.ts, src/control/hostedControl.ts, src/output/main.ts, src/output/stage.ts, src/components/home/ProductionPage.tsx, scripts/fixtures/ograf-typed/**
+// guards: src/model/ografTyped.ts, src/control/typedSend.ts, src/model/shows.ts, src/model/importTemplate.ts, src/model/rundownHistory.ts, src/control/cueItems.ts, src/control/livePath.ts, src/control/hostedControl.ts, src/output/main.ts, src/output/stage.ts, src/components/home/ProductionPage.tsx, scripts/fixtures/ograf-typed/**
 //
 // TYPED OGRAF DATA, THE WRITING SIDE (docs/work-specs/playout-ograf-contract/spec.md, E1.2a), in
 // Node. The reading side is scripts/ograf-typed.test.mjs; the route's half of the typed target
@@ -35,6 +35,7 @@ const {
 } = typed;
 const { takeCueItems } = await import('../src/control/cueItems.ts');
 const { readLiveEntry } = await import('../src/control/livePath.ts');
+const { typedSendFor, createTypedSendMemo } = await import('../src/control/typedSend.ts');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const stranger = JSON.parse(readFileSync(path.join(root, 'scripts/fixtures/ograf-typed/stranger.ograf.json'), 'utf8'));
@@ -243,6 +244,33 @@ test('one command takes at most TYPED_MAX_SEND_BYTES of typed data, measured as 
   assert.equal(TYPED_MAX_SEND_BYTES, 65536);
 });
 
+test('the page\'s decision: bound values from the tree, a tree not read yet, a live candidate, this production\'s outputs', () => {
+  const cue = { typed: envelope() };
+  const facts = (over = {}) => ({
+    declared: ok, bindings: { round: 'match.round', teams: 'match.teams' }, tree: { match: { round: 3 } }, treeRead: true, published: true,
+    presence: { showId: 's1', status: 'joined', peers: [{ kind: 'output', name: 'A', typed: TYPED_READER }] }, showId: 's1', ...over,
+  });
+  // A bound path's JSON over the cue's value; a path that holds nothing keeps the cue's (teams).
+  assert.deepEqual(typedSendFor(cue, facts()), { status: 'ok', typed: envelope({ ...values, round: 3 }) });
+  // Never read from text: a number field bound to "3" refuses before anything is sent.
+  assert.deepEqual(typedSendFor(cue, facts({ tree: { match: { round: '3' } } })), { status: 'refused', reason: 'round: a string is not a whole number.' });
+  assert.equal(typedSendFor(cue, facts({ treeRead: false })).reason, 'This production’s shared values are still loading.');
+  assert.equal(typedSendFor(cue, facts({ treeRead: false, published: false, presence: { showId: null, status: 'off', peers: [] } })).status, 'ok', 'unpublished: the local tree');
+  assert.equal(typedSendFor({ ...cue, selection: { v: 1 } }, facts()).reason, 'A cue with a live candidate takes no typed data.');
+  assert.equal(typedSendFor({}, facts()).status, 'none');
+  // The outputs are this production's only: a view still on another one sends nothing.
+  assert.equal(typedSendFor(cue, facts({ presence: { showId: 'other', status: 'joined', peers: [] } })).reason, 'Typed data waits until this page can see its outputs.');
+  assert.equal(typedSendFor(cue, facts({ presence: { showId: 's1', status: 'joined', peers: [{ kind: 'output', name: 'Old' }] } })).reason, 'Reload Old: it cannot read typed data yet.');
+  // Remembered per envelope while the facts are the same objects; a new fact asks again.
+  const memo = createTypedSendMemo();
+  const same = facts();
+  const first = memo(cue, same);
+  assert.equal(memo(cue, same), first);
+  assert.notEqual(memo(cue, { ...same, tree: { match: { round: 1 } } }), first);
+  assert.equal(memo(cue, same).status, 'ok');
+  assert.equal(memo({ ...cue, selection: { v: 1 } }, same).status, 'refused', 'a selection added since is asked again');
+});
+
 // ── The wire ─────────────────────────────────────────────────────────────────────────────────
 
 test('AC-3: a native cue\'s Take is the same bytes as before; a typed one carries the envelope beside empty data', () => {
@@ -273,6 +301,10 @@ test('the output: typed values air as they are; a data road\'s text never replac
   assert.match(main, /typed: TYPED_READER,/);
   // A graphic airing typed data never reports native strings: its bank stays before its first
   // typed row, so a reboot replays the envelopes from the log.
+  // A frame that replaces a typed graphic's (a newer body) is given the typed values it airs.
+  assert.match(main, /data: \(graphic\) => heldData\(graphic\),/);
+  assert.match(main, /typed\.airing\.has\(graphic\) \? \(typedData\.get\(graphic\)/);
+  assert.match(main, /if \(gate\.values\) typedData\.set\(graphic, gate\.values\);/);
   assert.match(main, /const typedHolds = \(graphic: string\) => typed\.held\.has\(graphic\) \|\| typed\.airing\.has\(graphic\);/);
   // A data road's update with no look applies nothing (a foreign Graphic would get updateAction({})).
   assert.match(main, /if \(animate && \(gate\.values \|\| msg\.appearance\)\) stage\.apply\(/);

@@ -83,8 +83,9 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution, SpxTemplate } from '../../model/types';
-import { nativeOf, readOgrafDeclared, typedForSend, typedOutputsRefusal, typedReadOnly, typedSendRefusal, typedTargetValue, typedValuesOf, type DeclaredRead, type TypedSend } from '../../model/ografTyped';
-import { getPath, resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
+import { nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend } from '../../model/ografTyped';
+import { createTypedSendMemo } from '../../control/typedSend';
+import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
@@ -1463,40 +1464,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** WHAT A TAKE OR AN UPDATE SENDS FOR A CUE'S TYPED DATA (E1.2a, model/ografTyped.ts): its
    *  envelope with each bound field's value from the newest tree, read by the typed target adapter
    *  (never as text), validated whole; then only while every output this page sees reads it. */
-  const typedMemo = useRef(new WeakMap<object, { deps: unknown[]; out: TypedSend }>());
+  const typedMemo = useRef(createTypedSendMemo());
   const typedFor = useCallback(
     (cue: ShowCue, graphic: string): TypedSend => {
-      if (cue.typed === undefined) return { status: 'none' };
-      // A live candidate's values are resolved as text (E7.1): the two do not combine.
-      if (cue.selection !== undefined) return { status: 'refused', reason: 'A cue with a live candidate takes no typed data.' };
-      // Asked by every render's Take refusals as well as by the press: the same inputs give the
-      // same answer, so a keystroke does not validate the envelope again.
-      const presence = livePresenceRef.current;
       const data = session.data.get();
-      const deps = [graphic, templateOgrafOf(graphic), bindingsRef.current, data.liveData, data.treeRead, publishedRef.current, presence.showId, presence.status, presence.peers];
-      const memo = typeof cue.typed === 'object' && cue.typed !== null ? typedMemo.current.get(cue.typed) : undefined;
-      if (memo && memo.deps.every((d, i) => d === deps[i])) return memo.out;
-      const out = ((): TypedSend => {
-        const declared = declaredOf(graphic);
-        const nodes = new Map(declared.status === 'ok' && declared.fields ? (declared.fields.properties ?? []).map((p) => [p.key, p.node] as const) : []);
-        const bound = new Map<string, { value: JsonValue } | { reason: string }>();
-        for (const [field, path] of Object.entries(bindingsRef.current?.[graphic] ?? {})) {
-          const node = nodes.get(field);
-          if (!node) continue;
-          if (publishedRef.current && !data.treeRead) return { status: 'refused', reason: 'This production’s shared values are still loading.' };
-          const value = getPath(data.liveData, path);
-          if (value !== undefined) bound.set(field, typedTargetValue(node, value));
-        }
-        const send = typedForSend(cue, declared, bound);
-        if (send.status !== 'ok') return send;
-        // Peers of another production (the view before its rejoin) are not this one's outputs.
-        const outputs = typedOutputsRefusal(publishedRef.current, presence.showId === id ? presence.status : 'joining', presence.peers);
-        return outputs ? { status: 'refused', reason: outputs } : send;
-      })();
-      if (typeof cue.typed === 'object' && cue.typed !== null) typedMemo.current.set(cue.typed, { deps, out });
-      return out;
+      return typedMemo.current(cue, {
+        declared: declaredOf(graphic),
+        bindings: bindingsRef.current?.[graphic],
+        tree: data.liveData,
+        treeRead: data.treeRead,
+        published: publishedRef.current,
+        presence: livePresenceRef.current,
+        showId: id,
+      });
     },
-    [session, templateOgrafOf, declaredOf, id],
+    [session, declaredOf, id],
   );
   /** The fields of a cue nothing typed or pressed here may move (E7.1): its candidate's, and every
    *  field of a cue this build reads only (a later version's selection). */

@@ -31,8 +31,9 @@
 // Every bound below keeps reading outside input linear: each schema node and each value node is
 // visited once, depth and count are capped, and no pattern from a package is ever run.
 //
-// Pure (model layer): no DOM, so the output renderer, Node and the api's source route share it.
-// Runtime imports carry `.js`, as the functions' emit needs (control/sourceMapping.ts imports it).
+// Pure (model layer): no DOM, so the output renderer and Node share it. Runtime imports carry `.ts`,
+// so the api's functions (which import `.js`) never reach it: the source route's half of the typed
+// target adapter needs nothing from here (control/sourceMapping.ts `projectSource`).
 
 import { contentHash } from './contentHash.ts';
 import type { JsonValue } from './productionData';
@@ -896,7 +897,7 @@ export type TypedSend =
 /**
  * THE SEND (E1.2a): the envelope a Take or an Update of this cue carries, or why nothing may go.
  * `bound` is each bound field's value as the TYPED TARGET ADAPTER read it from the production tree
- * (control/sourceMapping.ts `typedTargetValue`): a value, or a reason, or absent for a path that
+ * (`typedTargetValue`, asked by control/typedSend.ts): a value, or a reason, or absent for a path that
  * holds nothing yet, where the cue's own value stays (a missing path writes nothing). The cue's
  * values with the bound ones over them must validate whole against the graphic's schema and fit
  * one command; otherwise nothing is dispatched and the cue's stored data is untouched.

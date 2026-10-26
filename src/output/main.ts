@@ -248,6 +248,13 @@ async function boot(): Promise<void> {
    *  cue's values. `airing`: graphics whose data on air is an envelope's (E1.2a). */
   const typed = { held: new Map<string, string>(), airing: new Set<string>() };
   const typedRefused = typed.held;
+  /** The values each graphic airing typed data holds, as they were sent: what a frame that replaces
+   *  it (the swapper below) is given in place of the native values a report banks. */
+  const typedData = new Map<string, Record<string, unknown>>();
+  /** What a graphic holds now: its typed values while it airs them, else its native ones. The
+   *  frame's update is JSON either way. */
+  const heldData = (graphic: string): Record<string, string> | null =>
+    (typed.airing.has(graphic) ? (typedData.get(graphic) as Record<string, string> | undefined) : mergedData.get(graphic)) ?? null;
   /** Held or airing typed data: either way, no report banks it (see `scheduleReport`). */
   const typedHolds = (graphic: string) => typed.held.has(graphic) || typed.airing.has(graphic);
   const withRefusals = (): ReadonlyMap<string, GraphicCheck> => {
@@ -424,8 +431,8 @@ async function boot(): Promise<void> {
     stage,
     held: bootDigests,
     onAir: onAirHere,
-    data: (graphic) => mergedData.get(graphic) ?? null,
-    warmData: (graphic, next) => (touched.has(graphic) ? (mergedData.get(graphic) ?? null) : firstCueOf(next.cues, graphic)),
+    data: (graphic) => heldData(graphic),
+    warmData: (graphic, next) => (touched.has(graphic) ? heldData(graphic) : firstCueOf(next.cues, graphic)),
     loadSound: (next) => audio(next).loadSound,
     onSwapped: (graphic, spec, check) => {
       bodies.set(graphic, (bodies.get(graphic) ?? 0) + 1);
@@ -443,7 +450,7 @@ async function boot(): Promise<void> {
       readyChanged();
     },
     onRemoved: (graphic) => {
-      for (const map of [checks, mergedData, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
+      for (const map of [checks, mergedData, typedData, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
       for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
       clearTimeout(reportTimers.get(graphic));
       reportTimers.delete(graphic);
@@ -724,6 +731,7 @@ async function boot(): Promise<void> {
     // on it moves only its appearance.
     if (gate.values || gate.dropData) {
       touched.add(graphic);
+      if (gate.values) typedData.set(graphic, gate.values);
       const msg = incoming as Extract<ControlMessage, { t: 'update' }>;
       const look = msg.appearance ? { appearance: msg.appearance } : {};
       // A data road's update with no look moves nothing here: an empty update would reach a
