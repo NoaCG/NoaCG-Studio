@@ -645,26 +645,29 @@ test.describe('live candidates', () => {
       await expect(on('Candidate card', '#f2')).toHaveText('3,500', WIRE);
       await capture('count-01');
 
-      // Each provider step, timed from the move to the picture.
+      // Each provider step, timed from the move to the picture, and bounded: a step that moves a bound
+      // field reaches air within 10 s (2 s poll, 5 s revision gap, the row at once); one that moves
+      // only the candidates within 13 s (add the page's own 5 s read).
       const timings: Record<string, number> = {};
-      const step = async (i: number, name: string, check: () => Promise<void>) => {
+      const step = async (i: number, name: string, limitMs: number, check: () => Promise<void>) => {
         const started = Date.now();
         replay.at(i);
         await check();
         timings[name] = Date.now() - started;
+        expect(timings[name], `${name} took ${timings[name]} ms`).toBeLessThan(limitMs);
         await capture(name);
       };
-      await step(1, 'count-increase', async () => {
+      await step(1, 'count-increase', 10_000, async () => {
         await expect(on('Party totals', '#f8')).toHaveText('228,000', WIRE);
         await expect(on('Count bug', '#f2')).toHaveText('61 of 100 areas counted', WIRE);
         await expect(on('Candidate card', '#f2')).toHaveText('3,700', WIRE);
       });
       // The duplicate is unchanged; it reads as a receipt (at most every 15 s), never a revision.
-      await step(2, 'duplicate', async () => {
+      await step(2, 'duplicate', 25_000, async () => {
         await expect.poll(state, { timeout: 25_000 }).toBe('unchanged');
         expect(await accepted()).toBe(2);
       });
-      await step(3, 'correction-down', async () => {
+      await step(3, 'correction-down', 10_000, async () => {
         await expect(on('Candidate card', '#f2')).toHaveText('3,650', WIRE);
         await expect(on('Party totals', '#f8')).toHaveText('224,100', WIRE);
       });
@@ -675,19 +678,19 @@ test.describe('live candidates', () => {
         expect.objectContaining({ f0: 'Aino Example', f1: 'National Coalition · Uusimaa', f2: '3,650', f3: 'Counting', f5: '#2F6FD6' }),
       ]);
       // An older revision and malformed input: held by the agent, nothing moves.
-      await step(4, 'older', async () => expect.poll(state, WIRE).toBe('stale'));
-      await step(5, 'malformed', async () => expect.poll(state, WIRE).toBe('invalid'));
+      await step(4, 'older', 10_000, async () => expect.poll(state, WIRE).toBe('stale'));
+      await step(5, 'malformed', 10_000, async () => expect.poll(state, WIRE).toBe('invalid'));
       expect(await accepted()).toBe(3);
       expect(await updates(showId, 'Candidate card')).toEqual(corrected);
       // Sara is deleted: the aired card (Aino) is untouched, and Sara's cue is not ready to Take.
-      await step(6, 'person-deleted', async () => {
+      await step(6, 'person-deleted', 13_000, async () => {
         await expect.poll(accepted, WIRE).toBe(4);
         await select(page, 'Sara Example');
         await expect(page.getByTestId('verb-take')).toHaveAttribute('title', /revision 4 has no district "02", candidate 103/, WIRE);
         await expect(page.getByTestId('verb-take')).toBeDisabled();
       });
       // A valid empty list: Aino stays on air, the hold and its age said off air.
-      await step(7, 'empty-collection', async () => {
+      await step(7, 'empty-collection', 13_000, async () => {
         await expect.poll(accepted, WIRE).toBe(5);
         await expect(page.getByTestId('selection-hold')).toContainText('revision 5 holds no candidates', WIRE);
       });

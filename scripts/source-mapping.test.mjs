@@ -785,6 +785,29 @@ describe('E7.2b: a collection leaf through the route', () => {
     }
   });
 
+  test('the route\'s real size limit: 1,475 candidates of the package\'s shape fit the 256 KiB payload, 1,476 do not', async () => {
+    // The database measures a payload as its jsonb text (`octet_length(payload::text)`, 0101/0102
+    // `c_payload_bytes`), which writes ", " and ": " between members; checked against Postgres.
+    const sql = readFileSync(new URL('../supabase/migrations/0102_source_collections.sql', import.meta.url), 'utf8');
+    const cap = Number(/c_payload_bytes constant integer := (\d+);/.exec(sql)[1]);
+    assert.equal(cap, 262144);
+    const jsonbText = (v) => (Array.isArray(v) ? `[${v.map(jsonbText).join(', ')}]` : v && typeof v === 'object' ? `{${Object.entries(v).map(([k, x]) => `${JSON.stringify(k)}: ${jsonbText(x)}`).join(', ')}}` : JSON.stringify(v));
+    const { packageTimeline } = await import('./election-replay-server.mjs');
+    const agent = JSON.parse(readFileSync(new URL('../docs/work-specs/playout-election-package/replay-agent.json', import.meta.url), 'utf8'));
+    const doc = JSON.parse(packageTimeline()[1].text);
+    const one = doc.candidates.items[0];
+    const sent = (n) => {
+      const d = structuredClone(doc);
+      d.candidates.items = Array.from({ length: n }, (_, i) => ({ ...one, candidate: 1000 + i, name: `Candidate Example ${i}` }));
+      return Object.fromEntries(agent.sendPaths.map((k) => [k, d[k]]));
+    };
+    const bytes = (n) => Buffer.byteLength(jsonbText(sent(n)));
+    assert.ok(bytes(1475) <= cap, `1,475 records: ${bytes(1475)} bytes`);
+    assert.ok(bytes(1476) > cap, `1,476 records: ${bytes(1476)} bytes`);
+    // Well inside the page's own caps (5,000 items, 512 Ki characters), which this route cannot reach.
+    assert.ok(JSON.stringify(sent(1475).candidates).length < 512 * 1024);
+  });
+
   test('a recipe that holds the whole source holds its collection too', () => {
     const out = mapping.projectSource({ sourceId: 'e1', payload: { candidates: revision(1, [aino]) }, bindings, fieldsOf: (g) => fields[g] ?? null, mapping: { v: 2 }, configRevision: 1, collections: [recipe()] });
     assert.deepEqual(out.writes, {});

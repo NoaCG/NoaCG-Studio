@@ -81,8 +81,9 @@ The software rehearsal of phase E7.2b is in
 
 Measured in the software rehearsal: about 2 to 3 s from the replay moving to the picture
 changing when the party board or count bug moves too, and about 5 s when only the candidates
-change. The worst case for a candidates-only change is about 12 s (2 s poll, 5 s revision gap,
-5 s page read). The full record is in the phase notes.
+change; the walk fails above 10 s and 13 s. By arithmetic, a candidates-only change can take
+about 12 s at worst (2 s poll, 5 s revision gap, 5 s page read); the walk spaces its steps by
+hand, so that case is not measured. The full record is in the phase notes.
 
 ## Operating limits
 
@@ -98,8 +99,13 @@ change. The worst case for a candidates-only change is about 12 s (2 s poll, 5 s
   card. Picking someone else changes the card only at **✎ Update**, all fields at once.
 - **A person the count no longer holds** (deleted, or an empty list) is not ready to Take; a card
   already on air keeps its last values with the reason and their age shown off air.
-- **Sizes**: one request to the production is at most 256 KiB (about 1,000 candidate records), a
-  collection at most 5,000 items, one graphic's update at most 64 KiB.
+- **Sizes**: one revision's payload is at most 256 KiB as the production measures it. With
+  records of the package's shape (about 150 characters each) that is 1,475 candidates on top of
+  the party and count figures; a larger revision is refused whole and the last good values stay.
+  One graphic's update is at most 64 KiB. The page's own caps on a collection (5,000 items,
+  512 Ki characters) are larger than anything this road can deliver.
+- **The candidate list is the source's.** A value typed into it by hand is replaced by the next
+  revision, whole. To show something the results do not, use **Fixed values** on the cue.
 - **Not in this rehearsal**: a real results feed, real candidates or photos, CasparCG, OBS, and
   any second production page on another machine.
 
