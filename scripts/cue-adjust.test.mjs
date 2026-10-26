@@ -929,6 +929,10 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     assert.equal(JSON.stringify(sent).includes('base64'), false, 'never bytes');
     assert.equal(A.isIdentity(A.appearanceOf(null, style)), false, 'a style alone is not the identity');
     assert.equal(A.readAppearance({ v: 1, vars: { accent: 'red;}x' } }), null, 'a value that could leave its declaration');
+    for (const fetches of ['url(x.png)', 'image-set("https://x/y.png" 1x)', '-webkit-image-set("y.png" 1x)', 'image("y.png")', 'src("y.png")']) {
+      assert.equal(A.readAppearance({ v: 1, vars: { 'panel-bg': fetches } }), null, `a value that fetches: ${fetches}`);
+      assert.equal(adjust.readAdjust({ v: 1, vars: { 'panel-bg': fetches } }).record.vars, undefined, `nor kept in a record: ${fetches}`);
+    }
     assert.deepEqual(A.readAppearance({ v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 }, vars: { 'later-var': '1', accent: '#f00' } }), { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 }, vars: { accent: '#f00' } }, 'a variable a later build adds is dropped, never the place and size');
     assert.equal(A.readAppearance({ v: 1, fonts: [{ family: 'A', src: 'https://x/y.woff2', weight: [400, 400] }] }), null, 'a src off the asset road');
     assert.ok(!A.appearanceEquals(sent, A.appearanceOf(sent.frame, null)), 'a change of style alone is a change');
@@ -1039,6 +1043,7 @@ describe('type and colour in a package (phase 2)', () => {
       apply({ v: 1, vars: { 'text-color': '#fff' } });
       assert.deepEqual(Object.fromEntries(props), { '--text-color': '#fff' });
       assert.equal(apply({ v: 1, vars: { accent: 'red; } body { display: none' } }), false);
+      assert.equal(apply({ v: 1, vars: { 'panel-bg': 'image-set("https://x/y.png" 1x)' } }), false, 'a value that fetches');
       assert.deepEqual(Object.fromEntries(props), { '--text-color': '#fff' }, 'kept what it had');
       apply({ v: 1 });
       assert.equal(props.size, 0, 'the identity puts the design back');

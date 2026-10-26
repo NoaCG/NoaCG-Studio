@@ -94,7 +94,7 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
     if (!v || typeof v !== 'object') return false;
     for (var k in v) {
       if (!Object.prototype.hasOwnProperty.call(v, k)) continue;
-      if (!/^[a-z][a-z-]{0,40}$/.test(k) || typeof v[k] !== 'string' || /[;{}<>\\\\]|url\\(/i.test(v[k])) return false;
+      if (!/^[a-z][a-z-]{0,40}$/.test(k) || typeof v[k] !== 'string' || /[;{}<>\\\\]|url\\(|image-set\\(|image\\(|src\\(/i.test(v[k])) return false;
     }
     return true;
   };

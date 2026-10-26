@@ -103,9 +103,10 @@ export function readAdjust(raw: unknown): AdjustRead {
   return { status: 'ok', record };
 }
 
-/** A style value this build applies: a short CSS value that cannot leave its declaration. */
+/** A style value this build applies: a short CSS value that cannot leave its declaration or fetch
+ *  anything (`url(`, `image-set(`, `image(`, `src(`). */
 export function styleValue(v: unknown): v is string {
-  return typeof v === 'string' && v.length <= 200 && !/[;{}<>\\]|url\(|@import|\/\*/i.test(v);
+  return typeof v === 'string' && v.length <= 200 && !/[;{}<>\\]|url\(|image-set\(|image\(|src\(|@import|\/\*/i.test(v);
 }
 
 function readVars(raw: unknown): Record<string, string> | undefined {

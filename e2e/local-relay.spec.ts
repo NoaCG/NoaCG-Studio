@@ -352,6 +352,34 @@ test('an adjusted production over the relay: the bake, the Take\'s place and siz
   await expect(air.locator('#f1')).toHaveText('Later', { timeout: 6000 });
   await air.waitForTimeout(1200);
   await expect(air.locator('#f1'), 'the refit did not put the older value back').toHaveText('Later');
+  // Nor an event's payload the template refused: the refit sends what the template took. The
+  // template's own dispatch is stood in for here, taking 'ok' and refusing 'no' as a transition
+  // or sound guard does.
+  const f0 = await air.locator('#f0').textContent();
+  await air.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w.__dispatch = w.noacgDispatch;
+    w.noacgDispatch = (event: string, payload: Record<string, string>) => {
+      if (event === 'ok') (w.noacgApplyPayload as (p: Record<string, string>) => void)(payload);
+    };
+  });
+  await ctl.evaluate(async ({ heading, ben }) => {
+    const post = (msg: unknown) => fetch('/relay/send', { method: 'POST', body: JSON.stringify({ graphic: 'Placed Strap', stream: 'program', msg }) });
+    await post({ t: 'update', data: { f1: 'Later' }, appearance: { ...ben, vars: { 'font-heading': heading.replace('Bebas Neue', 'Anton') } } });
+    await post({ t: 'event', event: 'no', payload: { f1: 'Refused' } });
+    await post({ t: 'event', event: 'ok', payload: { f0: 'Accepted' } });
+  }, { heading, ben: built.ben });
+  await expect(air.locator('#f0')).toHaveText('Accepted', { timeout: 6000 });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toContain('Anton');
+  await air.waitForTimeout(1200);
+  await expect(air.locator('#f1'), 'a refused payload never airs through the refit').toHaveText('Later');
+  await expect(air.locator('#f0'), 'an accepted one stays').toHaveText('Accepted');
+  await air.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w.noacgDispatch = w.__dispatch;
+  });
+  await send('Placed Strap', { t: 'update', data: { f0: f0 ?? '' } });
+  await expect(air.locator('#f0')).toHaveText(f0 ?? '', { timeout: 6000 });
   // Back to the design's face for the steps below.
   await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
   await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toBe('');
