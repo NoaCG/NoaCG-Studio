@@ -233,6 +233,7 @@ async function styledStage(page: Page, imported = false, design = 'lt01') {
     window.addEventListener('message', (ev) => {
       if ((ev.data as { type?: string })?.type !== 'spx-preview-restyled') return;
       (w.__restyled as number[]).push((ev.data as { seq: number }).seq);
+      w.__restyledAt = performance.now();
       (w.__refit as boolean[]).push((ev.data as { refit: boolean }).refit);
     });
     const iframe = root.querySelector('iframe[title="L3"]') as HTMLIFrameElement;
@@ -350,16 +351,20 @@ test('the latest request wins: a slow face that loads after a newer choice does 
 });
 
 test('a refit a colour change overtook is still done: the face it waited for is the one now loading', async ({ page }) => {
+  // Archivo's file answers 3 s late. The colour-only style that overtakes the face keeps its
+  // declaration, so it must wait for the face already loading, then refit.
   await page.route('**/fonts/archivo*.woff2', async (route) => {
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 3_000));
     await route.continue();
   });
   await styledStage(page);
   await sendStyle(page, { v: 1, font: { fontId: 'archivo' } });
+  const sent = await page.evaluate(() => performance.now());
   await sendStyle(page, { v: 1, font: { fontId: 'archivo' }, vars: { accent: '#ff7a00' } });
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([2]);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled), { timeout: 10_000 }).toEqual([2]);
   expect(await page.evaluate(() => (window as unknown as { __refit: boolean[] }).__refit), 'the newer, colour-only style carries the refit the face owed').toEqual([true]);
-  expect(await page.frameLocator('iframe[title="L3"]').locator('html').evaluate(() => document.fonts.check('700 48px "Archivo"', 'A')), 'and runs it once the face is in').toBe(true);
+  const waited = (await page.evaluate(() => (window as unknown as { __restyledAt: number }).__restyledAt)) - sent;
+  expect(waited, `the refit waited for the face (${Math.round(waited)} ms after the colour)`).toBeGreaterThan(2_000);
 });
 
 test('an imported face reaches the document by its asset path, and draws the name from its own file', async ({ page }) => {
