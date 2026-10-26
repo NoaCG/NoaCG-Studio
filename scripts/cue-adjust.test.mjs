@@ -915,6 +915,10 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     const bundled = St.facesCss(St.resolveStyle(eff({ v: 1, font: archivo }, undefined), []).fonts);
     assert.match(bundled, /url\("fonts\/archivo\.woff2"\)/);
     assert.match(bundled, /url\("fonts\/archivo-latin-ext\.woff2"\)[^}]*unicode-range: U\+0100/);
+    // An upload keeps its file name, so one called archivo.woff2 is still the imported face: its bytes,
+    // never the bundled file of that name.
+    const clash = St.resolveStyle(eff({ v: 1, font: { family: 'Custom Archivo', assetPath: 'fonts/archivo.woff2' } }, undefined), [{ family: 'Custom Archivo', assetPath: 'fonts/archivo.woff2' }]);
+    assert.match(St.facesCss(clash.fonts, (src) => (src === 'fonts/archivo.woff2' ? 'data:font/woff2;base64,BBBB' : null)), /font-family: "Custom Archivo"; src: url\("data:font\/woff2;base64,BBBB"\)/);
     const pool = [{ css: `/* Imported font (your file). */\n@font-face {\n  font-family: "Brand Sans";\n  src: url("fonts/brand-sans.woff2") format("woff2");\n}`, assets: [{ path: 'fonts/brand-sans.woff2' }] }];
     assert.deepEqual(St.importedFacesOf(pool), [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
     assert.deepEqual(St.importedFacesOf([{ ...pool[0], assets: [] }]), [], 'a face whose file the graphic does not carry is not offered');
@@ -1063,5 +1067,10 @@ describe('type and colour in a package (phase 2)', () => {
     assert.match(imported.css, /\/\* Imported font[\s\S]*font-family: "Brand";[\s\S]*url\("fonts\/brand\.woff2"\)/);
     assert.deepEqual(imported.assets, [asset], 'the file travels with the graphic that names it');
     assert.equal(St.withAppearanceFaces(t, [{ family: 'Gone', src: 'fonts/gone.woff2', weight: [100, 900] }], []), t, 'no bytes anywhere: nothing declared');
+    // An upload named like a bundled file is still the upload: its family and its bytes ship.
+    const named = { path: 'fonts/archivo.woff2', data: 'data:font/woff2;base64,BBBB' };
+    const upload = St.withAppearanceFaces(t, [{ family: 'Custom Archivo', src: 'fonts/archivo.woff2', weight: [100, 900] }], [{ assets: [named] }]);
+    assert.match(upload.css, /font-family: "Custom Archivo";/);
+    assert.deepEqual(upload.assets, [named]);
   });
 });

@@ -79,7 +79,7 @@ export function withAppearanceFaces<T extends { css: string; assets: AssetFile[]
   let css = template.css;
   let assets = template.assets;
   for (const f of fonts) {
-    const bundled = FONTS.find((b) => f.src === `fonts/${b.file}` || f.src === `fonts/${latinExtFile(b)}`);
+    const bundled = bundledFaceOf(f);
     if (bundled) {
       css = ensureFontFace(css, bundled, 'A production adjustment sets this graphic in this face, so its files ship with it.');
       continue;
@@ -186,6 +186,12 @@ export function resolveStyle(
   return { ...(Object.keys(vars).length > 0 ? { vars } : {}), ...(fonts.length > 0 ? { fonts } : {}) };
 }
 
+/** The bundled face a declaration is, by its file AND its family: an upload keeps its file name
+ *  (model/fonts.ts `fontAssetPath`), so one called `archivo.woff2` is still the imported face. */
+function bundledFaceOf(f: FontDeclaration): BundledFont | undefined {
+  return FONTS.find((b) => b.family === f.family && (f.src === `fonts/${b.file}` || f.src === `fonts/${latinExtFile(b)}`));
+}
+
 /**
  * THE ASSET ROAD, ONE STEP: the `@font-face` rules a document needs for an appearance's faces. A
  * bundled file is referenced as `fonts/<file>`, which resolves beside the document on every
@@ -195,9 +201,8 @@ export function resolveStyle(
  */
 export function facesCss(fonts: readonly FontDeclaration[] | undefined, assetData: (src: string) => string | null = () => null): string {
   const rules: string[] = [];
-  const bundled = new Set(FONTS.flatMap((f) => [`fonts/${f.file}`, `fonts/${latinExtFile(f)}`]));
   for (const f of fonts ?? []) {
-    const url = bundled.has(f.src) ? f.src : assetData(f.src);
+    const url = bundledFaceOf(f) ? f.src : assetData(f.src);
     if (!url) continue;
     const range = f.unicodeRange ? ` unicode-range: ${f.unicodeRange};` : '';
     rules.push(`@font-face { font-family: "${f.family}"; src: url("${url}"); font-weight: ${f.weight[0]} ${f.weight[1]}; font-style: ${f.style ?? 'normal'}; font-display: swap;${range} }`);
