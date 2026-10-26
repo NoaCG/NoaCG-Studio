@@ -164,6 +164,11 @@ test('validation: every declared rule, at its value path', () => {
   assert.deepEqual(errors({ accent: '#00FF00' }), [{ at: 'accent', reason: 'not a #rrggbb colour' }]);
   assert.deepEqual(errors({ opacity: 1.2 }), [{ at: 'opacity', reason: 'above the maximum 1' }]);
   assert.deepEqual(errors({ opacity: 0.25 }), [{ at: 'opacity', reason: 'not a multiple of 0.1' }]);
+  assert.deepEqual(errors({ opacity: 0.3 }), [], '0.3 is a multiple of 0.1 despite binary rounding');
+  // A large quotient never hides a fraction.
+  const whole = describeOgraf({ schema: { type: 'object', properties: { n: { type: 'number', multipleOf: 1 } } } }).fields;
+  assert.deepEqual(validateTyped(whole, { n: 1000000000.5 }), [{ at: 'n', reason: 'not a multiple of 1' }]);
+  assert.deepEqual(validateTyped(whole, { n: 1e15 }), []);
   assert.deepEqual(errors({ title: 'x'.repeat(41) }), [{ at: 'title', reason: 'longer than 40 characters' }]);
   assert.deepEqual(errors({ teams: [] }), [{ at: 'teams', reason: 'fewer than 1 items' }]);
   assert.deepEqual(errors({ teams: [{ name: 'A', score: -1 }] }), [{ at: 'teams[0].score', reason: 'below the minimum 0' }]);
@@ -414,6 +419,12 @@ test('migration reads by the declared type only, losslessly or not at all', () =
   assert.deepEqual(refused({ teams: '[{"name": "H","score":1}]' }).receipt.refused, [{ at: 'teams', reason: 'not JSON written compactly' }]);
   assert.deepEqual(refused({ round: '7' }).receipt.refused, [{ at: 'round', reason: '7 is not one of the declared values' }]);
   for (const patch of [{ round: '01' }, { round: '7' }]) assert.equal(refused(patch).envelope, null);
+  // Fields that each fit can still overrun the envelope together: refused, never written unreadable.
+  const lists = describeOgraf({ schema: { type: 'object', properties: { a: { type: 'array', items: { type: 'number' } }, b: { type: 'array', items: { type: 'number' } } } } });
+  const half = JSON.stringify(Array.from({ length: 6000 }, () => 1));
+  const over = migrateToTyped(lists, { a: half, b: half });
+  assert.equal(over.envelope, null);
+  assert.deepEqual(over.receipt.refused, [{ at: '', reason: 'more than 10000 values' }]);
   // A graphic without a data schema, or a native one, is never migrated.
   assert.equal(migrateToTyped(describeOgraf({}), base).envelope, null);
 });

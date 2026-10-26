@@ -323,10 +323,11 @@ function matchesType(type: TypedKind, v: unknown): boolean {
 
 const kindWord = (v: unknown) => (v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v === 'object' ? 'an object' : `a ${typeof v}`);
 
-/** Whether `v` is a multiple of `step`, tolerant of binary fractions (0.3 of 0.1). */
+/** Whether `v` is a multiple of `step`, tolerant of binary rounding only (0.3 of 0.1): a few
+ *  units in the last place of the quotient, never a fraction a large quotient would hide. */
 function multipleOf(v: number, step: number): boolean {
   const q = v / step;
-  return Math.abs(q - Math.round(q)) < 1e-9 * Math.max(1, Math.abs(q));
+  return Math.abs(q - Math.round(q)) <= 4 * Number.EPSILON * Math.max(1, Math.abs(q));
 }
 
 /**
@@ -711,6 +712,9 @@ export function migrateToTyped(description: OgrafDescription, native: Record<str
   if (!receipt.refused.length) {
     // A kept string of a declared node is not judged: an unsupported node accepts what it has.
     receipt.refused.push(...validateTyped(fields, values));
+    // Each field fits on its own; the whole must fit the envelope its reader accepts.
+    const fault = readJson(values);
+    if (fault) receipt.refused.push({ at: '', reason: fault });
   }
   if (receipt.refused.length) {
     receipt.refused = sortedErrors(receipt.refused);

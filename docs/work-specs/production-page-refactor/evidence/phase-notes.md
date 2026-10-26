@@ -41,6 +41,8 @@ changes a spec's digest.
     node `unsupported`, whose value is kept as it is. Any other keyword is an annotation, as the
     standard's own examples write `label` and `order`. A package's `pattern` is never run: only
     the GDD colour patterns are supported, so a hostile expression costs nothing.
+  - *`multipleOf`* tolerates binary rounding only (4 units in the last place of the quotient), so
+    `0.3` is a multiple of `0.1` and `1000000000.5` is not a multiple of `1` (Codex P2 on `ae5f96e`).
   - *Null and missing* stay distinct: missing is allowed unless required, null is never a GDD value.
   - *The envelope* `{v: 1, kind: 'values', standard, schema, values}` on a cue (`schema` is the
     content hash of the manifest's schema as declared), and `{v: 1, kind: 'action', standard,
@@ -67,7 +69,10 @@ changes a spec's digest.
     bank stays before the refused command and a reboot replays it and is held again, instead of
     recovering the previous cue's values from a baseline past it (Codex P1 on `2388373`). The hold
     lifts on any native `update`, a partial one included; E1.2b, which owns replay and the
-    baseline, decides whether only a full update may lift it (the /so note).
+    baseline, decides whether only a full update may lift it (the /so note). While held, the
+    graphic also pins the production's oldest recovery bank, so `REBANK_AFTER`'s bound on a
+    reboot's catch-up is suspended for it until the hold lifts (bounded by the catch-up's own page
+    limit); nothing in this build can hold a graphic, and E1.2b owns that cost too.
   - *L2.1 and L2.2*: `appearance` (with its style members) is a native member beside `data`,
     outside the envelope; the reader never reads it, and a message without `typed` passes byte for
     byte.
@@ -77,7 +82,8 @@ changes a spec's digest.
     undeclared key and an unsupported field as their string, and validates the whole. The receipt
     `{v, standard, schema, input, output, converted, kept, refused}` uses content hashes and
     sorted lists, so the same input gives the same bytes in any order. A field named `__proto__` is
-    written as an own property both ways (Codex P2 on `2388373`). No SQL migration is in this row.
+    written as an own property both ways (Codex P2 on `2388373`), and the assembled values must
+    fit the envelope's own bounds or nothing is written (Codex P2 on `ae5f96e`). No SQL migration is in this row.
   - *Bounds*, each pinned at its edge: nesting 16, 2000 schema nodes per manifest, 10000 value
     nodes per envelope. `readJson` is iterative and every node is visited once.
 - **Traps.**
@@ -99,8 +105,10 @@ changes a spec's digest.
   merging them reworks E7.1's door). Simplify applied the in-diff cleanups and reported two that
   reach unchanged code (one shared `canonicalJson` with `control/externalSource.ts`, the GDD
   colour patterns shared with `ografSchema.ts`). Codex on `2388373`: two findings, both fixed
-  above (P1 the held graphic's report, P2 `__proto__`). The first /so (on `2388373`) answered
-  AGREE, Assessment A; the verdict on the final head is in the pull request.
+  above (P1 the held graphic's report, P2 `__proto__`); on `ae5f96e`: two more, both fixed (P2 the
+  envelope bound in migration, P2 the `multipleOf` tolerance); CodeQL's no-op replace in the test,
+  fixed. /so on `2388373` and on `ae5f96e`: AGREE, Assessment A; the verdict on the final head is
+  in the pull request.
 - **Touched files against `42c48f9`:** `src/model/ografTyped.ts` (new), `src/model/shows.ts`, `src/model/rundownHistory.ts`,
   `src/model/productionData.ts`, `src/control/selectionAir.ts`, `src/control/cueAuto.ts`,
   `src/control/graphicVerbs.ts`, `src/components/home/ProductionPage.tsx`, `src/output/main.ts`,
@@ -116,7 +124,7 @@ changes a spec's digest.
   `ografContract.ts`, `ografSchema.ts`, `ografImport.ts`, `ografHost.ts`, `foreignOgraf.ts`,
   `sourceMapping.ts` or wire type changed: exported packages and the native wire are unchanged
   byte for byte.
-- **Mutation checks:** 41 source mutations, each red: a pinned schema hash; each bound changed by one; the
+- **Mutation checks:** 43 source mutations, each red: a pinned schema hash; each bound changed by one; the
   closed object, the enum, required, null read as missing, a package pattern run, the lossless
   number and JSON checks, a later version or another standard read as readable, the wire reader
   reading nothing, the hold (a `play` let through, an update not lifting it), an action envelope
@@ -126,7 +134,7 @@ changes a spec's digest.
   `patchShowChecked` and the undo without the door; `selectionTake`, `preparedCue` and
   `nextGraphicCue` without the refusal; each of the three live presses without it; the output's
   call of the gate; a held graphic's report and its re-bank; `__proto__` written by assignment,
-  each way. The after-build check goes red on a built bundle with `?.`, `??` or
+  each way; the old relative `multipleOf` tolerance; the whole-envelope bound in migration. The after-build check goes red on a built bundle with `?.`, `??` or
   `export * as` appended, and on a build whose `main.ts` no longer calls the gate.
 
 ## Row 32d (L2.2, project phase 36): type and colour per graphic and cue
