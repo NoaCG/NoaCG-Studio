@@ -110,13 +110,19 @@ changes a spec's digest.
   overlay's own autoplay starts at load, the harness's Play 200 ms later, so a target is compared
   with its own unbaked file and, once landed. qz01's overlay lands on another pose than its studio
   document even unadjusted (40,617 px), which is why the reference is the same target's file.
-  Landed is not enough either: an exported design can land in one of two settled states from mount
-  to mount (sb14 as the plain file, 3,401 to 3,498 px apart; qz01 keeps moving, up to 2,144), and
-  the merge group of this PR failed on exactly that with one reference pair. So a target is the
-  closest of two mounts each (0 to 68 px apart in four repeats), on lt01 and sb14; a missing bake
-  is 17,396 px in every pair. The merge group also failed `production-controls.spec.ts`'s #1697
-  "re-ask nobody answered" test once, a timing test of the send path this row does not touch
-  (passed on the PR's CI and 3 of 3 here): #1742. The
+  Landed is not enough either. A frame scaled by a transform is rasterised in one of two states a
+  pixel row apart from mount to mount, the framed reference and the baked root alike (sb14 at
+  108 %: 2,298 to 3,541 px apart pixel for pixel; re-applying the transform after landing does not
+  settle it, and the unscaled file is identical over eight mounts). The merge group of this PR
+  failed on exactly that. So a target is compared pixel by pixel against any pixel within one of
+  it at a channel tolerance of 48 (`differingShifted`): the two states come out under 700, a 2 px
+  misplacement 6,196, a 3 px one 8,881, the bake removed 13,299; bound unchanged at 1,000. qz01
+  left the target test because its board keeps moving after it lands (2,144 px from itself); it
+  stays in the sweep. The merge group also failed `production-controls.spec.ts`'s #1697 "re-ask
+  nobody answered" test: it switched its stand-in to stall before the page's own first resolve
+  had answered "missing", so on a slow runner that resolve stalled too and the press had nothing to
+  re-ask. Fault-injected (the first resolve stalled): the same failure at line 418. The test now
+  waits for that answer (#1742, closed by this PR). The
   queue wants `chromium_headless_shell-1228`; this image has `-1243` (symlinked, #1647).
 - **Fence (touched against `9866960`):** `e2e/hosted-control.spec.ts`, `e2e/local-relay.spec.ts`,
   `e2e/playout-adjust-documents.spec.ts` (new), `e2e/production-controls.spec.ts` (the export
