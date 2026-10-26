@@ -20,6 +20,7 @@ import {
   PREVIEW_CMD_ERROR_TYPE,
   PREVIEW_HELD_TYPE,
   PREVIEW_READY_TYPE,
+  PREVIEW_RESTYLED_TYPE,
   FRAME_HOLD_CAP_MS,
 } from './previewProtocol';
 import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
@@ -269,6 +270,40 @@ window.addEventListener('unhandledrejection', function (ev) {
 </script>`
     : '';
 
+  // THE TEMPLATE'S OWN FONT-READY FITS, RECORDED (playout adjustments, phase 2). Every catalog fit
+  // runtime (templates/shared/stageFit.ts, textFit.ts, the imported designs' fit ladder, credits)
+  // re-measures from scratch once `document.fonts.ready` resolves, because its first pass measured
+  // the fallback face. A typeface changed at runtime is the same event, so the live-control
+  // document keeps each callback the template hands `fonts.ready` while it loads and the `style`
+  // command runs them again once the new face is in: one refit, through the template's own code,
+  // whatever runtime version a production's copy carries. Recording stops at `load`, so nothing
+  // the bootstrap below waits on is kept.
+  const fontHooksTag = options.liveControl
+    ? `<script id="spx-font-hooks">
+(function () {
+  var fonts = document.fonts;
+  var hooks = window.__noacgFontHooks = [];
+  if (!fonts) return;
+  var desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(fonts), 'ready');
+  if (!desc || !desc.get) return;
+  var recording = true;
+  window.addEventListener('load', function () { recording = false; });
+  Object.defineProperty(fonts, 'ready', {
+    configurable: true,
+    get: function () {
+      var p = desc.get.call(fonts);
+      if (!recording) return p;
+      p.then = function (ok, bad) {
+        if (typeof ok === 'function' && hooks.indexOf(ok) < 0) hooks.push(ok);
+        return Promise.prototype.then.call(p, ok, bad);
+      };
+      return p;
+    },
+  });
+})();
+</script>\n`
+    : '';
+
   // The live-control bootstrap (see ComposeOptions.liveControl): a command channel over
   // postMessage in place of contentWindow/contentDocument access. `waitFonts` mirrors the
   // fonts-ready cap the settle bootstrap folds into `run` above; here it gates every 'play'
@@ -382,6 +417,59 @@ window.addEventListener('unhandledrejection', function (ev) {
       }
     });
   }
+  /* TYPE AND COLOUR (previewProtocol.ts 'style'). The variables go on documentElement, which no
+     reset under the graphic's root wipes, and REPLACE the ones set before; the faces they name are
+     declared in one stylesheet of this command's own. The queue waits while those faces load,
+     capped as a Take's font wait is, then the template's font-ready fits run again. THE
+     LATEST-REQUEST GUARD: a load that completes after a newer style was applied does nothing, so
+     a slow face never refits the graphic over the selection that replaced it. */
+  var styleSeq = 0;
+  var styleSet = [];
+  function applyStyle(msg) {
+    var seq = ++styleSeq;
+    var root = document.documentElement;
+    for (var i = 0; i < styleSet.length; i++) root.style.removeProperty('--' + styleSet[i]);
+    styleSet = [];
+    var vars = msg.vars || {};
+    for (var k in vars) {
+      if (!Object.prototype.hasOwnProperty.call(vars, k) || typeof vars[k] !== 'string') continue;
+      root.style.setProperty('--' + k, vars[k]);
+      styleSet.push(k);
+    }
+    var sheet = document.getElementById('noacg-appearance-faces');
+    if (msg.faces) {
+      if (!sheet) {
+        sheet = document.createElement('style');
+        sheet.id = 'noacg-appearance-faces';
+        (document.head || root).appendChild(sheet);
+      }
+      sheet.textContent = msg.faces;
+    } else if (sheet) {
+      sheet.parentNode.removeChild(sheet);
+    }
+    var loads = [];
+    if (document.fonts && document.fonts.forEach) {
+      document.fonts.forEach(function (face) {
+        if (face.status === 'unloaded') { try { loads.push(face.load().then(null, function () {})); } catch (e) {} }
+      });
+    }
+    waiting = true;
+    var released = false;
+    function release() {
+      if (released) return;
+      released = true;
+      waiting = false;
+      drain();
+    }
+    setTimeout(release, 400);
+    Promise.all(loads).then(function () {
+      if (seq !== styleSeq) return release();
+      var hooks = window.__noacgFontHooks || [];
+      for (var h = 0; h < hooks.length; h++) { try { hooks[h].call(document.fonts, document.fonts); } catch (e) {} }
+      try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_RESTYLED_TYPE)}, seq: seq }, '*'); } catch (e) {}
+      release();
+    });
+  }
   window.addEventListener('message', function (ev) {
     if (ev.source !== window.parent) return;
     var msg = ev.data;
@@ -443,6 +531,8 @@ window.addEventListener('unhandledrejection', function (ev) {
          leaves any opacity the template itself set exactly as it was. */
       if (msg.on) document.documentElement.style.setProperty('opacity', '0', 'important');
       else document.documentElement.style.removeProperty('opacity');
+    } else if (msg.cmd === 'style') {
+      applyStyle(msg);
     } else if (msg.cmd === 'snap') {
       // Recovery semantics (docs/CLOUD_PLAYOUT.md §3): the output renderer restores a live
       // graphic's pose instantly — timers arm unless the sender says otherwise, exactly like
@@ -760,10 +850,10 @@ window.addEventListener('unhandledrejection', function (ev) {
   if (/<\/body>/i.test(html)) {
     html = html.replace(
       /<\/body>/i,
-      `${captureTag}\n${jsTag}${settleTag}${liveControlTag}${simulateTag}${canvasControlTag}\n</body>`,
+      `${captureTag}\n${fontHooksTag}${jsTag}${settleTag}${liveControlTag}${simulateTag}${canvasControlTag}\n</body>`,
     );
   } else {
-    html = html + captureTag + jsTag + settleTag + liveControlTag + simulateTag + canvasControlTag;
+    html = html + captureTag + fontHooksTag + jsTag + settleTag + liveControlTag + simulateTag + canvasControlTag;
   }
 
   return html;
