@@ -172,7 +172,7 @@ export function importHtmlTemplate(
     if (/noacg-spx-text/.test(attrs)) return '';
     // And what a single-file target runs after the template's JS (export/selfContained.ts
     // TargetScript): CasparCG's data shim, H2R's on/off toggle, the overlay's relay receiver and
-    // autoplay, and a production's baked place and size (export/common.ts bakeAppearance).
+    // autoplay, and a production's baked place and size (control/appearanceRuntime.ts bakeAppearance).
     // Kept, each came back as the graphic's code and stacked on every round trip (#901);
     // the autoplay block reads SPXGCTemplateDefinition, so the test below kept it in the HTML.
     // H2R's GDD block is written again from the fields too (export/targets/h2r.ts gddScript).

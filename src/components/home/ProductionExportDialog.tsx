@@ -111,7 +111,7 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
           {/* PLACE AND SIZE (playout adjustments, phase 1b): every package carries each graphic's
               own; a cue's exception needs a controller that sends it, which only the overlay
               package has, so the other targets say what they leave out before one is chosen. */}
-          {targetId !== CUE_APPEARANCE_TARGET && (show.cues ?? []).some((c) => c.adjust !== undefined) && (
+          {targetId !== CUE_APPEARANCE_TARGET && (show.cues ?? []).some((c) => c.source !== 'playout' && c.adjust !== undefined) && (
             <p className="status-warn" data-testid="prod-export-adjust">
               A cue’s own place and size travels only in the HTML overlay package. This one carries each graphic’s.
             </p>

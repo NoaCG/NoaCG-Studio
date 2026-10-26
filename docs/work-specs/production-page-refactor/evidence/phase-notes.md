@@ -5,6 +5,124 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 32c (L2.1b, project phase 35): place and size in receivers and exports
+
+- **Previous verified `main` sha:** `9866960` (row 32 passed, PR #1735; row 32b passed on
+  `87c95f1`). This branch began on `9866960`. Before editing, main had the `AdjustRecord`, the
+  `appearance` field on `update` and its four rules, the `/output` and PROGRAM apply; no
+  receiver, exported controller or bake applied place and size.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Nothing is migrated and no message kind is
+  added. A package exported meanwhile keeps its baked place and size (it is a file that left the
+  product); a relay row carrying an `appearance` is ignored by a reverted receiver, and a hosted
+  report's `state.appearance` by a reverted hosted receiver.
+- **Gate:** the catalog sweep that decides the host; L2 AC-9's receiver and export half; AC-10's
+  unchanged-behaviour part for those targets; place and size only.
+- **The sweep and the host it decided.** Every catalog design whose emitted code uses viewport
+  units, the window's size or fixed positioning: **tk21** (`100vw`), **tr05** (`52vw`/`58vh`),
+  **tr10** (`72vw`/`82vh`), **tr11** and **tr12** (`vmax`); none uses `innerWidth`/`innerHeight`
+  or `position: fixed`. Each was rendered at 1920×1080 in a frame transformed as the stage does it
+  (`frameCss` on the iframe) and as the page with the same appearance on a host inside it
+  (`translate(-137px, -61px) scale(0.85)` about 600, 900), at 400, 1,500 and 4,000 ms on a
+  paused page clock, beside qz01 and sb14 (text fitted to measured boxes) and lt01 and lt63:
+
+  | Host in the document | viewport-unit designs | qz01 (fits) | decision |
+  |---|---|---|---|
+  | `<body>` | 0 px apart | 1,654 / 2,328 px apart | no: the fits read rects through the transform |
+  | `<html>` | 0 | 1,654 / 2,328 | no, same reason |
+  | either, with `clip-path: inset(0)` | 0 | 1,654 / 2,328 | the clip changes nothing here (`html, body` clip at the canvas) |
+  | **`<html>` with its rect reads mapped back** | **0** | **0** | **taken** |
+  | a wrapper around the body's children | not built: `body > .x` rules and `document.body.children` reads would change, and it measures through the transform like the two above |
+
+  The viewport units were never the risk: `html, body` are canvas-sized and clip, so a `100vw`
+  band shrinks with the root as it does in a frame. The risk was the catalog's own fit runtimes
+  (`stageFit.ts` `stageContentWidth`, `textFit.ts`), which size text from `getBoundingClientRect`
+  against unscaled padding: in a transformed root qz01 fitted its words smaller. So the runtime
+  (`src/control/appearanceRuntime.ts`) puts the transform on `document.documentElement` (an OGraf
+  Graphic: its canvas), keeps `clip-path: inset(0)` so whatever lies past the canvas stays clipped
+  when the root shrinks, and answers `getBoundingClientRect`/`getClientRects` of elements and
+  ranges under a transformed host with their untransformed boxes, so the document measures what it
+  measures in a frame. No design needs to say "not supported". Pinned by
+  `e2e/playout-adjust-documents.spec.ts` (the sweep re-lists the designs from the catalog each
+  run, so a new one joins by itself; residual bound 1,000 px net of the frame's own mount-to-mount
+  difference) and by the Node rect-mapping test.
+  Whole catalog, scratch run (not checked in; the same method over all 528 created designs, at 800
+  and 1,700 ms, net of the frame's own mount-to-mount difference): with the mapped root, **522
+  within 1,000 px**; six over it (lt46 1,136, card17 1,030, tk19 1,133, sb13 1,828, qq01 3,234,
+  mr02 5,924), each inspected by eye as the same layout drawn a sub-pixel lower (glyph rows
+  rasterised at another offset), no refit; the bare root (no mapping) is over it on **51**
+  designs with visible refits (card16 12,323, card30 32,675, ig40 79,044, pi06 48,200, qz01 2,328
+  among them). Snapping mapped rects to the 1/64 px layout grid was tried and changed none of the
+  six, so it is not in. The checked-in sweep keeps the nine designs above, inside the 120 s ceiling.
+- **Design taken (and where it departs from the spec's wording, why).**
+  - *One runtime* (`appearanceRuntime.ts`, ES5 text): `noacgApplyAppearance(a, host?)` replaces
+    what the host holds (rule 3), clears on an identity, and answers false for a version or frame
+    it cannot read, keeping what it had (the rollback rule). Installed once per page however many
+    blocks carry it; the prototype patch maps only rects under a transformed host, so an OGraf
+    renderer's own reads are untouched.
+  - *The bake* (`bakeAppearance`, the spec's name, in the runtime module so Node can test it): a
+    `<script id="noacg-appearance">` after the template's JS, in the overlay, CasparCG (inlined,
+    one file), H2R and SPX files; the OGraf Graphic applies the same runtime to its canvas as it is
+    claimed (real-time and non-real-time). The import door strips the tag by its id. H2R is baked
+    too (not in the spec's table): leaving one target unbaked would need a disclosure of its own.
+  - *What is baked* (`src/control/exportAppearance.ts`): a graphic's default alone, resolved
+    against the box it shows with the values its package loads with; each cue's fold against its
+    own box, for the exported controller. Departure: **a package has no `/output` stage**, so each
+    graphic resolves against its own canvas (the graphic is the stage). For a graphic at the
+    production's resolution that is the `/output` stage exactly; a 720p graphic in a 1080p
+    production places against its own 720p safe area in a package.
+  - *Measuring for export*: the export dialog measures (`components/home/exportAppearances.ts`,
+    the phase-1 hidden frame, one at a time, each document and set of values once) only folds that
+    need a box (a preset or a size): a graphic with the values its file loads with (the overlay's
+    baked sample, the definition's defaults for every other target), and cues only for the overlay
+    package, the one with a controller. Nothing adjusted, nothing measured.
+  - *A limit, as on the hosted page*: the controller sends the placement resolved at export. A name
+    typed longer in the controller keeps the preset's offset for the exported box (nudges and size
+    need no box); receivers never measure, so the fix is re-exporting, as a hosted page's
+    placements are those of its last Publish.
+  - *The hosted receiver's identity*: it reports no appearance after an identity, as the `/output`
+    renderer does. No bake ever sits under it (the production export strips it and nothing else
+    emits it), so there is nothing an identity would have to keep off across a reload.
+  - *The controller* (`productionControllerHtml.ts`): an emitted cue carries its `appearance`;
+    Take, ✎ Update and a PREVIEW refresh send it on the `update` row (`cueUpdate`); the ± road and
+    clock rows send data alone (rule 1). Every cue of an adjusted graphic carries one, an identity
+    when nothing moves (rule 2); a graphic nobody adjusted carries none.
+  - *The relay receiver* (`localReceiver.ts`): applies a row's appearance; tracks the last one
+    (an identity included) and keeps it in its versioned baseline (an additive member, so the
+    baseline stays `v: 1`); a boot applies it before the replay, on air or not. It is needed: a
+    Take's `update` row comes before its `play`, so the replay from the airing's play would not
+    bring it back. **Emitted only for a graphic the production adjusted**: an unadjusted package's
+    receiver is byte-identical to main's (pinned by hash) and ignores an appearance on a row.
+  - *The hosted receiver* (`hostedReceiver.ts`): applies a row's appearance, reports the last one
+    inside `state` as the `/output` renderer does (no migration, no new parameter), restores it at
+    boot from the report before the data. It is not baked into any product export today (the
+    production export strips it; only specs generate it), so its change reaches no package.
+  - *Export dialog*: the phase-1 line ("not in any package") is gone. A target other than the
+    overlay says, only while a cue has its own exception, that a cue's own place and size travels
+    only in the HTML overlay package.
+- **Not built / follow-ups.** Style (row 32d); the font closure over records; the pack install
+  line and rundown glyph (#1733). The laptop helper's CasparCG/Bridge and OBS walk of one exported
+  overlay runs on the merge SHA later (non-gating).
+- **Traps.** A browser run here must go through `node scripts/jobs.mjs add ... --cap 5` and
+  `jobs.mjs wait` (a bare `npx playwright test` is refused; a foreground poll is refused).
+  Comparing frames of two mounts mid-entrance measures the mounts' clocks, not the transform: the
+  overlay's own autoplay starts at load, the harness's Play 200 ms later, so a target is compared
+  with its own unbaked file and, once landed. qz01's overlay lands on another pose than its studio
+  document even unadjusted (40,617 px), which is why the reference is the same target's file. The
+  queue wants `chromium_headless_shell-1228`; this image has `-1243` (symlinked, #1647).
+- **Fence (touched against `9866960`):** `e2e/hosted-control.spec.ts`, `e2e/local-relay.spec.ts`,
+  `e2e/playout-adjust-documents.spec.ts` (new), `e2e/production-controls.spec.ts` (the export
+  dialog lines of the Adjust journey), `scripts/cue-adjust.test.mjs`,
+  `src/components/home/ProductionExportDialog.tsx`, `src/components/home/exportAppearances.ts`
+  (new), `src/control/appearanceRuntime.ts` (new), `src/control/exportAppearance.ts` (new),
+  `src/control/hostedReceiver.ts`, `src/control/localReceiver.ts`,
+  `src/control/productionControllerHtml.ts`, `src/export/AGENTS.md`, `src/export/registry.ts`
+  (`ExportContext.appearance`), `src/export/showExport.ts` (`ShowExportOptions.appearances`,
+  `activeEntryValues` exported), `src/export/targets/casparcg.ts`, `h2r.ts`, `htmlOverlay.ts`,
+  `liveos.ts`, `ograf.ts`, `spxStarter.ts`, `src/model/importTemplate.ts` (one id in the strip
+  list), and this file. L2.1's seams: none changed; the record, `cueAdjust.ts` and the stage are
+  read as they landed.
+
 ## Row 32 (E7.2b, project phase 34): election replay rehearsal to hosted data and outputs
 
 - **Previous verified `main` sha:** `87c95f1` (row 32b passed, PR #1732). This branch began on

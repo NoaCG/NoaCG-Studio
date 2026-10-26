@@ -78,14 +78,20 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
     RP.getClientRects = function () { return hosts.length ? list(this.commonAncestorContainer, rangeRects0.call(this)) : rangeRects0.call(this); };
   }
   var num = function (n) { return typeof n === 'number' && isFinite(n); };
-  // Apply an appearance to the host, replacing the one it holds. Answers false, and changes
-  // nothing, for anything this build cannot read.
-  return function (a, host) {
+  // Whether this build can apply an appearance: version 1, and a frame (if any) of numbers.
+  var readable = function (a) {
     if (!a || typeof a !== 'object' || a.v !== 1) return false;
     var f = a.frame;
-    if (f !== undefined && !(f && num(f.dx) && num(f.dy) && num(f.s) && f.s > 0 && num(f.ox) && num(f.oy))) return false;
+    return f === undefined || !!(f && num(f.dx) && num(f.dy) && num(f.s) && f.s > 0 && num(f.ox) && num(f.oy));
+  };
+  // Apply an appearance to the host, replacing the one it holds. Answers false, and changes
+  // nothing, for anything this build cannot read. A host no longer on the page leaves the list
+  // here too: an OGraf Graphic rendering frames offline claims a new canvas per frame.
+  var apply = function (a, host) {
+    if (!readable(a)) return false;
+    var f = a.frame;
     var el = host || document.documentElement;
-    for (var i = 0; i < hosts.length; i++) if (hosts[i].el === el) hosts.splice(i--, 1);
+    for (var i = 0; i < hosts.length; i++) if (hosts[i].el === el || !hosts[i].el.isConnected) hosts.splice(i--, 1);
     if (f) {
       hosts.push({ el: el, f: { dx: f.dx, dy: f.dy, s: f.s, ox: f.ox, oy: f.oy } });
       el.style.transform = 'translate(' + f.dx + 'px, ' + f.dy + 'px) scale(' + f.s + ')';
@@ -98,6 +104,8 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
     }
     return true;
   };
+  apply.readable = readable;
+  return apply;
 })();`;
 
 /**

@@ -321,6 +321,14 @@ export-time reflow, stretching, or cropping.
   template (future, docs/AGENT_CLI.md).
 - **common.ts** - addSharedAssets, addReferencedFonts, injectControlReceiver + addControlPanel,
   `fonts/FONT_LICENSES.md` (beside the bytes, not at the package root - see below).
+- **Place and size** (docs/work-specs/playout-adjustments/spec.md, phase 1b): a production export
+  resolves each adjusted graphic's default and each cue's fold (control/exportAppearance.ts, measured
+  by the dialog) and passes them as `ExportContext.appearance` and the controller's cues. Every
+  target bakes ONE runtime (control/appearanceRuntime.ts; `bakeAppearance` writes it as a
+  `<script id="noacg-appearance">`, the OGraf Graphic applies it to its canvas) that puts the
+  transform on the document's ROOT and maps rect reads back, because the catalog's fits measure through
+  transforms; the relay receiver applies a row's appearance through the same runtime, so it
+  replaces the bake. Nothing adjusted, nothing emitted: such a package keeps its bytes.
 
 ## Font licensing (the rule: the licence follows the BYTES)
 

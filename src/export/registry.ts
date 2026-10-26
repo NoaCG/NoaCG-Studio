@@ -21,7 +21,7 @@ export interface ExportContext {
   graphicUsage?: GraphicUsage;
   /** The production's PLACE AND SIZE for this graphic (docs/work-specs/playout-adjustments/spec.md,
    *  phase 1b): its default resolved at export, baked so the file shows it from load
-   *  (common.ts `bakeAppearance`). An identity bakes nothing. Present at all, an identity
+   *  (control/appearanceRuntime.ts `bakeAppearance`). An identity bakes nothing. Present at all, an identity
    *  included, means the production holds place and size for this graphic, so a relay receiver
    *  also applies what the controller's rows carry. Absent: the package is what it always was. */
   appearance?: AppliedAppearance;

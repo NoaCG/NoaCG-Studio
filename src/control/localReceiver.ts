@@ -46,7 +46,7 @@ ${looks ? `
   ${APPEARANCE_RUNTIME_JS}
   var look = null;
   function lookOf(m) {
-    return m && m.t === 'update' && m.appearance !== undefined && m.appearance && m.appearance.v === 1 ? m.appearance : undefined;
+    return m && m.t === 'update' && noacgApplyAppearance.readable(m.appearance) ? m.appearance : undefined;
   }
 ` : ''}
   function apply(m) {

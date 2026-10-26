@@ -776,6 +776,17 @@ describe('the bake and the root runtime (phase 1b)', () => {
       same(child.getBoundingClientRect(), child.box, 'after a replace');
       assert.equal(apply({ v: 2, frame: f }), false);
       assert.equal(apply({ v: 1, frame: { dx: 1 } }), false);
+      assert.equal(apply.readable({ v: 1, frame: { dx: 1 } }), false, 'what the relay receiver keeps in its baseline');
+      assert.equal(apply.readable({ v: 1 }), true);
+      // A host that left the page leaves the list at the next apply (an OGraf offline render
+      // claims a canvas per frame and reads no rect in this realm).
+      const hosts = globalThis.Element.prototype.__noacgAppearanceHosts;
+      const canvas = new globalThis.Element(null, { x: 0, y: 0, w: 100, h: 100 });
+      apply({ v: 1, frame: g }, canvas);
+      canvas.isConnected = false;
+      const before = hosts.length;
+      apply({ v: 1, frame: g });
+      assert.equal(hosts.length, before - 1, 'the detached canvas is gone');
       assert.equal(host.style.transform, 'translate(10px, 0px) scale(1)', 'what was applied stays');
       assert.equal(apply({ v: 1 }), true);
       host.f = undefined;

@@ -182,7 +182,7 @@ export async function buildStarterInto(
     /** An SPX package: the operator page is SPX_PANEL_FILE. The dual graphic package keeps
      *  `controlpanel.html`, the name its CLI and skill document. */
     forSpx?: boolean;
-    /** The production's place and size for this graphic, baked (common.ts `bakeAppearance`). */
+    /** The production's place and size for this graphic, baked (control/appearanceRuntime.ts `bakeAppearance`). */
     appearance?: AppliedAppearance;
   },
 ): Promise<void> {

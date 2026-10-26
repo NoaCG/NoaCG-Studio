@@ -7,7 +7,7 @@
 //
 // - THE GRAPHIC LEVEL is the pool graphic's default alone, resolved against the box the graphic
 //   shows with the values its package loads with: what an overlay, a CasparCG or SPX template and
-//   an OGraf Graphic show before anyone sends a cue (`bakeAppearance`, export/common.ts).
+//   an OGraf Graphic show before anyone sends a cue (`bakeAppearance`, ./appearanceRuntime.ts).
 // - THE CUE LEVEL is each cue's fold (its exception over the default) against its own box: what the
 //   exported controller's Take and ✎ Update carry on the relay, which replaces the bake (rule 3).
 //   An identity travels when nothing moves, so a cue at the authored place takes a moved sibling's
