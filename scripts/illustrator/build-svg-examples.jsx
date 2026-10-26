@@ -336,12 +336,11 @@ function buildTicker() {
   finish(d, "ticker", [{ file: "ticker", show: [] }], false);
 }
 
-// ---- 7. End credits: a Heading and ONE Credits text that rolls -----------------------------------
+// ---- 7. End credits: ONE original text object, rolled without rebuilding its lines --------------
 
 // The default list: the people in the studio first, then the crew, the director and the producer
-// last, then the production's name and the year. A line ending in ":" is a title and the names go
-// under it. The names are made up. README.md shows the same list, so what the reader sees there
-// is what the graphic rolls.
+// last, then the production's name and the year. These are ordinary Illustrator paragraphs,
+// not a data format: NoaCG scrolls the object as drawn. Names are made up.
 var CREDITS = [
   ["Host:", "Maija Meik\u00e4l\u00e4inen"],
   ["Guests:", "Ville Virtanen", "Aino Aalto"],
@@ -361,25 +360,23 @@ var CREDITS = [
 ];
 
 function buildEndCredits() {
-  var d = newDoc(["Text", "Board"]);
-  var T = d.layers["Text"], B = d.layers["Board"];
-  var BOX = [560, 200, 800, 800];
+  // Illustrator folds a single native layer into the SVG root. Keep the named Text group
+  // explicit so the exported file and the other examples share the same layer structure.
+  var d = newDoc(["Frame"]);
+  var T = d.layers["Frame"].groupItems.add();
+  T.name = "Text";
   var LEADING = 50, GAP = 16, CLOSING_GAP = 50;
-  rect(B, "Panel", 0, 0, 1920, 1080, NAVY);
-  // The roll runs inside this plate, so the list appears at its bottom edge and leaves at its top.
-  rect(B, "Credits box", BOX[0], BOX[1], BOX[2], BOX[3], NAVY_2);
-  label(T, "Heading", "CREDITS", BOLD, 64, YELLOW, [0, 90, 1920, 90], "center");
 
-  // ONE point text, one paragraph per line. The text itself carries the name look, and every
-  // title line gets the title look, so the first title and the name under it show NoaCG both.
-  var lines = [], isTitle = [], i, j;
+  // ONE long point text. Keep its paragraphs, including their individual styling and gaps.
+  // It deliberately extends below the artboard: the entire object must survive SVG export.
+  var lines = ["THE WEEKLY SHOW", "Production team", ""], isTitle = [true, true, false], i, j;
   for (i = 0; i < CREDITS.length; i++) {
     for (j = 0; j < CREDITS[i].length; j++) {
-      lines.push(CREDITS[i][j]);
+      lines.push(CREDITS[i][j].replace(/:$/, ""));
       isTitle.push(j === 0 && CREDITS[i].length > 1);
     }
   }
-  var t = T.textFrames.pointText([BOX[0] + 60, -(BOX[1] + 70)]);
+  var t = T.textFrames.pointText([960, -120]);
   t.contents = lines.join("\r");
   t.name = "Credits";
   var a = t.textRange.characterAttributes;
@@ -388,11 +385,10 @@ function buildEndCredits() {
   a.fillColor = rgb(WHITE);
   a.autoLeading = false;
   a.leading = LEADING;
+  t.textRange.paragraphAttributes.justification = Justification.CENTER;
   for (i = 0; i < t.paragraphs.length; i++) {
     var p = t.paragraphs[i];
-    // A little air before every title but the first, and a clear gap before the production's
-    // name: NoaCG reads a gap of more than one and a half lines as a blank line in the list,
-    // so the name and year arrive as a section of their own rather than under the producer.
+    // These are actual layout decisions, not hints for a parser.
     if (isTitle[i] && i > 0) p.paragraphAttributes.spaceBefore = GAP;
     if (i === lines.length - 1) p.paragraphAttributes.spaceBefore = CLOSING_GAP;
     if (isTitle[i]) {
@@ -400,18 +396,23 @@ function buildEndCredits() {
       p.characterAttributes.size = 30;
       p.characterAttributes.fillColor = rgb(YELLOW);
     }
+    if (i === 0) p.characterAttributes.size = 64;
   }
-  finish(d, "end-credits", [{ file: "end-credits", show: [] }], true);
+  finish(d, "end-credits", [{ file: "end-credits", show: [] }], false);
 }
 
 try {
-  buildTitle();
-  buildLowerThird();
-  buildQuiz();
-  buildScoreboard();
-  buildCountdown();
-  buildTicker();
-  buildEndCredits();
+  // An optional filter lets a device session replace one source without regenerating all of
+  // the unchanged binary Illustrator files. Set $.global.NOACG_EXAMPLE_FILTER in a runner.
+  var builders = [
+    ["title", buildTitle], ["lower-third", buildLowerThird], ["quiz", buildQuiz],
+    ["scoreboard", buildScoreboard], ["countdown", buildCountdown], ["ticker", buildTicker],
+    ["end-credits", buildEndCredits]
+  ];
+  var filter = $.global.NOACG_EXAMPLE_FILTER;
+  for (var bi = 0; bi < builders.length; bi++) {
+    if (!filter || filter === builders[bi][0]) builders[bi][1]();
+  }
   log("ok");
 } catch (e) {
   log("ERROR " + e + " line " + e.line);
