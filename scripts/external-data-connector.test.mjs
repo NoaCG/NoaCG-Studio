@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 const ext = await import('../src/control/externalSource.ts');
 const { createConnector, createSourceSender, nodeNet, readSource, REDACTED } = await import('./external-data-connector.mjs');
-const { DELETED_PERSON, makeTestCertificate, makeToken, startReplayServer } = await import('./election-replay-server.mjs');
+const { DELETED_PERSON, PACKAGE_DELETED, makeTestCertificate, makeToken, startReplayServer } = await import('./election-replay-server.mjs');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MiB = 1024 * 1024;
@@ -621,6 +621,45 @@ describe('replay server', () => {
     } finally {
       await server.close();
     }
+  });
+
+  test('the package timeline (E7.2b): the same eight events, in the package\'s own results, read through the agent', async () => {
+    const clock = fakeClock();
+    const server = await startReplayServer({ token, cert, key, clock: clock.now, stepMs: 5000, timeline: 'package' });
+    try {
+      const c = createConnector({ config: localConfig(server.url), credential: token, ca: cert, clock, random: () => 0, send: async () => {}, log: () => {} });
+      const seen = [];
+      for (let i = 0; i < 8; i += 1) {
+        seen.push([server.step(), await c.readOnce()]);
+        await clock.advance(5000);
+      }
+      assert.deepEqual(
+        seen.map(([step, a]) => [step, a.status, a.acceptedRevision]),
+        [
+          ['count-01', 'changed', 1],
+          ['count-increase', 'changed', 2],
+          ['duplicate', 'unchanged', 2],
+          ['correction-down', 'changed', 3],
+          ['older', 'stale', 3],
+          ['malformed', 'invalid', 3],
+          ['person-deleted', 'changed', 4],
+          ['empty-collection', 'changed', 5],
+        ],
+      );
+      const byStep = Object.fromEntries(seen.map(([step, a]) => [step, a]));
+      const person = (a, d, n) => a.payload.candidates.items.find((x) => x.district === d && x.candidate === n);
+      // The collection carries its own revision, the provider's; votes are numbers for the recipe.
+      assert.deepEqual([1, 2, 3, 4, 5].map((r) => Object.values(byStep).find((a) => a.acceptedRevision === r && a.payload)?.payload.candidates.revision), [1, 2, 3, 4, 5]);
+      assert.deepEqual([person(byStep['count-01'], '02', 101).votes, person(byStep['count-increase'], '02', 101).votes, person(byStep['correction-down'], '02', 101).votes], [3500, 3700, 3650]);
+      assert.equal(byStep['correction-down'].payload.parties.KOK.votes, 224_100);
+      assert.equal(person(byStep['correction-down'], ...PACKAGE_DELETED)?.name, 'Sara Example');
+      assert.equal(person(byStep['person-deleted'], ...PACKAGE_DELETED), undefined);
+      assert.deepEqual(byStep['empty-collection'].payload.candidates.items, []);
+      assert.equal(byStep['count-01'].providerEventTime, '2027-02-20T18:14:00Z');
+    } finally {
+      await server.close();
+    }
+    await assert.rejects(startReplayServer({ token, cert, key, timeline: 'other' }), /research or package/);
   });
 
   test('the timeline waits for the first authorized read', async () => {

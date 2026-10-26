@@ -540,7 +540,7 @@ test.describe('live candidates', () => {
     await output.close();
   });
 
-  test('AC-4 (E7.2b): the replay through the trusted agent drives all four graphics on the published production', async ({ page, context, request, baseURL }, info) => {
+  test('AC-4 (E7.2b): the replay through the trusted agent drives all four graphics on the published production', async ({ page, context, baseURL }, info) => {
     test.setTimeout(120_000);
     const dir = mkdtempSync(path.join(os.tmpdir(), 'election-replay-'));
     const repo = (file: string) => fileURLToPath(new URL(`../../${file}`, import.meta.url));
@@ -599,7 +599,12 @@ test.describe('live candidates', () => {
       await output.setViewportSize({ width: 1280, height: 720 });
       await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}`);
       const on = (title: string, sel: string) => output.frameLocator(`iframe[title="${title}"]`).locator(sel);
-      const capture = async (name: string) => info.attach(`output-${name}`, { body: await output.screenshot(), contentType: 'image/png' });
+      // A capture of the browser output at every step, kept with the run's results.
+      const capture = async (name: string) => {
+        const file = info.outputPath(`output-${name}.png`);
+        await output.screenshot({ path: file });
+        await info.attach(`output-${name}`, { path: file, contentType: 'image/png' });
+      };
 
       await take(page, 'Party totals');
       await expect(on('Party totals', '#f8'), 'votes through the recipe').toHaveText('225,000', WIRE);
@@ -660,7 +665,11 @@ test.describe('live candidates', () => {
       });
       await expect(on('Candidate card', '#f0')).toHaveText('Aino Example');
       await expect(on('Candidate card', '#f2')).toHaveText('3,650');
-      expect(await updates(showId, 'Candidate card')).toEqual(corrected);
+      // Revision 4 still holds Aino unchanged: the page may follow it with the same whole record
+      // (an absolute update, the picture unchanged), never with another person's or older values.
+      const later = (await updates(showId, 'Candidate card')).slice(corrected.length);
+      expect(later.length).toBeLessThanOrEqual(1);
+      for (const d of later) expect(d).toEqual(corrected.at(-1));
       // No provider step took, advanced, reset or cleared anything: the only transport is the Takes.
       expect(await transport(showId)).toEqual(takes);
       for (const graphic of ['Party totals', 'Count bug', 'Ticker', 'Candidate card']) {

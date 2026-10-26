@@ -18,7 +18,7 @@
 // that the package's E5 recipe maps (votes as numbers, the time of the count as `observed_at`,
 // the candidates as one collection `{schemaRevision, revision, items}` keyed by district plus
 // candidate). Revision 3 corrects Aino Example and the Coalition downward, revision 4 drops Sara
-// Example (02/103), revision 5 has no candidates.
+// Example (02/103), revision 5 has no candidates; 4 and 5 change nothing but the candidates.
 //
 // The timeline starts at the first authorized read, so an agent that is slow to boot still sees
 // step 0; then the step is (clock() - start) / stepMs, held at the last, so it is exact under a
@@ -71,7 +71,9 @@ export const PACKAGE_DELETED = ['02', 103];
 /** One count of the package as a provider would answer it. */
 function providerCount(file, revision, observedAt) {
   const { summary, parties, candidates } = JSON.parse(readFileSync(path.join(PACKAGE_STARTER, file), 'utf8')).external.election;
-  const { updated: _shownByTheRecipe, ...counted } = summary;
+  // The time of the count is the provider's `observed_at`; the package's recipe formats it.
+  const counted = { ...summary };
+  delete counted.updated;
   return {
     fixture: true,
     note: 'Synthetic rehearsal results. Not an election count.',
@@ -94,9 +96,11 @@ export function packageTimeline() {
   rev3.candidates.items.find((c) => c.district === '02' && c.candidate === 101).votes = 3650;
   rev3.parties.KOK.votes = 224_100;
   const rev4 = structuredClone(rev3);
-  Object.assign(rev4, { revision: 4, observed_at: '2027-02-20T18:35:00Z' });
+  // Revisions 4 and 5 change the candidates alone (the time of the count included), so nothing a
+  // field binds moves: the page hears them only from its own read of the tree.
+  rev4.revision = 4;
   rev4.candidates = { ...rev4.candidates, revision: 4, items: rev4.candidates.items.filter((c) => !(c.district === PACKAGE_DELETED[0] && c.candidate === PACKAGE_DELETED[1])) };
-  const rev5 = { ...structuredClone(rev4), revision: 5, observed_at: '2027-02-20T18:37:00Z' };
+  const rev5 = { ...structuredClone(rev4), revision: 5 };
   rev5.candidates = { ...rev5.candidates, revision: 5, items: [] };
   const correction = text(rev3);
   return [
@@ -188,5 +192,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   writeFileSync(path.join(dir, 'token'), token, { mode: 0o600 });
   const server = await startReplayServer({ token, cert, key, port: Number(arg('--port') ?? 0), stepMs: Number(arg('--step-ms') ?? DEFAULT_STEP_MS), timeline: arg('--timeline') ?? 'research' });
   process.stdout.write(`replay server at ${server.url}\ncertificate ${certFile}\ntoken in ${path.join(dir, 'token')}\n`);
+  // What the rehearsal record names: each step's text by its sha256 (docs/work-specs/
+  // playout-election-package/rehearsal.md).
+  const timeline = arg('--timeline') === 'package' ? packageTimeline() : replayTimeline();
+  for (const s of timeline) process.stdout.write(`step ${s.name} sha256 ${digest(s.text).toString('hex')}\n`);
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close().then(() => process.exit(0)));
 }

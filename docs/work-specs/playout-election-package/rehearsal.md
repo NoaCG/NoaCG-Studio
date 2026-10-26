@@ -1,0 +1,121 @@
+# Election replay rehearsal: how to run it
+
+Phase E7.2b of [the election package](spec.md) (AC-4). This page says how to rehearse the four
+election graphics on a published production with results read from the election replay server,
+what to record, how to recover by hand, and the limits measured.
+
+**What this grades.** The software and replay rehearsal on browser outputs, and nothing else.
+The results are synthetic and come from a replay server on the same machine as the agent
+(loopback). This is not a test in the real studio (CasparCG/Bridge, OBS: parent phase S), and it
+does not qualify an official live results feed: no official feed access or contract exists yet,
+so election-day feed qualification stays unverified. Nothing here is a readiness claim for any
+broadcaster.
+
+## What runs where
+
+| Piece | Where | What it does |
+| --- | --- | --- |
+| The package | `public/packs/election-rehearsal.noacgpack.json` | Party totals, candidate card, count bug, ticker, six cues, starter count |
+| The replay server | `scripts/election-replay-server.mjs --timeline package` | Answers the package's results over HTTPS with a bearer token, one step at a time |
+| The trusted agent | `scripts/external-data-connector.mjs`, config [`replay-agent.json`](replay-agent.json) | Reads the replay server, sends each new revision to the production |
+| The source record | [`replay-source.json`](replay-source.json) | What the production knows about the source: its id `election` and its mapping |
+| NoaCG | the published production and its browser output | Applies each revision; the page keeps an aired candidate card in step |
+
+The mapping (E5) formats the votes (`225000` becomes `225,000`) and the time of the count
+(`observed_at` becomes `20:14`, Helsinki time). The candidates travel whole, one revision at a
+time, to the leaf the candidate cues read (`external.election.candidates`). The ticker's headlines
+are typed by the operator; no result fills them.
+
+## Before the rehearsal
+
+1. Import `election-rehearsal.noacgpack.json` (Productions, **Import a package file…**) and
+   publish the production. Use a production of its own, never the one you go on air with.
+2. Register the source on the production: the record in `replay-source.json`, with `endpoint`
+   set to the replay server's address. Connect data has no way yet to register a source that only
+   an agent can reach (#1734): in this rehearsal it is written by the same model call Connect data
+   makes (`connectConnectorSource`), as the configured walk does. The pack's bindings already
+   follow `external.election.*`, so no field is connected by hand.
+3. On the machine that runs the agent (Node 22 and a clone of this repository, nothing else):
+
+   ```bash
+   node scripts/election-replay-server.mjs --dir replay --port 8443 --timeline package
+   ```
+
+   It writes `replay/ca.pem` and `replay/token` and prints each step's sha256. Copy those lines
+   into the rehearsal record.
+4. Start the agent with the two credentials in its environment, never in a file:
+
+   ```bash
+   NOACG_SOURCE_REPLAY="$(cat replay/token)" NOACG_DATA_KEY=<the production's data key> \
+     node scripts/external-data-connector.mjs --config docs/work-specs/playout-election-package/replay-agent.json \
+     --send https://<your NoaCG>/api/data/source
+   ```
+
+   Its log says `claimed: epoch 1` and the first revision arrives within a few seconds.
+5. Open the production's output URL in a browser, then Take **Party totals**, **Count status**,
+   **Headlines** and a candidate.
+
+## The rehearsal record
+
+Write these down for every rehearsal:
+
+- the NoaCG commit the rehearsal ran on, and the date and time (UTC);
+- the package file's sha256, and the sha256 of `replay-source.json` and `replay-agent.json`;
+- each replay step's sha256, as the replay server printed it;
+- the agent's poll interval (2 s in `replay-agent.json`) and each step's time from the replay
+  moving to the picture changing;
+- every manual action taken, and why.
+
+The software rehearsal of phase E7.2b is in
+[the phase notes](../production-page-refactor/evidence/phase-notes.md) (row 32).
+
+## Clock and cadence
+
+| Step | Interval |
+| --- | --- |
+| The agent reads the provider | every 2 s (`pollMs`) |
+| The production accepts a new revision | at most one per source every 5 s |
+| An unchanged read is confirmed | at most every 15 s; it moves "checked", never "changed" |
+| Party totals and count bug | on air as soon as the revision is applied |
+| An aired candidate card | the page hears the revision from the count bug's or party board's row at once; a revision that changes only candidates waits for the page's own read, every 5 s |
+
+A revision that changes only the candidates can therefore reach air up to about 12 s after the
+provider changed (2 s poll, 5 s revision gap, 5 s page read). The measured times are in the
+phase notes.
+
+## Operating limits
+
+- **The page that took the card keeps it in step.** A candidate card on air follows a newer count
+  only while the production page that took it is open. Close that page and the card keeps its
+  last values; reopening the page holds what airs and says so, and **✎ Update** sends the
+  current count again.
+- **Two tabs of one production** both follow the same aired card. Each sends the same whole
+  record, so the picture does not change; keep one tab open as the habit.
+- **A new count sends the aired card's record again** even when that person's figures did not
+  change (one update row per aired card per revision; the picture is the same).
+- **A card on air keeps its person.** A correction to another candidate never moves an aired
+  card. Picking someone else changes the card only at **✎ Update**, all fields at once.
+- **A person the count no longer holds** (deleted, or an empty list) is not ready to Take; a card
+  already on air keeps its last values with the reason and their age shown off air.
+- **Sizes**: one request to the production is at most 256 KiB (about 1,000 candidate records), a
+  collection at most 5,000 items, one graphic's update at most 64 KiB.
+- **Not in this rehearsal**: a real results feed, real candidates or photos, CasparCG, OBS, and
+  any second production page on another machine.
+
+## Recovery by hand
+
+| What happens | What to do |
+| --- | --- |
+| Wrong figures arrive | On the Data page, press **Pause** on the **Another system** card. The agent keeps reading but nothing new reaches air; **Resume** sends the latest values once. (A connector has no Pause button of its own in the sources line yet.) |
+| A card must show something the results do not | Pick **Fixed values** in the cue's Live candidate menu: the cue keeps what it showed, no count changes it. Pick a candidate again to reconnect. |
+| The agent stops | Restart it with the same command. It claims again and continues after the last revision the production took. If the old process died without letting go, it waits about 30 s and says so. |
+| The replay server stops | The fields keep their values. Restart it; a restarted server makes a new certificate and token, so restart the agent with the new token too. |
+| The page that took a card was closed | Reopen it; it says what airs. Press **✎ Update** on the card to send the current count. |
+| The rehearsal must end now | **■ All out**, then stop the agent (Ctrl+C lets its claim go) and the replay server. |
+
+## Rollback
+
+Pause **Another system** on the Data page, or stop the agent, and leave the output on its last state. To return to the starter
+data, use **Reset to seed** on the Data page, or reinstall the package into a new production.
+Reverting phase E7.2b's change leaves the published collections read by nothing: the candidate
+card then shows only what the starter seed or an operator wrote.

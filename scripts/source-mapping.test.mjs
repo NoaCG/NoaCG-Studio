@@ -753,6 +753,30 @@ describe('E7.2b: a collection leaf through the route', () => {
     assert.ok(performance.now() - started < 1000);
   });
 
+  test('the rehearsal\'s files: the replay source\'s recipe maps every package step onto the package\'s bindings', async () => {
+    const { packageTimeline } = await import('./election-replay-server.mjs');
+    const source = JSON.parse(readFileSync(new URL('../docs/work-specs/playout-election-package/replay-source.json', import.meta.url), 'utf8'));
+    const agent = JSON.parse(readFileSync(new URL('../docs/work-specs/playout-election-package/replay-agent.json', import.meta.url), 'utf8'));
+    const pack = JSON.parse(readFileSync(new URL('../packs/election-rehearsal/manifest.json', import.meta.url), 'utf8'));
+    assert.equal(ext.readExternalRegistration(source).ok, true);
+    assert.deepEqual([agent.sourceId, agent.configRevision], [source.id, source.config.configRevision]);
+    const bound = [...new Set(Object.values(pack.bindings).flatMap((f) => Object.values(f)))];
+    for (const step of packageTimeline()) {
+      let payload;
+      try {
+        payload = JSON.parse(step.text);
+      } catch {
+        continue; // the malformed step never reaches the route
+      }
+      const sent = Object.fromEntries(agent.sendPaths.filter((k) => k in payload).map((k) => [k, payload[k]]));
+      const out = mapping.projectSource({ sourceId: 'election', payload: sent, bindings: pack.bindings, fieldsOf: () => null, mapping: source.config.mapping, configRevision: 1, collections: pack.collections });
+      assert.deepEqual([out.missing, out.unfit, out.problems], [[], [], {}], step.name);
+      assert.deepEqual(Object.keys(out.writes).sort(), [...bound, 'external.election.candidates'].sort(), step.name);
+      assert.match(out.writes['external.election.parties.KOK.votes'], /^\d{3},\d{3}$/);
+      assert.match(out.writes['external.election.summary.updated'], /^20:\d{2}$/);
+    }
+  });
+
   test('a recipe that holds the whole source holds its collection too', () => {
     const out = mapping.projectSource({ sourceId: 'e1', payload: { candidates: revision(1, [aino]) }, bindings, fieldsOf: (g) => fields[g] ?? null, mapping: { v: 2 }, configRevision: 1, collections: [recipe()] });
     assert.deepEqual(out.writes, {});
