@@ -1,9 +1,10 @@
-import { useEffect, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { type KeyboardEvent, type MouseEvent } from 'react';
 import { ZONES, type AdjustPatch, type Zone9 } from '../../model/adjust';
 import { adjustWords, floorEstimate, zoneWords, type GeometryLimit } from '../../control/cueAdjust';
 import type { CueAdjustState } from '../../control/adjustGeometry';
 import type { StorePart } from '../../control/storePart';
 import { useStorePart } from './useStorePart';
+import { useDeferredEdits, type DeferredEdits } from './useDeferredEdits';
 
 /**
  * THE ADJUST BLOCK (docs/work-specs/playout-adjustments/spec.md, "What the operator sees", phase 1):
@@ -90,6 +91,16 @@ export default function CueAdjust({
     nudge(d[0], d[1]);
   };
   const why = whyWords(limit, m, fresh);
+  // A typed x, y or size is one write when the edit is over, and a second operator's change to the
+  // same record never replaces what is being typed (./useDeferredEdits.ts).
+  const shown: Record<string, number> = { x, y, size: Math.round(s * 100) };
+  const edits = useDeferredEdits((key, text) => {
+    const n = Number(text.replace('−', '-'));
+    if (text.trim() === '' || !Number.isFinite(n) || n === shown[key]) return;
+    if (key === 'size') {
+      if (n > 0) write({ scale: n / 100 });
+    } else write({ [key]: n });
+  });
 
   return (
     <div className="pd-adjust" data-testid="cue-adjust">
@@ -149,8 +160,8 @@ export default function CueAdjust({
                 </button>
               ))}
             </span>
-            <NumberBox label="x" value={x} disabled={locked || limit === 'spans'} onCommit={(v) => write({ x: v })} testId="adjust-x" />
-            <NumberBox label="y" value={y} disabled={locked} onCommit={(v) => write({ y: v })} testId="adjust-y" />
+            <NumberBox label="x" edits={edits} name="x" value={x} disabled={locked || limit === 'spans'} testId="adjust-x" />
+            <NumberBox label="y" edits={edits} name="y" value={y} disabled={locked} testId="adjust-y" />
             <span className="muted">px</span>
             {why && (
               <span className="muted pd-adjust-why" data-testid="adjust-why">
@@ -163,7 +174,7 @@ export default function CueAdjust({
             <button type="button" aria-label="Smaller" title="5 %, Shift 1 %" disabled={sizeOff} onClick={(e) => resize(e.shiftKey ? -0.01 : -0.05)} data-testid="adjust-smaller">
               −
             </button>
-            <NumberBox label="" value={Math.round(s * 100)} disabled={sizeOff} onCommit={(v) => v > 0 && write({ scale: v / 100 })} testId="adjust-size" />
+            <NumberBox label="" edits={edits} name="size" value={Math.round(s * 100)} disabled={sizeOff} testId="adjust-size" />
             <span className="muted">%</span>
             <button type="button" aria-label="Larger" title="5 %, Shift 1 %" disabled={sizeOff} onClick={(e) => resize(e.shiftKey ? 0.01 : 0.05)} data-testid="adjust-larger">
               +
@@ -212,27 +223,25 @@ function whyWords(limit: GeometryLimit, m: unknown, fresh: boolean): string {
   return fresh ? '' : 'measuring';
 }
 
-/** A number typed in, written on Enter or when focus leaves; Escape puts the value back. */
-function NumberBox({ label, value, disabled, onCommit, testId }: { label: string; value: number; disabled: boolean; onCommit: (v: number) => void; testId: string }) {
-  const [text, setText] = useState(String(value));
-  useEffect(() => setText(String(value)), [value]);
-  const commit = () => {
-    const n = Number(text.replace('−', '-'));
-    if (text.trim() !== '' && Number.isFinite(n) && n !== value) onCommit(n);
-    else setText(String(value));
-  };
+/** A number typed in, written when the edit is over (Enter, focus leaving, a pause); Escape puts
+ *  the value back. */
+function NumberBox({ label, edits, name, value, disabled, testId }: { label: string; edits: DeferredEdits; name: string; value: number; disabled: boolean; testId: string }) {
   return (
     <label className="pd-adjust-num">
       {label && <span>{label}</span>}
       <input
         inputMode="numeric"
-        value={text}
+        value={edits.text(name, String(value))}
         disabled={disabled}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
+        data-dirty={edits.dirty(name) || undefined}
+        onChange={(e) => edits.type(name, e.target.value)}
+        onBlur={edits.flush}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') commit();
-          if (e.key === 'Escape') setText(String(value));
+          if (e.key === 'Enter') edits.flush();
+          if (e.key === 'Escape') {
+            edits.type(name, String(value));
+            edits.flush();
+          }
         }}
         data-testid={testId}
       />

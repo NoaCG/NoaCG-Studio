@@ -2394,6 +2394,30 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await expect(page.getByTestId('adjust-x')).toHaveValue('-14');
   await expect.poll(async () => (await look('program')) === (await look('preview'))).toBe(true);
   await expect(page.locator('.pd-editor-fate')).not.toContainText('not on PROGRAM');
+  // A BOX BEING TYPED INTO KEEPS ITS TEXT when another operator moves the same record
+  // (home/useDeferredEdits.ts): the clock is paused so the edit stays uncommitted until it is over.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.getByTestId('adjust-y').fill('5');
+  await expect(page.getByTestId('adjust-y')).toHaveAttribute('data-dirty', 'true');
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    const cue = shows.loadShows().find((s) => s.id === id)!.cues![0];
+    shows.stepAdjust(id, cue.id, 'graphic', { y: 3 });
+    // Answer from a later task; the paused clock holds every timer, so not a setTimeout.
+    await new Promise<void>((r) => {
+      const c = new MessageChannel();
+      c.port1.onmessage = () => r();
+      c.port2.postMessage(0);
+    });
+  }, showId);
+  await expect(page.getByTestId('adjust-y')).toHaveValue('5');
+  await page.getByTestId('adjust-y').press('Enter');
+  await page.clock.resume();
+  await expect(page.getByTestId('adjust-y')).not.toHaveAttribute('data-dirty');
+  await expect(page.getByTestId('adjust-y')).toHaveValue('5');
+  await page.getByTestId('adjust-y').fill('0');
+  await page.getByTestId('adjust-y').press('Enter');
+  await expect(page.getByTestId('adjust-y')).toHaveValue('0');
 
   // AC-4's visible half: the second cue, only this cue, bottom-left; the first keeps bottom-right.
   await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
