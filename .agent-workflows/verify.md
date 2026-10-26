@@ -15,7 +15,9 @@ cannot observe is not a criterion yet.
 
 ## 2. Pick the checks the change needs, no more
 
-Ordinary implementation and verification run in cloud; device/private local work stays local.
+Local implementation, review and targeted verification are always allowed without asking.
+Use qualified cloud execution when useful; unavailable cloud execution does not block local work.
+Device/private local work stays local.
 Select resources on the executing worker with `node scripts/execution-profile.mjs`, never from
 the coordinator's profile. GitHub Actions retains authoritative full PR/merge-group checks.
 Local checks and all existing local guards remain targeted; whole suites are refused off Actions.

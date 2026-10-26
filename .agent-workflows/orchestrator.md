@@ -2,8 +2,9 @@
 
 Shared procedure: `/orchestrator` (alias `/o`) in Claude Code, `$orchestrator` (alias `$o`) in
 Codex; translate `/check` and `/queue-merge` the same way. It drives day and night waves alike.
-Input: the owner's prompt/window. Route ordinary rows through `.agent-workflows/cloud-delegate.md`;
-keep device/private local tasks local. Each executing worker selects its own resources via verify.md.
+Input: the owner's prompt/window. Use local workers or qualified cloud workers for ordinary rows;
+local work needs no exception. Follow `.agent-workflows/cloud-delegate.md` for cloud delegation,
+and keep device/private local tasks local. Each executing worker selects its own resources via verify.md.
 
 ## Boundaries
 
