@@ -109,7 +109,14 @@ changes a spec's digest.
   Comparing frames of two mounts mid-entrance measures the mounts' clocks, not the transform: the
   overlay's own autoplay starts at load, the harness's Play 200 ms later, so a target is compared
   with its own unbaked file and, once landed. qz01's overlay lands on another pose than its studio
-  document even unadjusted (40,617 px), which is why the reference is the same target's file. The
+  document even unadjusted (40,617 px), which is why the reference is the same target's file.
+  Landed is not enough either: an exported design can land in one of two settled states from mount
+  to mount (sb14 as the plain file, 3,401 to 3,498 px apart; qz01 keeps moving, up to 2,144), and
+  the merge group of this PR failed on exactly that with one reference pair. So a target is the
+  closest of two mounts each (0 to 68 px apart in four repeats), on lt01 and sb14; a missing bake
+  is 17,396 px in every pair. The merge group also failed `production-controls.spec.ts`'s #1697
+  "re-ask nobody answered" test once, a timing test of the send path this row does not touch
+  (passed on the PR's CI and 3 of 3 here): #1742. The
   queue wants `chromium_headless_shell-1228`; this image has `-1243` (symlinked, #1647).
 - **Fence (touched against `9866960`):** `e2e/hosted-control.spec.ts`, `e2e/local-relay.spec.ts`,
   `e2e/playout-adjust-documents.spec.ts` (new), `e2e/production-controls.spec.ts` (the export
