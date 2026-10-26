@@ -2436,19 +2436,28 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await expect.poll(() => look('program')).toBeNull();
   await expect(program).toHaveAttribute('data-plays', '1');
 
-  // The export dialog says place and size are not in a package, only while the production has any.
+  // Every package carries each graphic's place and size (phase 1b); a cue's own exception travels
+  // only with the overlay package's controller, so the dialog says so for the other targets, and
+  // only while a cue has one.
   const exportDialog = async () => {
     await page.getByTestId('production-setup').click();
     await page.getByTestId('export-production').click();
     await expect(page.getByTestId('production-export-dialog')).toBeVisible();
+    await page.getByTestId('prod-target-casparcg').check();
   };
-  await exportDialog();
-  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
-  await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
   await page.getByTestId('adjust-smaller').click();
   await expect(page.getByTestId('adjust-size')).toHaveValue('95');
   await exportDialog();
-  await expect(page.getByTestId('prod-export-adjust')).toContainText('not in any package');
+  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
+  await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-place-bl').click();
+  await expect(summary).toHaveText(/only this cue · bottom-left/);
+  await exportDialog();
+  await expect(page.getByTestId('prod-export-adjust')).toContainText('only in the HTML overlay package');
+  await page.getByTestId('prod-target-html-overlay').check();
+  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
 });
 
 /**

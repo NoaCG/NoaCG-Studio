@@ -9,9 +9,9 @@
 //    them, designs whose text fits measure their own boxes (qz01, sb14) and the two lower thirds the
 //    phase-1 receipt measured (lt01, lt63). The root must paint what the frame paints.
 // 2. THE BAKES, one per target (html-overlay, CasparCG, SPX, OGraf and H2R): a production package
-//    built with a placed and resized graphic, its file rendered alone, against the same graphic's
-//    studio document in a frame transformed by the stage's own transform, once landed (the
-//    overlay starts itself at load, so its entrance runs on another clock than the harness's Play).
+//    built with a placed and resized graphic, its baked file rendered alone, against the same
+//    target's file built without place and size, in a frame transformed by the stage's own
+//    transform: what `/output` does to a document, done to this one. Compared once landed.
 //
 // Frames are compared after the same time on a paused page clock. A design that paints two different
 // frames from one document mounted twice (a marquee, a loop) is compared net of that: the residual
@@ -35,8 +35,10 @@ const SWEEP_LOOK: AppliedAppearance = { v: 1, frame: { dx: -137, dy: -61, s: 0.8
 /** Per colour channel, the difference two pixels may have and still match. */
 const CHANNEL_TOLERANCE = 24;
 /** Pixels the root may paint differently from the frame beyond the frame's own mount-to-mount
- *  difference: antialiasing of a few glyph edges. qz01 without the rect mapping is 2,328 over it. */
-const RESIDUAL_BOUND = 200;
+ *  difference: antialiasing along edges drawn under a transform of their own (qz01's skewed
+ *  badges at 108 % differ by 831). The OGraf parity spec's bound (e2e/_ografParity.ts). qz01 with
+ *  the rect mapping removed is 2,328 over the frame. */
+const RESIDUAL_BOUND = 1_000;
 /** Designs measured beside the viewport-unit ones: two that fit their text to measured boxes, the
  *  hugging strap and the full-width band of the phase-1 receipt. */
 const CONTROLS = ['qz01', 'sb14', 'lt01', 'lt63'];
@@ -165,11 +167,10 @@ function painted(a: Buffer): number {
 }
 
 /** The root's frames against the frame transform's, net of the frame's own mount-to-mount
- *  difference, per sample. The framed reference is a studio document, always played; `start` is
- *  how the rooted one starts. */
+ *  difference, per sample. */
 async function residuals(page: Page, framed: string, rooted: string, look: AppliedAppearance, start: Start, samples: number[]) {
-  const ref = await framesOf(page, framed, look, 'play', samples);
-  const again = await framesOf(page, framed, look, 'play', samples);
+  const ref = await framesOf(page, framed, look, start, samples);
+  const again = await framesOf(page, framed, look, start, samples);
   const root = await framesOf(page, rooted, null, start, samples);
   return samples.map((ms, i) => ({ ms, painted: painted(ref[i]), noise: differing(ref[i], again[i]), residual: differing(ref[i], root[i]) - differing(ref[i], again[i]) }));
 }
@@ -229,11 +230,10 @@ test('each target bakes the graphic\'s place and size into its files, painting w
   const TARGETS = ['html-overlay', 'casparcg', 'spx', 'ograf', 'h2r'];
   const built = await page.evaluate(async (targets) => {
     const { variantById } = await import('/src/templates/catalog.ts');
-    const { createGraphic, loadGraphics, templateForSavedGraphic } = await import('/src/model/library.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
     const shows = await import('/src/model/shows.ts');
     const { buildShowZipFor } = await import('/src/export/showExport.ts');
     const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
-    const { composeDocument } = await import('/src/preview/composeDocument.ts');
     const show = shows.createShowNamed('Placed Show');
     // lt01 to the other side and 10 % smaller: a preset against its measured box, a size about it.
     for (const id of ['lt01', 'qz01']) {
@@ -246,22 +246,21 @@ test('each target bakes the graphic\'s place and size into its files, painting w
     // qz01 larger and down, so a fit that read rects through the transform would refit its words.
     shows.setGraphicAdjust(show.id, pool.graphics[1].id, { y: 40, scale: 1.08 });
     const fresh = shows.loadShows().find((s) => s.id === show.id)!;
-    const lib = loadGraphics();
-    const out: Record<string, { b64: string; looks: Record<string, unknown> }> = {};
+    const out: Record<string, { baked: string; plain: string; looks: Record<string, unknown> }> = {};
     for (const target of targets) {
       const appearances = await measureExportAppearances(fresh, target);
-      const zip = await buildShowZipFor(fresh, target, { appearances });
-      out[target] = { b64: await zip.generateAsync({ type: 'base64' }), looks: appearances!.graphics };
+      const baked = await buildShowZipFor(fresh, target, { appearances });
+      const plain = await buildShowZipFor(fresh, target);
+      out[target] = { baked: await baked.generateAsync({ type: 'base64' }), plain: await plain.generateAsync({ type: 'base64' }), looks: appearances!.graphics };
     }
-    return {
-      out,
-      graphics: fresh.graphics.map((g) => ({ id: g.id, name: g.name, html: composeDocument(templateForSavedGraphic(g, lib)) })),
-    };
+    return { out, graphics: fresh.graphics.map((g) => ({ id: g.id, name: g.name })) };
   }, TARGETS);
 
   const served: Served = { docs: new Map(), files: new Map() };
-  for (const g of built.graphics) served.docs.set(g.id, g.html);
-  for (const target of TARGETS) await filesOf(built.out[target].b64, target, served.files);
+  for (const target of TARGETS) {
+    await filesOf(built.out[target].baked, target, served.files);
+    await filesOf(built.out[target].plain, `plain-${target}`, served.files);
+  }
   const renderer = await openRenderer(browser, served);
   const paths = [...served.files.keys()];
   const rows: string[] = [];
@@ -274,7 +273,9 @@ test('each target bakes the graphic\'s place and size into its files, painting w
         ? paths.find((p) => p.startsWith(`${target}/`) && p.endsWith(`/${slug}/graphic.mjs`))?.replace(/graphic\.mjs$/, '__host.html')
         : paths.find((p) => p.startsWith(`${target}/`) && new RegExp(`/${slug}/${slug}\\.html$`).test(p));
       expect(file, `${target}: ${g.name}'s file in ${paths.filter((p) => p.startsWith(`${target}/`)).join(', ')}`).toBeTruthy();
-      const r = await residuals(renderer, `doc/${g.id}`, file!, look, target === 'html-overlay' ? 'autoplay' : 'play', [4_000]);
+      expect(served.files.get(file!.replace(/__host\.html$/, 'graphic.mjs'))!.toString()).toContain('noacgApplyAppearance(');
+      expect(served.files.get(`plain-${file!}`.replace(/__host\.html$/, 'graphic.mjs'))!.toString()).not.toContain('noacgApplyAppearance');
+      const r = await residuals(renderer, `plain-${file!}`, file!, look, target === 'html-overlay' ? 'autoplay' : 'play', [600, 4_000]);
       rows.push(`${target} ${g.name}: ${r.map((s) => `${s.ms}ms painted ${s.painted} noise ${s.noise} residual ${s.residual}`).join(' | ')}`);
       for (const s of r) expect(s.residual, `${target} ${g.name} at ${s.ms} ms:\n${rows.join('\n')}`).toBeLessThanOrEqual(RESIDUAL_BOUND);
     }
