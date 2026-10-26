@@ -82,7 +82,7 @@ import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSend
 import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
-import type { Resolution } from '../../model/types';
+import type { Resolution, SpxTemplate } from '../../model/types';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, actionCarriesValues, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
@@ -119,6 +119,12 @@ import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
+import { appearanceEquals, IDENTITY, measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { createMeasurer, cueAdjustState, measured, type MeasureJob } from '../../control/adjustGeometry';
+import { measureCue } from '../../preview/measureCue';
+import { promoteCueAdjust, setCueAdjust, setGraphicAdjust } from '../../model/shows';
+import type { AdjustPatch } from '../../model/adjust';
+import CueAdjust from './CueAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
@@ -427,6 +433,17 @@ function entitiesIn(recipe: CollectionRecipe, tree: object): ReturnType<typeof c
   return byRecipe.get(key)!;
 }
 const airedOf = (air: AirPart) => air.aired;
+const NO_LOOKS: AppliedLooks = {};
+/** The unsent entry a waiting place-and-size change adds: no field has this id. */
+const PLACE_UNSENT = '@place';
+/** How long Publish waits for the adjusted cues to be measured. */
+const PUBLISH_MEASURE_CAP_MS = 8_000;
+const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
+/** What the background measurer composes for one cue. */
+interface MeasureInput {
+  template: SpxTemplate;
+  values: Record<string, string>;
+}
 const bootLiveOf = (air: AirPart) => air.bootLive;
 const entriesOf = (log: LogPart) => log.entries;
 
@@ -1936,6 +1953,43 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [poolResolutionKey, library],
   );
 
+  // ── PLACE AND SIZE (docs/work-specs/playout-adjustments/spec.md, phase 1). The records live on the
+  // show (model/shows.ts setGraphicAdjust, setCueAdjust, promoteCueAdjust), written through the
+  // rundown history so Ctrl+Z reverts a press; what the page measured lives in the session's
+  // `geometry` part (control/adjustGeometry.ts), what each graphic holds applied in the `air` part's
+  // `looks`; one answer per cue comes from `cueAdjustState`. ──
+  // Subscribed so a measurement draws the block and PREVIEW again; read through `get()` below.
+  useStorePart(session.geometry);
+  const appliedLooks = usePacedPart(session.air, looksOf);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  /** The cue whose "Only this cue" is on before it has a record of its own. */
+  const [onlyThisCue, setOnlyThisCue] = useState<string | null>(null);
+  const frameOf = (g: SavedGraphic) => templateForSavedGraphic(g, library).resolution;
+  /** The values a Take of the cue settles and airs, which name its measurement. */
+  const airedValuesOf = (cue: ShowCue): Record<string, string> => JSON.parse(settleOf(cue, cueDraft.view(cue).values)) as Record<string, string>;
+  const adjustStateOf = (cue: ShowCue, record: Show | null = show ?? null) => {
+    const g = record?.graphics.find((x) => x.id === cue.sourceId);
+    if (!g || cue.source === 'playout') return null;
+    const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
+    return cueAdjustState(g, cue, frameOf(g), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere);
+  };
+  /** One document at a time measures the adjusted cues PREVIEW has not shown (preview/measureCue.ts). */
+  const measurer = useMemo(
+    () => createMeasurer(session.geometry, { measure: (input) => measureCue((input as MeasureInput).template, (input as MeasureInput).values) }, session.alive),
+    [session],
+  );
+  const measureJobs = (record: Show): MeasureJob[] =>
+    (record.cues ?? []).flatMap((cue) => {
+      const g = record.graphics.find((x) => x.id === cue.sourceId);
+      if (!g || cue.source === 'playout' || (g.adjust === undefined && cue.adjust === undefined)) return [];
+      const values = airedValuesOf(cue);
+      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, g.savedAt, cue.id, values, stage), input: { template: templateForSavedGraphic(g, library), values } satisfies MeasureInput }];
+    });
+  useEffect(() => {
+    if (show) measurer.want(measureJobs(show));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, library, stage, measurer]);
+
   /**
    * EVERY POOL GRAPHIC'S MACHINE, not just the selected one.
    *
@@ -2242,6 +2296,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
       hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, casparOn, accountCaspar, publishedReaders,
       setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, prepareFlow,
+      // Each adjusted cue measured for the copy being published, then resolved (capped: a cue the
+      // measurer has not answered for publishes its last placement).
+      appearanceFor: async (latest) => {
+        if (!latest.graphics.some((g) => g.adjust !== undefined) && !(latest.cues ?? []).some((c) => c.adjust !== undefined)) return undefined;
+        measurer.want(measureJobs(latest));
+        await Promise.race([measurer.drain(), new Promise((resolve) => setTimeout(resolve, PUBLISH_MEASURE_CAP_MS))]);
+        return (cue) => adjustStateOf(cue, latest)?.send;
+      },
       // REHEARSAL ENDS AT THE FIRST PUBLISH: the live map and PROGRAM stay this page's.
       onFirstPublish: (rehearsed) => {
         applyProgram(clearAllCueBatches(rehearsed).flat());
@@ -2405,9 +2467,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ),
     chipLabel: chipGraphic ? (cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic) : null,
   }));
-  const unsentFields = unsent.fields;
+  /** A cue's place and size differ from what its graphic holds applied (playout adjustments): a
+   *  waiting change like an unsent value, counted by the fate line and the rundown row. */
+  const placeUnsent = (cue: ShowCue, graphic: string) => {
+    const state = adjustStateOf(cue);
+    return !!state?.send && !appearanceEquals(state.send, appliedLooks[graphic] ?? IDENTITY);
+  };
+  const unsentFields = editingIsLive && selectedGraphic && editingCue && placeUnsent(editingCue, selectedGraphic) ? [...unsent.fields, PLACE_UNSENT] : unsent.fields;
   const hasUnsent = unsentFields.length > 0;
-  const unsentOnAir = new Set(unsent.cues);
+  const unsentOnAir = new Set([
+    ...unsent.cues,
+    ...Object.entries(liveCue).flatMap(([graphic, cueId]) => {
+      const cue = cueId ? cues.find((c) => c.id === cueId) : undefined;
+      return cue && placeUnsent(cue, graphic) ? [cue.id] : [];
+    }),
+  ]);
 
   /** A removal drops the draft as the page state it replaced went: after this task, so the save
    *  the removal waits for first (`writeRundown` flushes in the same tick) still writes it. */
@@ -2595,6 +2669,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphicOf: cueGraphicName,
     cueView,
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
+    // Read after the wait, off the newest record: the place and size a Take or Update carries.
+    appearanceOf: (cue) => adjustStateOf(cuesRef.current.find((c) => c.id === cue.id) ?? cue, loadShows().find((x) => x.id === id) ?? show)?.send,
     flush: async () => {
       await flushDraft(); await history.closeGroup();
     },
@@ -3353,6 +3429,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   : 'nothing selected'
           }
           settleOf={settleOf}
+          previewLook={previewCue ? (adjustStateOf(previewCue)?.look ?? null) : null}
+          guides={adjustOpen && !!previewCue && previewCue.id === editingCue?.id}
+          measure={(() => {
+            const g = previewCue && previewCue.source !== 'playout' ? graphicByPoolId.get(previewCue.sourceId) : undefined;
+            if (!previewCue || !g || (!adjustOpen && g.adjust === undefined && previewCue.adjust === undefined)) return null;
+            const cueId = previewCue.id;
+            return {
+              keyOf: (data: string) => measureId(g.id, g.savedAt, cueId, JSON.parse(data) as Record<string, string>, stage),
+              onMeasured: (key: string, m: Measurement) => session.geometry.set((part) => measured(part, cueId, g.id, key, m)),
+            };
+          })()}
           hasCues={cues.length > 0}
           emptyHint={
             selectedFolder && spaceMode === 'take' && !previewCue && heldStep
@@ -3641,6 +3728,43 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             ownReader={ownReaderOf(poolGraphic)}
             candidate={candidateOf(editingCue)}
             picker={candidatePicker(editingCue)}
+            adjust={(() => {
+              const g = graphicByPoolId.get(editingCue.sourceId);
+              const state = adjustStateOf(editingCue);
+              if (!g || !state) return null;
+              const mine = (show.cues ?? []).filter((c) => c.sourceId === g.id);
+              const scope = state.eff.own.length > 0 || onlyThisCue === editingCue.id ? 'cue' : 'graphic';
+              const write = (patch: AdjustPatch) => {
+                const anchored = withAnchor(state.eff, state.m, frameOf(g), patch);
+                void history.write(
+                  () => (scope === 'cue' ? setCueAdjust(show.id, editingCue.id, anchored) : setGraphicAdjust(show.id, g.id, anchored)),
+                  `Adjust ${g.name}`,
+                );
+              };
+              return (
+                <CueAdjust
+                  graphicName={g.name}
+                  cueCount={mine.length}
+                  exceptions={mine.filter((c) => c.id !== editingCue.id && c.adjust !== undefined).length}
+                  scope={scope}
+                  onlyThisCue={onlyThisCue === editingCue.id}
+                  setOnlyThisCue={(on) => setOnlyThisCue(on ? editingCue.id : null)}
+                  state={state}
+                  category={g.type}
+                  open={adjustOpen}
+                  setOpen={setAdjustOpen}
+                  write={write}
+                  reset={(at) => {
+                    if (at === 'cue') setOnlyThisCue(null);
+                    void history.write(() => (at === 'cue' ? setCueAdjust(show.id, editingCue.id, null) : setGraphicAdjust(show.id, g.id, null)), `Reset ${g.name}`);
+                  }}
+                  promote={() => {
+                    setOnlyThisCue(null);
+                    void history.write(() => promoteCueAdjust(show.id, editingCue.id), `Adjust ${g.name}`);
+                  }}
+                />
+              );
+            })()}
             endsRow={() => {
               const auto = readAuto(editingCue);
               const nextId = nextGraphicCue(cues, editingCue.id);

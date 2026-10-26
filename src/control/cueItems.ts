@@ -6,6 +6,7 @@
 
 import type { MarkerAuto } from './cueAuto';
 import type { ControlSendItem } from './hostedControl';
+import type { AppliedAppearance } from './cueAdjust';
 
 // Each verb is defined ONCE, as the list of commands it is — and then either sent to the log or
 // applied to a local rehearsal stage (docs/CLOUD_PLAYOUT.md §4a). Keeping the sequence as DATA
@@ -31,9 +32,12 @@ export function takeCueItems(cue: {
   /** A timed cue's arm (control/cueAuto.ts `markerAuto`), carried on its marker so every follower
    *  learns the countdown from the Take's own row. */
   auto?: MarkerAuto | null;
+  /** Its place and size, when the page has one to send (./cueAdjust.ts `appearanceToSend`): absent,
+   *  the update is exactly what it always was. */
+  appearance?: AppliedAppearance;
 }): ControlSendItem[] {
   return [
-    { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
+    { graphic: cue.graphic, msg: { t: 'update', data: cue.values, ...(cue.appearance ? { appearance: cue.appearance } : {}) } },
     { graphic: cue.graphic, msg: { t: 'play' } },
     { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id, ...(cue.direct ? { direct: true } : {}), ...(cue.auto ? { auto: cue.auto } : {}) } },
   ];

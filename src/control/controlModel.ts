@@ -4,6 +4,7 @@
 // descriptors drive every surface that edits a field: the in-app Data and Control panels
 // (through the shared components/fields control), and the standalone controlpanel.html export.
 
+import type { AppliedAppearance } from './cueAdjust';
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import { parseAnimData } from '../blocks/animData';
@@ -808,7 +809,11 @@ export function continueEvents(js: string): Set<string> {
 // jumps), and `hello` asks the graphic to answer with its current machine state.
 
 export type ControlMessage =
-  | { t: 'update'; data: Record<string, string> }
+  // `appearance` (docs/work-specs/playout-adjustments/spec.md): the graphic's place and size, the
+  // whole applied appearance, on a Take's or a full Update's update only (./cueAdjust.ts says the
+  // four rules). Optional and outside `data`, so no template, data API or package ever sees it, and
+  // a receiver that does not know it ignores it.
+  | { t: 'update'; data: Record<string, string>; appearance?: AppliedAppearance }
   | { t: 'play' }
   | { t: 'stop'; sound?: false }
   | { t: 'next' }

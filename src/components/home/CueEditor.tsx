@@ -974,6 +974,7 @@ export default function CueEditor({
   ownReader,
   candidate,
   picker,
+  adjust = null,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
@@ -1047,6 +1048,8 @@ export default function CueEditor({
   candidate: CueCandidate | null;
   /** Which person the cue shows (E7.2a), null when no collection serves its graphic. */
   picker: CandidatePicker | null;
+  /** The cue's place and size (home/CueAdjust), built by the page: a settings disclosure. */
+  adjust?: ReactNode;
 }) {
   /** How many times the editor has rendered - published on its root as `data-renders`, beside the
    *  page's: e2e/playout-air-contract.spec.ts proves typing moves this one and not that one. */
@@ -1432,6 +1435,8 @@ export default function CueEditor({
             seconds on air, then Out, the next cue, or both. Phase 1 runs it unpublished only. */}
         {endsRow()}
       </div>
+
+      {adjust}
 
 
       {/* ADVANCED: the graphic's PLAYOUT LAYER (docs/CLIP_PLAYBACK_PLAN.md §6.5). Closed by

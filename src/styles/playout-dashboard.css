@@ -929,6 +929,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   background: #0a0a0c;
 }
 .pd-pvw .pd-frame { box-shadow: inset 0 0 0 2px rgba(246, 166, 35, 0.7); }
+/* PREVIEW in stage coordinates (playout adjustments): the production's stage fitted to the
+   monitor, the graphic's frame at its origin as on the output; the safe area while Adjust is open. */
+.pd-pvw-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.pd-pvw-guides { position: absolute; pointer-events: none; outline: 2px dashed rgba(246, 166, 35, 0.55); }
 .pd-pgm .pd-frame { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.8); }
 /* NOT LIVE (docs/work-specs/studio-day-playout AC-9): a production that is not started keeps its
    Takes on this page, so the monitor gives up the on-air red - grey heading, hollow dot, a dashed
@@ -1197,6 +1201,22 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    open. A shared layer turns the line amber and holds it open, because the repair must never sit
    behind a closed disclosure. */
 .pd-advanced { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+/* ADJUST (playout adjustments, phase 1): place and size, a settings disclosure like Advanced. Its
+   rows wrap to the editor's width as the field grid does. */
+.pd-adjust { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.pd-adjust-body { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.pd-adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pd-adjust-label { width: 44px; font-size: 12px; color: var(--text-dim); }
+.pd-adjust-grid { display: grid; grid-template-columns: repeat(3, 18px); grid-template-rows: repeat(3, 14px); gap: 2px; }
+.pd-adjust-cell { padding: 0; min-width: 0; min-height: 0; width: 18px; height: 14px; border-radius: 3px; position: relative; }
+.pd-adjust-cell.on { background: var(--amber); border-color: var(--amber); }
+.pd-adjust-cell.pivot::after { content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: currentColor; }
+.pd-adjust-arrows { display: inline-flex; gap: 2px; }
+.pd-adjust-arrows button { min-width: 28px; }
+.pd-adjust-num { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); }
+.pd-adjust-num input { width: 56px; }
+.pd-adjust-floor, .pd-adjust-why { font-size: 12px; }
+.pd-adjust button.on { border-color: var(--amber); }
 .pd-advanced-toggle {
   display: inline-flex;
   align-items: baseline;

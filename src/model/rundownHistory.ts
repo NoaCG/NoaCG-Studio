@@ -42,7 +42,9 @@ export function liveRundownRefusal(expected: RundownSlice, replacement: RundownS
   for (const id of live.sources) {
     const before = [...expected.graphics, ...expected.playoutItems].find(s => s.id === id);
     const after = [...replacement.graphics, ...replacement.playoutItems].find(s => s.id === id);
-    if (before && JSON.stringify(ordered(before)) !== JSON.stringify(ordered(after))) return 'Take the affected source off air before undoing this edit.';
+    // Its place and size do not touch air by themselves (the next Take or Update carries them), so
+    // undoing an adjustment of a graphic on air is allowed (playout adjustments: "Undo").
+    if (before && JSON.stringify(ordered(withoutAdjust(before))) !== JSON.stringify(ordered(after && withoutAdjust(after)))) return 'Take the affected source off air before undoing this edit.';
   }
   for (const id of live.folders) {
     const members = (slice: RundownSlice) => slice.cues.filter(c => c.folderId === id).map(c => c.id);
@@ -51,6 +53,12 @@ export function liveRundownRefusal(expected: RundownSlice, replacement: RundownS
   }
   if (live.unidentifiedServer && JSON.stringify(ordered(expected.playoutItems)) !== JSON.stringify(ordered(replacement.playoutItems))) return 'Clear the unidentified server output before undoing this edit.';
   return null;
+}
+
+function withoutAdjust<T extends object>(source: T): T {
+  if (!('adjust' in source)) return source;
+  const { adjust: _adjust, ...rest } = source as T & { adjust?: unknown };
+  return rest as T;
 }
 
 export function rundownRefusal(slice: RundownSlice): string | null {

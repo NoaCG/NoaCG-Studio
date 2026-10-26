@@ -106,6 +106,13 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
               </span>
             </label>
           ))}
+          {/* PLACE AND SIZE are the production's, applied on its own output (playout adjustments,
+              phase 1); no package carries them yet, and the dialog says so before one is chosen. */}
+          {(show.graphics.some((g) => g.adjust !== undefined) || (show.cues ?? []).some((c) => c.adjust !== undefined)) && (
+            <p className="status-warn" data-testid="prod-export-adjust">
+              Place and size set on the playout page are not in any package: graphics export as designed.
+            </p>
+          )}
           <p className="hint">
             Every package also carries <strong>FIELDS.md</strong> — each graphic's fields with the
             ID a playout client sends them under (<code>f0</code>, <code>f1</code>, …).

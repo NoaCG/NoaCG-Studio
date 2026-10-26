@@ -65,6 +65,10 @@ export interface SavedGraphic {
    * an ordering game for something CasparCG states as a plain number.
    */
   layer?: number;
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-adjustments/spec.md): this graphic's
+   *  place and size in this production, the default every cue of it inherits member by member.
+   *  Meaningful only in a `Show.graphics` pool; read only through ./adjust.ts `readAdjust`. */
+  adjust?: import('./adjust').AdjustRecord | { v: number; [later: string]: unknown };
 }
 
 export interface Packet {

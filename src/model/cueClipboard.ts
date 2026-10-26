@@ -2,8 +2,8 @@
 // paste of copies writes. The page keeps the clipboard itself, in its own memory: never the system
 // clipboard, never saved, and a paste works within the production it was copied from.
 //
-// A COPY is new cues on the same graphic or server file - a new id each, their own values, note and
-// clip settings, the label as it was, nothing on air - because a cue's id is what the air, folders
+// A COPY is new cues on the same graphic or server file - a new id each, their own values, note,
+// clip settings and place and size, the label as it was, nothing on air - because a cue's id is what the air, folders
 // and the data API point at, and a copy must never share it. A CUT is not a delete: it holds
 // the cues' ids, and the paste MOVES them (shows.ts `pasteInRundown`), so nothing is removed until
 // the paste lands and whatever points at them keeps pointing at them.
@@ -14,7 +14,7 @@ import type { PlayoutItem, ShowCue, ShowFolder } from './shows';
 import { folderIdOf, joinRefusal, joins, landBlock, liveFolderIds, settleFolders, wholeFolders, type Place } from './showFolders.ts';
 
 /** One copied cue: what it is made of, and the copied folder it came in, when it came in one whole. */
-export type ClipCue = Pick<ShowCue, 'sourceId' | 'source' | 'label' | 'values' | 'note' | 'playback' | 'auto' | 'accentColor'> & { folderKey?: string };
+export type ClipCue = Pick<ShowCue, 'sourceId' | 'source' | 'label' | 'values' | 'note' | 'playback' | 'auto' | 'accentColor' | 'adjust'> & { folderKey?: string };
 /** One folder every cue of which was copied: it pastes as a new folder with its mode and settings. */
 export type ClipFolder = Pick<ShowFolder, 'name' | 'mode' | 'end' | 'slot'> & { key: string };
 
@@ -59,6 +59,8 @@ export function copyClip(
         ...(c.accentColor ? { accentColor: c.accentColor } : {}),
         ...(c.playback ? { playback: { ...c.playback } } : {}),
         ...(c.auto ? { auto: { ...c.auto } } : {}),
+        // Its own place and size, as written (playout adjustments): a later version's record too.
+        ...(c.adjust ? { adjust: structuredClone(c.adjust) } : {}),
         ...(folder && whole.has(folder) ? { folderKey: folder } : {}),
       };
     }),
@@ -108,6 +110,7 @@ export function pasteCopies(
       ...(c.accentColor ? { accentColor: c.accentColor } : {}),
       ...(c.playback ? { playback: { ...c.playback } } : {}),
       ...(c.auto ? { auto: { ...c.auto } } : {}),
+      ...(c.adjust ? { adjust: structuredClone(c.adjust) } : {}),
       ...(folderId ? { folderId } : {}),
     });
   }

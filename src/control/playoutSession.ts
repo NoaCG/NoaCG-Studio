@@ -29,6 +29,8 @@ import type { SlotReading, StatusCheck } from './playoutStatus';
 import { createAppliedOnce } from './commandRoads.ts';
 import { storePart, type StorePart } from './storePart.ts';
 import type { SelectionAir } from './selectionAir';
+import type { AppliedLooks } from './cueAdjust';
+import { NO_GEOMETRY, type GeometryPart } from './adjustGeometry.ts';
 
 /** The production's live tree as this page holds it (./productionDataSession.ts says the rules). */
 export interface DataPart {
@@ -102,6 +104,9 @@ export interface AirPart {
   /** What the wire said was live when it resolved, null until it seeded: the boot recovery's key,
    *  never written by anything this operator does. */
   bootLive: LiveCueMap | null;
+  /** What each graphic holds applied of its place and size (./cueAdjust.ts `lookAfter`), as the
+   *  renderer holds it: kept while the graphic is off air. ADDITIVE OPTIONAL: absent is none. */
+  looks?: AppliedLooks;
 }
 
 export const NO_AIR: AirPart = { liveCue: {}, moves: 0, aired: {}, clocks: {}, speaking: {}, commands: 0, reports: null, bootReplay: null, bootLive: null };
@@ -145,6 +150,9 @@ export interface PlayoutSession {
   /** The live candidates this page aired, per layer: written only by ./selectionAir.ts's folds,
    *  outside `apply` since no other fold reads them. */
   selections: StorePart<SelectionAir>;
+  /** What this page measured of each cue for place and size (./adjustGeometry.ts): written only by
+   *  its folds, outside `apply` since no other fold reads it. */
+  geometry: StorePart<GeometryPart>;
   /** The commands applied here, by the id their press minted, on whichever road came first. */
   readonly applied: AppliedOnce;
   /** Move the session's parts with one fold, in a fixed order. A no-op once disposed. */
@@ -177,6 +185,7 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
   const log = storePart<LogPart>(NO_LOG);
   const draft = storePart<DraftPart | null>(null);
   const selections = storePart<SelectionAir>({});
+  const geometry = storePart<GeometryPart>(NO_GEOMETRY);
   return {
     key: productionId,
     alive: () => alive,
@@ -188,6 +197,7 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
     log,
     draft,
     selections,
+    geometry,
     applied: createAppliedOnce(),
     apply: (fold) => {
       if (!alive) return;

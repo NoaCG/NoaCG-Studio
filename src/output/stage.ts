@@ -31,6 +31,7 @@ import {
 } from '../preview/previewProtocol';
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
 import type { ControlMessage } from '../control/controlModel';
+import { frameCss, isIdentity, readAppearance, type AppliedAppearance } from '../control/cueAdjust';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
@@ -70,6 +71,9 @@ export interface OutputStage {
   requestState(graphic: string): void;
   /** The latest machine state each document reported (null = none / not machine-bearing). */
   states: ReadonlyMap<string, PreviewMachineState | null>;
+  /** The place and size each graphic holds applied (playout adjustments): the last `update` that
+   *  carried an `appearance`, kept across a stop, a rebuilt document and a swap. Absent: none. */
+  appearances: ReadonlyMap<string, AppliedAppearance>;
   /** The field ids each document last reported as TOO LONG to fit (`noacgTextOverflow()`, see
    *  PreviewStateMessage.overflow). Empty for a graphic that fits, and for every template that
    *  answers no such question. */
@@ -275,6 +279,18 @@ export function createOutputStage(
    *  holding `stage.graphics` sees graphics join and leave. */
   const graphics: string[] = [];
   const states = new Map<string, PreviewMachineState | null>();
+  const appearances = new Map<string, AppliedAppearance>();
+  /** THE FRAME TRANSFORM (playout adjustments): place and size live on the frame NoaCG owns, never
+   *  in the document, so no template code, reset or snap can undo them. The applied record is
+   *  written on the frame as `data-appearance`, what a test reads; the identity writes nothing. */
+  const paintAppearance = (iframe: HTMLIFrameElement, graphic: string) => {
+    const look = appearances.get(graphic);
+    const css = frameCss(look);
+    iframe.style.transform = css.transform;
+    iframe.style.transformOrigin = css.origin;
+    if (look) iframe.dataset.appearance = JSON.stringify(look);
+    else delete iframe.dataset.appearance;
+  };
   const overflow = new Map<string, string[]>();
   const motion = new Map<string, number>();
   const replies = new Map<string, number>();
@@ -587,9 +603,18 @@ export function createOutputStage(
     if (foreignLayer) return foreignLayer.send(msg as ControlMessage);
     if (!frames.has(graphic)) return;
     switch (msg.t) {
-      case 'update':
+      case 'update': {
+        // Rule 1: an update without an appearance keeps the one applied; rule 3: one that carries
+        // it replaces it. Applied at once, before the data, with no replay (a cut, as a Take is).
+        const look = 'appearance' in msg && msg.appearance !== undefined ? readAppearance(msg.appearance) : null;
+        if (look) {
+          if (isIdentity(look)) appearances.delete(graphic);
+          else appearances.set(graphic, look);
+          paintAppearance(frames.get(graphic)!.iframe, graphic);
+        }
         post(graphic, { cmd: 'update', data: JSON.stringify(msg.data ?? {}) });
         break;
+      }
       case 'play':
         post(graphic, { cmd: 'play' });
         break;
@@ -650,6 +675,7 @@ export function createOutputStage(
       if (frames.get(graphic)?.loaded) post(graphic, { cmd: 'state' });
     },
     states,
+    appearances,
     overflow,
     motion,
     replies,
@@ -699,6 +725,8 @@ export function createOutputStage(
           frame.current = true;
           delete frame.iframe.dataset.prepared;
           adopt(frame);
+          // The graphic's place and size go with it onto its new document.
+          paintAppearance(frame.iframe, frame.key);
           // Its graphic's values reach it before any Take can, and showing it paints nothing: its
           // document sits in its invisible start state.
           if (data && Object.keys(data).length > 0) postTo(frame, { cmd: 'update', data: JSON.stringify(data) });
@@ -731,7 +759,7 @@ export function createOutputStage(
       frames.delete(graphic);
       const at = graphics.indexOf(graphic);
       if (at >= 0) graphics.splice(at, 1);
-      for (const map of [states, overflow, motion, replies, held, errors, sounds] as Map<string, unknown>[]) map.delete(graphic);
+      for (const map of [states, appearances, overflow, motion, replies, held, errors, sounds] as Map<string, unknown>[]) map.delete(graphic);
       dispose(frame);
     },
     destroy: () => {

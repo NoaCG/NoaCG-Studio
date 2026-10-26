@@ -22,6 +22,7 @@ import {
   setShowOutputSetup,
   refreshGraphicCopies,
   type Show,
+  type ShowCue,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
 import { accountCasparDefault, casparDestinationId, casparSwitch, destinationUrl, readOutputSetup, withCasparSwitch } from '../../model/outputSetup';
@@ -53,6 +54,7 @@ import { slotHolds } from '../../control/prepareLive';
 import { casparOutputTarget, type SlotReading, type StatusCheck } from '../../control/playoutStatus';
 import type { AuthUiState } from '../auth/useAuthState';
 import type { PrepareFlow } from '../control/PrepareForLive';
+import type { AppliedAppearance } from '../../control/cueAdjust';
 import type { useRundownHistory } from './useRundownHistory';
 
 /**
@@ -141,6 +143,9 @@ interface PublishActionsIo {
   /** The first publish found graphics taken in rehearsal: the page takes them out of PROGRAM. */
   onFirstPublish: (rehearsed: string[]) => void;
   prepareFlow: Pick<PrepareFlow, 'run'>;
+  /** Each cue's place and size for the published payload, measured for the production as it will
+   *  be published (playout adjustments): what the hosted page's Take carries. */
+  appearanceFor?: (show: Show) => Promise<((cue: ShowCue) => AppliedAppearance | undefined) | undefined>;
 }
 
 /** The publish, slot and links handlers, built on every render after the page's early return. */
@@ -365,7 +370,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           const latest = loadShows().find((s) => s.id === show.id);
           if (!latest) return null;
           try {
-            return await publishControlShow(latest);
+            return await publishControlShow(latest, await io.appearanceFor?.(latest));
           } catch (e) {
             if (!(e instanceof PublishBehind) || attempt > 0) throw e;
           }

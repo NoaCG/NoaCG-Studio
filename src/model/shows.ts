@@ -55,6 +55,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
+import { patchAdjust, readAdjust, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
 
 /**
@@ -109,6 +110,10 @@ export interface ShowCue {
    *  `setShowSelections` (E7.2a); every other write keeps it byte for byte (`selectionFrozen`), and
    *  a later version makes the whole cue read-only. */
   selection?: CueSelection | { v: number; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-adjustments/spec.md, phase 1). This
+   *  cue's own exception to its graphic's place and size (`SavedGraphic.adjust`), member by member;
+   *  absent inherits all of it. Read only through ./adjust.ts `readAdjust`. */
+  adjust?: AdjustRecord | { v: number; [later: string]: unknown };
 }
 
 /** Where a prepared message came from, kept on its cue. */
@@ -755,6 +760,8 @@ export function addGraphicToShow(
     savedAt: nowIso(),
     template,
     ...(existing >= 0 && show.graphics[existing].soundConfig ? { soundConfig: show.graphics[existing].soundConfig } : {}),
+    // Its place and size in this production stay with it, as its layer does (playout adjustments).
+    ...(existing >= 0 && show.graphics[existing].adjust ? { adjust: show.graphics[existing].adjust } : {}),
     // Which LIBRARY record this copy came from, when the document was a saved graphic - the
     // link the hosted control page follows to publish that graphic's entries.
     ...(opts?.graphicId ? { graphicId: opts.graphicId } : {}),
@@ -834,6 +841,63 @@ export function setGraphicSounds(showId: string, graphicId: string, sounds: Prod
     graphic.soundConfig = sounds;
     return true;
   });
+}
+
+// ── Place and size (docs/work-specs/playout-adjustments/spec.md, phase 1) ─────────────────────
+// Every write of an `adjust` record goes through these three doors and `readAdjust`, so a record a
+// later build wrote is refused here with one wording. None of them touches air: the next Take or
+// Update carries the result (control/cueAdjust.ts).
+
+/** Write the graphic's default place and size: `patch` over its record, or remove it (null). */
+export function setGraphicAdjust(showId: string, graphicId: string, patch: AdjustPatch | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const graphic = show.graphics.find((g) => g.id === graphicId);
+    if (!graphic) return 'This graphic is no longer in the production.';
+    return writeAdjust(graphic, patch);
+  });
+}
+
+/** Write a cue's own exception: `patch` over its record, or remove it (null), which reveals the
+ *  graphic's default. */
+export function setCueAdjust(showId: string, cueId: string, patch: AdjustPatch | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue || cue.source === 'playout') return 'This cue is no longer in the production.';
+    return writeAdjust(cue, patch);
+  });
+}
+
+/** Make a cue's exception its graphic's default, in ONE write: the members the cue sets move onto
+ *  the graphic's record and leave the cue's. The other cues' own exceptions stay. */
+export function promoteCueAdjust(showId: string, cueId: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    const graphic = cue && show.graphics.find((g) => g.id === cue.sourceId);
+    if (!cue || !graphic) return 'This cue is no longer in the production.';
+    const own = readAdjust(cue.adjust);
+    if (own.status === 'read-only' || readAdjust(graphic.adjust).status === 'read-only') return ADJUST_READ_ONLY;
+    if (own.status !== 'ok') return false;
+    const { v: _v, ...members } = own.record;
+    const moved = writeAdjust(graphic, members);
+    if (typeof moved === 'string') return moved;
+    delete cue.adjust;
+    return true;
+  });
+}
+
+function writeAdjust(target: { adjust?: unknown }, patch: AdjustPatch | null): boolean | string {
+  if (patch === null) {
+    if (readAdjust(target.adjust).status === 'read-only') return ADJUST_READ_ONLY;
+    if (target.adjust === undefined) return false;
+    delete target.adjust;
+    return true;
+  }
+  const next = patchAdjust(target.adjust, patch);
+  if (typeof next === 'string') return next;
+  if (JSON.stringify(next ?? null) === JSON.stringify(target.adjust ?? null)) return false;
+  if (next) target.adjust = next as unknown as AdjustRecord;
+  else delete target.adjust;
+  return true;
 }
 
 /**
