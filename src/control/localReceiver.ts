@@ -46,8 +46,10 @@ ${looks ? `
   ${APPEARANCE_RUNTIME_JS}
   var look = null;
   // A row that changes the face: the template's fits measured the old one (a fit handed to
-  // document.fonts.ready ran once, at load), so once the new face is in, the same values go to
-  // update() again, a refit through the template's own code. A newer row wins.
+  // document.fonts.ready ran once, at load), so once the new face is in, the values on air go to
+  // update() again, a refit through the template's own code. MERGED, read when the face is in, never
+  // the row that asked: a row that arrived meanwhile (a score, the next cue) must not be undone.
+  // A newer face change takes the refit over.
   var typeNow = noacgApplyAppearance.typeOf(null);
   var typeSeq = 0;
   function refitAfter(m) {
@@ -56,9 +58,8 @@ ${looks ? `
     if (type === typeNow) return;
     typeNow = type;
     var seq = ++typeSeq;
-    var data = JSON.stringify(m.data || {});
     var loaded = noacgApplyAppearance.loaded(m.appearance);
-    if (loaded) loaded.then(function () { if (seq === typeSeq && typeof update === 'function') update(data); });
+    if (loaded) loaded.then(function () { if (seq === typeSeq && typeof update === 'function') update(JSON.stringify(merged)); });
   }
   function lookOf(m) {
     return m && m.t === 'update' && noacgApplyAppearance.readable(m.appearance) ? m.appearance : undefined;

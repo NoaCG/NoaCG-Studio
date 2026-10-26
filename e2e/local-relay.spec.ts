@@ -342,6 +342,16 @@ test('an adjusted production over the relay: the bake, the Take\'s place and siz
   await expect.poll(updates, { timeout: 6000, message: 'a face: the update, then the refit once it loaded' }).toBe(3);
   await air.waitForTimeout(800);
   expect(await updates(), 'and no more').toBe(3);
+  // The refit sends the values on air, never the row that asked: a value that arrives in the same
+  // poll as a face change is still on air once the face is in.
+  await ctl.evaluate(async ({ heading, ben }) => {
+    const post = (msg: unknown) => fetch('/relay/send', { method: 'POST', body: JSON.stringify({ graphic: 'Placed Strap', stream: 'program', msg }) });
+    await post({ t: 'update', data: { f1: 'Guest' }, appearance: { ...ben, vars: { 'font-heading': heading.replace('Bebas Neue', 'Oswald') } } });
+    await post({ t: 'update', data: { f1: 'Later' } });
+  }, { heading, ben: built.ben });
+  await expect(air.locator('#f1')).toHaveText('Later', { timeout: 6000 });
+  await air.waitForTimeout(1200);
+  await expect(air.locator('#f1'), 'the refit did not put the older value back').toHaveText('Later');
   // Back to the design's face for the steps below.
   await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
   await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toBe('');
