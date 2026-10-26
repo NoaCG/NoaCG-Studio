@@ -123,6 +123,9 @@ export class PanelClient {
 	#actionsNewer = false
 	/** Graphic actions that ran and have not said what they came to. */
 	#unsettled = new Map<string, number>()
+	/** What graphic actions came to, by press id, once said: a press whose own answers come late
+	 *  reads this rather than "no answer". Bounded like `#unsettled`. */
+	#settledSaid = new Map<string, string>()
 	#heardAt = 0
 	#counter = 0
 	#attempt = 0
@@ -423,6 +426,9 @@ export class PanelClient {
 				const seq = settled && this.#unsettled.get(settled.id)
 				if (!settled || seq === undefined) return
 				this.#unsettled.delete(settled.id)
+				this.#settledSaid.set(settled.id, settledSentence(settled))
+				for (const id of this.#settledSaid.keys())
+					if (this.#settledSaid.size > UNSETTLED_MAX) this.#settledSaid.delete(id)
 				// Settled means it ran: a press still waiting for a lost `result` takes this as it.
 				this.#waits.get(settled.id)?.({ v: PROTOCOL, id: settled.id, panel: '', outcome: 'ran' })
 				if (seq === this.#pressSeq) this.#lastPress = settledSentence(settled)
@@ -553,27 +559,30 @@ export class PanelClient {
 					tell(UNSETTLED_SENTENCE)
 					this.#opts.onChange?.()
 				}, SETTLE_MS)
-			if (!result) {
-				// No `result` heard: a graphic action's `settled` still says what it came to when it
-				// comes, so a lost acknowledgement never reads as a press that did nothing.
-				if (press.verb === ACTION_VERB && this.#unsettled.has(press.id)) awaitSettled()
-				return refused('No answer from the operator page')
-			}
-			// Only a press that ran settles; the rest are forgotten now.
-			if (result.outcome !== 'ran') {
-				this.#unsettled.delete(press.id)
-				return refused(outcomeSentence(result), result)
-			}
 			if (press.verb === ACTION_VERB) {
-				// Ran is dispatched, not done: the action says what it came to in `settled`, and one
-				// that already settled has said it.
-				if (this.#unsettled.has(press.id)) {
-					tell(RUNNING_SENTENCE)
-					awaitSettled()
+				// What a graphic action came to is `settled`'s to say, whenever it comes: before the
+				// press's own `result`, after the wait for it, or instead of a lost one.
+				const said = this.#settledSaid.get(press.id)
+				if (said !== undefined) {
+					this.#opts.onChange?.()
+					return { ok: true, sentence: said, ...(result ? { result } : {}) }
 				}
+				// A duplicate with no note is the answer to the one retry of a press that ran.
+				const ran = result?.outcome === 'ran' || (result?.outcome === 'duplicate' && !result.note)
+				if (result && !ran) {
+					this.#unsettled.delete(press.id)
+					return refused(outcomeSentence(result), result)
+				}
+				if (this.#unsettled.has(press.id)) awaitSettled()
+				// No `result` heard and nothing settled yet: say so; a `settled` that comes still says
+				// what it came to, so a lost acknowledgement never reads as a press that did nothing.
+				if (!result) return refused('No answer from the operator page')
+				tell(RUNNING_SENTENCE)
 				this.#opts.onChange?.()
 				return { ok: true, sentence: RUNNING_SENTENCE, result }
 			}
+			if (!result) return refused('No answer from the operator page')
+			if (result.outcome !== 'ran') return refused(outcomeSentence(result), result)
 			const sentence = outcomeSentence(result)
 			tell(sentence)
 			this.#opts.onChange?.()

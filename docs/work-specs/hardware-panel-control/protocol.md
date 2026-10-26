@@ -328,7 +328,7 @@ calls `panel_hello`, so a missed `actions` event is sent again (§7.1).
 | Field | Meaning |
 |---|---|
 | `actionsVer` | counts like `ver`, from the claim's million; a press names the one its key was drawn from |
-| `graphics[]` | every pool graphic with live controls; the target kind is the pool graphic, and `pinned` is presentation only |
+| `graphics[]` | every pool graphic with live controls; the target kind is the pool graphic, implied by the nesting (E6.2 adds an explicit one for a foreign action's preview or program instance), and `pinned` is presentation only |
 | `live` | the cue live on the graphic's layer (the instance a press names), or null off air |
 | `caps[].id` | `event:<event>`, `step:<field>` or `foreign:<action id>`; the only key a saved button is matched by |
 | `caps[].args` | the argument object's schema in E1's typed model (`src/model/ografTyped.ts` `TypedNode`), or null |

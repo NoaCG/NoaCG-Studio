@@ -365,3 +365,44 @@ test('a lost result does not cover what the action came to: settled before the t
 	assert.equal(late.panel.lastPress, 'Done')
 	assert.equal(late.relay.count('press'), 1)
 })
+
+test('a settled that arrives after the result wait but before a slow press call returns is what the press reads', async () => {
+	const { relay, clock, panel } = await answering()
+	relay.autoResult = null
+	const original = relay.press.bind(relay)
+	let release!: () => void
+	relay.press = async (key, press) => {
+		// The press call is slow: it returns only after the 1.5 s result wait.
+		await new Promise<void>((r) => (release = r))
+		return original(key, press)
+	}
+	const pressing = panel.pressAction('Scorebug', 'event:goal')
+	await settle()
+	await clock.advance(1_600)
+	relay.emit('settled', { av: 2, id: 'testinst:1', outcome: 'accepted' })
+	release()
+	const out = await pressing
+	assert.equal(out.ok, true)
+	assert.equal(out.sentence, 'Done')
+	assert.equal(panel.lastPress, 'Done')
+	assert.equal(panel.flash, null)
+})
+
+test('the retry of a press that ran, answered duplicate, keeps waiting for what it came to', async () => {
+	const { relay, panel } = await answering()
+	relay.autoResult = null
+	relay.pressAnswers.push(new Error('reset'))
+	const original = relay.press.bind(relay)
+	relay.press = async (key, press) => {
+		const answer = await original(key, press)
+		// The first attempt's `ran` was lost; the retry is answered `duplicate`, with no note.
+		if (relay.count('press') === 2)
+			queueMicrotask(() => relay.emit('result', { v: 1, id: press.id, panel: 'k1', outcome: 'duplicate' }))
+		return answer
+	}
+	const out = await panel.pressAction('Scorebug', 'event:goal')
+	assert.equal(out.ok, true)
+	assert.equal(panel.lastPress, 'Running on the graphic')
+	relay.emit('settled', { av: 2, id: 'testinst:1', outcome: 'accepted' })
+	assert.equal(panel.lastPress, 'Done')
+})
