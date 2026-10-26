@@ -66,6 +66,8 @@ changes a spec's digest.
     last render's offer stood between a replacement and the press (the /so on `2e514a4`).
   - *Ran is not done*: the module shows "Running on the graphic" after `result` and what `settled`
     says after; with no `settled` in 15 s it reads "Not confirmed" and the press is never sent again.
+    A `settled` stands for a lost `result` too, before or after the 1.5 s wait, so a confirmed +1
+    never reads as "no answer" and invites a second press (Codex P2 on `c8b6b69`).
   - *The offer is capped at 64 KiB of UTF-8* at whole graphics (`more` says so), well inside a
     Realtime broadcast; the module forgets an offer when it re-joins or loses the page. A cue the
     press names wins over the selection's in the dispatcher's hold (the /so on `64654e1`).

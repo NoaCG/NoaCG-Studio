@@ -339,3 +339,29 @@ test("a re-joined topic does not carry the last page's offer", async () => {
 	relay.emit('state', state())
 	assert.equal(panel.actions, null)
 })
+
+test('a lost result does not cover what the action came to: settled before the timeout, or after it', async () => {
+	// Settled arrives, the result never does: the press reads what it came to, never "no answer".
+	const early = await answering()
+	early.relay.autoResult = null
+	const original = early.relay.press.bind(early.relay)
+	early.relay.press = async (key, press) => {
+		const answer = await original(key, press)
+		queueMicrotask(() => early.relay.emit('settled', { av: 2, id: press.id, outcome: 'accepted' }))
+		return answer
+	}
+	const out = await early.panel.pressAction('Scorebug', 'event:goal')
+	assert.equal(out.ok, true)
+	await early.clock.advance(2_000)
+	assert.equal(early.panel.lastPress, 'Done')
+
+	// Neither comes in time: "no answer"; a settled after that still says what it came to.
+	const late = await answering()
+	late.relay.autoResult = null
+	const pressing = late.panel.pressAction('Scorebug', 'event:goal')
+	await late.clock.advance(1_500)
+	assert.equal((await pressing).sentence, 'No answer from the operator page')
+	late.relay.emit('settled', { av: 2, id: 'testinst:1', outcome: 'accepted' })
+	assert.equal(late.panel.lastPress, 'Done')
+	assert.equal(late.relay.count('press'), 1)
+})

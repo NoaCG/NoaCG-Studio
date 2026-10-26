@@ -423,6 +423,8 @@ export class PanelClient {
 				const seq = settled && this.#unsettled.get(settled.id)
 				if (!settled || seq === undefined) return
 				this.#unsettled.delete(settled.id)
+				// Settled means it ran: a press still waiting for a lost `result` takes this as it.
+				this.#waits.get(settled.id)?.({ v: PROTOCOL, id: settled.id, panel: '', outcome: 'ran' })
 				if (seq === this.#pressSeq) this.#lastPress = settledSentence(settled)
 				this.#opts.onChange?.()
 				return
@@ -542,21 +544,32 @@ export class PanelClient {
 				return refused(refusalSentence(code(answer.refused), answer.note))
 			}
 			const result = await answered
+			/** A graphic action that may still say what it came to: unsaid in SETTLE_MS, it is not
+			 *  confirmed. */
+			const awaitSettled = () =>
+				this.#clock.setTimeout(() => {
+					if (this.#unsettled.get(press.id) !== seq) return
+					this.#unsettled.delete(press.id)
+					tell(UNSETTLED_SENTENCE)
+					this.#opts.onChange?.()
+				}, SETTLE_MS)
+			if (!result) {
+				// No `result` heard: a graphic action's `settled` still says what it came to when it
+				// comes, so a lost acknowledgement never reads as a press that did nothing.
+				if (press.verb === ACTION_VERB && this.#unsettled.has(press.id)) awaitSettled()
+				return refused('No answer from the operator page')
+			}
 			// Only a press that ran settles; the rest are forgotten now.
-			if (result?.outcome !== 'ran') this.#unsettled.delete(press.id)
-			if (!result) return refused('No answer from the operator page')
-			if (result.outcome !== 'ran') return refused(outcomeSentence(result), result)
+			if (result.outcome !== 'ran') {
+				this.#unsettled.delete(press.id)
+				return refused(outcomeSentence(result), result)
+			}
 			if (press.verb === ACTION_VERB) {
 				// Ran is dispatched, not done: the action says what it came to in `settled`, and one
-				// that already settled has said it. Unsaid in SETTLE_MS, it is not confirmed.
+				// that already settled has said it.
 				if (this.#unsettled.has(press.id)) {
 					tell(RUNNING_SENTENCE)
-					this.#clock.setTimeout(() => {
-						if (this.#unsettled.get(press.id) !== seq) return
-						this.#unsettled.delete(press.id)
-						tell(UNSETTLED_SENTENCE)
-						this.#opts.onChange?.()
-					}, SETTLE_MS)
+					awaitSettled()
 				}
 				this.#opts.onChange?.()
 				return { ok: true, sentence: RUNNING_SENTENCE, result }
