@@ -525,6 +525,12 @@ function readCueTyped(cue: { typed?: unknown }): TypedRead {
   return read.status === 'ok' && read.envelope.kind !== 'values' ? { status: 'read-only', reason: UNREADABLE } : read;
 }
 
+/** A values envelope this build reads, or null (absent, an action, or read-only). */
+export function typedValuesOf(raw: unknown): TypedValues | null {
+  const read = readTypedEnvelope(raw);
+  return read.status === 'ok' && read.envelope.kind === 'values' ? read.envelope : null;
+}
+
 /** Whether a cue's typed data is one this build cannot read: the whole cue is then read-only. */
 export function typedReadOnly(cue: { typed?: unknown }): boolean {
   return readCueTyped(cue).status === 'read-only';
@@ -904,8 +910,7 @@ export function typedForSend(
   if (read.status === 'absent') return { status: 'none' };
   if (read.status === 'read-only') return { status: 'refused', reason: readOnlyWords(read.reason) };
   const envelope = read.envelope as TypedValues;
-  const fault = typedValuesFault(declared, envelope);
-  if (fault) return { status: 'refused', reason: fault };
+  if (declared.status !== 'ok' || !declared.fields) return { status: 'refused', reason: 'This cue’s graphic takes no typed data.' };
   const values: TypedValues['values'] = {};
   for (const key of Object.keys(envelope.values)) put(values, key, envelope.values[key]);
   for (const [key, got] of bound) {

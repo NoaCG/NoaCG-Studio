@@ -27,7 +27,7 @@ import {
 } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
-import { migrateToTyped, nativeOf, readOgrafDeclared, readTypedEnvelope, typedFrozen, typedKeep, typedReadOnly, type TypedReceipt, type TypedValues } from './ografTyped';
+import { migrateToTyped, nativeOf, readOgrafDeclared, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedReceipt, type TypedValues } from './ografTyped';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
@@ -1448,9 +1448,9 @@ export function setCueTyped(
     if (typedReadOnly(cue)) return { error: 'This cue’s typed data was saved by another version of NoaCG, so it is read-only here.' };
     if (!on) {
       if (cue.typed === undefined) return null;
-      const read = readTypedEnvelope(cue.typed);
-      if (read.status !== 'ok' || read.envelope.kind !== 'values') return { error: 'This cue’s typed data cannot be read.' };
-      return { typed: null, values: { ...cue.values, ...nativeOf(read.envelope) }, receipt: null };
+      const envelope = typedValuesOf(cue.typed);
+      if (!envelope) return { error: 'This cue’s typed data cannot be read.' };
+      return { typed: null, values: { ...cue.values, ...nativeOf(envelope) }, receipt: null };
     }
     if (cue.typed !== undefined) return null;
     const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);

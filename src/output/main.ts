@@ -248,6 +248,8 @@ async function boot(): Promise<void> {
    *  cue's values. `airing`: graphics whose data on air is an envelope's (E1.2a). */
   const typed = { held: new Map<string, string>(), airing: new Set<string>() };
   const typedRefused = typed.held;
+  /** Held or airing typed data: either way, no report banks it (see `scheduleReport`). */
+  const typedHolds = (graphic: string) => typed.held.has(graphic) || typed.airing.has(graphic);
   const withRefusals = (): ReadonlyMap<string, GraphicCheck> => {
     if (typedRefused.size === 0) return checks;
     const merged = new Map(checks);
@@ -587,7 +589,7 @@ async function boot(): Promise<void> {
           // a report scheduled before the hold banks nothing either. A TYPED one neither (E1.2a):
           // a report banks native strings, so its bank stays before its first typed row and a
           // reboot replays the envelopes from the log (E1.2b owns a typed baseline).
-          if (typedRefused.has(graphic) || typed.airing.has(graphic)) {
+          if (typedHolds(graphic)) {
             forcedReports.delete(graphic);
             return;
           }
@@ -833,7 +835,7 @@ async function boot(): Promise<void> {
         for (const [graphic, at] of bankedAt) {
           // A catch-up replays rows from the oldest bank; rows before this graphic's do not count.
           // A held graphic keeps its bank where it is (see the report above).
-          if (seq <= at || typedRefused.has(graphic) || typed.airing.has(graphic)) continue;
+          if (seq <= at || typedHolds(graphic)) continue;
           const since = (sinceBank.get(graphic) ?? 0) + 1;
           sinceBank.set(graphic, since);
           if (since < REBANK_AFTER) continue;

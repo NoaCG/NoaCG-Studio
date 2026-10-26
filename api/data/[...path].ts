@@ -40,6 +40,7 @@ import { dataTickOn } from '../_lib/systemSettings.js';
 import { cappedFetch, cronAuthorized, descriptorsOf, runDataTick, TICK_OWNER, type DueSource, type PanelField } from '../_lib/dataTick.js';
 import { parseSourceEnvelope, readExternalRegistration, SOURCE_BODY_BYTES, SOURCE_LEASE_MS, type SourceEnvelope } from '../../src/control/externalSource.js';
 import { projectSource } from '../../src/control/sourceMapping.js';
+import { sourcePrefix } from '../../src/model/productionData.js';
 
 /** Field values, not uploads: a whole scoreboard of labels fits in a few hundred bytes. */
 const MAX_BODY_BYTES = 16_384;
@@ -464,7 +465,7 @@ async function source(req: Request): Promise<Response> {
         // value. The text goes on as before; the typed values wait, and the agent is told so.
         const message = error instanceof Error ? error.message : String(error);
         if (!projection || typedPaths.length === 0 || !message.includes('not a source report')) throw error;
-        const prefix = `external.${envelope.sourceId}.`;
+        const prefix = `${sourcePrefix(envelope.sourceId, 'external')}.`;
         for (const path of typedPaths) {
           const leaf = path.slice(prefix.length);
           projection.problems[leaf] = TYPED_WAITS;

@@ -61,7 +61,7 @@ import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSend
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 import { SHARED_NOT_MOVED, changedNote, offAirNote, unheldNote } from './liveControls.ts';
-import { typedSendRefusal, type TypedSend } from '../model/ografTyped.ts';
+import { typedSendRefusal, type TypedSend, type TypedValues } from '../model/ografTyped.ts';
 import type { PressDone } from './panelActions';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
@@ -701,10 +701,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // Bound fields come from the LIVE tree, not from what this cue stored when it was prepared
     // (plan §2.7): otherwise taking an old cue would re-air a stale score. A typed cue's data is its
     // envelope's, bound values included, and its native `data` is empty.
-    const values = typed.status === 'ok' ? {} : { ...p.cueView(cue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
+    const { data: values, typed: envelope } = sendData(p, cue, graphic, selection, typed);
     // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
     const captured = p.selectionAired(graphic, cue.id, selection, true);
-    const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...(typed.status === 'ok' ? { typed: typed.typed } : {}), ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
+    const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
     if (!sent.ok) {
       captured.undo(sent);
       return { ok: false, note: sent.note };
@@ -762,13 +762,20 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       return;
     }
     // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
-    const data = typed.status === 'ok' ? {} : { ...p.cueView(editingCue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
+    const { data, typed: envelope } = sendData(p, editingCue, graphic, selection, typed);
     const captured = p.selectionAired(graphic, editingCue.id, selection);
-    const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data, ...(appearance ? { appearance } : {}), ...(typed.status === 'ok' ? { typed: typed.typed } : {}) } }]], 'Update');
+    const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data, ...(appearance ? { appearance } : {}), ...envelope } }]], 'Update');
     if (!sent.ok) s.note(sent.note);
     if (sent.ok && reachedOutput(sent, graphic)) captured.landed();
     else captured.undo(sent.ok ? undefined : sent);
   };
+
+  /** What a Take or an Update puts in its update: the cue's values with the live tree and its
+   *  live candidate over them, or for a typed cue its envelope beside empty native data. */
+  const sendData = (p: GraphicPage, cue: ShowCue, graphic: string, selection: SelectionTake, typed: TypedSend): { data: Record<string, string>; typed: { typed?: TypedValues } } =>
+    typed.status === 'ok'
+      ? { data: {}, typed: { typed: typed.typed } }
+      : { data: { ...p.cueView(cue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) }, typed: {} };
 
   /** What a Take or an Update sends for a cue's typed data: the page's answer, or, on a page that
    *  sends none, a refusal for a cue that carries it (its native strings are not its data). */
