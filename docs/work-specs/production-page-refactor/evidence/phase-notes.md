@@ -88,9 +88,17 @@ changes a spec's digest.
     render it was pressed from, which can be seconds older behind a held save.
   - *PREVIEW changes for every production*: a 720p or portrait graphic in a 1080p production now
     sits at the stage origin on PREVIEW as it does on PROGRAM and the output, where it was centred.
+  - *A Take of a placed cue nothing has measured yet* (just after a reload, a timed-out background
+    measure) has the measurer take that cue first and waits for it, capped at 2 s
+    (`createMeasurer().now`); the verbs wait only when the page answers a promise, so a press with
+    nothing to measure gains no turn. A timed next cue does not wait (the background measurer has
+    usually measured it); it resolves with what the session holds.
+  - *A resolve while commands were applied here* keeps the looks this page believes are applied, as
+    the rows after the reports are dropped then too.
   - *Publish and a cue never measured:* Publish measures every adjusted cue of the copy it publishes
     (capped 8 s). A cue whose document cannot be measured (it answers nothing) publishes its nudge
-    and size about the frame's anchor point, without its preset.
+    and size about the frame's anchor point, without its preset. The hosted page's placements are
+    those of the last Publish, as its cue values are.
 - **Not built (outside the narrowed gate):** the rundown row glyph for an adjusted cue (the
   summary line names it instead); the "placed right, left-aligned" note; the pack install dialog's
   line; receivers, bakes and the exported controller (row 32c).

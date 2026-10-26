@@ -92,6 +92,9 @@ export function createMeasurer(
   },
 ) {
   let wanted = new Map<string, MeasureJob>();
+  /** Cues a press waits on: measured before anything else. */
+  const urgent = new Set<string>();
+  const waiters = new Set<(cueId: string) => void>();
   let running: MeasureJob | null = null;
   let idle: (() => void)[] = [];
   const settleIdle = () => {
@@ -103,7 +106,7 @@ export function createMeasurer(
   const due = (job: MeasureJob) => part.get().byCue[job.cueId]?.id !== job.id;
   const next = () => {
     if (running || !alive()) return settleIdle();
-    const job = [...wanted.values()].find(due);
+    const job = [...wanted.values()].find((j) => urgent.has(j.cueId) && due(j)) ?? [...wanted.values()].find(due);
     if (!job) return settleIdle();
     running = job;
     void io
@@ -112,8 +115,11 @@ export function createMeasurer(
       .then((m) => {
         running = null;
         if (m && alive() && wanted.get(job.cueId)?.id === job.id) part.set(measured(part.get(), job.cueId, job.graphicId, job.id, m));
-        // A cue the document could not measure is not asked again for the same identity.
+        // A cue the document could not measure is not asked again for the same identity, unless a
+        // press asks for it (`now`).
         if (!m && wanted.get(job.cueId)?.id === job.id) wanted.delete(job.cueId);
+        urgent.delete(job.cueId);
+        for (const wake of [...waiters]) wake(job.cueId);
         next();
       });
   };
@@ -122,6 +128,28 @@ export function createMeasurer(
       wanted = new Map(jobs.map((j) => [j.cueId, j] as const));
       next();
     },
+    /**
+     * A PRESS THAT NEEDS THIS CUE'S BOX NOW (a Take of a cue with a preset and no measurement yet):
+     * measured before every other cue, answering once it has a measurement for this identity, the
+     * attempt ended, or `capMs` passed, whichever is first. The press then resolves with what the
+     * session holds, never with nothing when a measurement could be had.
+     */
+    now: (job: MeasureJob, capMs: number): Promise<void> =>
+      new Promise((resolve) => {
+        if (!due(job)) return resolve();
+        const wake = (finished: string | null) => {
+          // Another cue's attempt ended: this one's is still coming.
+          if (finished !== null && finished !== job.cueId && due(job)) return;
+          waiters.delete(wake);
+          timers.clearTimeout(timer);
+          resolve();
+        };
+        const timer = timers.setTimeout(() => wake(null), capMs);
+        waiters.add(wake);
+        wanted = new Map([[job.cueId, job], ...[...wanted].filter(([id]) => id !== job.cueId)]);
+        urgent.add(job.cueId);
+        next();
+      }),
     /** Answers once nothing is queued or running, or after `capMs`, whichever is first. */
     drain: (capMs: number): Promise<void> =>
       new Promise((resolve) => {

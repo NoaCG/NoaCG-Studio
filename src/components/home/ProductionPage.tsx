@@ -443,6 +443,8 @@ const NO_LOOKS: AppliedLooks = {};
 const PLACE_UNSENT = '@place';
 /** How long Publish waits for the adjusted cues to be measured. */
 const PUBLISH_MEASURE_CAP_MS = 8_000;
+/** How long a Take waits for the box of a placed cue nothing has measured yet. */
+const TAKE_MEASURE_CAP_MS = 2_000;
 const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
 /** What the background measurer composes for one cue. */
 interface MeasureInput {
@@ -2678,7 +2680,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     cueView,
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
     // Read after the wait (this object is the render's): the place and size a Take or Update carries.
-    appearanceOf: (cue) => adjustStateOf(cuesRef.current.find((c) => c.id === cue.id) ?? cue)?.send,
+    // A cue with a preset and no measurement of its own yet is measured first, capped, so the Take
+    // airs its placement rather than one without the preset.
+    appearanceOf: (taken) => {
+      const cue = cuesRef.current.find((c) => c.id === taken.id) ?? taken;
+      const state = adjustStateOf(cue);
+      const record = latestShow.current;
+      if (!state?.eff.place || session.geometry.get().byCue[cue.id] || !record) return state?.send;
+      const job = measureJobs(record).find((j) => j.cueId === cue.id);
+      return job ? measurer.now(job, TAKE_MEASURE_CAP_MS).then(() => adjustStateOf(cue)?.send) : state.send;
+    },
     flush: async () => {
       await flushDraft(); await history.closeGroup();
     },

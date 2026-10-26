@@ -271,6 +271,19 @@ test('a re-resolve takes each report as the renderer\'s word: a report with no a
   assert.equal(rebuilt.items[0].msg.appearance, undefined);
 });
 
+test('a command applied while the read was out keeps what this page believes is applied', () => {
+  const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+  const seeded = seedFromResolve(
+    { ...NO_AIR, looks: { L3: look }, commands: 1 },
+    { liveCue: { L3: 'c1' }, live: { L3: { data: {}, state: {}, event: 5 } } },
+    [],
+    { moves: 0, commands: 0 },
+    [{ id: 'c1', values: {} }],
+    { clocks: new Map(), pairs: new Map() },
+  );
+  assert.deepEqual(seeded.looks.L3, look, 'the older report does not clear it');
+});
+
 describe('measurements: identified and qualified', () => {
   test('one qualify rule for both measurers: agree, ask again, or give up after three', () => {
     const a = { info: { x: 0, y: 0, w: 100, h: 10 }, paint: null, minText: 20 };
@@ -313,6 +326,34 @@ describe('measurements: identified and qualified', () => {
     assert.equal(G.placeWaiting({ send: look }, undefined), true);
     assert.equal(G.placeWaiting({ send: A.IDENTITY }, look), true, 'a reset waits too');
     assert.equal(G.placeWaiting({ send: A.IDENTITY }, undefined), false);
+  });
+
+  test('a Take of a placed cue nothing measured yet is measured first, and waits only so long', async () => {
+    const part = storePart(G.NO_GEOMETRY);
+    const asked = [];
+    const answers = new Map();
+    const measurer = G.createMeasurer(part, {
+      measure: (input) => {
+        asked.push(input);
+        return new Promise((resolve) => answers.set(input, () => resolve(strap())));
+      },
+    });
+    // Three cues waiting; the first is being measured when the Take of the third arrives.
+    measurer.want(['a', 'b', 'c'].map((id) => ({ cueId: id, graphicId: 'g', id: `${id}1`, input: id })));
+    let done = false;
+    const taking = measurer.now({ cueId: 'c', graphicId: 'g', id: 'c1', input: 'c' }, 1000).then(() => (done = true));
+    answers.get('a')();
+    await new Promise((r) => setTimeout(r, 0));
+    assert.deepEqual(asked, ['a', 'c'], 'the Take\'s cue goes before b');
+    assert.equal(done, false, 'another cue\'s answer does not release it');
+    answers.get('c')();
+    await taking;
+    assert.equal(part.get().byCue.c.id, 'c1');
+    // A document that never answers holds a Take for the cap only.
+    const stuck = G.createMeasurer(storePart(G.NO_GEOMETRY), { measure: () => new Promise(() => {}) });
+    const t = Date.now();
+    await stuck.now({ cueId: 'x', graphicId: 'g', id: 'x1', input: 1 }, 40);
+    assert.ok(Date.now() - t < 1000);
   });
 
   test('Publish waits for the measurer only so long', async () => {

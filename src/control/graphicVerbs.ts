@@ -131,8 +131,9 @@ export interface GraphicPage {
   /** One graphic's bound values from the render's resolution, the one PREVIEW reads. */
   resolvedOf: (graphic: string) => Record<string, string>;
   /** The place and size a Take or a full Update of the cue carries (./cueAdjust.ts
-   *  `appearanceToSend`), read after the wait; absent or undefined, the update carries none. */
-  appearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined;
+   *  `appearanceToSend`), read after the wait; absent or undefined, the update carries none. A
+   *  promise when the cue's box is still being measured (capped by the page). */
+  appearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined | Promise<AppliedAppearance | undefined>;
   /** Save the typed draft (`cueDraft.flush`) and close the history group. */
   flush: () => Promise<void>;
   /** A graphic's bound fields, field key to tree path. */
@@ -667,6 +668,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
   const takeOn = async (s: VerbSender, p: GraphicPage, cue: ShowCue, graphic: string, label: string, direct: boolean): Promise<GraphicTake> => {
     await p.flush();
+    // Waited for only when the page answers a promise (a box still being measured): a page with
+    // nothing to measure adds no turn to the press.
+    const pending = p.appearanceOf?.(cue, graphic);
+    const appearance = pending instanceof Promise ? await pending : pending;
     // A live candidate resolves whole from one revision, or the cue is not taken: an unknown B
     // never airs B's prepared values, or A's (E7.1).
     const selection = p.selectionFor(cue, graphic);
@@ -676,7 +681,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const values = { ...p.cueView(cue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
     // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
     const captured = p.selectionAired(graphic, cue.id, selection, true);
-    const appearance = p.appearanceOf?.(cue, graphic);
     const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
     if (!sent.ok) {
       captured.undo(sent);
@@ -720,6 +724,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
   const updateOn = async (s: VerbSender, p: GraphicPage, editingCue: ShowCue, graphic: string) => {
     await p.flush();
+    const pending = p.appearanceOf?.(editingCue, graphic);
+    const appearance = pending instanceof Promise ? await pending : pending;
     // An explicit Update may move the aired cue to the selection it now has, only once that whole
     // replacement resolves; refused, the layer keeps what it airs and follows (E7.1).
     const selection = p.selectionFor(editingCue, graphic);
@@ -730,7 +736,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
     const data = { ...p.cueView(editingCue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
     const captured = p.selectionAired(graphic, editingCue.id, selection);
-    const appearance = p.appearanceOf?.(editingCue, graphic);
     const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data, ...(appearance ? { appearance } : {}) } }]], 'Update');
     if (!sent.ok) s.note(sent.note);
     if (sent.ok && reachedOutput(sent, graphic)) captured.landed();

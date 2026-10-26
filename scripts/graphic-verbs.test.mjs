@@ -728,6 +728,21 @@ test('Take and Update carry the place and size read after the wait; without one 
   await plain;
 });
 
+test('a Take waits for a box still being measured, then carries the placement it gives', async () => {
+  const placed = { v: 1, frame: { dx: 1270, dy: 0, s: 1, ox: 530, oy: 961 } };
+  const r = rig();
+  let measuredNow;
+  r.page.appearanceOf = () => new Promise((resolve) => (measuredNow = () => resolve(placed)));
+  const taking = r.verbs.take(graphicCue('c1', 'Strap', { f0: 'A' }));
+  await settle();
+  assert.equal(r.sends.length, 0, 'nothing goes while the box is measured');
+  measuredNow();
+  await settle();
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0]).msg.appearance, placed);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+});
+
 test('Update of a cue not on air sends nothing; a server cue updates through the server verb while it is up', async () => {
   const r = rig();
   await r.verbs.update(sel({ editingCue: graphicCue('c1', 'Strap'), selectedGraphic: 'Strap', editingIsLive: false }));

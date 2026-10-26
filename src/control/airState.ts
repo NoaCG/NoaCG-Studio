@@ -235,9 +235,10 @@ export function seedFromResolve(
     if (Object.keys(values).length > 0) seed[graphic] = values;
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
+  // A command applied here while the read was out is newer than every report: the looks stay.
   let looks: AppliedLooks = { ...(air.looks ?? {}) };
   // A report is the renderer's word for its graphic: no appearance in it clears an older entry.
-  for (const [graphic, report] of Object.entries(resolved.live)) {
+  if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
     const look = reportedLook(report);
     if (look) looks = { ...looks, [graphic]: look };
     else if (graphic in looks) {
