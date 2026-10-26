@@ -49,7 +49,9 @@ changes a spec's digest.
     the swapper) is given the typed values it airs (`heldData`, Codex P1 on `ab0c8c9`). Every stage
     applies the same rule, the page's PROGRAM monitor included, and the page rebuilds PROGRAM with
     the envelope it aired (`AirPart.typedAired`, `typedAfter`, `restoreItems`; Codex P2 on
-    `6e0ac4f`). A data road's native update (`src`) on a
+    `6e0ac4f`). A page opened after a typed Take folds the boot's rows into that envelope, since
+    the graphic never reported (`seedFromResolve`, Codex P2 on `6999549`). A data road's native
+    update (`src`) on a
     typed graphic moves its look only, never its data; an operator's native update (a native cue
     taken on that layer) ends typed mode.
   - *E5's typed values* (the route's half of the adapter, `projectSource`): a bound leaf that only
@@ -132,7 +134,8 @@ changes a spec's digest.
   both fixed (the swapper's typed values; the decision moved to `src/control/`); on `6e0ac4f`: two
   P2, both fixed (PROGRAM's data-road rule; PROGRAM's rebuild); on `bd818da`: one P2, fixed (the
   page's own dispatch leaves out a graphic by what was last applied to it, `withoutTypedAir`, not
-  by its cue's switch). /so on `ab0c8c9`: AGREE WITH
+  by its cue's switch); on `6999549`: one P2, fixed (a page opened after a typed Take seeds the
+  envelope from the boot's rows). /so on `ab0c8c9`: AGREE WITH
   CORRECTIONS, Assessment A (two wrong comments in `ografTyped.ts`, fixed); on `6e0ac4f`: AGREE
   WITH CORRECTIONS, Assessment A (the silent legacy `/update` on a typed graphic, named above).
   The verdict on the final head is in the pull request.

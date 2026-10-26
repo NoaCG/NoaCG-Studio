@@ -36,7 +36,7 @@ const {
 const { takeCueItems } = await import('../src/control/cueItems.ts');
 const { readLiveEntry } = await import('../src/control/livePath.ts');
 const { typedSendFor, createTypedSendMemo } = await import('../src/control/typedSend.ts');
-const { rememberAired, restoreItems, typedAfter, withoutTypedAir } = await import('../src/control/airState.ts');
+const { airAtRequest, rememberAired, restoreItems, seedFromResolve, typedAfter, withoutTypedAir } = await import('../src/control/airState.ts');
 const { NO_AIR } = await import('../src/control/playoutSession.ts');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -332,6 +332,15 @@ test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\
   const resolved = { Board: { round: '3' }, Strap: { f0: 'x' } };
   assert.deepEqual(withoutTypedAir(resolved, air.typedAired), { Strap: { f0: 'x' } });
   assert.equal(withoutTypedAir(resolved, {}), resolved);
+  // A page opened after a typed Take: the graphic never reported, so the boot's rows are its only
+  // word; the seed folds them, the rebuild airs the envelope and the dispatch leaves it out.
+  const specs = { clocks: new Map(), pairs: new Map() };
+  const boot = { ...NO_AIR };
+  const rows = [{ graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }, { graphic: 'Gone', msg: typedUpdate }];
+  const seeded = seedFromResolve(boot, { liveCue: { Board: 'c1' }, live: {} }, rows, airAtRequest(boot), [{ id: 'c1', values: { round: '2' } }], specs);
+  assert.deepEqual(seeded.typedAired, { Board: envelope() }, 'only a live layer keeps an envelope');
+  assert.deepEqual(restoreItems(seeded, {}, specs).items, [{ graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }]);
+  assert.deepEqual(withoutTypedAir(resolved, seeded.typedAired), { Strap: { f0: 'x' } });
   // Every stage, the page's monitors included, applies the same rule as the output's gate.
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
   assert.match(stage, /if \(\(msg as \{ src\?: unknown \}\)\.src !== undefined\) dataless = true;/);

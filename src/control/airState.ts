@@ -77,7 +77,9 @@ export function withoutTypedAir<T extends Record<string, unknown>>(resolved: T, 
 /**
  * The typed envelope a graphic airs after one command (E1.2a), by the output's own rule
  * (model/ografTyped.ts `typedOutputGate`): a values update airs its envelope; a data road's native
- * update (`src`) leaves it; an operator's native update replaces it; an Out ends it.
+ * update (`src`) leaves it; an operator's native update replaces it. An Out ends it here, where it
+ * only rebuilds PROGRAM and holds back the page's dispatch, and nothing is on air to need either;
+ * the output's gate keeps the mark through an Out until the next native operator update.
  */
 export function typedAfter(prev: Record<string, TypedValues>, graphic: string, msg: ControlSendItem['msg']): Record<string, TypedValues> {
   if (msg.t === 'update') {
@@ -274,12 +276,17 @@ export function seedFromResolve(
     }
   }
   looks = replay.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), looks);
+  // The envelopes the rows leave on air (E1.2a): a graphic airing typed data never reports, so its
+  // rows are its only word. Only a live layer keeps one.
+  const folded = replay.reduce<Record<string, TypedValues>>((next, item) => typedAfter(next, item.graphic, item.msg), air.typedAired ?? {});
+  const typedAired = Object.fromEntries(Object.entries(folded).filter(([graphic]) => resolved.liveCue[graphic]));
   return {
     ...moveLiveCue(air, resolved.liveCue),
     aired: { ...air.aired, ...seed },
     looks,
     clocks,
     speaking,
+    typedAired,
     bootReplay: replay,
     bootLive: resolved.liveCue,
   };
