@@ -26,6 +26,7 @@
 // disagree about a graphic's controls.
 
 import type { EmittedGraphic } from './controlPanelHtml';
+import type { AppliedAppearance } from './cueAdjust';
 import {
   OVERFLOW_FIELD_HINT,
   OVERFLOW_FIELD_MARK,
@@ -48,6 +49,10 @@ export interface EmittedCue {
   graphic: string;
   values: Record<string, string>;
   note: string;
+  /** Place and size (docs/work-specs/playout-adjustments/spec.md, phase 1b), resolved at export:
+   *  what this cue's Take and ✎ Update carry on the relay. Absent for a graphic nobody adjusted,
+   *  whose rows then carry none (rule 2). */
+  appearance?: AppliedAppearance;
 }
 
 export interface ControllerPayload {
@@ -578,6 +583,14 @@ function cueValues(cue) {
   for (var k2 in d) out[k2] = String(d[k2]);
   return out;
 }
+// The cue's whole value set, and its place and size when the production holds any: what a Take,
+// ✎ Update and a PREVIEW refresh send. The ± road and a clock row send data alone, which keeps
+// the applied appearance (rule 1).
+function cueUpdate(cue) {
+  var msg = { t: 'update', data: cueValues(cue) };
+  if (cue.appearance) msg.appearance = cue.appearance;
+  return msg;
+}
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 // A value going into a quoted ATTRIBUTE inside innerHTML needs the quote escaped as well —
 // esc() is for text nodes, and a graphic named 6" Rule would end the attribute early.
@@ -935,7 +948,7 @@ function takeTo(stream) {
     }
   }
   items.push(
-    { graphic: cue.graphic, stream: stream, msg: { t: 'update', data: cueValues(cue) } },
+    { graphic: cue.graphic, stream: stream, msg: cueUpdate(cue) },
     { graphic: cue.graphic, stream: stream, msg: { t: 'play' } },
     { graphic: cue.graphic, stream: stream, msg: { t: 'cue', cue: cue.id } },
   );
@@ -945,7 +958,7 @@ function takeTo(stream) {
 function updateLive() {
   var cue = cueById(selectedId);
   if (!cue || pgmLive[cue.graphic] !== cue.id) return;
-  send([{ graphic: cue.graphic, stream: 'program', msg: { t: 'update', data: cueValues(cue) } }]);
+  send([{ graphic: cue.graphic, stream: 'program', msg: cueUpdate(cue) }]);
   feed('✎ Update: ' + cue.label);
 }
 function nextLive() {
@@ -1279,7 +1292,7 @@ function paintEditor() {
       // that is on both streams (the usual case after a Take) shows the staged version on PVW
       // and the aired one on PGM — which is what makes the pair worth having.
       if (pvwLive[cue.graphic] === cue.id) {
-        send([{ graphic: cue.graphic, stream: 'preview', msg: { t: 'update', data: cueValues(cue) } }]);
+        send([{ graphic: cue.graphic, stream: 'preview', msg: cueUpdate(cue) }]);
       }
     };
     // THE ONE DATA WRITE THAT AIRS IMMEDIATELY (docs/PLAYOUT_DASHBOARD.md §7c): a −/+ press on

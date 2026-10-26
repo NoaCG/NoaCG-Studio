@@ -8,6 +8,7 @@
 import JSZip from 'jszip';
 import type { SpxField, SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
+import { bakeAppearance } from '../../control/appearanceRuntime';
 import { slug } from '../../model/slug';
 import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget } from '../registry';
@@ -101,7 +102,7 @@ export const h2rTarget: ExportTarget = {
   description:
     'One self-contained .html for H2R\'s Custom HTML graphic type — fields become editable H2R inputs (embedded GDD), on/off drives the entrance and exit.',
   successMessage: '✓ Exported. Add the .html as an H2R Custom HTML graphic (see README.md).',
-  async build(template) {
+  async build(template, ctx) {
     const zip = new JSZip();
     const name = slug(template.name);
     const root = zip.folder(name)!;
@@ -112,7 +113,7 @@ export const h2rTarget: ExportTarget = {
         ? template.html.replace(/<\/head>/i, `${gddScript(template)}</head>`)
         : gddScript(template) + template.html,
     };
-    root.file(`${name}.html`, await composeSelfContainedHtml(withGdd, [{ id: 'noacg-h2r-toggle', js: H2R_TOGGLE_SHIM }]));
+    root.file(`${name}.html`, await composeSelfContainedHtml(withGdd, [{ id: 'noacg-h2r-toggle', js: H2R_TOGGLE_SHIM }, ...bakeAppearance(ctx?.appearance)]));
     root.file('README.md', h2rReadme(template));
     root.file(
       'FIELDS.md',

@@ -399,10 +399,24 @@ test('a press left without a road when its wait ends never retries by row id (#1
 test('a re-ask nobody answered leaves the production to be asked again (#1697)', async ({ page }) => {
   test.setTimeout(90_000);
   let answer: 'none' | 'stall' | 'exists' = 'none';
-  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) =>
-    rpc !== 'control_show_resolve' || answer === 'exists' ? null : answer === 'stall' ? { delay: 30_000 } : { status: 200, body: null },
-  );
+  let stalled = 0;
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => {
+    if (rpc !== 'control_show_resolve' || answer === 'exists') return null;
+    if (answer === 'stall') {
+      stalled += 1;
+      return { delay: 30_000 };
+    }
+    return { status: 200, body: null };
+  });
   const showId = page.url().split('/production/')[1];
+  // Only a production the page was told is missing gets asked again by a press, so the page must
+  // have taken a "no such production" answer before the press. Its own first resolve is no proof
+  // of that: the stand-in can have answered while the page has not yet read it (merge-group run
+  // 40294074273, #1742). Ask once here and await the answer inside the page.
+  await page.evaluate(async () => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    await controlShowBySlug('status-slug');
+  });
   const press = (t: 'play' | 'stop') =>
     page.evaluate(
       async ({ showId, t }) => {
@@ -413,6 +427,7 @@ test('a re-ask nobody answered leaves the production to be asked again (#1697)',
     );
   answer = 'stall';
   await press('play');
+  expect(stalled, 'the press asked again and nobody answered').toBeGreaterThan(0);
   answer = 'exists';
   await press('stop');
   expect(sendsSeq(), 'the next press asked again and went numbered').toBeGreaterThan(0);
@@ -2436,19 +2451,28 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await expect.poll(() => look('program')).toBeNull();
   await expect(program).toHaveAttribute('data-plays', '1');
 
-  // The export dialog says place and size are not in a package, only while the production has any.
+  // Every package carries each graphic's place and size (phase 1b); a cue's own exception travels
+  // only with the overlay package's controller, so the dialog says so for the other targets, and
+  // only while a cue has one.
   const exportDialog = async () => {
     await page.getByTestId('production-setup').click();
     await page.getByTestId('export-production').click();
     await expect(page.getByTestId('production-export-dialog')).toBeVisible();
+    await page.getByTestId('prod-target-casparcg').check();
   };
-  await exportDialog();
-  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
-  await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
   await page.getByTestId('adjust-smaller').click();
   await expect(page.getByTestId('adjust-size')).toHaveValue('95');
   await exportDialog();
-  await expect(page.getByTestId('prod-export-adjust')).toContainText('not in any package');
+  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
+  await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-place-bl').click();
+  await expect(summary).toHaveText(/only this cue · bottom-left/);
+  await exportDialog();
+  await expect(page.getByTestId('prod-export-adjust')).toContainText('only in the HTML overlay package');
+  await page.getByTestId('prod-target-html-overlay').check();
+  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
 });
 
 /**
