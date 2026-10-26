@@ -137,6 +137,21 @@ const drawn = ({ text = '', moments = '', board = '' }) =>
   (moments ? `<g id="Moments">${moments}</g>` : '') +
   `<g id="Text">${text}</g></svg>`;
 
+test('switches and choices require complete explicit names and hidden groups', () => {
+  const src = drawn({
+    text: '<text id="Title" x="100" y="100">Show</text>',
+    moments: '<g data-name="show:Sponsor" display="none"><rect width="10" height="10"/></g>' +
+      '<g data-name="choice:Status/Live" display="none"><rect width="10" height="10"/></g>' +
+      '<g data-name="choice:Status/Replay" display="none"><rect width="10" height="10"/></g>',
+  });
+  assert.deepEqual(audit(src), []);
+  caught(audit(src.replace('data-name="show:Sponsor" display="none"', 'data-name="show:Sponsor"')), 'moments', /must be a hidden group/);
+  caught(audit(src.replace('choice:Status/Replay', 'choice:Other/Replay')), 'moments', /draw two to twelve/);
+  caught(audit(src.replace('choice:Status/Replay', 'choice:Status/Live')), 'moments', /duplicated/);
+  caught(audit(src.replace('show:Sponsor', 'show:')), 'moments', /not a moment NoaCG knows/);
+  caught(audit(src.replace('choice:Status/Live', 'choice:Status/')), 'moments', /not a moment NoaCG knows/);
+});
+
 test('what the system allows is not refused: taught moments, behaviour plates, shadows, frames', () => {
   // A survey's strikes are taught with a number that is not a row.
   const survey = drawn({

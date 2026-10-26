@@ -35,6 +35,7 @@
     "check:behaviour-docs": "node scripts/behaviour-docs.mjs --check",
     "write:behaviour-docs": "node scripts/behaviour-docs.mjs --write",
     "check:example-layers": "node scripts/check-example-layers.mjs",
+    "check:svg-example-coverage": "node scripts/check-svg-example-coverage.mjs",
     "write:layer-cheat-sheet": "node scripts/check-example-layers.mjs --write",
     "check:function-budget": "node scripts/check-function-budget.mjs",
     "check:file-budgets": "node scripts/check-file-budgets.mjs",

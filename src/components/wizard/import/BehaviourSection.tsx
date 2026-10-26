@@ -252,7 +252,7 @@ export default function BehaviourSection({
   // read off the recipe's own roles, so a recipe added tomorrow needs no new block here.
   const generic = behaviour?.kind === 'recipe' ? behaviour : null;
   const genericRecipe = generic ? recipeById(generic.recipe) : null;
-  const genericRoles = genericRecipe?.roles ?? [];
+  const genericRoles = (genericRecipe?.roles ?? []).filter((role) => generic?.recipe !== 'credits' || role.id !== 'box');
   const genericRows = generic?.rows ?? null;
   const patchGeneric = (patch: Partial<SvgRecipeDraft>) => {
     if (generic) onDraft({ svgBehaviour: { ...generic, ...patch } });

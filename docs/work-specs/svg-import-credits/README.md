@@ -62,8 +62,9 @@ example and qualify the examples before publishing a complete SVG import example
   interactive environment picker returned only All Environments, with no launchable
   environment. No task was submitted and no environment binding was substituted.
 - Installed Illustrator artifact work is local by the cloud-delegate device-work exception.
-  A local exception for ordinary implementation and targeted verification was requested;
-  its dependent work remains pending until the owner answers.
+  The owner subsequently confirmed local work is always allowed and requested that the
+  source rule be updated. Local implementation/review/targeted verification is authorized;
+  existing resource guards and authoritative Actions checks remain unchanged.
 - Illustrator 30.1.0 generated the replacement `Illustrator/end-credits.ai`,
   `SVG/end-credits.svg` and `Previews/end-credits.png` through the repository script.
   Reopening the first generated source confirmed one editable text object named Credits,
@@ -73,5 +74,26 @@ example and qualify the examples before publishing a complete SVG import example
 - `node scripts/check-example-layers.mjs docs/tutorials/svg-examples/SVG` passed for
   all seven current SVG examples after the final generation. This is an artifact structure
   check, not proof that their import behavior or playout works.
-- Importer implementation, browser/playout verification, missing-behavior examples,
-  public-example replacement, rebuilt download archive and publication remain pending.
+- Baseline browser reproduction was queued as `j-4700` but never started because available
+  memory remained below the existing 4 GB floor. It was cancelled before source wiring.
+  This is an attempted, unexecuted reproduction, not a failure or passing evidence.
+- New imports mark `options.artwork: true`; absent markers retain legacy editable assembly.
+  The new runtime scrolls the original text subtree, waits for fonts before measuring,
+  preserves its transforms and glyph runs, and cancels both pending and active rolls on Out.
+  Its hidden data holders preserve stable field numbering without offering editable text.
+- Independent review covered the 101 changed paths at base
+  `8abde8e7103715f21ccf7384f08cb1dbc22a9bfa`. It found an entrance timing defect and stale
+  documentation. The defect was reproduced with the emitted runtime in a small geometry VM:
+  measuring a parent 40 pixels before its settled position left the last line 40 pixels on
+  screen. The runtime now reads the final animation data at Take and waits for the entrance
+  and fonts before measuring; delayed starts, font waits and running rolls cancel on Out.
+  The VM verified the fix and all three cancellation states. Browser coverage includes the
+  real universal Drop/Rise/Pop path and an unresolved font promise.
+- Local TypeScript and targeted ESLint passed. Thirty-seven targeted Node tests passed,
+  covering the legacy parser, example naming mutations and complete behavior inventory.
+  Contract compiler checks and its 28 tests passed. All 19 public mirrors and 68 archive
+  entries match their sources. Final four-page PDF and new native preview PNGs were
+  rendered/inspected without clipping or overlap.
+- Browser/playout acceptance is pending. Local job `j-4703` was queued but RAM remains
+  below the existing floor; authoritative GitHub Actions checks will supply browser evidence.
+  Publication remains blocked until those checks and the landing workflow pass.

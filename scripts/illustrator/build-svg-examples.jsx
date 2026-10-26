@@ -1,7 +1,7 @@
 // BUILDS THE NOACG SVG EXAMPLES IN ILLUSTRATOR, the way a person would draw them by hand.
 //
-// Seven graphics in one simple look (navy plates, yellow accents, Oswald): a title, a lower third,
-// a quiz, a scoreboard, a countdown, a ticker and end credits. For each one it draws the artwork
+// Nineteen graphics in one look (navy plates, yellow accents, Oswald), covering every SVG import
+// behaviour plus a title, a lower third and a ticker. For each one it draws the artwork
 // natively (rectangles and point type), puts it on the layers the NoaCG layer-naming system
 // teaches (Text, Moments, Board; src/templates/behaviours/layer-names.json), saves the .ai into
 // Illustrator/, writes the SVG into SVG/ with exportFile(ExportType.SVG), which is the same SVG
@@ -183,7 +183,18 @@ function finish(d, slug, states, fullFrame) {
       for (var k = 0; k < st.show.length; k++) if (st.show[k] === g.name) on = true;
       g.hidden = !on;
     }
+    // A behaviour may hide a readout before revealing it. Its SVG keeps the original text,
+    // while a sealed-state PNG must show the cover alone rather than the text above it.
+    var hiddenTexts = [];
+    for (var ti = 0; ti < doc.textFrames.length; ti++) {
+      var tf = doc.textFrames[ti];
+      for (var hi = 0; hi < (st.hideTexts || []).length; hi++) if (tf.name === st.hideTexts[hi]) {
+        hiddenTexts.push({ item: tf, hidden: tf.hidden });
+        tf.hidden = true;
+      }
+    }
     doc.exportFile(new File(OUT + "/Previews/" + st.file + ".png"), ExportType.PNG24, pngOptions());
+    for (var ht = 0; ht < hiddenTexts.length; ht++) hiddenTexts[ht].item.hidden = hiddenTexts[ht].hidden;
   }
   doc.close(SaveOptions.DONOTSAVECHANGES);
   log("built " + slug);
@@ -401,17 +412,22 @@ function buildEndCredits() {
   finish(d, "end-credits", [{ file: "end-credits", show: [] }], false);
 }
 
+$.evalFile(new File(REPO.fsName + "/scripts/illustrator/svg-behaviour-examples.jsx"));
+
 try {
   // An optional filter lets a device session replace one source without regenerating all of
   // the unchanged binary Illustrator files. Set $.global.NOACG_EXAMPLE_FILTER in a runner.
   var builders = [
     ["title", buildTitle], ["lower-third", buildLowerThird], ["quiz", buildQuiz],
     ["scoreboard", buildScoreboard], ["countdown", buildCountdown], ["ticker", buildTicker],
-    ["end-credits", buildEndCredits]
+    ["end-credits", buildEndCredits], ["standings", buildStandings], ["live-vote", buildLiveVote],
+    ["meter", buildMeter], ["alert", buildAlert], ["survey", buildSurvey],
+    ["stepped-list", buildSteppedList], ["lineup", buildLineup], ["puzzle", buildPuzzle],
+    ["reveal", buildReveal], ["bingo", buildBingo], ["switch", buildSwitch], ["choice", buildChoice]
   ];
   var filter = $.global.NOACG_EXAMPLE_FILTER;
   for (var bi = 0; bi < builders.length; bi++) {
-    if (!filter || filter === builders[bi][0]) builders[bi][1]();
+    if (!filter || filter === builders[bi][0] || (filter === "missing" && bi >= 7)) builders[bi][1]();
   }
   log("ok");
 } catch (e) {

@@ -2,14 +2,18 @@
 // parser it shares with the catalog rolls, the fields list that turns the sample into one box,
 // and its fixture. The SVG examples walk rides along: its credits are the list the default
 // pace was set by (about thirty seconds), rolled from Illustrator's own output.
-// covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,artworkFields,svg}.ts,endCredits/shared.ts}
-// covers: e2e/fixtures/credits-roll.svg
+// covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,creditsArtwork,artworkFields,svg,svgBind}.ts,endCredits/shared.ts}
+// covers: e2e/fixtures/{credits-roll,credits-artwork}.svg
+// covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx}
+// covers: src/components/wizard/draft/template.ts, src/blocks/motionPresets.ts
 // covers: src/components/home/CueActions.tsx
 
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
+import { openProductionWithCurrent } from './_create';
 import { dropSvg, intoProduction } from './_svg-import';
 
 // THE CREDITS ROLL ON IMPORTED ARTWORK (docs/END_CREDITS.md, "The same field on an imported SVG").
@@ -37,6 +41,196 @@ import { dropSvg, intoProduction } from './_svg-import';
 //  7. THE EXPORT carries the engine and the shared parser, so the package rolls on its own.
 
 const CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-roll.svg', import.meta.url));
+const ARTWORK_CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-artwork.svg', import.meta.url));
+
+test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting for fonts', async ({ page }) => {
+  // Exercise the compiled template on a blank page: the motion picker changes entrance length
+  // after SVG assembly, so measuring at the original call time can leave the last line on air.
+  await page.goto('/app');
+  const documents = await page.evaluate(async (source) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+    const { initialDraft, mergeDraft } = await import('/src/components/wizard/draft/core.ts');
+    const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const imported = importSvgMarkup(source);
+    const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+    const template = IMPORTED_SVG.create({
+      designSvg: {
+        markup: imported.markup, width: imported.width, height: imported.height,
+        fields, images: [], outlines: [], fonts: [],
+        behaviour: {
+          kind: 'recipe', recipe: 'credits', layers: {},
+          fields: { credits: fields.findIndex((f) => f.title === 'Credits') },
+          options: { artwork: true },
+        },
+      },
+    });
+    return (['drop', 'rise', 'pop'] as const).map((motion) => ({
+      motion,
+      html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), {
+        animation: { motionIn: motion, motionOut: 'fade' },
+      }), IMPORTED_SVG)),
+    }));
+  }, readFileSync(ARTWORK_CREDITS_SVG, 'utf8'));
+
+  for (const { motion, html } of documents) {
+    await page.goto('about:blank');
+    await page.setContent(html);
+    await page.evaluate(() => (window as unknown as { play(): void }).play());
+    await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${motion}: the roll starts after its entrance`).toBe(true);
+    await expect.poll(() => page.locator('.imported-design-box').evaluate((el) => {
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+      return Math.max(Math.abs(matrix.a - 1), Math.abs(matrix.d - 1), Math.abs(matrix.e), Math.abs(matrix.f));
+    }), `${motion}: the entrance has settled`).toBeLessThan(0.0001);
+    const geometry = await page.locator('.imported-design-credits').evaluate((el) => {
+      const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void } };
+      const frame = document.body.getBoundingClientRect();
+      w.noacgCreditsTween.pause();
+      w.noacgCreditsTween.progress(0);
+      const start = el.getBoundingClientRect().top;
+      w.noacgCreditsTween.progress(1);
+      const end = el.getBoundingClientRect().bottom;
+      return { start, end, frameTop: frame.top, frameBottom: frame.bottom, transform: el.getAttribute('transform') };
+    });
+    expect(Math.abs(geometry.start - geometry.frameBottom), `${motion}: the first glyph starts at the output's bottom`).toBeLessThan(0.5);
+    expect(Math.abs(geometry.end - geometry.frameTop), `${motion}: the final glyph clears the output's top`).toBeLessThan(0.5);
+    expect(geometry.transform).toBe('translate(820 85)');
+    await expect(page.locator('.imported-design-credits tspan').last()).toHaveText('See you next time');
+    await expect(page.locator('.imported-design-credits-rows')).toHaveCount(0);
+  }
+
+  // Hold the actual fonts-ready promise, then stop while that take is pending. Releasing it
+  // must not resurrect the cancelled roll. The extra animation frame drains the real callback.
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      play(): void; stop(): void;
+      creditsFontsRead: boolean; releaseCreditsFonts(): void;
+    };
+    w.stop();
+    w.creditsFontsRead = false;
+    const pending = new Promise<void>((resolve) => { w.releaseCreditsFonts = resolve; });
+    Object.defineProperty(document.fonts, 'ready', { configurable: true, get() {
+      w.creditsFontsRead = true;
+      return pending;
+    } });
+    w.play();
+  });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { creditsFontsRead: boolean }).creditsFontsRead)).toBe(true);
+  // The entrance delay has fired and begin() is now subscribed to the unresolved font promise.
+  await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsStart: unknown }).noacgCreditsStart)).toBeNull();
+  expect(await page.evaluate(() => (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBeNull();
+  const pendingGeneration = await page.evaluate(() => (window as unknown as { noacgCreditsGeneration: number }).noacgCreditsGeneration);
+  await page.evaluate(() => (window as unknown as { stop(): void }).stop());
+  await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsGeneration: number }).noacgCreditsGeneration)).toBeGreaterThan(pendingGeneration);
+  const cancelled = await page.evaluate(async () => {
+    const w = window as unknown as { releaseCreditsFonts(): void; noacgCreditsTween: unknown };
+    w.releaseCreditsFonts();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return { tween: w.noacgCreditsTween, visible: document.querySelector('.imported-design-credits-travel')!.hasAttribute('data-noacg-rolling') };
+  });
+  expect(cancelled).toEqual({ tween: null, visible: false });
+});
+
+test('imported artwork credits preserve the complete design and roll off the whole frame', async ({ page }, testInfo) => {
+  await page.goto('/app');
+  const expectedRuns = await page.evaluate(async (source) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const parsed = new DOMParser().parseFromString(importSvgMarkup(source).markup, 'image/svg+xml');
+    return Array.from(parsed.querySelectorAll('text tspan')).map((run) => ({
+      text: run.textContent,
+      attributes: Array.from(run.attributes).filter((a) => !a.name.startsWith('data-noacg-')).map((a) => [a.name, a.value]).sort(),
+    }));
+  }, readFileSync(ARTWORK_CREDITS_SVG, 'utf8'));
+  await dropSvg(page, ARTWORK_CREDITS_SVG);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('credits');
+  await expect(page.getByTestId('map-svg-recipe-credits').locator('option:checked')).toHaveText('Credits');
+  await intoProduction(page, 'Night sky credits', 'Night sky');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  // The old importer reconstructed a role/name list and hid the original drawing. This is the
+  // defect: taking original artwork must paint its own glyph runs rather than replacement rows.
+  await expect(air.locator('.imported-design-credits-rows')).toHaveCount(0);
+  await expect(air.locator('.imported-design-credits')).toHaveCSS('visibility', 'visible');
+  await expect(page.getByTestId('cue-field-f0')).toHaveCount(0);
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('100');
+  const text = air.locator('.imported-design-credits');
+  const paintedRuns = () => text.evaluate((el) => Array.from(el.querySelectorAll('tspan')).map((run) => ({
+    text: run.textContent,
+    attributes: Array.from(run.attributes).filter((a) => !a.name.startsWith('data-noacg-')).map((a) => [a.name, a.value]).sort(),
+  })));
+  expect(await paintedRuns()).toEqual(expectedRuns);
+  await expect(text).toHaveAttribute('transform', 'translate(820 85)');
+  await expect(text.locator('tspan').last()).toHaveText('See you next time');
+  await expect.poll(() => text.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+
+  const pose = (progress: number) => text.evaluate((el, at) => {
+    const w = window as unknown as {
+      noacgCreditsTween: { pause(): void; progress(value: number): void };
+      noacgCreditsLast: { artwork: boolean; startY: number; endY: number; duration: number; distance: number; boxed: boolean };
+    };
+    w.noacgCreditsTween.pause();
+    w.noacgCreditsTween.progress(at);
+    const frame = el.ownerSVGElement!.getBoundingClientRect();
+    const bounds = el.getBoundingClientRect();
+    return { top: bounds.top, bottom: bounds.bottom, frameTop: frame.top, frameBottom: frame.bottom, roll: w.noacgCreditsLast };
+  }, progress);
+  const start = await pose(0);
+  expect(start.roll.artwork).toBe(true);
+  expect(start.roll.boxed).toBe(false);
+  expect(start.roll.startY).toBeGreaterThan(start.roll.endY);
+  expect(start.roll.duration).toBeGreaterThan(0);
+  expect(start.top).toBeGreaterThanOrEqual(start.frameBottom - 0.5);
+  // The source's last line starts below the artboard. It must still enter, and finally leave.
+  const middle = await pose(0.5);
+  await testInfo.attach('Original credits midway through the frame', { body: await page.screenshot(), contentType: 'image/png' });
+  expect(middle.bottom).toBeGreaterThan(middle.frameTop);
+  expect(middle.top).toBeLessThan(middle.frameBottom);
+  const end = await pose(1);
+  expect(end.bottom).toBeLessThanOrEqual(end.frameTop + 0.5);
+  expect(middle.top).toBeCloseTo((start.top + end.top) / 2, 1);
+  expect(await paintedRuns()).toEqual(expectedRuns);
+
+  await page.getByTestId('verb-out').click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => text.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+  const replay = await pose(0);
+  expect(replay.top).toBeCloseTo(start.top, 1);
+  await pose(0.4);
+  await page.getByTestId('verb-out').click();
+  await expect.poll(() => text.evaluate(() => (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBeNull();
+
+  // The downloadable browser overlay must carry the same artwork and engine without the app.
+  const b64 = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const production = loadShows().find((s) => s.name === 'Night sky')!;
+    return (await buildShowZipFor(production, 'html-overlay')).generateAsync({ type: 'base64' });
+  });
+  const zip = await JSZip.loadAsync(b64, { base64: true });
+  const payload = Object.keys(zip.files).find((name) => /(^|\/)payload\.json$/.test(name))!;
+  const manifest = JSON.parse(await zip.file(payload)!.async('string')) as { graphics: { file: string }[] };
+  const html = await zip.file(`${payload.replace(/payload\.json$/, '')}${manifest.graphics[0].file}`)!.async('string');
+  expect(html).not.toMatch(/<script[^>]+src="https?:/i);
+  const overlay = await page.context().newPage();
+  const errors: string[] = [];
+  overlay.on('pageerror', (error) => errors.push(error.message));
+  await overlay.setContent(html);
+  await expect.poll(() => overlay.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+  await expect(overlay.locator('.imported-design-credits-rows')).toHaveCount(0);
+  await expect(overlay.locator('.imported-design-credits tspan').last()).toHaveText('See you next time');
+  const finished = await overlay.locator('.imported-design-credits').evaluate((el) => {
+    const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void } };
+    w.noacgCreditsTween.pause();
+    w.noacgCreditsTween.progress(1);
+    return { bottom: el.getBoundingClientRect().bottom, top: el.ownerSVGElement!.getBoundingClientRect().top };
+  });
+  expect(finished.bottom).toBeLessThanOrEqual(finished.top + 0.5);
+  expect(errors).toEqual([]);
+  await overlay.close();
+});
 
 /**
  * FRAMES FOR A HUMAN, off by default - the same switch import-svg-behaviour.spec.ts has.
@@ -86,19 +280,43 @@ async function rollWindow(air: FrameLocator): Promise<{ y: number; height: numbe
   }));
 }
 
-async function openImportDoor(page: Page) {
-  await page.goto('/app');
-  await dropSvg(page, CREDITS_SVG);
-  // THE PROPOSAL (naming.ts): "Credits" is the recipe's own evidence, and the box is its plate.
-  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('credits');
-  await expect(page.getByTestId('map-svg-recipe-credits').locator('option:checked')).toHaveText('Credits');
-  await expect(page.getByTestId('map-svg-recipe-box').locator('option:checked')).toHaveText('Credits box');
+/** Rebuild an existing saved design without the new artwork option. Fresh imports no longer
+ *  offer this editable parser, but a saved graphic's fields, playback and export must survive. */
+async function openLegacyProduction(page: Page, graphic: string, production: string, boxed = true) {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  await page.evaluate(async ({ source, graphicName, useBox }) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+    const { formatTemplate } = await import('/src/format/formatCode.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { useDocKindStore } = await import('/src/store/docKindStore.ts');
+    const imported = importSvgMarkup(source);
+    const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+    const box = imported.shapes.find((s) => s.label === 'Credits box');
+    if (!box) throw new Error('The legacy fixture must contain its original Credits box');
+    const template = IMPORTED_SVG.create({
+      designSvg: {
+        markup: imported.markup, width: imported.width, height: imported.height, fields,
+        images: [], outlines: [],
+        fonts: imported.fonts.map((f) => ({ family: f.family, fontId: 'oswald', ...(f.weight ? { weight: f.weight } : {}) })),
+        behaviour: {
+          kind: 'recipe', recipe: 'credits',
+          fields: { credits: fields.findIndex((f) => f.title === 'Credits') },
+          layers: useBox ? { box: box.id } : {},
+        },
+      },
+    });
+    useTemplateStore.getState().applyTemplate(await formatTemplate({ ...template, name: graphicName }), { resetSampleData: true });
+    useDocKindStore.getState().setKind('spx');
+  }, { source: readFileSync(CREDITS_SVG, 'utf8'), graphicName: graphic, useBox: boxed });
+  await openProductionWithCurrent(page, production);
 }
 
 test('imported credits: one pasted list rolls through the Credits box in the sample\'s two looks', async ({ page }) => {
   test.slow(); // an import, a production, two takes and a paste, read in the renderer
-  await openImportDoor(page);
-  await intoProduction(page, 'End credits', 'Friday Show');
+  await openLegacyProduction(page, 'End credits', 'Friday Show');
   await settleDurableWrites(page);
 
   // ONE FIELD, holding the sample line for line - the drawn breaks are the format, so they
@@ -210,10 +428,8 @@ test('imported credits: one pasted list rolls through the Credits box in the sam
 
 test('imported credits: with no Credits box the roll runs through the whole frame', async ({ page }) => {
   test.slow();
-  await openImportDoor(page);
-  // The plate is optional. Unpick it and the window is the artwork's own frame.
-  await page.getByTestId('map-svg-recipe-box').selectOption('');
-  await intoProduction(page, 'Frame credits', 'Frame Show');
+  // A legacy design with no selected plate still uses the whole frame.
+  await openLegacyProduction(page, 'Frame credits', 'Frame Show', false);
   await settleDurableWrites(page);
 
   await page.getByTestId('verb-take').click();
