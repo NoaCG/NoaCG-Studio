@@ -600,7 +600,15 @@ export function createOutputStage(
   const apply = (graphic: string, msg: ControlEventRow['msg']) => {
     // A status row has no OGraf meaning either; ografCallFor drops whatever it cannot map.
     const foreignLayer = foreign.get(graphic);
-    if (foreignLayer) return foreignLayer.send(msg as ControlMessage);
+    if (foreignLayer) {
+      // A foreign package takes no place and size yet (after E3): its data only, and an update that
+      // carried nothing else reaches it not at all.
+      if (msg.t === 'update' && 'appearance' in msg && msg.appearance !== undefined) {
+        if (Object.keys(msg.data ?? {}).length === 0) return;
+        return foreignLayer.send({ t: 'update', data: msg.data });
+      }
+      return foreignLayer.send(msg as ControlMessage);
+    }
     if (!frames.has(graphic)) return;
     switch (msg.t) {
       case 'update': {

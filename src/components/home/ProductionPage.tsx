@@ -119,7 +119,7 @@ import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
-import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { measureId, withAnchor, type AppliedAppearance, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, measured, placeWaiting, type MeasureJob } from '../../control/adjustGeometry';
 import { measureCue } from './measureCue';
 import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
@@ -445,6 +445,8 @@ const PLACE_UNSENT = '@place';
 const PUBLISH_MEASURE_CAP_MS = 8_000;
 /** How long a Take waits for the box of a placed cue nothing has measured yet. */
 const TAKE_MEASURE_CAP_MS = 2_000;
+/** How long a Take waits for an Adjust press still being written. */
+const ADJUST_WRITE_CAP_MS = 1_000;
 const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
 /** What the background measurer composes for one cue. */
 interface MeasureInput {
@@ -1978,6 +1980,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  page object is the one of its press, which can be seconds older). */
   const latestShow = useRef(show);
   latestShow.current = show;
+  /** Adjust writes still in the history's queue: a Take waits for them (`appearanceOf`). */
+  const adjustWrites = useRef(0);
+  const writeAdjust = (mutation: () => { shows: Show[]; error: string | null }, label: string) => {
+    adjustWrites.current += 1;
+    void history.write(mutation, label).finally(() => {
+      adjustWrites.current -= 1;
+    });
+  };
   const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null) => {
     const g = record?.graphics.find((x) => x.id === cue.sourceId);
     if (!g || cue.source === 'playout') return null;
@@ -2684,13 +2694,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // Read after the wait (this object is the render's): the place and size a Take or Update carries.
     // A cue with a preset and no measurement of its own yet is measured first, capped, so the Take
     // airs its placement rather than one without the preset.
+    // An Adjust press still being written goes first (capped), and the record is then read from the
+    // store, not from a render: ← then Take airs the ←. A production nobody adjusts answers at once.
     appearanceOf: (taken) => {
-      const cue = cuesRef.current.find((c) => c.id === taken.id) ?? taken;
-      const state = adjustStateOf(cue);
-      const record = latestShow.current;
-      if (!state?.eff.place || session.geometry.get().byCue[cue.id] || !record) return state?.send;
-      const job = measureJobs(record).find((j) => j.cueId === cue.id);
-      return job ? measurer.now(job, TAKE_MEASURE_CAP_MS).then(() => adjustStateOf(cue)?.send) : state.send;
+      const resolveFor = (record: Show | null): AppliedAppearance | undefined | Promise<AppliedAppearance | undefined> => {
+        const cue = record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
+        const state = adjustStateOf(cue, record);
+        if (!state?.eff.place || session.geometry.get().byCue[cue.id] || !record) return state?.send;
+        const job = measureJobs(record).find((j) => j.cueId === cue.id);
+        return job ? measurer.now(job, TAKE_MEASURE_CAP_MS).then(() => adjustStateOf(cue, record)?.send) : state.send;
+      };
+      if (adjustWrites.current === 0) return resolveFor(latestShow.current ?? null);
+      return Promise.race([history.settle(), new Promise((resolve) => setTimeout(resolve, ADJUST_WRITE_CAP_MS))]).then(() =>
+        resolveFor(loadShows().find((s) => s.id === id) ?? latestShow.current ?? null),
+      );
     },
     flush: async () => {
       await flushDraft(); await history.closeGroup();
@@ -3762,7 +3779,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               };
               const write = (patch: AdjustPatch) => {
                 const anchored = anchorFor(patch);
-                void history.write(
+                writeAdjust(
                   () => (scope === 'cue' ? setCueAdjust(show.id, editingCue.id, anchored) : setGraphicAdjust(show.id, g.id, anchored)),
                   `Adjust ${g.name}`,
                 );
@@ -3783,15 +3800,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   write={write}
                   step={(by) => {
                     const anchored = anchorFor({});
-                    void history.write(() => stepAdjust(show.id, editingCue.id, scope, by, anchored), `Adjust ${g.name}`);
+                    writeAdjust(() => stepAdjust(show.id, editingCue.id, scope, by, anchored), `Adjust ${g.name}`);
                   }}
                   reset={(at) => {
                     if (at === 'cue') setOnlyThisCue(null);
-                    void history.write(() => (at === 'cue' ? setCueAdjust(show.id, editingCue.id, null) : setGraphicAdjust(show.id, g.id, null)), `Reset ${g.name}`);
+                    writeAdjust(() => (at === 'cue' ? setCueAdjust(show.id, editingCue.id, null) : setGraphicAdjust(show.id, g.id, null)), `Reset ${g.name}`);
                   }}
                   promote={() => {
                     setOnlyThisCue(null);
-                    void history.write(() => promoteCueAdjust(show.id, editingCue.id), `Adjust ${g.name}`);
+                    writeAdjust(() => promoteCueAdjust(show.id, editingCue.id), `Adjust ${g.name}`);
                   }}
                 />
               );

@@ -2325,40 +2325,35 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await expect(summary).toHaveText(/as designed/);
   expect(await look('preview')).toBeNull();
 
+  // A MEASUREMENT NEVER RENDERS THE PAGE (src/components/home/AGENTS.md, "typing a value never
+  // renders the page"): it redraws the block and PREVIEW, which subscribe to it themselves. Opening
+  // the block starts the graphic's first measurement, with nothing saved: on a paused clock, PREVIEW
+  // settles (150 ms) and answers, and the second answer, due 250 ms after the first, qualifies and
+  // is kept. The page's header clock ticks once a second on this clock too, so the step that
+  // releases the measurement is 2 ms wide and the page is still before it.
+  const pageRenders = () => page.getByTestId('production-page').evaluate((el) => Number(el.getAttribute('data-renders')));
+  const still = () =>
+    expect.poll(async () => {
+      const at = await pageRenders();
+      await page.waitForTimeout(1000);
+      return (await pageRenders()) - at;
+    }, { timeout: 15_000 }).toBe(0);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await page.getByTestId('cue-adjust-toggle').click();
   await expect(page.getByTestId('preview-guides')).toBeVisible();
-  // Measured: the pivot shows on the grid and the readability line appears.
-  await expect(page.getByTestId('adjust-floor')).toHaveText(/smallest text \d/);
-  await expect(page.getByTestId('adjust-why')).toHaveCount(0);
-
-  // A MEASUREMENT NEVER RENDERS THE PAGE (src/components/home/AGENTS.md, "typing a value never
-  // renders the page"): it redraws the block and PREVIEW, which subscribe to it themselves. On the
-  // paused clock: a name typed longer, PREVIEW's settle (150 ms) and first answer, the draft's save
-  // (300 ms), and only then the second answer 250 ms after the first, which qualifies and is kept.
-  // The page's render count is read across that last step alone, and the block says it landed.
-  const pageRenders = () => page.getByTestId('production-page').evaluate((el) => Number(el.getAttribute('data-renders')));
-  const field = page.getByTestId('cue-field-f0');
-  await field.click();
-  await field.press('End');
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
-  await field.pressSequentially(' Jr');
   await page.clock.runFor(160);
-  await page.waitForTimeout(600);
-  await page.clock.runFor(150);
-  // The save lands in the store a moment later (model/durableStore.ts), and later still on a loaded
-  // runner: wait until the page has been still for a second and a half.
-  await expect.poll(async () => {
-    const at = await pageRenders();
-    await page.waitForTimeout(1500);
-    return (await pageRenders()) - at;
-  }, { timeout: 15_000 }).toBe(0);
+  await page.waitForTimeout(500);
+  await page.clock.runFor(249);
+  await still();
   await expect(page.getByTestId('adjust-why')).toHaveText('measuring');
   const before = await pageRenders();
-  await page.clock.runFor(150);
+  await page.clock.runFor(2);
   await expect(page.getByTestId('adjust-why')).toHaveCount(0);
   await page.waitForTimeout(300);
   expect((await pageRenders()) - before, 'the measurement rendered the page').toBe(0);
   await page.clock.resume();
+  // Measured: the pivot shows on the grid and the readability line appears.
+  await expect(page.getByTestId('adjust-floor')).toHaveText(/smallest text \d/);
   await page.getByTestId('adjust-place-tl').focus();
 
   // AC-1: bottom-right, then three 1 px and one 10 px nudge with the keys inside the block.
@@ -2393,6 +2388,12 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await page.locator('[data-testid="adjust-nudge-up"]').focus();
   await page.keyboard.press('Control+z');
   await expect(page.getByTestId('adjust-y')).toHaveValue('0');
+  // A nudge and ✎ Update pressed at once: the Update waits for the nudge's write and airs it.
+  await page.getByTestId('adjust-nudge-left').click();
+  await page.getByTestId('verb-update').click();
+  await expect(page.getByTestId('adjust-x')).toHaveValue('-14');
+  await expect.poll(async () => (await look('program')) === (await look('preview'))).toBe(true);
+  await expect(page.locator('.pd-editor-fate')).not.toContainText('not on PROGRAM');
 
   // AC-4's visible half: the second cue, only this cue, bottom-left; the first keeps bottom-right.
   await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
