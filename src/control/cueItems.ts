@@ -7,6 +7,7 @@
 import type { MarkerAuto } from './cueAuto';
 import type { ControlSendItem } from './hostedControl';
 import type { AppliedAppearance } from './cueAdjust';
+import type { TypedValues } from '../model/ografTyped';
 
 // Each verb is defined ONCE, as the list of commands it is — and then either sent to the log or
 // applied to a local rehearsal stage (docs/CLOUD_PLAYOUT.md §4a). Keeping the sequence as DATA
@@ -35,9 +36,12 @@ export function takeCueItems(cue: {
   /** Its place and size, when the page has one to send (./cueAdjust.ts `appearanceToSend`): absent,
    *  the update is exactly what it always was. */
   appearance?: AppliedAppearance;
+  /** Its typed data (model/ografTyped.ts `typedForSend`, E1.2a): absent, the update is exactly what
+   *  it always was; present, it rides beside `values`, which are then empty. */
+  typed?: TypedValues;
 }): ControlSendItem[] {
   return [
-    { graphic: cue.graphic, msg: { t: 'update', data: cue.values, ...(cue.appearance ? { appearance: cue.appearance } : {}) } },
+    { graphic: cue.graphic, msg: { t: 'update', data: cue.values, ...(cue.appearance ? { appearance: cue.appearance } : {}), ...(cue.typed ? { typed: cue.typed } : {}) } },
     { graphic: cue.graphic, msg: { t: 'play' } },
     { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id, ...(cue.direct ? { direct: true } : {}), ...(cue.auto ? { auto: cue.auto } : {}) } },
   ];

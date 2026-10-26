@@ -251,6 +251,12 @@ export interface SpxTemplate {
   assets: AssetFile[];
   /** Structured element descriptions — metadata for building blocks and future visual tools. */
   layers: TemplateLayer[];
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-contract/spec.md, E1.2a): the
+   *  OGraf manifest of a stranger's package this graphic was imported from, kept byte for byte. Its
+   *  data schema is what a cue's typed data is made for; read only through ./ografTyped.ts
+   *  `readOgrafDeclared` (shaped here only, so the api typecheck stays out of that module). Absent
+   *  on every NoaCG graphic, which stays native. */
+  ograf?: { v?: unknown; manifest?: unknown };
 }
 
 /** A proposed change to the template (from AI or building blocks). */

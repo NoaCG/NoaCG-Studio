@@ -27,7 +27,7 @@ import {
 } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
-import { typedFrozen, typedKeep, type TypedValues } from './ografTyped';
+import { migrateToTyped, nativeOf, readOgrafDeclared, readTypedEnvelope, typedFrozen, typedKeep, typedReadOnly, type TypedReceipt, type TypedValues } from './ografTyped';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
@@ -115,11 +115,12 @@ export interface ShowCue {
    *  cue's own exception to its graphic's place and size (`SavedGraphic.adjust`), member by member;
    *  absent inherits all of it. Read only through ./adjust.ts `readAdjust`. */
   adjust?: AdjustRecord | { v: number; [later: string]: unknown };
-  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-contract/spec.md, E1.1). A
-   *  foreign OGraf Graphic's typed values, beside `values` and never inside them, read only through
-   *  ./ografTyped.ts `readTypedEnvelope`. This build writes none (E1.2a is the writer): every write
-   *  keeps it byte for byte (`typedFrozen`), a cue carrying one never airs from here
-   *  (`typedSendRefusal`), and one this build cannot read makes the whole cue read-only. */
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-contract/spec.md, E1.1 and
+   *  E1.2a). A foreign OGraf Graphic's typed values, beside `values` and never inside them, read
+   *  only through ./ografTyped.ts `readTypedEnvelope`. Written only by `setCueTyped` (and carried by
+   *  a copy or an undo); every other write keeps it byte for byte (`typedFrozen`). While it is on,
+   *  Take and ✎ Update send it (`typedForSend`) and the native `values` wait unused for Off; one this
+   *  build cannot read makes the whole cue read-only. */
   typed?: TypedValues | { v?: unknown; [later: string]: unknown };
 }
 
@@ -1009,6 +1010,8 @@ function patchShowChecked(
   rebased = false,
   /** The selection writer's allowance (productionData `SelectionWrite`); every other write has none. */
   write?: SelectionWrite,
+  /** The typed writer's allowance (`setCueTyped`): cue id to the envelope bytes it writes. */
+  typedWrite?: ReadonlyMap<string, string | null>,
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
@@ -1022,7 +1025,7 @@ function patchShowChecked(
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
   // The mutation ran on this read only: refused, the stored productions are read again.
-  const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show);
+  const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
@@ -1037,7 +1040,7 @@ function patchShowChecked(
     const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
-    const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh)) : null;
+    const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite)) : null;
     if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
     return { value: JSON.stringify(list) };
@@ -1420,6 +1423,55 @@ export function setCueSelection(
     }
     return true;
   }, true, { cues: new Map([[cueId, bytes]]) });
+}
+
+/**
+ * THE TYPED WRITER (docs/work-specs/playout-ograf-contract/spec.md, E1.2a): the one write that turns
+ * a cue's typed data on or off. On, the cue's native strings are read through its graphic's declared
+ * schema (./ografTyped.ts `migrateToTyped`): losslessly or not at all, and the receipt says which
+ * fields converted, which were kept as text and why nothing was written. Off, the envelope's values
+ * go back to the cue's native strings (`nativeOf`) and the envelope goes, so nothing it held is
+ * lost and the graphic's package is untouched. Rebased, and allowed by `typedFrozen` for this cue
+ * and these bytes only; a read-only cue, or one whose graphic declares no schema, is never written.
+ */
+export function setCueTyped(showId: string, cueId: string, on: boolean): { shows: Show[]; error: string | null; receipt: TypedReceipt | null } {
+  const plan = (show: Show): { error: string } | { typed: TypedValues | null; values: Record<string, string>; receipt: TypedReceipt | null } | null => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return { error: 'This cue was removed.' };
+    if (typedReadOnly(cue)) return { error: 'This cue’s typed data was saved by another version of NoaCG, so it is read-only here.' };
+    if (!on) {
+      if (cue.typed === undefined) return null;
+      const read = readTypedEnvelope(cue.typed);
+      if (read.status !== 'ok' || read.envelope.kind !== 'values') return { error: 'This cue’s typed data cannot be read.' };
+      return { typed: null, values: { ...cue.values, ...nativeOf(read.envelope) }, receipt: null };
+    }
+    if (cue.typed !== undefined) return null;
+    const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+    const declared = readOgrafDeclared(graphic?.template.ograf);
+    if (declared.status !== 'ok' || !declared.fields) return { error: 'This cue’s graphic declares no typed data.' };
+    const { envelope, receipt } = migrateToTyped(declared.description, cue.values);
+    if (!envelope) return { error: `Typed data was not turned on: ${receipt.refused.map((r) => (r.at ? `${r.at} ${r.reason}` : r.reason)).join('; ')}.` };
+    return { typed: envelope, values: cue.values, receipt };
+  };
+  const first = readEditable().find((s) => s.id === showId && !s.deleted);
+  const planned = first ? plan(first) : null;
+  if (planned && 'error' in planned) return { shows: loadShows(), error: planned.error, receipt: null };
+  if (!planned) return { shows: loadShows(), error: null, receipt: null };
+  const bytes = planned.typed ? JSON.stringify(planned.typed) : null;
+  const done = patchShowChecked(showId, (show) => {
+    const again = plan(show);
+    if (!again) return false;
+    if ('error' in again) return again.error;
+    // The rebased record must give the very bytes the allowance names: another tab's edit since is
+    // a reason to look again, never to write something else.
+    if ((again.typed ? JSON.stringify(again.typed) : null) !== bytes) return 'This cue changed elsewhere. Try again.';
+    const cue = show.cues!.find((c) => c.id === cueId)!;
+    cue.values = again.values;
+    if (again.typed) cue.typed = again.typed;
+    else delete cue.typed;
+    return true;
+  }, true, undefined, new Map([[cueId, bytes]]));
+  return { ...done, receipt: planned.receipt };
 }
 
 /**

@@ -1,4 +1,4 @@
-// guards: api/data/[...path].ts, src/control/externalSource.ts, src/control/sourceMapping.ts, api/_lib/feedFetch.ts
+// guards: api/data/[...path].ts, src/control/externalSource.ts, src/control/sourceMapping.ts, api/_lib/feedFetch.ts, api/_lib/dataTick.ts
 //
 // THE ROUTE'S SAMPLE AND RECIPE DOORS, BEHAVIOURALLY (docs/work-specs/playout-api-mapping/spec.md,
 // E5.2; AC-1, AC-4), in Node against the real route (`api/data/[...path].ts`) and a stand-in for
@@ -35,7 +35,10 @@ const server = createServer(async (req, res) => {
     const args = JSON.parse(body || '{}');
     db.calls.push({ rpc: rpc[1], args });
     const answer = db.rpc[rpc[1]];
-    return answer ? send(200, await answer(args)) : send(404, { message: `no ${rpc[1]}` });
+    if (!answer) return send(404, { message: `no ${rpc[1]}` });
+    const value = await answer(args);
+    // A raise in the database: PostgREST answers its message.
+    return value && value.raise ? send(400, { code: 'P0001', message: value.raise }) : send(200, value);
   }
   const table = /^\/rest\/v1\/(\w+)$/.exec(url.pathname)?.[1];
   if (!table || !db.tables[table]) return send(404, { message: 'no table' });
@@ -112,6 +115,51 @@ describe('a report goes through the registration\'s recipe', () => {
     assert.equal((await post({ v: 1, op: 'report', sourceId: 'e1', claim: 'agent:abc', acquisition })).status, 200);
     const report = db.calls.find((c) => c.rpc === 'control_source_report_by_key');
     assert.deepEqual(report.args.p_writes, { 'external.e1.share': '20,8', 'external.e1.candidates': JSON.stringify(candidates) });
+  });
+});
+
+describe('E1.2a: a field a foreign OGraf manifest declares takes the value as the JSON it is', () => {
+  const typedContext = () => ({
+    entry: { ...ENTRY, config: { v: 1, configRevision: 1, endpoint: 'https://results.example/live' } },
+    payload: null,
+    bindings: { Board: { score: 'external.e1.home.score', live: 'external.e1.home.live', f0: 'external.e1.home.name' } },
+    fields: { Board: [{ field: 'score', ftype: 'textfield', typed: true }, { field: 'live', ftype: 'textfield', typed: true }, { field: 'f0', ftype: 'textfield' }] },
+  });
+  const acquisition = { v: 1, sourceId: 'e1', configRevision: 1, ownerEpoch: 2, acceptedRevision: 1, checkedAt: '2026-10-24T12:00:00.000Z', status: 'changed', payload: { home: { score: 3, live: false, name: 'Home' } } };
+
+  test('the typed values reach the database as JSON beside the text, never as text', async () => {
+    reset();
+    db.rpc.control_source_context_by_key = typedContext;
+    const res = await post({ v: 1, op: 'report', sourceId: 'e1', claim: 'agent:abc', acquisition });
+    assert.equal(res.status, 200);
+    const reports = db.calls.filter((c) => c.rpc === 'control_source_report_by_key');
+    assert.equal(reports.length, 1);
+    assert.deepEqual(reports[0].args.p_writes, { 'external.e1.home.score': 3, 'external.e1.home.live': false, 'external.e1.home.name': 'Home' });
+  });
+
+  test('a database before 0104 refuses the typed values: the text goes on alone, and the agent is told they wait', async () => {
+    reset();
+    db.rpc.control_source_context_by_key = typedContext;
+    db.rpc.control_source_report_by_key = ({ p_writes }) =>
+      Object.values(p_writes).some((v) => typeof v !== 'string') ? { raise: 'not a source report' } : { ok: true, writes: Object.keys(p_writes).length };
+    const res = await post({ v: 1, op: 'report', sourceId: 'e1', claim: 'agent:abc', acquisition });
+    assert.equal(res.status, 200);
+    const reports = db.calls.filter((c) => c.rpc === 'control_source_report_by_key');
+    assert.deepEqual(reports.map((r) => r.args.p_writes), [
+      { 'external.e1.home.score': 3, 'external.e1.home.live': false, 'external.e1.home.name': 'Home' },
+      { 'external.e1.home.name': 'Home' },
+    ]);
+    const answer = await res.json();
+    assert.deepEqual(answer.problems, { 'home.score': 'typed values wait for a NoaCG server update', 'home.live': 'typed values wait for a NoaCG server update' });
+    assert.deepEqual(answer.unfit.sort(), ['home.live', 'home.score']);
+  });
+
+  test('a report with no typed value is sent once, as before; any other refusal is not retried', async () => {
+    reset();
+    db.rpc.control_source_report_by_key = () => ({ raise: 'not a source report' });
+    const plain = { ...acquisition, payload: { parties: { kok: { share: 20.84 } } } };
+    assert.equal((await post({ v: 1, op: 'report', sourceId: 'e1', claim: 'agent:abc', acquisition: plain })).status, 400);
+    assert.equal(db.calls.filter((c) => c.rpc === 'control_source_report_by_key').length, 1);
   });
 });
 

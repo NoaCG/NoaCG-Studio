@@ -450,12 +450,27 @@ async function source(req: Request): Promise<Response> {
         collections: context.collections,
       });
     }
-    const [answer, wanted] = await Promise.all([
+    const report = (writes: Record<string, unknown>) =>
       rpc<Record<string, unknown>>('control_source_report_by_key', {
         p_key: key,
         p_source: envelope.sourceId,
         p_report: { ...acquisition, claim: envelope.claim },
-        p_writes: projection?.writes ?? {},
+        p_writes: writes,
+      });
+    const typedPaths = Object.keys(projection?.typedWrites ?? {});
+    const [answer, wanted] = await Promise.all([
+      report({ ...projection?.typedWrites, ...projection?.writes }).catch((error: unknown) => {
+        // E1.2a: a database before 0104 takes text only and refuses the whole report for a typed
+        // value. The text goes on as before; the typed values wait, and the agent is told so.
+        const message = error instanceof Error ? error.message : String(error);
+        if (!projection || typedPaths.length === 0 || !message.includes('not a source report')) throw error;
+        const prefix = `external.${envelope.sourceId}.`;
+        for (const path of typedPaths) {
+          const leaf = path.slice(prefix.length);
+          projection.problems[leaf] = TYPED_WAITS;
+          projection.unfit.push(leaf);
+        }
+        return report(projection.writes);
       }),
       sampleWanted(db, key, envelope.sourceId),
     ]);
@@ -487,6 +502,9 @@ async function source(req: Request): Promise<Response> {
 // source can have (a source id has no dot), so the fence, the context and the claim, which all
 // read the source's own row, never see it, and nothing evaluates or applies it. No migration: the
 // table is service role only and its rows go with their production.
+
+/** What a typed value says while the database takes only text (before migration 0104). */
+const TYPED_WAITS = 'typed values wait for a NoaCG server update';
 
 /** An ask older than this is not waited on any more: the page reads through the hosted fetcher. */
 const SAMPLE_WAIT_MS = 60_000;

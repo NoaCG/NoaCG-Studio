@@ -11,6 +11,7 @@ import { scriptKind } from './scriptKind';
 import { ensureExternalRefs } from './externalRefs';
 import { parseDefinition } from './spxDefinition';
 import { sourceHash } from './contentHash';
+import { DECLARED_VERSION, readOgrafDeclared, type OgrafDeclared } from './ografTyped';
 import {
   DEFAULT_SETTINGS,
   TEMPLATE_TYPE_LABELS,
@@ -327,12 +328,15 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
   // as before.
   const noacg = await readNoacgBlock((n) => entryOf(n)?.async('string') ?? null, manifest, base);
 
-  return {
-    ...importHtmlTemplate(fileName.replace(/\.zip$/i, '') || rel(entry), html, {
-      css, js, assets, ...(noacg?.type ? { type: noacg.type } : {}),
-    }),
-    noacg,
-  };
+  const imported = importHtmlTemplate(fileName.replace(/\.zip$/i, '') || rel(entry), html, {
+    css, js, assets, ...(noacg?.type ? { type: noacg.type } : {}),
+  });
+  // A STRANGER'S OGraf manifest is kept on the graphic as it came (docs/work-specs/
+  // playout-ograf-contract/spec.md, E1.2a): its data schema is what a cue's typed data is made for.
+  // Ours is not: a NoaCG graphic stays native, its manifest generated from its own sources.
+  const declared: OgrafDeclared | null = manifest && !isRecord(manifest.json.v_noacg) ? { v: DECLARED_VERSION, manifest: manifest.json as OgrafDeclared['manifest'] } : null;
+  if (declared && readOgrafDeclared(declared).status === 'ok') imported.template.ograf = declared;
+  return { ...imported, noacg };
 }
 
 interface ZipManifest {

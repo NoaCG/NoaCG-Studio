@@ -33,6 +33,7 @@ import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../contr
 import type { ControlMessage } from '../control/controlModel';
 import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
 import { facesCss } from '../control/cueStyle';
+import { readTypedEnvelope, type TypedValues } from '../model/ografTyped';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
@@ -181,6 +182,12 @@ export interface OutputStageOptions {
    *  own isolated frame (foreignOgraf.ts, docs/OGRAF_ECOSYSTEM.md §3). The published graphics
    *  load exactly as they do without it. */
   foreign?: ForeignOgrafSpec[];
+}
+
+/** A typed update's values, when its envelope is one this build reads (model/ografTyped.ts). */
+function typedValuesOf(raw: unknown): TypedValues['values'] | null {
+  const read = readTypedEnvelope(raw);
+  return read.status === 'ok' && read.envelope.kind === 'values' ? read.envelope.values : null;
 }
 
 /** How long a warm pass waits for the document's answer once it has loaded: the document caps its
@@ -622,10 +629,15 @@ export function createOutputStage(
 
   const apply = (graphic: string, msg: ControlEventRow['msg']) => {
     // A status row has no OGraf meaning either; ografCallFor drops whatever it cannot map.
+    // TYPED DATA (E1.2a): an update's envelope values are the graphic's data as they are, never
+    // strings; one this build cannot read sends no data at all (the output's gate refused it first).
+    const typedData = msg.t === 'update' && 'typed' in msg && msg.typed !== undefined ? typedValuesOf(msg.typed) : null;
     const foreignLayer = foreign.get(graphic);
     if (foreignLayer) {
       // A foreign package takes no place and size yet (after E3): its data only, and an update that
       // carried nothing else reaches it not at all.
+      if (typedData) return foreignLayer.send({ t: 'update', data: typedData as unknown as Record<string, string> });
+      if (msg.t === 'update' && 'typed' in msg && msg.typed !== undefined) return;
       if (msg.t === 'update' && 'appearance' in msg && msg.appearance !== undefined) {
         if (Object.keys(msg.data ?? {}).length === 0) return;
         return foreignLayer.send({ t: 'update', data: msg.data });
@@ -644,7 +656,8 @@ export function createOutputStage(
           paintAppearance(frames.get(graphic)!.iframe, graphic);
           paintStyle(frames.get(graphic)!);
         }
-        post(graphic, { cmd: 'update', data: JSON.stringify(msg.data ?? {}) });
+        if ('typed' in msg && msg.typed !== undefined && !typedData) break;
+        post(graphic, { cmd: 'update', data: JSON.stringify(typedData ?? msg.data ?? {}) });
         break;
       }
       case 'play':

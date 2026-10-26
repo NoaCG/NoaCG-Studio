@@ -83,8 +83,8 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution, SpxTemplate } from '../../model/types';
-import { typedSendRefusal } from '../../model/ografTyped';
-import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
+import { nativeOf, readOgrafDeclared, readTypedEnvelope, typedForSend, typedOutputsRefusal, typedReadOnly, typedSendRefusal, typedTargetValue, type DeclaredRead, type TypedSend } from '../../model/ografTyped';
+import { getPath, resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
@@ -133,7 +133,7 @@ import CueAdjust from './CueAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
-import { setCueSelection, setGraphicSounds } from '../../model/shows';
+import { setCueSelection, setCueTyped, setGraphicSounds } from '../../model/shows';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
 import {
@@ -226,7 +226,7 @@ import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../../control/folderPlayout';
 import { startCueArmEngine, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
-import CueEditor, { useCueView, type CandidatePicker, type CueCandidate, type OwnReader } from './CueEditor';
+import CueEditor, { useCueView, type CandidatePicker, type CueCandidate, type CueTypedSwitch, type OwnReader } from './CueEditor';
 import { actionButtonFor } from './CueActions';
 import LiveControls, { type LiveBlockView } from './LiveControls';
 import { liveBlocks, liveNumberFields as liveNumbersOf, liveSelection, pickFields, pickOptions } from '../../control/liveControls';
@@ -1433,6 +1433,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const graphic = graphicsRef.current?.find((g) => g.name === name);
     return graphic ? fieldDescriptors(templateForSavedGraphic(graphic, libraryRef.current).fields) : null;
   }, []);
+  /** A pool graphic's OGraf declaration (E1.2a), from its library version as its fields are. */
+  const declaredOf = useCallback((name: string): DeclaredRead => {
+    const graphic = graphicsRef.current?.find((g) => g.name === name);
+    return readOgrafDeclared(graphic ? templateForSavedGraphic(graphic, libraryRef.current).ograf : undefined);
+  }, []);
+  const livePresenceRef = useRef(livePresence);
+  livePresenceRef.current = livePresence;
 
   // ── LIVE CANDIDATES (E7.1; control/selectionAir.ts): what a cue's selection resolves to in the
   // newest tree, and the instances this page aired, kept in this browser across a reload. ──
@@ -1451,6 +1458,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return { collections: collectionsRef.current, bindings: bindingsRef.current, tree: data.liveData, fieldsOf, readable: !publishedRef.current || data.treeRead, ordered: !slug || sendsInOrder(slug) };
     },
     [session, fieldsOf],
+  );
+  /** WHAT A TAKE OR AN UPDATE SENDS FOR A CUE'S TYPED DATA (E1.2a, model/ografTyped.ts): its
+   *  envelope with each bound field's value from the newest tree, read by the typed target adapter
+   *  (never as text), validated whole; then only while every output this page sees reads it. */
+  const typedFor = useCallback(
+    (cue: ShowCue, graphic: string): TypedSend => {
+      if (cue.typed === undefined) return { status: 'none' };
+      const declared = declaredOf(graphic);
+      const nodes = new Map(declared.status === 'ok' && declared.fields ? (declared.fields.properties ?? []).map((p) => [p.key, p.node] as const) : []);
+      const data = session.data.get();
+      const bound = new Map<string, { value: JsonValue } | { reason: string }>();
+      for (const [field, path] of Object.entries(bindingsRef.current?.[graphic] ?? {})) {
+        const node = nodes.get(field);
+        if (!node) continue;
+        if (publishedRef.current && !data.treeRead) return { status: 'refused', reason: 'This production’s shared values are still loading.' };
+        const value = getPath(data.liveData, path);
+        if (value !== undefined) bound.set(field, typedTargetValue(node, value));
+      }
+      const send = typedForSend(cue, declared, bound);
+      if (send.status !== 'ok') return send;
+      const presence = livePresenceRef.current;
+      const outputs = typedOutputsRefusal(publishedRef.current, presence.status, presence.peers);
+      return outputs ? { status: 'refused', reason: outputs } : send;
+    },
+    [session, declaredOf],
   );
   /** The fields of a cue nothing typed or pressed here may move (E7.1): its candidate's, and every
    *  field of a cue this build reads only (a later version's selection). */
@@ -1501,15 +1533,42 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The edited cue's live candidate as the editor shows it (E7.1). A cue carrying typed OGraf
    *  data is read-only here, with the reason (model/ografTyped.ts, E1.1). */
   const candidateOf = (cue: ShowCue | null): CueCandidate | null => {
-    const typed = cue ? typedSendRefusal(cue) : null;
+    const typed = cue && typedReadOnly(cue) ? typedSendRefusal(cue) : null;
     if (typed) return { readOnly: typed, label: '', fields: new Set(), values: {}, notReady: null };
-    if (!cue || cue.selection === undefined) return null;
+    if (!cue || cue.selection === undefined) return typedCandidate(cue);
     const fields = new Set(selectedFields(cue, show?.collections));
     const gate = selectionGate(cue, show?.collections, cueGraphicName(cue), bindings);
     if (gate.status === 'read-only') return { readOnly: gate.reason, label: '', fields, values: {}, notReady: null };
     const take = candidateTake(cue);
     const label = gate.status === 'ok' ? `Live candidate: ${gate.recipe.key.map((path, i) => `${path} ${String(gate.selection.key[i])}`).join(', ')}` : 'Live candidate';
     return { readOnly: null, label, fields, values: take.status === 'ok' ? take.values : {}, notReady: take.status === 'refused' ? take.reason : null };
+  };
+  /** A cue whose typed data is on (E1.2a) shows its envelope's values read-only: they are what Take
+   *  and ✎ Update send, and its native strings wait for Off. A bound field reads out as bound. */
+  const typedCandidate = (cue: ShowCue | null): CueCandidate | null => {
+    const read = cue ? readTypedEnvelope(cue.typed) : null;
+    if (!cue || read?.status !== 'ok' || read.envelope.kind !== 'values') return null;
+    const bound = boundFields(cueGraphicName(cue));
+    const values = nativeOf(read.envelope);
+    return { readOnly: null, label: '', mark: 'Typed', fields: new Set(Object.keys(values).filter((k) => !bound[k])), values, notReady: null };
+  };
+  /** The editor's typed data switch (E1.2a), for a cue whose graphic declares an OGraf schema. */
+  const [typedNote, setTypedNote] = useState<{ cueId: string; note: string } | null>(null);
+  const typedSwitch = (cue: ShowCue | null): CueTypedSwitch | null => {
+    const graphic = cue ? cueGraphicName(cue) : null;
+    const declared = graphic ? declaredOf(graphic) : null;
+    if (!cue || cue.source === 'playout' || declared?.status !== 'ok' || !declared.fields || typedReadOnly(cue)) return null;
+    return {
+      on: cue.typed !== undefined,
+      note: typedNote?.cueId === cue.id ? typedNote.note : null,
+      toggle: async (on) => {
+        if (!show || !(await flushDraft())) return;
+        const result = setCueTyped(show.id, cue.id, on);
+        setShows(result.shows);
+        const failure = result.error ?? (await commitDurableWrites());
+        setTypedNote(failure ? { cueId: cue.id, note: failure } : null);
+      },
+    };
   };
   /** The writer's menu for the edited cue (E7.2a): the people each of its graphic's recipes
    *  offers in this render's tree, and the cue's pick. Null for a cue no recipe serves, or one this
@@ -2207,9 +2266,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
    *  unpublished only (control/productionDataSession.ts `dispatch` says why). */
+  // A graphic airing typed data (E1.2a) is left out: its bound values are typed and go with ✎ Update
+  // in its envelope, never as the text this dispatch resolves.
+  const typedAir = useMemo(() => new Set(Object.entries(liveCue).filter(([, id]) => cues.find((c) => c.id === id)?.typed !== undefined).map(([g]) => g)), [liveCue, cues]);
+  const dispatched = useMemo(() => (typedAir.size ? Object.fromEntries(Object.entries(resolved).filter(([g]) => !typedAir.has(g))) : resolved), [resolved, typedAir]);
   useEffect(() => {
-    dataSession.dispatch(resolved, liveData, runVerb);
-  }, [dataSession, resolved, liveData, dataKey, runVerb]);
+    dataSession.dispatch(dispatched, liveData, runVerb);
+  }, [dataSession, dispatched, liveData, dataKey, runVerb]);
 
   /** LIVE CANDIDATES ON AIR follow their captured selector (control/selectionAir.ts): a newer
    *  revision goes out as one update of every mapped field, anything else holds the picture. An
@@ -2399,7 +2462,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     slots: PLAYOUT_SLOTS,
     selectionBlocker: (cue) => {
       const take = candidateTake(cue);
-      return take.status === 'refused' ? take.reason : null;
+      if (take.status === 'refused') return take.reason;
+      const graphic = cue.typed === undefined ? null : cueGraphicName(cue);
+      const typed = graphic ? typedFor(cue, graphic) : null;
+      return typed?.status === 'refused' ? typed.reason : null;
     },
   };
   const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn);
@@ -2728,6 +2794,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     boundFields,
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
+    typedFor,
     selectionAired,
     candidateFields,
     airedCandidateFields: (graphic) => {
@@ -3826,6 +3893,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             ownReader={ownReaderOf(poolGraphic)}
             candidate={candidateOf(editingCue)}
             picker={candidatePicker(editingCue)}
+            typed={typedSwitch(editingCue)}
             adjust={(() => {
               const g = graphicByPoolId.get(editingCue.sourceId);
               const state = adjustStateOf(editingCue);

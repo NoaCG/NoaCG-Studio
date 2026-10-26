@@ -261,13 +261,14 @@ test('the envelope: read, later, another revision, malformed', () => {
   assert.equal(typedReadOnly({}), false);
 });
 
-test('a page never sends a cue that carries typed data, with the reason; a native cue is untouched', () => {
+test('a page never sends typed data it cannot read, nor a live press on typed data, with the reason; a native cue is untouched', () => {
   assert.equal(typedSendRefusal({}), null);
-  assert.equal(typedSendRefusal({ typed: envelope() }), 'This cue’s typed data needs a newer version of NoaCG to go on air.');
+  // E1.2a: a readable envelope airs through Take and Update (`typedForSend`), never a live press.
+  assert.equal(typedSendRefusal({ typed: envelope() }), 'Live controls do not reach typed data yet.');
   assert.equal(typedSendRefusal({ typed: envelope({ v: 2 }) }), 'This cue’s typed data was saved by a later version of NoaCG, so it is read-only here.');
   // Take, Update and every Take refusal ask `selectionTake`.
   assert.deepEqual(selectionTake({ typed: envelope({ v: 9 }) }, 'Board', facts), { status: 'refused', reason: typedSendRefusal({ typed: envelope({ v: 9 }) }) });
-  assert.deepEqual(selectionTake({ typed: envelope() }, 'Board', facts).status, 'refused');
+  assert.deepEqual(selectionTake({ typed: envelope() }, 'Board', facts), { status: 'none' });
   assert.deepEqual(selectionTake({}, 'Board', facts), { status: 'none' });
   // Every road that sends a cue's own strings without resolving it leaves it out: the hosted page,
   // the exported controller, the SPX rundown and a timed end.
@@ -290,7 +291,7 @@ test('L1: a pinned block is native: the cue it presses with carries no envelope,
 
 // ── The output's read gate ───────────────────────────────────────────────────────────────────
 
-test('the output reader: a native message is not read, an envelope is refused, nothing is stringified', () => {
+test('the output reader: a native message is not read, a values update is read, any other envelope is refused, nothing is stringified', () => {
   const native = deepFreeze([
     { t: 'update', data: { f0: 'Anna', f1: '3' } },
     // L2.1 and L2.2: `appearance`, style inside it, is a native wire member outside the envelope.
@@ -301,35 +302,45 @@ test('the output reader: a native message is not read, an envelope is refused, n
   for (const msg of native) assert.equal(readTypedWire(msg), null, JSON.stringify(msg));
   assert.equal(JSON.stringify(native), before, 'byte for byte');
   assert.equal(readTypedWire({ t: 'update', data: {}, typed: undefined }), null);
-  assert.deepEqual(readTypedWire({ t: 'update', data: {}, typed: envelope() }), { reason: 'This output cannot show typed data yet: reload this output.' });
+  // E1.2a: a values envelope on an update is this output's data; on any other verb, or an action
+  // envelope, it is refused.
+  assert.deepEqual(readTypedWire({ t: 'update', data: {}, typed: envelope() }), { values: envelope().values });
+  assert.deepEqual(readTypedWire({ t: 'play', typed: envelope() }), { reason: 'This output cannot show typed data yet: reload this output.' });
+  assert.deepEqual(readTypedWire({ t: 'update', data: {}, typed: { v: 1, kind: 'action', standard: OGRAF_STANDARD.commit, schema: schemaHash, action: 'go' } }), { reason: 'This output cannot show typed data yet: reload this output.' });
   assert.deepEqual(readTypedWire({ t: 'update', data: {}, appearance: { v: 1 }, typed: envelope({ v: 2 }) }), { reason: 'This output cannot read this command’s data (it was saved by a later version of NoaCG): reload this output.' });
   assert.ok(readTypedWire({ t: 'event', event: 'highlight', typed: 'garbage' }).reason.includes('cannot be read'));
   // The output source refuses before it applies anything: the gate sits in front of the stage.
   const main = readFileSync(path.join(root, 'src/output/main.ts'), 'utf8');
-  const gate = main.indexOf('const typed = typedOutputGate(typedRefused, graphic, incoming);');
+  const gate = main.indexOf('const gate = typedOutputGate(typed, graphic, incoming);');
   assert.ok(gate > 0 && gate < main.indexOf("if (verb === 'update' ||", gate) && gate < main.indexOf('stage.apply(row.graphic', gate));
   // A held graphic never reports, so a reboot's recovery replays the refused command and holds
   // again: the report's write and the re-bank both skip it.
   const report = main.indexOf('const scheduleReport = ');
-  const held = main.indexOf('if (typedRefused.has(graphic)) {', report);
+  const held = main.indexOf('if (typedRefused.has(graphic) || typed.airing.has(graphic)) {', report);
   assert.ok(report > 0 && held > report && held < main.indexOf('controlOutputReport(', report), 'the report skips a held graphic before it writes');
-  assert.match(main, /if \(seq <= at \|\| typedRefused\.has\(graphic\)\) continue;/);
+  assert.match(main, /if \(seq <= at \|\| typedRefused\.has\(graphic\) \|\| typed\.airing\.has\(graphic\)\) continue;/);
 });
 
 test('the output holds a refused graphic: a Take\'s play after its refused update never airs old values', () => {
-  const held = new Map();
-  const typedUpdate = { t: 'update', data: { f0: 'stale' }, typed: envelope() };
-  assert.deepEqual(typedOutputGate(held, 'Board', typedUpdate), { apply: false, changed: true });
-  assert.deepEqual(typedOutputGate(held, 'Board', typedUpdate), { apply: false, changed: false });
-  assert.equal(held.get('Board'), 'This output cannot show typed data yet: reload this output.');
-  for (const msg of [{ t: 'play' }, { t: 'next' }, { t: 'snap', snap: null }, { t: 'event', event: 'go' }]) assert.deepEqual(typedOutputGate(held, 'Board', msg), { apply: false, changed: false }, msg.t);
+  const state = { held: new Map(), airing: new Set() };
+  const held = state.held;
+  const typedUpdate = { t: 'update', data: { f0: 'stale' }, typed: envelope({ v: 2 }) };
+  assert.deepEqual(typedOutputGate(state, 'Board', typedUpdate), { apply: false, changed: true });
+  assert.deepEqual(typedOutputGate(state, 'Board', typedUpdate), { apply: false, changed: false });
+  assert.equal(held.get('Board'), 'This output cannot read this command’s data (it was saved by a later version of NoaCG): reload this output.');
+  for (const msg of [{ t: 'play' }, { t: 'next' }, { t: 'snap', snap: null }, { t: 'event', event: 'go' }]) assert.deepEqual(typedOutputGate(state, 'Board', msg), { apply: false, changed: false }, msg.t);
   // Another graphic is untouched; taking this one off always goes.
-  assert.deepEqual(typedOutputGate(held, 'Other', { t: 'play' }), { apply: true, changed: false });
-  assert.deepEqual(typedOutputGate(held, 'Board', { t: 'stop' }), { apply: true, changed: false });
+  assert.deepEqual(typedOutputGate(state, 'Other', { t: 'play' }), { apply: true, changed: false });
+  assert.deepEqual(typedOutputGate(state, 'Board', { t: 'stop' }), { apply: true, changed: false });
   // A native update gives it its data again and lifts the hold.
-  assert.deepEqual(typedOutputGate(held, 'Board', { t: 'update', data: { f0: 'fresh' } }), { apply: true, changed: true });
+  assert.deepEqual(typedOutputGate(state, 'Board', { t: 'update', data: { f0: 'fresh' } }), { apply: true, changed: true });
   assert.equal(held.size, 0);
-  assert.deepEqual(typedOutputGate(held, 'Board', { t: 'play' }), { apply: true, changed: false });
+  assert.deepEqual(typedOutputGate(state, 'Board', { t: 'play' }), { apply: true, changed: false });
+  // So does a readable envelope (E1.2a), which airs as typed.
+  typedOutputGate(state, 'Board', typedUpdate);
+  assert.deepEqual(typedOutputGate(state, 'Board', { t: 'update', data: {}, typed: envelope() }), { apply: true, changed: true, values: envelope().values });
+  assert.equal(held.size, 0);
+  assert.ok(state.airing.has('Board'));
 });
 
 test('AC-3: legacy /update and /patch bodies are read exactly as before; an envelope is never flattened into a field', () => {
@@ -360,8 +371,12 @@ test('both write doors: an envelope is kept byte for byte, a read-only cue in ev
   assert.equal(after([ok, { ...later, label: 'x' }, native]), TYPED_KEPT, 'a read-only cue keeps every byte');
   assert.equal(after([ok, native]), TYPED_KEPT, 'and is never removed');
   assert.equal(after([later, native]), null, 'a readable cue may be removed');
-  assert.equal(after([ok, later, { ...native, typed: envelope() }]), TYPED_KEPT, 'no writer here: none is gained');
-  assert.equal(after([ok, later, native, { ...ok, id: 'copy' }]), TYPED_KEPT, 'a copy needs the writer');
+  assert.equal(after([ok, later, { ...native, typed: envelope() }]), TYPED_KEPT, 'none is gained but through the writer');
+  // E1.2a: a copy carries an envelope the record already held, byte for byte; never another, and
+  // never a read-only one.
+  assert.equal(after([ok, later, native, { ...ok, id: 'copy' }]), null, 'a copy carries it');
+  assert.equal(after([ok, later, native, { ...ok, id: 'copy', typed: envelope({ values: { title: 'B' } }) }]), TYPED_KEPT);
+  assert.equal(after([ok, later, native, { ...later, id: 'copy' }]), TYPED_KEPT, 'a read-only copy is not carried'); 
   // A record without typed cues has nothing to keep and passes every write.
   assert.equal(typedKeep(showWith([native])), null);
   assert.equal(typedFrozen(null, { cues: [native] }), null);
@@ -381,9 +396,9 @@ test('both write doors: an envelope is kept byte for byte, a read-only cue in ev
 test('the door is asked by both writes of patchShowChecked and by the undo', () => {
   const shows = readFileSync(path.join(root, 'src/model/shows.ts'), 'utf8');
   assert.match(shows, /const typed = typedKeep\(show\);\n {2}const result = mutate\(show, at\);/);
-  assert.match(shows, /selectionFrozen\(kept, show, undefined, write\) \?\? typedFrozen\(typed, show\)/);
+  assert.match(shows, /selectionFrozen\(kept, show, undefined, write\) \?\? typedFrozen\(typed, show, undefined, typedWrite\)/);
   assert.match(shows, /const typedFresh = typedKeep\(fresh\);\n {4}const again = mutate\(fresh, at\);/);
-  assert.match(shows, /typedFrozen\(typedFresh, fresh\)/);
+  assert.match(shows, /typedFrozen\(typedFresh, fresh, undefined, typedWrite\)/);
 });
 
 // ── AC-4: migration ──────────────────────────────────────────────────────────────────────────
