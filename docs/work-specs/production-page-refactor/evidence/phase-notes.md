@@ -134,7 +134,9 @@ changes a spec's digest.
   agent's log. Captures: eight output PNGs per run (`output-<step>.png` in the run's results, not
   committed). I looked at count-01, correction-down and empty-collection: the board, bug, ticker
   and card render whole, the figures are the asserted ones, and the card held its last values
-  after the empty list (3,650 in that run, before revision 4 carried Aino's correction). (They overlap because the walk airs all four at once, which a show would not.)
+  after the empty list (3,650 in that run, before revision 4 carried Aino's correction). On the
+  final code, person-deleted shows the card at 3,640 with the board and bug unchanged; a last full
+  run of the spec (7 of 7) measured 3008, 2019, 1890, 1888, 5401 and 4886 for the same steps. (They overlap because the walk airs all four at once, which a show would not.)
   **Grade:** software/replay rehearsal on browser outputs, PASS. Real-studio grade (CasparCG/
   Bridge, OBS) is parent phase S, not run here. Official live-feed access and election-day feed
   qualification: unverified, no access exists; nothing here is a broadcaster readiness claim.
