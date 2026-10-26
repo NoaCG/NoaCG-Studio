@@ -1223,6 +1223,7 @@ function timelineFunctionNames(template: SpxTemplate): string[] {
 
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
 function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB, appearance?: AppliedAppearance): string {
+  const baked = appearance?.frame ? appearance : undefined;
   const stepCount = ografStepCount(template);
   const machine = parseAnimData(template.js)?.machine;
   const timelineNames = timelineFunctionNames(template);
@@ -1301,13 +1302,13 @@ const TEMPLATE_HTML = ${JSON.stringify(sources.html)};
 // studio's \`html, body\` and \`:root\` ARE the canvas), so the design lays out against its own
 // canvas, and the renderer's page, which no rule inside a shadow tree reaches anyway, stays as it was.
 const GRAPHIC_ID = ${JSON.stringify(graphicId)};
-${appearance?.frame ? `
+${baked ? `
 // PLACE AND SIZE, baked from the production that exported this package (docs/work-specs/
 // playout-adjustments/spec.md, phase 1b): applied to the canvas as it is claimed, by the same
 // runtime an exported overlay applies to its own root, with the canvas's rect reads mapped back so
 // the design measures what it measures unadjusted.
 ${APPEARANCE_RUNTIME_JS}
-const APPEARANCE = ${JSON.stringify(appearance)};
+const APPEARANCE = ${JSON.stringify(baked)};
 ` : ''}
 // The canvas is the element in the shadow root that carries the attribute (see _claimCanvas):
 // the box the template's \`html, body\` rule describes, made a block (all: initial makes it
@@ -1907,7 +1908,7 @@ class Graphic extends HTMLElement {
     root.appendChild(style);
     const canvas = document.createElement('div');
     canvas.setAttribute('data-noacg-graphic', GRAPHIC_ID);
-    root.appendChild(canvas);${appearance?.frame ? `
+    root.appendChild(canvas);${baked ? `
     noacgApplyAppearance(APPEARANCE, canvas);` : ''}
     return canvas;
   }

@@ -8,6 +8,7 @@ import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { relayServe, routeOrigin } from './_relay';
+import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 
 // The LOCAL-CONTROL door (offline local control, no command line): the overlay package
 // bundles a localhost relay (two stdlib implementations of protocol v1) + double-click
@@ -284,7 +285,7 @@ test('an adjusted production over the relay: the bake, the Take\'s place and siz
   const { serve, rows } = relayServe(files);
   const origin = 'http://relay-placed.local';
   const transformOf = (p: Page) => p.evaluate(() => document.documentElement.style.transform);
-  const css = (a: { frame?: { dx: number; dy: number; s: number } }) => (a.frame ? `translate(${a.frame.dx}px, ${a.frame.dy}px) scale(${a.frame.s})` : '');
+  const css = (a: AppliedAppearance) => frameCss(a).transform;
 
   const air = await context.newPage();
   await routeOrigin(air, origin, serve);

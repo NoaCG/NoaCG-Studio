@@ -37,9 +37,12 @@ interface RundownCue {
   adjust?: unknown;
 }
 
+/** A graphic cue with place and size of its own (a playout-server clip has none). */
+export const cueAdjusted = (c: Omit<RundownCue, 'id' | 'sourceId'>) => c.source !== 'playout' && c.adjust !== undefined;
+
 /** The pool graphics that hold place and size at either scope. */
 export function adjustedGraphics<G extends PoolGraphic>(graphics: readonly G[], cues: readonly RundownCue[]): G[] {
-  return graphics.filter((g) => g.adjust !== undefined || cues.some((c) => c.sourceId === g.id && c.source !== 'playout' && c.adjust !== undefined));
+  return graphics.filter((g) => g.adjust !== undefined || cues.some((c) => c.sourceId === g.id && cueAdjusted(c)));
 }
 
 /** Whether a fold needs a box to resolve: a preset, or a size about the box's own point. */

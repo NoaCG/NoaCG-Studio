@@ -24,6 +24,7 @@ import { test, expect, type Browser, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { decodePng } from '../scripts/png-decode.mjs';
+import { differing } from './_ografParity';
 import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 import { bakeAppearance } from '../src/control/appearanceRuntime';
 
@@ -32,10 +33,8 @@ const GROUND = [10, 20, 30];
 /** The appearance the sweep applies: smaller, so whatever lies beyond the canvas would show, and
  *  moved both ways. */
 const SWEEP_LOOK: AppliedAppearance = { v: 1, frame: { dx: -137, dy: -61, s: 0.85, ox: 600, oy: 900 } };
-/** Per colour channel, the difference two pixels may have and still match. */
-const CHANNEL_TOLERANCE = 24;
 /** Pixels the root may paint differently from the frame beyond the frame's own mount-to-mount
- *  difference: antialiasing along edges drawn under a transform of their own (qz01's skewed
+ *  difference (each judged at e2e/_ografParity.ts's channel tolerance): antialiasing along edges drawn under a transform of their own (qz01's skewed
  *  badges at 108 % differ by 831). The OGraf parity spec's bound (e2e/_ografParity.ts). qz01 with
  *  the rect mapping removed is 2,328 over the frame. */
 const RESIDUAL_BOUND = 1_000;
@@ -140,22 +139,6 @@ async function framesOf(page: Page, path: string, look: AppliedAppearance | null
   return out;
 }
 
-/** How many pixels of two frames differ by more than the tolerance in a colour channel. */
-function differing(a: Buffer, b: Buffer): number {
-  const pa = decodePng(a);
-  const pb = decodePng(b);
-  let count = 0;
-  for (let i = 0; i < pa.samples.length; i += pa.channels) {
-    for (let c = 0; c < 3; c++) {
-      if (Math.abs(pa.samples[i + c] - pb.samples[i + c]) > CHANNEL_TOLERANCE) {
-        count += 1;
-        break;
-      }
-    }
-  }
-  return count;
-}
-
 /** Pixels that are not the ground: proof a frame shows something. */
 function painted(a: Buffer): number {
   const p = decodePng(a);
@@ -172,7 +155,10 @@ async function residuals(page: Page, framed: string, rooted: string, look: Appli
   const ref = await framesOf(page, framed, look, start, samples);
   const again = await framesOf(page, framed, look, start, samples);
   const root = await framesOf(page, rooted, null, start, samples);
-  return samples.map((ms, i) => ({ ms, painted: painted(ref[i]), noise: differing(ref[i], again[i]), residual: differing(ref[i], root[i]) - differing(ref[i], again[i]) }));
+  return samples.map((ms, i) => {
+    const noise = differing(ref[i], again[i]);
+    return { ms, painted: painted(ref[i]), noise, residual: differing(ref[i], root[i]) - noise };
+  });
 }
 
 test('the sweep: every viewport-unit design paints the same with the transform on its root as in a transformed frame', async ({ page, browser }) => {

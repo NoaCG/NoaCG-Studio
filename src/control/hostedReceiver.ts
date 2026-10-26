@@ -135,7 +135,7 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     }
     else if (m.t === 'next' && typeof next === 'function') next();
     else if (m.t === 'update' && typeof update === 'function') {
-      if (m.appearance !== undefined) applyLook(m.appearance);
+      applyLook(m.appearance);
       update(JSON.stringify(m.data || {}));
     }
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);

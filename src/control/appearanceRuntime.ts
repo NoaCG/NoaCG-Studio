@@ -49,10 +49,11 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
       if (node.nodeType !== 1) node = node.parentNode;
       return !!node && (node === h || (node.getRootNode() === h.getRootNode() && h.contains(node)));
     };
-    // The rect the element would report with its host untransformed. The host's own reported box
-    // gives what lies above it (a renderer's own scale k, a position), so the inverse holds in a
-    // renderer page as in a document of its own.
-    var unmap = function (node, r) {
+    // What maps a rect read under NODE back to the one it would be with its host untransformed,
+    // or null when no transformed host holds it. The host's own reported box gives what lies above
+    // it (a renderer's own scale k, a position), so the inverse holds in a renderer page as in a
+    // document of its own.
+    var mapper = function (node) {
       for (var i = 0; i < hosts.length; i++) {
         var h = hosts[i];
         if (!h.el.isConnected) { hosts.splice(i--, 1); continue; }
@@ -60,15 +61,23 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
         var f = h.f, box = rect0.call(h.el), w = h.el.offsetWidth;
         var k = w ? box.width / (f.s * w) : 1;
         var x0 = box.left - k * (f.ox + f.dx - f.s * f.ox), y0 = box.top - k * (f.oy + f.dy - f.s * f.oy);
-        var x = x0 + k * (f.ox + ((r.left - x0) / k - f.ox - f.dx) / f.s);
-        var y = y0 + k * (f.oy + ((r.top - y0) / k - f.oy - f.dy) / f.s);
-        return new DOMRect(x, y, r.width / f.s, r.height / f.s);
+        return function (r) {
+          var x = x0 + k * (f.ox + ((r.left - x0) / k - f.ox - f.dx) / f.s);
+          var y = y0 + k * (f.oy + ((r.top - y0) / k - f.oy - f.dy) / f.s);
+          return new DOMRect(x, y, r.width / f.s, r.height / f.s);
+        };
       }
-      return r;
+      return null;
+    };
+    var unmap = function (node, r) {
+      var m = mapper(node);
+      return m ? m(r) : r;
     };
     var list = function (node, l) {
+      var m = mapper(node);
+      if (!m) return l;
       var out = [];
-      for (var i = 0; i < l.length; i++) out.push(unmap(node, l[i]));
+      for (var i = 0; i < l.length; i++) out.push(m(l[i]));
       out.item = function (n) { return out[n] || null; };
       return out;
     };

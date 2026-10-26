@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { EXPORT_TARGETS } from '../../export/registry';
-import { downloadShowZipFor } from '../../export/showExport';
+import { CONTROLLER_TARGET, downloadShowZipFor } from '../../export/showExport';
 import { loadGraphics } from '../../model/library';
 import { loadPrefs, savePrefs } from '../../model/prefs';
 import { buildPack, packFileName } from '../../packs/graphicsPack';
 import { productionGateFailures } from '../../validation/productionGate';
 import type { Show } from '../../model/shows';
 import { useModalGate } from '../spaceKey';
-import { CUE_APPEARANCE_TARGET, measureExportAppearances } from './exportAppearances';
+import { measureExportAppearances } from './exportAppearances';
+import { cueAdjusted } from '../../control/exportAppearance';
 
 /**
  * The production's TARGET PICKER (acceptance finding: "I wasn't able to choose the
@@ -111,7 +112,7 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
           {/* PLACE AND SIZE (playout adjustments, phase 1b): every package carries each graphic's
               own; a cue's exception needs a controller that sends it, which only the overlay
               package has, so the other targets say what they leave out before one is chosen. */}
-          {targetId !== CUE_APPEARANCE_TARGET && (show.cues ?? []).some((c) => c.source !== 'playout' && c.adjust !== undefined) && (
+          {targetId !== CONTROLLER_TARGET && (show.cues ?? []).some(cueAdjusted) && (
             <p className="status-warn" data-testid="prod-export-adjust">
               A cue’s own place and size travels only in the HTML overlay package. This one carries each graphic’s.
             </p>

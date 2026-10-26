@@ -220,7 +220,7 @@ export const htmlOverlayTarget: ExportTarget = {
       `${name}.html`,
       await composeSelfContainedHtml(withReceiver, [
         ...bakeAppearance(ctx?.appearance),
-        { id: 'noacg-local-receiver', js: localReceiverJs(template.name, ctx?.appearance ? { appearance: true } : {}) },
+        { id: 'noacg-local-receiver', js: localReceiverJs(template.name, { appearance: !!ctx?.appearance }) },
         { id: 'noacg-overlay-autoplay', js: autoplayScript(ctx?.sampleData ?? {}, outMs) },
       ]),
     );

@@ -60,7 +60,7 @@ ${looks ? `
     }
     else if (m.t === 'next' && typeof next === 'function') next();
     else if (m.t === 'update' && typeof update === 'function') ${looks ? `{
-      if (lookOf(m)) noacgApplyAppearance(m.appearance);
+      noacgApplyAppearance(m.appearance);
       update(JSON.stringify(m.data || {}));
     }` : 'update(JSON.stringify(m.data || {}));'}
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);

@@ -316,6 +316,10 @@ const FIELD_USAGE_NOTES: Record<string, string> = {
   liveos: 'These ids are the keys of the OGraf data object NetOn.Live sends to each graphic.',
 };
 
+/** The one target whose production package carries a controller (the local relay's): the only
+ *  one that can send a cue's own place and size. */
+export const CONTROLLER_TARGET = 'html-overlay';
+
 /** Build the whole production for one registry target. 'spx' keeps its dedicated builder
  *  (aggregated panel + per-folder starters); every other id runs the generic merge. */
 export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowExportOptions): Promise<JSZip> {
@@ -337,7 +341,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
       entries,
       sampleData: activeEntryValues(graphic, library),
       graphicUsage: 'live',
-      ...(opts?.appearances?.graphics[graphic.id] ? { appearance: opts.appearances.graphics[graphic.id] } : {}),
+      appearance: opts?.appearances?.graphics[graphic.id],
     });
     for (const [path, file] of Object.entries(sub.files)) {
       if (file.dir) continue;
@@ -357,7 +361,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
   // command-line setup. The per-graphic sub-packages each carry their own relay copy too
   // (a single folder lifted out keeps working); the root bundle is the one the launcher
   // story documents.
-  if (targetId === 'html-overlay') {
+  if (targetId === CONTROLLER_TARGET) {
     root.file(
       'show_controlpanel.html',
       renderShowControlPanelHtml(show.name, panelGraphics, { inlineAssets: true }),
@@ -370,8 +374,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
     const cues: EmittedCue[] = (show.cues ?? []).flatMap((cue) => {
       const graphicName = byPoolId.get(cue.sourceId);
       if (!graphicName || !preparedCue(cue)) return [];
-      const appearance = opts?.appearances?.cues[cue.id];
-      return [{ id: cue.id, label: cue.label || graphicName, graphic: graphicName, values: { ...cue.values }, note: cue.note ?? '', ...(appearance ? { appearance } : {}) }];
+      return [{ id: cue.id, label: cue.label || graphicName, graphic: graphicName, values: { ...cue.values }, note: cue.note ?? '', appearance: opts?.appearances?.cues[cue.id] }];
     });
     const first = panelGraphics[0]?.template;
     root.file(

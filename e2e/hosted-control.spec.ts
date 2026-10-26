@@ -8,6 +8,7 @@ import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
+import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 
 // Hosted control ENTRIES (docs/CONTROL_LAYER.md + docs/SAVED_CONTENT_MODEL.md §4): a show's
 // published `panel` spec carries every graphic's saved entries, so the hosted ?control= page
@@ -406,9 +407,9 @@ test('a hosted graphic whose channel never delivers a row still catches up from 
 // does, and a boot restores it from that report, which is the only place an undated report's
 // appearance survives (its boot resumes from the log head). A dated report then replays the rows
 // after it, so the last one applied wins (rule 4). A version this build does not know is ignored.
-const LOOK_A = { v: 1, frame: { dx: -40, dy: 0, s: 1, ox: 120, oy: 961 } };
-const LOOK_B = { v: 1, frame: { dx: 20, dy: -30, s: 0.9, ox: 120, oy: 961 } };
-const lookCss = (a: { frame: { dx: number; dy: number; s: number } }) => `translate(${a.frame.dx}px, ${a.frame.dy}px) scale(${a.frame.s})`;
+const LOOK_A: AppliedAppearance = { v: 1, frame: { dx: -40, dy: 0, s: 1, ox: 120, oy: 961 } };
+const LOOK_B: AppliedAppearance = { v: 1, frame: { dx: 20, dy: -30, s: 0.9, ox: 120, oy: 961 } };
+const lookCss = (a: AppliedAppearance) => frameCss(a).transform;
 
 for (const dated of [false, true]) {
   test(`a hosted graphic restores its place and size from ${dated ? 'a dated' : 'an undated'} report, applies a row's, and reports it`, async ({ page, context }) => {
