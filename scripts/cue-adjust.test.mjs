@@ -887,7 +887,12 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     assert.deepEqual(St.weightsFor({ fontId: 'bebas-neue' }, {}, []).map((x) => x.value), [400]);
     assert.deepEqual(St.weightsFor({ fontId: 'archivo' }, {}, []).map((x) => x.value), [400, 500, 600, 700, 800, 900]);
     const style = St.resolveStyle(eff({ v: 1, font: brand }, undefined), imported);
-    assert.deepEqual(style.fonts, [{ family: 'Brand Sans', src: 'fonts/brand-sans.woff2', weight: [100, 900] }]);
+    // Its digits are not measured even, so the numbers go to the bundled mono, which ships with it.
+    assert.match(style.vars['font-numeric'], /JetBrains Mono/);
+    assert.deepEqual(style.fonts.map((f) => f.src), ['fonts/brand-sans.woff2', 'fonts/jetbrains-mono.woff2', 'fonts/jetbrains-mono-latin-ext.woff2']);
+    assert.deepEqual(style.fonts[0], { family: 'Brand Sans', src: 'fonts/brand-sans.woff2', weight: [100, 900] });
+    const even = St.resolveStyle(eff({ v: 1, font: brand }, undefined), [{ ...imported[0], tabularFigures: true }]);
+    assert.deepEqual(even.fonts.map((f) => f.src), ['fonts/brand-sans.woff2'], 'even digits stay in the face, so no mono ships');
     assert.equal(St.resolveStyle(eff({ v: 1, font: brand }, undefined), []), null, 'a face no pool graphic ships any more resolves to nothing');
   });
 
@@ -895,7 +900,7 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     const style = St.resolveStyle(eff({ v: 1, font: brand }, undefined), [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
     const css = St.facesCss(style.fonts, (src) => (src === 'fonts/brand-sans.woff2' ? 'data:font/woff2;base64,AAAA' : null));
     assert.match(css, /font-family: "Brand Sans"; src: url\("data:font\/woff2;base64,AAAA"\); font-weight: 100 900;/);
-    assert.equal(St.facesCss(style.fonts, () => null), '', 'no bytes: no dead declaration');
+    assert.doesNotMatch(St.facesCss(style.fonts, () => null), /Brand Sans/, 'no bytes: no dead declaration (the bundled mono for its numbers stays)');
     const bundled = St.facesCss(St.resolveStyle(eff({ v: 1, font: archivo }, undefined), []).fonts);
     assert.match(bundled, /url\("fonts\/archivo\.woff2"\)/);
     assert.match(bundled, /url\("fonts\/archivo-latin-ext\.woff2"\)[^}]*unicode-range: U\+0100/);

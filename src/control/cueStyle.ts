@@ -18,11 +18,13 @@ import {
   LATIN_EXT_RANGE,
   customFontFaceCss,
   ensureFontFace,
+  fontById,
   fontFormatForExt,
   fontStack,
   fontWeights,
   knownFace,
   latinExtFile,
+  MONO_STACK,
   numericFaceFor,
   numericFontStack,
   type BundledFont,
@@ -177,6 +179,8 @@ export function resolveStyle(
     vars['font-heading'] = `"${face.imported.family}", Arial, sans-serif`;
     vars['font-numeric'] = numericFontStack(face.imported);
     declare([{ family: face.imported.family, src: face.imported.assetPath, weight: [100, 900] }]);
+    // Uneven digits fall back to the bundled mono, which ships only if it is declared here.
+    if (vars['font-numeric'] === MONO_STACK) declare(bundledDeclarations(fontById('jetbrains-mono')));
   }
   if (Object.keys(vars).length === 0 && fonts.length === 0) return null;
   return { ...(Object.keys(vars).length > 0 ? { vars } : {}), ...(fonts.length > 0 ? { fonts } : {}) };
