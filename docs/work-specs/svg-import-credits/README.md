@@ -74,6 +74,14 @@ example and qualify the examples before publishing a complete SVG import example
   then measures the SVG text. It removes same-task endpoint calibration, which the browser
   proved was reading the same stale bounds. Generation checks still cancel a pending repaint
   or font wait on Out/replay. The existing half-pixel assertions remain unchanged.
+- Attempt 1 (`673e19635`, run `40322005328`) still measured the hidden Pop text at height
+  `2061.247314453125`; the visible text later measured `2062.14501953125`. One extra rendered
+  frame while hidden did not update those metrics. The failing spec moved to shard 15 after
+  the maintained shard plan changed; shard 6 passing was not credits acceptance.
+- Fresh attempt 2 reveals the text immediately before its bounds read, then places it fully
+  below the frame in the same synchronous callback. No intermediate visible frame is yielded.
+  Invalid measurement keeps it hidden. A browser A/B probe compares the same document with
+  the old hidden-measurement order, alongside the unchanged strict start/end assertions.
 
 - Starting checkout: `8abde8e7103715f21ccf7384f08cb1dbc22a9bfa`.
 - Owned worktree: `C:/Users/ahonemi/.codex/worktrees/ba33/NoaCG-Studio`.

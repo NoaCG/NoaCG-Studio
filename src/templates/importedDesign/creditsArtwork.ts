@@ -68,9 +68,16 @@ function noacgCreditsRoll() {
     travel.removeAttribute('transform');
     var parent = travel.parentNode;
     var matrix = parent.getScreenCTM && parent.getScreenCTM();
+    // A visibility-hidden SVG can retain glyph metrics from the entrance's earlier scale.
+    // Reveal and position in this one synchronous callback: its first visible paint is below
+    // the frame, while the measurement sees the text's actual visible layout.
+    travel.removeAttribute('data-noacg-stopped');
     var text = artwork.text.getBoundingClientRect();
     var frame = document.body.getBoundingClientRect();
-    if (!matrix || !(text.height > 0) || !(frame.height > 0)) return;
+    if (!matrix || !(text.height > 0) || !(frame.height > 0)) {
+      travel.setAttribute('data-noacg-stopped', '');
+      return;
+    }
     var inverse = matrix.inverse();
     // Measure the entire original object, including names outside its SVG viewBox. A screen
     // vertical vector mapped into the parent's coordinates also handles rotated/scaled groups.
@@ -84,7 +91,6 @@ function noacgCreditsRoll() {
       travel.setAttribute('transform', 'translate(' + (inverse.c * position.y) + ' ' + (inverse.d * position.y) + ')');
     };
     paint();
-    travel.removeAttribute('data-noacg-stopped');
     travel.setAttribute('data-noacg-rolling', '');
     noacgCreditsBuiltAt = speed;
     noacgCreditsLast = {

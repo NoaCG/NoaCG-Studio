@@ -141,6 +141,31 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
       return { reads: w.creditsBoundsReads, immediate, nextFrame, painted: snapshot() };
     });
     await testInfo.attach(`${motion} credits bounds`, { body: JSON.stringify({ geometry, diagnostics }, null, 2), contentType: 'application/json' });
+    if (motion === 'pop') {
+      // Browser A/B diagnosis: retain the original assertions below and compare the same
+      // document with the pre-repair hide/measure order. This probe has no weaker pass gate.
+      const oldOrder = html
+        .replace(/travel\.removeAttribute\('data-noacg-stopped'\);\s*(var text = artwork\.text\.getBoundingClientRect\(\);)/, '$1')
+        .replace("travel.setAttribute('data-noacg-rolling', '');", "travel.removeAttribute('data-noacg-stopped');\n    travel.setAttribute('data-noacg-rolling', '');");
+      expect(oldOrder).not.toBe(html);
+      const probe = await page.context().newPage();
+      try {
+        await probe.setContent(oldOrder);
+        await probe.evaluate(() => (window as unknown as { play(): void }).play());
+        await expect.poll(() => probe.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+        const control = await probe.locator('.imported-design-credits').evaluate((el) => {
+          const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void }; noacgCreditsLast: unknown };
+          w.noacgCreditsTween.pause();
+          w.noacgCreditsTween.progress(0);
+          const start = el.getBoundingClientRect().top;
+          w.noacgCreditsTween.progress(1);
+          return { start, end: el.getBoundingClientRect().bottom, measured: w.noacgCreditsLast };
+        });
+        await testInfo.attach('Pop hidden-measurement control', { body: JSON.stringify(control, null, 2), contentType: 'application/json' });
+      } finally {
+        await probe.close();
+      }
+    }
     expect(Math.abs(geometry.start - geometry.frameBottom), `${motion}: the first glyph starts at the output's bottom: ${JSON.stringify(geometry)}`).toBeLessThan(0.5);
     expect(Math.abs(geometry.end - geometry.frameTop), `${motion}: the final glyph clears the output's top: ${JSON.stringify(geometry)}`).toBeLessThan(0.5);
     expect(geometry.transform).toBe('translate(820 85)');
