@@ -540,6 +540,36 @@ test.describe('live candidates', () => {
     await output.close();
   });
 
+  test('an instance without migration 0102 still publishes and connects: the bindings and sources go, the collections wait', async ({ page }) => {
+    // PostgREST refuses a write naming a column it does not have (PGRST204): stand in for a server
+    // that has not run 0102 by refusing every control_shows write that names `collections`.
+    await page.route('**/rest/v1/control_shows*', async (route) => {
+      const body = route.request().postData() ?? '';
+      if (route.request().method() !== 'GET' && body.includes('"collections"')) {
+        return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST204', message: "Could not find the 'collections' column of 'control_shows' in the schema cache" }) });
+      }
+      return route.continue();
+    });
+    await signIn(page);
+    await page.keyboard.press('Escape');
+    await clearPublishedShows(page);
+    await wipeMyGraphics(page);
+    await page.goto('/app#/home/productions');
+    await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(fileURLToPath(new URL('../../public/packs/election-rehearsal.noacgpack.json', import.meta.url)));
+    await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
+    const showId = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
+    await publishProduction(page);
+    await page.keyboard.press('Escape');
+    const row = async () => (await admin().from('control_shows').select('bindings, sources, collections').eq('id', showId).single()).data!;
+    expect(Object.keys((await row()).bindings).sort()).toEqual(['Count bug', 'Party totals']);
+    expect([(await row()).sources, (await row()).collections]).toEqual([[], null]);
+    const source = JSON.parse(readFileSync(fileURLToPath(new URL('../../docs/work-specs/playout-election-package/replay-source.json', import.meta.url)), 'utf8'));
+    expect(await page.evaluate(async ({ id, source }) => (await import('/src/model/shows.ts')).connectConnectorSource(id, source, [], null).error, { id: showId, source })).toBeNull();
+    await expect.poll(async () => ((await row()).sources ?? []).map((s: { id: string }) => s.id), WIRE).toEqual(['election']);
+    expect((await row()).collections).toBeNull();
+    await expect(page.getByTestId('production-note')).toHaveCount(0);
+  });
+
   test('AC-4 (E7.2b): the replay through the trusted agent drives all four graphics on the published production', async ({ page, context, baseURL }, info) => {
     test.setTimeout(120_000);
     const dir = mkdtempSync(path.join(os.tmpdir(), 'election-replay-'));

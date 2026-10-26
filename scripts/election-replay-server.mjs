@@ -94,7 +94,7 @@ export function packageTimeline() {
   Object.assign(rev3, { revision: 3, observed_at: '2027-02-20T18:33:00Z' });
   rev3.candidates.revision = 3;
   rev3.candidates.items.find((c) => c.district === '02' && c.candidate === 101).votes = 3650;
-  rev3.parties.KOK.votes = 224_100;
+  rev3.parties.KOK = { share: '22.3%', votes: 224_100 };
   const rev4 = structuredClone(rev3);
   // Revisions 4 and 5 change the candidates alone (the time of the count included), so nothing a
   // field binds moves: the page hears them only from its own read of the tree.
