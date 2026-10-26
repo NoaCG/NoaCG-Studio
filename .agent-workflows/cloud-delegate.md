@@ -1,6 +1,8 @@
 # cloud-delegate — provider-native work and bounded recovery
 
-Route ordinary implementation, review, verification and unattended phases to cloud.
+Local implementation, review and targeted verification are always allowed without asking.
+Use qualified cloud workers when useful for implementation, review, verification or unattended phases;
+cloud availability is not a prerequisite for local work. Keep existing local resource and check limits.
 Keep device, installed-program, private-local-file and local-browser-state tasks local.
 Use the existing wave/plan/job and landing records; this procedure creates no new scheduler.
 Native subagents share one VM; they are not separate cloud resources.
@@ -83,6 +85,8 @@ inspect the current interface. Missing or denied launch/auth/mapping stops that 
 continue independent work. Never transplant credentials, bypass the proxy, retry a
 known denial or substitute an API model, another provider or same-VM subagent.
 Requalify after a relevant access/interface change; old inventory is not a permanent ban.
+These requirements qualify the cloud launch only. If it is unavailable, continue locally without
+asking for an exception, and report that execution as local rather than a qualified cloud launch.
 
 Inspect existing native task IDs, status, nonce and wave/plan state before submitting.
 If delivery is uncertain, reconcile the same nonce/task; do not create another worker.

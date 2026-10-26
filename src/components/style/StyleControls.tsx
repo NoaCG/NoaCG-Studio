@@ -218,10 +218,14 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
     // offer Regular alone, so no choice here is a bold the browser would synthesise.
     const heading = byName.get('font-heading');
     const real = heading && knownFace(heading, importedFonts) ? new Set(fontWeights(heading, importedFonts).map((w) => String(w.value))) : null;
-    const weightChoices = real ? WEIGHT_CHOICES.filter((w) => real.has(w)) : WEIGHT_CHOICES;
+    const offered = real ? WEIGHT_CHOICES.filter((w) => real.has(w)) : WEIGHT_CHOICES;
     // A face with one real weight leaves nothing to choose: the row is hidden, never one greyed
     // button (the wizard's rule, a control is offered only where it can change the graphic).
-    if (weightChoices.length <= 1) return null;
+    if (offered.length <= 1) return null;
+    // The weight the design stores is shown, and shown chosen, even where the face stops short of
+    // it: the sport family's 800 on Oswald (400-700) also weights its Saira numbers, so it is a
+    // real choice the row must be able to return to.
+    const weightChoices = offered.includes(value.trim()) || !WEIGHT_CHOICES.includes(value.trim()) ? offered : [...offered, value.trim()].sort();
     return (
       <div className="field-row" key={name} data-testid={`style-var-${name}`}>
         <div className="field-meta">
