@@ -44,7 +44,9 @@ export function ensureAppFontFace(font: BundledFont): void {
   if (loaded.has(font.id) || typeof FontFace === 'undefined') return;
   loaded.add(font.id);
   const face = new FontFace(font.family, `url(/fonts/${font.file})`, {
-    weight: `${font.weights[0]} ${font.weights[1]}`,
+    // A static face declares every weight, as its template's own copy does (model/fonts.ts
+    // faceWeightLine), so the placement canvas previews what airs, never a synthesised bold.
+    weight: font.weights[0] === font.weights[1] ? '100 900' : `${font.weights[0]} ${font.weights[1]}`,
   });
   face
     .load()

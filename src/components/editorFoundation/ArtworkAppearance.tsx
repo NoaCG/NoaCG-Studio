@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import { artworkNode, artworkText, typeReasons, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { lineFit, lineTextStyle, placedLines, slotSize } from '../../blocks/designLayout';
-import { FONTS, fontWeights } from '../../model/fonts';
+import { FONTS, fontWeights, importedFontFamilies } from '../../model/fonts';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { FieldControl } from '../fields/FieldControl';
 import ArtworkTextEditor from './ArtworkTextEditor';
@@ -121,7 +121,7 @@ function Typography(props: Props) {
   const place = placedLines(template.html, template.css)[selector];
   const style = place ? lineTextStyle(template.html, template.css, id) : null, fit = place ? lineFit(template.html, template.css, id) : null;
   const box = place ? slotSize(template.css, place.wrapperId) : null;
-  const weight = appearance?.fontWeight ?? 400, weights = fontWeights(appearance?.fontFamily ?? '');
+  const weight = appearance?.fontWeight ?? 400, weights = fontWeights(appearance?.fontFamily ?? '', importedFontFamilies(template.css));
   if (!weights.some(w => w.value === weight)) weights.push({ value: weight, label: String(weight) });
   const options = (pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }));
   const said = [...new Set(Object.values(reasons))];
