@@ -63,6 +63,17 @@ example and qualify the examples before publishing a complete SVG import example
   existing rectangle reads and actual text, SVG and CSS matrices, then compares the paused
   endpoint across painted frames. The original half-pixel assertions use the original readings.
   No production repair is proposed until that browser evidence identifies the cause.
+- Fresh diagnostic run `40320827965` reproduced Pop with a 1.0874-pixel endpoint residue.
+  Runtime reads at 792.2 ms measured height `2061.088134765625`; all same-task endpoint
+  calibration reads retained that height. At 932.1 ms the painted text measured
+  `2062.145263671875`. Parent matrix, final CSS scale and original text transform were the
+  same; the GSAP target reached the requested endpoint and fonts were loaded. Drop and Rise
+  measured the stable height from the outset and finished at zero. Actual browser JSON is
+  saved with the run's `drop/rise/pop credits bounds` attachments.
+- Fresh repair attempt 1 waits one rendered frame after finite ancestor motion completes,
+  then measures the SVG text. It removes same-task endpoint calibration, which the browser
+  proved was reading the same stale bounds. Generation checks still cancel a pending repaint
+  or font wait on Out/replay. The existing half-pixel assertions remain unchanged.
 
 - Starting checkout: `8abde8e7103715f21ccf7384f08cb1dbc22a9bfa`.
 - Owned worktree: `C:/Users/ahonemi/.codex/worktrees/ba33/NoaCG-Studio`.

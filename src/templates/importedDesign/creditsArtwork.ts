@@ -76,23 +76,13 @@ function noacgCreditsRoll() {
     // vertical vector mapped into the parent's coordinates also handles rotated/scaled groups.
     var startY = frame.bottom - text.top;
     var endY = frame.top - text.bottom;
-    var position = { y: 0 };
-    var paint = function () {
-      travel.setAttribute('transform', 'translate(' + (inverse.c * position.y) + ' ' + (inverse.d * position.y) + ')');
-    };
-    // SVG text bounds can change when a preceding CSS scale gives way to translated artwork.
-    // Read the actual two endpoint poses while hidden, rather than extrapolating both from
-    // the rest rectangle. Correct in screen pixels through the same inverse vector.
-    position.y = startY;
-    paint();
-    startY += frame.bottom - artwork.text.getBoundingClientRect().top;
-    position.y = endY;
-    paint();
-    endY += frame.top - artwork.text.getBoundingClientRect().bottom;
     var distance = startY - endY;
     var speed = creditsLiveSpeed();
     var duration = distance / (90 * frame.height / ${frameHeight} * speed);
-    position.y = startY;
+    var position = { y: startY };
+    var paint = function () {
+      travel.setAttribute('transform', 'translate(' + (inverse.c * position.y) + ' ' + (inverse.d * position.y) + ')');
+    };
     paint();
     travel.removeAttribute('data-noacg-stopped');
     travel.setAttribute('data-noacg-rolling', '');
@@ -104,7 +94,7 @@ function noacgCreditsRoll() {
     };
     noacgCreditsTween = gsap.to(position, { y: endY, duration: duration, ease: 'none', onUpdate: paint });
   };
-  var afterPaint = function () {
+  var afterEntrance = function () {
     if (generation !== noacgCreditsGeneration) return;
     // The root and its box can both have entrance tracks. Their actual GSAP playheads are
     // authoritative: a duration-based timer may land between their last render ticks.
@@ -113,14 +103,20 @@ function noacgCreditsRoll() {
       var tweens = gsap.getTweensOf(node, true);
       for (var i = 0; i < tweens.length; i++) {
         var span = tweens[i].totalDuration();
-        if (span > 0 && span < 1e9) { requestAnimationFrame(afterPaint); return; }
+        if (span > 0 && span < 1e9) { requestAnimationFrame(afterEntrance); return; }
       }
     }
-    noacgCreditsStart = null;
-    ready.then(measure);
+    // GSAP has written the final CSS scale, but this frame has not painted it yet. SVG text
+    // can still report glyph metrics from the preceding scale. Let that repaint finish before
+    // measuring, rather than calibrating several positions against the same stale metrics.
+    requestAnimationFrame(function () {
+      if (generation !== noacgCreditsGeneration) return;
+      noacgCreditsStart = null;
+      ready.then(measure);
+    });
   };
   var begin = function () {
-    requestAnimationFrame(afterPaint);
+    requestAnimationFrame(afterEntrance);
   };
   // Read the FINAL animation data at play time. Preset changes may lengthen the entrance after
   // assembly, so an assembly-time end-call could still measure a moving/scaling ancestor.
