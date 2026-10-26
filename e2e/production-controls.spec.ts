@@ -2329,28 +2329,33 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   // renders the page"): it redraws the block and PREVIEW, which subscribe to it themselves. Opening
   // the block starts the graphic's first measurement, with nothing saved: on a paused clock, PREVIEW
   // settles (150 ms) and answers, and the second answer, due 250 ms after the first, qualifies and
-  // is kept. The page's header clock ticks once a second on this clock too, so the step that
-  // releases the measurement is 2 ms wide and the page is still before it.
-  const pageRenders = () => page.getByTestId('production-page').evaluate((el) => Number(el.getAttribute('data-renders')));
-  const still = () =>
-    expect.poll(async () => {
-      const at = await pageRenders();
-      await page.waitForTimeout(1000);
-      return (await pageRenders()) - at;
-    }, { timeout: 15_000 }).toBe(0);
+  // is kept. A render the measurement caused commits WITH the block's own redraw, so it is asserted
+  // as cause, not as a count: no batch of DOM mutations holds both the measurement's redraw and a
+  // page render. (A count over a window also caught renders from elsewhere on a loaded runner.)
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await page.getByTestId('cue-adjust-toggle').click();
   await expect(page.getByTestId('preview-guides')).toBeVisible();
   await page.clock.runFor(160);
   await page.waitForTimeout(500);
   await page.clock.runFor(249);
-  await still();
   await expect(page.getByTestId('adjust-why')).toHaveText('measuring');
-  const before = await pageRenders();
+  await page.evaluate(() => {
+    const root = document.querySelector('[data-testid="production-page"]')!;
+    const batches: { renders: boolean; measured: boolean }[] = [];
+    (window as unknown as { __adjustBatches: typeof batches }).__adjustBatches = batches;
+    new MutationObserver((records) =>
+      batches.push({
+        renders: records.some((r) => r.type === 'attributes' && r.target === root),
+        measured: records.some((r) => [...r.removedNodes].some((n) => n instanceof Element && (n.matches('[data-testid="adjust-why"]') || !!n.querySelector('[data-testid="adjust-why"]')))),
+      }),
+    ).observe(root, { attributes: true, attributeFilter: ['data-renders'], childList: true, subtree: true });
+  });
   await page.clock.runFor(2);
   await expect(page.getByTestId('adjust-why')).toHaveCount(0);
-  await page.waitForTimeout(300);
-  expect((await pageRenders()) - before, 'the measurement rendered the page').toBe(0);
+  const batches = await page.evaluate(() => (window as unknown as { __adjustBatches: { renders: boolean; measured: boolean }[] }).__adjustBatches);
+  const measuredIn = batches.filter((b) => b.measured);
+  expect(measuredIn.length, 'the measurement redrew the block').toBe(1);
+  expect(measuredIn[0].renders, 'the measurement rendered the page').toBe(false);
   await page.clock.resume();
   // Measured: the pivot shows on the grid and the readability line appears.
   await expect(page.getByTestId('adjust-floor')).toHaveText(/smallest text \d/);
@@ -2395,24 +2400,17 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await expect.poll(async () => (await look('program')) === (await look('preview'))).toBe(true);
   await expect(page.locator('.pd-editor-fate')).not.toContainText('not on PROGRAM');
   // A BOX BEING TYPED INTO KEEPS ITS TEXT when another operator moves the same record
-  // (home/useDeferredEdits.ts): the clock is paused so the edit stays uncommitted until it is over.
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  // (home/useDeferredEdits.ts); the box commits when the edit is over, never on a pause.
   await page.getByTestId('adjust-y').fill('5');
   await expect(page.getByTestId('adjust-y')).toHaveAttribute('data-dirty', 'true');
   await page.evaluate(async (id) => {
     const shows = await import('/src/model/shows.ts');
     const cue = shows.loadShows().find((s) => s.id === id)!.cues![0];
     shows.stepAdjust(id, cue.id, 'graphic', { y: 3 });
-    // Answer from a later task; the paused clock holds every timer, so not a setTimeout.
-    await new Promise<void>((r) => {
-      const c = new MessageChannel();
-      c.port1.onmessage = () => r();
-      c.port2.postMessage(0);
-    });
+    await new Promise((r) => setTimeout(r));
   }, showId);
   await expect(page.getByTestId('adjust-y')).toHaveValue('5');
   await page.getByTestId('adjust-y').press('Enter');
-  await page.clock.resume();
   await expect(page.getByTestId('adjust-y')).not.toHaveAttribute('data-dirty');
   await expect(page.getByTestId('adjust-y')).toHaveValue('5');
   await page.getByTestId('adjust-y').fill('0');

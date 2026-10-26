@@ -91,16 +91,20 @@ export default function CueAdjust({
     nudge(d[0], d[1]);
   };
   const why = whyWords(limit, m, fresh);
-  // A typed x, y or size is one write when the edit is over, and a second operator's change to the
-  // same record never replaces what is being typed (./useDeferredEdits.ts).
+  // A typed x, y or size is one write when the edit is over (Enter or leaving the box, never a pause:
+  // 8 on the way to 84 would size the graphic), and a second operator's change to the same record
+  // never replaces what is being typed (./useDeferredEdits.ts).
   const shown: Record<string, number> = { x, y, size: Math.round(s * 100) };
-  const edits = useDeferredEdits((key, text) => {
-    const n = Number(text.replace('−', '-'));
-    if (text.trim() === '' || !Number.isFinite(n) || n === shown[key]) return;
-    if (key === 'size') {
-      if (n > 0) write({ scale: n / 100 });
-    } else write({ [key]: n });
-  });
+  const edits = useDeferredEdits(
+    (key, text) => {
+      const n = Number(text.replace('−', '-'));
+      if (text.trim() === '' || !Number.isFinite(n) || n === shown[key]) return;
+      if (key === 'size') {
+        if (n > 0) write({ scale: n / 100 });
+      } else write({ [key]: n });
+    },
+    { settle: false },
+  );
 
   return (
     <div className="pd-adjust" data-testid="cue-adjust">
@@ -223,8 +227,8 @@ function whyWords(limit: GeometryLimit, m: unknown, fresh: boolean): string {
   return fresh ? '' : 'measuring';
 }
 
-/** A number typed in, written when the edit is over (Enter, focus leaving, a pause); Escape puts
- *  the value back. */
+/** A number typed in, written when the edit is over (Enter or focus leaving); Escape puts the value
+ *  back. */
 function NumberBox({ label, edits, name, value, disabled, testId }: { label: string; edits: DeferredEdits; name: string; value: number; disabled: boolean; testId: string }) {
   return (
     <label className="pd-adjust-num">
