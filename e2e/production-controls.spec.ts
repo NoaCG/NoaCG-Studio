@@ -2482,7 +2482,7 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
  * PROGRAM, and counts entrances (`data-plays`) to show Update applies them with no replay. The
  * rendered-face claims are e2e/playout-adjust.spec.ts and scripts/cue-adjust.test.mjs.
  */
-test('Adjust retypes and recolours a lower third: a cue's colour overrides the graphic's, As designed returns, Update airs it with no replay', async ({ page }) => {
+test('Adjust retypes and recolours a lower third: a cue colour overrides the graphic colour, As designed returns, Update airs it with no replay', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
   await bootstrapGraphic(page, 'Hairline');
   const showId = await openProductionWithCurrent(page, 'Type Night');
