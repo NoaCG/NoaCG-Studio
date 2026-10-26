@@ -14,8 +14,10 @@ import {
   modeOfAxis,
   pollDrivenLayers,
   takenOff,
+  svgDesignOptions,
 } from './draft';
 import { SVG_ALIGN_WORD } from '../../../templates/importedDesign/svg';
+import { creditsArtworkFields } from '../../../templates/importedDesign/creditsRoll';
 import type { PreviewBoxOverlay, PreviewGrowCap } from '../WizardPreview';
 import {
   artworkInk as inkOfArtwork,
@@ -187,6 +189,10 @@ export default function MapSvgFieldsStep({
   onArmPick,
 }: Props) {
   const svg = draft.designSvg;
+  const creditsLayers = useMemo(() => {
+    const design = draft.svgBehaviour?.kind === 'recipe' && draft.svgBehaviour.recipe === 'credits' ? svgDesignOptions(draft) : undefined;
+    return new Set(design ? [...creditsArtworkFields(design)].map((i) => design.fields[i].candidateId) : []);
+  }, [draft]);
   const stageRef = useRef<HTMLDivElement>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [drawArmed, setDrawArmed] = useState(false);
@@ -1040,7 +1046,7 @@ export default function MapSvgFieldsStep({
   // WHAT THE OPERATOR CAN ACTUALLY TYPE INTO, which is not the same as what is ticked: a layer
   // the vote writes is dropped from the field list by `draftToOptions`, so counting it here would
   // promise fields the graphic does not have.
-  const onCount = draft.svgFields.filter((f) => f.on && !pollDriven.has(f.candidateId)).length;
+  const onCount = draft.svgFields.filter((f) => f.on && !pollDriven.has(f.candidateId) && !creditsLayers.has(f.candidateId)).length;
   // …and the same filter here, for the same reason: a driven layer is not a field, so it cannot
   // be the graphic's one countdown either. Counted, it would grey the choice out on every row
   // that genuinely could be one.
@@ -1106,10 +1112,11 @@ export default function MapSvgFieldsStep({
       ) : (
         <div className="panel-section" data-testid="map-svg-fields">
           <SectionHead
-            title="Editable text"
-            summary={`${onCount} of ${draft.svgFields.length} editable on air`}
+            title={creditsLayers.size ? 'Text' : 'Editable text'}
+            summary={creditsLayers.size ? `${onCount} editable, ${creditsLayers.size} artwork` : `${onCount} of ${draft.svgFields.length} editable on air`}
             testid="map-svg-why-fields"
           >
+            {creditsLayers.size ? <p>Credits scroll as drawn. Edit their text in your design app and import the SVG again.</p> : <>
             <p>
               A ticked layer becomes a field the operator retypes live, in the type you drew.
               Untick one and its words stay part of the artwork.
@@ -1127,6 +1134,7 @@ export default function MapSvgFieldsStep({
               The Text box is live. Type a long value and the preview shows what airs, growing
               from whichever edge Aligned names.
             </p>
+            </>}
           </SectionHead>
           {fieldGroups.map((group) => (
           <div
@@ -1205,7 +1213,8 @@ export default function MapSvgFieldsStep({
             )}
             {showBoxGroups && capSentence(group.boxId, group.fields[0].candidateId)}
             {group.fields.map((f) => {
-            const outside = outsideCanvas.has(f.candidateId) || !!svg?.candidates.find(c => c.id === f.candidateId)?.outsideCanvas;
+            const artworkCredit = creditsLayers.has(f.candidateId);
+            const outside = !artworkCredit && (outsideCanvas.has(f.candidateId) || !!svg?.candidates.find(c => c.id === f.candidateId)?.outsideCanvas);
             // A LAYER THE VOTE WRITES IS NOT A FIELD, so this row does not offer the two boxes
             // that would pretend it is (owner walk, 2026-09-03: he selected a percentage, watched
             // it highlight in the preview, typed, and nothing happened). `draftToOptions` drops
@@ -1221,7 +1230,7 @@ export default function MapSvgFieldsStep({
              *  the bare artwork, which then gets no alignment control. A COUNTDOWN row gets none
              *  either: its layer becomes the clock display and never carries the field id a
              *  declaration would name, so a grid there could not change the graphic. */
-            const fit = f.kind === 'countdown' ? undefined : boxFits[f.candidateId];
+            const fit = f.kind === 'countdown' || artworkCredit ? undefined : boxFits[f.candidateId];
             /** How this row's block sits in its box right now - declared, else drawn. */
             const now = fit ? alignOf(f.align, fit) : undefined;
             return (
@@ -1243,7 +1252,7 @@ export default function MapSvgFieldsStep({
                    GREYED rather than gone, which is the exception to "hide what cannot work":
                    this one is not inert, it is harmful, and it still carries the fact that the
                    layer is part of the graphic - which is the whole of what the row is for. */
-                disabled={driven || outside}
+                disabled={driven || artworkCredit || outside}
                 /* UNTICKING ASKS NOTHING (owner, 2026-09-21: ticking or unticking a field shows
                    no warning). It means the one safe thing, the words stay as drawn, and the row
                    says so with the other answer one press away. A dialog used to ask which
@@ -1254,7 +1263,9 @@ export default function MapSvgFieldsStep({
                     : patchField(f.candidateId, { on: false, whenOff: 'keep' })
                 }
                 title={
-                  driven
+                  artworkCredit
+                    ? 'This text scrolls as artwork.'
+                    : driven
                     ? 'The vote writes this layer. To take it out, set its picker below to “not drawn”.'
                     : f.on
                       ? 'On. This layer is an operator field.'
@@ -1264,13 +1275,13 @@ export default function MapSvgFieldsStep({
                 }
               />
               {outside && <span className="muted" data-testid={`map-svg-outside-${f.candidateId}`}>Outside canvas. Move this text onto the artboard and export again.</span>}
-              {driven ? (
+              {driven || artworkCredit ? (
                 /* SHORT, because it is on EIGHT ROWS of his board. The reason lives once, in the
                    section's own note; a row only has to say which layer this is and that the
                    vote fills it, or the checklist becomes eight copies of one paragraph - which
                    is the reading problem he raised about this step in the same walk. */
                 <p className="map-svg-driven grow" data-testid={`map-svg-driven-${f.candidateId}`}>
-                  <strong>{f.title.trim() || 'This layer'}</strong>, filled by the vote
+                  <strong>{f.title.trim() || 'This layer'}</strong>, {artworkCredit ? 'scrolls as artwork' : 'filled by the vote'}
                 </p>
               ) : (
                 <>

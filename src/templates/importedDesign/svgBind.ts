@@ -8,7 +8,7 @@ import type { DesignSvg, DesignSvgFollower } from '../../model/wizard';
 import { SVG_CANDIDATE_ATTR, svgPictureTarget } from '../../assets/svgImport';
 import { boundBehaviour } from './behaviour';
 import { countdownIndex, svgFields } from './artworkFields';
-import { creditsClass, creditsIndex } from './creditsRoll';
+import { creditsArtworkFields, creditsClass, creditsIndex } from './creditsRoll';
 import { PREFIX } from './shared';
 import { followToken, growToken, LAYOUT_EL_ATTR, layoutRules } from './svgLayout';
 
@@ -132,10 +132,11 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
 
   const clock = countdownIndex(svg);
   const credits = creditsIndex(svg);
+  const artworkCredits = creditsArtworkFields(svg, root);
   [...svg.fields, ...svg.images].forEach((field, i) => {
     const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${field.candidateId}"]`);
     if (!el) return;
-    if (i === clock || i === credits) {
+    if (i === clock || i === credits || artworkCredits.has(i)) {
       // The countdown DISPLAY: the clock runtime paints into `.{prefix}-clock`, and the
       // operator's minutes land in the hidden #fN holder instead - so this node takes the
       // class and NOT the field id, or update() would write "10" over the ticking readout.
@@ -143,7 +144,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
       // drawn text keeps its two looks for the roll engine to copy (creditsRoll.ts).
       // The sample is the whole <text>: a composed block offers its runs as candidates, and the
       // roll copies looks and leading off the lines of the text those runs belong to.
-      const target = i === credits ? el.closest('text') ?? el : el;
+      const target = i === credits || artworkCredits.has(i) ? el.closest('text') ?? el : el;
       const cls = i === clock ? `${PREFIX}-clock` : creditsClass(PREFIX);
       const own = (target.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
       if (!own.includes(cls)) own.push(cls);

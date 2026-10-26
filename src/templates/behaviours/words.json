@@ -941,8 +941,8 @@
   },
   "credits": {
     "name": "The credits roll",
-    "verbs": "one pasted list rolls through, bottom to top",
-    "buttons": "the Credits field (the whole list, pasted) and Scroll speed (%)",
+    "verbs": "the original artwork scrolls from below the frame until it leaves the top",
+    "buttons": "Scroll speed (%); Take starts the complete roll and Out clears it",
     "roles": [
       {
         "id": "credits",
@@ -959,7 +959,7 @@
           "Lopputekstit",
           "Eftertexter"
         ],
-        "what": "the whole list, pasted into one box - a line ending in \":\" is a title, the names go under it"
+        "what": "the complete text artwork, with its fonts, alignment and spacing preserved; edit it in the design app and import its SVG again"
       },
       {
         "id": "box",
@@ -973,7 +973,7 @@
           "Credits window",
           "Lopputekstit laatikko"
         ],
-        "what": "a plate the roll runs inside; without one it runs through the whole frame"
+        "what": "a window used by older editable credits; new artwork rolls use the whole frame and need no box"
       }
     ]
   }
