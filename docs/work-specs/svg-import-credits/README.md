@@ -82,6 +82,18 @@ example and qualify the examples before publishing a complete SVG import example
   below the frame in the same synchronous callback. No intermediate visible frame is yielded.
   Invalid measurement keeps it hidden. A browser A/B probe compares the same document with
   the old hidden-measurement order, alongside the unchanged strict start/end assertions.
+- Run `40323999948` at `71e8de437` passed all four credits journeys (shard 15, 77 tests):
+  Drop, Rise and Pop start at `1080` and end at `0.000244140625`, with stable text height
+  `2062.14501953125`. The same browser document mutated back to hidden measurement ended at
+  `1.0576171875`. Both transparency and reattaching the same text node also cleared the bound,
+  isolating hidden text layout as the cause. The shipped repair uses the existing text node
+  and an atomic reveal/measure/position callback, with no clone, reconstruction or extra padding.
+  Pending-font cancellation, replay/Out, original glyph-run preservation, standalone export and
+  both legacy pasted-list cases passed in the real browser.
+- Temporary browser probes are removed from the final test: `import-svg-credits.spec.ts` is
+  restored byte-for-byte to its pre-diagnostic version at `374c20c43`. Browser JSON attachments
+  retain the positive and old-order control evidence. Inline review also corrected the guide's
+  universal three-layer sentence because the new credits example intentionally needs only Text.
 
 - Starting checkout: `8abde8e7103715f21ccf7384f08cb1dbc22a9bfa`.
 - Owned worktree: `C:/Users/ahonemi/.codex/worktrees/ba33/NoaCG-Studio`.
