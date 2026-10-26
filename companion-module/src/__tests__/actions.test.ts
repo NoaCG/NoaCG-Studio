@@ -13,7 +13,7 @@ import {
 	versionOf,
 	type ActionPress,
 } from '../protocol.js'
-import { FakeClock, FakeRelay, settle, state } from './fakes.js'
+import { FakeClock, FakeRelay, rows, settle, state } from './fakes.js'
 
 /** An `actions` event as the production page sends it (src/control/panelActions.ts wireActions). */
 function actions(over: Record<string, unknown> = {}, graphic: Record<string, unknown> = {}) {
@@ -287,4 +287,29 @@ test('a settled that arrives before the press RPC answers is kept, and Done does
 	const out = await panel.pressAction('Scorebug', 'event:goal')
 	assert.equal(out.ok, true)
 	assert.equal(panel.lastPress, 'Nothing sent: the cue on Scorebug changed.')
+})
+
+test('a beat ahead of the offer this module holds asks the page again, so a missed offer is recovered', async () => {
+	const { relay, panel } = await answering()
+	relay.emit('rows', rows())
+	const hellos = relay.count('hello')
+	// Up to date: nothing asked.
+	relay.emit('beat', { v: 1, page: 'page0000page0000', claim: 3, ver: 5, rowsVer: 1, actionsVer: 3_000_004 })
+	await settle()
+	assert.equal(relay.count('hello'), hellos)
+	// The page moved its offer on and this module missed it.
+	relay.emit('beat', { v: 1, page: 'page0000page0000', claim: 3, ver: 5, rowsVer: 1, actionsVer: 3_000_005 })
+	await settle()
+	assert.equal(relay.count('hello'), hellos + 1)
+	assert.equal(panel.status, 'ok')
+})
+
+test('an offer in a newer actions protocol is not asked for again on every beat', async () => {
+	const { relay } = await answering()
+	relay.emit('rows', rows())
+	relay.emit('actions', actions({ av: 3, actionsVer: 3_000_009 }))
+	const hellos = relay.count('hello')
+	relay.emit('beat', { v: 1, page: 'page0000page0000', claim: 3, ver: 5, rowsVer: 1, actionsVer: 3_000_009 })
+	await settle()
+	assert.equal(relay.count('hello'), hellos)
 })

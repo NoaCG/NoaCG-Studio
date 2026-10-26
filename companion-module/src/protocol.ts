@@ -120,6 +120,8 @@ export interface Beat {
 	claim: number
 	ver: number
 	rowsVer: number
+	/** The page's newest graphic-actions offer (protocol §10.2); absent from a page without them. */
+	actionsVer?: number
 }
 
 /** The only protocol version this module understands. */
@@ -284,6 +286,7 @@ export function readBeat(p: unknown): Beat | null {
 		claim: num(p.claim) ?? 0,
 		ver: num(p.ver) ?? 0,
 		rowsVer: num(p.rowsVer) ?? 0,
+		...(num(p.actionsVer) !== null ? { actionsVer: num(p.actionsVer)! } : {}),
 	}
 }
 

@@ -358,7 +358,15 @@ export class PanelClient {
 				if (s && beat.claim < s.claim) return
 				this.#heard()
 				// A beat ahead of what we hold means we missed a message: hello makes the page resend.
-				if (!s || beat.claim !== s.claim || beat.ver > s.ver || beat.rowsVer > (this.#rows?.rowsVer ?? -1))
+				const actions = this.#actions && this.#actions.claim === beat.claim ? this.#actions.actionsVer : -1
+				if (
+					!s ||
+					beat.claim !== s.claim ||
+					beat.ver > s.ver ||
+					beat.rowsVer > (this.#rows?.rowsVer ?? -1) ||
+					// An offer this module cannot read is not missed: asking again would only repeat it.
+					(!this.#actionsNewer && beat.actionsVer !== undefined && beat.actionsVer > actions)
+				)
 					void this.#hello()
 				return
 			}

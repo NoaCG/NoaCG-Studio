@@ -16,9 +16,9 @@ changes a spec's digest.
   harmless: an old page ignores a `graphic-action` press and an old module never sends one, and
   `panel_relay` is read by nothing. Restoring 0081's `panel_press` body is a separate, later
   migration if it is ever wanted; nothing is stored, so nothing is lost either way.
-- **Landing waits for 0102 on production** (coordinator, 2026-10-26): 0103 is additive and not
-  live-path, but production still lacks the held 0102, so auto-merge stays off until the
-  coordinator sees 0102 there. The app works on a database without 0103 (below).
+- **0103 lands after 0102** (coordinator, 2026-10-26): it was held until the owner applied 0102 to
+  production, which he did the same evening. 0103 is additive and not live-path, and the app works
+  on a database without it (below).
 - **What landed.** `src/control/panelActions.ts` (pure): the capabilities a page offers, the
   `actions` and `settled` wire, the press reader with the relay's bounds, the judge, and foreign
   descriptors from E1's model. `panelRelay.ts` publishes the offer, judges and runs a
@@ -59,6 +59,9 @@ changes a spec's digest.
     and its Panel dialog says "Graphic actions on the panel wait for a NoaCG server update."; the
     module refuses locally with the same reason, and a press that reaches the old relay is refused
     `not-a-panel-verb`, which the module words the same way.
+  - *A missed offer is recovered*: the 4 s `beat` carries `actionsVer` beside `ver` and `rowsVer`,
+    and a module holding an older offer asks the page again (`panel_hello`), as it does for a missed
+    state (Codex P2 on `2e514a4`). An older module ignores the field.
   - *The hosted control page* runs no graphic actions: it publishes an empty offer, so a panel
     drops what the production page offered, and refuses a press `not-here`.
   - *Bounds* (relay and page alike, each pinned at its edge with a mutation): target 1 to 128

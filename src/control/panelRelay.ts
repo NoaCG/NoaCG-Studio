@@ -456,7 +456,8 @@ export function answerPanel(opts: {
       }
     };
     beat = workerInterval(PANEL_BEAT_MS, () => {
-      send('beat', { v: PANEL_PROTOCOL, page, claim, ver, rowsVer });
+      // `actionsVer` too, so a panel that missed an offer asks again (an older module ignores it).
+      send('beat', { v: PANEL_PROTOCOL, page, claim, ver, rowsVer, actionsVer });
       void renew();
       // Not answered yet (offline at the start): asked again on the beat.
       askRelay();
