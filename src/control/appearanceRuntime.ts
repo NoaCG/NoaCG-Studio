@@ -157,7 +157,7 @@ export const APPEARANCE_RUNTIME_JS = `var noacgApplyAppearance = noacgApplyAppea
     var fonts = document.fonts;
     if (!fonts || !fonts.load || typeof Promise === 'undefined' || !window.getComputedStyle) return null;
     var cs = window.getComputedStyle(document.documentElement);
-    var read = function (n) { return (cs.getPropertyValue('--' + n) || '').replace(/^\s+|\s+$/g, ''); };
+    var read = function (n) { return (cs.getPropertyValue('--' + n) || '').trim(); };
     var w = read('display-weight') || '400';
     var asks = [];
     var stacks = [read('font-heading'), read('font-numeric')];
