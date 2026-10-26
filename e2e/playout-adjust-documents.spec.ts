@@ -8,15 +8,15 @@
 //    its root by the runtime every receiver and bake uses (control/appearanceRuntime.ts). Beside
 //    them, designs whose text fits measure their own boxes (qz01, sb14) and the two lower thirds the
 //    phase-1 receipt measured (lt01, lt63). The root must paint what the frame paints.
-// 3. TYPE AND COLOUR IN EVERY TARGET (phase 2): a production package built with a graphic retyped
-//    and recoloured, against the same target built from the design re-written in those values in
-//    its own `:root` (an independent road: the stylesheet, not the runtime), at the same bound.
 // 2. THE BAKES, one per target (html-overlay, CasparCG, SPX, OGraf and H2R): a production package
 //    built with a placed and resized graphic, its baked file rendered alone, against the same
 //    target's file built without place and size, in a frame transformed by the stage's own
 //    transform: what `/output` does to a document, done to this one. Compared once landed, a
 //    pixel matching any pixel within one of it (`differingShifted`): a scaled frame is rasterised
 //    a pixel row apart from mount to mount.
+// 3. TYPE AND COLOUR IN EVERY TARGET (phase 2): a production package built with a graphic retyped
+//    and recoloured, against the same target built from the design re-written in those values in
+//    its own `:root` (an independent road: the stylesheet, not the runtime), at the same bound.
 //
 // Frames are compared after the same time on a paused page clock. A design that paints two different
 // frames from one document mounted twice (a marquee, a loop) is compared net of that: the residual

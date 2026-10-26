@@ -293,11 +293,15 @@ function StyleRows({
   const weight = vars['display-weight'] || '';
   const typeSet = chosen !== '' || weight !== '';
   const colourSet = reach.colours.some((k) => vars[k]);
+  // A weight the new face does not draw goes with the old face, or the summary would name a bold
+  // that is never drawn (the face's one weight is drawn as it is).
   const pickFace = (key: string) => {
     if (!key) return style.designedFace();
-    if (key.startsWith('b:')) return write({ font: { fontId: key.slice(2) } });
     const [family, assetPath] = key.slice(2).split('|');
-    write({ font: { family, assetPath } });
+    const next: FontRef = key.startsWith('b:') ? { fontId: key.slice(2) } : { family, assetPath };
+    const keeps = weightsFor(next, style.design, style.imported);
+    const drops = weight !== '' && (keeps.length < 2 || !keeps.some((w) => String(w.value) === weight));
+    write(drops ? { font: next, vars: { 'display-weight': null } } : { font: next });
   };
   return (
     <>

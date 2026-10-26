@@ -7,8 +7,8 @@ changes a spec's digest.
 
 ## Row 32d (L2.2, project phase 36): type and colour per graphic and cue
 
-- **Previous verified `main` sha:** `1dcf26d` (row 32c passed). This branch is built on
-  `ffe53a0`, which carries both phase 0 prerequisites: item 1 (latin-ext faces, #1744, merged
+- **Previous verified `main` sha:** `1dcf26d` (row 32c passed). This branch was built on
+  `ffe53a0` and reconciled with main at `9e84a1d`; `ffe53a0` carries both phase 0 prerequisites: item 1 (latin-ext faces, #1744, merged
   `fc5a4b4a19b7efac7ff3f799d51e64177eeb713e`) and item 2 (no synthesised bold, #1745, merged
   `ffe53a069009ea6f0af6edfc451590f0887075f8`). Before editing, main applied place and size on
   every surface and bake (rows 32 to 32c); no surface set a typeface or a colour per cue.
@@ -77,7 +77,7 @@ changes a spec's digest.
   dialog measures each box in the face its fold sets. `/output`, PROGRAM and the hosted page go through `output/stage.ts`, which
   declares the faces. Each bake's parity is held at row 32c's `RESIDUAL_BOUND` 1000 (max measured
   551; unstyled 4720 to 67746), not loosened.
-- **Touched files against `ffe53a0`:** `cli/plugin/skills/noacg-graphic/references/contract.md`, `cli/plugin/skills/noacg-graphic/references/validator.md`, `cli/skill/noacg-graphic/references/contract.md`, `cli/skill/noacg-graphic/references/validator.md`, `cli/src/bridgeClient.ts`, `cli/src/commands/inspect.ts`, `cli/test/unit.test.mjs`, `docs/work-specs/production-page-refactor/evidence/phase-notes.md`, `e2e/import-svg-behaviour.spec.ts`, `e2e/local-relay.spec.ts`, `e2e/playout-adjust-documents.spec.ts`, `e2e/playout-adjust.spec.ts`, `e2e/production-controls.spec.ts`, `scripts/cue-adjust.test.mjs`, `scripts/lib/tsResolve.mjs`, `src/bridge/bridgeApi.ts`, `src/components/home/CueAdjust.tsx`, `src/components/home/PlayoutMonitors.tsx`, `src/components/home/ProductionPage.tsx`, `src/components/home/exportAppearances.ts`, `src/components/home/measureCue.ts`, `src/control/adjustGeometry.ts`, `src/control/appearanceRuntime.ts`, `src/control/cueAdjust.ts`, `src/control/cueStyle.ts`, `src/control/exportAppearance.ts`, `src/control/localReceiver.ts`, `src/export/showExport.ts`, `src/export/targets/ograf.ts`, `src/model/adjust.ts`, `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`, `src/styles/playout-dashboard.css`.
+- **Touched files against `9e84a1d`** (`git diff --name-only 9e84a1d HEAD`): `cli/plugin/skills/noacg-graphic/references/contract.md`, `cli/plugin/skills/noacg-graphic/references/validator.md`, `cli/skill/noacg-graphic/references/contract.md`, `cli/skill/noacg-graphic/references/validator.md`, `cli/src/bridgeClient.ts`, `cli/src/commands/inspect.ts`, `cli/test/unit.test.mjs`, `docs/work-specs/production-page-refactor/evidence/phase-notes.md`, `e2e/import-svg-behaviour.spec.ts`, `e2e/local-relay.spec.ts`, `e2e/playout-adjust-documents.spec.ts`, `e2e/playout-adjust.spec.ts`, `e2e/production-controls.spec.ts`, `scripts/cue-adjust.test.mjs`, `scripts/lib/tsResolve.mjs`, `src/bridge/bridgeApi.ts`, `src/components/home/CueAdjust.tsx`, `src/components/home/PlayoutMonitors.tsx`, `src/components/home/ProductionPage.tsx`, `src/components/home/exportAppearances.ts`, `src/components/home/measureCue.ts`, `src/control/adjustGeometry.ts`, `src/control/appearanceRuntime.ts`, `src/control/cueAdjust.ts`, `src/control/cueStyle.ts`, `src/control/exportAppearance.ts`, `src/control/localReceiver.ts`, `src/export/showExport.ts`, `src/export/targets/ograf.ts`, `src/model/adjust.ts`, `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`, `src/styles/playout-dashboard.css`.
 
 ## Row 32d prerequisite: phase 0 item 2, no synthesised bold, real heading weights
 

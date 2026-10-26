@@ -312,6 +312,7 @@ test('a chosen face reaches the document through the stage: every glyph of the n
   expect(fonts.reduce((n, f) => n + f.glyphs, 0), `every letter in the face: ${JSON.stringify(fonts)}`).toBeGreaterThanOrEqual(letters);
   expect(seen.weightIfPainted, 'the chosen weight, which the variable face draws').toBe('700');
   expect(fonts.filter((f) => !f.custom), 'no glyph of the name from a system face').toEqual([]);
+  expect(fonts.every((f) => f.family.startsWith('Archivo')), `the face is Archivo: ${JSON.stringify(fonts)}`).toBe(true);
   expect(new Set(fonts.map((f) => f.family.replace(/\s+(Regular|Bold|Variable).*$/i, ''))).size, `one family: ${JSON.stringify(fonts)}`).toBe(1);
   // A colour alone moves no text: it is applied and answers no refit, so PREVIEW does not settle
   // again for nothing.

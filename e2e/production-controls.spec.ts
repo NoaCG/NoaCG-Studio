@@ -2538,6 +2538,14 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
   }, showId), 'no nudge from the select').toEqual({ x: null, y: null });
   await page.getByTestId('adjust-weight').getByRole('button', { name: 'Bold', exact: true }).click();
   await expect.poll(() => rootVar('preview', '--display-weight')).toBe('700');
+  // A face with one weight takes the Bold with the old face, so nothing names a bold it never draws.
+  await page.getByTestId('adjust-typeface').selectOption({ label: 'Bebas Neue' });
+  await expect.poll(() => rootVar('preview', '--display-weight')).toBe('');
+  await expect(page.getByTestId('adjust-weight')).toHaveCount(0);
+  await expect(summary).toHaveText(/Bebas Neue$/);
+  await page.getByTestId('adjust-typeface').selectOption({ label: 'Archivo' });
+  await page.getByTestId('adjust-weight').getByRole('button', { name: 'Bold', exact: true }).click();
+  await expect.poll(() => rootVar('preview', '--display-weight')).toBe('700');
   await page.getByTestId('adjust-colour-accent').fill('#ff7a00');
   await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
   await expect(summary).toHaveText(/all 2 Hairline cues · Archivo Bold accent/);
