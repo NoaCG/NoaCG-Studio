@@ -46,6 +46,13 @@ export const SILENCE_MS = 12_000
 export const RESULT_MS = 1_500
 /** What the last-press variable says while a press waits for the page's answer. */
 export const PENDING_SENTENCE = 'Sent, waiting for the operator page'
+/** What a graphic action says once the page ran it and before it said what it came to. */
+export const RUNNING_SENTENCE = 'Running on the graphic'
+/** How long a graphic action that ran waits to say what it came to (the page's longest wait for
+ *  the press before it on its graphic, its send and the attempt after it, with room). */
+export const SETTLE_MS = 15_000
+/** What it says when that wait passes: dispatched, outcome not known. Never sent again. */
+export const UNSETTLED_SENTENCE = 'Not confirmed: the operator page did not say what it came to'
 
 /** At most this many graphic actions wait for their `settled` at once. */
 const UNSETTLED_MAX = 64
@@ -279,6 +286,9 @@ export class PanelClient {
 
 	#join(topic: string): void {
 		this.#leaveTopic()
+		// A new topic's page says its own offer; the last topic's is not carried over.
+		this.#actions = null
+		this.#actionsNewer = false
 		this.#topic = topic
 		this.#leave = this.#relay.listen(
 			topic,
@@ -307,6 +317,7 @@ export class PanelClient {
 	#noPage(): void {
 		this.#clock.clearTimeout(this.#silenceTimer)
 		this.#state = null
+		this.#actions = null
 		this.#set('no-page', 'No operator page')
 	}
 
@@ -535,9 +546,23 @@ export class PanelClient {
 			if (result?.outcome !== 'ran') this.#unsettled.delete(press.id)
 			if (!result) return refused('No answer from the operator page')
 			if (result.outcome !== 'ran') return refused(outcomeSentence(result), result)
+			if (press.verb === ACTION_VERB) {
+				// Ran is dispatched, not done: the action says what it came to in `settled`, and one
+				// that already settled has said it. Unsaid in SETTLE_MS, it is not confirmed.
+				if (this.#unsettled.has(press.id)) {
+					tell(RUNNING_SENTENCE)
+					this.#clock.setTimeout(() => {
+						if (this.#unsettled.get(press.id) !== seq) return
+						this.#unsettled.delete(press.id)
+						tell(UNSETTLED_SENTENCE)
+						this.#opts.onChange?.()
+					}, SETTLE_MS)
+				}
+				this.#opts.onChange?.()
+				return { ok: true, sentence: RUNNING_SENTENCE, result }
+			}
 			const sentence = outcomeSentence(result)
-			// A graphic action that already settled has said what it came to; "Done" must not cover it.
-			if (press.verb !== ACTION_VERB || this.#unsettled.has(press.id)) tell(sentence)
+			tell(sentence)
 			this.#opts.onChange?.()
 			return { ok: true, sentence, result }
 		}

@@ -215,12 +215,14 @@ export interface GraphicVerbs {
   update: (sel: VerbSelection) => Promise<void>;
   /** A live press answers what it came to, for a panel's key (control/panelActions.ts); the
    *  page's own buttons ignore it, since the note line already says it. */
-  bump: (sel: VerbSelection, fieldKey: string, delta: number) => Promise<PressDone>;
+  bump: (sel: VerbSelection, fieldKey: string, delta: number, named?: string) => Promise<PressDone>;
   next: (sel: VerbSelection) => Promise<void>;
   out: (sel: VerbSelection) => Promise<void>;
   takeOff: (graphic: string) => Promise<void>;
   allOut: () => Promise<void>;
-  event: (sel: VerbSelection, button: ControlButton) => Promise<PressDone>;
+  /** `named`: the cue a panel key was drawn for (control/panelActions.ts), held to as the selection's
+   *  own cue is, for a layer whose cue the selection could not draw. */
+  event: (sel: VerbSelection, button: ControlButton, named?: string) => Promise<PressDone>;
   snap: (sel: VerbSelection, groupId: string | null, stateId: string) => Promise<void>;
   /** Commands the server sent back, on either road: one of a marker press that got no answer may
    *  have landed after all. Returns the ones the page still applies: all but this sender's own cue
@@ -460,10 +462,13 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return at === (session.air.get().liveCue[graphic] ?? null) ? at : false;
   };
   /** Capture the cue a live press acts on: the one its selection drew (null when it drew none), or
-   *  false when the layer already holds another. `still` asks again after a wait and says why once. */
-  const instance = (s: VerbSender, graphic: string, drawn: ShowCue | null) => {
+   *  false when the layer already holds another. `named` is the cue a press names when its
+   *  selection could draw none (a panel key on a layer airing a cue this page does not hold): it is
+   *  held to that cue the same way. `still` asks again after a wait and says why once. */
+  const instance = (s: VerbSender, graphic: string, drawn: ShowCue | null, named?: string) => {
     const at = holding(graphic);
-    const captured = at === false || (drawn && drawn.id !== at) ? false : at;
+    const want = drawn?.id ?? named;
+    const captured = at === false || (want !== undefined && want !== at) ? false : at;
     const still = () => {
       if (captured !== false && holding(graphic) === captured) return true;
       s.note(changedNote(graphic));
@@ -776,7 +781,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    * must never publish a half-typed name. A BOUND field takes the other road: the press moves the
    * production tree, counted from the TREE, and nothing is written into this cue (plan §2.7, §2.9).
    */
-  const bump = async (sel: VerbSelection, fieldKey: string, delta: number): Promise<PressDone> => {
+  const bump = async (sel: VerbSelection, fieldKey: string, delta: number, named?: string): Promise<PressDone> => {
     const s = sender();
     const p = page();
     const { editingCue, selectedGraphic: graphic } = sel;
@@ -784,7 +789,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     if (!editingCue || !graphic || !sel.editingIsLive) return refused(graphic && sel.selectedLayerLive ? unheldNote(graphic) : offAirNote(graphic ?? 'The graphic'));
     const typed = typedRefused(s, editingCue);
     if (typed) return refused(typed);
-    const still = instance(s, graphic, editingCue);
+    const still = instance(s, graphic, editingCue, named);
     if (!still()) return refused(changedNote(graphic));
     const path = p.boundFields(graphic)[fieldKey];
     if (path) {
@@ -985,14 +990,14 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   };
 
   /** Fire a machine event on the live graphic, after the live press before it on its graphic. */
-  const event = (sel: VerbSelection, button: ControlButton): Promise<PressDone> => {
+  const event = (sel: VerbSelection, button: ControlButton, named?: string): Promise<PressDone> => {
     const s = sender();
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return Promise.resolve(refused(offAirNote(graphic ?? 'The graphic')));
     const typed = typedRefused(s, sel.airCue);
     if (typed) return Promise.resolve(refused(typed));
-    const still = instance(s, graphic, sel.airCue);
+    const still = instance(s, graphic, sel.airCue, named);
     if (!still()) return Promise.resolve(refused(changedNote(graphic)));
     const bound = p.boundFields(graphic);
     const moved = io.movedKeys(button);

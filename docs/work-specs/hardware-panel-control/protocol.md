@@ -302,7 +302,7 @@ dialog and advertises `relay: false`, and the module says the server needs an up
 ### 10.2 The offer (`actions`, page to panels)
 
 Published like `state`: on each change, on `want`, after joining. At most 32 graphics of 48
-capabilities each. The page's `beat` also carries `actionsVer`; a module holding an older offer
+capabilities each, and at most 96,000 characters of graphics (cut at a whole graphic, `more`). The page's `beat` also carries `actionsVer`; a module holding an older offer
 calls `panel_hello`, so a missed `actions` event is sent again (§7.1).
 
 ```json
@@ -361,4 +361,6 @@ apply. `result` (protocol 1) says it ran; `settled` follows:
 | `settled` | `{av: 2, id, panel, outcome: 'accepted' or 'refused' or 'failed' or 'unknown', note?}` |
 
 `unknown` is a send the server did not answer: it may still commit, and the press is never sent
-again.
+again. The dispatcher holds the press to `instance` after every wait, as it holds a button's press
+to the cue its selection drew. A module shows a press that ran as running until its `settled`, and
+as not confirmed when none comes in 15 s.

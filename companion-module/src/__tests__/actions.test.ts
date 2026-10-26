@@ -161,7 +161,8 @@ test('a press names its capability, graphic, instance and the actions it was dra
 test('what the action came to arrives after it ran and becomes the last-press sentence', async () => {
 	const { relay, panel } = await answering()
 	await panel.pressAction('Scorebug', 'step:score', { delta: 1 })
-	assert.equal(panel.lastPress, 'Done')
+	// Ran is dispatched, not done.
+	assert.equal(panel.lastPress, 'Running on the graphic')
 	relay.emit('settled', { av: 2, id: 'testinst:1', outcome: 'unknown', note: 'no answer from the server' })
 	assert.equal(panel.lastPress, 'Not confirmed: no answer from the server')
 	// Settled once: a repeat changes nothing.
@@ -312,4 +313,29 @@ test('an offer in a newer actions protocol is not asked for again on every beat'
 	relay.emit('beat', { v: 1, page: 'page0000page0000', claim: 3, ver: 5, rowsVer: 1, actionsVer: 3_000_009 })
 	await settle()
 	assert.equal(relay.count('hello'), hellos)
+})
+
+test('a graphic action that ran and never says what it came to reads not confirmed, and is never sent again', async () => {
+	const { relay, clock, panel } = await answering()
+	await panel.pressAction('Scorebug', 'event:goal')
+	assert.equal(panel.lastPress, 'Running on the graphic')
+	await clock.advance(14_999)
+	assert.equal(panel.lastPress, 'Running on the graphic')
+	await clock.advance(1)
+	assert.equal(panel.lastPress, 'Not confirmed: the operator page did not say what it came to')
+	assert.equal(relay.count('press'), 1)
+	// A settled arriving after that changes nothing.
+	relay.emit('settled', { av: 2, id: 'testinst:1', outcome: 'accepted' })
+	assert.equal(panel.lastPress, 'Not confirmed: the operator page did not say what it came to')
+})
+
+test("a re-joined topic does not carry the last page's offer", async () => {
+	const { relay, panel } = await answering()
+	assert.ok(panel.actions)
+	// The page goes away; a new one answers on the same claim but has not offered anything yet.
+	relay.emit('gone', { v: 1, page: 'page0000page0000', claim: 3 })
+	relay.live!.onStatus('joined')
+	await settle()
+	relay.emit('state', state())
+	assert.equal(panel.actions, null)
 })

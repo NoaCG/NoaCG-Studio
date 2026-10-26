@@ -3212,3 +3212,26 @@ test('a step on a layer airing a cue this page does not hold says so, not off ai
   const view = liveSelection('Score', [], r.liveCue());
   assert.deepEqual(await r.verbs.bump(view, 'home', 1), { outcome: 'refused', note: 'The cue on Score is not one this page holds' });
 });
+
+test('a panel press on a layer airing a cue this page cannot see is held to the cue its key named (E6.1, L1 AC-8)', async () => {
+  // The key was drawn while `unseen` aired; another cue this page cannot see took the layer since.
+  const r = rig({ seed: false, liveCue: { Score: 'other' } });
+  const view = liveSelection('Score', [], r.liveCue());
+  assert.equal(view.airCue, null);
+  assert.deepEqual(await r.verbs.event(view, { event: 'go' }, 'unseen'), { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' });
+  assert.equal(r.sends.length, 0);
+  // The cue it named is the one on the layer: the press goes.
+  const going = r.verbs.event(view, { event: 'go' }, 'other');
+  await settle();
+  assert.equal(r.sends.length, 1);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await going, { outcome: 'accepted' });
+  // Named, and replaced during the save wait: refused after the wait.
+  const held = rig({ seed: false, flushHeld: true, liveCue: { Score: 'other' } });
+  const waiting = held.verbs.event(liveSelection('Score', [], held.liveCue()), { event: 'go' }, 'other');
+  await settle();
+  held.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'third' } } }));
+  held.flushes[0].resolve();
+  assert.deepEqual(await waiting, { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' });
+  assert.equal(held.sends.length, 0);
+});

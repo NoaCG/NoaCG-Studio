@@ -36,6 +36,9 @@ export const ACTION_VERB = 'graphic-action';
 /** At most this many graphics, and capabilities per graphic, go to a panel (`more` says so). */
 export const ACTION_GRAPHICS_MAX = 32;
 export const ACTION_CAPS_MAX = 48;
+/** And at most this many characters of graphics in one `actions` event, well inside a Realtime
+ *  broadcast's limit: the graphics that do not fit are left out and `more` says so. */
+export const ACTION_OFFER_MAX_CHARS = 96_000;
 
 /** The relay's bounds, the same numbers as `panel_action_fault` in 0103: an argument object's JSON
  *  text, and how deep its containers nest (the object itself is level 1). */
@@ -261,14 +264,21 @@ export interface ActionsMeta {
 
 /** The `actions` feedback event (protocol §10.2): no `v`, so a module that predates it ignores it. */
 export function wireActions(a: PanelActions, m: ActionsMeta) {
+  const graphics: PanelGraphic[] = [];
+  let chars = 0;
+  for (const g of a.graphics.slice(0, ACTION_GRAPHICS_MAX)) {
+    chars += JSON.stringify(g).length + 1;
+    if (chars > ACTION_OFFER_MAX_CHARS) break;
+    graphics.push(g);
+  }
   return {
     av: ACTIONS_PROTOCOL,
     actionsVer: m.actionsVer,
     page: m.page,
     claim: m.claim,
     relay: a.relay,
-    graphics: a.graphics.slice(0, ACTION_GRAPHICS_MAX),
-    more: a.graphics.length > ACTION_GRAPHICS_MAX,
+    graphics,
+    more: graphics.length < a.graphics.length,
   };
 }
 
@@ -343,6 +353,8 @@ export interface ActionRun {
   graphic: string;
   cap: PanelCapability;
   args: Record<string, unknown>;
+  /** The cue the key showed live on the graphic, which the dispatcher holds the press to. */
+  instance: string;
 }
 
 /** What a page offers a panel: its graphic actions now, and how its one dispatcher runs one. */
@@ -382,7 +394,7 @@ export function judgeAction(press: ActionPress, now: PanelActions, then: PanelAc
   const errors = validateActionArgs({ id: cap.id, name: cap.label, args: cap.args }, args);
   if (errors.length > 0) return { refused: 'invalid', note: `${cap.label}: ${errors[0].at ? `${errors[0].at} ` : ''}${errors[0].reason}` };
   if (!cap.allowed) return { refused: 'not-allowed', note: cap.note ?? `${cap.label} is not allowed right now` };
-  return { run: { graphic: press.target, cap, args: press.args } };
+  return { run: { graphic: press.target, cap, args: press.args, instance: press.instance } };
 }
 
 /** RUN A JUDGED CAPABILITY through the page's one dispatcher, with the selection a press on that
@@ -391,11 +403,16 @@ export function runCapability(
   run: ActionRun,
   machine: ControlsMachine | undefined,
   sel: VerbSelection,
-  verbs: { event: (sel: VerbSelection, button: ControlButton) => Promise<PressDone>; bump: (sel: VerbSelection, field: string, delta: number) => Promise<PressDone> },
+  verbs: {
+    event: (sel: VerbSelection, button: ControlButton, named?: string) => Promise<PressDone>;
+    bump: (sel: VerbSelection, field: string, delta: number, named?: string) => Promise<PressDone>;
+  },
 ): Promise<PressDone> {
   const press = machine && capabilityPress(run, machine.buttons, (b) => pickOptions(b, machine.descriptors, machine.path, machine.buttons));
   if (!press) return Promise.resolve({ outcome: 'refused', note: `that action is no longer on ${run.graphic}` });
-  return 'event' in press ? verbs.event(sel, press.event) : verbs.bump(sel, press.step, press.delta);
+  // The cue the key was drawn for, held to after every wait: the judge compared it with the offer,
+  // which can be a render old, and the selection draws no cue for a layer this page cannot see.
+  return 'event' in press ? verbs.event(sel, press.event, run.instance) : verbs.bump(sel, press.step, press.delta, run.instance);
 }
 
 /** What a capability presses, from the graphic's declared controls: the event button (a pick's

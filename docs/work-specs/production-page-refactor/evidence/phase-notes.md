@@ -59,6 +59,15 @@ changes a spec's digest.
     and its Panel dialog says "Graphic actions on the panel wait for a NoaCG server update."; the
     module refuses locally with the same reason, and a press that reaches the old relay is refused
     `not-a-panel-verb`, which the module words the same way.
+  - *A press is held to the cue its key named*, in the dispatcher too: `event` and `bump` take the
+    instance the judge accepted (`named`) and refuse with "the cue on <graphic> changed" when the
+    layer holds another, at the press and after every wait. For a layer airing a cue this page
+    cannot see, the selection draws no cue, so without it only the judge's comparison with the
+    last render's offer stood between a replacement and the press (the /so on `2e514a4`).
+  - *Ran is not done*: the module shows "Running on the graphic" after `result` and what `settled`
+    says after; with no `settled` in 15 s it reads "Not confirmed" and the press is never sent again.
+  - *The offer is capped at 96,000 characters* at whole graphics (`more` says so), well inside a
+    Realtime broadcast; the module forgets an offer when it re-joins or loses the page.
   - *A missed offer is recovered*: the 4 s `beat` carries `actionsVer` beside `ver` and `rowsVer`,
     and a module holding an older offer asks the page again (`panel_hello`), as it does for a missed
     state (Codex P2 on `2e514a4`). An older module ignores the field.
@@ -81,10 +90,11 @@ changes a spec's digest.
   4096 to 4097, `ACTION_ARGS_MAX_DEPTH` 8 to 9, `ACTION_CAPS_MAX` 48 to 49, `ACTION_GRAPHICS_MAX`
   32 to 31, the capability id length 96 to 97, the text length 128 to 129, and dropping the
   instance, greying, declaration and invocable checks of `judgeAction`
-  (`scripts/panel-feedback.test.mjs`); SQL target 128 to 129, capability 96 to 95, instance 128 to
+  (`scripts/panel-feedback.test.mjs`); the dispatcher's `named` hold (`scripts/graphic-verbs.test.mjs`); SQL target 128 to 129, capability 96 to 95, instance 128 to
   127, size 4096 to 4095, depth 8 to 9 and the walk's stop 8 to 7 (0103's own self-check on a
   scratch Postgres 16); module 32 to 33 graphics, 48 to 47 capabilities, a foreign descriptor
-  allowed, and a newer `av` read as current (`companion-module/src/__tests__/actions.test.ts`).
+  allowed, a newer `av` read as current, the beat's actions revision ignored, and an early
+  `settled` covered by the run sentence (`companion-module/src/__tests__/actions.test.ts`).
 - **Touched files against `a9356fb`:** `companion-module/src/__tests__/actions.test.ts` (new),
   `companion-module/src/__tests__/fakes.ts`, `companion-module/src/panel.ts`,
   `companion-module/src/protocol.ts`, `companion-module/src/relay.ts`,
