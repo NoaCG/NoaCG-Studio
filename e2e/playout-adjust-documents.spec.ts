@@ -400,14 +400,19 @@ test('each target bakes the graphic\'s type and colour, painting what the design
       expect(look.vars, `${target}: ${g.name} has a style to bake`).toBeTruthy();
       expect(look.frame).toBeUndefined();
       const slug = g.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-      const file = target === 'ograf'
-        ? paths.find((p) => p.startsWith(`${target}/`) && p.endsWith(`/${slug}/graphic.mjs`))?.replace(/graphic\.mjs$/, '__host.html')
-        : paths.find((p) => p.startsWith(`${target}/`) && new RegExp(`/${slug}/${slug}\\.html$`).test(p));
-      expect(file, `${target}: ${g.name}'s file`).toBeTruthy();
+      // Each package is folded under its own production's name: find the graphic's file in each.
+      const fileIn = (prefix: string) => {
+        const file = target === 'ograf'
+          ? paths.find((p) => p.startsWith(`${prefix}/`) && p.endsWith(`/${slug}/graphic.mjs`))?.replace(/graphic\.mjs$/, '__host.html')
+          : paths.find((p) => p.startsWith(`${prefix}/`) && new RegExp(`/${slug}/${slug}\\.html$`).test(p));
+        expect(file, `${prefix}: ${g.name}'s file`).toBeTruthy();
+        return file!;
+      };
+      const [baked, restyled, plain] = [fileIn(target), fileIn(`restyled-${target}`), fileIn(`plain-${target}`)];
       const start = target === 'html-overlay' ? 'autoplay' : 'play';
-      const r = await landed(renderer, `restyled-${file!}`, file!, null, start);
+      const r = await landed(renderer, restyled, baked, null, start);
       // The comparison can see the style at all: the unstyled file is far from the restyled one.
-      const unstyled = await landed(renderer, `restyled-${file!}`, `plain-${file!}`, null, start);
+      const unstyled = await landed(renderer, restyled, plain, null, start);
       rows.push(`${target} ${g.name}: painted ${r.painted} apart ${r.apart} (unstyled ${unstyled.apart})`);
       expect(r.painted, `${target} ${g.name} shows something`).toBeGreaterThan(1_000);
       expect(unstyled.apart, `${target} ${g.name}: the style shows`).toBeGreaterThan(RESIDUAL_BOUND);
