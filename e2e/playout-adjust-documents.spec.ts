@@ -11,8 +11,9 @@
 // 2. THE BAKES, one per target (html-overlay, CasparCG, SPX, OGraf and H2R): a production package
 //    built with a placed and resized graphic, its baked file rendered alone, against the same
 //    target's file built without place and size, in a frame transformed by the stage's own
-//    transform: what `/output` does to a document, done to this one. Compared once landed, as the
-//    closest of two mounts each (`closestLanded`).
+//    transform: what `/output` does to a document, done to this one. Compared once landed, a
+//    pixel matching any pixel within one of it (`differingShifted`): a scaled frame is rasterised
+//    a pixel row apart from mount to mount.
 //
 // Frames are compared after the same time on a paused page clock. A design that paints two different
 // frames from one document mounted twice (a marquee, a loop) is compared net of that: the residual
@@ -164,18 +165,51 @@ async function residuals(page: Page, framed: string, rooted: string, look: Appli
   });
 }
 
+/** Per colour channel, what the shift-tolerant comparison lets antialiasing differ by. */
+const RASTER_TOLERANCE = 48;
+
 /**
- * A baked file against the same target's file framed by the stage, once landed, as the CLOSEST of
- * two mounts each. An exported design can land in one of two settled states from mount to mount
- * (sb14's card, 3,401 px apart, both as the plain file), so one reference pair cannot tell a
- * state from a bake; a correct bake matches the reference in whichever state they share, and a
- * missing or wrong one is the transform's distance apart in every pair.
+ * Pixels of `a` that no pixel of `b` within one pixel matches at RASTER_TOLERANCE, either way round.
+ * A frame scaled by a transform is rasterised in one of two states from mount to mount, a pixel row
+ * apart (sb14 at 108 %, the framed reference and the baked root alike: 2,298 to 3,541 px apart
+ * exactly, 428 this way); re-applying the transform after landing does not settle it. Both states
+ * are what `/output` may show. A real misplacement stays far over the bound: 2 px is 6,196 and
+ * 3 px is 8,881 on the same frame, the bake removed is 17,000 and more.
  */
-async function closestLanded(page: Page, framed: string, rooted: string, look: AppliedAppearance, start: Start) {
-  const refs = [await framesOf(page, framed, look, start, [4_000]), await framesOf(page, framed, look, start, [4_000])].map((f) => f[0]);
-  const roots = [await framesOf(page, rooted, null, start, [4_000]), await framesOf(page, rooted, null, start, [4_000])].map((f) => f[0]);
-  const pairs = refs.flatMap((ref) => roots.map((root) => differing(ref, root)));
-  return { painted: painted(refs[0]), spread: differing(refs[0], refs[1]), closest: Math.min(...pairs) };
+function differingShifted(a: Buffer, b: Buffer): number {
+  const pa = decodePng(a);
+  const pb = decodePng(b);
+  const one = (x: typeof pa, y: typeof pa) => {
+    const { width: w, height: h, channels: c, samples: xs } = x;
+    const ys = y.samples;
+    let count = 0;
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col++) {
+        const i = (row * w + col) * c;
+        let matched = false;
+        for (let dy = -1; dy <= 1 && !matched; dy++) {
+          const r = row + dy;
+          if (r < 0 || r >= h) continue;
+          for (let dx = -1; dx <= 1 && !matched; dx++) {
+            const q = col + dx;
+            if (q < 0 || q >= w) continue;
+            const k = (r * w + q) * c;
+            matched = Math.abs(xs[i] - ys[k]) <= RASTER_TOLERANCE && Math.abs(xs[i + 1] - ys[k + 1]) <= RASTER_TOLERANCE && Math.abs(xs[i + 2] - ys[k + 2]) <= RASTER_TOLERANCE;
+          }
+        }
+        if (!matched) count += 1;
+      }
+    }
+    return count;
+  };
+  return Math.max(one(pa, pb), one(pb, pa));
+}
+
+/** A baked file against the same target's file framed by the stage, once landed. */
+async function landed(page: Page, framed: string, rooted: string, look: AppliedAppearance, start: Start) {
+  const ref = (await framesOf(page, framed, look, start, [4_000]))[0];
+  const root = (await framesOf(page, rooted, null, start, [4_000]))[0];
+  return { painted: painted(ref), apart: differingShifted(ref, root) };
 }
 
 test('the sweep: every viewport-unit design paints the same with the transform on its root as in a transformed frame', async ({ page, browser }) => {
@@ -243,7 +277,7 @@ test('each target bakes the graphic\'s place and size into its files, painting w
     // lt01 to the other side and 10 % smaller: a preset against its measured box, a size about it.
     // Two designs that hold still once landed: a target is compared on its landed frame, and a
     // design that keeps moving there (qz01's board differs from itself by up to 2,144 px across
-    // mounts) cannot be told apart from its bake by one reference pair.
+    // mounts) cannot be told apart from its bake.
     for (const id of ['lt01', 'sb14']) {
       const tpl = variantById(id)!.create({} as never);
       const { doc } = createGraphic(tpl, { name: tpl.name });
@@ -285,9 +319,10 @@ test('each target bakes the graphic\'s place and size into its files, painting w
       expect(served.files.get(`plain-${file!}`.replace(/__host\.html$/, 'graphic.mjs'))!.toString()).not.toContain('noacgApplyAppearance');
       // Landed only: mid-entrance, two mounts of one file differ by when each started on the clock
       // (0 to 6,234 px across CI runs), which says nothing about the transform.
-      const r = await closestLanded(renderer, `plain-${file!}`, file!, look, target === 'html-overlay' ? 'autoplay' : 'play');
-      rows.push(`${target} ${g.name}: painted ${r.painted} spread ${r.spread} closest ${r.closest}`);
-      expect(r.closest, `${target} ${g.name}:\n${rows.join('\n')}`).toBeLessThanOrEqual(RESIDUAL_BOUND);
+      const r = await landed(renderer, `plain-${file!}`, file!, look, target === 'html-overlay' ? 'autoplay' : 'play');
+      rows.push(`${target} ${g.name}: painted ${r.painted} apart ${r.apart}`);
+      expect(r.painted, `${target} ${g.name} shows something`).toBeGreaterThan(1_000);
+      expect(r.apart, `${target} ${g.name}:\n${rows.join('\n')}`).toBeLessThanOrEqual(RESIDUAL_BOUND);
     }
   }
   console.log(rows.join('\n'));
