@@ -1,5 +1,6 @@
-// A GRAPHIC'S PLACE AND SIZE ON THIS PRODUCTION'S OUTPUT (docs/work-specs/playout-adjustments/spec.md,
-// phase 1): the record a pool graphic and a cue carry, and the one reader every door goes through.
+// A GRAPHIC'S PLACE, SIZE, TYPE AND COLOUR ON THIS PRODUCTION'S OUTPUT
+// (docs/work-specs/playout-adjustments/spec.md, phases 1 and 2): the record a pool graphic and a cue
+// carry, and the one reader every door goes through.
 //
 // The record stores INTENT: a place preset, nudges in production px, a scale, and the anchor zone
 // derived once when the record is first written. It never stores a measured box (that is the
@@ -32,10 +33,36 @@ export interface AdjustRecord {
   scale?: number;
   /** The pivot's zone, derived once when the record is first written and kept. */
   anchor?: Zone9;
+  /** `:root` variables by name without dashes ({@link STYLE_VARS}), phase 2. An empty value is
+   *  "as designed" at this scope: it masks what a wider scope sets, so a cue can keep the design's
+   *  accent while its graphic's other cues take another. */
+  vars?: Record<string, string>;
+  /** The face `--font-heading` names, by identity only: a bundled id, or an imported face by family
+   *  and the asset path a pool graphic of the production ships it at. Never bytes. 'designed' is
+   *  "as designed" at this scope, as an empty variable is. */
+  font?: FontRef | 'designed';
+  /** This scope keeps its own style out of a production look (phase 3); written with the "as
+   *  designed" masks and removed with them. */
+  keepStyle?: true;
 }
 
-/** The members a write may set; null removes one. */
-export type AdjustPatch = { [K in Exclude<keyof AdjustRecord, 'v'>]?: AdjustRecord[K] | null };
+/** A face by identity. */
+export type FontRef = { fontId: string } | { family: string; assetPath: string };
+
+/** The style variables a record may set: the contract colours, the heading weight, and the shape
+ *  tokens (model/themeTokens.ts `TOKEN_VARS`) other than the derived `font-numeric`. `font-heading`
+ *  is never one: it follows `font`. */
+export const STYLE_VARS: readonly string[] = [
+  'accent', 'text-color', 'text-dim', 'panel-bg', 'display-weight',
+  'panel-blur', 'panel-radius', 'panel-shadow', 'panel-keyline', 'accent-weight', 'accent-glow',
+  'accent-ink', 'font-label', 'label-tracking', 'label-color', 'display-tracking',
+];
+
+/** The members a write may set; null removes one. `vars` merges key by key, a null value removing
+ *  that key. */
+export type AdjustPatch = {
+  [K in Exclude<keyof AdjustRecord, 'v' | 'vars'>]?: AdjustRecord[K] | null;
+} & { vars?: Record<string, string | null> | null };
 
 /** What a stored record is, as this build reads it. */
 export type AdjustRead =
@@ -68,7 +95,41 @@ export function readAdjust(raw: unknown): AdjustRead {
   if (num(r.y)) record.y = clampNudge(r.y);
   if (num(r.scale) && r.scale > 0) record.scale = clampScale(r.scale);
   if (isZone(r.anchor)) record.anchor = r.anchor;
+  const vars = readVars(r.vars);
+  if (vars) record.vars = vars;
+  const font = readFont(r.font);
+  if (font) record.font = font;
+  if (r.keepStyle === true) record.keepStyle = true;
   return { status: 'ok', record };
+}
+
+/** A style value this build applies: a short CSS value that cannot leave its declaration. */
+export function styleValue(v: unknown): v is string {
+  return typeof v === 'string' && v.length <= 200 && !/[;{}<>\\]|url\(|@import|\/\*/i.test(v);
+}
+
+function readVars(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (STYLE_VARS.includes(k) && styleValue(v)) out[k] = v.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+const FAMILY_RE = /^[^"'\\;{}<>]{1,80}$/;
+const ASSET_RE = /^fonts\/[\w./-]+\.(?:woff2|woff|ttf|otf)$/i;
+
+/** A face reference this build can resolve, or 'designed', or undefined. */
+export function readFont(raw: unknown): FontRef | 'designed' | undefined {
+  if (raw === 'designed') return 'designed';
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.fontId === 'string' && /^[a-z0-9-]{1,40}$/.test(r.fontId)) return { fontId: r.fontId };
+  if (typeof r.family === 'string' && FAMILY_RE.test(r.family) && typeof r.assetPath === 'string' && ASSET_RE.test(r.assetPath) && !r.assetPath.includes('..')) {
+    return { family: r.family.trim(), assetPath: r.assetPath };
+  }
+  return undefined;
 }
 
 export const clampScale = (s: number) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(s * 1000) / 1000));
@@ -92,6 +153,17 @@ export function patchAdjust(raw: unknown, patch: AdjustPatch): Record<string, un
     if ((key === 'place' || key === 'anchor') && isZone(value)) base[key] = value;
     else if ((key === 'x' || key === 'y') && num(value)) base[key] = clampNudge(value);
     else if (key === 'scale' && num(value) && value > 0) base[key] = clampScale(value);
+    else if (key === 'font' && readFont(value)) base.font = readFont(value);
+    else if (key === 'keepStyle' && value === true) base.keepStyle = true;
+    else if (key === 'vars' && typeof value === 'object') {
+      const vars: Record<string, unknown> = { ...((base.vars && typeof base.vars === 'object' ? base.vars : {}) as Record<string, unknown>) };
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        if (v === null) delete vars[k];
+        else if (STYLE_VARS.includes(k) && styleValue(v)) vars[k] = v.trim();
+      }
+      if (Object.keys(vars).length > 0) base.vars = vars;
+      else delete base.vars;
+    }
   }
   // Identity members are still members: x 0 written at this scope overrides an inherited x.
   base.v = ADJUST_V;

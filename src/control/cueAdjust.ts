@@ -17,7 +17,7 @@
 //
 // Pure and Node-tested; type imports aside, it imports only ./adjust.ts and the floor table.
 
-import { readAdjust, NUDGE_MAX, type AdjustRecord, type Zone9 } from '../model/adjust.ts';
+import { readAdjust, styleValue, NUDGE_MAX, STYLE_VARS, type AdjustRecord, type FontRef, type Zone9 } from '../model/adjust.ts';
 import { typeFloorFor } from '../model/designRules.ts';
 
 /** A rectangle in a graphic document's px, which is production px: a frame sits at the stage
@@ -49,10 +49,26 @@ export interface AppearanceFrame {
   oy: number;
 }
 
-/** What travels on `update.appearance` and what is restored. `frame` absent is the identity. */
+/** A face the document must be able to resolve, by identity: the bytes come from the surface's own
+ *  asset road (control/cueStyle.ts `facesCss`), never over the wire. */
+export interface FontDeclaration {
+  family: string;
+  /** `fonts/<file>` for a bundled face, the asset path a pool graphic ships an imported one at. */
+  src: string;
+  /** The supported range as declared (model/fonts.ts: a static or imported face declares 100-900). */
+  weight: [number, number];
+  style?: 'normal' | 'italic';
+  unicodeRange?: string;
+}
+
+/** What travels on `update.appearance` and what is restored: the frame transform (phase 1) and the
+ *  style, `:root` variables by name without dashes plus the faces they name (phase 2). Every member
+ *  absent is the identity. A receiver that predates a member ignores it. */
 export interface AppliedAppearance {
   v: 1;
   frame?: AppearanceFrame;
+  vars?: Record<string, string>;
+  fonts?: FontDeclaration[];
 }
 
 export const IDENTITY: AppliedAppearance = { v: 1 };
@@ -69,7 +85,12 @@ export interface EffectiveAdjust {
   y?: number;
   scale?: number;
   anchor?: Zone9;
-  /** Which members the cue itself sets. */
+  /** The style variables, folded key by key; an empty value is "as designed" at the scope that won. */
+  vars?: Record<string, string>;
+  /** The heading face, or 'designed'. */
+  font?: FontRef | 'designed';
+  keepStyle?: true;
+  /** Which members the cue itself sets (any `vars` key counts as `vars`). */
   own: (keyof Omit<AdjustRecord, 'v'>)[];
   /** A scope holds a record written by a later build: editing it is refused. */
   readOnly: boolean;
@@ -77,7 +98,7 @@ export interface EffectiveAdjust {
   any: boolean;
 }
 
-const MEMBERS = ['place', 'x', 'y', 'scale', 'anchor'] as const;
+const MEMBERS = ['place', 'x', 'y', 'scale', 'anchor', 'font', 'keepStyle'] as const;
 
 /** Fold the cue's exception over the graphic's default, member by member. A later version's record
  *  applies nothing (rollback: an unknown record is ignored on read). */
@@ -92,6 +113,13 @@ export function effectiveAdjust(graphicRaw: unknown, cueRaw: unknown): Effective
     if (value === undefined) continue;
     (out as unknown as Record<string, unknown>)[key] = value;
     if (fromCue !== undefined) out.own.push(key);
+  }
+  // Style variables fold KEY BY KEY: a cue that sets its accent alone still takes the graphic's face.
+  const gv = g.status === 'ok' ? g.record.vars : undefined;
+  const cv = c.status === 'ok' ? c.record.vars : undefined;
+  if (gv || cv) {
+    out.vars = { ...gv, ...cv };
+    if (cv) out.own.push('vars');
   }
   out.any = graphicRaw !== undefined || cueRaw !== undefined;
   return out;
@@ -203,30 +231,89 @@ export function resolveFrame(eff: EffectiveAdjust, m: Measurement | null, frame:
   return { dx, dy, s, ox: r2(pivot.x), oy: r2(pivot.y) };
 }
 
-/** The applied appearance of a resolved frame. */
-export function appearanceOf(frame: AppearanceFrame | null): AppliedAppearance {
-  return frame ? { v: 1, frame } : IDENTITY;
+/** The style half of an appearance. */
+export type AppearanceStyle = Pick<AppliedAppearance, 'vars' | 'fonts'>;
+
+/** The applied appearance of a resolved frame and style. */
+export function appearanceOf(frame: AppearanceFrame | null, style?: AppearanceStyle | null): AppliedAppearance {
+  const vars = style?.vars && Object.keys(style.vars).length > 0 ? style.vars : undefined;
+  const fonts = style?.fonts && style.fonts.length > 0 ? style.fonts : undefined;
+  if (!frame && !vars && !fonts) return IDENTITY;
+  return { v: 1, ...(frame ? { frame } : {}), ...(vars ? { vars } : {}), ...(fonts ? { fonts } : {}) };
+}
+
+/** The names an appearance may set on `:root`: the record's, plus the two the face derives. */
+const APPLIED_VARS = new Set([...STYLE_VARS, 'font-heading', 'font-numeric']);
+const FONT_SRC = /^fonts\/[\w./-]+\.(?:woff2|woff|ttf|otf)$/i;
+
+/** An appearance's variables, checked: undefined for none, null for any this build cannot apply. */
+function readVarsOf(raw: unknown): Record<string, string> | undefined | null {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== 'object') return null;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!APPLIED_VARS.has(k) || !styleValue(v) || v.trim() === '') return null;
+    out[k] = v.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** An appearance's faces, checked the same way. */
+function readFontsOf(raw: unknown): FontDeclaration[] | undefined | null {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw)) return null;
+  const out: FontDeclaration[] = [];
+  for (const f of raw) {
+    if (!f || typeof f !== 'object') return null;
+    const d = f as Record<string, unknown>;
+    const w = d.weight;
+    if (typeof d.family !== 'string' || !/^[^"'\;{}<>]{1,80}$/.test(d.family)) return null;
+    if (typeof d.src !== 'string' || !FONT_SRC.test(d.src) || d.src.includes('..')) return null;
+    if (!Array.isArray(w) || w.length !== 2 || !w.every((n) => typeof n === 'number' && n >= 1 && n <= 1000)) return null;
+    if (d.unicodeRange !== undefined && (typeof d.unicodeRange !== 'string' || !/^[U+0-9A-Fa-f?,\s-]{1,400}$/.test(d.unicodeRange))) return null;
+    if (d.style !== undefined && d.style !== 'normal' && d.style !== 'italic') return null;
+    out.push({
+      family: d.family,
+      src: d.src,
+      weight: [w[0] as number, w[1] as number],
+      ...(d.style ? { style: d.style as 'normal' | 'italic' } : {}),
+      ...(d.unicodeRange ? { unicodeRange: d.unicodeRange as string } : {}),
+    });
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 /** A received appearance, checked: null for anything this build cannot apply (a later `v`, a
  *  malformed frame), which a receiver then ignores (rule 1 holds what was applied). */
 export function readAppearance(raw: unknown): AppliedAppearance | null {
   if (!raw || typeof raw !== 'object') return null;
-  const a = raw as { v?: unknown; frame?: unknown };
+  const a = raw as { v?: unknown; frame?: unknown; vars?: unknown; fonts?: unknown };
   if (a.v !== 1) return null;
-  if (a.frame === undefined) return IDENTITY;
+  const vars = readVarsOf(a.vars);
+  const fonts = readFontsOf(a.fonts);
+  if (vars === null || fonts === null) return null;
+  const style = { vars, fonts };
+  if (a.frame === undefined) return appearanceOf(null, style);
   const f = a.frame as Record<string, unknown>;
   const ok = ['dx', 'dy', 's', 'ox', 'oy'].every((k) => typeof f?.[k] === 'number' && Number.isFinite(f[k] as number));
   if (!ok || (f.s as number) <= 0) return null;
-  return { v: 1, frame: { dx: f.dx as number, dy: f.dy as number, s: f.s as number, ox: f.ox as number, oy: f.oy as number } };
+  return appearanceOf({ dx: f.dx as number, dy: f.dy as number, s: f.s as number, ox: f.ox as number, oy: f.oy as number }, style);
 }
 
 export function isIdentity(a: AppliedAppearance | null | undefined): boolean {
-  return !a || !a.frame;
+  return !a || (!a.frame && !a.vars && !a.fonts);
 }
 
-/** Two appearances apply the same transform (to a hundredth of a px). */
+/** The style an appearance applies, as one comparable string ('' for none). */
+export function styleKey(a: AppliedAppearance | null | undefined): string {
+  if (!a?.vars && !a?.fonts) return '';
+  const vars = Object.entries(a.vars ?? {}).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0));
+  return JSON.stringify([vars, (a.fonts ?? []).map((f) => [f.family, f.src, f.weight, f.style ?? '', f.unicodeRange ?? ''])]);
+}
+
+/** Two appearances apply the same transform (to a hundredth of a px) and the same style. */
 export function appearanceEquals(a: AppliedAppearance | null | undefined, b: AppliedAppearance | null | undefined): boolean {
+  if (styleKey(a) !== styleKey(b)) return false;
   const fa = a?.frame;
   const fb = b?.frame;
   if (!fa || !fb) return !fa && !fb;
