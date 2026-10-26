@@ -7,6 +7,7 @@
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
 // covers: src/control/liveControls.ts, src/components/home/LiveControls.tsx, src/model/profile.ts
+// covers: src/components/home/CueAdjust.tsx, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/model/adjust.ts
 // focus
 
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
@@ -2295,4 +2296,89 @@ test('pinned live controls: the pinned score stays on screen, presses its own on
   await expect(podium).toHaveCount(0);
   await expect(page.getByTestId('live-stack')).toHaveCount(0);
   await expect(page.getByTestId('cue-actions')).toBeVisible();
+});
+
+/**
+ * PLACE AND SIZE FROM THE PRODUCTION PAGE (docs/work-specs/playout-adjustments/spec.md, phase 1;
+ * AC-1, AC-4 and AC-8 as the operator meets them). A monitor at 1600x900 draws the stage at about
+ * 0.3, so this reads the appearance each stage wrote (`data-appearance`) and the direction of the
+ * move; the px claims are e2e/playout-adjust.spec.ts and scripts/cue-adjust.test.mjs.
+ */
+test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; only Take and Update reach PROGRAM, with no replay', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'Adjust Night');
+  // A second cue of the same lower third, for the cue exception.
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
+    shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await page.locator('.pd-cue').first().click();
+  const look = (where: 'preview' | 'program') =>
+    page.locator(where === 'preview' ? '[data-testid="production-preview"] iframe' : '[data-testid="program-stage"] iframe').first().getAttribute('data-appearance');
+  const frameOf = async (where: 'preview' | 'program') => JSON.parse((await look(where)) ?? '{"frame":null}').frame as { dx: number; s: number } | null;
+  const summary = page.getByTestId('cue-adjust-summary');
+
+  // Closed, it says what the graphic is: as designed, and nothing is measured or moved.
+  await expect(summary).toHaveText(/as designed/);
+  expect(await look('preview')).toBeNull();
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('preview-guides')).toBeVisible();
+  // Measured: the pivot shows on the grid and the readability line appears.
+  await expect(page.getByTestId('adjust-floor')).toHaveText(/smallest text \d/);
+  await expect(page.getByTestId('adjust-why')).toHaveCount(0);
+
+  // AC-1: bottom-right, then three 1 px and one 10 px nudge with the keys inside the block.
+  await page.getByTestId('adjust-place-br').click();
+  await expect(summary).toHaveText(/all 2 Hairline cues · bottom-right/);
+  await expect.poll(async () => (await frameOf('preview'))?.dx ?? 0).toBeGreaterThan(800);
+  const placed = (await frameOf('preview'))!.dx;
+  for (const key of ['ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'Shift+ArrowLeft']) await page.keyboard.press(key);
+  await expect(page.getByTestId('adjust-x')).toHaveValue('-13');
+  await expect.poll(async () => (await frameOf('preview'))!.dx).toBeCloseTo(placed - 13, 1);
+  // AC-2's flow: about five percent smaller.
+  await page.getByTestId('adjust-smaller').click();
+  await expect(page.getByTestId('adjust-size')).toHaveValue('95');
+  // Nothing reaches PROGRAM by being prepared.
+  expect(await look('program')).toBeNull();
+
+  // Take: PROGRAM takes exactly what PREVIEW shows.
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => look('program')).toBe(await look('preview'));
+  const program = page.getByTestId('program-stage');
+  await expect(program).toHaveAttribute('data-plays', '1');
+
+  // AC-8: a change prepared on the on-air cue waits, and says so; ✎ Update applies it, no replay.
+  const aired = await look('program');
+  await page.getByTestId('adjust-nudge-up').click();
+  await expect(page.locator('.pd-editor-fate')).toContainText('1 change not');
+  expect(await look('program')).toBe(aired);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => look('program')).not.toBe(aired);
+  await expect(program).toHaveAttribute('data-plays', '1');
+  // Ctrl+Z reverts the press, which then waits again.
+  await page.locator('[data-testid="adjust-nudge-up"]').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('adjust-y')).toHaveValue('0');
+
+  // AC-4's visible half: the second cue, only this cue, bottom-left; the first keeps bottom-right.
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-place-bl').click();
+  await expect(summary).toHaveText(/only this cue · bottom-left/);
+  await page.locator('.pd-cue').first().click();
+  await expect(summary).toHaveText(/all 2 Hairline cues · bottom-right.*1 cue keeps its own/);
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-stop-exception').click();
+  await expect(summary).toHaveText(/all 2 Hairline cues · bottom-right/);
+
+  // Reset to as designed, on the cue on air: Update sends the identity and PROGRAM goes back.
+  await page.locator('.pd-cue').first().click();
+  await page.getByTestId('adjust-reset').click();
+  await expect(summary).toHaveText(/as designed/);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => look('program')).toBeNull();
+  await expect(program).toHaveAttribute('data-plays', '1');
 });

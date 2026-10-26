@@ -22,6 +22,7 @@ export default function CueAdjust({
   open,
   setOpen,
   write,
+  step,
   reset,
   promote,
 }: {
@@ -40,6 +41,8 @@ export default function CueAdjust({
   open: boolean;
   setOpen: (open: boolean) => void;
   write: (patch: AdjustPatch) => void;
+  /** Add to x, y or the scale, from the record as it stands when the write runs. */
+  step: (by: { x?: number; y?: number; scale?: number }) => void;
   /** Remove the record at a scope. */
   reset: (scope: 'cue' | 'graphic') => void;
   /** Make the cue's exception the graphic's default. */
@@ -61,17 +64,16 @@ export default function CueAdjust({
   const nudge = (dx: number, dy: number) => {
     if (locked) return;
     if (limit === 'spans') dx = 0;
-    write({ ...(dx ? { x: x + dx } : {}), ...(dy ? { y: y + dy } : {}) });
+    if (dx || dy) step({ ...(dx ? { x: dx } : {}), ...(dy ? { y: dy } : {}) });
   };
-  const step = (e: { shiftKey: boolean }) => (e.shiftKey ? 10 : 1);
+  const stepOf = (e: { shiftKey: boolean }) => (e.shiftKey ? 10 : 1);
   const resize = (by: number) => {
-    if (sizeOff) return;
-    write({ scale: Math.round((s + by) * 100) / 100 });
+    if (!sizeOff) step({ scale: by });
   };
   /** Arrow keys nudge while focus is inside the block, and only there (never in a typed box). */
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).tagName === 'INPUT') return;
-    const n = step(e);
+    const n = stepOf(e);
     const move: Record<string, [number, number]> = { ArrowLeft: [-n, 0], ArrowRight: [n, 0], ArrowUp: [0, -n], ArrowDown: [0, n] };
     const d = move[e.key];
     if (!d) return;
@@ -132,7 +134,7 @@ export default function CueAdjust({
                   aria-label={`Nudge ${label.toLowerCase()}`}
                   title={`${label} 1 px, Shift 10 px`}
                   disabled={locked || (limit === 'spans' && dx !== 0)}
-                  onClick={(e: MouseEvent) => nudge(dx * step(e), dy * step(e))}
+                  onClick={(e: MouseEvent) => nudge(dx * stepOf(e), dy * stepOf(e))}
                   data-testid={`adjust-nudge-${label.toLowerCase()}`}
                 >
                   {glyph}

@@ -107,3 +107,12 @@ export function patchAdjust(raw: unknown, patch: AdjustPatch): Record<string, un
 export function withoutMembers(raw: unknown, keys: readonly (keyof AdjustPatch)[]): Record<string, unknown> | undefined | string {
   return patchAdjust(raw, Object.fromEntries(keys.map((k) => [k, null])) as AdjustPatch);
 }
+
+/** A member's value as the fold sees it (cue over graphic, identity after): what a step adds to. */
+export function foldedMember(graphicRaw: unknown, cueRaw: unknown, key: 'x' | 'y' | 'scale'): number {
+  const read = (raw: unknown) => {
+    const r = readAdjust(raw);
+    return r.status === 'ok' ? r.record[key] : undefined;
+  };
+  return read(cueRaw) ?? read(graphicRaw) ?? (key === 'scale' ? 1 : 0);
+}

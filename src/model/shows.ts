@@ -55,7 +55,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
-import { patchAdjust, readAdjust, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
+import { foldedMember, patchAdjust, readAdjust, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
 
 /**
@@ -882,6 +882,31 @@ export function promoteCueAdjust(showId: string, cueId: string): { shows: Show[]
     if (typeof moved === 'string') return moved;
     delete cue.adjust;
     return true;
+  });
+}
+
+/**
+ * A STEP from the record as it stands when the write runs, never from a render's copy: three quick
+ * presses of ← are 3 px, however the renders keep up. `step` adds to the folded value (the cue's,
+ * else the graphic's, else identity) and the sum is written at `scope`; `patch` rides along.
+ */
+export function stepAdjust(
+  showId: string,
+  cueId: string,
+  scope: 'cue' | 'graphic',
+  step: { x?: number; y?: number; scale?: number },
+  patch: AdjustPatch = {},
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    const graphic = cue && show.graphics.find((g) => g.id === cue.sourceId);
+    if (!cue || !graphic) return 'This cue is no longer in the production.';
+    const next: AdjustPatch = { ...patch };
+    for (const key of ['x', 'y', 'scale'] as const) {
+      const by = step[key];
+      if (by) next[key] = Math.round((foldedMember(graphic.adjust, cue.adjust, key) + by) * 1000) / 1000;
+    }
+    return writeAdjust(scope === 'cue' ? cue : graphic, next);
   });
 }
 

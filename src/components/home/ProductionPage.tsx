@@ -122,7 +122,7 @@ import type { SavedGraphic } from '../../model/packets';
 import { appearanceEquals, IDENTITY, measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, measured, type MeasureJob } from '../../control/adjustGeometry';
 import { measureCue } from '../../preview/measureCue';
-import { promoteCueAdjust, setCueAdjust, setGraphicAdjust } from '../../model/shows';
+import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
 import type { AdjustPatch } from '../../model/adjust';
 import CueAdjust from './CueAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
@@ -3754,6 +3754,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   open={adjustOpen}
                   setOpen={setAdjustOpen}
                   write={write}
+                  step={(by) => {
+                    const anchored = withAnchor(state.eff, state.m, frameOf(g), {});
+                    void history.write(() => stepAdjust(show.id, editingCue.id, scope, by, anchored), `Adjust ${g.name}`);
+                  }}
                   reset={(at) => {
                     if (at === 'cue') setOnlyThisCue(null);
                     void history.write(() => (at === 'cue' ? setCueAdjust(show.id, editingCue.id, null) : setGraphicAdjust(show.id, g.id, null)), `Reset ${g.name}`);
