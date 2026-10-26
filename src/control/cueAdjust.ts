@@ -267,7 +267,7 @@ function readFontsOf(raw: unknown): FontDeclaration[] | undefined | null {
     if (!f || typeof f !== 'object') return null;
     const d = f as Record<string, unknown>;
     const w = d.weight;
-    if (typeof d.family !== 'string' || !/^[^"'\;{}<>]{1,80}$/.test(d.family)) return null;
+    if (typeof d.family !== 'string' || !/^[^"'\\;{}<>]{1,80}$/.test(d.family)) return null;
     if (typeof d.src !== 'string' || !FONT_SRC.test(d.src) || d.src.includes('..')) return null;
     if (!Array.isArray(w) || w.length !== 2 || !w.every((n) => typeof n === 'number' && n >= 1 && n <= 1000)) return null;
     if (d.unicodeRange !== undefined && (typeof d.unicodeRange !== 'string' || !/^[U+0-9A-Fa-f?,\s-]{1,400}$/.test(d.unicodeRange))) return null;
@@ -326,8 +326,14 @@ export function appearanceEquals(a: AppliedAppearance | null | undefined, b: App
  * either scope, or a non-identity appearance this page believes is applied); and nothing at all
  * for a graphic nobody adjusted, so such a production's commands are what they always were.
  */
-export function appearanceToSend(resolved: AppearanceFrame | null, eff: Pick<EffectiveAdjust, 'any'>, applied: AppliedAppearance | null | undefined, adjustedElsewhere = false): AppliedAppearance | undefined {
-  if (resolved) return appearanceOf(resolved);
+export function appearanceToSend(
+  resolved: AppearanceFrame | null,
+  eff: Pick<EffectiveAdjust, 'any'>,
+  applied: AppliedAppearance | null | undefined,
+  adjustedElsewhere = false,
+  style: AppearanceStyle | null = null,
+): AppliedAppearance | undefined {
+  if (resolved || style) return appearanceOf(resolved, style);
   if (eff.any || adjustedElsewhere || !isIdentity(applied)) return IDENTITY;
   return undefined;
 }
@@ -398,11 +404,12 @@ export function floorEstimate(minText: number | null | undefined, scale: number,
 // ── Measurements: identified and qualified ───────────────────────────────────────────────────────
 
 /** WHAT A MEASUREMENT WAS TAKEN FOR: the graphic's document (its copy's edit time), the cue, the
- *  values the document settled and the stage. A reply for any other identity is not this cue's
- *  geometry: typing a longer name, a new copy on Publish or another stage each make a new one. */
-export function measureId(graphicId: string, savedAt: string, cueId: string, values: Readonly<Record<string, string>>, stage: Size): string {
+ *  values the document settled, the stage and the style it was drawn in (`styleKey`, '' for none:
+ *  another face reflows the box). A reply for any other identity is not this cue's geometry:
+ *  typing a longer name, a new copy on Publish, another stage or another face each make a new one. */
+export function measureId(graphicId: string, savedAt: string, cueId: string, values: Readonly<Record<string, string>>, stage: Size, style = ''): string {
   const sorted = Object.keys(values).sort().map((k) => [k, values[k]]);
-  return JSON.stringify([graphicId, savedAt, cueId, sorted, stage.width, stage.height]);
+  return JSON.stringify([graphicId, savedAt, cueId, sorted, stage.width, stage.height, ...(style ? [style] : [])]);
 }
 
 const near = (a: Rect | null, b: Rect | null) =>

@@ -15,7 +15,13 @@ const MEASURE_CAP_MS = 5_000;
 
 let serial = 0;
 
-export function measureCue(template: SpxTemplate, values: Record<string, string>): Promise<Measurement | null> {
+/** The type and colour a document is told to draw in (previewProtocol.ts `style`). */
+export interface PreviewStyle {
+  vars: Record<string, string> | null;
+  faces: string;
+}
+
+export function measureCue(template: SpxTemplate, values: Record<string, string>, style: PreviewStyle | null = null): Promise<Measurement | null> {
   return new Promise((resolve) => {
     const iframe = document.createElement('iframe');
     iframe.setAttribute('sandbox', 'allow-scripts');
@@ -66,6 +72,8 @@ export function measureCue(template: SpxTemplate, values: Record<string, string>
     };
     window.addEventListener('message', onMessage);
     iframe.addEventListener('load', () => {
+      // The style first: the document holds the settle behind it until its faces have loaded.
+      if (style) postPreviewCmd(iframe.contentWindow, { cmd: 'style', vars: style.vars, faces: style.faces });
       asked = ++serial;
       postPreviewCmd(iframe.contentWindow, { cmd: 'settle', data: JSON.stringify(values), id: asked });
     });

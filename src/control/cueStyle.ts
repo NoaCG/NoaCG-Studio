@@ -11,7 +11,7 @@
 // Pure and Node-tested (scripts/cue-adjust.test.mjs).
 
 import type { FontRef } from '../model/adjust.ts';
-import { cssPaintsWith } from '../model/cssVars.ts';
+import { cssPaintsWith, getCssVariable } from '../model/cssVars.ts';
 import {
   FONTS,
   LATIN_EXT_RANGE,
@@ -32,6 +32,32 @@ export interface ImportedFace {
   assetPath: string;
   /** Measured at import (model/fonts.ts `CustomFont.tabularFigures`); absent reads as cannot. */
   tabularFigures?: boolean;
+}
+
+/** What a cue's style resolves against: the production's imported faces, and the graphic's own
+ *  `--font-heading` (the heading weight is clamped against it when no face is chosen). */
+export interface StyleContext {
+  imported: readonly ImportedFace[];
+  designHeading: string | null;
+}
+
+export const NO_STYLE_CONTEXT: StyleContext = { imported: [], designHeading: null };
+
+/** The style context of one graphic among its production's: every imported face the pool ships,
+ *  and the graphic's own heading. */
+export function styleContextFor(pool: readonly { css: string; assets: readonly { path: string }[] }[], graphic: { css: string }): StyleContext {
+  return { imported: importedFacesOf(pool), designHeading: getCssVariable(graphic.css, 'font-heading') };
+}
+
+/** An imported face's bytes by asset path, read from the production's own copies. */
+export function assetDataIn(pool: readonly { assets: readonly { path: string; data?: unknown }[] }[]): (src: string) => string | null {
+  return (src) => {
+    for (const t of pool) {
+      const a = t.assets.find((x) => x.path === src);
+      if (a && typeof a.data === 'string') return a.data;
+    }
+    return null;
+  };
 }
 
 /** The colour roles the Colour row offers, in its order. */

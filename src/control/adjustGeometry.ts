@@ -23,13 +23,16 @@ import {
   measureId,
   pivotZone,
   resolveFrame,
+  styleKey,
   type AppearanceFrame,
+  type AppearanceStyle,
   type AppliedAppearance,
   type EffectiveAdjust,
   type GeometryLimit,
   type Measurement,
   type Size,
 } from './cueAdjust.ts';
+import { resolveStyle, NO_STYLE_CONTEXT, type StyleContext } from './cueStyle.ts';
 
 export interface GeometryEntry {
   /** The identity the measurement was taken for. */
@@ -180,6 +183,9 @@ export interface CueAdjustState {
   frame: AppearanceFrame | null;
   /** What PREVIEW applies. */
   look: AppliedAppearance;
+  /** The style half (phase 2), null for none, and its key, part of the measurement's identity. */
+  style: AppearanceStyle | null;
+  styleId: string;
   /** What a Take or a full Update carries (rule 2): undefined for a graphic nobody adjusted. */
   send: AppliedAppearance | undefined;
 }
@@ -263,18 +269,25 @@ export function cueAdjustState(
   applied: AppliedAppearance | null | undefined,
   /** Another cue of the same graphic has its own record. */
   adjustedElsewhere: boolean,
+  /** What the style resolves against (phase 2): the production's imported faces and the graphic's
+   *  own `--font-heading`. */
+  styleCtx: StyleContext = NO_STYLE_CONTEXT,
 ): CueAdjustState {
   const eff = effectiveAdjust(graphic.adjust, cue.adjust);
-  const { m, fresh } = geometryOf(geometry, cue.id, graphic.id, measureId(graphic.id, graphic.savedAt, cue.id, values, stage));
+  const style = resolveStyle(eff, styleCtx.imported, styleCtx.designHeading);
+  const styleId = styleKey(appearanceOf(null, style));
+  const { m, fresh } = geometryOf(geometry, cue.id, graphic.id, measureId(graphic.id, graphic.savedAt, cue.id, values, stage, styleId));
   const frame = resolveFrame(eff, m, frameSize, stage);
   return {
+    style,
+    styleId,
     eff,
     m,
     fresh,
     limit: geometryLimit(m, frameSize),
     pivot: pivotZone(eff, m?.info ?? m?.paint ?? null, frameSize),
     frame,
-    look: appearanceOf(frame),
-    send: appearanceToSend(frame, eff, applied, adjustedElsewhere),
+    look: appearanceOf(frame, style),
+    send: appearanceToSend(frame, eff, applied, adjustedElsewhere, style),
   };
 }
