@@ -89,18 +89,28 @@ function noacgCreditsRoll() {
     noacgCreditsBuiltAt = speed;
     noacgCreditsLast = {
       startY: startY, endY: endY, distance: distance, duration: duration,
-      boxed: false, artwork: true
+      boxed: false, artwork: true,
+      parentMatrix: [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f]
     };
     noacgCreditsTween = gsap.to(position, { y: endY, duration: duration, ease: 'none', onUpdate: paint });
   };
+  var afterPaint = function () {
+    if (generation !== noacgCreditsGeneration) return;
+    // The root and its box can both have entrance tracks. Their actual GSAP playheads are
+    // authoritative: a duration-based timer may land between their last render ticks.
+    var text = document.querySelector('.${creditsClass(prefix)}');
+    for (var node = text; node; node = node.parentElement) {
+      var tweens = gsap.getTweensOf(node, true);
+      for (var i = 0; i < tweens.length; i++) {
+        var span = tweens[i].totalDuration();
+        if (span > 0 && span < 1e9) { requestAnimationFrame(afterPaint); return; }
+      }
+    }
+    noacgCreditsStart = null;
+    ready.then(measure);
+  };
   var begin = function () {
-    // A delayed callback can share the last entrance tick. Wait for the next rendered frame
-    // before reading the matrix, including the final fractional scale of a Pop entrance.
-    requestAnimationFrame(function () {
-      if (generation !== noacgCreditsGeneration) return;
-      noacgCreditsStart = null;
-      ready.then(measure);
-    });
+    requestAnimationFrame(afterPaint);
   };
   // Read the FINAL animation data at play time. Preset changes may lengthen the entrance after
   // assembly, so an assembly-time end-call could still measure a moving/scaling ancestor.

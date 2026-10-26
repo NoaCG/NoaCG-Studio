@@ -123,3 +123,12 @@ example and qualify the examples before publishing a complete SVG import example
 - Import summaries now count artwork separately from editable fields, and the unused legacy
   box no longer creates a Fill slot. The next screenshot capture waits for painted credits;
   a loading frame is not accepted as documentation evidence.
+- Third run `40308327587` at `e32b49642` passed every browser shard except the strict universal
+  motion case, plus the build, factory and catalog gates. Pop still measured before its final
+  transform tick (0.7933 pixels at the start). The runtime now waits for actual finite GSAP
+  tweens on the text's ancestors to finish before reading their coordinate matrix. An independent
+  emitted-runtime check verified that waiting, replay cancellation and Out, without changing
+  the half-pixel browser bounds. Browser confirmation is pending.
+- The third-run fields capture had the correct artwork count but still showed a blank boundary
+  frame. Capture now pauses the real roll at one quarter and requires the first text run fully
+  inside the output, so its replacement PNG must show the artwork rather than its empty start.

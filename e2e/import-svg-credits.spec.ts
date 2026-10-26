@@ -87,17 +87,17 @@ test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting
       return Math.max(Math.abs(matrix.a - 1), Math.abs(matrix.d - 1), Math.abs(matrix.e), Math.abs(matrix.f));
     }), `${motion}: the entrance has settled`).toBeLessThan(0.0001);
     const geometry = await page.locator('.imported-design-credits').evaluate((el) => {
-      const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void } };
+      const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void }; noacgCreditsLast: unknown };
       const frame = document.body.getBoundingClientRect();
       w.noacgCreditsTween.pause();
       w.noacgCreditsTween.progress(0);
       const start = el.getBoundingClientRect().top;
       w.noacgCreditsTween.progress(1);
       const end = el.getBoundingClientRect().bottom;
-      return { start, end, frameTop: frame.top, frameBottom: frame.bottom, transform: el.getAttribute('transform') };
+      return { start, end, frameTop: frame.top, frameBottom: frame.bottom, transform: el.getAttribute('transform'), measured: w.noacgCreditsLast };
     });
-    expect(Math.abs(geometry.start - geometry.frameBottom), `${motion}: the first glyph starts at the output's bottom`).toBeLessThan(0.5);
-    expect(Math.abs(geometry.end - geometry.frameTop), `${motion}: the final glyph clears the output's top`).toBeLessThan(0.5);
+    expect(Math.abs(geometry.start - geometry.frameBottom), `${motion}: the first glyph starts at the output's bottom: ${JSON.stringify(geometry)}`).toBeLessThan(0.5);
+    expect(Math.abs(geometry.end - geometry.frameTop), `${motion}: the final glyph clears the output's top: ${JSON.stringify(geometry)}`).toBeLessThan(0.5);
     expect(geometry.transform).toBe('translate(820 85)');
     await expect(page.locator('.imported-design-credits tspan').last()).toHaveText('See you next time');
     await expect(page.locator('.imported-design-credits-rows')).toHaveCount(0);

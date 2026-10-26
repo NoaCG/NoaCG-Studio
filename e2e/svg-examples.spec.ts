@@ -314,11 +314,20 @@ for (const example of examples.filter((entry) => entry.recipe)) {
       await expect(page.locator('.wz-stage').first()).not.toHaveAttribute('data-doc-pending', '1');
       await expect(page.locator('.wz-stage').first()).toHaveAttribute('data-doc-rev', /\d/);
       await expect(page.getByTestId('map-svg-why-fields').locator('..')).toContainText('0 editable, 1 artwork');
-      await expect.poll(() => page.frameLocator('.wz-stage iframe').locator('.imported-design-credits').evaluate((el) => {
+      const previewText = page.frameLocator('.wz-stage iframe').locator('.imported-design-credits');
+      await expect.poll(() => previewText.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+      // Document an actual frame within the roll. At its initial boundary the text's bounds
+      // can intersect by a subpixel while every glyph remains below the visible output.
+      await previewText.evaluate(() => {
+        const tween = (window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void } }).noacgCreditsTween;
+        tween.pause();
+        tween.progress(0.25);
+      });
+      await expect.poll(() => previewText.locator('tspan').first().evaluate((el) => {
         const bounds = el.getBoundingClientRect();
         const frame = document.body.getBoundingClientRect();
         const root = document.querySelector('.imported-design')!;
-        return getComputedStyle(el).visibility === 'visible' && Number(getComputedStyle(root).opacity) > 0.5 && bounds.top < frame.bottom && bounds.bottom > frame.top;
+        return getComputedStyle(el).visibility === 'visible' && Number(getComputedStyle(root).opacity) > 0.5 && bounds.top >= frame.top && bounds.bottom <= frame.bottom;
       })).toBe(true);
       await testInfo.attach('Credits import fields', { body: await page.screenshot(), contentType: 'image/png' });
     }
