@@ -383,9 +383,13 @@ function Swatch({ label, value, disabled, onPick, testId }: { label: string; val
     el.addEventListener('change', onChange);
     return () => el.removeEventListener('change', onChange);
   }, []);
+  // One element for the swatch's life (the listener is on it), its colour set from the value.
+  useEffect(() => {
+    if (ref.current) ref.current.value = pickerHex(value);
+  }, [value]);
   return (
     <label className="pd-adjust-swatch" title={label}>
-      <input ref={ref} type="color" aria-label={label} defaultValue={pickerHex(value)} key={value} disabled={disabled} data-testid={testId} />
+      <input ref={ref} type="color" aria-label={label} defaultValue={pickerHex(value)} disabled={disabled} data-testid={testId} />
     </label>
   );
 }
