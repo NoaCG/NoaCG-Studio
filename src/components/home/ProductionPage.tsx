@@ -240,6 +240,7 @@ import { rundownActions, useRundownAuthoring } from './useRundownAuthoring';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, usePanelAnswer } from '../control/PanelControl';
 import { PANEL_VERBS, panelClip, rundownPanelRows, type PanelVerb } from '../../control/panelFeedback';
+import { capabilityPress, panelGraphic, type PanelGraphic, type PanelOffer } from '../../control/panelActions';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
@@ -3010,7 +3011,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Fire a machine event on the live graphic, or snap it straight to a state (control/graphicVerbs.ts
    *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
    *  waits for the one before it on its graphic. */
-  const fireEvent = (button: ControlButton): Promise<void> => verbs.event(view, button);
+  const fireEvent = (button: ControlButton) => verbs.event(view, button);
   const snapTo = (groupId: string | null, stateId: string) => verbs.snap(view, groupId, stateId);
 
   /** The selected graphic's ⚡ button (home/CueActions.tsx `actionButtonFor`), greyed against
@@ -3128,6 +3129,43 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
 
+  /** WHAT A PANEL MAY PRESS ON EACH POOL GRAPHIC (control/panelActions.ts, E6.1): the controls each
+   *  graphic's live block draws, greyed as the block greys them, a press resolved to the cue live on
+   *  that graphic's layer (`liveSelection`, never the selection) and run through the block's own
+   *  verbs. A pin is presentation only: every pool graphic is offered, pinned or not. */
+  const panelOffer = (): PanelOffer => ({
+    list: () => {
+      const pins = new Set(pinnedGraphicsOf(show.profile));
+      const graphics: PanelGraphic[] = [];
+      for (const [graphic, m] of poolMachines) {
+        const sel = liveSelection(graphic, cues, liveCue);
+        const live = sel.selectedLayerLive ? (liveCue[graphic] ?? null) : null;
+        const state = machineStates[graphic] ?? null;
+        const aired = live ? (airedData[graphic] ?? null) : null;
+        const g = panelGraphic({
+          graphic,
+          pinned: pins.has(graphic),
+          live,
+          cue: sel.airCue?.label ?? null,
+          arranged: arrangeControls(withLiveLabels(m.buttons, aired), arrangeFor(show.profile, graphic), (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
+          numbers: liveNumbersOf(m.descriptors, m.buttons, sel.editingCue ? candidateFields(sel.editingCue) : []),
+          legal: (event) => isEventLegal(m.legality, event, state) && (!!sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
+          stepping: sel.editingIsLive,
+          aired,
+        });
+        if (g) graphics.push(g);
+      }
+      return { graphics };
+    },
+    act: (run) => {
+      const m = poolMachines.get(run.graphic);
+      const press = m && capabilityPress(run, m.buttons, (b) => pickOptions(b, m.descriptors, m.path, m.buttons));
+      if (!press) return Promise.resolve({ outcome: 'refused', note: `that action is no longer on ${run.graphic}` });
+      const sel = liveSelection(run.graphic, cues, liveCue);
+      return 'event' in press ? verbs.event(sel, press.event) : verbs.bump(sel, press.step, press.delta);
+    },
+  });
+
   // What a panel's keys show (protocol.md §8), from the same values the verb bar greys with. Read
   // only while the page answers a panel, at each publish and each press.
   /** Which cues' own Take would be refused, worked out once per render: a timing reading publishes
@@ -3155,6 +3193,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     (verb, target) => onVerb(verb, { repeat: false, cue: target || undefined }),
     // A refused press is a note in the activity feed, not a command row: nothing was sent.
     (text) => logHere([(id) => noteEntry(id, text)]),
+    panelOffer(),
   );
 
   /** LIVE ACTIONS FIRST (docs/research/control-surfaces-review-2026-10-02 slice 4; owner,

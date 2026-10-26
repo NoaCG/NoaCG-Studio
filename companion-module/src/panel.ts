@@ -1,13 +1,21 @@
 import {
+	ACTIONS_PROTOCOL,
+	ACTION_VERB,
 	PROTOCOL,
 	SELECTED_ROW_VERBS,
+	capabilityState,
 	outcomeSentence,
+	readActions,
+	readSettled,
+	settledSentence,
 	readBeat,
 	readResult,
 	readRows,
 	readState,
 	refusalSentence,
 	versionOf,
+	type ActionPress,
+	type PanelActions,
 	type PanelRows,
 	type PanelState,
 	type PanelVerb,
@@ -51,7 +59,8 @@ export interface PressOutcome {
 }
 
 export interface Flash {
-	verb: PanelVerb
+	verb: PanelVerb | typeof ACTION_VERB
+	/** The row a cue key acts on; for a graphic action, `<graphic>/<capability id>`. */
 	row: string
 	until: number
 }
@@ -98,6 +107,12 @@ export class PanelClient {
 	#state: PanelState | null = null
 	#stateAt = 0
 	#rows: PanelRows | null = null
+	/** The graphic actions the answering page offers, for its claim; null when none were heard. */
+	#actions: PanelActions | null = null
+	/** The answering page speaks a newer actions protocol than this module. */
+	#actionsNewer = false
+	/** Graphic actions that ran and have not said what they came to. */
+	#unsettled = new Map<string, number>()
 	#heardAt = 0
 	#counter = 0
 	#attempt = 0
@@ -135,6 +150,11 @@ export class PanelClient {
 	/** The last state's receive time on this machine, for the clock (protocol §7.4). */
 	get stateAt(): number {
 		return this.#stateAt
+	}
+	/** The graphic actions offered now, only while connected and only for the page that answers. */
+	get actions(): PanelActions | null {
+		const s = this.state
+		return s && this.#actions && this.#actions.claim === s.claim ? this.#actions : null
 	}
 	get rows(): PanelRows | null {
 		return this.#rows
@@ -355,6 +375,36 @@ export class PanelClient {
 				this.#waits.get(result.id)?.(result)
 				return
 			}
+			case 'actions': {
+				const actions = readActions(payload)
+				if (actions === 'newer') {
+					this.#actions = null
+					this.#actionsNewer = true
+					this.#opts.onChange?.()
+					return
+				}
+				// Only the newest page's, and never an older count of it.
+				if (
+					!actions ||
+					(this.#actions &&
+						(actions.claim < this.#actions.claim ||
+							(actions.claim === this.#actions.claim && actions.actionsVer < this.#actions.actionsVer)))
+				)
+					return
+				this.#actions = actions
+				this.#actionsNewer = false
+				this.#opts.onChange?.()
+				return
+			}
+			case 'settled': {
+				const settled = readSettled(payload)
+				const seq = settled && this.#unsettled.get(settled.id)
+				if (!settled || seq === undefined) return
+				this.#unsettled.delete(settled.id)
+				if (seq === this.#pressSeq) this.#lastPress = settledSentence(settled)
+				this.#opts.onChange?.()
+				return
+			}
 		}
 	}
 
@@ -369,69 +419,111 @@ export class PanelClient {
 
 	/** Press a verb. Resolves when the page answered, or with the reason it was not run. */
 	async press(verb: PanelVerb, row = ''): Promise<PressOutcome> {
+		const send = this.#sender({ verb, row })
+		if (this.#status !== 'ok' || !this.#state) return send.refused(this.#note)
+		if ((verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') && !row)
+			return send.refused('Choose a cue for this key')
+		return send.go({
+			verb,
+			target: this.targetOf(verb, row),
+			seen: this.#state.ver,
+			id: `${this.#instance}:${++this.#counter}`,
+		})
+	}
+
+	/**
+	 * PRESS A GRAPHIC ACTION (protocol §10.3): the capability by its id on its pool graphic, with its
+	 * arguments, against the actions the page last advertised. Resolves when the page answered; what
+	 * the action came to (`settled`) arrives after, into the last-press sentence. Never queued, never
+	 * resent but for the one same-id retry every press has.
+	 */
+	async pressAction(graphic: string, cap: string, args: Record<string, unknown> = {}): Promise<PressOutcome> {
+		const send = this.#sender({ verb: ACTION_VERB, row: `${graphic}/${cap}` })
+		if (this.#status !== 'ok' || !this.#state) return send.refused(this.#note)
+		if (this.#actionsNewer) return send.refused("Update the NoaCG module to press this production's graphic actions")
+		const actions = this.actions
+		const known = capabilityState(actions, graphic, cap)
+		if (known.state !== 'allowed' || !actions) return send.refused(known.note)
+		const press: ActionPress = {
+			v: ACTIONS_PROTOCOL,
+			verb: ACTION_VERB,
+			target: graphic,
+			seen: actions.actionsVer,
+			id: `${this.#instance}:${++this.#counter}`,
+			cap,
+			instance: known.live ?? '',
+			args,
+		}
+		return send.go(press, (refused) => (refused === 'not-a-panel-verb' ? 'not-a-graphic-action' : refused))
+	}
+
+	/** The send half every press shares: the last-press sentence, the flash, the one retry, the wait
+	 *  for the page's `result`. */
+	#sender(flash: { verb: Flash['verb']; row: string }) {
 		const seq = ++this.#pressSeq
 		// An older press answered after a newer one was made must not overwrite the newer one's sentence.
 		const tell = (sentence: string) => {
 			if (seq === this.#pressSeq) this.#lastPress = sentence
 		}
 		const refused = (sentence: string, result?: PressResult): PressOutcome => {
-			this.#flash = { verb, row, until: this.#clock.now() + FLASH_MS }
+			this.#flash = { ...flash, until: this.#clock.now() + FLASH_MS }
 			tell(sentence)
 			this.#opts.onChange?.()
 			return { ok: false, sentence, ...(result ? { result } : {}) }
 		}
-		if (this.#status !== 'ok' || !this.#state) return refused(this.#note)
-		if ((verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') && !row)
-			return refused('Choose a cue for this key')
-		const press: Press = {
-			verb,
-			target: this.targetOf(verb, row),
-			seen: this.#state.ver,
-			id: `${this.#instance}:${++this.#counter}`,
-		}
-		const answered = new Promise<PressResult | null>((resolve) => {
-			const timer = this.#clock.setTimeout(() => {
-				this.#waits.delete(press.id)
-				resolve(null)
-			}, RESULT_MS)
-			this.#waits.set(press.id, (r) => {
-				this.#clock.clearTimeout(timer)
-				this.#waits.delete(press.id)
-				resolve(r)
+		const go = async (
+			press: Press | ActionPress,
+			code: (refused: string) => string = (r) => r,
+		): Promise<PressOutcome> => {
+			const answered = new Promise<PressResult | null>((resolve) => {
+				const timer = this.#clock.setTimeout(() => {
+					this.#waits.delete(press.id)
+					resolve(null)
+				}, RESULT_MS)
+				this.#waits.set(press.id, (r) => {
+					this.#clock.clearTimeout(timer)
+					this.#waits.delete(press.id)
+					resolve(r)
+				})
 			})
-		})
-		// Sent and not yet answered: the last-press variable says so, apart from done and refused.
-		tell(PENDING_SENTENCE)
-		this.#opts.onChange?.()
-		let answer
-		try {
-			answer = await this.#relay.press(this.#key, press)
-		} catch {
-			// One retry, same id: the page drops an id it has already run.
+			// Sent and not yet answered: the last-press variable says so, apart from done and refused.
+			tell(PENDING_SENTENCE)
+			this.#opts.onChange?.()
+			let answer
 			try {
 				answer = await this.#relay.press(this.#key, press)
-			} catch (err) {
+			} catch {
+				// One retry, same id: the page drops an id it has already run.
+				try {
+					answer = await this.#relay.press(this.#key, press)
+				} catch (err) {
+					this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
+					return refused(`NoaCG offline: ${(err as Error).message}`)
+				}
+			}
+			if (!answer.ok) {
 				this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
-				return refused(`NoaCG offline: ${(err as Error).message}`)
+				if (answer.refused === 'no-page') {
+					this.#noPage()
+				} else if (answer.refused === 'revoked' || answer.refused === 'unknown-key') {
+					this.#state = null
+					this.#leaveTopic()
+					this.#set('revoked', refusalSentence(answer.refused))
+				}
+				return refused(refusalSentence(code(answer.refused), answer.note))
 			}
+			// A graphic action says what it came to after it ran (`settled`).
+			if (press.verb === ACTION_VERB) this.#unsettled.set(press.id, seq)
+			const result = await answered
+			// Only a press that ran settles; the rest are forgotten now.
+			if (result?.outcome !== 'ran') this.#unsettled.delete(press.id)
+			if (!result) return refused('No answer from the operator page')
+			if (result.outcome !== 'ran') return refused(outcomeSentence(result), result)
+			const sentence = outcomeSentence(result)
+			tell(sentence)
+			this.#opts.onChange?.()
+			return { ok: true, sentence, result }
 		}
-		if (!answer.ok) {
-			this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
-			if (answer.refused === 'no-page') {
-				this.#noPage()
-			} else if (answer.refused === 'revoked' || answer.refused === 'unknown-key') {
-				this.#state = null
-				this.#leaveTopic()
-				this.#set('revoked', refusalSentence(answer.refused))
-			}
-			return refused(refusalSentence(answer.refused, answer.note))
-		}
-		const result = await answered
-		if (!result) return refused('No answer from the operator page')
-		if (result.outcome !== 'ran') return refused(outcomeSentence(result), result)
-		const sentence = outcomeSentence(result)
-		tell(sentence)
-		this.#opts.onChange?.()
-		return { ok: true, sentence, result }
+		return { refused, go }
 	}
 }

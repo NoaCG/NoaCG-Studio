@@ -25,6 +25,18 @@ import {
   type PanelVerb,
   type PressVerdict,
 } from './panelFeedback';
+import {
+  ACTION_VERB,
+  ActionsRing,
+  NO_ACTIONS,
+  actionsChanged,
+  judgeAction,
+  readActionPress,
+  wireActions,
+  type PanelActions,
+  type PanelOffer,
+  type PressDone,
+} from './panelActions';
 
 // ── The page's calls ───────────────────────────────────────────────────────────────────────────
 
@@ -81,9 +93,24 @@ export type AnswerStatus =
 
 export interface PanelPressReport {
   panel: string;
-  verb: PanelVerb;
+  verb: PanelVerb | typeof ACTION_VERB;
+  /** A graphic action's own words ("Goal +1 on Scorebug"). */
+  action?: string;
   verdict: PressVerdict;
   at: number;
+}
+
+/**
+ * Whether this database's `panel_press` relays graphic actions (0103's `panel_relay`): true, false
+ * for an older database (the function is not there), or null when it could not be asked.
+ */
+export async function panelRelayActions(): Promise<boolean | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.rpc('panel_relay', {});
+  if (error) return /panel_relay|PGRST202|does not exist|schema cache/i.test(`${error.code ?? ''} ${error.message}`) ? false : null;
+  const verbs = (data as { verbs?: unknown } | null)?.verbs;
+  return Array.isArray(verbs) && verbs.includes(ACTION_VERB);
 }
 
 export interface PanelAnswer {
@@ -138,6 +165,7 @@ interface HandedOn {
   claim: number;
   ver: number;
   rowsVer: number;
+  actionsVer?: number;
 }
 
 const handKey = (slug: string) => `noacg-panel-counts:${slug}`;
@@ -157,7 +185,7 @@ function handedOn(slug: string): HandedOn | null {
     window.sessionStorage.removeItem(handKey(slug));
     const counts = raw ? (JSON.parse(raw) as Partial<HandedOn>) : null;
     return counts && typeof counts.claim === 'number' && typeof counts.ver === 'number' && typeof counts.rowsVer === 'number'
-      ? { claim: counts.claim, ver: counts.ver, rowsVer: counts.rowsVer }
+      ? { claim: counts.claim, ver: counts.ver, rowsVer: counts.rowsVer, ...(typeof counts.actionsVer === 'number' ? { actionsVer: counts.actionsVer } : {}) }
       : null;
   } catch {
     return null;
@@ -184,12 +212,23 @@ export function answerPanel(opts: {
   runs: ReadonlySet<PanelVerb>;
   /** The page's dispatcher, as a key press reaches it. */
   run: (verb: PanelVerb, target: string) => void;
+  /** The graphic actions this page offers and runs (control/panelActions.ts), read at publish and
+   *  at every press; null on a page that runs none, which publishes an empty list so a panel drops
+   *  what an earlier page offered, and refuses a press `not-here`. */
+  actions?: () => PanelOffer | null;
+  /** Whether the database relays graphic actions, once known. */
+  onRelay?: (relays: boolean) => void;
   onStatus: (status: AnswerStatus) => void;
   onPress: (report: PanelPressReport) => void;
 }): PanelAnswer {
   const page = tabPageId(opts.slug);
   const memory = new PressMemory();
   const ring = new SnapshotRing();
+  const actionRing = new ActionsRing();
+  let actionsVer = 0;
+  let shownActions: PanelActions | null = null;
+  /** Whether `panel_press` relays graphic actions; null until asked. */
+  let relays: boolean | null = null;
   let claim = 0;
   let stopped = false;
   let pressChannel: RealtimeChannel | null = null;
@@ -206,9 +245,21 @@ export function answerPanel(opts: {
     if (feedChannel && feedJoined) void feedChannel.send({ type: 'broadcast', event, payload });
   };
   const meta = () => ({ ver, rowsVer, page, claim, where: opts.where, label: opts.label, at: Date.now() });
+  const actionsNow = (): PanelActions => ({ ...(opts.actions?.()?.list() ?? NO_ACTIONS), relay: relays === true });
+  /** Publish the graphic actions when they changed, or always when `force` (protocol §10.2). */
+  const publishActions = (force: boolean) => {
+    const next = actionsNow();
+    if (actionsChanged(shownActions, next)) {
+      actionsVer++;
+      shownActions = next;
+      actionRing.put(actionsVer, next);
+    } else if (!force) return;
+    send('actions', wireActions(shownActions ?? next, { actionsVer, page, claim }));
+  };
   /** Publish the state (and the rows) when they changed, or always when `force`. */
   const publish = (force = false) => {
     if (stopped || !claim) return;
+    publishActions(force);
     const snap = opts.snapshot();
     if (rowsChanged(shownRows, snap.rows) || force) {
       if (rowsChanged(shownRows, snap.rows)) rowsVer++;
@@ -223,7 +274,45 @@ export function answerPanel(opts: {
     send('state', wireState(shown ?? snap, meta()));
   };
 
+  /** A GRAPHIC ACTION (protocol §10.4): the claim and the press id as every press, then the page's
+   *  judgement against what it advertises, then the one dispatcher; `result` says it ran (protocol
+   *  1, so every module reads it), `settled` what it came to. */
+  const onActionMessage = (payload: unknown) => {
+    const press = readActionPress(payload);
+    if (!press || stopped) return;
+    if (press.claim !== claim) {
+      if (press.claim > claim) replaced('another page');
+      return;
+    }
+    const now = Date.now();
+    const done = memory.get(press.pressId, now);
+    if (done) {
+      send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: 'duplicate', note: done.note });
+      return;
+    }
+    const offer = opts.actions?.() ?? null;
+    const judged = offer ? judgeAction(press, actionsNow(), actionRing.get(press.seen)) : { refused: 'not-here' as const, note: 'Graphic actions are not on this page' };
+    const verdict: PressVerdict = 'run' in judged ? { outcome: 'ran' } : { outcome: judged.refused, note: judged.note };
+    memory.remember(press.pressId, verdict, now);
+    send('result', { v: PANEL_PROTOCOL, id: press.pressId, panel: press.panel.id, outcome: verdict.outcome, ...(verdict.note ? { note: verdict.note } : {}) });
+    // The control's own words where the page still offers it, else its id.
+    const label = actionsNow().graphics.find((g) => g.graphic === press.target)?.caps.find((c) => c.id === press.cap)?.label;
+    const words = `${label ?? press.cap.slice(press.cap.indexOf(':') + 1)} on ${press.target}`;
+    opts.onPress({ panel: press.panel.label, verb: ACTION_VERB, action: words, verdict, at: now });
+    if (!('run' in judged) || !offer) return;
+    const settle = (d: PressDone) => {
+      if (!stopped) send('settled', { av: 2, id: press.pressId, panel: press.panel.id, outcome: d.outcome, ...(d.note ? { note: d.note } : {}) });
+      // The press moved what the keys show.
+      setTimeout(() => publish(), 0);
+    };
+    offer.act(judged.run).then(settle, (err: unknown) => settle({ outcome: 'failed', note: (err as Error)?.message ?? 'failed' }));
+  };
+
   const onPressMessage = (payload: unknown) => {
+    if ((payload as { verb?: unknown } | null)?.verb === ACTION_VERB) {
+      onActionMessage(payload);
+      return;
+    }
     const press = readPress(payload);
     if (!press || stopped) return;
     if (press.claim !== claim) {
@@ -306,6 +395,8 @@ export function answerPanel(opts: {
     const before = handedOn(opts.slug);
     ver = before && before.claim === claim ? Math.max(claim * 1_000_000, before.ver) : claim * 1_000_000;
     if (before && before.claim === claim) rowsVer = before.rowsVer;
+    // The graphic actions count the same way, for the same reason.
+    actionsVer = before && before.claim === claim ? Math.max(claim * 1_000_000, before.actionsVer ?? 0) : claim * 1_000_000;
     const ch = sb.channel(answer.press_topic, { config: { private: true } });
     pressChannel = ch;
     ch.on('broadcast', { event: 'press' }, (m: { payload: unknown }) => onPressMessage(m.payload));
@@ -324,6 +415,16 @@ export function answerPanel(opts: {
     });
     ch.subscribe();
     await joinFeed(answer.feedback_topic);
+    const askRelay = () => {
+      if (relays !== null || stopped) return;
+      void panelRelayActions().then((r) => {
+        if (r === null || stopped) return;
+        relays = r;
+        opts.onRelay?.(r);
+        publish();
+      });
+    };
+    askRelay();
     const renew = async () => {
       try {
         const kept = await call<{ ok: boolean; answering?: { label?: string } | null }>('panel_renew', { p_slug: opts.slug, p_page: page, p_claim: claim });
@@ -336,6 +437,8 @@ export function answerPanel(opts: {
     beat = workerInterval(PANEL_BEAT_MS, () => {
       send('beat', { v: PANEL_PROTOCOL, page, claim, ver, rowsVer });
       void renew();
+      // Not answered yet (offline at the start): asked again on the beat.
+      askRelay();
     });
     opts.onStatus({ kind: 'answering' });
   };
@@ -366,7 +469,7 @@ export function answerPanel(opts: {
   };
   const onHide = () => {
     // Handed to the next document of this tab, which resumes the lease (L4) and its counts.
-    if (claim) handOn(opts.slug, { claim, ver, rowsVer });
+    if (claim) handOn(opts.slug, { claim, ver, rowsVer, actionsVer });
     stop(false);
   };
   window.addEventListener('pagehide', onHide);

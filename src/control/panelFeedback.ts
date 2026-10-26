@@ -218,7 +218,8 @@ export function readPress(p: unknown): PanelPress | null {
   };
 }
 
-export type PressOutcome = 'ran' | 'duplicate' | 'stale' | 'not-allowed' | 'not-here';
+/** `invalid`: a graphic action's arguments do not fit its declared schema (control/panelActions.ts). */
+export type PressOutcome = 'ran' | 'duplicate' | 'stale' | 'not-allowed' | 'not-here' | 'invalid';
 
 export interface PressVerdict {
   outcome: PressOutcome;
