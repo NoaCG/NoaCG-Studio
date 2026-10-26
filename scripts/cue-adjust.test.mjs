@@ -1,9 +1,12 @@
-// guards: src/model/adjust.ts, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/model/teamShowMerge.ts, src/model/cueClipboard.ts, src/model/rundownHistory.ts, src/control/cueItems.ts, src/control/airState.ts, src/model/shows.ts
+// guards: src/control/appearanceRuntime.ts, src/control/exportAppearance.ts, src/control/localReceiver.ts, src/model/adjust.ts, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/model/teamShowMerge.ts, src/model/cueClipboard.ts, src/model/rundownHistory.ts, src/control/cueItems.ts, src/control/airState.ts, src/model/shows.ts
 //
 // PLACE AND SIZE FROM RECORD TO AIR (docs/work-specs/playout-adjustments/spec.md, phase 1), in Node:
 // the record and its one reader, the fold of a cue over its graphic member by member (AC-4), the
 // presets, nudges and pivot in production px (AC-1, AC-2), the readability estimate (AC-3), the
 // wire's four rules (AC-8, AC-9, AC-10), the doors and the lifecycle (AC-4), and both merge probes.
+// Phase 1b, documents that are the page: the export resolver (graphic default and cue fold, each
+// against the graphic's own page), the bake, the root runtime's rect mapping, and the relay
+// receiver's bytes for a production nobody adjusted (AC-9, AC-10).
 // The browser halves are e2e/playout-adjust.spec.ts (the measurement and the stage's frame) and the
 // journey in e2e/production-controls.spec.ts.
 
@@ -612,4 +615,167 @@ test('the doors: graphic default, cue exception, promotion in one write, reset, 
   } finally {
     globalThis.localStorage = previous;
   }
+});
+
+// ── Phase 1b: documents that are the page ───────────────────────────────────────────────────────
+
+const X = await import('../src/control/exportAppearance.ts');
+const R = await import('../src/control/appearanceRuntime.ts');
+const { localReceiverJs } = await import('../src/control/localReceiver.ts');
+const { createHash } = await import('node:crypto');
+
+describe('the export resolver (phase 1b)', () => {
+  const HD720 = { width: 1280, height: 720 };
+  const frames = { a: HD, b: HD, p: HD720 };
+  const show = {
+    graphics: [{ id: 'a', adjust: { v: 1, place: 'br', scale: 0.9, anchor: 'bl' } }, { id: 'b' }, { id: 'p', adjust: { v: 1, place: 'br' } }],
+    cues: [
+      { id: 'a1', sourceId: 'a' },
+      { id: 'a2', sourceId: 'a', adjust: { v: 1, place: 'bl', scale: 1 } },
+      { id: 'b1', sourceId: 'b' },
+      { id: 'clip', sourceId: 'a', source: 'playout' },
+      { id: 'p1', sourceId: 'p' },
+    ],
+  };
+  const measured = { graphics: { a: strap(), p: strap({ x: 80, y: 581, w: 300, h: 60 }) }, cues: { a1: strap(), a2: strap(LT) } };
+  const out = X.exportAppearances(show, (id) => frames[id], measured);
+
+  test('a production nobody adjusted gets nothing, so every package stays what it was', () => {
+    assert.equal(X.exportAppearances({ graphics: [{ id: 'b' }], cues: [{ id: 'b1', sourceId: 'b' }] }, () => HD, { graphics: {}, cues: {} }), undefined);
+    assert.equal(out.graphics.b, undefined, 'an unadjusted graphic beside adjusted ones bakes nothing');
+    assert.equal(out.cues.b1, undefined, 'and its cues carry no field (rule 2: never adjusted, nothing sent)');
+    assert.equal(out.cues.clip, undefined, 'a playout-server clip has no appearance');
+  });
+
+  test('the graphic level is the default alone, the cue level the fold, each against its own box', () => {
+    const g = out.graphics.a.frame;
+    const c = composed(LT, g);
+    near(right(c), 1920 - 120, 'the default puts the strap\'s right edge at the safe inset');
+    near(c.w, LT.w * 0.9, 'and shrinks it 10 %');
+    assert.deepEqual(out.cues.a1, out.graphics.a, 'a cue with no exception carries the default');
+    const own = composed(LT, out.cues.a2.frame);
+    near(own.x, 120, 'the exception\'s place');
+    near(own.w, LT.w, 'and its own size');
+  });
+
+  test('a graphic in a package is its own page: a 720p graphic places against its own safe area', () => {
+    const c = composed({ x: 80, y: 581, w: 300, h: 60 }, out.graphics.p.frame);
+    near(right(c), 1280 - 80, '720p safe inset is 120 x 1280/1920');
+    near(bottom(c), 720 - 119 * (720 / 1080), 'and its bottom inset');
+  });
+
+  test('an identity travels when the fold moves nothing, and a later version applies nothing', () => {
+    const s = { graphics: [{ id: 'a', adjust: { v: 1, x: 0 } }, { id: 'n', adjust: { v: 2, place: 'tr' } }], cues: [{ id: 'n1', sourceId: 'n' }] };
+    const r = X.exportAppearances(s, () => HD, { graphics: {}, cues: {} });
+    assert.deepEqual(r.graphics.a, { v: 1 });
+    assert.deepEqual(r.graphics.n, { v: 1 }, 'a record from a later build is kept on the show and moves nothing here');
+    assert.deepEqual(r.cues.n1, { v: 1 });
+  });
+
+  test('only a preset or a size needs a box', () => {
+    assert.equal(X.needsBox({ v: 1, x: 4 }), false);
+    assert.equal(X.needsBox({ v: 1, x: 4 }, { v: 1, scale: 0.95 }), true);
+    assert.equal(X.needsBox(undefined, { v: 1, place: 'tl' }), true);
+    assert.equal(X.needsBox({ v: 1, scale: 1 }), false);
+  });
+});
+
+describe('the bake and the root runtime (phase 1b)', () => {
+  test('a package nobody adjusted bakes nothing; an adjusted one bakes one tagged script', () => {
+    assert.deepEqual(R.bakeAppearance(undefined), []);
+    assert.deepEqual(R.bakeAppearance({ v: 1 }), [], 'an identity bakes nothing');
+    const look = { v: 1, frame: { dx: -40, dy: 12, s: 0.9, ox: 120, oy: 961 } };
+    const [bake, ...rest] = R.bakeAppearance(look);
+    assert.equal(rest.length, 0);
+    assert.equal(bake.id, R.APPEARANCE_SCRIPT_ID);
+    assert.ok(bake.js.endsWith(`noacgApplyAppearance(${JSON.stringify(look)});`));
+    assert.doesNotThrow(() => new Function(bake.js), 'ES5 that parses');
+  });
+
+  test('the relay receiver of a production nobody adjusted keeps its bytes (AC-10)', () => {
+    // The block every overlay package carried before phase 1b, byte for byte: a change here is a
+    // change to every package nobody adjusted. Pinned on main 9866960 before this row's edit.
+    const plain = localReceiverJs('Anchor Strap');
+    assert.equal(createHash('sha256').update(plain).digest('hex'), '055ccc2ba4661d16caffc1a775b4410199c166836fb4b35928d5a361c43d907e');
+    assert.ok(!plain.includes('noacgApplyAppearance'), 'it ignores an appearance on a row (the rollback rule)');
+    const placed = localReceiverJs('Anchor Strap', { appearance: true });
+    assert.ok(placed.includes('noacgApplyAppearance(m.appearance)'));
+    assert.doesNotThrow(() => new Function(placed));
+  });
+
+  test('the transformed root maps every rect read back to its untransformed box', () => {
+    // A minimal DOM: elements report rects through the host's transform, as Chromium does; the
+    // runtime must answer the box the element had before it, in a document of its own (k 1, at 0)
+    // and inside a renderer page that scales and offsets the host itself (an OGraf canvas).
+    const saved = { Element: globalThis.Element, Range: globalThis.Range, DOMRect: globalThis.DOMRect, document: globalThis.document };
+    try {
+      globalThis.DOMRect = class { constructor(x, y, w, h) { Object.assign(this, { left: x, top: y, width: w, height: h }); } };
+      let place = { k: 1, x: 0, y: 0 };
+      let host;
+      const transformed = (r) => {
+        const f = host.f;
+        const t = (v, o, d) => (f ? o + d + f.s * (v - o) : v);
+        const x1 = t(r.x, f?.ox, f?.dx), y1 = t(r.y, f?.oy, f?.dy);
+        const w = f ? r.w * f.s : r.w, h = f ? r.h * f.s : r.h;
+        return new DOMRect(place.x + place.k * x1, place.y + place.k * y1, place.k * w, place.k * h);
+      };
+      globalThis.Element = class {
+        constructor(parent, box) { this.parentNode = parent; this.box = box; this.nodeType = 1; this.isConnected = true; this.style = {}; }
+        getRootNode() { return 'doc'; }
+        contains(n) { for (let p = n; p; p = p.parentNode) if (p === this) return true; return false; }
+        get offsetWidth() { return this.box.w; }
+        getBoundingClientRect() { return transformed(this.box); }
+        getClientRects() { return [transformed(this.box)]; }
+      };
+      globalThis.Range = class {
+        constructor(node, box) { this.commonAncestorContainer = node; this.box = box; }
+        getBoundingClientRect() { return transformed(this.box); }
+        getClientRects() { return [transformed(this.box)]; }
+      };
+      host = new globalThis.Element(null, { x: 0, y: 0, w: 1920, h: 1080 });
+      globalThis.document = { documentElement: host };
+      const apply = new Function(`${R.APPEARANCE_RUNTIME_JS}\nreturn noacgApplyAppearance;`)();
+      const child = new globalThis.Element(host, { x: 120, y: 872, w: 410, h: 89 });
+      const text = { nodeType: 3, parentNode: child };
+      const outside = new globalThis.Element(null, { x: 5, y: 6, w: 7, h: 8 });
+      const same = (r, b, msg) => ['left', 'top', 'width', 'height'].forEach((k, i) => near(r[k], [b.x, b.y, b.w, b.h][i], `${msg} ${k}`));
+
+      const f = { dx: -137, dy: -61, s: 0.85, ox: 600, oy: 900 };
+      assert.equal(apply({ v: 1, frame: f }), true);
+      host.f = f;
+      assert.equal(host.style.transform, 'translate(-137px, -61px) scale(0.85)');
+      assert.equal(host.style.transformOrigin, '600px 900px');
+      assert.equal(host.style.clipPath, 'inset(0)');
+      same(child.getBoundingClientRect(), child.box, 'element rect');
+      same(child.getClientRects()[0], child.box, 'element client rect');
+      same(new globalThis.Range(text, child.box).getBoundingClientRect(), child.box, 'range rect');
+      same(host.getBoundingClientRect(), host.box, 'the root itself');
+      // A renderer that draws the host at half size, 100 px in: the inverse holds through it.
+      place = { k: 0.5, x: 100, y: 50 };
+      const r = child.getBoundingClientRect();
+      same({ left: (r.left - 100) / 0.5, top: (r.top - 50) / 0.5, width: r.width / 0.5, height: r.height / 0.5 }, child.box, 'inside a scaled renderer');
+      place = { k: 1, x: 0, y: 0 };
+      // An element outside the host is never touched.
+      host.f = f;
+      assert.deepEqual(outside.getBoundingClientRect(), transformed(outside.box));
+
+      // Rule 3: a second appearance replaces the first; an identity clears it; an unknown version
+      // or a malformed frame is ignored and the call says so.
+      const g = { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 };
+      assert.equal(apply({ v: 1, frame: g }), true);
+      host.f = g;
+      assert.equal(host.style.transform, 'translate(10px, 0px) scale(1)');
+      same(child.getBoundingClientRect(), child.box, 'after a replace');
+      assert.equal(apply({ v: 2, frame: f }), false);
+      assert.equal(apply({ v: 1, frame: { dx: 1 } }), false);
+      assert.equal(host.style.transform, 'translate(10px, 0px) scale(1)', 'what was applied stays');
+      assert.equal(apply({ v: 1 }), true);
+      host.f = undefined;
+      assert.equal(host.style.transform, '');
+      assert.equal(host.style.clipPath, '');
+      same(child.getBoundingClientRect(), child.box, 'untransformed reads are the plain ones');
+    } finally {
+      Object.assign(globalThis, saved);
+    }
+  });
 });
