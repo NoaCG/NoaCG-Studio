@@ -640,7 +640,7 @@ export function customFontFaceCss(font: CustomFont): string {
 @font-face {
   font-family: "${font.family}";
   src: url("${font.asset.path}") format("${font.format}");
-  font-weight: 100 900;        /* one file, weight unknown: every request draws it as it is, never a synthesised bold */
+  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */
   font-display: swap;          /* show fallback text until the font loads */
   /* Single file: the style controls offer Regular only. Add more @font-face rules with
      their own files and font-weight for true weights. */

@@ -115,6 +115,13 @@ test('style step: font and size choices land in the rebuilt preview', async ({ p
   await expect(weightRow).toHaveCount(0);
   await page.getByTestId('font-select').first().selectOption({ label: 'Space Grotesk' });
   await expect(weightRow.getByRole('button')).toHaveText(['400', '500', '600', '700']);
+  // A weight the design stores past the face's last one stays on the row, chosen: it also
+  // weights a design's other faces, so the row has to be able to come back to it.
+  await page.getByTestId('font-select').first().selectOption({ label: 'Archivo' });
+  await weightRow.getByRole('button', { name: '900', exact: true }).click();
+  await page.getByTestId('font-select').first().selectOption({ label: 'Space Grotesk' });
+  await expect(weightRow.getByRole('button')).toHaveText(['400', '500', '600', '700', '900']);
+  await expect(weightRow.getByRole('button', { name: '900', exact: true })).toHaveClass(/selected/);
   await page.getByTestId('wz-design-colors').locator('summary').click();
   // Size and position are TUNING and sit behind a disclosure too. The PALETTE is what this
   // step now leads with alone: every other decision here has a good per-design default and a
