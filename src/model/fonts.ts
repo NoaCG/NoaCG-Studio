@@ -346,8 +346,18 @@ export function latinExtFile(font: BundledFont): string {
   return font.file.replace(/\.woff2$/, '-latin-ext.woff2');
 }
 
-const VARIABLE_WEIGHT = (font: BundledFont) =>
-  `  font-weight: ${font.weights[0]} ${font.weights[1]};  /* variable font: covers this weight range */`;
+/**
+ * A bundled face's `font-weight` descriptor. A variable file declares the range it covers. A STATIC
+ * file (Bebas Neue, Anton: one weight) declares the whole 100-900: a heavier request then matches
+ * the file as it is drawn, and the browser never paints a synthesised bold, which Blink adds only
+ * when the matched face's declared range tops out below 600. Honoured since Chromium 62, so on
+ * CasparCG 2.3's Chromium 71 too, and for a literal `font-weight: 700` as for the token.
+ */
+export function faceWeightLine(font: BundledFont): string {
+  return font.weights[0] === font.weights[1]
+    ? `  font-weight: 100 900;        /* one static weight: declared for every request, so a bold is never synthesised */`
+    : `  font-weight: ${font.weights[0]} ${font.weights[1]};  /* variable font: covers this weight range */`;
+}
 
 /**
  * The two `@font-face` rules of one bundled face under `family`: the latin file with no
@@ -355,7 +365,7 @@ const VARIABLE_WEIGHT = (font: BundledFont) =>
  * then the latin-ext file limited to {@link LATIN_EXT_RANGE}. Declared second, the latin-ext
  * rule is the one the browser tries first for a letter in its range.
  */
-export function bundledFaceRules(family: string, font: BundledFont, weightLine = VARIABLE_WEIGHT(font)): string {
+export function bundledFaceRules(family: string, font: BundledFont, weightLine = faceWeightLine(font)): string {
   return `@font-face {
   font-family: "${family}";
   src: url("fonts/${font.file}") format("woff2");
@@ -437,14 +447,52 @@ const WEIGHT_NAMES: Record<number, string> = {
 };
 /**
  * The weights a typeface can really draw (R1.2b.2), for a font family or stack: a bundled face's
- * own range in steps of 100, so a choice never falls back to a browser-synthesised bold; a face the
- * app does not bundle, Regular to Extra bold. Named as type menus name them.
+ * own range in steps of 100, so a choice never falls back to a browser-synthesised bold (Bebas
+ * Neue and Anton answer Regular alone); an IMPORTED face (`imported` names the families a
+ * template ships as its own files) Regular alone, because its one file's weights are unknown (it
+ * declares 100-900 so that no request is synthesised, see `customFontFaceCss`); any other family,
+ * Regular to Extra bold. Named as type menus name them.
  */
-export function fontWeights(family: string): { value: number; label: string }[] {
-  const [low, high] = fontByStack(family)?.weights ?? [400, 800];
+export function fontWeights(family: string, imported: readonly string[] = []): { value: number; label: string }[] {
+  const named = stackFamily(family);
+  const isImported = !!named && imported.some((f) => fontNameKey(f) === fontNameKey(named));
+  const [low, high] = isImported ? [400, 400] : fontByStack(family)?.weights ?? [400, 800];
   const weights: { value: number; label: string }[] = [];
   for (let w = Math.ceil(low / 100) * 100; w <= high; w += 100) weights.push({ value: w, label: WEIGHT_NAMES[w] });
   return weights;
+}
+
+/** Whether the app knows a family's real weights: a bundled face, or an imported one (Regular).
+ *  A face it does not ship (a system or installed family) is never narrowed. */
+export function knownFace(family: string, imported: readonly string[] = []): boolean {
+  const named = stackFamily(family);
+  return !!fontByStack(family) || (!!named && imported.some((f) => fontNameKey(f) === fontNameKey(named)));
+}
+
+/** The first family a `font-family` value names, unquoted. */
+function stackFamily(value: string): string | null {
+  return (/^\s*"([^"]+)"/.exec(value) ?? /^\s*'([^']+)'/.exec(value) ?? /^\s*([^,]+)/.exec(value))?.[1]?.trim() ?? null;
+}
+
+/**
+ * A `font-weight` value clamped to the nearest weight a face the app knows can really draw
+ * ({@link fontWeights}), so the stylesheet says what is drawn: `--display-weight: 800` on Bebas
+ * Neue or an imported face reads Regular. A value that is not a plain weight (`var(...)`,
+ * `bolder`) and a face the app does not ship are left as written.
+ */
+export function clampFontWeight(value: string, family: string, imported: readonly string[] = []): string {
+  const trimmed = value.trim();
+  const asked = trimmed === 'normal' ? 400 : trimmed === 'bold' ? 700 : /^\d{3}$/.test(trimmed) ? Number(trimmed) : null;
+  if (asked === null || !knownFace(family, imported)) return value;
+  const real = fontWeights(family, imported).map((w) => w.value);
+  if (real.length === 0 || real.includes(asked)) return value;
+  const nearest = real.reduce((best, w) => (Math.abs(w - asked) < Math.abs(best - asked) ? w : best), real[0]);
+  return String(nearest);
+}
+
+/** The families a stylesheet ships as imported files (their `/* Imported font` blocks). */
+export function importedFontFamilies(css: string): string[] {
+  return [...css.matchAll(/\/\* Imported font[^*]*\*\/\s*@font-face\s*\{[^}]*?font-family:\s*"([^"]+)"/g)].map((m) => m[1]);
 }
 
 /**
@@ -608,9 +656,10 @@ export function customFontFaceCss(font: CustomFont): string {
 @font-face {
   font-family: "${font.family}";
   src: url("${font.asset.path}") format("${font.format}");
+  font-weight: 100 900;        /* one file, weight unknown: every request draws it as it is, never a synthesised bold */
   font-display: swap;          /* show fallback text until the font loads */
-  /* Single file: the browser synthesizes bold/italic. Add more @font-face rules
-     with their own files for true weights. */
+  /* Single file: the style controls offer Regular only. Add more @font-face rules with
+     their own files and font-weight for true weights. */
 }`;
 }
 

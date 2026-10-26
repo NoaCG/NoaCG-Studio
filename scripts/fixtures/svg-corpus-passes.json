@@ -626,14 +626,14 @@
     }
    ],
    "fontCss": [
-    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue.woff2\") format(\"woff2\");\n  font-weight: 400 400;  /* variable font: covers this weight range */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
-    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 400 400;  /* variable font: covers this weight range */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}",
+    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue.woff2\") format(\"woff2\");\n  font-weight: 100 900;        /* one static weight: declared for every request, so a bold is never synthesised */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
+    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 100 900;        /* one static weight: declared for every request, so a bold is never synthesised */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}",
     "@font-face {\n  font-family: \"Inter-Medium\";\n  src: url(\"fonts/inter.woff2\") format(\"woff2\");\n  font-weight: 500;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
     "@font-face {\n  font-family: \"Inter-Medium\";\n  src: url(\"fonts/inter-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 500;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
    ],
    "emit": {
     "html": "d12dddab7e6ac02514b5de13b3000d453fb790ffb900fcc609ee8f477701e8fb",
-    "css": "3e450a50ca733eeadf9dc45fc7e6b852b843e84ab03b7fedd150e1fb67aa4d7d",
+    "css": "0e3ed75d727e4bf008140f5000016d76cdca29af1ca5ee067199fa4cc5bd6d22",
     "js": "fb74c3164c1fd1e2997c8413e271005c18de5a963b8d365acff43b06195a103b"
    },
    "runtime": {
@@ -17579,13 +17579,13 @@
     }
    ],
    "fontCss": [
-    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue.woff2\") format(\"woff2\");\n  font-weight: 400 400;  /* variable font: covers this weight range */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
-    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 400 400;  /* variable font: covers this weight range */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}",
+    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue.woff2\") format(\"woff2\");\n  font-weight: 100 900;        /* one static weight: declared for every request, so a bold is never synthesised */\n  font-display: swap;          /* show fallback text until the font loads */\n}",
+    "@font-face {\n  font-family: \"Bebas Neue\";\n  src: url(\"fonts/bebas-neue-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 100 900;        /* one static weight: declared for every request, so a bold is never synthesised */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}",
     "/* UNRESOLVED FONT: DejaVu Sans - the SVG references this family but no file ships\n   with the template, so playout falls back to whatever the machine has installed. If the\n   playout machine has the font, this is fine; otherwise import the file in the Style panel. */"
    ],
    "emit": {
     "html": "e18717d5164c21179a1c8f2ab5ddd85acb43f0546e4d7d7c5fccf513e60bf333",
-    "css": "1be88a2c640f64fb2dc69347e55afe04d414dc44e0a605cc3d784192fbbb1529",
+    "css": "1afa96c36520d82e350da328058021db6be6c5c24e4d3442b5f7d7b4fa0ca2c6",
     "js": "fb74c3164c1fd1e2997c8413e271005c18de5a963b8d365acff43b06195a103b"
    },
    "runtime": {

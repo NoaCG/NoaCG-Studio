@@ -22,7 +22,7 @@ import {
   type StyleTerm,
 } from '../../model/styleVocabulary';
 import { contrastRatio, looksLikeColor, parseCssColor } from '../../model/cssVars';
-import { FONTS, fontByStack, fontStack } from '../../model/fonts';
+import { FONTS, fontByStack, fontStack, fontWeights, knownFace } from '../../model/fonts';
 import { formatCssLength, parseCssLength } from '../../blocks/cssLength';
 import ColorField from './ColorField';
 
@@ -41,12 +41,14 @@ interface Props {
   /** Names another section already owns (the wizard's palette swatches). */
   exclude?: Set<string>;
   disabled?: boolean;
+  /** The families the graphic ships as imported files: their weights are unknown, so Regular only. */
+  importedFonts?: readonly string[];
 }
 
 /** The order groups are shown in. Colours first: they are what most people came to change. */
 const GROUP_ORDER: StyleTerm['group'][] = ['palette', 'ink', 'panel', 'accent', 'type'];
 
-export default function StyleControls({ vars, onSet, isOverridden, onReset, exclude, disabled }: Props) {
+export default function StyleControls({ vars, onSet, isOverridden, onReset, exclude, disabled, importedFonts }: Props) {
   const byName = new Map(vars.map((v) => [v.name, v.value]));
 
   /**
@@ -212,6 +214,11 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
 
   const renderWeight = (name: string, value: string) => {
     const term = styleTerm(name);
+    // Only the weights the heading face really draws: Bebas Neue, Anton and an imported face
+    // offer Regular alone, so no choice here is a bold the browser would synthesise.
+    const heading = byName.get('font-heading');
+    const real = heading && knownFace(heading, importedFonts) ? new Set(fontWeights(heading, importedFonts).map((w) => String(w.value))) : null;
+    const weightChoices = real ? WEIGHT_CHOICES.filter((w) => real.has(w)) : WEIGHT_CHOICES;
     return (
       <div className="field-row" key={name} data-testid={`style-var-${name}`}>
         <div className="field-meta">
@@ -219,7 +226,7 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
           <span className="field-id">--{name}</span>
         </div>
         <div className="row wrap" style={{ gap: 6 }}>
-          {WEIGHT_CHOICES.map((w) => (
+          {weightChoices.map((w) => (
             <button
               key={w}
               type="button"

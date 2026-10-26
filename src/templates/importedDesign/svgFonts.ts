@@ -3,7 +3,7 @@
 // embedded one, or a comment naming what playout must supply. Pure text from the import's font
 // matches, tested in Node (scripts/svg-font-css.test.mjs).
 
-import { bundledFaceRules, customFontFaceCss, fontFaceCss, FONTS, type BundledFont } from '../../model/fonts';
+import { bundledFaceRules, customFontFaceCss, faceWeightLine, fontFaceCss, FONTS, type BundledFont } from '../../model/fonts';
 import type { DesignSvg } from '../../model/wizard';
 
 /** A bundled face declared under the name the artwork asks for - same file, second name. The
@@ -15,8 +15,13 @@ function aliasFontFaceCss(font: BundledFont, family: string, weight?: number): s
   // weight-less text asks for the default and renders REGULAR - a Black headline arrives thin,
   // with nothing reporting it. Declaring the alias as the ONE weight its name states pins it: a
   // request is clamped into the face's declared range, and a range of one value has one answer.
+  // A STATIC file (Bebas Neue, Anton) has one weight to draw whatever the name says, so it declares
+  // the whole 100-900 as the bundled face does (model/fonts.ts `faceWeightLine`): a bold the artwork
+  // asks for is then drawn as the file is, never synthesised.
   const pinned = weight === undefined ? null : Math.min(font.weights[1], Math.max(font.weights[0], weight));
-  const weightLine = pinned === null
+  const weightLine = font.weights[0] === font.weights[1]
+    ? faceWeightLine(font)
+    : pinned === null
     ? `  font-weight: ${font.weights[0]} ${font.weights[1]};  /* variable font: covers this weight range */`
     : `  font-weight: ${pinned};            /* the name says this one weight, and the artwork states no other: pin the variable file to it */`;
   return `/* Bundled open-source font (the file ships with the export - no internet at playout).
