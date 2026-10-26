@@ -649,7 +649,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
       const dataItem = data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
       // Its place and size first (rule 4): the report's at boot, else what this page has seen since.
-      const look = replay ? reportedLook(reportsRef.current[graphic]) : (looksRef.current[graphic] ?? reportedLook(reportsRef.current[graphic]));
+      const look = replay ? reportedLook(reportsRef.current[graphic]) : looksRef.current[graphic];
       programRef.current?.apply([
         ...(look ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: look } }] : []),
         ...dataItem,

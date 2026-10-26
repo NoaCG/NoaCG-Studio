@@ -71,11 +71,6 @@ export function readAdjust(raw: unknown): AdjustRead {
   return { status: 'ok', record };
 }
 
-/** The members of a read record that say anything (everything but `v`). */
-export function adjustSet(record: AdjustRecord | null | undefined): boolean {
-  return !!record && Object.keys(record).some((k) => k !== 'v');
-}
-
 export const clampScale = (s: number) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(s * 1000) / 1000));
 export const clampNudge = (n: number) => Math.min(NUDGE_MAX, Math.max(-NUDGE_MAX, Math.round(n)));
 
@@ -101,11 +96,6 @@ export function patchAdjust(raw: unknown, patch: AdjustPatch): Record<string, un
   // Identity members are still members: x 0 written at this scope overrides an inherited x.
   base.v = ADJUST_V;
   return Object.keys(base).some((k) => k !== 'v') ? base : undefined;
-}
-
-/** The members of `record` named in `keys` removed (undefined when nothing is left). */
-export function withoutMembers(raw: unknown, keys: readonly (keyof AdjustPatch)[]): Record<string, unknown> | undefined | string {
-  return patchAdjust(raw, Object.fromEntries(keys.map((k) => [k, null])) as AdjustPatch);
 }
 
 /** A member's value as the fold sees it (cue over graphic, identity after): what a step adds to. */

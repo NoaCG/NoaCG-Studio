@@ -236,9 +236,14 @@ export function seedFromResolve(
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
   let looks: AppliedLooks = { ...(air.looks ?? {}) };
+  // A report is the renderer's word for its graphic: no appearance in it clears an older entry.
   for (const [graphic, report] of Object.entries(resolved.live)) {
     const look = reportedLook(report);
     if (look) looks = { ...looks, [graphic]: look };
+    else if (graphic in looks) {
+      const { [graphic]: _cleared, ...rest } = looks;
+      looks = rest;
+    }
   }
   looks = replay.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), looks);
   return {
@@ -287,7 +292,8 @@ export function restoreItems(
     const groups = replaying ? report?.state?.groups : machineStates[graphic]?.groups;
     // Its place and size go with the first data write (rule 4: what was applied, never what is
     // prepared): the report's while its rows replay, else what this page aired.
-    const look = replaying ? reportedLook(report) : (air.looks?.[graphic] ?? reportedLook(report));
+    // (`looks` was seeded from the reports, so an entry cleared since is cleared, not the report's.)
+    const look = replaying ? reportedLook(report) : air.looks?.[graphic];
     const items: ReplayItem[] = [];
     if (data || look) items.push({ graphic, msg: { t: 'update', data: data ?? {}, ...(look ? { appearance: look } : {}) } });
     if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });

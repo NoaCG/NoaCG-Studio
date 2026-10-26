@@ -55,7 +55,7 @@ export default function CueAdjust({
   const ownCue = eff.own.length > 0;
   const words = adjustWords(eff);
   const where = scope === 'cue' ? 'only this cue' : cueCount > 1 ? `all ${cueCount} ${graphicName} cues` : graphicName;
-  const kept = scope === 'graphic' && exceptions > 0 ? ` · ${exceptions} cue${exceptions === 1 ? '' : 's'} ${exceptions === 1 ? 'keeps' : 'keep'} its own` : '';
+  const kept = scope === 'graphic' && exceptions > 0 ? ` · ${exceptions === 1 ? '1 cue keeps its own' : `${exceptions} cues keep their own`}` : '';
   const floor = floorEstimate(m?.minText, limit === 'spans' ? 1 : s, category);
   const pivot = state.pivot;
   const locked = eff.readOnly;

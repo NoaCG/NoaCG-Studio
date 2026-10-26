@@ -7,8 +7,7 @@ import { slotAddress } from '../../control/playoutLink';
 import type { CueDraft } from '../../control/cueDraft';
 import { staleWords, type AirState, type LostHop } from '../../control/playoutStatus';
 import { postPreviewCmd, PREVIEW_BOX_TYPE, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
-import { frameCss, qualify, readMeasurement, safeInsets, type AppliedAppearance, type Measurement } from '../../control/cueAdjust';
-import { QUALIFY_GAP_MS } from '../../preview/measureCue';
+import { frameCss, qualifyStep, readMeasurement, safeInsets, QUALIFY_GAP_MS, type AppliedAppearance, type Measurement } from '../../control/cueAdjust';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
 import { lengthText } from './clipLength';
 import { useServerThumbnail } from './serverThumbnail';
@@ -150,7 +149,12 @@ export default function PlayoutMonitors({
   measureRef.current = measure;
   const asked = useRef(new Map<number, { key: string; first: Measurement | null; tries: number; done: (key: string, m: Measurement) => void }>());
   const serial = useRef(0);
+  /** The 250 ms asks still waiting: a new settle cancels them, so an older identity is never
+   *  measured over the newer values. */
+  const retries = useRef(new Set<ReturnType<typeof setTimeout>>());
   const settlePreview = useCallback((data: string) => {
+    retries.current.forEach(clearTimeout);
+    retries.current.clear();
     const want = measureRef.current;
     if (!want) {
       postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
@@ -162,7 +166,7 @@ export default function PlayoutMonitors({
     postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data, id });
   }, []);
   useEffect(() => {
-    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const timers = retries.current;
     const onMessage = (ev: MessageEvent) => {
       if (ev.source !== previewIframe.current?.contentWindow) return;
       const msg = ev.data as { type?: string; id?: number } | undefined;
@@ -171,16 +175,16 @@ export default function PlayoutMonitors({
       asked.current.delete(msg.id);
       const m = readMeasurement(msg);
       if (!job || !m) return;
-      const q = job.first ? qualify(job.first, m) : null;
-      if (q && (q.info || q.paint)) {
-        job.done(job.key, q);
+      const step = qualifyStep(job.first, m, job.tries);
+      if ('done' in step) {
+        job.done(job.key, step.done);
         return;
       }
-      if (job.tries >= 3) return;
+      if ('giveUp' in step) return;
       const t = setTimeout(() => {
         timers.delete(t);
         const id = ++serial.current;
-        asked.current.set(id, { ...job, first: m, tries: job.tries + 1 });
+        asked.current.set(id, { ...job, first: step.again, tries: step.tries });
         postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'measure', id });
       }, QUALIFY_GAP_MS);
       timers.add(t);

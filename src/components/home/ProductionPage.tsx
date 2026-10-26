@@ -2563,6 +2563,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     send: sendVerb,
     cueView,
     withBoundValues,
+    appearanceOf: (cue) => adjustStateOf(cue)?.send,
     graphicOf: cueGraphicName,
     liveCueOf: () => liveCueRef.current,
     setLiveCue,

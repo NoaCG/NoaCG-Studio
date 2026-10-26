@@ -331,6 +331,20 @@ export function qualify(a: Measurement, b: Measurement): Measurement {
   };
 }
 
+/** The gap between two answers that must agree. */
+export const QUALIFY_GAP_MS = 250;
+/** How many comparisons a measurement gets before the cue has none. */
+export const QUALIFY_TRIES = 3;
+
+/** ONE RULE FOR BOTH MEASURERS (PREVIEW's and the hidden one): an answer after `first` either
+ *  qualifies, asks for one more 250 ms later, or gives up once `tries` comparisons have failed. */
+export function qualifyStep(first: Measurement | null, m: Measurement, tries: number): { done: Measurement } | { again: Measurement; tries: number } | { giveUp: true } {
+  if (!first) return { again: m, tries };
+  const q = qualify(first, m);
+  if (q.info || q.paint) return { done: q };
+  return tries + 1 >= QUALIFY_TRIES ? { giveUp: true } : { again: m, tries: tries + 1 };
+}
+
 /** A measurement as the document's report carries it (preview/settleGraphic.ts), checked. */
 export function readMeasurement(raw: unknown): Measurement | null {
   if (!raw || typeof raw !== 'object') return null;

@@ -31,6 +31,7 @@ import type { CueArmWire } from './cueArmWire';
 import type { ControlSendItem } from './hostedControl';
 import type { LiveCueMap, VerbSent } from './liveCue';
 import type { PlayoutSession } from './playoutSession';
+import type { AppliedAppearance } from './cueAdjust';
 import {
   END_WORDS,
   aired,
@@ -80,6 +81,8 @@ export interface CueArmPage {
   /** The cue as the operator currently sees it, draft over record. */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
   withBoundValues: (graphic: string, values: Record<string, string>) => Record<string, string>;
+  /** The place and size a Take of the cue carries (./cueAdjust.ts rule 2); absent, none. */
+  appearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined;
   graphicOf: (cue: ShowCue) => string | null;
   liveCueOf: () => LiveCueMap;
   setLiveCue: (fold: (map: LiveCueMap) => LiveCueMap) => void;
@@ -164,7 +167,8 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
     if (next && nextGraphic) {
       // The draft already owns preparation. Its cloud acknowledgement must not delay the timer.
       p.flush();
-      items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values) }));
+      const appearance = p.appearanceOf?.(next, nextGraphic);
+      items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values), ...(appearance ? { appearance } : {}) }));
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
     if (candidate) p.note(`${candidate.label} shows a live candidate, so a timed end does not take it.`);

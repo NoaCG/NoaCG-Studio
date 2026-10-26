@@ -253,7 +253,35 @@ describe('the wire: the four rules', () => {
   });
 });
 
+test('a re-resolve takes each report as the renderer\'s word: a report with no appearance clears an older one', () => {
+  const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+  const air = { ...NO_AIR, looks: { L3: look, Bug: look } };
+  const seeded = seedFromResolve(
+    air,
+    { liveCue: { L3: 'c1' }, live: { L3: { data: {}, state: { groups: {} }, event: 5 } } },
+    [],
+    { moves: 0, commands: 0 },
+    [{ id: 'c1', values: {} }],
+    { clocks: new Map(), pairs: new Map() },
+  );
+  assert.equal('L3' in seeded.looks, false, 'reset elsewhere: cleared');
+  assert.deepEqual(seeded.looks.Bug, look, 'a graphic with no report keeps what this page aired');
+  // And a rebuild after an identity sent here never falls back to the boot report's old look.
+  const rebuilt = restoreItems({ ...NO_AIR, liveCue: { L3: 'c1' }, aired: { L3: {} }, looks: {}, reports: { L3: { state: { appearance: look } } } }, {}, { clocks: new Map(), pairs: new Map() });
+  assert.equal(rebuilt.items[0].msg.appearance, undefined);
+});
+
 describe('measurements: identified and qualified', () => {
+  test('one qualify rule for both measurers: agree, ask again, or give up after three', () => {
+    const a = { info: { x: 0, y: 0, w: 100, h: 10 }, paint: null, minText: 20 };
+    const b = { ...a, info: { ...a.info, x: 30 } };
+    assert.deepEqual(A.qualifyStep(null, a, 0), { again: a, tries: 0 });
+    assert.deepEqual(A.qualifyStep(a, a, 0), { done: a });
+    assert.deepEqual(A.qualifyStep(a, b, 0), { again: b, tries: 1 });
+    assert.deepEqual(A.qualifyStep(a, b, 2), { giveUp: true });
+    assert.equal(A.QUALIFY_GAP_MS, 250);
+  });
+
   test('a longer name, a new copy or another stage is another identity', () => {
     const id = A.measureId('g', 't1', 'c', { f0: 'Ann' }, HD);
     assert.notEqual(A.measureId('g', 't1', 'c', { f0: 'Annabel' }, HD), id);
