@@ -164,10 +164,11 @@ function painted(a: Buffer): number {
 }
 
 /** The root's frames against the frame transform's, net of the frame's own mount-to-mount
- *  difference, per sample. */
+ *  difference, per sample. The framed reference is a studio document, always played; `start` is
+ *  how the rooted one starts. */
 async function residuals(page: Page, framed: string, rooted: string, look: AppliedAppearance, start: Start, samples: number[]) {
-  const ref = await framesOf(page, framed, look, start, samples);
-  const again = await framesOf(page, framed, look, start, samples);
+  const ref = await framesOf(page, framed, look, 'play', samples);
+  const again = await framesOf(page, framed, look, 'play', samples);
   const root = await framesOf(page, rooted, null, start, samples);
   return samples.map((ms, i) => ({ ms, painted: painted(ref[i]), noise: differing(ref[i], again[i]), residual: differing(ref[i], root[i]) - differing(ref[i], again[i]) }));
 }
