@@ -172,10 +172,11 @@ export function importHtmlTemplate(
     if (/noacg-spx-text/.test(attrs)) return '';
     // And what a single-file target runs after the template's JS (export/selfContained.ts
     // TargetScript): CasparCG's data shim, H2R's on/off toggle, the overlay's relay receiver and
-    // autoplay. Kept, each came back as the graphic's code and stacked on every round trip (#901);
+    // autoplay, and a production's baked place and size (export/common.ts bakeAppearance).
+    // Kept, each came back as the graphic's code and stacked on every round trip (#901);
     // the autoplay block reads SPXGCTemplateDefinition, so the test below kept it in the HTML.
     // H2R's GDD block is written again from the fields too (export/targets/h2r.ts gddScript).
-    if (/noacg-(caspar-data|h2r-toggle|h2r-gdd|local-receiver|overlay-autoplay)\b/.test(attrs)) return '';
+    if (/noacg-(caspar-data|h2r-toggle|h2r-gdd|local-receiver|overlay-autoplay|appearance)\b/.test(attrs)) return '';
     if (/SPXGCTemplateDefinition/.test(body)) return full;
     // A block that is not classic JavaScript keeps its tag. A module script: import/export only
     // parse as a module, so moving the body into the classic JS pane manufactures a syntax error

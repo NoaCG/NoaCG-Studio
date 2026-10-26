@@ -56,6 +56,7 @@ import { emitGraphic, renderShowControlPanelHtml } from '../control/controlPanel
 import { arrangeFor } from '../control/controlModel';
 import { pinnedGraphicsOf } from '../model/profile';
 import { renderProductionControllerHtml, type EmittedCue } from '../control/productionControllerHtml';
+import type { ExportAppearances } from '../control/exportAppearance';
 import { stripHostedReceiver } from '../control/hostedReceiver';
 // The library->air gate (docs/ARCHITECTURE.md §3, export -> validation): a production export is
 // the other door a library draft leaves through, and it is gated like the publish.
@@ -78,6 +79,10 @@ import { readAuto } from '../control/cueAuto';
  *  accepted and ignored. */
 export interface ShowExportOptions {
   hostedBackend?: { ref: string; key: string } | null;
+  /** The production's place and size, resolved by the caller, which measures
+   *  (control/exportAppearance.ts): each graphic's default baked into its files, each cue's on the
+   *  exported controller's rows. Absent: every package is what it always was. */
+  appearances?: ExportAppearances;
 }
 
 /**
@@ -132,7 +137,7 @@ async function exportTemplateFor(
 
 /** The values a serverless flavor bakes as on-load data: the operator's ACTIVE entry on the
  *  library record, when there is one — the same values the graphic's own thumbnail shows. */
-function activeEntryValues(graphic: SavedGraphic, library: GraphicDoc[]): Record<string, string> {
+export function activeEntryValues(graphic: SavedGraphic, library: GraphicDoc[]): Record<string, string> {
   const doc = resolveSavedGraphicDoc(graphic, library);
   return doc?.entries.find((e) => e.id === doc.activeEntryId)?.values ?? {};
 }
@@ -141,7 +146,7 @@ function activeEntryValues(graphic: SavedGraphic, library: GraphicDoc[]): Record
  *  ones so SPX's template browser skips it (targets/spxStarter.ts). */
 const SHOW_PANEL_FILE = 'show_controlpanel.shtml';
 
-export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promise<JSZip> {
+export async function buildShowZip(show: Show, opts?: ShowExportOptions): Promise<JSZip> {
   // Each graphic's saved control-panel entries live in the library, not in the show's embedded
   // copy — resolve them once here (by graphicId, unique-name fallback) so both the aggregated
   // show panel and each graphic's own controlpanel.html bake them in. Authoring stays in the
@@ -170,6 +175,7 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
       entries: entriesForSavedGraphic(graphic, library),
       fileName: `${name}.html`,
       forSpx: true,
+      appearance: opts?.appearances?.graphics[graphic.id],
     });
   }
   root.file(
@@ -312,8 +318,8 @@ const FIELD_USAGE_NOTES: Record<string, string> = {
 
 /** Build the whole production for one registry target. 'spx' keeps its dedicated builder
  *  (aggregated panel + per-folder starters); every other id runs the generic merge. */
-export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZip> {
-  if (targetId === 'spx') return buildShowZip(show);
+export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowExportOptions): Promise<JSZip> {
+  if (targetId === 'spx') return buildShowZip(show, opts);
   const target = EXPORT_TARGETS.find((t) => t.id === targetId);
   if (!target) throw new Error(`Unknown export target: ${targetId}`);
 
@@ -331,6 +337,7 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
       entries,
       sampleData: activeEntryValues(graphic, library),
       graphicUsage: 'live',
+      ...(opts?.appearances?.graphics[graphic.id] ? { appearance: opts.appearances.graphics[graphic.id] } : {}),
     });
     for (const [path, file] of Object.entries(sub.files)) {
       if (file.dir) continue;
@@ -363,7 +370,8 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
     const cues: EmittedCue[] = (show.cues ?? []).flatMap((cue) => {
       const graphicName = byPoolId.get(cue.sourceId);
       if (!graphicName || !preparedCue(cue)) return [];
-      return [{ id: cue.id, label: cue.label || graphicName, graphic: graphicName, values: { ...cue.values }, note: cue.note ?? '' }];
+      const appearance = opts?.appearances?.cues[cue.id];
+      return [{ id: cue.id, label: cue.label || graphicName, graphic: graphicName, values: { ...cue.values }, note: cue.note ?? '', ...(appearance ? { appearance } : {}) }];
     });
     const first = panelGraphics[0]?.template;
     root.file(
@@ -452,9 +460,9 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
   return zip;
 }
 
-export async function downloadShowZipFor(show: Show, targetId: string): Promise<void> {
-  if (targetId === 'spx') return downloadShowZip(show);
-  const zip = await buildShowZipFor(show, targetId);
+export async function downloadShowZipFor(show: Show, targetId: string, opts?: ShowExportOptions): Promise<void> {
+  if (targetId === 'spx') return downloadShowZip(show, opts);
+  const zip = await buildShowZipFor(show, targetId, opts);
   const blob = await zip.generateAsync({ type: 'blob' });
   saveAs(blob, `${slug(show.name)}_production_${targetId}.zip`);
 }

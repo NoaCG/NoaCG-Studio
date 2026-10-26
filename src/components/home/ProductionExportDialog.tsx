@@ -7,6 +7,7 @@ import { buildPack, packFileName } from '../../packs/graphicsPack';
 import { productionGateFailures } from '../../validation/productionGate';
 import type { Show } from '../../model/shows';
 import { useModalGate } from '../spaceKey';
+import { CUE_APPEARANCE_TARGET, measureExportAppearances } from './exportAppearances';
 
 /**
  * The production's TARGET PICKER (acceptance finding: "I wasn't able to choose the
@@ -47,7 +48,8 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
     setNote(null);
     try {
       savePrefs({ defaultExportTarget: targetId });
-      await downloadShowZipFor(show, targetId);
+      // Place and size are measured as the package will load each graphic, then baked.
+      await downloadShowZipFor(show, targetId, { appearances: await measureExportAppearances(show, targetId) });
       const label = EXPORT_TARGETS.find((t) => t.id === targetId)?.label ?? targetId;
       setNote(`✓ Exported the production as ${label}.`);
     } catch (e) {
@@ -106,11 +108,12 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
               </span>
             </label>
           ))}
-          {/* PLACE AND SIZE are the production's, applied on its own output (playout adjustments,
-              phase 1); no package carries them yet, and the dialog says so before one is chosen. */}
-          {(show.graphics.some((g) => g.adjust !== undefined) || (show.cues ?? []).some((c) => c.adjust !== undefined)) && (
+          {/* PLACE AND SIZE (playout adjustments, phase 1b): every package carries each graphic's
+              own; a cue's exception needs a controller that sends it, which only the overlay
+              package has, so the other targets say what they leave out before one is chosen. */}
+          {targetId !== CUE_APPEARANCE_TARGET && (show.cues ?? []).some((c) => c.adjust !== undefined) && (
             <p className="status-warn" data-testid="prod-export-adjust">
-              Place and size set on the playout page are not in any package: graphics export as designed.
+              A cue’s own place and size travels only in the HTML overlay package. This one carries each graphic’s.
             </p>
           )}
           <p className="hint">

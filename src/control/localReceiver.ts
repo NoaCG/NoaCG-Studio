@@ -7,6 +7,8 @@
 // Inert everywhere the relay is not: over file://, or when the files are served by a plain
 // static server (/relay/ping missing), the block probes once and goes quiet.
 
+import { APPEARANCE_RUNTIME_JS } from './appearanceRuntime.ts';
+
 const OPEN = '/* == LOCAL RELAY (NoaCG) — edit or delete this whole block == */';
 const CLOSE = '/* == END LOCAL RELAY == */';
 
@@ -14,8 +16,13 @@ export function hasLocalReceiver(js: string): boolean {
   return js.includes(OPEN);
 }
 
-/** The raw JS block — what the single-file composer appends as an extra body script. */
-export function localReceiverJs(graphicName: string): string {
+/** The raw JS block — what the single-file composer appends as an extra body script.
+ *  `appearance`: the production holds place and size, so the block applies the appearance a
+ *  relay row carries and restores it (docs/work-specs/playout-adjustments/spec.md, phase 1b).
+ *  Off, the block is the one every package without adjustments has always carried, byte for
+ *  byte, and an appearance on a row is ignored (the rollback rule). */
+export function localReceiverJs(graphicName: string, opts: { appearance?: boolean } = {}): string {
+  const looks = opts.appearance === true;
   return `${OPEN}
 // Drive this graphic through the package's LOCAL RELAY (start it with the bundled launcher;
 // see GETTING-ON-AIR.md). The relay keeps an ordered command log; this block polls it and
@@ -32,7 +39,16 @@ export function localReceiverJs(graphicName: string): string {
     if (q) STREAM = q;
   } catch (e) { /* very old engine — program feed */ }
   if (STREAM === 'preview') window.noacgSoundMode = 'silent';
-
+${looks ? `
+  // PLACE AND SIZE: an update carrying an appearance puts it on this document's root and replaces
+  // the one applied (a baked default included); an update without one keeps it. LOOK is the last
+  // one applied, kept with the baseline so a reload puts it back before anything paints.
+  ${APPEARANCE_RUNTIME_JS}
+  var look = null;
+  function lookOf(m) {
+    return m && m.t === 'update' && m.appearance !== undefined && m.appearance && m.appearance.v === 1 ? m.appearance : undefined;
+  }
+` : ''}
   function apply(m) {
     if (!m) return;
     if (m.t === 'play' && typeof play === 'function') play();
@@ -43,7 +59,10 @@ export function localReceiverJs(graphicName: string): string {
       if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(priorQuiet);
     }
     else if (m.t === 'next' && typeof next === 'function') next();
-    else if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
+    else if (m.t === 'update' && typeof update === 'function') ${looks ? `{
+      if (lookOf(m)) noacgApplyAppearance(m.appearance);
+      update(JSON.stringify(m.data || {}));
+    }` : 'update(JSON.stringify(m.data || {}));'}
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
   }
@@ -59,7 +78,8 @@ export function localReceiverJs(graphicName: string): string {
   var merged = {};
   var airFrom = 0;
   function track(row) {
-    var m = row.msg || {}, key;
+    var m = row.msg || {}, key;${looks ? `
+    if (lookOf(m)) look = m.appearance;` : ''}
     if (m.t === 'update' && m.data) { for (key in m.data) merged[key] = m.data[key]; }
     else if (m.t === 'event' && m.payload) { for (key in m.payload) merged[key] = m.payload[key]; }
     if (m.t === 'play') airFrom = row.id;
@@ -139,7 +159,7 @@ export function localReceiverJs(graphicName: string): string {
       if (!s || s.v !== BASE_V) return null;                              // another build wrote it
       if (typeof s.cursor !== 'number' || s.cursor > head) return null;   // the log was reset
       if (typeof s.from !== 'number' || s.from > s.cursor) return null;   // not a shape we wrote
-      return { cursor: s.cursor, from: s.from, data: s.data || {} };
+      return { cursor: s.cursor, from: s.from, data: s.data || {}${looks ? ', look: s.look || null' : ''} };
     } catch (e) { return null; }   // no storage, or unreadable — the full walk still recovers
   }
   var baseTimer = null;
@@ -147,7 +167,7 @@ export function localReceiverJs(graphicName: string): string {
     clearTimeout(baseTimer);
     baseTimer = setTimeout(function () {
       try {
-        localStorage.setItem(BASE_KEY, JSON.stringify({ v: BASE_V, cursor: cursor, from: airFrom, data: merged }));
+        localStorage.setItem(BASE_KEY, JSON.stringify({ v: BASE_V, cursor: cursor, from: airFrom, data: merged${looks ? ', look: look' : ''} }));
       } catch (e) { /* quota or a blocked store — recovery falls back to the full walk */ }
     }, 500);
   }
@@ -232,8 +252,12 @@ export function localReceiverJs(graphicName: string): string {
       var k, key;
       merged = {};
       if (base) { for (key in base.data) merged[key] = base.data[key]; }
-      airFrom = base ? base.from : 0;
-      for (k = 0; k < mine.length; k++) track(mine[k]);
+      airFrom = base ? base.from : 0;${looks ? `
+      look = base ? base.look : null;` : ''}
+      for (k = 0; k < mine.length; k++) track(mine[k]);${looks ? `
+      // The last place and size applied, on air or not, an identity included (it took a baked
+      // default off); a graphic the relay never placed keeps whatever its file baked.
+      if (look) noacgApplyAppearance(look);` : ''}
       if (airFrom === 0) {          // never played, or stopped since: blank is the right picture
         cursor = head;
         saveBaseline();

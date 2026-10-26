@@ -9,6 +9,7 @@ import JSZip from 'jszip';
 import type { SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
 import { addControlPanel, withControlReceiver } from '../common';
+import { bakeAppearance } from '../../control/appearanceRuntime';
 import { slug } from '../../model/slug';
 import { hasRealtimeControl } from '../../control/realtimeControl';
 import { localReceiverJs } from '../../control/localReceiver';
@@ -218,7 +219,8 @@ export const htmlOverlayTarget: ExportTarget = {
     root.file(
       `${name}.html`,
       await composeSelfContainedHtml(withReceiver, [
-        { id: 'noacg-local-receiver', js: localReceiverJs(template.name) },
+        ...bakeAppearance(ctx?.appearance),
+        { id: 'noacg-local-receiver', js: localReceiverJs(template.name, ctx?.appearance ? { appearance: true } : {}) },
         { id: 'noacg-overlay-autoplay', js: autoplayScript(ctx?.sampleData ?? {}, outMs) },
       ]),
     );
