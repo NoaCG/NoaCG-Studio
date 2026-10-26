@@ -1,4 +1,4 @@
-// guards: src/control/panelFeedback.ts, src/model/rundownRows.ts
+// guards: src/control/panelFeedback.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql
 //
 // HARDWARE PANELS, THE PAGE'S CHECKS (docs/work-specs/hardware-panel-control/spec.md AC-4, AC-7;
 // protocol.md §6.2 and §8): a relayed press is judged against what the page shows now and what its
@@ -157,4 +157,232 @@ test("the production page's rows go to a panel as drawn, with a collapsed folder
   ]);
   // A take-cue for a hidden cue is judged against these rows, so it is a row and not stale.
   assert.equal(judgePress(press({ verb: 'take-cue', target: 'c' }), snap({ rows }), snap({ rows }), ALL), null);
+});
+
+
+// ── GRAPHIC ACTIONS (docs/work-specs/playout-companion-actions/spec.md E6.1, protocol.md §10) ──────
+
+await import('./lib/tsResolve.mjs');
+const { readFileSync } = await import('node:fs');
+const {
+  ACTIONS_PROTOCOL, ACTION_VERB, ACTION_ARGS_MAX_CHARS, ACTION_ARGS_MAX_DEPTH, ACTION_CAPS_MAX, ACTION_GRAPHICS_MAX, ACTION_OFFER_MAX_BYTES, CAP_ID,
+  ActionsRing, capabilityPress, foreignCapabilities, graphicCapabilities, judgeAction, panelGraphic, readActionPress, wireActions,
+} = await import('../src/control/panelActions.ts');
+const { arrangeControls, fieldDescriptors } = await import('../src/control/controlModel.ts');
+const { liveNumberFields, pickOptions } = await import('../src/control/liveControls.ts');
+
+/** A quiz-and-score graphic as the page reads it: a goal, a reveal, a pick off the default path,
+ *  a hidden reset, and two number fields one of which the goal moves. */
+const quizButtons = [
+  { event: 'goal', label: 'Goal', adjust: { home: 1 } },
+  { event: 'reveal', label: 'Reveal', section: 'Quiz' },
+  { event: 'choose', label: 'Answer', payload: ['picked'] },
+  { event: 'reset', label: 'Reset', set: { home: '0' } },
+];
+const quizFields = fieldDescriptors([
+  { field: 'home', ftype: 'number', title: 'Home', value: '0' },
+  { field: 'away', ftype: 'number', title: 'Away', value: '0' },
+  { field: 'picked', ftype: 'dropdown', title: 'Picked', value: '', items: [{ text: '—', value: '' }, { text: 'Answer A', value: 'A' }, { text: 'Answer B', value: 'B' }] },
+]);
+const path = new Set(['reveal']);
+const arrange = { goal: { name: '+1 HOME', pinned: true }, reset: { hidden: true } };
+const controls = (over = {}) => ({
+  graphic: 'Quiz',
+  pinned: false,
+  live: 'cue_q1',
+  cue: 'Question 1',
+  arranged: arrangeControls(quizButtons, arrange, (b) => pickOptions(b, quizFields, path, quizButtons)),
+  numbers: liveNumberFields(quizFields, quizButtons),
+  legal: (event) => event !== 'reveal',
+  stepping: true,
+  aired: { picked: 'B' },
+  ...over,
+});
+
+test('a graphic advertises exactly the controls its live block draws: ids, labels, order, places, options and greying (AC-1)', () => {
+  const caps = graphicCapabilities(controls());
+  // The block's own order: pinned, the sections in first-seen order, More, then the ± numbers.
+  assert.deepEqual(
+    caps.map((c) => [c.id, c.label, c.place, c.section ?? null, c.allowed]),
+    [
+      ['event:goal', '+1 HOME', 'pinned', null, true],
+      ['event:reveal', 'Reveal', 'section', 'Quiz', false],
+      ['event:choose', 'Answer', 'section', 'Actions', true],
+      ['event:reset', 'Reset', 'more', null, true],
+      ['step:home', 'Home', 'section', null, true],
+      ['step:away', 'Away', 'section', null, true],
+    ],
+  );
+  // A field an event carries as payload gets no stepper: the page's own rule, not a copy of it.
+  assert.equal(graphicCapabilities(controls({ numbers: liveNumberFields(quizFields, [...quizButtons, { event: 'show', label: 'Show', payload: ['away'] }]) })).some((c) => c.id === 'step:away'), false);
+  const pick = caps.find((c) => c.id === 'event:choose');
+  assert.deepEqual(pick.options, [{ value: 'A', label: 'Answer A' }, { value: 'B', label: 'Answer B' }]);
+  assert.equal(pick.active, 'B');
+  assert.deepEqual(pick.args.properties[0].node.enum, ['A', 'B']);
+  assert.equal(caps.find((c) => c.id === 'event:reveal').note, "Reveal cannot fire in the graphic's state now");
+  // Off air, everything is drawn and nothing may be pressed, saying why.
+  const off = graphicCapabilities(controls({ live: null }));
+  assert.ok(off.every((c) => !c.allowed && c.note === 'Quiz is off air'));
+  // A layer airing a cue this page does not hold: controls follow `legal`, numbers do not step.
+  assert.equal(graphicCapabilities(controls({ stepping: false })).find((c) => c.id === 'step:away').allowed, false);
+});
+
+test('a graphic with nothing to press, or a name the relay cannot carry, is not offered', () => {
+  assert.equal(panelGraphic(controls({ arranged: { pinned: [], sections: [], more: [] }, numbers: [] })), null);
+  assert.equal(panelGraphic(controls({ graphic: 'x'.repeat(129) })), null);
+  assert.equal(panelGraphic(controls({ graphic: 'x'.repeat(128) }))?.graphic.length, 128);
+  const many = { pinned: Array.from({ length: ACTION_CAPS_MAX + 4 }, (_, i) => ({ button: { event: `e${i}`, label: `E${i}` }, label: `E${i}`, named: false })), sections: [], more: [] };
+  assert.equal(graphicCapabilities(controls({ arranged: many, numbers: [] })).length, ACTION_CAPS_MAX);
+  assert.deepEqual([ACTION_CAPS_MAX, ACTION_GRAPHICS_MAX], [48, 32]);
+});
+
+test('the actions event carries `av` and no `v`, so a module that predates it ignores it (AC-3)', () => {
+  const graphics = Array.from({ length: ACTION_GRAPHICS_MAX + 1 }, (_, i) => ({ graphic: `G${i}`, pinned: false, live: null, cue: null, caps: [] }));
+  const w = wireActions({ relay: true, graphics }, { actionsVer: 7_000_001, page: 'p', claim: 7 });
+  assert.equal('v' in w, false);
+  assert.equal(w.av, ACTIONS_PROTOCOL);
+  assert.equal(w.graphics.length, ACTION_GRAPHICS_MAX);
+  assert.equal(w.more, true);
+});
+
+test('an offer larger than a broadcast should carry is cut at a whole graphic by its UTF-8 bytes, and says more', () => {
+  assert.equal(ACTION_OFFER_MAX_BYTES, 64 * 1024);
+  const bytesOf = (g) => Buffer.byteLength(JSON.stringify(g)) + 1;
+  // The largest the counts allow, labelled in a script of three bytes a character: what fits in
+  // characters would not fit in bytes.
+  const cap = (i) => ({ id: `event:e${i}`, kind: 'event', label: '得点'.repeat(30), place: 'section', section: '試合'.repeat(20), args: null, allowed: true, invocable: true });
+  const big = Array.from({ length: ACTION_GRAPHICS_MAX }, (_, i) => ({ graphic: `Graphic ${i}`, pinned: false, live: 'cue', cue: 'Cue', caps: Array.from({ length: ACTION_CAPS_MAX }, (_, j) => cap(j)) }));
+  const w = wireActions({ relay: true, graphics: big }, { actionsVer: 1, page: 'p', claim: 1 });
+  const bytes = w.graphics.reduce((n, g) => n + bytesOf(g), 0);
+  assert.ok(bytes <= ACTION_OFFER_MAX_BYTES, `${bytes}`);
+  assert.ok(w.graphics.length > 0 && w.graphics.length < big.length);
+  assert.equal(w.more, true);
+  // One graphic more would have broken the cap: nothing is cut that fits.
+  assert.ok(bytes + bytesOf(big[w.graphics.length]) > ACTION_OFFER_MAX_BYTES);
+});
+
+/** A relayed press as `panel_press` (0103) forwards it. */
+const actionPress = (over = {}) => ({ v: 2, verb: ACTION_VERB, target: 'Quiz', seen: 4, press_id: 'deck01:1', claim: 7, panel: { id: 'k', label: 'Desk' }, cap: 'event:choose', instance: 'cue_q1', args: { option: 'A' }, ...over });
+const offered = (over = {}) => ({ relay: true, graphics: [panelGraphic(controls(over))] });
+
+test('a relayed press is read only within the relay\'s own bounds, each pinned at its edge; one past a bound is answered, never dropped', () => {
+  const ok = (over) => {
+    const r = readActionPress(actionPress(over));
+    return !!r && !('invalid' in r);
+  };
+  const out = (over) => readActionPress(actionPress(over))?.invalid;
+  assert.equal(readActionPress(actionPress()).cap, 'event:choose');
+  // Not a graphic action, or nothing to answer it by: not this reader's.
+  assert.equal(readActionPress(actionPress({ verb: 'take' })), null);
+  assert.equal(readActionPress(actionPress({ press_id: 7 })), null);
+  // Out of bounds: answered `invalid` with the bound, under the press's own id and claim.
+  assert.deepEqual(readActionPress(actionPress({ v: 1 })), { invalid: 'a graphic action of another protocol', pressId: 'deck01:1', claim: 7, panel: { id: 'k', label: 'Desk' } });
+  assert.equal(out({ target: '' }), 'target');
+  assert.ok(ok({ target: 'x'.repeat(128) }));
+  assert.equal(out({ target: 'x'.repeat(129) }), 'target');
+  assert.ok(ok({ cap: `event:${'x'.repeat(96)}` }));
+  assert.equal(out({ cap: `event:${'x'.repeat(97)}` }), 'cap');
+  assert.equal(out({ cap: 'paste:x' }), 'cap');
+  assert.equal(out({ cap: 'event:a\u0007' }), 'cap');
+  assert.ok(ok({ instance: 'x'.repeat(128) }));
+  assert.equal(out({ instance: 'x'.repeat(129) }), 'instance');
+  assert.equal(out({ args: [1] }), 'args');
+  // `{"t":"…"}` is the string and eight characters.
+  assert.deepEqual([ACTION_ARGS_MAX_CHARS, ACTION_ARGS_MAX_DEPTH], [4096, 8]);
+  assert.ok(ok({ args: { t: 'x'.repeat(4088) } }));
+  assert.equal(out({ args: { t: 'x'.repeat(4089) } }), 'args-size');
+  // Counted in characters as the relay counts them, not in UTF-16 units: 4088 emoji are 4096.
+  assert.ok(ok({ args: { t: '\u{1F600}'.repeat(4088) } }));
+  assert.equal(out({ args: { t: '\u{1F600}'.repeat(4089) } }), 'args-size');
+  let deep = 1;
+  for (let i = 0; i < 7; i++) deep = [deep];
+  assert.ok(ok({ args: { d: deep } }), 'the object and seven more levels');
+  assert.equal(out({ args: { d: [deep] } }), 'args: nested deeper than 8', 'one more is refused');
+  // The relay's regular expressions say the same as the page's: one source of truth in the SQL.
+  const sql = readFileSync(new URL('../supabase/migrations/0103_panel_graphic_actions.sql', import.meta.url), 'utf8');
+  assert.match(sql, /length\(v_args::text\) > 4096/);
+  assert.match(sql, /v_depth > 8/);
+  assert.match(sql, /\^\(event\|step\|foreign\):\[\^\[:cntrl:\]\]\{1,96\}\$/);
+  assert.ok(CAP_ID.test('step:home'));
+});
+
+test('hostile argument input is refused in time linear in its size (AC-3)', () => {
+  const time = (args) => {
+    const t = process.hrtime.bigint();
+    assert.ok(readActionPress(actionPress({ args })).invalid);
+    return Number(process.hrtime.bigint() - t) / 1e6;
+  };
+  // Deep nesting is refused at its depth, never followed (and never overflows the stack).
+  let deep = {};
+  for (let i = 0; i < 100_000; i++) deep = { d: deep };
+  // Wide input is refused by the value count before its text is ever made.
+  const wide = { list: Array.from({ length: 200_000 }, (_, i) => i) };
+  // One long string is measured to its bound and no further.
+  const long = { t: 'x'.repeat(5_000_000) };
+  const ms = [time(deep), time(wide), time(long)];
+  assert.ok(ms.every((m) => m < 500), `took ${ms.join(', ')} ms`);
+});
+
+test('a graphic action is judged by capability id, instance, arguments and greying, against what its key showed (AC-2)', () => {
+  const now = offered();
+  const ring = new ActionsRing();
+  ring.put(4, now);
+  const judge = (over, current = now) => judgeAction(readActionPress(actionPress(over)), current, ring.get(readActionPress(actionPress(over)).seen));
+  assert.deepEqual(judge({}).run.args, { option: 'A' });
+  assert.equal(judge({}).run.cap.id, 'event:choose');
+  assert.deepEqual(judge({ seen: 3 }), { refused: 'stale', note: 'the key was drawn too long ago' });
+  assert.deepEqual(judge({ target: 'Banner' }), { refused: 'stale', note: 'Banner is no longer in the production' });
+  // A saved key is never rebound by label or position: an unknown id is stale.
+  assert.deepEqual(judge({ cap: 'event:choose2' }), { refused: 'stale', note: 'that action is no longer on Quiz' });
+  // The cue the key showed live is no longer the one on the layer: another question was taken.
+  assert.deepEqual(judge({ instance: 'cue_q0' }), { refused: 'stale', note: 'the cue on Quiz changed' });
+  assert.deepEqual(judge({ instance: 'cue_q1' }, offered({ live: null })), { refused: 'not-allowed', note: 'Quiz is off air' });
+  assert.deepEqual(judge({ args: { option: 'C' } }), { refused: 'invalid', note: 'Answer: option "C" is not one of the declared values' });
+  assert.deepEqual(judge({ args: {} }), { refused: 'invalid', note: 'Answer: option required' });
+  assert.deepEqual(judge({ cap: 'event:goal', args: { extra: 1 } }), { refused: 'invalid', note: '+1 HOME: "event:goal" takes no arguments' });
+  assert.equal(judge({ cap: 'event:goal', args: {} }).run.cap.id, 'event:goal');
+  assert.deepEqual(judge({ cap: 'event:reveal', args: {} }), { refused: 'not-allowed', note: "Reveal cannot fire in the graphic's state now" });
+  assert.deepEqual(judge({ cap: 'step:away', args: { delta: 2 } }), { refused: 'invalid', note: 'Away: delta 2 is not one of the declared values' });
+  assert.equal(judge({ cap: 'step:away', args: { delta: -1 } }).run.cap.kind, 'step');
+  // The declaration changed since the key was drawn (a package edit): stale, never re-read.
+  const edited = offered();
+  edited.graphics[0].caps.find((c) => c.id === 'event:choose').args.properties[0].node.enum = ['A', 'B', 'C'];
+  assert.deepEqual(judge({}, edited), { refused: 'stale', note: 'Answer changed on Quiz since the key was drawn' });
+});
+
+test('a capability presses the graphic\'s own control: a pick as its option set, a number as its step', () => {
+  const pickOf = (b) => pickOptions(b, quizFields, path, quizButtons);
+  const run = (cap, args) => ({ graphic: 'Quiz', cap: graphicCapabilities(controls()).find((c) => c.id === cap), args });
+  assert.deepEqual(capabilityPress(run('event:choose', { option: 'A' }), quizButtons, pickOf), { event: { event: 'choose', label: 'Answer', set: { picked: 'A' } } });
+  assert.deepEqual(capabilityPress(run('event:goal', {}), quizButtons, pickOf), { event: quizButtons[0] });
+  assert.deepEqual(capabilityPress(run('step:away', { delta: -1 }), quizButtons, pickOf), { step: 'away', delta: -1 });
+  // A control the graphic no longer declares presses nothing.
+  assert.equal(capabilityPress(run('event:goal', {}), quizButtons.slice(1), pickOf), null);
+});
+
+test("a foreign package's actions are typed descriptors from E1's model, validated against its fixtures, never invocable", () => {
+  const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/ograf-typed/${name}.ograf.json`, import.meta.url), 'utf8'));
+  const score = foreignCapabilities(fixture('ebu-scoreboard'));
+  assert.deepEqual(score.caps.map((c) => [c.id, c.label, c.args, c.invocable, c.allowed]), [
+    ['foreign:goal-home', 'Goal (Home)', null, false, false],
+    ['foreign:goal-away', 'Goal (Away)', null, false, false],
+  ]);
+  assert.deepEqual(score.refused, []);
+  const stranger = foreignCapabilities(fixture('stranger'));
+  const highlight = stranger.caps.find((c) => c.id === 'foreign:highlight');
+  assert.deepEqual(highlight.args.properties.map((p) => [p.key, p.required, p.node.type]), [['team', true, 'integer'], ['colour', false, 'string'], ['pulse', false, 'object']]);
+  assert.equal(highlight.args.properties[1].node.colour, 'rrggbbaa');
+  assert.equal(foreignCapabilities(fixture('ebu-weather')).caps.length, 0);
+  // An action whose arguments use something E1 does not carry is refused with E1's reason.
+  const bad = fixture('stranger');
+  bad.customActions[0].schema.properties.team.oneOf = [{ maximum: 1 }, { minimum: 3 }];
+  const refused = foreignCapabilities(bad);
+  assert.deepEqual(refused.refused, [{ action: 'highlight', reason: 'this keyword is not supported' }]);
+  assert.deepEqual(refused.caps.map((c) => c.id), ['foreign:reset']);
+  // Advertised, a press on one is refused before anything runs.
+  const ring = new ActionsRing();
+  const withForeign = { relay: true, graphics: [{ graphic: 'Results', pinned: false, live: 'cue_r', cue: 'R', caps: stranger.caps }] };
+  ring.put(4, withForeign);
+  const p = readActionPress(actionPress({ target: 'Results', instance: 'cue_r', cap: 'foreign:reset', args: {} }));
+  assert.deepEqual(judgeAction(p, withForeign, ring.get(4)), { refused: 'not-here', note: 'Reset cannot be pressed from a panel' });
 });

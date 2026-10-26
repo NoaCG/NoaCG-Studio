@@ -78,7 +78,7 @@ import { folderStep, type FolderStep, type StepMember } from '../../control/fold
 import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
-import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSender } from '../../control/graphicVerbs';
+import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
 import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
@@ -86,7 +86,7 @@ import type { Resolution, SpxTemplate } from '../../model/types';
 import { typedSendRefusal } from '../../model/ografTyped';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, actionCarriesValues, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -240,6 +240,7 @@ import { rundownActions, useRundownAuthoring } from './useRundownAuthoring';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, usePanelAnswer } from '../control/PanelControl';
 import { PANEL_VERBS, panelClip, rundownPanelRows, type PanelVerb } from '../../control/panelFeedback';
+import { graphicControls, panelGraphic, runCapability, type ControlsMachine, type GraphicControls, type PanelGraphic, type PanelOffer } from '../../control/panelActions';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
@@ -485,13 +486,8 @@ function writeSheetLease(key: string, lease: SheetLease): boolean {
 /** A source's reader as the page builds it: its id, kind and config, and whether it feeds Messages. */
 /** One pool graphic's machine and fields, parsed once per pool resolution: what the activity feed
  *  names, what Next asks, and what a pinned block draws and greys by. */
-interface PoolMachine {
-  buttons: ControlButton[];
+interface PoolMachine extends ControlsMachine {
   js: string;
-  descriptors: FieldDescriptor[];
-  /** The events Continue walks: a payload riding one of these is preparation, never a pick. */
-  path: Set<string>;
-  legality: Record<string, Record<string, string[]>>;
   stateGroups: ReturnType<typeof machineStateGroups>;
   stateNames: Record<string, Record<string, string>>;
 }
@@ -3010,7 +3006,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Fire a machine event on the live graphic, or snap it straight to a state (control/graphicVerbs.ts
    *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
    *  waits for the one before it on its graphic. */
-  const fireEvent = (button: ControlButton): Promise<void> => verbs.event(view, button);
+  const fireEvent = (button: ControlButton) => verbs.event(view, button);
   const snapTo = (groupId: string | null, stateId: string) => verbs.snap(view, groupId, stateId);
 
   /** The selected graphic's ⚡ button (home/CueActions.tsx `actionButtonFor`), greyed against
@@ -3128,6 +3124,49 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
 
+  /** WHAT A PANEL MAY PRESS ON EACH POOL GRAPHIC (control/panelActions.ts, E6.1): the controls each
+   *  graphic's live block draws, greyed as the block greys them, a press resolved to the cue live on
+   *  that graphic's layer (`liveSelection`, never the selection) and run through the block's own
+   *  verbs. A pin is presentation only: every pool graphic is offered, pinned or not. */
+  /** The offer is read at every publish, and a publish between renders (a timing reading) sees the
+   *  same render: worked out once per render, on the first read. */
+  const panelOffer = (): PanelOffer => {
+    let listed: { graphics: PanelGraphic[] } | null = null;
+    return {
+      list: () => {
+        if (listed) return listed;
+        const pins = new Set(pinnedGraphicsOf(show.profile));
+        const graphics: PanelGraphic[] = [];
+        for (const graphic of poolMachines.keys()) {
+          const g = panelGraphic(liveControlsOf(graphic, liveSelection(graphic, cues, liveCue)), pins.has(graphic));
+          if (g) graphics.push(g);
+        }
+        return (listed = { graphics });
+      },
+      act: (run) => runCapability(run, poolMachines.get(run.graphic), liveSelection(run.graphic, cues, liveCue), verbs),
+    };
+  };
+  /** One pool graphic's live controls for the selection a press on it uses (control/panelActions.ts
+   *  `graphicControls`): what its pinned block draws, and what a panel is offered; once per render. */
+  const controlsThisRender = new Map<string, GraphicControls>();
+  const liveControlsOf = (graphic: string, sel: VerbSelection): GraphicControls => {
+    const known = controlsThisRender.get(graphic);
+    if (known) return known;
+    const live = sel.selectedLayerLive ? (liveCue[graphic] ?? null) : null;
+    const g = graphicControls({
+      graphic,
+      machine: poolMachines.get(graphic)!,
+      sel,
+      live,
+      state: machineStates[graphic] ?? null,
+      aired: live ? (airedData[graphic] ?? null) : null,
+      arrange: arrangeFor(show.profile, graphic),
+      candidate: sel.editingCue ? candidateFields(sel.editingCue) : [],
+    });
+    controlsThisRender.set(graphic, g);
+    return g;
+  };
+
   // What a panel's keys show (protocol.md §8), from the same values the verb bar greys with. Read
   // only while the page answers a panel, at each publish and each press.
   /** Which cues' own Take would be refused, worked out once per render: a timing reading publishes
@@ -3155,6 +3194,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     (verb, target) => onVerb(verb, { repeat: false, cue: target || undefined }),
     // A refused press is a note in the activity feed, not a command row: nothing was sent.
     (text) => logHere([(id) => noteEntry(id, text)]),
+    panelOffer(),
   );
 
   /** LIVE ACTIONS FIRST (docs/research/control-surfaces-review-2026-10-02 slice 4; owner,
@@ -3179,7 +3219,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const sel = liveSelection(graphic, cues, liveCue);
     const live = sel.selectedLayerLive;
     const state = machineStates[graphic] ?? null;
-    const aired = live ? (airedData[graphic] ?? null) : null;
+    // The arrangement, numbers and greying a panel is offered too (`liveControlsOf`).
+    const g = liveControlsOf(graphic, sel);
     return {
       ...shared,
       events: m.buttons,
@@ -3189,16 +3230,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       stateGroups: m.stateGroups,
       snapTo: (groupId, stateId) => verbs.snap(sel, groupId, stateId),
       selectedGraphic: graphic,
-      arranged: arrangeControls(withLiveLabels(m.buttons, aired), arrangeFor(show.profile, graphic), (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
+      arranged: g.arranged,
       actionButton: actionButtonFor({
         live,
-        // A layer holding a cue this page cannot see has no values to carry: such presses wait.
-        legal: (event) => isEventLegal(m.legality, event, state) && (!!sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
+        legal: g.legal,
         labelOf: (key) => m.descriptors.find((d) => d.key === key)?.label,
-        aired,
+        aired: g.aired,
         fire: (b) => void verbs.event(sel, b),
       }),
-      liveNumberFields: liveNumbersOf(m.descriptors, m.buttons, sel.editingCue ? candidateFields(sel.editingCue) : []),
+      liveNumberFields: [...g.numbers],
       editingIsLive: sel.editingIsLive,
       bumpLive: (key, delta) => verbs.bump(sel, key, delta),
     };

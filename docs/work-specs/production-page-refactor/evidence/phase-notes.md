@@ -5,6 +5,118 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 34 (E6.1, project phase 38): declared native and typed foreign actions through Companion
+
+- **Previous verified `main` sha:** `a9356fb` (row 33 passed, PR #1756). This branch was built on
+  it. Before editing, no graphic action reached a page through Companion: `panel_press` (0073,
+  0077, 0081) took only the fourteen transport and selection verbs and rebuilt every press from
+  four fields, and nothing advertised a capability or a foreign action descriptor.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. The revert leaves 0103 applied, which is
+  harmless: an old page ignores a `graphic-action` press and an old module never sends one, and
+  `panel_relay` is read by nothing. Restoring 0081's `panel_press` body is a separate, later
+  migration if it is ever wanted; nothing is stored, so nothing is lost either way.
+- **0103 lands after 0102** (coordinator, 2026-10-26): it was held until the owner applied 0102 to
+  production, which he did the same evening. 0103 is additive and not live-path, and the app works
+  on a database without it (below).
+- **What landed.** `src/control/panelActions.ts` (pure): the capabilities a page offers, the
+  `actions` and `settled` wire, the press reader with the relay's bounds, the judge, and foreign
+  descriptors from E1's model. `panelRelay.ts` publishes the offer, judges and runs a
+  `graphic-action` press and reports what it came to, and asks `panel_relay` whether the database
+  relays them. `graphicVerbs.ts` `event` and `bump` answer what a press came to. The production
+  page offers every pool graphic (`ProductionPage.tsx` `panelOffer`), and the Panel dialog says
+  when the database cannot relay them. Migration `0103_panel_graphic_actions.sql`. The module's
+  protocol, client and tests.
+- **Decisions.**
+  - *One protocol bump that old modules cannot misread.* The deployed module (0.1.2) stops at any
+    feedback payload whose `v` is not 1, so every existing message stays `v` 1 and the two new
+    events (`actions`, `settled`) carry `av: 2` and no `v`; an old module ignores them. The press
+    carries `v: 2`, and the relay forwards `v: 2` for it only. A module meeting a newer `av`
+    refuses graphic actions with "update the module" and keeps its transport keys.
+  - *Target kind is the pool graphic* (L1 AC-8). A press resolves to the cue live on the graphic's
+    layer by `liveSelection`, never the selection, and runs through the block's own verbs, so the
+    per-graphic press queue, the sent-figure base, write-on-acceptance and the instance check
+    after every wait are L1's, unchanged. Every pool graphic with live controls is offered; a pin
+    is presentation only (`pinned` in the offer).
+  - *E6's own checks are kept on top*: the claim (the lease epoch) and the press id as every
+    press; the offer the key was drawn from (`actionsVer`, a ring of 64, counted from the claim's
+    million and handed on with the tab like `ver`); the capability by id only, stale when its
+    declaration changed since the key was drawn; the instance the key showed against the cue live
+    now; the arguments against the declared schema; the page's own greying.
+  - *Capabilities* are exactly the live block's controls (ARRANGE's labels, sections, pins and
+    More; a one-press pick as one capability with an `option` enum argument; each ± live number
+    as `step:<field>` with `delta` -1 or 1). Argument schemas are E1's `TypedNode`, validated by
+    E1's `validateActionArgs`.
+  - *Foreign actions are descriptors only*: `foreignCapabilities` reads a manifest with E1's
+    `describeOgraf`, refuses an action whose arguments carry a note or an unsupported node, and
+    marks the rest `invocable: false`; the page refuses a press on one `not-here`, and the module
+    never treats one as allowed. No page offers one yet: foreign rundown cues arrive with E3.
+  - *Outcomes.* `result` (`ran`, `duplicate`, `stale`, `not-allowed`, `not-here`, new `invalid`)
+    says whether the page dispatched; `settled` says what it came to: `accepted` (the server took
+    it), `refused` (with the reason, an overtaken or stale send included), `failed`, or `unknown`
+    (no answer: it may still commit, and it is never sent again).
+  - *An older database* (no 0103): `panel_relay` is absent, so the page publishes `relay: false`
+    and its Panel dialog says "Graphic actions on the panel wait for a NoaCG server update."; the
+    module refuses locally with the same reason, and a press that reaches the old relay is refused
+    `not-a-panel-verb`, which the module words the same way.
+  - *A press is held to the cue its key named*, in the dispatcher too: `event` and `bump` take the
+    instance the judge accepted (`named`) and refuse with "the cue on <graphic> changed" when the
+    layer holds another, at the press and after every wait. For a layer airing a cue this page
+    cannot see, the selection draws no cue, so without it only the judge's comparison with the
+    last render's offer stood between a replacement and the press (the /so on `2e514a4`).
+  - *Ran is not done*: the module shows "Running on the graphic" after `result` and what `settled`
+    says after; with no `settled` in 15 s it reads "Not confirmed" and the press is never sent again.
+    A `settled` stands for a lost `result` too, before or after the 1.5 s wait, so a confirmed +1
+    never reads as "no answer" and invites a second press (Codex P2 on `c8b6b69`). The module keeps
+    what each action came to by press id, so a `settled` that lands while a slow press call is still
+    out is what the press reads, and the retry of a press that ran (answered `duplicate` with no
+    note) waits for its `settled` like the press itself (the /so on `c45bcd2`).
+  - *The offer is capped at 64 KiB of UTF-8* at whole graphics (`more` says so), well inside a
+    Realtime broadcast; the module forgets an offer when it re-joins or loses the page. A press whose
+    selection drew one cue and whose key named another is refused in the dispatcher, whichever is on
+    the layer (the /so on `64654e1` and `c8b6b69`).
+  - *A missed offer is recovered*: the 4 s `beat` carries `actionsVer` beside `ver` and `rowsVer`,
+    and a module holding an older offer asks the page again (`panel_hello`), as it does for a missed
+    state (Codex P2 on `2e514a4`). An older module ignores the field.
+  - *The hosted control page* runs no graphic actions: it publishes an empty offer, so a panel
+    drops what the production page offered, and refuses a press `not-here`.
+  - *Bounds* (relay and page, each pinned at its edge with a mutation; the page measures compact
+    JSON and the relay jsonb's spaced text, and `[:cntrl:]` may refuse a little more than `\p{Cc}`,
+    so the relay is never the laxer): target 1 to 128
+    characters, capability id kind plus 1 to 96, instance up to 128, arguments an object of at
+    most 4096 characters of JSON nested at most 8 deep, measured only after the size cap, so a
+    hostile argument costs time linear in its size on both sides; at most 32 graphics of 48
+    capabilities in one offer.
+- **Out of this row** (E6.2 and later): Companion actions, presets, variables and feedbacks for
+  graphic actions, the guide and its trial kit, foreign invocation, the physical deck (H0.2).
+- **Traps.** `npx prettier` on `ProductionPage.tsx` reformats the whole file (the app is not
+  prettier-formatted; the module is). Corepack cannot reach `repo.yarnpkg.com` on a cloud
+  machine: run the module's yarn from `npm pack @yarnpkg/cli-dist@4.12.0` with
+  `YARN_NPM_REGISTRY_SERVER=https://registry.npmjs.org`. The configured spec needs the local
+  Supabase stack, which a cloud machine without Docker does not have: CI's configured suite runs
+  it. E1's action notes are keyed by the action's index in the manifest, not its id.
+- **Mutation checks** (each red when changed, restored after): page `ACTION_ARGS_MAX_CHARS`
+  4096 to 4097, `ACTION_ARGS_MAX_DEPTH` 8 to 9, `ACTION_CAPS_MAX` 48 to 49, `ACTION_GRAPHICS_MAX`
+  32 to 31, the capability id length 96 to 97, the text length 128 to 129, and dropping the
+  instance, greying, declaration and invocable checks of `judgeAction`
+  (`scripts/panel-feedback.test.mjs`); the dispatcher's `named` hold (`scripts/graphic-verbs.test.mjs`); SQL target 128 to 129, capability 96 to 95, instance 128 to
+  127, size 4096 to 4095, depth 8 to 9 and the walk's stop 8 to 7 (0103's own self-check on a
+  scratch Postgres 16); module 32 to 33 graphics, 48 to 47 capabilities, a foreign descriptor
+  allowed, a newer `av` read as current, the beat's actions revision ignored, and an early
+  `settled` covered by the run sentence (`companion-module/src/__tests__/actions.test.ts`).
+- **Touched files against `a9356fb`:** `companion-module/src/__tests__/actions.test.ts` (new),
+  `companion-module/src/__tests__/fakes.ts`, `companion-module/src/panel.ts`,
+  `companion-module/src/protocol.ts`, `companion-module/src/relay.ts`,
+  `docs/work-specs/hardware-panel-control/protocol.md`,
+  `docs/work-specs/production-page-refactor/evidence/phase-notes.md`, `e2e/configured/_panel.ts`,
+  `e2e/configured/expected-run.json`, `e2e/configured/panel-graphic-actions.spec.ts` (new),
+  `scripts/graphic-verbs.test.mjs`, `scripts/panel-feedback.test.mjs`,
+  `src/components/control/PanelControl.tsx`, `src/components/home/CueActions.tsx` (a prop's type),
+  `src/components/home/ProductionPage.tsx`, `src/control/graphicVerbs.ts` (L1's seam: `event` and
+  `bump` answer an outcome, `afterPress` is generic; nothing they send changed),
+  `src/control/panelActions.ts` (new), `src/control/panelFeedback.ts`, `src/control/panelRelay.ts`,
+  `supabase/migrations/0103_panel_graphic_actions.sql` (new). E1.1's model is read, not changed.
+
 ## Row 33 (E1.1, project phase 37): typed OGraf contract model and read gate
 
 - **Previous verified `main` sha:** `42c48f9` (row 32d passed, PR #1753). This branch was built on

@@ -218,28 +218,32 @@ export function readPress(p: unknown): PanelPress | null {
   };
 }
 
-export type PressOutcome = 'ran' | 'duplicate' | 'stale' | 'not-allowed' | 'not-here';
+/** `invalid`: a graphic action's arguments do not fit its declared schema (control/panelActions.ts). */
+export type PressOutcome = 'ran' | 'duplicate' | 'stale' | 'not-allowed' | 'not-here' | 'invalid';
 
 export interface PressVerdict {
   outcome: PressOutcome;
   note?: string;
 }
 
-/** The last published states, by version, for judging a press against the one its key showed. */
-export class SnapshotRing {
+/** The last published values, by version, for judging a press against the one its key showed. */
+export class VersionRing<T> {
   readonly #size: number;
-  readonly #by = new Map<number, PanelSnapshot>();
+  readonly #by = new Map<number, T>();
   constructor(size = 64) {
     this.#size = size;
   }
-  put(ver: number, snap: PanelSnapshot): void {
-    this.#by.set(ver, snap);
+  put(ver: number, value: T): void {
+    this.#by.set(ver, value);
     while (this.#by.size > this.#size) this.#by.delete(this.#by.keys().next().value as number);
   }
-  get(ver: number): PanelSnapshot | undefined {
+  get(ver: number): T | undefined {
     return this.#by.get(ver);
   }
 }
+
+/** The last published states (protocol §6.2 step 4). */
+export class SnapshotRing extends VersionRing<PanelSnapshot> {}
 
 /** The press ids this page has handled lately, with what it answered (protocol §6.2 step 2). */
 export class PressMemory {

@@ -16,6 +16,7 @@
 // imported, so `scripts/production-data-session.test.mjs` drives it with fakes.
 
 import { applyPatch, diffResolved, getPath, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
+import { SHARED_NOT_MOVED } from './liveControls.ts';
 import type { ControlSendItem } from './hostedControl';
 import type { fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
 import type { DataPart, PlayoutSession } from './playoutSession';
@@ -52,7 +53,8 @@ export interface ProductionDataSession {
   /** The owner editing the tree (the Data workspace): one call, one write. */
   setLiveData: (next: JsonObject) => void;
   /** An operator press moving a bound value (the ± stepper, an event's `adjust`). */
-  patchBoundValues: (writes: TreeWrite[]) => Promise<void>;
+  /** Answers false when the write did not land (the note line says why). */
+  patchBoundValues: (writes: TreeWrite[]) => Promise<boolean>;
   /** A SOURCE READER's write (control/sheetSource.ts): a merge patch of the connected paths that
    *  changed. Answers true when it landed, false when nothing did (it is tried again), or the
    *  paths the published row does not bind yet, which were left out while the rest landed.
@@ -236,12 +238,12 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
      * press first while `treeRead` is false.
      */
     patchBoundValues: async (writes) => {
-      if (writes.length === 0) return;
+      if (writes.length === 0) return true;
       const before = part.get().liveData;
       const next = withTreeWrites(before, writes);
       const patch = replacementPatch(before, next);
-      if (Object.keys(patch).length === 0) return;
-      await operatorWrite(mode, next, patch, 'The shared value did not move');
+      if (Object.keys(patch).length === 0) return true;
+      return operatorWrite(mode, next, patch, SHARED_NOT_MOVED);
     },
 
     /**

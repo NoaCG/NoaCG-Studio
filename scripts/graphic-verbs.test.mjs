@@ -3151,3 +3151,97 @@ test('after this page\'s Out lands, a Take of a cue without a field leaves the r
     await next;
   }
 });
+
+test('a live press answers what it came to, for a panel key: accepted, overtaken, refused stale, unanswered or failed (E6.1)', async () => {
+  const cases = [
+    [(h) => h.resolve({ ...noneLeft }), { outcome: 'accepted' }],
+    [(h) => h.resolve({ ...noneLeft, superseded: ['Score'] }), { outcome: 'refused', note: 'A later press replaced it.' }],
+    [(h) => h.reject(Object.assign(new Error('another screen moved it'), { stale: true })), 'refused'],
+    [(h) => h.reject(Object.assign(new Error('no answer'), { unanswered: true })), 'unknown'],
+    [(h) => h.reject(new Error('down')), 'failed'],
+  ];
+  for (const press of ['event', 'bump']) {
+    for (const [answer, want] of cases) {
+      const banner = graphicCue('b1', 'Score', { home: '7' });
+      const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+      const view = liveSelection('Score', [banner], r.liveCue());
+      const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : r.verbs.event(view, goal);
+      await settle();
+      answer(r.sends[0].answer);
+      const done = await pressing;
+      if (typeof want === 'string') {
+        assert.equal(done.outcome, want, press);
+        // The reason is the note line's own sentence.
+        assert.equal(done.note, r.notes.at(-1), press);
+      } else assert.deepEqual(done, want, press);
+    }
+  }
+});
+
+test('a live press that sends nothing answers refused with the reason: off air, or another cue took the layer (E6.1)', async () => {
+  for (const press of ['event', 'bump']) {
+    const banner = graphicCue('b1', 'Score', { home: '7' });
+    const off = rig({ seed: false });
+    const offView = liveSelection('Score', [banner], {});
+    assert.deepEqual(await (press === 'bump' ? off.verbs.bump(offView, 'home', 1) : off.verbs.event(offView, goal)), { outcome: 'refused', note: 'Score is off air' }, press);
+    const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+    const view = liveSelection('Score', [banner], r.liveCue());
+    const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : r.verbs.event(view, goal);
+    await settle();
+    r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'b2' } } }));
+    r.flushes[0].resolve();
+    assert.deepEqual(await pressing, { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' }, press);
+    assert.equal(r.sends.length, 0, press);
+  }
+});
+
+test('a bound press whose shared value did not move answers failed, not accepted (E6.1)', async () => {
+  for (const press of ['event', 'bump']) {
+    const r = rig({ bound: { Score: { home: 'match.home' } }, tree: { Score: { home: '2' } } });
+    r.page.patchBound = async () => false;
+    const view = sel({ selectedGraphic: 'Score', selectedLayerLive: true, editingCue: graphicCue('s1', 'Score'), editingIsLive: true, airCue: graphicCue('s1', 'Score') });
+    const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : r.verbs.event(view, goal);
+    await settle();
+    r.sends[0]?.answer.resolve({ ...noneLeft });
+    assert.deepEqual(await pressing, { outcome: 'failed', note: 'The shared value did not move' }, press);
+  }
+});
+
+test('a step on a layer airing a cue this page does not hold says so, not off air (E6.1)', async () => {
+  const r = rig({ seed: false, liveCue: { Score: 'elsewhere' } });
+  const view = liveSelection('Score', [], r.liveCue());
+  assert.deepEqual(await r.verbs.bump(view, 'home', 1), { outcome: 'refused', note: 'The cue on Score is not one this page holds' });
+});
+
+test('a panel press on a layer airing a cue this page cannot see is held to the cue its key named (E6.1, L1 AC-8)', async () => {
+  // The key was drawn while `unseen` aired; another cue this page cannot see took the layer since.
+  const r = rig({ seed: false, liveCue: { Score: 'other' } });
+  const view = liveSelection('Score', [], r.liveCue());
+  assert.equal(view.airCue, null);
+  assert.deepEqual(await r.verbs.event(view, { event: 'go' }, 'unseen'), { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' });
+  assert.equal(r.sends.length, 0);
+  // The cue it named is the one on the layer: the press goes.
+  const going = r.verbs.event(view, { event: 'go' }, 'other');
+  await settle();
+  assert.equal(r.sends.length, 1);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await going, { outcome: 'accepted' });
+  // Named, and replaced during the save wait: refused after the wait.
+  const held = rig({ seed: false, flushHeld: true, liveCue: { Score: 'other' } });
+  const waiting = held.verbs.event(liveSelection('Score', [], held.liveCue()), { event: 'go' }, 'other');
+  await settle();
+  held.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'third' } } }));
+  held.flushes[0].resolve();
+  assert.deepEqual(await waiting, { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' });
+  assert.equal(held.sends.length, 0);
+});
+
+test('a press whose selection and key name different cues goes nowhere, whichever is on the layer (E6.1)', async () => {
+  for (const [drawn, named, onLayer] of [['b2', 'b1', 'b2'], ['b1', 'b2', 'b2']]) {
+    const cue = graphicCue(drawn, 'Score', { home: '7' });
+    const r = rig({ seed: false, liveCue: { Score: onLayer } });
+    const view = { ...liveSelection('Score', [cue], { Score: drawn }), selectedLayerLive: true };
+    assert.deepEqual(await r.verbs.event(view, { event: 'go' }, named), { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' }, `${drawn}/${named}`);
+    assert.equal(r.sends.length, 0, `${drawn}/${named}`);
+  }
+});

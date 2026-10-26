@@ -135,7 +135,7 @@ export default function CueActions({
   actionButton: (control: ArrangedControl, section?: string) => ReactNode;
   liveNumberFields: FieldDescriptor[];
   editingIsLive: boolean;
-  bumpLive: (fieldKey: string, delta: number) => Promise<void>;
+  bumpLive: (fieldKey: string, delta: number) => Promise<unknown>;
   pin?: BlockPin;
   /** In the LIVE stack: the graphic's name and the cue live on its layer. */
   heading?: { graphic: string; cue: string | null };

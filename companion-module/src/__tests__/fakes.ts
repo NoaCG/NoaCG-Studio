@@ -1,6 +1,15 @@
 // A fake relay and a hand-driven clock: the module's tests never reach a backend.
 import type { Clock } from '../panel.js'
-import type { Answer, HelloAnswer, PairAnswer, PanelRows, PanelState, Press, PressAnswer } from '../protocol.js'
+import type {
+	ActionPress,
+	Answer,
+	HelloAnswer,
+	PairAnswer,
+	PanelRows,
+	PanelState,
+	Press,
+	PressAnswer,
+} from '../protocol.js'
 import type { ListenStatus, Relay } from '../relay.js'
 
 export class FakeClock implements Clock {
@@ -78,7 +87,7 @@ export class FakeRelay implements Relay {
 		this.calls.push({ name: 'hello', args: [key] })
 		return this.helloAnswer
 	}
-	async press(key: string, press: Press): Promise<Answer<PressAnswer>> {
+	async press(key: string, press: Press | ActionPress): Promise<Answer<PressAnswer>> {
 		this.calls.push({ name: 'press', args: [key, press] })
 		const next = this.pressAnswers.shift() ?? { ok: true, claim: 1 }
 		if (next instanceof Error) throw next

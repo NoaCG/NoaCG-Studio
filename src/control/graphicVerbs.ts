@@ -60,8 +60,9 @@ import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
-import { changedNote } from './liveControls.ts';
+import { SHARED_NOT_MOVED, changedNote, offAirNote, unheldNote } from './liveControls.ts';
 import { typedSendRefusal } from '../model/ografTyped.ts';
+import type { PressDone } from './panelActions';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
  *  `uncertain`: the server did not answer, so it may still commit; `stale`: the server refused it
@@ -159,8 +160,8 @@ export interface GraphicPage {
   boundNow: (graphic: string) => Record<string, string>;
   /** Refuse a bound press while the published tree is unread, saying why; true when it may go. */
   boundReady: () => boolean;
-  /** Move the production tree (an operator press). */
-  patchBound: (writes: TreeWrite[]) => Promise<void>;
+  /** Move the production tree (an operator press); false when the write did not land. */
+  patchBound: (writes: TreeWrite[]) => Promise<boolean>;
   /** Write a cue's values as an edit (the ± bump on an unbound field). */
   writeCue: (cueId: string, values: Record<string, string>) => void;
   /** A cue's values as saved now (the draft's last save included), read when a press settles. */
@@ -212,12 +213,16 @@ export interface GraphicVerbs {
   takeGraphic: (cue: ShowCue, label: string, direct?: boolean) => Promise<GraphicTake | null>;
   take: (cue: ShowCue) => Promise<void>;
   update: (sel: VerbSelection) => Promise<void>;
-  bump: (sel: VerbSelection, fieldKey: string, delta: number) => Promise<void>;
+  /** A live press answers what it came to, for a panel's key (control/panelActions.ts); the
+   *  page's own buttons ignore it, since the note line already says it. */
+  bump: (sel: VerbSelection, fieldKey: string, delta: number, named?: string) => Promise<PressDone>;
   next: (sel: VerbSelection) => Promise<void>;
   out: (sel: VerbSelection) => Promise<void>;
   takeOff: (graphic: string) => Promise<void>;
   allOut: () => Promise<void>;
-  event: (sel: VerbSelection, button: ControlButton) => Promise<void>;
+  /** `named`: the cue a panel key was drawn for (control/panelActions.ts), held to as the selection's
+   *  own cue is, for a layer whose cue the selection could not draw. */
+  event: (sel: VerbSelection, button: ControlButton, named?: string) => Promise<PressDone>;
   snap: (sel: VerbSelection, groupId: string | null, stateId: string) => Promise<void>;
   /** Commands the server sent back, on either road: one of a marker press that got no answer may
    *  have landed after all. Returns the ones the page still applies: all but this sender's own cue
@@ -247,7 +252,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const alive = session.alive;
     return {
       ...p,
-      patchBound: async (writes) => (alive() ? p.patchBound(writes) : undefined),
+      patchBound: async (writes) => (alive() ? p.patchBound(writes) : false),
       writeCue: (cueId, values) => alive() && p.writeCue(cueId, values),
       writeLive: (cueId, values) => alive() && p.writeLive(cueId, values),
       clearThroughBridge: async (note) => (alive() ? p.clearThroughBridge(note) : note),
@@ -457,10 +462,16 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return at === (session.air.get().liveCue[graphic] ?? null) ? at : false;
   };
   /** Capture the cue a live press acts on: the one its selection drew (null when it drew none), or
-   *  false when the layer already holds another. `still` asks again after a wait and says why once. */
-  const instance = (s: VerbSender, graphic: string, drawn: ShowCue | null) => {
+   *  false when the layer already holds another. `named` is the cue a press names when its
+   *  selection could draw none (a panel key on a layer airing a cue this page does not hold): it is
+   *  held to that cue the same way. `still` asks again after a wait and says why once. */
+  const instance = (s: VerbSender, graphic: string, drawn: ShowCue | null, named?: string) => {
     const at = holding(graphic);
-    const captured = at === false || (drawn && drawn.id !== at) ? false : at;
+    // Held to both: a press whose selection drew one cue and whose key named another would read one
+    // cue's values and act on the other's layer, so it goes nowhere.
+    const want = drawn?.id ?? named;
+    const disagree = !!drawn && named !== undefined && drawn.id !== named;
+    const captured = at === false || disagree || (want !== undefined && want !== at) ? false : at;
     const still = () => {
       if (captured !== false && holding(graphic) === captured) return true;
       s.note(changedNote(graphic));
@@ -641,7 +652,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    * attempt's time for its write (./failedSends.ts), so a link that never answers cannot hold the
    * next press; past it, the press counts from what this page sent, or the tree as it stands.
    */
-  const afterPress = (graphic: string, press: () => Promise<void>): Promise<void> => {
+  const afterPress = <T>(graphic: string, press: () => Promise<T>): Promise<T> => {
     const waits = [presses.get(graphic), ownSends.get(graphic)].filter((w): w is Promise<void> => !!w);
     const before = waits.length > 0 ? Promise.all(waits) : undefined;
     let timer: unknown;
@@ -653,7 +664,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       return press();
     });
     // The next press waits for this one whether or not it failed.
-    const settled = ran.catch(() => {});
+    const settled = ran.then(
+      () => {},
+      () => {},
+    );
     presses.set(graphic, settled);
     void settled.then(() => {
       if (presses.get(graphic) === settled) presses.delete(graphic);
@@ -746,11 +760,23 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   /** A live press on a layer airing a cue with typed OGraf data sends nothing from here, and says
    *  why (model/ografTyped.ts, E1.1): its fields are not its native strings, so a figure counted
    *  or read from them would air something the cue does not hold. A pinned block presses here too. */
-  const typedRefused = (s: VerbSender, cue: ShowCue | null): boolean => {
+  const typedRefused = (s: VerbSender, cue: ShowCue | null): string | null => {
     const why = cue ? typedSendRefusal(cue) : null;
-    if (cue && why) s.note(`${cue.label}: ${why}`);
-    return !!why;
+    if (!cue || !why) return null;
+    s.note(`${cue.label}: ${why}`);
+    return `${cue.label}: ${why}`;
   };
+
+  /** A live press that sent nothing, and the sentence the note line said why. */
+  const refused = (note: string): PressDone => ({ outcome: 'refused', note });
+  /** What a live press's send came to: taken by the server for its graphic, overtaken there by a
+   *  later press, refused as stale, unanswered (it may still commit), or failed. */
+  const doneOf = (sent: Sent, graphic: string): PressDone =>
+    !sent.ok
+      ? { outcome: sent.stale ? 'refused' : sent.uncertain ? 'unknown' : 'failed', note: sent.note }
+      : reachedOutput(sent, graphic)
+        ? { outcome: 'accepted' }
+        : { outcome: 'refused', note: 'A later press replaced it.' };
 
   /**
    * One press bumps a number field ON AIR: a PARTIAL update carrying just that field, plus the same
@@ -758,47 +784,53 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    * must never publish a half-typed name. A BOUND field takes the other road: the press moves the
    * production tree, counted from the TREE, and nothing is written into this cue (plan §2.7, §2.9).
    */
-  const bump = async (sel: VerbSelection, fieldKey: string, delta: number) => {
+  const bump = async (sel: VerbSelection, fieldKey: string, delta: number, named?: string): Promise<PressDone> => {
     const s = sender();
     const p = page();
     const { editingCue, selectedGraphic: graphic } = sel;
-    if (!editingCue || !graphic || !sel.editingIsLive) return;
-    if (typedRefused(s, editingCue)) return;
-    const still = instance(s, graphic, editingCue);
-    if (!still()) return;
+    // On air with a cue this page does not hold is not off air: there is no cue to count from.
+    if (!editingCue || !graphic || !sel.editingIsLive) return refused(graphic && sel.selectedLayerLive ? unheldNote(graphic) : offAirNote(graphic ?? 'The graphic'));
+    const typed = typedRefused(s, editingCue);
+    if (typed) return refused(typed);
+    const still = instance(s, graphic, editingCue, named);
+    if (!still()) return refused(changedNote(graphic));
     const path = p.boundFields(graphic)[fieldKey];
     if (path) {
-      await afterPress(graphic, async () => {
+      return afterPress(graphic, async (): Promise<PressDone> => {
         await p.flush();
-        if (!still() || !p.boundReady()) return;
-        await p.patchBound([{ path, text: io.adjustedValue(p.boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
+        if (!still()) return refused(changedNote(graphic));
+        if (!p.boundReady()) return refused('The production data is not read yet.');
+        const landed = await p.patchBound([{ path, text: io.adjustedValue(p.boundNow(graphic)[fieldKey], delta), verb: 'adjust' }]);
+        return landed === false ? { outcome: 'failed', note: SHARED_NOT_MOVED } : { outcome: 'accepted' };
       });
-      return;
     }
     // A live candidate's field comes from its source only: a press would air a figure no
     // revision holds (E7.1). The layer's own candidate counts too, and both are asked again after
     // the wait, which a Take may have moved.
     const fixed = () => p.candidateFields(editingCue).includes(fieldKey) || p.airedCandidateFields(graphic).includes(fieldKey);
+    const fixedNote = `${fieldKey.toUpperCase()} shows a live candidate, so it comes from its source.`;
     if (fixed()) {
-      s.note(`${fieldKey.toUpperCase()} shows a live candidate, so it comes from its source.`);
-      return;
+      s.note(fixedNote);
+      return refused(fixedNote);
     }
-    await afterPress(graphic, async () => {
+    return afterPress(graphic, async (): Promise<PressDone> => {
       await p.flush();
-      if (!still()) return;
+      if (!still()) return refused(changedNote(graphic));
       if (fixed()) {
-        s.note(`${fieldKey.toUpperCase()} shows a live candidate, so it comes from its source.`);
-        return;
+        s.note(fixedNote);
+        return refused(fixedNote);
       }
       const next = io.adjustedValue(baseOf(graphic, fieldKey, editingCue.values[fieldKey] ?? '0'), delta);
       const unedited = savedAt(p, editingCue.id, [fieldKey]);
       // The press number the send takes, which it takes at once.
       const stamp = sendSeq + 1;
-      const sent = await runWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
+      const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
+      if (!sent.ok) s.note(sent.note);
       // Written only once accepted: a refused or failed send writes nothing (the note says why),
       // and a late answer writes nothing over a newer send's figure or a newer saved edit.
-      const write = sent && reachedOutput(sent, graphic) ? unedited(unreplaced(graphic, { [fieldKey]: next }, stamp)) : {};
+      const write = sent.ok && reachedOutput(sent, graphic) ? unedited(unreplaced(graphic, { [fieldKey]: next }, stamp)) : {};
       if (Object.keys(write).length > 0) p.writeCue(editingCue.id, write);
+      return doneOf(sent, graphic);
     });
   };
 
@@ -908,22 +940,27 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return aired ? { ...kept, ...aired } : kept;
   };
 
-  const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[], still: () => boolean) => {
+  const pressEvent = async (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, bound: Record<string, string>, movedList: string[], still: () => boolean): Promise<PressDone> => {
     // An event may READ a live candidate's fields, never move one: that figure would be in no
     // revision (E7.1).
     // Asked again after the wait, which a Take may have moved.
-    const refused = () => {
+    const candidate = (): string | null => {
       const fixed = [...(sel.airCue ? p.candidateFields(sel.airCue) : []), ...p.airedCandidateFields(graphic)];
       const moving = movedList.filter((key) => fixed.includes(key));
-      if (moving.length > 0) s.note(`${moving.map((key) => key.toUpperCase()).join(', ')} shows a live candidate, so it comes from its source.`);
-      return moving.length > 0;
+      if (moving.length === 0) return null;
+      const why = `${moving.map((key) => key.toUpperCase()).join(', ')} shows a live candidate, so it comes from its source.`;
+      s.note(why);
+      return why;
     };
-    if (refused()) return;
+    const before = candidate();
+    if (before) return refused(before);
     await p.flush();
-    if (!still() || refused()) return;
+    if (!still()) return refused(changedNote(graphic));
+    const after = candidate();
+    if (after) return refused(after);
     const values = airValues(p, sel);
     // A press that would move a SHARED value waits for the tree, and the EVENT waits with it.
-    if (movedList.some((key) => bound[key]) && !p.boundReady()) return;
+    if (movedList.some((key) => bound[key]) && !p.boundReady()) return refused('The production data is not read yet.');
     // A field the press MOVES counts from what AIR shows; a field it only READS is the cue's own
     // value; a BOUND field reads from the production tree (plan §2.7).
     const moved = new Set(movedList);
@@ -941,25 +978,30 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const unedited = sel.airCue ? savedAt(p, sel.airCue.id, Object.keys(adjusted)) : null;
     // The press number the send takes, which it takes at once.
     const stamp = sendSeq + 1;
-    const sent = await runWith(s, [[{ graphic, msg }]], `Event ${button.event}`, adjusted);
+    const outcome = await sendWith(s, [[{ graphic, msg }]], `Event ${button.event}`, false, adjusted);
+    if (!outcome.ok) s.note(outcome.note);
+    const sent = outcome.ok ? outcome : null;
     // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
     const went = !!sent && ![...sent.skipped, ...sent.superseded].includes(graphic);
     const kept = went && unedited ? unedited(unreplaced(graphic, adjusted, stamp)) : {};
     // Accepted live values are persisted only now, outside preparation history: a refused or
     // failed press writes nothing into the cue, and a late answer nothing a newer send replaced.
     if (went && Object.keys(kept).length > 0 && sel.airCue) p.writeLive(sel.airCue.id, kept);
-    if (went) await p.patchBound(tree);
+    // The event went but its shared value did not move: that half failed, and the press says so.
+    if (went && (await p.patchBound(tree)) === false) return { outcome: 'failed', note: SHARED_NOT_MOVED };
+    return doneOf(outcome, graphic);
   };
 
   /** Fire a machine event on the live graphic, after the live press before it on its graphic. */
-  const event = (sel: VerbSelection, button: ControlButton): Promise<void> => {
+  const event = (sel: VerbSelection, button: ControlButton, named?: string): Promise<PressDone> => {
     const s = sender();
     const p = page();
     const graphic = sel.selectedGraphic;
-    if (!graphic || !sel.selectedLayerLive) return Promise.resolve();
-    if (typedRefused(s, sel.airCue)) return Promise.resolve();
-    const still = instance(s, graphic, sel.airCue);
-    if (!still()) return Promise.resolve();
+    if (!graphic || !sel.selectedLayerLive) return Promise.resolve(refused(offAirNote(graphic ?? 'The graphic')));
+    const typed = typedRefused(s, sel.airCue);
+    if (typed) return Promise.resolve(refused(typed));
+    const still = instance(s, graphic, sel.airCue, named);
+    if (!still()) return Promise.resolve(refused(changedNote(graphic)));
     const bound = p.boundFields(graphic);
     const moved = io.movedKeys(button);
     return afterPress(graphic, () => pressEvent(s, p, sel, button, graphic, bound, moved, still));
