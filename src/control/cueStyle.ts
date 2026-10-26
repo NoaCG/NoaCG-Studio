@@ -23,6 +23,7 @@ import {
   fontFormatForExt,
   fontStack,
   fontWeights,
+  knownFace,
   latinExtFile,
   numericFaceFor,
   numericFontStack,
@@ -262,8 +263,21 @@ export function asDesignedPatch(row: 'type' | 'colour', scope: 'cue' | 'graphic'
   return patch;
 }
 
-/** The weights the Type row offers for the face in effect: the face's real ones (Regular alone for
- *  a static or an imported face). */
-export function weightsFor(heading: string, imported: readonly ImportedFace[]): { value: number; label: string }[] {
-  return fontWeights(heading, imported.map((f) => f.family));
+/** The weights the Type row offers for the face in effect (chosen, else the design's): its real
+ *  ones (Regular alone for a static or an imported face), and those of the face the design's
+ *  `--font-numeric` then names, since the heading weight also weights those numbers (Saira under
+ *  Anton). A design with no live numbers declares no `--font-numeric`. */
+export function weightsFor(
+  font: FontRef | 'designed' | undefined,
+  design: Readonly<Record<string, string>>,
+  imported: readonly ImportedFace[],
+): { value: number; label: string }[] {
+  const set = resolveStyle({ font }, imported)?.vars;
+  const heading = set?.['font-heading'] ?? design['font-heading'] ?? '';
+  const numeric = design['font-numeric'] !== undefined ? (set?.['font-numeric'] ?? design['font-numeric']) : undefined;
+  const families = imported.map((f) => f.family);
+  const faces = [heading, ...(numeric !== undefined && knownFace(numeric, families) ? [numeric] : [])];
+  const byValue = new Map<number, { value: number; label: string }>();
+  for (const f of faces) for (const w of fontWeights(f, families)) byValue.set(w.value, w);
+  return [...byValue.values()].sort((a, b) => a.value - b.value);
 }

@@ -882,9 +882,9 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     assert.equal(w({ fontId: 'oswald' }, '800'), '800');
     assert.equal(w({ fontId: 'bebas-neue' }, '800'), '800');
     const imported = [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }];
-    assert.deepEqual(St.weightsFor('"Brand Sans", Arial', imported).map((x) => x.value), [400], 'the Type row offers Regular');
-    assert.deepEqual(St.weightsFor(fontStack(fontById('bebas-neue')), []).map((x) => x.value), [400]);
-    assert.deepEqual(St.weightsFor(fontStack(fontById('archivo')), []).map((x) => x.value), [400, 500, 600, 700, 800, 900]);
+    assert.deepEqual(St.weightsFor({ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }, {}, imported).map((x) => x.value), [400], 'the Type row offers Regular');
+    assert.deepEqual(St.weightsFor({ fontId: 'bebas-neue' }, {}, []).map((x) => x.value), [400]);
+    assert.deepEqual(St.weightsFor({ fontId: 'archivo' }, {}, []).map((x) => x.value), [400, 500, 600, 700, 800, 900]);
     const style = St.resolveStyle(eff({ v: 1, font: brand }, undefined), imported);
     assert.deepEqual(style.fonts, [{ family: 'Brand Sans', src: 'fonts/brand-sans.woff2', weight: [100, 900] }]);
     assert.equal(St.resolveStyle(eff({ v: 1, font: brand }, undefined), []), null, 'a face no pool graphic ships any more resolves to nothing');
@@ -957,6 +957,18 @@ describe('what an author and an agent learn is adjustable (phase 2)', () => {
     const css = ':root { --font-heading: "Inter"; --accent: #f00; }\nhtml, body { font-family: var(--font-heading); }';
     assert.equal(St.styleReach({ css, js: '' }).family, true, 'an HTML design inherits the face from the reset');
     assert.equal(St.reachesAny(St.styleReach({ css, js: 'function fitSvgText(el) {}' })), false);
+  });
+});
+
+describe('the Type row\'s weights (phase 2)', () => {
+  const design = (numbers) => ({ 'font-heading': '"Archivo", Arial, sans-serif', ...(numbers ? { 'font-numeric': '"Archivo", Arial, sans-serif' } : {}) });
+  const values = (font, d) => St.weightsFor(font, d, []).map((w) => w.value);
+
+  test('a face with one weight offers its numbers\' sibling\'s weights where the design draws live numbers', () => {
+    assert.deepEqual(values({ fontId: 'anton' }, design(true)), [400, 500, 600, 700, 800, 900], 'Anton heading, Saira numbers');
+    assert.deepEqual(values({ fontId: 'anton' }, design(false)), [400], 'no live numbers: Anton alone, so the row is hidden');
+    assert.deepEqual(values({ fontId: 'bebas-neue' }, design(false)), [400]);
+    assert.deepEqual(values(undefined, design(false)), values({ fontId: 'archivo' }, design(false)), 'as designed reads the design\'s own face');
   });
 });
 

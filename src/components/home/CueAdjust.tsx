@@ -66,7 +66,7 @@ export default function CueAdjust({
     artwork: boolean;
     imported: readonly ImportedFace[];
     bundled: readonly { id: string; family: string }[];
-    /** The design's own `--font-heading` and colour values. */
+    /** The design's own `--font-heading`, `--font-numeric` (where it draws live numbers) and colour values. */
     design: Record<string, string>;
     asDesigned: (row: 'type' | 'colour') => void;
     /** The typeface alone back to the design's, at the scope shown. */
@@ -287,10 +287,7 @@ function StyleRows({
     );
   }
   const chosen = faceKey(font);
-  const imported = font && font !== 'designed' && 'family' in font ? font : null;
-  const bundledChosen = font && font !== 'designed' && 'fontId' in font ? style.bundled.find((b) => b.id === font.fontId) : undefined;
-  const heading = bundledChosen ? `"${bundledChosen.family}"` : imported ? `"${imported.family}"` : (style.design['font-heading'] ?? '');
-  const weights = weightsFor(heading, style.imported);
+  const weights = weightsFor(font, style.design, style.imported);
   const weight = vars['display-weight'] || '';
   const typeSet = chosen !== '' || weight !== '';
   const colourSet = reach.colours.some((k) => vars[k]);
