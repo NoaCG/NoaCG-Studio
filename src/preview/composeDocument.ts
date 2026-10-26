@@ -400,7 +400,27 @@ window.addEventListener('unhandledrejection', function (ev) {
      fonts.ready measured the fallback when its face came in after the 400 ms hold, so a late
      refit gives it the same values again. */
   var lastData = null;
+  /* An event the template accepts writes its payload into the fields (animRuntime.ts
+     noacgApplyPayload) after the update that set lastData, so a late refit would put the old
+     values back: the values replayed take each applied payload in. A refused event applies none. */
+  var payloadsKept = false;
+  function keepPayloads() {
+    if (payloadsKept || typeof window.noacgApplyPayload !== 'function') return;
+    payloadsKept = true;
+    var apply = window.noacgApplyPayload;
+    window.noacgApplyPayload = function (payload) {
+      if (lastData != null && payload && typeof payload === 'object') {
+        try {
+          var cur = JSON.parse(lastData) || {};
+          for (var k in payload) if (Object.prototype.hasOwnProperty.call(payload, k)) cur[k] = payload[k];
+          lastData = JSON.stringify(cur);
+        } catch (e) {}
+      }
+      return apply.apply(this, arguments);
+    };
+  }
   function applyStyle(msg) {
+    keepPayloads();
     var seq = ++styleSeq;
     var given = msg.vars || {};
     var metric = [msg.faces || '', given['font-heading'] || '', given['font-numeric'] || '', given['display-weight'] || ''].join('|');
@@ -502,6 +522,7 @@ window.addEventListener('unhandledrejection', function (ev) {
          before the clock that needed it reads it. Every event rewrites it (to null when there
          is no instant), so it always reads as the most recent event's. */
       window.noacgEventAt = (typeof msg.at === 'number' && msg.at > 0) ? msg.at : null;
+      keepPayloads();
       try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
     } else if (msg.cmd === 'measure') {
       if (typeof msg.id === 'number') measureBox(window, msg.id);

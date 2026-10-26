@@ -381,6 +381,26 @@ test('a design that fits in update() is given its values again when its face arr
   expect(updates[1], 'the same values, once the face is in').toBe(updates[0]);
 });
 
+test('the late refit keeps what an accepted event wrote while the face was loading', async ({ page }) => {
+  // A Reveal's payload lands in the fields through the template's own noacgApplyPayload after the
+  // Update that rode the style, so a refit of the Update's values alone would put the old name back.
+  await page.route('**/fonts/archivo*.woff2', async (route) => {
+    await new Promise((r) => setTimeout(r, 3_000));
+    await route.continue();
+  });
+  const doc = await styledStage(page);
+  await sendStyle(page, { v: 1, font: { fontId: 'archivo' } });
+  await expect(doc.locator('#f0')).toHaveText(NAME);
+  expect(await doc.locator('html').evaluate(() => {
+    const w = window as unknown as { noacgApplyPayload?: (p: Record<string, string>) => void };
+    if (typeof w.noacgApplyPayload !== 'function') return false;
+    w.noacgApplyPayload({ f0: 'Corrected Name' });
+    return true;
+  }), 'the design applies event payloads').toBe(true);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled), { timeout: 10_000 }).toEqual([1]);
+  await expect(doc.locator('#f0'), 'the refit replays the field as the event left it').toHaveText('Corrected Name');
+});
+
 test('a staged design keeps the reserves it calibrated when its face changes', async ({ page }) => {
   // card80's font-ready callback is the staged runtime's one-time calibration: run again it takes
   // every line for a new row and keeps one row of each multi-row reserve. A face change refits

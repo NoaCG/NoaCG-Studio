@@ -81,7 +81,8 @@ changes a spec's digest.
   import's comment block records no measured digits, so `importedFacesOf` gives no
   `tabularFigures` and an absent flag reads as cannot (the `model/fonts.ts` rule). Recording the
   measure there is a follow-up. A late refit in the composed document replays the last `update`
-  payload, which carries every field today; a phase 3 send with an appearance and empty data
+  payload with every event payload the template applied since (`keepPayloads`), which carries
+  every field today; a phase 3 send with an appearance and empty data
   would replay `{}`, so 38a refits with the values on air as `localReceiver.ts` does.
   The closure check reads Archivo off lt01's packages; sb14's Saira sibling is held in Node
   (`withAppearanceFaces`) and by the render only.
