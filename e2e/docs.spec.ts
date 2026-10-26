@@ -245,7 +245,7 @@ test('the graphics topic has one page per type, each with its file, layers and n
   }
   // One lower-third file in the complete examples gallery; no retired variant links return.
   await expect(page.locator('a[href*="lower-third"]')).toHaveCount(1);
-  await expect(page.locator('#svg-example-files a[href="/docs/examples/svg-examples/lower-third.svg"]')).toHaveCount(1);
+  await expect(page.locator('#svg-example-files + p + ul a[href="/docs/examples/svg-examples/lower-third.svg"]')).toHaveCount(1);
   // The Layer names page opens with the system: the three layers, the row rule, one full tree
   // and the table of every name, generated from words.json so it cannot drift from the matcher.
   const layerNames = page.locator('#svg-layers');

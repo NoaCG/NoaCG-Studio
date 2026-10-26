@@ -190,6 +190,7 @@ function designPreset(id: string): AnimPreset {
 /** Build the complete SpxTemplate for an imported SVG design. */
 export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const svg = o.designSvg ?? NO_SVG;
+  const artworkRoll = isArtworkCredits(svg);
   const name = 'Imported SVG design';
   const artworkFields = svgFields(svg);
   // The behaviour's own fields sit AFTER the artwork's, and that order is load-bearing: the
@@ -213,10 +214,9 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
 
   // The SVG rides inline, indented to sit inside the box - no asset path, no fetch, so every
   // single-file export target stays single-file.
-  const inlineSvg = bindSvgMarkup(svg, o.previewMarkers)
-    .split('\n')
-    .map((line) => `    ${line}`)
-    .join('\n');
+  const boundSvg = bindSvgMarkup(svg, o.previewMarkers);
+  // Indenting every source line would also indent meaningful newlines inside SVG text runs.
+  const inlineSvg = artworkRoll ? boundSvg : boundSvg.split('\n').map((line) => `    ${line}`).join('\n');
 
   // The countdown (plan P2 "clock ftype"): the chosen layer is the clock DISPLAY
   // (`.{prefix}-clock`, painted by the shared runtime), and the operator's minutes live in a
@@ -235,7 +235,6 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   // carry an ampersand and the holder is markup.
   const credits = creditsIndex(svg);
   const artworkCredits = creditsArtworkFields(svg);
-  const artworkRoll = isArtworkCredits(svg);
   const creditsField = credits === -1 ? null : artworkFields[credits];
   const creditsHolder = artworkRoll
     ? artworkFields.filter((_, i) => artworkCredits.has(i)).map((field) => `\n    <div id="${field.field}" class="${DATA_SOURCE_CLASS}"></div>`).join('')

@@ -1046,7 +1046,7 @@ export default function MapSvgFieldsStep({
   // WHAT THE OPERATOR CAN ACTUALLY TYPE INTO, which is not the same as what is ticked: a layer
   // the vote writes is dropped from the field list by `draftToOptions`, so counting it here would
   // promise fields the graphic does not have.
-  const onCount = draft.svgFields.filter((f) => f.on && !pollDriven.has(f.candidateId)).length;
+  const onCount = draft.svgFields.filter((f) => f.on && !pollDriven.has(f.candidateId) && !creditsLayers.has(f.candidateId)).length;
   // …and the same filter here, for the same reason: a driven layer is not a field, so it cannot
   // be the graphic's one countdown either. Counted, it would grey the choice out on every row
   // that genuinely could be one.
@@ -1112,10 +1112,11 @@ export default function MapSvgFieldsStep({
       ) : (
         <div className="panel-section" data-testid="map-svg-fields">
           <SectionHead
-            title="Editable text"
-            summary={`${onCount} of ${draft.svgFields.length} editable on air`}
+            title={creditsLayers.size ? 'Text' : 'Editable text'}
+            summary={creditsLayers.size ? `${onCount} editable, ${creditsLayers.size} artwork` : `${onCount} of ${draft.svgFields.length} editable on air`}
             testid="map-svg-why-fields"
           >
+            {creditsLayers.size ? <p>Credits scroll as drawn. Edit their text in your design app and import the SVG again.</p> : <>
             <p>
               A ticked layer becomes a field the operator retypes live, in the type you drew.
               Untick one and its words stay part of the artwork.
@@ -1133,6 +1134,7 @@ export default function MapSvgFieldsStep({
               The Text box is live. Type a long value and the preview shows what airs, growing
               from whichever edge Aligned names.
             </p>
+            </>}
           </SectionHead>
           {fieldGroups.map((group) => (
           <div

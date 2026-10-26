@@ -60,9 +60,7 @@ function noacgCreditsRoll() {
   var generation = noacgCreditsGeneration;
   if (typeof gsap === 'undefined') return;
   var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
-  var begin = function () {
-    noacgCreditsStart = null;
-    ready.then(function () {
+  var measure = function () {
     if (generation !== noacgCreditsGeneration || typeof gsap === 'undefined') return;
     var artwork = creditsArtwork();
     if (!artwork) return;
@@ -94,6 +92,14 @@ function noacgCreditsRoll() {
       boxed: false, artwork: true
     };
     noacgCreditsTween = gsap.to(position, { y: endY, duration: duration, ease: 'none', onUpdate: paint });
+  };
+  var begin = function () {
+    // A delayed callback can share the last entrance tick. Wait for the next rendered frame
+    // before reading the matrix, including the final fractional scale of a Pop entrance.
+    requestAnimationFrame(function () {
+      if (generation !== noacgCreditsGeneration) return;
+      noacgCreditsStart = null;
+      ready.then(measure);
     });
   };
   // Read the FINAL animation data at play time. Preset changes may lengthen the entrance after

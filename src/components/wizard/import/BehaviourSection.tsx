@@ -352,7 +352,7 @@ export default function BehaviourSection({
     : scoreDrawn.map((g) => ({ id: g.id, label: g.label, hidden: g.hidden }));
   // A hidden group already declared a switch or a choice is in use, whatever the pickers say.
   const fillTaken = draft.svgExtras.map((e) => e.candidateId);
-  const fillPickers = behaviour ? pickersOf(behaviour, fillText) : [];
+  const fillPickers = behaviour ? pickersOf(behaviour, fillText).filter((pick) => recipeId !== 'credits' || pick.role !== 'box') : [];
   /** Each row's key as the hints and the fill speak it - the key the row's own layer carries. */
   const rowKeyAt = behaviour ? rowKeysOf(behaviour, fillText) : [];
   /** A layer with the box the artwork was measured at, so the count can tell the board's own

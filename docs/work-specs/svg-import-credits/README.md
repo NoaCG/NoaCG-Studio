@@ -111,3 +111,15 @@ example and qualify the examples before publishing a complete SVG import example
   a special layer name. The independent fixture exercises this with Programme text.
 - Repair also shortened the updated orchestrator instructions to the existing 170-line cap;
   the shared-instruction checker passes without changing its limits.
+- Second run `40305565245` at `1f2df9ff7` passed the production build, factory/catalog checks
+  and all 16 individual Illustrator example import/control journeys. The new original-artwork
+  journey and both legacy journeys passed. The stricter universal-motion case found a
+  1.0576-pixel Pop endpoint residue: measurement now waits for the following rendered frame,
+  retaining the same half-pixel assertion. A documentation gallery locator was corrected to
+  target the heading's following list, without reducing its link assertion.
+- Review also reproduced added indentation inside meaningful SVG text newlines. Artwork
+  markup is now emitted without line-prefix indentation; the independent fixture contains
+  preserved newline/spacing, and the real HTML formatter retained all 15 runs exactly.
+- Import summaries now count artwork separately from editable fields, and the unused legacy
+  box no longer creates a Fill slot. The next screenshot capture waits for painted credits;
+  a loading frame is not accepted as documentation evidence.

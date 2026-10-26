@@ -313,6 +313,13 @@ for (const example of examples.filter((entry) => entry.recipe)) {
     if (example.recipe === 'credits') {
       await expect(page.locator('.wz-stage').first()).not.toHaveAttribute('data-doc-pending', '1');
       await expect(page.locator('.wz-stage').first()).toHaveAttribute('data-doc-rev', /\d/);
+      await expect(page.getByTestId('map-svg-why-fields').locator('..')).toContainText('0 editable, 1 artwork');
+      await expect.poll(() => page.frameLocator('.wz-stage iframe').locator('.imported-design-credits').evaluate((el) => {
+        const bounds = el.getBoundingClientRect();
+        const frame = document.body.getBoundingClientRect();
+        const root = document.querySelector('.imported-design')!;
+        return getComputedStyle(el).visibility === 'visible' && Number(getComputedStyle(root).opacity) > 0.5 && bounds.top < frame.bottom && bounds.bottom > frame.top;
+      })).toBe(true);
       await testInfo.attach('Credits import fields', { body: await page.screenshot(), contentType: 'image/png' });
     }
     await intoProduction(page, example.name, `${example.name} qualification`);
