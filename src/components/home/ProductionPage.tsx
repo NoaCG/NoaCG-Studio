@@ -489,6 +489,8 @@ interface PoolMachine {
   stateNames: Record<string, Record<string, string>>;
 }
 
+/** What a published production's sources write carries (control/hostedControl.ts `writePublishedSources`). */
+type PublishedSources = Pick<Show, 'bindings' | 'sources' | 'collections'>;
 type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'>, boolean];
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
@@ -1659,7 +1661,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // newer sources, unless the row has never had any (published before migration 0097); every
   // change after it is, a return to that first value included.
   // Keys sorted: a record read back from the server (jsonb reorders keys) is not a change.
-  const sourcesPlan = hostedSlug ? canonical([bindings ?? {}, show?.sources ?? [], show?.collections ?? []]) : null;
+  const sourcesPlan = hostedSlug ? canonical({ bindings: bindings ?? {}, sources: show?.sources ?? [], collections: show?.collections ?? [] }) : null;
   const sourcesPlanRef = useRef(sourcesPlan);
   sourcesPlanRef.current = sourcesPlan;
   const sourcesWriter = useRef<ReturnType<typeof latestWriter<string>> | null>(null);
@@ -1668,9 +1670,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     let noted = false;
     const writer = latestWriter(
       async (plan: string) => {
-        const [planBindings, planSources, planCollections] = JSON.parse(plan) as [Show['bindings'], Show['sources'], Show['collections']];
-        await writePublishedSources(id, { bindings: planBindings, sources: planSources, collections: planCollections });
-        for (const source of planSources ?? []) sourceStatus.poke(source.id);
+        const planned = JSON.parse(plan) as PublishedSources;
+        await writePublishedSources(id, planned);
+        for (const source of planned.sources ?? []) sourceStatus.poke(source.id);
       },
       {
         setTimer: (run, ms) => setTimeout(run, ms),
@@ -1690,9 +1692,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const first = () => {
       const plan = sourcesPlanRef.current;
       if (!live || !plan) return;
-      const [planBindings, planSources, planCollections] = JSON.parse(plan) as [Show['bindings'], Show['sources'], Show['collections']];
+      const planned = JSON.parse(plan) as PublishedSources;
+      const planSources = planned.sources;
       if (!planSources?.length) return;
-      firstPublishedSources(id, { bindings: planBindings, sources: planSources, collections: planCollections })
+      firstPublishedSources(id, planned)
         .then((wrote) => {
           if (live && wrote) for (const source of planSources) sourceStatus.poke(source.id);
         })

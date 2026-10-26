@@ -186,6 +186,29 @@ async function take(page: Page, label: string) {
   await page.getByTestId('verb-take').click();
 }
 
+/** The repository's file at `path`. */
+const repoFile = (file: string) => fileURLToPath(new URL(`../../${file}`, import.meta.url));
+const readJson = (file: string) => JSON.parse(readFileSync(repoFile(file), 'utf8'));
+/** The election rehearsal source, as its runbook registers it (E7.2b). */
+const REPLAY_SOURCE = 'docs/work-specs/playout-election-package/replay-source.json';
+const ELECTION_GRAPHICS = ['Party totals', 'Count bug', 'Ticker', 'Candidate card'];
+
+/** A fresh account's election package, installed from the shipped file and published: its id. */
+async function installElection(page: Page): Promise<string> {
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+  await page.goto('/app#/home/productions');
+  await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(repoFile('public/packs/election-rehearsal.noacgpack.json'));
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
+  const showId = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
+  await publishProduction(page);
+  await page.keyboard.press('Escape');
+  return showId;
+}
+
 test.describe('live candidates', () => {
   test.afterEach(async ({ page }) => {
     await clearPublishedShows(page).catch(() => {});
@@ -496,18 +519,7 @@ test.describe('live candidates', () => {
 
   test('AC-1 (E7.2a): the election package installs, publishes and airs all four graphics on a browser output', async ({ page, context, request }) => {
     test.setTimeout(120_000);
-    await signIn(page);
-    await page.keyboard.press('Escape');
-    await clearPublishedShows(page);
-    await wipeMyGraphics(page);
-    await page.goto('/app#/home/productions');
-    const pack = fileURLToPath(new URL('../../public/packs/election-rehearsal.noacgpack.json', import.meta.url));
-    await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(pack);
-    await expect(page.getByTestId('production-page')).toBeVisible();
-    await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
-    const showId = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
-    await publishProduction(page);
-    await page.keyboard.press('Escape');
+    const showId = await installElection(page);
     const { data_key: dataKey } = await tree(showId);
     // The starter count, written as a results source writes it: the plain tree, the data key.
     const starter = JSON.parse(readFileSync(fileURLToPath(new URL('../../packs/election-rehearsal/starter/revision-1.json', import.meta.url)), 'utf8'));
@@ -550,20 +562,11 @@ test.describe('live candidates', () => {
       }
       return route.continue();
     });
-    await signIn(page);
-    await page.keyboard.press('Escape');
-    await clearPublishedShows(page);
-    await wipeMyGraphics(page);
-    await page.goto('/app#/home/productions');
-    await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(fileURLToPath(new URL('../../public/packs/election-rehearsal.noacgpack.json', import.meta.url)));
-    await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
-    const showId = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
-    await publishProduction(page);
-    await page.keyboard.press('Escape');
+    const showId = await installElection(page);
     const row = async () => (await admin().from('control_shows').select('bindings, sources, collections').eq('id', showId).single()).data!;
-    expect(Object.keys((await row()).bindings).sort()).toEqual(['Count bug', 'Party totals']);
-    expect([(await row()).sources, (await row()).collections]).toEqual([[], null]);
-    const source = JSON.parse(readFileSync(fileURLToPath(new URL('../../docs/work-specs/playout-election-package/replay-source.json', import.meta.url)), 'utf8'));
+    const published = await row();
+    expect([Object.keys(published.bindings).sort(), published.sources, published.collections]).toEqual([['Count bug', 'Party totals'], [], null]);
+    const source = readJson(REPLAY_SOURCE);
     expect(await page.evaluate(async ({ id, source }) => (await import('/src/model/shows.ts')).connectConnectorSource(id, source, [], null).error, { id: showId, source })).toBeNull();
     await expect.poll(async () => ((await row()).sources ?? []).map((s: { id: string }) => s.id), WIRE).toEqual(['election']);
     expect((await row()).collections).toBeNull();
@@ -579,7 +582,6 @@ test.describe('live candidates', () => {
   test('AC-4 (E7.2b): the replay through the trusted agent drives all four graphics on the published production', async ({ page, context, baseURL }, info) => {
     test.setTimeout(120_000);
     const dir = mkdtempSync(path.join(os.tmpdir(), 'election-replay-'));
-    const repo = (file: string) => fileURLToPath(new URL(`../../${file}`, import.meta.url));
     const tls = makeTestCertificate(path.join(dir, 'replay'));
     const token = makeToken();
     // One step lasts a day: the walk moves the provider's timeline by hand.
@@ -587,20 +589,11 @@ test.describe('live candidates', () => {
     let agent: ReturnType<typeof spawn> | null = null;
     let log = '';
     try {
-      await signIn(page);
-      await page.keyboard.press('Escape');
-      await clearPublishedShows(page);
-      await wipeMyGraphics(page);
-      await page.goto('/app#/home/productions');
-      await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(repo('public/packs/election-rehearsal.noacgpack.json'));
-      await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(6);
-      const showId = await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows().find((s) => s.name === 'Election night rehearsal')!.id);
-      await publishProduction(page);
-      await page.keyboard.press('Escape');
+      const showId = await installElection(page);
 
       // The source, registered as the runbook's file says (the write Connect data makes); the pack's
       // bindings already follow `external.election.*`, so no field is connected by hand.
-      const registration = JSON.parse(readFileSync(repo('docs/work-specs/playout-election-package/replay-source.json'), 'utf8'));
+      const registration = readJson(REPLAY_SOURCE);
       const source = { ...registration, config: { ...registration.config, endpoint: replay.url } };
       const refused = await page.evaluate(async ({ id, source }) => (await import('/src/model/shows.ts')).connectConnectorSource(id, source as never, [], null).error, { id: showId, source });
       expect(refused).toBeNull();
@@ -612,9 +605,9 @@ test.describe('live candidates', () => {
       const { data_key: dataKey } = await tree(showId);
 
       // The agent, as installed (docs/DATA_API.md), with the runbook's configuration.
-      const config = { ...JSON.parse(readFileSync(repo('docs/work-specs/playout-election-package/replay-agent.json'), 'utf8')), endpoint: replay.url };
+      const config = { ...readJson('docs/work-specs/playout-election-package/replay-agent.json'), endpoint: replay.url };
       writeFileSync(path.join(dir, 'agent.json'), JSON.stringify(config));
-      agent = spawn(process.execPath, [repo('scripts/external-data-connector.mjs'), '--config', path.join(dir, 'agent.json'), '--send', `${baseURL}/api/data/source`], {
+      agent = spawn(process.execPath, [repoFile('scripts/external-data-connector.mjs'), '--config', path.join(dir, 'agent.json'), '--send', `${baseURL}/api/data/source`], {
         env: { ...process.env, NOACG_DATA_KEY: dataKey, NOACG_SOURCE_REPLAY: token },
         stdio: ['ignore', 'ignore', 'pipe'],
         windowsHide: true,
@@ -651,7 +644,6 @@ test.describe('live candidates', () => {
       await take(page, 'Aino Example');
       await expect(on('Candidate card', '#f2')).toHaveText('3,500', WIRE);
       await capture('count-01');
-      const takes = await transport(showId);
 
       // Each provider step, timed from the move to the picture.
       const timings: Record<string, number> = {};
@@ -706,14 +698,12 @@ test.describe('live candidates', () => {
       const later = (await updates(showId, 'Candidate card')).slice(corrected.length);
       expect(later.length).toBeLessThanOrEqual(1);
       for (const d of later) expect(d).toEqual(corrected.at(-1));
-      // No provider step took, advanced, reset or cleared anything: the only transport is the Takes.
-      expect(await transport(showId)).toEqual(takes);
-      for (const graphic of ['Party totals', 'Count bug', 'Ticker', 'Candidate card']) {
-        expect((await rows(showId, graphic)).filter((r) => MOVES.has(r.t)).map((r) => r.t), graphic).toEqual(['play']);
-      }
-      // No update row ever carried the collection: outputs receive resolved values only.
-      for (const graphic of ['Party totals', 'Count bug', 'Ticker', 'Candidate card']) {
-        expect(JSON.stringify(await updates(showId, graphic)), graphic).not.toContain('schemaRevision');
+      for (const graphic of ELECTION_GRAPHICS) {
+        const logged = await rows(showId, graphic);
+        // No provider step took, advanced, reset or cleared anything: the only transport is the Take.
+        expect(logged.filter((r) => MOVES.has(r.t)).map((r) => r.t), graphic).toEqual(['play']);
+        // No update row ever carried the collection: outputs receive resolved values only.
+        expect(JSON.stringify(logged.filter((r) => r.t === 'update')), graphic).not.toContain('schemaRevision');
       }
       expect(log).not.toContain(token);
       expect(log).not.toContain(dataKey);

@@ -90,18 +90,26 @@ export function packageTimeline() {
   const text = (doc) => `${JSON.stringify(doc, null, 2)}\n`;
   const first = providerCount('revision-1.json', 1, '2027-02-20T18:14:00Z');
   const second = providerCount('revision-2.json', 2, '2027-02-20T18:31:00Z');
-  const rev3 = structuredClone(second);
-  Object.assign(rev3, { revision: 3, observed_at: '2027-02-20T18:33:00Z' });
-  rev3.candidates.revision = 3;
-  rev3.candidates.items.find((c) => c.district === '02' && c.candidate === 101).votes = 3650;
-  rev3.parties.KOK = { share: '22.3%', votes: 224_100 };
-  const rev4 = structuredClone(rev3);
+  /** The next count: a copy of `previous` at `revision` (the document's and its collection's). */
+  const next = (previous, revision, edit) => {
+    const doc = structuredClone(previous);
+    doc.revision = doc.candidates.revision = revision;
+    edit(doc);
+    return doc;
+  };
+  const rev3 = next(second, 3, (d) => {
+    d.observed_at = '2027-02-20T18:33:00Z';
+    d.candidates.items.find((c) => c.district === '02' && c.candidate === 101).votes = 3650;
+    d.parties.KOK = { share: '22.3%', votes: 224_100 };
+  });
   // Revisions 4 and 5 change the candidates alone (the time of the count included), so nothing a
   // field binds moves: the page hears them only from its own read of the tree.
-  rev4.revision = 4;
-  rev4.candidates = { ...rev4.candidates, revision: 4, items: rev4.candidates.items.filter((c) => !(c.district === PACKAGE_DELETED[0] && c.candidate === PACKAGE_DELETED[1])) };
-  const rev5 = { ...structuredClone(rev4), revision: 5 };
-  rev5.candidates = { ...rev5.candidates, revision: 5, items: [] };
+  const rev4 = next(rev3, 4, (d) => {
+    d.candidates.items = d.candidates.items.filter((c) => !(c.district === PACKAGE_DELETED[0] && c.candidate === PACKAGE_DELETED[1]));
+  });
+  const rev5 = next(rev4, 5, (d) => {
+    d.candidates.items = [];
+  });
   const correction = text(rev3);
   return [
     { name: 'count-01', text: text(first) },

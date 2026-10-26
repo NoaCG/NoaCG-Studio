@@ -543,33 +543,24 @@ function projectCollections(
   }
   const leaves = new Set<string>();
   for (const entry of raw) {
+    // Another source's recipe is never read whole.
+    if (!isObject(entry) || entry.sourceId !== sourceId) continue;
     const read = readCollectionRecipe(entry);
-    if (read.status === 'ok' && read.recipe.sourceId === sourceId) leaves.add(read.recipe.from);
+    if (read.status === 'ok') leaves.add(read.recipe.from);
   }
+  // A leaf equal to, above or below a bound path or another collection's leaf is never written.
   const taken = [...[...bound].map((p) => p.slice(prefix.length)), ...leaves];
-  const nests = (leaf: string) => taken.some((other) => other.startsWith(`${leaf}.`) || leaf.startsWith(`${other}.`));
+  const clashes = (leaf: string) => taken.some((other) => (other !== leaf && (other.startsWith(`${leaf}.`) || leaf.startsWith(`${other}.`))) || bound.has(prefix + leaf));
   for (const leaf of [...leaves].sort()) {
-    if (bound.has(prefix + leaf) || nests(leaf)) continue;
+    if (clashes(leaf)) continue;
     const value = isObject(payload) ? atPath(payload as JsonValue, leaf) : undefined;
     if (value === undefined) {
       out.missing.push(leaf);
       continue;
     }
-    if (!isObject(value)) {
-      out.hold(leaf, 'the collection is not a record');
-      continue;
-    }
-    const revision = value.revision;
-    if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) {
-      out.hold(leaf, 'the collection has no revision');
-      continue;
-    }
-    if (!Array.isArray(value.items)) {
-      out.hold(leaf, 'the collection has no items');
-      continue;
-    }
-    if (value.items.length > MAX_ITEMS) {
-      out.hold(leaf, `the collection has more than ${MAX_ITEMS} items`);
+    const shape = collectionShape(value);
+    if ('reason' in shape) {
+      out.hold(leaf, shape.reason);
       continue;
     }
     const text = JSON.stringify(value);
@@ -729,15 +720,22 @@ function readCollection(recipe: CollectionRecipe, tree: unknown): { revision: nu
     value = parsedText(value);
     if (value === undefined) return hold('the collection is not JSON', null);
   }
-  if (!isObject(value)) return hold('the collection is not a record', null);
+  const shape = collectionShape(value, recipe.schemaRevision);
+  return 'reason' in shape ? hold(shape.reason, shape.revision) : shape;
+}
+
+/** One revision of a collection as a value, or why no page can use it: the page's read and the
+ *  source route's write (which passes no schema revision) judge it with this one function. */
+function collectionShape(value: unknown, schemaRevision?: number): { revision: number; items: unknown[] } | { reason: string; revision: number | null } {
+  if (!isObject(value)) return { reason: 'the collection is not a record', revision: null };
   const revision = value.revision;
-  if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) return hold('the collection has no revision', null);
-  if (value.schemaRevision !== recipe.schemaRevision) {
-    return hold(`the collection is schema revision ${JSON.stringify(value.schemaRevision)}, and its fields were mapped for ${recipe.schemaRevision}`, revision);
+  if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) return { reason: 'the collection has no revision', revision: null };
+  if (schemaRevision !== undefined && value.schemaRevision !== schemaRevision) {
+    return { reason: `the collection is schema revision ${JSON.stringify(value.schemaRevision)}, and its fields were mapped for ${schemaRevision}`, revision };
   }
   const items = value.items;
-  if (!Array.isArray(items)) return hold('the collection has no items', revision);
-  if (items.length > MAX_ITEMS) return hold(`the collection has more than ${MAX_ITEMS} items`, revision);
+  if (!Array.isArray(items)) return { reason: 'the collection has no items', revision };
+  if (items.length > MAX_ITEMS) return { reason: `the collection has more than ${MAX_ITEMS} items`, revision };
   return { revision, items };
 }
 

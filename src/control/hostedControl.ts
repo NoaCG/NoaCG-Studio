@@ -611,10 +611,10 @@ export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCu
   // extra round trip, only on the instances that need it, and only until they are migrated.
   if (error === 'moved') throw new PublishBehind(RACED);
   if (error) {
-    // An instance behind only on 0102 (PGRST204 naming the column) keeps its sources and profile;
-    // any other error retries as before, without the three.
+    // An instance behind only on 0102 (PGRST204 naming `collections`) keeps its sources and
+    // profile; any other error retries as before, without the three.
     const { collections: _new, ...withoutCollections } = published;
-    let retry = error.code === 'PGRST204' ? await writeControlShow(sb, withoutCollections, expected) : error;
+    let retry = error.code === 'PGRST204' && error.message.includes("'collections'") ? await writeControlShow(sb, withoutCollections, expected) : error;
     if (retry && retry !== 'moved') {
       const { profile: _dropped, sources: _unknown, ...withoutProfile } = withoutCollections;
       retry = await writeControlShow(sb, withoutProfile, expected);
@@ -680,21 +680,16 @@ export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCu
 
 /**
  * CONNECT, DISCONNECT AND PAUSE ON A PUBLISHED PRODUCTION (data-sources C2, AC-3): the row's
- * `bindings` and `sources` written at once, so a field connected after publishing moves the
- * output with no new publish, the server's operator door accepts its path, and the tick honours
- * a Pause with the page closed. Only these two columns: the panel and the payload stay as last
+ * `bindings`, `sources` and `collections` written at once, so a field connected after publishing
+ * moves the output with no new publish, the server's operator door accepts its path, and the tick
+ * honours a Pause with the page closed. Only these columns: the panel and the payload stay as last
  * published. Throws on a refusal, or when it matched no row, so the page can say the change has not
  * reached the server and try again.
  */
 export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  const write = (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).select('id');
-  let { data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [], collections: show.collections ?? [] });
-  // PGRST204: an instance that has not run 0102 has no `collections` column, one before 0097 no
-  // `sources` either; what it has still goes.
-  if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] }));
-  if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {} }));
+  const { data, error } = await writeNewestColumns(publishedColumns(show), (columns) => sb.from('control_shows').update(columns).eq('id', showId).select('id'));
   if (error) throw new Error(error.message);
   // Signed out, or no longer this account's row: the write matches nothing and says nothing.
   if ((data ?? []).length === 0) throw new Error('this account cannot change the published production');
@@ -702,27 +697,44 @@ export async function writePublishedSources(showId: string, show: Pick<Show, 'bi
 
 /**
  * A row published before migration 0097 has never had its sources written (NULL), or before 0102
- * its collections: give it this page's, and only while it is still NULL, so it can never replace sources another page wrote in
- * the meantime. Answers whether this write set them; false when the row had them already (or has
- * no such column). Throws when the write itself failed, so the caller can try the same again.
+ * its collections: give it this page's, and only while it is still NULL, so it can never replace
+ * what another page wrote in the meantime. Answers whether this write set the sources; false when
+ * the row had them already (or has no such column). Throws when the write itself failed, so the
+ * caller can try the same again.
  */
 export async function firstPublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Promise<boolean> {
   const sb = await getSupabase();
   if (!sb) return false;
-  const write = (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).is('sources', null).select('id');
-  let { data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [], collections: show.collections ?? [] });
-  // Without 0102 the collections wait for the next publish.
-  if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] }));
-  if (error?.code === 'PGRST204' || error?.code === '42703') return false;
+  const first = (column: string) => (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).is(column, null).select('id');
+  const { data, error } = await writeNewestColumns(publishedColumns(show).slice(0, 2), first('sources'));
+  if (missingColumn(error)) return false;
   if (error) throw new Error(error.message);
   const wrote = (data ?? []).length > 0;
-  // A row published with sources before 0102 has none of its collections: give it this page's, the
-  // same way, only while it has none.
   if (!wrote && (show.collections ?? []).length > 0) {
-    const late = await sb.from('control_shows').update({ collections: show.collections }).eq('id', showId).is('collections', null).select('id');
-    if (late.error && late.error.code !== 'PGRST204' && late.error.code !== '42703') throw new Error(late.error.message);
+    const late = await first('collections')({ collections: show.collections });
+    if (late.error && !missingColumn(late.error)) throw new Error(late.error.message);
   }
   return wrote;
+}
+
+/** What a published production's sources write sends, newest columns first: an instance that has
+ *  not run 0102 has no `collections`, one before 0097 no `sources` either; what it has still goes. */
+const publishedColumns = (show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Record<string, unknown>[] => [
+  { bindings: show.bindings ?? {}, sources: show.sources ?? [], collections: show.collections ?? [] },
+  { bindings: show.bindings ?? {}, sources: show.sources ?? [] },
+  { bindings: show.bindings ?? {} },
+];
+const missingColumn = (error: { code?: string } | null | undefined): boolean => error?.code === 'PGRST204' || error?.code === '42703';
+
+/** Write the first of `tiers` the instance has every column of (PostgREST answers PGRST204 for a
+ *  column it does not know), and answer that write. */
+async function writeNewestColumns<T extends { error: { code?: string; message: string } | null }>(tiers: Record<string, unknown>[], write: (columns: Record<string, unknown>) => PromiseLike<T>): Promise<T> {
+  let answer = await write(tiers[0]);
+  for (const columns of tiers.slice(1)) {
+    if (answer.error?.code !== 'PGRST204') break;
+    answer = await write(columns);
+  }
+  return answer;
 }
 
 /** What `control_source_lease` and `control_source_commit` answer (migration 0097). */
