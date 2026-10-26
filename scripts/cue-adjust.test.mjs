@@ -929,3 +929,62 @@ describe('type and colour (phase 2): the record, the fold, the resolve', () => {
     assert.notEqual(A.measureId('g', 't', 'c', {}, HD, state.styleId), A.measureId('g', 't', 'c', {}, HD));
   });
 });
+
+describe('type and colour in a package (phase 2)', () => {
+  test('the export resolves a style alone, with no box, for the graphic and each cue', () => {
+    const show = {
+      graphics: [{ id: 'g', adjust: { v: 1, vars: { accent: '#ff7a00' }, font: { fontId: 'archivo' } } }],
+      cues: [{ id: 'c1', sourceId: 'g' }, { id: 'c2', sourceId: 'g', adjust: { v: 1, vars: { accent: '' } } }],
+    };
+    const out = X.exportAppearances(show, () => HD, { graphics: {}, cues: {} });
+    assert.equal(out.graphics.g.vars.accent, '#ff7a00');
+    assert.equal(out.graphics.g.frame, undefined);
+    assert.equal(out.cues.c1.vars.accent, '#ff7a00', 'a cue inherits the default');
+    assert.equal(out.cues.c2.vars.accent, undefined, 'a cue as designed carries no accent, so the relay takes the default off');
+    assert.match(out.cues.c2.vars['font-heading'], /Archivo/);
+    assert.equal(X.needsBox(show.graphics[0].adjust), false, 'nothing is measured for a style');
+  });
+
+  test('a style alone bakes one tagged script, ES5', () => {
+    const [bake, ...rest] = R.bakeAppearance({ v: 1, vars: { accent: '#ff7a00' } });
+    assert.equal(rest.length, 0);
+    assert.equal(bake.id, R.APPEARANCE_SCRIPT_ID);
+    assert.doesNotMatch(bake.js, /=>|\blet\b|\bconst\b|`|\?\./);
+  });
+
+  test('the runtime sets the variables on the host and replaces them; a value it cannot set changes nothing', () => {
+    const saved = { Element: globalThis.Element, Range: globalThis.Range, document: globalThis.document };
+    try {
+      const props = new Map();
+      const host = { style: { setProperty: (k, v) => props.set(k, v), removeProperty: (k) => props.delete(k) }, isConnected: true };
+      globalThis.Element = class {};
+      globalThis.Range = class {};
+      globalThis.document = { documentElement: host };
+      const apply = new Function(`${R.APPEARANCE_RUNTIME_JS}\nreturn noacgApplyAppearance;`)();
+      assert.equal(apply({ v: 1, vars: { accent: '#ff7a00', 'font-heading': '"Archivo", Arial, sans-serif' } }), true);
+      assert.deepEqual(Object.fromEntries(props), { '--accent': '#ff7a00', '--font-heading': '"Archivo", Arial, sans-serif' });
+      // Rule 3: a cue's style from the relay replaces the baked one, never stacks on it.
+      apply({ v: 1, vars: { 'text-color': '#fff' } });
+      assert.deepEqual(Object.fromEntries(props), { '--text-color': '#fff' });
+      assert.equal(apply({ v: 1, vars: { accent: 'red; } body { display: none' } }), false);
+      assert.deepEqual(Object.fromEntries(props), { '--text-color': '#fff' }, 'kept what it had');
+      apply({ v: 1 });
+      assert.equal(props.size, 0, 'the identity puts the design back');
+    } finally {
+      Object.assign(globalThis, saved);
+    }
+  });
+
+  test('every face a package\'s appearances name ships in it: bundled by reference, imported with its bytes', () => {
+    const style = St.resolveStyle(eff({ v: 1, font: { fontId: 'oswald' } }, undefined), []);
+    const t = { css: ':root { --font-heading: "Inter", Arial; }', assets: [] };
+    const out = St.withAppearanceFaces(t, style.fonts, []);
+    for (const f of ['oswald.woff2', 'oswald-latin-ext.woff2', 'saira.woff2', 'saira-latin-ext.woff2']) assert.ok(out.css.includes(`fonts/${f}`), f);
+    assert.equal(St.withAppearanceFaces(out, style.fonts, []).css, out.css, 'idempotent');
+    const asset = { path: 'fonts/brand.woff2', data: 'data:font/woff2;base64,AAAA' };
+    const imported = St.withAppearanceFaces(t, [{ family: 'Brand', src: 'fonts/brand.woff2', weight: [100, 900] }], [{ assets: [asset] }]);
+    assert.match(imported.css, /\/\* Imported font[\s\S]*font-family: "Brand";[\s\S]*url\("fonts\/brand\.woff2"\)/);
+    assert.deepEqual(imported.assets, [asset], 'the file travels with the graphic that names it');
+    assert.equal(St.withAppearanceFaces(t, [{ family: 'Gone', src: 'fonts/gone.woff2', weight: [100, 900] }], []), t, 'no bytes anywhere: nothing declared');
+  });
+});
