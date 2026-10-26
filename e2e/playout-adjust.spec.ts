@@ -48,6 +48,22 @@ test.describe('the measurement a settled document answers', () => {
     expect(Math.abs((await measureDesign(page, 'qz05'))!.minText! - 26)).toBeLessThanOrEqual(1);
   });
 
+  test('SVG artwork is measured by what it draws, not by a full-frame artboard around it', async ({ page }) => {
+    const m = await page.evaluate(async () => {
+      const { measureCue } = await import('/src/components/home/measureCue.ts');
+      const { DEFAULT_SETTINGS } = await import('/src/model/types.ts');
+      const html = '<div><svg width="1920" height="1080" viewBox="0 0 1920 1080">' +
+        '<defs><rect id="unused" x="0" y="0" width="1920" height="1080" fill="#000"/></defs>' +
+        '<rect x="0" y="0" width="1920" height="1080" fill="none"/>' +
+        '<rect x="100" y="900" width="400" height="80" fill="#c00"/></svg></div>';
+      return measureCue(
+        { name: 'Art', type: 'blank', resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 50, html, css: 'body{margin:0}', js: '', fields: [], settings: DEFAULT_SETTINGS, assets: [], layers: [] },
+        {},
+      );
+    });
+    expect(m?.paint).toEqual({ x: 100, y: 900, w: 400, h: 80 });
+  });
+
   test('AC-2: lt63 is a band, read off its painted extent; its words sit inside its edges', async ({ page }) => {
     const m = await measureDesign(page, 'lt63');
     const frame = { width: 1920, height: 1080 };

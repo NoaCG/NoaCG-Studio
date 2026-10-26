@@ -1996,10 +1996,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const values = airedValuesOf(cue);
       return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, g.savedAt, cue.id, values, stage), input: { template: templateForSavedGraphic(g, library), values } satisfies MeasureInput }];
     });
+  // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
+  // the identity a cue's box was measured for.
   useEffect(() => {
     if (show) measurer.want(measureJobs(show));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [show, library, stage, measurer]);
+  }, [show, library, stage, measurer, resolved]);
 
   /**
    * EVERY POOL GRAPHIC'S MACHINE, not just the selected one.

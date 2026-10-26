@@ -2345,12 +2345,13 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   await page.clock.runFor(160);
   await page.waitForTimeout(600);
   await page.clock.runFor(150);
-  // The save lands in the store a moment later (model/durableStore.ts): wait until the page is still.
+  // The save lands in the store a moment later (model/durableStore.ts), and later still on a loaded
+  // runner: wait until the page has been still for a second and a half.
   await expect.poll(async () => {
     const at = await pageRenders();
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(1500);
     return (await pageRenders()) - at;
-  }).toBe(0);
+  }, { timeout: 15_000 }).toBe(0);
   await expect(page.getByTestId('adjust-why')).toHaveText('measuring');
   const before = await pageRenders();
   await page.clock.runFor(150);

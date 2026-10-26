@@ -239,7 +239,26 @@ export function measureGraphic(win: Window, id: number): void {
       const el = all[i];
       const tag = el.tagName;
       if (tag === 'SCRIPT' || tag === 'STYLE' || !seen(el)) continue;
-      const picture = tag === 'IMG' || tag === 'VIDEO' || tag === 'CANVAS' || tag === 'svg' || tag === 'SVG';
+      // SVG ARTWORK is measured by what it draws, never by its viewport: an imported design keeps a
+      // full-frame artboard around a small strap, and its <svg> box would read as a band. A shape
+      // counts where it fills or strokes; nothing inside definitions, clips or masks draws itself.
+      if (el.namespaceURI === 'http://www.w3.org/2000/svg') {
+        const name = el.localName.toLowerCase();
+        if (['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'use', 'image'].indexOf(name) < 0) continue;
+        let hidden = false;
+        for (let up = el.parentElement; up && !hidden; up = up.parentElement) {
+          hidden = ['defs', 'clippath', 'mask', 'symbol', 'pattern', 'marker', 'lineargradient', 'radialgradient', 'filter'].indexOf(up.localName.toLowerCase()) >= 0;
+        }
+        const svgStyle = win.getComputedStyle(el);
+        if (hidden || (name !== 'image' && svgStyle.fill === 'none' && svgStyle.stroke === 'none')) continue;
+        const shapeWindow = clipOf(el.parentElement);
+        const shape = shapeWindow && cut(shapeWindow, of(el.getBoundingClientRect()));
+        if (!shape) continue;
+        paint = join(paint, shape);
+        if (name === 'image') info = join(info, shape);
+        continue;
+      }
+      const picture = tag === 'IMG' || tag === 'VIDEO' || tag === 'CANVAS';
       const cs = win.getComputedStyle(el);
       const paints =
         picture ||
