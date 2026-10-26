@@ -3,7 +3,7 @@
 // baked sample, the definition's defaults everywhere else), and each of its cues with the cue's own
 // values when the package carries a controller, then resolves through
 // control/exportAppearance.ts. One hidden frame at a time (./measureCue.ts), each document and set
-// of values once; a fold that needs no box (a nudge alone) is never measured.
+// of values once; a fold that needs no box (a nudge up or down alone) is never measured.
 
 import { adjustedGraphics, exportAppearances, needsBox, type ExportAppearances } from '../../control/exportAppearance';
 import type { Measurement } from '../../control/cueAdjust';
