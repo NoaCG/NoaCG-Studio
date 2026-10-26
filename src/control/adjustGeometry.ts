@@ -92,13 +92,14 @@ export function createMeasurer(
   },
 ) {
   let wanted = new Map<string, MeasureJob>();
-  /** Cues a press waits on: measured before anything else. */
-  const urgent = new Set<string>();
+  /** Jobs a press or Publish waits on: measured before anything else, and kept when the background
+   *  list is replaced (a render re-wanting it must not drop the job a press is waiting for). */
+  const urgent = new Map<string, MeasureJob>();
   const waiters = new Set<(finished: MeasureJob) => void>();
   let running: MeasureJob | null = null;
   let idle: (() => void)[] = [];
   const settleIdle = () => {
-    if (running || [...wanted.values()].some(due)) return;
+    if (running || [...wanted.values(), ...urgent.values()].some(due)) return;
     const waiting = idle;
     idle = [];
     for (const done of waiting) done();
@@ -106,7 +107,7 @@ export function createMeasurer(
   const due = (job: MeasureJob) => part.get().byCue[job.cueId]?.id !== job.id;
   const next = () => {
     if (running || !alive()) return settleIdle();
-    const job = [...wanted.values()].find((j) => urgent.has(j.cueId) && due(j)) ?? [...wanted.values()].find(due);
+    const job = [...urgent.values()].find(due) ?? [...wanted.values()].find(due);
     if (!job) return settleIdle();
     running = job;
     void io
@@ -114,11 +115,12 @@ export function createMeasurer(
       .catch(() => null)
       .then((m) => {
         running = null;
-        if (m && alive() && wanted.get(job.cueId)?.id === job.id) part.set(measured(part.get(), job.cueId, job.graphicId, job.id, m));
+        const asked = urgent.get(job.cueId)?.id === job.id || wanted.get(job.cueId)?.id === job.id;
+        if (m && alive() && asked) part.set(measured(part.get(), job.cueId, job.graphicId, job.id, m));
         // A cue the document could not measure is not asked again for the same identity, unless a
         // press asks for it (`now`).
         if (!m && wanted.get(job.cueId)?.id === job.id) wanted.delete(job.cueId);
-        urgent.delete(job.cueId);
+        if (urgent.get(job.cueId)?.id === job.id) urgent.delete(job.cueId);
         for (const wake of [...waiters]) wake(job);
         next();
       });
@@ -147,8 +149,7 @@ export function createMeasurer(
         };
         const timer = timers.setTimeout(() => wake(null), capMs);
         waiters.add(wake);
-        wanted = new Map([[job.cueId, job], ...[...wanted].filter(([id]) => id !== job.cueId)]);
-        urgent.add(job.cueId);
+        urgent.set(job.cueId, job);
         next();
       }),
     /** Answers once nothing is queued or running, or after `capMs`, whichever is first. */
@@ -196,7 +197,62 @@ export function pressWaitsForBox(state: Pick<CueAdjustState, 'eff' | 'fresh'> | 
   return !!state && !state.fresh && (!!state.eff.place || (state.eff.scale ?? 1) !== 1);
 }
 
+/** How long a Take or Update waits for an Adjust press still being written. */
+export const PRESS_WRITE_CAP_MS = 1_000;
+/** How long a Take or Update waits for a measurement of the values it airs. */
+export const PRESS_MEASURE_CAP_MS = 2_000;
+
+/** Adjust writes still in the history's queue: a press waits for them (`pressAppearance`). */
+export function pendingWrites() {
+  let pending = 0;
+  return {
+    hold: (write: Promise<unknown>) => {
+      pending += 1;
+      void write.finally(() => {
+        pending -= 1;
+      });
+    },
+    pending: () => pending,
+  };
+}
+
+/**
+ * THE PLACE AND SIZE A TAKE OR UPDATE CARRIES, read after the press's flush. An Adjust press still
+ * being written goes first (capped), and the record is then read from storage, not from a render:
+ * ← then Take airs the ←. A cue whose preset or size has no measurement of the values it airs is
+ * then measured first (capped, `pressWaitsForBox`). A production nobody adjusts answers at once,
+ * without a promise.
+ */
+export function pressAppearance<R>(
+  io: {
+    pendingWrites: () => number;
+    /** Answers once the queued writes have landed. */
+    settleWrites: () => Promise<unknown>;
+    /** The newest record the page rendered, and the stored one (read after a wait). */
+    rendered: () => R | null;
+    stored: () => R | null;
+    stateOf: (record: R | null) => CueAdjustState | null;
+    jobOf: (record: R) => MeasureJob | undefined;
+    now: (job: MeasureJob, capMs: number) => Promise<void>;
+    setTimeout: (run: () => void, ms: number) => unknown;
+  },
+  caps: { writeMs: number; measureMs: number } = { writeMs: PRESS_WRITE_CAP_MS, measureMs: PRESS_MEASURE_CAP_MS },
+): AppliedAppearance | undefined | Promise<AppliedAppearance | undefined> {
+  const resolveFor = (record: R | null) => {
+    const state = io.stateOf(record);
+    if (!state || !pressWaitsForBox(state) || !record) return state?.send;
+    const job = io.jobOf(record);
+    return job ? io.now(job, caps.measureMs).then(() => io.stateOf(record)?.send) : state.send;
+  };
+  if (io.pendingWrites() === 0) return resolveFor(io.rendered());
+  return Promise.race([io.settleWrites(), new Promise<void>((resolve) => io.setTimeout(resolve, caps.writeMs))]).then(() =>
+    resolveFor(io.stored() ?? io.rendered()),
+  );
+}
+
 export function cueAdjustState(
+  /** `savedAt`: when the design it resolves to was last edited (model/library.ts `designEditedAt`),
+   *  part of the identity a measurement is for. */
   graphic: { id: string; savedAt: string; adjust?: unknown },
   cue: { id: string; adjust?: unknown },
   frameSize: Size,

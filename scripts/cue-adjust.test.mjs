@@ -393,6 +393,57 @@ describe('measurements: identified and qualified', () => {
     assert.equal(G.pressWaitsForBox({ eff: eff({ v: 1, scale: 0.95 }, undefined), fresh: false }), true, 'a size resolves about the box too');
   });
 
+  test('a press job survives a render that re-wants the background list', async () => {
+    const part = storePart(G.NO_GEOMETRY);
+    const answers = new Map();
+    const measurer = G.createMeasurer(part, { measure: (input) => new Promise((resolve) => answers.set(input, () => resolve(strap()))) });
+    measurer.want([{ cueId: 'c', graphicId: 'g', id: 'page', input: 'page' }]);
+    // Publish asks for the refreshed design; a render then wants the page's own list again.
+    const publishing = measurer.now({ cueId: 'c', graphicId: 'g', id: 'fresh', input: 'fresh' }, 1000);
+    measurer.want([{ cueId: 'c', graphicId: 'g', id: 'page', input: 'page' }]);
+    answers.get('page')();
+    await new Promise((r) => setTimeout(r, 0));
+    assert.ok(answers.has('fresh'), 'the press job is still measured');
+    answers.get('fresh')();
+    await publishing;
+    assert.equal(part.get().byCue.c.id, 'fresh', 'and its answer is kept');
+  });
+
+  test('a press: at once when nothing waits, after a queued Adjust write (capped), then after a measurement', async () => {
+    const look = (dx) => ({ v: 1, frame: { dx, dy: 0, s: 1, ox: 0, oy: 0 } });
+    const state = (send, extra = {}) => ({ eff: eff({ v: 1, x: 4 }, undefined), fresh: true, send, ...extra });
+    const io = (over) => ({
+      pendingWrites: () => 0,
+      settleWrites: () => Promise.resolve(),
+      rendered: () => 'rendered',
+      stored: () => 'stored',
+      stateOf: (record) => state(look(record === 'stored' ? 5 : 4)),
+      jobOf: () => undefined,
+      now: () => Promise.resolve(),
+      setTimeout: (run, ms) => setTimeout(run, ms),
+      ...over,
+    });
+    const caps = { writeMs: 30, measureMs: 30 };
+    assert.deepEqual(G.pressAppearance(io({}), caps), look(4), 'nothing queued: the rendered record, with no promise');
+    assert.equal(G.pressAppearance(io({ stateOf: () => null }), caps), undefined, 'a production nobody adjusts');
+    let settled = false;
+    const afterWrite = G.pressAppearance(io({ pendingWrites: () => 1, settleWrites: () => new Promise((r) => setTimeout(() => ((settled = true), r()), 5)) }), caps);
+    assert.ok(afterWrite instanceof Promise);
+    assert.deepEqual(await afterWrite, look(5), 'a queued write: the stored record');
+    assert.equal(settled, true, 'read after the write landed');
+    const t = Date.now();
+    assert.deepEqual(await G.pressAppearance(io({ pendingWrites: () => 1, settleWrites: () => new Promise(() => {}) }), caps), look(5), 'a write that never lands holds it only so long');
+    assert.ok(Date.now() - t < 1000);
+    // A preset with a box for other values waits for the measurement, then reads again.
+    let measuredNow = false;
+    const placed = (fresh) => ({ eff: eff({ v: 1, place: 'br' }, undefined), fresh, send: look(fresh ? 9 : 1) });
+    const waited = await G.pressAppearance(
+      io({ stateOf: () => placed(measuredNow), jobOf: () => ({ cueId: 'c', graphicId: 'g', id: 'x', input: 1 }), now: async () => void (measuredNow = true) }),
+      caps,
+    );
+    assert.deepEqual(waited, look(9));
+  });
+
   test('Publish waits for the measurer only so long', async () => {
     const part = storePart(G.NO_GEOMETRY);
     const measurer = G.createMeasurer(part, { measure: () => new Promise(() => {}) });

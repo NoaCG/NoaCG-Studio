@@ -117,10 +117,10 @@ import SourcesLine, { ownSheetReader, ownSheetReaders } from './SourcesLine';
 import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
-import { measureId, withAnchor, type AppliedAppearance, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
-import { createMeasurer, cueAdjustState, measured, placeWaiting, pressWaitsForBox, type MeasureJob } from '../../control/adjustGeometry';
+import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { createMeasurer, cueAdjustState, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { measureCue } from './measureCue';
 import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
 import type { AdjustPatch } from '../../model/adjust';
@@ -443,10 +443,6 @@ const NO_LOOKS: AppliedLooks = {};
 const PLACE_UNSENT = '@place';
 /** How long Publish waits for the adjusted cues to be measured. */
 const PUBLISH_MEASURE_CAP_MS = 8_000;
-/** How long a Take waits for the box of a placed cue nothing has measured yet. */
-const TAKE_MEASURE_CAP_MS = 2_000;
-/** How long a Take waits for an Adjust press still being written. */
-const ADJUST_WRITE_CAP_MS = 1_000;
 const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
 /** What the background measurer composes for one cue. */
 interface MeasureInput {
@@ -1973,7 +1969,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [adjustOpen, setAdjustOpen] = useState(false);
   /** The cue whose "Only this cue" is on before it has a record of its own. */
   const [onlyThisCue, setOnlyThisCue] = useState<string | null>(null);
-  const frameOf = (g: SavedGraphic) => templateForSavedGraphic(g, library).resolution;
+  const frameOf = (g: SavedGraphic, lib = library) => templateForSavedGraphic(g, lib).resolution;
+  /** A graphic as a measurement identity sees it: `savedAt` is when the design it resolves to was
+   *  last edited, so a box measured of an older design is never taken for a newer one's. */
+  const designed = (g: SavedGraphic, lib = library) => ({ ...g, savedAt: designEditedAt(g, lib) });
   /** The values a Take of the cue settles and airs, which name its measurement. */
   const airedValuesOf = (cue: ShowCue): Record<string, string> => JSON.parse(settleOf(cue, cueDraft.view(cue).values)) as Record<string, string>;
   /** The newest record this page rendered, read at the moment of a press after its wait (a Take's
@@ -1981,30 +1980,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const latestShow = useRef(show);
   latestShow.current = show;
   /** Adjust writes still in the history's queue: a Take waits for them (`appearanceOf`). */
-  const adjustWrites = useRef(0);
-  const writeAdjust = (mutation: () => { shows: Show[]; error: string | null }, label: string) => {
-    adjustWrites.current += 1;
-    void history.write(mutation, label).finally(() => {
-      adjustWrites.current -= 1;
-    });
-  };
-  const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null) => {
+  const adjustWrites = useMemo(() => pendingWrites(), []);
+  const writeAdjust = (mutation: () => { shows: Show[]; error: string | null }, label: string) => adjustWrites.hold(history.write(mutation, label));
+  const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library) => {
     const g = record?.graphics.find((x) => x.id === cue.sourceId);
     if (!g || cue.source === 'playout') return null;
     const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
-    return cueAdjustState(g, cue, frameOf(g), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere);
+    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere);
   };
   /** One document at a time measures the adjusted cues PREVIEW has not shown (components/home/measureCue.ts). */
   const measurer = useMemo(
     () => createMeasurer(session.geometry, { measure: (input) => measureCue((input as MeasureInput).template, (input as MeasureInput).values) }, session.alive),
     [session],
   );
-  const measureJobs = (record: Show): MeasureJob[] =>
+  const measureJobs = (record: Show, lib = library): MeasureJob[] =>
     (record.cues ?? []).flatMap((cue) => {
       const g = record.graphics.find((x) => x.id === cue.sourceId);
       if (!g || cue.source === 'playout' || (g.adjust === undefined && cue.adjust === undefined)) return [];
       const values = airedValuesOf(cue);
-      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, g.savedAt, cue.id, values, stage), input: { template: templateForSavedGraphic(g, library), values } satisfies MeasureInput }];
+      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage), input: { template: templateForSavedGraphic(g, lib), values } satisfies MeasureInput }];
     });
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
   // the identity a cue's box was measured for.
@@ -2319,13 +2313,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
       hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, casparOn, accountCaspar, publishedReaders,
       setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, prepareFlow,
-      // Each adjusted cue measured for the copy being published, then resolved (capped: a cue the
+      // Each adjusted cue measured for the copy being published, from the designs Publish just
+      // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
       // measurer has not answered for publishes its last placement).
       appearanceFor: async (latest) => {
         if (!latest.graphics.some((g) => g.adjust !== undefined) && !(latest.cues ?? []).some((c) => c.adjust !== undefined)) return undefined;
-        measurer.want(measureJobs(latest));
-        await measurer.drain(PUBLISH_MEASURE_CAP_MS);
-        return (cue) => adjustStateOf(cue, latest)?.send;
+        const lib = loadGraphics();
+        await Promise.all(measureJobs(latest, lib).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
+        return (cue) => adjustStateOf(cue, latest, lib)?.send;
       },
       // REHEARSAL ENDS AT THE FIRST PUBLISH: the live map and PROGRAM stay this page's.
       onFirstPublish: (rehearsed) => {
@@ -2691,24 +2686,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphicOf: cueGraphicName,
     cueView,
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
-    // Read after the wait (this object is the render's): the place and size a Take or Update carries.
-    // A cue whose preset or size has no measurement of its values as they are now (never measured,
-    // or a name typed just before the press) is measured first, capped, so the Take airs its
-    // placement for the box it shows rather than for an older one.
-    // An Adjust press still being written goes first (capped), and the record is then read from the
-    // store, not from a render: ← then Take airs the ←. A production nobody adjusts answers at once.
+    // Read after the wait (this object is the render's): the place and size a Take or Update
+    // carries, decided in control/adjustGeometry.ts `pressAppearance`.
     appearanceOf: (taken) => {
-      const resolveFor = (record: Show | null): AppliedAppearance | undefined | Promise<AppliedAppearance | undefined> => {
-        const cue = record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
-        const state = adjustStateOf(cue, record);
-        if (!state || !pressWaitsForBox(state) || !record) return state?.send;
-        const job = measureJobs(record).find((j) => j.cueId === cue.id);
-        return job ? measurer.now(job, TAKE_MEASURE_CAP_MS).then(() => adjustStateOf(cue, record)?.send) : state.send;
-      };
-      if (adjustWrites.current === 0) return resolveFor(latestShow.current ?? null);
-      return Promise.race([history.settle(), new Promise((resolve) => setTimeout(resolve, ADJUST_WRITE_CAP_MS))]).then(() =>
-        resolveFor(loadShows().find((s) => s.id === id) ?? latestShow.current ?? null),
-      );
+      const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
+      return pressAppearance({
+        pendingWrites: adjustWrites.pending,
+        settleWrites: () => history.settle(),
+        rendered: () => latestShow.current ?? null,
+        stored: () => loadShows().find((s) => s.id === id) ?? null,
+        stateOf: (record) => adjustStateOf(cueIn(record), record),
+        jobOf: (record) => measureJobs(record).find((j) => j.cueId === taken.id),
+        now: measurer.now,
+        setTimeout: (run, ms) => setTimeout(run, ms),
+      });
     },
     flush: async () => {
       await flushDraft(); await history.closeGroup();
@@ -3475,7 +3466,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             if (!previewCue || !g || (!adjustOpen && g.adjust === undefined && previewCue.adjust === undefined)) return null;
             const cueId = previewCue.id;
             return {
-              keyOf: (data: string) => measureId(g.id, g.savedAt, cueId, JSON.parse(data) as Record<string, string>, stage),
+              keyOf: (data: string) => measureId(g.id, designEditedAt(g, library), cueId, JSON.parse(data) as Record<string, string>, stage),
               onMeasured: (key: string, m: Measurement) => session.geometry.set((part) => measured(part, cueId, g.id, key, m)),
             };
           })()}
