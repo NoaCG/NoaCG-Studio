@@ -36,7 +36,7 @@ import type {
 } from '../../../model/wizard';
 import { paletteById } from '../../../model/wizard';
 import type { EasingId } from '../../../model/easings';
-import { clampFontWeight, ensureFontFace, fontByStack, importedFontFamilies, type CustomFont } from '../../../model/fonts';
+import { ensureFontFace, fontByStack, type CustomFont } from '../../../model/fonts';
 import type { ProjectLegibility } from '../../../model/designRules';
 import { draftFormatSelection } from './format';
 import { brandMarkFor, withUniversalMotion } from './template';
@@ -320,13 +320,6 @@ export function buildDraftTemplate(
       // export references a font file nothing wrote and `font-display: swap` hides it until
       // playout (model/fonts.ts ensureFontFace).
       css = ensureFontFace(css, fontByStack(value), `--${name} points at this face.`);
-    }
-    // A heading weight kept from an earlier typeface is clamped to what this one can draw.
-    const heading = getCssVariable(css, 'font-heading');
-    const weight = getCssVariable(css, 'display-weight');
-    if (heading !== null && weight !== null) {
-      const clamped = clampFontWeight(weight, heading, importedFontFamilies(css));
-      if (clamped !== weight) css = setCssVariable(css, 'display-weight', clamped);
     }
     template = { ...template, css };
   }

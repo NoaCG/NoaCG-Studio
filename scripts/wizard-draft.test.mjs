@@ -301,7 +301,7 @@ test('buildDraftTemplate: the Finish name, the font stack, declared overrides on
   }
 });
 
-test('buildDraftTemplate: the heading weight is one the chosen face really draws', async () => {
+test('buildDraftTemplate: a heading weight on a single-weight face is drawn as the file is', async () => {
   const scripts = await Promise.all([
     browserScript(src('components/wizard/draft.ts'), 'NOACG_DRAFT'),
     browserScript(src('templates/catalog.ts'), 'NOACG_CATALOG'),
@@ -316,16 +316,15 @@ test('buildDraftTemplate: the heading weight is one the chosen face really draws
       // lt43: a sport-family strap (heading weight 800) whose default face is Bebas Neue, one static weight.
       const variant = window.NOACG_CATALOG.variantById('lt43');
       const picked = mergeDraft(initialDraft(), { category: variant.category, variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) });
-      const weightOf = (patch) => cssVar(buildDraftTemplate(variant, mergeDraft(picked, patch)).css, 'display-weight');
+      const css = (patch) => buildDraftTemplate(variant, mergeDraft(picked, patch)).css;
+      const bebas = css({ cssVarOverrides: { 'display-weight': '900' } });
       return {
-        bebas: weightOf({}),
-        bebasAsked900: weightOf({ cssVarOverrides: { 'display-weight': '900' } }),
-        archivoAsked900: weightOf({ fontId: 'archivo', cssVarOverrides: { 'display-weight': '900' } }),
+        weight: cssVar(bebas, 'display-weight'),
+        face: /fonts\/bebas-neue\.woff2[^}]*font-weight: ([^;]+);/.exec(bebas)?.[1] ?? null,
       };
     });
-    assert.equal(seen.bebas, '400', 'the family weight is clamped to Bebas Neue\'s one weight');
-    assert.equal(seen.bebasAsked900, '400', 'an override the face cannot draw is clamped too');
-    assert.equal(seen.archivoAsked900, '900', 'a weight the face has is kept');
+    assert.equal(seen.weight, '900', 'the override is kept: it weights the design\'s other faces too');
+    assert.equal(seen.face, '100 900', 'and Bebas Neue declares every weight, so 900 draws the file, never a smear');
   } finally {
     await browser.close();
   }

@@ -5,8 +5,9 @@
 // "Typography reliability" item 2). Bebas Neue and Anton are one static weight and an imported face
 // is one file that declares none, so any weight of 600 or more on them was a bold the browser
 // invented by smearing the outlines. Their `@font-face` now declares 100-900, so every request
-// draws the file as it is; the choices offered follow `fontWeights()`, and the build and the
-// wizard write the heading weight clamped to a real one (`clampFontWeight()`).
+// draws the file as it is, and the choices offered follow `fontWeights()`. The heading weight token
+// itself is never rewritten: it also weights the numbers a sibling face draws (Saira under Oswald
+// or Anton reaches 900), so lowering it to the heading face's maximum would lighten a scoreline.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -24,7 +25,7 @@ async function load(entry) {
 }
 
 const fonts = await load(path.join(projectRoot, 'src/model/fonts.ts'));
-const { fontWeights, clampFontWeight, importedFontFamilies, customFontFaceCss, fontById, fontStack, fontFaceCss, labelFontFaceCss, supportingFontFaceCss } = fonts;
+const { fontWeights, knownFace, importedFontFamilies, customFontFaceCss, fontById, fontStack, fontFaceCss, labelFontFaceCss, supportingFontFaceCss } = fonts;
 const { applyLookToTemplate } = await load(path.join(projectRoot, 'src/model/packets.ts'));
 const { getCssVariable } = await load(path.join(projectRoot, 'src/model/cssVars.ts'));
 const { rootVarsCss } = await load(path.join(projectRoot, 'src/templates/shared/base.ts'));
@@ -42,14 +43,10 @@ test('the weights offered are the face\'s own: single-weight and imported faces 
   assert.deepEqual(values('"Brand Sans", Arial, sans-serif'), [400, 500, 600, 700, 800], 'a family the template does not ship is not narrowed');
 });
 
-test('a weight is clamped to the nearest real one, and anything else is left alone', () => {
-  assert.equal(clampFontWeight('700', bebas), '400');
-  assert.equal(clampFontWeight('bold', bebas), '400');
-  assert.equal(clampFontWeight('800', '"Brand Sans", Arial', ['Brand Sans']), '400');
-  assert.equal(clampFontWeight('600', fontStack(fontById('inter'))), '600', 'a real weight stays');
-  assert.equal(clampFontWeight('900', fontStack(fontById('inter'))), '800', 'Inter stops at 800');
-  assert.equal(clampFontWeight('var(--w)', bebas), 'var(--w)');
-  assert.equal(clampFontWeight('900', '"Futura", Arial'), '900', 'a family the app does not ship is never narrowed');
+test('a face the app knows is bundled or imported; any other family is left alone', () => {
+  assert.equal(knownFace(bebas), true);
+  assert.equal(knownFace('"Brand Sans", Arial', ['Brand Sans']), true);
+  assert.equal(knownFace('"Futura", Arial'), false);
 });
 
 test('a single-weight face and an imported face declare 100-900, so no request is a synthesised bold', () => {
@@ -75,12 +72,11 @@ const built = (fontId, customFont) => {
   return rootVarsCss(o, stack, 1, { tokens: FAMILY_TOKENS.sport, consumerCss: '.name { font-weight: var(--display-weight); }' });
 };
 
-test('the build emits a weight the chosen face has: the sport family on Bebas Neue asks for Regular', () => {
+test('the build keeps the family\'s heading weight: it weights the sibling numbers too', () => {
   assert.equal(FAMILY_TOKENS.sport.displayWeight, '800', 'the case below assumes the sport family sets a bold');
-  assert.equal(getCssVariable(built('bebas-neue'), 'display-weight'), '400', 'an 800 would be a synthesised bold on Bebas Neue');
-  assert.equal(getCssVariable(built('anton'), 'display-weight'), '400');
-  assert.equal(getCssVariable(built('archivo'), 'display-weight'), '800', 'on a face with a bold, the family\'s weight stays');
-  assert.equal(getCssVariable(built('archivo', custom), 'display-weight'), '400', 'an imported face draws its file as it is');
+  // Oswald stops at 700, but a sport scoreline's numbers are Saira, read at var(--display-weight).
+  assert.equal(getCssVariable(built('oswald'), 'display-weight'), '800');
+  assert.equal(getCssVariable(built('anton'), 'display-weight'), '800', 'Anton draws its one weight; its Saira numbers keep 800');
 });
 
 test('a look that swaps to a single-weight face keeps the stored weight, and the face cannot smear it', () => {

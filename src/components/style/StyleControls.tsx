@@ -219,6 +219,9 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
     const heading = byName.get('font-heading');
     const real = heading && knownFace(heading, importedFonts) ? new Set(fontWeights(heading, importedFonts).map((w) => String(w.value))) : null;
     const weightChoices = real ? WEIGHT_CHOICES.filter((w) => real.has(w)) : WEIGHT_CHOICES;
+    // A face with one real weight leaves nothing to choose: the row is hidden, never one greyed
+    // button (the wizard's rule, a control is offered only where it can change the graphic).
+    if (weightChoices.length <= 1) return null;
     return (
       <div className="field-row" key={name} data-testid={`style-var-${name}`}>
         <div className="field-meta">
