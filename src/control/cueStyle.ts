@@ -12,9 +12,13 @@
 
 import { readAdjust, type AdjustPatch, type FontRef } from '../model/adjust.ts';
 import { cssPaintsWith } from '../model/cssVars.ts';
+import type { AssetFile } from '../model/types.ts';
 import {
   FONTS,
   LATIN_EXT_RANGE,
+  customFontFaceCss,
+  ensureFontFace,
+  fontFormatForExt,
   fontStack,
   fontWeights,
   latinExtFile,
@@ -54,6 +58,37 @@ export function assetDataIn(pool: readonly { assets: readonly { path: string; da
     }
     return null;
   };
+}
+
+/**
+ * EVERY FACE A PACKAGE'S APPEARANCES NAME SHIPS IN IT (the font closure, spec "Capability matrix"):
+ * the graphic's default and each of its cues may name a face its own CSS never declares, and a
+ * package has no asset road but its own files. So the face goes into the template's CSS, a bundled
+ * one through `ensureFontFace` (both files, the export copies or inlines them as it does any
+ * `fonts/` reference) and an imported one as its own `@font-face` with its bytes taken from the
+ * production's copy of the file. Declared here once, the runtime then only sets the variables.
+ */
+export function withAppearanceFaces<T extends { css: string; assets: AssetFile[] }>(
+  template: T,
+  fonts: readonly FontDeclaration[],
+  pool: readonly { assets: readonly AssetFile[] }[],
+): T {
+  let css = template.css;
+  let assets = template.assets;
+  for (const f of fonts) {
+    const bundled = FONTS.find((b) => f.src === `fonts/${b.file}` || f.src === `fonts/${latinExtFile(b)}`);
+    if (bundled) {
+      css = ensureFontFace(css, bundled, 'A production adjustment sets this graphic in this face, so its files ship with it.');
+      continue;
+    }
+    if (css.includes(f.src)) continue;
+    const asset = pool.flatMap((t) => t.assets).find((a) => a.path === f.src);
+    if (!asset) continue;
+    const ext = f.src.split('.').pop() ?? 'woff2';
+    css = `${customFontFaceCss({ family: f.family, format: fontFormatForExt(ext), asset })}\n\n${css}`;
+    if (!assets.some((a) => a.path === f.src)) assets = [...assets, asset];
+  }
+  return css === template.css && assets === template.assets ? template : { ...template, css, assets };
 }
 
 /** The colour roles the Colour row offers, in its order. */
