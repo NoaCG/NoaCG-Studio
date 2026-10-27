@@ -61,9 +61,33 @@ export function rememberAired(air: AirPart, items: readonly ControlSendItem[]): 
   const was = air.looks ?? {};
   const looks = items.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), was);
   const typedWas = air.typedAired ?? {};
-  const typedAired = items.reduce<Record<string, TypedValues>>((next, item) => typedAfter(next, item.graphic, item.msg), typedWas);
-  if (aired === air.aired && looks === was && typedAired === typedWas) return air;
-  return { ...air, aired, ...(looks === was ? {} : { looks }), ...(typedAired === typedWas ? {} : { typedAired }) };
+  const stepsWas = air.typedSteps ?? {};
+  const { typedAired, typedSteps } = items.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), { typedAired: typedWas, typedSteps: stepsWas });
+  if (aired === air.aired && looks === was && typedAired === typedWas && typedSteps === stepsWas) return air;
+  return {
+    ...air,
+    aired,
+    ...(looks === was ? {} : { looks }),
+    ...(typedAired === typedWas ? {} : { typedAired }),
+    ...(typedSteps === stepsWas ? {} : { typedSteps }),
+  };
+}
+
+type TypedAir = { typedAired: Record<string, TypedValues>; typedSteps: Record<string, readonly ControlSendItem['msg'][]> };
+
+/** One command's mark on a graphic's typed air: its envelope (`typedAfter`), and the commands it
+ *  took since, which a new envelope starts again and the envelope's end drops. A data road's
+ *  update moves no step. */
+function typedStepAfter(prev: TypedAir, graphic: string, msg: ControlSendItem['msg']): TypedAir {
+  const typedAired = typedAfter(prev.typedAired, graphic, msg);
+  const steps = prev.typedSteps;
+  if (!(graphic in typedAired)) {
+    if (!(graphic in steps)) return typedAired === prev.typedAired ? prev : { typedAired, typedSteps: steps };
+    const { [graphic]: _ended, ...rest } = steps;
+    return { typedAired, typedSteps: rest };
+  }
+  if (msg.t === 'update') return 'typed' in msg ? { typedAired, typedSteps: { ...steps, [graphic]: [] } } : { typedAired, typedSteps: steps };
+  return { typedAired, typedSteps: { ...steps, [graphic]: [...(steps[graphic] ?? []), msg] } };
 }
 
 /** The resolved bound values the page's own dispatch sends (./productionDataSession.ts), without
@@ -278,8 +302,9 @@ export function seedFromResolve(
   looks = replay.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), looks);
   // The envelopes the rows leave on air (E1.2a): a graphic airing typed data never reports, so its
   // rows are its only word. Only a live layer keeps one.
-  const folded = replay.reduce<Record<string, TypedValues>>((next, item) => typedAfter(next, item.graphic, item.msg), air.typedAired ?? {});
-  const typedAired = Object.fromEntries(Object.entries(folded).filter(([graphic]) => resolved.liveCue[graphic]));
+  const folded = replay.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), { typedAired: air.typedAired ?? {}, typedSteps: air.typedSteps ?? {} });
+  const typedAired = Object.fromEntries(Object.entries(folded.typedAired).filter(([graphic]) => resolved.liveCue[graphic]));
+  const typedSteps = Object.fromEntries(Object.entries(folded.typedSteps).filter(([graphic]) => graphic in typedAired));
   return {
     ...moveLiveCue(air, resolved.liveCue),
     aired: { ...air.aired, ...seed },
@@ -287,6 +312,7 @@ export function seedFromResolve(
     clocks,
     speaking,
     typedAired,
+    typedSteps,
     bootReplay: replay,
     bootLive: resolved.liveCue,
   };
@@ -337,14 +363,11 @@ export function restoreItems(
       items.push({ graphic, msg: { t: 'update', data: {}, typed, ...(look ? { appearance: look } : {}) } });
       if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
       else {
-        // No pose to snap to (a typed graphic never reports): the boot's rows after its envelope
-        // carry its entrance and every step since, so PROGRAM stands where air does.
-        const mine = (air.bootReplay ?? []).filter((item) => item.graphic === graphic);
-        let from = mine.length - 1;
-        while (from >= 0 && !(mine[from].msg.t === 'update' && 'typed' in mine[from].msg)) from -= 1;
-        const steps = from < 0 ? [] : mine.slice(from + 1).filter((item) => item.msg.t !== 'update');
-        if (!steps.some((item) => item.msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });
-        items.push(...steps);
+        // No pose to snap to (a typed graphic never reports): the commands it took since its
+        // envelope carry its entrance and every step since, so PROGRAM stands where air does.
+        const steps = air.typedSteps?.[graphic] ?? [];
+        if (!steps.some((msg) => msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });
+        items.push(...steps.map((msg) => ({ graphic, msg })));
       }
       all.push(...items);
       continue;

@@ -155,6 +155,16 @@ describe('E1.2a: a field a foreign OGraf manifest declares takes the value as th
     assert.deepEqual(answer.unfit.sort(), ['home.live', 'home.score']);
   });
 
+  test('0104 refusing a typed value where nothing binds it is not retried, and never read as an old database', async () => {
+    reset();
+    db.rpc.control_source_context_by_key = typedContext;
+    db.rpc.control_source_report_by_key = () => ({ raise: 'not a source report: a typed value at a path nothing binds' });
+    const res = await post({ v: 1, op: 'report', sourceId: 'e1', claim: 'agent:abc', acquisition });
+    assert.equal(res.status, 400);
+    assert.equal(db.calls.filter((c) => c.rpc === 'control_source_report_by_key').length, 1);
+    assert.doesNotMatch(await res.text(), /server update/);
+  });
+
   test('a report with no typed value is sent once, as before; any other refusal is not retried', async () => {
     reset();
     db.rpc.control_source_report_by_key = () => ({ raise: 'not a source report' });

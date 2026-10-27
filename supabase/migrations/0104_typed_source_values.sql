@@ -203,11 +203,12 @@ begin
 
   v_snapshot := coalesce(v_read.snapshot, '{}'::jsonb);
   for v_path, v_value in select w.key, w.value from jsonb_each(v_in) w loop
+    if not starts_with(v_path, 'external.' || p_source || '.') then raise exception 'not a source report'; end if;
     -- 0104: a bound path takes a typed value, judged by 0088's rules below (a record or a null is
     -- skipped there, never written); a collection leaf, and anything that is neither, takes text.
-    if not starts_with(v_path, 'external.' || p_source || '.')
-       or (jsonb_typeof(v_value) <> 'string' and not v_path = any(v_bound)) then
-      raise exception 'not a source report';
+    -- Its own words, so the route can tell this from a database before 0104, which refuses any.
+    if jsonb_typeof(v_value) <> 'string' and not v_path = any(v_bound) then
+      raise exception 'not a source report: a typed value at a path nothing binds';
     end if;
     -- What this source last wrote here: no write, so an operator's override holds.
     if v_snapshot->v_path = v_value then continue; end if;
@@ -366,14 +367,14 @@ begin
       perform public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":3}', '{"external.e1.cands":7}'::jsonb);
       v_step := 1;
     exception when others then
-      if sqlerrm <> 'not a source report' then raise; end if;
+      if sqlerrm <> 'not a source report: a typed value at a path nothing binds' then raise; end if;
     end;
     if v_step = 1 then raise exception '0104 self-check failed: a number was written at a collection leaf'; end if;
     begin
       perform public.control_source_report_by_key(v_key, 'e1', v_report || '{"acceptedRevision":3}', '{"external.e1.loose":7}'::jsonb);
       v_step := 2;
     exception when others then
-      if sqlerrm <> 'not a source report' then raise; end if;
+      if sqlerrm <> 'not a source report: a typed value at a path nothing binds' then raise; end if;
     end;
     if v_step = 2 then raise exception '0104 self-check failed: a number was written at an unbound path'; end if;
 

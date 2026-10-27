@@ -111,6 +111,10 @@ export interface AirPart {
   /** The typed OGraf envelope each graphic airs (E1.2a), as sent: what rebuilds PROGRAM in place
    *  of its empty native data. ADDITIVE OPTIONAL: absent is none. */
   typedAired?: Readonly<Record<string, TypedValues>>;
+  /** The commands each of those graphics took since its envelope (its play, every step): a typed
+   *  graphic reports no pose, so PROGRAM is rebuilt at its step by replaying them. ADDITIVE
+   *  OPTIONAL: absent is none. */
+  typedSteps?: Readonly<Record<string, readonly ReplayItem['msg'][]>>;
 }
 
 export const NO_AIR: AirPart = { liveCue: {}, moves: 0, aired: {}, clocks: {}, speaking: {}, commands: 0, reports: null, bootReplay: null, bootLive: null };

@@ -462,9 +462,10 @@ async function source(req: Request): Promise<Response> {
     const [answer, wanted] = await Promise.all([
       report({ ...projection?.typedWrites, ...projection?.writes }).catch((error: unknown) => {
         // E1.2a: a database before 0104 takes text only and refuses the whole report for a typed
-        // value. The text goes on as before; the typed values wait, and the agent is told so.
+        // value. The text goes on as before; the typed values wait, and the agent is told so. 0104
+        // refuses a typed value only where nothing binds it, in its own words: no retry for that.
         const message = error instanceof Error ? error.message : String(error);
-        if (!projection || typedPaths.length === 0 || !message.includes('not a source report')) throw error;
+        if (!projection || typedPaths.length === 0 || !message.includes('not a source report') || message.includes('typed value')) throw error;
         const prefix = `${sourcePrefix(envelope.sourceId, 'external')}.`;
         for (const path of typedPaths) {
           const leaf = path.slice(prefix.length);

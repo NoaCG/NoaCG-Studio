@@ -263,6 +263,12 @@ test('the page\'s decision: bound values from the tree, a tree not read yet, a l
   // The outputs are this production's only: a view still on another one sends nothing.
   assert.equal(typedSendFor(cue, facts({ presence: { showId: 'other', status: 'joined', peers: [] } })).reason, 'Typed data waits until this page can see its outputs.');
   assert.equal(typedSendFor(cue, facts({ presence: { showId: 's1', status: 'joined', peers: [{ kind: 'output', name: 'Old' }] } })).reason, 'Reload Old: it cannot read typed data yet.');
+  // PREVIEW asks the same decision without the outputs: an old output does not change what it shows.
+  const preview = typedSendFor(cue, facts({ published: false, presence: { showId: null, status: 'joined', peers: [{ kind: 'output', name: 'Old' }] } }));
+  assert.deepEqual(preview, { status: 'ok', typed: envelope({ ...values, round: 3 }) });
+  const page = readFileSync(path.join(root, 'src/components/home/ProductionPage.tsx'), 'utf8');
+  assert.match(page, /typed\?\.status === 'ok' \? JSON\.stringify\(typed\.typed\.values\) : nativeSettleOf\(cue, values\)/, 'PREVIEW settles with the typed values');
+  assert.match(page, /typedPreviewMemo\.current\(cue, \{[^}]*published: false,/s, 'PREVIEW asks without the outputs');
   // Remembered per envelope while the facts are the same objects; a new fact asks again.
   const memo = createTypedSendMemo();
   const same = facts();
@@ -345,6 +351,17 @@ test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\
   const stepped = [{ graphic: 'Board', msg: { t: 'update', data: { round: '1' } } }, { graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }, { graphic: 'Board', msg: { t: 'next' } }];
   const onStep = seedFromResolve(boot, { liveCue: { Board: 'c1' }, live: {} }, stepped, airAtRequest(boot), [{ id: 'c1', values: { round: '2' } }], specs);
   assert.deepEqual(restoreItems(onStep, {}, specs).items, [{ graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }, { graphic: 'Board', msg: { t: 'next' } }]);
+  // Warm: after a later command the boot's rows are gone, and a step followed since still counts;
+  // a data road's text moves no step, and the envelope's end drops them.
+  const warm = rememberAired({ ...onStep, bootReplay: null }, [{ graphic: 'Strap', msg: { t: 'play' } }, { graphic: 'Board', msg: { t: 'update', data: { round: '4' }, src: 'api' } }, { graphic: 'Board', msg: { t: 'next' } }]);
+  assert.deepEqual(restoreItems(warm, {}, specs).items.filter((item) => item.graphic === 'Board'), [
+    { graphic: 'Board', msg: typedUpdate },
+    { graphic: 'Board', msg: { t: 'play' } },
+    { graphic: 'Board', msg: { t: 'next' } },
+    { graphic: 'Board', msg: { t: 'next' } },
+  ]);
+  assert.deepEqual(rememberAired(warm, [{ graphic: 'Board', msg: { t: 'stop' } }]).typedSteps, {});
+  assert.deepEqual(rememberAired(warm, [{ graphic: 'Board', msg: typedUpdate }]).typedSteps, { Board: [] });
   assert.deepEqual(withoutTypedAir(resolved, seeded.typedAired), { Strap: { f0: 'x' } });
   // Every stage, the page's monitors included, applies the same rule as the output's gate.
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');

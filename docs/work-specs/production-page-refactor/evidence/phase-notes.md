@@ -51,7 +51,11 @@ changes a spec's digest.
     the envelope it aired (`AirPart.typedAired`, `typedAfter`, `restoreItems`; Codex P2 on
     `6e0ac4f`). A page opened after a typed Take folds the boot's rows into that envelope, since
     the graphic never reported (`seedFromResolve`, Codex P2 on `6999549`), and rebuilds it at the
-    step air holds by replaying the rows after it (`restoreItems`, Codex P2 on `0870ce6`). A data
+    step air holds by replaying the commands it took since its envelope (`AirPart.typedSteps`, kept
+    by `rememberAired` and seeded from the boot's rows, so a warm rebuild keeps them too;
+    `restoreItems`, Codex P2 on `0870ce6`, /so on `e47faee`). PREVIEW settles a typed cue with the
+    values its Take carries, the same decision without the outputs (`typedPreviewOf`, Codex P2 on
+    `e47faee`). A data
     road's native update (`src`) on a typed graphic moves its look only, never its data; an operator's native update (a native cue
     taken on that layer) ends typed mode.
   - *E5's typed values* (the route's half of the adapter, `projectSource`): a bound leaf that only
@@ -60,7 +64,10 @@ changes a spec's digest.
     and a text field holds. Migration `0104_typed_source_values.sql` lets a bound path take a
     non-text value (0088's `production_data_may_replace` still judges it: a scalar or a list of
     scalars, never a record); a collection leaf stays text. Against a database without 0104 the
-    route sends the text alone and tells the agent the typed values were not taken.
+    route sends the text alone and tells the agent the typed values were not taken. 0104 refuses a
+    typed value at a path nothing binds in its own words ("...: a typed value at a path nothing
+    binds"), so that refusal is answered as an invalid report, never read as an old database (/so
+    on `e47faee`).
 - **Decisions.**
   - *Where the schema lives before E3*: on the graphic's template, as the manifest it came with.
     E3 owns the foreign library entry (package bytes, hashes, hosting); this row needed only a
@@ -139,7 +146,8 @@ changes a spec's digest.
   by its cue's switch); on `6999549`: one P2, fixed (a page opened after a typed Take seeds the
   envelope from the boot's rows); on `44899be`: one P2, fixed (live presses refused by what the
   layer airs, not only by the cue's envelope); on `0870ce6`: one P2, fixed (a cold rebuild of a
-  typed graphic replays its steps since the envelope). /so on `ab0c8c9`: AGREE WITH
+  typed graphic replays its steps since the envelope); on `e47faee`: one P2, fixed (PREVIEW settles
+  with the typed values). /so on `ab0c8c9`: AGREE WITH
   CORRECTIONS, Assessment A (two wrong comments in `ografTyped.ts`, fixed); on `6e0ac4f`: AGREE
   WITH CORRECTIONS, Assessment A (the silent legacy `/update` on a typed graphic, named above).
   The verdict on the final head is in the pull request.

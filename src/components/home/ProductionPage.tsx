@@ -452,6 +452,8 @@ const PLACE_UNSENT = '@place';
 const PUBLISH_MEASURE_CAP_MS = 8_000;
 const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
 const NO_TYPED_AIR: NonNullable<AirPart['typedAired']> = {};
+/** No Presence: PREVIEW asks no output whether it reads typed data. */
+const NO_PRESENCE = { showId: null, status: 'joined', peers: [] } as const;
 const typedAiredOf = (air: AirPart) => air.typedAired ?? NO_TYPED_AIR;
 /** What the background measurer composes for one cue. */
 interface MeasureInput {
@@ -1482,6 +1484,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     [session, declaredOf, id],
   );
+  /** The typed values a Take of this cue would carry, for PREVIEW: the same envelope and adapter,
+   *  without the outputs' capability, which is no question for a monitor on this page. */
+  const typedPreviewMemo = useRef(createTypedSendMemo());
+  const typedPreviewOf = (cue: ShowCue, graphic: string): TypedSend => {
+    const data = session.data.get();
+    return typedPreviewMemo.current(cue, {
+      declared: declaredOf(graphic),
+      bindings: bindingsRef.current?.[graphic],
+      tree: data.liveData,
+      treeRead: data.treeRead,
+      published: false,
+      presence: NO_PRESENCE,
+      showId: id,
+    });
+  };
   /** The fields of a cue nothing typed or pressed here may move (E7.1): its candidate's, and every
    *  field of a cue this build reads only (a later version's selection). */
   const candidateFields = (cue: ShowCue): string[] =>
@@ -1988,12 +2005,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // The PREVIEW settles with bound fields overlaid too, for the same reason Take does: the
   // monitor has to show what a Take would actually put on air, not the cue's prepared value. The
   // monitor reads the cue's values from the draft itself (D12) and settles them through this.
-  const settleOf = (cue: ShowCue, values: Record<string, string>) =>
+  const nativeSettleOf = (cue: ShowCue, values: Record<string, string>) =>
     JSON.stringify({
       ...withBoundValues(cueGraphicName(cue) ?? '', values),
       ...candidateOverlay(cue),
       ...(connectPreview && connectPreview.graphic === cueGraphicName(cue) ? connectPreview.values : {}),
     });
+  // A cue with typed data settles PREVIEW with the values its Take carries, as they are (E1.2a), so
+  // a number or a list looks on PREVIEW as it will on PROGRAM.
+  const settleOf = (cue: ShowCue, values: Record<string, string>) => {
+    const graphic = cueGraphicName(cue);
+    const typed = graphic && cue.typed !== undefined && connectPreview?.graphic !== graphic ? typedPreviewOf(cue, graphic) : null;
+    return typed?.status === 'ok' ? JSON.stringify(typed.typed.values) : nativeSettleOf(cue, values);
+  };
   /** Which of the values being typed PREVIEW says do not fit - measured by the monitor
    *  (PlayoutMonitors), read here by the editor's field marks. */
   const [previewOverflow, setPreviewOverflow] = useState<string[]>([]);
@@ -2040,7 +2064,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  last edited, so a box measured of an older design is never taken for a newer one's. */
   const designed = (g: SavedGraphic, lib = library) => ({ ...g, savedAt: designEditedAt(g, lib) });
   /** The values a Take of the cue settles and airs, which name its measurement. */
-  const airedValuesOf = (cue: ShowCue): Record<string, string> => JSON.parse(settleOf(cue, cueDraft.view(cue).values)) as Record<string, string>;
+  const airedValuesOf = (cue: ShowCue): Record<string, string> => JSON.parse(nativeSettleOf(cue, cueDraft.view(cue).values)) as Record<string, string>;
   /** The newest record this page rendered, read at the moment of a press after its wait (a Take's
    *  page object is the one of its press, which can be seconds older). */
   const latestShow = useRef(show);
