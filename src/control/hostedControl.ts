@@ -524,9 +524,17 @@ const libraryDigestMemo = new Map<string, string>();
  */
 export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};
-  for (const g of show.graphics) {
+  // The first graphic carries the look's imported face when Publish does (buildOutputPayload), so
+  // its digest is read as Publish would write it, never memoised: the face is not the graphic's.
+  const lookFace = lookFaceOnAir(show) && lookImportedFace(show);
+  for (const [i, g] of show.graphics.entries()) {
     const doc = resolveSavedGraphicDoc(g, library);
     if (!doc && g.graphicId) continue;
+    if (i === 0 && lookFace) {
+      const [carrier] = withLookFaceIn([await graphicSpec(g, templateForSavedGraphic(g, library))], lookFace.asset);
+      digests[g.name] = await graphicDigest(carrier);
+      continue;
+    }
     const memoKey = doc
       ? `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}|${JSON.stringify(g.soundConfig)}`
       : JSON.stringify(g);

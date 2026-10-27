@@ -229,6 +229,9 @@ describe('Send to on-air graphics carries the look beside the place and size hel
     assert.equal(L.lookSentWords({ of: 3, updated: 3, gone: [], changed: [], failed: [] }), 'Look sent to 3 graphics on air.');
     assert.equal(L.lookSentWords({ of: 3, updated: 2, gone: ['Quiz board'], changed: [], failed: [] }), '2 of 3 updated; Quiz board went off air');
     assert.equal(L.lookSentWords({ of: 0, updated: 0, gone: [], changed: [], failed: [] }), 'No graphic is on air, so nothing was sent.');
+    // A send carries no font file: a published output lacking the look's face is told so.
+    assert.equal(L.lookSentWords({ of: 2, updated: 2, gone: [], changed: [], failed: [] }, true), 'Look sent to 2 graphics on air. Publish changes for the published output to show its typeface.');
+    assert.equal(L.lookSentWords({ of: 0, updated: 0, gone: [], changed: [], failed: [] }, true), 'No graphic is on air, so nothing was sent.', 'nothing sent, nothing to say about it');
   });
 });
 

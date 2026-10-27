@@ -220,7 +220,17 @@ export function lightPanel(look: ProjectBrand): boolean {
 
 /** What a send to on-air graphics came to, in one line: "Look sent to 3 graphics on air", or the
  *  partial count first, "2 of 3 updated; Quiz board went off air". */
-export function lookSentWords(r: { of: number; updated: number; gone: readonly string[]; changed: readonly string[]; failed: readonly { graphic: string; note: string }[] }): string {
+export function lookSentWords(
+  r: { of: number; updated: number; gone: readonly string[]; changed: readonly string[]; failed: readonly { graphic: string; note: string }[] },
+  /** The published output does not hold the look's imported face yet: a send carries no font file,
+   *  so it draws the fallback there until the next Publish. */
+  faceUnpublished = false,
+): string {
+  const words = sentWords(r);
+  return faceUnpublished && r.updated > 0 ? `${words} Publish changes for the published output to show its typeface.` : words;
+}
+
+function sentWords(r: Parameters<typeof lookSentWords>[0]): string {
   if (r.of === 0) return 'No graphic is on air, so nothing was sent.';
   if (r.updated === r.of) return r.of === 1 ? 'Look sent to the graphic on air.' : `Look sent to ${r.of} graphics on air.`;
   const why = [
