@@ -79,7 +79,7 @@ import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } f
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
-import { pressKey, pressSending, settleMark, shownMark, type PressMark } from '../../control/pressFeedback';
+import { createPressMarks, pressKey, shownMark } from '../../control/pressFeedback';
 import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
@@ -682,6 +682,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A getter, so the publish flow and the modules hold one stable `{ current }` (the compiler lint
   // reads a plain ref handed to the render-time publish call as read during render).
   const liveCueRef = useMemo(() => ({ get current() { return drawnLiveCue.current; } }), []);
+  /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts), dropped as soon as
+   *  the session's `air` part puts another instance on its layer, an Out and a Take of the same cue
+   *  included. */
+  const pressMarks = useMemo(() => createPressMarks(session.air), [session]);
+  useEffect(() => pressMarks.follow(), [pressMarks]);
+  const drawnMarks = useStorePart(pressMarks.part);
   const airedData = usePacedPart(session.air, airedOf);
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
@@ -742,9 +748,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [slotRev, setSlotRev] = useState(0);
   /** A graphic Take went out while nothing that could air it was reporting (AC-2 "No output"). */
   const [noOutputTake, setNoOutputTake] = useState(false);
-  /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts). */
-  const [pressMarks, setPressMarks] = useState<Record<string, PressMark>>({});
-  const pressSeq = useRef(0);
+
   /**
    * THE ONE MARKER WRITE (control/airState.ts `moveLiveCue`), and why every write is counted in the
    * `air` part's `moves`.
@@ -3199,20 +3203,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   /** A ⚡ press, marked on its button while out and with what it came to, for the cue on air at the
    *  press (control/pressFeedback.ts, E2.2): from the selected block and a pinned one alike. */
-  const pressMarked = async (sel: VerbSelection, button: ControlButton) => {
+  const pressMarked = (sel: VerbSelection, button: ControlButton, named?: string) => {
     const graphic = sel.selectedGraphic;
-    if (!graphic) return verbs.event(sel, button);
-    const key = pressKey(graphic, button.event);
-    const seq = (pressSeq.current += 1);
-    setPressMarks((marks) => ({ ...marks, [key]: pressSending(sel.airCue?.id ?? null, seq) }));
-    const done = await verbs.event(sel, button);
-    // Unpublished, the press moves this page's PROGRAM and nothing else; published, a press taken
-    // with no output reporting reads so, never as sent.
-    const heard = !hostedSlugRef.current || usableOutputRef.current;
-    setPressMarks((marks) => settleMark(marks, key, seq, done, heard));
-    return done;
+    if (!graphic) return verbs.event(sel, button, named);
+    // The instance is the session's, as the press's own check reads it. Unpublished, the press
+    // moves this page's PROGRAM and nothing else; published, a press taken with no output
+    // reporting reads so, never as sent.
+    return pressMarks.press(graphic, button.event, session.air.get().liveCue[graphic] ?? null, () => verbs.event(sel, button, named), () => !hostedSlugRef.current || usableOutputRef.current);
   };
-  const markFor = (graphic: string | null) => (event: string) => (graphic ? shownMark(pressMarks[pressKey(graphic, event)], liveCue[graphic] ?? null) : null);
+  const markFor = (graphic: string | null) => (event: string) => (graphic ? shownMark(drawnMarks[pressKey(graphic, event)], liveCue[graphic] ?? null) : null);
 
   /** Fire a machine event on the live graphic, or snap it straight to a state (control/graphicVerbs.ts
    *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
@@ -3357,7 +3356,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         }
         return (listed = { graphics });
       },
-      act: (run) => runCapability(run, poolMachines.get(run.graphic), liveSelection(run.graphic, cues, liveCue), verbs),
+      // A panel key's press marks the same button a click does.
+      act: (run) => runCapability(run, poolMachines.get(run.graphic), liveSelection(run.graphic, cues, liveCue), { ...verbs, event: pressMarked }),
     };
   };
   /** One pool graphic's live controls for the selection a press on it uses (control/panelActions.ts

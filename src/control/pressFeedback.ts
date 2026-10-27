@@ -16,14 +16,19 @@
 // and neither a pending nor a confirmed press of it may read as the new one's. A later press of the
 // same button replaces its mark, and an answer for an older press never overwrites a newer one.
 //
-// Pure, so Node tests import it (scripts/press-feedback.test.mjs).
+// The marks are a store part (`createPressMarks`), as the page's other playout state is: every ⚡
+// press, from a block or a panel key, goes through `press`, and the part drops a mark as soon as
+// the session's `air` part puts another cue (or none) on its graphic's layer, so a cue taken off
+// and taken again starts clean. No React, so Node tests import it (scripts/press-feedback.test.mjs).
 
 import type { PressDone } from './panelActions';
+import { storePart, type StorePart } from './storePart.ts';
 
 export type PressState = 'sending' | 'sent' | 'unheard' | 'unknown' | 'refused' | 'failed';
 
 export interface PressMark {
   state: PressState;
+  graphic: string;
   /** The cue live on the layer at the press, or null when none was held there. */
   cue: string | null;
   /** Which press of this button it is: an answer settles only its own. */
@@ -45,7 +50,7 @@ export const PRESS_SAYS: Record<PressState, { icon: string; says: string }> = {
 export const pressKey = (graphic: string, event: string) => `${graphic}\u0000${event}`;
 
 /** A press as it leaves: sending, on the instance it was pressed on. */
-export const pressSending = (cue: string | null, seq: number): PressMark => ({ state: 'sending', cue, seq });
+export const pressSending = (graphic: string, cue: string | null, seq: number): PressMark => ({ state: 'sending', graphic, cue, seq });
 
 /** What the press came to. `heard`: something that could air it was reporting when it settled. */
 export function pressSettled(mark: PressMark, done: PressDone, heard: boolean): PressMark {
@@ -71,4 +76,45 @@ export function markTitle(title: string, mark: PressMark | null): string {
   if (!mark) return title;
   const says = PRESS_SAYS[mark.state].says;
   return `${says}${mark.note ? `: ${mark.note}` : ''}. ${title}`;
+}
+
+/** Only the marks of the instance each layer holds now. The same object when none is dropped. */
+export function pruneMarks(marks: Readonly<Record<string, PressMark>>, liveCue: Readonly<Record<string, string>>): Record<string, PressMark> {
+  const kept = Object.entries(marks).filter(([, m]) => m.cue === (liveCue[m.graphic] ?? null));
+  return kept.length === Object.keys(marks).length ? (marks as Record<string, PressMark>) : Object.fromEntries(kept);
+}
+
+export interface PressMarks {
+  part: StorePart<Record<string, PressMark>>;
+  /** Run one ⚡ press and mark it: sending at once, then what it came to (a press that threw is
+   *  failed). `cue` is the cue on the layer at the press; `heard` is read when it settles. */
+  press: (graphic: string, event: string, cue: string | null, run: () => Promise<PressDone>, heard: () => boolean) => Promise<PressDone>;
+  /** Drop every mark whose instance is no longer the one on its layer. */
+  prune: (liveCue: Readonly<Record<string, string>>) => void;
+  /** Prune on every move of the session's `air` part; answers how to stop. */
+  follow: () => () => void;
+}
+
+/** The marks of one session, following its `air` part (`follow`) when one is given. */
+export function createPressMarks(air?: Pick<StorePart<{ liveCue: Readonly<Record<string, string>> }>, 'get' | 'subscribe'>): PressMarks {
+  const part = storePart<Record<string, PressMark>>({});
+  let seq = 0;
+  return {
+    part,
+    press: async (graphic, event, cue, run, heard) => {
+      const key = pressKey(graphic, event);
+      const n = (seq += 1);
+      part.set((marks) => ({ ...marks, [key]: pressSending(graphic, cue, n) }));
+      let done: PressDone;
+      try {
+        done = await run();
+      } catch (e) {
+        done = { outcome: 'failed', note: e instanceof Error ? e.message : String(e) };
+      }
+      part.set((marks) => settleMark(marks, key, n, done, heard()));
+      return done;
+    },
+    prune: (liveCue) => part.set((marks) => pruneMarks(marks, liveCue)),
+    follow: () => (air ? air.subscribe(() => part.set((marks) => pruneMarks(marks, air.get().liveCue))) : () => {}),
+  };
 }

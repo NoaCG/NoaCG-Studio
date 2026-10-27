@@ -156,11 +156,13 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   const returns: OgrafReturn[] = [];
   /** Each call still out: what it was, and how to settle its answer once (the reply, the page's
    *  deadline, or the instance going, whichever is first). */
-  const pending = new Map<number, { call: OgrafCall; settle: (answer: OgrafAnswer) => void }>();
+  const pending = new Map<number, { call: OgrafCall; walk: number; settle: (answer: OgrafAnswer) => void }>();
   let nextId = 1;
   let gone = false;
-  /** Where the Graphic is, by its answers to `playAction` (ografSteps.ts). */
+  /** Where the Graphic is, by its answers to `playAction` (ografSteps.ts). Calls can now answer out
+   *  of order, so only the answer to the newest play or stop moves it (`walk`). */
   let at: OgrafStepAt = null;
+  let walk = 0;
   // Posted at once: a port holds what it is sent until the far end starts listening, so nothing
   // waits on the frame's load here, and `load()` is the first call the Graphic sees.
   const post = (call: OgrafCall, args: unknown[]): Promise<OgrafAnswer> => {
@@ -175,7 +177,8 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
         clearTimeout(timer);
         resolve(answer);
       };
-      pending.set(callId, { call, settle });
+      if (call === 'play' || call === 'stop') walk += 1;
+      pending.set(callId, { call, walk, settle });
     });
     // A Graphic that never answers cannot grow the book forever: the oldest call is given up.
     if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered' });
@@ -192,8 +195,8 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     const told = believe(out.call, data.payload);
     returns.push(told);
     if (returns.length > RETURNS_KEPT) returns.splice(0, returns.length - RETURNS_KEPT);
-    if (out.call === 'play') at = ografStepAfter(at, told);
-    else if (out.call === 'stop' && told.statusCode >= 200 && told.statusCode < 300) at = null;
+    if (out.walk === walk && out.call === 'play') at = ografStepAfter(at, told);
+    else if (out.walk === walk && out.call === 'stop' && told.statusCode >= 200 && told.statusCode < 300) at = null;
     out.settle(answerOf(told));
   };
   /** Every call still out, settled as gone: its instance is no longer the one on the layer. */

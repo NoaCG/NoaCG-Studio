@@ -65,6 +65,21 @@ changes a spec's digest.
     so it is not marked unheard.
   - *Unknown legality stays unknown*: a declared action is never greyed by the machine (row 37);
     its title now says the graphic decides.
+  - *Calls overlap in the Graphic, by OGraf's contract* (review on `7f51763`): with no serial
+    chain, an Out followed by a Take, or an update followed by a play, are both in progress inside
+    a stranger's Graphic at once. OGraf requires a Graphic to take a call at any time (queue, abort
+    or skip ahead), and the invocation order is kept; a serial host is what let a held step lock
+    Stop. A Graphic that breaks under overlap breaks the specification, and E3's mount qualifies
+    packages against it.
+  - *Only the newest play or stop moves the position* (same review): answers can now arrive out of
+    order, so an older step's late answer or timeout never overwrites a newer one's (`walk`).
+  - *A 2xx with no `currentStep` is the end*, as OGraf's `ReturnPayload` says (undefined = at the
+    end). A Graphic that never reports its step can still be moved by Goto.
+  - *The marks are a store part* (`createPressMarks`, rule
+    `components/playout-behaviour-production-page-lands-verb`), pruned on every move of the
+    session's `air` part, so an Out and a Take of the same cue start clean; a panel key's press
+    marks the same button a click does; the press records the session's own instance, the one its
+    check reads; a press that throws is marked failed.
   - *Seams changed and where*: E2.1's typed press (unchanged behaviour, now marked);
     L1's `actionButtonFor` context (`mark`, `airLabel`) and pinned block press
     (`pressMarked`); the OGraf host bridge (no serial chain, `callTimeoutMs`);
@@ -87,7 +102,7 @@ changes a spec's digest.
   `e2e/ograf-controls.spec.ts`, `scripts/ograf-steps.test.mjs` (new),
   `scripts/press-feedback.test.mjs` (new), `scripts/graphic-verbs.test.mjs`,
   `scripts/ograf-form.test.mjs`, this file.
-- **Verification.** Node: `ograf-steps` (6), `press-feedback` (5), `graphic-verbs` (138, two new:
+- **Verification.** Node: `ograf-steps` (6), `press-feedback` (7), `graphic-verbs` (138, two new:
   a pinned block's typed press sends the on-air cue's arguments while another cue is edited and is
   refused when the instance is replaced mid-wait; a superseded, stale, unanswered or failed press
   is never accepted), `ograf-form` (the typed toggle's boolean read), and `ograf-typed`,
@@ -96,7 +111,8 @@ changes a spec's digest.
   `check-e2e-protection`. Browser: `foreign-ograf-sandbox` (new: the real stage with the steps
   fixture, dynamic count, backward, Goto, skipAnimation, refusals, a held looping step, held,
   rejected and late answers, an instance replaced with an action in flight), `ograf-controls`
-  (new: two cues, ON AIR/STAGED, marks sent/refused, a new instance starting clean, at 390 px), and
+  (new: two cues, ON AIR/STAGED, marks sent/refused, a new instance and the same cue taken again
+  starting clean, at 390 px), and
   the AC-4 selection (`production-controls`, `playout-clock`, `quiz-live-consistency`,
   `score-tracker-moments`, `output-typed-recovery`, `playout-air-contract`, `ograf-contract`,
   `ograf-controls`, `foreign-ograf-sandbox`): 103 passed. Screenshots before (no mark, no target)
@@ -106,7 +122,8 @@ changes a spec's digest.
   taking steps; a mark shown on any instance; an accepted press read as sent with no output; an
   older answer settling a newer press; the toggle read as `String(edited)`. Browser: the host's
   serial chain put back; a 504 read as done; `destroy` leaving calls out unsettled; the typed press
-  sending the edited cue's arguments; a mark shown on a new instance.
+  sending the edited cue's arguments; a mark shown on a new instance; the marks not following the
+  `air` part (the same cue taken again kept its mark); an older play's answer moving the position.
 
 ## Row 37 (E2.1, project phase 41): typed OGraf forms and action arguments
 

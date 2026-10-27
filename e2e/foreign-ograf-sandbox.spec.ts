@@ -375,7 +375,12 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await expect(walk).toHaveAttribute('data-mark', 'during the loop');
     expect(await answerOf('held-step')).toBe('pending');
     expect(await step('steps', { delta: 1 }), 'no relative step counts from a step still out').toEqual({ status: 'refused', reason: 'Where it is is not known yet; Goto a step.' });
+    // A Goto answered while the held step is still out: the walk is where the newest step left it,
+    // and the older step's timeout, answered after, moves nothing.
+    expect(await step('steps', { goto: 0 })).toEqual({ status: 'done', statusCode: 200, currentStep: 0 });
     await expect.poll(() => answerOf('held-step'), { timeout: 10_000 }).toEqual({ status: 'timeout', statusMessage: 'no answer within 1500 ms' });
+    expect(await layer('steps', 'position')).toEqual({ at: 0, declared: -1 });
+    expect(await step('steps', { delta: 1 })).toEqual({ status: 'done', statusCode: 200, currentStep: 1 });
 
     // HELD, REJECTED AND LATE ACTIONS: a refusal is a refusal, and an answer after the deadline
     // never turns the timeout the operator was told into a success.

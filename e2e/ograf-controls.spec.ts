@@ -289,6 +289,15 @@ test('a declared action targets the on-air cue: staged arguments say so, each pr
   await expect(sentArgs).toHaveText('highlight object:{"team":2}');
   await expect(sentArgs).toHaveAttribute('data-n', '3');
   await expect(press).toHaveAttribute('data-press', 'sent');
+  // Out, then the same cue taken again: a new instance, so the last press's mark is not its.
+  await page.getByTestId('verb-out').click();
+  await expect(target).toHaveText('Staged');
+  await page.getByTestId('verb-take').click();
+  await expect(target).toHaveText('On air');
+  await expect(press).not.toHaveAttribute('data-press');
+  await press.click();
+  await expect(sentArgs).toHaveAttribute('data-n', '4');
+  await expect(press).toHaveAttribute('data-press', 'sent');
   // The mark is drawn at phone width, inside the panel.
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
