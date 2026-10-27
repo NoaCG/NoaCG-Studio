@@ -223,7 +223,7 @@ test('an adjusted cue comes back placed after the output and the hosted PROGRAM 
 // record in the shared buffer and PREVIEW shows it; only Take airs it; the production look Publish
 // carried rides with it; the arrows are 40 px touch targets at 390 px. Node pins the fold, the
 // doors and the stale-publish rule (scripts/hosted-adjust.test.mjs).
-test('the hosted page adjusts a cue on a phone: staged, shown on PREVIEW, aired only by Take, with the production look', async ({ page, context }) => {
+test('the hosted page adjusts a cue nobody adjusted, on a phone: staged, shown on PREVIEW, aired only by Take, with the production look', async ({ page, context }) => {
   test.setTimeout(120_000);
   await signIn(page);
   await page.keyboard.press('Escape');
@@ -233,11 +233,10 @@ test('the hosted page adjusts a cue on a phone: staged, shown on PREVIEW, aired 
   if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
   const showName = `Hosted Adjust ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  // A graphic default at bottom-left and a production look turned on, as the production page writes them.
+  // A graphic nobody adjusted on the production page, and a production look turned on.
   await page.evaluate(async (name) => {
     const shows = await import('/src/model/shows.ts');
     const s = shows.loadShows().find((x) => x.name === name)!;
-    shows.setGraphicAdjust(s.id, s.graphics[0].id, { place: 'bl', anchor: 'bl' });
     shows.setShowLookApplied(s.id, true, {
       styleTag: 'clean',
       palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' },
@@ -258,7 +257,7 @@ test('the hosted page adjusts a cue on a phone: staged, shown on PREVIEW, aired 
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
   await op.getByTestId('cue-adjust-toggle').click();
-  await expect(op.getByTestId('cue-adjust-summary')).toContainText('bottom-left');
+  await expect(op.getByTestId('cue-adjust-summary')).toContainText('Archivo');
   for (const dir of ['left', 'right', 'up', 'down']) {
     const box = await op.getByTestId(`adjust-nudge-${dir}`).boundingBox();
     expect(box!.width).toBeGreaterThanOrEqual(40);
@@ -269,14 +268,15 @@ test('the hosted page adjusts a cue on a phone: staged, shown on PREVIEW, aired 
   // Staged, shown on PREVIEW, not on air.
   const preview = op.getByTestId('hosted-preview-stage').locator('iframe').first();
   const program = op.getByTestId('hosted-program-stage').locator('iframe').first();
-  await op.getByTestId('adjust-place-br').click();
-  await expect(op.getByTestId('cue-adjust-summary')).toContainText('bottom-right');
-  await expect.poll(async () => JSON.parse((await preview.getAttribute('data-appearance')) ?? '{}').frame?.dx ?? 0, { timeout: 30_000 }).toBeGreaterThan(600);
+  // A nudge needs no measured box, so it works on a graphic the production page never adjusted.
+  await op.getByTestId('adjust-nudge-right').click({ modifiers: ['Shift'] });
+  await expect(op.getByTestId('cue-adjust-summary')).toContainText('x 10');
+  await expect.poll(async () => JSON.parse((await preview.getAttribute('data-appearance')) ?? '{}').frame?.dx ?? 0, { timeout: 30_000 }).toBe(10);
   expect(await program.getAttribute('data-appearance')).toBeNull();
 
   // Take airs the fold, with the look Publish carried.
   await op.getByTestId('hosted-take-cue').click();
-  await expect.poll(async () => JSON.parse((await program.getAttribute('data-appearance')) ?? '{}').frame?.dx ?? 0, { timeout: 30_000 }).toBeGreaterThan(600);
+  await expect.poll(async () => JSON.parse((await program.getAttribute('data-appearance')) ?? '{}').frame?.dx ?? 0, { timeout: 30_000 }).toBe(10);
   expect(JSON.parse((await program.getAttribute('data-appearance'))!).vars?.accent).toBe('#ff7a00');
 
   // Another operator's page sees the staged record; a nudge there airs only on its Update.
@@ -285,7 +285,7 @@ test('the hosted page adjusts a cue on a phone: staged, shown on PREVIEW, aired 
   await expect(second.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   await second.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
   await second.getByTestId('cue-adjust-toggle').click();
-  await expect(second.getByTestId('cue-adjust-summary')).toContainText('bottom-right', { timeout: 30_000 });
+  await expect(second.getByTestId('cue-adjust-summary')).toContainText('x 10', { timeout: 30_000 });
   const aired = await program.getAttribute('data-appearance');
   await second.getByTestId('adjust-nudge-up').click();
   await expect(second.getByTestId('cue-adjust-summary')).toContainText('y −1');

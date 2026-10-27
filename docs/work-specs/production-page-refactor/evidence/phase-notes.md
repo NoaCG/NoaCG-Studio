@@ -46,13 +46,21 @@ changes a spec's digest.
     `update` with empty `data` each. It reports `of`, `updated`, `gone`, `changed` and `failed`, in
     words "2 of 3 updated; Quiz board went off air". A typed graphic is not sent one.
   - *The hosted page and phone* (`control/hostedAdjust.ts`, `components/control/HostedCueAdjust.tsx`):
-    the production page's block over records Publish carries beside each cue (`OutputCue.adjust`:
-    both records, the look on that graphic, the measured box). A press stages the record in the
-    shared buffer, so every open page follows it, and only Take or ✎ Update airs it. 40 px arrows
-    on the hosted page and on any screen 640 px or narrower.
+    the production page's block over what Publish now carries beside EVERY graphic cue
+    (`OutputCue.adjust`: both records when there are any, the look on that graphic, the measured
+    box when there is one, the frame and stage). A graphic nobody adjusted therefore gets the block
+    too and carries no appearance, so it airs as it always did. A press stages the record in the
+    shared buffer, so every open page follows it, and only Take or ✎ Update airs it. With no
+    published box a nudge and a size still act (about the frame's centre, the spec's "no
+    measurement" rule) and the grid reads "no measurement", never "measuring". 40 px arrows on the
+    hosted page and on any screen 640 px or narrower.
   - *Exports* resolve the look as air does (`exportAppearances`, `adjustedGraphics` take `lookFor`).
-  - *The join page's rule* (`audience/audienceBrand.ts` `audienceLookOf`): the activated look when
-    on, the captured look otherwise. Activation copies into `look`, so both read one member.
+  - *The join page's rule*: the activated look when on, the captured look otherwise. Activation
+    copies the look it turns on into `look`, so both read that one member and
+    `hostedControl.ts`'s `audienceBrandFor(show.look)` is unchanged (a comment there says why).
+    One consequence, by design: On with a saved brand replaces the captured look with the brand's
+    copy, and Off keeps it, so after On then Off the join page shows the brand, and a hand edit
+    in the panel while Off reaches the join page at the next Publish.
 - **Decisions.**
   - *The send carries the look beside the place and size the graphic holds* (`lookAppearance`),
     never a prepared nudge: the press sends a look, so a half-made placement waits for its Update
@@ -71,7 +79,9 @@ changes a spec's digest.
     Update airs its staging again.
   - *A staged record names the published record it was edited from* (`{ on, r }`). The shared
     buffer is never cleared, so without it a record staged last week would override what the
-    production page published since. It counts only while `on` equals what is published.
+    production page published since. It counts only while `on` equals what is published. A
+    promotion's cue half also names the graphic default it was promoted over (`g`), so a republished
+    default drops both halves together rather than leaving the cue's exception removed alone.
   - *Publish carries records for every cue of a graphic adjusted at either scope, or that the
     look reaches* (`carriesAdjust`), so a default staged from one cue on the hosted page reaches
     its siblings. "Adjusted elsewhere" (when a plain cue's Take sends the identity) reads the
@@ -101,14 +111,16 @@ changes a spec's digest.
 - **Touched files against `d9c29b9`:** `e2e/configured/hosted-control-recovery.spec.ts`,
   `e2e/playout-adjust.spec.ts`, `e2e/production-controls.spec.ts`, `scripts/graphic-verbs.test.mjs`,
   `scripts/hosted-adjust.test.mjs` (new), `scripts/production-look.test.mjs` (new),
-  `src/audience/audienceBrand.ts`, `src/components/HostedControlPage.tsx`,
+  `src/components/HostedControlPage.tsx`,
   `src/components/control/HostedCueAdjust.tsx` (new), `src/components/home/CueAdjust.tsx`,
   `src/components/home/ProductionLook.tsx` (new), `src/components/home/ProductionPage.tsx`,
   `src/components/home/ProductionSetupMenu.tsx`, `src/components/home/ProductionShell.tsx`,
   `src/components/home/exportAppearances.ts`, `src/components/home/useProductionPublish.ts`,
+  `src/control/appearanceRuntime.ts`, `src/model/adjust.ts`, `src/model/cssVars.ts`,
   `src/control/adjustGeometry.ts`, `src/control/cueAdjust.ts`, `src/control/cueStaging.ts`,
   `src/control/cueStyle.ts`, `src/control/exportAppearance.ts`, `src/control/graphicVerbs.ts`,
   `src/control/hostedAdjust.ts` (new), `src/control/hostedControl.ts`, `src/control/hostedReceiver.ts`,
+  `src/control/localReceiver.ts`,
   `e2e/hosted-control.spec.ts`,
   `src/control/productionLook.ts` (new), `src/model/shows.ts`, `src/model/teamShowMerge.ts`,
   `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`,
