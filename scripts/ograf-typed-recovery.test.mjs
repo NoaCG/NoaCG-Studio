@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import './lib/tsResolve.mjs';
 
 const {
-  TYPED_STEPS_MAX, mayAirTyped, planOutputRecovery, reportedTyped, stepsAfter, unreportedPages, unreportedTypedRows,
+  TYPED_STEPS_MAX, mayAirTyped, planOutputRecovery, rowsPastHold, reportedTyped, stepsAfter, unreportedPages, unreportedTypedRows,
 } = await import('../src/control/outputRecovery.ts');
 const { OGRAF_STANDARD, TYPED_VERSION, typedOutputGate } = await import('../src/model/ografTyped.ts');
 const { airAtRequest, restoreItems, seedFromResolve } = await import('../src/control/airState.ts');
@@ -92,7 +92,7 @@ test('the read below the reports takes every page up to followFrom within the ca
   // The output asks it only for graphics on air (the head) with no report whose live cue is not a
   // published native cue, puts their rows first, and leaves a read it could not finish out whole.
   assert.match(main, /\(key\) => !resolved\.live\[key\] && headOn\.get\(key\) === true && mayAirTyped\(headCue\.get\(key\), publishedCues\),/);
-  assert.match(main, /if \(!tail\.ok\) \{\n\s+below = \[\];/);
+  assert.match(main, /if \(!tail\.ok \|\| tail\.value\.reset\) \{\n\s+below = \[\];/, 'a failed page or a republish leaves the whole read out');
   assert.match(main, /missed = unreportedTyped\.concat\(missed\);/);
   // A typed cue is never published, so a published cue on air is native: nothing more is read.
   const published = new Set(['native-cue']);
@@ -148,7 +148,9 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
   // Take there airs it again, as on the output.
   const unreadable = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };
   const nativeTake = [{ graphic: 'Board', msg: { t: 'update', data: { f0: 'NEW' } } }, { graphic: 'Board', msg: { t: 'play' } }];
-  for (const [rows, expected] of [[[], []], [nativeTake, nativeTake]]) {
+  // Rows before such an update stay held, as on the output: a stop goes, a play or a step does not.
+  const heldFirst = [{ graphic: 'Board', msg: { t: 'play' } }, { graphic: 'Board', msg: { t: 'next' } }, { graphic: 'Board', msg: { t: 'stop' } }, ...nativeTake];
+  for (const [rows, expected] of [[[], []], [nativeTake, nativeTake], [heldFirst, [heldFirst[2], ...nativeTake]]]) {
     const held = seedFromResolve({ ...NO_AIR, reports: unreadable }, { liveCue: { Board: 'c1' }, live: unreadable }, rows, airAtRequest(NO_AIR), [{ id: 'c1', values: { f0: 'x' } }], specs);
     assert.deepEqual(restoreItems(held, {}, specs).items, expected);
   }
@@ -167,6 +169,9 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
     { graphic: 'Board', msg: { t: 'next' } },
   ]);
   // The hosted page's PROGRAM reads the same baseline.
+  // The hosted page holds the same rows through the same helper.
+  assert.match(source('src/components/HostedControlPage.tsx'), /const past = rowsPastHold\(rows\);/);
+  assert.deepEqual(rowsPastHold([{ msg: { t: 'update', data: {}, typed: envelope({}, 9) } }, { msg: { t: 'play' } }]), [], 'an unreadable envelope keeps the hold');
   assert.match(source('src/components/HostedControlPage.tsx'), /const typedBase = replay \? reportedTypedAir\(reportsRef\.current\[graphic\]\) : null;/);
 });
 

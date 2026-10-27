@@ -87,7 +87,7 @@ import {
   type ResolvedControlShow,
   type VerbSent,
 } from '../control/hostedControl';
-import { airedAfter, reportedTypedAir, type AiredMap } from '../control/outputRecovery';
+import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap } from '../control/outputRecovery';
 import { IDENTITY, lookAfter, publishedAppearance, reportedLook, type AppliedLooks } from '../control/cueAdjust';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
@@ -652,9 +652,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const typedBase = replay ? reportedTypedAir(reportsRef.current[graphic]) : null;
       const typed = typedBase?.envelope ?? null;
       // One this build cannot read is held on air, so PROGRAM rebuilds nothing from it either, and
-      // replays only the rows after it (a native Take there airs it again, as on the output).
+      // replays the rows after it as the output does: held until an update it can air.
       if (typedBase && !typed) {
-        if (rows.length > 0) programRef.current?.apply(rows);
+        const past = rowsPastHold(rows);
+        if (past.length > 0) programRef.current?.apply(past);
         continue;
       }
       const dataItem = typed

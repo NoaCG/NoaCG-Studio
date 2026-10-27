@@ -37,7 +37,8 @@ changes a spec's digest.
     catch-up and never reads half a history).
     If its last operator update there carried an envelope, all its commands there replay first
     (`unreportedTypedRows`); otherwise nothing does, so native recovery replays exactly what it did.
-    A page that cannot be read leaves the whole read out, never half a history.
+    A page that cannot be read, or a republish met mid-read (`reset`), leaves the whole read out,
+    never half a history.
   - *PROGRAM monitors* (`airState.ts` `seedFromResolve`, `restoreItems`; the hosted page's
     `restoreProgram`, both through `reportedTypedAir`): a typed report seeds the page's typed air
     with its envelope and steps (a native report ends an older entry), and the rebuild airs that
@@ -45,7 +46,9 @@ changes a spec's digest.
     the rows after it. A report whose envelope does not read rebuilds nothing on the hosted page.
   - *#1761, the exported hosted receiver* (`hostedReceiver.ts`): a row carrying `typed` is refused
     whole, said on the console and on the root's `data-noacg-refused`, and the graphic held as the
-    output holds it: only a stop reaches it until an update without typed data. Exported bytes change
+    output holds it: only a stop reaches it until an update without typed data. Its boot refuses and
+    holds the same way on a report that banks typed data (an output's, above), rather than restoring
+    that report's empty data and pose (Codex P1 on `54343eb`). Exported bytes change
     for every graphic carrying the receiver (the block grows by the rule), as the issue foresaw.
 - **Decisions.**
   - *The baseline rides the report's `state`, not a new column or message kind*: the RPC stores
@@ -102,7 +105,9 @@ changes a spec's digest.
   rows replayed from below; a native update keeping typed data; the page's seed ignoring the report;
   the page's rebuild ignoring the report; the report banking native data; a typed graphic skipping
   its re-bank; the read below without its ceiling, and cut at the ceiling instead of left out; the
-  in-app PROGRAM playing a report whose envelope does not read (Node). The read below the reports switched off; the steps not restored; the typed
+  in-app PROGRAM playing a report whose envelope does not read, and dropping the rows after it;
+  `rowsPastHold` passing every row; the read below keeping its rows on a `reset` (Node); the
+  receiver's boot restoring a typed report (browser). The read below the reports switched off; the steps not restored; the typed
   baseline ignored (browser). The receiver without its hold (browser).
 - **Reviews.** `/check` code review (high): 10 findings. Fixed: the hosted PROGRAM's entrance with
   rows after a typed report; a native report not ending a stale typed entry on the page; the read
@@ -120,7 +125,15 @@ changes a spec's digest.
   CORRECTIONS, Assessment B, for two blocking items, both fixed: the read below the reports had no
   ceiling (now the catch-up's, read whole or not at all), and the in-app PROGRAM played a report
   whose envelope does not read as empty native data (now nothing, as the hosted page and the output
-  do). Its third item, the old-bundle limit, is written under Decisions.
+  do). Its third item, the old-bundle limit, is written under Decisions. Codex on `54343eb`: one P1,
+  fixed (the receiver's boot on a typed report, above), and two P2, fixed (both PROGRAM monitors, on
+  a report whose envelope does not read, replay the rows after it, so a native Take there airs).
+  Codex on `93d7f35`: one P2, fixed (those rows replay through the output's own gate,
+  `rowsPastHold`: a play or a step before an update it can air stays held, a stop goes). /so on
+  `93d7f35` (fresh session): AGREE WITH CORRECTIONS, Assessment A; its correction is fixed (a
+  republish met by the read below leaves it out whole); its note that the bridge's fallback is said
+  on the debug line only, not in READY, stays: the read below is a bridge for graphics E1.2a
+  outputs aired, and a READY line for it would outlive them.
 - **Follow-ups**: #1760 stays (typed live follow). Nothing new filed.
 - **Touched files against `c614500`:** `docs/work-specs/production-page-refactor/evidence/phase-notes.md`,
   `e2e/configured/ograf-typed-data.spec.ts`, `e2e/hosted-control.spec.ts`,

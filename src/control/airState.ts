@@ -34,7 +34,7 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from './matchClockWire.ts';
-import { airedAfter, reportedTypedAir, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
 import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
 import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
@@ -373,10 +373,10 @@ export function restoreItems(
     // data (E1.2a). While its rows replay, its report's envelope and steps are the base (E1.2b):
     // the rows after the report carry the rest.
     // At boot, a report whose envelope this build cannot read is a graphic the output holds: PROGRAM
-    // rebuilds nothing from it, never its empty native data, and replays only the rows after it (a
-    // native Take there airs it again, as on the output).
+    // rebuilds nothing from it, never its empty native data, and replays the rows after it as the
+    // output does (`rowsPastHold`): held until an update it can air, so a native Take airs it again.
     if (air.bootReplay !== null && !air.typedAired?.[graphic] && reportedTypedAir(report)?.envelope === null) {
-      all.push(...rows);
+      all.push(...rowsPastHold(rows));
       continue;
     }
     const reported = replaying ? reportedTypedAir(report) : null;

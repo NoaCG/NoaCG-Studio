@@ -972,16 +972,18 @@ async function boot(): Promise<void> {
     const pages = unreportedPages(followFrom, !!seqMode, CONTROL_TAIL_PAGE, MAX_CATCH_UP_PAGES);
     if (pages === 0 && seqMode && followFrom > 0) dbg('catch-up', `log below the reports too long to read: ${unreported.join(', ')} keep what their next Take sends`);
     for (let page = 0; page < pages; page += 1) {
-      const tail = await untilAnswered(() => readTail(cursor), {
+      // Only the numbered log reaches here (`unreportedPages`). A republish (`reset`) is an unread
+      // log too: the epoch this boot follows is gone, and half of it must not replay.
+      const tail = await untilAnswered(() => controlOutputTailSeq(outputSlug, cursor, followEpoch), {
         limit: 6,
         onRetry: (attempts, error) => dbg('catch-up', `log read below the reports failed (${attempts}): ${error}`),
       });
-      if (!tail.ok) {
+      if (!tail.ok || tail.value.reset) {
         below = [];
         dbg('catch-up', 'log below the reports unread: typed data no report banks waits for its next Take');
         break;
       }
-      const rows = tail.value.filter((row) => position(row) <= followFrom);
+      const rows = tail.value.rows.filter((row) => position(row) <= followFrom);
       below.push(...rows.filter((row) => unreportedSet.has(row.graphic)));
       if (rows.length < CONTROL_TAIL_PAGE) break;
       cursor = position(rows[rows.length - 1]);
