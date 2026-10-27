@@ -403,7 +403,12 @@ test('the late refit keeps what an accepted event wrote while the face was loadi
 
 test('an appearance-only update (a send to on-air graphics) refits with the values on air, never with an empty object', async ({ page }) => {
   // Phase 3's bulk send carries the look and empty data, so a half-typed name never airs: the
-  // document refits with the values it took last, never with the empty object.
+  // document refits with the values it took last, never with the empty object. The face answers
+  // past the 400 ms hold, so the empty update runs before the refit does.
+  await page.route('**/fonts/archivo*.woff2', async (route) => {
+    await new Promise((r) => setTimeout(r, 1_500));
+    await route.continue();
+  });
   const doc = await styledStage(page);
   await page.evaluate((name) => {
     (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: { f0: name } });
@@ -421,7 +426,7 @@ test('an appearance-only update (a send to on-air graphics) refits with the valu
     const style = St.resolveStyle(A.effectiveAdjust({ v: 1, font: { fontId: 'archivo' }, vars: { accent: '#ff7a00' } }, undefined), []);
     (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: {}, appearance: A.appearanceOf(null, style) });
   });
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1]);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled), { timeout: 10_000 }).toEqual([1]);
   expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--accent'))).toBe('#ff7a00');
   const updates = await doc.locator('html').evaluate(() => (window as unknown as { __updates: string[] }).__updates);
   expect(updates.filter((u) => u !== '{}'), 'one refit, with the values on air').toEqual([JSON.stringify({ f0: NAME })]);
