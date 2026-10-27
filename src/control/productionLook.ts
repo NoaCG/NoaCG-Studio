@@ -18,6 +18,7 @@ import { cssPaintsWith, parseCssColor, relativeLuminance } from '../model/cssVar
 import type { ProjectBrand } from '../model/brand';
 import { COLOUR_VARS, SVG_DESIGN_MARKER, faceOf, styleContextFor, styleReach, type ImportedFace, type StyleContext } from './cueStyle.ts';
 import type { AssetFile } from '../model/types.ts';
+import { contentHash } from '../model/contentHash.ts';
 import type { LookLayer } from './cueAdjust.ts';
 
 /** The look a production's graphics take: its `look` while it is on, else none. */
@@ -33,15 +34,27 @@ export function lookToActivate(show: { look?: ProjectBrand; brandId?: string }, 
 }
 
 /** Where the look's imported face file travels: under its own folder, never at a pool graphic's
- *  path. Import paths come from the file name (model/fonts.ts `fontAssetPath`), so a brand's font
- *  and a different pool font can share one; at the same path the pool's bytes would stand in. */
+ *  path, and named by its bytes. Import paths come from the file name (model/fonts.ts
+ *  `fontAssetPath`), so a brand's font and a different pool font, or two brands' fonts, can share
+ *  one; at one path a stage keeps the first bytes it read, and the other font would stand in. */
 export const LOOK_FONT_DIR = 'fonts/look/';
-const lookAssetPath = (path: string) => `${LOOK_FONT_DIR}${path.replace(/^fonts\//, '')}`;
+const lookPaths = new Map<string, string>();
+function lookAssetPath(asset: { path: string; data?: unknown }): string {
+  const file = asset.path.replace(/^fonts\//, '');
+  if (typeof asset.data !== 'string') return `${LOOK_FONT_DIR}${file}`;
+  let hash = lookPaths.get(asset.data);
+  if (hash === undefined) {
+    hash = contentHash(asset.data);
+    if (lookPaths.size > 8) lookPaths.clear();
+    lookPaths.set(asset.data, hash);
+  }
+  return `${LOOK_FONT_DIR}${hash}/${file}`;
+}
 
 /** The face a look names, as a record reference (model/adjust.ts `readFont`), or undefined. */
 export function lookFontRef(look: ProjectBrand): FontRef | undefined {
   if (look.customFont) {
-    const ref = readFont({ family: look.customFont.family, assetPath: lookAssetPath(look.customFont.asset.path) });
+    const ref = readFont({ family: look.customFont.family, assetPath: lookAssetPath(look.customFont.asset) });
     return ref && ref !== 'designed' ? ref : undefined;
   }
   return look.fontId ? { fontId: look.fontId } : undefined;
