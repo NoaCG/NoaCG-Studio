@@ -115,6 +115,14 @@ describe('the doors, as on the production page', () => {
     assert.equal(kept.style, null);
   });
 
+  test('a look\'s imported face resolves on the hosted page, though no graphic\'s stylesheet declares it', () => {
+    const look = { vars: { accent: '#ff7a00' }, font: { family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' } };
+    const pub = pubOf({ look, graphic: undefined });
+    const state = H.hostedAdjustState(pub, H.hostedRecords(pub, {}, 'c1'), 'c1', null, false, ctx);
+    assert.match(state.style.vars['font-heading'], /Brand Sans/);
+    assert.ok(state.style.fonts.some((f) => f.src === 'fonts/brand-sans.woff2'));
+  });
+
   test('a graphic nobody adjusted still gets the block: Publish carries its frame alone, and a nudge staged on it airs', () => {
     const bare = H.publishedAdjustOf({ id: 'g' }, {}, undefined, null, HD, HD);
     assert.deepEqual(bare, { graphicId: 'g', frame: HD, stage: HD });
