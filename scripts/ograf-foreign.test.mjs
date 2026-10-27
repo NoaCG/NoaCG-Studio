@@ -482,6 +482,9 @@ test('minified static imports are read too', async () => {
   assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "import{a}from'./missing.mjs';export default class extends HTMLElement{}" }))), /graphic\.mjs refers to "\.\/missing\.mjs", which the package does not contain/);
   assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "import*as x from\"../out.mjs\";export default class{}" }))), /outside the package/);
   assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "import Default/* vendor */from './missing.mjs';\nexport default class{}" }))), /graphic\.mjs refers to "\.\/missing\.mjs", which the package does not contain/);
+  // A comment, now a space, inside a dynamic import or import.meta is still read.
+  assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "const m = () => import/**/('../out.mjs');\nexport default class{}" }))), /"\.\.\/out\.mjs", which is outside the package/);
+  assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "const u = new URL('../peer.json', import.meta/**/.url);\nexport default class{}" }))), /"\.\.\/peer\.json", which is outside the package/);
   const ok = await importForeignOgraf('x.zip', await zipOf(minimal({ 'graphic.mjs': "import{a}from'./lib/a.mjs';export{a}from'./lib/a.mjs';export default class extends HTMLElement{}" })));
   assert.ok(ok.ok, ok.reason);
 });

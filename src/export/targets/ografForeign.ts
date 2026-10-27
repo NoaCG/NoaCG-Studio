@@ -338,8 +338,8 @@ export function withoutComments(text: string): string {
 // and is then refused by its words, which say which file and which reference.
 // Minified code writes `import{a}from'./x'`: `from` follows a space, `}` or `*`, never a name.
 const IMPORT_FROM = /(?:^|[;}\n])\s{0,40}(?:import|export)\s{0,40}(?:[\w*{}\s,$]{1,400}?(?<=[\s}*])from\s{0,40})?(["'])([^"'\n]{1,300})\1/g;
-const IMPORT_CALL = /(?<![\w$.'"`])import\(\s{0,40}(["'])([^"'\n]{1,300})\1\s{0,40}\)/g;
-const META_URL = /\bnew\s{1,40}URL\(\s{0,40}(["'`])([^"'`\n]{1,300})\1\s{0,40},\s{0,40}import\.meta\.url\s{0,40}\)/g;
+const IMPORT_CALL = /(?<![\w$.'"`])import\s{0,40}\(\s{0,40}(["'])([^"'\n]{1,300})\1\s{0,40}\)/g;
+const META_URL = /\bnew\s{1,40}URL\(\s{0,40}(["'`])([^"'`\n]{1,300})\1\s{0,40},\s{0,40}import\s{0,40}\.\s{0,40}meta\s{0,40}\.\s{0,40}url\s{0,40}\)/g;
 const CSS_URL = /url\(\s{0,40}(["']?)([^"')\n]{1,300})\1\s{0,40}\)/g;
 const CSS_IMPORT = /@import\s{1,40}(["'])([^"'\n]{1,300})\1/g;
 
