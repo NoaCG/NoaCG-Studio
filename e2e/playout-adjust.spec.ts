@@ -470,3 +470,40 @@ test('an imported face reaches the document by its asset path, and draws the nam
   await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1, 2]);
   expect(await brandFaces(), 'the same loaded face, never declared again').toEqual([{ marked: true, status: 'loaded' }]);
 });
+
+test('a stage finds an imported face its payload does not hold through its face fallback, so a look turned on later reaches PROGRAM', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app#/home');
+  const declared = await page.evaluate(async () => {
+    const { createOutputStage } = await import('/src/output/stage.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const A = await import('/src/control/cueAdjust.ts');
+    const St = await import('/src/control/cueStyle.ts');
+    const bytes = new Uint8Array(await (await fetch('/fonts/anton.woff2')).arrayBuffer());
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    const data = `data:font/woff2;base64,${btoa(bin)}`;
+    const t = variantById('lt01')!.create({});
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    root.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px';
+    document.body.appendChild(root);
+    const RES = { width: 1920, height: 1080, label: '1080p' };
+    // The payload ships no font: the face comes from the fallback alone.
+    const spec = { key: 'L3', html: t.html, css: t.css, js: t.js, assets: [], resolution: RES, fps: 50, layer: 20 };
+    const stage = createOutputStage(root, { v: 1, resolution: RES, graphics: [spec], cues: [] }, {
+      fit: () => ({ width: 1920, height: 1080 }),
+      faceAsset: (src) => (src === 'fonts/brand-look.woff2' ? data : null),
+    });
+    const iframe = root.querySelector('iframe[title="L3"]') as HTMLIFrameElement;
+    for (let i = 0; i < 100 && iframe.style.visibility !== 'visible'; i++) await new Promise((r) => setTimeout(r, 100));
+    const imported = [{ family: 'Brand Look', assetPath: 'fonts/brand-look.woff2' }];
+    const style = St.resolveStyle(A.effectiveAdjust(undefined, undefined, { font: { family: 'Brand Look', assetPath: 'fonts/brand-look.woff2' } }), imported);
+    stage.apply('L3', { t: 'update', data: {}, appearance: A.appearanceOf(null, style) });
+    return null;
+  });
+  expect(declared).toBeNull();
+  const doc = page.frameLocator('iframe[title="L3"]');
+  await expect.poll(() => doc.locator('html').evaluate(() => document.getElementById('noacg-appearance-faces')?.textContent ?? '')).toContain('Brand Look');
+  expect(await doc.locator('html').evaluate(() => document.getElementById('noacg-appearance-faces')?.textContent ?? '')).toContain('data:font/woff2');
+});

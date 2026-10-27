@@ -188,6 +188,10 @@ export interface OutputStageOptions {
   foreign?: ForeignOgrafSpec[];
   /** How those packages are driven (foreignOgraf.ts); a harness shortens the call deadline. */
   ograf?: ForeignOgrafOptions;
+  /** An imported face's bytes this stage's payload does not hold, by path, read when a style names
+   *  it: the production page's PROGRAM monitor, whose payload is built once per pool, hands the
+   *  production look's own face in here, so a look turned on later reaches it with no rebuild. */
+  faceAsset?: (src: string) => string | null;
 }
 
 /** How long a warm pass waits for the document's answer once it has loaded: the document caps its
@@ -310,7 +314,7 @@ export function createOutputStage(
       const found = f.spec.assets.find((a) => a.path === src);
       if (found) return found.data;
     }
-    return null;
+    return options.faceAsset?.(src) ?? null;
   };
   /** TYPE AND COLOUR (phase 2): unlike the frame transform, style lives in the document, so it is
    *  told to the graphic's current document whenever it changes and to each new one it moves to. */

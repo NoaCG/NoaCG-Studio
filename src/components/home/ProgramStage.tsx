@@ -1,5 +1,6 @@
-import { forwardRef, useEffect, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import { buildOutputPayload, type OutputPayload } from '../../control/hostedControl';
+import { lookImportedFace } from '../../control/productionLook';
 import PayloadStage, { type PayloadStageHandle } from './PayloadStage';
 import type { GraphicDoc } from '../../model/library';
 import type { Show } from '../../model/shows';
@@ -61,10 +62,20 @@ const ProgramStage = forwardRef<
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [poolSignature, library]);
 
+    // The production look's imported face, read when a style names it: the payload above is built
+    // once per pool, and a look turned on later must reach PROGRAM without reloading what airs.
+    const showRef = useRef(show);
+    showRef.current = show;
+    const faceAsset = (src: string) => {
+      const own = lookImportedFace(showRef.current);
+      return own && own.asset.path === src && typeof own.asset.data === 'string' ? own.asset.data : null;
+    };
+
     return (
       <PayloadStage
         ref={ref}
         payload={payload}
+        faceAsset={faceAsset}
         error={error}
         emptyLabel={empty ? (emptyLabel ?? 'Nothing on air') : undefined}
         onState={onState}
