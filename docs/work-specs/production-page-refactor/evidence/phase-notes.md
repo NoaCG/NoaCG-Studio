@@ -114,7 +114,12 @@ changes a spec's digest.
   E2's verbs gain `sendLook` with `GraphicPage.lookAppearanceOf` and `cueById`. The wire, the
   message kinds and recovery are untouched.
 - **Not here:** foreign graphics (AC-10's foreign case, after E3.2b), and AC-11's look and
-  wrong-scope tasks, which join E8.2's kit.
+  wrong-scope tasks, which join E8.2's kit. An exported hosted receiver declares only its
+  package's own faces (phase 2's asset road), so a look turned on after an export falls back to
+  the design's face there.
+  - The look's imported face stays nameable while the look is off, so a record that picked it keeps
+    it; Publish carries its bytes only while the look is on or a record names it, so a captured look
+    never turned on does not ship its font twice.
 - **Traps.**
   - PROGRAM holds one frame per pool graphic, so a probe into it names its frame
     (`iframe` `.first()` in pool order); a bare `frameLocator` is ambiguous and reads null.
