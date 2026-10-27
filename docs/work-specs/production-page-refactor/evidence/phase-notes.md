@@ -72,7 +72,9 @@ changes a spec's digest.
     Stop. A Graphic that breaks under overlap breaks the specification, and E3's mount qualifies
     packages against it.
   - *Only the newest play or stop moves the position* (same review): answers can now arrive out of
-    order, so an older step's late answer or timeout never overwrites a newer one's (`walk`).
+    order, so an older step's late answer or timeout never overwrites a newer one's (`walk`). A
+    step the Graphic refuses (4xx) puts back the position it had before the call (`before`; Codex
+    P2 on `aa5ca3b`), so a refused Goto does not cost the next relative step.
   - *A 2xx with no `currentStep` is the end*, as OGraf's `ReturnPayload` says (undefined = at the
     end). A Graphic that never reports its step can still be moved by Goto.
   - *The marks are a store part* (`createPressMarks`, rule
@@ -96,6 +98,13 @@ changes a spec's digest.
     `mountForeignOgraf` (`options`, `call`, `step`, `position`, settled answers); the stage's
     `ograf` option and `foreignLayer`; `OgrafLifecycleCall`'s play params (`skipAnimation`).
     E6.1's dispatcher and descriptors are untouched.
+- **Carried to E3** (#1775, from the final `/so`): the stage never replaces a foreign frame today
+  (a Take on one is a `play` on the same element), so `gone` is proven by mounting and destroying a
+  layer directly; E3's same-layer replacement must settle calls out on the old instance through
+  `destroy`. E3 also connects `foreignLayer().step` and the answers of `call` to operator controls
+  and to the press marks, and adds the `step` command row (a migration). A new press shows
+  sending in place of the last confirmed mark until it settles, and STAGED stands for the edited
+  cue whether or not it is on PREVIEW; both go to E8's trial kit for the owner's read.
 - **Traps.**
   - The program monitor's frame is sandboxed: a spec cannot write into it, so a probe that must
     prove a second identical press arrived counts presses (`data-n`).
@@ -133,7 +142,8 @@ changes a spec's digest.
   older answer settling a newer press; the toggle read as `String(edited)`. Browser: the host's
   serial chain put back; a 504 read as done; `destroy` leaving calls out unsettled; the typed press
   sending the edited cue's arguments; the marks not following the `air` part (a new instance, and
-  the same cue taken again, kept the old mark); an older play's answer moving the position.
+  the same cue taken again, kept the old mark); an older play's answer moving the position; a
+  refused step's answer folded from the cleared position instead of the one before the call.
 
 ## Row 37 (E2.1, project phase 41): typed OGraf forms and action arguments
 
