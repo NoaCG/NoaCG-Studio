@@ -76,8 +76,8 @@ export function rememberAired(air: AirPart, items: readonly ControlSendItem[]): 
 type TypedAir = { typedAired: Record<string, TypedValues>; typedSteps: Record<string, readonly ControlSendItem['msg'][]> };
 
 /** One command's mark on a graphic's typed air: its envelope (`typedAfter`), and the commands it
- *  took since, which a new envelope starts again and the envelope's end drops. A data road's
- *  update moves no step. */
+ *  took since its entrance, which a play starts again and the envelope's end drops. An update,
+ *  typed or a data road's, moves no step: Update changes the values, never the step. */
 function typedStepAfter(prev: TypedAir, graphic: string, msg: ControlSendItem['msg']): TypedAir {
   const typedAired = typedAfter(prev.typedAired, graphic, msg);
   const steps = prev.typedSteps;
@@ -86,8 +86,8 @@ function typedStepAfter(prev: TypedAir, graphic: string, msg: ControlSendItem['m
     const { [graphic]: _ended, ...rest } = steps;
     return { typedAired, typedSteps: rest };
   }
-  if (msg.t === 'update') return 'typed' in msg ? { typedAired, typedSteps: { ...steps, [graphic]: [] } } : { typedAired, typedSteps: steps };
-  return { typedAired, typedSteps: { ...steps, [graphic]: [...(steps[graphic] ?? []), msg] } };
+  if (msg.t === 'update') return graphic in steps ? (typedAired === prev.typedAired ? prev : { typedAired, typedSteps: steps }) : { typedAired, typedSteps: { ...steps, [graphic]: [] } };
+  return { typedAired, typedSteps: { ...steps, [graphic]: msg.t === 'play' ? [msg] : [...(steps[graphic] ?? []), msg] } };
 }
 
 /** The resolved bound values the page's own dispatch sends (./productionDataSession.ts), without

@@ -51,7 +51,8 @@ changes a spec's digest.
     the envelope it aired (`AirPart.typedAired`, `typedAfter`, `restoreItems`; Codex P2 on
     `6e0ac4f`). A page opened after a typed Take folds the boot's rows into that envelope, since
     the graphic never reported (`seedFromResolve`, Codex P2 on `6999549`), and rebuilds it at the
-    step air holds by replaying the commands it took since its envelope (`AirPart.typedSteps`, kept
+    step air holds by replaying the commands it took since its entrance, kept through an Update
+    (`AirPart.typedSteps`, kept
     by `rememberAired` and seeded from the boot's rows, so a warm rebuild keeps them too;
     `restoreItems`, Codex P2 on `0870ce6`, /so on `e47faee`). PREVIEW settles a typed cue with the
     values its Take carries, the same decision without the outputs (`typedPreviewOf`, Codex P2 on
@@ -135,7 +136,9 @@ changes a spec's digest.
   `setCueTyped` comparing its bytes, which a single-tab Node store cannot reach.
 - **Follow-ups**: #1760 (a typed live follow of bound values: outputs keep the last Take or
   Update until the next), #1761 (the exported hosted receiver of a declared graphic reading a typed
-  row's empty `data`), and E1.2b's own list (replay, baseline, the renderer round trip).
+  row's empty `data`), #1762 (an output reload can lose a typed graphic that never reported: the
+  replay window starts at another graphic's report; E1.2b's output baseline, Codex P1 on `ee67f55`),
+  and E1.2b's own list (replay, baseline, the renderer round trip).
 - **Reviews.** `/check`: the code review's 10 findings, 8 fixed and 2 not defects (the hosted page
   already leaves typed cues out; the undo's refusal); simplify applied in-diff cleanups and
   reported wider ones (one payload outcome for selection and typed, the resolver skipping typed
@@ -147,7 +150,8 @@ changes a spec's digest.
   envelope from the boot's rows); on `44899be`: one P2, fixed (live presses refused by what the
   layer airs, not only by the cue's envelope); on `0870ce6`: one P2, fixed (a cold rebuild of a
   typed graphic replays its steps since the envelope); on `e47faee`: one P2, fixed (PREVIEW settles
-  with the typed values). /so on `ab0c8c9`: AGREE WITH
+  with the typed values); on `ee67f55`: one P2, fixed (an Update keeps the step), and one P1, filed
+  as #1762 for E1.2b's output baseline. /so on `ab0c8c9`: AGREE WITH
   CORRECTIONS, Assessment A (two wrong comments in `ografTyped.ts`, fixed); on `6e0ac4f`: AGREE
   WITH CORRECTIONS, Assessment A (the silent legacy `/update` on a typed graphic, named above).
   The verdict on the final head is in the pull request.

@@ -361,7 +361,12 @@ test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\
     { graphic: 'Board', msg: { t: 'next' } },
   ]);
   assert.deepEqual(rememberAired(warm, [{ graphic: 'Board', msg: { t: 'stop' } }]).typedSteps, {});
-  assert.deepEqual(rememberAired(warm, [{ graphic: 'Board', msg: typedUpdate }]).typedSteps, { Board: [] });
+  // A typed Update changes the values, never the step; a Take's play starts the steps again.
+  const updated = rememberAired(warm, [{ graphic: 'Board', msg: typedUpdate }]);
+  assert.deepEqual(updated.typedSteps, { Board: [{ t: 'play' }, { t: 'next' }, { t: 'next' }] });
+  assert.deepEqual(rememberAired(updated, [{ graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }]).typedSteps, { Board: [{ t: 'play' }] });
+  const coldUpdated = seedFromResolve(boot, { liveCue: { Board: 'c1' }, live: {} }, [...stepped, { graphic: 'Board', msg: typedUpdate }], airAtRequest(boot), [], specs);
+  assert.deepEqual(restoreItems(coldUpdated, {}, specs).items.map((item) => item.msg.t), ['update', 'play', 'next'], 'a cold rebuild after an Update stands at the step too');
   assert.deepEqual(withoutTypedAir(resolved, seeded.typedAired), { Strap: { f0: 'x' } });
   // Every stage, the page's monitors included, applies the same rule as the output's gate.
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
