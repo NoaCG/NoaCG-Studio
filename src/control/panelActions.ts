@@ -166,7 +166,8 @@ export function graphicControls(g: {
     arranged: arrangeControls(withLiveLabels(m.buttons, g.aired), g.arrange, (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
     numbers: liveNumberFields(m.descriptors, m.buttons, g.candidate),
     // A layer holding a cue this page cannot see has no values to carry: such presses wait.
-    legal: (event) => isEventLegal(m.legality, event, g.state) && (!!g.sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
+    // A declared OGraf action is not the machine's: its legality is unknown, never greyed by it (E2.1).
+    legal: (event) => !!m.buttons.find((b) => b.event === event)?.typed || (isEventLegal(m.legality, event, g.state) && (!!g.sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] }))),
     stepping: g.sel.editingIsLive,
     aired: g.aired,
   };

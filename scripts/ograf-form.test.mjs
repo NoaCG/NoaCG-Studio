@@ -26,7 +26,8 @@ const form = await import('../src/control/ografForm.ts');
 const typed = await import('../src/model/ografTyped.ts');
 const contract = await import('../src/control/ografContract.ts');
 const { typedActionSendFor } = await import('../src/control/typedSend.ts');
-const { graphicCapabilities, foreignCapabilities } = await import('../src/control/panelActions.ts');
+const { graphicCapabilities, foreignCapabilities, graphicControls } = await import('../src/control/panelActions.ts');
+const { replaceRundown, rundownSlice } = await import('../src/model/rundownHistory.ts');
 
 const { describeOgraf, readOgrafDeclared, typedSeed, typedWithDefaults, typedActionFor, actionArgsOf, actionSchemaOf, readTypedArgs, readTypedWire, typedOutputGate, migrateToTyped, OGRAF_STANDARD, TYPED_MAX_VALUE_NODES, TYPED_MAX_SEND_BYTES, TYPED_ACTIONS_READER } = typed;
 const declared = readOgrafDeclared({ v: 1, manifest: stranger });
@@ -318,4 +319,30 @@ test('declared actions are ordinary arranged buttons; a panel sees them only as 
   const foreign = foreignCapabilities(stranger);
   assert.deepEqual(foreign.caps.map((c) => [c.id, c.invocable]), [['foreign:highlight', false], ['foreign:reset', false]]);
   assert.deepEqual(foreign.refused, []);
+});
+
+test('a declared action is never greyed by a machine it is not part of; native events still are', () => {
+  const machine = {
+    buttons: [{ event: 'goal', label: 'Goal' }, ...contract.typedActionButtons({ v: 1, manifest: stranger })],
+    descriptors: [],
+    path: new Set(),
+    legality: { goal: { main: ['live'] } },
+  };
+  const c = graphicControls({ graphic: 'G', machine, sel: { airCue: { id: 'c' }, selectedGraphic: 'G', selectedLayerLive: true }, live: 'c', state: { groups: { main: 'off' } }, aired: null, arrange: undefined, candidate: [] });
+  assert.equal(c.legal('goal'), false, 'the machine greys its own event where it stands');
+  assert.equal(c.legal('highlight'), true);
+  assert.equal(c.legal('reset'), true);
+});
+
+test('undo and redo put back a typed envelope the form changed; turning typed data on or off stays refused there', () => {
+  const env = (values) => ({ v: 1, kind: 'values', standard: OGRAF_STANDARD.commit, schema: 's', values });
+  const graphic = { id: 'g', name: 'G', template: { name: 'G', fields: [], html: '', css: '', js: '', settings: {}, assets: [], layers: [], resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 50 } };
+  const show = (typed) => ({ id: 'p', version: 2, name: 'P', updatedAt: '', graphics: [graphic], cues: [{ id: 'c', sourceId: 'g', label: 'C', values: {}, ...(typed ? { typed } : {}) }], folders: [] });
+  const now = show(env({ title: 'B' }));
+  const back = replaceRundown(now, rundownSlice(now), rundownSlice(show(env({ title: 'A' }))));
+  assert.equal(back.refused, null);
+  assert.deepEqual(back.show.cues[0].typed.values, { title: 'A' });
+  assert.ok(replaceRundown(now, rundownSlice(now), rundownSlice(show(undefined))).refused, 'Off is not an undo');
+  const later = show({ v: 2, values: { title: 'L' } });
+  assert.ok(replaceRundown(later, rundownSlice(later), rundownSlice(show(env({ title: 'A' })))).refused, 'a later version is never rewritten');
 });

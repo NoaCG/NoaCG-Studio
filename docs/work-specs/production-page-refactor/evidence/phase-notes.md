@@ -112,6 +112,13 @@ changes a spec's digest.
     row out without holding the graphic (it moves no data, and a ⚡ press on a native-data cue of an
     imported graphic must not freeze them), and still refuse and hold on a typed values row as E1.2b
     decided. They are not in the Presence check. Exported receiver bytes change by this line.
+  - *Typed edits are undoable*: the form's writes go through the rundown's history (`history.write`),
+    so they neither clear the undo stacks as an outside change nor escape them; the verb wait awaits
+    them (`typedWrites`). `replaceRundown` lets an undo or redo put back the record's own earlier
+    envelope between two envelopes this build reads (E1.1's door, `typedFrozen`'s writer allowance);
+    turning typed data on or off is still refused there, as E1.2a decided.
+  - *A declared action's legality is unknown, never the machine's*: its button is never greyed by the
+    machine's legality table, on the page or for a panel.
   - *A form write never overwrites another edit*: `setCueTypedValues` takes the values the form was
     showing and refuses ("This cue changed elsewhere. Try again.") when the stored ones differ.
   - *An absent optional on/off shows its declared default*, what the Graphic applies.
@@ -135,6 +142,7 @@ changes a spec's digest.
   `src/control/ografForm.ts` (new), `src/control/ografContract.ts`, `src/control/typedSend.ts`,
   `src/control/graphicVerbs.ts`, `src/control/panelActions.ts`, `src/control/controlModel.ts`,
   `src/control/livePath.ts` (comment), `src/control/ografHost.ts`, `src/control/hostedReceiver.ts`,
+  `src/model/rundownHistory.ts`,
   `src/components/fields/FieldControl.tsx` (`isSegmented` exported), `src/blocks/animMachine.ts`, `src/output/stage.ts`,
   `src/preview/previewProtocol.ts`, `src/components/home/TypedForm.tsx` (new),
   `src/components/home/CueEditor.tsx`, `src/components/home/CueRundown.tsx`,

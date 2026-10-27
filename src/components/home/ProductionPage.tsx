@@ -1355,9 +1355,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     typedFlushers.current.add(flush);
     return () => void typedFlushers.current.delete(flush);
   }, []);
+  /** The typed form's writes still landing through the rundown's history, awaited by the same wait. */
+  const typedWrites = useRef<Promise<unknown>>(Promise.resolve());
   const flushDraft = useCallback(() => {
     for (const flush of typedFlushers.current) flush();
-    return flushCueDraft();
+    // Started at once, as before: a caller cancels the draft right after asking (`selectCue`).
+    const native = flushCueDraft();
+    return typedWrites.current.then(() => native);
   }, [flushCueDraft]);
   const drawnDraft = useDrawnDraft(cueDraft.part, session.geometry as StorePart<unknown>);
   const history = useRundownHistory(show ?? null, setShows, setRundownNote, (a, b) => historySafety.current(a, b), cancelDraft);
@@ -1629,22 +1633,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const envelope = typedValuesOf(cue.typed);
     const bound = boundFields(graphic);
     const fields = declared.fields;
-    const kept = (write: { error: string | null; shows: Show[] }) => {
-      setShows(write.shows);
-      setTypedNote(write.error ? { cueId: cue.id, note: write.error } : null);
+    // Through the rundown's history, like every authored edit: undoable, and never read as another
+    // tab's change that clears the stacks. A refusal is the history's note.
+    const kept = (write: () => { error: string | null; shows: Show[] }, label: string) => {
+      const landing = history.write(write, label);
+      typedWrites.current = typedWrites.current.then(() => landing);
     };
     const values = envelope && fields
       ? {
           fields,
           value: envelope.values,
           errors: new Map([...typedErrorsByPath(fields, envelope.values)].filter(([at]) => !bound[at.split(/[.[]/)[0]])),
-          onChange: (next: TypedValues['values']) => kept(setCueTypedValues(show.id, cue.id, next, envelope.values)),
+          onChange: (next: TypedValues['values']) => kept(() => setCueTypedValues(show.id, cue.id, next, envelope.values), 'Edit typed data'),
         }
       : null;
     const actions = declared.description.actions.flatMap((a) => {
       if (!a.args) return [];
       const value = actionArgsOf(a, cue.typedArgs);
-      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (args: JsonValue | undefined) => kept(setCueTypedArgs(show.id, cue.id, a, args)) }];
+      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (args: JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, args), `Edit ${a.name}`) }];
     });
     return values || actions.length ? { values, actions, register: registerTypedFlush } : null;
   };
@@ -3181,7 +3187,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  the machine state PROGRAM reports for it and pressed with the page's own selection. */
   const actionButton = actionButtonFor({
     live: selectedLayerLive,
-    legal: (event) => isEventLegal(legality, event, machineState),
+    // A declared OGraf action is not the machine's: its legality is unknown, never greyed by it (E2.1).
+    legal: (event) => !!events.find((b) => b.event === event)?.typed || isEventLegal(legality, event, machineState),
     labelOf: (key) => descriptors.find((d) => d.key === key)?.label,
     aired: selectedGraphic ? (airedData[selectedGraphic] ?? null) : null,
     fire: (b) => void fireEvent(b),
