@@ -25,7 +25,7 @@ const stranger = JSON.parse(readFileSync(path.join(root, 'scripts/fixtures/ograf
 const form = await import('../src/control/ografForm.ts');
 const typed = await import('../src/model/ografTyped.ts');
 const contract = await import('../src/control/ografContract.ts');
-const { typedActionSendFor, createTypedSaves, TYPED_NOT_SAVED } = await import('../src/control/typedSend.ts');
+const { typedActionSendFor, createTypedSaves, TYPED_NOT_SAVED, TYPED_VALUES_PART } = await import('../src/control/typedSend.ts');
 const { graphicCapabilities, foreignCapabilities, graphicControls } = await import('../src/control/panelActions.ts');
 const { replaceRundown, rundownSlice } = await import('../src/model/rundownHistory.ts');
 
@@ -355,14 +355,22 @@ test('undo and redo put back a typed envelope the form changed; turning typed da
   assert.ok(replaceRundown(later, rundownSlice(later), rundownSlice(show(env({ title: 'A' })))).refused, 'a later version is never rewritten');
 });
 
-test('a cue whose typed edit did not save sends nothing typed until its next one lands; other cues are untouched', () => {
+test('a typed part whose edit did not save sends nothing typed until its own next write lands; other parts and cues are untouched', () => {
   const saves = createTypedSaves();
-  assert.equal(saves.refusal('a'), null);
-  saves.landed('a', false);
-  assert.equal(saves.refusal('a'), TYPED_NOT_SAVED);
-  assert.equal(saves.refusal('b'), null, 'another cue still takes');
-  saves.landed('b', true);
-  assert.equal(saves.refusal('a'), TYPED_NOT_SAVED, 'another cue landing clears nothing here');
-  saves.landed('a', true);
-  assert.equal(saves.refusal('a'), null);
+  const take = [TYPED_VALUES_PART];
+  const press = [TYPED_VALUES_PART, 'highlight'];
+  assert.equal(saves.refusal('a', take), null);
+  saves.landed('a', TYPED_VALUES_PART, false);
+  assert.equal(saves.refusal('a', take), TYPED_NOT_SAVED);
+  assert.equal(saves.refusal('a', press), TYPED_NOT_SAVED, 'a press waits on the values too');
+  assert.equal(saves.refusal('b', take), null, 'another cue still takes');
+  saves.landed('b', TYPED_VALUES_PART, true);
+  saves.landed('a', 'highlight', true);
+  assert.equal(saves.refusal('a', take), TYPED_NOT_SAVED, 'an argument save does not stand for the values');
+  saves.landed('a', TYPED_VALUES_PART, true);
+  assert.equal(saves.refusal('a', take), null);
+  saves.landed('a', 'highlight', false);
+  assert.equal(saves.refusal('a', take), null, 'a failed argument save leaves Take alone');
+  assert.equal(saves.refusal('a', press), TYPED_NOT_SAVED);
+  assert.equal(saves.refusal('a', [TYPED_VALUES_PART, 'reset']), null, 'another action still presses');
 });

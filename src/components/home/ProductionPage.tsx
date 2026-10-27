@@ -86,7 +86,7 @@ import type { Resolution, SpxTemplate } from '../../model/types';
 import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend } from '../../model/ografTyped';
 import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
 import { graphicButtons, receivesTypedActions } from '../../control/ografContract';
-import { createTypedSaves, createTypedSendMemo, typedActionSendFor } from '../../control/typedSend';
+import { createTypedSaves, createTypedSendMemo, typedActionSendFor, TYPED_VALUES_PART } from '../../control/typedSend';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
@@ -1608,7 +1608,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const failure = result.error ?? (await commitDurableWrites());
         setTypedNote(failure ? { cueId: cue.id, note: failure } : null);
         // The form now shows what is stored, so an earlier failed typed edit no longer stands.
-        if (!failure) typedSaves.current.landed(cue.id, true);
+        if (!failure) typedSaves.current.landed(cue.id, TYPED_VALUES_PART, true);
       },
     };
   };
@@ -1640,9 +1640,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const fields = declared.fields;
     // Through the rundown's history, like every authored edit: undoable, and never read as another
     // tab's change that clears the stacks. A refusal is the history's note.
-    const kept = (write: () => { error: string | null; shows: Show[] }, label: string) => {
+    const kept = (write: () => { error: string | null; shows: Show[] }, label: string, part: string) => {
       const landing = history.write(write, label).then((ok) => {
-        typedSaves.current.landed(cue.id, ok);
+        typedSaves.current.landed(cue.id, part, ok);
         return ok;
       });
       typedWrites.current = typedWrites.current.then(() => landing);
@@ -1652,7 +1652,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           fields,
           value: envelope.values,
           errors: new Map([...typedErrorsByPath(fields, envelope.values)].filter(([at]) => !bound[at.split(/[.[]/)[0]])),
-          onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedValues(show.id, cue.id, update), 'Edit typed data'),
+          onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedValues(show.id, cue.id, update), 'Edit typed data', TYPED_VALUES_PART),
         }
       : null;
     // Argument forms only where a press can be received (`receivesTypedActions`), as its ⚡ button.
@@ -1661,7 +1661,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const actions = declared.description.actions.flatMap((a) => {
       if (!a.args || !receives) return [];
       const value = actionArgsOf(a, cue.typedArgs);
-      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, update), `Edit ${a.name}`) }];
+      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, update), `Edit ${a.name}`, a.id) }];
     });
     return values || actions.length ? { values, actions, register: registerTypedFlush } : null;
   };
@@ -2910,11 +2910,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     // After the wait: a typed form's edit it landed is in the record, newer than this render's cue.
     typedFor: (cue, graphic) => {
-      const unsaved = cue.typed === undefined ? null : typedSaves.current.refusal(cue.id);
+      const unsaved = cue.typed === undefined ? null : typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART]);
       return unsaved ? { status: 'refused', reason: unsaved } : typedFor(storedCue(cue), graphic);
     },
     typedActionFor: (cue, graphic, action) => {
-      const unsaved = typedSaves.current.refusal(cue.id);
+      const unsaved = typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART, action]);
       return unsaved ? { status: 'refused', reason: unsaved } : typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id });
     },
     typedAiring: (graphic) => graphic in (session.air.get().typedAired ?? NO_TYPED_AIR),

@@ -128,10 +128,12 @@ changes a spec's digest.
     value (`(current) => setAt(current, path, v)`), and `setCueTypedValues` / `setCueTypedArgs` apply
     it to what is stored when the write lands, so quick successive edits each touch only their own
     path and none is refused or rewritten.
-  - *A typed edit that did not save sends nothing typed*: a cue whose last typed write failed
-    (`control/typedSend.ts` `createTypedSaves`, cue by cue) refuses Take, ✎ Update and a press with the
-    reason, rather than air the older record, until its next typed write lands or typed data is
-    turned Off or On (the form then shows what is stored); other cues take.
+  - *A typed edit that did not save sends nothing typed*: a part of a cue whose last write failed
+    (`control/typedSend.ts` `createTypedSaves`, by cue and part: its values, or one action's
+    arguments) refuses what would send it with the reason, rather than air the older record: Take and
+    ✎ Update ask for the values, a press for the values and its action's arguments. It clears when
+    that part's next write lands, or (values) when typed data is turned Off or On, since the form then
+    shows what is stored. A write to another part or cue clears nothing.
   - *An image declared only by `contentMediaType: image/*`* draws the picture picker in the typed
     form as in the flat contract (bench, bridge): E1's node now carries it (`TypedNode.image`), and
     the value is still kept as its string. The envelope's schema hash is of the declared schema, so

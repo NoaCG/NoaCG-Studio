@@ -89,15 +89,20 @@ export function typedActionSendFor(cue: { typedArgs?: unknown }, action: string,
 /** A typed edit that did not save sends nothing older in its place (E2.1). */
 export const TYPED_NOT_SAVED = 'The last typed edit was not saved, so nothing typed was sent. Check the value and try again.';
 
+/** The part of a cue a typed write saves: its values, or one action's arguments by the action's id. */
+export const TYPED_VALUES_PART = 'values';
+
 /**
- * THE TYPED FORM'S SAVES, CUE BY CUE (E2.1): a cue whose last typed write failed (values or an
- * action's arguments) sends nothing typed, since what is stored is not what the operator typed, until
- * its next typed write lands. Other cues are untouched.
+ * THE TYPED FORM'S SAVES, CUE BY CUE AND PART BY PART (E2.1): a part whose last write failed sends
+ * nothing typed, since what is stored is not what the operator typed, until that part's next write
+ * lands. A Take or ✎ Update asks for the values; a press for the values and its action's arguments.
+ * A write to another part, or another cue, clears nothing.
  */
-export function createTypedSaves(): { landed: (cueId: string, ok: boolean) => void; refusal: (cueId: string) => string | null } {
+export function createTypedSaves(): { landed: (cueId: string, part: string, ok: boolean) => void; refusal: (cueId: string, parts: readonly string[]) => string | null } {
   const failed = new Set<string>();
+  const key = (cueId: string, part: string) => JSON.stringify([cueId, part]);
   return {
-    landed: (cueId, ok) => void (ok ? failed.delete(cueId) : failed.add(cueId)),
-    refusal: (cueId) => (failed.has(cueId) ? TYPED_NOT_SAVED : null),
+    landed: (cueId, part, ok) => void (ok ? failed.delete(key(cueId, part)) : failed.add(key(cueId, part))),
+    refusal: (cueId, parts) => (parts.some((part) => failed.has(key(cueId, part))) ? TYPED_NOT_SAVED : null),
   };
 }
