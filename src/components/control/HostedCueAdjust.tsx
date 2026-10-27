@@ -4,7 +4,7 @@ import { getCssVariable } from '../../model/cssVars';
 import { FONTS } from '../../model/fonts';
 import { withAnchor, type AppliedAppearance } from '../../control/cueAdjust';
 import { asDesignedPatch, facePickPatch, styleReach, COLOUR_VARS, SVG_DESIGN_MARKER, type StyleContext } from '../../control/cueStyle';
-import { hostedAdjustState, hostedRecords, stageAdjustPromote, stageAdjustReset, stageAdjustStep, stageAdjustWrite, type StagedWrite } from '../../control/hostedAdjust';
+import { hostedAdjustState, hostedImported, hostedRecords, stageAdjustPromote, stageAdjustReset, stageAdjustStep, stageAdjustWrite, type StagedWrite } from '../../control/hostedAdjust';
 import type { OutputCue, OutputGraphicSpec } from '../../control/hostedControl';
 import { storePart } from '../../control/storePart';
 import CueAdjust from '../home/CueAdjust';
@@ -48,6 +48,7 @@ export default function HostedCueAdjust({
   const others = mine.filter((c) => c.id !== cue.id);
   const othersOwn = others.filter((c) => !!c.adjust && hostedRecords(c.adjust, buffer, c.id).cue !== undefined).length;
   const state = hostedAdjustState(pub, records, cue.id, applied, othersOwn > 0, styleCtx);
+  const imported = hostedImported(pub, styleCtx.imported);
   const scope = state.eff.own.length > 0 || onlyThisCue ? 'cue' : 'graphic';
   const run = (write: StagedWrite) => {
     if (typeof write === 'string') refused(write);
@@ -91,12 +92,12 @@ export default function HostedCueAdjust({
       style={{
         reach,
         artwork,
-        imported: styleCtx.imported,
+        imported,
         bundled: FONTS,
         design,
         asDesigned: (row) => write(asDesignedPatch(row, scope, records.graphic, reach)),
         designedFace: () => write({ font: asDesignedPatch('type', scope, records.graphic, reach).font }),
-        pickFace: (next: FontRef, weight: string) => write(facePickPatch(next, weight, scope, records.graphic, design, styleCtx.imported)),
+        pickFace: (next: FontRef, weight: string) => write(facePickPatch(next, weight, scope, records.graphic, design, imported)),
       }}
     />
   );

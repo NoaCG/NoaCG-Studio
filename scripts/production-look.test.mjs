@@ -120,7 +120,7 @@ describe('what the look reaches, over emitted templates (AC-6)', () => {
     assert.equal(out.graphics.svg, undefined);
     // The face the appearance names ships with the package, from the look's own copy.
     const shipped = St.withAppearanceFaces(templates[0], out.cues.a.fonts, L.withLookAssets(show, templates));
-    assert.ok(shipped.assets.some((x) => x.path === 'fonts/brand-sans.woff2'));
+    assert.ok(shipped.assets.some((x) => x.path === 'fonts/look/brand-sans.woff2'));
     assert.match(shipped.css, /Brand Sans/);
     // The panel counts the look's own face whether or not it is on.
     assert.equal(L.lookReach([{ name: 'Strap', template: templates[0] }], look, L.lookPanelImported(look, [])).type, 1);
@@ -157,21 +157,39 @@ describe('the faces a look names reach the document', () => {
   test('a brand\'s imported typeface resolves from the look\'s own copy, though no pool graphic ships it', () => {
     const show = { look: imported, lookApplied: true, graphics: [{ id: 'g' }] };
     const ctx = L.lookStyleContext(show, [strap]);
-    assert.deepEqual(ctx.imported, [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
+    assert.deepEqual(ctx.imported, [{ family: 'Brand Sans', assetPath: 'fonts/look/brand-sans.woff2' }]);
     const style = St.resolveStyle(A.effectiveAdjust(undefined, undefined, ctx.lookFor('g')), ctx.imported);
     assert.match(style.vars['font-heading'], /Brand Sans/);
-    assert.ok(style.fonts.some((f) => f.family === 'Brand Sans' && f.src === 'fonts/brand-sans.woff2'));
+    assert.ok(style.fonts.some((f) => f.family === 'Brand Sans' && f.src === 'fonts/look/brand-sans.woff2'));
     // Its bytes are found by path beside the pool, for PREVIEW, the measurer and the export.
     const css = St.facesCss(style.fonts, St.assetDataIn(L.withLookAssets(show, [strap])));
     assert.match(css, /Brand Sans[^}]*data:font\/woff2/);
-    assert.equal(L.withLookAssets({ ...show, lookApplied: undefined }, [strap]).length, 1, 'the look off: nothing added');
+    // Turned off, what was sent stays on air until the next Take or Update, so its bytes still
+    // travel; only the fold stops naming it.
+    const off = { ...show, lookApplied: undefined };
+    assert.equal(L.withLookAssets(off, [strap]).length, 2, 'the look off: its bytes still beside the pool');
+    assert.ok(L.lookImportedFace(off), 'and still carried to air');
+    assert.deepEqual(L.lookStyleContext(off, [strap]).imported, [], 'but the fold no longer names it');
     assert.equal(L.lookImportedFace({ look: LOOK, lookApplied: true }), null, 'a bundled face has no bytes to carry');
     // Published once, with the first graphic, unless a graphic already ships the file.
-    const asset = imported.customFont.asset;
+    const asset = L.lookImportedFace(show).asset;
     const specs = [{ key: 'A', assets: [] }, { key: 'B', assets: [] }];
     const carried = L.withLookFaceIn(specs, asset);
-    assert.deepEqual(carried.map((g) => g.assets.map((x) => x.path)), [['fonts/brand-sans.woff2'], []]);
+    assert.deepEqual(carried.map((g) => g.assets.map((x) => x.path)), [['fonts/look/brand-sans.woff2'], []]);
     assert.deepEqual(L.withLookFaceIn(carried, asset), carried, 'never twice');
+  });
+
+  test('a pool font at the same file name as the brand\'s never stands in for it', () => {
+    // Import paths come from the file name, so two different files can share one.
+    const other = { css: '@font-face { font-family: "Old Brand"; src: url("fonts/brand-sans.woff2") format("woff2"); }\n:root { --font-heading: "Old Brand"; }\n.x { font-family: var(--font-heading); }', js: '', assets: [{ path: 'fonts/brand-sans.woff2', data: 'data:font/woff2;base64,OLD0' }] };
+    const show = { look: imported, lookApplied: true, graphics: [{ id: 'g' }] };
+    const ctx = L.lookStyleContext(show, [other]);
+    const style = St.resolveStyle(A.effectiveAdjust(undefined, undefined, ctx.lookFor('g')), ctx.imported);
+    const css = St.facesCss(style.fonts, St.assetDataIn(L.withLookAssets(show, [other])));
+    assert.match(css, /Brand Sans[^}]*base64,AAAA/, 'the look reads its own bytes');
+    assert.doesNotMatch(css, /Brand Sans[^}]*OLD0/);
+    const carried = L.withLookFaceIn([{ key: 'A', assets: other.assets }], L.lookImportedFace(show).asset);
+    assert.deepEqual(carried[0].assets.map((x) => x.data), ['data:font/woff2;base64,OLD0', 'data:font/woff2;base64,AAAA'], 'both files publish');
   });
 
   test('a label face a look\'s token names is declared with the heading\'s', () => {

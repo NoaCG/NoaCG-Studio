@@ -1133,5 +1133,20 @@ test('a hosted graphic reports a style-only appearance and restores it from its 
     }
     await graphic.close();
   }
+  // A restored look in another face than the file loaded with refits once it is in, as the relay
+  // receiver's boot does: the values shown go to update() a second time.
+  const face: AppliedAppearance = { v: 1, vars: { accent: '#ff7a00', 'font-heading': '"Archivo", Arial, sans-serif' } };
+  const graphic = await context.newPage();
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', () => {});
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 5, live: { Board: { data: { f0: 'ON AIR' }, state: { appearance: face } } } }] });
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR', { timeout: 30_000 });
+  await expect.poll(() => appliedIn(graphic), { timeout: 10_000 }).toEqual(['update:ON AIR', 'update:ON AIR']);
+  await graphic.close();
 });
 

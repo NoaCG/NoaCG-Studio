@@ -121,6 +121,10 @@ describe('the doors, as on the production page', () => {
     const state = H.hostedAdjustState(pub, H.hostedRecords(pub, {}, 'c1'), 'c1', null, false, ctx);
     assert.match(state.style.vars['font-heading'], /Brand Sans/);
     assert.ok(state.style.fonts.some((f) => f.src === 'fonts/brand-sans.woff2'));
+    // The Type row offers it too, so it can be shown and picked again; once only.
+    const offered = H.hostedImported(pub, []);
+    assert.deepEqual(offered, [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
+    assert.deepEqual(H.hostedImported(pub, offered), offered);
   });
 
   test('a graphic nobody adjusted still gets the block: Publish carries its frame alone, and a nudge staged on it airs', () => {

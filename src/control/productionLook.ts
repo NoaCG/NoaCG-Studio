@@ -32,10 +32,15 @@ export function lookToActivate(show: { look?: ProjectBrand; brandId?: string }, 
   return named ? structuredClone(named) : (show.look ?? null);
 }
 
+/** Where the look's imported face file travels: under its own folder, never at a pool graphic's
+ *  path. Import paths come from the file name (model/fonts.ts `fontAssetPath`), so a brand's font
+ *  and a different pool font can share one; at the same path the pool's bytes would stand in. */
+const lookAssetPath = (path: string) => `fonts/look/${path.replace(/^fonts\//, '')}`;
+
 /** The face a look names, as a record reference (model/adjust.ts `readFont`), or undefined. */
 export function lookFontRef(look: ProjectBrand): FontRef | undefined {
   if (look.customFont) {
-    const ref = readFont({ family: look.customFont.family, assetPath: look.customFont.asset.path });
+    const ref = readFont({ family: look.customFont.family, assetPath: lookAssetPath(look.customFont.asset.path) });
     return ref && ref !== 'designed' ? ref : undefined;
   }
   return look.fontId ? { fontId: look.fontId } : undefined;
@@ -87,14 +92,16 @@ export function lookForOf(
   return (graphicId) => byId.get(graphicId);
 }
 
-/** THE LOOK'S IMPORTED FACE while the look is on, as the fold resolves faces, and the one place its
- *  bytes come from: the look's own copy (`customFont.asset`), so a brand's imported typeface reaches
- *  a production whose graphics never shipped it. Null for a bundled face, or the look off. */
-export function lookImportedFace(show: { look?: ProjectBrand; lookApplied?: true } | null | undefined): { face: ImportedFace; asset: AssetFile } | null {
-  const look = productionLookOf(show);
+/** THE LOOK'S IMPORTED FACE, as the fold resolves faces, and the one place its bytes come from: the
+ *  look's own copy (`customFont.asset`, at `lookAssetPath`), so a brand's imported typeface reaches
+ *  a production whose graphics never shipped it. On or off: a look sent and then turned off stays
+ *  on air until the next Take or Update, and a rebuilt monitor or reloaded output still needs its
+ *  bytes. Null for a bundled face. */
+export function lookImportedFace(show: { look?: ProjectBrand } | null | undefined): { face: ImportedFace; asset: AssetFile } | null {
+  const look = show?.look;
   const ref = look && lookFontRef(look);
   if (!look?.customFont || !ref || 'fontId' in ref) return null;
-  return { face: { family: ref.family, assetPath: ref.assetPath }, asset: look.customFont.asset };
+  return { face: { family: ref.family, assetPath: ref.assetPath }, asset: { ...look.customFont.asset, path: ref.assetPath } };
 }
 
 /** The faces the Look panel counts and weighs a look with, on or off: the pool's, and the look's
@@ -112,7 +119,7 @@ export function lookStyleContext(
   templates: readonly { css: string; js: string; assets: readonly { path: string }[] }[],
 ): StyleContext {
   const ctx = styleContextFor(templates, lookForOf(show, templates));
-  const own = lookImportedFace(show);
+  const own = productionLookOf(show) && lookImportedFace(show);
   if (!own || ctx.imported.some((f) => f.family === own.face.family && f.assetPath === own.face.assetPath)) return ctx;
   return { ...ctx, imported: [...ctx.imported, own.face] };
 }
