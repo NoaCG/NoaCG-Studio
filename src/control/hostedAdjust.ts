@@ -25,6 +25,7 @@ import { ADJUST_READ_ONLY, patchAdjust, promotedMembers, readAdjust, stepPatch, 
 import { cueAdjustState, NO_GEOMETRY, type CueAdjustState, type GeometryPart, type StyleContext } from './adjustGeometry.ts';
 import { STAGED_ADJUST } from './cueStaging.ts';
 import type { ImportedFace } from './cueStyle.ts';
+import { LOOK_FONT_DIR } from './productionLook.ts';
 import { publishedAppearance, type AppliedAppearance, type LookLayer, type Measurement, type Size } from './cueAdjust.ts';
 
 /** What Publish carries beside a cue for the hosted page's Adjust block. */
@@ -86,12 +87,22 @@ export function hostedRecords(pub: PublishedAdjust, buffer: Readonly<Record<stri
 }
 
 /** The imported faces a cue's block resolves and offers: the pool's, and the look's own imported
- *  face, as on the production page (its bytes ride with the payload's first graphic). */
-export function hostedImported(pub: PublishedAdjust, imported: readonly ImportedFace[]): ImportedFace[] {
-  const f = pub.look?.font;
-  if (!f || typeof f !== 'object' || !('family' in f) || imported.some((x) => x.family === f.family && x.assetPath === f.assetPath)) return [...imported];
-  return [...imported, { family: f.family, assetPath: f.assetPath }];
+ *  face, as on the production page (its bytes ride with the payload's first graphic): the look's
+ *  while it is on, and one a record here picked, on or off. */
+export function hostedImported(pub: PublishedAdjust, records: HostedRecords, imported: readonly ImportedFace[]): ImportedFace[] {
+  const out = [...imported];
+  for (const f of [pub.look?.font, recordFont(records.graphic), recordFont(records.cue)]) {
+    if (!f || typeof f !== 'object' || !('family' in f)) continue;
+    if (f !== pub.look?.font && !f.assetPath.startsWith(LOOK_FONT_DIR)) continue;
+    if (!out.some((x) => x.family === f.family && x.assetPath === f.assetPath)) out.push({ family: f.family, assetPath: f.assetPath });
+  }
+  return out;
 }
+
+const recordFont = (raw: unknown) => {
+  const r = readAdjust(raw);
+  return r.status === 'ok' ? r.record.font : undefined;
+};
 
 /** The cue's fold, measurement and resolution on this page, as the production page's block reads
  *  them (control/adjustGeometry.ts `cueAdjustState`), against the published box. */
@@ -104,7 +115,7 @@ export function hostedAdjustState(
   styleCtx: StyleContext,
 ): CueAdjustState {
   const geometry: GeometryPart = pub.box ? { byCue: {}, byGraphic: { [pub.graphicId]: pub.box } } : NO_GEOMETRY;
-  const ctx: StyleContext = { ...styleCtx, imported: hostedImported(pub, styleCtx.imported), lookFor: () => pub.look };
+  const ctx: StyleContext = { ...styleCtx, imported: hostedImported(pub, records, styleCtx.imported), lookFor: () => pub.look };
   const state = cueAdjustState({ id: pub.graphicId, savedAt: '', adjust: records.graphic }, { id: cueId, adjust: records.cue }, pub.frame, pub.stage, {}, geometry, applied, adjustedElsewhere, ctx);
   // The published box is the last qualified one: it stands until a new Publish, so the block reads
   // it as current rather than "measuring" a box nobody here will measure.

@@ -35,7 +35,8 @@ export function lookToActivate(show: { look?: ProjectBrand; brandId?: string }, 
 /** Where the look's imported face file travels: under its own folder, never at a pool graphic's
  *  path. Import paths come from the file name (model/fonts.ts `fontAssetPath`), so a brand's font
  *  and a different pool font can share one; at the same path the pool's bytes would stand in. */
-const lookAssetPath = (path: string) => `fonts/look/${path.replace(/^fonts\//, '')}`;
+export const LOOK_FONT_DIR = 'fonts/look/';
+const lookAssetPath = (path: string) => `${LOOK_FONT_DIR}${path.replace(/^fonts\//, '')}`;
 
 /** The face a look names, as a record reference (model/adjust.ts `readFont`), or undefined. */
 export function lookFontRef(look: ProjectBrand): FontRef | undefined {
@@ -112,14 +113,15 @@ export function lookPanelImported(look: ProjectBrand, imported: readonly Importe
   return [...imported, { family: ref.family, assetPath: ref.assetPath }];
 }
 
-/** A production's style context: its pool's imported faces, the look's imported face beside them,
- *  and the look on each graphic (`lookForOf`). */
+/** A production's style context: its pool's imported faces, the look's imported face beside them
+ *  (on or off, so a record that picked it keeps it once the look is off), and the look on each
+ *  graphic while it is on (`lookForOf`). */
 export function lookStyleContext(
   show: { look?: ProjectBrand; lookApplied?: true; graphics: readonly { id: string }[] } | null | undefined,
   templates: readonly { css: string; js: string; assets: readonly { path: string }[] }[],
 ): StyleContext {
   const ctx = styleContextFor(templates, lookForOf(show, templates));
-  const own = productionLookOf(show) && lookImportedFace(show);
+  const own = lookImportedFace(show);
   if (!own || ctx.imported.some((f) => f.family === own.face.family && f.assetPath === own.face.assetPath)) return ctx;
   return { ...ctx, imported: [...ctx.imported, own.face] };
 }
@@ -129,6 +131,21 @@ export function lookStyleContext(
 export function withLookAssets<T extends { assets: readonly AssetFile[] }>(show: { look?: ProjectBrand; lookApplied?: true } | null | undefined, pool: readonly T[]): (T | { css: string; assets: AssetFile[] })[] {
   const own = lookImportedFace(show);
   return own && !pool.some((t) => t.assets.some((a) => a.path === own.asset.path)) ? [...pool, { css: '', assets: [own.asset] }] : [...pool];
+}
+
+/** Whether air can name the look's imported face: the look is on, or a graphic's or a cue's own
+ *  record picked it. Publish carries its bytes only then, so a production whose look was captured
+ *  from its own graphics and never turned on does not ship that font twice. */
+export function lookFaceOnAir(show: { look?: ProjectBrand; lookApplied?: true; graphics: readonly { adjust?: unknown }[]; cues?: readonly { adjust?: unknown }[] }): boolean {
+  const own = lookImportedFace(show);
+  if (!own) return false;
+  if (show.lookApplied) return true;
+  const names = (raw: unknown) => {
+    const r = readAdjust(raw);
+    const f = r.status === 'ok' ? r.record.font : undefined;
+    return !!f && typeof f === 'object' && 'assetPath' in f && f.assetPath === own.face.assetPath;
+  };
+  return show.graphics.some((g) => names(g.adjust)) || (show.cues ?? []).some((c) => names(c.adjust));
 }
 
 /** A published payload's graphics with the look's imported face carried once, by the first

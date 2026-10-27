@@ -122,9 +122,19 @@ describe('the doors, as on the production page', () => {
     assert.match(state.style.vars['font-heading'], /Brand Sans/);
     assert.ok(state.style.fonts.some((f) => f.src === 'fonts/brand-sans.woff2'));
     // The Type row offers it too, so it can be shown and picked again; once only.
-    const offered = H.hostedImported(pub, []);
+    const records = H.hostedRecords(pub, {}, 'c1');
+    const offered = H.hostedImported(pub, records, []);
     assert.deepEqual(offered, [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
-    assert.deepEqual(H.hostedImported(pub, offered), offered);
+    assert.deepEqual(H.hostedImported(pub, records, offered), offered);
+  });
+
+  test('a cue that picked the look\'s face keeps it once the look is off', () => {
+    const font = { family: 'Brand Sans', assetPath: 'fonts/look/brand-sans.woff2' };
+    const pub = pubOf({ graphic: undefined, cue: { v: 1, font } });
+    const state = H.hostedAdjustState(pub, H.hostedRecords(pub, {}, 'c1'), 'c1', null, false, ctx);
+    assert.match(state.style.vars['font-heading'], /Brand Sans/);
+    const other = pubOf({ graphic: undefined, cue: { v: 1, font: { family: 'Stray', assetPath: 'fonts/stray.woff2' } } });
+    assert.deepEqual(H.hostedImported(other, H.hostedRecords(other, {}, 'c1'), []), [], 'only the look\'s own folder, never any face a record names');
   });
 
   test('a graphic nobody adjusted still gets the block: Publish carries its frame alone, and a nudge staged on it airs', () => {

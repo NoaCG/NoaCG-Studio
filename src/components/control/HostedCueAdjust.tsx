@@ -48,7 +48,7 @@ export default function HostedCueAdjust({
   const others = mine.filter((c) => c.id !== cue.id);
   const othersOwn = others.filter((c) => !!c.adjust && hostedRecords(c.adjust, buffer, c.id).cue !== undefined).length;
   const state = hostedAdjustState(pub, records, cue.id, applied, othersOwn > 0, styleCtx);
-  const imported = hostedImported(pub, styleCtx.imported);
+  const imported = hostedImported(pub, records, styleCtx.imported);
   const scope = state.eff.own.length > 0 || onlyThisCue ? 'cue' : 'graphic';
   const run = (write: StagedWrite) => {
     if (typeof write === 'string') refused(write);
