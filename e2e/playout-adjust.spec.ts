@@ -401,6 +401,41 @@ test('the late refit keeps what an accepted event wrote while the face was loadi
   await expect(doc.locator('#f0'), 'the refit replays the field as the event left it').toHaveText('Corrected Name');
 });
 
+for (const late of [false, true]) test(`an appearance-only update (a send to on-air graphics) refits with the values on air, never with an empty object (face ${late ? 'after' : 'within'} the hold)`, async ({ page }) => {
+  // Phase 3's bulk send carries the look and empty data, so a half-typed name never airs: the
+  // document refits with the values it took last, never with the empty object. Late, the face
+  // answers past the 400 ms hold, so the empty update runs before the refit does; within it, no
+  // update with values follows, so the style refits at once.
+  if (late) {
+    await page.route('**/fonts/archivo*.woff2', async (route) => {
+      await new Promise((r) => setTimeout(r, 1_500));
+      await route.continue();
+    });
+  }
+  const doc = await styledStage(page);
+  await page.evaluate((name) => {
+    (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: { f0: name } });
+  }, NAME);
+  await expect(doc.locator('#f0')).toHaveText(NAME);
+  await doc.locator('html').evaluate(() => {
+    const w = window as unknown as { update: (d: string) => void; __updates: string[] };
+    const own = w.update;
+    w.__updates = [];
+    w.update = (d: string) => { w.__updates.push(d); own(d); };
+  });
+  await page.evaluate(async () => {
+    const A = await import('/src/control/cueAdjust.ts');
+    const St = await import('/src/control/cueStyle.ts');
+    const style = St.resolveStyle(A.effectiveAdjust({ v: 1, font: { fontId: 'archivo' }, vars: { accent: '#ff7a00' } }, undefined), []);
+    (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: {}, appearance: A.appearanceOf(null, style) });
+  });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled), { timeout: 10_000 }).toEqual([1]);
+  expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--accent'))).toBe('#ff7a00');
+  const updates = await doc.locator('html').evaluate(() => (window as unknown as { __updates: string[] }).__updates);
+  expect(updates.filter((u) => u !== '{}'), 'one refit, with the values on air').toEqual([JSON.stringify({ f0: NAME })]);
+  await expect(doc.locator('#f0')).toHaveText(NAME);
+});
+
 test('a staged design keeps the reserves it calibrated when its face changes', async ({ page }) => {
   // card80's font-ready callback is the staged runtime's one-time calibration: run again it takes
   // every line for a new row and keeps one row of each multi-row reserve. A face change refits
@@ -434,4 +469,41 @@ test('an imported face reaches the document by its asset path, and draws the nam
   await sendStyle(page, { v: 1, font: { family: 'Brand Import', assetPath: 'fonts/brand-import.woff2' }, vars: { accent: '#00a3ff' } }, [{ family: 'Brand Import', assetPath: 'fonts/brand-import.woff2' }]);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1, 2]);
   expect(await brandFaces(), 'the same loaded face, never declared again').toEqual([{ marked: true, status: 'loaded' }]);
+});
+
+test('a stage finds an imported face its payload does not hold through its face fallback, so a look turned on later reaches PROGRAM', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app#/home');
+  const declared = await page.evaluate(async () => {
+    const { createOutputStage } = await import('/src/output/stage.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const A = await import('/src/control/cueAdjust.ts');
+    const St = await import('/src/control/cueStyle.ts');
+    const bytes = new Uint8Array(await (await fetch('/fonts/anton.woff2')).arrayBuffer());
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    const data = `data:font/woff2;base64,${btoa(bin)}`;
+    const t = variantById('lt01')!.create({});
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    root.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px';
+    document.body.appendChild(root);
+    const RES = { width: 1920, height: 1080, label: '1080p' };
+    // The payload ships no font: the face comes from the fallback alone.
+    const spec = { key: 'L3', html: t.html, css: t.css, js: t.js, assets: [], resolution: RES, fps: 50, layer: 20 };
+    const stage = createOutputStage(root, { v: 1, resolution: RES, graphics: [spec], cues: [] }, {
+      fit: () => ({ width: 1920, height: 1080 }),
+      faceAsset: (src) => (src === 'fonts/brand-look.woff2' ? data : null),
+    });
+    const iframe = root.querySelector('iframe[title="L3"]') as HTMLIFrameElement;
+    for (let i = 0; i < 100 && iframe.style.visibility !== 'visible'; i++) await new Promise((r) => setTimeout(r, 100));
+    const imported = [{ family: 'Brand Look', assetPath: 'fonts/brand-look.woff2' }];
+    const style = St.resolveStyle(A.effectiveAdjust(undefined, undefined, { font: { family: 'Brand Look', assetPath: 'fonts/brand-look.woff2' } }), imported);
+    stage.apply('L3', { t: 'update', data: {}, appearance: A.appearanceOf(null, style) });
+    return null;
+  });
+  expect(declared).toBeNull();
+  const doc = page.frameLocator('iframe[title="L3"]');
+  await expect.poll(() => doc.locator('html').evaluate(() => document.getElementById('noacg-appearance-faces')?.textContent ?? '')).toContain('Brand Look');
+  expect(await doc.locator('html').evaluate(() => document.getElementById('noacg-appearance-faces')?.textContent ?? '')).toContain('data:font/woff2');
 });

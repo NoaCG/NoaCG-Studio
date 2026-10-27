@@ -477,7 +477,9 @@ window.addEventListener('unhandledrejection', function (ev) {
          re-renders the roll. A face in by the time the hold lets go is fitted by the Update the
          style rides (or PREVIEW's settle on this answer); one that came later gets the last
          values again. A data update never starts a transition. */
-      if (refit && late && lastData != null) { try { window.update && window.update(lastData); } catch (e) {} }
+      /* An appearance-only update (msg.alone, phase 3) has no Update riding with it: its refit runs
+         now, with the values the graphic last took, never with an empty object. */
+      if (refit && (late || msg.alone) && lastData != null) { try { window.update && window.update(lastData); } catch (e) {} }
       try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_RESTYLED_TYPE)}, seq: seq, refit: refit }, '*'); } catch (e) {}
       release();
     });
@@ -491,7 +493,9 @@ window.addEventListener('unhandledrejection', function (ev) {
   });
   function run(msg) {
     if (msg.cmd === 'update') {
-      lastData = msg.data;
+      /* An update with no values (an appearance-only one, phase 3) leaves the values a refit
+         gives the graphic as they were; a graphic with no fields still takes its first. */
+      if (msg.data !== '{}' || lastData == null) lastData = msg.data;
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
       afterFonts(function () {

@@ -33,13 +33,15 @@ test('a plain production shows Playout alone, and Setup holds every other door o
   await expect(page.getByTestId('export-production')).toHaveCount(0);
   await expect(page.getByTestId('panel-open')).toHaveCount(0);
 
-  // Setup, in its order: the panel, Playout settings, Export, then the two views, always.
+  // Setup, in its order: the panel, the production look, Playout settings, Export, then the two
+  // views, always.
   const setup = page.getByTestId('production-setup');
   await setup.click();
   const menu = page.getByTestId('production-setup-menu');
   await expect(setup).toHaveAttribute('aria-expanded', 'true');
   await expect(menu.getByRole('menuitem')).toHaveText([
     /Stream Deck panel…\s*Off/,
+    /Look…/,
     /Playout settings…/,
     /Export…/,
     'Data…',

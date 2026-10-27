@@ -18,7 +18,7 @@
 //
 // Pure and Node-tested (scripts/cue-adjust.test.mjs); the measuring is the caller's.
 
-import { appearanceOf, effectiveAdjust, resolveFrame, type AppliedAppearance, type Measurement, type Size } from './cueAdjust.ts';
+import { appearanceOf, effectiveAdjust, resolveFrame, type AppliedAppearance, type LookLayer, type Measurement, type Size } from './cueAdjust.ts';
 import { resolveStyle, type ImportedFace } from './cueStyle.ts';
 
 /** The baked default per pool graphic id, and the appearance per cue id. */
@@ -42,9 +42,12 @@ interface RundownCue {
 /** A graphic cue with place and size of its own (a playout-server clip has none). */
 export const cueAdjusted = (c: Omit<RundownCue, 'id' | 'sourceId'>) => c.source !== 'playout' && c.adjust !== undefined;
 
-/** The pool graphics that hold place and size at either scope. */
-export function adjustedGraphics<G extends PoolGraphic>(graphics: readonly G[], cues: readonly RundownCue[]): G[] {
-  return graphics.filter((g) => g.adjust !== undefined || cues.some((c) => c.sourceId === g.id && cueAdjusted(c)));
+/** The production look on a pool graphic while it is on (control/productionLook.ts `lookLayerFor`). */
+export type LookFor = (graphicId: string) => LookLayer | undefined;
+
+/** The pool graphics that hold an adjustment at either scope, or take the production look. */
+export function adjustedGraphics<G extends PoolGraphic>(graphics: readonly G[], cues: readonly RundownCue[], lookFor?: LookFor): G[] {
+  return graphics.filter((g) => g.adjust !== undefined || !!lookFor?.(g.id) || cues.some((c) => c.sourceId === g.id && cueAdjusted(c)));
 }
 
 /** Whether a fold needs a box to resolve: a preset, a size about the box's own point, or a
@@ -61,18 +64,21 @@ export function exportAppearances(
   measured: { graphics: Readonly<Record<string, Measurement | null>>; cues: Readonly<Record<string, Measurement | null>> },
   /** The imported faces the production ships (phase 2's style resolves a face by identity). */
   imported: readonly ImportedFace[] = [],
+  /** The production look, as on air (phase 3). */
+  lookFor?: LookFor,
 ): ExportAppearances | undefined {
   const cues = show.cues ?? [];
-  const adjusted = adjustedGraphics(show.graphics, cues);
+  const adjusted = adjustedGraphics(show.graphics, cues, lookFor);
   if (adjusted.length === 0) return undefined;
   const out: ExportAppearances = { graphics: {}, cues: {} };
   for (const g of adjusted) {
     const frame = frameOf(g.id);
-    const own = effectiveAdjust(g.adjust, undefined);
+    const look = lookFor?.(g.id);
+    const own = effectiveAdjust(g.adjust, undefined, look);
     out.graphics[g.id] = appearanceOf(resolveFrame(own, measured.graphics[g.id] ?? null, frame, frame), resolveStyle(own, imported));
     for (const c of cues) {
       if (c.sourceId !== g.id || c.source === 'playout') continue;
-      const fold = effectiveAdjust(g.adjust, c.adjust);
+      const fold = effectiveAdjust(g.adjust, c.adjust, look);
       out.cues[c.id] = appearanceOf(resolveFrame(fold, measured.cues[c.id] ?? null, frame, frame), resolveStyle(fold, imported));
     }
   }

@@ -179,3 +179,26 @@ export function foldedMember(graphicRaw: unknown, cueRaw: unknown, key: 'x' | 'y
   };
   return read(cueRaw) ?? read(graphicRaw) ?? (key === 'scale' ? 1 : 0);
 }
+
+/** A STEP as a patch: each member added to its folded value (the cue's, else the graphic's, else
+ *  identity), with `patch` riding along. One rule for the production page and the hosted page. */
+export function stepPatch(graphicRaw: unknown, cueRaw: unknown, step: { x?: number; y?: number; scale?: number }, patch: AdjustPatch = {}): AdjustPatch {
+  const next: AdjustPatch = { ...patch };
+  for (const key of ['x', 'y', 'scale'] as const) {
+    const by = step[key];
+    if (by) next[key] = Math.round((foldedMember(graphicRaw, cueRaw, key) + by) * 1000) / 1000;
+  }
+  return next;
+}
+
+/** "USE FOR ALL" on the records: the members a cue's exception sets, to write onto its graphic's
+ *  default (the cue's record then goes); null when the cue has none; the wording when either scope
+ *  holds a later version's record. */
+export function promotedMembers(graphicRaw: unknown, cueRaw: unknown): AdjustPatch | null | string {
+  const own = readAdjust(cueRaw);
+  if (own.status === 'read-only' || readAdjust(graphicRaw).status === 'read-only') return ADJUST_READ_ONLY;
+  if (own.status !== 'ok') return null;
+  const { v: _v, ...members } = own.record;
+  return members;
+}
+

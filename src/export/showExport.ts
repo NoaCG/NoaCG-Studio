@@ -58,6 +58,7 @@ import { pinnedGraphicsOf } from '../model/profile';
 import { renderProductionControllerHtml, type EmittedCue } from '../control/productionControllerHtml';
 import type { ExportAppearances } from '../control/exportAppearance';
 import { withAppearanceFaces } from '../control/cueStyle';
+import { withLookAssets } from '../control/productionLook';
 import { stripHostedReceiver } from '../control/hostedReceiver';
 // The library->air gate (docs/ARCHITECTURE.md §3, export -> validation): a production export is
 // the other door a library draft leaves through, and it is gated like the publish.
@@ -69,7 +70,7 @@ import {
   templateForSavedGraphic,
   type GraphicDoc,
 } from '../model/library';
-import type { SpxTemplate } from '../model/types';
+import type { AssetFile, SpxTemplate } from '../model/types';
 import type { SavedGraphic } from '../model/packets';
 import { graphicLayer, type Show } from '../model/shows';
 import { preparedCue } from '../model/productionData';
@@ -122,12 +123,12 @@ function pinnedFor(show: Show, names: readonly string[]): { pinned?: string[] } 
 interface AppearanceFaces {
   show: Show;
   appearances?: ExportAppearances;
-  pool: () => SpxTemplate[];
+  pool: () => readonly { assets: readonly AssetFile[] }[];
 }
 
 function appearanceFaces(show: Show, library: GraphicDoc[], appearances?: ExportAppearances): AppearanceFaces {
-  let pool: SpxTemplate[] | null = null;
-  return { show, appearances, pool: () => (pool ??= show.graphics.map((g) => templateForSavedGraphic(g, library))) };
+  let pool: readonly { assets: readonly AssetFile[] }[] | null = null;
+  return { show, appearances, pool: () => (pool ??= withLookAssets(show, show.graphics.map((g) => templateForSavedGraphic(g, library)))) };
 }
 
 /** A pool graphic's export-ready template: the LIVE library record (embedded snapshot only as

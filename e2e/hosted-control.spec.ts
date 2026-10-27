@@ -1068,3 +1068,85 @@ test('the hosted page lists server cues by their address, apart from the graphic
   expect(block).toContain('slotAddress(');
   expect(block).not.toMatch(/<button|role="button"|onClick|onPointer|onKey/);
 });
+
+// THE PRODUCTION LOOK SENT TO A HOSTED GRAPHIC (playout adjustments, phase 3): "Send to on-air
+// graphics" is an update with an appearance and EMPTY data, so the graphic is given no values of its
+// own; when the face changes, the receiver refits with the values it shows, as the relay receiver
+// does, and never leaves the fit measured in the old face.
+test('a hosted graphic refits with the values it shows when an appearance-only update changes its face', async ({ page, context }) => {
+  const html = receiverHost(await receiverBlock(page));
+  const graphic = await context.newPage();
+  let socket: import('@playwright/test').WebSocketRoute | null = null;
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => { socket = ws; });
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 5, live: { Board: { data: { f0: 'ON AIR' }, state: null } } }] });
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR', { timeout: 30_000 });
+  await expect.poll(() => socket !== null).toBe(true);
+  let id = 6;
+  const deliver = (msg: unknown) => socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: { id: id++, graphic: 'Board', msg } } } }));
+  // A colour alone moves no text: nothing is refitted.
+  deliver({ t: 'update', data: {}, appearance: { v: 1, vars: { accent: '#ff7a00' } } });
+  await expect.poll(() => graphic.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#ff7a00');
+  // A face: the values shown go to update() again once it is in.
+  deliver({ t: 'update', data: {}, appearance: { v: 1, vars: { accent: '#ff7a00', 'font-heading': '"Archivo", Arial, sans-serif' } } });
+  await expect.poll(() => appliedIn(graphic), { timeout: 10_000 }).toEqual(['update:ON AIR', 'update:', 'update:', 'update:ON AIR']);
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR');
+  await graphic.close();
+});
+
+// A LOOK SENT TO A HOSTED GRAPHIC SURVIVES ITS RELOAD (playout adjustments, phase 3, rule 4): a style
+// with no place and size is reported beside the machine state like any appearance, so the boot
+// restores it from the report before any row arrives.
+test('a hosted graphic reports a style-only appearance and restores it from its report on boot', async ({ page, context }) => {
+  const html = receiverHost(await receiverBlock(page));
+  const style: AppliedAppearance = { v: 1, vars: { accent: '#ff7a00' } };
+  for (const boot of ['row', 'report'] as const) {
+    const reports: { p_state?: { appearance?: unknown } }[] = [];
+    const graphic = await context.newPage();
+    let socket: import('@playwright/test').WebSocketRoute | null = null;
+    await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => { socket = ws; });
+    await graphic.route('https://bootref.supabase.co/**', (route) => {
+      const name = new URL(route.request().url()).pathname.split('/').pop();
+      if (name === 'control_show_by_slug') {
+        const mine = { data: { f0: 'ON AIR' }, state: boot === 'report' ? { appearance: style } : null };
+        return route.fulfill({ json: [{ id: 'show-1', last_event_id: 5, live: { Board: mine } }] });
+      }
+      if (name === 'control_report') reports.push(route.request().postDataJSON() as never);
+      return route.fulfill({ json: [] });
+    });
+    await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+    await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+    await expect(graphic.locator('#f0')).toHaveText('ON AIR', { timeout: 30_000 });
+    const accent = () => graphic.evaluate(() => document.documentElement.style.getPropertyValue('--accent'));
+    if (boot === 'report') {
+      expect(await accent(), 'restored from the report before any row').toBe('#ff7a00');
+    } else {
+      await expect.poll(() => socket !== null).toBe(true);
+      socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: { id: 6, graphic: 'Board', msg: { t: 'update', data: {}, appearance: style } } } } }));
+      await expect.poll(accent).toBe('#ff7a00');
+      await expect.poll(() => reports.at(-1)?.p_state?.appearance, { timeout: 10_000 }).toEqual(style);
+    }
+    await graphic.close();
+  }
+  // A restored look in another face than the file loaded with refits once it is in, as the relay
+  // receiver's boot does: the values shown go to update() a second time.
+  const face: AppliedAppearance = { v: 1, vars: { accent: '#ff7a00', 'font-heading': '"Archivo", Arial, sans-serif' } };
+  const graphic = await context.newPage();
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', () => {});
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 5, live: { Board: { data: { f0: 'ON AIR' }, state: { appearance: face } } } }] });
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR', { timeout: 30_000 });
+  await expect.poll(() => appliedIn(graphic), { timeout: 10_000 }).toEqual(['update:ON AIR', 'update:ON AIR']);
+  await graphic.close();
+});
+

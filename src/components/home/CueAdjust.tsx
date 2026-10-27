@@ -3,6 +3,7 @@ import { ZONES, type AdjustPatch, type FontRef, type Zone9 } from '../../model/a
 import { formatCssColor, parseCssColor, pickerHex } from '../../model/cssVars';
 import { styleTerm } from '../../model/styleVocabulary';
 import { reachesAny, weightsFor, type ImportedFace, type StyleReach } from '../../control/cueStyle';
+import { pickableFaces } from '../../control/productionLook';
 import { adjustWords, floorEstimate, zoneWords, type GeometryLimit } from '../../control/cueAdjust';
 import type { CueAdjustState } from '../../control/adjustGeometry';
 import type { StorePart } from '../../control/storePart';
@@ -33,6 +34,7 @@ export default function CueAdjust({
   reset,
   promote,
   style = null,
+  measures = true,
 }: {
   graphicName: string;
   /** How many cues the graphic has. */
@@ -58,6 +60,9 @@ export default function CueAdjust({
   reset: (scope: 'cue' | 'graphic') => void;
   /** Make the cue's exception the graphic's default. */
   promote: () => void;
+  /** A measurement can still come (false on the hosted page, which measures nothing: with no
+   *  published box the block reads "no measurement", never "measuring"). */
+  measures?: boolean;
   /** TYPE AND COLOUR (phase 2): what the design paints with, the faces on offer, the design's own
    *  values, and the writes. "As designed" puts a row back to the design at the scope shown. */
   style?: {
@@ -112,7 +117,7 @@ export default function CueAdjust({
     e.stopPropagation();
     nudge(d[0], d[1]);
   };
-  const why = whyWords(limit, m, fresh);
+  const why = whyWords(limit, m, fresh, measures);
   const styleSum = style ? styleWords(eff.vars, eff.font, style.bundled) : '';
   // A typed x, y or size is one write when the edit is over (Enter or leaving the box, never a pause:
   // 8 on the way to 84 would size the graphic), and a second operator's change to the same record
@@ -313,7 +318,7 @@ function StyleRows({
                   {b.family}
                 </option>
               ))}
-              {style.imported.map((f) => (
+              {pickableFaces(style.imported, chosen).map((f) => (
                 <option key={`${f.family}|${f.assetPath}`} value={`i:${f.family}|${f.assetPath}`}>
                   {f.family}
                 </option>
@@ -365,7 +370,7 @@ function StyleRows({
 
 /** One colour, picked with the system swatch and written once the pick is made (its `change`, not
  *  every `input` while dragging). The value keeps the alpha it had: a translucent panel stays so. */
-function Swatch({ label, value, disabled, onPick, testId }: { label: string; value: string; disabled: boolean; onPick: (v: string) => void; testId: string }) {
+export function Swatch({ label, value, disabled, onPick, testId }: { label: string; value: string; disabled: boolean; onPick: (v: string) => void; testId: string }) {
   const ref = useRef<HTMLInputElement>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -395,9 +400,9 @@ function Swatch({ label, value, disabled, onPick, testId }: { label: string; val
   );
 }
 
-function whyWords(limit: GeometryLimit, m: unknown, fresh: boolean): string {
+function whyWords(limit: GeometryLimit, m: unknown, fresh: boolean, measures: boolean): string {
   if (limit === 'spans') return 'spans the frame';
-  if (limit === 'none') return m ? 'no measurement' : 'measuring';
+  if (limit === 'none') return m || !measures ? 'no measurement' : 'measuring';
   if (limit === 'no-presets') return 'no presets for moving content';
   return fresh ? '' : 'measuring';
 }

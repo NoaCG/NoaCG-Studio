@@ -13,7 +13,7 @@ import { loadBackendConfig } from '../backend/config';
 // supposed to behave like.
 import { CONTROL_POLL_MS } from './hostedControl';
 import { RECEIVER_FOLLOW_FROM_JS } from './outputRecovery';
-import { APPEARANCE_RUNTIME_JS } from './appearanceRuntime';
+import { APPEARANCE_REFIT_JS, APPEARANCE_RUNTIME_JS } from './appearanceRuntime';
 import { refFromSupabaseUrl } from './realtimeControl';
 
 const OPEN = '/* == HOSTED CONTROL (Supabase log) — edit or delete this whole block == */';
@@ -82,8 +82,13 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   var look = null;
   function applyLook(a) {
     if (!noacgApplyAppearance(a)) return;
-    look = a.frame ? a : null;
+    // Any appearance that sets something is reported, a style alone included (a production look
+    // sent to the graphics on air), so a reload brings it back; the identity reports none.
+    look = a.frame || a.vars || a.fonts ? a : null;
   }
+  // An appearance-only update (phase 3's send to on-air graphics, empty data) has no values of its
+  // own to fit with: the refit gives the values this document shows (./appearanceRuntime.ts).
+  ${APPEARANCE_REFIT_JS}
 
   // AN RPC EITHER ANSWERED OR FAILED, and this block must never confuse the two. A dropped
   // request says nothing about the show, so it is reported AS a failure (the ok flag) and the
@@ -167,10 +172,13 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     }
     else if (m.t === 'next' && typeof next === 'function') next();
     else if (m.t === 'update' && typeof update === 'function') {
+      var typeBefore = typeHere();
       applyLook(m.appearance);
+      given(m.data);
       update(JSON.stringify(m.data || {}));
+      if (typeHere() !== typeBefore) refit();
     }
-    else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
+    else if (m.t === 'event' && typeof noacgDispatch === 'function') { keepPayloads(); noacgDispatch(m.event, m.payload); }
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
     else return; // 'staged' / 'live' meta rows are for control pages, not for us
     // A held graphic never reports, as on the /output renderer: its report would bank the previous
@@ -362,9 +370,11 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     if (mine) {
       // The place and size it last reported, before anything paints: a report with no event id
       // resumes from the log head, so no row after it would bring this back.
+      var bootType = typeHere();
       if (mine.state && mine.state.appearance) applyLook(mine.state.appearance);
       // Reset is two operations, and recovery is both: the data half, then the visual half
       // (snap arms timers — recovery semantics).
+      given(mine.data);
       if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
       if (mine.state && mine.state.groups && typeof noacgSnap === 'function') {
         noacgSnap(mine.state.groups);
@@ -372,6 +382,8 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
         // DATA layer owns (an image field with no picture is hidden inline). Restate the data.
         if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
       }
+      // A restored look in another face than the file loaded with: refit once it is in.
+      if (typeHere() !== bootType) refit();
     }
     // THE BOOT CATCH-UP, before the socket rather than through it: everything commanded since
     // that baseline, in log order. It used to happen only inside ws.onopen, so a graphic whose

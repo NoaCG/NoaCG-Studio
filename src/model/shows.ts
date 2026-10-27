@@ -57,7 +57,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
-import { foldedMember, patchAdjust, readAdjust, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
+import { patchAdjust, promotedMembers, readAdjust, stepPatch, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
 
 /**
@@ -408,6 +408,14 @@ export interface Show {
    *  (`root/version-every-persisted-format-ship-breaking`): absent = no brand chosen, an older build reads and rewrites the record
    *  untouched. */
   brandId?: string;
+  /** THE PRODUCTION LOOK IS ON (docs/work-specs/playout-adjustments/spec.md phase 3, "Scope and
+   *  precedence"): `look` then reaches this production's graphics as the widest scope of their
+   *  style, under each graphic's and cue's own (control/productionLook.ts). `look` is captured
+   *  automatically, so without this it styles nothing on air: a production nobody turned on looks
+   *  as it always did. Activation copies the saved brand `brandId` names into `look`, so a
+   *  signed-out hosted page or an offline export never needs a library lookup. ADDITIVE
+   *  OPTIONAL: absent = off; an older build reads and rewrites the record untouched. */
+  lookApplied?: true;
   /** The graphic POOL — which templates the production can air, each once. The order here is
    *  authoring order, NOT the layer stack: a graphic airs on the layer NUMBER its own entry
    *  carries (`graphicLayer`), which is what every z-order consumer reads. */
@@ -887,10 +895,9 @@ export function promoteCueAdjust(showId: string, cueId: string): { shows: Show[]
     const cue = show.cues?.find((c) => c.id === cueId);
     const graphic = cue && show.graphics.find((g) => g.id === cue.sourceId);
     if (!cue || !graphic) return 'This cue is no longer in the production.';
-    const own = readAdjust(cue.adjust);
-    if (own.status === 'read-only' || readAdjust(graphic.adjust).status === 'read-only') return ADJUST_READ_ONLY;
-    if (own.status !== 'ok') return false;
-    const { v: _v, ...members } = own.record;
+    const members = promotedMembers(graphic.adjust, cue.adjust);
+    if (typeof members === 'string') return members;
+    if (!members) return false;
     const moved = writeAdjust(graphic, members);
     if (typeof moved === 'string') return moved;
     delete cue.adjust;
@@ -914,12 +921,7 @@ export function stepAdjust(
     const cue = show.cues?.find((c) => c.id === cueId);
     const graphic = cue && show.graphics.find((g) => g.id === cue.sourceId);
     if (!cue || !graphic) return 'This cue is no longer in the production.';
-    const next: AdjustPatch = { ...patch };
-    for (const key of ['x', 'y', 'scale'] as const) {
-      const by = step[key];
-      if (by) next[key] = Math.round((foldedMember(graphic.adjust, cue.adjust, key) + by) * 1000) / 1000;
-    }
-    return writeAdjust(scope === 'cue' ? cue : graphic, next);
+    return writeAdjust(scope === 'cue' ? cue : graphic, stepPatch(graphic.adjust, cue.adjust, step, patch));
   });
 }
 
@@ -2498,6 +2500,59 @@ export function setShowLook(showId: string, look: ProjectBrand | undefined): Sho
     else delete show.look;
     return true;
   });
+}
+
+/** TURN THE PRODUCTION LOOK ON OR OFF (phase 3). On writes `lookApplied` and, when given, the look
+ *  it applies (the saved brand `brandId` names, copied here at activation); Off removes the
+ *  activation only, keeping the look, so the join page and the wizard keep it. Nothing reaches air:
+ *  the next Take or Update of each graphic, or "Send to on-air graphics", carries the result. */
+export function setShowLookApplied(showId: string, on: boolean, look?: ProjectBrand): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    if (!on) {
+      if (!show.lookApplied) return false;
+      delete show.lookApplied;
+      return true;
+    }
+    if (look) show.look = look;
+    if (!show.look) return 'Choose a typeface or a brand first.';
+    show.lookApplied = true;
+    return true;
+  });
+}
+
+/** THE LOOK PANEL'S EDIT (phase 3): the production's look replaced by `look`, and the brand it was
+ *  taken from named (`brandId`: a saved brand's id, null for a look edited by hand, which no
+ *  longer is that brand, undefined to leave it). Whether it reaches air is `lookApplied`'s. */
+export function editShowLook(showId: string, look: ProjectBrand, brandId?: string | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const same = JSON.stringify(show.look ?? null) === JSON.stringify(look) && (brandId === undefined || (show.brandId ?? null) === brandId);
+    if (same) return false;
+    show.look = look;
+    if (brandId) show.brandId = brandId;
+    else if (brandId === null) delete show.brandId;
+    return true;
+  });
+}
+
+/** "CLEAR EXCEPTIONS" (phase 3): every `keepStyle` in the production goes, at graphic and cue
+ *  scope, and nothing else of any record: the look then reaches every graphic that paints with it.
+ *  A record a later build wrote is kept as it is (counted in `unread`), as every door refuses it. */
+export function clearStyleExceptions(showId: string): { shows: Show[]; error: string | null; cleared: number; unread: number } {
+  let cleared = 0;
+  let unread = 0;
+  const result = patchShowChecked(showId, (show) => {
+    for (const target of [...show.graphics, ...(show.cues ?? [])]) {
+      const read = readAdjust(target.adjust);
+      if (read.status === 'read-only') {
+        unread += 1;
+        continue;
+      }
+      if (read.status !== 'ok' || !read.record.keepStyle) continue;
+      if (writeAdjust(target, { keepStyle: null }) === true) cleared += 1;
+    }
+    return cleared > 0;
+  });
+  return { ...result, cleared, unread };
 }
 
 /** Point the production at a saved BRAND (or clear it, with undefined). The reference the
