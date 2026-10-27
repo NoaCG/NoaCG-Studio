@@ -30,7 +30,7 @@ import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import type { ControlButton } from '../blocks/animMachine';
 import type { ControlMessage } from './controlModel';
 import type { JsonValue } from '../model/productionData';
-import { readOgrafDeclared, readTypedWire, type TypedValues } from '../model/ografTyped';
+import { readOgrafDeclared, readTypedWire, type TypedValues } from '../model/ografTyped.ts';
 
 /** The operator surface one manifest describes. */
 export interface OgrafControlContract {

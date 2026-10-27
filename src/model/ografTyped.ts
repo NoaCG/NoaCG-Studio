@@ -999,7 +999,7 @@ function seedOf(node: TypedNode, budget: Budget): JsonValue | undefined {
     }
     case 'array': {
       const out: JsonValue[] = [];
-      for (let i = 0; node.items && i < (node.minItems ?? 0) && budget.nodes < TYPED_MAX_VALUE_NODES; i++) {
+      for (let i = 0; node.items && i < (node.minItems ?? 0); i++) {
         const v = seedOf(node.items, budget);
         if (v === undefined) break;
         out.push(v);
