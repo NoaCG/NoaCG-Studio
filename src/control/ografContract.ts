@@ -31,6 +31,7 @@ import type { ControlButton } from '../blocks/animMachine';
 import type { ControlMessage } from './controlModel';
 import type { JsonValue } from '../model/productionData';
 import { readOgrafDeclared, readTypedWire, type TypedValues } from '../model/ografTyped.ts';
+import type { OgrafStepParams } from './ografSteps';
 
 /** The operator surface one manifest describes. */
 export interface OgrafControlContract {
@@ -272,7 +273,7 @@ function defaultFor(prop: Json, kind: FieldKind): string | number {
 /** One call on a Graphic's lifecycle, in the shape the OGraf host document's driver takes
  *  (`src/control/ografHost.ts`): `play(params)`, `stop(params)`, `update(data)`, `custom(id, payload)`. */
 export type OgrafLifecycleCall =
-  | { call: 'play'; args: [{ goto?: number; delta?: number }] }
+  | { call: 'play'; args: [OgrafStepParams] }
   | { call: 'stop'; args: [Record<string, never>] }
   | { call: 'update'; args: [Record<string, string> | TypedValues['values']] }
   | { call: 'custom'; args: [string, Record<string, string> | JsonValue] };

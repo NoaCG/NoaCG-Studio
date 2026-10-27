@@ -3329,3 +3329,57 @@ test('a foreign action press carries the live cue\'s typed arguments in the acti
   assert.equal((await r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: false, airCue: cue }), { event: 'highlight', typed: true })).outcome, 'refused');
   assert.equal(r.sends.length, 1);
 });
+
+// ── Typed actions on the program instance (E2.2, L1) ────────────────────────────────────────────
+
+test('a pinned block\'s declared action sends the on-air cue\'s arguments while another cue of the graphic is edited, and is refused when that instance is replaced mid-wait', async () => {
+  const typed = (n) => ({ v: 1, kind: 'action', standard: OGRAF_STANDARD.commit, schema: 'h', action: 'highlight', args: { team: n } });
+  const live = graphicCue('t1', 'Score');
+  const staged = graphicCue('t2', 'Score');
+  const button = { event: 'highlight', label: 'Highlight a team', typed: true };
+  const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 't1' }, typedActions: { 't1:highlight': { status: 'ok', typed: typed(1) }, 't2:highlight': { status: 'ok', typed: typed(2) } } });
+  // The pinned block's selection is the graphic's on-air cue, never the cue being edited.
+  const pinned = liveSelection('Score', [live, staged], r.liveCue());
+  assert.equal(pinned.airCue.id, 't1');
+  const pressing = r.verbs.event(pinned, button);
+  await settle();
+  r.flushes[0].resolve();
+  await settle();
+  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'event', event: 'highlight', typed: typed(1) }, 'the on-air cue\'s arguments, never the staged cue\'s');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await pressing, { outcome: 'accepted' });
+
+  // The instance is replaced (a Take of t2) while the press waits for the save: nothing goes,
+  // neither cue's arguments, and the press says so.
+  const again = r.verbs.event(liveSelection('Score', [live, staged], r.liveCue()), button);
+  await settle();
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 't2' } } }));
+  r.flushes[1].resolve();
+  assert.deepEqual(await again, { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' });
+  assert.equal(r.sends.length, 1);
+
+  // Pressed on the new instance, its own arguments go.
+  const third = r.verbs.event(liveSelection('Score', [live, staged], r.liveCue()), button);
+  await settle();
+  r.flushes[2].resolve();
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.typed, typed(2));
+  r.sends[1].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await third, { outcome: 'accepted' });
+});
+
+test('a declared action whose send is taken by a later press, refused as stale, or unanswered never reads as accepted (E2.2, AC-3)', async () => {
+  const typed = { v: 1, kind: 'action', standard: OGRAF_STANDARD.commit, schema: 'h', action: 'highlight', args: {} };
+  const cue = graphicCue('t1', 'Score');
+  const button = { event: 'highlight', typed: true };
+  const outcomes = [];
+  for (const answer of [{ resolve: { ...noneLeft, superseded: ['Score'] } }, { reject: { stale: true } }, { reject: { unread: true } }, { reject: new Error('network') }]) {
+    const r = rig({ seed: false, liveCue: { Score: 't1' }, typedActions: { 't1:highlight': { status: 'ok', typed } } });
+    const pressing = r.verbs.event(liveSelection('Score', [cue], r.liveCue()), button);
+    await settle();
+    if (answer.resolve) r.sends[0].answer.resolve(answer.resolve);
+    else r.sends[0].answer.reject(answer.reject);
+    outcomes.push((await pressing).outcome);
+  }
+  assert.deepEqual(outcomes, ['refused', 'refused', 'unknown', 'failed']);
+});

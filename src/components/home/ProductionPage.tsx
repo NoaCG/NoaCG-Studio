@@ -79,6 +79,7 @@ import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } f
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
+import { createPressMarks } from '../../control/pressFeedback';
 import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
@@ -681,6 +682,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A getter, so the publish flow and the modules hold one stable `{ current }` (the compiler lint
   // reads a plain ref handed to the render-time publish call as read during render).
   const liveCueRef = useMemo(() => ({ get current() { return drawnLiveCue.current; } }), []);
+  /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts), dropped as soon as
+   *  the session's `air` part puts another instance on its layer, an Out and a Take of the same cue
+   *  included. */
+  const pressMarks = useMemo(() => createPressMarks(session.air), [session]);
+  useEffect(() => pressMarks.follow(), [pressMarks]);
   const airedData = usePacedPart(session.air, airedOf);
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
@@ -1663,7 +1669,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const value = actionArgsOf(a, cue.typedArgs);
       return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, update), `Edit ${a.name}`, typedActionPart(a.id)) }];
     });
-    return values || actions.length ? { values, actions, register: registerTypedFlush } : null;
+    return values || actions.length ? { values, actions, register: registerTypedFlush, onAir: !!graphic && liveCue[graphic] === cue.id } : null;
   };
   /** The writer's menu for the edited cue (E7.2a): the people each of its graphic's recipes
    *  offers in this render's tree, and the cue's pick. Null for a cue no recipe serves, or one this
@@ -3193,10 +3199,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           : null
       : null;
 
+  /** A ⚡ press, marked on its button while out and with what it came to, for the cue on air at the
+   *  press (control/pressFeedback.ts, E2.2): from the selected block and a pinned one alike. */
+  const pressMarked = (sel: VerbSelection, button: ControlButton, named?: string) => {
+    const graphic = sel.selectedGraphic;
+    if (!graphic) return verbs.event(sel, button, named);
+    // The instance is the session's, as the press's own check reads it. Unpublished, the press
+    // moves this page's PROGRAM and nothing else; published, a press taken with no output
+    // reporting reads so, never as sent.
+    return pressMarks.press(graphic, button.event, session.air.get().liveCue[graphic] ?? null, () => verbs.event(sel, button, named), () => !hostedSlugRef.current || usableOutputRef.current);
+  };
+  const marksOf = (graphic: string | null) => (graphic ? { part: pressMarks.part, graphic } : undefined);
+
   /** Fire a machine event on the live graphic, or snap it straight to a state (control/graphicVerbs.ts
    *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
    *  waits for the one before it on its graphic. */
-  const fireEvent = (button: ControlButton) => verbs.event(view, button);
+  const fireEvent = (button: ControlButton) => pressMarked(view, button);
   const snapTo = (groupId: string | null, stateId: string) => verbs.snap(view, groupId, stateId);
 
   /** The selected graphic's ⚡ button (home/CueActions.tsx `actionButtonFor`), greyed against
@@ -3208,6 +3226,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     labelOf: (key) => descriptors.find((d) => d.key === key)?.label,
     aired: selectedGraphic ? (airedData[selectedGraphic] ?? null) : null,
     fire: (b) => void fireEvent(b),
+    marks: marksOf(selectedGraphic),
+    airLabel: view.airCue?.label,
   });
 
   /**
@@ -3334,7 +3354,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         }
         return (listed = { graphics });
       },
-      act: (run) => runCapability(run, poolMachines.get(run.graphic), liveSelection(run.graphic, cues, liveCue), verbs),
+      // A panel key's press marks the same button a click does.
+      act: (run) => runCapability(run, poolMachines.get(run.graphic), liveSelection(run.graphic, cues, liveCue), { ...verbs, event: pressMarked }),
     };
   };
   /** One pool graphic's live controls for the selection a press on it uses (control/panelActions.ts
@@ -3427,7 +3448,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         legal: g.legal,
         labelOf: (key) => m.descriptors.find((d) => d.key === key)?.label,
         aired: g.aired,
-        fire: (b) => void verbs.event(sel, b),
+        fire: (b) => void pressMarked(sel, b),
+        marks: marksOf(graphic),
+        airLabel: sel.airCue?.label,
       }),
       liveNumberFields: [...g.numbers],
       editingIsLive: sel.editingIsLive,

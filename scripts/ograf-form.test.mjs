@@ -82,6 +82,12 @@ test('each leaf is the control its declared type means, and an edit gives back t
   assert.equal(onByDefault.show(undefined), '1');
   assert.equal(onByDefault.show(false), '0');
   assert.equal(form.typedLeaf({ path: 'b', type: 'boolean' }, 'b').show(undefined), '0');
+  // The on/off control's edit is the boolean it means, never its text (row 37's check: a
+  // `String(edited)` read stayed green in every test before this one).
+  const toggle = form.typedLeaf({ path: 'b', type: 'boolean' }, 'b');
+  assert.equal(toggle.descriptor.kind, 'toggle');
+  assert.equal(toggle.read('1'), true);
+  assert.equal(toggle.read('0'), false);
   const flags = { path: 'x', type: 'string', enum: ['1', 'true'] };
   assert.equal(form.typedLeaf(flags, 'x').read('1'), 'true', 'a string enum stays strings');
   // Numbers stay numbers with their declared bounds and step.

@@ -34,7 +34,7 @@ import type { ControlMessage } from '../control/controlModel';
 import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
 import { facesCss } from '../control/cueStyle';
 import { readTypedWire, typedValuesOf } from '../model/ografTyped';
-import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
+import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafOptions, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
 import { DEFAULT_SETTINGS } from '../model/types';
@@ -99,6 +99,10 @@ export interface OutputStage {
   /** What each FOREIGN OGraf Graphic has answered, in arrival order (foreignOgraf.ts). A foreign
    *  Graphic reports no machine state, so this is all a caller hears back from one. */
   ografReturns: ReadonlyMap<string, readonly OgrafReturn[]>;
+  /** A FOREIGN Graphic's layer, for its answered calls and its step controls (foreignOgraf.ts
+   *  `call`, `step`, E2.2). A NoaCG graphic has none: it steps by » Next and recovers by Snap,
+   *  and neither is ever offered as an OGraf step. */
+  foreignLayer(key: string): ForeignOgrafLayer | undefined;
   /** Take the WHOLE stage off or back on air — the renderer's own surface, never the graphics'
    *  own state. Boot catch-up replays missed commands as commands, so their animations run;
    *  airing that replay would put the outage's history on screen. Off air it settles unseen and
@@ -182,6 +186,8 @@ export interface OutputStageOptions {
    *  own isolated frame (foreignOgraf.ts, docs/OGRAF_ECOSYSTEM.md §3). The published graphics
    *  load exactly as they do without it. */
   foreign?: ForeignOgrafSpec[];
+  /** How those packages are driven (foreignOgraf.ts); a harness shortens the call deadline. */
+  ograf?: ForeignOgrafOptions;
 }
 
 /** How long a warm pass waits for the document's answer once it has loaded: the document caps its
@@ -508,7 +514,7 @@ export function createOutputStage(
       continue;
     }
     try {
-      foreign.set(spec.key, mountForeignOgraf(stage, spec, payload.resolution));
+      foreign.set(spec.key, mountForeignOgraf(stage, spec, payload.resolution, options.ograf));
     } catch (err) {
       console.error(`output stage: foreign package "${spec.key}" skipped:`, err);
     }
@@ -741,6 +747,7 @@ export function createOutputStage(
     onState: (cb) => stateCbs.push(cb),
     graphics,
     ografReturns: new Map([...foreign].map(([key, layer]) => [key, layer.returns])),
+    foreignLayer: (key) => foreign.get(key),
     // FROM INSIDE EACH DOCUMENT, never by hiding the stage from out here. This used to set the
     // stage's own opacity to 0, on the reasoning that the documents would keep compositing and
     // their timelines keep ticking. They do not: Chromium throttles the rendering of an iframe

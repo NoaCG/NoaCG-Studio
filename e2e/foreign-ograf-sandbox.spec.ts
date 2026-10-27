@@ -2,7 +2,7 @@
 // host document it loads, the ControlMessage -> OGraf call mapping, and the benign and hostile
 // fixtures. The one spec that proves the boundary, and output-first-paint because the stage
 // module is what the published graphics load through as well.
-// covers: {src/output/{stage.ts,foreignOgraf.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
+// covers: {src/output/{stage.ts,foreignOgraf.ts},src/control/ograf{Host.ts,Contract.ts,Steps.ts},e2e/fixtures/foreign-ograf/**}
 
 import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -46,7 +46,8 @@ for (const [i, name] of (q.get('foreign') || '').split(',').filter(Boolean).entr
   const manifest = await (await fetch(packageBase + name + '.ograf.json')).json();
   foreign.push({ key: name, layer: 20 + i, packageBase, manifest, data: name === 'benign' ? { headline: 'Opening night', score: '3' } : {} });
 }
-const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] }, { foreign });
+const timeout = Number(q.get('timeout')) || undefined;
+const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] }, { foreign, ograf: { callTimeoutMs: timeout } });
 window.__stage = stage;
 await stage.whenLoaded();
 window.__stageReady = true;
@@ -67,7 +68,7 @@ function packageFiles(name: string): Map<string, Buffer> {
   return files;
 }
 
-const PACKAGES = new Map(['benign', 'hostile'].map((name) => [name, packageFiles(name)]));
+const PACKAGES = new Map(['benign', 'hostile', 'steps'].map((name) => [name, packageFiles(name)]));
 
 const TYPES: Record<string, string> = {
   '.mjs': 'text/javascript',
@@ -301,5 +302,154 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await apply(page, 'hostile', { t: 'update', data: { note: 'operator data' } });
     const heard = await hostile!.evaluate(() => new Promise<string>((r) => setTimeout(() => r(document.title), 300)));
     expect(heard, 'a call reached the document the frame navigated to').toBe('');
+  });
+  test('steps go where the runtime says, out-of-range steps are refused, and no answer reads as done that was not', async ({ page }) => {
+    test.setTimeout(90_000);
+    // A short host deadline, so a held answer times out inside the test. Every wait below is on an
+    // answer or a data attribute the Graphic wrote, never on a sleep.
+    await openStage(page, 'benign,steps&timeout=1500');
+    const layer = (key: string, run: string, arg?: unknown) =>
+      page.evaluate(
+        ({ key, run, arg }) => {
+          const l = (window as unknown as { __stage: { foreignLayer(k: string): Record<string, (a?: unknown) => unknown> | undefined } }).__stage.foreignLayer(key);
+          if (!l) return 'no layer';
+          return l[run](arg);
+        },
+        { key, run, arg },
+      );
+    const step = (key: string, op: unknown) => layer(key, 'step', op);
+    const call = (key: string, msg: unknown) => layer(key, 'call', msg);
+    // Starts a call and keeps its answer on the page, for a call whose answer is held.
+    const start = (key: string, name: string, msg: unknown) =>
+      page.evaluate(
+        ({ key, name, msg }) => {
+          const w = window as unknown as { __answers?: Record<string, unknown>; __stage: { foreignLayer(k: string): { call(m: unknown): Promise<unknown>; step(o: unknown): Promise<unknown> } } };
+          const answers = (w.__answers ??= {});
+          answers[name] = 'pending';
+          const l = w.__stage.foreignLayer(key);
+          const p = (msg as { step?: unknown }).step ? l.step((msg as { step: unknown }).step) : l.call(msg);
+          void p.then((a) => (answers[name] = a));
+        },
+        { key, name, msg },
+      );
+    const answerOf = (name: string) => page.evaluate((n) => (window as unknown as { __answers: Record<string, unknown> }).__answers[n], name);
+    const sentCount = async (key: string) => (await returnsOf(page, key)).length;
+    await nthReturn(page, 'benign', 1);
+    await nthReturn(page, 'steps', 1);
+
+    // A NoaCG graphic has no OGraf steps: it steps by » Next and recovers by Snap, never as Goto.
+    expect(await page.evaluate(() => (window as unknown as { __stage: { foreignLayer(k: string): unknown } }).__stage.foreignLayer('lt0') === undefined)).toBe(true);
+
+    // A FIXED COUNT (benign declares 3). Before any answer, where it is is unknown.
+    expect(await step('benign', { delta: 1 })).toEqual({ status: 'refused', reason: 'Where it is is not known yet; Goto a step.' });
+    expect(await call('benign', { t: 'play' })).toEqual({ status: 'done', statusCode: 200, currentStep: 0 });
+    const before = await sentCount('benign');
+    expect(await step('benign', { delta: -1 })).toEqual({ status: 'refused', reason: 'It is on step 1; there is no step before the first.' });
+    expect(await step('benign', { goto: 3 })).toEqual({ status: 'refused', reason: 'It has steps 1 to 3; there is no step 4.' });
+    expect(await sentCount('benign'), 'a refused step reaches the Graphic not at all').toBe(before);
+    expect(await step('benign', { goto: 2, skipAnimation: true })).toEqual({ status: 'done', statusCode: 200, currentStep: 2 });
+    expect(await step('benign', { delta: 1 })).toEqual({ status: 'refused', reason: 'It is on step 3 of 3; Out ends it.' });
+    expect(await step('benign', { delta: -1 })).toEqual({ status: 'done', statusCode: 200, currentStep: 1 });
+    await expect(page.frameLocator('iframe[title="benign"]').locator('.round')).toHaveText('Round two');
+
+    // A DYNAMIC COUNT (steps declares -1): its data says 3, then 5 while it airs.
+    const walk = page.frameLocator('iframe[title="steps"]').locator('.walk');
+    expect(await call('steps', { t: 'play' })).toEqual({ status: 'done', statusCode: 200, currentStep: 0 });
+    expect(await step('steps', { delta: 1 })).toEqual({ status: 'done', statusCode: 200, currentStep: 1 });
+    // A step the Graphic refuses moved nothing: it is still where it was, and a relative step counts
+    // from there.
+    expect(await call('steps', { t: 'update', data: { refuse: 3 } })).toEqual({ status: 'done', statusCode: 200 });
+    expect(await step('steps', { goto: 3 })).toEqual({ status: 'rejected', statusCode: 409, statusMessage: 'not that step now' });
+    expect(await layer('steps', 'position')).toEqual({ at: 1, declared: -1 });
+    // So did an Out it refused.
+    expect(await call('steps', { t: 'update', data: { refuseStop: true } })).toEqual({ status: 'done', statusCode: 200 });
+    expect(await call('steps', { t: 'stop' })).toEqual({ status: 'rejected', statusCode: 409, statusMessage: 'not out now' });
+    expect(await layer('steps', 'position')).toEqual({ at: 1, declared: -1 });
+    expect(await call('steps', { t: 'update', data: { refuseStop: false } })).toEqual({ status: 'done', statusCode: 200 });
+    expect(await call('steps', { t: 'update', data: { count: 5 } })).toEqual({ status: 'done', statusCode: 200 });
+    await expect(walk).toHaveAttribute('data-count', '5');
+    expect(await step('steps', { goto: 4, skipAnimation: true })).toEqual({ status: 'done', statusCode: 200, currentStep: 4 });
+    await expect(walk).toHaveAttribute('data-skip', 'true');
+    expect(await step('steps', { delta: 1 }), 'past its end it answers no step').toEqual({ status: 'done', statusCode: 200 });
+    expect(await layer('steps', 'position')).toEqual({ at: 'end', declared: -1 });
+    expect(await step('steps', { delta: -1 })).toEqual({ status: 'refused', reason: 'It has played to its end; Goto a step.' });
+    expect(await step('steps', { goto: 0 })).toEqual({ status: 'done', statusCode: 200, currentStep: 0 });
+    await expect(walk).toHaveAttribute('data-skip', 'false');
+
+    // A HELD STEP WITH A RUNNING LOOP: its playAction never answers, and nothing waits behind it.
+    expect(await call('steps', { t: 'update', data: { loop: 2 } })).toEqual({ status: 'done', statusCode: 200 });
+    await start('steps', 'held-step', { step: { goto: 2 } });
+    await expect(walk).toHaveAttribute('data-step', '2');
+    await expect.poll(async () => Number(await walk.getAttribute('data-frames')), { timeout: 10_000 }).toBeGreaterThan(5);
+    expect(await call('steps', { t: 'event', event: 'mark', payload: { v: 'during the loop' } })).toEqual({ status: 'done', statusCode: 200 });
+    await expect(walk).toHaveAttribute('data-mark', 'during the loop');
+    expect(await answerOf('held-step')).toBe('pending');
+    expect(await step('steps', { delta: 1 }), 'no relative step counts from a step still out').toEqual({ status: 'refused', reason: 'Where it is is not known yet; Goto a step.' });
+    // A Goto answered while the held step is still out: the walk is where the newest step left it,
+    // and the older step's timeout, answered after, moves nothing.
+    expect(await step('steps', { goto: 0 })).toEqual({ status: 'done', statusCode: 200, currentStep: 0 });
+    await expect.poll(() => answerOf('held-step'), { timeout: 10_000 }).toEqual({ status: 'timeout', statusMessage: 'no answer within 1500 ms' });
+    expect(await layer('steps', 'position')).toEqual({ at: 0, declared: -1 });
+    expect(await step('steps', { delta: 1 })).toEqual({ status: 'done', statusCode: 200, currentStep: 1 });
+
+    // HELD, REJECTED AND LATE ACTIONS: a refusal is a refusal, and an answer after the deadline
+    // never turns the timeout the operator was told into a success.
+    await start('steps', 'held', { t: 'event', event: 'hold' });
+    await expect(walk).toHaveAttribute('data-held', '1');
+    expect(await call('steps', { t: 'event', event: 'reject' })).toEqual({ status: 'rejected', statusCode: 409, statusMessage: 'not now' });
+    expect(await answerOf('held')).toBe('pending');
+    await expect.poll(() => answerOf('held'), { timeout: 10_000 }).toEqual({ status: 'timeout', statusMessage: 'no answer within 1500 ms' });
+    const told = await sentCount('steps');
+    expect(await call('steps', { t: 'event', event: 'release' })).toEqual({ status: 'done', statusCode: 200 });
+    await expect(walk).toHaveAttribute('data-held', '0');
+    expect(await answerOf('held'), 'the late answer changed nothing').toEqual({ status: 'timeout', statusMessage: 'no answer within 1500 ms' });
+    expect((await returnsOf(page, 'steps')).slice(told), 'only the release answered').toEqual([{ call: 'custom', statusCode: 200 }]);
+
+    // AN INSTANCE REPLACED WITH AN ACTION IN FLIGHT: the call is gone with its instance, and the
+    // instance after it has seen nothing of it.
+    const replaced = await page.evaluate(async () => {
+      const { mountForeignOgraf } = await import('/src/output/foreignOgraf.ts');
+      const base = location.origin + '/__foreign-ograf/packages/steps/';
+      const manifest = await (await fetch(base + 'steps.ograf.json')).json();
+      const spec = { key: 'swap', layer: 40, packageBase: base, manifest };
+      const resolution = { width: 1920, height: 1080 };
+      const first = mountForeignOgraf(document.body, spec, resolution, { callTimeoutMs: 30_000 });
+      await first.loaded;
+      const played = await first.call({ t: 'play' });
+      const held = first.call({ t: 'event', event: 'hold' })!;
+      const frames = () => document.querySelectorAll('iframe[title="swap"]').length;
+      first.destroy();
+      const second = mountForeignOgraf(document.body, spec, resolution, { callTimeoutMs: 30_000 });
+      await second.loaded;
+      const heldAnswer = await held;
+      const after = await first.call({ t: 'event', event: 'release' });
+      const secondPlay = await second.call({ t: 'play' });
+      const result = { played, heldAnswer, after, secondPlay, frames: frames(), secondReturns: second.returns.map((r) => r.call), at: second.position().at };
+      second.destroy();
+      return result;
+    });
+    // A SLOW LOAD DOES NOT EAT A CALL'S ANSWER WINDOW: the host times a call from load()'s answer,
+    // and so does this page. A load and an action each inside the 3 s deadline answer done, though
+    // together they pass the deadline plus the page's 2 s grace.
+    const slow = await page.evaluate(async () => {
+      const { mountForeignOgraf } = await import('/src/output/foreignOgraf.ts');
+      const base = location.origin + '/__foreign-ograf/packages/steps/';
+      const manifest = await (await fetch(base + 'steps.ograf.json')).json();
+      const layer = mountForeignOgraf(document.body, { key: 'slow', layer: 41, packageBase: base, manifest, data: { loadMs: 2600 } }, { width: 1920, height: 1080 }, { callTimeoutMs: 3000 });
+      const answer = await layer.call({ t: 'event', event: 'slow', payload: { ms: '2600' } })!;
+      layer.destroy();
+      return answer;
+    });
+    expect(slow).toEqual({ status: 'done', statusCode: 200 });
+
+    expect(replaced).toEqual({
+      played: { status: 'done', statusCode: 200, currentStep: 0 },
+      heldAnswer: { status: 'gone' },
+      after: { status: 'gone' },
+      secondPlay: { status: 'done', statusCode: 200, currentStep: 0 },
+      frames: 1,
+      secondReturns: ['mount', 'play'],
+      at: 0,
+    });
   });
 });
