@@ -190,7 +190,8 @@ export const RECEIVER_FOLLOW_FROM_JS = `// Where this boot starts reading the lo
 //
 // A graphic airing typed OGraf data reports like any other, and its report's `state` (stored as
 // sent, so no migration) also carries the envelope it last applied, exactly as it came (`typed`),
-// and the steps it took since its entrance (`steps`). Its `data` is empty: its data is the
+// the steps it took since its entrance (`steps`), and whether it was on air (`on`: by row id there
+// is no log head to say so). Its `data` is empty: its data is the
 // envelope's, never strings. A boot rebuilds it from those through the output's own typed gate,
 // so an envelope that does not read there is refused and held, never aired as something else.
 // The pose (`groups`) still carries the step of a graphic with a state machine; `steps` is what a
@@ -203,11 +204,11 @@ export const TYPED_STEPS_MAX = 64;
 /** What a report says of a graphic's typed data, or null when it says nothing (a native report).
  *  `typed` is the envelope as it came, read by the output's gate; `steps` anything but a whole
  *  number from 0 to TYPED_STEPS_MAX reads as 0. */
-export function reportedTyped(report: { state?: unknown } | null | undefined): { typed: unknown; steps: number } | null {
+export function reportedTyped(report: { state?: unknown } | null | undefined): { typed: unknown; steps: number; on: boolean } | null {
   const state = report?.state;
   if (typeof state !== 'object' || state === null || !Object.prototype.hasOwnProperty.call(state, 'typed')) return null;
-  const { typed, steps } = state as { typed: unknown; steps?: unknown };
-  return { typed, steps: typeof steps === 'number' && Number.isInteger(steps) && steps >= 0 && steps <= TYPED_STEPS_MAX ? steps : 0 };
+  const { typed, steps, on } = state as { typed: unknown; steps?: unknown; on?: unknown };
+  return { typed, steps: typeof steps === 'number' && Number.isInteger(steps) && steps >= 0 && steps <= TYPED_STEPS_MAX ? steps : 0, on: on === true };
 }
 
 /** A report's typed baseline as a PROGRAM monitor rebuilds it: the envelope read (null when this

@@ -37,11 +37,12 @@ test('a report says a graphic\'s typed data: its envelope as it came, and its st
   assert.equal(reportedTyped({ data: { f0: 'x' }, state: { groups: { main: 'in' } } }), null, 'a native report says nothing');
   assert.equal(reportedTyped({ state: null }), null);
   const env = envelope();
-  assert.deepEqual(reportedTyped({ state: { typed: env, steps: 3 } }), { typed: env, steps: 3 });
-  assert.deepEqual(reportedTyped({ state: { typed: env, steps: 64 } }), { typed: env, steps: 64 });
+  assert.deepEqual(reportedTyped({ state: { typed: env, steps: 3 } }), { typed: env, steps: 3, on: false });
+  assert.deepEqual(reportedTyped({ state: { typed: env, steps: 64, on: true } }), { typed: env, steps: 64, on: true });
+  assert.equal(reportedTyped({ state: { typed: env, on: 'yes' } }).on, false, 'only true is on');
   for (const steps of [65, -1, 1.5, '2', null, undefined, Number.NaN]) assert.equal(reportedTyped({ state: { typed: env, steps } }).steps, 0, String(steps));
   // An envelope that does not read is still reported as it came: the output's gate refuses it.
-  assert.deepEqual(reportedTyped({ state: { typed: 'garbage' } }), { typed: 'garbage', steps: 0 });
+  assert.deepEqual(reportedTyped({ state: { typed: 'garbage' } }), { typed: 'garbage', steps: 0, on: false });
 });
 
 test('steps since an entrance: a play or a pose starts at 0, a next adds one up to the cap, a stop forgets', () => {
@@ -107,7 +108,9 @@ test('the output banks typed data in its report, rebuilds it through the gate, a
   const main = source('src/output/main.ts');
   // The report: native data unchanged; a typed graphic's data empty, its envelope and steps in state.
   assert.match(main, /const data = airingTyped \? \{\} : \(mergedData\.get\(graphic\) \?\? \{\}\);/);
-  assert.match(main, /const state = airingTyped \? \{ \.\.\.\(withLook \?\? \{\}\), typed: typedEnvelope\.get\(graphic\), steps: stepsSince\.get\(graphic\) \?\? 0 \} : withLook;/);
+  assert.match(main, /const state = airingTyped \? \{ \.\.\.\(withLook \?\? \{\}\), typed: typedEnvelope\.get\(graphic\), steps: stepsSince\.get\(graphic\) \?\? 0, on: liveGraphics\.has\(graphic\) \} : withLook;/);
+  // By row id there is no head: a typed report's own `on` puts a graphic with no pose back on air.
+  assert.match(main, /\(headOn\.get\(key\) === true \|\| \(!seqMode && reportedTyped\(reports\[key\]\)\?\.on === true\)\) &&/);
   // Only a held graphic keeps its bank where it is.
   assert.match(main, /if \(typedRefused\.has\(graphic\)\) \{\n\s+forcedReports\.delete\(graphic\);/);
   assert.match(main, /if \(seq <= at \|\| typedRefused\.has\(graphic\)\) continue;/);

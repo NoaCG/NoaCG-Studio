@@ -204,9 +204,9 @@ export interface OutputPayload {
  *  (control/outputRecovery.ts owns that rule). */
 /** What a report's `state` holds: the machine's pose, and (playout adjustments) the place and size
  *  applied, kept here because the report's RPC stores `state` as sent, so no migration. A graphic
- *  airing typed data adds `typed` and `steps`, its typed baseline (E1.2b, ./outputRecovery.ts
+ *  airing typed data adds `typed`, `steps` and `on`, its typed baseline (E1.2b, ./outputRecovery.ts
  *  `reportedTyped`). */
-export type ReportState = { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number } | null;
+export type ReportState = { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number; on?: boolean } | null;
 
 export type LiveReportMap = Record<
   string,

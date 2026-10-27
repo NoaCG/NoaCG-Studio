@@ -626,7 +626,7 @@ async function boot(): Promise<void> {
           const machine = stage.states.get(graphic) ?? null;
           const look = stage.appearances.get(graphic);
           const withLook = look ? { ...(machine ?? {}), appearance: look } : machine;
-          const state = airingTyped ? { ...(withLook ?? {}), typed: typedEnvelope.get(graphic), steps: stepsSince.get(graphic) ?? 0 } : withLook;
+          const state = airingTyped ? { ...(withLook ?? {}), typed: typedEnvelope.get(graphic), steps: stepsSince.get(graphic) ?? 0, on: liveGraphics.has(graphic) } : withLook;
           // Byte-identical truth needs no second write (the 1 s state poll answers every second),
           // unless the write is due for its baseline.
           const key = JSON.stringify([data, state]);
@@ -1003,9 +1003,11 @@ async function boot(): Promise<void> {
   // below, unless a play of it is among the rows replayed anyway.
   // The reports alone, not `resolved`: a closure over `resolved` would keep the boot payload alive.
   const reports = resolved.live;
+  // By row id (protocol 1) there is no head: a typed report says itself whether its graphic was on
+  // air (E1.2b), since its entrance is older than its baseline and no row brings it back.
   const onWithoutPose = stage.graphics.filter(
     (key) =>
-      headOn.get(key) === true &&
+      (headOn.get(key) === true || (!seqMode && reportedTyped(reports[key])?.on === true)) &&
       !reports[key]?.state?.groups &&
       !replayed.some((row) => row.graphic === key && (row.msg.t === 'play' || row.msg.t === 'snap')),
   );

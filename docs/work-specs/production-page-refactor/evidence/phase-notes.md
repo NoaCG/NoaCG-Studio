@@ -21,7 +21,9 @@ changes a spec's digest.
   - *The typed baseline* (`src/control/outputRecovery.ts` `reportedTyped`, `stepsAfter`,
     `TYPED_STEPS_MAX` 64): a graphic airing typed data reports. Its report's `data` is `{}` and its
     `state` (stored as sent by 0071's RPC, so no migration) adds `typed`, the envelope it last
-    applied as it came, and `steps`, the `next`s since its entrance. Only a held graphic keeps its
+    applied as it came, `steps`, the `next`s since its entrance (capped at 64), and `on`, whether it
+    was on air: by row id (protocol 1, or a renderer that fell back to it) no log head says so, and
+    a graphic with no pose is put back on air by it. Only a held graphic keeps its
     bank where it is now, so a typed graphic's bank moves on and it is re-banked every 500 rows like
     any other: a long log never reaches it.
   - *The boot* (`src/output/main.ts`): a report with `typed` goes through `typedOutputGate`, the
@@ -107,8 +109,8 @@ changes a spec's digest.
   its re-bank; the read below without its ceiling, and cut at the ceiling instead of left out; the
   in-app PROGRAM playing a report whose envelope does not read, and dropping the rows after it;
   `rowsPastHold` passing every row; the read below keeping its rows on a `reset`; the in-app
-  PROGRAM's hold skipped when it had typed air (Node); a held receiver reporting on a stop
-  (browser); the
+  PROGRAM's hold skipped when it had typed air (Node); a held receiver reporting on a stop; the
+  report's `on` ignored by row id (browser); the
   receiver's boot restoring a typed report (browser). The read below the reports switched off; the steps not restored; the typed
   baseline ignored (browser). The receiver without its hold (browser).
 - **Reviews.** `/check` code review (high): 10 findings. Fixed: the hosted PROGRAM's entrance with
@@ -144,7 +146,9 @@ changes a spec's digest.
   values past the refused row. /so on `abb5f50` (fresh session): AGREE WITH CORRECTIONS,
   Assessment A; its non-blocking correction is fixed: a held receiver reports nothing, a stop
   included, as a held output graphic never reports (a report would bank the native cue's values
-  with no hold, and that graphic's own reload would air them).
+  with no hold, and that graphic's own reload would air them). Codex on `abb5f50`: two P2, both
+  fixed: the same held receiver report; and by row id a typed graphic with no pose came back off
+  air after its report banked its entrance (now its report's `on` puts it back, with its steps).
 - **Follow-ups**: #1760 stays (typed live follow). #1769 (P3): the PROGRAM monitors do not read
   below the reports for a graphic no report banks, so a page opened then shows its entrance
   without its typed values while air is right.

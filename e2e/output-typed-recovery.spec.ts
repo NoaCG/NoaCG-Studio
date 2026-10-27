@@ -122,7 +122,7 @@ test('a typed graphic no report banks comes back with its values, types and step
   await expect.poll(() => backend.reports.find((r) => r.graphic === 'Strap') ?? null, { timeout: 15_000 }).not.toBeNull();
   const report = backend.reports.find((r) => r.graphic === 'Strap')!;
   expect(report.data).toEqual({});
-  expect(report.state).toMatchObject({ typed: TYPED, steps: 2 });
+  expect(report.state).toMatchObject({ typed: TYPED, steps: 2, on: true });
   expect(report.seq).toBe(1204);
 });
 
@@ -179,4 +179,37 @@ test('an envelope this output cannot read is refused with its reason, last good 
   await expect.poll(() => readyOf(page), { timeout: 15_000 }).toContain('cannot read this command');
   expect(await readyOf(page)).toContain('Strap');
   await expect(page.locator('body')).toHaveAttribute('data-plays', '1');
+});
+
+test('by row id (protocol 1, no log head), a typed report puts its graphic back on air at its step', async ({ page }) => {
+  // A server without the numbered log, or a renderer that fell back to row ids: no head says what is
+  // on air, and the Take is older than the report, so the report's own `on` is the only word.
+  await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: CONFIG_MODULE }));
+  await page.route(`${BACKEND}/**`, async (route: Route) => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    const path = new URL(req.url()).pathname;
+    if (path.endsWith('/rpc/control_output_resolve')) {
+      return route.fulfill({ status: 404, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ code: 'PGRST202', details: null, hint: null, message: 'Could not find the function' }) });
+    }
+    const body = path.endsWith('/rpc/control_output_by_slug')
+      ? [{
+          id: '00000000-0000-4000-8000-0000000000e3',
+          title: 'Typed Probe',
+          output: { v: 1, resolution: RESOLUTION, graphics: [probe('Strap', 20), probe('Bug', 30)], cues: [], ver: { n: 4, at, h: 'abcdef0123456789', g: {} } },
+          live: {
+            Strap: { data: {}, state: { typed: TYPED, steps: 1, on: true }, event: 10 },
+            Bug: { data: {}, state: { typed: envelope({ f0: 'Off' }), steps: 0, on: false }, event: 10 },
+          },
+          last_event_id: 10,
+        }]
+      : [];
+    return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  });
+  await page.goto('/output?production=typed-probe');
+  await expect(doc(page, 'Strap').locator('#v')).toHaveText(SHOWN, { timeout: 30_000 });
+  await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 1');
+  // A typed graphic its report says was off keeps its values and stays off.
+  await expect(doc(page, 'Bug').locator('#v')).toHaveText('f0=string:"Off"');
+  await expect(doc(page, 'Bug').locator('#s')).toHaveText('off');
 });
