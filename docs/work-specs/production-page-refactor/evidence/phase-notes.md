@@ -80,11 +80,26 @@ changes a spec's digest.
     the Graphic did with it is E2.2's truthful feedback.
   - *A typed cue whose graphic's schema cannot be drawn* (declaration lost or unreadable) reads out
     read-only as E1.2a showed it (`typedUndrawn`), never as editable native strings.
+  - *Off keeps a removal* (after the `/so` on `5109f11`): Off writes the envelope's values back as
+    text and drops each declared key the envelope no longer holds, so a value the form removed is not
+    brought back by Off then On (E1.2a merged the envelope over the old strings).
+  - *Defaults are the top level's and a created value's*: On fills each missing top-level property
+    that declares a `default`; inside a value that already exists (an object read from a native JSON
+    string) nothing is filled, since JSON Schema's `default` is an annotation for a value being made.
+    A created list item, group or argument takes its declared defaults all the way down (`typedSeed`).
+  - *Which cue's arguments a press sends*: the cue live on the layer (`sel.airCue`), like every ⚡
+    press reads the live cue's values; the forms sit with the edited cue, which is the live cue when it
+    is on air. Saying the target on screen is E2.2's preview/program targeting and feedback.
+  - *Hosted log followers* (the exported receiver, `control/hostedReceiver.ts`) refuse a row carrying
+    `typed` whole, values or action, and hold the graphic as E1.2b decided; they are not in the
+    Presence check, so this is E1.2b's existing exposure, which actions share and do not widen in kind.
   - *Seams changed and where*: E1's `migrateToTyped` (option), `readTypedWire`, `typedOutputGate`,
     `typedOutputsRefusal` (`need`), `TYPED_READER` (2), `TypedNode.labels`, `TypedAction.schema`, the
     receipt's `defaulted`; `validateActionArgs`' parameter type; the OGraf host's `custom` (a falsy
-    argument passed as it is);
-    E1.2a's `setCueTyped` (On fills defaults, keeps drafts) and the editor's read-only typed rows
+    argument passed as it is); and, through `ografContract`, what the bridge (`bridgeApi.ts`
+    `inspect`) and the package reader (`ografImport.ts`) report for a stranger's manifest: a hidden
+    property is now a descriptor and a generic URI a text field (`e2e/ograf-contract.spec.ts`);
+    E1.2a's `setCueTyped` (On fills defaults, keeps drafts; Off keeps a removal) and the editor's read-only typed rows
     (`typedCandidate`, removed); L1's `ControlButton` (`typed`); E6.1's `graphicCapabilities` (skips
     `typed`); `ControlMessage`'s event (`typed`) and the preview `dispatch` payload type.
 - **Traps.**

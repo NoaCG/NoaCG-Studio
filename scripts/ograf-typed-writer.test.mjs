@@ -401,7 +401,9 @@ test('E2.1: the form keeps typed drafts as they are and action arguments per act
     const cueId = read().id;
     // Off: the form's values write is refused, nothing written.
     assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'X' }).error, 'This cue’s typed data is off.');
-    assert.equal(shows.setCueTyped(show.id, cueId, true).error, null, 'On with nothing said: the declared defaults, the rest marked by the form');
+    assert.equal(shows.updateShowCueChecked(show.id, cueId, { values: { round: '2' } }).error, null);
+    assert.equal(shows.setCueTyped(show.id, cueId, true).error, null, 'On with little said: the declared defaults, the rest marked by the form');
+    assert.equal(read().typed.values.round, 2);
     assert.deepEqual(read().typed.values.teams, [{ name: 'Home', score: 0 }]);
     // A draft that does not fit is kept as it is, in its types, in the same envelope.
     assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'x'.repeat(41), round: 3, teams: [] }).error, null);
@@ -419,6 +421,11 @@ test('E2.1: the form keeps typed drafts as they are and action arguments per act
     assert.equal(shows.setCueTypedArgs(show.id, cueId, reset, many(6000)).error, 'These arguments cannot be kept.');
     assert.equal(typed.readTypedArgs(read().typedArgs).status, 'ok');
     assert.equal(read().typedArgs.actions.other, undefined);
+    // A declared value the form removed stays removed through Off and On: its old string is not
+    // brought back, and On fills only the schema's default for it, never the string from before.
+    assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'T', teams: [] }).error, null);
+    assert.equal(shows.setCueTyped(show.id, cueId, false).error, null);
+    assert.deepEqual(read().values, { title: 'T', teams: '[]' });
     assert.equal(shows.setCueTypedArgs(show.id, cueId, highlight, undefined).error, null);
     assert.equal(read().typedArgs, undefined);
   } finally {

@@ -1455,7 +1455,13 @@ export function setCueTyped(
       if (cue.typed === undefined) return null;
       const envelope = typedValuesOf(cue.typed);
       if (!envelope) return { error: 'This cue’s typed data cannot be read.' };
-      return { typed: null, values: { ...cue.values, ...nativeOf(envelope) }, receipt: null };
+      // A declared value the typed form removed stays removed (E2.1): its old string is not brought
+      // back from before On, so Off then On never resurrects it.
+      const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+      const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
+      const removed = new Set(declared.status === 'ok' && declared.fields ? (declared.fields.properties ?? []).map((p) => p.key).filter((k) => !Object.prototype.hasOwnProperty.call(envelope.values, k)) : []);
+      const kept = Object.fromEntries(Object.entries(cue.values).filter(([k]) => !removed.has(k)));
+      return { typed: null, values: { ...kept, ...nativeOf(envelope) }, receipt: null };
     }
     if (cue.typed !== undefined) return null;
     const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
