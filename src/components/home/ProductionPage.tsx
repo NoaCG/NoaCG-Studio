@@ -123,7 +123,7 @@ import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
-import { loadLooks, type SavedGraphic } from '../../model/packets';
+import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
@@ -2188,10 +2188,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The style context a send to on-air graphics resolves with, for the record it was built from. */
   const lookCtx = useRef<{ key: string; ctx: ReturnType<typeof styleContextFor> } | null>(null);
   // What the panel counts, once per change of what it counts (each count scans every stylesheet).
+  // The look the panel starts from: the production's own, else one captured off its first graphic,
+  // so a production made from library graphics (which captures none) can take a look without a
+  // saved brand. Nothing is written until it is turned on or edited.
+  const panelLook = useMemo(() => (show?.look ?? (lookOpen && poolTemplates[0] ? captureLookFromTemplate(poolTemplates[0]) : null)), [show?.look, lookOpen, poolTemplates]);
   const lookCounts = useMemo(
-    () => (lookOpen && show?.look ? { reach: lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), show.look, lookPanelImported(show.look, styleCtx.imported)), exceptions: lookExceptions(show) } : null),
+    () => (lookOpen && show && panelLook ? { reach: lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), panelLook, lookPanelImported(panelLook, styleCtx.imported)), exceptions: lookExceptions(show) } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lookOpen, show?.look, show?.graphics, show?.cues, poolTemplates, styleCtx.imported],
+    [lookOpen, panelLook, show?.graphics, show?.cues, poolTemplates, styleCtx.imported],
   );
   const lookWrite = (result: { shows: Show[]; error: string | null }) => {
     setShows(result.shows);
@@ -4008,10 +4012,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         <div ref={rundownFeedback} className="pd-rundown-feedback" />
         {lookOpen && (
           <ProductionLook
-            look={show.look ?? null}
-            canActivate={!!show.look || savedBrands.some((b) => b.id === show.brandId)}
+            look={panelLook}
+            canActivate={!!panelLook || savedBrands.some((b) => b.id === show.brandId)}
             on={!!show.lookApplied}
-            setOn={(on) => lookWrite(setShowLookApplied(show.id, on, on ? (lookToActivate(show, savedBrands) ?? undefined) : undefined))}
+            setOn={(on) => lookWrite(setShowLookApplied(show.id, on, on ? (lookToActivate(show, savedBrands) ?? panelLook ?? undefined) : undefined))}
             brands={savedBrands.map((b) => ({ id: b.id, name: b.name }))}
             brandId={show.brandId ?? null}
             pickBrand={(brandId) => {
@@ -4020,7 +4024,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             }}
             edit={(next) => lookWrite(editShowLook(show.id, next, null))}
             bundled={FONTS}
-            weights={show.look ? weightsFor(lookFontRef(show.look), {}, lookPanelImported(show.look, styleCtx.imported)) : []}
+            weights={panelLook ? weightsFor(lookFontRef(panelLook), {}, lookPanelImported(panelLook, styleCtx.imported)) : []}
             reach={lookCounts?.reach ?? null}
             exceptions={lookCounts?.exceptions ?? lookExceptions(show)}
             clearExceptions={() => void history.write(() => clearStyleExceptions(show.id), 'Clear look exceptions')}
@@ -4028,8 +4032,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             send={() => void sendLookToAir()}
             sending={lookSending}
             sent={lookSent}
-            joinBundledOnly={!!show.look?.customFont}
-            lightPanel={!!show.look && lightPanel(show.look)}
+            joinBundledOnly={!!panelLook?.customFont}
+            lightPanel={!!panelLook && lightPanel(panelLook)}
             readOnly={!authoringAllowed}
             onClose={() => setLookOpen(false)}
           />

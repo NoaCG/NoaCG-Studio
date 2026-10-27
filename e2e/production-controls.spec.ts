@@ -2600,6 +2600,31 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
  * brand on and the original keeps its own. The fold, the reach and the bulk send's capture and
  * recheck are scripts/production-look.test.mjs and scripts/graphic-verbs.test.mjs.
  */
+// A production made from library graphics captures no look, and nobody may have saved a brand:
+// the panel then starts from a look captured off its first graphic, so the feature still works.
+test('Setup ▾ Look works on a production with no captured look and no saved brand', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'No Look');
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    shows.setShowLook(id, undefined);
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-look').click();
+  await expect(page.getByTestId('look-typeface')).toBeEnabled();
+  await expect(page.getByTestId('look-on')).toBeEnabled();
+  await page.getByTestId('look-typeface').selectOption({ label: 'Oswald' });
+  await page.getByTestId('look-on').click();
+  await expect(page.getByTestId('look-on')).toHaveAttribute('aria-pressed', 'true');
+  const look = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.look?.fontId, showId);
+  expect(look).toBe('oswald');
+});
+
 // The Type row reads the look's imported face while it is the face in effect, though it never
 // offers that face to pick (control/productionLook.ts `pickableFaces`).
 test('the Type row reads a look\'s imported face in effect, and offers no other copy of it', async ({ page }) => {
