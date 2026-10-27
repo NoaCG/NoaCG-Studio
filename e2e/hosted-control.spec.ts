@@ -367,6 +367,7 @@ test('a hosted graphic refuses a row carrying typed data, says so, and holds unt
   ];
   const visible = [...log];
   let socket: import('@playwright/test').WebSocketRoute | null = null;
+  let reports = 0;
   const graphic = await context.newPage();
   const warned: string[] = [];
   graphic.on('console', (msg) => {
@@ -378,6 +379,7 @@ test('a hosted graphic refuses a row carrying typed data, says so, and holds unt
   await graphic.route('https://bootref.supabase.co/**', (route) => {
     const name = new URL(route.request().url()).pathname.split('/').pop();
     if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 6, live: {} }] });
+    if (name === 'control_report') reports += 1;
     if (name === 'control_tail') {
       const after = Number((route.request().postDataJSON() as { p_after?: number }).p_after ?? 0);
       return route.fulfill({ json: visible.filter((r) => r.id > after) });
@@ -391,6 +393,10 @@ test('a hosted graphic refuses a row carrying typed data, says so, and holds unt
   await expect.poll(() => appliedIn(graphic), { timeout: 30_000 }).toEqual(['update:NATIVE', 'play', 'stop']);
   await expect(graphic.locator('html')).toHaveAttribute('data-noacg-refused', /cannot read typed data/);
   expect(warned.join('\n')).toContain('cannot read typed data');
+  // A held graphic reports nothing, the stop included: a report would bank the native cue's values
+  // with no hold, and this graphic's next reload would air them.
+  await graphic.waitForTimeout(1500);
+  expect(reports).toBe(0);
 
   // A native Take ends the hold.
   visible.push(...later);
@@ -398,6 +404,8 @@ test('a hosted graphic refuses a row carrying typed data, says so, and holds unt
   await expect.poll(() => appliedIn(graphic), { timeout: 30_000 }).toEqual(['update:NATIVE', 'play', 'stop', 'update:BACK', 'play']);
   await expect(graphic.locator('html')).not.toHaveAttribute('data-noacg-refused', /.*/);
   await expect(graphic.locator('#f0')).toHaveText('BACK');
+  // Released, it reports again.
+  await expect.poll(() => reports, { timeout: 10_000 }).toBeGreaterThan(0);
 
   await graphic.close();
 });

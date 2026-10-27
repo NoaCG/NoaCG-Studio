@@ -170,7 +170,9 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
     else return; // 'staged' / 'live' meta rows are for control pages, not for us
-    scheduleReport();
+    // A held graphic never reports, as on the /output renderer: its report would bank the previous
+    // cue's values with no hold, and a reload of this graphic would air them.
+    if (!refused) scheduleReport();
   }
 
   // Report what is actually on air (the definition's fields, read back from the DOM, plus the

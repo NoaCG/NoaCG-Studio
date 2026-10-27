@@ -107,7 +107,8 @@ changes a spec's digest.
   its re-bank; the read below without its ceiling, and cut at the ceiling instead of left out; the
   in-app PROGRAM playing a report whose envelope does not read, and dropping the rows after it;
   `rowsPastHold` passing every row; the read below keeping its rows on a `reset`; the in-app
-  PROGRAM's hold skipped when it had typed air (Node); the
+  PROGRAM's hold skipped when it had typed air (Node); a held receiver reporting on a stop
+  (browser); the
   receiver's boot restoring a typed report (browser). The read below the reports switched off; the steps not restored; the typed
   baseline ignored (browser). The receiver without its hold (browser).
 - **Reviews.** `/check` code review (high): 10 findings. Fixed: the hosted PROGRAM's entrance with
@@ -140,7 +141,10 @@ changes a spec's digest.
   typed update in the rows after it rebuilt an entrance the output never made (now it always holds
   through `rowsPastHold`, as the hosted page and the output do). Its minor item, fixed too: the
   receiver's refusal clears a report already scheduled, which would have banked the previous cue's
-  values past the refused row.
+  values past the refused row. /so on `abb5f50` (fresh session): AGREE WITH CORRECTIONS,
+  Assessment A; its non-blocking correction is fixed: a held receiver reports nothing, a stop
+  included, as a held output graphic never reports (a report would bank the native cue's values
+  with no hold, and that graphic's own reload would air them).
 - **Follow-ups**: #1760 stays (typed live follow). #1769 (P3): the PROGRAM monitors do not read
   below the reports for a graphic no report banks, so a page opened then shows its entrance
   without its typed values while air is right.
