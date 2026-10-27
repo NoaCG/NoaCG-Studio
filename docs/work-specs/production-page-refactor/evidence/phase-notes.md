@@ -5,6 +5,101 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 39 (E3.1, project phase 44): foreign OGraf library identity, persistence, assets and isolation
+
+- **Previous verified `main` sha:** `8057a51` (row 38a passed, PR #1776). This branch was built on
+  it. Before editing, main had: the reader of a package's files (`readOgrafPackage`), the isolated
+  host and `mountForeignOgraf` with the hostile and benign fixtures served from disk, and E1's
+  `template.ograf` (a stranger's manifest kept on a NATIVE graphic made from the zip's html). It had
+  no way to import a stranger's module Graphic at all: a package with no html page was refused "No
+  .html file found in the zip", and one with a page was split into the editor's panes. No package
+  identity, no kept bytes, no archive bounds.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no message kind. A reverted
+  build reads a foreign entry as a native graphic with empty panes (`foreign` is an unknown
+  additive member it keeps; its bytes stay in `assets`), so nothing is lost; it would then offer
+  the editor and the native exports for it, which is the rollback's known cost.
+- **What landed.**
+  - *The entry* (`model/foreignPackage.ts`, `SpxTemplate.foreign`, its own `v`): a stranger's package
+    IS the library entry: every file untouched as an asset under its package path (the manifest's
+    bytes included), empty panes, E1's `ograf` declaration beside it, and a record of the package's
+    identity: manifest `id` and `version` and a sha256 `revision` over the file list. The revision is
+    the bytes', not the archive's (another folder or compression gives the same one; one changed
+    byte gives another). `verifyForeignPackage` hashes again before anything exports or serves it
+    and names the file that changed or went missing; a later `v` reads read-only.
+  - *The archive and the package* (`export/targets/ografForeign.ts`): bounds pinned at their edges
+    (zip 32 MB, 1000 entries, 16 MB a file and 48 MB in all counted as they inflate, names of 240
+    characters and 16 folders, 2000 stated references a file); names judged from the zip's own
+    central directory (no absolute path, drive, `..`, control character, case-twin or link); the
+    conformance gate without NoaCG's own element-id rule (the EBU's scoreboard has id `scoreboard`
+    and mounts under a host tag); `main` a module inside the package; every reference a file states
+    without running (manifest paths, static imports, `import()`, `new URL(.., import.meta.url)`, CSS
+    `url()` and `@import`) inside the package and present. Each refusal is one sentence naming the
+    entry or file.
+  - *The doors*: the Import graphic card and Create with AI read a dropped zip through one reader
+    (`components/wizard/templateFile.ts`); the card shows "OGraf <id> <version>" and the declared
+    fields; Finish reads the package back, offers no artwork door and says Export gives the package
+    as it came; the export window offers OGraf alone and returns the verified bytes
+    (`registry.ts` `foreignAware`, `exportTargetsFor`), every other target refuses; the library's
+    control page offers no editor and no controlpanel.html.
+  - *Not yet on air, said*: a cue over a package is refused at Take with "Imported OGraf packages do
+    not play on outputs yet." (`FOREIGN_NOT_PLAYABLE`, through `takeBlockers`' selection blocker); a
+    production holding one does not publish, naming it (`foreignPublishRefusal`, asked first in
+    `publishControlShow`); a community pack refuses one (somebody else's work).
+- **Decisions.**
+  - *An html page beside a manifest stays E1's native road*: only a manifest that is not ours, whose
+    `main` the package holds (or beside no html at all), is foreign. E1/E2's typed fixtures (a page
+    plus a stranger's manifest) import as before; a bare stranger's module Graphic, which no build
+    could import, now does.
+  - *The bounds are this road's*: a zip past them is refused only when it would have been a foreign
+    package (a manifest beside no page); a vendor's SPX pack of a thousand files or one with a long
+    video is still the native importer's, as before.
+  - *Isolation is the existing boundary, proven on library bytes, not a second one*: `ografHost.ts`,
+    `foreignOgraf.ts` and `stage.ts` are unchanged. A frame takes its port once, from its parent only,
+    and each instance has its own channel, so the "token" is the transferred MessagePort itself; the
+    library spec mounts two instances of a hostile package whose escapes are built at run time (so
+    the importer cannot see them) and shows each heard only its own answers, none of the forged ones,
+    and reached no credential, parent, peer, secret or internet. The static reference check is a
+    first refusal, not the boundary.
+  - *Typed data stays E1's*: a foreign cue starts native-empty and takes its typed form through E1's
+    switch, as any graphic with a declaration; package identity, typed data and cue identity are three
+    separate members, checked apart after a reload.
+  - *Serving library bytes to the outputs is E3.2a's*: nothing serves a stored package to an output
+    yet, so this row blocks Take and Publish with a reason rather than airing an empty document.
+- **Seams changed and where:** E1's `ografSchema.ts` `validateOgrafManifest` gains an
+  `elementId: false` option (default unchanged); `publishGate` reads a foreign entry's record instead
+  of NoaCG code checks; `ProductionPage`'s selection blocker adds the foreign refusal (E2/L1's verbs
+  untouched); `hostedControl.ts` `publishControlShow` asks `foreignPublishRefusal` after the gate.
+  The wire, message kinds, stage, host and recovery are untouched.
+- **Traps.**
+  - JSZip cleans `../` out of names on reading and lets a later entry replace an earlier one with the
+    same cleaned name, and a name ending in `/` is a folder with no `unsafeOriginalName`: names must
+    be judged from the central directory before JSZip parses anything.
+  - Escape closes the export window AND the wizard behind it; a spec closes the window by its own ✕.
+  - Once a production exists, `/app` opens Home: a spec reaches the wizard by `#/new`.
+  - `import-graphic` "a proposal against the artwork edge still has grips you can grab" fails on this
+    cloud image with or without this branch's wizard changes (checked by reverting them): text-
+    detection geometry, Actions decides it.
+- **Touched files against `8057a51`:** `.gitattributes`, `e2e/fixtures/ograf-library/**` (new:
+  `PROVENANCE.md`, `ebu-scoreboard/`, `nytamin-live-poll/`, `hostile-dynamic/`),
+  `e2e/ograf-library.spec.ts` (new), `scripts/ograf-foreign.test.mjs` (new),
+  `src/model/foreignPackage.ts` (new), `src/model/types.ts`, `src/export/targets/ografForeign.ts`
+  (new), `src/export/targets/ografSchema.ts`, `src/export/registry.ts`, `src/export/AGENTS.md`,
+  `src/validation/publishGate.ts`, `src/control/hostedControl.ts`, `src/community/packChecks.ts`,
+  `src/components/wizard/templateFile.ts` (new), `src/components/wizard/CreationWizard.tsx`,
+  `src/components/wizard/ai/AiStep.tsx`, `src/components/wizard/import/ImportDesignStep.tsx`,
+  `src/components/wizard/steps/FinishStep.tsx`, `src/components/ExportSurface.tsx`,
+  `src/components/home/GraphicControlPage.tsx`, `src/components/home/ProductionPage.tsx`, this file.
+- **Fixtures** (`e2e/fixtures/ograf-library/PROVENANCE.md`): EBU `scoreboard` (MIT, EBU, at the
+  pinned standard `c821671`; five steps, two custom actions, a thumbnail) and Johan Nyman's
+  `news-live-poll` (MIT, `nytamin/ograf-graphics` at `74c8eb8`; a list of objects, non-real-time),
+  every file's sha256 pinned and checked by the Node test; never fetched at test time.
+- **Measured** (hostile input, `scripts/ograf-foreign.test.mjs`, median of three, this machine): an
+  unclosed comment repeated, `import ` repeated, a run of names after `import`, `url(` repeated and
+  an archive of many entries each take at most about twice as long at twice the size (50k then 100k
+  repetitions: 25 then 35 ms, 267 then 582 ms, 13 then 30 ms, 354 then 684 ms; 450 then 900 entries:
+  230 then 412 ms). Every pattern's quantifiers between literals are bounded.
+
 ## Row 38a (L2.3, project phase 43): playout adjustments, the production look
 
 - **Previous verified `main` sha:** `d9c29b9` (row 38 passed, PR #1774). This branch was built on
