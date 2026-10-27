@@ -361,6 +361,11 @@ test.describe('a foreign OGraf package on the output stage', () => {
     expect(await call('steps', { t: 'update', data: { refuse: 3 } })).toEqual({ status: 'done', statusCode: 200 });
     expect(await step('steps', { goto: 3 })).toEqual({ status: 'rejected', statusCode: 409, statusMessage: 'not that step now' });
     expect(await layer('steps', 'position')).toEqual({ at: 1, declared: -1 });
+    // So did an Out it refused.
+    expect(await call('steps', { t: 'update', data: { refuseStop: true } })).toEqual({ status: 'done', statusCode: 200 });
+    expect(await call('steps', { t: 'stop' })).toEqual({ status: 'rejected', statusCode: 409, statusMessage: 'not out now' });
+    expect(await layer('steps', 'position')).toEqual({ at: 1, declared: -1 });
+    expect(await call('steps', { t: 'update', data: { refuseStop: false } })).toEqual({ status: 'done', statusCode: 200 });
     expect(await call('steps', { t: 'update', data: { count: 5 } })).toEqual({ status: 'done', statusCode: 200 });
     await expect(walk).toHaveAttribute('data-count', '5');
     expect(await step('steps', { goto: 4, skipAnimation: true })).toEqual({ status: 'done', statusCode: 200, currentStep: 4 });
@@ -423,6 +428,20 @@ test.describe('a foreign OGraf package on the output stage', () => {
       second.destroy();
       return result;
     });
+    // A SLOW LOAD DOES NOT EAT A CALL'S ANSWER WINDOW: the host times a call from load()'s answer,
+    // and so does this page. A load and an action each inside the 3 s deadline answer done, though
+    // together they pass the deadline plus the page's 2 s grace.
+    const slow = await page.evaluate(async () => {
+      const { mountForeignOgraf } = await import('/src/output/foreignOgraf.ts');
+      const base = location.origin + '/__foreign-ograf/packages/steps/';
+      const manifest = await (await fetch(base + 'steps.ograf.json')).json();
+      const layer = mountForeignOgraf(document.body, { key: 'slow', layer: 41, packageBase: base, manifest, data: { loadMs: 2600 } }, { width: 1920, height: 1080 }, { callTimeoutMs: 3000 });
+      const answer = await layer.call({ t: 'event', event: 'slow', payload: { ms: '2600' } })!;
+      layer.destroy();
+      return answer;
+    });
+    expect(slow).toEqual({ status: 'done', statusCode: 200 });
+
     expect(replaced).toEqual({
       played: { status: 'done', statusCode: 200, currentStep: 0 },
       heldAnswer: { status: 'gone' },

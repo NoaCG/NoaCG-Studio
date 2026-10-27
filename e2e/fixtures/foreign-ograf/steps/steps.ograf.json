@@ -13,7 +13,9 @@
     "properties": {
       "count": { "type": "integer", "title": "Steps", "default": 3 },
       "loop": { "type": "integer", "title": "Looping step", "default": -1 },
-      "refuse": { "type": "integer", "title": "Refused step", "default": -1 }
+      "refuse": { "type": "integer", "title": "Refused step", "default": -1 },
+      "refuseStop": { "type": "boolean", "title": "Refuse Out", "default": false },
+      "loadMs": { "type": "integer", "title": "Load delay (ms)", "default": 0 }
     }
   },
   "stepCount": -1,
@@ -21,6 +23,7 @@
     { "id": "hold", "name": "Hold", "description": "Answers once released." },
     { "id": "release", "name": "Release", "description": "Answers every held action." },
     { "id": "reject", "name": "Reject", "description": "Refuses." },
+    { "id": "slow", "name": "Slow", "description": "Answers after its ms.", "schema": { "type": "object", "properties": { "ms": { "type": "integer" } } } },
     { "id": "mark", "name": "Mark", "description": "Writes its argument.", "schema": { "type": "object", "properties": { "v": { "type": "string" } } } }
   ]
 }

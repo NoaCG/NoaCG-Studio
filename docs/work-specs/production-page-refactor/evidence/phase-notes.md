@@ -74,7 +74,11 @@ changes a spec's digest.
   - *Only the newest play or stop moves the position* (same review): answers can now arrive out of
     order, so an older step's late answer or timeout never overwrites a newer one's (`walk`). A
     step the Graphic refuses (4xx) puts back the position it had before the call (`before`; Codex
-    P2 on `aa5ca3b`), so a refused Goto does not cost the next relative step.
+    P2 on `aa5ca3b`), so a refused Goto does not cost the next relative step; a refused Stop
+    likewise (the final `/so`).
+  - *A call's fallback deadline starts when `load()` has answered*, as the host's own does (same
+    reviewer, P2 on `a341772`): a slow load followed by a slow action, each inside its budget, is
+    no longer timed out on this page while the host still waits for its answer.
   - *A 2xx with no `currentStep` is the end*, as OGraf's `ReturnPayload` says (undefined = at the
     end). A Graphic that never reports its step can still be moved by Goto.
   - *The marks are a store part* (`createPressMarks`, rule
@@ -143,7 +147,9 @@ changes a spec's digest.
   serial chain put back; a 504 read as done; `destroy` leaving calls out unsettled; the typed press
   sending the edited cue's arguments; the marks not following the `air` part (a new instance, and
   the same cue taken again, kept the old mark); an older play's answer moving the position; a
-  refused step's answer folded from the cleared position instead of the one before the call.
+  refused step's answer folded from the cleared position instead of the one before the call; a
+  call's fallback deadline started at its post instead of at `load()`'s answer; a refused Out
+  read as ending the walk.
 
 ## Row 37 (E2.1, project phase 41): typed OGraf forms and action arguments
 

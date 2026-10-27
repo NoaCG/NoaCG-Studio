@@ -164,6 +164,8 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
    *  of order, so only the answer to the newest play or stop moves it (`walk`). */
   let at: OgrafStepAt = null;
   let walk = 0;
+  /** `load()`'s answer, however it came: every later call's deadline starts from it. */
+  let loadAnswered: Promise<unknown> = Promise.resolve();
   // Posted at once: a port holds what it is sent until the far end starts listening, so nothing
   // waits on the frame's load here, and `load()` is the first call the Graphic sees.
   const post = (call: OgrafCall, args: unknown[]): Promise<OgrafAnswer> => {
@@ -179,7 +181,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     }
     const answered = new Promise<OgrafAnswer>((resolve) => {
       if (call === 'offair') return resolve({ status: 'done', statusCode: 200 });
-      const timer = setTimeout(() => settle({ status: 'timeout', statusMessage: 'the graphic answered nothing' }), deadline);
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const settle = (answer: OgrafAnswer) => {
         if (!pending.has(callId)) return;
         pending.delete(callId);
@@ -187,13 +189,20 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
         resolve(answer);
       };
       pending.set(callId, { call, walk, before, settle });
+      // The host starts a call's own deadline only once load() has answered, so this page's
+      // fallback does the same: a slow load never eats into the answer window of the calls behind it.
+      const arm = () => {
+        if (pending.has(callId)) timer = setTimeout(() => settle({ status: 'timeout', statusMessage: 'the graphic answered nothing' }), deadline);
+      };
+      if (call === 'mount') arm();
+      else void loadAnswered.then(arm);
     });
     // A Graphic that never answers cannot grow the book forever: the oldest call is given up.
     if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered' });
     channel.port1.postMessage({ id: callId, call, args });
     return answered;
   };
-  void post('mount', [spec.data ?? {}, { resolution: { width: resolution.width, height: resolution.height } }]);
+  loadAnswered = post('mount', [spec.data ?? {}, { resolution: { width: resolution.width, height: resolution.height } }]);
 
   channel.port1.onmessage = (ev: MessageEvent) => {
     const data = ev.data as { id?: unknown; payload?: unknown } | null;
@@ -205,7 +214,8 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     if (returns.length > RETURNS_KEPT) returns.splice(0, returns.length - RETURNS_KEPT);
     if (out.walk === walk) {
       if (out.call === 'play') at = ografStepAfter(out.before, told);
-      else if (out.call === 'stop' && ografOk(told.statusCode)) at = null;
+      // A stop that went ends the walk; one the Graphic refused moved nothing, as a refused step.
+      else if (out.call === 'stop') at = ografOk(told.statusCode) ? null : ografStepAfter(out.before, told);
     }
     out.settle(answerOf(told));
   };
