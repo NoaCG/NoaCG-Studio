@@ -469,3 +469,27 @@ test('a page with no crypto.subtle (plain http on a LAN) gets the same sha256', 
     Object.defineProperty(globalThis, 'crypto', real);
   }
 });
+
+test('minified static imports are read too', async () => {
+  assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "import{a}from'./missing.mjs';export default class extends HTMLElement{}" }))), /graphic\.mjs refers to "\.\/missing\.mjs", which the package does not contain/);
+  assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "import*as x from\"../out.mjs\";export default class{}" }))), /outside the package/);
+  const ok = await importForeignOgraf('x.zip', await zipOf(minimal({ 'graphic.mjs': "import{a}from'./lib/a.mjs';export{a}from'./lib/a.mjs';export default class extends HTMLElement{}" })));
+  assert.ok(ok.ok, ok.reason);
+});
+
+test('a production pack carries a foreign package and reads it back the same', async () => {
+  const packs = await load(path.join(root, 'src/packs/graphicsPack.ts'));
+  const { template, record } = await importForeignOgraf('s.zip', await zipOf(fixture('ebu-scoreboard')));
+  const entry = await packs.packGraphicEntry(template, { name: 'Scoreboard', layer: 5 });
+  const { pack, error } = packs.parsePack(JSON.stringify({ format: 'noacg-pack', version: 1, name: 'Backup', graphics: [entry] }));
+  assert.equal(error, null);
+  const back = pack.graphics[0].template;
+  assert.deepEqual(back.foreign, template.foreign);
+  assert.deepEqual(back.ograf, template.ograf);
+  const check = await verifyForeignPackage(back);
+  assert.ok(check.ok, check.reason);
+  assert.equal(check.record.revision, record.revision);
+  // A record this build cannot read is refused by name, never read as a native graphic.
+  const later = { ...entry, foreign: { ...entry.foreign, v: 2 } };
+  assert.match(packs.parsePack(JSON.stringify({ format: 'noacg-pack', version: 1, name: 'Backup', graphics: [later] })).error, /“Scoreboard” was imported by a later version of NoaCG/);
+});

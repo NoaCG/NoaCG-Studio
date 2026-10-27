@@ -48,6 +48,10 @@ changes a spec's digest.
     production gate refuses Publish of a production holding one and its export to any target but
     OGraf, naming it (`productionGateFailures(..., door)`), so the export dialog shows it before a
     build; a community pack refuses one (somebody else's work).
+  - *A production pack carries a foreign package* (`packs/graphicsPack.ts`): the entry holds its
+    record, its manifest and its files, and reads back to the same revision; a record this build
+    cannot read is refused by name. An older build refuses the entry as missing its HTML or JS.
+  - *Minified imports* (`import{a}from'./x'`) are read too: `from` may follow `}`, `*` or a space.
   - *A page on plain http has no `crypto.subtle`*: `sha256` falls back to the dependency-free digest
     the sound assets use (`assets/audioHash.ts`), the same hex, so a LAN-served studio imports and
     exports packages too.
@@ -92,7 +96,7 @@ changes a spec's digest.
   `src/model/foreignPackage.ts` (new), `src/model/types.ts`, `src/export/targets/ografForeign.ts`
   (new), `src/export/targets/ografSchema.ts`, `src/export/registry.ts`, `src/export/AGENTS.md`,
   `src/validation/publishGate.ts`, `src/validation/productionGate.ts`, `src/control/hostedControl.ts`,
-  `src/control/takeBlockers.ts`, `src/export/showExport.ts`, `src/model/importTemplate.ts` (three
+  `src/control/takeBlockers.ts`, `src/packs/graphicsPack.ts`, `src/export/showExport.ts`, `src/model/importTemplate.ts` (three
   helpers exported), `src/community/packChecks.ts`, `src/components/home/ProductionExportDialog.tsx`,
   `scripts/take-blockers.test.mjs`,
   `src/components/wizard/templateFile.ts` (new), `src/components/wizard/CreationWizard.tsx`,
