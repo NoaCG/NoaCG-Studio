@@ -125,6 +125,7 @@ export default function CueRundown({
   pinnedGraphics,
   onPin,
   candidateValues,
+  typedSummaryOf,
   accentPreview,
   onAccentPreview,
   show,
@@ -182,6 +183,9 @@ export default function CueRundown({
 }: {
   /** A live candidate cue's resolved values (E7.1), which its row reads instead of its prepared ones. */
   candidateValues?: (cue: ShowCue) => Record<string, string> | null;
+  /** A cue with typed OGraf data names itself from those values (E2.1, control/ografForm.ts
+   *  `typedSummary`, which leaves out what the schema marks `hidden`); null for any other cue. */
+  typedSummaryOf?: (cue: ShowCue) => string | null;
   accentPreview?: { cueId: string; color: string } | null;
   onAccentPreview: (cueId: string, color: string | null) => void;
   show: Show;
@@ -689,8 +693,11 @@ export default function CueRundown({
           // a graphic's first words ("Alexandra Riva"), a server item's own name. A graphic with
           // no words (a logo, a picture) falls back to its name, as the old second line did.
           const shown = { ...view.values, ...candidateValues?.(cue) };
+          const typedWords = poolEntry ? typedSummaryOf?.(cue) : null;
           const summary = poolEntry
-            ? (wordFields.get(poolEntry.id) ?? [])
+            ? typedWords != null
+              ? typedWords || cueGraphic || ''
+              : (wordFields.get(poolEntry.id) ?? [])
                 .map((d) => (shown[d.key] ?? d.defaultValue).split('\n')[0].replace(/\s+/g, ' ').trim())
                 .filter(Boolean)
                 .slice(0, 2)

@@ -2,7 +2,7 @@ import type { Show, ShowCue, ShowFolder, PlayoutItem } from './shows';
 import type { SavedGraphic } from './packets';
 import { foldersContiguous, throughRefusal } from './showFolders.ts';
 import { selectionFrozen, selectionKeep, selectionReadOnly } from './productionData.ts';
-import { typedFrozen, typedKeep } from './ografTyped.ts';
+import { typedFrozen, typedKeep, typedValuesOf } from './ografTyped.ts';
 
 /** Only prepared rundown data. Air, publication, datasets and production metadata stay outside. */
 export interface RundownSlice {
@@ -102,8 +102,17 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
     const to = JSON.stringify(cue.selection ?? null);
     if (now && JSON.stringify(now.selection ?? null) !== to && !selectionReadOnly(cue, show.collections)) moved.set(cue.id, to);
   }
+  // So does a cue whose typed values the form changed (E2.1): undone or redone, it goes back to the
+  // envelope the record had. Only between two envelopes this build reads: turning typed data on or
+  // off is still refused here, and a later version's is never rewritten.
+  const typedMoved = new Map<string, string>();
+  for (const cue of copy.cues) {
+    const now = show.cues?.find((c) => c.id === cue.id);
+    const to = JSON.stringify(cue.typed ?? null);
+    if (now && typedValuesOf(now.typed) && typedValuesOf(cue.typed) && JSON.stringify(now.typed) !== to) typedMoved.set(cue.id, to);
+  }
   const restored = new Set(copy.cues.map((c) => c.id));
-  const frozen = selectionFrozen(selectionKeep(show), next, restored, moved.size ? { cues: moved } : undefined) ?? typedFrozen(typedKeep(show), next, restored);
+  const frozen = selectionFrozen(selectionKeep(show), next, restored, moved.size ? { cues: moved } : undefined) ?? typedFrozen(typedKeep(show), next, restored, typedMoved);
   return frozen ? { show: null, refused: frozen } : { show: next, refused: null };
 }
 

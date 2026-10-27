@@ -8,10 +8,13 @@
 // (`typedOutputsRefusal`). A cue with a live candidate takes none, and a published tree not yet
 // read sends nothing bound from it.
 //
-// Pure, and Node-importable: scripts/ograf-typed-writer.test.mjs drives it.
+// A press of a foreign OGraf custom action (E2.1, `typedActionSendFor`) asks the same outputs a
+// higher capability: each must say it reads typed actions.
+//
+// Pure, and Node-importable: scripts/ograf-typed-writer.test.mjs and scripts/ograf-form.test.mjs drive it.
 
 import { getPath, type JsonValue } from '../model/productionData.ts';
-import { typedForSend, typedOutputsRefusal, typedTargetValue, type DeclaredRead, type TypedPeer, type TypedSend } from '../model/ografTyped.ts';
+import { TYPED_ACTIONS_READER, typedActionFor, typedForSend, typedOutputsRefusal, typedTargetValue, type DeclaredRead, type TypedActionSend, type TypedPeer, type TypedSend } from '../model/ografTyped.ts';
 
 /** What the decision reads, all of it from the page's newest state. */
 export interface TypedSendFacts {
@@ -70,5 +73,38 @@ export function createTypedSendMemo(): (cue: { typed?: unknown; selection?: unkn
     const out = typedSendFor(cue, facts);
     if (key) kept.set(key, { facts, selection: cue.selection, out });
     return out;
+  };
+}
+
+/** What a press of `action` sends from this cue's kept arguments (E2.1): the action envelope,
+ *  validated whole, then only while every output this page sees reads typed actions. */
+export function typedActionSendFor(cue: { typedArgs?: unknown }, action: string, facts: Pick<TypedSendFacts, 'declared' | 'published' | 'presence' | 'showId'>): TypedActionSend {
+  const send = typedActionFor(facts.declared, action, cue.typedArgs);
+  if (send.status !== 'ok') return send;
+  const { presence } = facts;
+  const outputs = typedOutputsRefusal(facts.published, presence.showId === facts.showId ? presence.status : 'joining', presence.peers, TYPED_ACTIONS_READER);
+  return outputs ? { status: 'refused', reason: outputs } : send;
+}
+
+/** A typed edit that did not save sends nothing older in its place (E2.1). */
+export const TYPED_NOT_SAVED = 'The last typed edit was not saved, so nothing typed was sent. Check the value and try again.';
+
+/** The part of a cue a typed write saves: its values, or one action's arguments (`typedActionPart`). */
+export const TYPED_VALUES_PART = 'values';
+/** An action's arguments as a part, never the values part whatever the action's id. */
+export const typedActionPart = (actionId: string) => `action:${actionId}`;
+
+/**
+ * THE TYPED FORM'S SAVES, CUE BY CUE AND PART BY PART (E2.1): a part whose last write failed sends
+ * nothing typed, since what is stored is not what the operator typed, until that part's next write
+ * lands. A Take or ✎ Update asks for the values; a press for the values and its action's arguments.
+ * A write to another part, or another cue, clears nothing.
+ */
+export function createTypedSaves(): { landed: (cueId: string, part: string, ok: boolean) => void; refusal: (cueId: string, parts: readonly string[]) => string | null } {
+  const failed = new Set<string>();
+  const key = (cueId: string, part: string) => JSON.stringify([cueId, part]);
+  return {
+    landed: (cueId, part, ok) => void (ok ? failed.delete(key(cueId, part)) : failed.add(key(cueId, part))),
+    refusal: (cueId, parts) => (parts.some((part) => failed.has(key(cueId, part))) ? TYPED_NOT_SAVED : null),
   };
 }

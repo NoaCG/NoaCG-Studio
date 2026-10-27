@@ -3,10 +3,12 @@ import { saveAs } from 'file-saver';
 import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, connectApiFields, connectConnectorSource, connectShowSource, ownSheetGraphics, disconnectShowFields, nextFreeLayer, preparedMessageField, renameShowSource, setShowGraphicLayer, sourceKindWord, type FieldShowSource, type Show, type ShowCue, type ShowSource } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { FieldDescriptor, FieldValue } from '../../model/fieldModel';
-import { chosenPath, externalReadOnly, mappingEntries, proposeMapping, sourcePaths, type MappingRow, type ResolvedValues } from '../../model/productionData';
+import { chosenPath, externalReadOnly, mappingEntries, proposeMapping, sourcePaths, type JsonValue, type MappingRow, type ResolvedValues } from '../../model/productionData';
 import { nextRow, type CueDataRow } from '../../control/cueData';
 import { groupHeading, type CueFieldGroup } from '../../control/cueFieldGroups';
 import { FieldRow, type FieldImage } from '../fields/FieldControl';
+import { TypedForm } from './TypedForm';
+import type { TypedNode, TypedValues } from '../../model/ografTyped';
 import CueOverflowNote from './CueOverflowNote';
 import { nameList } from './CueRundown';
 import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspace';
@@ -787,6 +789,18 @@ export interface CueTypedSwitch {
   toggle: (on: boolean) => void;
 }
 
+/** A cue's TYPED FORM (E2.1, home/TypedForm): its typed values drawn from its graphic's schema, and
+ *  each declared action's arguments, both kept as drafts and judged where they are. Built by the
+ *  page; null for a cue whose graphic declares no OGraf schema and no action arguments. */
+export interface CueTypedForm {
+  /** The values' form, while the cue's typed data is on. */
+  values: { fields: TypedNode; value: TypedValues['values']; errors: ReadonlyMap<string, string[]>; onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => void } | null;
+  /** One per declared action that takes arguments. */
+  actions: { id: string; name: string; node: TypedNode; value: JsonValue | undefined; errors: ReadonlyMap<string, string[]>; onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => void }[];
+  /** Puts a form's settling edit under the page's verb wait; answers its removal. */
+  register: (flush: () => void) => () => void;
+}
+
 /** The writer's menu (E7.2a): which person this cue shows, picked from what each of its graphic's
  *  collection recipes holds now, or Fixed values. A pick is one write (ProductionPage
  *  `pickCandidate`); Fixed values detaches the cue with what the candidate showed. */
@@ -985,6 +999,7 @@ export default function CueEditor({
   candidate,
   picker,
   typed = null,
+  typedForm = null,
   adjust = null,
 }: {
   show: Show;
@@ -1061,6 +1076,8 @@ export default function CueEditor({
   picker: CandidatePicker | null;
   /** The typed data switch (E1.2a), null when the cue's graphic declares no OGraf schema. */
   typed?: CueTypedSwitch | null;
+  /** The typed form (E2.1), null when the cue's graphic declares nothing it draws. */
+  typedForm?: CueTypedForm | null;
   /** The cue's place and size (home/CueAdjust), built by the page: a settings disclosure. */
   adjust?: ReactNode;
 }) {
@@ -1104,6 +1121,68 @@ export default function CueEditor({
   };
   // The sources this graphic follows, and connected fields it no longer has.
   const fed = (show.sources ?? []).filter((source) => Object.values(bound).some((path) => isSourcePath(source.id, path)));
+  /** A FIELD BOUND to the production's data, read out with its source and its Disconnect: the native
+   *  rows and the typed form (E2.1) draw the same row. */
+  const boundRow = (d: { key: string; label: string }, label: string, path: string) => {
+    const source = sourceOf(show, path);
+    const format = listFormatFor(poolGraphic, d.key);
+    const unset = source?.kind === 'external' ? 'waits for the next read' : 'not set yet';
+    // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
+    // rather than on a hand-rolled label. The cue fields lay out in a grid,
+    // so a row of a different height sits its input a few pixels off its
+    // neighbour's; matching the real structure makes them line up by
+    // construction instead of by a number kept in step here.
+    return (
+      <div className="field-row pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
+        <div className="field-meta">
+          <label style={{ margin: 0 }}>
+            {label}
+          </label>
+          {source ? (
+            <CueConnectedMark source={source} store={sourceStatus} />
+          ) : isApiPath(path) ? (
+            <span className="pd-bound-mark" title={`Connected to Another system: ${path}`} data-testid="cue-connected-mark">
+              🔗 Another system
+            </span>
+          ) : (
+            <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
+              🔗 {path}
+            </span>
+          )}
+        </div>
+        {/* A list keeps its lines: an <input> would join them into one. A
+            connector's field fills at its source's next read, never from the
+            review's sample: until then it says so. */}
+        {format ? (
+          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} rows={3} readOnly tabIndex={-1} />
+        ) : (
+          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} readOnly tabIndex={-1} />
+        )}
+        {/* The operator wins for values (±, a typed value on Data); a connected
+            list is read-only here and says where to edit it (sheet spec). */}
+        {isApiPath(path) && (
+          <span className="hint" data-testid="cue-connected-note">
+            Another system writes <code>{path}</code>.{' '}
+            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
+              Disconnect
+            </button>
+          </span>
+        )}
+        {source && (
+          <span className="hint" data-testid="cue-connected-note">
+            {format
+              ? source.kind === 'feed' || source.kind === 'external'
+                ? `Connected to ${sourceKindWord(source)}: ${source.label}. `
+                : `Connected to Sheet: ${source.label}. Edit in the Sheet, or `
+              : ''}
+            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
+              {format ? 'Disconnect to edit here' : 'Disconnect'}
+            </button>
+          </span>
+        )}
+      </div>
+    );
+  };
   return (
     <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" data-renders={renders.current} inert={!authoringAllowed || !!candidate?.readOnly}
       onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
@@ -1281,7 +1360,25 @@ export default function CueEditor({
         {/* THE BANDS. One per side on a two-sided board, headed by the operator's own
             word for that side; one unlabelled band - today's flat flow - on everything
             else. The grouping is derived, never authored (control/cueFieldGroups.ts). */}
-        {fieldGroups.map((group) => {
+        {/* THE TYPED FORM (E2.1): while a cue's typed data is on, its graphic's schema IS the form,
+            every value in its own type; a field bound to the production's data reads out as bound. */}
+        {typedForm?.values ? (
+          // Keyed by its cue: switching cues unmounts the form, which lands a settling edit through
+          // the cue it was typed into, never the next one.
+          <TypedForm
+            key={editingCue.id}
+            node={typedForm.values.fields}
+            value={typedForm.values.value}
+            onChange={typedForm.values.onChange}
+            errors={typedForm.values.errors}
+            testIdPrefix="cue-typed"
+            register={typedForm.register}
+            images={cueImages}
+            imageHint="Add pictures in the graphic's Assets tab."
+            replaced={(key, label) => (bound[key] ? boundRow({ key, label }, label, bound[key]) : null)}
+          />
+        ) : (
+        fieldGroups.map((group) => {
           // WHAT THE OPERATOR IS LOOKING AT, in the same order the field boxes resolve it:
           // a bound field shows the live tree's value, an unset one its authored default.
           // Reading `editingView.values` alone would head a band "Side A" while the box
@@ -1307,7 +1404,6 @@ export default function CueEditor({
                   // would show a number nothing will ever air. It reads out instead,
                   // wearing its path — the one override gesture is Unbind, on the Data tab.
                   const path = boundFields(selectedGraphic)[d.key];
-                  const source = sourceOf(show, path);
                   const format = listFormatFor(poolGraphic, d.key);
                   // A LIVE CANDIDATE's field reads out like a bound one: its source corrects
                   // it, and Take and Update resolve it (E7.1).
@@ -1331,64 +1427,7 @@ export default function CueEditor({
                       </div>
                     );
                   }
-                  if (path) {
-                    const unset = source?.kind === 'external' ? 'waits for the next read' : 'not set yet';
-                    // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
-                    // rather than on a hand-rolled label. The cue fields lay out in a grid,
-                    // so a row of a different height sits its input a few pixels off its
-                    // neighbour's; matching the real structure makes them line up by
-                    // construction instead of by a number kept in step here.
-                    return (
-                      <div className="field-row pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
-                        <div className="field-meta">
-                          <label style={{ margin: 0 }}>
-                            {d.key.toUpperCase()} · {d.label}
-                          </label>
-                          {source ? (
-                            <CueConnectedMark source={source} store={sourceStatus} />
-                          ) : isApiPath(path) ? (
-                            <span className="pd-bound-mark" title={`Connected to Another system: ${path}`} data-testid="cue-connected-mark">
-                              🔗 Another system
-                            </span>
-                          ) : (
-                            <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
-                              🔗 {path}
-                            </span>
-                          )}
-                        </div>
-                        {/* A list keeps its lines: an <input> would join them into one. A
-                            connector's field fills at its source's next read, never from the
-                            review's sample: until then it says so. */}
-                        {format ? (
-                          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} rows={3} readOnly tabIndex={-1} />
-                        ) : (
-                          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} readOnly tabIndex={-1} />
-                        )}
-                        {/* The operator wins for values (±, a typed value on Data); a connected
-                            list is read-only here and says where to edit it (sheet spec). */}
-                        {isApiPath(path) && (
-                          <span className="hint" data-testid="cue-connected-note">
-                            Another system writes <code>{path}</code>.{' '}
-                            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
-                              Disconnect
-                            </button>
-                          </span>
-                        )}
-                        {source && (
-                          <span className="hint" data-testid="cue-connected-note">
-                            {format
-                              ? source.kind === 'feed' || source.kind === 'external'
-                                ? `Connected to ${sourceKindWord(source)}: ${source.label}. `
-                                : `Connected to Sheet: ${source.label}. Edit in the Sheet, or `
-                              : ''}
-                            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
-                              {format ? 'Disconnect to edit here' : 'Disconnect'}
-                            </button>
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
+                  if (path) return boundRow(d, `${d.key.toUpperCase()} · ${d.label}`, path);
                   const field = (
                     <FieldRow
                       key={d.key}
@@ -1434,8 +1473,18 @@ export default function CueEditor({
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </div>
+
+      {/* AN ACTION'S ARGUMENTS (E2.1): what its ⚡ press carries, set here like the cue's values and
+          kept with the cue; a value that does not fit stops that press only. */}
+      {typedForm?.actions.map((a) => (
+        <fieldset className="pd-typed-group pd-typed-action" key={a.id} data-testid={`cue-action-args-${a.id}`}>
+          <legend>⚡ {a.name}</legend>
+          <TypedForm key={editingCue.id} node={a.node} value={a.value} onChange={a.onChange} errors={a.errors} testIdPrefix={`cue-args-${a.id}`} register={typedForm.register} images={cueImages} />
+        </fieldset>
+      ))}
 
       {/* CUE SETTINGS, under a rule and not in the content grid. The note is the cue's; it is
           not something the graphic SHOWS, and flowing it in beside the content fields is

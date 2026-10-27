@@ -59,7 +59,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, typedSends = null, typedAiring = null, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {}, ioWith = {} } = {}) {
+function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, typedSends = null, typedActions = null, typedAiring = null, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {}, ioWith = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -125,6 +125,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     // What a typed cue sends (model/ografTyped.ts `typedForSend`, E1.2a): a page that sends none
     // has no `typedFor`, unless the test gives it answers.
     ...(typedSends ? { typedFor: (cue) => typedSends[cue.id] ?? { status: 'none' } } : {}),
+    ...(typedActions ? { typedActionFor: (cue, graphic, action) => typedActions[`${cue.id}:${action}`] ?? { status: 'refused', reason: 'not declared' } } : {}),
     ...(typedAiring ? { typedAiring: (graphic) => typedAiring.includes(graphic) } : {}),
     selectionAired: (graphic, cueId, take) => {
       log.push(['aired', graphic, cueId, take.status]);
@@ -3295,4 +3296,36 @@ test('a press whose selection and key name different cues goes nowhere, whicheve
     assert.deepEqual(await r.verbs.event(view, { event: 'go' }, named), { outcome: 'refused', note: 'Nothing sent: the cue on Score changed.' }, `${drawn}/${named}`);
     assert.equal(r.sends.length, 0, `${drawn}/${named}`);
   }
+});
+
+// ── Typed actions (E2.1) ─────────────────────────────────────────────────────────────────────────
+
+test('a foreign action press carries the live cue\'s typed arguments in the action envelope, after the wait; refused, nothing goes', async () => {
+  const typed = { v: 1, kind: 'action', standard: OGRAF_STANDARD.commit, schema: 'h', action: 'highlight', args: { team: 2, pulse: { fast: true } } };
+  const cue = graphicCue('t1', 'Score', { f0: 'text' }, { typed: { v: 1, kind: 'values', standard: OGRAF_STANDARD.commit, schema: 's', values: {} } });
+  const view = sel({ selectedGraphic: 'Score', selectedLayerLive: true, airCue: cue });
+  const r = rig({ typedActions: { 't1:highlight': { status: 'ok', typed } }, typedAiring: ['Score'] });
+  // A native press on a layer airing typed data still sends nothing; the declared action goes.
+  await r.verbs.event(view, { event: 'goal' });
+  assert.equal(r.sends.length, 0);
+  const pressing = r.verbs.event(view, { event: 'highlight', label: 'Highlight a team', typed: true });
+  await settle();
+  assert.deepEqual(r.log.filter(([k]) => k === 'flush' || k === 'send'), [['flush'], ['send', 'Score:event']]);
+  assert.deepEqual(r.sends[0].batches[0][0].msg, { t: 'event', event: 'highlight', typed });
+  assert.equal(typeof r.sends[0].batches[0][0].msg.typed.args.team, 'number');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await pressing, { outcome: 'accepted' });
+  // Arguments that do not fit: nothing is sent, and the note says where.
+  const no = rig({ typedActions: { 't1:highlight': { status: 'refused', reason: 'Highlight a team: colour not a #rrggbbaa colour.' } } });
+  const done = await no.verbs.event(view, { event: 'highlight', label: 'Highlight a team', typed: true });
+  assert.equal(no.sends.length, 0);
+  assert.equal(done.outcome, 'refused');
+  assert.deepEqual(no.notes, ['T1: Highlight a team: colour not a #rrggbbaa colour.']);
+  // A page that sends no typed action refuses it rather than sending a native event in its place.
+  const plain = rig();
+  assert.equal((await plain.verbs.event(view, { event: 'highlight', typed: true })).outcome, 'refused');
+  assert.equal(plain.sends.length, 0);
+  // Off air or with no cue this page holds, nothing goes.
+  assert.equal((await r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: false, airCue: cue }), { event: 'highlight', typed: true })).outcome, 'refused');
+  assert.equal(r.sends.length, 1);
 });

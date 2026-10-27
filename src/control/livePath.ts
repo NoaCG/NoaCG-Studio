@@ -412,8 +412,9 @@ export interface LiveEntry {
   prep?: PrepRequest;
   /** An output's answer to the last command path ping it received (migration 0072, R9). */
   ack?: PingAck;
-  /** The typed-data envelope version an output reads (model/ografTyped.ts `TYPED_READER`, E1.2a).
-   *  Absent from an output built before it: a page sends such an output no envelope. */
+  /** What typed data an output reads (model/ografTyped.ts `TYPED_READER`): 1 values (E1.2a), 2
+   *  values and actions (E2.1). Absent from an output built before it: a page sends such an output
+   *  no envelope. */
   typed?: number;
 }
 

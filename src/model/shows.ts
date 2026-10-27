@@ -26,8 +26,9 @@ import {
   type SourceRecipe,
 } from './productionData';
 import type { ShowProfile } from './profile';
-import { readShowProfile, serializeShowProfile } from './profile';
-import { migrateToTyped, nativeOf, readOgrafDeclared, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedReceipt, type TypedValues } from './ografTyped';
+import { put, readShowProfile, serializeShowProfile } from './profile';
+import { actionArgsOf, actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
+import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
@@ -122,6 +123,10 @@ export interface ShowCue {
    *  Take and ✎ Update send it (`typedForSend`) and the native `values` wait unused for Off; one this
    *  build cannot read makes the whole cue read-only. */
   typed?: TypedValues | { v?: unknown; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-controls/spec.md, E2.1). What
+   *  each of the graphic's custom actions carries when pressed, as typed JSON, read only through
+   *  ./ografTyped.ts `readTypedArgs`. Written only by `setCueTypedArgs`; a draft, valid or not. */
+  typedArgs?: TypedArgs | { v?: unknown; [later: string]: unknown };
 }
 
 /** Where a prepared message came from, kept on its cue. */
@@ -1450,13 +1455,22 @@ export function setCueTyped(
       if (cue.typed === undefined) return null;
       const envelope = typedValuesOf(cue.typed);
       if (!envelope) return { error: 'This cue’s typed data cannot be read.' };
-      return { typed: null, values: { ...cue.values, ...nativeOf(envelope) }, receipt: null };
+      // A declared value the typed form removed stays removed (E2.1): its old string is not brought
+      // back from before On, so Off then On never resurrects it.
+      const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+      const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
+      const removed = new Set(declared.status === 'ok' && declared.fields ? (declared.fields.properties ?? []).map((p) => p.key).filter((k) => !Object.prototype.hasOwnProperty.call(envelope.values, k)) : []);
+      const kept = Object.fromEntries(Object.entries(cue.values).filter(([k]) => !removed.has(k)));
+      return { typed: null, values: { ...kept, ...nativeOf(envelope) }, receipt: null };
     }
     if (cue.typed !== undefined) return null;
     const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
     const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
     if (declared.status !== 'ok' || !declared.fields) return { error: 'This cue’s graphic declares no typed data.' };
-    const { envelope, receipt } = migrateToTyped(declared.description, cue.values);
+    // The schema's declared defaults fill what the strings did not say, once, here (E2.1): never
+    // again when the form reopens, so a value the operator removes stays removed. What still does
+    // not fit is the form's to mark and Take's to refuse; only a lossy string refuses On.
+    const { envelope, receipt } = migrateToTyped(declared.description, cue.values, { defaults: true, draft: true });
     if (!envelope) return { error: `Typed data was not turned on: ${receipt.refused.map((r) => (r.at ? `${r.at} ${r.reason}` : r.reason)).join('; ')}.` };
     return { typed: envelope, values: cue.values, receipt };
   };
@@ -1479,6 +1493,79 @@ export function setCueTyped(
     return true;
   }, true, undefined, new Map([[cueId, bytes]]));
   return { ...done, receipt: planned.receipt };
+}
+
+/**
+ * THE TYPED FORM'S WRITE (docs/work-specs/playout-ograf-controls/spec.md, E2.1): a cue's typed values
+ * as its form left them, in the envelope it already has (same version, standard and schema). A draft
+ * is kept as it is, valid or not: Take and ✎ Update validate it whole (`typedForSend`) and refuse
+ * with its path, so an invalid value blocks only those and is never erased. Bounded like any
+ * envelope; allowed by `typedFrozen` for this cue and these bytes only, and never on a read-only cue.
+ */
+export function setCueTypedValues(
+  showId: string,
+  cueId: string,
+  /** The values, or the form's edit as a change to the values stored when it lands: an edit then
+   *  touches only its own path, never rewriting what another edit since has changed. */
+  values: TypedValues['values'] | ((current: TypedValues['values']) => JsonValue | undefined),
+): { shows: Show[]; error: string | null } {
+  const plan = (show: Show): { error: string } | { typed: TypedValues } => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return { error: 'This cue was removed.' };
+    const envelope = typedValuesOf(cue.typed);
+    if (!envelope) return { error: cue.typed === undefined ? 'This cue’s typed data is off.' : 'This cue’s typed data cannot be changed here.' };
+    const next = typeof values === 'function' ? values(envelope.values) : values;
+    if (next === undefined || readJson(next) || typeof next !== 'object' || next === null || Array.isArray(next)) return { error: 'These values cannot be kept.' };
+    return { typed: { ...envelope, values: next } };
+  };
+  const first = readEditable().find((s) => s.id === showId && !s.deleted);
+  const planned = first ? plan(first) : null;
+  if (!planned) return { shows: loadShows(), error: null };
+  if ('error' in planned) return { shows: loadShows(), error: planned.error };
+  const bytes = JSON.stringify(planned.typed);
+  return patchShowChecked(showId, (show) => {
+    const again = plan(show);
+    if ('error' in again) return again.error;
+    if (JSON.stringify(again.typed) !== bytes) return 'This cue changed elsewhere. Try again.';
+    const cue = show.cues!.find((c) => c.id === cueId)!;
+    if (JSON.stringify(cue.typed) === bytes) return false;
+    cue.typed = again.typed;
+    return true;
+  }, true, undefined, new Map([[cueId, bytes]]));
+}
+
+/**
+ * A CUE'S ACTION ARGUMENTS as the action's form left them (E2.1): kept against the action's argument
+ * descriptor (`actionSchemaOf`), valid or not, since a press validates them whole. `args` undefined
+ * removes the action's entry. Refused on a cue whose kept arguments this build cannot read.
+ */
+export function setCueTypedArgs(
+  showId: string,
+  cueId: string,
+  action: TypedAction,
+  /** The arguments (undefined removes them), or the form's edit as a change to the ones stored. */
+  update: JsonValue | undefined | ((current: JsonValue | undefined) => JsonValue | undefined),
+): { shows: Show[]; error: string | null } {
+  const schema = actionSchemaOf(action);
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return 'This cue was removed.';
+    if (typedReadOnly(cue)) return 'This cue’s typed data was saved by another version of NoaCG, so it is read-only here.';
+    const read = readTypedArgs(cue.typedArgs);
+    if (read.status === 'read-only') return 'This cue’s action arguments were saved by another version of NoaCG.';
+    const args = typeof update === 'function' ? update(actionArgsOf(action, cue.typedArgs)) : update;
+    if (args !== undefined && readJson(args, TYPED_MAX_DEPTH)) return 'These arguments cannot be kept.';
+    const actions: TypedArgs['actions'] = {};
+    for (const [id, entry] of Object.entries(read.status === 'ok' ? read.args.actions : {})) if (id !== action.id) put(actions, id, entry);
+    if (args !== undefined) put(actions, action.id, { schema, args });
+    const next: TypedArgs | undefined = Object.keys(actions).length ? { v: TYPED_ARGS_VERSION, actions } : undefined;
+    // The whole record must read back: arguments that fit one by one may not fit together.
+    if (next && readTypedArgs(next).status !== 'ok') return 'These arguments cannot be kept.';
+    if (JSON.stringify(next) === JSON.stringify(cue.typedArgs)) return false;
+    if (next) cue.typedArgs = next;
+    else delete cue.typedArgs;
+    return true;
+  }, true);
 }
 
 /**

@@ -139,8 +139,11 @@ test('AC-2, AC-4: the writer turns typed data on and off through the doors; save
     const on = shows.setCueTyped(show.id, cue.id, true);
     assert.equal(on.error, null);
     assert.deepEqual(on.receipt.converted, ['round', 'teams', 'title']);
+    // E2.1: the schema's declared defaults fill what the strings did not say, once, at On.
+    const defaults = { accent: '#005ca9', live: true, opacity: 0.8, ratio: 1 };
+    assert.deepEqual(on.receipt.defaulted, Object.keys(defaults));
     const saved = read().cues[0];
-    assert.deepEqual(saved.typed, envelope());
+    assert.deepEqual(saved.typed, envelope({ ...values, ...defaults }));
     // Save and reload: the record as stored reads back the same bytes.
     const reloaded = JSON.parse(stored.get('spx-gfx-shows')).find((s) => s.id === show.id).cues[0].typed;
     assert.equal(JSON.stringify(reloaded), JSON.stringify(saved.typed));
@@ -158,11 +161,12 @@ test('AC-2, AC-4: the writer turns typed data on and off through the doors; save
     assert.equal(shows.setCueTyped(show.id, cue.id, false).error, null);
     const off = read().cues[0];
     assert.equal(off.typed, undefined);
-    assert.deepEqual(off.values, native);
+    assert.deepEqual(off.values, { ...native, accent: '#005ca9', live: 'true', opacity: '0.8', ratio: '1' });
     assert.equal(JSON.stringify(read().graphics[0].template.ograf), manifestBytes);
-    // On again from those strings gives the same envelope: the round trip is lossless.
+    // On again from those strings gives the same envelope: what the cue held comes back whole, and
+    // the defaults On filled once (E2.1) come back as text with it.
     shows.setCueTyped(show.id, cue.id, true);
-    assert.deepEqual(read().cues[0].typed, envelope());
+    assert.deepEqual(read().cues[0].typed, envelope({ ...values, ...defaults }));
     // A cue of a later version is never written, on or off.
     const all = JSON.parse(stored.get('spx-gfx-shows'));
     all.find((s) => s.id === show.id).cues[0].typed = { v: 2, values: { title: 'Later' } };
@@ -178,7 +182,7 @@ test('AC-2, AC-4: the writer turns typed data on and off through the doors; save
     // wins over the production's own copy.
     shows.updateShowCueChecked(plain.id, plainCue.id, { values: native });
     assert.equal(shows.setCueTyped(plain.id, plainCue.id, true, declared).error, null);
-    assert.deepEqual(shows.loadShows().find((s) => s.id === plain.id).cues[0].typed, envelope());
+    assert.deepEqual(shows.loadShows().find((s) => s.id === plain.id).cues[0].typed, envelope({ ...values, ...defaults }));
   } finally {
     globalThis.localStorage = previous;
   }
@@ -374,6 +378,78 @@ test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\
   assert.match(stage, /if \(dataless\) break;/);
 });
 
+// ── E2.1: the form's writes ──────────────────────────────────────────────────────────────────
+
+test('E2.1: the form keeps typed drafts as they are and action arguments per action, and refuses a record that would not read back', async () => {
+  const stored = new Map();
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => stored.get(k) ?? null,
+    setItem: (k, v) => stored.set(k, String(v)),
+    removeItem: (k) => stored.delete(k),
+    key: (i) => [...stored.keys()][i] ?? null,
+    get length() {
+      return stored.size;
+    },
+  };
+  try {
+    const shows = await loadShowsModule();
+    const template = { name: 'Board', type: 'blank', resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 50, html: '<div></div>', css: '', js: '', fields: [], settings: {}, assets: [], layers: [], ograf: declared };
+    const show = shows.createShowNamed('Typed form');
+    shows.addGraphicToShow(show.id, template);
+    const read = () => shows.loadShows().find((s) => s.id === show.id).cues[0];
+    const cueId = read().id;
+    // Off: the form's values write is refused, nothing written.
+    assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'X' }).error, 'This cue’s typed data is off.');
+    assert.equal(shows.updateShowCueChecked(show.id, cueId, { values: { round: '2' } }).error, null);
+    assert.equal(shows.setCueTyped(show.id, cueId, true).error, null, 'On with little said: the declared defaults, the rest marked by the form');
+    assert.equal(read().typed.values.round, 2);
+    assert.deepEqual(read().typed.values.teams, [{ name: 'Home', score: 0 }]);
+    // A draft that does not fit is kept as it is, in its types, in the same envelope.
+    assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'x'.repeat(41), round: 3, teams: [] }).error, null);
+    assert.deepEqual(read().typed.values, { title: 'x'.repeat(41), round: 3, teams: [] });
+    // The form's edits are changes applied to the values stored when each lands: two made from the
+    // same render touch only their own paths, and neither rewrites the other.
+    const shown = read().typed.values;
+    assert.equal(shows.setCueTypedValues(show.id, cueId, (current) => ({ ...current, round: 2 })).error, null);
+    assert.equal(shows.setCueTypedValues(show.id, cueId, (current) => ({ ...current, title: 'Both' })).error, null);
+    assert.deepEqual(read().typed.values, { ...shown, round: 2, title: 'Both' });
+    assert.equal(shows.setCueTypedValues(show.id, cueId, () => [1]).error, 'These values cannot be kept.');
+    assert.equal(shows.setCueTypedValues(show.id, cueId, shown).error, null);
+    // An action's arguments the same way, from what is stored (its new value when nothing is).
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, describeOgraf(stranger).actions[0], (current) => ({ ...current, colour: '#00000000' })).error, null);
+    assert.deepEqual(read().typedArgs.actions.highlight.args, { team: 0, colour: '#00000000' });
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, describeOgraf(stranger).actions[0], undefined).error, null);
+    assert.equal(read().typed.schema, schema);
+    // Action arguments: typed, per action, against the declared schema's hash; removed when undefined.
+    const actions = describeOgraf(stranger).actions;
+    const highlight = actions.find((a) => a.id === 'highlight');
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, highlight, { team: 2, pulse: { fast: false } }).error, null);
+    assert.deepEqual(read().typedArgs, { v: 1, actions: { highlight: { schema: highlight.schema, args: { team: 2, pulse: { fast: false } } } } });
+    // Two records that fit one by one but not together: the second is refused, the first kept.
+    const many = (n) => ({ team: 1, list: Array.from({ length: n }, (_, i) => i) });
+    const reset = { ...actions.find((a) => a.id === 'reset'), id: 'other' };
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, highlight, many(6000)).error, null);
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, reset, many(6000)).error, 'These arguments cannot be kept.');
+    assert.equal(typed.readTypedArgs(read().typedArgs).status, 'ok');
+    assert.equal(read().typedArgs.actions.other, undefined);
+    // A declared value the form removed stays removed through Off and On: its old string is not
+    // brought back, and On fills only the schema's default for it, never the string from before.
+    assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'T', teams: [] }).error, null);
+    assert.equal(shows.setCueTyped(show.id, cueId, false).error, null);
+    assert.deepEqual(read().values, { title: 'T', teams: '[]' });
+    // The On after it: the removed `round` (declared default 1) takes that default, and `logo` (no
+    // default, not required) stays absent; nothing comes back from before the removal.
+    assert.equal(shows.setCueTyped(show.id, cueId, true).error, null);
+    assert.deepEqual(read().typed.values, { title: 'T', teams: [], round: 1, ratio: 1, live: true, accent: '#005ca9', opacity: 0.8 });
+    assert.equal(shows.setCueTyped(show.id, cueId, false).error, null);
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, highlight, undefined).error, null);
+    assert.equal(read().typedArgs, undefined);
+  } finally {
+    globalThis.localStorage = previous;
+  }
+});
+
 // ── The outputs' capability ──────────────────────────────────────────────────────────────────
 
 test('an output that does not say it reads typed data is sent none, and the page says so in one line', () => {
@@ -383,7 +459,12 @@ test('an output that does not say it reads typed data is sent none, and the page
   assert.equal(typedOutputsRefusal(true, 'joined', []), null);
   assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: TYPED_READER }), { kind: 'operator' }]), null);
   assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: TYPED_READER }), output('Caspar 1-20')]), 'Reload Caspar 1-20: it cannot read typed data yet.');
-  assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: TYPED_READER - 1 }), output('B', { typed: '1' })]), 'Reload 2 outputs (A, B): they cannot read typed data yet.');
+  assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: 0 }), output('B', { typed: '1' })]), 'Reload 2 outputs (A, B): they cannot read typed data yet.');
+  // E2.1: an E1.2a output (1) reads values, not actions; this build's (2) reads both.
+  assert.equal(TYPED_READER, 2);
+  assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: 1 })]), null);
+  assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: 1 }), output('B', { typed: 2 })], 2), 'Reload A: it cannot read typed actions yet.');
+  assert.equal(typedOutputsRefusal(true, 'joined', [output('B', { typed: 2 })], 2), null);
   assert.equal(typedOutputsRefusal(true, 'joined', [{ kind: 'output', engine: 'CasparCG · Chromium 71' }]), 'Reload CasparCG · Chromium 71: it cannot read typed data yet.');
   // The Presence entry keeps the capability only as a positive whole number.
   const entry = (typedValue) => readLiveEntry({ kind: 'output', id: 'o1', typed: typedValue });

@@ -90,7 +90,7 @@ test('a typed cue saves, reloads, takes and updates with its envelope on the log
   await expect(toggle).toBeChecked();
   const saved = await storedTyped(page, showId);
   expect(JSON.parse(saved!.typed!).values).toEqual({ f0: 'Anna', f1: 2 });
-  await expect(page.getByTestId('cue-candidate-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-typed-f1')).toHaveValue('2');
 
   // SAVE AND RELOAD: the same bytes, still on.
   await settleDurableWrites(page);

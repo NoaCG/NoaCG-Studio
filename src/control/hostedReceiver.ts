@@ -139,6 +139,9 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   }
   function held(m) {
     if (Object.prototype.hasOwnProperty.call(m, 'typed')) {
+      // A typed action (E2.1) moves no data: this block cannot run it, so it is left out and the
+      // graphic is not held, as a press elsewhere never freezes it.
+      if (m.t === 'event') return true;
       refuse(${JSON.stringify(RECEIVER_TYPED_REFUSAL)});
       return true;
     }

@@ -5,6 +5,201 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 37 (E2.1, project phase 41): typed OGraf forms and action arguments
+
+- **Previous verified `main` sha:** `0897d09` (row 36 passed, PR #1765). This branch was built on
+  it. Before editing, main matched the brief: a typed cue's values read out as text (`typedCandidate`,
+  the "Typed" mark) and changed only by Off, edit the strings, On; no form was generated from the
+  schema, and a foreign graphic's custom actions drew no button on the page.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration. Typed values a form wrote stay
+  on their cues in E1's envelope (same version), so a reverted build reads them as E1.2b did, read
+  out as text; `ShowCue.typedArgs` is an unknown member to it and is kept by its writes. Outputs of
+  this build advertise `typed: 2`; a reverted page compares `>= 1` and keeps sending them values.
+- **What landed.**
+  - *The form* (`components/home/TypedForm.tsx` over `control/ografForm.ts`): while a cue's typed data
+    is on, its graphic's declared schema is the cue editor's form. Scalars are the one field control
+    (`FieldControl`) through a descriptor made per node (`typedLeaf`); an object is a group; a list
+    is its items with ✕ and one "+ Add" (drawn up to 50 items, `TYPED_FORM_ITEMS_SHOWN`); an optional
+    group or list not there yet is one "+ <name>" press; a node E1 does not carry shows its value
+    read-only with its reasons. Text is committed when the edit is over (`useDeferredEdits`), never
+    per keystroke; every edit writes the typed value it means by path (`setAt`), never text read back.
+    A field bound to the production's data reads out as bound, as before.
+  - *Drafts* (`model/shows.ts` `setCueTypedValues`): the form's values are written into the cue's
+    existing envelope as they are, valid or not, through `typedFrozen`'s writer allowance for that cue
+    and those bytes. What does not fit is marked at its path (`typedErrorsByPath`) and only Take and ✎
+    Update refuse it (E1.2a's `typedForSend`, the Take button's title naming the path). Nothing erases a draft.
+  - *Defaults* (`typedWithDefaults`, `typedSeed`): the schema's declared defaults fill what the cue's
+    strings did not say once, at On (`migrateToTyped(..., { defaults: true, draft: true })`, listed in
+    the receipt's `defaulted`), and a new list item, group or action argument takes its declared
+    default, else its first declared value, else an empty value of its type with its required
+    properties. A value that exists is never defaulted again, so a removed item stays removed.
+  - *Enums*: a select whose option values are the declared values' indices, labelled from the GDD
+    select's `gddOptions.labels` (now on E1's node as `labels`), so `3`, `"3"` and `true` stay apart
+    and a value outside the list shows as its own marked option, never as the first.
+  - *Action arguments* (`ShowCue.typedArgs`, its own `v`, `readTypedArgs`; `setCueTypedArgs`): each
+    declared custom action that takes arguments has its form under the cue's fields, kept per action
+    against the hash of its argument descriptor (`actionSchemaOf`), so another version's arguments are
+    not sent. The graphic's actions are ⚡ buttons (`typedActionButtons`, marked `typed`), arranged by
+    ARRANGE, More and pinning like any other; a press (`graphicVerbs.ts` `pressTyped`) sends
+    `{t:'event', event, typed: <action envelope>}` built and validated whole by `typedActionFor`
+    (64 KiB cap), or refuses with the path on the note line and sends nothing. Native presses on a
+    layer airing typed data stay refused, as in E1.2a.
+  - *The wire and the outputs*: `readTypedWire` reads an action envelope on the `event` that names
+    it; `typedOutputGate` lets it through unless the graphic is held, changing no data; the stage
+    hands a composed graphic `noacgDispatch(event, args)` and a foreign one `customAction(id, args)`
+    as JSON (`ografCallFor` now maps both envelopes, never the native strings beside one it cannot
+    read). Outputs advertise `typed: 2` (`TYPED_READER`); a press needs 2
+    (`TYPED_ACTIONS_READER`, `typedActionSendFor`), Take and Update still need 1.
+  - *`hidden` and URIs* (`ografContract.ts`, `typedSummary`): audited against the pinned prose
+    (Specification.md, `schema`: a hidden property's value "SHOULD NOT be included when building a
+    display name or label for the Graphic"). It no longer removes a control; the rundown's dim summary
+    of a typed cue is read from its typed values and skips hidden ones. A generic `format: uri` (or any
+    non-image media type) is a text line; only `file-path/image-path` (or an `image/*` media type)
+    draws the picture picker. Profile hiding stays ARRANGE's.
+- **Decisions.**
+  - *Drafts in the envelope, not beside it*: E1's reader accepts any bounded JSON values, and the
+    send validates whole, so an invalid draft is kept with no second store and blocks exactly the
+    action that would send it. A lossy string still refuses On.
+  - *On no longer validates the whole* (a departure from E1.2a's "whole or nothing" at On, through an
+    explicit option so E1's migration is unchanged by default): with a form that marks errors in place,
+    refusing On over a missing required value left the operator with no way to fix it. The real
+    fixture could not be turned on at all on main ("teams required; title required").
+  - *Undeclared native keys* the migration kept as strings stay in the envelope and are not drawn: the
+    form is the schema.
+  - *Action arguments per cue*, persisted: AC-1 asks for save and reload of action arguments, and a cue
+    is what an operator prepares.
+  - *Panels*: a typed button never becomes an `event:` capability; E6.1's `foreign:` descriptors are
+    unchanged and E6.2 invokes them.
+  - *Kept arguments follow the package* (`TypedAction.schema`, the declared schema's content hash,
+    after `/check` review): a change in how this build parses a schema never drops what was kept.
+  - *A stated limit*: an imported stranger's graphic still airs as a composed page (no production
+    code mounts a stage's `foreign` layer before E3), so its actions are offered only when its page
+    defines `noacgDispatch` (below); `customAction` on a mounted foreign package is mapped
+    (`ografCallFor`) and waits for E3's mount. The press reads "accepted" when the log took it; what
+    the Graphic did with it is E2.2's truthful feedback.
+  - *A typed cue whose graphic's schema cannot be drawn* (declaration lost or unreadable) reads out
+    read-only as E1.2a showed it (`typedUndrawn`), never as editable native strings.
+  - *Off keeps a removal* (after the `/so` on `5109f11`): Off writes the envelope's values back as
+    text and drops each declared key the envelope no longer holds, so the value the form removed is
+    never brought back by Off then On (E1.2a merged the envelope over the old strings). A removed key
+    that declares a `default` takes that default at the next On, as any missing key does: turning
+    typed data on is making its values, and an absent value with a declared default reads the same to
+    a Graphic. Pinned in `scripts/ograf-typed-writer.test.mjs`.
+  - *A typed edit is under every verb's wait* (Codex P1 on `e2b51b0`): the page's `flushDraft` first
+    lands each form's settling edit (`registerTypedFlush`), and the verbs read the cue as stored after
+    the wait (`storedCue`), so a Take by key or panel airs what the box shows.
+  - *A settling edit stays with its cue*: selecting another cue goes through the same `flushDraft`,
+    and each form is keyed by its cue, so a switch unmounts it and its edit lands through the cue it
+    was typed into. The walk switches between two typed cues mid-edit; the key alone is not proven
+    by it (the flush already covers the switch), so it stands as a second guard.
+  - *Typed edits are "not on air yet"* (Codex P2): the edited cue's keys that differ from the envelope
+    its layer aired (`typedUnsent`, canonical JSON, bound keys excluded) join the unsent line and the
+    rundown row's mark; a layer that aired no envelope here is not judged, as for native values.
+  - *A number out of range is kept* (Codex P2): the typed number's descriptor carries no min or max,
+    so the field control never clamps a draft; the schema's bounds are marked where they fail.
+  - *A seed charges every node it makes*, a copied default's each one (`copyWithin`): a list whose
+    items declare a large default stops at `TYPED_MAX_VALUE_NODES` instead of building `minItems`
+    times the default during a render.
+  - *Defaults are the top level's and a created value's*: On fills each missing top-level property
+    that declares a `default`; inside a value that already exists (an object read from a native JSON
+    string) nothing is filled, since JSON Schema's `default` is an annotation for a value being made.
+    A created list item, group or argument takes its declared defaults all the way down (`typedSeed`).
+  - *Which cue's arguments a press sends*: the cue live on the layer (`sel.airCue`), like every ⚡
+    press reads the live cue's values; the forms sit with the edited cue, which is the live cue when it
+    is on air. Saying the target on screen is E2.2's preview/program targeting and feedback, and
+    E2.2 must close this gap: with two cues of one graphic, the edited arguments are not the sent ones.
+  - *An older output outside Presence*: the press is gated on `typed: 2` among the outputs this page
+    sees. An older build's output that never joined Presence still refuses a typed action row under
+    E1's gate and holds that graphic until its next Update. It fails safe (nothing wrong airs), but
+    the graphic is frozen on that output; reloading it onto this build clears it.
+  - *Hosted log followers* (the exported receiver, `control/hostedReceiver.ts`) leave a typed action
+    row out without holding the graphic (it moves no data, and a ⚡ press on a native-data cue of an
+    imported graphic must not freeze them), and still refuse and hold on a typed values row as E1.2b
+    decided. They are not in the Presence check. Exported receiver bytes change by this line.
+  - *Typed edits are undoable*: the form's writes go through the rundown's history (`history.write`),
+    so they neither clear the undo stacks as an outside change nor escape them; the verb wait awaits
+    them (`typedWrites`). `replaceRundown` lets an undo or redo put back the record's own earlier
+    envelope between two envelopes this build reads (E1.1's door, `typedFrozen`'s writer allowance);
+    turning typed data on or off is still refused there, as E1.2a decided.
+  - *A declared action's legality is unknown, never the machine's*: its button is never greyed by the
+    machine's legality table, on the page or for a panel.
+  - *A form edit is a change, applied at write time*: the form hands its edit as an update of the
+    value (`(current) => setAt(current, path, v)`), and `setCueTypedValues` / `setCueTypedArgs` apply
+    it to what is stored when the write lands, so quick successive edits each touch only their own
+    path and none is refused or rewritten.
+  - *A typed edit that did not save sends nothing typed*: a part of a cue whose last write failed
+    (`control/typedSend.ts` `createTypedSaves`, by cue and part: its values, or one action's
+    arguments, kept apart whatever the action is called) refuses what would send it with the
+    reason, rather than air the older record: Take and ✎ Update ask for the values, a press for the
+    values and its action's arguments. It clears when
+    that part's next write lands, or (values) when typed data is turned Off or On, since the form then
+    shows what is stored. A write to another part or cue clears nothing.
+  - *An image declared only by `contentMediaType: image/*`* draws the picture picker in the typed
+    form as in the flat contract (bench, bridge): E1's node now carries it (`TypedNode.image`), and
+    the value is still kept as its string. The envelope's schema hash is of the declared schema, so
+    no stored envelope changes.
+  - *An emptied number is absent*: the number control keeps an empty box as its own draft and never
+    reported it, so a Take or ✎ Update pressed before the box lost focus sent the number it held
+    before. `FieldControl` now says so (`onEmpty`, number only, used by the typed form alone). As an
+    object's property the number is stored absent, and a required one is marked missing and refuses
+    the send. At the root of an action's arguments or a list's index it is stored `null`, marked
+    (`ografForm.ts` `typedEmptied`): absent there would reseed the action's default or close up the
+    list, and either would send a value the operator did not type.
+  - *Actions only where they can be received*: until E3 mounts a stranger's package, an imported
+    graphic airs as a composed page that takes an action only through `noacgDispatch`; a page that
+    defines none is offered no ⚡ button and no argument form (`receivesTypedActions`).
+  - *An absent optional on/off shows its declared default*, what the Graphic applies.
+  - *Seams changed and where*: E1's `migrateToTyped` (option), `readTypedWire`, `typedOutputGate`,
+    `typedOutputsRefusal` (`need`), `TYPED_READER` (2), `TypedNode.labels`, `TypedAction.schema`, the
+    receipt's `defaulted`; `validateActionArgs`' parameter type; the OGraf host's `custom` (a falsy
+    argument passed as it is); and, through `ografContract`, what the bridge (`bridgeApi.ts`
+    `inspect`) and the package reader (`ografImport.ts`) report for a stranger's manifest: a hidden
+    property is now a descriptor and a generic URI a text field (`e2e/ograf-contract.spec.ts`);
+    E1.2a's `setCueTyped` (On fills defaults, keeps drafts; Off keeps a removal) and the editor's read-only typed rows
+    (`typedCandidate`, removed); L1's `ControlButton` (`typed`); E6.1's `graphicCapabilities` (skips
+    `typed`); `ControlMessage`'s event (`typed`) and the preview `dispatch` payload type.
+- **Traps.**
+  - `cue-typed` is the switch's test id: the form's root is `cue-typed-form`.
+  - A boolean `enum: [true]` is a one-option select: its index is `0`, not `1`.
+  - `ografContract.ts` reaches Node tests through `panelActions.ts`: its runtime import of
+    `ografTyped.ts` carries `.ts`, and a test importing it needs `scripts/lib/tsResolve.mjs`.
+  - The browser queue on this image wants `chromium_headless_shell-1228`; symlink it to `-1243`
+    under `/opt/pw-browsers` (#1647), no repo change.
+- **Touched files against `0897d09`:** `src/model/ografTyped.ts`, `src/model/shows.ts`,
+  `src/control/ografForm.ts` (new), `src/control/ografContract.ts`, `src/control/typedSend.ts`,
+  `src/control/graphicVerbs.ts`, `src/control/panelActions.ts`, `src/control/controlModel.ts`,
+  `src/control/livePath.ts` (comment), `src/control/ografHost.ts`, `src/control/hostedReceiver.ts`,
+  `src/model/rundownHistory.ts`,
+  `src/components/fields/FieldControl.tsx` (`isSegmented` exported, the number control's `onEmpty`), `src/blocks/animMachine.ts`, `src/output/stage.ts`,
+  `src/preview/previewProtocol.ts`, `src/components/home/TypedForm.tsx` (new),
+  `src/components/home/CueEditor.tsx`, `src/components/home/CueRundown.tsx`,
+  `src/components/home/ProductionPage.tsx`, `src/styles/playout-dashboard.css`,
+  `e2e/ograf-controls.spec.ts` (new), `e2e/ograf-contract.spec.ts`,
+  `e2e/configured/ograf-typed-data.spec.ts`, `scripts/ograf-form.test.mjs` (new),
+  `scripts/graphic-verbs.test.mjs`, `scripts/ograf-typed.test.mjs`, `scripts/ograf-typed-writer.test.mjs`,
+  this file.
+- **Verification.** Node: `scripts/ograf-form.test.mjs` (new, 13 tests), `ograf-typed` (four
+  descriptor hashes re-recorded for `labels` and the actions' `schema` alone: with both stripped they
+  are E1.1's),
+  `ograf-typed-writer` (a new test of the form's writes), `ograf-typed-recovery`, `graphic-verbs` (a typed press), `panel-feedback`;
+  `npm run gates -- run --changed origin/main` (409 tests); eslint on the changed files, both
+  tsconfigs, dependency-cruiser. Browser: `e2e/ograf-controls.spec.ts` (new: desktop walk through
+  edit, invalid draft, reload, Take with the renderer's own typed readout, a refused and an accepted
+  press; phone width at 390 px with no sideways scroll and a reload), `ograf-contract`, and the AC-4
+  selection named in the PR. Build: the queue ruled no build risk; CI builds and runs the Chromium 71
+  output-reader check. Screenshots before (main refuses On for this fixture) and after, desktop and
+  phone, looked at and not committed.
+- **Mutation checks** (each red, restored after): a declared default ignored by the seed; `setAt`
+  writing in place; enum identity by `==`; `TYPED_ACTIONS_READER` 1; an action envelope accepted on
+  any event; a held graphic taking an action; a typed button reaching a panel as `event:`; the summary
+  keeping hidden values; a URI drawn as an image; a hidden property skipped; the action size cap
+  doubled; another action version's arguments sent; an action with unsupported arguments sent; defaults
+  applied over existing values; the migration's draft option ignored; the seed's node budget removed;
+  enum labels dropped; the typed press taking the native road; the items-shown cap 51; the args record's
+  whole-read check removed; the host's `data || {}` back; the kept-args hash taken from the parse (Node). The stage
+  sending the native payload in place of the typed arguments (browser).
+
 ## Row 36 (E1.2b, project phase 40): typed OGraf output replay, baseline and renderer round trip
 
 - **Previous verified `main` sha:** `c614500` (row 35 passed, PR #1763). This branch was built on

@@ -173,7 +173,7 @@ ${policy}<meta charset="utf-8">
     play(params) { return run(() => state.el.playAction(params || {})); },
     stop(params) { return run(() => state.el.stopAction(params || {})); },
     update(data, params) { return run(() => state.el.updateAction(Object.assign({ data: data || {} }, params || {}))); },
-    custom(id, data, params) { return run(() => state.el.customAction(Object.assign({ id, payload: data || {} }, params || {}))); },
+    custom(id, data, params) { return run(() => state.el.customAction(Object.assign({ id, payload: data === undefined || data === null ? {} : data }, params || {}))); },
     async dispose() {
       const el = state.el; state.el = null;
       if (!el) return { statusCode: 200 };

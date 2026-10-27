@@ -25,7 +25,7 @@ import { withLiveLabels } from '../blocks/controlLabels.ts';
 import { actionCarriesValues } from './selectionAir.ts';
 import { liveNumberFields, offAirNote, pickButton, pickOptions, unheldNote } from './liveControls.ts';
 import { VersionRing } from './panelFeedback.ts';
-import { describeOgraf, readJson, validateActionArgs, type TypedNode } from '../model/ografTyped.ts';
+import { describeOgraf, readJson, typedUnsupportedAt, validateActionArgs, type TypedNode } from '../model/ografTyped.ts';
 
 /** The graphic-actions protocol. The panel protocol stays 1 for every existing message and verb. */
 export const ACTIONS_PROTOCOL = 2;
@@ -166,7 +166,8 @@ export function graphicControls(g: {
     arranged: arrangeControls(withLiveLabels(m.buttons, g.aired), g.arrange, (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
     numbers: liveNumberFields(m.descriptors, m.buttons, g.candidate),
     // A layer holding a cue this page cannot see has no values to carry: such presses wait.
-    legal: (event) => isEventLegal(m.legality, event, g.state) && (!!g.sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
+    // A declared OGraf action is not the machine's: its legality is unknown, never greyed by it (E2.1).
+    legal: (event) => !!m.buttons.find((b) => b.event === event)?.typed || (isEventLegal(m.legality, event, g.state) && (!!g.sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] }))),
     stepping: g.sel.editingIsLive,
     aired: g.aired,
   };
@@ -181,6 +182,9 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
   const live = !!g.live;
   const caps: PanelCapability[] = [];
   const control = (c: ArrangedControl, place: PanelCapability['place'], section?: string) => {
+    // A foreign OGraf action drawn in the block (E2.1) reaches a panel only as its foreign
+    // descriptor (`foreignCapabilities`): E6.2 invokes it, never this native road.
+    if (c.button.typed) return;
     const allowed = live && g.legal(c.button.event);
     const note = !live ? offAirNote(g.graphic) : allowed ? undefined : `${c.label} cannot fire in the graphic's state now`;
     const options = c.options?.options;
@@ -240,23 +244,12 @@ export function foreignCapabilities(manifest: unknown): { caps: PanelCapability[
     const index = Array.isArray(declared) ? declared.findIndex((raw) => (raw as { id?: unknown } | null)?.id === action.id) : -1;
     const prefix = `customActions[${index}]`;
     const note = described.notes.find((n) => n.at === prefix || n.at.startsWith(`${prefix}.`) || n.at.startsWith(`${prefix}[`));
-    const unsupported = action.args && hasUnsupported(action.args);
+    const unsupported = action.args && typedUnsupportedAt(action.args) !== null;
     if (!CAP_ID.test(id)) refused.push({ action: action.id, reason: 'its id is not one a panel can name' });
     else if (note || unsupported) refused.push({ action: action.id, reason: note?.reason ?? 'its arguments use a schema feature this version does not carry' });
     else caps.push({ id, kind: 'foreign', label: action.name, place: 'section', args: action.args, allowed: false, note: 'Foreign actions are not pressed from a panel yet', invocable: false });
   }
   return { caps, refused };
-}
-
-function hasUnsupported(node: TypedNode): boolean {
-  const stack = [node];
-  while (stack.length) {
-    const n = stack.pop()!;
-    if (n.type === 'unsupported') return true;
-    for (const p of n.properties ?? []) stack.push(p.node);
-    if (n.items) stack.push(n.items);
-  }
-  return false;
 }
 
 export interface ActionsMeta {

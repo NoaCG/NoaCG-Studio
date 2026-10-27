@@ -96,10 +96,16 @@ export interface TypedNode {
   hidden?: true;
   /** A `file-path` GDD type: the value names an asset. Its identity is the string, not a picture. */
   asset?: true;
+  /** A string declaring an image `contentMediaType` (E2.1): drawn as the picture picker, still kept
+   *  as its string. */
+  image?: true;
   /** A GDD colour: its exact pattern, checked without running the package's expression. */
   colour?: 'rrggbb' | 'rrggbbaa';
   default?: JsonValue;
   enum?: (string | number | boolean)[];
+  /** The operator's word for each `enum` value, by index, from a GDD select's `gddOptions.labels`
+   *  (E2.1). Absent when the schema names none; a value it does not name reads as itself. */
+  labels?: string[];
   minimum?: number;
   maximum?: number;
   exclusiveMinimum?: number;
@@ -129,6 +135,9 @@ export interface TypedAction {
   name: string;
   /** The argument schema, or null for an action that takes none (`schema` null or absent). */
   args: TypedNode | null;
+  /** The content hash of the action's `schema` as declared (canonical JSON; `null` when absent), so
+   *  arguments kept for it (`TypedArgs`) follow the package, not how this reader parses it (E2.1). */
+  schema: string;
 }
 
 export interface OgrafDescription {
@@ -201,6 +210,7 @@ function readNode(raw: unknown, at: string, path: string, depth: number, budget:
     const colour = COLOUR[family];
     if (colour && type === 'string') node.colour = colour.colour;
   }
+  if (type === 'string' && typeof raw.contentMediaType === 'string' && raw.contentMediaType.startsWith('image/')) node.image = true;
   // A package's pattern is never run: only the GDD colour patterns, checked by our own expression.
   if (own(raw, 'pattern') && !(node.colour && raw.pattern === COLOUR[node.gddType ?? '']?.pattern)) note('pattern', 'only the GDD colour patterns are supported');
   const numeric = type === 'number' || type === 'integer';
@@ -220,7 +230,14 @@ function readNode(raw: unknown, at: string, path: string, depth: number, budget:
     const scalar = type === 'string' || numeric || type === 'boolean';
     if (!scalar || !Array.isArray(values) || values.length === 0 || values.length > TYPED_MAX_SCHEMA_NODES) note('enum', 'only a non-empty list of values of the node’s own type is supported');
     else if (!values.every((v) => matchesType(type as TypedKind, v))) note('enum', `every value must be a ${type}`);
-    else node.enum = values.slice() as (string | number | boolean)[];
+    else {
+      node.enum = values.slice() as (string | number | boolean)[];
+      const named = isRecord(raw.gddOptions) && isRecord(raw.gddOptions.labels) ? raw.gddOptions.labels : null;
+      if (named) {
+        const labels = node.enum.map((v) => (own(named, String(v)) && typeof named[String(v)] === 'string' ? (named[String(v)] as string) : String(v)));
+        if (labels.some((l, i) => l !== String(node.enum![i]))) node.labels = labels;
+      }
+    }
   }
   if (type === 'object') {
     const props = raw.properties;
@@ -300,12 +317,14 @@ export function describeOgraf(manifest: unknown): OgrafDescription {
       seen.add(raw.id);
       const name = typeof raw.name === 'string' && raw.name ? raw.name : raw.id;
       let args: TypedNode | null = null;
+      let schema = contentHash(canonicalJson(null));
       if (own(raw, 'schema') && raw.schema !== null) {
         const fault = readJson(raw.schema, TYPED_MAX_DEPTH * 3);
         args = fault ? { path: '', type: 'unsupported', unsupported: [fault] } : readNode(raw.schema, `${at}.schema`, '', 0, budget, notes);
         if (fault) notes.push({ at: `${at}.schema`, reason: fault });
+        else schema = contentHash(canonicalJson(raw.schema as JsonValue));
       }
-      out.actions.push({ id: raw.id, name, args });
+      out.actions.push({ id: raw.id, name, args, schema });
     });
   }
   return out;
@@ -412,7 +431,7 @@ function enumSet(node: TypedNode): Set<unknown> {
 }
 
 /** Validate a custom action's arguments: none for an action that takes none. */
-export function validateActionArgs(action: TypedAction, args: unknown): TypedError[] {
+export function validateActionArgs(action: { id: string; name?: string; args: TypedNode | null }, args: unknown): TypedError[] {
   if (!action.args) return args === undefined ? [] : [{ at: '', reason: `"${action.id}" takes no arguments` }];
   if (args === undefined) return [{ at: '', reason: `"${action.id}" needs its arguments` }];
   const fault = readJson(args, TYPED_MAX_DEPTH);
@@ -497,10 +516,22 @@ const LATER = 'was saved by a later version of NoaCG';
 const OTHER_STANDARD = 'was made for another OGraf revision';
 const UNREADABLE = 'cannot be read';
 
+/** Each envelope object is read once (E2.1): every render asks a cue's several times, and a stored
+ *  envelope is replaced, never changed in place, by every write. */
+const envelopeReads = new WeakMap<object, TypedRead>();
+
 /** Read an envelope as stored or as it arrived. Never throws; `undefined` is absent. */
 export function readTypedEnvelope(raw: unknown): TypedRead {
   if (raw === undefined) return { status: 'absent' };
   if (!isRecord(raw)) return { status: 'read-only', reason: UNREADABLE };
+  const known = envelopeReads.get(raw);
+  if (known) return known;
+  const read = readEnvelope(raw);
+  envelopeReads.set(raw, read);
+  return read;
+}
+
+function readEnvelope(raw: Json): TypedRead {
   const v = raw.v;
   if (typeof v === 'number' && Number.isInteger(v) && v > TYPED_VERSION) return { status: 'read-only', reason: LATER };
   if (v !== TYPED_VERSION) return { status: 'read-only', reason: UNREADABLE };
@@ -555,15 +586,20 @@ const readOnlyWords = (reason: string) => `This cue’s typed data ${reason}, so
 /**
  * THE OUTPUT'S READER: null for a native message (no `typed` member), which goes on exactly as it
  * came; the values of a readable values envelope on an `update`, which this output renders as they
- * are; a reason for any other envelope, which it neither renders nor turns into strings. The native
- * members beside it (`data`, `appearance`) are not read here.
+ * are; the arguments of a readable action envelope on an `event` naming the same action (E2.1), which
+ * reach the Graphic's `customAction` as they are; a reason for any other envelope, which it neither
+ * renders nor turns into strings. The native members beside it (`data`, `appearance`) are not read
+ * here.
  */
-export function readTypedWire(msg: unknown): { values: TypedValues['values'] } | { reason: string } | null {
+export function readTypedWire(msg: unknown): { values: TypedValues['values'] } | { action: string; args?: JsonValue } | { reason: string } | null {
   if (!isRecord(msg) || !own(msg, 'typed')) return null;
   const read = readTypedEnvelope(msg.typed);
   if (read.status === 'absent') return null;
   if (read.status !== 'ok') return { reason: `This output cannot read this command’s data (it ${read.reason}): reload this output.` };
   if (read.envelope.kind === 'values' && msg.t === 'update') return { values: read.envelope.values };
+  if (read.envelope.kind === 'action' && msg.t === 'event' && msg.event === read.envelope.action) {
+    return own(read.envelope, 'args') ? { action: read.envelope.action, args: read.envelope.args } : { action: read.envelope.action };
+  }
   return { reason: 'This output cannot show typed data yet: reload this output.' };
 }
 
@@ -584,7 +620,8 @@ export type TypedGate =
 
 /**
  * THE OUTPUT'S GATE, one command at a time. A readable values envelope on an `update` airs its
- * values and marks the graphic typed. Any other envelope is refused and holds its graphic (E1.1):
+ * values and marks the graphic typed; a readable action envelope on its `event` goes as it came,
+ * unless its graphic is held. Any other envelope is refused and holds its graphic (E1.1):
  * while held, only a `stop` and a native `update` (which gives it its data again and lifts the
  * hold) reach it, so a Take's `play` after its refused `update` never airs the previous cue's
  * values. On a typed graphic, a native `update` a data road wrote (`src`: the API, a feed, the
@@ -595,6 +632,8 @@ export type TypedGate =
  */
 export function typedOutputGate(state: TypedOutputState, graphic: string, msg: unknown): TypedGate {
   const read = readTypedWire(msg);
+  // A typed action (E2.1) changes no data: it reaches a graphic that is not held, as it came.
+  if (read && 'action' in read) return { apply: !state.held.has(graphic), changed: false };
   if (read && 'reason' in read) {
     const changed = state.held.get(graphic) !== read.reason;
     state.held.set(graphic, read.reason);
@@ -702,6 +741,9 @@ export interface TypedReceipt {
   kept: string[];
   /** Why the migration wrote nothing, field by field, sorted by field. */
   refused: TypedError[];
+  /** Declared properties the values lacked that took their schema's `default` when the cue's typed
+   *  data was made (`typedWithDefaults`, E2.1), sorted. Absent when none did. */
+  defaulted?: string[];
 }
 
 const sortedErrors = (errors: TypedError[]) => errors.slice().sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.reason < b.reason ? -1 : a.reason > b.reason ? 1 : 0));
@@ -746,7 +788,15 @@ function toNative(value: JsonValue): string {
  * result must validate whole, or nothing is written and the receipt says why. Deterministic: the
  * same inputs give the same envelope and receipt, whatever order they were built in.
  */
-export function migrateToTyped(description: OgrafDescription, native: Record<string, string>): { envelope: TypedValues | null; receipt: TypedReceipt } {
+export function migrateToTyped(
+  description: OgrafDescription,
+  native: Record<string, string>,
+  /** E2.1's form (model/shows.ts `setCueTyped`): `defaults` fills each missing declared property's
+   *  `default` before anything is judged (`typedWithDefaults`, listed in `defaulted`); `draft` keeps a
+   *  converted whole that does not fit the schema, since the form marks it and Take refuses it. A
+   *  string that does not read losslessly as its type is still refused either way. */
+  { defaults = false, draft = false }: { defaults?: boolean; draft?: boolean } = {},
+): { envelope: TypedValues | null; receipt: TypedReceipt } {
   const input = contentHash(canonicalJson(native));
   const receipt: TypedReceipt = { v: TYPED_VERSION, standard: OGRAF_STANDARD.commit, schema: description.schema, input, output: null, converted: [], kept: [], refused: [] };
   const fields = description.fields;
@@ -775,19 +825,22 @@ export function migrateToTyped(description: OgrafDescription, native: Record<str
       receipt.converted.push(key);
     }
   }
+  const filled = !receipt.refused.length && defaults ? typedWithDefaults(fields, values) : null;
+  const whole = filled ? filled.values : values;
   if (!receipt.refused.length) {
     // A kept string of a declared node is not judged: an unsupported node accepts what it has.
-    receipt.refused.push(...validateTyped(fields, values));
+    if (!draft) receipt.refused.push(...validateTyped(fields, whole));
     // Each field fits on its own; the whole must fit the envelope its reader accepts.
-    const fault = readJson(values);
+    const fault = readJson(whole);
     if (fault) receipt.refused.push({ at: '', reason: fault });
   }
   if (receipt.refused.length) {
     receipt.refused = sortedErrors(receipt.refused);
     return { envelope: null, receipt };
   }
-  const envelope: TypedValues = { v: TYPED_VERSION, kind: 'values', standard: OGRAF_STANDARD.commit, schema: description.schema, values };
-  receipt.output = contentHash(canonicalJson(values));
+  const envelope: TypedValues = { v: TYPED_VERSION, kind: 'values', standard: OGRAF_STANDARD.commit, schema: description.schema, values: whole };
+  receipt.output = contentHash(canonicalJson(whole));
+  if (filled?.filled.length) receipt.defaulted = filled.filled;
   return { envelope, receipt };
 }
 
@@ -925,9 +978,202 @@ export function typedForSend(
   return { status: 'ok', typed };
 }
 
-/** The envelope version an output reads, advertised in its Presence entry (control/livePath.ts
- *  `LiveEntry.typed`). An output that says none, or less, is sent no envelope. */
-export const TYPED_READER = TYPED_VERSION;
+// ── Forms and actions (E2.1) ─────────────────────────────────────────────────────────────────
+
+/**
+ * A NEW VALUE for a node, made the moment it is created (a list item added, an optional object
+ * opened, an action's arguments first edited): its declared `default` as declared, else its first
+ * declared value, else an empty value of its type, with an object's required properties and a list's
+ * least items made the same way. Never asked again for a value that exists, so a form that reopens
+ * shows what was kept, never the default over it. Bounded like a value: at most
+ * `TYPED_MAX_VALUE_NODES` nodes, so a hostile `minItems` makes a short list the validator then flags.
+ */
+export function typedSeed(node: TypedNode): JsonValue | undefined {
+  const budget = { nodes: 0 };
+  return seedOf(node, budget);
+}
+
+function seedOf(node: TypedNode, budget: Budget): JsonValue | undefined {
+  if (node.type === 'unsupported') return undefined;
+  // Every node made is charged, a copied default's each one: a list of large defaults stops at the
+  // budget instead of building far past it.
+  if (node.default !== undefined) return copyWithin(node.default, budget);
+  if (++budget.nodes > TYPED_MAX_VALUE_NODES) return undefined;
+  if (node.enum?.length) return node.enum[0];
+  switch (node.type) {
+    case 'string':
+      return '';
+    case 'number':
+    case 'integer':
+      return node.minimum ?? 0;
+    case 'boolean':
+      return false;
+    case 'object': {
+      const out: { [key: string]: JsonValue } = {};
+      for (const { key, required, node: child } of node.properties ?? []) {
+        if (!required && child.default === undefined) continue;
+        const v = seedOf(child, budget);
+        if (v !== undefined) put(out, key, v);
+      }
+      return out;
+    }
+    case 'array': {
+      const out: JsonValue[] = [];
+      for (let i = 0; node.items && i < (node.minItems ?? 0); i++) {
+        const v = seedOf(node.items, budget);
+        if (v === undefined) break;
+        out.push(v);
+      }
+      return out;
+    }
+  }
+  return undefined;
+}
+
+/** `value` copied, each of its nodes charged to `budget`; undefined, and nothing more built, once
+ *  the budget is spent. */
+function copyWithin(value: JsonValue, budget: Budget): JsonValue | undefined {
+  if (++budget.nodes > TYPED_MAX_VALUE_NODES) return undefined;
+  if (Array.isArray(value)) {
+    const out: JsonValue[] = [];
+    for (const item of value) {
+      const v = copyWithin(item, budget);
+      if (v === undefined) return undefined;
+      out.push(v);
+    }
+    return out;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: { [key: string]: JsonValue } = {};
+    for (const key of Object.keys(value)) {
+      const v = copyWithin(value[key], budget);
+      if (v === undefined) return undefined;
+      put(out, key, v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/** A JSON value copied, own keys kept whatever their name (`put`). Only for values `readJson`
+ *  accepted, which bounds it. Not `structuredClone`: this module reaches CasparCG 2.3's Chromium 71
+ *  through the output bundle, which has none (validation/engineSupport.ts). */
+function structuredCopy(value: JsonValue): JsonValue {
+  if (Array.isArray(value)) return value.map(structuredCopy);
+  if (value !== null && typeof value === 'object') {
+    const out: { [key: string]: JsonValue } = {};
+    for (const key of Object.keys(value)) put(out, key, structuredCopy(value[key]));
+    return out;
+  }
+  return value;
+}
+
+/** The DEFAULTS THE SCHEMA DECLARES, applied once, when a cue's typed data is made (`setCueTyped`
+ *  On): each declared property the values lack and that declares a `default` takes it. Nothing
+ *  else: a missing property with no default stays missing (a required one then says so). Returns
+ *  the keys it filled, sorted. */
+export function typedWithDefaults(fields: TypedNode, values: TypedValues['values']): { values: TypedValues['values']; filled: string[] } {
+  const out: TypedValues['values'] = {};
+  for (const key of Object.keys(values)) put(out, key, values[key]);
+  const filled: string[] = [];
+  for (const { key, node } of fields.properties ?? []) {
+    if (own(out, key) || node.default === undefined) continue;
+    put(out, key, structuredCopy(node.default));
+    filled.push(key);
+  }
+  return { values: out, filled: filled.sort() };
+}
+
+/** A cue's stored action arguments' version this build reads. */
+export const TYPED_ARGS_VERSION = 1;
+
+/**
+ * A CUE'S ACTION ARGUMENTS (E2.1, `ShowCue.typedArgs`): what each of its graphic's custom actions
+ * carries when it is pressed, kept as typed JSON beside `typed`, with its own `v`. An entry is a
+ * draft, valid or not: a press validates it whole and refuses with its path, never erasing it.
+ * `schema` is the content hash of the action's argument schema as declared (`actionSchemaOf`), so
+ * arguments kept for another version of the action are not sent to this one.
+ */
+export interface TypedArgs {
+  v: typeof TYPED_ARGS_VERSION;
+  actions: { [action: string]: { schema: string; args: JsonValue } };
+}
+
+export type TypedArgsRead =
+  | { status: 'absent' }
+  | { status: 'ok'; args: TypedArgs }
+  | { status: 'read-only'; reason: string };
+
+/** Read a cue's stored action arguments. Never throws; `undefined` is absent. */
+export function readTypedArgs(raw: unknown): TypedArgsRead {
+  if (raw === undefined) return { status: 'absent' };
+  if (!isRecord(raw)) return { status: 'read-only', reason: UNREADABLE };
+  const v = raw.v;
+  if (typeof v === 'number' && Number.isInteger(v) && v > TYPED_ARGS_VERSION) return { status: 'read-only', reason: LATER };
+  if (v !== TYPED_ARGS_VERSION || Object.keys(raw).some((k) => k !== 'v' && k !== 'actions') || !isRecord(raw.actions) || readJson(raw.actions, TYPED_MAX_DEPTH + 3)) return { status: 'read-only', reason: UNREADABLE };
+  for (const key of Object.keys(raw.actions)) {
+    const entry = raw.actions[key];
+    if (!isRecord(entry) || typeof entry.schema !== 'string' || !own(entry, 'args') || Object.keys(entry).length !== 2) return { status: 'read-only', reason: UNREADABLE };
+  }
+  return { status: 'ok', args: raw as unknown as TypedArgs };
+}
+
+/** The content hash an action's arguments are kept against: its argument schema as declared. */
+export function actionSchemaOf(action: TypedAction): string {
+  return action.schema;
+}
+
+/** The arguments an action's form shows: the ones kept for this version of it, else a new value. */
+export function actionArgsOf(action: TypedAction, stored: unknown): JsonValue | undefined {
+  if (!action.args) return undefined;
+  const read = readTypedArgs(stored);
+  const kept = read.status === 'ok' && own(read.args.actions, action.id) ? read.args.actions[action.id] : null;
+  return kept && kept.schema === actionSchemaOf(action) ? kept.args : typedSeed(action.args);
+}
+
+/** What a press of a declared custom action sends: its typed envelope, or why nothing may go. */
+export type TypedActionSend = { status: 'ok'; typed: TypedActionCall } | { status: 'refused'; reason: string };
+
+/**
+ * THE TYPED ACTION (E2.1): the envelope a press of `actionId` carries, built from the cue's kept
+ * arguments (`actionArgsOf`), validated whole against the action's argument schema and the size one
+ * command takes. A refusal names the first failing path; nothing is dispatched and nothing kept is
+ * changed. An action whose arguments use something this reader does not carry is refused rather
+ * than sent with a guess.
+ */
+export function typedActionFor(declared: DeclaredRead, actionId: string, stored: unknown): TypedActionSend {
+  if (declared.status !== 'ok') return { status: 'refused', reason: 'This graphic’s actions cannot be read.' };
+  const action = declared.description.actions.find((a) => a.id === actionId);
+  if (!action) return { status: 'refused', reason: `"${actionId}" is not an action of this graphic.` };
+  if (readTypedArgs(stored).status === 'read-only') return { status: 'refused', reason: 'This cue’s action arguments were saved by another version of NoaCG.' };
+  if (action.args && typedUnsupportedAt(action.args) !== null) return { status: 'refused', reason: `${action.name}: its arguments use a schema feature this version does not carry.` };
+  const args = actionArgsOf(action, stored);
+  const error = validateActionArgs(action, args)[0];
+  if (error) return { status: 'refused', reason: `${action.name}: ${error.at ? `${error.at} ` : ''}${error.reason}.` };
+  const typed: TypedActionCall = { v: TYPED_VERSION, kind: 'action', standard: OGRAF_STANDARD.commit, schema: actionSchemaOf(action), action: action.id };
+  if (args !== undefined) typed.args = args;
+  if (new TextEncoder().encode(JSON.stringify(typed)).length > TYPED_MAX_SEND_BYTES) return { status: 'refused', reason: `${action.name}: its arguments are larger than one command takes (${TYPED_MAX_SEND_BYTES / 1024} KiB).` };
+  return { status: 'ok', typed };
+}
+
+/** The first unsupported node's path under `node`, or null. Each node is visited once. */
+export function typedUnsupportedAt(node: TypedNode): string | null {
+  const stack = [node];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (n.type === 'unsupported') return n.path;
+    for (const p of n.properties ?? []) stack.push(p.node);
+    if (n.items) stack.push(n.items);
+  }
+  return null;
+}
+
+/** What an output reads, advertised in its Presence entry (control/livePath.ts `LiveEntry.typed`):
+ *  1, values envelopes on an `update` (E1.2a); 2, action envelopes on an `event` too (E2.1). Both are
+ *  envelope version 1. An output that says none, or less than a send needs, is sent no envelope. */
+export const TYPED_VALUES_READER = 1;
+export const TYPED_ACTIONS_READER = 2;
+export const TYPED_READER = TYPED_ACTIONS_READER;
 
 /** What the capability check reads of one Presence entry. */
 export interface TypedPeer {
@@ -939,15 +1185,16 @@ export interface TypedPeer {
 
 /**
  * THE OUTPUTS' CAPABILITY (E1.2a): why a published production's page may not send an envelope now,
- * or null. Every output it sees must say it reads this version; one that does not (an older build)
+ * or null. Every output it sees must say it reads what the send `need`s (values, or actions: E2.1); one that does not (an older build)
  * would refuse it, or worse, apply the native members beside it. While its Presence is not joined
  * the page cannot see its outputs, so nothing typed goes. An unpublished production has no output.
  */
-export function typedOutputsRefusal(published: boolean, status: string, peers: readonly TypedPeer[]): string | null {
+export function typedOutputsRefusal(published: boolean, status: string, peers: readonly TypedPeer[], need: number = TYPED_VALUES_READER): string | null {
   if (!published) return null;
   if (status !== 'joined') return 'Typed data waits until this page can see its outputs.';
-  const old = peers.filter((p) => p.kind === 'output' && !(typeof p.typed === 'number' && p.typed >= TYPED_READER));
+  const old = peers.filter((p) => p.kind === 'output' && !(typeof p.typed === 'number' && p.typed >= need));
   if (!old.length) return null;
   const names = old.map((p) => p.name || p.engine || 'an output');
-  return names.length === 1 ? `Reload ${names[0]}: it cannot read typed data yet.` : `Reload ${names.length} outputs (${names.slice(0, 3).join(', ')}): they cannot read typed data yet.`;
+  const what = need >= TYPED_ACTIONS_READER ? 'typed actions' : 'typed data';
+  return names.length === 1 ? `Reload ${names[0]}: it cannot read ${what} yet.` : `Reload ${names.length} outputs (${names.slice(0, 3).join(', ')}): they cannot read ${what} yet.`;
 }
