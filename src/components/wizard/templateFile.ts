@@ -8,7 +8,9 @@
 import { importTemplateFile, type ImportedTemplateResult } from '../../model/importTemplate';
 import { importForeignOgraf } from '../../export/targets/ografForeign';
 
-export { isForeignGraphic } from '../../model/foreignPackage';
+import { foreignFormatStated } from '../../model/foreignPackage';
+
+export { foreignFormatStated, isForeignGraphic } from '../../model/foreignPackage';
 
 export async function importDroppedTemplate(file: File): Promise<ImportedTemplateResult> {
   if (!/\.zip$/i.test(file.name)) return importTemplateFile(file);
@@ -17,5 +19,6 @@ export async function importDroppedTemplate(file: File): Promise<ImportedTemplat
   if (!read) return importTemplateFile(new File([data], file.name));
   if (!read.ok) throw new Error(`This OGraf package cannot be imported. ${read.reason}`);
   const { resolution } = read.template;
-  return { template: read.template, detection: { resolution, fps: read.stated ? read.template.fps : null, certain: read.stated, messages: [] }, noacg: null };
+  const stated = foreignFormatStated(read.template);
+  return { template: read.template, detection: { resolution, fps: stated ? read.template.fps : null, certain: stated, messages: [] }, noacg: null };
 }

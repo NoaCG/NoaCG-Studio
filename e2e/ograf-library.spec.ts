@@ -92,8 +92,8 @@ const library = (page: Page) =>
 test('two strangers\' packages go in, come out byte for byte, join a production, take cues and survive a reload', async ({ page }) => {
   test.setTimeout(110_000);
   const fixtures = [
-    { name: 'ebu-scoreboard', id: 'scoreboard', label: 'OGraf scoreboard 1.0.0', fields: /Home team, Away team/ },
-    { name: 'nytamin-live-poll', id: 'news-live-poll', label: 'OGraf news-live-poll 1.0.0', fields: /Poll Title, Poll Items/ },
+    { name: 'ebu-scoreboard', folder: 'live_scoreboard', label: 'OGraf scoreboard 1.0.0', fields: /Home team, Away team/ },
+    { name: 'nytamin-live-poll', folder: 'news_live_poll', label: 'OGraf news-live-poll 1.0.0', fields: /Poll Title, Poll Items/ },
   ];
   const revisions: string[] = [];
   for (const [i, f] of fixtures.entries()) {
@@ -109,10 +109,10 @@ test('two strangers\' packages go in, come out byte for byte, join a production,
     await expect(page.locator('.wz-finish-summary')).toContainText(`${f.label}, kept byte for byte`);
     await expect(page.getByTestId('wz-finish-export')).toContainText('The OGraf package, exactly as it came in.');
 
-    // Out: the files exactly as they came in, under the package's id.
+    // Out: the files exactly as they came in, under the graphic's folder.
     const out = await exportFromFinish(page);
-    expect([...out.keys()].sort()).toEqual([...files.keys()].map((p) => `${f.id}/${p}`).sort());
-    for (const [p, b] of files) expect(sha(out.get(`${f.id}/${p}`)!), p).toBe(sha(b));
+    expect([...out.keys()].sort()).toEqual([...files.keys()].map((p) => `${f.folder}/${p}`).sort());
+    for (const [p, b] of files) expect(sha(out.get(`${f.folder}/${p}`)!), p).toBe(sha(b));
 
     // Into one production: a new one the first time, the same one the second.
     if (i === 0) {

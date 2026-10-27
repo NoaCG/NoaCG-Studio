@@ -109,6 +109,15 @@ export function declaredFieldLabels(template: Pick<SpxTemplate, 'ograf'>): strin
   });
 }
 
+/** Whether a stranger's package states its own canvas and frame rate (its first render
+ *  requirement's ideals), so its format is its word rather than an assumed default. */
+export function foreignFormatStated(template: Pick<SpxTemplate, 'ograf'>): boolean {
+  const reqs = (template.ograf?.manifest as { renderRequirements?: unknown } | undefined)?.renderRequirements;
+  const first = (Array.isArray(reqs) ? reqs[0] : undefined) as { resolution?: { width?: { ideal?: unknown }; height?: { ideal?: unknown } }; frameRate?: { ideal?: unknown } } | undefined;
+  const n = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  return !!first && n(first.resolution?.width?.ideal) && n(first.resolution?.height?.ideal) && n(first.frameRate?.ideal);
+}
+
 /** Lowercase hex of a digest. */
 const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
 

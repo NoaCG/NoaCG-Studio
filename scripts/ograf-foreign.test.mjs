@@ -22,16 +22,21 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURES = path.join(root, 'e2e/fixtures/ograf-library');
 
 async function load(entry) {
-  const bundle = await rolldown({ input: entry, platform: 'neutral', external: ['jszip'], plugins: [rawSuffix], logLevel: 'silent' });
+  const external = ['jszip', 'file-saver'];
+  const bundle = await rolldown({ input: entry, platform: 'neutral', external, plugins: [rawSuffix], logLevel: 'silent' });
   const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
   await bundle.close();
-  const code = output[0].code.replace(/from "jszip"/g, `from ${JSON.stringify(import.meta.resolve('jszip'))}`);
+  let code = output[0].code;
+  // The download helper is a browser's; nothing here downloads.
+  code = code.replace(/import \{ saveAs \} from "file-saver";/, 'const saveAs = () => {};');
+  code = code.replaceAll('from "jszip"', `from ${JSON.stringify(import.meta.resolve('jszip'))}`);
   return import(`data:text/javascript;base64,${Buffer.from(code, 'utf8').toString('base64')}`);
 }
 
 const foreign = await load(path.join(root, 'src/export/targets/ografForeign.ts'));
 const model = await load(path.join(root, 'src/model/foreignPackage.ts'));
 const contract = await load(path.join(root, 'src/control/ografContract.ts'));
+const { slug: slugOf } = await load(path.join(root, 'src/model/slug.ts'));
 const { importForeignOgraf, readOgrafArchive, foreignPackageZip, entryNameRefusal, withoutComments, OGRAF_ARCHIVE_LIMITS: L } = foreign;
 const { verifyForeignPackage, readForeignPackage } = model;
 
@@ -87,8 +92,9 @@ test('two packages by two authors import as foreign entries: bytes untouched, no
     assert.deepEqual(template.ograf, { v: 1, manifest }, 'E1 reads the manifest as it came');
     // The format is the package's word where it gives one, and said to be assumed where not.
     const req = manifest.renderRequirements?.[0];
-    assert.equal(read.stated, Boolean(req?.frameRate?.ideal && req?.resolution?.width?.ideal));
-    if (read.stated) assert.deepEqual([template.resolution.width, template.resolution.height, template.fps], [req.resolution.width.ideal, req.resolution.height.ideal, req.frameRate.ideal]);
+    const stated = model.foreignFormatStated(template);
+    assert.equal(stated, Boolean(req?.frameRate?.ideal && req?.resolution?.width?.ideal));
+    if (stated) assert.deepEqual([template.resolution.width, template.resolution.height, template.fps], [req.resolution.width.ideal, req.resolution.height.ideal, req.frameRate.ideal]);
     // Every file kept, hashed, as an asset under its own path.
     assert.deepEqual(record.files.map((f) => f.path), [...files.keys()].sort());
     for (const f of record.files) assert.equal(f.sha256, sha(files.get(f.path)), f.path);
@@ -114,8 +120,12 @@ test('an export is the package as imported, and re-imports to the same revision'
     const zip = await foreignPackageZip(template);
     const out = new Map();
     for (const e of Object.values(zip.files)) if (!e.dir) out.set(e.name, Buffer.from(await e.async('uint8array')));
-    assert.deepEqual([...out.keys()].sort(), [...files.keys()].map((p) => `${record.id}/${p}`).sort());
-    for (const [p, b] of files) assert.equal(sha(out.get(`${record.id}/${p}`)), sha(b), p);
+    // Under the graphic's own folder, as every target writes it, so a production's collision-
+    // suffixed name keeps two copies of one package apart.
+    const folder = slugOf(template.name);
+    assert.deepEqual([...out.keys()].sort(), [...files.keys()].map((p) => `${folder}/${p}`).sort());
+    for (const [p, b] of files) assert.equal(sha(out.get(`${folder}/${p}`)), sha(b), p);
+    assert.deepEqual(Object.keys((await foreignPackageZip({ ...template, name: 'Board 2' })).files).filter((n) => !n.endsWith('/')).map((n) => n.split('/')[0])[0], slugOf('Board 2'));
     const back = await importForeignOgraf('back.zip', await zip.generateAsync({ type: 'uint8array' }));
     assert.equal(back.record.revision, record.revision);
     assert.equal(back.record.id, record.id);
@@ -289,7 +299,8 @@ test('references that leave the package or name nothing are refused with the fil
     [{ 'graphic.mjs': "import x from '/api/me';\nexport default class {}" }, /graphic\.mjs refers to "\/api\/me", which is outside the package/],
     [{ 'graphic.mjs': "import x from './lib/%2e%2e/%2e%2e/x.mjs';\nexport default class {}" }, /outside the package/],
     [{ 'graphic.mjs': "const u = new URL('../peer/data.json', import.meta.url);\nexport default class {}" }, /outside the package/],
-    [{ 'graphic.mjs': "const m = import('./nope.mjs');\nexport default class {}" }, /graphic\.mjs refers to "\.\/nope\.mjs", which the package does not contain/],
+    [{ 'graphic.mjs': "import { x } from './nope.mjs';\nexport default class {}" }, /graphic\.mjs refers to "\.\/nope\.mjs", which the package does not contain/],
+    [{ 'graphic.mjs': "const m = () => import('../out.mjs');\nexport default class {}" }, /graphic\.mjs refers to "\.\.\/out\.mjs", which is outside the package/],
     [{ 'graphic.mjs': "import _ from 'lodash';\nexport default class {}" }, /graphic\.mjs imports "lodash", which is not a path inside the package/],
     [{ 'style.css': '@import "../theme.css";' }, /style\.css refers to "\.\.\/theme\.css", which is outside the package/],
     [{ 'style.css': '.a { background: url(img/x.png) }' }, /style\.css refers to "img\/x\.png", which the package does not contain/],
@@ -303,6 +314,7 @@ test('references that leave the package or name nothing are refused with the fil
     'graphic.mjs': "// import '../commented.mjs';\n/* import('../also.mjs') */\nimport { a } from './lib/a.mjs';\nconst u = 'http://x//y';\nconst img = new URL('./lib/a.mjs', import.meta.url);\nexport default class extends HTMLElement {}\n",
     'style.css': '.a { background: url(data:image/png;base64,AAAA); } .b { background: url("https://cdn.example/x.png") }',
   });
+  fine.set('lazy.mjs', Buffer.from("export const later = () => import('./maybe-never.mjs');"));
   const ok = await importForeignOgraf('x.zip', await zipOf(fine));
   assert.ok(ok.ok, ok.reason);
 });
@@ -379,7 +391,7 @@ test('a foreign entry passes the gate on its record, is refused in a pack, and l
   assert.deepEqual(exportTargetsFor(template).map((t) => t.id), ['ograf']);
   assert.equal(exportTargetsFor({ ...template, foreign: undefined }).length, EXPORT_TARGETS.length);
   const zip = await EXPORT_TARGETS.find((t) => t.id === 'ograf').build(template);
-  assert.ok(zip.file('scoreboard/graphic.mjs'), 'the package itself');
+  assert.ok(zip.file(`${slugOf(template.name)}/graphic.mjs`), 'the package itself');
   for (const t of EXPORT_TARGETS.filter((x) => x.id !== 'ograf')) await assert.rejects(t.build(template), /imported OGraf package, so it exports only as OGraf/, t.id);
   const findings = packs.checkPackGraphics([{ name: 'Board', template }]);
   assert.ok(JSON.stringify(findings).includes('imported OGraf package, made by someone else'), JSON.stringify(findings));
@@ -392,4 +404,41 @@ test('a production holding a foreign package does not publish, and says why', as
   // The publisher asks it before anything else is sent.
   const src = readFileSync(path.join(root, 'src/control/hostedControl.ts'), 'utf8');
   assert.match(src, /assertProductionGate\(show\.graphics, library\);\n(?:\s*\/\/[^\n]*\n)*\s*const foreign = foreignPublishRefusal\(show\.graphics\);\n\s*if \(foreign\) throw new Error\(foreign\);\n\s*const sb = await getSupabase\(\);/);
+});
+
+test('the names JSZip keys files by are the names judged: local headers and an understated directory', async () => {
+  // Central names fine, local header names climbing out: the zip library would key by the local ones.
+  const zip = rawZip(okEntries());
+  const buf = Buffer.from(zip);
+  const local = buf.indexOf('pkg/lib/a.mjs');
+  buf.write('pkg/../../a.mjs'.slice(0, 13), local, 'latin1');
+  assert.match((await readOgrafArchive(new Uint8Array(buf))).reason, /local and central entry names disagree/);
+  // An end record claiming two entries over a directory of three.
+  const under = Buffer.from(rawZip(okEntries()));
+  under.writeUInt16LE(2, under.length - 12);
+  under.writeUInt16LE(2, under.length - 14);
+  assert.match((await readOgrafArchive(new Uint8Array(under))).reason, /central directory does not match its end record/);
+});
+
+test('references: root-absolute leaves, a folder name with # stays a folder, prose in a string is not an import', async () => {
+  assert.match(await reason(await zipOf(minimal({ 'p/lib.js': 'x', 'graphic.mjs': "import '/p/lib.js';\nexport default class {}" }))), /"\/p\/lib\.js", which is outside the package/);
+  const hash = await importForeignOgraf('x.zip', await zipOf(minimal({ 'a#b/graphic2.mjs': "import './c.mjs';", 'a#b/c.mjs': 'export {}' })));
+  assert.ok(hash.ok, hash.reason);
+  const prose = await importForeignOgraf('x.zip', await zipOf(minimal({ 'graphic.mjs': "const help = \"usage: import 'my-lib'\"; const t = `see import(\"./demo.js\")`;\nexport default class extends HTMLElement {}\n" })));
+  assert.ok(prose.ok, prose.reason);
+});
+
+test('a package whose id is dots exports under its name, never climbing out', async () => {
+  const files = minimal({}, { id: '..' });
+  const read = await importForeignOgraf('x.zip', await zipOf(files));
+  assert.ok(read.ok, read.reason);
+  const names = Object.keys((await foreignPackageZip({ ...read.template, name: '..' })).files);
+  assert.ok(names.every((n) => !n.split('/').includes('..')), names.join(', '));
+});
+
+test('a production export to SPX refuses a foreign package by name', async () => {
+  const { buildShowZip } = await load(path.join(root, 'src/export/showExport.ts'));
+  const { template } = await importForeignOgraf('s.zip', await zipOf(fixture('ebu-scoreboard')));
+  const show = { id: 's', name: 'Show', graphics: [{ id: 'g', name: 'Scoreboard', type: 'blank', savedAt: '', template }], cues: [], updatedAt: '' };
+  await assert.rejects(buildShowZip(show), /Scoreboard is an imported OGraf package, so it exports only as OGraf\./);
 });

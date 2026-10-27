@@ -36,6 +36,7 @@ import {
 import { DEFAULT_GRAPHICS_FORMAT, projectFormatForResolution, resolutionForSelection } from '../../model/projectFormat';
 import { DEFAULT_SETTINGS, type AssetFile, type Resolution, type SpxTemplate } from '../../model/types';
 import { findManifestPath, readNoacgVendorBlock } from './ografImport';
+import { slug } from '../../model/slug';
 import { validateOgrafManifest, validateOgrafPackage } from './ografSchema';
 
 /** THE BOUNDS. Each is pinned at its edge by scripts/ograf-foreign.test.mjs. */
@@ -80,17 +81,20 @@ function centralNames(bytes: Uint8Array): string[] | string {
   if (total === 0xffff || u32(end + 16) === 0xffffffff) return 'It is a Zip64 archive, which a graphic package never needs.';
   if (total > OGRAF_ARCHIVE_LIMITS.entries) return `The archive has ${total} entries; a package may have at most ${OGRAF_ARCHIVE_LIMITS.entries}.`;
   const names: string[] = [];
-  const utf8 = new TextDecoder('utf-8', { fatal: false });
-  const latin1 = new TextDecoder('latin1');
+  // Decoded as JSZip decodes them (UTF-8), so the names judged here are the names it keys by; a
+  // name it would read otherwise (a Unicode-path field, a local header that disagrees) is caught
+  // after it parses, by comparing the two lists.
+  const utf8 = new TextDecoder('utf-8');
   let at = u32(end + 16);
-  for (let n = 0; n < total; n++) {
-    if (at + 46 > bytes.length || u32(at) !== 0x02014b50) return 'Its central directory is damaged.';
+  // Walked as JSZip walks it, while the signature holds, not as far as the end record claims: a
+  // record that understates the directory must not let the rest through unread.
+  while (at + 46 <= bytes.length && u32(at) === 0x02014b50) {
+    if (names.length === OGRAF_ARCHIVE_LIMITS.entries) return `The archive has more than ${OGRAF_ARCHIVE_LIMITS.entries} entries; a package may have at most ${OGRAF_ARCHIVE_LIMITS.entries}.`;
     const nameLength = u16(at + 28);
-    const name = bytes.subarray(at + 46, at + 46 + nameLength);
-    // Bit 11: the name is UTF-8; otherwise it is the archiver's code page, read byte for byte.
-    names.push((u16(at + 8) & 0x0800 ? utf8 : latin1).decode(name));
+    names.push(utf8.decode(bytes.subarray(at + 46, at + 46 + nameLength)));
     at += 46 + nameLength + u16(at + 30) + u16(at + 32);
   }
+  if (names.length !== total) return 'Its central directory does not match its end record.';
   return names;
 }
 
@@ -183,13 +187,18 @@ export async function readOgrafArchive(data: ArrayBuffer | Uint8Array): Promise<
   }
   let zip: JSZip;
   try {
-    zip = await JSZip.loadAsync(bytes, { checkCRC32: true });
+    // No CRC check here: it would inflate every entry in full before any bound below could stop
+    // a bomb. Every kept file is hashed instead (model/foreignPackage.ts).
+    zip = await JSZip.loadAsync(bytes);
   } catch (e) {
     return { ok: false, reason: `It is not a readable zip archive (${e instanceof Error ? e.message : String(e)}).` };
   }
   const entries = Object.values(zip.files);
-  // Every name was judged above and none repeats, so JSZip's clean names are the archive's own,
-  // and its entries are no more than the directory listed (folders it adds for a path included).
+  // JSZip keys files by the LOCAL header's name (or a Unicode-path field), which can differ from
+  // the central one judged above: every file it holds must be one of those, by the same words.
+  const judged = new Set(names.filter((n) => !n.endsWith('/')));
+  const held = entries.filter((e) => !e.dir).map((e) => (e as { unsafeOriginalName?: string }).unsafeOriginalName ?? e.name);
+  if (held.length !== judged.size || held.some((n) => !judged.has(n))) return { ok: false, reason: 'Its local and central entry names disagree.' };
   const files = new Map<string, Uint8Array>();
   let total = 0;
   for (const entry of entries) {
@@ -245,15 +254,18 @@ export function isForeignOgraf(files: ReadonlyMap<string, Uint8Array>): boolean 
 function resolveRef(from: string, ref: string): string | null | 'out' {
   if (/^[a-z][a-z0-9+.-]*:/i.test(ref)) return null;
   if (ref.startsWith('#')) return null;
+  // Root-absolute and scheme-relative references resolve against the host, never the package.
+  if (ref.startsWith('/') || ref.startsWith('\\')) return 'out';
   let url: URL;
   try {
-    url = new URL(ref, `https://package.invalid/p/${from}`);
+    // The file's own path, encoded, so a `#`, `?` or `%` in a folder name stays part of it.
+    url = new URL(ref, `https://package.invalid/p/${from.split('/').map(encodeURIComponent).join('/')}`);
   } catch {
     return 'out';
   }
   if (url.origin !== 'https://package.invalid' || !url.pathname.startsWith('/p/')) return 'out';
   try {
-    return decodeURIComponent(url.pathname.slice(3));
+    return url.pathname.slice(3).split('/').map(decodeURIComponent).join('/');
   } catch {
     return 'out';
   }
@@ -263,8 +275,7 @@ const MODULE_EXT = /\.(m?js)$/i;
 const STYLE_EXT = /\.css$/i;
 
 /** The text without its comments, in one pass. Quoted strings are kept whole, so a `//` inside a
- *  URL string is not a comment. A regex literal is not recognised: at worst that hides a reference,
- *  never invents one. */
+ *  URL string is not a comment. A regex literal is not recognised, which can hide a reference. */
 export function withoutComments(text: string): string {
   let out = '';
   let from = 0;
@@ -292,30 +303,41 @@ export function withoutComments(text: string): string {
 
 // Every quantifier between two literals is bounded, so no pattern backtracks past a few hundred
 // characters at any position: scanning stays linear in the file's size (measured in the test).
-const IMPORT_FROM = /\b(?:import|export)\s{0,40}(?:[\w*{}\s,$]{1,400}?\sfrom\s{0,40})?(["'])([^"'\n]{1,500})\1/g;
-const IMPORT_CALL = /\bimport\(\s{0,40}(["'])([^"'\n]{1,500})\1\s{0,40}\)/g;
+// A static import is read only where a statement starts, so prose about one inside a string is
+// not taken for one; one written at the start of a line inside a template literal still would be,
+// and is then refused by its words, which say which file and which reference.
+const IMPORT_FROM = /(?:^|[;}\n])\s{0,40}(?:import|export)\s{0,40}(?:[\w*{}\s,$]{1,400}?\sfrom\s{0,40})?(["'])([^"'\n]{1,500})\1/g;
+const IMPORT_CALL = /(?<![\w$.'"`])import\(\s{0,40}(["'])([^"'\n]{1,500})\1\s{0,40}\)/g;
 const META_URL = /\bnew\s{1,40}URL\(\s{0,40}(["'`])([^"'`\n]{1,500})\1\s{0,40},\s{0,40}import\.meta\.url\s{0,40}\)/g;
 const CSS_URL = /url\(\s{0,40}(["']?)([^"')\n]{1,500})\1\s{0,40}\)/g;
 const CSS_IMPORT = /@import\s{1,40}(["'])([^"'\n]{1,500})\1/g;
 
+/** A reference a file states. `strict`: a static import or a stylesheet's, which must name a file
+ *  the package holds; a dynamic `import()` or `new URL()` may sit on a path that never runs (or in
+ *  prose this reader cannot tell from code), so only leaving the package refuses it. */
+interface StatedRef {
+  ref: string;
+  strict: boolean;
+}
+
 /** The references a text file states where they can be read without running it, up to `max` (one
  *  more than that says there are too many). Comments are dropped first. */
-function referencesIn(path: string, text: string, max: number): string[] {
-  const out: string[] = [];
+function referencesIn(path: string, text: string, max: number): StatedRef[] {
+  const out: StatedRef[] = [];
   const code = withoutComments(text);
-  const patterns = MODULE_EXT.test(path) ? [IMPORT_FROM, IMPORT_CALL, META_URL] : STYLE_EXT.test(path) ? [CSS_URL, CSS_IMPORT] : [];
-  for (const re of patterns) {
+  const patterns: Array<[RegExp, boolean]> = MODULE_EXT.test(path)
+    ? [[IMPORT_FROM, true], [IMPORT_CALL, false], [META_URL, false]]
+    : STYLE_EXT.test(path) ? [[CSS_URL, true], [CSS_IMPORT, true]] : [];
+  for (const [re, strict] of patterns) {
     for (const m of code.matchAll(re)) {
-      out.push(m[2]);
+      out.push({ ref: m[2], strict });
       if (out.length > max) return out;
     }
   }
   return out;
 }
 
-/** `stated`: the manifest's render requirements gave both the canvas and the frame rate, so the
- *  format is the package's own word rather than a default. */
-export type ForeignRead = { ok: true; template: SpxTemplate; record: ForeignPackageRecord; stated: boolean } | { ok: false; reason: string };
+export type ForeignRead = { ok: true; template: SpxTemplate; record: ForeignPackageRecord } | { ok: false; reason: string };
 
 const MIME: Record<string, string> = {
   mjs: 'text/javascript', js: 'text/javascript', json: 'application/json', css: 'text/css', html: 'text/html',
@@ -344,12 +366,10 @@ function resolutionOf(manifest: Record<string, unknown>): Resolution | null {
 }
 
 /** The package's frame rate: its first render requirement's ideal, else 50 (said as assumed). */
-function frameRateOf(manifest: Record<string, unknown>): number;
-function frameRateOf(manifest: Record<string, unknown>, fallback: null): number | null;
-function frameRateOf(manifest: Record<string, unknown>, fallback: number | null = 50): number | null {
+function frameRateOf(manifest: Record<string, unknown>): number {
   const first = Array.isArray(manifest.renderRequirements) ? manifest.renderRequirements[0] : undefined;
   const rate = isRecordValue(first) && isRecordValue(first.frameRate) ? first.frameRate.ideal : undefined;
-  return typeof rate === 'number' && Number.isFinite(rate) && rate > 0 && rate <= 240 ? rate : fallback;
+  return typeof rate === 'number' && Number.isFinite(rate) && rate > 0 && rate <= 240 ? rate : 50;
 }
 
 /** A file map that `isForeignOgraf` admitted, read into the library entry, or refused. */
@@ -372,11 +392,11 @@ export async function readForeignFiles(fileName: string, files: ReadonlyMap<stri
   if (errors.length) return { ok: false, reason: `${manifestName} does not conform to OGraf v1: ${errors[0]}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}` };
 
   // `main` and the thumbnails, then what each module and stylesheet names.
-  const stated: Array<{ from: string; ref: string; label: string }> = [];
-  stated.push({ from: manifestName, ref: String(manifest.main), label: 'main' });
+  const stated: Array<{ from: string; ref: string; label: string; strict: boolean }> = [];
+  stated.push({ from: manifestName, ref: String(manifest.main), label: 'main', strict: true });
   if (Array.isArray(manifest.thumbnails)) {
     manifest.thumbnails.forEach((t, i) => {
-      if (isRecordValue(t) && typeof t.file === 'string') stated.push({ from: manifestName, ref: t.file, label: `thumbnails[${i}]` });
+      if (isRecordValue(t) && typeof t.file === 'string') stated.push({ from: manifestName, ref: t.file, label: `thumbnails[${i}]`, strict: true });
     });
   }
   const main = resolveRef(manifestName, String(manifest.main));
@@ -385,17 +405,17 @@ export async function readForeignFiles(fileName: string, files: ReadonlyMap<stri
     if (!MODULE_EXT.test(path) && !STYLE_EXT.test(path)) continue;
     const refs = referencesIn(path, decoder.decode(bytes), OGRAF_ARCHIVE_LIMITS.referencesPerFile);
     if (refs.length > OGRAF_ARCHIVE_LIMITS.referencesPerFile) return { ok: false, reason: `${path} names more than ${OGRAF_ARCHIVE_LIMITS.referencesPerFile} files.` };
-    for (const ref of refs) stated.push({ from: path, ref, label: 'reference' });
+    for (const { ref, strict } of refs) stated.push({ from: path, ref, label: 'reference', strict });
   }
-  for (const { from, ref, label } of stated) {
+  for (const { from, ref, label, strict } of stated) {
     // A bare module specifier ("lodash") resolves through an import map no host provides here.
-    if (label === 'reference' && MODULE_EXT.test(from) && !/^(\.{1,2}\/|\/|[a-z][a-z0-9+.-]*:)/i.test(ref)) {
+    if (label === 'reference' && strict && MODULE_EXT.test(from) && !/^(\.{1,2}\/|\/|[a-z][a-z0-9+.-]*:)/i.test(ref)) {
       return { ok: false, reason: `${from} imports "${ref}", which is not a path inside the package.` };
     }
     const to = resolveRef(from, ref);
     if (to === null) continue;
     if (to === 'out') return { ok: false, reason: `${from} refers to "${ref}", which is outside the package.` };
-    if (!pkg.has(to)) return { ok: false, reason: `${from} refers to "${ref}", which the package does not contain.` };
+    if (strict && !pkg.has(to)) return { ok: false, reason: `${from} refers to "${ref}", which the package does not contain.` };
   }
 
   const list: ForeignPackageFile[] = [];
@@ -432,12 +452,15 @@ export async function readForeignFiles(fileName: string, files: ReadonlyMap<stri
     ...(readOgrafDeclared(declared).status === 'ok' ? { ograf: declared } : {}),
     foreign: record as unknown as SpxTemplate['foreign'],
   };
-  return { ok: true, template, record, stated: frameRateOf(manifest, null) !== null && resolutionOf(manifest) !== null };
+  return { ok: true, template, record };
 }
 
 /** A dropped zip: the stranger's package it holds, a refusal with its reason, or null when it is
  *  not a stranger's OGraf package at all (the native importer's to read). */
 export async function importForeignOgraf(fileName: string, data: ArrayBuffer | Uint8Array): Promise<ForeignRead | null> {
+  // No manifest named anywhere in the directory: not a package, and nothing is inflated to say so.
+  const listed = centralNames(data instanceof Uint8Array ? data : new Uint8Array(data));
+  if (Array.isArray(listed) && !listed.some((n) => n.toLowerCase().endsWith('.ograf.json'))) return null;
   const archive = await readOgrafArchive(data);
   if (!archive.ok) {
     // The bounds are this road's: a vendor's SPX pack of a thousand files, or one with a long
@@ -456,7 +479,9 @@ export async function foreignPackageZip(template: Pick<SpxTemplate, 'foreign' | 
   const check = await verifyForeignPackage(template);
   if (!check.ok) throw new Error(`${template.name} cannot be exported: ${check.reason}.`);
   const zip = new JSZip();
-  const folder = check.record.id.replace(/[^a-zA-Z0-9._-]+/g, '-') || 'package';
+  // Named like every other target's folder (`slug(name)`), so a production export's
+  // collision-suffixed name keeps two copies of one package apart; never a dot-only name.
+  const folder = slug(template.name) || 'package';
   for (const [path, bytes] of check.files) zip.file(`${folder}/${path}`, bytes, { binary: true });
   return zip;
 }

@@ -44,7 +44,7 @@ import FinishStep, {
   importedSummaryRows,
   type SummaryStepKey,
 } from './steps/FinishStep';
-import { importDroppedTemplate, isForeignGraphic } from './templateFile';
+import { foreignFormatStated, importDroppedTemplate, isForeignGraphic } from './templateFile';
 import { useExportUi } from '../ExportWindow';
 import { useMarkLegibility } from './useMarkLegibility';
 import type { SpxTemplate } from '../../model/types';
@@ -1062,7 +1062,7 @@ export default function CreationWizard() {
                       type: 'file',
                       file: {
                         template: imported,
-                        detection: { resolution: imported.resolution, fps: imported.fps, certain: true, messages: [] },
+                        detection: { resolution: imported.resolution, fps: imported.fps, certain: !isForeignGraphic(imported) || foreignFormatStated(imported), messages: [] },
                       },
                       error: null,
                     });
