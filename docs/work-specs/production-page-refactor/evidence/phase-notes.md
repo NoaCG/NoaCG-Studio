@@ -95,7 +95,9 @@ changes a spec's digest.
     the production at activation): it resolves beside the pool's faces (`lookStyleContext`), its
     bytes are read by path beside the pool for PREVIEW, the measurer and the export
     (`withLookAssets`), and Publish carries it once, with the first graphic (`withLookFaceIn`),
-    where every stage and the hosted page find it. The Look panel counts and offers weights for
+    where every stage and the hosted page find it. The production page's PROGRAM monitor builds its
+    payload once per pool, so it reads the look's face through the stage's `faceAsset` fallback
+    instead, and a look turned on later reaches it without reloading what airs. The Look panel counts and offers weights for
     the look's own face whether or not it is on (`lookPanelImported`).
   - *A label face a look's token names ships with it*: `resolveStyle` declares the bundled face
     `--font-label` names, as `applyLookToTemplate` does.
@@ -131,7 +133,7 @@ changes a spec's digest.
   `src/control/adjustGeometry.ts`, `src/control/cueAdjust.ts`, `src/control/cueStaging.ts`,
   `src/control/cueStyle.ts`, `src/control/exportAppearance.ts`, `src/control/graphicVerbs.ts`,
   `src/control/hostedAdjust.ts` (new), `src/control/hostedControl.ts`, `src/control/hostedReceiver.ts`,
-  `src/control/localReceiver.ts`,
+  `src/control/localReceiver.ts`, `src/components/home/PayloadStage.tsx`, `src/components/home/ProgramStage.tsx`,
   `e2e/hosted-control.spec.ts`,
   `src/control/productionLook.ts` (new), `src/model/shows.ts`, `src/model/teamShowMerge.ts`,
   `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`,
