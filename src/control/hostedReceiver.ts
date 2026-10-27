@@ -82,7 +82,9 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   var look = null;
   function applyLook(a) {
     if (!noacgApplyAppearance(a)) return;
-    look = a.frame ? a : null;
+    // Any appearance that sets something is reported, a style alone included (a production look
+    // sent to the graphics on air), so a reload brings it back; the identity reports none.
+    look = a.frame || a.vars || a.fonts ? a : null;
   }
   // An appearance-only update (phase 3's send to on-air graphics, empty data) has no values of its
   // own to fit with: the refit gives the values this document shows (./appearanceRuntime.ts).
