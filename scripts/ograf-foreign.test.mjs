@@ -378,6 +378,10 @@ test('the bounds are this road\'s: an html zip past them is the native importer\
   assert.equal(await importForeignOgraf('pack.zip', await zipOf(pack, '')), null);
   const video = new Map([['index.html', Buffer.from('<video src="clip.mp4">')], ['clip.mp4', Buffer.alloc(L.fileBytes + 1)], ['x.ograf.json', Buffer.from('{}')]]);
   assert.equal(await importForeignOgraf('video.zip', await zipOf(video, '')), null);
+  // A stranger's package with an html demo page beside it is still one: past a bound it is
+  // refused, never handed to the native importer, which reads without these bounds.
+  const demo = minimal({ 'index.html': '<p>demo</p>', 'big.png': Buffer.alloc(L.fileBytes + 1) });
+  assert.match(await reason(await zipOf(demo)), /"pkg\/big\.png" is larger than 16 MB unpacked/);
 });
 
 test('a foreign entry passes the gate on its record, is refused in a pack, and leaves by OGraf alone', async () => {

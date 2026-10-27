@@ -231,26 +231,43 @@ const isRecordValue = (v: unknown): v is Record<string, unknown> => typeof v ===
  *  an html page with a manifest beside it, E1's case) is the native importer's. */
 export function isForeignOgraf(files: ReadonlyMap<string, Uint8Array>): boolean {
   const manifestPath = findManifestPath(files.keys());
-  if (!manifestPath) return false;
+  return !!manifestPath && foreignShape([...files.keys()], manifestPath, decoder.decode(files.get(manifestPath)));
+}
+
+/** The same judgement over entry names and the manifest's text alone, so an archive refused for a
+ *  bound is still judged as the package it would have been. */
+function foreignShape(names: readonly string[], manifestPath: string, manifestText: string | null): boolean {
   // With no page to fall back on, a broken stranger's package is still one: refused here with its
   // reason, not as "no .html file".
-  const noPage = manifestBesideNoPage([...files.keys()]);
+  const noPage = manifestBesideNoPage(names);
   let manifest: unknown;
   try {
-    manifest = JSON.parse(decoder.decode(files.get(manifestPath)));
+    manifest = JSON.parse(manifestText ?? '');
   } catch {
     return noPage;
   }
   if (!isRecordValue(manifest)) return false;
   if (readNoacgVendorBlock(manifest)?.source) return false;
   const dir = manifestPath.slice(0, manifestPath.lastIndexOf('/') + 1);
-  return (typeof manifest.main === 'string' && files.has(dir + manifest.main.replace(/^\.\//, ''))) || noPage;
+  return (typeof manifest.main === 'string' && names.includes(dir + manifest.main.replace(/^\.\//, ''))) || noPage;
 }
 
 /** A manifest named among the entries and no html page beside it: a stranger's Graphic, whatever
  *  else is wrong with it. */
 const manifestBesideNoPage = (names: readonly string[]) =>
   names.some((n) => n.toLowerCase().endsWith('.ograf.json')) && !names.some((n) => n.toLowerCase().endsWith('.html'));
+
+/** The manifest's text out of an archive that broke a bound, read under the one-file bound, or null. */
+async function manifestTextOf(bytes: Uint8Array, manifestPath: string): Promise<string | null> {
+  try {
+    const zip = await JSZip.loadAsync(bytes);
+    const entry = Object.values(zip.files).find((e) => ((e as { unsafeOriginalName?: string }).unsafeOriginalName ?? e.name).replace(/\\/g, '/') === manifestPath);
+    const out = entry ? await inflateBounded(entry, OGRAF_ARCHIVE_LIMITS.fileBytes) : null;
+    return out instanceof Uint8Array ? decoder.decode(out) : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Where `ref`, found in the package file `from`, points inside the package: its path, null for a
  *  reference the host resolves (another scheme), or 'out' when it leaves the package. A package
@@ -455,7 +472,13 @@ export async function importForeignOgraf(fileName: string, data: ArrayBuffer | U
     const names = Array.isArray(listed)
       ? listed
       : await JSZip.loadAsync(bytes).then((z) => Object.values(z.files).map((e) => (e as { unsafeOriginalName?: string }).unsafeOriginalName ?? e.name), () => [] as string[]);
-    return manifestBesideNoPage(names) ? { ok: false, reason: archive.reason } : null;
+    // A stranger's package with an html demo page beside it is still one when its manifest says so
+    // (as `isForeignOgraf` judges a package that passed): its refusal stands, rather than the
+    // native importer reading past the bounds.
+    const files = names.filter((n) => !n.endsWith('/')).map((n) => n.replace(/\\/g, '/'));
+    const manifestPath = findManifestPath(files);
+    const foreign = !!manifestPath && foreignShape(files, manifestPath, await manifestTextOf(bytes, manifestPath));
+    return foreign ? { ok: false, reason: archive.reason } : null;
   }
   if (!isForeignOgraf(archive.files)) return null;
   return readForeignFiles(fileName, archive.files);
