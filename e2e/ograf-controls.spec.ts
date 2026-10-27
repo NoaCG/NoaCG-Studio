@@ -302,5 +302,7 @@ test('a declared action targets the on-air cue: staged arguments say so, each pr
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   const icon = await press.evaluate((el) => getComputedStyle(el, '::after').content);
-  expect(icon).toBe('"✓"');
+  expect(icon).toBe('"✓" / ""');
+  // The icon is drawn, never read: the button is still found by its name alone.
+  await expect(page.getByRole('button', { name: /Highlight a team$/ })).toHaveCount(1);
 });

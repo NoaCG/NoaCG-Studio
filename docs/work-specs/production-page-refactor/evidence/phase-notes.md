@@ -110,6 +110,10 @@ changes a spec's digest.
   sending in place of the last confirmed mark until it settles, and STAGED stands for the edited
   cue whether or not it is on PREVIEW; both go to E8's trial kit for the owner's read.
 - **Traps.**
+  - CSS generated content joins an element's accessible name. The mark's icon first broke every
+    spec that finds a ⚡ button by a name anchored at its end (`/Call it$/` in
+    `import-svg-behaviour`, after a press). Its `content` carries an empty alternative text
+    (`attr(data-press-icon) / ''`), and the walk finds the button by its name after a press.
   - The program monitor's frame is sandboxed: a spec cannot write into it, so a probe that must
     prove a second identical press arrived counts presses (`data-n`).
   - A queued job must be the `npm run test:e2e` command itself: a wrapper script is refused as an
@@ -149,7 +153,7 @@ changes a spec's digest.
   the same cue taken again, kept the old mark); an older play's answer moving the position; a
   refused step's answer folded from the cleared position instead of the one before the call; a
   call's fallback deadline started at its post instead of at `load()`'s answer; a refused Out
-  read as ending the walk.
+  read as ending the walk; the mark's icon read into the button's accessible name.
 
 ## Row 37 (E2.1, project phase 41): typed OGraf forms and action arguments
 

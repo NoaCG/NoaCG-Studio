@@ -1433,8 +1433,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-typed-target { margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim, #9aa1ad); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
 .pd-typed-target.air { color: var(--danger); border-color: var(--danger); }
 /* WHAT A PRESS CAME TO (control/pressFeedback.ts), on its button: an icon after the label, coloured
-   by state, its words in the title. Sent is the last confirmed press, never "on air". */
-[data-press]::after { content: attr(data-press-icon); margin-left: 6px; font-weight: 700; color: var(--text-dim, #9aa1ad); }
+   by state, its words in the title. Sent is the last confirmed press, never "on air". The icon's
+   alternative text is empty, so it never joins the button's accessible name. */
+[data-press]::after { content: attr(data-press-icon) / ''; margin-left: 6px; font-weight: 700; color: var(--text-dim, #9aa1ad); }
 [data-press='sent']::after { color: var(--accent); }
 [data-press='unheard']::after,
 [data-press='unknown']::after { color: var(--amber); }
