@@ -150,7 +150,9 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
   const nativeTake = [{ graphic: 'Board', msg: { t: 'update', data: { f0: 'NEW' } } }, { graphic: 'Board', msg: { t: 'play' } }];
   // Rows before such an update stay held, as on the output: a stop goes, a play or a step does not.
   const heldFirst = [{ graphic: 'Board', msg: { t: 'play' } }, { graphic: 'Board', msg: { t: 'next' } }, { graphic: 'Board', msg: { t: 'stop' } }, ...nativeTake];
-  for (const [rows, expected] of [[[], []], [nativeTake, nativeTake], [heldFirst, [heldFirst[2], ...nativeTake]]]) {
+  // A typed update this build reads releases it with no entrance, as on the output and the hosted page.
+  const typedAfterHeld = [{ graphic: 'Board', msg: { t: 'play' } }, { graphic: 'Board', msg: { t: 'update', data: {}, typed: env } }];
+  for (const [rows, expected] of [[[], []], [nativeTake, nativeTake], [heldFirst, [heldFirst[2], ...nativeTake]], [typedAfterHeld, [typedAfterHeld[1]]]]) {
     const held = seedFromResolve({ ...NO_AIR, reports: unreadable }, { liveCue: { Board: 'c1' }, live: unreadable }, rows, airAtRequest(NO_AIR), [{ id: 'c1', values: { f0: 'x' } }], specs);
     assert.deepEqual(restoreItems(held, {}, specs).items, expected);
   }

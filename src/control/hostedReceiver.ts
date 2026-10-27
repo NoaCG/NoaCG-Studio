@@ -131,6 +131,8 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     if (refused === why) return;
     refused = why;
     if (why) {
+      // A report scheduled before the refusal would bank the previous cue's values past it.
+      clearTimeout(reportTimer);
       document.documentElement.setAttribute('data-noacg-refused', why);
       if (window.console) console.warn('NoaCG hosted control: ' + why);
     } else document.documentElement.removeAttribute('data-noacg-refused');

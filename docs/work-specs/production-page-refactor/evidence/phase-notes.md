@@ -106,7 +106,8 @@ changes a spec's digest.
   the page's rebuild ignoring the report; the report banking native data; a typed graphic skipping
   its re-bank; the read below without its ceiling, and cut at the ceiling instead of left out; the
   in-app PROGRAM playing a report whose envelope does not read, and dropping the rows after it;
-  `rowsPastHold` passing every row; the read below keeping its rows on a `reset` (Node); the
+  `rowsPastHold` passing every row; the read below keeping its rows on a `reset`; the in-app
+  PROGRAM's hold skipped when it had typed air (Node); the
   receiver's boot restoring a typed report (browser). The read below the reports switched off; the steps not restored; the typed
   baseline ignored (browser). The receiver without its hold (browser).
 - **Reviews.** `/check` code review (high): 10 findings. Fixed: the hosted PROGRAM's entrance with
@@ -133,8 +134,16 @@ changes a spec's digest.
   `93d7f35` (fresh session): AGREE WITH CORRECTIONS, Assessment A; its correction is fixed (a
   republish met by the read below leaves it out whole); its note that the bridge's fallback is said
   on the debug line only, not in READY, stays: the read below is a bridge for graphics E1.2a
-  outputs aired, and a READY line for it would outlive them.
-- **Follow-ups**: #1760 stays (typed live follow). Nothing new filed.
+  outputs aired, and a READY line for it would outlive them. /so on `e03f015` (fresh session): AGREE
+  WITH CORRECTIONS, Assessment B, for one blocking item, fixed: at boot the in-app PROGRAM held a
+  report whose envelope does not read only while it had no typed air of its own, so a readable
+  typed update in the rows after it rebuilt an entrance the output never made (now it always holds
+  through `rowsPastHold`, as the hosted page and the output do). Its minor item, fixed too: the
+  receiver's refusal clears a report already scheduled, which would have banked the previous cue's
+  values past the refused row.
+- **Follow-ups**: #1760 stays (typed live follow). #1769 (P3): the PROGRAM monitors do not read
+  below the reports for a graphic no report banks, so a page opened then shows its entrance
+  without its typed values while air is right.
 - **Touched files against `c614500`:** `docs/work-specs/production-page-refactor/evidence/phase-notes.md`,
   `e2e/configured/ograf-typed-data.spec.ts`, `e2e/hosted-control.spec.ts`,
   `e2e/output-typed-recovery.spec.ts` (new), `scripts/ograf-typed-recovery.test.mjs` (new),
