@@ -120,3 +120,17 @@ describe('the doors, as on the production page', () => {
     assert.deepEqual(p, { graphicId: 'g', frame: HD, stage: HD });
   });
 });
+
+test('a hostile staged value is read in one pass and counts as nothing staged', () => {
+  const pub = pubOf();
+  const deep = '['.repeat(200_000) + ']'.repeat(200_000);
+  const long = JSON.stringify({ on: pub.graphic, r: { v: 1, place: 'x'.repeat(1_000_000) } });
+  const started = performance.now();
+  for (const value of [deep, long, '{'.repeat(500_000), 'x'.repeat(2_000_000)]) {
+    const records = H.hostedRecords(pub, { [H.stagedAdjustKey(null)]: value }, 'c1');
+    const state = H.hostedAdjustState(pub, records, 'c1', null, false, ctx);
+    assert.equal(state.eff.place, undefined, 'nothing it cannot read airs');
+  }
+  assert.ok(performance.now() - started < 5_000, 'linear in the input, never stuck on it');
+});
+

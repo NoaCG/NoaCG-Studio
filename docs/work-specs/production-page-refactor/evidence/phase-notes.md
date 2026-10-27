@@ -5,6 +5,103 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 38a (L2.3, project phase 43): playout adjustments, the production look
+
+- **Previous verified `main` sha:** `d9c29b9` (row 38 passed, PR #1774). This branch was built on
+  it. Before editing, main had: the captured `Show.look` and the `brandId` reference, the brand
+  vocabulary and `applyLookToTemplate` (a bake, not used here), the adjust record with `vars`,
+  `font` and `keepStyle` (written by "As designed", read by nobody), the appearance field's style
+  members, the Adjust block on the production page, and the hosted page applying a cue's
+  published appearance without editing it. It had no activation, nothing that folded a look into
+  a graphic's style, no reach count, no exception list, no bulk send, and no Adjust block on the
+  hosted page.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no message kind: `lookApplied`
+  is additive optional (a reverted build ignores it and its graphics look as designed again), a
+  published cue's `adjust` member is ignored by a reverted hosted page, and a staged `@adjust` key
+  in the shared buffer is one more key a reverted page would hand a template's `update()`, which
+  ignores ids it does not know.
+- **What landed.**
+  - *The look in the fold* (`control/cueAdjust.ts` `effectiveAdjust`, third argument): the widest
+    scope, key by key under the graphic's default and the cue's exception; `keepStyle` at either
+    scope, or a later version's record at either, keeps it out. `control/productionLook.ts`: the
+    look as one scope (`lookLayerOf`: the four colours, the shape tokens a record may set, the face),
+    per graphic only what its stylesheet paints with (`lookLayerFor`, `styleReach` and
+    `cssPaintsWith`; an imported SVG takes nothing, so it sends nothing), the reach per property
+    over the pool (`lookReach`), the exceptions (`lookExceptions`), activation (`lookToActivate`),
+    the tone warning and the send's words.
+  - *Activation* (`model/shows.ts` `setShowLookApplied`, `editShowLook`, `clearStyleExceptions`;
+    `lookApplied` in `FIELD_LABEL`): On copies the saved brand `brandId` names into `look` (never
+    the library's object), else turns the captured look on; Off removes the activation and keeps the
+    look. A hand edit names no brand any more, so a later On does not overwrite it with the brand.
+  - *Setup ▾ Look* (`home/ProductionLook.tsx`, props only; door in `ProductionSetupMenu.tsx`): a
+    panel at the top of the control area, never a modal, so the monitors stay. On/Off, brand,
+    typeface, heading weight, accent, text and panel colours, "Type reaches N of M · Accent reaches
+    N of M" and the graphics it reaches not at all, the exceptions with "Clear exceptions", "Send to
+    on-air graphics" with the count on air and its outcome line, a light-panel warning and "Join
+    page: bundled typefaces only" for an imported face.
+  - *Send to on-air graphics* (`control/graphicVerbs.ts` `sendLook`, through the one sender): the
+    graphics on air and their cues captured at the press from the session's `air` part; each behind
+    the live presses on its graphic, asked again after the save and after the look is read; one
+    `update` with empty `data` each. It reports `of`, `updated`, `gone`, `changed` and `failed`, in
+    words "2 of 3 updated; Quiz board went off air". A typed graphic is not sent one.
+  - *The hosted page and phone* (`control/hostedAdjust.ts`, `components/control/HostedCueAdjust.tsx`):
+    the production page's block over records Publish carries beside each cue (`OutputCue.adjust`:
+    both records, the look on that graphic, the measured box). A press stages the record in the
+    shared buffer, so every open page follows it, and only Take or ✎ Update airs it. 40 px arrows
+    on the hosted page and on any screen 640 px or narrower.
+  - *Exports* resolve the look as air does (`exportAppearances`, `adjustedGraphics` take `lookFor`).
+  - *The join page's rule* (`audience/audienceBrand.ts` `audienceLookOf`): the activated look when
+    on, the captured look otherwise. Activation copies into `look`, so both read one member.
+- **Decisions.**
+  - *The send carries the look beside the place and size the graphic holds* (`lookAppearance`),
+    never a prepared nudge: the press sends a look, so a half-made placement waits for its Update
+    as a half-typed name does. Nothing changes, nothing is sent (and it counts as updated).
+  - *An appearance-only update sends no data command to the document* (`output/stage.ts`), and the
+    style it carries refits at once with the values the document last took (`previewProtocol.ts`
+    `style.alone`, `composeDocument.ts`). This answers row 32d's trap (a `{}` replayed by the late
+    refit). `e2e/playout-adjust.spec.ts`'s four-rules case expected the old `'{}'` reaching the
+    document twice; it now expects none, the rule it pins (a document sees data only) unchanged.
+  - *A staged record names the published record it was edited from* (`{ on, r }`). The shared
+    buffer is never cleared, so without it a record staged last week would override what the
+    production page published since. It counts only while `on` equals what is published.
+  - *Hosted presets resolve against the published box*: the hosted page measures nothing; the box
+    is the production page's last qualified one, so the block reads it as current.
+  - *The look panel writes the record directly, not through the rundown history* (the history's
+    slice is cues, graphics, folders and items); "Clear exceptions" edits records, so it joins it.
+  - *`keepStyle` keeps the whole look out of its scope*, type and colour, whichever row wrote it:
+    the record has one flag, and the spec's "excludes the production look's style".
+  - *A look face that no pool graphic ships reaches nothing* and the reach says "Type reaches 0":
+    the bytes travel only as a pool template's asset (row 32d's asset road).
+- **Seams changed and where:** L2.2's fold (`effectiveAdjust` gains `look`), `StyleContext.lookFor`,
+  `styleContextFor`'s second argument; the stage's update path and the composed document's late
+  refit (L2.2); `buildOutputPayload` and `publishControlShow` take one `publishedOf` callback for
+  the appearance and the records (was `appearanceOf`); `hostedCueValues` skips `@adjust` keys;
+  E2's verbs gain `sendLook` with `GraphicPage.lookAppearanceOf` and `cueById`. The wire, the
+  message kinds and recovery are untouched.
+- **Not here:** foreign graphics (AC-10's foreign case, after E3.2b), and AC-11's look and
+  wrong-scope tasks, which join E8.2's kit.
+- **Traps.**
+  - PROGRAM holds one frame per pool graphic, so a probe into it names its frame
+    (`iframe` `.first()` in pool order); a bare `frameLocator` is ambiguous and reads null.
+  - `scripts/ograf-typed-writer.test.mjs` pins `if (dataless) break;` as text; the appearance-only
+    skip is its own line beside it.
+  - The browser queue wants `chromium_headless_shell-1228`; symlinked to `-1243` (#1647).
+- **Touched files against `d9c29b9`:** `e2e/configured/hosted-control-recovery.spec.ts`,
+  `e2e/playout-adjust.spec.ts`, `e2e/production-controls.spec.ts`, `scripts/graphic-verbs.test.mjs`,
+  `scripts/hosted-adjust.test.mjs` (new), `scripts/production-look.test.mjs` (new),
+  `src/audience/audienceBrand.ts`, `src/components/HostedControlPage.tsx`,
+  `src/components/control/HostedCueAdjust.tsx` (new), `src/components/home/CueAdjust.tsx`,
+  `src/components/home/ProductionLook.tsx` (new), `src/components/home/ProductionPage.tsx`,
+  `src/components/home/ProductionSetupMenu.tsx`, `src/components/home/ProductionShell.tsx`,
+  `src/components/home/exportAppearances.ts`, `src/components/home/useProductionPublish.ts`,
+  `src/control/adjustGeometry.ts`, `src/control/cueAdjust.ts`, `src/control/cueStaging.ts`,
+  `src/control/cueStyle.ts`, `src/control/exportAppearance.ts`, `src/control/graphicVerbs.ts`,
+  `src/control/hostedAdjust.ts` (new), `src/control/hostedControl.ts`,
+  `src/control/productionLook.ts` (new), `src/model/shows.ts`, `src/model/teamShowMerge.ts`,
+  `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`,
+  `src/styles/playout-dashboard.css`, this file.
+
 ## Row 38 (E2.2, project phase 42): runtime step and target controls, truthful feedback
 
 - **Previous verified `main` sha:** `55621f9` (row 37 passed, PR #1772). This branch was built on
