@@ -2219,16 +2219,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     () => createMeasurer(session.geometry, { measure: (input) => measureCue((input as MeasureInput).template, (input as MeasureInput).values, (input as MeasureInput).style) }, session.alive),
     [session],
   );
-  const measureJobs = (record: Show, lib = library): MeasureJob[] =>
-    (record.cues ?? []).flatMap((cue) => {
+  /** `everyGraphic`: also one cue of each graphic nobody adjusted, for
+   *  Publish, so the hosted page's Adjust block has a box to resolve its presets against (a
+   *  graphic's other cues read its last box). */
+  const measureJobs = (record: Show, lib = library, everyGraphic = false): MeasureJob[] => {
+    const seen = new Set<string>();
+    return (record.cues ?? []).flatMap((cue) => {
       const g = record.graphics.find((x) => x.id === cue.sourceId);
-      if (!g || cue.source === 'playout' || (g.adjust === undefined && cue.adjust === undefined)) return [];
+      if (!g || cue.source === 'playout') return [];
+      if (g.adjust === undefined && cue.adjust === undefined) {
+        if (!everyGraphic || seen.has(g.id)) return [];
+        seen.add(g.id);
+      }
       const values = airedValuesOf(cue);
       const state = adjustStateOf(cue, record, lib);
       const styleId = state?.measureStyleId ?? '';
       const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(state) };
       return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
     });
+  };
   // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
   // the identity a cue's box was measured for.
   useEffect(() => {
@@ -2551,11 +2560,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
       // measurer has not answered for publishes its last placement).
       // Every graphic cue carries its records (none, for a graphic nobody adjusted) and the box this
-      // page measured, so the hosted page's Adjust block can start from any of them; only an
+      // page measured (one cue of an unadjusted graphic is measured here for it), so the hosted page's Adjust block can start from any of them; only an
       // adjusted cue carries an appearance.
       appearanceFor: async (latest) => {
         const lib = loadGraphics();
-        await Promise.all(measureJobs(latest, lib).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
+        await Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
         const ctx = styleCtxOf(latest, templates);
         return (cue) => {

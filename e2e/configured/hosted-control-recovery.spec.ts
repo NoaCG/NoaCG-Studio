@@ -264,6 +264,8 @@ test('the hosted page adjusts a cue nobody adjusted, on a phone: staged, shown o
     expect(box!.height).toBeGreaterThanOrEqual(40);
   }
   expect(await op.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no sideways scroll at 390 px').toBe(true);
+  // Publish measured one cue of the graphic nobody adjusted, so the Place presets resolve here.
+  await expect(op.getByTestId('adjust-place-tr')).toBeEnabled();
 
   // Staged, shown on PREVIEW, not on air.
   const preview = op.getByTestId('hosted-preview-stage').locator('iframe').first();
