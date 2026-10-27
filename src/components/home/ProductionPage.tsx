@@ -86,7 +86,7 @@ import type { Resolution, SpxTemplate } from '../../model/types';
 import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend } from '../../model/ografTyped';
 import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
 import { graphicButtons, receivesTypedActions } from '../../control/ografContract';
-import { createTypedSaves, createTypedSendMemo, typedActionSendFor, TYPED_VALUES_PART } from '../../control/typedSend';
+import { createTypedSaves, createTypedSendMemo, typedActionPart, typedActionSendFor, TYPED_VALUES_PART } from '../../control/typedSend';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
@@ -1661,7 +1661,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const actions = declared.description.actions.flatMap((a) => {
       if (!a.args || !receives) return [];
       const value = actionArgsOf(a, cue.typedArgs);
-      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, update), `Edit ${a.name}`, a.id) }];
+      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, update), `Edit ${a.name}`, typedActionPart(a.id)) }];
     });
     return values || actions.length ? { values, actions, register: registerTypedFlush } : null;
   };
@@ -2914,7 +2914,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return unsaved ? { status: 'refused', reason: unsaved } : typedFor(storedCue(cue), graphic);
     },
     typedActionFor: (cue, graphic, action) => {
-      const unsaved = typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART, action]);
+      const unsaved = typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART, typedActionPart(action)]);
       return unsaved ? { status: 'refused', reason: unsaved } : typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id });
     },
     typedAiring: (graphic) => graphic in (session.air.get().typedAired ?? NO_TYPED_AIR),

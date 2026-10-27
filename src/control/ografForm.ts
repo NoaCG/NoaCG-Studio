@@ -55,6 +55,18 @@ export function typedOptionalAt(node: TypedNode, path: TypedPath): boolean {
   return !!prop && !prop.required;
 }
 
+/**
+ * What an emptied box keeps at `path`, or null to read its text as usual. An optional value is
+ * absent again. A number has no empty value: as an object's property it is absent too (a required
+ * one is then marked missing), while at the root or a list's index it keeps `null`, marked, since an
+ * absent action's arguments are made again from their defaults and an absent item closes up its list.
+ */
+export function typedEmptied(node: TypedNode, path: TypedPath, number: boolean): { value: JsonValue | undefined } | null {
+  if (typedOptionalAt(node, path)) return { value: undefined };
+  if (!number) return null;
+  return { value: typeof path[path.length - 1] === 'string' ? undefined : null };
+}
+
 /** The value at `path`, or undefined when nothing is there. */
 export function getAt(value: JsonValue | undefined, path: TypedPath): JsonValue | undefined {
   let at: JsonValue | undefined = value;
@@ -163,7 +175,7 @@ export function typedLeaf(node: TypedNode, key: string, label = typedLabel(node,
       if (step !== undefined) d.step = step;
       return {
         descriptor: d,
-        show: (v) => (typeof v === 'number' ? v : v === undefined ? '' : String(v)),
+        show: (v) => (typeof v === 'number' ? v : v === undefined || v === null ? '' : String(v)),
         read: (edited) => (typeof edited === 'number' ? edited : Number(edited)),
       };
     }

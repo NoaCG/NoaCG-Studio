@@ -89,8 +89,10 @@ export function typedActionSendFor(cue: { typedArgs?: unknown }, action: string,
 /** A typed edit that did not save sends nothing older in its place (E2.1). */
 export const TYPED_NOT_SAVED = 'The last typed edit was not saved, so nothing typed was sent. Check the value and try again.';
 
-/** The part of a cue a typed write saves: its values, or one action's arguments by the action's id. */
+/** The part of a cue a typed write saves: its values, or one action's arguments (`typedActionPart`). */
 export const TYPED_VALUES_PART = 'values';
+/** An action's arguments as a part, never the values part whatever the action's id. */
+export const typedActionPart = (actionId: string) => `action:${actionId}`;
 
 /**
  * THE TYPED FORM'S SAVES, CUE BY CUE AND PART BY PART (E2.1): a part whose last write failed sends

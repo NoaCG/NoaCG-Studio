@@ -25,7 +25,7 @@ const stranger = JSON.parse(readFileSync(path.join(root, 'scripts/fixtures/ograf
 const form = await import('../src/control/ografForm.ts');
 const typed = await import('../src/model/ografTyped.ts');
 const contract = await import('../src/control/ografContract.ts');
-const { typedActionSendFor, createTypedSaves, TYPED_NOT_SAVED, TYPED_VALUES_PART } = await import('../src/control/typedSend.ts');
+const { typedActionSendFor, createTypedSaves, TYPED_NOT_SAVED, TYPED_VALUES_PART, typedActionPart } = await import('../src/control/typedSend.ts');
 const { graphicCapabilities, foreignCapabilities, graphicControls } = await import('../src/control/panelActions.ts');
 const { replaceRundown, rundownSlice } = await import('../src/model/rundownHistory.ts');
 
@@ -115,6 +115,22 @@ test('drafts that do not fit are marked at their paths, kept, and refused only b
   const bytes = JSON.stringify(cue);
   assert.equal(typed.typedForSend(cue, declared).status, 'refused');
   assert.equal(JSON.stringify(cue), bytes);
+});
+
+test('an emptied box is absent where the value may be, and a number with no key keeps null, marked', () => {
+  // The fixture's teams item requires a number; its name is required text, and the action's colour optional.
+  assert.deepEqual(form.typedEmptied(fields, ['teams', 0, 'score'], true), { value: undefined }, 'a required property number is missing');
+  assert.equal(form.typedEmptied(fields, ['teams', 0, 'name'], false), null, 'required text reads as the empty string');
+  const highlight = action('highlight').args;
+  assert.deepEqual(form.typedEmptied(highlight, ['colour'], false), { value: undefined });
+  // A number that is the whole of an action's arguments, or a list's item: null, never a reseed or a closed-up list.
+  const scalar = { path: '', type: 'number', default: 7 };
+  assert.deepEqual(form.typedEmptied(scalar, [], true), { value: null });
+  const list = { path: '', type: 'array', items: { path: '[]', type: 'number' } };
+  assert.deepEqual(form.typedEmptied(list, [0], true), { value: null });
+  assert.deepEqual(form.setAt([10, 20], [0], null), [null, 20]);
+  assert.ok(form.typedErrorsByPath(list, [null, 20]).has('[0]'), 'the null is marked where it is');
+  assert.equal(form.typedLeaf(scalar, '').show(null), '');
 });
 
 test('defaults apply when a value is made, never when a form reopens', () => {
@@ -358,19 +374,24 @@ test('undo and redo put back a typed envelope the form changed; turning typed da
 test('a typed part whose edit did not save sends nothing typed until its own next write lands; other parts and cues are untouched', () => {
   const saves = createTypedSaves();
   const take = [TYPED_VALUES_PART];
-  const press = [TYPED_VALUES_PART, 'highlight'];
+  const press = [TYPED_VALUES_PART, typedActionPart('highlight')];
   assert.equal(saves.refusal('a', take), null);
   saves.landed('a', TYPED_VALUES_PART, false);
   assert.equal(saves.refusal('a', take), TYPED_NOT_SAVED);
   assert.equal(saves.refusal('a', press), TYPED_NOT_SAVED, 'a press waits on the values too');
   assert.equal(saves.refusal('b', take), null, 'another cue still takes');
   saves.landed('b', TYPED_VALUES_PART, true);
-  saves.landed('a', 'highlight', true);
+  saves.landed('a', typedActionPart('highlight'), true);
   assert.equal(saves.refusal('a', take), TYPED_NOT_SAVED, 'an argument save does not stand for the values');
   saves.landed('a', TYPED_VALUES_PART, true);
   assert.equal(saves.refusal('a', take), null);
-  saves.landed('a', 'highlight', false);
+  saves.landed('a', typedActionPart('highlight'), false);
   assert.equal(saves.refusal('a', take), null, 'a failed argument save leaves Take alone');
   assert.equal(saves.refusal('a', press), TYPED_NOT_SAVED);
-  assert.equal(saves.refusal('a', [TYPED_VALUES_PART, 'reset']), null, 'another action still presses');
+  assert.equal(saves.refusal('a', [TYPED_VALUES_PART, typedActionPart('reset')]), null, 'another action still presses');
+  // An action whose id is the values part's word is still its own part.
+  const named = createTypedSaves();
+  named.landed('c', TYPED_VALUES_PART, false);
+  named.landed('c', typedActionPart(TYPED_VALUES_PART), true);
+  assert.equal(named.refusal('c', [TYPED_VALUES_PART]), TYPED_NOT_SAVED);
 });

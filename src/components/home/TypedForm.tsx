@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, type ReactNode } from 'react';
 import { FieldControl, isSegmented, type FieldImage } from '../fields/FieldControl';
-import { getAt, pathKey, setAt, typedLabel, typedLeaf, typedNodeAt, typedOptionalAt, TYPED_FORM_ITEMS_SHOWN, type TypedPath } from '../../control/ografForm';
+import { getAt, pathKey, setAt, typedEmptied, typedLabel, typedLeaf, typedNodeAt, typedOptionalAt, TYPED_FORM_ITEMS_SHOWN, type TypedPath } from '../../control/ografForm';
 import { typedSeed, type TypedNode } from '../../model/ografTyped';
 import type { JsonValue } from '../../model/productionData';
 import { useDeferredEdits } from './useDeferredEdits';
@@ -38,13 +38,13 @@ export function TypedForm(props: TypedFormProps) {
   const { node, value, onChange, errors, testIdPrefix } = props;
   // An edit is keyed by its path's JSON; the commit, which the hook repoints every render, reads it
   // into the newest value through the node at that path.
-  // An optional value emptied is absent again, never an empty string the schema may refuse; an
-  // emptied number is absent too (a required one is then marked missing and refuses the send).
+  // An emptied box keeps what `typedEmptied` says (never an empty string the schema may refuse).
   const edits = useDeferredEdits((key, text) => {
     const path = JSON.parse(key) as TypedPath;
     const leaf = typedLeaf(typedNodeAt(node, path) ?? node, pathKey(path));
-    const absent = text === '' && (typedOptionalAt(node, path) || leaf?.descriptor.kind === 'number');
-    if (leaf) onChange((current) => setAt(current, path, absent ? undefined : leaf.read(text)));
+    if (!leaf) return;
+    const emptied = text === '' ? typedEmptied(node, path, leaf.descriptor.kind === 'number') : null;
+    onChange((current) => setAt(current, path, emptied ? emptied.value : leaf.read(text)));
   });
 
   const flushNow = useRef(edits.flush);

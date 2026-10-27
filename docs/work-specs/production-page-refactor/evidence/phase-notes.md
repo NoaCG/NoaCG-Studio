@@ -130,8 +130,9 @@ changes a spec's digest.
     path and none is refused or rewritten.
   - *A typed edit that did not save sends nothing typed*: a part of a cue whose last write failed
     (`control/typedSend.ts` `createTypedSaves`, by cue and part: its values, or one action's
-    arguments) refuses what would send it with the reason, rather than air the older record: Take and
-    ✎ Update ask for the values, a press for the values and its action's arguments. It clears when
+    arguments, kept apart whatever the action is called) refuses what would send it with the
+    reason, rather than air the older record: Take and ✎ Update ask for the values, a press for the
+    values and its action's arguments. It clears when
     that part's next write lands, or (values) when typed data is turned Off or On, since the form then
     shows what is stored. A write to another part or cue clears nothing.
   - *An image declared only by `contentMediaType: image/*`* draws the picture picker in the typed
@@ -140,8 +141,11 @@ changes a spec's digest.
     no stored envelope changes.
   - *An emptied number is absent*: the number control keeps an empty box as its own draft and never
     reported it, so a Take or ✎ Update pressed before the box lost focus sent the number it held
-    before. `FieldControl` now says so (`onEmpty`, number only, used by the typed form alone); the
-    typed form stores the number absent, and a required one is marked missing and refuses the send.
+    before. `FieldControl` now says so (`onEmpty`, number only, used by the typed form alone). As an
+    object's property the number is stored absent, and a required one is marked missing and refuses
+    the send. At the root of an action's arguments or a list's index it is stored `null`, marked
+    (`ografForm.ts` `typedEmptied`): absent there would reseed the action's default or close up the
+    list, and either would send a value the operator did not type.
   - *Actions only where they can be received*: until E3 mounts a stranger's package, an imported
     graphic airs as a composed page that takes an action only through `noacgDispatch`; a page that
     defines none is offered no ⚡ button and no argument form (`receivesTypedActions`).
