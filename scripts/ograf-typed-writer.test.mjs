@@ -426,6 +426,11 @@ test('E2.1: the form keeps typed drafts as they are and action arguments per act
     assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'T', teams: [] }).error, null);
     assert.equal(shows.setCueTyped(show.id, cueId, false).error, null);
     assert.deepEqual(read().values, { title: 'T', teams: '[]' });
+    // The On after it: the removed `round` (declared default 1) takes that default, and `logo` (no
+    // default, not required) stays absent; nothing comes back from before the removal.
+    assert.equal(shows.setCueTyped(show.id, cueId, true).error, null);
+    assert.deepEqual(read().typed.values, { title: 'T', teams: [], round: 1, ratio: 1, live: true, accent: '#005ca9', opacity: 0.8 });
+    assert.equal(shows.setCueTyped(show.id, cueId, false).error, null);
     assert.equal(shows.setCueTypedArgs(show.id, cueId, highlight, undefined).error, null);
     assert.equal(read().typedArgs, undefined);
   } finally {

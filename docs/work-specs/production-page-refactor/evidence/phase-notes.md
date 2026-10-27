@@ -81,8 +81,13 @@ changes a spec's digest.
   - *A typed cue whose graphic's schema cannot be drawn* (declaration lost or unreadable) reads out
     read-only as E1.2a showed it (`typedUndrawn`), never as editable native strings.
   - *Off keeps a removal* (after the `/so` on `5109f11`): Off writes the envelope's values back as
-    text and drops each declared key the envelope no longer holds, so a value the form removed is not
-    brought back by Off then On (E1.2a merged the envelope over the old strings).
+    text and drops each declared key the envelope no longer holds, so the value the form removed is
+    never brought back by Off then On (E1.2a merged the envelope over the old strings). A removed key
+    that declares a `default` takes that default at the next On, as any missing key does: turning
+    typed data on is making its values, and an absent value with a declared default reads the same to
+    a Graphic. Pinned in `scripts/ograf-typed-writer.test.mjs`.
+  - *An absent optional on/off* draws as off, like any missing boolean in a form; its ✕ shows only
+    while it holds a value, so "absent" and "false" differ by that mark alone. Presentation only.
   - *A typed edit is under every verb's wait* (Codex P1 on `e2b51b0`): the page's `flushDraft` first
     lands each form's settling edit (`registerTypedFlush`), and the verbs read the cue as stored after
     the wait (`storedCue`), so a Take by key or panel airs what the box shows.
