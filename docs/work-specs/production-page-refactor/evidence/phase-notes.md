@@ -79,7 +79,17 @@ changes a spec's digest.
     `components/playout-behaviour-production-page-lands-verb`), pruned on every move of the
     session's `air` part, so an Out and a Take of the same cue start clean; a panel key's press
     marks the same button a click does; the press records the session's own instance, the one its
-    check reads; a press that throws is marked failed.
+    check reads; a press that throws is marked failed. Each ⚡ button subscribes to its own mark
+    (`CueActions.tsx` `useMark`), so a press redraws that button, not the page; the store's prune is
+    the one place a mark is dropped (a second, draw-time filter was removed after a mutant of it
+    stayed green).
+  - *Left as they are after `/simplify`*: one `stepCount` reader for the judge and the contract
+    (the contract draws an unreadable count as one step; the judge refuses to step what it cannot
+    read, which is the safer side for a stranger's package, and E3 qualifies manifests anyway);
+    marking inside `graphicVerbs.event` rather than at its three callers (every page and panel
+    press goes through `pressMarked`; moving it into the verbs is a wider change than this row);
+    one outcome vocabulary for the foreign layer's answers and the page's marks (they meet when E3
+    wires a mounted package's answers to its buttons); the harness's `callTimeoutMs` option.
   - *Seams changed and where*: E2.1's typed press (unchanged behaviour, now marked);
     L1's `actionButtonFor` context (`mark`, `airLabel`) and pinned block press
     (`pressMarked`); the OGraf host bridge (no serial chain, `callTimeoutMs`);
@@ -102,7 +112,7 @@ changes a spec's digest.
   `e2e/ograf-controls.spec.ts`, `scripts/ograf-steps.test.mjs` (new),
   `scripts/press-feedback.test.mjs` (new), `scripts/graphic-verbs.test.mjs`,
   `scripts/ograf-form.test.mjs`, this file.
-- **Verification.** Node: `ograf-steps` (6), `press-feedback` (7), `graphic-verbs` (138, two new:
+- **Verification.** Node: `ograf-steps` (6), `press-feedback` (6), `graphic-verbs` (138, two new:
   a pinned block's typed press sends the on-air cue's arguments while another cue is edited and is
   refused when the instance is replaced mid-wait; a superseded, stale, unanswered or failed press
   is never accepted), `ograf-form` (the typed toggle's boolean read), and `ograf-typed`,
@@ -119,11 +129,11 @@ changes a spec's digest.
   and after, desktop and phone, looked at and not committed.
 - **Mutation checks** (each red, restored after). Node: a Goto bound `>` for `>=`; the delta cap
   101; the unknown-position refusal removed; a 408 read as a refusal that moved nothing; a 0 count
-  taking steps; a mark shown on any instance; an accepted press read as sent with no output; an
+  taking steps; marks not pruned when the layer moves; an accepted press read as sent with no output; an
   older answer settling a newer press; the toggle read as `String(edited)`. Browser: the host's
   serial chain put back; a 504 read as done; `destroy` leaving calls out unsettled; the typed press
-  sending the edited cue's arguments; a mark shown on a new instance; the marks not following the
-  `air` part (the same cue taken again kept its mark); an older play's answer moving the position.
+  sending the edited cue's arguments; the marks not following the `air` part (a new instance, and
+  the same cue taken again, kept the old mark); an older play's answer moving the position.
 
 ## Row 37 (E2.1, project phase 41): typed OGraf forms and action arguments
 

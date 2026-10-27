@@ -1,12 +1,12 @@
 // WHAT A LIVE PRESS CAME TO, ON ITS BUTTON (src/control/pressFeedback.ts; E2.2, AC-3): sending,
 // sent, unheard, unknown, refused and failed are told apart; nothing but a press the outputs' road
-// took with an output reporting reads as sent; a mark belongs to the instance it was pressed on;
-// and an older press's answer never overwrites a newer one's.
+// took with an output reporting reads as sent; a mark is dropped once its layer holds another
+// instance; and an older press's answer never overwrites a newer one's.
 // guards: src/control/pressFeedback.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { PRESS_SAYS, pressKey, pressSending, pressSettled, settleMark, shownMark, markTitle, pruneMarks, createPressMarks } = await import('../src/control/pressFeedback.ts');
+const { PRESS_SAYS, pressKey, pressSending, pressSettled, settleMark, markTitle, pruneMarks, createPressMarks } = await import('../src/control/pressFeedback.ts');
 
 test('only an accepted press with an output reporting reads as sent', () => {
   const m = pressSending('Score', 'c1', 1);
@@ -25,15 +25,6 @@ test('every state reads differently, by icon or by words, and sent never says on
   for (const { says } of Object.values(PRESS_SAYS)) assert.doesNotMatch(says, /on air|done|confirmed/i);
   assert.equal(PRESS_SAYS.sent.icon, '✓');
   for (const state of ['sending', 'unheard', 'unknown', 'refused', 'failed']) assert.notEqual(PRESS_SAYS[state].icon, '✓', state);
-});
-
-test('a mark is shown only while its instance is on the layer', () => {
-  const m = pressSettled(pressSending('Score', 'c1', 1), { outcome: 'accepted' }, true);
-  assert.equal(shownMark(m, 'c1'), m);
-  assert.equal(shownMark(m, 'c2'), null, 'another cue took the layer: neither confirmed nor pending carries over');
-  assert.equal(shownMark(m, null), null, 'off air');
-  assert.equal(shownMark(pressSending('Score', 'c1', 2), 'c2'), null);
-  assert.equal(shownMark(undefined, 'c1'), null);
 });
 
 test('an answer settles only the press it answers', () => {

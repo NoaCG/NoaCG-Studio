@@ -82,11 +82,14 @@ export function ografStepFor(op: OgrafStepOp, runtime: OgrafStepRuntime): OgrafS
   return { ok: true, params: { delta, ...skip } };
 }
 
+/** A ReturnPayload's status is a success. */
+export const ografOk = (code: number) => code >= 200 && code < 300;
+
 /** What a `playAction` answer says about where the runtime is. A success names its step, or none
  *  at the end; a refusal (4xx) moved nothing; anything else leaves the position unknown. */
 export function ografStepAfter(at: OgrafStepAt, answer: { statusCode: number; currentStep?: number } | null): OgrafStepAt {
   if (!answer) return null;
-  if (answer.statusCode >= 200 && answer.statusCode < 300) {
+  if (ografOk(answer.statusCode)) {
     const step = answer.currentStep;
     return typeof step === 'number' && Number.isInteger(step) && step >= 0 ? step : 'end';
   }

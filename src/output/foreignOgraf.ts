@@ -22,7 +22,7 @@
 import { hostTagFor, ografHostDocument, OGRAF_CALL_TIMEOUT_MS, OGRAF_PORT_TYPE, type OgrafCall } from '../control/ografHost';
 import type { ControlMessage } from '../control/controlModel';
 import { ografCallFor } from '../control/ografContract';
-import { ografStepAfter, ografStepFor, type OgrafStepAt, type OgrafStepOp } from '../control/ografSteps';
+import { ografOk, ografStepAfter, ografStepFor, type OgrafStepAt, type OgrafStepOp } from '../control/ografSteps';
 import type { Resolution } from '../model/types';
 
 /** One foreign package placed on a layer of the stage. */
@@ -109,9 +109,10 @@ function believe(call: OgrafCall, payload: unknown): OgrafReturn {
 
 /** A believed reply as the operator may be told it: only a 2xx is done, and a 504 is a timeout. */
 function answerOf(r: OgrafReturn): OgrafAnswer {
-  if (r.statusCode >= 200 && r.statusCode < 300) return { status: 'done', statusCode: r.statusCode, ...(r.statusMessage ? { statusMessage: r.statusMessage } : {}), ...(r.currentStep !== undefined ? { currentStep: r.currentStep } : {}) };
-  if (r.statusCode === 504) return { status: 'timeout', ...(r.statusMessage ? { statusMessage: r.statusMessage } : {}) };
-  return { status: 'rejected', statusCode: r.statusCode, ...(r.statusMessage ? { statusMessage: r.statusMessage } : {}) };
+  const said = r.statusMessage ? { statusMessage: r.statusMessage } : {};
+  if (ografOk(r.statusCode)) return { status: 'done', statusCode: r.statusCode, ...said, ...(r.currentStep !== undefined ? { currentStep: r.currentStep } : {}) };
+  if (r.statusCode === 504) return { status: 'timeout', ...said };
+  return { status: 'rejected', statusCode: r.statusCode, ...said };
 }
 
 /** Build one foreign Graphic's frame into `parent` (the stage) at the production resolution.
@@ -168,6 +169,12 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   const post = (call: OgrafCall, args: unknown[]): Promise<OgrafAnswer> => {
     if (gone) return Promise.resolve({ status: 'gone' });
     const callId = nextId++;
+    // A Take restarts the walk, an Out ends it and a step moves it: until this call's answer,
+    // where it is is not known, and only the newest such call's answer says (`walk`).
+    if (call === 'play' || call === 'stop') {
+      walk += 1;
+      at = null;
+    }
     const answered = new Promise<OgrafAnswer>((resolve) => {
       if (call === 'offair') return resolve({ status: 'done', statusCode: 200 });
       const timer = setTimeout(() => settle({ status: 'timeout', statusMessage: 'the graphic answered nothing' }), deadline);
@@ -177,7 +184,6 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
         clearTimeout(timer);
         resolve(answer);
       };
-      if (call === 'play' || call === 'stop') walk += 1;
       pending.set(callId, { call, walk, settle });
     });
     // A Graphic that never answers cannot grow the book forever: the oldest call is given up.
@@ -195,8 +201,10 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     const told = believe(out.call, data.payload);
     returns.push(told);
     if (returns.length > RETURNS_KEPT) returns.splice(0, returns.length - RETURNS_KEPT);
-    if (out.walk === walk && out.call === 'play') at = ografStepAfter(at, told);
-    else if (out.walk === walk && out.call === 'stop' && told.statusCode >= 200 && told.statusCode < 300) at = null;
+    if (out.walk === walk) {
+      if (out.call === 'play') at = ografStepAfter(at, told);
+      else if (out.call === 'stop' && ografOk(told.statusCode)) at = null;
+    }
     out.settle(answerOf(told));
   };
   /** Every call still out, settled as gone: its instance is no longer the one on the layer. */
@@ -207,8 +215,6 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   const call = (msg: ControlMessage): Promise<OgrafAnswer> | null => {
     const mapped = ografCallFor(msg);
     if (!mapped) return null;
-    // A Take restarts the walk and an Out ends it: until the answer, where it is is not known.
-    if (mapped.call === 'play' || mapped.call === 'stop') at = null;
     return post(mapped.call, mapped.args);
   };
 
@@ -236,8 +242,6 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     step: (op) => {
       const judged = ografStepFor(op, { declared: manifest.stepCount, at });
       if (!judged.ok) return Promise.resolve({ status: 'refused', reason: judged.refusal });
-      // Until its answer, the walk is the Graphic's: no second relative step counts from a guess.
-      at = null;
       return post('play', [judged.params]);
     },
     position: () => ({ at, declared: manifest.stepCount }),

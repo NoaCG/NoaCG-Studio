@@ -117,7 +117,8 @@ export function ografHostDocument(opts: OgrafHostOptions): string {
     ? `<meta http-equiv="Content-Security-Policy" content="${ografNetworkPolicy(base)}">\n`
     : '';
   // Driven by the embedding page over the ONE port its parent hands over (OGRAF_PORT_TYPE).
-  const timeout = Number.isInteger(opts.callTimeoutMs) && (opts.callTimeoutMs as number) > 0 ? (opts.callTimeoutMs as number) : OGRAF_CALL_TIMEOUT_MS;
+  const asked = opts.callTimeoutMs;
+  const timeout = asked !== undefined && Number.isInteger(asked) && asked > 0 ? asked : OGRAF_CALL_TIMEOUT_MS;
   const bridge = opts.sandbox
     ? `
   const host = window.__ografHost;

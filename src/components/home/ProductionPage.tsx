@@ -79,7 +79,7 @@ import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } f
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
 import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
-import { createPressMarks, pressKey, shownMark } from '../../control/pressFeedback';
+import { createPressMarks } from '../../control/pressFeedback';
 import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
@@ -687,7 +687,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  included. */
   const pressMarks = useMemo(() => createPressMarks(session.air), [session]);
   useEffect(() => pressMarks.follow(), [pressMarks]);
-  const drawnMarks = useStorePart(pressMarks.part);
   const airedData = usePacedPart(session.air, airedOf);
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
@@ -748,7 +747,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [slotRev, setSlotRev] = useState(0);
   /** A graphic Take went out while nothing that could air it was reporting (AC-2 "No output"). */
   const [noOutputTake, setNoOutputTake] = useState(false);
-
   /**
    * THE ONE MARKER WRITE (control/airState.ts `moveLiveCue`), and why every write is counted in the
    * `air` part's `moves`.
@@ -3211,7 +3209,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // reporting reads so, never as sent.
     return pressMarks.press(graphic, button.event, session.air.get().liveCue[graphic] ?? null, () => verbs.event(sel, button, named), () => !hostedSlugRef.current || usableOutputRef.current);
   };
-  const markFor = (graphic: string | null) => (event: string) => (graphic ? shownMark(drawnMarks[pressKey(graphic, event)], liveCue[graphic] ?? null) : null);
+  const marksOf = (graphic: string | null) => (graphic ? { part: pressMarks.part, graphic } : undefined);
 
   /** Fire a machine event on the live graphic, or snap it straight to a state (control/graphicVerbs.ts
    *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
@@ -3228,7 +3226,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     labelOf: (key) => descriptors.find((d) => d.key === key)?.label,
     aired: selectedGraphic ? (airedData[selectedGraphic] ?? null) : null,
     fire: (b) => void fireEvent(b),
-    mark: markFor(selectedGraphic),
+    marks: marksOf(selectedGraphic),
     airLabel: view.airCue?.label,
   });
 
@@ -3451,7 +3449,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         labelOf: (key) => m.descriptors.find((d) => d.key === key)?.label,
         aired: g.aired,
         fire: (b) => void pressMarked(sel, b),
-        mark: markFor(graphic),
+        marks: marksOf(graphic),
         airLabel: sel.airCue?.label,
       }),
       liveNumberFields: [...g.numbers],

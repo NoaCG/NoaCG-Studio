@@ -12,7 +12,7 @@
 //   ✕  failed       it did not go
 //
 // A mark belongs to the cue live on the layer when it was pressed. Once another cue holds that
-// layer (a Take, an Out, a replacement), the mark is not shown: its answer is the old instance's,
+// layer (a Take, an Out, a replacement), the mark is dropped: its answer is the old instance's,
 // and neither a pending nor a confirmed press of it may read as the new one's. A later press of the
 // same button replaces its mark, and an answer for an older press never overwrites a newer one.
 //
@@ -66,11 +66,6 @@ export function settleMark(marks: Readonly<Record<string, PressMark>>, key: stri
   return { ...marks, [key]: pressSettled(mark, done, heard) };
 }
 
-/** The mark to draw on a button now: none once another cue holds the layer. */
-export function shownMark(mark: PressMark | undefined, onLayer: string | null): PressMark | null {
-  return mark && mark.cue === onLayer ? mark : null;
-}
-
 /** The button's title with what its last press came to. */
 export function markTitle(title: string, mark: PressMark | null): string {
   if (!mark) return title;
@@ -99,6 +94,7 @@ export interface PressMarks {
 export function createPressMarks(air?: Pick<StorePart<{ liveCue: Readonly<Record<string, string>> }>, 'get' | 'subscribe'>): PressMarks {
   const part = storePart<Record<string, PressMark>>({});
   let seq = 0;
+  const prune = (liveCue: Readonly<Record<string, string>>) => part.set((marks) => pruneMarks(marks, liveCue));
   return {
     part,
     press: async (graphic, event, cue, run, heard) => {
@@ -114,7 +110,7 @@ export function createPressMarks(air?: Pick<StorePart<{ liveCue: Readonly<Record
       part.set((marks) => settleMark(marks, key, n, done, heard()));
       return done;
     },
-    prune: (liveCue) => part.set((marks) => pruneMarks(marks, liveCue)),
-    follow: () => (air ? air.subscribe(() => part.set((marks) => pruneMarks(marks, air.get().liveCue))) : () => {}),
+    prune,
+    follow: () => (air ? air.subscribe(() => prune(air.get().liveCue)) : () => {}),
   };
 }
