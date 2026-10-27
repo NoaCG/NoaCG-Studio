@@ -128,6 +128,16 @@ describe('the doors, as on the production page', () => {
     assert.deepEqual(H.hostedImported(pub, records, offered), offered);
   });
 
+  test('a staged change on a cue on air is a change not on air yet, until the wire carries it', () => {
+    const pub = pubOf();
+    const cue = cueOf('c1', pub);
+    assert.equal(H.hostedPlaceWaiting(cue, [cue], {}, null, ctx), false, 'nothing staged: nothing waits');
+    const buffer = apply({}, H.stageAdjustStep(pub, H.hostedRecords(pub, {}, 'c1'), 'c1', 'cue', { x: 10 }));
+    assert.equal(H.hostedPlaceWaiting(cue, [cue], buffer, null, ctx), true);
+    const sent = H.hostedAppearance(cue, [cue], buffer, null, ctx);
+    assert.equal(H.hostedPlaceWaiting(cue, [cue], buffer, sent, ctx), false, 'another operator sent it: cleared');
+  });
+
   test('a cue that picked the look\'s face keeps it once the look is off', () => {
     const font = { family: 'Brand Sans', assetPath: 'fonts/look/brand-sans.woff2' };
     const pub = pubOf({ graphic: undefined, cue: { v: 1, font } });

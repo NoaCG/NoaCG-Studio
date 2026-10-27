@@ -26,7 +26,7 @@ import { cueAdjustState, NO_GEOMETRY, type CueAdjustState, type GeometryPart, ty
 import { STAGED_ADJUST } from './cueStaging.ts';
 import type { ImportedFace } from './cueStyle.ts';
 import { LOOK_FONT_DIR } from './productionLook.ts';
-import { publishedAppearance, type AppliedAppearance, type LookLayer, type Measurement, type Size } from './cueAdjust.ts';
+import { appearanceEquals, IDENTITY, publishedAppearance, type AppliedAppearance, type LookLayer, type Measurement, type Size } from './cueAdjust.ts';
 
 /** What Publish carries beside a cue for the hosted page's Adjust block. */
 export interface PublishedAdjust {
@@ -144,6 +144,20 @@ export function hostedAppearance(
   const records = hostedRecords(cue.adjust, buffer, cue.id);
   if (!records.staged) return publishedAppearance(cue, cues, applied);
   return hostedAdjustState(cue.adjust, records, cue.id, applied, adjustedElsewhere(cue, cues, buffer), styleCtx).send;
+}
+
+/** A waiting change on the hosted page, as the production page's `placeWaiting`: what a Take or
+ *  Update of the cue would carry differs from what the wire says its graphic holds applied. Another
+ *  operator's send of the same appearance clears it. */
+export function hostedPlaceWaiting(
+  cue: { id: string; graphic: string; appearance?: AppliedAppearance; adjust?: PublishedAdjust },
+  cues: readonly { id: string; graphic: string; appearance?: AppliedAppearance; adjust?: PublishedAdjust }[],
+  buffer: Readonly<Record<string, string>> | undefined,
+  applied: AppliedAppearance | null | undefined,
+  styleCtx: StyleContext,
+): boolean {
+  const next = hostedAppearance(cue, cues, buffer, applied, styleCtx);
+  return !!next && !appearanceEquals(next, applied ?? IDENTITY);
 }
 
 /** What one press stages: buffer keys to values, or the wording of a refusal. */

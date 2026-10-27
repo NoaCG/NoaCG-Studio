@@ -2191,7 +2191,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // The look the panel starts from: the production's own, else one captured off its first graphic,
   // so a production made from library graphics (which captures none) can take a look without a
   // saved brand. Nothing is written until it is turned on or edited.
-  const panelLook = useMemo(() => (show?.look ?? (lookOpen && poolTemplates[0] ? captureLookFromTemplate(poolTemplates[0]) : null)), [show?.look, lookOpen, poolTemplates]);
+  const panelLook = useMemo(
+    () => (show ? (show.look ?? lookToActivate(show, savedBrands) ?? (lookOpen && poolTemplates[0] ? captureLookFromTemplate(poolTemplates[0]) : null)) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [show?.look, show?.brandId, savedBrands, lookOpen, poolTemplates],
+  );
   const lookCounts = useMemo(
     () => (lookOpen && show && panelLook ? { reach: lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), panelLook, lookPanelImported(panelLook, styleCtx.imported)), exceptions: lookExceptions(show) } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps

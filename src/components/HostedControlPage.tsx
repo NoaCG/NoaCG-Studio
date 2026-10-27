@@ -90,7 +90,7 @@ import {
 import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap } from '../control/outputRecovery';
 import { IDENTITY, lookAfter, reportedLook, type AppliedAppearance, type AppliedLooks } from '../control/cueAdjust';
 import { styleContextFor } from '../control/cueStyle';
-import { hostedAdjustState, hostedAppearance, hostedRecords } from '../control/hostedAdjust';
+import { hostedAdjustState, hostedAppearance, hostedPlaceWaiting, hostedRecords } from '../control/hostedAdjust';
 import HostedCueAdjust from './control/HostedCueAdjust';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
@@ -1452,6 +1452,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                     : []
               }
               airedValues={airedData[selectedCue.graphic] ?? null}
+              placeUnsent={selectedIsLive && hostedPlaceWaiting(selectedCue, cues, staged[selectedCue.graphic], looksRef.current[selectedCue.graphic], styleCtx)}
               onAir={selectedLayerCue ? { cue: selectedLayerCue, values: cueValues(selectedLayerCue) } : null}
               // Typing refreshes PREVIEW only while this cue IS on it - the same rule the
               // exported controller's editor has always applied to its preview stream.
@@ -2084,6 +2085,7 @@ function HostedCueEditor({
   stack,
   stackPinned,
   adjust,
+  placeUnsent = false,
 }: {
   cue: OutputCue;
   spec: PanelGraphicSpec;
@@ -2105,6 +2107,8 @@ function HostedCueEditor({
   overflow: string[];
   /** What the graphic was last told to show, or null when it is not on air. */
   airedValues: Record<string, string> | null;
+  /** The cue is on air and its Adjust block holds a change the wire has not sent yet. */
+  placeUnsent?: boolean;
   /** The cue on air on this cue's layer and the values a Take of it sends, or null when the
    *  layer is off. A ⚡ press acts on it. */
   onAir: { cue: OutputCue; values: Record<string, string> } | null;
@@ -2249,7 +2253,9 @@ function HostedCueEditor({
   const unsentFields = live && airedValues
     ? descriptors.map((d) => d.key).filter((key) => (airedValues[key] ?? '') !== valueOf(key))
     : [];
-  const hasUnsent = unsentFields.length > 0;
+  // A staged Adjust change counts as one change, as it does on the production page.
+  const unsentCount = unsentFields.length + (placeUnsent ? 1 : 0);
+  const hasUnsent = unsentCount > 0;
 
   // The chip names states the way the AUTHOR named them, exactly as every other operator
   // surface does — one formatter, `controlModel.ts formatMachineState`. This page used to
@@ -2392,8 +2398,8 @@ function HostedCueEditor({
           {layer !== null ? `L${layer} · ` : ''}
           {hasUnsent
             ? keptStates
-              ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. ✎ Update keeps ${keptStates} on air, ⟳ Re-take starts over with these values`
-              : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. Press ✎ Update`
+              ? `${unsentCount} change${unsentCount === 1 ? '' : 's'} not on air yet. ✎ Update keeps ${keptStates} on air, ⟳ Re-take starts over with these values`
+              : `${unsentCount} change${unsentCount === 1 ? '' : 's'} not on air yet. Press ✎ Update`
             : live
               ? 'changes push live on ✎ Update'
               : 'changes air on ⟳ TAKE'}
