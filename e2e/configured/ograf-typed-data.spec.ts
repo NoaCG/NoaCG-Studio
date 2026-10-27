@@ -7,8 +7,9 @@
 // with its envelope on the real command log (types as declared, native `data` empty), connects an
 // E5 source whose number reaches the tree as a number (migration 0104) and the next Update as one,
 // and keeps going after the output reconnects. An output that does not say it reads typed data is
-// sent none, and the page says so in one line. Off gives the values back as text. The renderer's
-// own round trip, replay and baseline are E1.2b's.
+// sent none, and the page says so in one line. Off gives the values back as text. E1.2b: the
+// output banks the typed values in its report on the real backend, and its reload airs them from
+// it (the offline walks are e2e/output-typed-recovery.spec.ts).
 // covers: src/model/ografTyped.ts, src/components/home/CueEditor.tsx, src/control/graphicVerbs.ts
 // covers: src/output/main.ts, src/output/stage.ts, src/control/livePath.ts
 // covers: supabase/migrations/0104_typed_source_values.sql, api/data/?...path?.ts
@@ -138,8 +139,19 @@ test('a typed cue saves, reloads, takes and updates with its envelope on the log
   await page.getByTestId('verb-update').click();
   await expect.poll(async () => (await updates(showId)).slice(before).find((r) => r.msg.typed)?.msg.typed?.values, { timeout: 20_000 }).toEqual({ f0: 'Anna', f1: 5 });
 
-  // RECONNECT: the output reloads, reads the log again and refuses nothing; Update still goes.
+  // E1.2b: the output's report banks the envelope it aired, with no native data...
+  const typedReport = async () => {
+    const { data } = await admin().from('control_heads').select('live').eq('show_id', showId).single();
+    type Report = { data?: unknown; state?: { typed?: { values?: unknown } } };
+    return Object.values((data?.live ?? {}) as Record<string, Report>).find((report) => report?.state?.typed) ?? null;
+  };
+  await expect.poll(async () => (await typedReport())?.state?.typed?.values, { timeout: 20_000 }).toEqual({ f0: 'Anna', f1: 5 });
+  expect((await typedReport())!.data).toEqual({});
+
+  // RECONNECT: the output reloads, airs the typed values from that report (the cue's own text says
+  // 2), refuses nothing, and Update still goes.
   await output.reload();
+  await expect(output.frameLocator('iframe').first().locator('#f1')).toHaveText('5', { timeout: 30_000 });
   const afterReload = (await updates(showId)).length;
   await expect(page.getByTestId('verb-update')).toBeEnabled({ timeout: 30_000 });
   await page.getByTestId('verb-update').click();

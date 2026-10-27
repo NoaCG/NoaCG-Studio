@@ -202,13 +202,18 @@ export interface OutputPayload {
  *  renderer rebuilds from `data`/`state` and replays only rows after it. Absent on a pre-0033
  *  server or from a pre-0033 renderer, and then the entry is REPLAYED rather than trusted
  *  (control/outputRecovery.ts owns that rule). */
+/** What a report's `state` holds: the machine's pose, and (playout adjustments) the place and size
+ *  applied, kept here because the report's RPC stores `state` as sent, so no migration. A graphic
+ *  airing typed data adds `typed`, `steps` and `on`, its typed baseline (E1.2b, ./outputRecovery.ts
+ *  `reportedTyped`). */
+export type ReportState = { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number; on?: boolean } | null;
+
 export type LiveReportMap = Record<
   string,
   {
     data?: Record<string, string>;
-    /** The machine state, and (playout adjustments) `appearance`: the place and size the renderer
-     *  holds applied, kept here because the report's RPC stores `state` as sent, so no migration. */
-    state?: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null;
+    /** The machine state and what rides with it (`ReportState`). */
+    state?: ReportState;
     at?: string;
     event?: number;
     /** Protocol 2 only: the same baseline in the per-production sequence (0071). */
@@ -1315,7 +1320,7 @@ export async function controlOutputReportSeq(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null,
+  state: ReportState,
   baseline: {
     /** The last seq applied, and the epoch it belongs to: the server banks the seq only in that
      *  epoch (a republish the renderer has not seen yet must not get a baseline from a gone log). */
@@ -1354,7 +1359,7 @@ export async function controlOutputReport(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null,
+  state: ReportState,
   /** The last log row applied when this truth was captured — the graphic's recovery baseline. */
   lastEventId: number | null = null,
 ): Promise<void> {

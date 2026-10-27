@@ -316,9 +316,9 @@ test('the output reader: a native message is not read, a values update is read, 
   // A held graphic never reports, so a reboot's recovery replays the refused command and holds
   // again: the report's write and the re-bank both skip it.
   const report = main.indexOf('const scheduleReport = ');
-  const held = main.indexOf('if (typedHolds(graphic)) {', report);
+  const held = main.indexOf('if (typedRefused.has(graphic)) {', report);
   assert.ok(report > 0 && held > report && held < main.indexOf('controlOutputReport(', report), 'the report skips a held graphic before it writes');
-  assert.match(main, /if \(seq <= at \|\| typedHolds\(graphic\)\) continue;/);
+  assert.match(main, /if \(seq <= at \|\| typedRefused\.has\(graphic\)\) continue;/);
 });
 
 test('the output holds a refused graphic: a Take\'s play after its refused update never airs old values', () => {

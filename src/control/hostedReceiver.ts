@@ -49,6 +49,9 @@ export function hostedReceiverConfig(slug: string, graphic: string): HostedRecei
   return { ref, key: cfg.anonKey, slug, graphic };
 }
 
+/** What the receiver says when it refuses a row carrying typed data (see `held` in the block). */
+export const RECEIVER_TYPED_REFUSAL = 'this graphic cannot read typed data, so it holds until a cue without typed data is taken';
+
 export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   return `${OPEN}
 // Drive this graphic from its HOSTED control page (?control=<slug> on the NoaCG site). The
@@ -118,6 +121,31 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   // Row ids differ; command ids do not. Mirror commandRoads.ts createAppliedOnce: remember the
   // last 400 ids, and always apply commands from older clients that carry no id.
   var appliedIds = [];
+  // TYPED DATA (docs/work-specs/playout-ograf-contract/spec.md AC-3, issue #1761): this block cannot
+  // read an OGraf typed envelope, and the row that carries one has empty native data, so applying
+  // it would air the previous cue's values. It is refused, said on the console and on the root's
+  // data-noacg-refused, and the graphic HELD as the /output renderer holds it (model/ografTyped.ts
+  // typedOutputGate): nothing but a stop reaches it until an update without typed data does.
+  var refused = '';
+  function refuse(why) {
+    if (refused === why) return;
+    refused = why;
+    if (why) {
+      // A report scheduled before the refusal would bank the previous cue's values past it.
+      clearTimeout(reportTimer);
+      document.documentElement.setAttribute('data-noacg-refused', why);
+      if (window.console) console.warn('NoaCG hosted control: ' + why);
+    } else document.documentElement.removeAttribute('data-noacg-refused');
+  }
+  function held(m) {
+    if (Object.prototype.hasOwnProperty.call(m, 'typed')) {
+      refuse(${JSON.stringify(RECEIVER_TYPED_REFUSAL)});
+      return true;
+    }
+    if (!refused) return false;
+    if (m.t === 'update') { refuse(''); return false; }
+    return m.t !== 'stop';
+  }
   // Apply one command through the graphic's own globals — the same mapping as every receiver.
   function apply(m) {
     if (!m) return;
@@ -126,6 +154,7 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
       appliedIds.push(m.oid);
       if (appliedIds.length > 400) appliedIds.shift();
     }
+    if (held(m)) return;
     if (m.t === 'play' && typeof play === 'function') play();
     else if (m.t === 'stop' && typeof stop === 'function') {
       var priorQuiet = typeof noacgSoundQuiet !== 'undefined' && noacgSoundQuiet;
@@ -141,7 +170,9 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
     else return; // 'staged' / 'live' meta rows are for control pages, not for us
-    scheduleReport();
+    // A held graphic never reports, as on the /output renderer: its report would bank the previous
+    // cue's values with no hold, and a reload of this graphic would air them.
+    if (!refused) scheduleReport();
   }
 
   // Report what is actually on air (the definition's fields, read back from the DOM, plus the
@@ -319,6 +350,12 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     lastId = followFrom(GRAPHIC, row.live, row.last_event_id);
     if (typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
     var mine = (row.live || {})[GRAPHIC];
+    // A report banking TYPED data (an /output renderer's, E1.2b) is refused and held like a row
+    // carrying it: its data is empty by design, so restoring it would air the defaults.
+    if (mine && mine.state && Object.prototype.hasOwnProperty.call(mine.state, 'typed')) {
+      refuse(${JSON.stringify(RECEIVER_TYPED_REFUSAL)});
+      mine = null;
+    }
     if (mine) {
       // The place and size it last reported, before anything paints: a report with no event id
       // resumes from the log head, so no row after it would bring this back.

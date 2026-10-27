@@ -87,7 +87,7 @@ import {
   type ResolvedControlShow,
   type VerbSent,
 } from '../control/hostedControl';
-import { airedAfter, type AiredMap } from '../control/outputRecovery';
+import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap } from '../control/outputRecovery';
 import { IDENTITY, lookAfter, publishedAppearance, reportedLook, type AppliedLooks } from '../control/cueAdjust';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
@@ -647,7 +647,23 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const data = replay ? reportsRef.current[graphic]?.data : (airedRef.current[graphic] ?? reportsRef.current[graphic]?.data);
       const groups = machineStateRef.current[graphic]?.groups;
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
-      const dataItem = data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
+      // A report of typed data banks its envelope and steps (E1.2b): PROGRAM airs that envelope,
+      // never the report's empty native data.
+      const typedBase = replay ? reportedTypedAir(reportsRef.current[graphic]) : null;
+      const typed = typedBase?.envelope ?? null;
+      // One this build cannot read is held on air, so PROGRAM rebuilds nothing from it either, and
+      // replays the rows after it as the output does: held until an update it can air.
+      if (typedBase && !typed) {
+        // Its place and size still go back first, as the output puts them back on the graphic it holds.
+        const held = reportedLook(reportsRef.current[graphic]);
+        const past = [...(held ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: held } }] : []), ...rowsPastHold(rows)];
+        if (past.length > 0) programRef.current?.apply(past);
+        continue;
+      }
+      const dataItem = typed
+        ? [{ graphic, msg: { t: 'update' as const, data: {}, typed } }]
+        : data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
+      const steps = typed && typedBase ? typedBase.steps.map((msg) => ({ graphic, msg })) : [];
       // Its place and size first (rule 4): the report's at boot, else what this page has seen since.
       const look = replay ? reportedLook(reportsRef.current[graphic]) : looksRef.current[graphic];
       programRef.current?.apply([
@@ -655,9 +671,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         ...dataItem,
         ...(groups
           ? [{ graphic, msg: { t: 'snap' as const, snap: groups } }]
-          : rows.length > 0
+          : (typed ? rows.some((item) => item.msg.t === 'play') : rows.length > 0)
             ? [] // a graphic that never reported replays its own entrance below
-            : [{ graphic, msg: { t: 'play' as const } }]),
+            : [{ graphic, msg: { t: 'play' as const } }, ...steps]),
         ...dataItem,
         // …then what air did after that report.
         ...rows,

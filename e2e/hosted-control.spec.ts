@@ -345,6 +345,105 @@ test('a hosted graphic that has never reported airs what was commanded before it
   await graphic.close();
 });
 
+test('a hosted graphic refuses a row carrying typed data, says so, and holds until a native update (#1761)', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // A typed Take writes `{t: 'update', data: {}, typed: <envelope>}` then a play. This block cannot
+  // read the envelope, and applying its empty data then playing would air the PREVIOUS cue's values
+  // (issue #1761). So the row is refused, said on the console and the root's data-noacg-refused,
+  // and nothing but a stop reaches the graphic until an update without typed data does.
+  const html = receiverHost(await receiverBlock(page));
+  const typed = { v: 1, kind: 'values', standard: 'x', schema: 'y', values: { f0: 'TYPED' } };
+  const log = [
+    { id: 1, graphic: 'Board', msg: { t: 'update', data: { f0: 'NATIVE' } } },
+    { id: 2, graphic: 'Board', msg: { t: 'play' } },
+    { id: 3, graphic: 'Board', msg: { t: 'update', data: {}, typed } },
+    { id: 4, graphic: 'Board', msg: { t: 'play' } },
+    { id: 5, graphic: 'Board', msg: { t: 'next' } },
+    { id: 6, graphic: 'Board', msg: { t: 'stop' } },
+  ];
+  const later = [
+    { id: 7, graphic: 'Board', msg: { t: 'update', data: { f0: 'BACK' } } },
+    { id: 8, graphic: 'Board', msg: { t: 'play' } },
+  ];
+  const visible = [...log];
+  let socket: import('@playwright/test').WebSocketRoute | null = null;
+  let reports = 0;
+  const graphic = await context.newPage();
+  const warned: string[] = [];
+  graphic.on('console', (msg) => {
+    if (msg.type() === 'warning') warned.push(msg.text());
+  });
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => {
+    socket = ws;
+  });
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 6, live: {} }] });
+    if (name === 'control_report') reports += 1;
+    if (name === 'control_tail') {
+      const after = Number((route.request().postDataJSON() as { p_after?: number }).p_after ?? 0);
+      return route.fulfill({ json: visible.filter((r) => r.id > after) });
+    }
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-typed.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-typed.local/board.html', { waitUntil: 'load' });
+
+  // The typed Take and the step after it never ran; the stop did.
+  await expect.poll(() => appliedIn(graphic), { timeout: 30_000 }).toEqual(['update:NATIVE', 'play', 'stop']);
+  await expect(graphic.locator('html')).toHaveAttribute('data-noacg-refused', /cannot read typed data/);
+  expect(warned.join('\n')).toContain('cannot read typed data');
+  // A held graphic reports nothing, the stop included: a report would bank the native cue's values
+  // with no hold, and this graphic's next reload would air them.
+  await graphic.waitForTimeout(1500);
+  expect(reports).toBe(0);
+
+  // A native Take ends the hold.
+  visible.push(...later);
+  socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: later[1] } } }));
+  await expect.poll(() => appliedIn(graphic), { timeout: 30_000 }).toEqual(['update:NATIVE', 'play', 'stop', 'update:BACK', 'play']);
+  await expect(graphic.locator('html')).not.toHaveAttribute('data-noacg-refused', /.*/);
+  await expect(graphic.locator('#f0')).toHaveText('BACK');
+  // Released, it reports again.
+  await expect.poll(() => reports, { timeout: 10_000 }).toBeGreaterThan(0);
+
+  await graphic.close();
+});
+
+test('a hosted graphic booting from a report that banks typed data refuses it and holds, never airing its empty data', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // An /output renderer banks a typed graphic's envelope in its report, with empty native data
+  // (E1.2b). The receiver's boot reads the same report: restoring its data and pose would put the
+  // graphic on air with its defaults, and the rows after it (a step) would follow.
+  const html = receiverHost(await receiverBlock(page));
+  const typed = { v: 1, kind: 'values', standard: 'x', schema: 'y', values: { f0: 'TYPED' } };
+  const log = [{ id: 3, graphic: 'Board', msg: { t: 'next' } }];
+  let tailReads = 0;
+  const graphic = await context.newPage();
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', () => {});
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') {
+      return route.fulfill({ json: [{ id: 'show-1', last_event_id: 3, live: { Board: { data: {}, state: { groups: { main: 'in' }, typed, steps: 0 }, event: 2 } } }] });
+    }
+    if (name === 'control_tail') {
+      tailReads += 1;
+      const after = Number((route.request().postDataJSON() as { p_after?: number }).p_after ?? 0);
+      return route.fulfill({ json: log.filter((r) => r.id > after) });
+    }
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-typed-boot.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-typed-boot.local/board.html', { waitUntil: 'load' });
+
+  await expect(graphic.locator('html')).toHaveAttribute('data-noacg-refused', /cannot read typed data/, { timeout: 30_000 });
+  // The tail was read, and its step held with the rest: nothing ran.
+  await expect.poll(() => tailReads, { timeout: 30_000 }).toBeGreaterThan(0);
+  await graphic.waitForTimeout(500);
+  expect(await appliedIn(graphic)).toEqual([]);
+  await graphic.close();
+});
+
 test('a hosted graphic whose channel never delivers a row still catches up from the log', async ({ page, context }) => {
   test.setTimeout(180_000);
   // THE CHANNEL THAT JOINS AND NEVER SPEAKS. A socket that opens but whose subscription never
