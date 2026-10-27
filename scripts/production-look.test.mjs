@@ -196,6 +196,8 @@ describe('the faces a look names reach the document', () => {
     const pool = { family: 'Old Brand', assetPath: 'fonts/old-brand.woff2' };
     const lookFace = { family: 'Brand Sans', assetPath: LOOK_PATH };
     assert.deepEqual(L.pickableFaces([pool, lookFace]), [pool]);
+    // While it is the face in effect it stays listed, so the row reads it rather than "As designed".
+    assert.deepEqual(L.pickableFaces([pool, lookFace], `i:Brand Sans|${LOOK_PATH}`), [pool, lookFace]);
   });
 
   test('a pool font at the same file name as the brand\'s never stands in for it', () => {

@@ -318,7 +318,7 @@ function StyleRows({
                   {b.family}
                 </option>
               ))}
-              {pickableFaces(style.imported).map((f) => (
+              {pickableFaces(style.imported, chosen).map((f) => (
                 <option key={`${f.family}|${f.assetPath}`} value={`i:${f.family}|${f.assetPath}`}>
                   {f.family}
                 </option>

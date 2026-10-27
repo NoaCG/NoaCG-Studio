@@ -2600,6 +2600,37 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
  * brand on and the original keeps its own. The fold, the reach and the bulk send's capture and
  * recheck are scripts/production-look.test.mjs and scripts/graphic-verbs.test.mjs.
  */
+// The Type row reads the look's imported face while it is the face in effect, though it never
+// offers that face to pick (control/productionLook.ts `pickableFaces`).
+test('the Type row reads a look\'s imported face in effect, and offers no other copy of it', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'Look Face');
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    shows.setShowLookApplied(id, true, {
+      styleTag: 'clean',
+      palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' },
+      fontId: null,
+      customFont: { family: 'Brand Sans', format: 'woff2', asset: { path: 'fonts/brand-sans.woff2', data: 'data:font/woff2;base64,AAAA' } },
+    } as never);
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.locator('.pd-cue').first().click();
+  await page.getByTestId('cue-adjust-toggle').click();
+  const select = page.getByTestId('adjust-typeface');
+  await expect(select).toHaveValue(/^i:Brand Sans\|fonts\/look\//);
+  await expect(select.locator('option:checked')).toHaveText('Brand Sans');
+  await expect(select.locator('option', { hasText: 'Brand Sans' })).toHaveCount(1);
+  // Another face picked: the look's own is no longer offered.
+  await select.selectOption({ label: 'Archivo' });
+  await expect(select).toHaveValue('b:archivo');
+  await expect(select.locator('option', { hasText: 'Brand Sans' })).toHaveCount(0);
+});
+
 test('Setup ▾ Look turns a production look on and off, counts its reach, keeps exceptions, and sends it to air without what is typed', async ({ page }) => {
   test.setTimeout(110_000);
   await page.setViewportSize({ width: 1600, height: 900 });

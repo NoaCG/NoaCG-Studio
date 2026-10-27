@@ -88,7 +88,7 @@ export function hostedRecords(pub: PublishedAdjust, buffer: Readonly<Record<stri
 
 /** The imported faces a cue's block resolves and offers: the pool's, and the look's own imported
  *  face, as on the production page (its bytes ride with the payload's first graphic): the look's
- *  while it is on, and one a record here picked, on or off. */
+ *  while it is on, and one an older record here names under the look's folder. */
 export function hostedImported(pub: PublishedAdjust, records: HostedRecords, imported: readonly ImportedFace[]): ImportedFace[] {
   const out = [...imported];
   for (const f of [pub.look?.font, recordFont(records.graphic), recordFont(records.cue)]) {

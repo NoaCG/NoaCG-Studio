@@ -51,11 +51,13 @@ function lookAssetPath(asset: { path: string; data?: unknown }): string {
   return `${LOOK_FONT_DIR}${hash}/${file}`;
 }
 
-/** The imported faces a scope's Type row offers: never the look's own face. The look gives it
- *  already, and a record naming it would keep a path that only the current look carries, so a
- *  replaced look would leave that record pointing at nothing. */
-export function pickableFaces(imported: readonly ImportedFace[]): ImportedFace[] {
-  return imported.filter((f) => !f.assetPath.startsWith(LOOK_FONT_DIR));
+/** The imported faces a scope's Type row offers: never the look's own face to pick. The look gives
+ *  it already, and a record naming it would keep a path that only the current look carries, so a
+ *  replaced look would leave that record pointing at nothing. While it is the face in effect
+ *  (`inEffect`, the row's `i:<family>|<path>` key) it stays listed, so the row reads it; choosing
+ *  the option already chosen writes nothing. */
+export function pickableFaces(imported: readonly ImportedFace[], inEffect?: string): ImportedFace[] {
+  return imported.filter((f) => !f.assetPath.startsWith(LOOK_FONT_DIR) || `i:${f.family}|${f.assetPath}` === inEffect);
 }
 
 /** The face a look names, as a record reference (model/adjust.ts `readFont`), or undefined. */
@@ -134,7 +136,7 @@ export function lookPanelImported(look: ProjectBrand, imported: readonly Importe
 }
 
 /** A production's style context: its pool's imported faces, the look's imported face beside them
- *  (on or off, so a record that picked it keeps it once the look is off), and the look on each
+ *  (on or off: the look layer's face must resolve and its weights be known), and the look on each
  *  graphic while it is on (`lookForOf`). */
 export function lookStyleContext(
   show: { look?: ProjectBrand; lookApplied?: true; graphics: readonly { id: string }[] } | null | undefined,
