@@ -476,7 +476,8 @@ export default function FinishStep({
             <strong>Export it</strong>
           </span>
           <span className="hint">
-            {packageOnly ? 'The OGraf package, exactly as it came in.' : <>Just the files: OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay
+            {packageOnly ? 'The OGraf package, exactly as it came in.' : <>
+            Just the files: OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay
             {isRenderConfigured() ? ', or a rendered video' : ''}.</>}{' '}
             {/* This door asks NOTHING before it writes - it saves and opens the export window -
                 so the one place the save can be described accurately is the door's own face. */}
