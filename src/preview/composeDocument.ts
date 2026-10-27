@@ -494,8 +494,8 @@ window.addEventListener('unhandledrejection', function (ev) {
   function run(msg) {
     if (msg.cmd === 'update') {
       /* An update with no values (an appearance-only one, phase 3) leaves the values a refit
-         gives the graphic as they were. */
-      if (msg.data !== '{}') lastData = msg.data;
+         gives the graphic as they were; a graphic with no fields still takes its first. */
+      if (msg.data !== '{}' || lastData == null) lastData = msg.data;
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
       afterFonts(function () {

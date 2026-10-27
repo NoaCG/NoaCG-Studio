@@ -102,6 +102,31 @@ describe('what the look reaches, over emitted templates (AC-6)', () => {
     assert.equal(state.send, undefined, 'no record, no look on it, no field');
   });
 
+  test('an export resolves the look as air does: the painted graphic takes it, the SVG and a kept cue do not, and the look\'s own face ships', async () => {
+    const X = await import('../src/control/exportAppearance.ts');
+    const face = { family: 'Brand Sans', format: 'woff2', asset: { path: 'fonts/brand-sans.woff2', data: 'data:font/woff2;base64,AAAA' } };
+    const look = { ...LOOK, fontId: null, customFont: face };
+    const graphics = [{ id: 'lt' }, { id: 'svg' }];
+    const show = { look, lookApplied: true, graphics, cues: [{ id: 'a', sourceId: 'lt' }, { id: 'b', sourceId: 'lt', adjust: { v: 1, keepStyle: true } }, { id: 's', sourceId: 'svg' }] };
+    const templates = [{ ...byId.lt01, assets: [] }, { ...byId.svg01, assets: [] }];
+    const lookFor = L.lookForOf(show, templates);
+    assert.deepEqual(X.adjustedGraphics(graphics, show.cues, lookFor).map((g) => g.id), ['lt'], 'the look reaches the strap, not the artwork');
+    assert.deepEqual(X.adjustedGraphics(graphics, show.cues, undefined).map((g) => g.id), ['lt'], 'the kept cue\'s record alone still counts');
+    const ctx = L.lookStyleContext(show, templates);
+    const out = X.exportAppearances(show, () => HD, { graphics: {}, cues: {} }, ctx.imported, lookFor);
+    assert.equal(out.graphics.lt.vars.accent, '#ff7a00');
+    assert.match(out.cues.a.vars['font-heading'], /Brand Sans/);
+    assert.equal(out.cues.b.vars, undefined, 'the kept cue exports as designed');
+    assert.equal(out.graphics.svg, undefined);
+    // The face the appearance names ships with the package, from the look's own copy.
+    const shipped = St.withAppearanceFaces(templates[0], out.cues.a.fonts, L.withLookAssets(show, templates));
+    assert.ok(shipped.assets.some((x) => x.path === 'fonts/brand-sans.woff2'));
+    assert.match(shipped.css, /Brand Sans/);
+    // The panel counts the look's own face whether or not it is on.
+    assert.equal(L.lookReach([{ name: 'Strap', template: templates[0] }], look, L.lookPanelImported(look, [])).type, 1);
+    assert.equal(L.lookReach([{ name: 'Strap', template: templates[0] }], look, []).type, 0, 'without it, nothing resolves');
+  });
+
   test('the reach counts type and accent separately over the pool, and names what it reaches not at all', () => {
     // A graphic painting the accent and not the heading face counts once, for the accent.
     const accentOnly = { css: ':root { --accent: #f00; --font-heading: "Inter"; }\n.bar { background: var(--accent); font-family: Arial; }', js: '' };

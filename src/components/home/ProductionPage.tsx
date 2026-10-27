@@ -126,7 +126,7 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import { loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { lightPanel, lookExceptions, lookFontRef, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
+import { lightPanel, lookExceptions, lookFontRef, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
 import { getCssVariable } from '../../model/cssVars';
@@ -2188,7 +2188,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const lookCtx = useRef<{ key: string; ctx: ReturnType<typeof styleContextFor> } | null>(null);
   // What the panel counts, once per change of what it counts (each count scans every stylesheet).
   const lookCounts = useMemo(
-    () => (lookOpen && show?.look ? { reach: lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), show.look, styleCtx.imported), exceptions: lookExceptions(show) } : null),
+    () => (lookOpen && show?.look ? { reach: lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), show.look, lookPanelImported(show.look, styleCtx.imported)), exceptions: lookExceptions(show) } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lookOpen, show?.look, show?.graphics, show?.cues, poolTemplates, styleCtx.imported],
   );
@@ -4007,7 +4007,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             }}
             edit={(next) => lookWrite(editShowLook(show.id, next, null))}
             bundled={FONTS}
-            weights={show.look ? weightsFor(lookFontRef(show.look), {}, styleCtx.imported) : []}
+            weights={show.look ? weightsFor(lookFontRef(show.look), {}, lookPanelImported(show.look, styleCtx.imported)) : []}
             reach={lookCounts?.reach ?? null}
             exceptions={lookCounts?.exceptions ?? lookExceptions(show)}
             clearExceptions={() => void history.write(() => clearStyleExceptions(show.id), 'Clear look exceptions')}

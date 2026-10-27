@@ -97,6 +97,14 @@ export function lookImportedFace(show: { look?: ProjectBrand; lookApplied?: true
   return { face: { family: ref.family, assetPath: ref.assetPath }, asset: look.customFont.asset };
 }
 
+/** The faces the Look panel counts and weighs a look with, on or off: the pool's, and the look's
+ *  own imported face, so a brand picked while the look is off reads what it will reach. */
+export function lookPanelImported(look: ProjectBrand, imported: readonly ImportedFace[]): ImportedFace[] {
+  const ref = lookFontRef(look);
+  if (!ref || 'fontId' in ref || imported.some((f) => f.family === ref.family && f.assetPath === ref.assetPath)) return [...imported];
+  return [...imported, { family: ref.family, assetPath: ref.assetPath }];
+}
+
 /** A production's style context: its pool's imported faces, the look's imported face beside them,
  *  and the look on each graphic (`lookForOf`). */
 export function lookStyleContext(

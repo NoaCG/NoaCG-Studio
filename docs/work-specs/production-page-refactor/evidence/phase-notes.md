@@ -82,9 +82,8 @@ changes a spec's digest.
     production page published since. It counts only while `on` equals what is published. A
     promotion's cue half also names the graphic default it was promoted over (`g`), so a republished
     default drops both halves together rather than leaving the cue's exception removed alone.
-  - *Publish carries records for every cue of a graphic adjusted at either scope, or that the
-    look reaches* (`carriesAdjust`), so a default staged from one cue on the hosted page reaches
-    its siblings. "Adjusted elsewhere" (when a plain cue's Take sends the identity) reads the
+  - *Publish carries records for every graphic cue* (`publishedAdjustOf`), so the hosted block is
+    drawn for any graphic and a default staged from one cue reaches its siblings. "Adjusted elsewhere" (when a plain cue's Take sends the identity) reads the
     staged records on both the block and the Take (`adjustedElsewhere`).
   - *Hosted presets resolve against the published box*: the hosted page measures nothing; the box
     is the production page's last qualified one, so the block reads it as current.
@@ -92,8 +91,16 @@ changes a spec's digest.
     slice is cues, graphics, folders and items); "Clear exceptions" edits records, so it joins it.
   - *`keepStyle` keeps the whole look out of its scope*, type and colour, whichever row wrote it:
     the record has one flag, and the spec's "excludes the production look's style".
-  - *A look face that no pool graphic ships reaches nothing* and the reach says "Type reaches 0":
-    the bytes travel only as a pool template's asset (row 32d's asset road).
+  - *A look's imported typeface travels from the look's own copy* (`customFont.asset`, copied into
+    the production at activation): it resolves beside the pool's faces (`lookStyleContext`), its
+    bytes are read by path beside the pool for PREVIEW, the measurer and the export
+    (`withLookAssets`), and Publish carries it once, with the first graphic (`withLookFaceIn`),
+    where every stage and the hosted page find it. The Look panel counts and offers weights for
+    the look's own face whether or not it is on (`lookPanelImported`).
+  - *A label face a look's token names ships with it*: `resolveStyle` declares the bundled face
+    `--font-label` names, as `applyLookToTemplate` does.
+  - *A graphic with no fields keeps its late refit*: the composed document keeps its last values on
+    an empty update, unless it has none yet, so a field-less design's Take still sets them.
 - **Seams changed and where:** L2.2's fold (`effectiveAdjust` gains `look`), `StyleContext.lookFor`,
   `styleContextFor`'s second argument; the stage's update path and the composed document's late
   refit (L2.2); `buildOutputPayload` and `publishControlShow` take one `publishedOf` callback for
@@ -124,7 +131,7 @@ changes a spec's digest.
   `e2e/hosted-control.spec.ts`,
   `src/control/productionLook.ts` (new), `src/model/shows.ts`, `src/model/teamShowMerge.ts`,
   `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`,
-  `src/styles/playout-dashboard.css`, this file.
+  `src/styles/playout-dashboard.css`, `src/export/showExport.ts`, `e2e/production-views.spec.ts`, this file.
 
 ## Row 38 (E2.2, project phase 42): runtime step and target controls, truthful feedback
 
