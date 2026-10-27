@@ -120,7 +120,11 @@ changes a spec's digest.
   - The look's imported face stays nameable while the look is off, so a record that picked it keeps
     it, and Publish carries its bytes on or off. The cost: a look captured from a pool graphic's own
     imported font ships that file twice (once at `fonts/look/`). Narrower rules each lost the face
-    somewhere air still named it (sent, then Off, then republished).
+    somewhere air still named it (sent, then Off, then republished). Its path is named by the
+    file's bytes (`fonts/look/<hash>/<file>`), so a second brand's font at one file name never reads
+    the first one's from a stage's cache. And an already-published production whose captured look
+    holds an imported face reads "Publish changes" once after this lands, since its first
+    graphic's digest now counts the face.
 - **Traps.**
   - PROGRAM holds one frame per pool graphic, so a probe into it names its frame
     (`iframe` `.first()` in pool order); a bare `frameLocator` is ambiguous and reads null.
