@@ -19,7 +19,7 @@
 
 import type { FieldDescriptor, FieldValue } from '../model/fieldModel';
 import type { JsonValue } from '../model/productionData';
-import { validateTyped, type TypedNode } from '../model/ografTyped.ts';
+import { canonicalJson, typedValuesOf, validateTyped, type TypedNode } from '../model/ografTyped.ts';
 import { put } from '../model/profile.ts';
 
 /** Where a value sits: object keys and list indices from the root. */
@@ -156,9 +156,9 @@ export function typedLeaf(node: TypedNode, key: string, label = typedLabel(node,
     }
     case 'number':
     case 'integer': {
+      // No min or max on the descriptor: the field control clamps to them, which would replace a
+      // draft out of range with another number. The schema's bounds are judged where it is marked.
       const d: FieldDescriptor = { ...base, kind: 'number', defaultValue: typeof node.default === 'number' ? node.default : '' };
-      if (node.minimum !== undefined) d.min = node.minimum;
-      if (node.maximum !== undefined) d.max = node.maximum;
       const step = node.multipleOf ?? (node.type === 'integer' ? 1 : undefined);
       if (step !== undefined) d.step = step;
       return {
@@ -199,4 +199,19 @@ export function typedSummary(fields: TypedNode, values: { [key: string]: JsonVal
     if (line) words.push(line);
   }
   return words.join(' · ');
+}
+
+/**
+ * A TYPED CUE'S UNSENT VALUES: the top-level keys whose value differs from the envelope its layer
+ * last aired (control/airState.ts `typedAired`), compared as canonical JSON, so the editor and the
+ * rundown say "not on air yet" for a typed edit as they do for a native one. A bound key is not the
+ * cue's value (the tree's goes with ✎ Update), and a layer that aired no envelope here is not judged.
+ */
+export function typedUnsent(typed: unknown, aired: unknown, bound: Readonly<Record<string, string>>): string[] {
+  const mine = typedValuesOf(typed);
+  const shown = typedValuesOf(aired);
+  if (!mine || !shown) return [];
+  const keys = new Set([...Object.keys(mine.values), ...Object.keys(shown.values)]);
+  const text = (v: JsonValue | undefined) => (v === undefined ? '' : canonicalJson(v));
+  return [...keys].filter((k) => !bound[k] && text(own(mine.values, k) ? mine.values[k] : undefined) !== text(own(shown.values, k) ? shown.values[k] : undefined)).sort();
 }

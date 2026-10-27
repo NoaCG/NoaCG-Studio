@@ -132,6 +132,23 @@ test('a typed cue is edited through its generated form, kept as typed, reloaded,
   await expect(shown).toContainText('teams=list:[{"name":"Away","score":3}]');
   await expect(shown).toContainText('meta=object:{"revision":0}');
 
+  // An edit after the Take waits for ✎ Update and says so; an Update pressed while the box still
+  // holds the edit (a key or a panel, not a click that blurs it) sends that edit.
+  await typeInto(page, 'cue-typed-title', 'Final table');
+  await expect(page.getByTestId('cue-unsent')).toContainText('1 change not on PROGRAM yet');
+  await page.getByTestId('cue-typed-title').fill('Final table!');
+  await page.getByTestId('verb-update').dispatchEvent('click');
+  await expect(shown).toContainText('title=string:"Final table!"');
+  await expect(page.getByTestId('cue-unsent')).toHaveText('');
+  // A number out of range is kept as typed and marked, never replaced with a bound.
+  await page.getByTestId('cue-typed-teams[0].score').fill('-1');
+  await page.getByTestId('cue-typed-teams[0].score').blur();
+  await expect(page.getByTestId('cue-typed-error-teams[0].score')).toContainText('below the minimum 0');
+  await expect.poll(async () => (await stored(page, showId)).values?.teams).toEqual([{ name: 'Away', score: -1 }]);
+  await page.getByTestId('cue-typed-teams[0].score').fill('3');
+  await page.getByTestId('cue-typed-teams[0].score').blur();
+  await expect(page.getByTestId('cue-typed-error-teams[0].score')).toHaveCount(0);
+
   // A PRESS whose arguments do not fit sends nothing and says where.
   await page.getByTestId('cue-action-highlight').click();
   await expect(page.getByTestId('production-note')).toContainText('colour not a #rrggbbaa colour');

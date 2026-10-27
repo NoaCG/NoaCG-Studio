@@ -84,7 +84,7 @@ import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution, SpxTemplate } from '../../model/types';
 import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend, type TypedValues } from '../../model/ografTyped';
-import { typedErrorsByPath, typedSummary } from '../../control/ografForm';
+import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
 import { graphicButtons } from '../../control/ografContract';
 import { createTypedSendMemo, typedActionSendFor } from '../../control/typedSend';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
@@ -402,6 +402,8 @@ function usePacedPart<T, S>(part: StorePart<T>, select: (value: T) => S): S {
 interface DrawnDraft {
   /** The edited cue's unsent fields, and the on-air cues with any (control/cueDraft.ts). */
   unsent: { fields: string[]; cues: string[] };
+  /** Typed values waiting to air (E2.1): the edited cue's keys, and the on-air cues with any. */
+  typed: { editing: string[]; cues: string[] };
   /** The countdown chip's cue label, as typed. */
   chipLabel: string | null;
   /** Place and size waiting to air (playout adjustments): on the edited cue, and the on-air cues. */
@@ -1345,7 +1347,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }),
     [session],
   );
-  const { flush: flushDraft, cancel: cancelDraft } = cueDraft;
+  const { flush: flushCueDraft, cancel: cancelDraft } = cueDraft;
+  /** A typed form's edit still settling (home/TypedForm, E2.1) lands with the draft: every verb's
+   *  wait covers it, a key or a panel's Take as much as a click that blurred the box. */
+  const typedFlushers = useRef(new Set<() => void>());
+  const registerTypedFlush = useCallback((flush: () => void) => {
+    typedFlushers.current.add(flush);
+    return () => void typedFlushers.current.delete(flush);
+  }, []);
+  const flushDraft = useCallback(() => {
+    for (const flush of typedFlushers.current) flush();
+    return flushCueDraft();
+  }, [flushCueDraft]);
   const drawnDraft = useDrawnDraft(cueDraft.part, session.geometry as StorePart<unknown>);
   const history = useRundownHistory(show ?? null, setShows, setRundownNote, (a, b) => historySafety.current(a, b), cancelDraft);
   historyRef.current = history;
@@ -1602,6 +1615,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     return out;
   }, [cues, cueGraphicName, declaredOf]);
+  /** A cue as stored now, read after a verb's wait (E2.1): the typed form writes the record itself,
+   *  so its last edit is newer than the render the press was made from. */
+  const storedCue = (cue: ShowCue): ShowCue => loadShows().find((s) => s.id === id)?.cues?.find((c) => c.id === cue.id) ?? cue;
   /** The edited cue's TYPED FORM (E2.1, home/TypedForm): its typed values while they are on, and
    *  each declared action's arguments. Every edit is one write of the draft as it is; a value that
    *  does not fit is marked, kept, and refused only by what would send it. A field bound to the
@@ -1630,7 +1646,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const value = actionArgsOf(a, cue.typedArgs);
       return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (args: JsonValue | undefined) => kept(setCueTypedArgs(show.id, cue.id, a, args)) }];
     });
-    return values || actions.length ? { values, actions } : null;
+    return values || actions.length ? { values, actions, register: registerTypedFlush } : null;
   };
   /** The writer's menu for the edited cue (E7.2a): the people each of its graphic's recipes
    *  offers in this render's tree, and the cue's pick. Null for a cue no recipe serves, or one this
@@ -2629,7 +2645,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A cue's place and size differ from what its graphic holds applied (playout adjustments): a
    *  waiting change like an unsent value, counted by the fate line and the rundown row. */
   const placeUnsent = (cue: ShowCue, graphic: string) => placeWaiting(adjustStateOf(cue), appliedLooks[graphic]);
-  const { unsent, chipLabel, place } = drawnDraft(() => ({
+  const { unsent, typed: typedWaiting, chipLabel, place } = drawnDraft(() => ({
     unsent: unsentNow(
       cueDraft,
       editingIsLive && selectedGraphic && editingCue ? { cue: editingCue, graphic: selectedGraphic } : null,
@@ -2646,6 +2662,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return candidate.length ? { ...boundFields(graphic), ...Object.fromEntries(candidate.map((f) => [f, 'candidate'])) } : boundFields(graphic);
       },
     ),
+    // A typed cue's values against the envelope its layer aired (E2.1): an edit after a Take waits
+    // for ✎ Update like a native one.
+    typed: {
+      editing: editingIsLive && selectedGraphic && editingCue ? typedUnsent(editingCue.typed, typedAired[selectedGraphic], boundFields(selectedGraphic)) : [],
+      cues: Object.entries(liveCue).flatMap(([graphic, cueId]) => {
+        const cue = cueId ? cues.find((c) => c.id === cueId) : undefined;
+        return cue && typedUnsent(cue.typed, typedAired[graphic], boundFields(graphic)).length ? [cue.id] : [];
+      }),
+    },
     chipLabel: chipGraphic ? (cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic) : null,
     place: {
       editing: !!(editingIsLive && selectedGraphic && editingCue && placeUnsent(editingCue, selectedGraphic)),
@@ -2655,9 +2680,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }),
     },
   }));
-  const unsentFields = place.editing ? [...unsent.fields, PLACE_UNSENT] : unsent.fields;
+  const unsentFields = [...unsent.fields, ...typedWaiting.editing, ...(place.editing ? [PLACE_UNSENT] : [])];
   const hasUnsent = unsentFields.length > 0;
-  const unsentOnAir = new Set([...unsent.cues, ...place.cues]);
+  const unsentOnAir = new Set([...unsent.cues, ...typedWaiting.cues, ...place.cues]);
 
   /** A removal drops the draft as the page state it replaced went: after this task, so the save
    *  the removal waits for first (`writeRundown` flushes in the same tick) still writes it. */
@@ -2866,9 +2891,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     boundFields,
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
-    typedFor,
+    // After the wait: a typed form's edit it landed is in the record, newer than this render's cue.
+    typedFor: (cue, graphic) => typedFor(storedCue(cue), graphic),
     typedActionFor: (cue, graphic, action) =>
-      typedActionSendFor(cue, action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id }),
+      typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id }),
     typedAiring: (graphic) => graphic in (session.air.get().typedAired ?? NO_TYPED_AIR),
     selectionAired,
     candidateFields,

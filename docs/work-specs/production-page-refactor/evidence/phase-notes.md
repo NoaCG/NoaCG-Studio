@@ -83,6 +83,14 @@ changes a spec's digest.
   - *Off keeps a removal* (after the `/so` on `5109f11`): Off writes the envelope's values back as
     text and drops each declared key the envelope no longer holds, so a value the form removed is not
     brought back by Off then On (E1.2a merged the envelope over the old strings).
+  - *A typed edit is under every verb's wait* (Codex P1 on `e2b51b0`): the page's `flushDraft` first
+    lands each form's settling edit (`registerTypedFlush`), and the verbs read the cue as stored after
+    the wait (`storedCue`), so a Take by key or panel airs what the box shows.
+  - *Typed edits are "not on air yet"* (Codex P2): the edited cue's keys that differ from the envelope
+    its layer aired (`typedUnsent`, canonical JSON, bound keys excluded) join the unsent line and the
+    rundown row's mark; a layer that aired no envelope here is not judged, as for native values.
+  - *A number out of range is kept* (Codex P2): the typed number's descriptor carries no min or max,
+    so the field control never clamps a draft; the schema's bounds are marked where they fail.
   - *Defaults are the top level's and a created value's*: On fills each missing top-level property
     that declares a `default`; inside a value that already exists (an object read from a native JSON
     string) nothing is filled, since JSON Schema's `default` is an annotation for a value being made.

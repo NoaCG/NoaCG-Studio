@@ -80,7 +80,9 @@ test('each leaf is the control its declared type means, and an edit gives back t
   assert.equal(form.typedLeaf(flags, 'x').read('1'), 'true', 'a string enum stays strings');
   // Numbers stay numbers with their declared bounds and step.
   const opacity = form.typedLeaf(node('opacity'), 'opacity');
-  assert.deepEqual([opacity.descriptor.kind, opacity.descriptor.min, opacity.descriptor.max, opacity.descriptor.step], ['number', 0, 1, 0.1]);
+  // No min or max for the field control to clamp to: a draft out of range is kept and marked.
+  assert.deepEqual([opacity.descriptor.kind, opacity.descriptor.min, opacity.descriptor.max, opacity.descriptor.step], ['number', undefined, undefined, 0.1]);
+  assert.equal(opacity.read(1.5), 1.5);
   assert.equal(opacity.read(0.3), 0.3);
   assert.equal(form.typedLeaf({ path: 'n', type: 'integer' }, 'n').descriptor.step, 1);
   // A colour with no alpha is the colour control; with alpha it is a text line.
@@ -235,6 +237,17 @@ test('a scalar argument keeps its type and value to the Graphic, false and 0 inc
   // The kept arguments' hash is the declared schema's, not this reader's parse of it.
   assert.equal(flag.schema, typed.describeOgraf({ customActions: [{ id: 'x', name: 'X', schema: { type: 'boolean' } }] }).actions[0].schema);
   assert.notEqual(actionSchemaOf(flag), scalar.description.actions[1].schema);
+});
+
+test('a typed cue\'s values not on air yet are the keys that differ from the envelope its layer aired', () => {
+  const env = (values) => ({ v: 1, kind: 'values', standard: OGRAF_STANDARD.commit, schema: 's', values });
+  const aired = env({ title: 'A', teams: [{ name: 'H', score: 1 }], round: 2 });
+  assert.deepEqual(form.typedUnsent(env({ round: 2, teams: [{ score: 1, name: 'H' }], title: 'A' }), aired, {}), [], 'key order is not a change');
+  assert.deepEqual(form.typedUnsent(env({ title: 'B', teams: [{ name: 'H', score: 2 }], round: 2 }), aired, {}), ['teams', 'title']);
+  assert.deepEqual(form.typedUnsent(env({ title: 'A', teams: [{ name: 'H', score: 1 }] }), aired, {}), ['round'], 'a removed value is a change');
+  assert.deepEqual(form.typedUnsent(env({ title: 'A', teams: [], round: 2 }), aired, { teams: 'data.teams' }), [], 'a bound key is the tree\'s');
+  assert.deepEqual(form.typedUnsent(env({ title: 'B' }), undefined, {}), [], 'a layer that aired no envelope is not judged');
+  assert.deepEqual(form.typedUnsent(undefined, aired, {}), []);
 });
 
 test('a press asks every output it sees to read typed actions (2); an E1.2a output reads values only', () => {

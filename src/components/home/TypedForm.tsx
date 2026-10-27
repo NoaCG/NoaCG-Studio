@@ -5,7 +5,7 @@
 // Text is committed when the edit is over (home/useDeferredEdits), so a keystroke is not a write.
 // A value that does not fit is marked where it is and kept: only the action that sends it refuses.
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { FieldControl, isSegmented, type FieldImage } from '../fields/FieldControl';
 import { getAt, pathKey, setAt, typedLabel, typedLeaf, typedNodeAt, typedOptionalAt, TYPED_FORM_ITEMS_SHOWN, type TypedPath } from '../../control/ografForm';
 import { typedSeed, type TypedNode } from '../../model/ografTyped';
@@ -23,6 +23,8 @@ export interface TypedFormProps {
   testIdPrefix: string;
   images?: FieldImage[];
   imageHint?: string;
+  /** Puts this form's settling edit under the page's verb wait (a Take by key or panel lands it). */
+  register?: (flush: () => void) => () => void;
   /** A top-level property drawn by the caller instead (a field bound to the production's data). */
   replaced?: (key: string, label: string) => ReactNode | null;
 }
@@ -40,6 +42,13 @@ export function TypedForm(props: TypedFormProps) {
     const leaf = typedLeaf(typedNodeAt(node, path) ?? node, pathKey(path));
     if (leaf) onChange(setAt(value, path, text === '' && typedOptionalAt(node, path) ? undefined : leaf.read(text)));
   });
+
+  const flushNow = useRef(edits.flush);
+  useEffect(() => {
+    flushNow.current = edits.flush;
+  });
+  const { register } = props;
+  useEffect(() => register?.(() => flushNow.current()), [register]);
 
   const errorLine = (path: TypedPath) => {
     const reasons = errors.get(pathKey(path));

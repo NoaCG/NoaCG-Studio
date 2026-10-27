@@ -797,6 +797,8 @@ export interface CueTypedForm {
   values: { fields: TypedNode; value: TypedValues['values']; errors: ReadonlyMap<string, string[]>; onChange: (values: TypedValues['values']) => void } | null;
   /** One per declared action that takes arguments. */
   actions: { id: string; name: string; node: TypedNode; value: JsonValue | undefined; errors: ReadonlyMap<string, string[]>; onChange: (args: JsonValue | undefined) => void }[];
+  /** Puts a form's settling edit under the page's verb wait; answers its removal. */
+  register: (flush: () => void) => () => void;
 }
 
 /** The writer's menu (E7.2a): which person this cue shows, picked from what each of its graphic's
@@ -1367,6 +1369,7 @@ export default function CueEditor({
             onChange={(v) => typedForm.values!.onChange((v ?? {}) as TypedValues['values'])}
             errors={typedForm.values.errors}
             testIdPrefix="cue-typed"
+            register={typedForm.register}
             images={cueImages}
             imageHint="Add pictures in the graphic's Assets tab."
             replaced={(key, label) => (bound[key] ? boundRow({ key, label }, label, bound[key]) : null)}
@@ -1476,7 +1479,7 @@ export default function CueEditor({
       {typedForm?.actions.map((a) => (
         <fieldset className="pd-typed-group pd-typed-action" key={a.id} data-testid={`cue-action-args-${a.id}`}>
           <legend>⚡ {a.name}</legend>
-          <TypedForm node={a.node} value={a.value} onChange={a.onChange} errors={a.errors} testIdPrefix={`cue-args-${a.id}`} images={cueImages} />
+          <TypedForm node={a.node} value={a.value} onChange={a.onChange} errors={a.errors} testIdPrefix={`cue-args-${a.id}`} register={typedForm.register} images={cueImages} />
         </fieldset>
       ))}
 
