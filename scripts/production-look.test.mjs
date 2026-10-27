@@ -22,7 +22,7 @@ const A = await import('../src/control/cueAdjust.ts');
 const G = await import('../src/control/adjustGeometry.ts');
 const St = await import('../src/control/cueStyle.ts');
 const L = await import('../src/control/productionLook.ts');
-const { audienceBrandFor, audienceLookOf } = await import('../src/audience/audienceBrand.ts');
+const { audienceBrandFor } = await import('../src/audience/audienceBrand.ts');
 
 const HD = { width: 1920, height: 1080 };
 /** A look of Archivo and accent #ff7a00 (the spec's AC-6). */
@@ -141,10 +141,12 @@ describe('Send to on-air graphics carries the look beside the place and size hel
 });
 
 describe('a light panel is a change of tone', () => {
-  test('warned for a light panel, not for a dark one or a colour it cannot read', () => {
+  test('warned for a light panel, translucent or not, never for a dark one or a colour it cannot read', () => {
     assert.equal(L.lightPanel(LOOK), false);
     assert.equal(L.lightPanel({ ...LOOK, palette: { ...LOOK.palette, panel: '#f4f4f4' } }), true);
-    assert.equal(L.lightPanel({ ...LOOK, palette: { ...LOOK.palette, panel: 'rgba(0,0,0,.5)' } }), false);
+    assert.equal(L.lightPanel({ ...LOOK, palette: { ...LOOK.palette, panel: 'rgba(12, 14, 18, 0.92)' } }), false, 'the captured default, translucent and dark');
+    assert.equal(L.lightPanel({ ...LOOK, palette: { ...LOOK.palette, panel: 'rgba(250, 250, 250, 0.9)' } }), true, 'translucent and light');
+    assert.equal(L.lightPanel({ ...LOOK, palette: { ...LOOK.palette, panel: 'not a colour' } }), false);
   });
 });
 
@@ -191,7 +193,7 @@ test('activation, Off, exceptions, "Clear exceptions", the duplicate and the joi
       return A.effectiveAdjust(record.graphics[0].adjust, cue.adjust, look ? L.lookLayerFor(L.lookLayerOf(look), template) : undefined);
     };
     assert.equal(St.resolveStyle(fold(read(), read().cues[0]), []), null, 'a captured look styles nothing');
-    assert.equal(audienceBrandFor(audienceLookOf(read())).accent, '#ff7a00', 'and its join page keeps it');
+    assert.equal(audienceBrandFor(read().look).accent, '#ff7a00', 'and its join page keeps it');
 
     // One cue keeps its own style; another graphic-wide exception would count too.
     shows.setCueAdjust(show.id, c2.id, { keepStyle: true, x: 4 });
@@ -211,7 +213,7 @@ test('activation, Off, exceptions, "Clear exceptions", the duplicate and the joi
     assert.deepEqual(dup.cues[1].adjust, { v: 1, keepStyle: true, x: 4 });
     assert.equal(read().lookApplied, undefined, 'the original is not turned on');
     assert.equal(read().look.palette.accent, '#ff7a00', 'nor restyled');
-    assert.equal(audienceBrandFor(audienceLookOf(dup)).accent, '#00a3ff', 'the activated look on the copy\'s join page');
+    assert.equal(audienceBrandFor(dup.look).accent, '#00a3ff', 'the activated look on the copy\'s join page');
 
     // "Clear exceptions" removes every keepStyle and nothing else of any record.
     const cleared = shows.clearStyleExceptions(copy.id);

@@ -21,8 +21,9 @@
 //
 // Pure and Node-tested (scripts/hosted-adjust.test.mjs).
 
-import { ADJUST_READ_ONLY, foldedMember, patchAdjust, readAdjust, type AdjustPatch } from '../model/adjust.ts';
+import { ADJUST_READ_ONLY, patchAdjust, promotedMembers, readAdjust, stepPatch, type AdjustPatch } from '../model/adjust.ts';
 import { cueAdjustState, NO_GEOMETRY, type CueAdjustState, type GeometryPart, type StyleContext } from './adjustGeometry.ts';
+import { STAGED_ADJUST } from './cueStaging.ts';
 import { publishedAppearance, type AppliedAppearance, type LookLayer, type Measurement, type Size } from './cueAdjust.ts';
 
 /** What Publish carries beside a cue for the hosted page's Adjust block. */
@@ -40,16 +41,11 @@ export interface PublishedAdjust {
   stage: Size;
 }
 
-/** The field-shaped name a staged record goes under in its graphic's buffer: no field id starts
- *  with '@', so `hostedCueValues` never reads it as a value. */
-export const STAGED_ADJUST = '@adjust';
 const US = '\u001f';
 
 /** The buffer key of a scope's staged record: a cue's under its id, the graphic's under none. */
 export const stagedAdjustKey = (cueId: string | null) => `${cueId ?? ''}${US}${STAGED_ADJUST}`;
-
-/** A key of the shared buffer that is a staged record, never a field value. */
-export const isStagedAdjustKey = (key: string) => key.endsWith(US + STAGED_ADJUST);
+const keyAt = (scope: 'cue' | 'graphic', cueId: string) => stagedAdjustKey(scope === 'cue' ? cueId : null);
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
@@ -138,32 +134,26 @@ const stageValue = (pub: PublishedAdjust, scope: 'cue' | 'graphic', next: unknow
 export function stageAdjustWrite(pub: PublishedAdjust, records: HostedRecords, cueId: string, scope: 'cue' | 'graphic', patch: AdjustPatch): StagedWrite {
   const next = patchAdjust(scope === 'cue' ? records.cue : records.graphic, patch);
   if (typeof next === 'string') return next;
-  return { [stagedAdjustKey(scope === 'cue' ? cueId : null)]: stageValue(pub, scope, next) };
+  return { [keyAt(scope, cueId)]: stageValue(pub, scope, next) };
 }
 
 /** A step, from the fold as it stands (`foldedMember`), written at a scope. */
 export function stageAdjustStep(pub: PublishedAdjust, records: HostedRecords, cueId: string, scope: 'cue' | 'graphic', step: { x?: number; y?: number; scale?: number }, patch: AdjustPatch = {}): StagedWrite {
-  const next: AdjustPatch = { ...patch };
-  for (const key of ['x', 'y', 'scale'] as const) {
-    const by = step[key];
-    if (by) next[key] = Math.round((foldedMember(records.graphic, records.cue, key) + by) * 1000) / 1000;
-  }
-  return stageAdjustWrite(pub, records, cueId, scope, next);
+  return stageAdjustWrite(pub, records, cueId, scope, stepPatch(records.graphic, records.cue, step, patch));
 }
 
 /** A reset: no record at the scope. */
 export function stageAdjustReset(pub: PublishedAdjust, records: HostedRecords, cueId: string, scope: 'cue' | 'graphic'): StagedWrite {
   if (readAdjust(scope === 'cue' ? records.cue : records.graphic).status === 'read-only') return ADJUST_READ_ONLY;
-  return { [stagedAdjustKey(scope === 'cue' ? cueId : null)]: stageValue(pub, scope, null) };
+  return { [keyAt(scope, cueId)]: stageValue(pub, scope, null) };
 }
 
 /** "Use for all": the cue's members onto the graphic's default and the cue's record gone, in one
  *  staged write. */
 export function stageAdjustPromote(pub: PublishedAdjust, records: HostedRecords, cueId: string): StagedWrite {
-  const own = readAdjust(records.cue);
-  if (own.status === 'read-only' || readAdjust(records.graphic).status === 'read-only') return ADJUST_READ_ONLY;
-  if (own.status !== 'ok') return {};
-  const { v: _v, ...members } = own.record;
+  const members = promotedMembers(records.graphic, records.cue);
+  if (typeof members === 'string') return members;
+  if (!members) return {};
   const graphic = patchAdjust(records.graphic, members);
   if (typeof graphic === 'string') return graphic;
   return { [stagedAdjustKey(null)]: stageValue(pub, 'graphic', graphic), [stagedAdjustKey(cueId)]: stageValue(pub, 'cue', null) };

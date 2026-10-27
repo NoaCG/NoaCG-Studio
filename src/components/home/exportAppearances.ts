@@ -12,19 +12,17 @@ import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import type { Show } from '../../model/shows';
 import { measureCue, type PreviewStyle } from './measureCue';
 import { assetDataIn, facesCss, resolveStyle, styleContextFor } from '../../control/cueStyle';
-import { lookLayerFor, lookLayerOf, productionLookOf } from '../../control/productionLook';
+import { lookForOf } from '../../control/productionLook';
 
 export async function measureExportAppearances(show: Show, targetId: string): Promise<ExportAppearances | undefined> {
   const cues = show.cues ?? [];
   const lib = loadGraphics();
   const pool = show.graphics.map((g) => templateForSavedGraphic(g, lib));
   // The production look, as on air: each graphic takes what its stylesheet paints with.
-  const look = productionLookOf(show);
-  const layers = new Map(look ? show.graphics.map((g, i) => [g.id, lookLayerFor(lookLayerOf(look), pool[i])] as const) : []);
-  const lookFor = look ? (id: string) => layers.get(id) : undefined;
+  const lookFor = lookForOf(show, pool);
   const adjusted = adjustedGraphics(show.graphics, cues, lookFor);
   if (adjusted.length === 0) return undefined;
-  const templates = new Map(adjusted.map((g) => [g.id, templateForSavedGraphic(g, lib)]));
+  const templates = new Map(show.graphics.map((g, i) => [g.id, pool[i]] as const));
   const imported = styleContextFor(pool).imported;
   const assetData = assetDataIn(pool);
   // Each box in the type it will be drawn in: a face or a weight moves the text, so the fold's

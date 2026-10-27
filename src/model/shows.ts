@@ -57,7 +57,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
-import { foldedMember, patchAdjust, readAdjust, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
+import { patchAdjust, promotedMembers, readAdjust, stepPatch, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
 
 /**
@@ -895,10 +895,9 @@ export function promoteCueAdjust(showId: string, cueId: string): { shows: Show[]
     const cue = show.cues?.find((c) => c.id === cueId);
     const graphic = cue && show.graphics.find((g) => g.id === cue.sourceId);
     if (!cue || !graphic) return 'This cue is no longer in the production.';
-    const own = readAdjust(cue.adjust);
-    if (own.status === 'read-only' || readAdjust(graphic.adjust).status === 'read-only') return ADJUST_READ_ONLY;
-    if (own.status !== 'ok') return false;
-    const { v: _v, ...members } = own.record;
+    const members = promotedMembers(graphic.adjust, cue.adjust);
+    if (typeof members === 'string') return members;
+    if (!members) return false;
     const moved = writeAdjust(graphic, members);
     if (typeof moved === 'string') return moved;
     delete cue.adjust;
@@ -922,12 +921,7 @@ export function stepAdjust(
     const cue = show.cues?.find((c) => c.id === cueId);
     const graphic = cue && show.graphics.find((g) => g.id === cue.sourceId);
     if (!cue || !graphic) return 'This cue is no longer in the production.';
-    const next: AdjustPatch = { ...patch };
-    for (const key of ['x', 'y', 'scale'] as const) {
-      const by = step[key];
-      if (by) next[key] = Math.round((foldedMember(graphic.adjust, cue.adjust, key) + by) * 1000) / 1000;
-    }
-    return writeAdjust(scope === 'cue' ? cue : graphic, next);
+    return writeAdjust(scope === 'cue' ? cue : graphic, stepPatch(graphic.adjust, cue.adjust, step, patch));
   });
 }
 

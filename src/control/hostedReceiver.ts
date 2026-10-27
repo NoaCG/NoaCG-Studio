@@ -13,7 +13,7 @@ import { loadBackendConfig } from '../backend/config';
 // supposed to behave like.
 import { CONTROL_POLL_MS } from './hostedControl';
 import { RECEIVER_FOLLOW_FROM_JS } from './outputRecovery';
-import { APPEARANCE_RUNTIME_JS } from './appearanceRuntime';
+import { APPEARANCE_REFIT_JS, APPEARANCE_RUNTIME_JS } from './appearanceRuntime';
 import { refFromSupabaseUrl } from './realtimeControl';
 
 const OPEN = '/* == HOSTED CONTROL (Supabase log) — edit or delete this whole block == */';
@@ -84,30 +84,9 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     if (!noacgApplyAppearance(a)) return;
     look = a.frame ? a : null;
   }
-  // A row that changes the type on the root (a face, the heading weight, or back to the design's)
-  // refits once the face in effect is in: the values this document SHOWS go to update() again, as
-  // the relay receiver does (./localReceiver.ts). An appearance-only update (phase 3's send to
-  // on-air graphics, empty data) has no values of its own to fit with. A newer change takes the
-  // refit over.
-  var typeSeq = 0;
-  var shown = {};
-  function given(d) { if (d) { for (var k in d) { if (Object.prototype.hasOwnProperty.call(d, k)) shown[k] = d[k]; } } }
-  var payloadsKept = false;
-  function keepPayloads() {
-    if (payloadsKept || typeof noacgApplyPayload !== 'function') return;
-    payloadsKept = true;
-    var own = noacgApplyPayload;
-    noacgApplyPayload = function (payload) { given(payload); return own.apply(this, arguments); };
-  }
-  function typeHere() {
-    var t = document.documentElement.__noacgType;
-    return t === undefined ? noacgApplyAppearance.typeOf(null) : t;
-  }
-  function refit() {
-    var seq = ++typeSeq;
-    var loaded = noacgApplyAppearance.loaded();
-    if (loaded) loaded.then(function () { if (seq === typeSeq && typeof update === 'function') update(JSON.stringify(shown)); });
-  }
+  // An appearance-only update (phase 3's send to on-air graphics, empty data) has no values of its
+  // own to fit with: the refit gives the values this document shows (./appearanceRuntime.ts).
+  ${APPEARANCE_REFIT_JS}
 
   // AN RPC EITHER ANSWERED OR FAILED, and this block must never confuse the two. A dropped
   // request says nothing about the show, so it is reported AS a failure (the ok flag) and the

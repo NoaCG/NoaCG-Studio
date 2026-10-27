@@ -11,6 +11,9 @@ import { Swatch } from './CueAdjust';
  * Nothing here reaches air by itself: the next Take or Update of each graphic, or "Send to on-air
  * graphics", carries it.
  */
+/** The colour roles the panel offers, and the palette member each one is. */
+const PALETTE_KEY = { accent: 'accent', 'text-color': 'text', 'panel-bg': 'panel' } as const;
+
 export default function ProductionLook({
   look,
   canActivate,
@@ -70,12 +73,8 @@ export default function ProductionLook({
     if (key.startsWith('b:')) edit({ ...look, fontId: key.slice(2), customFont: null });
   };
   const weight = look?.tokens?.['display-weight'] ?? '';
-  const colour = (k: 'accent' | 'text-color' | 'panel-bg', v: string) => {
-    if (!look) return;
-    const key = k === 'accent' ? 'accent' : k === 'text-color' ? 'text' : 'panel';
-    edit({ ...look, palette: { ...look.palette, id: 'custom', [key]: v } });
-  };
-  const paletteOf = (k: 'accent' | 'text-color' | 'panel-bg') => (!look ? '#000000' : k === 'accent' ? look.palette.accent : k === 'text-color' ? look.palette.text : look.palette.panel);
+  const colour = (k: keyof typeof PALETTE_KEY, v: string) => look && edit({ ...look, palette: { ...look.palette, id: 'custom', [PALETTE_KEY[k]]: v } });
+  const paletteOf = (k: keyof typeof PALETTE_KEY) => look?.palette[PALETTE_KEY[k]] ?? '#000000';
   const lock = readOnly || !look;
   return (
     <section className="pd-look" aria-label="Look" data-testid="production-look">

@@ -25,7 +25,7 @@ import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
 // audience): publish is the courier, not the author.
-import { audienceBrandFor, audienceLookOf } from '../audience/audienceBrand';
+import { audienceBrandFor } from '../audience/audienceBrand';
 import type { PublishedAdjust } from './hostedAdjust';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
 // boundary where a library draft becomes something a renderer trusts.
@@ -669,7 +669,9 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   };
   // The brand travels at publish, merged into the state rather than replacing it — `open`,
   // `mode` and the round pointer are the operator's, not the publisher's.
-  const brand = audienceBrandFor(audienceLookOf(show));
+  // The activated look when it is on, the captured one otherwise: activation copies the look it
+  // turns on into `look` (model/shows.ts `setShowLookApplied`), so one member answers both.
+  const brand = audienceBrandFor(show.look);
   if (row.audience_state) {
     await sb
       .from('control_shows')

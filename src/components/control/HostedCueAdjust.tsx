@@ -4,7 +4,7 @@ import { getCssVariable } from '../../model/cssVars';
 import { FONTS } from '../../model/fonts';
 import { withAnchor, type AppliedAppearance } from '../../control/cueAdjust';
 import { asDesignedPatch, facePickPatch, styleReach, COLOUR_VARS, SVG_DESIGN_MARKER, type StyleContext } from '../../control/cueStyle';
-import { adjustedElsewhere, hostedAdjustState, hostedRecords, stageAdjustPromote, stageAdjustReset, stageAdjustStep, stageAdjustWrite, type StagedWrite } from '../../control/hostedAdjust';
+import { hostedAdjustState, hostedRecords, stageAdjustPromote, stageAdjustReset, stageAdjustStep, stageAdjustWrite, type StagedWrite } from '../../control/hostedAdjust';
 import type { OutputCue, OutputGraphicSpec } from '../../control/hostedControl';
 import { storePart } from '../../control/storePart';
 import CueAdjust from '../home/CueAdjust';
@@ -46,8 +46,8 @@ export default function HostedCueAdjust({
   const records = hostedRecords(pub, buffer, cue.id);
   const mine = cues.filter((c) => c.graphic === cue.graphic);
   const others = mine.filter((c) => c.id !== cue.id);
-  const ownRecord = (c: OutputCue) => !!c.adjust && hostedRecords(c.adjust, buffer, c.id).cue !== undefined;
-  const state = hostedAdjustState(pub, records, cue.id, applied, adjustedElsewhere(cue, cues, buffer), styleCtx);
+  const othersOwn = others.filter((c) => !!c.adjust && hostedRecords(c.adjust, buffer, c.id).cue !== undefined).length;
+  const state = hostedAdjustState(pub, records, cue.id, applied, othersOwn > 0, styleCtx);
   const scope = state.eff.own.length > 0 || onlyThisCue ? 'cue' : 'graphic';
   const run = (write: StagedWrite) => {
     if (typeof write === 'string') refused(write);
@@ -55,18 +55,20 @@ export default function HostedCueAdjust({
   };
   const anchored = <P extends AdjustPatch>(patch: P) => withAnchor(state.eff, state.m, pub.frame, patch);
   const write = (patch: AdjustPatch) => run(stageAdjustWrite(pub, records, cue.id, scope, anchored(patch)));
-  const template = { css: graphic.css, js: graphic.js };
-  const reach = styleReach(template);
-  const design: Record<string, string> = {};
-  for (const k of ['font-heading', 'font-numeric', ...COLOUR_VARS]) {
-    const v = getCssVariable(graphic.css, k);
-    if (v !== null) design[k] = v;
-  }
+  // What the design paints with and its own values: once per stylesheet, not per render.
+  const { reach, design, artwork } = useMemo(() => {
+    const design: Record<string, string> = {};
+    for (const k of ['font-heading', 'font-numeric', ...COLOUR_VARS]) {
+      const v = getCssVariable(graphic.css, k);
+      if (v !== null) design[k] = v;
+    }
+    return { reach: styleReach(graphic), design, artwork: graphic.js.includes(SVG_DESIGN_MARKER) };
+  }, [graphic]);
   return (
     <CueAdjust
       graphicName={cue.graphic}
       cueCount={mine.length}
-      exceptions={others.filter(ownRecord).length}
+      exceptions={othersOwn}
       scope={scope}
       onlyThisCue={onlyThisCue}
       setOnlyThisCue={setOnlyThisCue}
@@ -87,7 +89,7 @@ export default function HostedCueAdjust({
       }}
       style={{
         reach,
-        artwork: template.js.includes(SVG_DESIGN_MARKER),
+        artwork,
         imported: styleCtx.imported,
         bundled: FONTS,
         design,

@@ -126,7 +126,7 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import { loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { lightPanel, lookExceptions, lookFontRef, lookLayerFor, lookLayerOf, lookReach, lookSentWords, lookToActivate, productionLookOf } from '../../control/productionLook';
+import { lightPanel, lookExceptions, lookFontRef, lookForOf, lookReach, lookSentWords, lookToActivate, productionLookOf } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
 import { getCssVariable } from '../../model/cssVars';
@@ -2165,15 +2165,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const poolTemplates = useMemo(() => (show?.graphics ?? []).map((g) => templateForSavedGraphic(g, library)), [show?.graphics, library]);
   // THE PRODUCTION LOOK (phase 3, control/productionLook.ts): while it is on, the widest scope of
   // every graphic's style, limited per graphic to what its stylesheet paints with.
-  const lookOn = productionLookOf(show);
-  const styleCtxOf = (record: Show | null | undefined, templates: typeof poolTemplates) => {
-    const look = productionLookOf(record);
-    const layer = look ? lookLayerOf(look) : null;
-    const byId = new Map((record?.graphics ?? []).map((g, i) => [g.id, layer && templates[i] ? lookLayerFor(layer, templates[i]) : undefined] as const));
-    return styleContextFor(templates, layer ? (graphicId) => byId.get(graphicId) : undefined);
-  };
+  const styleCtxOf = (record: Show | null | undefined, templates: typeof poolTemplates) => styleContextFor(templates, lookForOf(record, templates));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const styleCtx = useMemo(() => styleCtxOf(show, poolTemplates), [poolTemplates, lookOn]);
+  const styleCtx = useMemo(() => styleCtxOf(show, poolTemplates), [poolTemplates, show?.look, show?.lookApplied]);
   const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library, ctx = styleCtx) => {
     const g = record?.graphics.find((x) => x.id === cue.sourceId);
     if (!g || cue.source === 'playout') return null;
@@ -2187,6 +2181,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [lookSent, setLookSent] = useState<string | null>(null);
   const [lookSending, setLookSending] = useState(false);
   const savedBrands = useMemo(() => (lookOpen ? loadLooks() : []), [lookOpen]);
+  /** The style context a send to on-air graphics resolves with, for the record it was built from. */
+  const lookCtx = useRef<{ key: string; ctx: ReturnType<typeof styleContextFor> } | null>(null);
+  // What the panel counts, once per change of what it counts (each count scans every stylesheet).
+  const lookCounts = useMemo(
+    () => (lookOpen && show?.look ? { reach: lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), show.look, styleCtx.imported), exceptions: lookExceptions(show) } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lookOpen, show?.look, show?.graphics, show?.cues, poolTemplates, styleCtx.imported],
+  );
   const lookWrite = (result: { shows: Show[]; error: string | null }) => {
     setShows(result.shows);
     if (result.error) setNote(result.error);
@@ -2945,8 +2947,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       await history.settle();
       const record = loadShows().find((s) => s.id === id) ?? latestShow.current ?? null;
       const cue = record?.cues?.find((c) => c.id === taken.id) ?? taken;
-      const templates = (record?.graphics ?? []).map((g) => templateForSavedGraphic(g, library));
-      return lookAppearance(adjustStateOf(cue, record, library, styleCtxOf(record, templates)), session.air.get().looks?.[graphic]);
+      // One context per stored record: a press over several graphics on air builds it once.
+      const key = `${record?.id}:${record?.updatedAt}`;
+      if (lookCtx.current?.key !== key) lookCtx.current = { key, ctx: styleCtxOf(record, (record?.graphics ?? []).map((g) => templateForSavedGraphic(g, library))) };
+      return lookAppearance(adjustStateOf(cue, record, library, lookCtx.current.ctx), session.air.get().looks?.[graphic]);
     },
     appearanceOf: (taken) => {
       const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
@@ -3989,7 +3993,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {lookOpen && (
           <ProductionLook
             look={show.look ?? null}
-            canActivate={!!lookToActivate(show, savedBrands)}
+            canActivate={!!show.look || savedBrands.some((b) => b.id === show.brandId)}
             on={!!show.lookApplied}
             setOn={(on) => lookWrite(setShowLookApplied(show.id, on, on ? (lookToActivate(show, savedBrands) ?? undefined) : undefined))}
             brands={savedBrands.map((b) => ({ id: b.id, name: b.name }))}
@@ -4001,8 +4005,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             edit={(next) => lookWrite(editShowLook(show.id, next, null))}
             bundled={FONTS}
             weights={show.look ? weightsFor(lookFontRef(show.look), {}, styleCtx.imported) : []}
-            reach={show.look ? lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), show.look, styleCtx.imported) : null}
-            exceptions={lookExceptions(show)}
+            reach={lookCounts?.reach ?? null}
+            exceptions={lookCounts?.exceptions ?? lookExceptions(show)}
             clearExceptions={() => void history.write(() => clearStyleExceptions(show.id), 'Clear look exceptions')}
             onAir={Object.values(liveCue).filter((cueId) => cues.some((c) => c.id === cueId && c.source !== 'playout')).length}
             send={() => void sendLookToAir()}

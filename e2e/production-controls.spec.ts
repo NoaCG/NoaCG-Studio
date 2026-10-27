@@ -2705,9 +2705,9 @@ test('Setup ▾ Look turns a production look on and off, counts its reach, keeps
   await settleDurableWrites(page);
   expect(await page.evaluate(async ([a, b]) => {
     const { loadShows } = await import('/src/model/shows.ts');
-    const { audienceBrandFor, audienceLookOf } = await import('/src/audience/audienceBrand.ts');
+    const { audienceBrandFor } = await import('/src/audience/audienceBrand.ts');
     const of = (id: string) => loadShows().find((s) => s.id === id)!;
-    return [of(a).lookApplied ?? null, audienceBrandFor(audienceLookOf(of(a)))?.accent, of(b).lookApplied ?? null, audienceBrandFor(audienceLookOf(of(b)))?.accent];
+    return [of(a).lookApplied ?? null, audienceBrandFor(of(a).look)?.accent, of(b).lookApplied ?? null, audienceBrandFor(of(b).look)?.accent];
   }, [showId, copyId] as const)).toEqual([null, '#ff7a00', true, '#00a3ff']);
 });
 

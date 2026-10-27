@@ -32,15 +32,3 @@ export function audienceBrandFor(look: ProjectBrand | undefined): AudienceBrand 
         : null,
   };
 }
-
-/**
- * WHICH LOOK THE JOIN PAGE CARRIES (playout adjustments, phase 3): the activated production look
- * when the look is on, the captured one otherwise, so turning the look on never un-brands a join
- * page and a production nobody turned on keeps the one it has. Activation copies the look it turns
- * on into `look` (model/shows.ts `setShowLookApplied`), so the rule reads one member either way;
- * it stays a rule of its own so the join page never reads `lookApplied` as "no look". An imported
- * face reaches the join page by family name only: bundled typefaces only.
- */
-export function audienceLookOf(show: { look?: ProjectBrand; lookApplied?: true }): ProjectBrand | undefined {
-  return show.look;
-}

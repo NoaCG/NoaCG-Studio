@@ -14,7 +14,7 @@
 // Pure and Node-tested (scripts/production-look.test.mjs).
 
 import { readAdjust, readFont, styleValue, STYLE_VARS, type FontRef } from '../model/adjust.ts';
-import { cssPaintsWith } from '../model/cssVars.ts';
+import { cssPaintsWith, parseCssColor, relativeLuminance } from '../model/cssVars.ts';
 import type { ProjectBrand } from '../model/brand';
 import { COLOUR_VARS, SVG_DESIGN_MARKER, faceOf, styleReach, type ImportedFace } from './cueStyle.ts';
 import type { LookLayer } from './cueAdjust.ts';
@@ -73,11 +73,23 @@ export function lookLayerFor(layer: LookLayer, template: { css: string; js: stri
   return { ...(Object.keys(vars).length > 0 ? { vars } : {}), ...(font ? { font } : {}) };
 }
 
+/** THE LOOK ON EACH POOL GRAPHIC of a production while it is on, by pool graphic id (the fold's
+ *  `lookFor`), or undefined when it is off. `templates` are the pool's, in pool order. */
+export function lookForOf(
+  show: { look?: ProjectBrand; lookApplied?: true; graphics: readonly { id: string }[] } | null | undefined,
+  templates: readonly { css: string; js: string }[],
+): ((graphicId: string) => LookLayer | undefined) | undefined {
+  const look = productionLookOf(show);
+  if (!look || !show) return undefined;
+  const layer = lookLayerOf(look);
+  const byId = new Map(show.graphics.map((g, i) => [g.id, templates[i] ? lookLayerFor(layer, templates[i]) : undefined] as const));
+  return (graphicId) => byId.get(graphicId);
+}
+
 /** One pool graphic as the Look panel counts it. */
 export interface LookPoolGraphic {
   name: string;
   template: { css: string; js: string };
-  adjust?: unknown;
 }
 
 /** THE REACH, PER PROPERTY, OVER THE POOL: how many graphics the look's typeface reaches (the face
@@ -129,22 +141,11 @@ export function lookExceptions(show: { graphics: readonly { id: string; name: st
   return out;
 }
 
-/** Relative luminance of a `#rrggbb` colour, or null for anything else. */
-function luminance(hex: string): number | null {
-  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return null;
-  const [r, g, b] = [0, 2, 4].map((i) => {
-    const c = parseInt(m[1].slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
 /** A LIGHT PANEL is a change of tone: allowed, and warned, since most designs are drawn for dark
  *  panels (docs/CATALOG_VARIETY.md §5: a dark-to-light change breaks 148 of 459 designs). */
 export function lightPanel(look: ProjectBrand): boolean {
-  const l = luminance(look.palette.panel);
-  return l !== null && l > 0.5;
+  const panel = parseCssColor(look.palette.panel);
+  return !!panel && relativeLuminance(panel) > 0.5;
 }
 
 /** What a send to on-air graphics came to, in one line: "Look sent to 3 graphics on air", or the

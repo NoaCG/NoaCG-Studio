@@ -13,7 +13,7 @@ import './lib/tsResolve.mjs';
 const H = await import('../src/control/hostedAdjust.ts');
 const A = await import('../src/control/cueAdjust.ts');
 const St = await import('../src/control/cueStyle.ts');
-const { hostedCueValues } = await import('../src/control/cueStaging.ts');
+const { hostedCueValues, isStagedAdjustKey } = await import('../src/control/cueStaging.ts');
 const { ADJUST_READ_ONLY } = await import('../src/model/adjust.ts');
 
 const HD = { width: 1920, height: 1080 };
@@ -67,7 +67,7 @@ describe('what a Take carries from the hosted page', () => {
     const cue = { id: 'c1', graphic: 'Strap', values: { f0: 'Ann' }, label: 'c1' };
     const staged = { Strap: { ...write, ...graphicWide, 'c1\u001ff0': 'Bo' } };
     assert.deepEqual(hostedCueValues(cue, staged, {}, [cue]), { f0: 'Bo' });
-    assert.ok(Object.keys(write).every(H.isStagedAdjustKey));
+    assert.ok(Object.keys(write).every(isStagedAdjustKey));
   });
 });
 

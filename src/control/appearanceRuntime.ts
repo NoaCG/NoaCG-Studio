@@ -183,3 +183,37 @@ export function bakeAppearance(appearance: AppliedAppearance | undefined): { id:
     ? [{ id: APPEARANCE_SCRIPT_ID, js: `${APPEARANCE_RUNTIME_JS}\nnoacgApplyAppearance(${JSON.stringify(appearance)});` }]
     : [];
 }
+
+/**
+ * THE REFIT A RECEIVER OWES WHEN THE TYPE ON ITS ROOT CHANGES (the relay receiver, ./localReceiver.ts,
+ * and the published graphic's own, ./hostedReceiver.ts): `given` records what the template took,
+ * `keepPayloads` what an event's payload wrote, `typeHere` the type applied, and `refit` gives the
+ * shown values to update() again once the face in effect is in. ES5; needs APPEARANCE_RUNTIME_JS.
+ */
+export const APPEARANCE_REFIT_JS = `// A row that changes the type on the root (a face, the heading weight, or back to the design's,
+  // a bake's included): the template's fits measured the old one (a fit handed to
+  // document.fonts.ready ran once, at load), so once the face in effect is in, the values on air
+  // go to update() again, a refit through the template's own code. SHOWN, read when the face is
+  // in, never the row that asked: a row that arrived meanwhile must not be undone. It is what the
+  // template took (each update, and each payload its own noacgApplyPayload applied), not MERGED,
+  // which also holds the payload of an event the template refused. A newer change takes the refit
+  // over.
+  var typeSeq = 0;
+  var shown = {};
+  function given(d) { if (d) { for (var k in d) { if (Object.prototype.hasOwnProperty.call(d, k)) shown[k] = d[k]; } } }
+  var payloadsKept = false;
+  function keepPayloads() {
+    if (payloadsKept || typeof noacgApplyPayload !== 'function') return;
+    payloadsKept = true;
+    var own = noacgApplyPayload;
+    noacgApplyPayload = function (payload) { given(payload); return own.apply(this, arguments); };
+  }
+  function typeHere() {
+    var t = document.documentElement.__noacgType;
+    return t === undefined ? noacgApplyAppearance.typeOf(null) : t;
+  }
+  function refit() {
+    var seq = ++typeSeq;
+    var loaded = noacgApplyAppearance.loaded();
+    if (loaded) loaded.then(function () { if (seq === typeSeq && typeof update === 'function') update(JSON.stringify(shown)); });
+  }`;
