@@ -955,7 +955,8 @@ async function boot(): Promise<void> {
   }
   // A GRAPHIC ON AIR THAT NO REPORT BANKS, AIRING TYPED DATA (issue #1762; control/outputRecovery.ts
   // `unreportedTypedRows`): its typed Take can be older than `followFrom`, so the log below it is
-  // read for that graphic alone, every page up to `followFrom` (`unreportedPages`), and its commands
+  // read for that graphic alone, every page up to `followFrom` within the catch-up's ceiling
+  // (`unreportedPages`; past it, none: dbg says so), and its commands
   // there replay before the rows above. Only the numbered log's head says what is on air, and a
   // graphic every report banks, one that is not on air, or one whose live cue is a published native
   // cue (`mayAirTyped`: a typed cue is never published) reads nothing more. A page that cannot be
@@ -968,7 +969,9 @@ async function boot(): Promise<void> {
   let below: ControlEventRow[] = [];
   if (unreported.length > 0) {
     let cursor = 0;
-    for (let page = 0; page < unreportedPages(followFrom, !!seqMode, CONTROL_TAIL_PAGE); page += 1) {
+    const pages = unreportedPages(followFrom, !!seqMode, CONTROL_TAIL_PAGE, MAX_CATCH_UP_PAGES);
+    if (pages === 0 && seqMode && followFrom > 0) dbg('catch-up', `log below the reports too long to read: ${unreported.join(', ')} keep what their next Take sends`);
+    for (let page = 0; page < pages; page += 1) {
       const tail = await untilAnswered(() => readTail(cursor), {
         limit: 6,
         onRetry: (attempts, error) => dbg('catch-up', `log read below the reports failed (${attempts}): ${error}`),

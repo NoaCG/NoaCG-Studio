@@ -75,16 +75,20 @@ test('#1762: a graphic on air that no report banks, with typed data on air, gets
   assert.deepEqual(unreportedTypedRows([], rows), []);
 });
 
-test('the read below the reports takes every page up to followFrom, past the catch-up\'s own ceiling, and nothing by row id', () => {
+test('the read below the reports takes every page up to followFrom within the catch-up ceiling, or none, and nothing by row id', () => {
   assert.equal(CONTROL_TAIL_PAGE, 500);
-  assert.equal(unreportedPages(1203, true, CONTROL_TAIL_PAGE), 3);
-  assert.equal(unreportedPages(499, true, CONTROL_TAIL_PAGE), 1);
-  assert.equal(unreportedPages(500, true, CONTROL_TAIL_PAGE), 2);
-  assert.equal(unreportedPages(0, true, CONTROL_TAIL_PAGE), 0, 'nothing below the start');
-  assert.equal(unreportedPages(1203, false, CONTROL_TAIL_PAGE), 0, 'protocol 1 has no head to say what is on air');
   const main = source('src/output/main.ts');
   const ceiling = Number(/const MAX_CATCH_UP_PAGES = (\d+);/.exec(main)[1]);
-  assert.ok(unreportedPages(30_000, true, CONTROL_TAIL_PAGE) > ceiling, 'a long log is read whole, not cut at the catch-up ceiling');
+  assert.equal(ceiling, 40);
+  const pages = (followFrom, seq = true) => unreportedPages(followFrom, seq, CONTROL_TAIL_PAGE, ceiling);
+  assert.equal(pages(1203), 3);
+  assert.equal(pages(499), 1);
+  assert.equal(pages(500), 2);
+  assert.equal(pages(19_999), 40, 'up to the ceiling, every page');
+  assert.equal(pages(20_000), 0, 'past it none: never half a history, never a longer wait than the catch-up');
+  assert.equal(pages(0), 0, 'nothing below the start');
+  assert.equal(pages(1203, false), 0, 'protocol 1 has no head to say what is on air');
+  assert.match(main, /unreportedPages\(followFrom, !!seqMode, CONTROL_TAIL_PAGE, MAX_CATCH_UP_PAGES\)/);
   // The output asks it only for graphics on air (the head) with no report whose live cue is not a
   // published native cue, puts their rows first, and leaves a read it could not finish out whole.
   assert.match(main, /\(key\) => !resolved\.live\[key\] && headOn\.get\(key\) === true && mayAirTyped\(headCue\.get\(key\), publishedCues\),/);
@@ -139,6 +143,13 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
   const nativeNow = { Board: { data: { f0: 'B' }, state: null, event: 20 } };
   const ended = seedFromResolve({ ...seeded, reports: nativeNow }, { liveCue: { Board: 'c1' }, live: nativeNow }, [], airAtRequest(seeded), [], specs);
   assert.deepEqual([ended.typedAired, ended.typedSteps], [{}, {}]);
+  // At boot, a report whose envelope does not read is a graphic the output holds: PROGRAM plays
+  // nothing for it, never its empty native data (replayed rows or none).
+  const unreadable = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };
+  for (const rows of [[], after]) {
+    const held = seedFromResolve({ ...NO_AIR, reports: unreadable }, { liveCue: { Board: 'c1' }, live: unreadable }, rows, airAtRequest(NO_AIR), [{ id: 'c1', values: { f0: 'x' } }], specs);
+    assert.deepEqual(restoreItems(held, {}, specs).items, []);
+  }
   // A report whose envelope does not read rebuilds nothing typed from it.
   const later = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };
   const unread = seedFromResolve({ ...NO_AIR, reports: later }, { liveCue: { Board: 'c1' }, live: later }, [], airAtRequest(NO_AIR), [], specs);

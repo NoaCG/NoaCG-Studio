@@ -138,11 +138,13 @@ test('a typed report is the baseline: its envelope, steps and place come back ex
     // After them.
     row(11, 'Strap', { t: 'next' }),
   ];
-  await standInBackend(page, live, rows, ['Strap', 'Bug']);
+  const backend = await standInBackend(page, live, rows, ['Strap', 'Bug']);
   await page.goto('/output?production=typed-probe');
 
   await expect(doc(page, 'Strap').locator('#v')).toHaveText(SHOWN, { timeout: 30_000 });
   await expect(doc(page, 'Strap').locator('#s')).toHaveText('step 3');
+  // Every graphic on air has a report: nothing below them is read.
+  expect(backend.tails.every((after) => after >= 10), JSON.stringify(backend.tails)).toBe(true);
   await expect(doc(page, 'Bug').locator('#v')).toHaveText('f0=string:"NATIVE"');
   // Rule 4: the place each report says was applied, typed and native alike.
   for (const key of ['Strap', 'Bug']) await expect(page.locator(`iframe[title="${key}"]`)).toHaveAttribute('data-appearance', JSON.stringify(LOOK));

@@ -257,9 +257,13 @@ export function mayAirTyped(headCue: unknown, published: ReadonlySet<string>): b
   return !(typeof headCue === 'string' && published.has(headCue));
 }
 
-/** How many tail pages that read may take: on the numbered log, the pages up to `followFrom`
- *  (seqs count from 1, so no more rows lie below it), which no page ceiling cuts short; by row id
- *  (protocol 1, which has no head to say what is on air) none. */
-export function unreportedPages(followFrom: number, seqMode: boolean, pageSize: number): number {
-  return seqMode && followFrom > 0 ? Math.floor(followFrom / pageSize) + 1 : 0;
+/** How many tail pages that read takes: on the numbered log, the pages up to `followFrom` (seqs
+ *  count from 1, so no more rows lie below it); none by row id (protocol 1, which has no head to say
+ *  what is on air), and none when that is more than `ceiling`, the catch-up's own page ceiling, so a
+ *  boot never waits longer for this read than for its catch-up, and never reads half of it. That
+ *  bridge is only for graphics no report banks: since E1.2b every output reports typed data and
+ *  re-banks it every 500 rows. */
+export function unreportedPages(followFrom: number, seqMode: boolean, pageSize: number, ceiling: number): number {
+  const pages = seqMode && followFrom > 0 ? Math.floor(followFrom / pageSize) + 1 : 0;
+  return pages <= ceiling ? pages : 0;
 }

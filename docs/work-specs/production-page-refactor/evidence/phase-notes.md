@@ -32,7 +32,9 @@ changes a spec's digest.
   - *#1762, a graphic on air that no report banks*: after the catch-up has heard the log's head,
     each graphic the head says is on air, that has no report and whose live cue is not a published
     cue (`mayAirTyped`: a cue with typed data is never published, `preparedCue`) has the log below
-    `followFrom` read for it (`unreportedPages`: every page up to `followFrom`, no ceiling cuts it).
+    `followFrom` read for it (`unreportedPages`: every page up to `followFrom`, or none when that is
+    more than the catch-up's own 40-page ceiling, so a boot never waits longer for it than for its
+    catch-up and never reads half a history).
     If its last operator update there carried an envelope, all its commands there replay first
     (`unreportedTypedRows`); otherwise nothing does, so native recovery replays exactly what it did.
     A page that cannot be read leaves the whole read out, never half a history.
@@ -61,7 +63,16 @@ changes a spec's digest.
     capability); an output that meets an envelope it cannot read, on a row or in a report, refuses
     it with its reason and keeps airing every native graphic (the offline walk's third test). A new
     output reads both. An operator page from before this deploy, still open, rebuilds PROGRAM for a
-    typed graphic from the report's empty data until it reloads; air is not affected.
+    typed graphic from the report's empty data until it reloads; air is not affected. AC-3's limit:
+    an output bundle from before this row (a rollback, or a stale cached bundle) that reboots from a
+    report this row wrote ignores `state.typed` and airs the graphic's defaults rather than refusing
+    it; E1.2a's capability check keeps typed rows from such an output while it runs, and a reload
+    loads this build.
+  - *The read below the reports is a bridge, so it has a ceiling*: since this row every output
+    reports typed data and re-banks it every 500 rows, so the read serves only graphics an E1.2a
+    output aired (or one taken less than 800 ms before the reload). Up to 20,000 rows below the
+    reports it is read whole; past that, not at all, and the debug line says so: such a graphic airs
+    its entrance and keeps what its next Take or Update sends.
   - *E1.1/E1.2a/L2.1 seams changed*: `typedHolds` is gone (held only: `typedRefused.has`), the
     report and the boot in `main.ts`, `restoreItems`' typed branch, and `LiveReportMap`'s state type.
     `typedOutputGate`, the wire, the writer and `TYPED_READER` are unchanged.
@@ -104,7 +115,11 @@ changes a spec's digest.
   graphics an E1.2a output aired, or one less than 800 ms old; air is right). Simplify: one
   `reportedTypedAir` for both monitors, `ReportState` named once, the onWithoutPose steps read from
   what the gate accepted, a Set for the read below. Left: the envelope is stringified in each
-  report's dedup key (one per change, debounced).
+  report's dedup key (one per change, debounced). /so on `54343eb` (fresh session): AGREE WITH
+  CORRECTIONS, Assessment B, for two blocking items, both fixed: the read below the reports had no
+  ceiling (now the catch-up's, read whole or not at all), and the in-app PROGRAM played a report
+  whose envelope does not read as empty native data (now nothing, as the hosted page and the output
+  do). Its third item, the old-bundle limit, is written under Decisions.
 - **Follow-ups**: #1760 stays (typed live follow). Nothing new filed.
 - **Touched files against `c614500`:** `docs/work-specs/production-page-refactor/evidence/phase-notes.md`,
   `e2e/configured/ograf-typed-data.spec.ts`, `e2e/hosted-control.spec.ts`,
