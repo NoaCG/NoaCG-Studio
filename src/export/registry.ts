@@ -48,7 +48,7 @@ import { ografTarget } from './targets/ograf';
 import { liveosTarget } from './targets/liveos';
 
 import { foreignPackageZip } from './targets/ografForeign';
-import { isForeignGraphic } from '../model/foreignPackage';
+import { foreignExportRefusal, isForeignGraphic } from '../model/foreignPackage';
 
 /** A stranger's OGraf package (model/foreignPackage.ts) leaves only as itself: the OGraf target
  *  hands back its own bytes, verified first, and every other target refuses it, since nothing here
@@ -58,7 +58,7 @@ const foreignAware = (target: ExportTarget): ExportTarget => ({
   build: (template, ctx) => {
     if (!isForeignGraphic(template)) return target.build(template, ctx);
     if (target.id === 'ograf') return foreignPackageZip(template);
-    return Promise.reject(new Error(`${template.name} is an imported OGraf package, so it exports only as OGraf.`));
+    return Promise.reject(new Error(foreignExportRefusal(template.name)));
   },
 });
 

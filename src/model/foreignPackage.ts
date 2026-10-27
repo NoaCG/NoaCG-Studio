@@ -20,6 +20,7 @@
 
 import type { AssetFile, SpxTemplate } from './types';
 import { readOgrafDeclared } from './ografTyped';
+import { dataUrlToBlob, isDataUrl } from '../assets/assetUtils';
 
 export const FOREIGN_PACKAGE_VERSION = 1;
 
@@ -88,12 +89,6 @@ export function readForeignPackage(template: Pick<SpxTemplate, 'foreign'>): Fore
  *  E3.2a's (docs/work-specs/playout-ograf-rundown/spec.md). */
 export const FOREIGN_NOT_PLAYABLE = 'Imported OGraf packages do not play on outputs yet.';
 
-/** Why a production may not publish yet: the first stranger's package it holds, named. */
-export function foreignPublishRefusal(graphics: readonly { name: string; template: Pick<SpxTemplate, 'foreign'> }[]): string | null {
-  const foreign = graphics.find((g) => isForeignGraphic(g.template));
-  return foreign ? `${foreign.name}: ${FOREIGN_NOT_PLAYABLE} Remove it from the production to publish.` : null;
-}
-
 /** The words for a package this page will not act on: "Results board was imported by ...". */
 export const foreignRefusal = (name: string, reason: string) => `${name} ${reason}, so it is kept as it is and does not load here.`;
 
@@ -109,14 +104,25 @@ export function declaredFieldLabels(template: Pick<SpxTemplate, 'ograf'>): strin
   });
 }
 
-/** Whether a stranger's package states its own canvas and frame rate (its first render
- *  requirement's ideals), so its format is its word rather than an assumed default. */
-export function foreignFormatStated(template: Pick<SpxTemplate, 'ograf'>): boolean {
-  const reqs = (template.ograf?.manifest as { renderRequirements?: unknown } | undefined)?.renderRequirements;
-  const first = (Array.isArray(reqs) ? reqs[0] : undefined) as { resolution?: { width?: { ideal?: unknown }; height?: { ideal?: unknown } }; frameRate?: { ideal?: unknown } } | undefined;
-  const n = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0;
-  return !!first && n(first.resolution?.width?.ideal) && n(first.resolution?.height?.ideal) && n(first.frameRate?.ideal);
+/** The canvas and frame rate a stranger's package states (its first render requirement's ideals),
+ *  or null when it does not state both: its format is then an assumed default. */
+export function statedFormat(manifest: unknown): { width: number; height: number; fps: number } | null {
+  const reqs = isRecord(manifest) ? manifest.renderRequirements : undefined;
+  const first = Array.isArray(reqs) && isRecord(reqs[0]) ? reqs[0] : null;
+  const ideal = (d: unknown, max: number, whole: boolean) =>
+    isRecord(d) && typeof d.ideal === 'number' && Number.isFinite(d.ideal) && d.ideal > 0 && d.ideal <= max && (!whole || Number.isInteger(d.ideal)) ? d.ideal : null;
+  const res = first && isRecord(first.resolution) ? first.resolution : null;
+  const width = res ? ideal(res.width, 7680, true) : null;
+  const height = res ? ideal(res.height, 7680, true) : null;
+  const fps = first ? ideal(first.frameRate, 240, false) : null;
+  return width && height && fps ? { width, height, fps } : null;
 }
+
+/** Whether a template's package states its own format (`statedFormat`). */
+export const foreignFormatStated = (template: Pick<SpxTemplate, 'ograf'>): boolean => statedFormat(template.ograf?.manifest) !== null;
+
+/** Why a foreign entry may not leave by an export target other than OGraf. */
+export const foreignExportRefusal = (name: string) => `${name} is an imported OGraf package, so it exports only as OGraf.`;
 
 /** Lowercase hex of a digest. */
 const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -137,14 +143,10 @@ export async function packageRevision(files: readonly ForeignPackageFile[]): Pro
 export async function assetBytes(asset: AssetFile): Promise<Uint8Array | null> {
   const data = asset.data;
   if (typeof data !== 'string') return new Uint8Array(await data.arrayBuffer());
-  const m = /^data:[^,]*?(;base64)?,/.exec(data);
-  if (!m) return null;
-  const body = data.slice(m[0].length);
-  if (!m[1]) return new TextEncoder().encode(decodeURIComponent(body));
-  const bin = atob(body);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+  if (isDataUrl(data)) return new Uint8Array(await dataUrlToBlob(data).arrayBuffer());
+  // A plain (percent-encoded) data URL, which `isDataUrl` does not take for one.
+  const m = /^data:[^,;]*,([\s\S]*)$/.exec(data as string);
+  return m ? new TextEncoder().encode(decodeURIComponent(m[1])) : null;
 }
 
 export type ForeignPackageCheck =
@@ -163,12 +165,17 @@ export async function verifyForeignPackage(template: Pick<SpxTemplate, 'foreign'
   if (read.status === 'read-only') return { ok: false, reason: read.reason };
   const { record } = read;
   const byPath = new Map(template.assets.map((a) => [a.path, a] as const));
-  const files = new Map<string, Uint8Array>();
-  for (const f of record.files) {
+  // Decoded and hashed together, then judged in the record's order, so the first fault is named.
+  const loaded = await Promise.all(record.files.map(async (f) => {
     const asset = byPath.get(f.path);
     const bytes = asset ? await assetBytes(asset) : null;
+    return { bytes, hash: bytes ? await sha256(bytes) : null };
+  }));
+  const files = new Map<string, Uint8Array>();
+  for (const [i, f] of record.files.entries()) {
+    const { bytes, hash } = loaded[i];
     if (!bytes) return { ok: false, reason: `its file ${f.path} is missing` };
-    if (bytes.byteLength !== f.bytes || (await sha256(bytes)) !== f.sha256) return { ok: false, reason: `its file ${f.path} has changed since it was imported` };
+    if (bytes.byteLength !== f.bytes || hash !== f.sha256) return { ok: false, reason: `its file ${f.path} has changed since it was imported` };
     files.set(f.path, bytes);
   }
   if ((await packageRevision(record.files)) !== record.revision) return { ok: false, reason: 'its file list has changed since it was imported' };

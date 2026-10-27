@@ -141,6 +141,11 @@ export default function ImportDesignStep({
    *  ruled against. */
   const [exportHelp, setExportHelp] = useState(false);
 
+  // A dropped stranger's OGraf package: its record, and the fields its schema declares.
+  const read = templateFile ? readForeignPackage(templateFile.template) : null;
+  const pkg = read?.status === 'ok' ? read.record : null;
+  const declared = pkg && templateFile ? declaredFieldLabels(templateFile.template) : [];
+
   const preview = art ? images.find((a) => a.path === art.path) : null;
   const fullFrame = !!art && art.width === resolution.width && art.height === resolution.height;
   const scaled = !!art && art.sourceWidth != null;
@@ -469,16 +474,15 @@ export default function ImportDesignStep({
           {/* The FIELDS are the whole point of importing a template rather than a picture:
               they are what an operator types into, on the control page and in playout. Naming
               them here is what turns "it opened" into "it is usable". */}
-          {foreignOf(templateFile) ? (
+          {pkg ? (
             // A stranger's OGraf package: who it is, and the fields its schema gives the cue's form.
             <>
               <p className="hint mono" data-testid="import-template-package">
-                OGraf {foreignOf(templateFile)!.id}{foreignOf(templateFile)!.version ? ` ${foreignOf(templateFile)!.version}` : ''}
+                OGraf {pkg.id}{pkg.version ? ` ${pkg.version}` : ''}
               </p>
-              {declaredFieldLabels(templateFile.template).length > 0 && (
+              {declared.length > 0 && (
                 <p className="hint" data-testid="import-template-fields">
-                  {declaredFieldLabels(templateFile.template).length} operator field
-                  {declaredFieldLabels(templateFile.template).length === 1 ? '' : 's'}: {declaredFieldLabels(templateFile.template).join(', ')}
+                  {declared.length} operator field{declared.length === 1 ? '' : 's'}: {declared.join(', ')}
                 </p>
               )}
             </>
@@ -605,10 +609,4 @@ export default function ImportDesignStep({
       )}
     </div>
   );
-}
-
-/** The package record of a dropped stranger's OGraf package, or null for any other template. */
-function foreignOf(file: ImportedTemplateResult) {
-  const read = readForeignPackage(file.template);
-  return read.status === 'ok' ? read.record : null;
 }

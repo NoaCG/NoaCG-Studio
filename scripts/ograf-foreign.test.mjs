@@ -93,6 +93,7 @@ test('two packages by two authors import as foreign entries: bytes untouched, no
     // The format is the package's word where it gives one, and said to be assumed where not.
     const req = manifest.renderRequirements?.[0];
     const stated = model.foreignFormatStated(template);
+    assert.equal(stated, model.statedFormat(manifest) !== null);
     assert.equal(stated, Boolean(req?.frameRate?.ideal && req?.resolution?.width?.ideal));
     if (stated) assert.deepEqual([template.resolution.width, template.resolution.height, template.fps], [req.resolution.width.ideal, req.resolution.height.ideal, req.frameRate.ideal]);
     // Every file kept, hashed, as an asset under its own path.
@@ -397,13 +398,22 @@ test('a foreign entry passes the gate on its record, is refused in a pack, and l
   assert.ok(JSON.stringify(findings).includes('imported OGraf package, made by someone else'), JSON.stringify(findings));
 });
 
-test('a production holding a foreign package does not publish, and says why', async () => {
+test('the production gate: a foreign package does not publish, exports by OGraf alone, and says why', async () => {
+  const gate = await load(path.join(root, 'src/validation/productionGate.ts'));
   const { template } = await importForeignOgraf('s.zip', await zipOf(fixture('ebu-scoreboard')));
-  assert.equal(model.foreignPublishRefusal([{ name: 'Lower', template: { name: 'x' } }]), null);
-  assert.equal(model.foreignPublishRefusal([{ name: 'Lower', template: {} }, { name: 'Scoreboard', template }]), 'Scoreboard: Imported OGraf packages do not play on outputs yet. Remove it from the production to publish.');
-  // The publisher asks it before anything else is sent.
-  const src = readFileSync(path.join(root, 'src/control/hostedControl.ts'), 'utf8');
-  assert.match(src, /assertProductionGate\(show\.graphics, library\);\n(?:\s*\/\/[^\n]*\n)*\s*const foreign = foreignPublishRefusal\(show\.graphics\);\n\s*if \(foreign\) throw new Error\(foreign\);\n\s*const sb = await getSupabase\(\);/);
+  const graphics = [{ id: 'g', name: 'Scoreboard', type: 'blank', savedAt: '', template }];
+  assert.deepEqual(gate.productionGateFailures(graphics, []), [], 'no door named: the record gate alone');
+  assert.deepEqual(gate.productionGateFailures(graphics, [], 'ograf'), []);
+  const publish = gate.productionGateFailures(graphics, [], 'publish');
+  assert.equal(gate.describeProductionGate(publish), '"Scoreboard": Imported OGraf packages do not play on outputs yet. Remove it from the production to publish.');
+  for (const target of ['spx', 'casparcg', 'html-overlay']) {
+    assert.equal(gate.describeProductionGate(gate.productionGateFailures(graphics, [], target)), '"Scoreboard": Scoreboard is an imported OGraf package, so it exports only as OGraf.');
+  }
+  // The doors ask it with their own way out.
+  assert.match(readFileSync(path.join(root, 'src/control/hostedControl.ts'), 'utf8'), /assertProductionGate\(show\.graphics, library, 'publish'\);/);
+  const exporter = readFileSync(path.join(root, 'src/export/showExport.ts'), 'utf8');
+  assert.match(exporter, /assertProductionGate\(show\.graphics, library, 'spx'\);/);
+  assert.match(exporter, /assertProductionGate\(show\.graphics, library, targetId\);/);
 });
 
 test('the names JSZip keys files by are the names judged: local headers and an understated directory', async () => {

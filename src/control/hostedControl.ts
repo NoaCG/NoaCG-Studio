@@ -31,7 +31,6 @@ import { lookImportedFace, withLookFaceIn } from './productionLook';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
-import { foreignPublishRefusal } from '../model/foreignPackage';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
@@ -561,11 +560,9 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // runs (validation/productionGate.ts - the same publishGate the community door runs). A
   // library record may be a broken draft; what is pinned to an output URL may not.
   const library = loadGraphics();
-  assertProductionGate(show.graphics, library);
-  // A stranger's OGraf package would reach the hosted page and the outputs as an empty document:
-  // until its isolated mount reaches them (E3.2a), a production holding one does not publish.
-  const foreign = foreignPublishRefusal(show.graphics);
-  if (foreign) throw new Error(foreign);
+  // `publish`: a stranger's OGraf package would reach the outputs as an empty document until its
+  // isolated mount does (E3.2a), so the gate refuses a production holding one.
+  assertProductionGate(show.graphics, library, 'publish');
   const sb = await getSupabase();
   if (!sb) return null;
   const raw = await buildOutputPayload(show, library, publishedOf);

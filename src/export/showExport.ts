@@ -63,7 +63,6 @@ import { stripHostedReceiver } from '../control/hostedReceiver';
 // The library->air gate (docs/ARCHITECTURE.md §3, export -> validation): a production export is
 // the other door a library draft leaves through, and it is gated like the publish.
 import { assertProductionGate } from '../validation/productionGate';
-import { isForeignGraphic } from '../model/foreignPackage';
 import {
   loadGraphics,
   entriesForSavedGraphic,
@@ -179,11 +178,7 @@ export async function buildShowZip(show: Show, opts?: ShowExportOptions): Promis
   const library = loadGraphics();
   // An invalid graphic cannot export (validation/productionGate.ts) - enforced HERE so it holds
   // for every caller, not only the dialog that happens to show the verdict.
-  assertProductionGate(show.graphics, library);
-  // A stranger's OGraf package leaves only as itself (registry.ts `foreignAware`); this builder
-  // writes SPX templates and does not go through a target's build, so it says so here.
-  const foreign = show.graphics.find((g) => isForeignGraphic(g.template));
-  if (foreign) throw new Error(`${foreign.name} is an imported OGraf package, so it exports only as OGraf.`);
+  assertProductionGate(show.graphics, library, 'spx');
   const zip = new JSZip();
   const folder = slug(show.name);
   const root = zip.folder(folder)!;
@@ -358,7 +353,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
   if (!target) throw new Error(`Unknown export target: ${targetId}`);
 
   const library = loadGraphics();
-  assertProductionGate(show.graphics, library);
+  assertProductionGate(show.graphics, library, targetId);
   const zip = new JSZip();
   const root = zip.folder(slug(show.name))!;
   const usedSlugs = new Set<string>();

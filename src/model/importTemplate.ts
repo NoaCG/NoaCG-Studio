@@ -26,7 +26,7 @@ import {
   type Resolution,
 } from './projectFormat';
 
-const ASSET_MIME: Record<string, string> = {
+export const ASSET_MIME: Record<string, string> = {
   wav: 'audio/wav',
   mp3: 'audio/mpeg',
   ogg: 'audio/ogg',
@@ -72,7 +72,7 @@ function positiveNumber(value: string | undefined): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function importedResolution(width: number, height: number): Resolution {
+export function importedResolution(width: number, height: number): Resolution {
   const preset = projectFormatForResolution({ width, height });
   return preset
     ? { width: preset.width, height: preset.height, label: preset.label }
@@ -221,7 +221,7 @@ export function importHtmlTemplate(
   };
 }
 
-function toDataUrl(mime: string, bytes: Uint8Array): string {
+export function toDataUrl(mime: string, bytes: Uint8Array): string {
   let binary = '';
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) {

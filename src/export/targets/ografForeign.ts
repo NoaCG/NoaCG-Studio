@@ -29,12 +29,14 @@ import {
   FOREIGN_PACKAGE_VERSION,
   packageRevision,
   sha256,
+  statedFormat,
   verifyForeignPackage,
   type ForeignPackageFile,
   type ForeignPackageRecord,
 } from '../../model/foreignPackage';
-import { DEFAULT_GRAPHICS_FORMAT, projectFormatForResolution, resolutionForSelection } from '../../model/projectFormat';
-import { DEFAULT_SETTINGS, type AssetFile, type Resolution, type SpxTemplate } from '../../model/types';
+import { DEFAULT_GRAPHICS_FORMAT, resolutionForSelection } from '../../model/projectFormat';
+import { ASSET_MIME, importedResolution, toDataUrl } from '../../model/importTemplate';
+import { DEFAULT_SETTINGS, type AssetFile, type SpxTemplate } from '../../model/types';
 import { findManifestPath, readNoacgVendorBlock } from './ografImport';
 import { slug } from '../../model/slug';
 import { validateOgrafManifest, validateOgrafPackage } from './ografSchema';
@@ -170,10 +172,10 @@ const isLink = (entry: JSZip.JSZipObject) => {
 };
 
 /** Read a zip into a file map (POSIX paths), refusing it whole on the first bound it breaks. */
-export async function readOgrafArchive(data: ArrayBuffer | Uint8Array): Promise<ArchiveRead> {
+export async function readOgrafArchive(data: ArrayBuffer | Uint8Array, listed?: string[] | string): Promise<ArchiveRead> {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   if (bytes.byteLength > OGRAF_ARCHIVE_LIMITS.archiveBytes) return { ok: false, reason: `The archive is larger than ${MB(OGRAF_ARCHIVE_LIMITS.archiveBytes)}.` };
-  const names = centralNames(bytes);
+  const names = listed ?? centralNames(bytes);
   if (typeof names === 'string') return { ok: false, reason: names };
   const seen = new Set<string>();
   for (const raw of names) {
@@ -230,22 +232,25 @@ const isRecordValue = (v: unknown): v is Record<string, unknown> => typeof v ===
 export function isForeignOgraf(files: ReadonlyMap<string, Uint8Array>): boolean {
   const manifestPath = findManifestPath(files.keys());
   if (!manifestPath) return false;
+  // With no page to fall back on, a broken stranger's package is still one: refused here with its
+  // reason, not as "no .html file".
+  const noPage = manifestBesideNoPage([...files.keys()]);
   let manifest: unknown;
   try {
     manifest = JSON.parse(decoder.decode(files.get(manifestPath)));
   } catch {
-    // A manifest that does not parse beside no page is a broken stranger's package: refused here
-    // with the reason, rather than read as an html zip with no html.
-    return ![...files.keys()].some((p) => p.toLowerCase().endsWith('.html'));
+    return noPage;
   }
   if (!isRecordValue(manifest)) return false;
   if (readNoacgVendorBlock(manifest)?.source) return false;
   const dir = manifestPath.slice(0, manifestPath.lastIndexOf('/') + 1);
-  if (typeof manifest.main === 'string' && files.has(dir + manifest.main.replace(/^\.\//, ''))) return true;
-  // With no page to fall back on, a broken stranger's package is still one: refused here with its
-  // reason, not as "no .html file".
-  return ![...files.keys()].some((p) => p.toLowerCase().endsWith('.html'));
+  return (typeof manifest.main === 'string' && files.has(dir + manifest.main.replace(/^\.\//, ''))) || noPage;
 }
+
+/** A manifest named among the entries and no html page beside it: a stranger's Graphic, whatever
+ *  else is wrong with it. */
+const manifestBesideNoPage = (names: readonly string[]) =>
+  names.some((n) => n.toLowerCase().endsWith('.ograf.json')) && !names.some((n) => n.toLowerCase().endsWith('.html'));
 
 /** Where `ref`, found in the package file `from`, points inside the package: its path, null for a
  *  reference the host resolves (another scheme), or 'out' when it leaves the package. A package
@@ -340,37 +345,12 @@ function referencesIn(path: string, text: string, max: number): StatedRef[] {
 export type ForeignRead = { ok: true; template: SpxTemplate; record: ForeignPackageRecord } | { ok: false; reason: string };
 
 const MIME: Record<string, string> = {
+  ...ASSET_MIME,
   mjs: 'text/javascript', js: 'text/javascript', json: 'application/json', css: 'text/css', html: 'text/html',
-  svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif',
-  woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf', mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', mp4: 'video/mp4', webm: 'video/webm',
-  txt: 'text/plain', md: 'text/markdown',
+  mp4: 'video/mp4', webm: 'video/webm', txt: 'text/plain', md: 'text/markdown',
 };
-export const mimeOf = (path: string) => MIME[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
+const mimeOf = (path: string) => MIME[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
 
-function base64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}
-
-/** The package's canvas: its first render requirement's ideal size, or null when it states none. */
-function resolutionOf(manifest: Record<string, unknown>): Resolution | null {
-  const first = Array.isArray(manifest.renderRequirements) ? manifest.renderRequirements[0] : undefined;
-  const res = isRecordValue(first) && isRecordValue(first.resolution) ? first.resolution : null;
-  const ideal = (d: unknown) => (isRecordValue(d) && typeof d.ideal === 'number' && Number.isInteger(d.ideal) && d.ideal > 0 && d.ideal <= 7680 ? d.ideal : null);
-  const width = res ? ideal(res.width) : null;
-  const height = res ? ideal(res.height) : null;
-  if (!width || !height) return null;
-  const preset = projectFormatForResolution({ width, height });
-  return preset ? { width: preset.width, height: preset.height, label: preset.label } : { width, height, label: `Imported (${width}×${height})` };
-}
-
-/** The package's frame rate: its first render requirement's ideal, else 50 (said as assumed). */
-function frameRateOf(manifest: Record<string, unknown>): number {
-  const first = Array.isArray(manifest.renderRequirements) ? manifest.renderRequirements[0] : undefined;
-  const rate = isRecordValue(first) && isRecordValue(first.frameRate) ? first.frameRate.ideal : undefined;
-  return typeof rate === 'number' && Number.isFinite(rate) && rate > 0 && rate <= 240 ? rate : 50;
-}
 
 /** A file map that `isForeignOgraf` admitted, read into the library entry, or refused. */
 export async function readForeignFiles(fileName: string, files: ReadonlyMap<string, Uint8Array>): Promise<ForeignRead> {
@@ -420,9 +400,11 @@ export async function readForeignFiles(fileName: string, files: ReadonlyMap<stri
 
   const list: ForeignPackageFile[] = [];
   const assets: AssetFile[] = [];
-  for (const [path, bytes] of [...pkg].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-    list.push({ path, sha256: await sha256(bytes), bytes: bytes.byteLength });
-    assets.push({ path, data: `data:${mimeOf(path)};base64,${base64(bytes)}` });
+  const sorted = [...pkg].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const hashes = await Promise.all(sorted.map(([, bytes]) => sha256(bytes)));
+  for (const [i, [path, bytes]] of sorted.entries()) {
+    list.push({ path, sha256: hashes[i], bytes: bytes.byteLength });
+    assets.push({ path, data: toDataUrl(mimeOf(path), bytes) });
   }
   const record: ForeignPackageRecord = {
     v: FOREIGN_PACKAGE_VERSION,
@@ -435,11 +417,13 @@ export async function readForeignFiles(fileName: string, files: ReadonlyMap<stri
   };
   const declared: OgrafDeclared = { v: DECLARED_VERSION, manifest: manifest as OgrafDeclared['manifest'] };
   const name = typeof manifest.name === 'string' && manifest.name.trim() ? manifest.name.trim() : fileName.replace(/\.zip$/i, '') || record.id;
+  const format = statedFormat(manifest);
   const template: SpxTemplate = {
     name,
     type: 'blank',
-    resolution: resolutionOf(manifest) ?? resolutionForSelection(DEFAULT_GRAPHICS_FORMAT),
-    fps: frameRateOf(manifest),
+    resolution: format ? importedResolution(format.width, format.height) : resolutionForSelection(DEFAULT_GRAPHICS_FORMAT),
+    // 50 when the package states none; the doors then say the format is assumed.
+    fps: format?.fps ?? 50,
     html: '',
     css: '',
     js: '',
@@ -459,16 +443,19 @@ export async function readForeignFiles(fileName: string, files: ReadonlyMap<stri
  *  not a stranger's OGraf package at all (the native importer's to read). */
 export async function importForeignOgraf(fileName: string, data: ArrayBuffer | Uint8Array): Promise<ForeignRead | null> {
   // No manifest named anywhere in the directory: not a package, and nothing is inflated to say so.
-  const listed = centralNames(data instanceof Uint8Array ? data : new Uint8Array(data));
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const listed = centralNames(bytes);
   if (Array.isArray(listed) && !listed.some((n) => n.toLowerCase().endsWith('.ograf.json'))) return null;
-  const archive = await readOgrafArchive(data);
+  const archive = await readOgrafArchive(bytes, listed);
   if (!archive.ok) {
     // The bounds are this road's: a vendor's SPX pack of a thousand files, or one with a long
     // video, is still the native importer's to read as it always has. The refusal stands only for
-    // what would have come this way, a manifest beside no page.
-    const names = await JSZip.loadAsync(data).then((z) => Object.values(z.files).map((e) => (e as { unsafeOriginalName?: string }).unsafeOriginalName ?? e.name), () => [] as string[]);
-    const ours = names.some((n) => n.toLowerCase().endsWith('.ograf.json')) && !names.some((n) => n.toLowerCase().endsWith('.html'));
-    return ours ? { ok: false, reason: archive.reason } : null;
+    // what would have come this way, a manifest beside no page. A directory that could not be
+    // read at all is listed by the zip library instead.
+    const names = Array.isArray(listed)
+      ? listed
+      : await JSZip.loadAsync(bytes).then((z) => Object.values(z.files).map((e) => (e as { unsafeOriginalName?: string }).unsafeOriginalName ?? e.name), () => [] as string[]);
+    return manifestBesideNoPage(names) ? { ok: false, reason: archive.reason } : null;
   }
   if (!isForeignOgraf(archive.files)) return null;
   return readForeignFiles(fileName, archive.files);
