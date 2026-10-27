@@ -184,3 +184,66 @@ export const RECEIVER_FOLLOW_FROM_JS = `// Where this boot starts reading the lo
     if (!mine) return 0;                                            // never reported: the log START
     return typeof logHead === 'number' ? logHead : 0;               // reported, undatable: the head
   }`;
+
+// ── TYPED DATA'S OWN BASELINE (E1.2b, docs/work-specs/playout-ograf-contract/spec.md AC-2) ───────
+//
+// A graphic airing typed OGraf data reports like any other, and its report's `state` (stored as
+// sent, so no migration) also carries the envelope it last applied, exactly as it came (`typed`),
+// and the steps it took since its entrance (`steps`). Its `data` is empty: its data is the
+// envelope's, never strings. A boot rebuilds it from those through the output's own typed gate,
+// so an envelope that does not read there is refused and held, never aired as something else.
+// The pose (`groups`) still carries the step of a graphic with a state machine; `steps` is what a
+// graphic with no pose is stepped back to after its entrance.
+
+/** Steps since an entrance a report carries. More are kept as this many: a reboot then lands on
+ *  step 64 of a longer sequence, which no OGraf graphic declares. */
+export const TYPED_STEPS_MAX = 64;
+
+/** What a report says of a graphic's typed data, or null when it says nothing (a native report).
+ *  `typed` is the envelope as it came, read by the output's gate; `steps` anything but a whole
+ *  number from 0 to TYPED_STEPS_MAX reads as 0. */
+export function reportedTyped(report: { state?: unknown } | null | undefined): { typed: unknown; steps: number } | null {
+  const state = report?.state;
+  if (typeof state !== 'object' || state === null || !Object.prototype.hasOwnProperty.call(state, 'typed')) return null;
+  const { typed, steps } = state as { typed: unknown; steps?: unknown };
+  return { typed, steps: typeof steps === 'number' && Number.isInteger(steps) && steps >= 0 && steps <= TYPED_STEPS_MAX ? steps : 0 };
+}
+
+/** The steps a graphic has taken since its entrance, after one command: an entrance (or a pose)
+ *  starts again at 0, an exit forgets them, a `next` adds one up to TYPED_STEPS_MAX. */
+export function stepsAfter(prev: number | undefined, msg: { t: string }): number | undefined {
+  if (msg.t === 'play' || msg.t === 'snap') return 0;
+  if (msg.t === 'stop') return undefined;
+  if (msg.t === 'next' && prev !== undefined) return Math.min(prev + 1, TYPED_STEPS_MAX);
+  return prev;
+}
+
+const COMMAND_VERBS = new Set(['update', 'play', 'stop', 'next', 'event', 'snap']);
+
+/**
+ * A GRAPHIC ON AIR THAT NO REPORT BANKS, AIRING TYPED DATA (issue #1762). A boot follows the log
+ * from the oldest report, so a graphic with none, whose typed Take is older than that, would come
+ * back with its entrance (the log's head says it is on) but not its values. Such a graphic was
+ * aired by an output that never reported typed data (E1.2a), or its report had not been written
+ * yet. `rows` are the log up to the boot's `followFrom`; `graphics` the ones on air with no
+ * report. Each whose last operator update there carries an envelope gets every command it took
+ * there, oldest first, as the log start would have replayed it; any other graphic gets none, so
+ * native recovery is unchanged.
+ */
+export function unreportedTypedRows<R extends { graphic: string; msg: { t: string } }>(graphics: readonly string[], rows: readonly R[]): R[] {
+  const wanted = new Set(graphics);
+  const typedNow = new Set<string>();
+  for (const row of rows) {
+    if (!wanted.has(row.graphic) || row.msg.t !== 'update' || Object.prototype.hasOwnProperty.call(row.msg, 'src')) continue;
+    if (Object.prototype.hasOwnProperty.call(row.msg, 'typed')) typedNow.add(row.graphic);
+    else typedNow.delete(row.graphic);
+  }
+  return typedNow.size ? rows.filter((row) => typedNow.has(row.graphic) && COMMAND_VERBS.has(row.msg.t)) : [];
+}
+
+/** How many tail pages that read may take: on the numbered log, the pages up to `followFrom`
+ *  (seqs count from 1, so no more rows lie below it), which no page ceiling cuts short; by row id
+ *  (protocol 1, which has no head to say what is on air) none. */
+export function unreportedPages(followFrom: number, seqMode: boolean, pageSize: number): number {
+  return seqMode && followFrom > 0 ? Math.floor(followFrom / pageSize) + 1 : 0;
+}

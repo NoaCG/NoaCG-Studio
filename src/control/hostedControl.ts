@@ -207,8 +207,10 @@ export type LiveReportMap = Record<
   {
     data?: Record<string, string>;
     /** The machine state, and (playout adjustments) `appearance`: the place and size the renderer
-     *  holds applied, kept here because the report's RPC stores `state` as sent, so no migration. */
-    state?: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null;
+     *  holds applied, kept here because the report's RPC stores `state` as sent, so no migration.
+     *  A graphic airing typed data adds `typed` and `steps`, its typed baseline (E1.2b,
+     *  ./outputRecovery.ts `reportedTyped`). */
+    state?: { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number } | null;
     at?: string;
     event?: number;
     /** Protocol 2 only: the same baseline in the per-production sequence (0071). */
@@ -1315,7 +1317,7 @@ export async function controlOutputReportSeq(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null,
+  state: { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number } | null,
   baseline: {
     /** The last seq applied, and the epoch it belongs to: the server banks the seq only in that
      *  epoch (a republish the renderer has not seen yet must not get a baseline from a gone log). */
@@ -1354,7 +1356,7 @@ export async function controlOutputReport(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string>; appearance?: AppliedAppearance } | null,
+  state: { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number } | null,
   /** The last log row applied when this truth was captured — the graphic's recovery baseline. */
   lastEventId: number | null = null,
 ): Promise<void> {

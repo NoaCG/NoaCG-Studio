@@ -307,13 +307,13 @@ test('the output: typed values air as they are; a data road\'s text never replac
   const typedApply = main.indexOf('if (gate.values || gate.dropData) {', gate);
   assert.ok(gate > 0 && typedApply > gate && typedApply < main.indexOf('mergedData.set(row.graphic, merged);', gate), 'typed data never reaches mergedData');
   assert.match(main, /typed: TYPED_READER,/);
-  // A graphic airing typed data never reports native strings: its bank stays before its first
-  // typed row, so a reboot replays the envelopes from the log.
+  // A graphic airing typed data never reports native strings: its report banks the envelope
+  // (E1.2b, scripts/ograf-typed-recovery.test.mjs).
   // A frame that replaces a typed graphic's (a newer body) is given the typed values it airs.
   assert.match(main, /data: \(graphic\) => heldData\(graphic\),/);
   assert.match(main, /typed\.airing\.has\(graphic\) \? \(typedData\.get\(graphic\)/);
-  assert.match(main, /if \(gate\.values\) typedData\.set\(graphic, gate\.values\);/);
-  assert.match(main, /const typedHolds = \(graphic: string\) => typed\.held\.has\(graphic\) \|\| typed\.airing\.has\(graphic\);/);
+  assert.match(main, /if \(gate\.values\) \{\n\s+typedData\.set\(graphic, gate\.values\);/);
+  assert.match(main, /const data = airingTyped \? \{\} : \(mergedData\.get\(graphic\) \?\? \{\}\);/);
   // A data road's update with no look applies nothing (a foreign Graphic would get updateAction({})).
   assert.match(main, /if \(animate && \(gate\.values \|\| msg\.appearance\)\) stage\.apply\(/);
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
