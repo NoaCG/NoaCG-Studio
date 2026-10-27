@@ -356,6 +356,11 @@ test.describe('a foreign OGraf package on the output stage', () => {
     const walk = page.frameLocator('iframe[title="steps"]').locator('.walk');
     expect(await call('steps', { t: 'play' })).toEqual({ status: 'done', statusCode: 200, currentStep: 0 });
     expect(await step('steps', { delta: 1 })).toEqual({ status: 'done', statusCode: 200, currentStep: 1 });
+    // A step the Graphic refuses moved nothing: it is still where it was, and a relative step counts
+    // from there.
+    expect(await call('steps', { t: 'update', data: { refuse: 3 } })).toEqual({ status: 'done', statusCode: 200 });
+    expect(await step('steps', { goto: 3 })).toEqual({ status: 'rejected', statusCode: 409, statusMessage: 'not that step now' });
+    expect(await layer('steps', 'position')).toEqual({ at: 1, declared: -1 });
     expect(await call('steps', { t: 'update', data: { count: 5 } })).toEqual({ status: 'done', statusCode: 200 });
     await expect(walk).toHaveAttribute('data-count', '5');
     expect(await step('steps', { goto: 4, skipAnimation: true })).toEqual({ status: 'done', statusCode: 200, currentStep: 4 });

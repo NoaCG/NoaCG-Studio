@@ -1,12 +1,13 @@
 // A hand-written OGraf v1 Graphic with a DYNAMIC step count (stepCount -1): how many steps it has
 // is its data's `count`, which an update changes while it airs. The step named by `loop` starts an
 // animation loop that never ends and never answers its playAction, as a held step that keeps
-// moving. `hold` answers only once `release` comes; `reject` refuses. Everything it did is written
+// moving. A step to the one named by `refuse` is refused. `hold` answers only once `release`
+// comes; `reject` refuses. Everything it did is written
 // onto its root's data attributes for e2e/foreign-ograf-sandbox.spec.ts to read.
 export default class StepWalk extends HTMLElement {
   constructor() {
     super();
-    this._data = { count: 3, loop: -1 };
+    this._data = { count: 3, loop: -1, refuse: -1 };
     this._step = -1;
     this._held = [];
     this._root = null;
@@ -46,6 +47,7 @@ export default class StepWalk extends HTMLElement {
     const from = this._step === null ? -1 : this._step;
     const target = typeof p.goto === 'number' && p.goto >= 0 ? p.goto : from + (typeof p.delta === 'number' ? p.delta : 1);
     if (target < 0) return Promise.resolve({ statusCode: 400, statusMessage: 'no step before the first' });
+    if (target === this._data.refuse) return Promise.resolve({ statusCode: 409, statusMessage: 'not that step now' });
     this._root.dataset.skip = String(p.skipAnimation === true);
     if (target >= this._data.count) {
       this._step = null;

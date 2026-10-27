@@ -157,7 +157,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   const returns: OgrafReturn[] = [];
   /** Each call still out: what it was, and how to settle its answer once (the reply, the page's
    *  deadline, or the instance going, whichever is first). */
-  const pending = new Map<number, { call: OgrafCall; walk: number; settle: (answer: OgrafAnswer) => void }>();
+  const pending = new Map<number, { call: OgrafCall; walk: number; before: OgrafStepAt; settle: (answer: OgrafAnswer) => void }>();
   let nextId = 1;
   let gone = false;
   /** Where the Graphic is, by its answers to `playAction` (ografSteps.ts). Calls can now answer out
@@ -170,7 +170,9 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     if (gone) return Promise.resolve({ status: 'gone' });
     const callId = nextId++;
     // A Take restarts the walk, an Out ends it and a step moves it: until this call's answer,
-    // where it is is not known, and only the newest such call's answer says (`walk`).
+    // where it is is not known, and only the newest such call's answer says (`walk`). A refusal
+    // moved nothing, so its answer puts back where it was before (`before`).
+    const before = at;
     if (call === 'play' || call === 'stop') {
       walk += 1;
       at = null;
@@ -184,7 +186,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
         clearTimeout(timer);
         resolve(answer);
       };
-      pending.set(callId, { call, walk, settle });
+      pending.set(callId, { call, walk, before, settle });
     });
     // A Graphic that never answers cannot grow the book forever: the oldest call is given up.
     if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered' });
@@ -202,7 +204,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     returns.push(told);
     if (returns.length > RETURNS_KEPT) returns.splice(0, returns.length - RETURNS_KEPT);
     if (out.walk === walk) {
-      if (out.call === 'play') at = ografStepAfter(at, told);
+      if (out.call === 'play') at = ografStepAfter(out.before, told);
       else if (out.call === 'stop' && ografOk(told.statusCode)) at = null;
     }
     out.settle(answerOf(told));

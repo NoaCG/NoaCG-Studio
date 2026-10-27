@@ -12,7 +12,8 @@
     "type": "object",
     "properties": {
       "count": { "type": "integer", "title": "Steps", "default": 3 },
-      "loop": { "type": "integer", "title": "Looping step", "default": -1 }
+      "loop": { "type": "integer", "title": "Looping step", "default": -1 },
+      "refuse": { "type": "integer", "title": "Refused step", "default": -1 }
     }
   },
   "stepCount": -1,
