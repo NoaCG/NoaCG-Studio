@@ -53,6 +53,15 @@ test('paths read and write the value they name, copied along the path only, any 
   assert.equal(Object.getPrototypeOf(odd), Object.prototype);
   assert.equal(form.pathKey(['teams', 1, 'name']), 'teams[1].name');
   assert.equal(form.pathKey([]), '');
+  // Which values may be absent: an object's property its schema does not require; never the root
+  // or a list item.
+  const fields = readOgrafDeclared({ v: 1, manifest: stranger }).fields;
+  assert.equal(form.typedOptionalAt(fields, ['logo']), true);
+  assert.equal(form.typedOptionalAt(fields, ['title']), false);
+  assert.equal(form.typedOptionalAt(fields, ['teams', 0]), false);
+  assert.equal(form.typedOptionalAt(fields, ['teams', 0, 'flags']), true);
+  assert.equal(form.typedOptionalAt(fields, ['teams', 0, 'name']), false);
+  assert.equal(form.typedOptionalAt(fields, []), false);
 });
 
 test('each leaf is the control its declared type means, and an edit gives back the typed value', () => {

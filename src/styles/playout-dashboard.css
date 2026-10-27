@@ -1130,6 +1130,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-typed-item-body > .pd-typed-group { margin-top: 0; }
 .pd-typed-remove { flex: 0 0 auto; margin-top: 18px; padding: 2px 8px; }
 .pd-typed-add { align-self: flex-start; padding: 3px 10px; }
+.pd-typed-unset { margin-left: 6px; padding: 0 6px; font-size: 11px; line-height: 16px; }
 .pd-typed-action { margin-top: 10px; }
 /* A value that does not fit is marked where it is: its box and the reason under it. */
 .pd-typed-invalid input, .pd-typed-invalid select, .pd-typed-invalid textarea { border-color: var(--danger); }

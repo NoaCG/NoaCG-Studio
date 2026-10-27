@@ -45,6 +45,16 @@ export function typedNodeAt(node: TypedNode, path: TypedPath): TypedNode | undef
   return at;
 }
 
+/** Whether the value at `path` may be absent: an object's property its schema does not require.
+ *  The root and a list's items may not. */
+export function typedOptionalAt(node: TypedNode, path: TypedPath): boolean {
+  const last = path[path.length - 1];
+  if (typeof last !== 'string') return false;
+  const parent = typedNodeAt(node, path.slice(0, -1));
+  const prop = parent?.properties?.find((p) => p.key === last);
+  return !!prop && !prop.required;
+}
+
 /** The value at `path`, or undefined when nothing is there. */
 export function getAt(value: JsonValue | undefined, path: TypedPath): JsonValue | undefined {
   let at: JsonValue | undefined = value;

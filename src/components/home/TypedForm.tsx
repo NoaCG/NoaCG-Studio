@@ -7,7 +7,7 @@
 
 import type { ReactNode } from 'react';
 import { FieldControl, isSegmented, type FieldImage } from '../fields/FieldControl';
-import { getAt, pathKey, setAt, typedLabel, typedLeaf, typedNodeAt, TYPED_FORM_ITEMS_SHOWN, type TypedPath } from '../../control/ografForm';
+import { getAt, pathKey, setAt, typedLabel, typedLeaf, typedNodeAt, typedOptionalAt, TYPED_FORM_ITEMS_SHOWN, type TypedPath } from '../../control/ografForm';
 import { typedSeed, type TypedNode } from '../../model/ografTyped';
 import type { JsonValue } from '../../model/productionData';
 import { useDeferredEdits } from './useDeferredEdits';
@@ -34,10 +34,11 @@ export function TypedForm(props: TypedFormProps) {
   const { node, value, onChange, errors, testIdPrefix } = props;
   // An edit is keyed by its path's JSON; the commit, which the hook repoints every render, reads it
   // into the newest value through the node at that path.
+  // An optional value emptied is absent again, never an empty string the schema may refuse.
   const edits = useDeferredEdits((key, text) => {
     const path = JSON.parse(key) as TypedPath;
     const leaf = typedLeaf(typedNodeAt(node, path) ?? node, pathKey(path));
-    if (leaf) onChange(setAt(value, path, leaf.read(text)));
+    if (leaf) onChange(setAt(value, path, text === '' && typedOptionalAt(node, path) ? undefined : leaf.read(text)));
   });
 
   const errorLine = (path: TypedPath) => {
@@ -57,12 +58,13 @@ export function TypedForm(props: TypedFormProps) {
     const stored = getAt(value, path);
     const shown = leaf.show(stored);
     const text = TYPED_TEXT.has(leaf.descriptor.kind);
-    // A declared list holding a value outside it says so in its own option, and one holding none
-    // shows an empty one, never the first choice as if it were picked.
+    const optional = typedOptionalAt(node, path);
+    // A declared list holding a value outside it says so in its own option; one holding none, or
+    // whose value may be absent, has an empty choice, never the first one shown as if picked.
     const descriptor =
       shown === 'other' && leaf.descriptor.options
         ? { ...leaf.descriptor, options: [...leaf.descriptor.options, { value: 'other', label: `${JSON.stringify(stored)} (not a choice)` }] }
-        : shown === '' && leaf.descriptor.options && !isSegmented(leaf.descriptor.options)
+        : (shown === '' || optional) && leaf.descriptor.options && !isSegmented(leaf.descriptor.options)
           ? { ...leaf.descriptor, options: [{ value: '', label: '' }, ...leaf.descriptor.options] }
           : leaf.descriptor;
     const invalid = errors.has(key);
@@ -70,13 +72,23 @@ export function TypedForm(props: TypedFormProps) {
       <div className={`field-row pd-typed-row${invalid ? ' pd-typed-invalid' : ''}`} key={key} onBlur={text ? edits.flush : undefined} data-dirty={text && edits.dirty(editKey) ? '' : undefined}>
         <div className="field-meta">
           <label style={{ margin: 0 }}>{label}</label>
+          {/* A control with no empty state of its own (a number, on/off, a short choice) clears an
+              optional value here; every other one clears it by being emptied. */}
+          {optional && stored !== undefined && (leaf.descriptor.kind === 'number' || leaf.descriptor.kind === 'toggle' || (leaf.descriptor.options && isSegmented(leaf.descriptor.options))) && (
+            <button type="button" className="pd-typed-unset" title={`Remove ${label}`} aria-label={`Remove ${label}`} onClick={() => onChange(setAt(value, path, undefined))} data-testid={`${testIdPrefix}-unset-${key}`}>
+              ✕
+            </button>
+          )}
         </div>
         <FieldControl
           descriptor={descriptor}
           value={text ? edits.text(editKey, String(shown)) : shown}
           onChange={(v) => {
             if (text) edits.type(editKey, String(v));
-            else if (v !== 'other' && v !== '') onChange(setAt(value, path, leaf.read(v)));
+            // An empty choice (a picture's None, a list's blank) clears an optional value; on a
+            // required one it is the text it says, except a declared list's placeholder.
+            else if (v === '' && optional) onChange(setAt(value, path, undefined));
+            else if (v !== 'other' && !(v === '' && n.enum)) onChange(setAt(value, path, leaf.read(v)));
           }}
           images={props.images}
           imageHint={props.imageHint}
@@ -130,10 +142,21 @@ export function TypedForm(props: TypedFormProps) {
         </div>
       );
     }
+    // An optional group or list that is there can be taken away again, as it was added.
+    const legend = (
+      <legend>
+        {label}
+        {typedOptionalAt(node, path) && (
+          <button type="button" className="pd-typed-unset" title={`Remove ${label}`} aria-label={`Remove ${label}`} onClick={() => onChange(setAt(value, path, undefined))} data-testid={`${testIdPrefix}-unset-${key}`}>
+            ✕
+          </button>
+        )}
+      </legend>
+    );
     if (n.type === 'object') {
       return (
         <fieldset className="pd-typed-group" key={key} data-testid={`${testIdPrefix}-group-${key}`}>
-          <legend>{label}</legend>
+          {legend}
           {properties(n, path)}
           {errorLine(path)}
         </fieldset>
@@ -143,7 +166,7 @@ export function TypedForm(props: TypedFormProps) {
     const full = n.maxItems !== undefined && items.length >= n.maxItems;
     return (
       <fieldset className="pd-typed-group pd-typed-list" key={key} data-testid={`${testIdPrefix}-group-${key}`}>
-        <legend>{label}</legend>
+        {legend}
         {items.slice(0, TYPED_FORM_ITEMS_SHOWN).map((_, i) => (
           <div className="pd-typed-item" key={i}>
             <div className="pd-typed-item-body">{n.items ? row(n.items, [...path, i], String(i + 1)) : null}</div>

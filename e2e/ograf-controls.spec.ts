@@ -142,6 +142,19 @@ test('a typed cue is edited through its generated form, kept as typed, reloaded,
   await expect(program(page).locator('#a')).toHaveText('highlight object:{"team":2,"colour":"#005ca9ff"}');
   await page.getByTestId('cue-action-reset').click();
   await expect(program(page).locator('#a')).toHaveText('reset object:{}');
+
+  // An optional value emptied is absent again, not an empty string; an optional group is removed.
+  await typeInto(page, 'cue-args-highlight-colour', '');
+  await expect.poll(async () => (await stored(page, showId)).args?.highlight.args).toEqual({ team: 2 });
+  await page.getByTestId('cue-action-highlight').click();
+  await expect(program(page).locator('#a')).toHaveText('highlight object:{"team":2}');
+  // A number has no empty state of its own: its remove mark clears an optional one.
+  await expect(page.getByTestId('cue-typed-unset-opacity')).toBeVisible();
+  await page.getByTestId('cue-typed-unset-opacity').click();
+  await expect.poll(async () => (await stored(page, showId)).values?.opacity).toBeUndefined();
+  await page.getByTestId('cue-typed-unset-meta').click();
+  await expect.poll(async () => (await stored(page, showId)).values?.meta).toBeUndefined();
+  await expect(page.getByTestId('cue-typed-add-meta')).toBeVisible();
 });
 
 test('the typed form works at phone width: reachable, no sideways scroll, edits kept through a reload', async ({ page }) => {
