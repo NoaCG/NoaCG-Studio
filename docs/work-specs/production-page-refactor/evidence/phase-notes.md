@@ -5,6 +5,101 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 36 (E1.2b, project phase 40): typed OGraf output replay, baseline and renderer round trip
+
+- **Previous verified `main` sha:** `c614500` (row 35 passed, PR #1763). This branch was built on
+  it. Before editing, main matched the brief: a graphic airing typed data never reported
+  (`typedHolds` covered `airing`), so a reboot rebuilt it from the log alone, and #1762 reproduced:
+  the new offline walk `e2e/output-typed-recovery.spec.ts` fails all three tests against main's
+  `src/output/main.ts` (the Strap comes back with no values).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration. A reverted output ignores a
+  report's `state.typed` and `state.steps` and restores its empty `data`, so a typed graphic on air
+  comes back with its defaults until its next Take or Update (E1.2a's #1762 behaviour, only for
+  graphics this build reported); native reports are unchanged, so nothing else moves.
+- **What landed.**
+  - *The typed baseline* (`src/control/outputRecovery.ts` `reportedTyped`, `stepsAfter`,
+    `TYPED_STEPS_MAX` 64): a graphic airing typed data reports. Its report's `data` is `{}` and its
+    `state` (stored as sent by 0071's RPC, so no migration) adds `typed`, the envelope it last
+    applied as it came, and `steps`, the `next`s since its entrance. Only a held graphic keeps its
+    bank where it is now, so a typed graphic's bank moves on and it is re-banked every 500 rows like
+    any other: a long log never reaches it.
+  - *The boot* (`src/output/main.ts`): a report with `typed` goes through `typedOutputGate`, the
+    gate a command goes through, with the report's place and size on the same update; then the pose
+    and the envelope again, as native data is restated. An envelope this build cannot read is held
+    with its reason in READY, its pose is not put back and it is not played again. A graphic with no
+    pose steps back to `steps` after its entrance.
+  - *#1762, a graphic on air that no report banks*: after the catch-up has heard the log's head,
+    each graphic the head says is on air and that has no report has the log below `followFrom` read
+    for it (`unreportedPages`: every page up to `followFrom`, no ceiling cuts it). If its last
+    operator update there carried an envelope, all its commands there replay first
+    (`unreportedTypedRows`); otherwise nothing does, so native recovery replays exactly what it did.
+  - *PROGRAM monitors* (`airState.ts` `seedFromResolve`, `restoreItems`; the hosted page's
+    `restoreProgram`): a typed report seeds the page's typed air with its envelope and steps, and the
+    rebuild airs that envelope (never the report's empty data), the pose or the steps, then the rows
+    after it.
+  - *#1761, the exported hosted receiver* (`hostedReceiver.ts`): a row carrying `typed` is refused
+    whole, said on the console and on the root's `data-noacg-refused`, and the graphic held as the
+    output holds it: only a stop reaches it until an update without typed data. Exported bytes change
+    for every graphic carrying the receiver (the block grows by the rule), as the issue foresaw.
+- **Decisions.**
+  - *The baseline rides the report's `state`, not a new column or message kind*: the RPC stores
+    `state` as sent (the appearance precedent of row 32b), so no migration and nothing for 0104's
+    hold to wait on. `data: {}` because a typed graphic's data is its envelope; a report never banks
+    typed values as strings.
+  - *The read below the reports needs the numbered log's head* to know a graphic is on air; by row
+    id (protocol 1, a production still holding pre-0071 rows) there is no head, so it reads nothing
+    more there, as before.
+  - *Steps, not only the pose*: a stranger's imported graphic has no NoaCG state machine, so its
+    step lives in the count of `next`s since its entrance; a graphic with a pose is snapped to it.
+  - *The receiver refuses rather than airs*: it cannot validate an envelope against the schema in
+    ES5, and its report harvests text, so its own reboot would air strings. The issue's first option.
+  - *Mixed versions*: an older output is refused by the page before it is sent anything (E1.2a's
+    capability); an output that meets an envelope it cannot read, on a row or in a report, refuses
+    it with its reason and keeps airing every native graphic (the offline walk's third test). A new
+    output reads both. An operator page from before this deploy, still open, rebuilds PROGRAM for a
+    typed graphic from the report's empty data until it reloads; air is not affected.
+  - *E1.1/E1.2a/L2.1 seams changed*: `typedHolds` is gone (held only: `typedRefused.has`), the
+    report and the boot in `main.ts`, `restoreItems`' typed branch, and `LiveReportMap`'s state type.
+    `typedOutputGate`, the wire, the writer and `TYPED_READER` are unchanged.
+  - *#1760 (typed live follow)* does not fall out of this design and stays open.
+- **Traps.**
+  - A boot that replays anything hides the stage until it settles, so a screenshot taken as soon as
+    the frames show the values reads black: wait for the catch-up to end.
+  - `hostedReceiver.ts` cannot be imported by Node's type stripping (its imports reach the backend
+    config and parameter properties), so the Node test reads its rule from the source.
+  - A stand-in for the numbered log needs `control_output_resolve` to answer an object (not a row
+    list) with `epoch`, and `control_output_tail_seq` to carry `head.graphics`, or the boot never
+    learns what is on air.
+- **Verification.** Node: `scripts/ograf-typed-recovery.test.mjs` (new, 8 tests), `ograf-typed`,
+  `ograf-typed-writer` (source pins moved), `air-state`, `monitor-replay`, `output-reload`,
+  `graphic-verbs`, `graphic-verbs-walk`, `cue-adjust`, `readiness`; `npm run gates -- run --changed
+  origin/main`; eslint and both tsconfigs. Build: `npm run build` passed, its after-build
+  `check-output-reader`: 43 output modules parse on Chromium 71 with the typed read gate in them.
+  Browser: `e2e/output-typed-recovery.spec.ts` (new: the real /output on a stood-in numbered log;
+  the renderer's own documents show `f0=string:"Anna" f1=number:2 f2=boolean:true
+  f3=object:{"team":["A","B"]}` and the step), the receiver walk in `e2e/hosted-control.spec.ts`,
+  and the selection output-ready, output-boot-resilience, output-prepare, output-first-paint,
+  playout-adjust, hosted-control, foreign-ograf-sandbox, snap-recovery (59 passed). The configured
+  walk `e2e/configured/ograf-typed-data.spec.ts` now checks the real backend's report holds the
+  envelope with empty data and that the reloaded output airs the typed 5 (CI's configured suite).
+- **Mutation checks** (each red, restored after): `TYPED_STEPS_MAX` to 65; the steps read bound +1;
+  `unreportedPages` without its `+ 1`; a data road's update ending typed data in the read below; status
+  rows replayed from below; a native update keeping typed data; the page's seed ignoring the report;
+  the page's rebuild ignoring the report; the report banking native data; a typed graphic skipping
+  its re-bank (Node). The read below the reports switched off; the steps not restored; the typed
+  baseline ignored (browser). The receiver without its hold (browser).
+- **Follow-ups**: #1760 stays (typed live follow). Nothing new filed.
+- **Touched files against `c614500`:** `docs/work-specs/production-page-refactor/evidence/phase-notes.md`,
+  `e2e/configured/ograf-typed-data.spec.ts`, `e2e/hosted-control.spec.ts`,
+  `e2e/output-typed-recovery.spec.ts` (new), `scripts/ograf-typed-recovery.test.mjs` (new),
+  `scripts/ograf-typed-writer.test.mjs`, `scripts/ograf-typed.test.mjs`,
+  `src/components/HostedControlPage.tsx`, `src/control/airState.ts`, `src/control/hostedControl.ts`
+  (a type), `src/control/hostedReceiver.ts`, `src/control/outputRecovery.ts`, `src/output/main.ts`.
+  Outside the spec's named seams: `HostedControlPage.tsx` and `airState.ts` (PROGRAM monitors read
+  the same baseline) and `hostedReceiver.ts` (#1761). `ografTyped.ts`, `stage.ts`,
+  `foreignOgraf.ts`, `ografHost.ts`, the exporters' other output and the native wire are unchanged.
+
 ## Row 35 (E1.2a, project phase 39): the typed OGraf writer
 
 - **Previous verified `main` sha:** `a5360d4` (row 34 passed, PR #1757). This branch was built on
