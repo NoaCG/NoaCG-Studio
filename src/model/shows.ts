@@ -26,7 +26,7 @@ import {
   type SourceRecipe,
 } from './productionData';
 import type { ShowProfile } from './profile';
-import { readShowProfile, serializeShowProfile } from './profile';
+import { put, readShowProfile, serializeShowProfile } from './profile';
 import { actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
 import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
@@ -1536,8 +1536,8 @@ export function setCueTypedArgs(showId: string, cueId: string, action: TypedActi
     const read = readTypedArgs(cue.typedArgs);
     if (read.status === 'read-only') return 'This cue’s action arguments were saved by another version of NoaCG.';
     const actions: TypedArgs['actions'] = {};
-    for (const [id, entry] of Object.entries(read.status === 'ok' ? read.args.actions : {})) if (id !== action.id) Object.defineProperty(actions, id, { value: entry, enumerable: true, writable: true, configurable: true });
-    if (args !== undefined) Object.defineProperty(actions, action.id, { value: { schema, args }, enumerable: true, writable: true, configurable: true });
+    for (const [id, entry] of Object.entries(read.status === 'ok' ? read.args.actions : {})) if (id !== action.id) put(actions, id, entry);
+    if (args !== undefined) put(actions, action.id, { schema, args });
     const next: TypedArgs | undefined = Object.keys(actions).length ? { v: TYPED_ARGS_VERSION, actions } : undefined;
     // The whole record must read back: arguments that fit one by one may not fit together.
     if (next && readTypedArgs(next).status !== 'ok') return 'These arguments cannot be kept.';

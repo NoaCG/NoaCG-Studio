@@ -85,7 +85,7 @@ import ClipClock from './ClipClock';
 import type { Resolution, SpxTemplate } from '../../model/types';
 import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend, type TypedValues } from '../../model/ografTyped';
 import { typedErrorsByPath, typedSummary } from '../../control/ografForm';
-import { typedActionButtons } from '../../control/ografContract';
+import { graphicButtons } from '../../control/ografContract';
 import { createTypedSendMemo, typedActionSendFor } from '../../control/typedSend';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
@@ -1590,6 +1590,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       },
     };
   };
+  /** Each typed cue's rundown summary from its typed values (E2.1, `typedSummary`), made once per
+   *  rundown and graphics, not per row and render. */
+  const typedSummaries = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const cue of cues) {
+      const envelope = typedValuesOf(cue.typed);
+      const graphic = envelope ? cueGraphicName(cue) : null;
+      const declared = graphic ? declaredOf(graphic) : null;
+      if (envelope && declared?.status === 'ok' && declared.fields) out.set(cue.id, typedSummary(declared.fields, envelope.values));
+    }
+    return out;
+  }, [cues, cueGraphicName, declaredOf]);
   /** The edited cue's TYPED FORM (E2.1, home/TypedForm): its typed values while they are on, and
    *  each declared action's arguments. Every edit is one write of the draft as it is; a value that
    *  does not fit is marked, kept, and refused only by what would send it. A field bound to the
@@ -2022,7 +2034,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // structural guard they grey by, and its states for the recovery snap picker. All parsed
   // from the same live template the editor's fields come from, so the panel can never describe
   // a different graphic than the fields do. Empty on a template with no explicit machine.
-  const events = useMemo(() => (editorTemplate ? [...eventButtons(editorTemplate.js), ...typedActionButtons(editorTemplate.ograf)] : []), [editorTemplate]);
+  const events = useMemo(() => (editorTemplate ? graphicButtons(eventButtons(editorTemplate.js), editorTemplate.ograf) : []), [editorTemplate]);
   const legality = useMemo(() => (editorTemplate ? eventLegality(editorTemplate.js) : {}), [editorTemplate]);
   const stateGroups = useMemo(() => (editorTemplate ? machineStateGroups(editorTemplate.js) : []), [editorTemplate]);
   // The NAMES for the chip come from their own resolver rather than from `stateGroups`: that
@@ -2161,7 +2173,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // move anything (`canAdvance`). The rest is what a PINNED block of this graphic draws and
       // greys by (home/LiveControls.tsx), read from the same template the editor reads.
       out.set(g.name, {
-        buttons: [...eventButtons(tpl.js), ...typedActionButtons(tpl.ograf)],
+        buttons: graphicButtons(eventButtons(tpl.js), tpl.ograf),
         js: tpl.js,
         descriptors: fieldDescriptors(tpl.fields),
         path: continueEvents(tpl.js),
@@ -4116,12 +4128,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         pinnedGraphics={pinned}
         onPin={writePin}
         candidateValues={(cue) => (cue.selection === undefined ? null : candidateOverlay(cue))}
-        typedSummaryOf={(cue) => {
-          const envelope = typedValuesOf(cue.typed);
-          const graphic = envelope ? cueGraphicName(cue) : null;
-          const declared = graphic ? declaredOf(graphic) : null;
-          return envelope && declared?.status === 'ok' && declared.fields ? typedSummary(declared.fields, envelope.values) : null;
-        }}
+        typedSummaryOf={(cue) => typedSummaries.get(cue.id) ?? null}
         accentPreview={accentPreview?.productionId === show.id ? accentPreview : null}
         onAccentPreview={(cueId, color) => setAccentPreview(color ? { productionId: show.id, cueId, color } : null)}
         show={show}

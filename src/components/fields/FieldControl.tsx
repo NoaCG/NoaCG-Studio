@@ -138,6 +138,12 @@ function ImageControl({ value, onChange, images = [], onUpload, imageHint, testI
   );
 }
 
+/** Whether a select draws as segmented buttons (a short constrained choice) rather than a
+ *  dropdown: the one rule, which the vanilla exports apply too. */
+export function isSegmented(options: readonly { label: string }[]): boolean {
+  return options.length > 0 && options.length <= 5 && options.every((o) => o.label.length <= 4);
+}
+
 /** The control for one field, chosen purely from its kind. No per-template, per-world code. */
 export function FieldControl(props: FieldControlProps) {
   const { descriptor: d, value, onChange, testId } = props;
@@ -169,8 +175,7 @@ export function FieldControl(props: FieldControlProps) {
       // pressure needs. Longer lists keep the dropdown. Same kind, same semantics, purely
       // presentation; the vanilla exports (controlPanelHtml.ts, productionControllerHtml.ts)
       // apply the identical rule.
-      const segmented = options.length > 0 && options.length <= 5 && options.every((o) => o.label.length <= 4);
-      if (segmented) {
+      if (isSegmented(options)) {
         return (
           <div className="ctl-segmented" role="radiogroup" data-testid={testId}>
             {options.map((o) => (

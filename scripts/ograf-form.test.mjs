@@ -260,6 +260,10 @@ test('declared actions are ordinary arranged buttons; a panel sees them only as 
   assert.deepEqual(buttons, [{ event: 'highlight', label: 'Highlight a team', typed: true }, { event: 'reset', label: 'Reset', typed: true }]);
   assert.deepEqual(contract.typedActionButtons(undefined), []);
   assert.deepEqual(contract.typedActionButtons({ v: 2, manifest: stranger }), []);
+  // Put together in one place; an action named like a machine event is left out, never doubled.
+  const machine = [{ event: 'reset', label: 'Start over' }];
+  assert.deepEqual(contract.graphicButtons(machine, { v: 1, manifest: stranger }), [machine[0], buttons[0]]);
+  assert.deepEqual(contract.graphicButtons(machine, undefined), machine);
   const control = (button) => ({ button, label: button.label, named: false });
   const caps = graphicCapabilities({
     graphic: 'Results',

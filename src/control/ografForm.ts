@@ -20,6 +20,7 @@
 import type { FieldDescriptor, FieldValue } from '../model/fieldModel';
 import type { JsonValue } from '../model/productionData';
 import { validateTyped, type TypedNode } from '../model/ografTyped.ts';
+import { put } from '../model/profile.ts';
 
 /** Where a value sits: object keys and list indices from the root. */
 export type TypedPath = readonly (string | number)[];
@@ -53,11 +54,6 @@ export function getAt(value: JsonValue | undefined, path: TypedPath): JsonValue 
     if (at === undefined) return undefined;
   }
   return at;
-}
-
-/** An own enumerable property whatever its name (`__proto__` included). */
-function put(target: { [key: string]: JsonValue }, key: string, value: JsonValue): void {
-  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
 }
 
 /** A shallow copy of a container, own keys kept whatever their name. */
@@ -153,8 +149,8 @@ export function typedLeaf(node: TypedNode, key: string, label = typedLabel(node,
       const d: FieldDescriptor = { ...base, kind: 'number', defaultValue: typeof node.default === 'number' ? node.default : '' };
       if (node.minimum !== undefined) d.min = node.minimum;
       if (node.maximum !== undefined) d.max = node.maximum;
-      d.step = node.multipleOf ?? (node.type === 'integer' ? 1 : undefined);
-      if (d.step === undefined) delete d.step;
+      const step = node.multipleOf ?? (node.type === 'integer' ? 1 : undefined);
+      if (step !== undefined) d.step = step;
       return {
         descriptor: d,
         show: (v) => (typeof v === 'number' ? v : v === undefined ? '' : String(v)),

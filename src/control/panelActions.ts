@@ -25,7 +25,7 @@ import { withLiveLabels } from '../blocks/controlLabels.ts';
 import { actionCarriesValues } from './selectionAir.ts';
 import { liveNumberFields, offAirNote, pickButton, pickOptions, unheldNote } from './liveControls.ts';
 import { VersionRing } from './panelFeedback.ts';
-import { describeOgraf, readJson, validateActionArgs, type TypedNode } from '../model/ografTyped.ts';
+import { describeOgraf, readJson, typedUnsupportedAt, validateActionArgs, type TypedNode } from '../model/ografTyped.ts';
 
 /** The graphic-actions protocol. The panel protocol stays 1 for every existing message and verb. */
 export const ACTIONS_PROTOCOL = 2;
@@ -243,23 +243,12 @@ export function foreignCapabilities(manifest: unknown): { caps: PanelCapability[
     const index = Array.isArray(declared) ? declared.findIndex((raw) => (raw as { id?: unknown } | null)?.id === action.id) : -1;
     const prefix = `customActions[${index}]`;
     const note = described.notes.find((n) => n.at === prefix || n.at.startsWith(`${prefix}.`) || n.at.startsWith(`${prefix}[`));
-    const unsupported = action.args && hasUnsupported(action.args);
+    const unsupported = action.args && typedUnsupportedAt(action.args) !== null;
     if (!CAP_ID.test(id)) refused.push({ action: action.id, reason: 'its id is not one a panel can name' });
     else if (note || unsupported) refused.push({ action: action.id, reason: note?.reason ?? 'its arguments use a schema feature this version does not carry' });
     else caps.push({ id, kind: 'foreign', label: action.name, place: 'section', args: action.args, allowed: false, note: 'Foreign actions are not pressed from a panel yet', invocable: false });
   }
   return { caps, refused };
-}
-
-function hasUnsupported(node: TypedNode): boolean {
-  const stack = [node];
-  while (stack.length) {
-    const n = stack.pop()!;
-    if (n.type === 'unsupported') return true;
-    for (const p of n.properties ?? []) stack.push(p.node);
-    if (n.items) stack.push(n.items);
-  }
-  return false;
 }
 
 export interface ActionsMeta {

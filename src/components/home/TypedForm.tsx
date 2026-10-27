@@ -6,7 +6,7 @@
 // A value that does not fit is marked where it is and kept: only the action that sends it refuses.
 
 import type { ReactNode } from 'react';
-import { FieldControl, type FieldImage } from '../fields/FieldControl';
+import { FieldControl, isSegmented, type FieldImage } from '../fields/FieldControl';
 import { getAt, pathKey, setAt, typedLabel, typedLeaf, typedNodeAt, TYPED_FORM_ITEMS_SHOWN, type TypedPath } from '../../control/ografForm';
 import { typedSeed, type TypedNode } from '../../model/ografTyped';
 import type { JsonValue } from '../../model/productionData';
@@ -26,9 +26,6 @@ export interface TypedFormProps {
   /** A top-level property drawn by the caller instead (a field bound to the production's data). */
   replaced?: (key: string, label: string) => ReactNode | null;
 }
-
-/** FieldControl's rule for a short choice drawn as buttons, where nothing picked reads as nothing. */
-const segmented = (options: { label: string }[]) => options.length > 0 && options.length <= 5 && options.every((o) => o.label.length <= 4);
 
 /** Kinds whose edit is typed: committed when it is over, not per keystroke (a number's ± too). */
 const TYPED_TEXT = new Set(['text', 'lines', 'color', 'number']);
@@ -65,7 +62,7 @@ export function TypedForm(props: TypedFormProps) {
     const descriptor =
       shown === 'other' && leaf.descriptor.options
         ? { ...leaf.descriptor, options: [...leaf.descriptor.options, { value: 'other', label: `${JSON.stringify(stored)} (not a choice)` }] }
-        : shown === '' && leaf.descriptor.options && !segmented(leaf.descriptor.options)
+        : shown === '' && leaf.descriptor.options && !isSegmented(leaf.descriptor.options)
           ? { ...leaf.descriptor, options: [{ value: '', label: '' }, ...leaf.descriptor.options] }
           : leaf.descriptor;
     const invalid = errors.has(key);
@@ -156,20 +153,18 @@ export function TypedForm(props: TypedFormProps) {
           </div>
         ))}
         {items.length > TYPED_FORM_ITEMS_SHOWN && <span className="hint">{items.length - TYPED_FORM_ITEMS_SHOWN} more not shown</span>}
-        {n.items && n.items.type !== 'unsupported' && !full && (
-          <button type="button" className="pd-typed-add" onClick={() => onChange(setAt(value, [...path, items.length], typedSeed(n.items!) ?? null))} data-testid={`${testIdPrefix}-add-${key}`}>
-            + Add
-          </button>
-        )}
+        {n.items && n.items.type !== 'unsupported' && !full && add(n.items, [...path, items.length], 'Add', key)}
         {errorLine(path)}
       </fieldset>
     );
   };
 
+  // An object that is there draws its properties flat; anything else is one row.
+  const flat = node.type === 'object' && value !== undefined;
   return (
     <div className="pd-typed-form" data-testid={`${testIdPrefix}-form`}>
-      {node.type === 'object' && value !== undefined ? properties(node, []) : row(node, [], typedLabel(node, ''))}
-      {node.type === 'object' && value !== undefined && errorLine([])}
+      {flat ? properties(node, []) : row(node, [], typedLabel(node, ''))}
+      {flat && errorLine([])}
     </div>
   );
 }

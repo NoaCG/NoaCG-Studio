@@ -512,10 +512,22 @@ const LATER = 'was saved by a later version of NoaCG';
 const OTHER_STANDARD = 'was made for another OGraf revision';
 const UNREADABLE = 'cannot be read';
 
+/** Each envelope object is read once (E2.1): every render asks a cue's several times, and a stored
+ *  envelope is replaced, never changed in place, by every write. */
+const envelopeReads = new WeakMap<object, TypedRead>();
+
 /** Read an envelope as stored or as it arrived. Never throws; `undefined` is absent. */
 export function readTypedEnvelope(raw: unknown): TypedRead {
   if (raw === undefined) return { status: 'absent' };
   if (!isRecord(raw)) return { status: 'read-only', reason: UNREADABLE };
+  const known = envelopeReads.get(raw);
+  if (known) return known;
+  const read = readEnvelope(raw);
+  envelopeReads.set(raw, read);
+  return read;
+}
+
+function readEnvelope(raw: Json): TypedRead {
   const v = raw.v;
   if (typeof v === 'number' && Number.isInteger(v) && v > TYPED_VERSION) return { status: 'read-only', reason: LATER };
   if (v !== TYPED_VERSION) return { status: 'read-only', reason: UNREADABLE };
@@ -809,12 +821,8 @@ export function migrateToTyped(
       receipt.converted.push(key);
     }
   }
-  let whole = values;
-  if (!receipt.refused.length && defaults) {
-    const filled = typedWithDefaults(fields, values);
-    whole = filled.values;
-    if (filled.filled.length) receipt.defaulted = filled.filled;
-  }
+  const filled = !receipt.refused.length && defaults ? typedWithDefaults(fields, values) : null;
+  const whole = filled ? filled.values : values;
   if (!receipt.refused.length) {
     // A kept string of a declared node is not judged: an unsupported node accepts what it has.
     if (!draft) receipt.refused.push(...validateTyped(fields, whole));
@@ -824,11 +832,11 @@ export function migrateToTyped(
   }
   if (receipt.refused.length) {
     receipt.refused = sortedErrors(receipt.refused);
-    delete receipt.defaulted;
     return { envelope: null, receipt };
   }
   const envelope: TypedValues = { v: TYPED_VERSION, kind: 'values', standard: OGRAF_STANDARD.commit, schema: description.schema, values: whole };
   receipt.output = contentHash(canonicalJson(whole));
+  if (filled?.filled.length) receipt.defaulted = filled.filled;
   return { envelope, receipt };
 }
 
@@ -1016,7 +1024,8 @@ function seedOf(node: TypedNode, budget: Budget): JsonValue | undefined {
 }
 
 /** A JSON value copied, own keys kept whatever their name (`put`). Only for values `readJson`
- *  accepted, which bounds it. */
+ *  accepted, which bounds it. Not `structuredClone`: this module reaches CasparCG 2.3's Chromium 71
+ *  through the output bundle, which has none (validation/engineSupport.ts). */
 function structuredCopy(value: JsonValue): JsonValue {
   if (Array.isArray(value)) return value.map(structuredCopy);
   if (value !== null && typeof value === 'object') {
