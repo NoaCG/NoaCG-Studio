@@ -801,6 +801,27 @@ test('a send to on-air graphics captures what is on air at the press and asks ag
   assert.deepEqual(await sending, { of: 2, updated: 1, gone: ['Score'], changed: [], failed: [] });
 });
 
+test('a send to on-air graphics waits behind a live press on its graphic and asks again after it', async () => {
+  const { r, look, cues } = lookRig();
+  const read = [];
+  r.page.lookAppearanceOf = (cue) => (read.push(cue.id), look);
+  // A ± press on the strap is out when the look is sent: the send waits for it.
+  const bumping = r.verbs.bump(sel({ editingCue: cues[0], selectedGraphic: 'Strap', editingIsLive: true }), 'f3', 1);
+  await settle();
+  assert.equal(r.sends.length, 1, 'the bump is out');
+  const sending = r.verbs.sendLook();
+  await settle();
+  // The strap's layer takes another cue while the send waits behind the bump.
+  onLayer(r, 'Strap', 'c3');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await bumping;
+  await settle();
+  assert.deepEqual(read, ['c2'], 'the strap is asked again behind the press, and its look is never read');
+  assert.deepEqual(r.sends.slice(1).map((x) => x.batches[0][0].graphic), ['Score']);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await sending, { of: 2, updated: 1, gone: [], changed: ['Strap'], failed: [] });
+});
+
 test('a send to on-air graphics asks again after the look is read: a layer that took another cue meanwhile is sent nothing', async () => {
   const { r } = lookRig();
   const reads = [];

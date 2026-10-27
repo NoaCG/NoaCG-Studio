@@ -75,6 +75,7 @@ export default function HostedCueAdjust({
       measured={measured}
       stateOf={() => state}
       category=""
+      measures={false}
       open={open}
       setOpen={setOpen}
       write={write}

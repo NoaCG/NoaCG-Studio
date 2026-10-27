@@ -1146,7 +1146,6 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       captured.map(({ graphic, cue }) =>
         afterPress(graphic, async () => {
           const still = () => holding(graphic) === cue.id;
-          if (!still()) return lost(graphic);
           if (typedSendRefusal(cue) || p.typedAiring?.(graphic)) return void result.failed.push({ graphic, note: 'Live controls do not reach typed data yet.' });
           await p.flush();
           if (!still()) return lost(graphic);

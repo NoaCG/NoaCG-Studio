@@ -126,7 +126,7 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import { loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { lightPanel, lookExceptions, lookFontRef, lookForOf, lookReach, lookSentWords, lookToActivate, productionLookOf } from '../../control/productionLook';
+import { lightPanel, lookExceptions, lookFontRef, lookForOf, lookReach, lookSentWords, lookToActivate } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
 import { getCssVariable } from '../../model/cssVars';
@@ -136,7 +136,7 @@ import { clearStyleExceptions, editShowLook, promoteCueAdjust, setCueAdjust, set
 import type { AdjustPatch, FontRef } from '../../model/adjust';
 import CueAdjust from './CueAdjust';
 import ProductionLook from './ProductionLook';
-import { carriesAdjust, publishedAdjustOf } from '../../control/hostedAdjust';
+import { publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
@@ -2544,9 +2544,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // Each adjusted cue measured for the copy being published, from the designs Publish just
       // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
       // measurer has not answered for publishes its last placement).
+      // Every graphic cue carries its records (none, for a graphic nobody adjusted) and the box this
+      // page measured, so the hosted page's Adjust block can start from any of them; only an
+      // adjusted cue carries an appearance.
       appearanceFor: async (latest) => {
-        const look = productionLookOf(latest);
-        if (!look && !latest.graphics.some((g) => g.adjust !== undefined) && !(latest.cues ?? []).some((c) => c.adjust !== undefined)) return undefined;
         const lib = loadGraphics();
         await Promise.all(measureJobs(latest, lib).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
         const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
@@ -2555,9 +2556,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           const g = latest.graphics.find((x) => x.id === cue.sourceId);
           const state = adjustStateOf(cue, latest, lib, ctx);
           if (!g || !state) return undefined;
-          const lookLayer = ctx.lookFor?.(g.id);
-          const adjust = carriesAdjust(g, latest.cues ?? [], lookLayer) ? publishedAdjustOf(g, cue, lookLayer, state.m, frameOf(g, lib), stage) : undefined;
-          return { ...(state.send ? { appearance: state.send } : {}), ...(adjust ? { adjust } : {}) };
+          const adjust = publishedAdjustOf(g, cue, ctx.lookFor?.(g.id), state.m, frameOf(g, lib), stage);
+          return { ...(state.send ? { appearance: state.send } : {}), adjust };
         };
       },
       // REHEARSAL ENDS AT THE FIRST PUBLISH: the live map and PROGRAM stay this page's.

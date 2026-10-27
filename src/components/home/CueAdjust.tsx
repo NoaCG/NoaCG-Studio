@@ -33,6 +33,7 @@ export default function CueAdjust({
   reset,
   promote,
   style = null,
+  measures = true,
 }: {
   graphicName: string;
   /** How many cues the graphic has. */
@@ -58,6 +59,9 @@ export default function CueAdjust({
   reset: (scope: 'cue' | 'graphic') => void;
   /** Make the cue's exception the graphic's default. */
   promote: () => void;
+  /** A measurement can still come (false on the hosted page, which measures nothing: with no
+   *  published box the block reads "no measurement", never "measuring"). */
+  measures?: boolean;
   /** TYPE AND COLOUR (phase 2): what the design paints with, the faces on offer, the design's own
    *  values, and the writes. "As designed" puts a row back to the design at the scope shown. */
   style?: {
@@ -112,7 +116,7 @@ export default function CueAdjust({
     e.stopPropagation();
     nudge(d[0], d[1]);
   };
-  const why = whyWords(limit, m, fresh);
+  const why = whyWords(limit, m, fresh, measures);
   const styleSum = style ? styleWords(eff.vars, eff.font, style.bundled) : '';
   // A typed x, y or size is one write when the edit is over (Enter or leaving the box, never a pause:
   // 8 on the way to 84 would size the graphic), and a second operator's change to the same record
@@ -395,9 +399,9 @@ export function Swatch({ label, value, disabled, onPick, testId }: { label: stri
   );
 }
 
-function whyWords(limit: GeometryLimit, m: unknown, fresh: boolean): string {
+function whyWords(limit: GeometryLimit, m: unknown, fresh: boolean, measures: boolean): string {
   if (limit === 'spans') return 'spans the frame';
-  if (limit === 'none') return m ? 'no measurement' : 'measuring';
+  if (limit === 'none') return m || !measures ? 'no measurement' : 'measuring';
   if (limit === 'no-presets') return 'no presets for moving content';
   return fresh ? '' : 'measuring';
 }

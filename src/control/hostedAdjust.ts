@@ -51,12 +51,15 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
 
 /** One scope's staged record: undefined (nothing staged that counts), null (staged as none), or the
  *  record. Staged over another published record than today's, or unreadable, it does not count. */
-function stagedAt(buffer: Readonly<Record<string, string>> | undefined, cueId: string | null, published: unknown): unknown | null | undefined {
+function stagedAt(buffer: Readonly<Record<string, string>> | undefined, cueId: string | null, published: unknown, graphicPublished: unknown): unknown | null | undefined {
   const raw = buffer && Object.prototype.hasOwnProperty.call(buffer, stagedAdjustKey(cueId)) ? buffer[stagedAdjustKey(cueId)] : undefined;
   if (raw === undefined) return undefined;
   try {
-    const parsed = JSON.parse(raw) as { on?: unknown; r?: unknown } | null;
+    const parsed = JSON.parse(raw) as { on?: unknown; r?: unknown; g?: unknown } | null;
     if (!parsed || typeof parsed !== 'object' || !('r' in parsed) || !same(parsed.on, published)) return undefined;
+    // A promotion's cue half (`g`) counts only while the graphic's published default is the one it
+    // was promoted over, so the two halves always count together.
+    if ('g' in parsed && !same(parsed.g, graphicPublished)) return undefined;
     return parsed.r ?? null;
   } catch {
     return undefined;
@@ -72,8 +75,8 @@ export interface HostedRecords {
 }
 
 export function hostedRecords(pub: PublishedAdjust, buffer: Readonly<Record<string, string>> | undefined, cueId: string): HostedRecords {
-  const g = stagedAt(buffer, null, pub.graphic);
-  const c = stagedAt(buffer, cueId, pub.cue);
+  const g = stagedAt(buffer, null, pub.graphic, pub.graphic);
+  const c = stagedAt(buffer, cueId, pub.cue, pub.graphic);
   return {
     graphic: g === undefined ? pub.graphic : (g ?? undefined),
     cue: c === undefined ? pub.cue : (c ?? undefined),
@@ -156,17 +159,15 @@ export function stageAdjustPromote(pub: PublishedAdjust, records: HostedRecords,
   if (!members) return {};
   const graphic = patchAdjust(records.graphic, members);
   if (typeof graphic === 'string') return graphic;
-  return { [stagedAdjustKey(null)]: stageValue(pub, 'graphic', graphic), [stagedAdjustKey(cueId)]: stageValue(pub, 'cue', null) };
+  return {
+    [stagedAdjustKey(null)]: stageValue(pub, 'graphic', graphic),
+    [stagedAdjustKey(cueId)]: JSON.stringify({ on: pub.cue ?? null, r: null, g: pub.graphic ?? null }),
+  };
 }
 
-/** Publish carries records for every cue of a graphic adjusted at either scope, or that the look
- *  reaches, so a default staged from one cue on the hosted page reaches its siblings. */
-export function carriesAdjust(graphic: { id: string; adjust?: unknown }, cues: readonly { sourceId: string; adjust?: unknown }[], look: LookLayer | undefined): boolean {
-  return graphic.adjust !== undefined || !!look || cues.some((c) => c.sourceId === graphic.id && c.adjust !== undefined);
-}
-
-/** Publish's half: what a cue carries for the hosted page, or nothing for a graphic nobody adjusted
- *  and no look reaches (so such a production's payload is what it always was). */
+/** Publish's half: what every graphic cue carries for the hosted page's block, a graphic nobody
+ *  adjusted included (its records are then absent and it carries no appearance, so what it airs is
+ *  what it always did). */
 export function publishedAdjustOf(
   graphic: { id: string; adjust?: unknown },
   cue: { adjust?: unknown },

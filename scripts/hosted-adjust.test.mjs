@@ -115,13 +115,23 @@ describe('the doors, as on the production page', () => {
     assert.equal(kept.style, null);
   });
 
-  test('Publish carries records for every cue of an adjusted graphic, and nothing for one nobody adjusted', () => {
-    const cues = [{ sourceId: 'g', adjust: { v: 1, x: 2 } }, { sourceId: 'g' }, { sourceId: 'other' }];
-    assert.equal(H.carriesAdjust({ id: 'g' }, cues, undefined), true, 'a sibling\'s record is enough');
-    assert.equal(H.carriesAdjust({ id: 'other' }, cues, undefined), false);
-    assert.equal(H.carriesAdjust({ id: 'other' }, cues, { vars: { accent: '#f00' } }), true, 'the look reaches it');
-    assert.equal(H.carriesAdjust({ id: 'other', adjust: { v: 1 } }, cues, undefined), true);
-    assert.deepEqual(H.publishedAdjustOf({ id: 'g' }, {}, undefined, null, HD, HD), { graphicId: 'g', frame: HD, stage: HD });
+  test('a graphic nobody adjusted still gets the block: Publish carries its frame alone, and a nudge staged on it airs', () => {
+    const bare = H.publishedAdjustOf({ id: 'g' }, {}, undefined, null, HD, HD);
+    assert.deepEqual(bare, { graphicId: 'g', frame: HD, stage: HD });
+    const cue = cueOf('c1', bare);
+    assert.equal(H.hostedAppearance(cue, [cue], {}, null, ctx), undefined, 'nothing staged: it airs as it always did');
+    const buffer = apply({}, H.stageAdjustStep(bare, H.hostedRecords(bare, {}, 'c1'), 'c1', 'graphic', { x: 12 }));
+    assert.deepEqual(H.hostedAppearance(cue, [cue], buffer, null, ctx).frame, { dx: 12, dy: 0, s: 1, ox: 960, oy: 540 }, 'a nudge needs no box');
+  });
+
+  test('a promotion\'s two halves count together: a republished default drops both', () => {
+    const pub = pubOf({ cue: { v: 1, place: 'br' } });
+    const buffer = apply({}, H.stageAdjustPromote(pub, H.hostedRecords(pub, {}, 'c1'), 'c1'));
+    assert.deepEqual(H.hostedRecords(pub, buffer, 'c1').cue, undefined, 'promoted: the cue keeps nothing of its own');
+    const republished = { ...pub, graphic: { v: 1, anchor: 'bl', y: 9 } };
+    const after = H.hostedRecords(republished, buffer, 'c1');
+    assert.equal(after.staged, false, 'neither half counts');
+    assert.deepEqual(after.cue, pub.cue, 'the cue keeps its published exception');
   });
 
   test('a sibling\'s exception staged here makes a Take of a plain cue send the identity, and one reset there stops it', () => {

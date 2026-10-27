@@ -1,3 +1,5 @@
+// gate: factory
+// needs: browser
 // guards: src/control/productionLook.ts, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/control/cueStyle.ts, src/audience/audienceBrand.ts, src/model/shows.ts
 //
 // THE PRODUCTION LOOK AT PLAYOUT (docs/work-specs/playout-adjustments/spec.md, phase 3), in Node:
