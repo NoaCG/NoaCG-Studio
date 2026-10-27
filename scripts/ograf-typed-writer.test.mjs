@@ -163,7 +163,8 @@ test('AC-2, AC-4: the writer turns typed data on and off through the doors; save
     assert.equal(off.typed, undefined);
     assert.deepEqual(off.values, { ...native, accent: '#005ca9', live: 'true', opacity: '0.8', ratio: '1' });
     assert.equal(JSON.stringify(read().graphics[0].template.ograf), manifestBytes);
-    // On again from those strings gives the same envelope: the round trip is lossless.
+    // On again from those strings gives the same envelope: what the cue held comes back whole, and
+    // the defaults On filled once (E2.1) come back as text with it.
     shows.setCueTyped(show.id, cue.id, true);
     assert.deepEqual(read().cues[0].typed, envelope({ ...values, ...defaults }));
     // A cue of a later version is never written, on or off.
@@ -375,6 +376,54 @@ test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');
   assert.match(stage, /if \(\(msg as \{ src\?: unknown \}\)\.src !== undefined\) dataless = true;/);
   assert.match(stage, /if \(dataless\) break;/);
+});
+
+// ── E2.1: the form's writes ──────────────────────────────────────────────────────────────────
+
+test('E2.1: the form keeps typed drafts as they are and action arguments per action, and refuses a record that would not read back', async () => {
+  const stored = new Map();
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => stored.get(k) ?? null,
+    setItem: (k, v) => stored.set(k, String(v)),
+    removeItem: (k) => stored.delete(k),
+    key: (i) => [...stored.keys()][i] ?? null,
+    get length() {
+      return stored.size;
+    },
+  };
+  try {
+    const shows = await loadShowsModule();
+    const template = { name: 'Board', type: 'blank', resolution: { width: 1920, height: 1080, label: '1080p' }, fps: 50, html: '<div></div>', css: '', js: '', fields: [], settings: {}, assets: [], layers: [], ograf: declared };
+    const show = shows.createShowNamed('Typed form');
+    shows.addGraphicToShow(show.id, template);
+    const read = () => shows.loadShows().find((s) => s.id === show.id).cues[0];
+    const cueId = read().id;
+    // Off: the form's values write is refused, nothing written.
+    assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'X' }).error, 'This cue’s typed data is off.');
+    assert.equal(shows.setCueTyped(show.id, cueId, true).error, null, 'On with nothing said: the declared defaults, the rest marked by the form');
+    assert.deepEqual(read().typed.values.teams, [{ name: 'Home', score: 0 }]);
+    // A draft that does not fit is kept as it is, in its types, in the same envelope.
+    assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'x'.repeat(41), round: 3, teams: [] }).error, null);
+    assert.deepEqual(read().typed.values, { title: 'x'.repeat(41), round: 3, teams: [] });
+    assert.equal(read().typed.schema, schema);
+    // Action arguments: typed, per action, against the declared schema's hash; removed when undefined.
+    const actions = describeOgraf(stranger).actions;
+    const highlight = actions.find((a) => a.id === 'highlight');
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, highlight, { team: 2, pulse: { fast: false } }).error, null);
+    assert.deepEqual(read().typedArgs, { v: 1, actions: { highlight: { schema: highlight.schema, args: { team: 2, pulse: { fast: false } } } } });
+    // Two records that fit one by one but not together: the second is refused, the first kept.
+    const many = (n) => ({ team: 1, list: Array.from({ length: n }, (_, i) => i) });
+    const reset = { ...actions.find((a) => a.id === 'reset'), id: 'other' };
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, highlight, many(6000)).error, null);
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, reset, many(6000)).error, 'These arguments cannot be kept.');
+    assert.equal(typed.readTypedArgs(read().typedArgs).status, 'ok');
+    assert.equal(read().typedArgs.actions.other, undefined);
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, highlight, undefined).error, null);
+    assert.equal(read().typedArgs, undefined);
+  } finally {
+    globalThis.localStorage = previous;
+  }
 });
 
 // ── The outputs' capability ──────────────────────────────────────────────────────────────────

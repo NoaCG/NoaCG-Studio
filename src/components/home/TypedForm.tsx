@@ -27,8 +27,11 @@ export interface TypedFormProps {
   replaced?: (key: string, label: string) => ReactNode | null;
 }
 
-/** Kinds whose edit is text being typed: committed when it is over, not per keystroke. */
-const TYPED_TEXT = new Set(['text', 'lines', 'color']);
+/** FieldControl's rule for a short choice drawn as buttons, where nothing picked reads as nothing. */
+const segmented = (options: { label: string }[]) => options.length > 0 && options.length <= 5 && options.every((o) => o.label.length <= 4);
+
+/** Kinds whose edit is typed: committed when it is over, not per keystroke (a number's ± too). */
+const TYPED_TEXT = new Set(['text', 'lines', 'color', 'number']);
 
 export function TypedForm(props: TypedFormProps) {
   const { node, value, onChange, errors, testIdPrefix } = props;
@@ -57,11 +60,14 @@ export function TypedForm(props: TypedFormProps) {
     const stored = getAt(value, path);
     const shown = leaf.show(stored);
     const text = TYPED_TEXT.has(leaf.descriptor.kind);
-    // A declared list holding a value outside it says so in its own option, never the first one.
+    // A declared list holding a value outside it says so in its own option, and one holding none
+    // shows an empty one, never the first choice as if it were picked.
     const descriptor =
       shown === 'other' && leaf.descriptor.options
         ? { ...leaf.descriptor, options: [...leaf.descriptor.options, { value: 'other', label: `${JSON.stringify(stored)} (not a choice)` }] }
-        : leaf.descriptor;
+        : shown === '' && leaf.descriptor.options && !segmented(leaf.descriptor.options)
+          ? { ...leaf.descriptor, options: [{ value: '', label: '' }, ...leaf.descriptor.options] }
+          : leaf.descriptor;
     const invalid = errors.has(key);
     return (
       <div className={`field-row pd-typed-row${invalid ? ' pd-typed-invalid' : ''}`} key={key} onBlur={text ? edits.flush : undefined} data-dirty={text && edits.dirty(editKey) ? '' : undefined}>
@@ -73,7 +79,7 @@ export function TypedForm(props: TypedFormProps) {
           value={text ? edits.text(editKey, String(shown)) : shown}
           onChange={(v) => {
             if (text) edits.type(editKey, String(v));
-            else if (v !== 'other' && !(n.type !== 'string' && n.enum === undefined && v === '')) onChange(setAt(value, path, leaf.read(v)));
+            else if (v !== 'other' && v !== '') onChange(setAt(value, path, leaf.read(v)));
           }}
           images={props.images}
           imageHint={props.imageHint}

@@ -213,6 +213,21 @@ test('action arguments are kept per action version and sent in E1’s envelope, 
   assert.match(typedActionFor(odd, 'x', undefined).reason, /schema feature this version does not carry/);
 });
 
+test('a scalar argument keeps its type and value to the Graphic, false and 0 included; kept arguments follow the declared schema', () => {
+  const scalar = readOgrafDeclared({ v: 1, manifest: { customActions: [{ id: 'flag', name: 'Flag', schema: { type: 'boolean' } }, { id: 'go', name: 'Go', schema: { type: 'integer' } }] } });
+  const flag = scalar.description.actions[0];
+  const sent = typedActionFor(scalar, 'flag', { v: 1, actions: { flag: { schema: actionSchemaOf(flag), args: false } } }).typed;
+  assert.equal(sent.args, false);
+  assert.deepEqual(contract.ografCallFor({ t: 'event', event: 'flag', typed: sent }), { call: 'custom', args: ['flag', false] });
+  const go = typedActionFor(scalar, 'go', undefined).typed;
+  assert.deepEqual(contract.ografCallFor({ t: 'event', event: 'go', typed: go }), { call: 'custom', args: ['go', 0] });
+  // The host passes it on as it is (control/ografHost.ts `custom`).
+  assert.match(readFileSync(path.join(root, 'src/control/ografHost.ts'), 'utf8'), /payload: data === undefined \|\| data === null \? \{\} : data/);
+  // The kept arguments' hash is the declared schema's, not this reader's parse of it.
+  assert.equal(flag.schema, typed.describeOgraf({ customActions: [{ id: 'x', name: 'X', schema: { type: 'boolean' } }] }).actions[0].schema);
+  assert.notEqual(actionSchemaOf(flag), scalar.description.actions[1].schema);
+});
+
 test('a press asks every output it sees to read typed actions (2); an E1.2a output reads values only', () => {
   const facts = (peers) => ({ declared, published: true, presence: { showId: 's', status: 'joined', peers }, showId: 's' });
   assert.equal(TYPED_ACTIONS_READER, 2);

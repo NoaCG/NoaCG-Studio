@@ -83,7 +83,7 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution, SpxTemplate } from '../../model/types';
-import { actionArgsOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend, type TypedValues } from '../../model/ografTyped';
+import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend, type TypedValues } from '../../model/ografTyped';
 import { typedErrorsByPath, typedSummary } from '../../control/ografForm';
 import { typedActionButtons } from '../../control/ografContract';
 import { createTypedSendMemo, typedActionSendFor } from '../../control/typedSend';
@@ -1552,13 +1552,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const candidateOf = (cue: ShowCue | null): CueCandidate | null => {
     const typed = cue && typedReadOnly(cue) ? typedSendRefusal(cue) : null;
     if (typed) return { readOnly: typed, label: '', fields: new Set(), values: {}, notReady: null };
-    if (!cue || cue.selection === undefined) return null;
+    if (!cue || cue.selection === undefined) return typedUndrawn(cue);
     const fields = new Set(selectedFields(cue, show?.collections));
     const gate = selectionGate(cue, show?.collections, cueGraphicName(cue), bindings);
     if (gate.status === 'read-only') return { readOnly: gate.reason, label: '', fields, values: {}, notReady: null };
     const take = candidateTake(cue);
     const label = gate.status === 'ok' ? `Live candidate: ${gate.recipe.key.map((path, i) => `${path} ${String(gate.selection.key[i])}`).join(', ')}` : 'Live candidate';
     return { readOnly: null, label, fields, values: take.status === 'ok' ? take.values : {}, notReady: take.status === 'refused' ? take.reason : null };
+  };
+  /** A cue whose typed data is on but whose graphic's schema this page cannot draw now (its
+   *  declaration lost or unreadable): its envelope's values read out, read-only, as E1.2a showed
+   *  them, so its native strings never look editable for air. */
+  const typedUndrawn = (cue: ShowCue | null): CueCandidate | null => {
+    const envelope = cue ? typedValuesOf(cue.typed) : null;
+    if (!cue || !envelope) return null;
+    const declared = declaredOf(cueGraphicName(cue) ?? '');
+    if (declared.status === 'ok' && declared.fields) return null;
+    const bound = boundFields(cueGraphicName(cue));
+    const values = nativeOf(envelope);
+    return { readOnly: null, label: '', mark: 'Typed', fields: new Set(Object.keys(values).filter((k) => !bound[k])), values, notReady: null };
   };
   /** The editor's typed data switch (E1.2a), for a cue whose graphic declares an OGraf schema. */
   const [typedNote, setTypedNote] = useState<{ cueId: string; note: string } | null>(null);

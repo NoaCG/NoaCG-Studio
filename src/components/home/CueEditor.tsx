@@ -1119,6 +1119,68 @@ export default function CueEditor({
   };
   // The sources this graphic follows, and connected fields it no longer has.
   const fed = (show.sources ?? []).filter((source) => Object.values(bound).some((path) => isSourcePath(source.id, path)));
+  /** A FIELD BOUND to the production's data, read out with its source and its Disconnect: the native
+   *  rows and the typed form (E2.1) draw the same row. */
+  const boundRow = (d: { key: string; label: string }, label: string, path: string) => {
+    const source = sourceOf(show, path);
+    const format = listFormatFor(poolGraphic, d.key);
+    const unset = source?.kind === 'external' ? 'waits for the next read' : 'not set yet';
+    // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
+    // rather than on a hand-rolled label. The cue fields lay out in a grid,
+    // so a row of a different height sits its input a few pixels off its
+    // neighbour's; matching the real structure makes them line up by
+    // construction instead of by a number kept in step here.
+    return (
+      <div className="field-row pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
+        <div className="field-meta">
+          <label style={{ margin: 0 }}>
+            {label}
+          </label>
+          {source ? (
+            <CueConnectedMark source={source} store={sourceStatus} />
+          ) : isApiPath(path) ? (
+            <span className="pd-bound-mark" title={`Connected to Another system: ${path}`} data-testid="cue-connected-mark">
+              🔗 Another system
+            </span>
+          ) : (
+            <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
+              🔗 {path}
+            </span>
+          )}
+        </div>
+        {/* A list keeps its lines: an <input> would join them into one. A
+            connector's field fills at its source's next read, never from the
+            review's sample: until then it says so. */}
+        {format ? (
+          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} rows={3} readOnly tabIndex={-1} />
+        ) : (
+          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} readOnly tabIndex={-1} />
+        )}
+        {/* The operator wins for values (±, a typed value on Data); a connected
+            list is read-only here and says where to edit it (sheet spec). */}
+        {isApiPath(path) && (
+          <span className="hint" data-testid="cue-connected-note">
+            Another system writes <code>{path}</code>.{' '}
+            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
+              Disconnect
+            </button>
+          </span>
+        )}
+        {source && (
+          <span className="hint" data-testid="cue-connected-note">
+            {format
+              ? source.kind === 'feed' || source.kind === 'external'
+                ? `Connected to ${sourceKindWord(source)}: ${source.label}. `
+                : `Connected to Sheet: ${source.label}. Edit in the Sheet, or `
+              : ''}
+            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
+              {format ? 'Disconnect to edit here' : 'Disconnect'}
+            </button>
+          </span>
+        )}
+      </div>
+    );
+  };
   return (
     <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" data-renders={renders.current} inert={!authoringAllowed || !!candidate?.readOnly}
       onBlurCapture={() => { void flushDraft(); void rundownHistory.closeGroup(); }}>
@@ -1307,20 +1369,7 @@ export default function CueEditor({
             testIdPrefix="cue-typed"
             images={cueImages}
             imageHint="Add pictures in the graphic's Assets tab."
-            replaced={(key, label) => {
-              const path = bound[key];
-              if (!path) return null;
-              const source = sourceOf(show, path);
-              return (
-                <div className="field-row pd-field-bound" data-testid={`cue-bound-${key}`}>
-                  <div className="field-meta">
-                    <label style={{ margin: 0 }}>{label}</label>
-                    <span className="pd-bound-mark" title={path}>🔗 {source?.label ?? path}</span>
-                  </div>
-                  <input value={resolved[selectedGraphic ?? '']?.[key] ?? ''} readOnly tabIndex={-1} />
-                </div>
-              );
-            }}
+            replaced={(key, label) => (bound[key] ? boundRow({ key, label }, label, bound[key]) : null)}
           />
         ) : (
         fieldGroups.map((group) => {
@@ -1349,7 +1398,6 @@ export default function CueEditor({
                   // would show a number nothing will ever air. It reads out instead,
                   // wearing its path — the one override gesture is Unbind, on the Data tab.
                   const path = boundFields(selectedGraphic)[d.key];
-                  const source = sourceOf(show, path);
                   const format = listFormatFor(poolGraphic, d.key);
                   // A LIVE CANDIDATE's field reads out like a bound one: its source corrects
                   // it, and Take and Update resolve it (E7.1).
@@ -1373,64 +1421,7 @@ export default function CueEditor({
                       </div>
                     );
                   }
-                  if (path) {
-                    const unset = source?.kind === 'external' ? 'waits for the next read' : 'not set yet';
-                    // Built on `.field-row`/`.field-meta` - FieldRow's OWN structure -
-                    // rather than on a hand-rolled label. The cue fields lay out in a grid,
-                    // so a row of a different height sits its input a few pixels off its
-                    // neighbour's; matching the real structure makes them line up by
-                    // construction instead of by a number kept in step here.
-                    return (
-                      <div className="field-row pd-field-bound" key={d.key} data-testid={`cue-bound-${d.key}`}>
-                        <div className="field-meta">
-                          <label style={{ margin: 0 }}>
-                            {d.key.toUpperCase()} · {d.label}
-                          </label>
-                          {source ? (
-                            <CueConnectedMark source={source} store={sourceStatus} />
-                          ) : isApiPath(path) ? (
-                            <span className="pd-bound-mark" title={`Connected to Another system: ${path}`} data-testid="cue-connected-mark">
-                              🔗 Another system
-                            </span>
-                          ) : (
-                            <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
-                              🔗 {path}
-                            </span>
-                          )}
-                        </div>
-                        {/* A list keeps its lines: an <input> would join them into one. A
-                            connector's field fills at its source's next read, never from the
-                            review's sample: until then it says so. */}
-                        {format ? (
-                          <textarea value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} rows={3} readOnly tabIndex={-1} />
-                        ) : (
-                          <input value={resolved[selectedGraphic ?? '']?.[d.key] ?? ''} placeholder={unset} readOnly tabIndex={-1} />
-                        )}
-                        {/* The operator wins for values (±, a typed value on Data); a connected
-                            list is read-only here and says where to edit it (sheet spec). */}
-                        {isApiPath(path) && (
-                          <span className="hint" data-testid="cue-connected-note">
-                            Another system writes <code>{path}</code>.{' '}
-                            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
-                              Disconnect
-                            </button>
-                          </span>
-                        )}
-                        {source && (
-                          <span className="hint" data-testid="cue-connected-note">
-                            {format
-                              ? source.kind === 'feed' || source.kind === 'external'
-                                ? `Connected to ${sourceKindWord(source)}: ${source.label}. `
-                                : `Connected to Sheet: ${source.label}. Edit in the Sheet, or `
-                              : ''}
-                            <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
-                              {format ? 'Disconnect to edit here' : 'Disconnect'}
-                            </button>
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
+                  if (path) return boundRow(d, `${d.key.toUpperCase()} · ${d.label}`, path);
                   const field = (
                     <FieldRow
                       key={d.key}

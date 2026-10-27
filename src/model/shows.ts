@@ -1539,6 +1539,8 @@ export function setCueTypedArgs(showId: string, cueId: string, action: TypedActi
     for (const [id, entry] of Object.entries(read.status === 'ok' ? read.args.actions : {})) if (id !== action.id) Object.defineProperty(actions, id, { value: entry, enumerable: true, writable: true, configurable: true });
     if (args !== undefined) Object.defineProperty(actions, action.id, { value: { schema, args }, enumerable: true, writable: true, configurable: true });
     const next: TypedArgs | undefined = Object.keys(actions).length ? { v: TYPED_ARGS_VERSION, actions } : undefined;
+    // The whole record must read back: arguments that fit one by one may not fit together.
+    if (next && readTypedArgs(next).status !== 'ok') return 'These arguments cannot be kept.';
     if (JSON.stringify(next) === JSON.stringify(cue.typedArgs)) return false;
     if (next) cue.typedArgs = next;
     else delete cue.typedArgs;

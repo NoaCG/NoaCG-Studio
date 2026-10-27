@@ -132,6 +132,9 @@ export interface TypedAction {
   name: string;
   /** The argument schema, or null for an action that takes none (`schema` null or absent). */
   args: TypedNode | null;
+  /** The content hash of the action's `schema` as declared (canonical JSON; `null` when absent), so
+   *  arguments kept for it (`TypedArgs`) follow the package, not how this reader parses it (E2.1). */
+  schema: string;
 }
 
 export interface OgrafDescription {
@@ -310,12 +313,14 @@ export function describeOgraf(manifest: unknown): OgrafDescription {
       seen.add(raw.id);
       const name = typeof raw.name === 'string' && raw.name ? raw.name : raw.id;
       let args: TypedNode | null = null;
+      let schema = contentHash(canonicalJson(null));
       if (own(raw, 'schema') && raw.schema !== null) {
         const fault = readJson(raw.schema, TYPED_MAX_DEPTH * 3);
         args = fault ? { path: '', type: 'unsupported', unsupported: [fault] } : readNode(raw.schema, `${at}.schema`, '', 0, budget, notes);
         if (fault) notes.push({ at: `${at}.schema`, reason: fault });
+        else schema = contentHash(canonicalJson(raw.schema as JsonValue));
       }
-      out.actions.push({ id: raw.id, name, args });
+      out.actions.push({ id: raw.id, name, args, schema });
     });
   }
   return out;
@@ -422,7 +427,7 @@ function enumSet(node: TypedNode): Set<unknown> {
 }
 
 /** Validate a custom action's arguments: none for an action that takes none. */
-export function validateActionArgs(action: TypedAction, args: unknown): TypedError[] {
+export function validateActionArgs(action: { id: string; name?: string; args: TypedNode | null }, args: unknown): TypedError[] {
   if (!action.args) return args === undefined ? [] : [{ at: '', reason: `"${action.id}" takes no arguments` }];
   if (args === undefined) return [{ at: '', reason: `"${action.id}" needs its arguments` }];
   const fault = readJson(args, TYPED_MAX_DEPTH);
@@ -1045,7 +1050,7 @@ export const TYPED_ARGS_VERSION = 1;
  * A CUE'S ACTION ARGUMENTS (E2.1, `ShowCue.typedArgs`): what each of its graphic's custom actions
  * carries when it is pressed, kept as typed JSON beside `typed`, with its own `v`. An entry is a
  * draft, valid or not: a press validates it whole and refuses with its path, never erasing it.
- * `schema` is the content hash of the action's argument descriptor as read (`actionSchemaOf`), so
+ * `schema` is the content hash of the action's argument schema as declared (`actionSchemaOf`), so
  * arguments kept for another version of the action are not sent to this one.
  */
 export interface TypedArgs {
@@ -1072,9 +1077,9 @@ export function readTypedArgs(raw: unknown): TypedArgsRead {
   return { status: 'ok', args: raw as unknown as TypedArgs };
 }
 
-/** The content hash an action's arguments are kept against: its argument descriptor as read. */
+/** The content hash an action's arguments are kept against: its argument schema as declared. */
 export function actionSchemaOf(action: TypedAction): string {
-  return contentHash(canonicalJson((action.args ?? null) as unknown as JsonValue));
+  return action.schema;
 }
 
 /** The arguments an action's form shows: the ones kept for this version of it, else a new value. */
