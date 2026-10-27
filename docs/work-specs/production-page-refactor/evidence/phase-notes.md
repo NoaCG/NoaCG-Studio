@@ -56,10 +56,15 @@ changes a spec's digest.
     the sound assets use (`assets/audioHash.ts`), the same hex, so a LAN-served studio imports and
     exports packages too.
 - **Decisions.**
-  - *An html page beside a manifest stays E1's native road*: only a manifest that is not ours, whose
-    `main` the package holds (or beside no html at all), is foreign. E1/E2's typed fixtures (a page
-    plus a stranger's manifest) import as before; a bare stranger's module Graphic, which no build
-    could import, now does.
+  - *Which road a zip takes*: a manifest that is not ours whose `main` the archive holds (with or
+    without an html page beside it), or one beside no html page at all, is foreign; a page beside a
+    stranger's manifest whose `main` is absent (E1/E2's typed fixtures) stays the native road, as
+    before. A bare stranger's module Graphic, which no build could import, now does.
+  - *Duplicate carries typed data* (`model/cueClipboard.ts`, found by the final `/so`): copy and paste
+    dropped a cue's `typed` and `typedArgs`, so the rundown's Duplicate turned a typed cue into an
+    untyped copy. Both travel now, byte for byte; the write door already admits a new cue whose
+    envelope the record holds. The library spec duplicates and moves through the rundown's own
+    functions (`copyClip`, `pasteInRundown`, `moveInRundown`), not hand-built cues.
   - *The bounds are this road's*: a zip past them is refused only when it would have been a foreign
     package (a manifest beside no page); a vendor's SPX pack of a thousand files or one with a long
     video is still the native importer's, as before.
@@ -96,7 +101,7 @@ changes a spec's digest.
   `src/model/foreignPackage.ts` (new), `src/model/types.ts`, `src/export/targets/ografForeign.ts`
   (new), `src/export/targets/ografSchema.ts`, `src/export/registry.ts`, `src/export/AGENTS.md`,
   `src/validation/publishGate.ts`, `src/validation/productionGate.ts`, `src/control/hostedControl.ts`,
-  `src/control/takeBlockers.ts`, `src/packs/graphicsPack.ts`, `src/export/showExport.ts`, `src/model/importTemplate.ts` (three
+  `src/control/takeBlockers.ts`, `src/packs/graphicsPack.ts`, `src/model/cueClipboard.ts`, `scripts/cue-clipboard.test.mjs`, `src/export/showExport.ts`, `src/model/importTemplate.ts` (three
   helpers exported), `src/community/packChecks.ts`, `src/components/home/ProductionExportDialog.tsx`,
   `scripts/take-blockers.test.mjs`,
   `src/components/wizard/templateFile.ts` (new), `src/components/wizard/CreationWizard.tsx`,

@@ -151,25 +151,27 @@ test('two strangers\' packages go in, come out byte for byte, join a production,
   }
 
   // Cues: one per graphic as the production door made them, then a second scoreboard cue with typed
-  // data, the poll's cue moved up, and the typed cue duplicated.
+  // data, the poll's cue moved before the first, and the typed cue duplicated, both through the
+  // rundown's own functions (the ones its Duplicate and its drag call) and their write door.
   const showId = state.showId!;
   await page.evaluate(
     async ({ showId, sourceId }) => {
       const shows = await import('/src/model/shows.ts');
+      const { copyClip } = await import('/src/model/cueClipboard.ts');
       const { commitDurableWrites } = await import('/src/model/durableStore.ts');
       const { cueId } = shows.addShowCue(showId, sourceId, { label: 'Second half' });
       if (!cueId) throw new Error('no cue');
       if (shows.setCueTyped(showId, cueId, true).error) throw new Error('typed on');
       const r = shows.setCueTypedValues(showId, cueId, { homeShort: 'HJK', awayShort: 'KUP', homeScore: 2, awayScore: 1, homeColor: '#005ca9', awayColor: '#d4192c', minute: 46, seconds: 0 });
       if (r.error) throw new Error(r.error);
-      const show = shows.loadShows().find((s) => s.id === showId)!;
-      const poll = show.cues!.find((c) => c.sourceId !== sourceId)!;
-      shows.moveShowCue(showId, poll.id, -1);
-      // Duplicate: a new cue of the same graphic with a copy of the typed data.
-      const typed = shows.loadShows().find((s) => s.id === showId)!.cues!.find((c) => c.id === cueId)!;
-      const copy = shows.addShowCue(showId, sourceId, { label: `${typed.label} (copy)` }, cueId).cueId!;
-      shows.setCueTyped(showId, copy, true);
-      shows.setCueTypedValues(showId, copy, (typed.typed as { values: Record<string, unknown> }).values);
+      const show = () => shows.loadShows().find((s) => s.id === showId)!;
+      const poll = show().cues!.find((c) => c.sourceId !== sourceId)!;
+      const first = show().cues![0];
+      const moved = shows.moveInRundown(showId, { cueId: poll.id }, { before: first.id });
+      if (moved.refused || moved.error) throw new Error(moved.refused ?? moved.error!);
+      const copies = copyClip(show(), [cueId], (label) => `${label} copy`);
+      const pasted = shows.pasteInRundown(showId, copies!, { after: cueId });
+      if (pasted.refused || pasted.error) throw new Error(pasted.refused ?? pasted.error!);
       const failure = await commitDurableWrites();
       if (failure) throw new Error(failure);
     },
@@ -184,7 +186,7 @@ test('two strangers\' packages go in, come out byte for byte, join a production,
   const [board, poll] = state.pool;
   // The poll's cue was moved above the scoreboard's; the copy sits after its original.
   expect(state.cues.map((c) => (c.sourceId === board.id ? 'board' : 'poll'))).toEqual(['poll', 'board', 'board', 'board']);
-  expect(state.cues.slice(2).map((c) => c.label)).toEqual(['Second half', 'Second half (copy)']);
+  expect(state.cues.slice(2).map((c) => c.label)).toEqual(['Second half', 'Second half copy']);
   // Identities apart: four cue ids, two pool ids, two library ids, two packages; the copy has the
   // same typed data as its original and the same package, and nothing else in common.
   const ids = [...state.cues.map((c) => c.id), board.id, poll.id, board.graphicId, poll.graphicId, board.record!.revision, poll.record!.revision];
@@ -202,7 +204,7 @@ test('two strangers\' packages go in, come out byte for byte, join a production,
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
 
   // On the page: a cue over a package is not taken yet, and says why.
-  await page.getByText('Second half (copy)').first().click();
+  await page.getByText('Second half copy').first().click();
   await expect(page.locator('[title="Imported OGraf packages do not play on outputs yet."]').first()).toBeAttached();
 });
 
@@ -252,7 +254,7 @@ const q = new URLSearchParams(location.search);
 const foreign = [];
 for (const [i, key] of (q.get('keys') || '').split(',').filter(Boolean).entries()) {
   const packageBase = location.origin + '/__ograf-library/' + key + '/';
-  const manifest = await (await fetch(packageBase + 'hostile.ograf.json')).json();
+  const manifest = await (await fetch(packageBase + (key === 'benign' ? 'benign.ograf.json' : 'hostile.ograf.json'))).json();
   foreign.push({ key, layer: 20 + i, packageBase, manifest, data: {} });
 }
 const stage = createOutputStage(document.body, { v: 1, resolution: { width: 1920, height: 1080 }, graphics: [], cues: [] }, { foreign });
@@ -294,7 +296,18 @@ test('a hostile package held by the library is mounted from its verified bytes, 
   const files = new Map(stored.map(([p, b]) => [p, Buffer.from(b)]));
   for (const [p, b] of packageFiles('hostile-dynamic')) expect(sha(files.get(p)!), p).toBe(sha(b));
 
-  // The stage: two instances of it side by side, on a page holding a credential.
+  // The stage: two instances of it side by side, and a benign package beside them that the hostile
+  // ones offer a bridge port and a play over it, on a page holding a credential.
+  const benign = new Map<string, Buffer>();
+  const benignDir = fileURLToPath(new URL('fixtures/foreign-ograf/benign/', import.meta.url));
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) walk(full);
+      else benign.set(relative(benignDir, full).split('\\').join('/'), readFileSync(full));
+    }
+  };
+  walk(benignDir);
   await page.addInitScript((credential) => {
     if (window.top === window) {
       localStorage.setItem('noacg-e2e-credential', credential);
@@ -315,8 +328,8 @@ test('a hostile package held by the library is mounted from its verified bytes, 
     const open = { 'access-control-allow-origin': '*' };
     if (path === '/__ograf-library/controller-secret.json') return route.fulfill({ status: 200, contentType: 'application/json', headers: open, body: JSON.stringify({ credential: CREDENTIAL }) });
     if (path.startsWith('/__ograf-library/peer/')) return route.fulfill({ status: 200, contentType: TYPES[path.slice(path.lastIndexOf('.'))] ?? 'text/plain', headers: open, body: 'export const peer = 1;' });
-    const m = /^\/__ograf-library\/(a|b)\/(.+)$/.exec(path);
-    const body = m ? files.get(m[2]) : undefined;
+    const m = /^\/__ograf-library\/(a|b|benign)\/(.+)$/.exec(path);
+    const body = m ? (m[1] === 'benign' ? benign : files).get(decodeURIComponent(m[2])) : undefined;
     if (!body) return route.fulfill({ status: 404, headers: open, body: 'not in package' });
     return route.fulfill({ status: 200, contentType: TYPES[path.slice(path.lastIndexOf('.'))] ?? 'application/octet-stream', headers: open, body });
   });
@@ -324,7 +337,7 @@ test('a hostile package held by the library is mounted from its verified bytes, 
     exfil.push(route.request().url());
     return route.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' }, body: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>' });
   });
-  await page.goto(`/ograf-library/output?production=${CREDENTIAL}&keys=a,b`);
+  await page.goto(`/ograf-library/output?production=${CREDENTIAL}&keys=a,b,benign`);
   await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady === true, undefined, { timeout: 20_000 });
   expect(swapped).toBe(true);
 
@@ -344,5 +357,7 @@ test('a hostile package held by the library is mounted from its verified bytes, 
     const stage = (window as unknown as { __stage: { ografReturns: Map<string, unknown[]> } }).__stage;
     return Object.fromEntries([...stage.ografReturns].map(([k, v]) => [k, v]));
   });
-  expect(returns).toEqual({ a: [{ call: 'mount', statusCode: 200 }], b: [{ call: 'mount', statusCode: 200 }] });
+  expect(returns).toEqual({ a: [{ call: 'mount', statusCode: 200 }], b: [{ call: 'mount', statusCode: 200 }], benign: [{ call: 'mount', statusCode: 200 }] });
+  // The neighbour never obeyed the port and the play the hostile instances offered it: still off.
+  await expect(page.frameLocator('iframe[title="benign"]').locator('.board')).toHaveAttribute('data-on', 'false');
 });

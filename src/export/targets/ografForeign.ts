@@ -329,11 +329,11 @@ export function withoutComments(text: string): string {
 // not taken for one; one written at the start of a line inside a template literal still would be,
 // and is then refused by its words, which say which file and which reference.
 // Minified code writes `import{a}from'./x'`: `from` follows a space, `}` or `*`, never a name.
-const IMPORT_FROM = /(?:^|[;}\n])\s{0,40}(?:import|export)\s{0,40}(?:[\w*{}\s,$]{1,400}?(?<=[\s}*])from\s{0,40})?(["'])([^"'\n]{1,500})\1/g;
-const IMPORT_CALL = /(?<![\w$.'"`])import\(\s{0,40}(["'])([^"'\n]{1,500})\1\s{0,40}\)/g;
-const META_URL = /\bnew\s{1,40}URL\(\s{0,40}(["'`])([^"'`\n]{1,500})\1\s{0,40},\s{0,40}import\.meta\.url\s{0,40}\)/g;
-const CSS_URL = /url\(\s{0,40}(["']?)([^"')\n]{1,500})\1\s{0,40}\)/g;
-const CSS_IMPORT = /@import\s{1,40}(["'])([^"'\n]{1,500})\1/g;
+const IMPORT_FROM = /(?:^|[;}\n])\s{0,40}(?:import|export)\s{0,40}(?:[\w*{}\s,$]{1,400}?(?<=[\s}*])from\s{0,40})?(["'])([^"'\n]{1,300})\1/g;
+const IMPORT_CALL = /(?<![\w$.'"`])import\(\s{0,40}(["'])([^"'\n]{1,300})\1\s{0,40}\)/g;
+const META_URL = /\bnew\s{1,40}URL\(\s{0,40}(["'`])([^"'`\n]{1,300})\1\s{0,40},\s{0,40}import\.meta\.url\s{0,40}\)/g;
+const CSS_URL = /url\(\s{0,40}(["']?)([^"')\n]{1,300})\1\s{0,40}\)/g;
+const CSS_IMPORT = /@import\s{1,40}(["'])([^"'\n]{1,300})\1/g;
 
 /** A reference a file states. `strict`: a static import or a stylesheet's, which must name a file
  *  the package holds; a dynamic `import()` or `new URL()` may sit on a path that never runs (or in

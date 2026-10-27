@@ -144,7 +144,9 @@ test('an entry whose bytes changed after import never loads or exports, and says
   assert.deepEqual(await verifyForeignPackage(sameSize), { ok: false, reason: 'its file graphic.mjs has changed since it was imported' });
   await assert.rejects(foreignPackageZip({ ...tampered, name: 'Scoreboard' }), /graphic\.mjs has changed/);
   const missing = { ...template, assets: template.assets.filter((a) => a.path !== 'thumbnail.webp') };
-  assert.deepEqual(await verifyForeignPackage(missing), { ok: false, reason: 'its file thumbnail.webp is missing' });
+  assert.deepEqual(await verifyForeignPackage(missing), { ok: false, reason: 'its file thumbnail.webp is missing or unreadable' });
+  const damaged = { ...template, assets: template.assets.map((a) => (a.path === 'README.md' ? { ...a, data: 'data:text/markdown;base64,@@not base64@@' } : a)) };
+  assert.deepEqual(await verifyForeignPackage(damaged), { ok: false, reason: 'its file README.md is missing or unreadable' });
   const relisted = { ...template, foreign: { ...template.foreign, files: template.foreign.files.filter((f) => f.path !== 'README.md') } };
   assert.deepEqual(await verifyForeignPackage(relisted), { ok: false, reason: 'its file list has changed since it was imported' });
   // A later record is read-only, an unreadable one too; neither is acted on.

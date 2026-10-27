@@ -151,11 +151,16 @@ export async function assetBytes(asset: AssetFile): Promise<Uint8Array | null> {
   const m = /^data:[^,]*?(;base64)?,/.exec(data);
   if (!m) return null;
   const body = data.slice(m[0].length);
-  if (!m[1]) return new TextEncoder().encode(decodeURIComponent(body));
-  const bin = atob(body);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+  // Damaged text reads as no bytes, so the check names the file rather than throwing.
+  try {
+    if (!m[1]) return new TextEncoder().encode(decodeURIComponent(body));
+    const bin = atob(body);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 export type ForeignPackageCheck =
@@ -183,7 +188,7 @@ export async function verifyForeignPackage(template: Pick<SpxTemplate, 'foreign'
   const files = new Map<string, Uint8Array>();
   for (const [i, f] of record.files.entries()) {
     const { bytes, hash } = loaded[i];
-    if (!bytes) return { ok: false, reason: `its file ${f.path} is missing` };
+    if (!bytes) return { ok: false, reason: `its file ${f.path} is missing or unreadable` };
     if (bytes.byteLength !== f.bytes || hash !== f.sha256) return { ok: false, reason: `its file ${f.path} has changed since it was imported` };
     files.set(f.path, bytes);
   }
