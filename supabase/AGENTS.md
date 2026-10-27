@@ -250,14 +250,18 @@ which locks it. From `0068` on, such a file says so in its header comment:
 
 **What happens to it.** Changes to the contract are additive and backwards compatible, and set
 the usual timeouts. On a landing, `db:push` applies every pending file before the first live-path
-one, then reads the quiet window: no `control_shows.output_seen_at` in the last ten minutes. Quiet,
-it applies (its `lock_timeout` still protects it). Not quiet, or the window could not be read, it
+one, then reads the quiet window: no production on air. A production is on air while its renderer
+heartbeat (`control_shows.output_seen_at`) is under ten minutes old AND it has a graphic on, a live
+cue, or a command or renderer report in those ten minutes (a data feed's rows do not count), or has
+no command head to tell (`QUIET_WINDOW_SQL` in `scripts/db-push.mjs`). A heartbeat alone is not
+enough: a CasparCG server left running with the output loaded beats for days after the show, and
+held 0102 and 0104 until they were applied by hand. Quiet, it applies (its `lock_timeout` still protects it). Not quiet, or the window could not be read, it
 HOLDS that file and everything after it, prints the live production ids and the command to apply
 it, and exits 0 with a warning: the landed app must work without it. The next landing retries.
 It exits 1, so post-land goes red and reaches a person the way a refusal does, when the hold is
 older than a day or when an ordinary migration now waits behind it (that one's app may need it).
-Both alarms fire only when post-land runs, which is on a landing; the quiet window counts renderer
-heartbeats, not operator pages, which is why the change must stay backwards compatible anyway.
+Both alarms fire only when post-land runs, which is on a landing; the quiet window cannot see an
+operator page that is open but idle, which is why the change must stay backwards compatible anyway.
 
 **Applying it now**: `npm run db:push -- --live 0068`, at a moment you judge safe. It prints who is
 live and applies anyway. A destructive statement in it still needs `--allow 0068` as well. A hand
