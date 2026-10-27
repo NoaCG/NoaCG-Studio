@@ -223,6 +223,10 @@ test('hostile entry names are refused before anything is kept', async () => {
   assert.match(await reason(rawZip([...okEntries(), { name: 'pkg/./a.mjs', data: 'x' }])), /empty or "\." folder/);
   assert.match(await reason(rawZip([...okEntries(), { name: 'pkg/link', data: '/etc/passwd', mode: 0o120777 }])), /"pkg\/link" is a link/);
   assert.match(await reason(rawZip([...okEntries(), { name: 'pkg/LIB/A.MJS', data: 'x' }])), /"pkg\/LIB\/A\.MJS" is in the archive twice/);
+  // The zip library would clean the first name into the second and keep only the later one: the
+  // names are judged from the archive's own directory, before it does.
+  assert.match(await reason(rawZip([{ name: 'pkg/../pkg/graphic.mjs', data: 'export default class {}' }, ...okEntries()])), /climbs out/);
+  assert.match(await reason(rawZip([...okEntries(), { name: '../', data: '' }])), /"\.\.\/" climbs out/);
   // The same names, judged alone (the function the archive reader asks).
   assert.equal(entryNameRefusal('pkg/lib/a.mjs'), null);
   assert.equal(entryNameRefusal('pkg/lib/'), null, 'a folder entry');

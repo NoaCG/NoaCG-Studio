@@ -60,18 +60,38 @@ export type ArchiveRead = { ok: true; files: Map<string, Uint8Array> } | { ok: f
 
 const MB = (n: number) => `${Math.round(n / (1024 * 1024))} MB`;
 
-/** The end-of-central-directory record's entry count, or a refusal, without parsing anything else. */
-function centralCount(bytes: Uint8Array): number | string {
-  // The record is 22 bytes plus a comment of at most 65535; it is searched for from the end.
+/** The archive's own entry names, read from its central directory before the zip library parses
+ *  anything (it cleans `../` out of names and lets a later entry replace an earlier one of the same
+ *  cleaned name, so neither can be judged after it), or a refusal. At most `entries` are read. */
+function centralNames(bytes: Uint8Array): string[] | string {
+  // The end record is 22 bytes plus a comment of at most 65535; it is searched for from the end.
   const floor = Math.max(0, bytes.length - 22 - 0xffff);
+  let end = -1;
   for (let i = bytes.length - 22; i >= floor; i--) {
     if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 0x05 && bytes[i + 3] === 0x06) {
-      const total = bytes[i + 10] | (bytes[i + 11] << 8);
-      if (total === 0xffff) return 'It is a Zip64 archive, which a graphic package never needs.';
-      return total;
+      end = i;
+      break;
     }
   }
-  return 'It is not a readable zip archive.';
+  if (end < 0) return 'It is not a readable zip archive.';
+  const u16 = (at: number) => bytes[at] | (bytes[at + 1] << 8);
+  const u32 = (at: number) => (u16(at) | (u16(at + 2) << 16)) >>> 0;
+  const total = u16(end + 10);
+  if (total === 0xffff || u32(end + 16) === 0xffffffff) return 'It is a Zip64 archive, which a graphic package never needs.';
+  if (total > OGRAF_ARCHIVE_LIMITS.entries) return `The archive has ${total} entries; a package may have at most ${OGRAF_ARCHIVE_LIMITS.entries}.`;
+  const names: string[] = [];
+  const utf8 = new TextDecoder('utf-8', { fatal: false });
+  const latin1 = new TextDecoder('latin1');
+  let at = u32(end + 16);
+  for (let n = 0; n < total; n++) {
+    if (at + 46 > bytes.length || u32(at) !== 0x02014b50) return 'Its central directory is damaged.';
+    const nameLength = u16(at + 28);
+    const name = bytes.subarray(at + 46, at + 46 + nameLength);
+    // Bit 11: the name is UTF-8; otherwise it is the archiver's code page, read byte for byte.
+    names.push((u16(at + 8) & 0x0800 ? utf8 : latin1).decode(name));
+    at += 46 + nameLength + u16(at + 30) + u16(at + 32);
+  }
+  return names;
 }
 
 /** Why an entry name may not be extracted, or null. Backslashes are read as separators, as the
@@ -149,9 +169,18 @@ const isLink = (entry: JSZip.JSZipObject) => {
 export async function readOgrafArchive(data: ArrayBuffer | Uint8Array): Promise<ArchiveRead> {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   if (bytes.byteLength > OGRAF_ARCHIVE_LIMITS.archiveBytes) return { ok: false, reason: `The archive is larger than ${MB(OGRAF_ARCHIVE_LIMITS.archiveBytes)}.` };
-  const count = centralCount(bytes);
-  if (typeof count === 'string') return { ok: false, reason: count };
-  if (count > OGRAF_ARCHIVE_LIMITS.entries) return { ok: false, reason: `The archive has ${count} entries; a package may have at most ${OGRAF_ARCHIVE_LIMITS.entries}.` };
+  const names = centralNames(bytes);
+  if (typeof names === 'string') return { ok: false, reason: names };
+  const seen = new Set<string>();
+  for (const raw of names) {
+    const refusal = entryNameRefusal(raw);
+    if (refusal) return { ok: false, reason: refusal };
+    const name = raw.replace(/\\/g, '/');
+    // Two entries that differ only in case are one file on most disks a package is unpacked to.
+    const key = name.replace(/\/$/, '').toLowerCase();
+    if (seen.has(key)) return { ok: false, reason: `The entry "${name}" is in the archive twice.` };
+    seen.add(key);
+  }
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(bytes, { checkCRC32: true });
@@ -159,24 +188,16 @@ export async function readOgrafArchive(data: ArrayBuffer | Uint8Array): Promise<
     return { ok: false, reason: `It is not a readable zip archive (${e instanceof Error ? e.message : String(e)}).` };
   }
   const entries = Object.values(zip.files);
-  // The end record can lie about the count; the parsed directory cannot.
-  if (entries.length > OGRAF_ARCHIVE_LIMITS.entries) return { ok: false, reason: `The archive has ${entries.length} entries; a package may have at most ${OGRAF_ARCHIVE_LIMITS.entries}.` };
+  // Every name was judged above and none repeats, so JSZip's clean names are the archive's own,
+  // and its entries are no more than the directory listed (folders it adds for a path included).
   const files = new Map<string, Uint8Array>();
-  const seen = new Set<string>();
   let total = 0;
   for (const entry of entries) {
-    // JSZip cleans `../` out of `name` on reading; the archive's own words are the ones judged.
-    const raw = (entry as { unsafeOriginalName?: string }).unsafeOriginalName ?? entry.name;
-    const refusal = entryNameRefusal(raw);
-    if (refusal) return { ok: false, reason: refusal };
-    const name = raw.replace(/\\/g, '/');
+    const name = entry.name.replace(/\\/g, '/');
     if (isLink(entry)) return { ok: false, reason: `The entry "${name}" is a link, which a package may not hold.` };
     if (entry.dir) continue;
     // macOS's resource forks are the archiver's, never the package's.
     if (name.startsWith('__MACOSX/')) continue;
-    const key = name.toLowerCase();
-    if (seen.has(key)) return { ok: false, reason: `The entry "${name}" is in the archive twice.` };
-    seen.add(key);
     let out: Uint8Array | 'file' | 'total';
     try {
       out = await inflateBounded(entry, OGRAF_ARCHIVE_LIMITS.totalBytes - total);

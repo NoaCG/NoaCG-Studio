@@ -45,6 +45,8 @@ import FinishStep, {
   type SummaryStepKey,
 } from './steps/FinishStep';
 import { importTemplateFile } from '../../model/importTemplate';
+import { importForeignOgraf } from '../../export/targets/ografForeign';
+import { isForeignGraphic } from '../../model/foreignPackage';
 import { useExportUi } from '../ExportWindow';
 import { useMarkLegibility } from './useMarkLegibility';
 import type { SpxTemplate } from '../../model/types';
@@ -694,7 +696,7 @@ export default function CreationWizard() {
   // The graphic the preview shows: the AI's result, a dropped template as itself (it is the
   // graphic, already finished), or the draft built as real template code.
   const previewGraphic =
-    mode === 'ai' ? aiResult?.template ?? null : mode === 'file' ? importedFile?.template ?? null : previewTemplate;
+    mode === 'ai' ? aiResult?.template ?? null : mode === 'file' ? (isForeignGraphic(importedFile?.template) ? null : importedFile?.template ?? null) : previewTemplate;
   // FINISH ON A PHONE IS THE ONE EXCEPTION. Stacked, the preview claims a fixed 38vh and the
   // step scrolls in what is left — which put BOTH doors below the fold on arrival, on the one
   // step that exists to offer a choice. Every earlier step had already shown the graphic, and
@@ -1097,7 +1099,7 @@ export default function CreationWizard() {
                 templateFile={importedFile}
                 onTemplateFile={(file) => {
                   dispatch({ type: 'file', error: null });
-                  void templateFileDropped(file, { importTemplateFile }).then((read) => {
+                  void templateFileDropped(file, { importTemplateFile, importForeign: importForeignOgraf }).then((read) => {
                     if (!read.ok) {
                       dispatch({ type: 'file', error: read.error });
                       return;
@@ -1271,7 +1273,8 @@ export default function CreationWizard() {
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={(dest) => void doors.addToProduction(applyImportedFile, dest, importedName)}
-                onEditArtwork={() => void doors.editArtwork(applyImportedFile)}
+                // A stranger's OGraf package has no artwork or code here to edit: the door is not offered.
+                onEditArtwork={isForeignGraphic(importedFile.template) ? undefined : () => void doors.editArtwork(applyImportedFile)}
                 onExport={() => void doors.export(applyImportedFile, importedName)}
                 busy={false}
               />

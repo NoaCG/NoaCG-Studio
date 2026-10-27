@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { saveAs } from 'file-saver';
-import { EXPORT_TARGETS, type GraphicUsage } from '../export/registry';
+import { EXPORT_TARGETS, exportTargetsFor, type GraphicUsage } from '../export/registry';
+import { isForeignGraphic } from '../model/foreignPackage';
 import { validateOgrafOfflineCompatibility } from '../export/targets/ograf';
 import { slug } from '../model/slug';
 import { loadPrefs, savePrefs } from '../model/prefs';
@@ -71,13 +72,14 @@ export default function ExportSurface({
     savePrefs({ defaultExportTarget: id }); // remember the choice as the new default
   };
 
-  const target = EXPORT_TARGETS.find((t) => t.id === targetId)!;
+  const targets = exportTargetsFor(template);
+  const target = targets.find((t) => t.id === targetId) ?? targets[0];
   const ografCompatibility = useMemo(
     () => validateOgrafOfflineCompatibility(template),
     [template],
   );
   const offlineRequested =
-    targetId === 'ograf' && graphicUsage !== 'live';
+    target.id === 'ograf' && graphicUsage !== 'live' && !isForeignGraphic(template);
   const targetCompatible = !offlineRequested || ografCompatibility.compatible;
 
   // The design-rules legibility warnings (R4, warn-first): measured on a settled offscreen
@@ -147,18 +149,18 @@ export default function ExportSurface({
       </div>
 
       <div className="stack">
-        {EXPORT_TARGETS.map((t) => (
+        {targets.map((t) => (
           <label
             key={t.id}
             className="issue"
-            style={{ display: 'block', cursor: 'pointer', borderColor: targetId === t.id ? 'var(--accent)' : undefined }}
+            style={{ display: 'block', cursor: 'pointer', borderColor: target.id === t.id ? 'var(--accent)' : undefined }}
           >
             <div className="row" style={{ alignItems: 'flex-start' }}>
               <input
                 type="radio"
                 name="export-target"
                 style={{ width: 'auto', marginTop: 3 }}
-                checked={targetId === t.id}
+                checked={target.id === t.id}
                 onChange={() => pickTarget(t.id)}
               />
               <div>
@@ -170,7 +172,8 @@ export default function ExportSurface({
         ))}
       </div>
 
-      {targetId === 'ograf' && (
+      {/* A stranger's package leaves as it came: no intent to choose. */}
+      {target.id === 'ograf' && !isForeignGraphic(template) && (
         <div className="panel-section" data-testid="ograf-usage">
           <h3>Usage</h3>
           <div className="row" style={{ flexWrap: 'wrap' }}>
@@ -258,8 +261,9 @@ export default function ExportSurface({
       </div>
 
       {/* Video/image rendering — only on deployments with a render backend (VITE_RENDER_API).
-          Unconfigured (offline/self-host default) builds show nothing here. */}
-      {isRenderConfigured() && (
+          Unconfigured (offline/self-host default) builds show nothing here, and nor does a
+          stranger's package, which renders only in its own isolated host. */}
+      {isRenderConfigured() && !isForeignGraphic(template) && (
         <RenderPanel template={template} sampleData={sampleData} validation={validation} />
       )}
     </div>

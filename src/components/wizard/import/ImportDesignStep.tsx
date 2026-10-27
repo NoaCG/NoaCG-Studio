@@ -6,6 +6,8 @@ import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { probeAsset } from '../../../assets/assetInfo';
 import { importSvgMarkup, isSvgFile, type SvgImportResult } from '../../../assets/svgImport';
 import { isTemplateFile, type ImportedTemplateResult } from '../../../model/importTemplate';
+import { readForeignPackage } from '../../../model/foreignPackage';
+import { readOgrafDeclared } from '../../../model/ografTyped';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import SectionHead from '../SectionHead';
 import { SVG_EXAMPLES_URL } from '../../../downloads/links';
@@ -468,7 +470,20 @@ export default function ImportDesignStep({
           {/* The FIELDS are the whole point of importing a template rather than a picture:
               they are what an operator types into, on the control page and in playout. Naming
               them here is what turns "it opened" into "it is usable". */}
-          {templateFile.template.fields.length > 0 ? (
+          {foreignOf(templateFile) ? (
+            // A stranger's OGraf package: who it is, and the fields its schema gives the cue's form.
+            <>
+              <p className="hint mono" data-testid="import-template-package">
+                OGraf {foreignOf(templateFile)!.id}{foreignOf(templateFile)!.version ? ` ${foreignOf(templateFile)!.version}` : ''}
+              </p>
+              {declaredFields(templateFile).length > 0 && (
+                <p className="hint" data-testid="import-template-fields">
+                  {declaredFields(templateFile).length} operator field
+                  {declaredFields(templateFile).length === 1 ? '' : 's'}: {declaredFields(templateFile).join(', ')}
+                </p>
+              )}
+            </>
+          ) : templateFile.template.fields.length > 0 ? (
             <p className="hint" data-testid="import-template-fields">
               {templateFile.template.fields.length} operator field
               {templateFile.template.fields.length === 1 ? '' : 's'}:{' '}
@@ -591,4 +606,22 @@ export default function ImportDesignStep({
       )}
     </div>
   );
+}
+
+/** The package record of a dropped stranger's OGraf package, or null for any other template. */
+function foreignOf(file: ImportedTemplateResult) {
+  const read = readForeignPackage(file.template);
+  return read.status === 'ok' ? read.record : null;
+}
+
+/** The top-level fields a stranger's package declares, by the GDD `label` or JSON Schema `title`
+ *  its author gave each. */
+function declaredFields(file: ImportedTemplateResult): string[] {
+  const read = readOgrafDeclared(file.template.ograf);
+  if (read.status !== 'ok' || !read.fields?.properties) return [];
+  const raw = (file.template.ograf?.manifest as { schema?: { properties?: Record<string, { label?: unknown }> } } | undefined)?.schema?.properties ?? {};
+  return read.fields.properties.filter((p) => !p.node.hidden).map((p) => {
+    const label = raw[p.key]?.label;
+    return typeof label === 'string' && label ? label : p.node.title || p.key;
+  });
 }

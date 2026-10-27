@@ -83,6 +83,10 @@ export function readForeignPackage(template: Pick<SpxTemplate, 'foreign'>): Fore
   return { status: 'ok', record: raw as unknown as ForeignPackageRecord };
 }
 
+/** Why a cue over a stranger's package is not taken yet: its isolated mount on the outputs is
+ *  E3.2a's (docs/work-specs/playout-ograf-rundown/spec.md). */
+export const FOREIGN_NOT_PLAYABLE = 'Imported OGraf packages do not play on outputs yet.';
+
 /** The words for a package this page will not act on: "Results board was imported by ...". */
 export const foreignRefusal = (name: string, reason: string) => `${name} ${reason}, so it is kept as it is and does not load here.`;
 

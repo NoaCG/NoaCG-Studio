@@ -5,7 +5,7 @@
 // this folder takes only the shared draft's types, never its code. Node-tested in
 // scripts/import-drop.test.mjs.
 
-import type { AssetFile } from '../../../model/types';
+import type { AssetFile, SpxTemplate } from '../../../model/types';
 import type { DesignArt } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import type { ImportedTemplateResult } from '../../../model/importTemplate';
@@ -58,9 +58,22 @@ export type TemplateFileDrop = { ok: true; file: ImportedTemplateResult } | { ok
  *  throws. */
 export async function templateFileDropped(
   file: File,
-  io: { importTemplateFile: (file: File) => Promise<ImportedTemplateResult> },
+  io: {
+    importTemplateFile: (file: File) => Promise<ImportedTemplateResult>;
+    /** A stranger's OGraf package (export/targets/ografForeign.ts `importForeignOgraf`): the entry
+     *  that IS the package, its refusal, or null for any other zip. */
+    importForeign?: (name: string, data: ArrayBuffer) => Promise<{ ok: true; template: SpxTemplate } | { ok: false; reason: string } | null>;
+  },
 ): Promise<TemplateFileDrop> {
   try {
+    if (io.importForeign && /\.zip$/i.test(file.name)) {
+      const read = await io.importForeign(file.name, await file.arrayBuffer());
+      if (read && !read.ok) return { ok: false, error: `This OGraf package cannot be imported. ${read.reason}` };
+      if (read) {
+        const { resolution } = read.template;
+        return { ok: true, file: { template: read.template, detection: { resolution, fps: null, certain: false, messages: [] }, noacg: null } };
+      }
+    }
     return { ok: true, file: await io.importTemplateFile(file) };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

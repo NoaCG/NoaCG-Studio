@@ -47,4 +47,22 @@ import { casparTarget } from './targets/casparcg';
 import { ografTarget } from './targets/ograf';
 import { liveosTarget } from './targets/liveos';
 
-export const EXPORT_TARGETS: ExportTarget[] = [spxTarget, htmlOverlayTarget, h2rTarget, casparTarget, ografTarget, liveosTarget];
+import { foreignPackageZip } from './targets/ografForeign';
+import { isForeignGraphic } from '../model/foreignPackage';
+
+/** A stranger's OGraf package (model/foreignPackage.ts) leaves only as itself: the OGraf target
+ *  hands back its own bytes, verified first, and every other target refuses it, since nothing here
+ *  can rebuild somebody else's Graphic for another host. */
+const foreignAware = (target: ExportTarget): ExportTarget => ({
+  ...target,
+  build: (template, ctx) => {
+    if (!isForeignGraphic(template)) return target.build(template, ctx);
+    if (target.id === 'ograf') return foreignPackageZip(template);
+    return Promise.reject(new Error(`${template.name} is an imported OGraf package, so it exports only as OGraf.`));
+  },
+});
+
+export const EXPORT_TARGETS: ExportTarget[] = [spxTarget, htmlOverlayTarget, h2rTarget, casparTarget, ografTarget, liveosTarget].map(foreignAware);
+/** The targets a graphic can leave by: all of them, or OGraf alone for a stranger's package. */
+export const exportTargetsFor = (template: SpxTemplate): ExportTarget[] =>
+  isForeignGraphic(template) ? EXPORT_TARGETS.filter((t) => t.id === 'ograf') : EXPORT_TARGETS;

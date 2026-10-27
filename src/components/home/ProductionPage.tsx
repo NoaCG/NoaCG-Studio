@@ -111,6 +111,7 @@ import {
 } from '../playoutKeys';
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
+import { FOREIGN_NOT_PLAYABLE, isForeignGraphic } from '../../model/foreignPackage';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
@@ -2638,6 +2639,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphicOf: graphicOfCue,
     slots: PLAYOUT_SLOTS,
     selectionBlocker: (cue) => {
+      // A stranger's OGraf package sits in the pool and the rundown (E3.1), but airing it through
+      // its isolated host is the next phase's: until then a Take says so rather than airing nothing.
+      if (isForeignGraphic(graphicByPoolId.get(cue.sourceId)?.template)) return FOREIGN_NOT_PLAYABLE;
       const take = candidateTake(cue);
       if (take.status === 'refused') return take.reason;
       const graphic = cue.typed === undefined ? null : cueGraphicName(cue);

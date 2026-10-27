@@ -20,3 +20,6 @@ sha256 of every file:
 | `ebu-scoreboard/package/thumbnail.webp` | `72aa6f6d77e6f03a2c6ae38a8de1e037d38bd9fd1e1858cd7a8a6963c4fbc02e` |
 | `nytamin-live-poll/package/live-poll.js` | `b1643c55e610b15f57feed7ef8c45c26da071d2e01e65bbb5708e9cd512fff1c` |
 | `nytamin-live-poll/package/manifest.ograf.json` | `bc98e66ac1ea46db309132cccd29a098d63d5f1968818a31f25f474a36c5647d` |
+
+`hostile-dynamic` is NoaCG's own (written for `e2e/ograf-library.spec.ts`, not a downloaded
+package): the isolation probes with every path out of its package built at run time.
