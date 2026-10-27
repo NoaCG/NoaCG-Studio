@@ -178,7 +178,7 @@ export async function buildShowZip(show: Show, opts?: ShowExportOptions): Promis
   const library = loadGraphics();
   // An invalid graphic cannot export (validation/productionGate.ts) - enforced HERE so it holds
   // for every caller, not only the dialog that happens to show the verdict.
-  assertProductionGate(show.graphics, library);
+  assertProductionGate(show.graphics, library, 'spx');
   const zip = new JSZip();
   const folder = slug(show.name);
   const root = zip.folder(folder)!;
@@ -353,7 +353,7 @@ export async function buildShowZipFor(show: Show, targetId: string, opts?: ShowE
   if (!target) throw new Error(`Unknown export target: ${targetId}`);
 
   const library = loadGraphics();
-  assertProductionGate(show.graphics, library);
+  assertProductionGate(show.graphics, library, targetId);
   const zip = new JSZip();
   const root = zip.folder(slug(show.name))!;
   const usedSlugs = new Set<string>();

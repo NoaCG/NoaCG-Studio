@@ -111,6 +111,7 @@ import {
 } from '../playoutKeys';
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
+import { isForeignGraphic } from '../../model/foreignPackage';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
@@ -2619,7 +2620,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A graphic cue's pool graphic, for an All-together folder's refusals. */
   const graphicOfCue = (c: ShowCue) => {
     const g = graphicByPoolId.get(c.sourceId);
-    return g ? { name: g.name, layer: graphicLayer(g) } : null;
+    return g ? { name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) } : null;
   };
   const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
   /** This render's facts for the Take refusals (control/takeBlockers.ts). */

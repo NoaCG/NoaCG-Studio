@@ -560,7 +560,9 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // runs (validation/productionGate.ts - the same publishGate the community door runs). A
   // library record may be a broken draft; what is pinned to an output URL may not.
   const library = loadGraphics();
-  assertProductionGate(show.graphics, library);
+  // `publish`: a stranger's OGraf package would reach the outputs as an empty document until its
+  // isolated mount does (E3.2a), so the gate refuses a production holding one.
+  assertProductionGate(show.graphics, library, 'publish');
   const sb = await getSupabase();
   if (!sb) return null;
   const raw = await buildOutputPayload(show, library, publishedOf);

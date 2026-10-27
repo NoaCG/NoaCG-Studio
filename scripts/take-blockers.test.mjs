@@ -29,7 +29,7 @@ const graphic = (id, extra = {}) => ({ id, sourceId: `g-${id}`, label: id.toUppe
 const BRIDGE = { state: 'ok', features: ['state', 'playback', 'sequence', 'sequence-loop'], capabilities: ['state', 'end', 'fade', 'trim', 'level', 'sequence'], version: '2.5.0' };
 
 /** One render's facts, the way the page builds them. */
-function context({ cues = [], items = [], folders = [], ownership = NO_OWNERSHIP, settings = SETTINGS, ability = BRIDGE, casparOn = true, bridgeDown = false, graphics = {} } = {}) {
+function context({ cues = [], items = [], folders = [], ownership = NO_OWNERSHIP, settings = SETTINGS, ability = BRIDGE, casparOn = true, bridgeDown = false, graphics = {}, foreign = [] } = {}) {
   const { members } = rundownView({ cues, folders });
   return {
     cues,
@@ -43,7 +43,7 @@ function context({ cues = [], items = [], folders = [], ownership = NO_OWNERSHIP
     casparOn,
     bridgeDown,
     itemOf: (c) => (c.source === 'playout' ? (items.find((i) => i.id === c.sourceId) ?? null) : null),
-    graphicOf: (c) => (graphics[c.sourceId] ? { name: graphics[c.sourceId], layer: 1 } : null),
+    graphicOf: (c) => (graphics[c.sourceId] ? { name: graphics[c.sourceId], layer: 1, ...(foreign.includes(c.sourceId) ? { foreign: true } : {}) } : null),
     slots: SLOTS,
   };
 }
@@ -189,4 +189,15 @@ test('a step judges its server cue by the Take check, on the folder\'s slot', ()
   const T = { id: 'T', name: 'Opening', mode: 'through', slot: { channel: 1, layer: 20 } };
   const ctx = context({ cues: [cue('a', 'a', { folderId: 'T' })], items: [vt('a')], folders: [T] });
   assert.equal(stepBlocker(ctx.cues[0], ctx), OUTPUT);
+});
+
+test('a cue over a stranger\'s OGraf package is not taken yet, alone, in a folder, or direct', () => {
+  const NOT_YET = 'Imported OGraf packages do not play on outputs yet.';
+  const ctx = context({ cues: [graphic('p'), graphic('s')], graphics: { 'g-p': 'Scoreboard', 'g-s': 'Strap' }, foreign: ['g-p'] });
+  assert.equal(takeBlockerFor(ctx.cues[0], ctx), NOT_YET);
+  assert.equal(takeBlockerFor(ctx.cues[1], ctx), null, 'a native graphic beside it still takes');
+  assert.equal(directBlocker(ctx.cues[0], ctx, SETTINGS), NOT_YET);
+  const folder = { id: 'f', name: 'Both', mode: 'together' };
+  const inFolder = context({ cues: [graphic('p', { folderId: 'f' }), graphic('s', { folderId: 'f' })], folders: [folder], graphics: { 'g-p': 'Scoreboard', 'g-s': 'Strap' }, foreign: ['g-p'] });
+  assert.equal(takeBlockerFor(folder, inFolder), `P: ${NOT_YET}`);
 });

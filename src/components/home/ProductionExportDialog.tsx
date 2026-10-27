@@ -42,7 +42,7 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
   // The export gate, per pool graphic, over the LIVE library template (what actually ships) -
   // THE SAME gate buildShowZipFor enforces (validation/productionGate.ts), so the dialog's
   // verdict and the builder's refusal can never disagree.
-  const blocked = useMemo(() => productionGateFailures(show.graphics, loadGraphics()), [show]);
+  const blocked = useMemo(() => productionGateFailures(show.graphics, loadGraphics(), targetId), [show, targetId]);
 
   const download = async () => {
     setBusy(true);

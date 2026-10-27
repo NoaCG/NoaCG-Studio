@@ -41,6 +41,7 @@ import type { ProjectBrand } from '../model/brand';
 import { templateFromRecipe, type TemplateRecipe } from '../templates/types/recipeTemplate';
 import { readPackStamp, shapeOrigin, type GraphicOrigin, type PackStamp } from '../model/graphicDoc';
 import { isProductionSounds } from '../assets/productionSounds';
+import { foreignRefusal, readForeignPackage } from '../model/foreignPackage';
 import { rememberSound, soundBlob, materializeSoundAssets, isSoundAssetRef } from '../assets/soundAssets';
 import { fileToDataUrl as blobToDataUrl, dataUrlToBlob } from '../assets/assetUtils';
 import { readSound } from '../assets/graphicSound';
@@ -138,6 +139,11 @@ export interface PackGraphicFile {
   fromPack?: PackStamp;
   /** Where it came from, with the delivered item's identity (`noacg pack` writes it). */
   origin?: GraphicOrigin;
+  /** A stranger's OGraf package (model/foreignPackage.ts): its record, and its manifest for typed
+   *  data. Its files are `assets`; its html, css and js are empty. An older build refuses the entry
+   *  as missing its HTML or JS, which keeps it rather than reading it as a native graphic. */
+  foreign?: SpxTemplate['foreign'];
+  ograf?: SpxTemplate['ograf'];
 }
 
 /** One row of a pack's WHOLE-SHOW rundown: a cue addressing a graphic by pool name. */
@@ -220,6 +226,14 @@ function packAssets(v: unknown): AssetFile[] {
  * Template-level correctness (definition present, runtime entry points, machine shape) is
  * the validation gate's job — `installPack` runs it per graphic.
  */
+/** A pack entry's canvas, or the default one. */
+function packResolution(raw: unknown) {
+  if (!isRecord(raw)) return DEFAULT_GRAPHICS_RESOLUTION;
+  const width = Number(raw.width) || DEFAULT_GRAPHICS_RESOLUTION.width;
+  const height = Number(raw.height) || DEFAULT_GRAPHICS_RESOLUTION.height;
+  return { width, height, label: `${width}×${height}` };
+}
+
 export function parsePack(json: string): { pack: GraphicsPack | null; error: string | null } {
   let raw: unknown;
   try {
@@ -279,6 +293,21 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
     if (!isTemplateType(entry.type)) {
       return { pack: null, error: `“${graphicName}” has an unknown graphic type.` };
     }
+    const resolution = packResolution(entry.resolution);
+    if (entry.foreign !== undefined) {
+      // A stranger's package travels as its record and files; its bytes are verified again
+      // wherever they are used (model/foreignPackage.ts `verifyForeignPackage`).
+      const read = readForeignPackage({ foreign: entry.foreign as SpxTemplate['foreign'] });
+      if (read.status !== 'ok') return { pack: null, error: foreignRefusal(`“${graphicName}”`, read.status === 'read-only' ? read.reason : 'is not an OGraf package') };
+      const ograf = isRecord(entry.ograf) ? (entry.ograf as SpxTemplate['ograf']) : undefined;
+      const template: SpxTemplate = {
+        name: graphicName, type: entry.type, resolution, fps: Number(entry.fps) || DEFAULT_GRAPHICS_FORMAT.fps,
+        html: '', css: '', js: '', fields: [], settings: { ...DEFAULT_SETTINGS, description: graphicName },
+        assets: packAssets(entry.assets), layers: [], ...(ograf ? { ograf } : {}), foreign: entry.foreign as SpxTemplate['foreign'],
+      };
+      graphics.push({ template, ...layer, cues });
+      continue;
+    }
     const html = asString(entry.html);
     const css = asString(entry.css);
     const js = asString(entry.js);
@@ -294,13 +323,6 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
         pack: null,
         error: `“${graphicName}” has no readable SPXGCTemplateDefinition in its HTML.`,
       };
-    }
-
-    let resolution = DEFAULT_GRAPHICS_RESOLUTION;
-    if (isRecord(entry.resolution)) {
-      const width = Number(entry.resolution.width) || DEFAULT_GRAPHICS_RESOLUTION.width;
-      const height = Number(entry.resolution.height) || DEFAULT_GRAPHICS_RESOLUTION.height;
-      resolution = { width, height, label: `${width}×${height}` };
     }
 
     const template: SpxTemplate = {
@@ -754,6 +776,7 @@ export async function packGraphicEntry(
     resolution: { width: template.resolution.width, height: template.resolution.height },
     fps: template.fps,
     ...(opts.cues?.length ? { cues: opts.cues } : {}),
+    ...(template.foreign !== undefined ? { foreign: template.foreign, ...(template.ograf ? { ograf: template.ograf } : {}) } : {}),
   };
 }
 

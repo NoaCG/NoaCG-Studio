@@ -34,6 +34,7 @@ import { createShowNamedChecked } from '../../model/shows';
 import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import { openGraphicById, useSaveUi } from '../../store/saveActions';
+import { isForeignGraphic } from '../../model/foreignPackage';
 import { graphicWhenSynced } from '../../backend/graphicWhenSynced';
 import { useAuthUi } from '../auth/authUi';
 import { useAuthState } from '../auth/useAuthState';
@@ -666,7 +667,8 @@ export default function GraphicControlPage({ id }: { id: string }) {
           onAdd={addToProduction}
           onCreate={addToNewProduction}
         />
-        {!locked && <button
+        {/* A stranger's OGraf package has no code here to edit and no NoaCG panel to bake. */}
+        {!locked && !isForeignGraphic(doc.template) && <button
           onClick={() =>
             requestSwitch(() => {
               openGraphicById(doc.id);
@@ -681,9 +683,9 @@ export default function GraphicControlPage({ id }: { id: string }) {
         >
           ✎ Edit graphic
         </button>}
-        <button onClick={downloadPanel} title="A standalone operator page for the exported graphic (entries included)">
+        {!isForeignGraphic(doc.template) && <button onClick={downloadPanel} title="A standalone operator page for the exported graphic (entries included)">
           ⬇ controlpanel.html
-        </button>
+        </button>}
       </header>
 
       <div className="control-page-body">

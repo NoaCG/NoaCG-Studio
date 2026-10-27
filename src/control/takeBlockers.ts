@@ -19,6 +19,7 @@ import { folderRun, sequenceMembers, takeBlocker, type ThroughRole } from './ser
 import { airClash } from './serverState.ts';
 import { outputSlotRefusal, slotAddress } from './playoutSlots.ts';
 import { effectiveEnd } from './cuePlayback.ts';
+import { FOREIGN_NOT_PLAYABLE } from '../model/foreignPackage.ts';
 
 /** Where an item, and a Play-through folder, play by the settings given (control/playoutLink.ts). */
 export interface SlotRules {
@@ -44,20 +45,22 @@ export interface TakeContext {
   /** The Bridge has answered, and not with ok. */
   bridgeDown: boolean;
   itemOf: (cue: ShowCue) => PlayoutItem | null;
-  /** A graphic cue's pool graphic, null when the production no longer has it. */
-  graphicOf: (cue: ShowCue) => { name: string; layer: number } | null;
+  /** A graphic cue's pool graphic, null when the production no longer has it. `foreign`: it is a
+   *  stranger's OGraf package (model/foreignPackage.ts). */
+  graphicOf: (cue: ShowCue) => { name: string; layer: number; foreign?: boolean } | null;
   slots: SlotRules;
   /** Why a graphic cue's live candidate is not ready to Take, or null (control/selectionAir.ts
    *  `selectionTake`): read-only, unknown or not resolving now. Absent: no cue has one. */
   selectionBlocker?: (cue: ShowCue) => string | null;
 }
 
-/** The first live candidate of this cue, or of this folder's cues, that is not ready to Take. */
+/** The first graphic cue of this cue, or of this folder's cues, that is not ready to Take: over a
+ *  stranger's OGraf package, whose outputs are E3.2a's (docs/work-specs/playout-ograf-rundown/
+ *  spec.md), or with a live candidate that is not ready. */
 const selectionRefusal = (target: ShowCue | ShowFolder, ctx: TakeContext): string | null => {
-  if (!ctx.selectionBlocker) return null;
   const cues = 'sourceId' in target ? [target] : (ctx.members.get(target.id) ?? []);
   for (const cue of cues) {
-    const why = cue.source === 'playout' ? null : ctx.selectionBlocker(cue);
+    const why = cue.source === 'playout' ? null : ctx.graphicOf(cue)?.foreign ? FOREIGN_NOT_PLAYABLE : (ctx.selectionBlocker?.(cue) ?? null);
     if (why) return 'sourceId' in target ? why : `${cue.label}: ${why}`;
   }
   return null;
