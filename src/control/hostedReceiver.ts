@@ -346,6 +346,12 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     lastId = followFrom(GRAPHIC, row.live, row.last_event_id);
     if (typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
     var mine = (row.live || {})[GRAPHIC];
+    // A report banking TYPED data (an /output renderer's, E1.2b) is refused and held like a row
+    // carrying it: its data is empty by design, so restoring it would air the defaults.
+    if (mine && mine.state && Object.prototype.hasOwnProperty.call(mine.state, 'typed')) {
+      refuse(${JSON.stringify(RECEIVER_TYPED_REFUSAL)});
+      mine = null;
+    }
     if (mine) {
       // The place and size it last reported, before anything paints: a report with no event id
       // resumes from the log head, so no row after it would bring this back.

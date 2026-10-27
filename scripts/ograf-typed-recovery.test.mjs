@@ -143,12 +143,14 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
   const nativeNow = { Board: { data: { f0: 'B' }, state: null, event: 20 } };
   const ended = seedFromResolve({ ...seeded, reports: nativeNow }, { liveCue: { Board: 'c1' }, live: nativeNow }, [], airAtRequest(seeded), [], specs);
   assert.deepEqual([ended.typedAired, ended.typedSteps], [{}, {}]);
-  // At boot, a report whose envelope does not read is a graphic the output holds: PROGRAM plays
-  // nothing for it, never its empty native data (replayed rows or none).
+  // At boot, a report whose envelope does not read is a graphic the output holds: PROGRAM rebuilds
+  // nothing from it, never its empty native data, and replays only the rows after it, so a native
+  // Take there airs it again, as on the output.
   const unreadable = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };
-  for (const rows of [[], after]) {
+  const nativeTake = [{ graphic: 'Board', msg: { t: 'update', data: { f0: 'NEW' } } }, { graphic: 'Board', msg: { t: 'play' } }];
+  for (const [rows, expected] of [[[], []], [nativeTake, nativeTake]]) {
     const held = seedFromResolve({ ...NO_AIR, reports: unreadable }, { liveCue: { Board: 'c1' }, live: unreadable }, rows, airAtRequest(NO_AIR), [{ id: 'c1', values: { f0: 'x' } }], specs);
-    assert.deepEqual(restoreItems(held, {}, specs).items, []);
+    assert.deepEqual(restoreItems(held, {}, specs).items, expected);
   }
   // A report whose envelope does not read rebuilds nothing typed from it.
   const later = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };

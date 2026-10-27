@@ -373,8 +373,12 @@ export function restoreItems(
     // data (E1.2a). While its rows replay, its report's envelope and steps are the base (E1.2b):
     // the rows after the report carry the rest.
     // At boot, a report whose envelope this build cannot read is a graphic the output holds: PROGRAM
-    // plays nothing for it either, never its empty native data.
-    if (air.bootReplay !== null && !air.typedAired?.[graphic] && reportedTypedAir(report)?.envelope === null) continue;
+    // rebuilds nothing from it, never its empty native data, and replays only the rows after it (a
+    // native Take there airs it again, as on the output).
+    if (air.bootReplay !== null && !air.typedAired?.[graphic] && reportedTypedAir(report)?.envelope === null) {
+      all.push(...rows);
+      continue;
+    }
     const reported = replaying ? reportedTypedAir(report) : null;
     const typed = replaying ? reported?.envelope : air.typedAired?.[graphic];
     if (typed) {

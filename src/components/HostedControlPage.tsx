@@ -651,8 +651,12 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // never the report's empty native data.
       const typedBase = replay ? reportedTypedAir(reportsRef.current[graphic]) : null;
       const typed = typedBase?.envelope ?? null;
-      // One this build cannot read is held on air, so PROGRAM plays nothing for it either.
-      if (typedBase && !typed) continue;
+      // One this build cannot read is held on air, so PROGRAM rebuilds nothing from it either, and
+      // replays only the rows after it (a native Take there airs it again, as on the output).
+      if (typedBase && !typed) {
+        if (rows.length > 0) programRef.current?.apply(rows);
+        continue;
+      }
       const dataItem = typed
         ? [{ graphic, msg: { t: 'update' as const, data: {}, typed } }]
         : data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];

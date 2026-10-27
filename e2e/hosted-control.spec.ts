@@ -402,6 +402,40 @@ test('a hosted graphic refuses a row carrying typed data, says so, and holds unt
   await graphic.close();
 });
 
+test('a hosted graphic booting from a report that banks typed data refuses it and holds, never airing its empty data', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // An /output renderer banks a typed graphic's envelope in its report, with empty native data
+  // (E1.2b). The receiver's boot reads the same report: restoring its data and pose would put the
+  // graphic on air with its defaults, and the rows after it (a step) would follow.
+  const html = receiverHost(await receiverBlock(page));
+  const typed = { v: 1, kind: 'values', standard: 'x', schema: 'y', values: { f0: 'TYPED' } };
+  const log = [{ id: 3, graphic: 'Board', msg: { t: 'next' } }];
+  let tailReads = 0;
+  const graphic = await context.newPage();
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', () => {});
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') {
+      return route.fulfill({ json: [{ id: 'show-1', last_event_id: 3, live: { Board: { data: {}, state: { groups: { main: 'in' }, typed, steps: 0 }, event: 2 } } }] });
+    }
+    if (name === 'control_tail') {
+      tailReads += 1;
+      const after = Number((route.request().postDataJSON() as { p_after?: number }).p_after ?? 0);
+      return route.fulfill({ json: log.filter((r) => r.id > after) });
+    }
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-typed-boot.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-typed-boot.local/board.html', { waitUntil: 'load' });
+
+  await expect(graphic.locator('html')).toHaveAttribute('data-noacg-refused', /cannot read typed data/, { timeout: 30_000 });
+  // The tail was read, and its step held with the rest: nothing ran.
+  await expect.poll(() => tailReads, { timeout: 30_000 }).toBeGreaterThan(0);
+  await graphic.waitForTimeout(500);
+  expect(await appliedIn(graphic)).toEqual([]);
+  await graphic.close();
+});
+
 test('a hosted graphic whose channel never delivers a row still catches up from the log', async ({ page, context }) => {
   test.setTimeout(180_000);
   // THE CHANNEL THAT JOINS AND NEVER SPEAKS. A socket that opens but whose subscription never
