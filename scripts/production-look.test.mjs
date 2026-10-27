@@ -141,6 +141,12 @@ describe('the faces a look names reach the document', () => {
     assert.match(css, /Brand Sans[^}]*data:font\/woff2/);
     assert.equal(L.withLookAssets({ ...show, lookApplied: undefined }, [strap]).length, 1, 'the look off: nothing added');
     assert.equal(L.lookImportedFace({ look: LOOK, lookApplied: true }), null, 'a bundled face has no bytes to carry');
+    // Published once, with the first graphic, unless a graphic already ships the file.
+    const asset = imported.customFont.asset;
+    const specs = [{ key: 'A', assets: [] }, { key: 'B', assets: [] }];
+    const carried = L.withLookFaceIn(specs, asset);
+    assert.deepEqual(carried.map((g) => g.assets.map((x) => x.path)), [['fonts/brand-sans.woff2'], []]);
+    assert.deepEqual(L.withLookFaceIn(carried, asset), carried, 'never twice');
   });
 
   test('a label face a look\'s token names is declared with the heading\'s', () => {
