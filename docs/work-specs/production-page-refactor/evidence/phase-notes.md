@@ -5,6 +5,109 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 38 (E2.2, project phase 42): runtime step and target controls, truthful feedback
+
+- **Previous verified `main` sha:** `55621f9` (row 37 passed, PR #1772). This branch was built on
+  it. Before editing, main had: » Next (`next`, mapped to `playAction({delta: 1})` for a foreign
+  layer), Snap for native machines only, L1's per-press instance check (`instance`, refused with
+  "the cue on <graphic> changed") and per-graphic press queue, and row 37's typed ⚡ press sending
+  the live cue's arguments (`sel.airCue`). It had no relative-backward step, no Goto, no
+  `skipAnimation`, no answer per call from a foreign Graphic (only a list of returns), a host that
+  ran every call behind the previous one's answer, no outcome on a pressed button (only the note
+  line, and only on failure), and the argument forms gave no sign which cue a press sends.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration, no stored shape and no wire
+  change, so a reverted build reads everything this one wrote.
+- **What landed.**
+  - *Step controls* (`control/ografSteps.ts`, new): a relative step (`delta`), a Goto and
+    `skipAnimation`, judged against the manifest's `stepCount` and the runtime's last
+    `playAction` answer (`at`: a step, `end`, or unknown). A fixed count refuses a Goto outside it
+    and a relative step leaving it ("It is on step 3 of 3; Out ends it."); a dynamic count (-1)
+    refuses only a step before the first, and its end is the Graphic's answer, so a count that
+    grows while it airs is followed; a relative step needs a known position (before any answer,
+    after the end, after an unanswered step, only Goto moves); 0 steps and an unreadable count
+    refuse every step. Limits: |delta| <= 100, Goto <= 9999 (`OGRAF_STEP_DELTA_MAX`,
+    `OGRAF_STEP_GOTO_MAX`, each pinned at its edge).
+  - *Answered calls* (`output/foreignOgraf.ts`): `call(msg)` and `step(op)` answer each call
+    `done` (a 2xx only), `rejected` (the Graphic's 4xx/5xx), `timeout` (the host's 504, or the
+    page's own deadline 2 s past it for a frame that answers nothing), `gone` (the layer was
+    destroyed or replaced with the call out) or `refused` (a step judged out of range, never sent).
+    A late real answer after the timeout changes nothing. `position()` says where it is. The stage
+    hands a foreign layer out (`foreignLayer`); a NoaCG graphic has none, so Snap and Next are
+    never offered as an OGraf step.
+  - *No lock* (`control/ografHost.ts`): after `load()`, the sandboxed host calls each action in
+    arrival order as it arrives, never behind an earlier call's answer (OGraf's concurrency
+    contract). A held action or a held step whose loop runs forever no longer holds the operator's
+    Stop for 15 s. The deadline is a host option (`callTimeoutMs`) so the fixture can drive it.
+  - *Truthful feedback on the page* (`control/pressFeedback.ts`, new; `CueActions.tsx`,
+    `ProductionPage.tsx`): every ⚡ press, from the selected block or a pinned one, marks its
+    button: … sending, ✓ sent (the last confirmed press), ? unheard (taken with no output
+    reporting while published), ? no answer, ✕ refused, ✕ not sent, the words in its title. The
+    mark belongs to the cue on the layer at the press and is not drawn once another cue holds it;
+    an older press's answer never overwrites a newer one.
+  - *The target, visible* (`CueEditor.tsx`): each declared action's argument form reads ON AIR
+    when its cue is the one on air and STAGED otherwise, and the button's title names the cue whose
+    arguments it sends ("with <cue>'s arguments. The graphic decides whether it takes it."). This
+    closes row 37's gap: with two cues of one graphic, the form that reads ON AIR is the one sent.
+- **Decisions.**
+  - *A press sends the program instance's arguments, still* (row 37, L1): a staged cue's arguments
+    sent to another cue's instance would be a cross-target application. The fix is to say so on
+    the form and the button, not to change the target.
+  - *Steps live where a foreign Graphic is driven, and nothing is added to the wire*: no
+    production graphic airs a stranger's package before E3, so the page draws no step control
+    yet, and a `step` row would need the command migration (the server admits `t` from a fixed
+    list). E3 wires `foreignLayer().step` to an operator control when it mounts packages; the
+    legality, the answers and the fixture are this row's.
+  - *Sent is not done*: the outputs' road taking a press is all this page can know of a composed
+    graphic; the Graphic's own answer reaches the stage only (`call`). So the mark never says on
+    air or done, and nothing ties it to the PROGRAM monitor's picture.
+  - *Unpublished, sent means this page's PROGRAM*: an unpublished press has no output to hear it,
+    so it is not marked unheard.
+  - *Unknown legality stays unknown*: a declared action is never greyed by the machine (row 37);
+    its title now says the graphic decides.
+  - *Seams changed and where*: E2.1's typed press (unchanged behaviour, now marked);
+    L1's `actionButtonFor` context (`mark`, `airLabel`) and pinned block press
+    (`pressMarked`); the OGraf host bridge (no serial chain, `callTimeoutMs`);
+    `mountForeignOgraf` (`options`, `call`, `step`, `position`, settled answers); the stage's
+    `ograf` option and `foreignLayer`; `OgrafLifecycleCall`'s play params (`skipAnimation`).
+    E6.1's dispatcher and descriptors are untouched.
+- **Traps.**
+  - The program monitor's frame is sandboxed: a spec cannot write into it, so a probe that must
+    prove a second identical press arrived counts presses (`data-n`).
+  - A queued job must be the `npm run test:e2e` command itself: a wrapper script is refused as an
+    unreviewed broader selection and exits 1, which reads like a red mutant.
+  - The browser queue on this image wants `chromium_headless_shell-1228`; symlink it to `-1243`
+    under `/opt/pw-browsers` (#1647), no repo change.
+- **Touched files against `55621f9`:** `src/control/ografSteps.ts` (new),
+  `src/control/pressFeedback.ts` (new), `src/control/ografHost.ts`, `src/control/ografContract.ts`
+  (type), `src/output/foreignOgraf.ts`, `src/output/stage.ts`, `src/components/home/CueActions.tsx`,
+  `src/components/home/CueEditor.tsx`, `src/components/home/ProductionPage.tsx`,
+  `src/styles/playout-dashboard.css`, `e2e/foreign-ograf-sandbox.spec.ts`,
+  `e2e/fixtures/foreign-ograf/steps/` (new: `steps.ograf.json`, `graphic.mjs`),
+  `e2e/ograf-controls.spec.ts`, `scripts/ograf-steps.test.mjs` (new),
+  `scripts/press-feedback.test.mjs` (new), `scripts/graphic-verbs.test.mjs`,
+  `scripts/ograf-form.test.mjs`, this file.
+- **Verification.** Node: `ograf-steps` (6), `press-feedback` (5), `graphic-verbs` (138, two new:
+  a pinned block's typed press sends the on-air cue's arguments while another cue is edited and is
+  refused when the instance is replaced mid-wait; a superseded, stale, unanswered or failed press
+  is never accepted), `ograf-form` (the typed toggle's boolean read), and `ograf-typed`,
+  `ograf-typed-writer`, `ograf-typed-recovery`, `panel-feedback`, `graphic-verbs-walk`: 237 pass.
+  `npm run gates -- run --changed origin/main`, eslint, both tsconfigs, dependency-cruiser,
+  `check-e2e-protection`. Browser: `foreign-ograf-sandbox` (new: the real stage with the steps
+  fixture, dynamic count, backward, Goto, skipAnimation, refusals, a held looping step, held,
+  rejected and late answers, an instance replaced with an action in flight), `ograf-controls`
+  (new: two cues, ON AIR/STAGED, marks sent/refused, a new instance starting clean, at 390 px), and
+  the AC-4 selection (`production-controls`, `playout-clock`, `quiz-live-consistency`,
+  `score-tracker-moments`, `output-typed-recovery`, `playout-air-contract`, `ograf-contract`,
+  `ograf-controls`, `foreign-ograf-sandbox`): 103 passed. Screenshots before (no mark, no target)
+  and after, desktop and phone, looked at and not committed.
+- **Mutation checks** (each red, restored after). Node: a Goto bound `>` for `>=`; the delta cap
+  101; the unknown-position refusal removed; a 408 read as a refusal that moved nothing; a 0 count
+  taking steps; a mark shown on any instance; an accepted press read as sent with no output; an
+  older answer settling a newer press; the toggle read as `String(edited)`. Browser: the host's
+  serial chain put back; a 504 read as done; `destroy` leaving calls out unsettled; the typed press
+  sending the edited cue's arguments; a mark shown on a new instance.
+
 ## Row 37 (E2.1, project phase 41): typed OGraf forms and action arguments
 
 - **Previous verified `main` sha:** `0897d09` (row 36 passed, PR #1765). This branch was built on
