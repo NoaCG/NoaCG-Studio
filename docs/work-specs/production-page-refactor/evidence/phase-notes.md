@@ -99,6 +99,10 @@ changes a spec's digest.
     the look's own face whether or not it is on (`lookPanelImported`).
   - *A label face a look's token names ships with it*: `resolveStyle` declares the bundled face
     `--font-label` names, as `applyLookToTemplate` does.
+  - *A published graphic reports a style-only appearance* (`hostedReceiver.ts` `applyLook`): it
+    banked only an appearance with a frame (row 32c, before style existed), so a look sent to air
+    with no place and size was lost on that graphic's reload. It now banks any appearance that sets
+    something, as the relay receiver and `/output` do.
   - *A graphic with no fields keeps its late refit*: the composed document keeps its last values on
     an empty update, unless it has none yet, so a field-less design's Take still sets them.
 - **Seams changed and where:** L2.2's fold (`effectiveAdjust` gains `look`), `StyleContext.lookFor`,
