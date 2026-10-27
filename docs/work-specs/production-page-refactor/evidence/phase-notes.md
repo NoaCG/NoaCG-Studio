@@ -57,14 +57,25 @@ changes a spec's digest.
   - *The send carries the look beside the place and size the graphic holds* (`lookAppearance`),
     never a prepared nudge: the press sends a look, so a half-made placement waits for its Update
     as a half-typed name does. Nothing changes, nothing is sent (and it counts as updated).
-  - *An appearance-only update sends no data command to the document* (`output/stage.ts`), and the
-    style it carries refits at once with the values the document last took (`previewProtocol.ts`
-    `style.alone`, `composeDocument.ts`). This answers row 32d's trap (a `{}` replayed by the late
-    refit). `e2e/playout-adjust.spec.ts`'s four-rules case expected the old `'{}'` reaching the
-    document twice; it now expects none, the rule it pins (a document sees data only) unchanged.
+  - *An appearance-only update refits with the values on air, never with `{}`* (row 32d's trap).
+    The composed document keeps its last values when an update carries none (`composeDocument.ts`),
+    and the style riding such an update refits at once (`previewProtocol.ts` `style.alone`, set by
+    `output/stage.ts`), since no update with values follows. The data command still goes, so a
+    template that sets itself up in `update()` sees what it always saw. The published graphic's own
+    receiver (`hostedReceiver.ts`) now refits with the values it shows when the type changes, as the
+    relay receiver does (review finding on the first build: it set the face and fitted nothing).
+  - *A hosted operator's staged style and the production page's send*: "Send to on-air graphics"
+    on the production page sends the style its records and the look give, so it replaces a style a
+    hosted operator staged and aired on that cue. That is how values already behave between the
+    two pages (the production page never reads the hosted buffer); the hosted page's next Take or
+    Update airs its staging again.
   - *A staged record names the published record it was edited from* (`{ on, r }`). The shared
     buffer is never cleared, so without it a record staged last week would override what the
     production page published since. It counts only while `on` equals what is published.
+  - *Publish carries records for every cue of a graphic adjusted at either scope, or that the
+    look reaches* (`carriesAdjust`), so a default staged from one cue on the hosted page reaches
+    its siblings. "Adjusted elsewhere" (when a plain cue's Take sends the identity) reads the
+    staged records on both the block and the Take (`adjustedElsewhere`).
   - *Hosted presets resolve against the published box*: the hosted page measures nothing; the box
     is the production page's last qualified one, so the block reads it as current.
   - *The look panel writes the record directly, not through the rundown history* (the history's
@@ -97,7 +108,8 @@ changes a spec's digest.
   `src/components/home/exportAppearances.ts`, `src/components/home/useProductionPublish.ts`,
   `src/control/adjustGeometry.ts`, `src/control/cueAdjust.ts`, `src/control/cueStaging.ts`,
   `src/control/cueStyle.ts`, `src/control/exportAppearance.ts`, `src/control/graphicVerbs.ts`,
-  `src/control/hostedAdjust.ts` (new), `src/control/hostedControl.ts`,
+  `src/control/hostedAdjust.ts` (new), `src/control/hostedControl.ts`, `src/control/hostedReceiver.ts`,
+  `e2e/hosted-control.spec.ts`,
   `src/control/productionLook.ts` (new), `src/model/shows.ts`, `src/model/teamShowMerge.ts`,
   `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`,
   `src/styles/playout-dashboard.css`, this file.
