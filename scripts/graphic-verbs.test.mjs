@@ -783,6 +783,8 @@ test('a send to on-air graphics sends each graphic on air one appearance-only up
 
 test('a send to on-air graphics captures what is on air at the press and asks again after every wait: one gone during the press is reported, never sent', async () => {
   const { r, look } = lookRig({ flushHeld: true });
+  const read = [];
+  r.page.lookAppearanceOf = (cue) => (read.push(cue.id), look);
   const sending = r.verbs.sendLook();
   await settle();
   // Both wait for the save; Score is taken off meanwhile, and a Take of a third graphic after the
@@ -793,6 +795,7 @@ test('a send to on-air graphics captures what is on air at the press and asks ag
   for (const f of r.flushes) f.resolve();
   await settle();
   assert.deepEqual(r.sends.map((x) => x.batches[0][0].graphic), ['Strap']);
+  assert.deepEqual(read, ['c1'], 'asked again after the save: the look is never read for a graphic gone');
   assert.deepEqual(r.sends[0].batches[0][0].msg.appearance, look);
   r.sends[0].answer.resolve({ ...noneLeft });
   assert.deepEqual(await sending, { of: 2, updated: 1, gone: ['Score'], changed: [], failed: [] });
