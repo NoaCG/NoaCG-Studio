@@ -118,8 +118,9 @@ changes a spec's digest.
   package's own faces (phase 2's asset road), so a look turned on after an export falls back to
   the design's face there.
   - The look's imported face stays nameable while the look is off, so a record that picked it keeps
-    it; Publish carries its bytes only while the look is on or a record names it, so a captured look
-    never turned on does not ship its font twice.
+    it, and Publish carries its bytes on or off. The cost: a look captured from a pool graphic's own
+    imported font ships that file twice (once at `fonts/look/`). Narrower rules each lost the face
+    somewhere air still named it (sent, then Off, then republished).
 - **Traps.**
   - PROGRAM holds one frame per pool graphic, so a probe into it names its frame
     (`iframe` `.first()` in pool order); a bare `frameLocator` is ambiguous and reads null.

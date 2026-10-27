@@ -196,16 +196,6 @@ describe('the faces a look names reach the document', () => {
     assert.deepEqual(carried[0].assets.map((x) => x.data), ['data:font/woff2;base64,OLD0', 'data:font/woff2;base64,AAAA'], 'both files publish');
   });
 
-  test('Publish carries the look\'s face only while air can name it', () => {
-    const base = { look: imported, graphics: [{ id: 'g' }], cues: [{ id: 'c' }] };
-    assert.equal(L.lookFaceOnAir(base), false, 'a captured look never turned on: no second copy');
-    assert.equal(L.lookFaceOnAir({ ...base, lookApplied: true }), true);
-    const pick = { v: 1, font: { family: 'Brand Sans', assetPath: 'fonts/look/brand-sans.woff2' } };
-    assert.equal(L.lookFaceOnAir({ ...base, cues: [{ id: 'c', adjust: pick }] }), true, 'a cue picked it');
-    assert.equal(L.lookFaceOnAir({ ...base, graphics: [{ id: 'g', adjust: pick }] }), true, 'a graphic picked it');
-    assert.equal(L.lookFaceOnAir({ look: LOOK, lookApplied: true, graphics: [] }), false, 'a bundled face has no bytes');
-  });
-
   test('a label face a look\'s token names is declared with the heading\'s', () => {
     const oswald = fontStack(fontById('oswald'));
     const style = St.resolveStyle(A.effectiveAdjust(undefined, undefined, { vars: { 'font-label': oswald }, font: { fontId: 'archivo' } }), []);

@@ -133,21 +133,6 @@ export function withLookAssets<T extends { assets: readonly AssetFile[] }>(show:
   return own && !pool.some((t) => t.assets.some((a) => a.path === own.asset.path)) ? [...pool, { css: '', assets: [own.asset] }] : [...pool];
 }
 
-/** Whether air can name the look's imported face: the look is on, or a graphic's or a cue's own
- *  record picked it. Publish carries its bytes only then, so a production whose look was captured
- *  from its own graphics and never turned on does not ship that font twice. */
-export function lookFaceOnAir(show: { look?: ProjectBrand; lookApplied?: true; graphics: readonly { adjust?: unknown }[]; cues?: readonly { adjust?: unknown }[] }): boolean {
-  const own = lookImportedFace(show);
-  if (!own) return false;
-  if (show.lookApplied) return true;
-  const names = (raw: unknown) => {
-    const r = readAdjust(raw);
-    const f = r.status === 'ok' ? r.record.font : undefined;
-    return !!f && typeof f === 'object' && 'assetPath' in f && f.assetPath === own.face.assetPath;
-  };
-  return show.graphics.some((g) => names(g.adjust)) || (show.cues ?? []).some((c) => names(c.adjust));
-}
-
 /** A published payload's graphics with the look's imported face carried once, by the first
  *  graphic, unless one already ships that file: every stage reads a face's bytes from any graphic
  *  of the production (output/stage.ts `assetData`). */

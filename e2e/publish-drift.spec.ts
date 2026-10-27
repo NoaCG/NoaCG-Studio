@@ -45,15 +45,15 @@ test("only graphics read from this browser's own library are compared, and a lib
   expect(result).toEqual({ keys: ['Mine'], moved: true, settled: true });
 });
 
-// THE LOOK'S IMPORTED FACE (playout adjustments, phase 3): Publish carries it with the first graphic
-// while air can name it, so the digest read here must be the one Publish writes. Otherwise a
-// production published with the look on reads "Publish changes" forever, and one whose look was
-// turned on after its Publish never says the output still lacks the typeface a send names.
-test('the look turned on with an imported face is a publish due, and once published reads clean', async ({ page }) => {
+// THE LOOK'S IMPORTED FACE (playout adjustments, phase 3): Publish carries it with the first graphic,
+// so the digest read here must be the one Publish writes. Otherwise a production published with it
+// reads "Publish changes" forever, and one given a new brand's typeface after its Publish never says
+// the output still lacks the face a send names.
+test('a look with an imported face reads clean once published, and a new face is a publish due', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Hairline' });
   const result = await page.evaluate(async () => {
     const { createGraphic, loadGraphics } = await import('/src/model/library.ts');
-    const { createShowNamedChecked, addGraphicToShow, loadShows, setShowLook, setShowLookApplied } = await import('/src/model/shows.ts');
+    const { createShowNamedChecked, addGraphicToShow, loadShows, setShowLook } = await import('/src/model/shows.ts');
     const { buildOutputPayload, libraryGraphicDigests } = await import('/src/control/hostedControl.ts');
     const { stampPayload } = await import('/src/control/payloadVersion.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -62,21 +62,22 @@ test('the look turned on with an imported face is a publish due, and once publis
     const { doc } = createGraphic({ ...template, name: 'Mine' }, { name: 'Mine' });
     const { show } = createShowNamedChecked(`Look drift ${Date.now()}`);
     addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
-    setShowLook(show.id, {
+    const lookWith = (data: string) => ({
       styleTag: 'clean',
       palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' },
       fontId: null,
-      customFont: { family: 'Brand Sans', format: 'woff2', asset: { path: 'fonts/brand-sans.woff2', data: 'data:font/woff2;base64,AAAA' } },
-    } as never);
-    await commitDurableWrites();
+      customFont: { family: 'Brand Sans', format: 'woff2', asset: { path: 'fonts/brand-sans.woff2', data } },
+    }) as never;
     const now = () => loadShows().find((s) => s.id === show.id)!;
-    const published = async () => (await stampPayload(await buildOutputPayload(now(), loadGraphics()), null)).g;
-    const off = { local: await libraryGraphicDigests(now(), loadGraphics()), published: await published() };
-    setShowLookApplied(show.id, true);
+    const read = async () => ({ local: (await libraryGraphicDigests(now(), loadGraphics())).Mine, published: (await stampPayload(await buildOutputPayload(now(), loadGraphics()), null)).g.Mine });
+    setShowLook(show.id, lookWith('data:font/woff2;base64,AAAA'));
     await commitDurableWrites();
-    const on = { local: await libraryGraphicDigests(now(), loadGraphics()), published: await published() };
+    const first = await read();
+    setShowLook(show.id, lookWith('data:font/woff2;base64,BBBB'));
+    await commitDurableWrites();
+    const second = await read();
     await new Promise((r) => setTimeout(r));
-    return { offClean: off.local.Mine === off.published.Mine, onClean: on.local.Mine === on.published.Mine, moved: on.local.Mine !== off.local.Mine };
+    return { firstClean: first.local === first.published, secondClean: second.local === second.published, moved: second.local !== first.published };
   });
-  expect(result).toEqual({ offClean: true, onClean: true, moved: true });
+  expect(result).toEqual({ firstClean: true, secondClean: true, moved: true });
 });

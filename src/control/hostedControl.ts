@@ -27,7 +27,7 @@ import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // audience): publish is the courier, not the author.
 import { audienceBrandFor } from '../audience/audienceBrand';
 import type { PublishedAdjust } from './hostedAdjust';
-import { lookFaceOnAir, lookImportedFace, withLookFaceIn } from './productionLook';
+import { lookImportedFace, withLookFaceIn } from './productionLook';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
@@ -429,9 +429,9 @@ export async function buildOutputPayload(
 ): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
   const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
-  // The production look's imported face rides once, with the first graphic, while air can name it
-  // (productionLook.ts).
-  const lookFace = lookFaceOnAir(show) && lookImportedFace(show);
+  // The production look's imported face rides once, with the first graphic, on or off: a look sent
+  // and then turned off stays on air until the next Take, and a reload restores it (productionLook.ts).
+  const lookFace = lookImportedFace(show);
   if (lookFace) graphics.splice(0, graphics.length, ...withLookFaceIn(graphics, lookFace.asset));
   // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
   const resolution = graphics.reduce<Resolution>(
@@ -526,7 +526,7 @@ export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = 
   const digests: Record<string, string> = {};
   // The first graphic carries the look's imported face when Publish does (buildOutputPayload), so
   // its digest is read as Publish would write it, never memoised: the face is not the graphic's.
-  const lookFace = lookFaceOnAir(show) && lookImportedFace(show);
+  const lookFace = lookImportedFace(show);
   for (const [i, g] of show.graphics.entries()) {
     const doc = resolveSavedGraphicDoc(g, library);
     if (!doc && g.graphicId) continue;
