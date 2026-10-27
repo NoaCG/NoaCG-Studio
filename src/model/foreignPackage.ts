@@ -87,6 +87,12 @@ export function readForeignPackage(template: Pick<SpxTemplate, 'foreign'>): Fore
  *  E3.2a's (docs/work-specs/playout-ograf-rundown/spec.md). */
 export const FOREIGN_NOT_PLAYABLE = 'Imported OGraf packages do not play on outputs yet.';
 
+/** Why a production may not publish yet: the first stranger's package it holds, named. */
+export function foreignPublishRefusal(graphics: readonly { name: string; template: Pick<SpxTemplate, 'foreign'> }[]): string | null {
+  const foreign = graphics.find((g) => isForeignGraphic(g.template));
+  return foreign ? `${foreign.name}: ${FOREIGN_NOT_PLAYABLE} Remove it from the production to publish.` : null;
+}
+
 /** The words for a package this page will not act on: "Results board was imported by ...". */
 export const foreignRefusal = (name: string, reason: string) => `${name} ${reason}, so it is kept as it is and does not load here.`;
 

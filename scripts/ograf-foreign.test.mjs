@@ -122,6 +122,11 @@ test('an entry whose bytes changed after import never loads or exports, and says
   const { template } = await importForeignOgraf('s.zip', await zipOf(fixture('ebu-scoreboard')));
   const tampered = { ...template, assets: template.assets.map((a) => (a.path === 'graphic.mjs' ? { ...a, data: `data:text/javascript;base64,${Buffer.from('export default class {}').toString('base64')}` } : a)) };
   assert.deepEqual(await verifyForeignPackage(tampered), { ok: false, reason: 'its file graphic.mjs has changed since it was imported' });
+  // One byte flipped, the size the same: only the hash can tell.
+  const flipped = Buffer.from(fixture('ebu-scoreboard').get('graphic.mjs'));
+  flipped[100] ^= 1;
+  const sameSize = { ...template, assets: template.assets.map((a) => (a.path === 'graphic.mjs' ? { ...a, data: `data:text/javascript;base64,${flipped.toString('base64')}` } : a)) };
+  assert.deepEqual(await verifyForeignPackage(sameSize), { ok: false, reason: 'its file graphic.mjs has changed since it was imported' });
   await assert.rejects(foreignPackageZip({ ...tampered, name: 'Scoreboard' }), /graphic\.mjs has changed/);
   const missing = { ...template, assets: template.assets.filter((a) => a.path !== 'thumbnail.webp') };
   assert.deepEqual(await verifyForeignPackage(missing), { ok: false, reason: 'its file thumbnail.webp is missing' });
@@ -252,7 +257,7 @@ test('every archive bound refuses one past its edge and admits its edge', async 
   // The whole extraction.
   const parts = Object.fromEntries(Array.from({ length: 3 }, (_, i) => [`p${i}.bin`, Buffer.alloc(L.totalBytes / 3)]));
   assert.ok((await readOgrafArchive(await zipOf(new Map(Object.entries(parts)), ''))).ok);
-  assert.match(await reason(await zipOf(minimal({ ...parts, 'one-more.bin': Buffer.alloc(1) }), '')), /unpacks to more than 48 MB/);
+  assert.match((await readOgrafArchive(await zipOf(new Map(Object.entries({ ...parts, 'one-more.bin': Buffer.alloc(1) })), ''))).reason, /unpacks to more than 48 MB/);
   // The archive itself.
   assert.match((await readOgrafArchive(new Uint8Array(L.archiveBytes + 1))).reason, /larger than 32 MB/);
   // Its references per file.
@@ -356,4 +361,31 @@ test('the bounds are this road\'s: an html zip past them is the native importer\
   assert.equal(await importForeignOgraf('pack.zip', await zipOf(pack, '')), null);
   const video = new Map([['index.html', Buffer.from('<video src="clip.mp4">')], ['clip.mp4', Buffer.alloc(L.fileBytes + 1)], ['x.ograf.json', Buffer.from('{}')]]);
   assert.equal(await importForeignOgraf('video.zip', await zipOf(video, '')), null);
+});
+
+test('a foreign entry passes the gate on its record, is refused in a pack, and leaves by OGraf alone', async () => {
+  const { publishGate } = await load(path.join(root, 'src/validation/publishGate.ts'));
+  const { EXPORT_TARGETS, exportTargetsFor } = await load(path.join(root, 'src/export/registry.ts'));
+  const packs = await load(path.join(root, 'src/community/packChecks.ts'));
+  const { template } = await importForeignOgraf('s.zip', await zipOf(fixture('ebu-scoreboard')));
+  assert.deepEqual(publishGate(template, true), { ok: true, errors: [], warnings: [] });
+  const later = publishGate({ ...template, foreign: { ...template.foreign, v: 2 } }, true);
+  assert.equal(later.ok, false);
+  assert.match(later.errors[0].message, /was imported by a later version of NoaCG, so it is kept as it is/);
+  assert.deepEqual(exportTargetsFor(template).map((t) => t.id), ['ograf']);
+  assert.equal(exportTargetsFor({ ...template, foreign: undefined }).length, EXPORT_TARGETS.length);
+  const zip = await EXPORT_TARGETS.find((t) => t.id === 'ograf').build(template);
+  assert.ok(zip.file('scoreboard/graphic.mjs'), 'the package itself');
+  for (const t of EXPORT_TARGETS.filter((x) => x.id !== 'ograf')) await assert.rejects(t.build(template), /imported OGraf package, so it exports only as OGraf/, t.id);
+  const findings = packs.checkPackGraphics([{ name: 'Board', template }]);
+  assert.ok(JSON.stringify(findings).includes('imported OGraf package, made by someone else'), JSON.stringify(findings));
+});
+
+test('a production holding a foreign package does not publish, and says why', async () => {
+  const { template } = await importForeignOgraf('s.zip', await zipOf(fixture('ebu-scoreboard')));
+  assert.equal(model.foreignPublishRefusal([{ name: 'Lower', template: { name: 'x' } }]), null);
+  assert.equal(model.foreignPublishRefusal([{ name: 'Lower', template: {} }, { name: 'Scoreboard', template }]), 'Scoreboard: Imported OGraf packages do not play on outputs yet. Remove it from the production to publish.');
+  // The publisher asks it before anything else is sent.
+  const src = readFileSync(path.join(root, 'src/control/hostedControl.ts'), 'utf8');
+  assert.match(src, /assertProductionGate\(show\.graphics, library\);\n(?:\s*\/\/[^\n]*\n)*\s*const foreign = foreignPublishRefusal\(show\.graphics\);\n\s*if \(foreign\) throw new Error\(foreign\);\n\s*const sb = await getSupabase\(\);/);
 });
