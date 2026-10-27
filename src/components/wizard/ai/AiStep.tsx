@@ -54,12 +54,8 @@ import AiProviderSettings from '../../AiProviderSettings';
 import AgentRouteCard from './AgentRouteCard';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../../assets/paletteExtract';
-import {
-  importTemplateFile,
-  isTemplateFile,
-  type AuthoredFormatDetection,
-} from '../../../model/importTemplate';
-import { importForeignOgraf } from '../../../export/targets/ografForeign';
+import { isTemplateFile, type AuthoredFormatDetection } from '../../../model/importTemplate';
+import { importDroppedTemplate, isForeignGraphic } from '../templateFile';
 import { loadLooks } from '../../../model/packets';
 import {
   guessPurpose,
@@ -528,15 +524,8 @@ export default function AiStep({
     const templateFile = list.find(isTemplateFile);
     if (templateFile) {
       try {
-        // A stranger's OGraf package is not code to edit with AI: it is kept as it came and goes
-        // straight to Finish, as the Import graphic card takes it.
-        const foreign = /\.zip$/i.test(templateFile.name) ? await importForeignOgraf(templateFile.name, await templateFile.arrayBuffer()) : null;
-        if (foreign && !foreign.ok) throw new Error(`This OGraf package cannot be imported. ${foreign.reason}`);
-        if (foreign) {
-          onOpenImported(foreign.template);
-          return;
-        }
-        const parsed = await importTemplateFile(templateFile);
+        const parsed = await importDroppedTemplate(templateFile);
+        if (isForeignGraphic(parsed.template)) return onOpenImported(parsed.template);
         setImported({
           fileName: templateFile.name,
           template: parsed.template,

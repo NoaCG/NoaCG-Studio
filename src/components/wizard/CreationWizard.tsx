@@ -44,9 +44,7 @@ import FinishStep, {
   importedSummaryRows,
   type SummaryStepKey,
 } from './steps/FinishStep';
-import { importTemplateFile } from '../../model/importTemplate';
-import { importForeignOgraf } from '../../export/targets/ografForeign';
-import { isForeignGraphic } from '../../model/foreignPackage';
+import { importDroppedTemplate, isForeignGraphic } from './templateFile';
 import { useExportUi } from '../ExportWindow';
 import { useMarkLegibility } from './useMarkLegibility';
 import type { SpxTemplate } from '../../model/types';
@@ -1099,7 +1097,7 @@ export default function CreationWizard() {
                 templateFile={importedFile}
                 onTemplateFile={(file) => {
                   dispatch({ type: 'file', error: null });
-                  void templateFileDropped(file, { importTemplateFile, importForeign: importForeignOgraf }).then((read) => {
+                  void templateFileDropped(file, { importTemplateFile: importDroppedTemplate }).then((read) => {
                     if (!read.ok) {
                       dispatch({ type: 'file', error: read.error });
                       return;
@@ -1273,7 +1271,6 @@ export default function CreationWizard() {
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={(dest) => void doors.addToProduction(applyImportedFile, dest, importedName)}
-                // A stranger's OGraf package has no artwork or code here to edit: the door is not offered.
                 onEditArtwork={isForeignGraphic(importedFile.template) ? undefined : () => void doors.editArtwork(applyImportedFile)}
                 onExport={() => void doors.export(applyImportedFile, importedName)}
                 busy={false}
