@@ -101,7 +101,8 @@ changes a spec's digest.
   `unreportedPages` without its `+ 1`; a data road's update ending typed data in the read below; status
   rows replayed from below; a native update keeping typed data; the page's seed ignoring the report;
   the page's rebuild ignoring the report; the report banking native data; a typed graphic skipping
-  its re-bank (Node). The read below the reports switched off; the steps not restored; the typed
+  its re-bank; the read below without its ceiling, and cut at the ceiling instead of left out; the
+  in-app PROGRAM playing a report whose envelope does not read (Node). The read below the reports switched off; the steps not restored; the typed
   baseline ignored (browser). The receiver without its hold (browser).
 - **Reviews.** `/check` code review (high): 10 findings. Fixed: the hosted PROGRAM's entrance with
   rows after a typed report; a native report not ending a stale typed entry on the page; the read
