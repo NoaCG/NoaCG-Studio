@@ -192,6 +192,12 @@ describe('the faces a look names reach the document', () => {
     assert.equal(L.lookFontRef(structuredClone(imported)).assetPath, LOOK_PATH, 'the same bytes: the same path');
   });
 
+  test('a scope\'s Type row never offers the look\'s own face, so no record names a path only the current look carries', () => {
+    const pool = { family: 'Old Brand', assetPath: 'fonts/old-brand.woff2' };
+    const lookFace = { family: 'Brand Sans', assetPath: LOOK_PATH };
+    assert.deepEqual(L.pickableFaces([pool, lookFace]), [pool]);
+  });
+
   test('a pool font at the same file name as the brand\'s never stands in for it', () => {
     // Import paths come from the file name, so two different files can share one.
     const other = { css: '@font-face { font-family: "Old Brand"; src: url("fonts/brand-sans.woff2") format("woff2"); }\n:root { --font-heading: "Old Brand"; }\n.x { font-family: var(--font-heading); }', js: '', assets: [{ path: 'fonts/brand-sans.woff2', data: 'data:font/woff2;base64,OLD0' }] };

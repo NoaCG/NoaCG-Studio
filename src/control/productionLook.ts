@@ -51,6 +51,13 @@ function lookAssetPath(asset: { path: string; data?: unknown }): string {
   return `${LOOK_FONT_DIR}${hash}/${file}`;
 }
 
+/** The imported faces a scope's Type row offers: never the look's own face. The look gives it
+ *  already, and a record naming it would keep a path that only the current look carries, so a
+ *  replaced look would leave that record pointing at nothing. */
+export function pickableFaces(imported: readonly ImportedFace[]): ImportedFace[] {
+  return imported.filter((f) => !f.assetPath.startsWith(LOOK_FONT_DIR));
+}
+
 /** The face a look names, as a record reference (model/adjust.ts `readFont`), or undefined. */
 export function lookFontRef(look: ProjectBrand): FontRef | undefined {
   if (look.customFont) {

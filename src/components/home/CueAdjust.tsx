@@ -3,6 +3,7 @@ import { ZONES, type AdjustPatch, type FontRef, type Zone9 } from '../../model/a
 import { formatCssColor, parseCssColor, pickerHex } from '../../model/cssVars';
 import { styleTerm } from '../../model/styleVocabulary';
 import { reachesAny, weightsFor, type ImportedFace, type StyleReach } from '../../control/cueStyle';
+import { pickableFaces } from '../../control/productionLook';
 import { adjustWords, floorEstimate, zoneWords, type GeometryLimit } from '../../control/cueAdjust';
 import type { CueAdjustState } from '../../control/adjustGeometry';
 import type { StorePart } from '../../control/storePart';
@@ -317,7 +318,7 @@ function StyleRows({
                   {b.family}
                 </option>
               ))}
-              {style.imported.map((f) => (
+              {pickableFaces(style.imported).map((f) => (
                 <option key={`${f.family}|${f.assetPath}`} value={`i:${f.family}|${f.assetPath}`}>
                   {f.family}
                 </option>
