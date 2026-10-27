@@ -132,14 +132,21 @@ changes a spec's digest.
     skip is its own line beside it.
   - The browser queue wants `chromium_headless_shell-1228`; symlinked to `-1243` (#1647).
   - An imported font's path comes from its file name (`fontAssetPath`), so a brand's font and a
-    different pool font can share one; the look's face travels at `fonts/look/<file>`, and its
+    different pool font can share one; the look's face travels at `fonts/look/<hash>/<file>`, and its
     bytes travel on or off (a look sent then turned off stays on air until the next Take).
   - The hosted receiver's boot restores a look and must refit when the face changed, as the relay
     receiver's boot does.
   - The publish-drift digest must read the first graphic as Publish writes it, the look's face
     included, or a production published with that face reads "Publish changes" forever.
   - The hosted page measures nothing, so Publish measures one cue of each graphic nobody adjusted;
-    without it the hosted Place presets stay off on every untouched graphic.
+    without it the hosted Place presets stay off on every untouched graphic. The cost is the first
+    Publish of a page session waiting for those measurements (one hidden document at a time, under
+    the existing 8 s cap); a measured cue answers at once after that. Measuring them in the
+    background on page open instead was tried and dropped: it changes when a graphic's first
+    measurement happens, which `production-controls`' render-cause journey pins.
+  - The panel offers three colours (accent, text, panel), not the spec's four (no text-dim), and no
+    line about a brand's other shape tokens: kept minimal. A saved brand still carries all four and
+    its tokens.
 - **Touched files against `d9c29b9`:** `e2e/configured/hosted-control-recovery.spec.ts`,
   `e2e/playout-adjust.spec.ts`, `e2e/production-controls.spec.ts`, `scripts/graphic-verbs.test.mjs`,
   `scripts/hosted-adjust.test.mjs` (new), `scripts/production-look.test.mjs` (new),
@@ -156,7 +163,7 @@ changes a spec's digest.
   `e2e/hosted-control.spec.ts`,
   `src/control/productionLook.ts` (new), `src/model/shows.ts`, `src/model/teamShowMerge.ts`,
   `src/output/stage.ts`, `src/preview/composeDocument.ts`, `src/preview/previewProtocol.ts`,
-  `src/styles/playout-dashboard.css`, `src/export/showExport.ts`, `e2e/production-views.spec.ts`, this file.
+  `src/styles/playout-dashboard.css`, `src/export/showExport.ts`, `e2e/production-views.spec.ts`, `e2e/publish-drift.spec.ts`, this file.
 
 ## Row 38 (E2.2, project phase 42): runtime step and target controls, truthful feedback
 
