@@ -8,7 +8,6 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import './lib/tsResolve.mjs';
 
 const { casparOffRefusal, directBlocker, stepBlocker, takeBlockerFor, takePlans } = await import('../src/control/takeBlockers.ts');
 const { throughPlaces } = await import('../src/control/serverPlayout.ts');

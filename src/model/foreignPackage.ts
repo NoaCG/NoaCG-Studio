@@ -17,11 +17,12 @@
 // keeps it untouched, and this build reads a later `v` as read-only (`readForeignPackage`).
 //
 // Pure (model layer): no DOM and no zip. The archive is read in export/targets/ografForeign.ts.
+// Runtime imports carry `.ts`, so Node loads it beside control/takeBlockers.ts with no resolver
+// (and it decodes its own data URLs for the same reason: assets/assetUtils.ts does not).
 
 import type { AssetFile, SpxTemplate } from './types';
-import { readOgrafDeclared } from './ografTyped';
-import { dataUrlToBlob, isDataUrl } from '../assets/assetUtils';
-import { audioHash } from '../assets/audioHash';
+import { readOgrafDeclared } from './ografTyped.ts';
+import { audioHash } from '../assets/audioHash.ts';
 
 export const FOREIGN_PACKAGE_VERSION = 1;
 
@@ -147,10 +148,14 @@ export async function packageRevision(files: readonly ForeignPackageFile[]): Pro
 export async function assetBytes(asset: AssetFile): Promise<Uint8Array | null> {
   const data = asset.data;
   if (typeof data !== 'string') return new Uint8Array(await data.arrayBuffer());
-  if (isDataUrl(data)) return new Uint8Array(await dataUrlToBlob(data).arrayBuffer());
-  // A plain (percent-encoded) data URL, which `isDataUrl` does not take for one.
-  const m = /^data:[^,;]*,([\s\S]*)$/.exec(data as string);
-  return m ? new TextEncoder().encode(decodeURIComponent(m[1])) : null;
+  const m = /^data:[^,]*?(;base64)?,/.exec(data);
+  if (!m) return null;
+  const body = data.slice(m[0].length);
+  if (!m[1]) return new TextEncoder().encode(decodeURIComponent(body));
+  const bin = atob(body);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 export type ForeignPackageCheck =
