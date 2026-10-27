@@ -142,10 +142,12 @@ test('the output stage composes the frame transform as the resolver says, and ke
   // The identity clears it.
   expect(result.cleared.attr).toBeNull();
   expect(result.cleared.rect).toEqual({ x: 0, y: 0, w: 1920, h: 1080 });
-  // Rollback: the document is handed its data only; no graphic ever sees the appearance.
+  // Rollback: the document is handed its data only; no graphic ever sees the appearance. An
+  // update carrying an appearance and no data (phase 3's send to on-air graphics) hands it nothing,
+  // so its refit keeps the values on air.
   const doc = page.frames().find((f) => f.parentFrame() === page.mainFrame());
   const got = await doc!.evaluate(() => (window as unknown as { __got: string[] }).__got);
-  expect(got).toEqual([JSON.stringify({ f0: 'a' }), JSON.stringify({ f0: 'b' }), '{}', '{}']);
+  expect(got).toEqual([JSON.stringify({ f0: 'a' }), JSON.stringify({ f0: 'b' })]);
 });
 
 // ── The /output renderer boots from its report (AC-9, renderer half) ──────────────────────────────
@@ -399,6 +401,33 @@ test('the late refit keeps what an accepted event wrote while the face was loadi
   }), 'the design applies event payloads').toBe(true);
   await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled), { timeout: 10_000 }).toEqual([1]);
   await expect(doc.locator('#f0'), 'the refit replays the field as the event left it').toHaveText('Corrected Name');
+});
+
+test('an appearance-only update (a send to on-air graphics) refits with the values on air, never with an empty object', async ({ page }) => {
+  // Phase 3's bulk send carries the look and empty data, so a half-typed name never airs: the
+  // stage sends no data command for it, and the document refits with the values it took last.
+  const doc = await styledStage(page);
+  await page.evaluate((name) => {
+    (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: { f0: name } });
+  }, NAME);
+  await expect(doc.locator('#f0')).toHaveText(NAME);
+  await doc.locator('html').evaluate(() => {
+    const w = window as unknown as { update: (d: string) => void; __updates: string[] };
+    const own = w.update;
+    w.__updates = [];
+    w.update = (d: string) => { w.__updates.push(d); own(d); };
+  });
+  await page.evaluate(async () => {
+    const A = await import('/src/control/cueAdjust.ts');
+    const St = await import('/src/control/cueStyle.ts');
+    const style = St.resolveStyle(A.effectiveAdjust({ v: 1, font: { fontId: 'archivo' }, vars: { accent: '#ff7a00' } }, undefined), []);
+    (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: {}, appearance: A.appearanceOf(null, style) });
+  });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __restyled: number[] }).__restyled)).toEqual([1]);
+  expect(await doc.locator('html').evaluate((h) => h.style.getPropertyValue('--accent'))).toBe('#ff7a00');
+  const updates = await doc.locator('html').evaluate(() => (window as unknown as { __updates: string[] }).__updates);
+  expect(updates, 'one refit, with the values on air').toEqual([JSON.stringify({ f0: NAME })]);
+  await expect(doc.locator('#f0')).toHaveText(NAME);
 });
 
 test('a staged design keeps the reserves it calibrated when its face changes', async ({ page }) => {
