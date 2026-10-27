@@ -990,8 +990,11 @@ export function typedSeed(node: TypedNode): JsonValue | undefined {
 }
 
 function seedOf(node: TypedNode, budget: Budget): JsonValue | undefined {
-  if (++budget.nodes > TYPED_MAX_VALUE_NODES || node.type === 'unsupported') return undefined;
-  if (node.default !== undefined) return structuredCopy(node.default);
+  if (node.type === 'unsupported') return undefined;
+  // Every node made is charged, a copied default's each one: a list of large defaults stops at the
+  // budget instead of building far past it.
+  if (node.default !== undefined) return copyWithin(node.default, budget);
+  if (++budget.nodes > TYPED_MAX_VALUE_NODES) return undefined;
   if (node.enum?.length) return node.enum[0];
   switch (node.type) {
     case 'string':
@@ -1021,6 +1024,31 @@ function seedOf(node: TypedNode, budget: Budget): JsonValue | undefined {
     }
   }
   return undefined;
+}
+
+/** `value` copied, each of its nodes charged to `budget`; undefined, and nothing more built, once
+ *  the budget is spent. */
+function copyWithin(value: JsonValue, budget: Budget): JsonValue | undefined {
+  if (++budget.nodes > TYPED_MAX_VALUE_NODES) return undefined;
+  if (Array.isArray(value)) {
+    const out: JsonValue[] = [];
+    for (const item of value) {
+      const v = copyWithin(item, budget);
+      if (v === undefined) return undefined;
+      out.push(v);
+    }
+    return out;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: { [key: string]: JsonValue } = {};
+    for (const key of Object.keys(value)) {
+      const v = copyWithin(value[key], budget);
+      if (v === undefined) return undefined;
+      put(out, key, v);
+    }
+    return out;
+  }
+  return value;
 }
 
 /** A JSON value copied, own keys kept whatever their name (`put`). Only for values `readJson`

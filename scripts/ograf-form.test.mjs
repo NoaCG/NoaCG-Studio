@@ -144,6 +144,14 @@ test('a hostile minItems seeds a bounded list and a hostile value is refused, bo
   assert.ok(Number(process.hrtime.bigint() - started) / 1e6 < 1000, 'seeding stopped at its budget');
   assert.ok(seeded.length > 0 && seeded.length <= TYPED_MAX_VALUE_NODES);
   assert.match(form.typedErrorsByPath(hostile, { many: seeded }).get('many')[0], /fewer than/);
+  // A large default copied into each of many items is charged node by node: the seed stops at the
+  // budget, never building minItems times the default.
+  const big = describeOgraf({ customActions: [{ id: 'x', name: 'X', schema: { type: 'array', minItems: 5000, items: { type: 'array', items: { type: 'integer' }, default: Array.from({ length: 200 }, (_, i) => i) } } }] }).actions[0].args;
+  const t0 = process.hrtime.bigint();
+  const bigSeed = typedSeed(big);
+  assert.ok(Number(process.hrtime.bigint() - t0) / 1e6 < 1000);
+  assert.ok(bigSeed.length * 201 <= TYPED_MAX_VALUE_NODES + 201, `${bigSeed.length} items of 201 nodes`);
+  assert.equal(typed.readJson(bigSeed), null, 'what it made is a value one envelope carries');
   // A draft too deep to keep is refused by the action writer before anything is stored.
   let deep = 'x';
   for (let i = 0; i < 100; i += 1) deep = [deep];

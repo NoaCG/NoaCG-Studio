@@ -100,6 +100,9 @@ changes a spec's digest.
     rundown row's mark; a layer that aired no envelope here is not judged, as for native values.
   - *A number out of range is kept* (Codex P2): the typed number's descriptor carries no min or max,
     so the field control never clamps a draft; the schema's bounds are marked where they fail.
+  - *A seed charges every node it makes*, a copied default's each one (`copyWithin`): a list whose
+    items declare a large default stops at `TYPED_MAX_VALUE_NODES` instead of building `minItems`
+    times the default during a render.
   - *Defaults are the top level's and a created value's*: On fills each missing top-level property
     that declares a `default`; inside a value that already exists (an object read from a native JSON
     string) nothing is filled, since JSON Schema's `default` is an annotation for a value being made.
