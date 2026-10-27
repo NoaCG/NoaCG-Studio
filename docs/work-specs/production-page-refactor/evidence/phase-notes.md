@@ -86,6 +86,10 @@ changes a spec's digest.
   - *A typed edit is under every verb's wait* (Codex P1 on `e2b51b0`): the page's `flushDraft` first
     lands each form's settling edit (`registerTypedFlush`), and the verbs read the cue as stored after
     the wait (`storedCue`), so a Take by key or panel airs what the box shows.
+  - *A settling edit stays with its cue*: selecting another cue goes through the same `flushDraft`,
+    and each form is keyed by its cue, so a switch unmounts it and its edit lands through the cue it
+    was typed into. The walk switches between two typed cues mid-edit; the key alone is not proven
+    by it (the flush already covers the switch), so it stands as a second guard.
   - *Typed edits are "not on air yet"* (Codex P2): the edited cue's keys that differ from the envelope
     its layer aired (`typedUnsent`, canonical JSON, bound keys excluded) join the unsent line and the
     rundown row's mark; a layer that aired no envelope here is not judged, as for native values.
