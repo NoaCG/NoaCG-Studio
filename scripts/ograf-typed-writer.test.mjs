@@ -340,6 +340,11 @@ test('PROGRAM is rebuilt with the typed envelope this page aired, by the output\
   const seeded = seedFromResolve(boot, { liveCue: { Board: 'c1' }, live: {} }, rows, airAtRequest(boot), [{ id: 'c1', values: { round: '2' } }], specs);
   assert.deepEqual(seeded.typedAired, { Board: envelope() }, 'only a live layer keeps an envelope');
   assert.deepEqual(restoreItems(seeded, {}, specs).items, [{ graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }]);
+  // A typed graphic that stepped on since its Take is rebuilt at that step: no report gives it a
+  // pose, so the rows after its envelope replay (an older native row before it does not).
+  const stepped = [{ graphic: 'Board', msg: { t: 'update', data: { round: '1' } } }, { graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }, { graphic: 'Board', msg: { t: 'next' } }];
+  const onStep = seedFromResolve(boot, { liveCue: { Board: 'c1' }, live: {} }, stepped, airAtRequest(boot), [{ id: 'c1', values: { round: '2' } }], specs);
+  assert.deepEqual(restoreItems(onStep, {}, specs).items, [{ graphic: 'Board', msg: typedUpdate }, { graphic: 'Board', msg: { t: 'play' } }, { graphic: 'Board', msg: { t: 'next' } }]);
   assert.deepEqual(withoutTypedAir(resolved, seeded.typedAired), { Strap: { f0: 'x' } });
   // Every stage, the page's monitors included, applies the same rule as the output's gate.
   const stage = readFileSync(path.join(root, 'src/output/stage.ts'), 'utf8');

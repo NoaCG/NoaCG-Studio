@@ -50,9 +50,9 @@ changes a spec's digest.
     applies the same rule, the page's PROGRAM monitor included, and the page rebuilds PROGRAM with
     the envelope it aired (`AirPart.typedAired`, `typedAfter`, `restoreItems`; Codex P2 on
     `6e0ac4f`). A page opened after a typed Take folds the boot's rows into that envelope, since
-    the graphic never reported (`seedFromResolve`, Codex P2 on `6999549`). A data road's native
-    update (`src`) on a
-    typed graphic moves its look only, never its data; an operator's native update (a native cue
+    the graphic never reported (`seedFromResolve`, Codex P2 on `6999549`), and rebuilds it at the
+    step air holds by replaying the rows after it (`restoreItems`, Codex P2 on `0870ce6`). A data
+    road's native update (`src`) on a typed graphic moves its look only, never its data; an operator's native update (a native cue
     taken on that layer) ends typed mode.
   - *E5's typed values* (the route's half of the adapter, `projectSource`): a bound leaf that only
     declared fields read (`typed: true` on the published panel field, `typedPublishedFields`) is
@@ -138,7 +138,8 @@ changes a spec's digest.
   page's own dispatch leaves out a graphic by what was last applied to it, `withoutTypedAir`, not
   by its cue's switch); on `6999549`: one P2, fixed (a page opened after a typed Take seeds the
   envelope from the boot's rows); on `44899be`: one P2, fixed (live presses refused by what the
-  layer airs, not only by the cue's envelope). /so on `ab0c8c9`: AGREE WITH
+  layer airs, not only by the cue's envelope); on `0870ce6`: one P2, fixed (a cold rebuild of a
+  typed graphic replays its steps since the envelope). /so on `ab0c8c9`: AGREE WITH
   CORRECTIONS, Assessment A (two wrong comments in `ografTyped.ts`, fixed); on `6e0ac4f`: AGREE
   WITH CORRECTIONS, Assessment A (the silent legacy `/update` on a typed graphic, named above).
   The verdict on the final head is in the pull request.

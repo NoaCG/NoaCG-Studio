@@ -336,7 +336,16 @@ export function restoreItems(
     if (typed) {
       items.push({ graphic, msg: { t: 'update', data: {}, typed, ...(look ? { appearance: look } : {}) } });
       if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
-      else items.push({ graphic, msg: { t: 'play' } });
+      else {
+        // No pose to snap to (a typed graphic never reports): the boot's rows after its envelope
+        // carry its entrance and every step since, so PROGRAM stands where air does.
+        const mine = (air.bootReplay ?? []).filter((item) => item.graphic === graphic);
+        let from = mine.length - 1;
+        while (from >= 0 && !(mine[from].msg.t === 'update' && 'typed' in mine[from].msg)) from -= 1;
+        const steps = from < 0 ? [] : mine.slice(from + 1).filter((item) => item.msg.t !== 'update');
+        if (!steps.some((item) => item.msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });
+        items.push(...steps);
+      }
       all.push(...items);
       continue;
     }
