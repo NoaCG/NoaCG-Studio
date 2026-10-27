@@ -28,7 +28,7 @@ async function seed(page: Page): Promise<string> {
   await awaitDurableReady(page);
   const id = await page.evaluate(
     async ({ manifest, js }) => {
-      const { createShowNamedChecked, addGraphicToShow } = await import('/src/model/shows.ts');
+      const { createShowNamedChecked, addGraphicToShow, addShowCue, loadShows } = await import('/src/model/shows.ts');
       const { deleteGraphic, loadGraphics } = await import('/src/model/library.ts');
       const { commitDurableWrites } = await import('/src/model/durableStore.ts');
       const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -38,6 +38,8 @@ async function seed(page: Page): Promise<string> {
       const { show, error } = createShowNamedChecked(`Typed form ${Date.now()}`);
       if (error) throw new Error(error);
       addGraphicToShow(show.id, { ...template, name: 'Results', html: '<div id="v"></div><div id="s">off</div><div id="a"></div>', css: '', js, ograf: { v: 1, manifest } });
+      // A second cue of the same graphic, which a switch mid-edit must leave alone.
+      addShowCue(show.id, loadShows().find((s) => s.id === show.id)!.graphics[0].id);
       const failure = await commitDurableWrites();
       if (failure) throw new Error(failure);
       useRouter.getState().navigate({ view: 'production', id: show.id });
@@ -172,6 +174,27 @@ test('a typed cue is edited through its generated form, kept as typed, reloaded,
   await page.getByTestId('cue-typed-unset-meta').click();
   await expect.poll(async () => (await stored(page, showId)).values?.meta).toBeUndefined();
   await expect(page.getByTestId('cue-typed-add-meta')).toBeVisible();
+
+  // A switch to another cue while an edit is still settling (a panel's selection, no blur) lands the
+  // edit in the cue it was typed into and leaves the other alone.
+  const secondTitle = (id: string) =>
+    page.evaluate(async (showId) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      return (loadShows().find((s) => s.id === showId)?.cues?.[1]?.typed as { values?: { title?: string } } | undefined)?.values?.title ?? null;
+    }, id);
+  expect(
+    await page.evaluate(async (id) => {
+      const { loadShows, setCueTyped } = await import('/src/model/shows.ts');
+      return setCueTyped(id, loadShows().find((s) => s.id === id)!.cues![1].id, true).error;
+    }, showId),
+  ).toBeNull();
+  expect(await secondTitle(showId)).toBe('Results');
+  await page.getByTestId('cue-typed-title').fill('Kept here');
+  await page.getByTestId('cue-list').locator('.pd-cue').nth(1).locator('.pd-cue-label').dispatchEvent('click');
+  await expect(page.getByTestId('cue-typed-title')).toHaveValue('Results');
+  await expect.poll(async () => (await stored(page, showId)).values?.title).toBe('Kept here');
+  await page.waitForTimeout(800); // past the settle: nothing still owed may land in the second cue
+  expect(await secondTitle(showId)).toBe('Results');
 });
 
 test('the typed form works at phone width: reachable, no sideways scroll, edits kept through a reload', async ({ page }) => {

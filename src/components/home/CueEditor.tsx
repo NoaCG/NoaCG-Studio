@@ -1363,7 +1363,10 @@ export default function CueEditor({
         {/* THE TYPED FORM (E2.1): while a cue's typed data is on, its graphic's schema IS the form,
             every value in its own type; a field bound to the production's data reads out as bound. */}
         {typedForm?.values ? (
+          // Keyed by its cue: switching cues unmounts the form, which lands a settling edit through
+          // the cue it was typed into, never the next one.
           <TypedForm
+            key={editingCue.id}
             node={typedForm.values.fields}
             value={typedForm.values.value}
             onChange={(v) => typedForm.values!.onChange((v ?? {}) as TypedValues['values'])}
@@ -1479,7 +1482,7 @@ export default function CueEditor({
       {typedForm?.actions.map((a) => (
         <fieldset className="pd-typed-group pd-typed-action" key={a.id} data-testid={`cue-action-args-${a.id}`}>
           <legend>⚡ {a.name}</legend>
-          <TypedForm node={a.node} value={a.value} onChange={a.onChange} errors={a.errors} testIdPrefix={`cue-args-${a.id}`} register={typedForm.register} images={cueImages} />
+          <TypedForm key={editingCue.id} node={a.node} value={a.value} onChange={a.onChange} errors={a.errors} testIdPrefix={`cue-args-${a.id}`} register={typedForm.register} images={cueImages} />
         </fieldset>
       ))}
 
