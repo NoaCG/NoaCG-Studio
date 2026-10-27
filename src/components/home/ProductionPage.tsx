@@ -1607,6 +1607,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setShows(result.shows);
         const failure = result.error ?? (await commitDurableWrites());
         setTypedNote(failure ? { cueId: cue.id, note: failure } : null);
+        // The form now shows what is stored, so an earlier failed typed edit no longer stands.
+        if (!failure) typedSaves.current.landed(cue.id, true);
       },
     };
   };

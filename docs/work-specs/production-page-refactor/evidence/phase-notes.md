@@ -107,7 +107,12 @@ changes a spec's digest.
     A created list item, group or argument takes its declared defaults all the way down (`typedSeed`).
   - *Which cue's arguments a press sends*: the cue live on the layer (`sel.airCue`), like every ⚡
     press reads the live cue's values; the forms sit with the edited cue, which is the live cue when it
-    is on air. Saying the target on screen is E2.2's preview/program targeting and feedback.
+    is on air. Saying the target on screen is E2.2's preview/program targeting and feedback, and
+    E2.2 must close this gap: with two cues of one graphic, the edited arguments are not the sent ones.
+  - *An older output outside Presence*: the press is gated on `typed: 2` among the outputs this page
+    sees. An older build's output that never joined Presence still refuses a typed action row under
+    E1's gate and holds that graphic until its next Update. It fails safe (nothing wrong airs), but
+    the graphic is frozen on that output; reloading it onto this build clears it.
   - *Hosted log followers* (the exported receiver, `control/hostedReceiver.ts`) leave a typed action
     row out without holding the graphic (it moves no data, and a ⚡ press on a native-data cue of an
     imported graphic must not freeze them), and still refuse and hold on a typed values row as E1.2b
@@ -125,7 +130,8 @@ changes a spec's digest.
     path and none is refused or rewritten.
   - *A typed edit that did not save sends nothing typed*: a cue whose last typed write failed
     (`control/typedSend.ts` `createTypedSaves`, cue by cue) refuses Take, ✎ Update and a press with the
-    reason, rather than air the older record, until its next typed write lands; other cues take.
+    reason, rather than air the older record, until its next typed write lands or typed data is
+    turned Off or On (the form then shows what is stored); other cues take.
   - *An image declared only by `contentMediaType: image/*`* draws the picture picker in the flat
     contract (bench, bridge) and a text line in the typed form, since E1's node does not carry the
     media type: the safe direction (the value is kept as its string), for E3's asset road to settle.
