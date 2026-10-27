@@ -80,10 +80,10 @@ export default function ProductionLook({
         <strong>Look</strong>
         <span className="muted">this production</span>
         <span className="pd-look-onoff" role="group" aria-label="Look on or off">
-          <button type="button" className={on ? 'on' : ''} aria-pressed={on} disabled={readOnly || on || !look} onClick={() => setOn(true)} data-testid="look-on">
+          <button type="button" className={on ? 'on' : ''} aria-pressed={on} disabled={readOnly || !look} onClick={() => !on && setOn(true)} data-testid="look-on">
             On
           </button>
-          <button type="button" className={on ? '' : 'on'} aria-pressed={!on} disabled={readOnly || !on} onClick={() => setOn(false)} data-testid="look-off">
+          <button type="button" className={on ? '' : 'on'} aria-pressed={!on} disabled={readOnly} onClick={() => on && setOn(false)} data-testid="look-off">
             Off
           </button>
         </span>

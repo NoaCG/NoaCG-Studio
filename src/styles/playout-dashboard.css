@@ -1261,10 +1261,11 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-look { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; }
 .pd-look-head { display: flex; align-items: center; gap: 8px; }
 .pd-look-onoff { display: inline-flex; gap: 2px; margin-left: auto; }
-.pd-look-onoff button.on { border-color: var(--amber); }
+.pd-look-onoff button.on { border-color: var(--amber); background: var(--amber); color: #111; }
 .pd-look-close { background: none; border: none; color: var(--text-dim); }
 .pd-look-line { margin: 0; font-size: 12px; }
 .pd-look .pd-adjust-label { width: 52px; }
+.pd-look select { width: auto; max-width: 240px; }
 .pd-advanced-toggle {
   display: inline-flex;
   align-items: baseline;
