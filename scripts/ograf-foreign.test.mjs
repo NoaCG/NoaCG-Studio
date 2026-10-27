@@ -331,8 +331,9 @@ test('only a stranger\'s module Graphic takes this road; ours and an html page b
 });
 
 test('comments are stripped in one pass, strings kept', () => {
-  assert.equal(withoutComments("a // b\nc /* d */ e 'f // g' \"h /* i\" `j // k`"), "a \nc  e 'f // g' \"h /* i\" `j // k`");
-  assert.equal(withoutComments('a /* never closed'), 'a ');
+  assert.equal(withoutComments("a // b\nc /* d */ e 'f // g' \"h /* i\" `j // k`"), "a \nc   e 'f // g' \"h /* i\" `j // k`");
+  assert.equal(withoutComments('a /* never closed'), 'a  ');
+  assert.equal(withoutComments('import Default/* vendor */from'), 'import Default from', 'a comment still separates tokens');
 });
 
 /** Median of three runs of `fn`, in ms. */
@@ -475,6 +476,7 @@ test('a page with no crypto.subtle (plain http on a LAN) gets the same sha256', 
 test('minified static imports are read too', async () => {
   assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "import{a}from'./missing.mjs';export default class extends HTMLElement{}" }))), /graphic\.mjs refers to "\.\/missing\.mjs", which the package does not contain/);
   assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "import*as x from\"../out.mjs\";export default class{}" }))), /outside the package/);
+  assert.match(await reason(await zipOf(minimal({ 'graphic.mjs': "import Default/* vendor */from './missing.mjs';\nexport default class{}" }))), /graphic\.mjs refers to "\.\/missing\.mjs", which the package does not contain/);
   const ok = await importForeignOgraf('x.zip', await zipOf(minimal({ 'graphic.mjs': "import{a}from'./lib/a.mjs';export{a}from'./lib/a.mjs';export default class extends HTMLElement{}" })));
   assert.ok(ok.ok, ok.reason);
 });

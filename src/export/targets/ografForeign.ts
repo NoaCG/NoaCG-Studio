@@ -296,8 +296,9 @@ function resolveRef(from: string, ref: string): string | null | 'out' {
 const MODULE_EXT = /\.(m?js)$/i;
 const STYLE_EXT = /\.css$/i;
 
-/** The text without its comments, in one pass. Quoted strings are kept whole, so a `//` inside a
- *  URL string is not a comment. A regex literal is not recognised, which can hide a reference. */
+/** The text without its comments, in one pass, each block comment left as one space. Quoted strings
+ *  are kept whole, so a `//` inside a URL string is not a comment. A regex literal is not
+ *  recognised, which can hide a reference. */
 export function withoutComments(text: string): string {
   let out = '';
   let from = 0;
@@ -314,7 +315,9 @@ export function withoutComments(text: string): string {
       continue;
     }
     if (c !== '/' || (text[i + 1] !== '/' && text[i + 1] !== '*')) continue;
-    out += text.slice(from, i);
+    // A block comment becomes a space, as it separates tokens in the language (`Default/**/from`);
+    // a line comment keeps its newline, below.
+    out += text.slice(from, i) + (text[i + 1] === '*' ? ' ' : '');
     const end = text[i + 1] === '/' ? text.indexOf('\n', i + 2) : text.indexOf('*/', i + 2);
     if (end < 0) return out;
     i = text[i + 1] === '/' ? end - 1 : end + 1;
