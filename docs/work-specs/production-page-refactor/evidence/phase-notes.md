@@ -149,7 +149,12 @@ changes a spec's digest.
   with no hold, and that graphic's own reload would air them). Codex on `abb5f50`: two P2, both
   fixed: the same held receiver report; and by row id a typed graphic with no pose came back off
   air after its report banked its entrance (now its report's `on` puts it back, with its steps).
-- **Follow-ups**: #1760 stays (typed live follow). #1769 (P3): the PROGRAM monitors do not read
+  /so on `f1406be` (fresh session): AGREE WITH CORRECTIONS, Assessment A; its two non-blocking
+  notes: the monitors left out a held report's place and size (fixed below), and an output bundle
+  from before this row airs defaults from a typed report (#1770). Codex on `f1406be`: one P2, the
+  same place and size, fixed: both monitors put a held report's look back before its rows (rule 4).
+- **Follow-ups**: #1760 stays (typed live follow). #1770 (P3): an output bundle from before this
+  row airs a typed report's defaults rather than refusing them (AC-3's limit above). #1769 (P3): the PROGRAM monitors do not read
   below the reports for a graphic no report banks, so a page opened then shows its entrance
   without its typed values while air is right.
 - **Touched files against `c614500`:** `docs/work-specs/production-page-refactor/evidence/phase-notes.md`,

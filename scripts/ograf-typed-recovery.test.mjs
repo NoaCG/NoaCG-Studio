@@ -159,6 +159,11 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
     const held = seedFromResolve({ ...NO_AIR, reports: unreadable }, { liveCue: { Board: 'c1' }, live: unreadable }, rows, airAtRequest(NO_AIR), [{ id: 'c1', values: { f0: 'x' } }], specs);
     assert.deepEqual(restoreItems(held, {}, specs).items, expected);
   }
+  // Its place and size still go back first (rule 4), as the output puts them back on the graphic it holds.
+  const heldLook = { Board: { data: {}, state: { typed: envelope({}, 9), appearance: look }, event: 10 } };
+  const withLook = seedFromResolve({ ...NO_AIR, reports: heldLook }, { liveCue: { Board: 'c1' }, live: heldLook }, nativeTake, airAtRequest(NO_AIR), [], specs);
+  assert.deepEqual(restoreItems(withLook, {}, specs).items, [{ graphic: 'Board', msg: { t: 'update', data: {}, appearance: look } }, ...nativeTake]);
+  assert.match(source('src/components/HostedControlPage.tsx'), /const held = reportedLook\(reportsRef\.current\[graphic\]\);/);
   // A report whose envelope does not read rebuilds nothing typed from it.
   const later = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };
   const unread = seedFromResolve({ ...NO_AIR, reports: later }, { liveCue: { Board: 'c1' }, live: later }, [], airAtRequest(NO_AIR), [], specs);
@@ -175,7 +180,7 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
   ]);
   // The hosted page's PROGRAM reads the same baseline.
   // The hosted page holds the same rows through the same helper.
-  assert.match(source('src/components/HostedControlPage.tsx'), /const past = rowsPastHold\(rows\);/);
+  assert.match(source('src/components/HostedControlPage.tsx'), /\.\.\.rowsPastHold\(rows\)\];/);
   assert.deepEqual(rowsPastHold([{ msg: { t: 'update', data: {}, typed: envelope({}, 9) } }, { msg: { t: 'play' } }]), [], 'an unreadable envelope keeps the hold');
   assert.match(source('src/components/HostedControlPage.tsx'), /const typedBase = replay \? reportedTypedAir\(reportsRef\.current\[graphic\]\) : null;/);
 });

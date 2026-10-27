@@ -654,7 +654,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // One this build cannot read is held on air, so PROGRAM rebuilds nothing from it either, and
       // replays the rows after it as the output does: held until an update it can air.
       if (typedBase && !typed) {
-        const past = rowsPastHold(rows);
+        // Its place and size still go back first, as the output puts them back on the graphic it holds.
+        const held = reportedLook(reportsRef.current[graphic]);
+        const past = [...(held ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: held } }] : []), ...rowsPastHold(rows)];
         if (past.length > 0) programRef.current?.apply(past);
         continue;
       }

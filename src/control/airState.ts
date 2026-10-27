@@ -375,7 +375,10 @@ export function restoreItems(
     // At boot, a report whose envelope this build cannot read is a graphic the output holds: PROGRAM
     // rebuilds nothing from it, never its empty native data, and replays the rows after it as the
     // output does (`rowsPastHold`): held until an update it can air, so a native Take airs it again.
+    // Its place and size still go back first, as the output puts them back on the graphic it holds.
     if (air.bootReplay !== null && reportedTypedAir(report)?.envelope === null) {
+      const held = reportedLook(report);
+      if (held) all.push({ graphic, msg: { t: 'update', data: {}, appearance: held } });
       all.push(...rowsPastHold(rows));
       continue;
     }
