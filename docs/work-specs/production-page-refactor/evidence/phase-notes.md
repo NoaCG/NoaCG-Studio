@@ -121,6 +121,11 @@ changes a spec's digest.
   - `scripts/ograf-typed-writer.test.mjs` pins `if (dataless) break;` as text; the appearance-only
     skip is its own line beside it.
   - The browser queue wants `chromium_headless_shell-1228`; symlinked to `-1243` (#1647).
+  - An imported font's path comes from its file name (`fontAssetPath`), so a brand's font and a
+    different pool font can share one; the look's face travels at `fonts/look/<file>`, and its
+    bytes travel on or off (a look sent then turned off stays on air until the next Take).
+  - The hosted receiver's boot restores a look and must refit when the face changed, as the relay
+    receiver's boot does.
 - **Touched files against `d9c29b9`:** `e2e/configured/hosted-control-recovery.spec.ts`,
   `e2e/playout-adjust.spec.ts`, `e2e/production-controls.spec.ts`, `scripts/graphic-verbs.test.mjs`,
   `scripts/hosted-adjust.test.mjs` (new), `scripts/production-look.test.mjs` (new),
