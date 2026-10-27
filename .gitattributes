@@ -131,3 +131,7 @@ scripts/e2e-durations.json -merge
 # side whole and the next night replaces it; nobody merges it by hand.
 scripts/e2e-traced.json text eol=lf
 scripts/e2e-traced.json -merge
+
+# Third-party OGraf packages kept byte for byte: their sha256 is pinned in PROVENANCE.md and the
+# tests, so no checkout may rewrite their line endings.
+e2e/fixtures/ograf-library/** -text

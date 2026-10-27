@@ -257,6 +257,11 @@ export interface SpxTemplate {
    *  `readOgrafDeclared` (shaped here only, so the api typecheck stays out of that module). Absent
    *  on every NoaCG graphic, which stays native. */
   ograf?: { v?: unknown; manifest?: unknown };
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-rundown/spec.md, E3.1): this
+   *  graphic IS a stranger's OGraf package, its files kept untouched in `assets` under their package
+   *  paths. Read only through ./foreignPackage.ts `readForeignPackage` (shaped here for the same
+   *  reason as `ograf`). Its `html`, `css` and `js` stay empty: no native scene is made from it. */
+  foreign?: { v?: unknown; [key: string]: unknown };
 }
 
 /** A proposed change to the template (from AI or building blocks). */
