@@ -401,14 +401,17 @@ test('the late refit keeps what an accepted event wrote while the face was loadi
   await expect(doc.locator('#f0'), 'the refit replays the field as the event left it').toHaveText('Corrected Name');
 });
 
-test('an appearance-only update (a send to on-air graphics) refits with the values on air, never with an empty object', async ({ page }) => {
+for (const late of [false, true]) test(`an appearance-only update (a send to on-air graphics) refits with the values on air, never with an empty object (face ${late ? 'after' : 'within'} the hold)`, async ({ page }) => {
   // Phase 3's bulk send carries the look and empty data, so a half-typed name never airs: the
-  // document refits with the values it took last, never with the empty object. The face answers
-  // past the 400 ms hold, so the empty update runs before the refit does.
-  await page.route('**/fonts/archivo*.woff2', async (route) => {
-    await new Promise((r) => setTimeout(r, 1_500));
-    await route.continue();
-  });
+  // document refits with the values it took last, never with the empty object. Late, the face
+  // answers past the 400 ms hold, so the empty update runs before the refit does; within it, no
+  // update with values follows, so the style refits at once.
+  if (late) {
+    await page.route('**/fonts/archivo*.woff2', async (route) => {
+      await new Promise((r) => setTimeout(r, 1_500));
+      await route.continue();
+    });
+  }
   const doc = await styledStage(page);
   await page.evaluate((name) => {
     (window as unknown as { __stage: { apply: (g: string, m: unknown) => void } }).__stage.apply('L3', { t: 'update', data: { f0: name } });
