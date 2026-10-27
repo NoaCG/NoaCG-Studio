@@ -365,7 +365,7 @@ function StyleRows({
 
 /** One colour, picked with the system swatch and written once the pick is made (its `change`, not
  *  every `input` while dragging). The value keeps the alpha it had: a translucent panel stays so. */
-function Swatch({ label, value, disabled, onPick, testId }: { label: string; value: string; disabled: boolean; onPick: (v: string) => void; testId: string }) {
+export function Swatch({ label, value, disabled, onPick, testId }: { label: string; value: string; disabled: boolean; onPick: (v: string) => void; testId: string }) {
   const ref = useRef<HTMLInputElement>(null);
   const valueRef = useRef(value);
   valueRef.current = value;

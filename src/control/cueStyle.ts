@@ -47,9 +47,10 @@ export interface StyleContext extends GeometryStyleContext {
   imported: readonly ImportedFace[];
 }
 
-/** The style context of a production: every imported face its pool ships. */
-export function styleContextFor(pool: readonly { css: string; assets: readonly { path: string }[] }[]): StyleContext {
-  return { imported: importedFacesOf(pool), resolve: resolveStyle };
+/** The style context of a production: every imported face its pool ships, and the production
+ *  look on each graphic while it is on (control/productionLook.ts). */
+export function styleContextFor(pool: readonly { css: string; assets: readonly { path: string }[] }[], lookFor?: StyleContext['lookFor']): StyleContext {
+  return { imported: importedFacesOf(pool), resolve: resolveStyle, ...(lookFor ? { lookFor } : {}) };
 }
 
 /** An imported face's bytes by asset path, read from the production's own copies. */

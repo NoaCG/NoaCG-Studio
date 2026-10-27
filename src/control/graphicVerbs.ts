@@ -136,6 +136,13 @@ export interface GraphicPage {
    *  `appearanceToSend`), read after the wait; absent or undefined, the update carries none. A
    *  promise when the cue's box is still being measured (capped by the page). */
   appearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined | Promise<AppliedAppearance | undefined>;
+  /** THE LOOK A SEND TO ON-AIR GRAPHICS CARRIES for the cue on a layer (phase 3,
+   *  ./adjustGeometry.ts `lookAppearance`): the style its records and the production look give it
+   *  now, read after the page's writes landed, beside the place and size the graphic already holds.
+   *  Undefined: nothing would change. Absent: the page sends no look. */
+  lookAppearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined | Promise<AppliedAppearance | undefined>;
+  /** A cue of the rundown by id, as the render has it. */
+  cueById?: (id: string) => ShowCue | undefined;
   /** Save the typed draft (`cueDraft.flush`) and close the history group. */
   flush: () => Promise<void>;
   /** A graphic's bound fields, field key to tree path. */
@@ -235,6 +242,9 @@ export interface GraphicVerbs {
    *  own cue is, for a layer whose cue the selection could not draw. */
   event: (sel: VerbSelection, button: ControlButton, named?: string) => Promise<PressDone>;
   snap: (sel: VerbSelection, groupId: string | null, stateId: string) => Promise<void>;
+  /** "SEND TO ON-AIR GRAPHICS" (phase 3): the production look to every graphic on air, as one
+   *  appearance-only update each (empty `data`), so nothing typed airs with it. */
+  sendLook: () => Promise<LookSent>;
   /** Commands the server sent back, on either road: one of a marker press that got no answer may
    *  have landed after all. Returns the ones the page still applies: all but this sender's own cue
    *  markers, which it writes from its answers (`applied`: the page already applied it, so a
@@ -243,6 +253,18 @@ export interface GraphicVerbs {
   /** The graphics whose marker a press of this page moved and whose answer is not back yet: the
    *  marker says nothing yet about what airs there. */
   markersOut: () => string[];
+}
+
+/** What a send to on-air graphics came to: of the graphics on air at the press (`of`), how many took
+ *  their look (`updated`, a graphic with nothing to change included), which went off air during the
+ *  press (`gone`), and which were not sent (`failed`, with the reason). */
+export interface LookSent {
+  of: number;
+  updated: number;
+  gone: string[];
+  /** Graphics whose layer holds another cue by then. */
+  changed: string[];
+  failed: { graphic: string; note: string }[];
 }
 
 /** The fields a command moves in air's record (outputRecovery.ts `airedAfter`). */
@@ -1099,5 +1121,47 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     });
   };
 
-  return { send, run, runSent, takeGraphic, take, update, bump, next, out, takeOff, allOut, event, snap, heard, markersOut: () => Object.keys(markers) };
+  /**
+   * SEND THE LOOK TO ON-AIR GRAPHICS (phase 3). CAPTURED AT THE PRESS: the graphics on air and the
+   * cue each holds, from the session's `air` part. Each then goes behind the live presses on its
+   * graphic (`afterPress`) and is ASKED AGAIN AFTER EVERY WAIT (the draft's save, the page's writes):
+   * a graphic taken off, or holding another cue by then, is reported gone and sent nothing. What goes
+   * is one `update` with EMPTY `data` and the appearance, so a half-typed name never airs with a
+   * look, and the place and size the graphic holds stay as they are (`lookAppearanceOf`). A typed
+   * graphic is not sent one: a native update would end its typed data. Through the one sender, so
+   * PROGRAM, the wire and the ledger see it as they see every other press.
+   */
+  const sendLook = async (): Promise<LookSent> => {
+    const s = sender();
+    const p = page();
+    const result: LookSent = { of: 0, updated: 0, gone: [], changed: [], failed: [] };
+    const lost = (graphic: string) => void (holding(graphic) === null ? result.gone : result.changed).push(graphic);
+    if (!p.lookAppearanceOf) return result;
+    const captured = Object.entries(session.air.get().liveCue).flatMap(([graphic, cueId]) => {
+      const cue = p.cueById?.(cueId);
+      return cue && cue.source !== 'playout' ? [{ graphic, cue }] : [];
+    });
+    result.of = captured.length;
+    await Promise.all(
+      captured.map(({ graphic, cue }) =>
+        afterPress(graphic, async () => {
+          const still = () => holding(graphic) === cue.id;
+          if (!still()) return lost(graphic);
+          if (typedSendRefusal(cue) || p.typedAiring?.(graphic)) return void result.failed.push({ graphic, note: 'Live controls do not reach typed data yet.' });
+          await p.flush();
+          if (!still()) return lost(graphic);
+          const pending = p.lookAppearanceOf!(cue, graphic);
+          const appearance = pending instanceof Promise ? await pending : pending;
+          if (!still()) return lost(graphic);
+          if (!appearance) return void (result.updated += 1);
+          const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data: {}, appearance } }]], 'Send to on-air graphics');
+          if (sent.ok && reachedOutput(sent, graphic)) result.updated += 1;
+          else result.failed.push({ graphic, note: sent.ok ? 'A later press replaced it.' : sent.note });
+        }),
+      ),
+    );
+    return result;
+  };
+
+  return { send, run, runSent, takeGraphic, take, update, bump, next, out, takeOff, allOut, event, snap, sendLook, heard, markersOut: () => Object.keys(markers) };
 }

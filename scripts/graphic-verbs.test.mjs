@@ -749,6 +749,89 @@ test('a Take waits for a box still being measured, then carries the placement it
   await taking;
 });
 
+// ── Send to on-air graphics (playout adjustments, phase 3) ──────────────────────────────────────
+
+/** A rig with two cues on air, the look the page answers for each, and the cues by id. */
+function lookRig(extra = {}) {
+  const cues = [graphicCue('c1', 'Strap', { f0: 'Ann' }), graphicCue('c2', 'Score', { f0: '1' }), graphicCue('c3', 'Strap', { f0: 'Bo' })];
+  const r = rig({ liveCue: { Strap: 'c1', Score: 'c2' }, ...extra });
+  const look = { v: 1, vars: { accent: '#ff7a00' } };
+  r.page.cueById = (id) => cues.find((c) => c.id === id);
+  r.page.lookAppearanceOf = () => look;
+  return { r, look, cues };
+}
+const offAir = (r, graphic) => r.session.apply((parts) => {
+  const liveCue = { ...parts.air.liveCue };
+  delete liveCue[graphic];
+  return { ...parts, air: { ...parts.air, liveCue } };
+});
+const onLayer = (r, graphic, cueId) => r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { ...parts.air.liveCue, [graphic]: cueId } } }));
+
+test('a send to on-air graphics sends each graphic on air one appearance-only update, never what is typed', async () => {
+  const { r, look } = lookRig();
+  // A half-typed name in the editor: it must not air with the look.
+  r.draft.c1 = { f0: 'Ann Half' };
+  const sending = r.verbs.sendLook();
+  await settle();
+  assert.deepEqual(r.sends.map((x) => x.batches.map((b) => b.map((i) => ({ graphic: i.graphic, msg: { t: i.msg.t, data: i.msg.data, appearance: i.msg.appearance } })))), [
+    [[{ graphic: 'Strap', msg: { t: 'update', data: {}, appearance: look } }]],
+    [[{ graphic: 'Score', msg: { t: 'update', data: {}, appearance: look } }]],
+  ]);
+  for (const x of r.sends) x.answer.resolve({ ...noneLeft });
+  assert.deepEqual(await sending, { of: 2, updated: 2, gone: [], changed: [], failed: [] });
+});
+
+test('a send to on-air graphics captures what is on air at the press and asks again after every wait: one gone during the press is reported, never sent', async () => {
+  const { r, look } = lookRig({ flushHeld: true });
+  const sending = r.verbs.sendLook();
+  await settle();
+  // Both wait for the save; Score is taken off meanwhile, and a Take of a third graphic after the
+  // press is not part of it.
+  assert.equal(r.flushes.length, 2);
+  offAir(r, 'Score');
+  onLayer(r, 'Clock', 'c9');
+  for (const f of r.flushes) f.resolve();
+  await settle();
+  assert.deepEqual(r.sends.map((x) => x.batches[0][0].graphic), ['Strap']);
+  assert.deepEqual(r.sends[0].batches[0][0].msg.appearance, look);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await sending, { of: 2, updated: 1, gone: ['Score'], changed: [], failed: [] });
+});
+
+test('a send to on-air graphics asks again after the look is read: a layer that took another cue meanwhile is sent nothing', async () => {
+  const { r } = lookRig();
+  const reads = [];
+  r.page.lookAppearanceOf = (cue) => new Promise((resolve) => reads.push({ cue: cue.id, resolve }));
+  const sending = r.verbs.sendLook();
+  await settle();
+  assert.deepEqual(reads.map((x) => x.cue), ['c1', 'c2']);
+  onLayer(r, 'Strap', 'c3');
+  for (const x of reads) x.resolve({ v: 1, vars: { accent: '#00ff00' } });
+  await settle();
+  assert.deepEqual(r.sends.map((x) => x.batches[0][0].graphic), ['Score']);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await sending, { of: 2, updated: 1, gone: [], changed: ['Strap'], failed: [] });
+});
+
+test('a send to on-air graphics sends nothing where nothing would change, nor to a graphic airing typed data, and reports a failed send', async () => {
+  const { r } = lookRig({ typedAiring: ['Score'] });
+  r.page.lookAppearanceOf = () => undefined;
+  assert.deepEqual(await r.verbs.sendLook(), { of: 2, updated: 1, gone: [], changed: [], failed: [{ graphic: 'Score', note: 'Live controls do not reach typed data yet.' }] });
+  assert.equal(r.sends.length, 0);
+  const { r: r2 } = lookRig();
+  const sending = r2.verbs.sendLook();
+  await settle();
+  r2.sends[0].answer.resolve({ ...noneLeft });
+  r2.sends[1].answer.reject(new Error('network down'));
+  const result = await sending;
+  assert.equal(result.updated, 1);
+  assert.deepEqual(result.failed.map((f) => f.graphic), ['Score']);
+  // A page that sends no look sends nothing.
+  const { r: r3 } = lookRig();
+  delete r3.page.lookAppearanceOf;
+  assert.deepEqual(await r3.verbs.sendLook(), { of: 0, updated: 0, gone: [], changed: [], failed: [] });
+});
+
 test('Update of a cue not on air sends nothing; a server cue updates through the server verb while it is up', async () => {
   const r = rig();
   await r.verbs.update(sel({ editingCue: graphicCue('c1', 'Strap'), selectedGraphic: 'Strap', editingIsLive: false }));

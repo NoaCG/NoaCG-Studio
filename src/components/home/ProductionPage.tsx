@@ -123,17 +123,20 @@ import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
 import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
-import type { SavedGraphic } from '../../model/packets';
+import { loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
-import { createMeasurer, cueAdjustState, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, COLOUR_VARS } from '../../control/cueStyle';
+import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
+import { lightPanel, lookExceptions, lookFontRef, lookLayerFor, lookLayerOf, lookReach, lookSentWords, lookToActivate, productionLookOf } from '../../control/productionLook';
+import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
 import { getCssVariable } from '../../model/cssVars';
 import type { PreviewStyle } from './measureCue';
 import { measureCue } from './measureCue';
-import { promoteCueAdjust, setCueAdjust, setGraphicAdjust, stepAdjust } from '../../model/shows';
+import { clearStyleExceptions, editShowLook, promoteCueAdjust, setCueAdjust, setGraphicAdjust, setShowLookApplied, stepAdjust } from '../../model/shows';
 import type { AdjustPatch, FontRef } from '../../model/adjust';
 import CueAdjust from './CueAdjust';
+import ProductionLook from './ProductionLook';
+import { publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
@@ -2160,12 +2163,41 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const writeAdjust = (mutation: () => { shows: Show[]; error: string | null }, label: string) => adjustWrites.hold(history.write(mutation, label));
   /** The production's own templates: where an imported face's bytes and a graphic's heading come from. */
   const poolTemplates = useMemo(() => (show?.graphics ?? []).map((g) => templateForSavedGraphic(g, library)), [show?.graphics, library]);
-  const styleCtx = useMemo(() => styleContextFor(poolTemplates), [poolTemplates]);
-  const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library) => {
+  // THE PRODUCTION LOOK (phase 3, control/productionLook.ts): while it is on, the widest scope of
+  // every graphic's style, limited per graphic to what its stylesheet paints with.
+  const lookOn = productionLookOf(show);
+  const styleCtxOf = (record: Show | null | undefined, templates: typeof poolTemplates) => {
+    const look = productionLookOf(record);
+    const layer = look ? lookLayerOf(look) : null;
+    const byId = new Map((record?.graphics ?? []).map((g, i) => [g.id, layer && templates[i] ? lookLayerFor(layer, templates[i]) : undefined] as const));
+    return styleContextFor(templates, layer ? (graphicId) => byId.get(graphicId) : undefined);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const styleCtx = useMemo(() => styleCtxOf(show, poolTemplates), [poolTemplates, lookOn]);
+  const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library, ctx = styleCtx) => {
     const g = record?.graphics.find((x) => x.id === cue.sourceId);
     if (!g || cue.source === 'playout') return null;
     const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
-    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, styleCtx);
+    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, ctx);
+  };
+  // SETUP › LOOK (home/ProductionLook.tsx): the look, its activation, what it reaches and the bulk
+  // send. Its writes go straight to the record (the look is not part of the rundown's history);
+  // "Clear exceptions" edits the records, so it joins the history and Ctrl+Z reverts it.
+  const [lookOpen, setLookOpen] = useState(false);
+  const [lookSent, setLookSent] = useState<string | null>(null);
+  const [lookSending, setLookSending] = useState(false);
+  const savedBrands = useMemo(() => (lookOpen ? loadLooks() : []), [lookOpen]);
+  const lookWrite = (result: { shows: Show[]; error: string | null }) => {
+    setShows(result.shows);
+    if (result.error) setNote(result.error);
+  };
+  const sendLookToAir = async () => {
+    setLookSending(true);
+    try {
+      setLookSent(lookSentWords(await verbs.sendLook()));
+    } finally {
+      setLookSending(false);
+    }
   };
   /** What a document is told to draw a cue's style in: its variables and the faces they name, the
    *  imported ones' bytes from the production's own copies. A surface compares it by `id`, never
@@ -2511,10 +2543,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
       // measurer has not answered for publishes its last placement).
       appearanceFor: async (latest) => {
-        if (!latest.graphics.some((g) => g.adjust !== undefined) && !(latest.cues ?? []).some((c) => c.adjust !== undefined)) return undefined;
+        const look = productionLookOf(latest);
+        if (!look && !latest.graphics.some((g) => g.adjust !== undefined) && !(latest.cues ?? []).some((c) => c.adjust !== undefined)) return undefined;
         const lib = loadGraphics();
         await Promise.all(measureJobs(latest, lib).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
-        return (cue) => adjustStateOf(cue, latest, lib)?.send;
+        const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
+        const ctx = styleCtxOf(latest, templates);
+        return (cue) => {
+          const g = latest.graphics.find((x) => x.id === cue.sourceId);
+          const state = adjustStateOf(cue, latest, lib, ctx);
+          if (!g || !state) return undefined;
+          const lookLayer = ctx.lookFor?.(g.id);
+          // A graphic nobody adjusted and no look reaches carries nothing, as before.
+          const adjust = state.eff.any || lookLayer ? publishedAdjustOf(g, cue, lookLayer, state.m, frameOf(g, lib), stage) : undefined;
+          return { ...(state.send ? { appearance: state.send } : {}), ...(adjust ? { adjust } : {}) };
+        };
       },
       // REHEARSAL ENDS AT THE FIRST PUBLISH: the live map and PROGRAM stay this page's.
       onFirstPublish: (rehearsed) => {
@@ -2896,6 +2939,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
     // Read after the wait (this object is the render's): the place and size a Take or Update
     // carries, decided in control/adjustGeometry.ts `pressAppearance`.
+    cueById: (cueId) => cuesRef.current.find((c) => c.id === cueId),
+    // A send to on-air graphics: the style as the stored record gives it once the page's writes
+    // landed, beside the place and size the graphic holds (control/adjustGeometry.ts `lookAppearance`).
+    lookAppearanceOf: async (taken, graphic) => {
+      await history.settle();
+      const record = loadShows().find((s) => s.id === id) ?? latestShow.current ?? null;
+      const cue = record?.cues?.find((c) => c.id === taken.id) ?? taken;
+      const templates = (record?.graphics ?? []).map((g) => templateForSavedGraphic(g, library));
+      return lookAppearance(adjustStateOf(cue, record, library, styleCtxOf(record, templates)), session.air.get().looks?.[graphic]);
+    },
     appearanceOf: (taken) => {
       const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
       return pressAppearance({
@@ -3653,6 +3706,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onPlayoutSettings={() => setPlayoutSettingsOpen(true)}
       // A build that cannot publish has no links to show, unless the record already holds some.
       onLinks={backendConfigured || hostedSlug ? () => setLinksOpen(true) : undefined}
+      onLook={() => setLookOpen(true)}
       views={views}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
@@ -3933,6 +3987,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         <div className="pd-control-area" data-testid="control-area">
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
         <div ref={rundownFeedback} className="pd-rundown-feedback" />
+        {lookOpen && (
+          <ProductionLook
+            look={show.look ?? null}
+            on={!!show.lookApplied}
+            setOn={(on) => lookWrite(setShowLookApplied(show.id, on, on ? (lookToActivate(show, savedBrands) ?? undefined) : undefined))}
+            brands={savedBrands.map((b) => ({ id: b.id, name: b.name }))}
+            brandId={show.brandId ?? null}
+            pickBrand={(brandId) => {
+              const saved = savedBrands.find((b) => b.id === brandId);
+              if (saved) lookWrite(editShowLook(show.id, structuredClone(saved.brand), brandId));
+            }}
+            edit={(next) => lookWrite(editShowLook(show.id, next, null))}
+            bundled={FONTS}
+            weights={show.look ? weightsFor(lookFontRef(show.look), {}, styleCtx.imported) : []}
+            reach={show.look ? lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), show.look, styleCtx.imported) : null}
+            exceptions={lookExceptions(show)}
+            clearExceptions={() => void history.write(() => clearStyleExceptions(show.id), 'Clear look exceptions')}
+            onAir={Object.keys(liveCue).length}
+            send={() => void sendLookToAir()}
+            sending={lookSending}
+            sent={lookSent}
+            joinBundledOnly={!!show.look?.customFont}
+            lightPanel={!!show.look && lightPanel(show.look)}
+            readOnly={!authoringAllowed}
+            onClose={() => setLookOpen(false)}
+          />
+        )}
         {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
         <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />
 

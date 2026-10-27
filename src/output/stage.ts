@@ -314,12 +314,14 @@ export function createOutputStage(
   };
   /** TYPE AND COLOUR (phase 2): unlike the frame transform, style lives in the document, so it is
    *  told to the graphic's current document whenever it changes and to each new one it moves to. */
-  const paintStyle = (frame: Frame) => {
+  /** `alone`: no data update rides with this style (a send to on-air graphics, phase 3), so the
+   *  document refits with the values it airs instead of waiting for one. */
+  const paintStyle = (frame: Frame, alone = false) => {
     const look = appearances.get(frame.key);
     const key = styleKey(look);
     if ((frame.styled ?? '') === key) return;
     frame.styled = key;
-    postTo(frame, { cmd: 'style', vars: look?.vars ?? null, faces: facesCss(look?.fonts, (src) => assetData(frame.key, src)) });
+    postTo(frame, { cmd: 'style', vars: look?.vars ?? null, faces: facesCss(look?.fonts, (src) => assetData(frame.key, src)), ...(alone ? { alone: true } : {}) });
   };
   const overflow = new Map<string, string[]>();
   const motion = new Map<string, number>();
@@ -664,13 +666,17 @@ export function createOutputStage(
         // Rule 1: an update without an appearance keeps the one applied; rule 3: one that carries
         // it replaces it. Applied at once, before the data, with no replay (a cut, as a Take is).
         const look = 'appearance' in msg && msg.appearance !== undefined ? readAppearance(msg.appearance) : null;
+        // AN APPEARANCE-ONLY UPDATE (empty `data`, a send to on-air graphics) moves the look and
+        // nothing else: no data command goes, so the document keeps the values it airs and refits
+        // with them (a `{}` would leave its refit nothing to fit).
+        const alone = !!look && !typedData && Object.keys(msg.data ?? {}).length === 0;
         if (look) {
           if (isIdentity(look)) appearances.delete(graphic);
           else appearances.set(graphic, look);
           paintAppearance(frames.get(graphic)!.iframe, graphic);
-          paintStyle(frames.get(graphic)!);
+          paintStyle(frames.get(graphic)!, alone);
         }
-        if (dataless) break;
+        if (dataless || alone) break;
         post(graphic, { cmd: 'update', data: JSON.stringify(typedData ?? msg.data ?? {}) });
         break;
       }

@@ -49,6 +49,7 @@ const FIELD_LABEL: Record<string, string> = {
   profile: 'the control panel layout',
   look: 'the look',
   brandId: 'the brand',
+  lookApplied: 'the look being on',
   ownReaderStops: 'the stopped Sheet readers',
 };
 

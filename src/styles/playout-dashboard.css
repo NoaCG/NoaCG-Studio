@@ -1248,6 +1248,23 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-adjust-swatch { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); margin-right: 4px; }
 .pd-adjust-swatch input { width: 32px; height: 24px; padding: 0 2px; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; }
 .pd-adjust select { max-width: 180px; }
+/* A phone (and the hosted page in one scrolling column, phase 3): the arrows and the place grid
+   are touch targets, 40 px. */
+.hosted-dashboard .pd-adjust-arrows button { min-width: 40px; min-height: 40px; }
+@media (max-width: 640px) {
+  .pd-adjust-arrows button { min-width: 40px; min-height: 40px; }
+  .pd-adjust-grid { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 32px); gap: 4px; }
+  .pd-adjust-cell { width: 40px; height: 32px; }
+}
+/* SETUP › LOOK (phase 3): a panel at the top of the control area, never a modal, so the monitors
+   stay on screen. Its rows are the Adjust block's. */
+.pd-look { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; }
+.pd-look-head { display: flex; align-items: center; gap: 8px; }
+.pd-look-onoff { display: inline-flex; gap: 2px; margin-left: auto; }
+.pd-look-onoff button.on { border-color: var(--amber); }
+.pd-look-close { background: none; border: none; color: var(--text-dim); }
+.pd-look-line { margin: 0; font-size: 12px; }
+.pd-look .pd-adjust-label { width: 52px; }
 .pd-advanced-toggle {
   display: inline-flex;
   align-items: baseline;

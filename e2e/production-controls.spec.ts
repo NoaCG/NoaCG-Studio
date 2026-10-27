@@ -8,6 +8,7 @@
 // covers: src/control/cueDraft.ts
 // covers: src/control/liveControls.ts, src/components/home/LiveControls.tsx, src/model/profile.ts
 // covers: src/components/home/CueAdjust.tsx, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/model/adjust.ts
+// covers: src/components/home/ProductionLook.tsx, src/control/productionLook.ts
 // focus
 
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
@@ -2588,6 +2589,126 @@ test('Adjust retypes and recolours a lower third: a cue colour overrides the gra
   await page.getByTestId('verb-update').click();
   await expect.poll(() => rootVar('program', '--accent')).toBe('');
   await expect(program).toHaveAttribute('data-plays', '1');
+});
+
+/**
+ * AC-6 AND AC-7, THE PRODUCTION LOOK AS THE OPERATOR USES IT (playout adjustments, phase 3): a
+ * captured look styles nothing until it is turned on in Setup ▾ Look; then PREVIEW takes it at once
+ * where a graphic paints it, an imported SVG keeps its "as designed" line, a cue set "As designed"
+ * is an exception "Clear exceptions" clears, and only "Send to on-air graphics" (or a Take or an
+ * Update) reaches PROGRAM, with no replay and never a half-typed name. A duplicate turns another
+ * brand on and the original keeps its own. The fold, the reach and the bulk send's capture and
+ * recheck are scripts/production-look.test.mjs and scripts/graphic-verbs.test.mjs.
+ */
+test('Setup ▾ Look turns a production look on and off, counts its reach, keeps exceptions, and sends it to air without what is typed', async ({ page }) => {
+  test.setTimeout(110_000);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'Look Night');
+  await addCatalogGraphic(page, showId, 'Imported SVG design');
+  const look = { styleTag: 'clean', palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' }, fontId: 'archivo', customFont: null };
+  await page.evaluate(async ([id, captured]) => {
+    const shows = await import('/src/model/shows.ts');
+    const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
+    shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
+    // An old production's captured look, never turned on.
+    shows.setShowLook(id, captured as never);
+    const { addLook } = await import('/src/model/packets.ts');
+    addLook('Autumn Quiz', { ...(captured as object), palette: { ...(captured as { palette: object }).palette, accent: '#00a3ff' }, fontId: 'oswald' } as never);
+    await new Promise((r) => setTimeout(r));
+  }, [showId, look] as const);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  // PROGRAM holds a frame per pool graphic; the strap's is the first, in pool order.
+  const strapFrame = () => page.frameLocator('[data-testid="program-stage"] iframe').first();
+  const rootVar = (where: 'preview' | 'program', name: string) =>
+    (where === 'preview' ? page.frameLocator('[data-testid="production-preview"] iframe') : strapFrame())
+      .locator('html')
+      .evaluate((el, n) => el.style.getPropertyValue(n), name)
+      .catch(() => null);
+  const program = page.getByTestId('program-stage');
+  const strap = page.locator('.pd-cue', { hasNotText: 'Second guest' }).filter({ hasText: 'Hairline' }).first();
+
+  // Captured, not on: the graphics change nothing.
+  await strap.click();
+  await page.getByTestId('verb-take').click();
+  await expect(program).toHaveAttribute('data-plays', '1');
+  expect(await rootVar('preview', '--accent')).toBe('');
+
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-look').click();
+  const panel = page.getByTestId('production-look');
+  await expect(panel).toBeVisible();
+  await expect(page.getByTestId('look-off')).toHaveAttribute('aria-pressed', 'true');
+  // Per property over the pool of two: the strap takes both, the imported artwork neither.
+  await expect(page.getByTestId('look-reach')).toHaveText(/Type reaches 1 of 2 · Accent reaches 1 of 2 · Imported SVG design: as designed/);
+  await expect(page.getByTestId('look-on-air')).toHaveText('(1 on air)');
+
+  // On: PREVIEW takes it at once; PROGRAM does not until it is sent.
+  await page.getByTestId('look-on').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
+  await expect.poll(() => rootVar('preview', '--font-heading')).toContain('Archivo');
+  expect(await rootVar('program', '--accent')).toBe('');
+  await expect(page.locator('.pd-editor-fate')).toContainText('1 change not');
+
+  // A half-typed name on the cue on air never airs with the look.
+  await page.getByTestId('cue-field-f0').fill('Half typ');
+  await page.getByTestId('look-send').click();
+  await expect(page.getByTestId('look-sent')).toHaveText('Look sent to the graphic on air.');
+  await expect.poll(() => rootVar('program', '--accent')).toBe('#ff7a00');
+  await expect.poll(() => rootVar('program', '--font-heading')).toContain('Archivo');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  await expect(strapFrame().locator('body')).not.toContainText('Half typ');
+
+  // The imported artwork says so in one line.
+  await page.locator('.pd-cue', { hasText: 'Imported SVG design' }).first().click();
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('adjust-style-none')).toHaveText('Type and colour: as designed (imported artwork)');
+
+  // One cue set "As designed": an exception, kept out of the look; "Clear exceptions" clears it.
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-colour-designed').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('');
+  await expect(page.getByTestId('look-exceptions')).toContainText('Exceptions (1): Hairline · Second guest');
+  await page.getByTestId('look-clear-exceptions').click();
+  await expect(page.getByTestId('look-exceptions')).toHaveCount(0);
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
+
+  // Off restores PREVIEW at once; air keeps the look until it is sent again.
+  await page.getByTestId('look-off').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('');
+  expect(await rootVar('program', '--accent')).toBe('#ff7a00');
+  await page.getByTestId('look-send').click();
+  await expect.poll(() => rootVar('program', '--accent')).toBe('');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  await settleDurableWrites(page);
+
+  // AC-7: duplicate, turn another brand on in the copy; the original keeps its own.
+  const copyId = await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    const { routeHash } = await import('/src/app/router.ts');
+    const copy = shows.duplicateShowChecked(id).show!;
+    location.hash = routeHash({ view: 'production', id: copy.id });
+    await new Promise((r) => setTimeout(r));
+    return copy.id;
+  }, showId);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-look').click();
+  await page.getByTestId('look-brand').selectOption({ label: 'Autumn Quiz' });
+  await page.getByTestId('look-on').click();
+  for (const label of ['Hairline', 'Second guest']) {
+    await page.locator('.pd-cue', { hasText: label }).first().click();
+    await expect.poll(() => rootVar('preview', '--accent')).toBe('#00a3ff');
+  }
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async ([a, b]) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { audienceBrandFor, audienceLookOf } = await import('/src/audience/audienceBrand.ts');
+    const of = (id: string) => loadShows().find((s) => s.id === id)!;
+    return [of(a).lookApplied ?? null, audienceBrandFor(audienceLookOf(of(a)))?.accent, of(b).lookApplied ?? null, audienceBrandFor(audienceLookOf(of(b)))?.accent];
+  }, [showId, copyId] as const)).toEqual([null, '#ff7a00', true, '#00a3ff']);
 });
 
 /**

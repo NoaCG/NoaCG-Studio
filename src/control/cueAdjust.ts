@@ -100,9 +100,16 @@ export interface EffectiveAdjust {
 
 const MEMBERS = ['place', 'x', 'y', 'scale', 'anchor', 'font', 'keepStyle'] as const;
 
-/** Fold the cue's exception over the graphic's default, member by member. A later version's record
- *  applies nothing (rollback: an unknown record is ignored on read). */
-export function effectiveAdjust(graphicRaw: unknown, cueRaw: unknown): EffectiveAdjust {
+/** The production look's style as the fold's widest scope (phase 3, control/productionLook.ts
+ *  `lookLayerFor`): the variables and the face an activated look sets on this graphic, already
+ *  limited to what its stylesheet paints with. */
+export type LookLayer = Pick<AdjustRecord, 'vars' | 'font'>;
+
+/** Fold the cue's exception over the graphic's default, member by member, over the production
+ *  look's style when one is on (`look`). `keepStyle` at either scope keeps the look out; the
+ *  scope's own style still applies. A later version's record applies nothing (rollback: an unknown
+ *  record is ignored on read). */
+export function effectiveAdjust(graphicRaw: unknown, cueRaw: unknown, look?: LookLayer | null): EffectiveAdjust {
   const g = readAdjust(graphicRaw);
   const c = readAdjust(cueRaw);
   const out: EffectiveAdjust = { own: [], readOnly: g.status === 'read-only' || c.status === 'read-only', any: false };
@@ -117,10 +124,15 @@ export function effectiveAdjust(graphicRaw: unknown, cueRaw: unknown): Effective
   // Style variables fold KEY BY KEY: a cue that sets its accent alone still takes the graphic's face.
   const gv = g.status === 'ok' ? g.record.vars : undefined;
   const cv = c.status === 'ok' ? c.record.vars : undefined;
-  if (gv || cv) {
-    out.vars = { ...gv, ...cv };
+  // The look sits under both scopes, and a later version's record at either keeps it out too: what
+  // that build meant there is unknown, so nothing is laid over it.
+  const lookOn = !!look && !out.keepStyle && !out.readOnly;
+  const lv = lookOn ? look!.vars : undefined;
+  if (gv || cv || lv) {
+    out.vars = { ...lv, ...gv, ...cv };
     if (cv) out.own.push('vars');
   }
+  if (lookOn && out.font === undefined && look!.font !== undefined) out.font = look!.font;
   out.any = graphicRaw !== undefined || cueRaw !== undefined;
   return out;
 }

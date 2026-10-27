@@ -25,7 +25,8 @@ import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
 // audience): publish is the courier, not the author.
-import { audienceBrandFor } from '../audience/audienceBrand';
+import { audienceBrandFor, audienceLookOf } from '../audience/audienceBrand';
+import type { PublishedAdjust } from './hostedAdjust';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
@@ -155,7 +156,15 @@ export interface OutputCue {
    *  Update carry, resolved at Publish against the box the production page measured. The hosted
    *  page applies it and does not edit it. Absent: the cue's graphic was never adjusted. */
   appearance?: AppliedAppearance;
+  /** ADDITIVE OPTIONAL (playout adjustments, phase 3): the records, the production look and the
+   *  measured box the hosted page's Adjust block folds and stages over (control/hostedAdjust.ts).
+   *  Absent: nobody adjusted its graphic and no look reaches it. */
+  adjust?: PublishedAdjust;
 }
+
+/** What Publish carries beside one cue for the hosted page: its applied appearance and the
+ *  records its Adjust block edits. */
+export type CuePublished = (cue: ShowCue) => { appearance?: AppliedAppearance; adjust?: PublishedAdjust } | undefined;
 
 /** What the hosted page airs for one cue, scoped to its own staged edits (cueStaging.ts). */
 export { cueStageData, hostedCueValues } from './cueStaging';
@@ -412,9 +421,10 @@ async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): 
 export async function buildOutputPayload(
   show: Show,
   library: GraphicDoc[] = loadGraphics(),
-  /** Each cue's place and size as the production page resolved it (playout adjustments): what the
-   *  hosted page's Take and Update carry. Absent, no cue carries one. */
-  appearanceOf?: (cue: ShowCue) => AppliedAppearance | undefined,
+  /** Each cue's appearance as the production page resolved it and the records behind it (playout
+   *  adjustments): what the hosted page's Take and Update carry and its Adjust block edits.
+   *  Absent, no cue carries either. */
+  publishedOf?: CuePublished,
 ): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
   const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
@@ -446,8 +456,8 @@ export async function buildOutputPayload(
         ...(auto ? { auto } : {}),
         ...(next ? { next } : {}),
         ...((() => {
-          const appearance = appearanceOf?.(c);
-          return appearance ? { appearance } : {};
+          const published = publishedOf?.(c);
+          return { ...(published?.appearance ? { appearance: published.appearance } : {}), ...(published?.adjust ? { adjust: published.adjust } : {}) };
         })()),
       };
     });
@@ -531,7 +541,7 @@ export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = 
  *  the two surfaces must agree on the cue list). Prunes log rows older than 7 days (the 0029
  *  owner DELETE policy) so a 24/7 output URL never grows the log without bound.
  *  Returns every capability slug, or null offline. */
-export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCue) => AppliedAppearance | undefined): Promise<PublishedCapabilities | null> {
+export async function publishControlShow(show: Show, publishedOf?: CuePublished): Promise<PublishedCapabilities | null> {
   // THE LIBRARY->AIR GATE, before anything else - including the backend check: an invalid
   // graphic cannot publish, and that is true of this function whoever calls it and wherever it
   // runs (validation/productionGate.ts - the same publishGate the community door runs). A
@@ -540,7 +550,7 @@ export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCu
   assertProductionGate(show.graphics, library);
   const sb = await getSupabase();
   if (!sb) return null;
-  const raw = await buildOutputPayload(show, library, appearanceOf);
+  const raw = await buildOutputPayload(show, library, publishedOf);
   const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
   // THE VERSION STAMP (payloadVersion.ts): the previous stamp, read as ONE field so the
   // multi-megabyte payload is not downloaded to learn it. A production published for the first
@@ -659,7 +669,7 @@ export async function publishControlShow(show: Show, appearanceOf?: (cue: ShowCu
   };
   // The brand travels at publish, merged into the state rather than replacing it — `open`,
   // `mode` and the round pointer are the operator's, not the publisher's.
-  const brand = audienceBrandFor(show.look);
+  const brand = audienceBrandFor(audienceLookOf(show));
   if (row.audience_state) {
     await sb
       .from('control_shows')

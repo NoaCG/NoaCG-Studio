@@ -16,6 +16,8 @@ import type { ResolvedValues } from '../model/productionData';
 import type { OutputCue } from './hostedControl';
 
 const CUE_FIELD = '\u001f';
+/** control/hostedAdjust.ts `STAGED_ADJUST`, restated so this module keeps its type-only imports. */
+const STAGED_ADJUST = '@adjust';
 
 /** The keys `data`, typed for one cue, is staged under in its graphic's shared buffer. */
 export function cueStageData(cueId: string, data: Record<string, string>): Record<string, string> {
@@ -51,6 +53,8 @@ export function hostedCueValues(
   const graphicWide: Record<string, string> = {};
   const mine: Record<string, string> = {};
   for (const [key, value] of Object.entries(buffer)) {
+    // A staged Adjust record (control/hostedAdjust.ts) is never a field value.
+    if (key.endsWith(CUE_FIELD + STAGED_ADJUST)) continue;
     if (key.startsWith(prefix)) mine[key.slice(prefix.length)] = value;
     else if (alone && !key.includes(CUE_FIELD)) graphicWide[key] = value;
   }

@@ -22,7 +22,6 @@ import {
   setShowOutputSetup,
   refreshGraphicCopies,
   type Show,
-  type ShowCue,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
 import { accountCasparDefault, casparDestinationId, casparSwitch, destinationUrl, readOutputSetup, withCasparSwitch } from '../../model/outputSetup';
@@ -43,7 +42,7 @@ import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
 import { hasLiveData } from '../../control/liveData';
-import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type LiveCueMap } from '../../control/hostedControl';
+import { claimJoinName, outputPageUrl, publishControlShow, PublishBehind, type CuePublished, type LiveCueMap } from '../../control/hostedControl';
 import { fastEventGraphics } from '../../control/matchClockWire';
 import { type CasparFacts } from './PlayoutPanel';
 import { copyLink } from './copyLink';
@@ -54,7 +53,6 @@ import { slotHolds } from '../../control/prepareLive';
 import { casparOutputTarget, type SlotReading, type StatusCheck } from '../../control/playoutStatus';
 import type { AuthUiState } from '../auth/useAuthState';
 import type { PrepareFlow } from '../control/PrepareForLive';
-import type { AppliedAppearance } from '../../control/cueAdjust';
 import type { useRundownHistory } from './useRundownHistory';
 
 /**
@@ -143,9 +141,10 @@ interface PublishActionsIo {
   /** The first publish found graphics taken in rehearsal: the page takes them out of PROGRAM. */
   onFirstPublish: (rehearsed: string[]) => void;
   prepareFlow: Pick<PrepareFlow, 'run'>;
-  /** Each cue's place and size for the published payload, measured for the production as it will
-   *  be published (playout adjustments): what the hosted page's Take carries. */
-  appearanceFor?: (show: Show) => Promise<((cue: ShowCue) => AppliedAppearance | undefined) | undefined>;
+  /** Each cue's appearance and adjust records for the published payload, measured for the
+   *  production as it will be published (playout adjustments): what the hosted page's Take
+   *  carries and its Adjust block edits. */
+  appearanceFor?: (show: Show) => Promise<CuePublished | undefined>;
 }
 
 /** The publish, slot and links handlers, built on every render after the page's early return. */

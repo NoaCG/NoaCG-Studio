@@ -30,6 +30,7 @@ import {
   type AppliedAppearance,
   type EffectiveAdjust,
   type GeometryLimit,
+  type LookLayer,
   type Measurement,
   type Size,
 } from './cueAdjust.ts';
@@ -41,6 +42,9 @@ import {
 export interface StyleContext {
   imported: readonly { family: string; assetPath: string }[];
   resolve: (eff: Pick<EffectiveAdjust, 'vars' | 'font'>, imported: StyleContext['imported']) => AppearanceStyle | null;
+  /** The production look on a pool graphic while it is on (phase 3, control/productionLook.ts
+   *  `lookLayerFor`): the fold's widest scope, by pool graphic id. Absent or undefined: none. */
+  lookFor?: (graphicId: string) => LookLayer | undefined;
 }
 
 /** No style: a surface that resolves none (a production's own context comes from cueStyle.ts). */
@@ -210,6 +214,16 @@ export function placeWaiting(state: Pick<CueAdjustState, 'send'> | null, applied
   return !!state?.send && !appearanceEquals(state.send, applied ?? IDENTITY);
 }
 
+/** WHAT A SEND TO ON-AIR GRAPHICS CARRIES for the cue a graphic airs (phase 3): its style as the
+ *  fold now gives it (the production look, under the graphic's and the cue's own), beside the
+ *  place and size the graphic already holds, never a prepared one: the press sends a look, so a
+ *  nudge still being made waits for its Update as a half-typed name does. Undefined when nothing
+ *  would change. */
+export function lookAppearance(state: Pick<CueAdjustState, 'style'> | null, applied: AppliedAppearance | null | undefined): AppliedAppearance | undefined {
+  const next = appearanceOf(applied?.frame ?? null, state?.style ?? null);
+  return appearanceEquals(next, applied ?? IDENTITY) ? undefined : next;
+}
+
 /** A Take or Update of this cue must wait (capped) for a measurement of its values as they are now:
  *  its preset or its size resolves against the box, and the box it holds is for other values or
  *  none (a longer name typed just before the press, a feed moving a bound value). */
@@ -286,7 +300,7 @@ export function cueAdjustState(
   /** What the style resolves against (phase 2): the production's imported faces. */
   styleCtx: StyleContext = NO_STYLE_CONTEXT,
 ): CueAdjustState {
-  const eff = effectiveAdjust(graphic.adjust, cue.adjust);
+  const eff = effectiveAdjust(graphic.adjust, cue.adjust, styleCtx.lookFor?.(graphic.id));
   const style = styleCtx.resolve(eff, styleCtx.imported);
   const styleId = styleKey(appearanceOf(null, style));
   const measureStyleId = measureStyleKey(appearanceOf(null, style));
