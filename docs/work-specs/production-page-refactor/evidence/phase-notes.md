@@ -73,9 +73,9 @@ changes a spec's digest.
     unchanged and E6.2 invokes them.
   - *Kept arguments follow the package* (`TypedAction.schema`, the declared schema's content hash,
     after `/check` review): a change in how this build parses a schema never drops what was kept.
-  - *A stated limit, not fixed here*: an imported stranger's graphic still airs as a composed page
-    (no production code mounts a stage's `foreign` layer before E3), so a typed action reaches it only
-    if its page defines `noacgDispatch`; `customAction` on a mounted foreign package is mapped
+  - *A stated limit*: an imported stranger's graphic still airs as a composed page (no production
+    code mounts a stage's `foreign` layer before E3), so its actions are offered only when its page
+    defines `noacgDispatch` (below); `customAction` on a mounted foreign package is mapped
     (`ografCallFor`) and waits for E3's mount. The press reads "accepted" when the log took it; what
     the Graphic did with it is E2.2's truthful feedback.
   - *A typed cue whose graphic's schema cannot be drawn* (declaration lost or unreadable) reads out
@@ -119,8 +119,16 @@ changes a spec's digest.
     turning typed data on or off is still refused there, as E1.2a decided.
   - *A declared action's legality is unknown, never the machine's*: its button is never greyed by the
     machine's legality table, on the page or for a panel.
-  - *A form write never overwrites another edit*: `setCueTypedValues` takes the values the form was
-    showing and refuses ("This cue changed elsewhere. Try again.") when the stored ones differ.
+  - *A form edit is a change, applied at write time*: the form hands its edit as an update of the
+    value (`(current) => setAt(current, path, v)`), and `setCueTypedValues` / `setCueTypedArgs` apply
+    it to what is stored when the write lands, so quick successive edits each touch only their own
+    path and none is refused or rewritten.
+  - *A typed edit that did not save sends nothing typed*: a failed typed write (`typedWriteFailed`)
+    makes Take, ✎ Update and a press refuse with the reason, rather than air the older record, until
+    a later typed write lands.
+  - *Actions only where they can be received*: until E3 mounts a stranger's package, an imported
+    graphic airs as a composed page that takes an action only through `noacgDispatch`; a page that
+    defines none is offered no ⚡ button and no argument form (`receivesTypedActions`).
   - *An absent optional on/off shows its declared default*, what the Graphic applies.
   - *Seams changed and where*: E1's `migrateToTyped` (option), `readTypedWire`, `typedOutputGate`,
     `typedOutputsRefusal` (`need`), `TYPED_READER` (2), `TypedNode.labels`, `TypedAction.schema`, the

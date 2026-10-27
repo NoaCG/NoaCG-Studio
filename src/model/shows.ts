@@ -27,7 +27,7 @@ import {
 } from './productionData';
 import type { ShowProfile } from './profile';
 import { put, readShowProfile, serializeShowProfile } from './profile';
-import { actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
+import { actionArgsOf, actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
 import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
@@ -1505,18 +1505,18 @@ export function setCueTyped(
 export function setCueTypedValues(
   showId: string,
   cueId: string,
-  values: TypedValues['values'],
-  /** The values the form was showing when the edit was made: another edit since is never written over. */
-  base?: TypedValues['values'],
+  /** The values, or the form's edit as a change to the values stored when it lands: an edit then
+   *  touches only its own path, never rewriting what another edit since has changed. */
+  values: TypedValues['values'] | ((current: TypedValues['values']) => JsonValue | undefined),
 ): { shows: Show[]; error: string | null } {
-  if (readJson(values) || typeof values !== 'object' || values === null || Array.isArray(values)) return { shows: loadShows(), error: 'These values cannot be kept.' };
   const plan = (show: Show): { error: string } | { typed: TypedValues } => {
     const cue = show.cues?.find((c) => c.id === cueId);
     if (!cue) return { error: 'This cue was removed.' };
     const envelope = typedValuesOf(cue.typed);
     if (!envelope) return { error: cue.typed === undefined ? 'This cue’s typed data is off.' : 'This cue’s typed data cannot be changed here.' };
-    if (base && JSON.stringify(envelope.values) !== JSON.stringify(base)) return { error: 'This cue changed elsewhere. Try again.' };
-    return { typed: { ...envelope, values } };
+    const next = typeof values === 'function' ? values(envelope.values) : values;
+    if (next === undefined || readJson(next) || typeof next !== 'object' || next === null || Array.isArray(next)) return { error: 'These values cannot be kept.' };
+    return { typed: { ...envelope, values: next } };
   };
   const first = readEditable().find((s) => s.id === showId && !s.deleted);
   const planned = first ? plan(first) : null;
@@ -1539,8 +1539,13 @@ export function setCueTypedValues(
  * descriptor (`actionSchemaOf`), valid or not, since a press validates them whole. `args` undefined
  * removes the action's entry. Refused on a cue whose kept arguments this build cannot read.
  */
-export function setCueTypedArgs(showId: string, cueId: string, action: TypedAction, args: JsonValue | undefined): { shows: Show[]; error: string | null } {
-  if (args !== undefined && readJson(args, TYPED_MAX_DEPTH)) return { shows: loadShows(), error: 'These arguments cannot be kept.' };
+export function setCueTypedArgs(
+  showId: string,
+  cueId: string,
+  action: TypedAction,
+  /** The arguments (undefined removes them), or the form's edit as a change to the ones stored. */
+  update: JsonValue | undefined | ((current: JsonValue | undefined) => JsonValue | undefined),
+): { shows: Show[]; error: string | null } {
   const schema = actionSchemaOf(action);
   return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
@@ -1548,6 +1553,8 @@ export function setCueTypedArgs(showId: string, cueId: string, action: TypedActi
     if (typedReadOnly(cue)) return 'This cue’s typed data was saved by another version of NoaCG, so it is read-only here.';
     const read = readTypedArgs(cue.typedArgs);
     if (read.status === 'read-only') return 'This cue’s action arguments were saved by another version of NoaCG.';
+    const args = typeof update === 'function' ? update(actionArgsOf(action, cue.typedArgs)) : update;
+    if (args !== undefined && readJson(args, TYPED_MAX_DEPTH)) return 'These arguments cannot be kept.';
     const actions: TypedArgs['actions'] = {};
     for (const [id, entry] of Object.entries(read.status === 'ok' ? read.args.actions : {})) if (id !== action.id) put(actions, id, entry);
     if (args !== undefined) put(actions, action.id, { schema, args });

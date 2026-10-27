@@ -83,9 +83,9 @@ import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
 import type { Resolution, SpxTemplate } from '../../model/types';
-import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend, type TypedValues } from '../../model/ografTyped';
+import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend } from '../../model/ografTyped';
 import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
-import { graphicButtons } from '../../control/ografContract';
+import { graphicButtons, receivesTypedActions } from '../../control/ografContract';
 import { createTypedSendMemo, typedActionSendFor } from '../../control/typedSend';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
@@ -456,6 +456,8 @@ const PLACE_UNSENT = '@place';
 const PUBLISH_MEASURE_CAP_MS = 8_000;
 const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
 const NO_TYPED_AIR: NonNullable<AirPart['typedAired']> = {};
+/** A typed edit that did not save sends nothing older in its place (E2.1). */
+const TYPED_NOT_SAVED = 'The last typed edit was not saved, so nothing typed was sent. Check the value and try again.';
 /** No Presence: PREVIEW asks no output whether it reads typed data. */
 const NO_PRESENCE = { showId: null, status: 'joined', peers: [] } as const;
 const typedAiredOf = (air: AirPart) => air.typedAired ?? NO_TYPED_AIR;
@@ -1355,8 +1357,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     typedFlushers.current.add(flush);
     return () => void typedFlushers.current.delete(flush);
   }, []);
-  /** The typed form's writes still landing through the rundown's history, awaited by the same wait. */
+  /** The typed form's writes still landing through the rundown's history, awaited by the same wait,
+   *  and whether the last one failed: then nothing typed is sent, since what is stored is not what the
+   *  operator typed, until a later typed write lands. */
   const typedWrites = useRef<Promise<unknown>>(Promise.resolve());
+  const typedWriteFailed = useRef(false);
   const flushDraft = useCallback(() => {
     for (const flush of typedFlushers.current) flush();
     // Started at once, as before: a caller cancels the draft right after asking (`selectCue`).
@@ -1636,7 +1641,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // Through the rundown's history, like every authored edit: undoable, and never read as another
     // tab's change that clears the stacks. A refusal is the history's note.
     const kept = (write: () => { error: string | null; shows: Show[] }, label: string) => {
-      const landing = history.write(write, label);
+      const landing = history.write(write, label).then((ok) => {
+        typedWriteFailed.current = !ok;
+        return ok;
+      });
       typedWrites.current = typedWrites.current.then(() => landing);
     };
     const values = envelope && fields
@@ -1644,13 +1652,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           fields,
           value: envelope.values,
           errors: new Map([...typedErrorsByPath(fields, envelope.values)].filter(([at]) => !bound[at.split(/[.[]/)[0]])),
-          onChange: (next: TypedValues['values']) => kept(() => setCueTypedValues(show.id, cue.id, next, envelope.values), 'Edit typed data'),
+          onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedValues(show.id, cue.id, update), 'Edit typed data'),
         }
       : null;
+    // Argument forms only where a press can be received (`receivesTypedActions`), as its ⚡ button.
+    const pooled = graphicsRef.current?.find((g) => g.name === graphic);
+    const receives = !!pooled && receivesTypedActions(templateForSavedGraphic(pooled, libraryRef.current).js);
     const actions = declared.description.actions.flatMap((a) => {
-      if (!a.args) return [];
+      if (!a.args || !receives) return [];
       const value = actionArgsOf(a, cue.typedArgs);
-      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (args: JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, args), `Edit ${a.name}`) }];
+      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, update), `Edit ${a.name}`) }];
     });
     return values || actions.length ? { values, actions, register: registerTypedFlush } : null;
   };
@@ -2056,7 +2067,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // structural guard they grey by, and its states for the recovery snap picker. All parsed
   // from the same live template the editor's fields come from, so the panel can never describe
   // a different graphic than the fields do. Empty on a template with no explicit machine.
-  const events = useMemo(() => (editorTemplate ? graphicButtons(eventButtons(editorTemplate.js), editorTemplate.ograf) : []), [editorTemplate]);
+  const events = useMemo(() => (editorTemplate ? graphicButtons(eventButtons(editorTemplate.js), editorTemplate) : []), [editorTemplate]);
   const legality = useMemo(() => (editorTemplate ? eventLegality(editorTemplate.js) : {}), [editorTemplate]);
   const stateGroups = useMemo(() => (editorTemplate ? machineStateGroups(editorTemplate.js) : []), [editorTemplate]);
   // The NAMES for the chip come from their own resolver rather than from `stateGroups`: that
@@ -2195,7 +2206,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // move anything (`canAdvance`). The rest is what a PINNED block of this graphic draws and
       // greys by (home/LiveControls.tsx), read from the same template the editor reads.
       out.set(g.name, {
-        buttons: graphicButtons(eventButtons(tpl.js), tpl.ograf),
+        buttons: graphicButtons(eventButtons(tpl.js), tpl),
         js: tpl.js,
         descriptors: fieldDescriptors(tpl.fields),
         path: continueEvents(tpl.js),
@@ -2898,9 +2909,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     boundFields,
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     // After the wait: a typed form's edit it landed is in the record, newer than this render's cue.
-    typedFor: (cue, graphic) => typedFor(storedCue(cue), graphic),
+    typedFor: (cue, graphic) => (cue.typed !== undefined && typedWriteFailed.current ? { status: 'refused', reason: TYPED_NOT_SAVED } : typedFor(storedCue(cue), graphic)),
     typedActionFor: (cue, graphic, action) =>
-      typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id }),
+      typedWriteFailed.current ? { status: 'refused', reason: TYPED_NOT_SAVED } : typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id }),
     typedAiring: (graphic) => graphic in (session.air.get().typedAired ?? NO_TYPED_AIR),
     selectionAired,
     candidateFields,

@@ -298,8 +298,13 @@ test('declared actions are ordinary arranged buttons; a panel sees them only as 
   assert.deepEqual(contract.typedActionButtons({ v: 2, manifest: stranger }), []);
   // Put together in one place; an action named like a machine event is left out, never doubled.
   const machine = [{ event: 'reset', label: 'Start over' }];
-  assert.deepEqual(contract.graphicButtons(machine, { v: 1, manifest: stranger }), [machine[0], buttons[0]]);
-  assert.deepEqual(contract.graphicButtons(machine, undefined), machine);
+  const receiving = 'window.noacgDispatch = function (e, p) {};';
+  assert.deepEqual(contract.graphicButtons(machine, { js: receiving, ograf: { v: 1, manifest: stranger } }), [machine[0], buttons[0]]);
+  assert.deepEqual(contract.graphicButtons(machine, { js: receiving, ograf: undefined }), machine);
+  // A page that cannot receive an action is offered none: a press would read "accepted" and do nothing.
+  assert.deepEqual(contract.graphicButtons(machine, { js: 'window.update = function () {};', ograf: { v: 1, manifest: stranger } }), machine);
+  assert.equal(contract.receivesTypedActions('window.noacgDispatch=f'), true);
+  assert.equal(contract.receivesTypedActions('window.noacgDispatched = 1'), false);
   const control = (button) => ({ button, label: button.label, named: false });
   const caps = graphicCapabilities({
     graphic: 'Results',

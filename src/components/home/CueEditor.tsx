@@ -794,9 +794,9 @@ export interface CueTypedSwitch {
  *  page; null for a cue whose graphic declares no OGraf schema and no action arguments. */
 export interface CueTypedForm {
   /** The values' form, while the cue's typed data is on. */
-  values: { fields: TypedNode; value: TypedValues['values']; errors: ReadonlyMap<string, string[]>; onChange: (values: TypedValues['values']) => void } | null;
+  values: { fields: TypedNode; value: TypedValues['values']; errors: ReadonlyMap<string, string[]>; onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => void } | null;
   /** One per declared action that takes arguments. */
-  actions: { id: string; name: string; node: TypedNode; value: JsonValue | undefined; errors: ReadonlyMap<string, string[]>; onChange: (args: JsonValue | undefined) => void }[];
+  actions: { id: string; name: string; node: TypedNode; value: JsonValue | undefined; errors: ReadonlyMap<string, string[]>; onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => void }[];
   /** Puts a form's settling edit under the page's verb wait; answers its removal. */
   register: (flush: () => void) => () => void;
 }
@@ -1369,7 +1369,7 @@ export default function CueEditor({
             key={editingCue.id}
             node={typedForm.values.fields}
             value={typedForm.values.value}
-            onChange={(v) => typedForm.values!.onChange((v ?? {}) as TypedValues['values'])}
+            onChange={typedForm.values.onChange}
             errors={typedForm.values.errors}
             testIdPrefix="cue-typed"
             register={typedForm.register}

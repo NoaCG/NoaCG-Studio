@@ -240,12 +240,23 @@ export function typedActionButtons(ograf: unknown): ControlButton[] {
   return declared.description.actions.map((a) => ({ event: a.id, label: a.name, typed: true as const }));
 }
 
-/** A graphic's ⚡ buttons: its machine's, then its declared OGraf actions (`typedActionButtons`). The
- *  one place both are put together; an action named like a machine event is left out, so a press
- *  never means two things. */
-export function graphicButtons(machine: ControlButton[], ograf: unknown): ControlButton[] {
+/**
+ * WHETHER A GRAPHIC'S PAGE CAN RECEIVE A DECLARED ACTION: until E3 mounts a stranger's package and
+ * calls its `customAction`, an imported graphic airs as a composed page, which takes an action only
+ * through `noacgDispatch` (preview/composeDocument.ts). A page that defines none is offered no ⚡
+ * button and no argument form: a press there would read "accepted" and do nothing.
+ */
+export function receivesTypedActions(js: string): boolean {
+  return /\bnoacgDispatch\b/.test(js);
+}
+
+/** A graphic's ⚡ buttons: its machine's, then its declared OGraf actions (`typedActionButtons`) when
+ *  its page can receive them. The one place both are put together; an action named like a machine
+ *  event is left out, so a press never means two things. */
+export function graphicButtons(machine: ControlButton[], template: { js: string; ograf?: unknown }): ControlButton[] {
+  if (!receivesTypedActions(template.js)) return machine;
   const native = new Set(machine.map((b) => b.event));
-  return [...machine, ...typedActionButtons(ograf).filter((b) => !native.has(b.event))];
+  return [...machine, ...typedActionButtons(template.ograf).filter((b) => !native.has(b.event))];
 }
 
 /** A property's default in the control's natural type: numbers stay numbers, everything else

@@ -408,12 +408,18 @@ test('E2.1: the form keeps typed drafts as they are and action arguments per act
     // A draft that does not fit is kept as it is, in its types, in the same envelope.
     assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'x'.repeat(41), round: 3, teams: [] }).error, null);
     assert.deepEqual(read().typed.values, { title: 'x'.repeat(41), round: 3, teams: [] });
-    // A write made from values another edit has since replaced is refused, never written over it.
+    // The form's edits are changes applied to the values stored when each lands: two made from the
+    // same render touch only their own paths, and neither rewrites the other.
     const shown = read().typed.values;
-    assert.equal(shows.setCueTypedValues(show.id, cueId, { ...shown, round: 2 }, shown).error, null);
-    assert.equal(shows.setCueTypedValues(show.id, cueId, { ...shown, title: 'Stale' }, shown).error, 'This cue changed elsewhere. Try again.');
-    assert.equal(read().typed.values.round, 2);
+    assert.equal(shows.setCueTypedValues(show.id, cueId, (current) => ({ ...current, round: 2 })).error, null);
+    assert.equal(shows.setCueTypedValues(show.id, cueId, (current) => ({ ...current, title: 'Both' })).error, null);
+    assert.deepEqual(read().typed.values, { ...shown, round: 2, title: 'Both' });
+    assert.equal(shows.setCueTypedValues(show.id, cueId, () => [1]).error, 'These values cannot be kept.');
     assert.equal(shows.setCueTypedValues(show.id, cueId, shown).error, null);
+    // An action's arguments the same way, from what is stored (its new value when nothing is).
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, describeOgraf(stranger).actions[0], (current) => ({ ...current, colour: '#00000000' })).error, null);
+    assert.deepEqual(read().typedArgs.actions.highlight.args, { team: 0, colour: '#00000000' });
+    assert.equal(shows.setCueTypedArgs(show.id, cueId, describeOgraf(stranger).actions[0], undefined).error, null);
     assert.equal(read().typed.schema, schema);
     // Action arguments: typed, per action, against the declared schema's hash; removed when undefined.
     const actions = describeOgraf(stranger).actions;

@@ -16,7 +16,9 @@ export interface TypedFormProps {
   /** The root descriptor: a data schema, or one action's arguments. */
   node: TypedNode;
   value: JsonValue | undefined;
-  onChange: (value: JsonValue | undefined) => void;
+  /** One edit, as a change to the value it is applied to: the stored one at write time, so an edit
+   *  never rewrites what another edit since has changed. */
+  onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => void;
   /** Each failing path's reasons (control/ografForm.ts `typedErrorsByPath`). */
   errors: ReadonlyMap<string, string[]>;
   /** Names the test ids: `<prefix>-<path>` on a control. */
@@ -40,7 +42,7 @@ export function TypedForm(props: TypedFormProps) {
   const edits = useDeferredEdits((key, text) => {
     const path = JSON.parse(key) as TypedPath;
     const leaf = typedLeaf(typedNodeAt(node, path) ?? node, pathKey(path));
-    if (leaf) onChange(setAt(value, path, text === '' && typedOptionalAt(node, path) ? undefined : leaf.read(text)));
+    if (leaf) onChange((current) => setAt(current, path, text === '' && typedOptionalAt(node, path) ? undefined : leaf.read(text)));
   });
 
   const flushNow = useRef(edits.flush);
@@ -84,7 +86,7 @@ export function TypedForm(props: TypedFormProps) {
           {/* A control with no empty state of its own (a number, on/off, a short choice) clears an
               optional value here; every other one clears it by being emptied. */}
           {optional && stored !== undefined && (leaf.descriptor.kind === 'number' || leaf.descriptor.kind === 'toggle' || (leaf.descriptor.options && isSegmented(leaf.descriptor.options))) && (
-            <button type="button" className="pd-typed-unset" title={`Remove ${label}`} aria-label={`Remove ${label}`} onClick={() => onChange(setAt(value, path, undefined))} data-testid={`${testIdPrefix}-unset-${key}`}>
+            <button type="button" className="pd-typed-unset" title={`Remove ${label}`} aria-label={`Remove ${label}`} onClick={() => onChange((current) => setAt(current, path, undefined))} data-testid={`${testIdPrefix}-unset-${key}`}>
               ✕
             </button>
           )}
@@ -96,8 +98,8 @@ export function TypedForm(props: TypedFormProps) {
             if (text) edits.type(editKey, String(v));
             // An empty choice (a picture's None, a list's blank) clears an optional value; on a
             // required one it is the text it says, except a declared list's placeholder.
-            else if (v === '' && optional) onChange(setAt(value, path, undefined));
-            else if (v !== 'other' && !(v === '' && n.enum)) onChange(setAt(value, path, leaf.read(v)));
+            else if (v === '' && optional) onChange((current) => setAt(current, path, undefined));
+            else if (v !== 'other' && !(v === '' && n.enum)) onChange((current) => setAt(current, path, leaf.read(v)));
           }}
           images={props.images}
           imageHint={props.imageHint}
@@ -123,7 +125,7 @@ export function TypedForm(props: TypedFormProps) {
   };
 
   const add = (n: TypedNode, path: TypedPath, label: string, testKey: string) => (
-    <button type="button" className="pd-typed-add" onClick={() => onChange(setAt(value, path, typedSeed(n) ?? null))} data-testid={`${testIdPrefix}-add-${testKey}`}>
+    <button type="button" className="pd-typed-add" onClick={() => onChange((current) => setAt(current, path, typedSeed(n) ?? null))} data-testid={`${testIdPrefix}-add-${testKey}`}>
       + {label}
     </button>
   );
@@ -156,7 +158,7 @@ export function TypedForm(props: TypedFormProps) {
       <legend>
         {label}
         {typedOptionalAt(node, path) && (
-          <button type="button" className="pd-typed-unset" title={`Remove ${label}`} aria-label={`Remove ${label}`} onClick={() => onChange(setAt(value, path, undefined))} data-testid={`${testIdPrefix}-unset-${key}`}>
+          <button type="button" className="pd-typed-unset" title={`Remove ${label}`} aria-label={`Remove ${label}`} onClick={() => onChange((current) => setAt(current, path, undefined))} data-testid={`${testIdPrefix}-unset-${key}`}>
             ✕
           </button>
         )}
@@ -179,13 +181,23 @@ export function TypedForm(props: TypedFormProps) {
         {items.slice(0, TYPED_FORM_ITEMS_SHOWN).map((_, i) => (
           <div className="pd-typed-item" key={i}>
             <div className="pd-typed-item-body">{n.items ? row(n.items, [...path, i], String(i + 1)) : null}</div>
-            <button type="button" className="pd-typed-remove" title={`Remove ${i + 1}`} aria-label={`Remove ${label} ${i + 1}`} onClick={() => onChange(setAt(value, [...path, i], undefined))} data-testid={`${testIdPrefix}-remove-${pathKey([...path, i])}`}>
+            <button type="button" className="pd-typed-remove" title={`Remove ${i + 1}`} aria-label={`Remove ${label} ${i + 1}`} onClick={() => onChange((current) => setAt(current, [...path, i], undefined))} data-testid={`${testIdPrefix}-remove-${pathKey([...path, i])}`}>
               ✕
             </button>
           </div>
         ))}
         {items.length > TYPED_FORM_ITEMS_SHOWN && <span className="hint">{items.length - TYPED_FORM_ITEMS_SHOWN} more not shown</span>}
-        {n.items && n.items.type !== 'unsupported' && !full && add(n.items, [...path, items.length], 'Add', key)}
+        {n.items && n.items.type !== 'unsupported' && !full && (
+          <button
+            type="button"
+            className="pd-typed-add"
+            // At the end of the list as it is stored when the edit lands.
+            onClick={() => onChange((current) => { const list = getAt(current, path); return setAt(current, [...path, Array.isArray(list) ? list.length : 0], typedSeed(n.items!) ?? null); })}
+            data-testid={`${testIdPrefix}-add-${key}`}
+          >
+            + Add
+          </button>
+        )}
         {errorLine(path)}
       </fieldset>
     );
