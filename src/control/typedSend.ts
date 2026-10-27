@@ -85,3 +85,19 @@ export function typedActionSendFor(cue: { typedArgs?: unknown }, action: string,
   const outputs = typedOutputsRefusal(facts.published, presence.showId === facts.showId ? presence.status : 'joining', presence.peers, TYPED_ACTIONS_READER);
   return outputs ? { status: 'refused', reason: outputs } : send;
 }
+
+/** A typed edit that did not save sends nothing older in its place (E2.1). */
+export const TYPED_NOT_SAVED = 'The last typed edit was not saved, so nothing typed was sent. Check the value and try again.';
+
+/**
+ * THE TYPED FORM'S SAVES, CUE BY CUE (E2.1): a cue whose last typed write failed (values or an
+ * action's arguments) sends nothing typed, since what is stored is not what the operator typed, until
+ * its next typed write lands. Other cues are untouched.
+ */
+export function createTypedSaves(): { landed: (cueId: string, ok: boolean) => void; refusal: (cueId: string) => string | null } {
+  const failed = new Set<string>();
+  return {
+    landed: (cueId, ok) => void (ok ? failed.delete(cueId) : failed.add(cueId)),
+    refusal: (cueId) => (failed.has(cueId) ? TYPED_NOT_SAVED : null),
+  };
+}

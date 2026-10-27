@@ -25,7 +25,7 @@ const stranger = JSON.parse(readFileSync(path.join(root, 'scripts/fixtures/ograf
 const form = await import('../src/control/ografForm.ts');
 const typed = await import('../src/model/ografTyped.ts');
 const contract = await import('../src/control/ografContract.ts');
-const { typedActionSendFor } = await import('../src/control/typedSend.ts');
+const { typedActionSendFor, createTypedSaves, TYPED_NOT_SAVED } = await import('../src/control/typedSend.ts');
 const { graphicCapabilities, foreignCapabilities, graphicControls } = await import('../src/control/panelActions.ts');
 const { replaceRundown, rundownSlice } = await import('../src/model/rundownHistory.ts');
 
@@ -350,4 +350,16 @@ test('undo and redo put back a typed envelope the form changed; turning typed da
   assert.ok(replaceRundown(now, rundownSlice(now), rundownSlice(show(undefined))).refused, 'Off is not an undo');
   const later = show({ v: 2, values: { title: 'L' } });
   assert.ok(replaceRundown(later, rundownSlice(later), rundownSlice(show(env({ title: 'A' })))).refused, 'a later version is never rewritten');
+});
+
+test('a cue whose typed edit did not save sends nothing typed until its next one lands; other cues are untouched', () => {
+  const saves = createTypedSaves();
+  assert.equal(saves.refusal('a'), null);
+  saves.landed('a', false);
+  assert.equal(saves.refusal('a'), TYPED_NOT_SAVED);
+  assert.equal(saves.refusal('b'), null, 'another cue still takes');
+  saves.landed('b', true);
+  assert.equal(saves.refusal('a'), TYPED_NOT_SAVED, 'another cue landing clears nothing here');
+  saves.landed('a', true);
+  assert.equal(saves.refusal('a'), null);
 });

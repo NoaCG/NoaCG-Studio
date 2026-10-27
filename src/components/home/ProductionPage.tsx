@@ -86,7 +86,7 @@ import type { Resolution, SpxTemplate } from '../../model/types';
 import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend } from '../../model/ografTyped';
 import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
 import { graphicButtons, receivesTypedActions } from '../../control/ografContract';
-import { createTypedSendMemo, typedActionSendFor } from '../../control/typedSend';
+import { createTypedSaves, createTypedSendMemo, typedActionSendFor } from '../../control/typedSend';
 import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
 import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
@@ -456,8 +456,6 @@ const PLACE_UNSENT = '@place';
 const PUBLISH_MEASURE_CAP_MS = 8_000;
 const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
 const NO_TYPED_AIR: NonNullable<AirPart['typedAired']> = {};
-/** A typed edit that did not save sends nothing older in its place (E2.1). */
-const TYPED_NOT_SAVED = 'The last typed edit was not saved, so nothing typed was sent. Check the value and try again.';
 /** No Presence: PREVIEW asks no output whether it reads typed data. */
 const NO_PRESENCE = { showId: null, status: 'joined', peers: [] } as const;
 const typedAiredOf = (air: AirPart) => air.typedAired ?? NO_TYPED_AIR;
@@ -1361,7 +1359,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  and whether the last one failed: then nothing typed is sent, since what is stored is not what the
    *  operator typed, until a later typed write lands. */
   const typedWrites = useRef<Promise<unknown>>(Promise.resolve());
-  const typedWriteFailed = useRef(false);
+  const typedSaves = useRef(createTypedSaves());
   const flushDraft = useCallback(() => {
     for (const flush of typedFlushers.current) flush();
     // Started at once, as before: a caller cancels the draft right after asking (`selectCue`).
@@ -1642,7 +1640,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // tab's change that clears the stacks. A refusal is the history's note.
     const kept = (write: () => { error: string | null; shows: Show[] }, label: string) => {
       const landing = history.write(write, label).then((ok) => {
-        typedWriteFailed.current = !ok;
+        typedSaves.current.landed(cue.id, ok);
         return ok;
       });
       typedWrites.current = typedWrites.current.then(() => landing);
@@ -2909,9 +2907,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     boundFields,
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
     // After the wait: a typed form's edit it landed is in the record, newer than this render's cue.
-    typedFor: (cue, graphic) => (cue.typed !== undefined && typedWriteFailed.current ? { status: 'refused', reason: TYPED_NOT_SAVED } : typedFor(storedCue(cue), graphic)),
-    typedActionFor: (cue, graphic, action) =>
-      typedWriteFailed.current ? { status: 'refused', reason: TYPED_NOT_SAVED } : typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id }),
+    typedFor: (cue, graphic) => {
+      const unsaved = cue.typed === undefined ? null : typedSaves.current.refusal(cue.id);
+      return unsaved ? { status: 'refused', reason: unsaved } : typedFor(storedCue(cue), graphic);
+    },
+    typedActionFor: (cue, graphic, action) => {
+      const unsaved = typedSaves.current.refusal(cue.id);
+      return unsaved ? { status: 'refused', reason: unsaved } : typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id });
+    },
     typedAiring: (graphic) => graphic in (session.air.get().typedAired ?? NO_TYPED_AIR),
     selectionAired,
     candidateFields,

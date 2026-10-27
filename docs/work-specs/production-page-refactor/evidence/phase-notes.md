@@ -123,9 +123,12 @@ changes a spec's digest.
     value (`(current) => setAt(current, path, v)`), and `setCueTypedValues` / `setCueTypedArgs` apply
     it to what is stored when the write lands, so quick successive edits each touch only their own
     path and none is refused or rewritten.
-  - *A typed edit that did not save sends nothing typed*: a failed typed write (`typedWriteFailed`)
-    makes Take, ✎ Update and a press refuse with the reason, rather than air the older record, until
-    a later typed write lands.
+  - *A typed edit that did not save sends nothing typed*: a cue whose last typed write failed
+    (`control/typedSend.ts` `createTypedSaves`, cue by cue) refuses Take, ✎ Update and a press with the
+    reason, rather than air the older record, until its next typed write lands; other cues take.
+  - *An image declared only by `contentMediaType: image/*`* draws the picture picker in the flat
+    contract (bench, bridge) and a text line in the typed form, since E1's node does not carry the
+    media type: the safe direction (the value is kept as its string), for E3's asset road to settle.
   - *Actions only where they can be received*: until E3 mounts a stranger's package, an imported
     graphic airs as a composed page that takes an action only through `noacgDispatch`; a page that
     defines none is offered no ⚡ button and no argument form (`receivesTypedActions`).
