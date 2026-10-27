@@ -30,7 +30,8 @@ changes a spec's digest.
   - *The archive and the package* (`export/targets/ografForeign.ts`): bounds pinned at their edges
     (zip 32 MB, 1000 entries, 16 MB a file and 48 MB in all counted as they inflate, names of 240
     characters and 16 folders, 2000 stated references a file); names judged from the zip's own
-    central directory (no absolute path, drive, `..`, control character, case-twin or link); the
+    central directory, which must end where its end record starts (no prepended bytes, so no decoy
+    directory), with no absolute path, drive, `..`, control character, case or NFC twin, or link; the
     conformance gate without NoaCG's own element-id rule (the EBU's scoreboard has id `scoreboard`
     and mounts under a host tag); `main` a module inside the package; every reference a file states
     without running (manifest paths, static imports, `import()`, `new URL(.., import.meta.url)`, CSS

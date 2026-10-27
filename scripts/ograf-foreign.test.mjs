@@ -245,6 +245,7 @@ test('hostile entry names are refused before anything is kept', async () => {
   assert.match(await reason(rawZip([...okEntries(), { name: 'pkg/./a.mjs', data: 'x' }])), /empty or "\." folder/);
   assert.match(await reason(rawZip([...okEntries(), { name: 'pkg/link', data: '/etc/passwd', mode: 0o120777 }])), /"pkg\/link" is a link/);
   assert.match(await reason(rawZip([...okEntries(), { name: 'pkg/LIB/A.MJS', data: 'x' }])), /"pkg\/LIB\/A\.MJS" is in the archive twice/);
+  assert.match(await reason(rawZip([...okEntries(), { name: 'pkg/caf\u00e9.txt', data: 'x' }, { name: 'pkg/cafe\u0301.txt', data: 'y' }])), /is in the archive twice/);
   // The zip library would clean the first name into the second and keep only the later one: the
   // names are judged from the archive's own directory, before it does.
   assert.match(await reason(rawZip([{ name: 'pkg/../pkg/graphic.mjs', data: 'export default class {}' }, ...okEntries()])), /climbs out/);
@@ -294,6 +295,10 @@ test('a lying end record, a zip64 one and garbage are refused with their reasons
   many[many.length - 12] = 0xe9; many[many.length - 11] = 0x03; // claims 1001
   assert.match((await readOgrafArchive(many)).reason, /1001 entries/);
   assert.match((await readOgrafArchive(new Uint8Array(100))).reason, /not a readable zip archive/);
+  // Bytes prepended to an archive move its directory away from where the end record says.
+  const prefixed = new Uint8Array(bytes.length + 16);
+  prefixed.set(bytes, 16);
+  assert.match((await readOgrafArchive(prefixed)).reason, /directory is not where its end record says/);
 });
 
 test('references that leave the package or name nothing are refused with the file and the words', async () => {

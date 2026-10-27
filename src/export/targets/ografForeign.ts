@@ -81,6 +81,10 @@ function centralNames(bytes: Uint8Array): string[] | string {
   const u32 = (at: number) => (u16(at) | (u16(at + 2) << 16)) >>> 0;
   const total = u16(end + 10);
   if (total === 0xffff || u32(end + 16) === 0xffffffff) return 'It is a Zip64 archive, which a graphic package never needs.';
+  // The directory ends where the end record starts. Bytes put before the archive (a
+  // self-extractor's stub, or a decoy directory) would let the zip library read a directory other
+  // than the one judged here, so such an archive is refused.
+  if (u32(end + 16) + u32(end + 12) !== end) return 'Its directory is not where its end record says, so it cannot be read safely.';
   if (total > OGRAF_ARCHIVE_LIMITS.entries) return `The archive has ${total} entries; a package may have at most ${OGRAF_ARCHIVE_LIMITS.entries}.`;
   const names: string[] = [];
   // Decoded as JSZip decodes them (UTF-8), so the names judged here are the names it keys by; a
@@ -183,7 +187,8 @@ export async function readOgrafArchive(data: ArrayBuffer | Uint8Array, listed?: 
     if (refusal) return { ok: false, reason: refusal };
     const name = raw.replace(/\\/g, '/');
     // Two entries that differ only in case are one file on most disks a package is unpacked to.
-    const key = name.replace(/\/$/, '').toLowerCase();
+    // NFC first: an NFD name and its NFC twin are one file on a disk that normalises.
+    const key = name.normalize('NFC').replace(/\/$/, '').toLowerCase();
     if (seen.has(key)) return { ok: false, reason: `The entry "${name}" is in the archive twice.` };
     seen.add(key);
   }
