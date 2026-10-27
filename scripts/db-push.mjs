@@ -36,7 +36,7 @@
 //
 // A LIVE-PATH MIGRATION WAITS FOR A QUIET WINDOW. One that touches the contract renderers and
 // operator pages hold open for hours (LIVE_PATH_PREFIX says what that is) applies on its own only
-// when no renderer sent a heartbeat in the last ten minutes. Otherwise the files before it apply,
+// when no production is on air (QUIET_WINDOW_SQL says what that is). Otherwise the files before it apply,
 // it and everything after it are HELD, and the next landing tries again; `--live 0068` applies it
 // at once, after printing who is live. A hold is not a failure (exit 0 with a warning) until it is
 // a day old or an ordinary migration waits behind it; then it exits 1, so the post-land run goes
@@ -637,7 +637,7 @@ export const LIVE_PATH_TABLES = ['realtime.messages'];
 export const LIVE_PATH_FUNCTIONS = ['is_suspended', 'feature_denied', 'is_team_member', 'set_updated_at'];
 /** Files from this version on must declare the class; older ones are applied everywhere already. */
 export const FIRST_LIVE_PATH_MIGRATION = '0068';
-/** A production is live when its renderer sent a heartbeat this recently. */
+/** How recent a renderer heartbeat or an operator command must be to count (QUIET_WINDOW_SQL). */
 export const QUIET_MINUTES = 10;
 /** A hold older than this turns the post-land run red, the channel a refusal already uses. */
 export const HOLD_ALARM_HOURS = 24;
@@ -730,18 +730,57 @@ export function classifyMigration(version, name, text) {
 }
 
 /**
+ * WHICH PRODUCTIONS ARE ON AIR. A renderer heartbeat alone is not enough: a CasparCG server left
+ * running with the NoaCG output loaded beats every minute for days after the show, with nothing on
+ * air and nobody at a rundown, and held every live-path migration for as long as it ran (0102 and
+ * 0104 were applied by hand). So a production counts only while its renderer beats AND one of these
+ * holds, each answered as `why`:
+ *
+ * - `no command head`: no `control_heads` row, so nothing here can say what is on air;
+ * - `graphic on air`: a graphic whose last command put it on (`on`, from play or snap; stop clears it);
+ * - `live cue`: a layer with a cue, read through `control_live_cue_view`, the same rule the pages'
+ *   reads use, so a stale column under a newer head cue counts as the head says;
+ * - `recent command`: an operator command, staging or renderer report in the last QUIET_MINUTES.
+ *   A data feed's rows carry `src` and do not count: a feed left running into an idle production
+ *   airs nothing.
+ *
+ * A really airing show has something on air, so it still holds, and a function this reads that a
+ * later migration renames makes the query fail, which holds too.
+ */
+export const QUIET_WINDOW_SQL = `
+with on_air as (
+  select s.id, s.output_seen_at,
+    h.show_id is null as no_head,
+    exists (select 1 from jsonb_each(h.graphics) g
+            where jsonb_typeof(g.value) = 'object' and g.value->'on' = 'true'::jsonb) as graphic_on,
+    exists (select 1 from jsonb_each(case when jsonb_typeof(c.cue->'layers') = 'object' then c.cue->'layers' else '{}'::jsonb end) l
+            where coalesce(jsonb_typeof(l.value->'cue'), 'null') <> 'null')
+      or coalesce(jsonb_typeof(c.cue->'cue'), 'null') <> 'null' as cue_on,
+    exists (select 1 from public.control_events e
+            where e.show_id = s.id and e.created_at > now() - interval '${QUIET_MINUTES} minutes'
+              and not (e.msg ? 'src')) as commanded
+  from public.control_shows s
+  left join public.control_heads h on h.show_id = s.id
+  cross join lateral (select public.control_live_cue_view(s.live_cue, h.graphics) as cue) c
+  where s.output_seen_at > now() - interval '${QUIET_MINUTES} minutes'
+)
+select id::text as id,
+  case when no_head then 'no command head' when graphic_on then 'graphic on air'
+       when cue_on then 'live cue' else 'recent command' end as why
+from on_air
+where no_head or graphic_on or cue_on or commanded
+order by output_seen_at desc`;
+
+/**
  * The quiet window, read through the same Management API query the push uses: which productions
- * had a renderer heartbeat (`control_shows.output_seen_at`) in the last QUIET_MINUTES. `read` is
- * injected so the decision is testable. Any failure is `ok: false`, and that HOLDS: a window nobody
- * could read is not a quiet one.
+ * are on air (QUIET_WINDOW_SQL). `read` is injected so the decision is testable. Any failure is
+ * `ok: false`, and that HOLDS: a window nobody could read is not a quiet one.
  */
 export async function readQuietWindow(read) {
   try {
-    const rows = await read(
-      `select id::text as id from public.control_shows where output_seen_at > now() - interval '${QUIET_MINUTES} minutes' order by output_seen_at desc`,
-    );
+    const rows = await read(QUIET_WINDOW_SQL);
     if (!Array.isArray(rows) || rows.some((r) => typeof r?.id !== 'string')) throw new Error('unexpected answer shape');
-    return { ok: true, shows: rows.map((r) => r.id) };
+    return { ok: true, shows: rows.map((r) => r.id), why: Object.fromEntries(rows.map((r) => [r.id, r.why])) };
   } catch (error) {
     return { ok: false, error: error?.message || String(error) };
   }
@@ -1074,10 +1113,10 @@ function describe(migration) {
 /** Who was live, for a CI log: production ids only, never titles. */
 function describeWindow(ref, quiet) {
   if (!quiet.ok) return `\nQuiet window on ${ref}: could not be read (${quiet.error}), so it counts as NOT quiet.`;
-  if (!quiet.shows.length) return `\nQuiet window on ${ref}: no renderer heartbeat in the last ${QUIET_MINUTES} minutes.`;
-  const shown = quiet.shows.slice(0, 20).join(', ');
+  if (!quiet.shows.length) return `\nQuiet window on ${ref}: no production on air.`;
+  const shown = quiet.shows.slice(0, 20).map((id) => (quiet.why?.[id] ? `${id} (${quiet.why[id]})` : id)).join(', ');
   const more = quiet.shows.length > 20 ? ` and ${quiet.shows.length - 20} more` : '';
-  return `\nQuiet window on ${ref}: ${quiet.shows.length} production(s) had a renderer heartbeat in the last ${QUIET_MINUTES} minutes: ${shown}${more}.`;
+  return `\nQuiet window on ${ref}: ${quiet.shows.length} production(s) on air: ${shown}${more}.`;
 }
 
 /**
