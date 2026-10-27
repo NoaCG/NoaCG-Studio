@@ -117,9 +117,17 @@ changes a spec's digest.
   wrong-scope tasks, which join E8.2's kit. An exported hosted receiver declares only its
   package's own faces (phase 2's asset road), so a look turned on after an export falls back to
   the design's face there.
-  - A scope's Type row never offers the look's own face (`pickableFaces`): the look gives it
-    already, and a record naming its `fonts/look/` path would point at nothing once the look is
-    replaced. Publish carries the face's bytes on or off. The cost: a look captured from a pool graphic's own
+  - A scope's Type row never offers the look's own face to pick (`pickableFaces`): the look gives
+    it already, and a record naming its `fonts/look/` path would point at nothing once the look is
+    replaced. While it is the face in effect the row still lists it, so it reads it rather than
+    "As designed". Publish carries the face's bytes on or off.
+  - A production made from library graphics captures no look, so the panel starts from one
+    captured off its first graphic (`captureLookFromTemplate`); nothing is written until it is
+    turned on or edited.
+  - Known limit, left to the owner: replacing an imported-face look while it is on air, then
+    republishing, drops the old face from the payload, so an output reloaded before the next Take,
+    Update or Send draws that appearance in the fallback face. Keeping replaced faces would need a
+    second persisted font list on the production. The cost: a look captured from a pool graphic's own
     imported font ships that file twice (once at `fonts/look/`). Narrower rules each lost the face
     somewhere air still named it (sent, then Off, then republished). Its path is named by the
     file's bytes (`fonts/look/<hash>/<file>`), so a second brand's font at one file name never reads
