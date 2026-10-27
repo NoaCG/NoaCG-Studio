@@ -122,8 +122,11 @@ changes a spec's digest.
     replaced. While it is the face in effect the row still lists it, so it reads it rather than
     "As designed". Publish carries the face's bytes on or off.
   - A production made from library graphics captures no look, so the panel starts from one
-    captured off its first graphic (`captureLookFromTemplate`); nothing is written until it is
-    turned on or edited.
+    captured off its first graphic (`captureLookFromTemplate`), after the saved brand it names;
+    nothing is written until it is turned on or edited.
+  - The hosted page's "not on air yet" warning counts a staged Adjust change on a cue on air
+    (`hostedPlaceWaiting`, the production page's `placeWaiting` rule), judged against what the
+    wire says the graphic holds, so another operator's send clears it.
   - Known limit, left to the owner: replacing an imported-face look while it is on air, then
     republishing, drops the old face from the payload, so an output reloaded before the next Take,
     Update or Send draws that appearance in the fallback face. Keeping replaced faces would need a
