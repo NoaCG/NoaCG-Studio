@@ -111,7 +111,7 @@ import {
 } from '../playoutKeys';
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
-import { FOREIGN_NOT_PLAYABLE, isForeignGraphic } from '../../model/foreignPackage';
+import { isForeignGraphic } from '../../model/foreignPackage';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
@@ -2620,7 +2620,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A graphic cue's pool graphic, for an All-together folder's refusals. */
   const graphicOfCue = (c: ShowCue) => {
     const g = graphicByPoolId.get(c.sourceId);
-    return g ? { name: g.name, layer: graphicLayer(g) } : null;
+    return g ? { name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) } : null;
   };
   const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
   /** This render's facts for the Take refusals (control/takeBlockers.ts). */
@@ -2639,9 +2639,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphicOf: graphicOfCue,
     slots: PLAYOUT_SLOTS,
     selectionBlocker: (cue) => {
-      // A stranger's OGraf package sits in the pool and the rundown (E3.1), but airing it through
-      // its isolated host is the next phase's: until then a Take says so rather than airing nothing.
-      if (isForeignGraphic(graphicByPoolId.get(cue.sourceId)?.template)) return FOREIGN_NOT_PLAYABLE;
       const take = candidateTake(cue);
       if (take.status === 'refused') return take.reason;
       const graphic = cue.typed === undefined ? null : cueGraphicName(cue);

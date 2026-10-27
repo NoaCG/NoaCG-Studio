@@ -456,3 +456,16 @@ test('a production export to SPX refuses a foreign package by name', async () =>
   const show = { id: 's', name: 'Show', graphics: [{ id: 'g', name: 'Scoreboard', type: 'blank', savedAt: '', template }], cues: [], updatedAt: '' };
   await assert.rejects(buildShowZip(show), /Scoreboard is an imported OGraf package, so it exports only as OGraf\./);
 });
+
+test('a page with no crypto.subtle (plain http on a LAN) gets the same sha256', async () => {
+  const bytes = fixture('ebu-scoreboard').get('graphic.mjs');
+  const withSubtle = await model.sha256(bytes);
+  const real = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  Object.defineProperty(globalThis, 'crypto', { value: {}, configurable: true });
+  try {
+    assert.equal(await model.sha256(bytes), withSubtle);
+    assert.equal(withSubtle, sha(bytes));
+  } finally {
+    Object.defineProperty(globalThis, 'crypto', real);
+  }
+});

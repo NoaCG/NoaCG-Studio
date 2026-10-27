@@ -21,6 +21,7 @@
 import type { AssetFile, SpxTemplate } from './types';
 import { readOgrafDeclared } from './ografTyped';
 import { dataUrlToBlob, isDataUrl } from '../assets/assetUtils';
+import { audioHash } from '../assets/audioHash';
 
 export const FOREIGN_PACKAGE_VERSION = 1;
 
@@ -127,8 +128,11 @@ export const foreignExportRefusal = (name: string) => `${name} is an imported OG
 /** Lowercase hex of a digest. */
 const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
 
+/** SHA-256 of the bytes, as lowercase hex. A page served over plain http on a LAN has no
+ *  `crypto.subtle`; the same digest then comes from the dependency-free one the sound assets use. */
 export async function sha256(bytes: Uint8Array): Promise<string> {
-  return hex(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>));
+  const subtle = globalThis.crypto?.subtle;
+  return subtle ? hex(await subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)) : audioHash(bytes);
 }
 
 /** The package's revision: sha256 over its sorted file list, one `path\tsha256\tbytes\n` line each.

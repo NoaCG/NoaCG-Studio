@@ -42,10 +42,15 @@ changes a spec's digest.
     as it came; the export window offers OGraf alone and returns the verified bytes
     (`registry.ts` `foreignAware`, `exportTargetsFor`), every other target refuses; the library's
     control page offers no editor and no controlpanel.html.
-  - *Not yet on air, said*: a cue over a package is refused at Take with "Imported OGraf packages do
-    not play on outputs yet." (`FOREIGN_NOT_PLAYABLE`, through `takeBlockers`' selection blocker); a
-    production holding one does not publish, naming it (`foreignPublishRefusal`, asked first in
-    `publishControlShow`); a community pack refuses one (somebody else's work).
+  - *Not yet on air, said*: a cue over a package is refused at Take, alone, in a folder or direct,
+    with "Imported OGraf packages do not play on outputs yet." (`FOREIGN_NOT_PLAYABLE`, decided in
+    `control/takeBlockers.ts` from the pool graphic's `foreign` fact the page hands it); the
+    production gate refuses Publish of a production holding one and its export to any target but
+    OGraf, naming it (`productionGateFailures(..., door)`), so the export dialog shows it before a
+    build; a community pack refuses one (somebody else's work).
+  - *A page on plain http has no `crypto.subtle`*: `sha256` falls back to the dependency-free digest
+    the sound assets use (`assets/audioHash.ts`), the same hex, so a LAN-served studio imports and
+    exports packages too.
 - **Decisions.**
   - *An html page beside a manifest stays E1's native road*: only a manifest that is not ours, whose
     `main` the package holds (or beside no html at all), is foreign. E1/E2's typed fixtures (a page
@@ -68,8 +73,9 @@ changes a spec's digest.
     yet, so this row blocks Take and Publish with a reason rather than airing an empty document.
 - **Seams changed and where:** E1's `ografSchema.ts` `validateOgrafManifest` gains an
   `elementId: false` option (default unchanged); `publishGate` reads a foreign entry's record instead
-  of NoaCG code checks; `ProductionPage`'s selection blocker adds the foreign refusal (E2/L1's verbs
-  untouched); `hostedControl.ts` `publishControlShow` asks `foreignPublishRefusal` after the gate.
+  of NoaCG code checks; `productionGate.ts` takes the door (`publish` or a target id);
+  `takeBlockers.ts`' `graphicOf` carries `foreign` (E2/L1's verbs untouched); `hostedControl.ts` and
+  `showExport.ts` name their door to the gate.
   The wire, message kinds, stage, host and recovery are untouched.
 - **Traps.**
   - JSZip cleans `../` out of names on reading and lets a later entry replace an earlier one with the
@@ -85,7 +91,10 @@ changes a spec's digest.
   `e2e/ograf-library.spec.ts` (new), `scripts/ograf-foreign.test.mjs` (new),
   `src/model/foreignPackage.ts` (new), `src/model/types.ts`, `src/export/targets/ografForeign.ts`
   (new), `src/export/targets/ografSchema.ts`, `src/export/registry.ts`, `src/export/AGENTS.md`,
-  `src/validation/publishGate.ts`, `src/control/hostedControl.ts`, `src/community/packChecks.ts`,
+  `src/validation/publishGate.ts`, `src/validation/productionGate.ts`, `src/control/hostedControl.ts`,
+  `src/control/takeBlockers.ts`, `src/export/showExport.ts`, `src/model/importTemplate.ts` (three
+  helpers exported), `src/community/packChecks.ts`, `src/components/home/ProductionExportDialog.tsx`,
+  `scripts/take-blockers.test.mjs`,
   `src/components/wizard/templateFile.ts` (new), `src/components/wizard/CreationWizard.tsx`,
   `src/components/wizard/ai/AiStep.tsx`, `src/components/wizard/import/ImportDesignStep.tsx`,
   `src/components/wizard/steps/FinishStep.tsx`, `src/components/ExportSurface.tsx`,
