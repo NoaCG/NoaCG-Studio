@@ -133,6 +133,19 @@ export function withLookAssets<T extends { assets: readonly AssetFile[] }>(show:
   return own && !pool.some((t) => t.assets.some((a) => a.path === own.asset.path)) ? [...pool, { css: '', assets: [own.asset] }] : [...pool];
 }
 
+/** Whether the published output still lacks the look's imported face: the graphic Publish carries
+ *  it with (the first) reads differently now from what was published. Another change since the
+ *  last Publish, an accent say, says nothing about the face. Unknown digests: unknown, false. */
+export function lookFaceUnpublished(
+  show: { look?: ProjectBrand; publishedAt?: string; graphics: readonly { name: string }[] },
+  local: Readonly<Record<string, string>>,
+  published: Readonly<Record<string, string>> | null | undefined,
+): boolean {
+  const first = show.graphics[0];
+  if (!show.publishedAt || !lookImportedFace(show) || !first || !published || !(first.name in published) || !(first.name in local)) return false;
+  return local[first.name] !== published[first.name];
+}
+
 /** A published payload's graphics with the look's imported face carried once, by the first
  *  graphic, unless one already ships that file: every stage reads a face's bytes from any graphic
  *  of the production (output/stage.ts `assetData`). */

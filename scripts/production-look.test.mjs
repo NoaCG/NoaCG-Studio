@@ -222,6 +222,14 @@ describe('Send to on-air graphics carries the look beside the place and size hel
     // A send carries no font file: a published output lacking the look's face is told so.
     assert.equal(L.lookSentWords({ of: 2, updated: 2, gone: [], changed: [], failed: [] }, true), 'Look sent to 2 graphics on air. Publish changes for the published output to show its typeface.');
     assert.equal(L.lookSentWords({ of: 0, updated: 0, gone: [], changed: [], failed: [] }, true), 'No graphic is on air, so nothing was sent.', 'nothing sent, nothing to say about it');
+    // The face is unpublished only when the graphic that carries it reads differently from what
+    // was published; another change since (an accent) says nothing about the face.
+    const show = { look: { ...LOOK, fontId: null, customFont: { family: 'Brand Sans', format: 'woff2', asset: { path: 'fonts/brand-sans.woff2', data: 'x' } } }, publishedAt: '2026-10-27T00:00:00Z', graphics: [{ name: 'A' }, { name: 'B' }] };
+    assert.equal(L.lookFaceUnpublished(show, { A: '1', B: '9' }, { A: '1', B: '2' }), false, 'the carrier matches: the face is out there');
+    assert.equal(L.lookFaceUnpublished(show, { A: '3', B: '2' }, { A: '1', B: '2' }), true);
+    assert.equal(L.lookFaceUnpublished({ ...show, publishedAt: undefined }, { A: '3' }, { A: '1' }), false, 'never published: nothing to say');
+    assert.equal(L.lookFaceUnpublished(show, { A: '3' }, null), false, 'unknown digests: no claim');
+    assert.equal(L.lookFaceUnpublished({ ...show, look: LOOK }, { A: '3' }, { A: '1' }), false, 'a bundled face has no file to miss');
   });
 });
 

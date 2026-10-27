@@ -126,7 +126,7 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import { loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { lightPanel, lookExceptions, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
+import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
 import { getCssVariable } from '../../model/cssVars';
@@ -182,6 +182,7 @@ import {
   firstPublishedSources,
   sendControlVerbs,
   untilAnswered,
+  libraryGraphicDigests,
   sendsInOrder,
   sentHere,
   verbAired,
@@ -2201,7 +2202,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     try {
       const sent = await verbs.sendLook();
       // A published output reads a face's file from what was published; a send carries none.
-      const faceUnpublished = !!show?.publishedAt && !!lookImportedFace(show) && (await checkUnpublished());
+      const faceUnpublished = !!show && !!lookImportedFace(show) && lookFaceUnpublished(show, await libraryGraphicDigests(show, loadGraphics()), publishedStamp?.g);
       setLookSent(lookSentWords(sent, faceUnpublished));
     } finally {
       setLookSending(false);
