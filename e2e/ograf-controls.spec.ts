@@ -6,6 +6,7 @@
 // JSON type, so what is read is what the renderer received. Desktop and phone width.
 // covers: src/components/home/TypedForm.tsx, src/control/ografForm.ts, src/components/home/CueEditor.tsx
 // covers: src/control/ografContract.ts, src/control/typedSend.ts, src/control/graphicVerbs.ts, src/output/stage.ts
+// covers: src/control/pressFeedback.ts, src/components/home/CueActions.tsx
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -19,7 +20,8 @@ const PROBE_JS = [
   "function line(o) { return Object.keys(o).sort().map(function (n) { return n + '=' + (Array.isArray(o[n]) ? 'list' : typeof o[n]) + ':' + JSON.stringify(o[n]); }).join(' '); }",
   "window.update = function (d) { var o = JSON.parse(d); if (Object.keys(o).length) document.getElementById('v').textContent = line(o); };",
   "window.play = function () { document.getElementById('s').textContent = 'on'; };",
-  "window.noacgDispatch = function (e, p) { document.getElementById('a').textContent = e + ' ' + (typeof p) + ':' + JSON.stringify(p); };",
+  "var presses = 0;",
+  "window.noacgDispatch = function (e, p) { var a = document.getElementById('a'); a.textContent = e + ' ' + (typeof p) + ':' + JSON.stringify(p); a.dataset.n = String(++presses); };",
 ].join('\n');
 
 /** A production with one cue over the probe, which carries the stranger's manifest. */
@@ -229,4 +231,67 @@ test('the typed form works at phone width: reachable, no sideways scroll, edits 
   await reload(page);
   await expect(page.getByTestId('cue-typed-teams[1].name')).toHaveValue('Away');
   expect((await stored(page, showId)).values).toMatchObject({ round: 2, teams: [{ name: 'Home', score: 0 }, { name: 'Away', score: 0 }] });
+});
+
+test('a declared action targets the on-air cue: staged arguments say so, each press says what it came to, and a new instance starts clean', async ({ page }) => {
+  // E2.2 (AC-2, AC-3), on a phone-width panel: two cues of one graphic, the press's target shown in
+  // the form and on the button, and its outcome as an icon on the button for the instance on air.
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const showId = await seed(page);
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  const press = page.getByTestId('cue-action-highlight');
+  const target = page.getByTestId('cue-action-target-highlight');
+  const sentArgs = program(page).locator('#a');
+
+  // The first cue's arguments, staged until it is taken.
+  await page.getByTestId('cue-args-highlight-team').fill('1');
+  await page.getByTestId('cue-args-highlight-team').blur();
+  await expect.poll(async () => (await stored(page, showId)).args?.highlight.args).toEqual({ team: 1 });
+  await expect(target).toHaveText('Staged');
+  await page.getByTestId('verb-take').click();
+  await expect(program(page).locator('#s')).toHaveText('on', { timeout: 20_000 });
+  await expect(target).toHaveText('On air');
+  await expect(press).not.toHaveAttribute('data-press');
+  await press.click();
+  await expect(sentArgs).toHaveText('highlight object:{"team":1}');
+  await expect(sentArgs).toHaveAttribute('data-n', '1');
+  await expect(press).toHaveAttribute('data-press', 'sent');
+  await expect(press).toHaveAttribute('title', /^Sent\. Fires .+ with .+’s arguments\. The graphic decides whether it takes it\.$/);
+
+  // The second cue of the graphic, edited while the first airs: its arguments read staged, and a
+  // press sends the on-air cue's, as the button says.
+  await rows.nth(1).locator('.pd-cue-label').dispatchEvent('click');
+  await expect(target).toHaveText('Staged');
+  await page.getByTestId('cue-args-highlight-team').fill('2');
+  await page.getByTestId('cue-args-highlight-team').blur();
+  await expect(page.getByTestId('cue-args-highlight-team')).toHaveValue('2');
+  await press.click();
+  await expect(sentArgs).toHaveAttribute('data-n', '2');
+  await expect(sentArgs).toHaveText('highlight object:{"team":1}');
+  await expect(press).toHaveAttribute('data-press', 'sent');
+
+  // A press refused for its arguments reads refused, never sent, and sends nothing.
+  await rows.nth(0).locator('.pd-cue-label').dispatchEvent('click');
+  await typeInto(page, 'cue-args-highlight-colour', '#zz');
+  await press.click();
+  await expect(press).toHaveAttribute('data-press', 'refused');
+  await expect(press).toHaveAttribute('title', /^Refused: .*colour not a #rrggbbaa colour/);
+  await expect(sentArgs).toHaveAttribute('data-n', '2');
+
+  // A new instance on the layer: the old press's mark is not this one's, and its own arguments go.
+  await rows.nth(1).locator('.pd-cue-label').dispatchEvent('click');
+  await page.getByTestId('verb-take').click();
+  await expect(target).toHaveText('On air');
+  await expect(press).not.toHaveAttribute('data-press');
+  await press.click();
+  await expect(sentArgs).toHaveText('highlight object:{"team":2}');
+  await expect(sentArgs).toHaveAttribute('data-n', '3');
+  await expect(press).toHaveAttribute('data-press', 'sent');
+  // The mark is drawn at phone width, inside the panel.
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  const icon = await press.evaluate((el) => getComputedStyle(el, '::after').content);
+  expect(icon).toBe('"✓"');
 });

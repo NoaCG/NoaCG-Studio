@@ -5,6 +5,7 @@ import type { FieldDescriptor } from '../../model/fieldModel';
 import type { ArrangeEntry, ShowProfile } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import { IconPin } from '../icons';
+import { PRESS_SAYS, markTitle, type PressMark } from '../../control/pressFeedback';
 
 /** What one graphic's ⚡ buttons are judged and pressed against: whether the layer is up, whether
  *  the machine accepts an event where it stands, the operator's word for a field, what the layer
@@ -15,7 +16,14 @@ export interface ActionContext {
   labelOf: (key: string) => string | undefined;
   aired: Record<string, string> | null;
   fire: (button: ControlButton) => void;
+  /** What the button's last press came to on the instance on air now (control/pressFeedback.ts). */
+  mark?: (event: string) => PressMark | null;
+  /** The cue on air, whose kept arguments a declared OGraf action's press sends. */
+  airLabel?: string;
 }
+
+/** The mark's attributes: its state for styling and tests, its icon drawn by CSS beside the label. */
+const markAttrs = (mark: PressMark | null) => (mark ? { 'data-press': mark.state, 'data-press-icon': PRESS_SAYS[mark.state].icon } : {});
 
 /** One graphic's ⚡ button, drawn the same in its three places (pinned above the fold, inside its
  *  section, under "More"). The DECLARATION decides everything the press does; the arrangement
@@ -43,16 +51,21 @@ export function actionButtonFor(ctx: ActionContext) {
             // shows; a `set` press puts one back to a declared figure (a reset); an `add` press
             // puts a line on a list - the hint says which, and to what.
             `Fires ${name} on the live graphic and moves ${moved} with it.`
+          : b.typed
+            ? // A declared OGraf action: the arguments are the on-air cue's, and whether the Graphic
+              // takes it is its own, never the machine's confirmed legality (E2.2, AC-3).
+              `Fires ${name} on the live graphic with ${ctx.airLabel ? `${ctx.airLabel}’s` : 'its cue’s'} arguments. The graphic decides whether it takes it.`
           : b.payload?.length
             ? // The payload in the OPERATOR'S words, not as `f7`: what makes an action
               // self-explanatory is "it shows the Audience results field, which you type above".
               `Fires ${name} on the live graphic, carrying this cue's ${b.payload.map((key) => ctx.labelOf(key) ?? key).join(', ')}.`
             : `Fires ${name} on the live graphic.`;
+    const mark = ctx.mark?.(b.event) ?? null;
     if (options) {
       const active = ctx.aired?.[options.field];
       return (
         <span key={b.event} className="pd-pick" role="group" aria-label={label} data-testid={`cue-action-${b.event}`}>
-          <span className="pd-pick-label">{label}</span>
+          <span className="pd-pick-label" title={mark ? markTitle(label, mark) : undefined} {...markAttrs(mark)}>{label}</span>
           {options.options.map((o) => (
             <button
               key={o.value}
@@ -76,7 +89,8 @@ export function actionButtonFor(ctx: ActionContext) {
         // buttons under the operator's finger; a long one truncates and the hover has it whole.
         className={`pd-action${b.destructive ? ' destructive' : ''}${named ? ' named' : ''}`}
         disabled={!ctx.live || !legal}
-        title={title}
+        title={markTitle(title, mark)}
+        {...markAttrs(mark)}
         onClick={() => ctx.fire(b)}
         data-testid={`cue-action-${b.event}`}
       >

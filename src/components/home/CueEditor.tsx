@@ -799,6 +799,9 @@ export interface CueTypedForm {
   actions: { id: string; name: string; node: TypedNode; value: JsonValue | undefined; errors: ReadonlyMap<string, string[]>; onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => void }[];
   /** Puts a form's settling edit under the page's verb wait; answers its removal. */
   register: (flush: () => void) => () => void;
+  /** This cue is the one on air on its graphic's layer, so a ⚡ press sends these arguments; else
+   *  they are staged and go once it is taken (E2.2). */
+  onAir: boolean;
 }
 
 /** The writer's menu (E7.2a): which person this cue shows, picked from what each of its graphic's
@@ -1481,7 +1484,18 @@ export default function CueEditor({
           kept with the cue; a value that does not fit stops that press only. */}
       {typedForm?.actions.map((a) => (
         <fieldset className="pd-typed-group pd-typed-action" key={a.id} data-testid={`cue-action-args-${a.id}`}>
-          <legend>⚡ {a.name}</legend>
+          <legend>
+            ⚡ {a.name}
+            {/* WHOSE ARGUMENTS A PRESS SENDS (E2.2): the on-air cue's, so another cue of the graphic
+                reads staged here, and the button names the cue it carries. */}
+            <span
+              className={`pd-typed-target${typedForm.onAir ? ' air' : ''}`}
+              title={typedForm.onAir ? 'A ⚡ press sends these.' : 'A ⚡ press sends the on-air cue’s arguments. These go once this cue is taken.'}
+              data-testid={`cue-action-target-${a.id}`}
+            >
+              {typedForm.onAir ? 'On air' : 'Staged'}
+            </span>
+          </legend>
           <TypedForm key={editingCue.id} node={a.node} value={a.value} onChange={a.onChange} errors={a.errors} testIdPrefix={`cue-args-${a.id}`} register={typedForm.register} images={cueImages} />
         </fieldset>
       ))}
