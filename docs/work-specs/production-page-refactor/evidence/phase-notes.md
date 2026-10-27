@@ -86,8 +86,6 @@ changes a spec's digest.
     that declares a `default` takes that default at the next On, as any missing key does: turning
     typed data on is making its values, and an absent value with a declared default reads the same to
     a Graphic. Pinned in `scripts/ograf-typed-writer.test.mjs`.
-  - *An absent optional on/off* draws as off, like any missing boolean in a form; its ✕ shows only
-    while it holds a value, so "absent" and "false" differ by that mark alone. Presentation only.
   - *A typed edit is under every verb's wait* (Codex P1 on `e2b51b0`): the page's `flushDraft` first
     lands each form's settling edit (`registerTypedFlush`), and the verbs read the cue as stored after
     the wait (`storedCue`), so a Take by key or panel airs what the box shows.
@@ -110,9 +108,13 @@ changes a spec's digest.
   - *Which cue's arguments a press sends*: the cue live on the layer (`sel.airCue`), like every ⚡
     press reads the live cue's values; the forms sit with the edited cue, which is the live cue when it
     is on air. Saying the target on screen is E2.2's preview/program targeting and feedback.
-  - *Hosted log followers* (the exported receiver, `control/hostedReceiver.ts`) refuse a row carrying
-    `typed` whole, values or action, and hold the graphic as E1.2b decided; they are not in the
-    Presence check, so this is E1.2b's existing exposure, which actions share and do not widen in kind.
+  - *Hosted log followers* (the exported receiver, `control/hostedReceiver.ts`) leave a typed action
+    row out without holding the graphic (it moves no data, and a ⚡ press on a native-data cue of an
+    imported graphic must not freeze them), and still refuse and hold on a typed values row as E1.2b
+    decided. They are not in the Presence check. Exported receiver bytes change by this line.
+  - *A form write never overwrites another edit*: `setCueTypedValues` takes the values the form was
+    showing and refuses ("This cue changed elsewhere. Try again.") when the stored ones differ.
+  - *An absent optional on/off shows its declared default*, what the Graphic applies.
   - *Seams changed and where*: E1's `migrateToTyped` (option), `readTypedWire`, `typedOutputGate`,
     `typedOutputsRefusal` (`need`), `TYPED_READER` (2), `TypedNode.labels`, `TypedAction.schema`, the
     receipt's `defaulted`; `validateActionArgs`' parameter type; the OGraf host's `custom` (a falsy
@@ -132,7 +134,8 @@ changes a spec's digest.
 - **Touched files against `0897d09`:** `src/model/ografTyped.ts`, `src/model/shows.ts`,
   `src/control/ografForm.ts` (new), `src/control/ografContract.ts`, `src/control/typedSend.ts`,
   `src/control/graphicVerbs.ts`, `src/control/panelActions.ts`, `src/control/controlModel.ts`,
-  `src/control/livePath.ts` (comment), `src/control/ografHost.ts`, `src/blocks/animMachine.ts`, `src/output/stage.ts`,
+  `src/control/livePath.ts` (comment), `src/control/ografHost.ts`, `src/control/hostedReceiver.ts`,
+  `src/components/fields/FieldControl.tsx` (`isSegmented` exported), `src/blocks/animMachine.ts`, `src/output/stage.ts`,
   `src/preview/previewProtocol.ts`, `src/components/home/TypedForm.tsx` (new),
   `src/components/home/CueEditor.tsx`, `src/components/home/CueRundown.tsx`,
   `src/components/home/ProductionPage.tsx`, `src/styles/playout-dashboard.css`,

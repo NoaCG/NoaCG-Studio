@@ -1502,13 +1502,20 @@ export function setCueTyped(
  * with its path, so an invalid value blocks only those and is never erased. Bounded like any
  * envelope; allowed by `typedFrozen` for this cue and these bytes only, and never on a read-only cue.
  */
-export function setCueTypedValues(showId: string, cueId: string, values: TypedValues['values']): { shows: Show[]; error: string | null } {
+export function setCueTypedValues(
+  showId: string,
+  cueId: string,
+  values: TypedValues['values'],
+  /** The values the form was showing when the edit was made: another edit since is never written over. */
+  base?: TypedValues['values'],
+): { shows: Show[]; error: string | null } {
   if (readJson(values) || typeof values !== 'object' || values === null || Array.isArray(values)) return { shows: loadShows(), error: 'These values cannot be kept.' };
   const plan = (show: Show): { error: string } | { typed: TypedValues } => {
     const cue = show.cues?.find((c) => c.id === cueId);
     if (!cue) return { error: 'This cue was removed.' };
     const envelope = typedValuesOf(cue.typed);
     if (!envelope) return { error: cue.typed === undefined ? 'This cue’s typed data is off.' : 'This cue’s typed data cannot be changed here.' };
+    if (base && JSON.stringify(envelope.values) !== JSON.stringify(base)) return { error: 'This cue changed elsewhere. Try again.' };
     return { typed: { ...envelope, values } };
   };
   const first = readEditable().find((s) => s.id === showId && !s.deleted);

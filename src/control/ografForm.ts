@@ -170,7 +170,8 @@ export function typedLeaf(node: TypedNode, key: string, label = typedLabel(node,
     case 'boolean':
       return {
         descriptor: { ...base, kind: 'toggle', defaultValue: node.default === true ? '1' : '0' },
-        show: (v) => (v === true ? '1' : '0'),
+        // Absent, it shows what the Graphic applies: its declared default.
+        show: (v) => ((v === undefined ? node.default : v) === true ? '1' : '0'),
         read: (edited) => edited === '1' || edited === 'true' || edited === 1,
       };
     default:

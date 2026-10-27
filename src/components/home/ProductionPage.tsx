@@ -1638,7 +1638,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           fields,
           value: envelope.values,
           errors: new Map([...typedErrorsByPath(fields, envelope.values)].filter(([at]) => !bound[at.split(/[.[]/)[0]])),
-          onChange: (next: TypedValues['values']) => kept(setCueTypedValues(show.id, cue.id, next)),
+          onChange: (next: TypedValues['values']) => kept(setCueTypedValues(show.id, cue.id, next, envelope.values)),
         }
       : null;
     const actions = declared.description.actions.flatMap((a) => {

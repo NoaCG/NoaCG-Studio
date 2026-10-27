@@ -76,6 +76,11 @@ test('each leaf is the control its declared type means, and an edit gives back t
   const ratio = form.typedLeaf(node('ratio'), 'ratio');
   assert.equal(ratio.read('0'), 0.5);
   assert.equal(form.typedLeaf(node('live'), 'live').read('0'), true, 'a boolean enum keeps its boolean');
+  // An absent on/off shows what the Graphic applies: its declared default.
+  const onByDefault = form.typedLeaf({ path: 'b', type: 'boolean', default: true }, 'b');
+  assert.equal(onByDefault.show(undefined), '1');
+  assert.equal(onByDefault.show(false), '0');
+  assert.equal(form.typedLeaf({ path: 'b', type: 'boolean' }, 'b').show(undefined), '0');
   const flags = { path: 'x', type: 'string', enum: ['1', 'true'] };
   assert.equal(form.typedLeaf(flags, 'x').read('1'), 'true', 'a string enum stays strings');
   // Numbers stay numbers with their declared bounds and step.
@@ -306,6 +311,9 @@ test('declared actions are ordinary arranged buttons; a panel sees them only as 
     aired: null,
   });
   assert.deepEqual(caps.map((c) => c.id), ['event:goal']);
+  // A hosted follower leaves a typed action out without holding its graphic; a typed update holds.
+  const receiver = readFileSync(path.join(root, 'src/control/hostedReceiver.ts'), 'utf8');
+  assert.match(receiver, /if \(Object\.prototype\.hasOwnProperty\.call\(m, 'typed'\)\) \{[\s\S]{0,240}if \(m\.t === 'event'\) return true;\s*refuse\(/);
   // E6.1's foreign descriptors are unchanged: advertised, never invocable.
   const foreign = foreignCapabilities(stranger);
   assert.deepEqual(foreign.caps.map((c) => [c.id, c.invocable]), [['foreign:highlight', false], ['foreign:reset', false]]);

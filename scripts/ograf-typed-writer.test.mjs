@@ -408,6 +408,12 @@ test('E2.1: the form keeps typed drafts as they are and action arguments per act
     // A draft that does not fit is kept as it is, in its types, in the same envelope.
     assert.equal(shows.setCueTypedValues(show.id, cueId, { title: 'x'.repeat(41), round: 3, teams: [] }).error, null);
     assert.deepEqual(read().typed.values, { title: 'x'.repeat(41), round: 3, teams: [] });
+    // A write made from values another edit has since replaced is refused, never written over it.
+    const shown = read().typed.values;
+    assert.equal(shows.setCueTypedValues(show.id, cueId, { ...shown, round: 2 }, shown).error, null);
+    assert.equal(shows.setCueTypedValues(show.id, cueId, { ...shown, title: 'Stale' }, shown).error, 'This cue changed elsewhere. Try again.');
+    assert.equal(read().typed.values.round, 2);
+    assert.equal(shows.setCueTypedValues(show.id, cueId, shown).error, null);
     assert.equal(read().typed.schema, schema);
     // Action arguments: typed, per action, against the declared schema's hash; removed when undefined.
     const actions = describeOgraf(stranger).actions;
