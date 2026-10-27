@@ -605,7 +605,8 @@ describe('a recipe beside the identity projection, and no other path', () => {
     const r = recipe({ board: list({}).board, take: { from: 'counted' }, 'e2.x': { from: 'counted' } });
     const out = mapped(results(), { ...ticker, Other: { f0: 'external.e2.x' } }, r, { lists: lines });
     assert.deepEqual(Object.keys(out.writes), ['external.e1.board']);
-    assert.deepEqual(Object.keys(out).sort(), ['missing', 'problems', 'provenance', 'unfit', 'writes']);
+    assert.deepEqual(Object.keys(out).sort(), ['missing', 'problems', 'provenance', 'typedWrites', 'unfit', 'writes']);
+    assert.deepEqual(out.typedWrites, {}, 'no field here is typed');
   });
 
   test('a recipe holds no credential: a key it does not define is refused, and a copied recipe needs its source rebound', () => {
@@ -658,6 +659,38 @@ describe('a recipe\'s refusals below the list level, and payloads at the edge of
     const fmt = (locale) => recipe({ v: { from: 'v', format: { kind: 'number', locale, decimals: 0 } } });
     assert.equal(mapping.readSourceRecipe(fmt('en-US-u-nu-arab'), 'e1', 2).status, 'invalid');
     assert.equal(mapping.readSourceRecipe(fmt('en-US'), 'e1', 2).status, 'ok');
+  });
+});
+
+describe('E1.2a: the typed foreign target adapter, the route\'s half', () => {
+  const typedField = (key) => ({ key, label: key, kind: 'text', defaultValue: '', typed: true });
+  const textField = (key) => ({ key, label: key, kind: 'text', defaultValue: '' });
+  const payload = { home: { score: 3, live: false, names: ['A', 'B'], record: { won: 2 }, text: '3' } };
+
+  test('a leaf only typed fields read is written as the JSON it is, apart from the text; nothing is read from a string', () => {
+    const bindings = { Board: { score: 'external.e1.home.score', live: 'external.e1.home.live', names: 'external.e1.home.names', text: 'external.e1.home.text', f0: 'external.e1.home.score2' } };
+    const fields = { Board: [typedField('score'), typedField('live'), typedField('names'), typedField('text'), textField('f0')] };
+    const out = project({ ...payload, home: { ...payload.home, score2: 7 } }, bindings, { fields });
+    assert.deepEqual(out.typedWrites, { 'external.e1.home.score': 3, 'external.e1.home.live': false, 'external.e1.home.names': ['A', 'B'], 'external.e1.home.text': '3' });
+    assert.deepEqual(out.writes, { 'external.e1.home.score2': '7' }, 'a native field reads text, as before');
+  });
+
+  test('one value read by a typed and a text field, a list adapter, a format or a fallback holds; a missing one keeps its value', () => {
+    const fields = { Board: [typedField('score')], Other: [textField('f0')] };
+    const shared = project(payload, { Board: { score: 'external.e1.home.score' }, Other: { f0: 'external.e1.home.score' } }, { fields });
+    assert.deepEqual([shared.typedWrites, shared.writes, shared.unfit], [{}, {}, ['home.score']]);
+    assert.match(shared.problems['home.score'], /typed and text fields/);
+    const listed = project(payload, { Board: { score: 'external.e1.home.names' } }, { fields, lists: { 'home.names': 'lines' } });
+    assert.match(listed.problems['home.names'], /no list, format or fallback/);
+    const formatted = mapped(payload, { Board: { score: 'external.e1.share' } }, recipe({ share: { from: 'home.score', format: { kind: 'number', locale: 'fi-FI', decimals: 1 } } }), { fields });
+    assert.match(formatted.problems.share, /no list, format or fallback/);
+    const fallback = mapped(payload, { Board: { score: 'external.e1.share' } }, recipe({ share: { from: 'home.gone', fallback: '-' } }), { fields });
+    assert.match(fallback.problems.share, /no list, format or fallback/);
+    // Through a recipe the value is the one at `from`, as sent.
+    const from = mapped(payload, { Board: { score: 'external.e1.share' } }, recipe({ share: { from: 'home.record' } }), { fields });
+    assert.deepEqual(from.typedWrites, { 'external.e1.share': { won: 2 } });
+    const missing = project(payload, { Board: { score: 'external.e1.home.gone' } }, { fields });
+    assert.deepEqual([missing.typedWrites, missing.missing], [{}, ['home.gone']]);
   });
 });
 

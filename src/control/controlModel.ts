@@ -7,6 +7,7 @@
 import type { AppliedAppearance } from './cueAdjust';
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
+import type { TypedValues } from '../model/ografTyped';
 import { parseAnimData } from '../blocks/animData';
 import { deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
 import { upgradeControls } from './controlUpgrades';
@@ -813,7 +814,11 @@ export type ControlMessage =
   // whole applied appearance, on a Take's or a full Update's update only (./cueAdjust.ts says the
   // four rules). Optional and outside `data`, so no template, data API or package ever sees it, and
   // a receiver that does not know it ignores it.
-  | { t: 'update'; data: Record<string, string>; appearance?: AppliedAppearance }
+  // `typed` (docs/work-specs/playout-ograf-contract/spec.md, E1.2a): a foreign OGraf cue's typed
+  // values in E1's envelope, beside `data` (then empty) and never inside it. Sent only to outputs
+  // that say they read it (model/ografTyped.ts `typedOutputsRefusal`); an output that cannot read
+  // it refuses the command whole and never applies `data` in its place.
+  | { t: 'update'; data: Record<string, string>; appearance?: AppliedAppearance; typed?: TypedValues }
   | { t: 'play' }
   | { t: 'stop'; sound?: false }
   | { t: 'next' }

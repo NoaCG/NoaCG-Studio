@@ -66,6 +66,8 @@ export interface PanelField {
   field: string;
   ftype?: string;
   items?: { text: string; value: string }[];
+  /** A field a foreign OGraf manifest declares (E1.2a, src/control/hostedControl.ts `buildPanelSpec`). */
+  typed?: unknown;
 }
 
 export type LeaseAnswer = { ok: boolean; claim?: string; paused?: boolean; snapshot?: Record<string, string>; content?: string | null; status?: Partial<SheetStatus> | null };
@@ -120,6 +122,7 @@ export function descriptorsOf(fields: PanelField[] | undefined): FieldDescriptor
       kind,
       defaultValue: '',
       options: f.items?.map((it) => ({ label: it.text, value: it.value })),
+      ...(f.typed === true ? { typed: true as const } : {}),
     });
   }
   return out;

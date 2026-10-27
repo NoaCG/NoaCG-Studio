@@ -104,6 +104,15 @@ function leafText(value: unknown, adapter: SourceListAdapter | undefined): strin
   return fillList({ adapter, main: 'text' }, rows).values.text ?? '';
 }
 
+// ── E1.2a: the typed foreign target adapter ──────────────────────────────────────────────────
+//
+// A field of a foreign OGraf graphic that its manifest declares (`FieldDescriptor.typed`) takes a
+// source's value as the JSON the provider sent, never as the text above: E5's typed values reach it
+// in E1's envelope, and nothing is read from a string that happens to look like a number. The route
+// writes the value as it is (migration 0104 judges what a bound path may hold); the page checks it
+// against the field's declared schema before anything is dispatched (model/ografTyped.ts
+// `typedTargetValue`, `typedForSend`).
+
 // ── E5.1: the versioned recipe ───────────────────────────────────────────────────────────────
 //
 // A connector source may carry a declarative recipe (`config.mapping`, productionData
@@ -426,6 +435,9 @@ function outputText(
 export interface SourceProjection {
   /** Bound path -> the text it now holds, for every bound path the payload gives a value. */
   writes: Record<string, string>;
+  /** Bound path -> the JSON value it now holds, for a path only typed fields read (E1.2a). Kept
+   *  apart so a database that takes only text can be sent the rest (api/data/[...path].ts). */
+  typedWrites: Record<string, JsonValue>;
   /** Bound leaves the payload does not carry: they keep their value. */
   missing: string[];
   /** Bound leaves whose value is not one, or that their fields cannot all hold: they keep theirs. */
@@ -459,6 +471,7 @@ export function projectSource(o: {
   const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
   const paths = [...new Set(sourcePaths(o.bindings, o.sourceId).map((p) => p.path).filter((p) => p.startsWith(prefix) && p.length > prefix.length))].sort();
   const writes: Record<string, string> = {};
+  const typedWrites: Record<string, JsonValue> = {};
   const missing: string[] = [];
   const unfit: string[] = [];
   const problems: Record<string, string> = {};
@@ -469,7 +482,7 @@ export function projectSource(o: {
   const read = readSourceRecipe(o.mapping, o.sourceId, o.configRevision);
   if (read.status === 'read-only' || read.status === 'invalid') {
     const error = read.status === 'invalid' ? read.error : `the mapping is version ${read.version}; this build reads version ${RECIPE_VERSION}, so it is held read-only`;
-    return { writes, missing, unfit: paths.map((p) => p.slice(prefix.length)), problems, held: { readOnly: read.status === 'read-only', error }, provenance: { sourceId: o.sourceId, recipe: null } };
+    return { writes, typedWrites, missing, unfit: paths.map((p) => p.slice(prefix.length)), problems, held: { readOnly: read.status === 'read-only', error }, provenance: { sourceId: o.sourceId, recipe: null } };
   }
   const recipe = read.status === 'ok' ? read.recipe : null;
   const format = formatters();
@@ -477,6 +490,21 @@ export function projectSource(o: {
     const leaf = path.slice(prefix.length);
     const adapter = o.lists && hasOwn(o.lists, leaf) ? o.lists[leaf] : undefined;
     const output = recipe && hasOwn(recipe.outputs, leaf) ? recipe.outputs[leaf] : undefined;
+    const connected = connectedFields(o.bindings, path, o.fieldsOf);
+    const typed = connected.filter((d) => d.typed);
+    if (typed.length) {
+      // A typed field reads the value as sent: a list's grammar, a format or a fallback would make
+      // text of it, which is what a typed field never takes.
+      if (typed.length !== connected.length) hold(leaf, 'typed and text fields are connected to one value');
+      else if (adapter || (output && ('columns' in output || output.format || output.fallback !== undefined))) hold(leaf, 'a typed field takes the value as the source sends it, with no list, format or fallback');
+      else if (output && !isObject(o.payload)) hold(leaf, 'the payload is not a JSON object');
+      else {
+        const value = atPath(o.payload as JsonValue, output ? output.from : leaf);
+        if (value === undefined) missing.push(leaf);
+        else typedWrites[path] = value;
+      }
+      continue;
+    }
     let text: string | null;
     if (output) {
       if (!isObject(o.payload)) {
@@ -502,7 +530,7 @@ export function projectSource(o: {
       }
       text = leafText(value, adapter);
     }
-    const result = text === null ? null : pathValue(connectedFields(o.bindings, path, o.fieldsOf), text);
+    const result = text === null ? null : pathValue(connected, text);
     if (result === null && output) hold(leaf, 'the connected fields cannot all hold this value');
     else if (result === null) unfit.push(leaf);
     else writes[path] = result;
@@ -514,7 +542,7 @@ export function projectSource(o: {
       .filter((p): p is string => typeof p === 'string' && (p === prefix.slice(0, -1) || p.startsWith(prefix))),
   );
   projectCollections(o.collections, o.sourceId, o.payload, bound, { writes, missing, hold });
-  return { writes, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: RECIPE_VERSION, configRevision: recipe.configRevision } : null } };
+  return { writes, typedWrites, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: RECIPE_VERSION, configRevision: recipe.configRevision } : null } };
 }
 
 // ── E7.2b: a collection through the source route ─────────────────────────────────────────────

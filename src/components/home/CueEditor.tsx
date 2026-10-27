@@ -770,11 +770,21 @@ function CueConnectData({ ownReader, ...props }: Omit<Parameters<typeof CueConne
 export interface CueCandidate {
   /** Why the whole cue is read-only here, or null. */
   readOnly: string | null;
+  /** What its fields wear beside their name; absent, a live candidate's. */
+  mark?: string;
   /** The entity it shows, in words. */
   label: string;
   fields: ReadonlySet<string>;
   values: Record<string, string>;
   notReady: string | null;
+}
+
+/** A cue's typed data switch (E1.2a): On reads the cue's values through its graphic's OGraf schema,
+ *  Off gives them back as text. `note` is why the last switch did not land. */
+export interface CueTypedSwitch {
+  on: boolean;
+  note: string | null;
+  toggle: (on: boolean) => void;
 }
 
 /** The writer's menu (E7.2a): which person this cue shows, picked from what each of its graphic's
@@ -974,6 +984,7 @@ export default function CueEditor({
   ownReader,
   candidate,
   picker,
+  typed = null,
   adjust = null,
 }: {
   show: Show;
@@ -1048,6 +1059,8 @@ export default function CueEditor({
   candidate: CueCandidate | null;
   /** Which person the cue shows (E7.2a), null when no collection serves its graphic. */
   picker: CandidatePicker | null;
+  /** The typed data switch (E1.2a), null when the cue's graphic declares no OGraf schema. */
+  typed?: CueTypedSwitch | null;
   /** The cue's place and size (home/CueAdjust), built by the page: a settings disclosure. */
   adjust?: ReactNode;
 }) {
@@ -1127,11 +1140,18 @@ export default function CueEditor({
         <CueOverflowNote keys={overflowKeys} descriptors={descriptors} />
         {picker && <CandidateMenu picker={picker} />}
         {picker?.waitsForUpdate && !hasUnsent && <CandidateWaits waits={picker.waitsForUpdate} rehearsing={rehearsing} />}
-        {candidate && (!picker || candidate.readOnly || candidate.notReady) && (
+        {candidate && (!picker || candidate.readOnly || candidate.notReady) && (candidate.readOnly || candidate.notReady || candidate.label) && (
           <span className={candidate.readOnly || candidate.notReady ? 'pd-unsent-note' : 'muted'} data-testid="cue-candidate">
             {candidate.readOnly ?? (candidate.notReady ? (picker ? candidate.notReady : `${candidate.label}. ${candidate.notReady}`) : candidate.label)}
           </span>
         )}
+        {typed && (
+          <label className="pd-typed-switch" data-testid="cue-typed">
+            <input type="checkbox" checked={typed.on} onChange={(e) => typed.toggle(e.target.checked)} data-testid="cue-typed-toggle" />
+            Typed data
+          </label>
+        )}
+        {typed?.note && <span className="pd-unsent-note" data-testid="cue-typed-note">{typed.note}</span>}
         <CueConnectData
           key={poolGraphic.id}
           show={show}
@@ -1299,8 +1319,8 @@ export default function CueEditor({
                           <label style={{ margin: 0 }}>
                             {d.key.toUpperCase()} · {d.label}
                           </label>
-                          <span className="pd-bound-mark" title={candidate.label}>
-                            🔗 Live candidate
+                          <span className="pd-bound-mark" title={candidate.label || candidate.mark}>
+                            {candidate.mark ?? '🔗 Live candidate'}
                           </span>
                         </div>
                         {format ? (

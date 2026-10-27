@@ -1109,6 +1109,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   max-width: 280px;
 }
 .pd-candidate-pick:focus { border-color: var(--accent); background: var(--bg); outline: none; }
+/* A foreign OGraf cue's typed data switch (E1.2a): a box and two words in the editor's head row,
+   never a band of its own. */
+.pd-typed-switch { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; margin: 0; }
 
 /* UNSENT CHANGES. Nothing on this surface airs by itself, which is deliberate - so the only way
    an operator learns that the values in front of them are not the values on air is if the

@@ -61,7 +61,8 @@ import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
-import { typedOutputGate } from '../model/ografTyped';
+import { TYPED_READER, typedOutputGate } from '../model/ografTyped';
+import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 
@@ -240,12 +241,22 @@ async function boot(): Promise<void> {
   const recovered = new Promise<void>((resolve) => {
     markRecovered = resolve;
   });
-  /** Graphics a command carrying typed data reached (model/ografTyped.ts `readTypedWire`, E1.1),
-   *  with the reason: this build neither renders it nor turns it into strings, and says so in the
-   *  graphic's READY line. Until a native `update` gives the graphic its data again, nothing but a
-   *  `stop` reaches it: a Take's `play` after its refused `update` would air the previous cue's
-   *  values. */
-  const typedRefused = new Map<string, string>();
+  /** Typed data, graphic by graphic (model/ografTyped.ts `typedOutputGate`). `held`: graphics a
+   *  command carrying an envelope this build cannot read reached (E1.1), with the reason, shown in
+   *  the graphic's READY line; until a native `update` gives the graphic its data again, nothing but
+   *  a `stop` reaches it, since a Take's `play` after its refused `update` would air the previous
+   *  cue's values. `airing`: graphics whose data on air is an envelope's (E1.2a). */
+  const typed = { held: new Map<string, string>(), airing: new Set<string>() };
+  const typedRefused = typed.held;
+  /** The values each graphic airing typed data holds, as they were sent: what a frame that replaces
+   *  it (the swapper below) is given in place of the native values a report banks. */
+  const typedData = new Map<string, Record<string, unknown>>();
+  /** What a graphic holds now: its typed values while it airs them, else its native ones. The
+   *  frame's update is JSON either way. */
+  const heldData = (graphic: string): Record<string, string> | null =>
+    (typed.airing.has(graphic) ? (typedData.get(graphic) as Record<string, string> | undefined) : mergedData.get(graphic)) ?? null;
+  /** Held or airing typed data: either way, no report banks it (see `scheduleReport`). */
+  const typedHolds = (graphic: string) => typed.held.has(graphic) || typed.airing.has(graphic);
   const withRefusals = (): ReadonlyMap<string, GraphicCheck> => {
     if (typedRefused.size === 0) return checks;
     const merged = new Map(checks);
@@ -342,6 +353,8 @@ async function boot(): Promise<void> {
       ready: readiness(),
       ack,
       proto: identity.protocol,
+      // E1.2a: this output reads typed envelopes, so a page may send it one.
+      typed: TYPED_READER,
     });
   const presence = joinLivePresence({
     showId: resolved.id,
@@ -418,8 +431,8 @@ async function boot(): Promise<void> {
     stage,
     held: bootDigests,
     onAir: onAirHere,
-    data: (graphic) => mergedData.get(graphic) ?? null,
-    warmData: (graphic, next) => (touched.has(graphic) ? (mergedData.get(graphic) ?? null) : firstCueOf(next.cues, graphic)),
+    data: (graphic) => heldData(graphic),
+    warmData: (graphic, next) => (touched.has(graphic) ? heldData(graphic) : firstCueOf(next.cues, graphic)),
     loadSound: (next) => audio(next).loadSound,
     onSwapped: (graphic, spec, check) => {
       bodies.set(graphic, (bodies.get(graphic) ?? 0) + 1);
@@ -437,7 +450,7 @@ async function boot(): Promise<void> {
       readyChanged();
     },
     onRemoved: (graphic) => {
-      for (const map of [checks, mergedData, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
+      for (const map of [checks, mergedData, typedData, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
       for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
       clearTimeout(reportTimers.get(graphic));
       reportTimers.delete(graphic);
@@ -580,8 +593,10 @@ async function boot(): Promise<void> {
           // A HELD GRAPHIC NEVER REPORTS (E1.1, `typedRefused`): its bank stays before the refused
           // command, so a reboot replays that command and is held again, rather than recovering
           // the previous cue's values from a baseline past it. Asked at the moment of writing, so
-          // a report scheduled before the hold banks nothing either.
-          if (typedRefused.has(graphic)) {
+          // a report scheduled before the hold banks nothing either. A TYPED one neither (E1.2a):
+          // a report banks native strings, so its bank stays before its first typed row and a
+          // reboot replays the envelopes from the log (E1.2b owns a typed baseline).
+          if (typedHolds(graphic)) {
             forcedReports.delete(graphic);
             return;
           }
@@ -700,14 +715,29 @@ async function boot(): Promise<void> {
       if (road) live.duplicate(incoming);
       return;
     }
-    // THE READ GATE (E1.1): a command carrying typed data is refused whole, never applied as its
-    // native members; the row itself stays in the log as it came. The graphic is held from then
-    // until a native update replaces its data (see `typedRefused`).
-    const typed = typedOutputGate(typedRefused, graphic, incoming);
-    if (typed.changed) readyChanged();
-    if (!typed.apply) {
-      if (typed.changed) console.warn(`output: typed data refused for "${graphic}": ${typedRefused.get(graphic)}`);
+    // THE TYPED GATE (E1.1, E1.2a): a command carrying an envelope this build cannot read is refused
+    // whole, never applied as its native members; the row itself stays in the log as it came. The
+    // graphic is held from then until a native update replaces its data (see `typed`).
+    const gate = typedOutputGate(typed, graphic, incoming);
+    if (gate.changed) readyChanged();
+    if (!gate.apply) {
+      if (gate.changed) console.warn(`output: typed data refused for "${graphic}": ${typedRefused.get(graphic)}`);
       touched.add(graphic);
+      return;
+    }
+    // TYPED DATA (E1.2a): the envelope's values go to the stage as they are, never as strings and
+    // never into `mergedData` (the native values a report banks): a typed graphic does not report
+    // (`scheduleReport`), so a reboot replays its rows from the log. A data road's native update
+    // on it moves only its appearance.
+    if (gate.values || gate.dropData) {
+      touched.add(graphic);
+      if (gate.values) typedData.set(graphic, gate.values);
+      const msg = incoming as Extract<ControlMessage, { t: 'update' }>;
+      const look = msg.appearance ? { appearance: msg.appearance } : {};
+      // A data road's update with no look moves nothing here: an empty update would reach a
+      // foreign Graphic as `updateAction({})`.
+      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look });
+      if (road) live.applied(road, incoming, receivedAt);
       return;
     }
     // A graphic a command has reached is never warmed (READY above): it holds the operator's values.
@@ -813,7 +843,7 @@ async function boot(): Promise<void> {
         for (const [graphic, at] of bankedAt) {
           // A catch-up replays rows from the oldest bank; rows before this graphic's do not count.
           // A held graphic keeps its bank where it is (see the report above).
-          if (seq <= at || typedRefused.has(graphic)) continue;
+          if (seq <= at || typedHolds(graphic)) continue;
           const since = (sinceBank.get(graphic) ?? 0) + 1;
           sinceBank.set(graphic, since);
           if (since < REBANK_AFTER) continue;

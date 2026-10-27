@@ -54,6 +54,7 @@ import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
 import { SHEET_LEASE_MS, initialStatus, type SheetLeaseDoor, type SheetReadState, type SheetStatus } from './sheetSource';
 import { preparedCue, type JsonObject } from '../model/productionData';
+import { typedPublishedFields } from '../model/ografTyped';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
@@ -328,7 +329,7 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
     const template = templateForSavedGraphic(g, library);
     return {
       name: g.name,
-      fields: template.fields,
+      fields: typedPublishedFields(template.fields, template.ograf),
       js: template.js,
       images: template.assets
         .filter((a) => isImageAsset(a.path))

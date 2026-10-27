@@ -61,7 +61,7 @@ import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSend
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 import { SHARED_NOT_MOVED, changedNote, offAirNote, unheldNote } from './liveControls.ts';
-import { typedSendRefusal } from '../model/ografTyped.ts';
+import { typedSendRefusal, type TypedSend, type TypedValues } from '../model/ografTyped.ts';
 import type { PressDone } from './panelActions';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
@@ -143,6 +143,13 @@ export interface GraphicPage {
   /** What a Take or an Update of this cue may send for its live candidate, from the newest tree
    *  (control/selectionAir.ts `selectionTake`). */
   selectionFor: (cue: ShowCue, graphic: string) => SelectionTake;
+  /** What a Take or an Update of this cue sends for its typed data, from the newest tree, with the
+   *  outputs' capability asked (model/ografTyped.ts `typedForSend`, `typedOutputsRefusal`; E1.2a).
+   *  Absent: this page sends no typed data, and a cue carrying it is refused. */
+  typedFor?: (cue: ShowCue, graphic: string) => TypedSend;
+  /** The graphic airs typed data now, by what was last applied to it (control/airState.ts
+   *  `typedAired`), whatever its cue's switch says since. */
+  typedAiring?: (graphic: string) => boolean;
   /** The layer now airs this cue with this selection (none drops what it followed), captured at the
    *  press: `landed` when its send is answered, `undo` when it failed. */
   selectionAired: (graphic: string, cueId: string, take: SelectionTake, moves?: boolean) => { landed: () => void; undo: (failed?: SendFailure) => void };
@@ -691,12 +698,16 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // never airs B's prepared values, or A's (E7.1).
     const selection = p.selectionFor(cue, graphic);
     if (selection.status === 'refused') return { ok: false, note: `${cue.label}: ${selection.reason}` };
+    // Typed data is validated whole before anything is dispatched (E1.2a): refused, nothing goes.
+    const typed = typedOf(p, cue, graphic);
+    if (typed.status === 'refused') return { ok: false, note: `${cue.label}: ${typed.reason}` };
     // Bound fields come from the LIVE tree, not from what this cue stored when it was prepared
-    // (plan §2.7): otherwise taking an old cue would re-air a stale score.
-    const values = { ...p.cueView(cue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
+    // (plan §2.7): otherwise taking an old cue would re-air a stale score. A typed cue's data is its
+    // envelope's, bound values included, and its native `data` is empty.
+    const { data: values, typed: envelope } = sendData(p, cue, graphic, selection, typed);
     // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
     const captured = p.selectionAired(graphic, cue.id, selection, true);
-    const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
+    const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
     if (!sent.ok) {
       captured.undo(sent);
       return { ok: false, note: sent.note };
@@ -748,21 +759,41 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       s.note(`${editingCue.label}: ${selection.reason}`);
       return;
     }
+    const typed = typedOf(p, editingCue, graphic);
+    if (typed.status === 'refused') {
+      s.note(`${editingCue.label}: ${typed.reason}`);
+      return;
+    }
     // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
-    const data = { ...p.cueView(editingCue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) };
+    const { data, typed: envelope } = sendData(p, editingCue, graphic, selection, typed);
     const captured = p.selectionAired(graphic, editingCue.id, selection);
-    const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data, ...(appearance ? { appearance } : {}) } }]], 'Update');
+    const sent = await sendWith(s, [[{ graphic, msg: { t: 'update', data, ...(appearance ? { appearance } : {}), ...envelope } }]], 'Update');
     if (!sent.ok) s.note(sent.note);
     if (sent.ok && reachedOutput(sent, graphic)) captured.landed();
     else captured.undo(sent.ok ? undefined : sent);
   };
 
+  /** What a Take or an Update puts in its update: the cue's values with the live tree and its
+   *  live candidate over them, or for a typed cue its envelope beside empty native data. */
+  const sendData = (p: GraphicPage, cue: ShowCue, graphic: string, selection: SelectionTake, typed: TypedSend): { data: Record<string, string>; typed: { typed?: TypedValues } } =>
+    typed.status === 'ok'
+      ? { data: {}, typed: { typed: typed.typed } }
+      : { data: { ...p.cueView(cue).values, ...p.resolvedOf(graphic), ...(selection.status === 'ok' ? selection.values : {}) }, typed: {} };
+
+  /** What a Take or an Update sends for a cue's typed data: the page's answer, or, on a page that
+   *  sends none, a refusal for a cue that carries it (its native strings are not its data). */
+  const typedOf = (p: GraphicPage, cue: ShowCue, graphic: string): TypedSend =>
+    p.typedFor ? p.typedFor(cue, graphic) : cue.typed === undefined ? { status: 'none' } : { status: 'refused', reason: 'Typed data does not go on air from here.' };
+
   /** A live press on a layer airing a cue with typed OGraf data sends nothing from here, and says
    *  why (model/ografTyped.ts, E1.1): its fields are not its native strings, so a figure counted
-   *  or read from them would air something the cue does not hold. A pinned block presses here too. */
-  const typedRefused = (s: VerbSender, cue: ShowCue | null): string | null => {
-    const why = cue ? typedSendRefusal(cue) : null;
-    if (!cue || !why) return null;
+   *  or read from them would air something the cue does not hold. A pinned block presses here too.
+   *  So does a layer still airing typed data after its cue's switch went off (E1.2a): a native
+   *  press there would end the typed data before any Take or Update. */
+  const typedRefused = (s: VerbSender, cue: ShowCue | null, graphic: string): string | null => {
+    if (!cue) return null;
+    const why = typedSendRefusal(cue) ?? (page().typedAiring?.(graphic) ? 'Live controls do not reach typed data yet.' : null);
+    if (!why) return null;
     s.note(`${cue.label}: ${why}`);
     return `${cue.label}: ${why}`;
   };
@@ -790,7 +821,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const { editingCue, selectedGraphic: graphic } = sel;
     // On air with a cue this page does not hold is not off air: there is no cue to count from.
     if (!editingCue || !graphic || !sel.editingIsLive) return refused(graphic && sel.selectedLayerLive ? unheldNote(graphic) : offAirNote(graphic ?? 'The graphic'));
-    const typed = typedRefused(s, editingCue);
+    const typed = typedRefused(s, editingCue, graphic);
     if (typed) return refused(typed);
     const still = instance(s, graphic, editingCue, named);
     if (!still()) return refused(changedNote(graphic));
@@ -998,7 +1029,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return Promise.resolve(refused(offAirNote(graphic ?? 'The graphic')));
-    const typed = typedRefused(s, sel.airCue);
+    const typed = typedRefused(s, sel.airCue, graphic);
     if (typed) return Promise.resolve(refused(typed));
     const still = instance(s, graphic, sel.airCue, named);
     if (!still()) return Promise.resolve(refused(changedNote(graphic)));
@@ -1014,7 +1045,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return;
-    if (typedRefused(s, sel.airCue)) return;
+    if (typedRefused(s, sel.airCue, graphic)) return;
     const still = instance(s, graphic, sel.airCue);
     if (!still()) return;
     await afterPress(graphic, async () => {

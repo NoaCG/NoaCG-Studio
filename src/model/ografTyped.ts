@@ -1,4 +1,5 @@
-// TYPED OGRAF DATA, THE READING SIDE (docs/work-specs/playout-ograf-contract/spec.md, E1.1).
+// TYPED OGRAF DATA (docs/work-specs/playout-ograf-contract/spec.md): the reading side (E1.1) and
+// the writing side (E1.2a).
 //
 // A foreign OGraf Graphic declares its data and its custom actions' arguments as GDD schemas:
 // nested objects, arrays, numbers, booleans and typed enums. The native wire carries strings
@@ -15,17 +16,24 @@
 //   - THE ENVELOPE (`readTypedEnvelope`) on `ShowCue.typed`, its own `v`. A later version, another
 //     revision or a malformed one is read-only: refused, its bytes kept.
 //   - THE READ GATE: the write doors (`typedKeep`, `typedFrozen`, asked by model/shows.ts and
-//     ./rundownHistory.ts), the page's sends (`typedSendRefusal`) and the output (`readTypedWire`).
-//     This build writes no envelope (E1.2a is the writer), so every cue that carries one is refused
-//     on air with a reason, and every write keeps its bytes.
+//     ./rundownHistory.ts), the page's live presses (`typedSendRefusal`) and the output
+//     (`readTypedWire`, `typedOutputGate`). An envelope this build cannot read is refused on air
+//     with a reason, and every write keeps its bytes.
 //   - MIGRATION (`migrateToTyped`, `nativeOf`): a cue's native strings read through its schema into
-//     typed values and back, losslessly or not at all, with a deterministic receipt. Pure: the
-//     writer applies it; nothing here rewrites a stored record.
+//     typed values and back, losslessly or not at all, with a deterministic receipt.
+//   - THE WRITER (E1.2a, below the migration): the graphic's declaration (`readOgrafDeclared`), the
+//     one write that turns a cue's typed data on or off (model/shows.ts `setCueTyped`, allowed by
+//     the door for that cue and those bytes only), the send (`typedForSend`: the cue's values with
+//     its bound fields' typed values over them, validated whole before anything is dispatched),
+//     and the outputs' capability (`TYPED_READER`, `typedOutputsRefusal`): a page sends an envelope
+//     only while every output it can see says it reads one.
 //
 // Every bound below keeps reading outside input linear: each schema node and each value node is
 // visited once, depth and count are capped, and no pattern from a package is ever run.
 //
-// Pure (model layer): no DOM, so the output renderer and Node share it. Runtime imports carry `.ts`.
+// Pure (model layer): no DOM, so the output renderer and Node share it. Runtime imports carry `.ts`,
+// so the api's functions (which import `.js`) never reach it: the source route's half of the typed
+// target adapter needs nothing from here (control/sourceMapping.ts `projectSource`).
 
 import { contentHash } from './contentHash.ts';
 import type { JsonValue } from './productionData';
@@ -518,58 +526,97 @@ function readCueTyped(cue: { typed?: unknown }): TypedRead {
   return read.status === 'ok' && read.envelope.kind !== 'values' ? { status: 'read-only', reason: UNREADABLE } : read;
 }
 
+/** A values envelope this build reads, or null (absent, an action, or read-only). */
+export function typedValuesOf(raw: unknown): TypedValues | null {
+  const read = readTypedEnvelope(raw);
+  return read.status === 'ok' && read.envelope.kind === 'values' ? read.envelope : null;
+}
+
 /** Whether a cue's typed data is one this build cannot read: the whole cue is then read-only. */
 export function typedReadOnly(cue: { typed?: unknown }): boolean {
   return readCueTyped(cue).status === 'read-only';
 }
 
 /**
- * Why this cue may not be sent from this page, or null. This build writes no typed value onto the
- * wire (E1.2a does, to an output that says it reads them), so a cue that carries an envelope never
- * airs here: sending its native strings would air something other than its data.
+ * Why a LIVE PRESS (an event, a ±, a Snap) may not go to a layer airing this cue, or null. Typed
+ * data airs through Take and ✎ Update only (`typedForSend`); a figure counted or read from a typed
+ * cue's native strings would air something the cue does not hold, and typed actions are E2's and
+ * E6.2's. A pinned block presses here too.
  */
 export function typedSendRefusal(cue: { typed?: unknown }): string | null {
   const read = readCueTyped(cue);
   if (read.status === 'absent') return null;
-  if (read.status === 'read-only') return `This cue’s typed data ${read.reason}, so it is read-only here.`;
-  return 'This cue’s typed data needs a newer version of NoaCG to go on air.';
+  if (read.status === 'read-only') return readOnlyWords(read.reason);
+  return 'Live controls do not reach typed data yet.';
 }
 
+const readOnlyWords = (reason: string) => `This cue’s typed data ${reason}, so it is read-only here.`;
+
 /**
- * THE OUTPUT'S READ GATE: null for a native message (no `typed` member), which goes on exactly as
- * it came; a reason for one that carries an envelope, which this output neither renders nor turns
- * into strings. The native members beside it (`data`, `appearance`) are not read here.
+ * THE OUTPUT'S READER: null for a native message (no `typed` member), which goes on exactly as it
+ * came; the values of a readable values envelope on an `update`, which this output renders as they
+ * are; a reason for any other envelope, which it neither renders nor turns into strings. The native
+ * members beside it (`data`, `appearance`) are not read here.
  */
-export function readTypedWire(msg: unknown): { reason: string } | null {
+export function readTypedWire(msg: unknown): { values: TypedValues['values'] } | { reason: string } | null {
   if (!isRecord(msg) || !own(msg, 'typed')) return null;
   const read = readTypedEnvelope(msg.typed);
   if (read.status === 'absent') return null;
-  return read.status === 'ok'
-    ? { reason: 'This output cannot show typed data yet: reload this output.' }
-    : { reason: `This output cannot read this command’s data (it ${read.reason}): reload this output.` };
+  if (read.status !== 'ok') return { reason: `This output cannot read this command’s data (it ${read.reason}): reload this output.` };
+  if (read.envelope.kind === 'values' && msg.t === 'update') return { values: read.envelope.values };
+  return { reason: 'This output cannot show typed data yet: reload this output.' };
 }
 
+/** What an output keeps of typed data, graphic by graphic (src/output/main.ts). */
+export interface TypedOutputState {
+  /** Graphics refused, with the reason (E1.1's hold). */
+  held: Map<string, string>;
+  /** Graphics whose data on air came from an envelope: their data is the envelope's, not strings. */
+  airing: Set<string>;
+}
+
+/** What the output does with one command: refused, applied as it came, applied with typed values
+ *  in place of its native data, or applied without its data (`dropData`). `changed`: the held set
+ *  moved, which the READY line shows. */
+export type TypedGate =
+  | { apply: false; changed: boolean }
+  | { apply: true; changed: boolean; values?: TypedValues['values']; dropData?: true };
+
 /**
- * THE OUTPUT'S HOLD, one command at a time (src/output/main.ts): `held` is the graphics refused
- * so far, with the reason. A command carrying an envelope is refused and holds its graphic; while
- * held, only a `stop` (taking it off is always safe) and a native `update` (which gives it its data
- * again and lifts the hold) reach it, so a Take's `play` after its refused `update` never airs the
- * previous cue's values. `changed` says the held set moved.
+ * THE OUTPUT'S GATE, one command at a time. A readable values envelope on an `update` airs its
+ * values and marks the graphic typed. Any other envelope is refused and holds its graphic (E1.1):
+ * while held, only a `stop` and a native `update` (which gives it its data again and lifts the
+ * hold) reach it, so a Take's `play` after its refused `update` never airs the previous cue's
+ * values. On a typed graphic, a native `update` a data road wrote (`src`: the API, a feed, the
+ * tick) is applied WITHOUT its data: those are bound fields resolved to native text, which would
+ * replace typed values with strings, and typed bound values reach air with the next ✎ Update. An
+ * operator page's native `update` (no `src`: a native cue taken on that layer) replaces the typed
+ * data and ends it.
  */
-export function typedOutputGate(held: Map<string, string>, graphic: string, msg: unknown): { apply: boolean; changed: boolean } {
-  const refused = readTypedWire(msg);
-  if (refused) {
-    const changed = held.get(graphic) !== refused.reason;
-    held.set(graphic, refused.reason);
+export function typedOutputGate(state: TypedOutputState, graphic: string, msg: unknown): TypedGate {
+  const read = readTypedWire(msg);
+  if (read && 'reason' in read) {
+    const changed = state.held.get(graphic) !== read.reason;
+    state.held.set(graphic, read.reason);
+    state.airing.delete(graphic);
     return { apply: false, changed };
   }
-  if (!held.has(graphic)) return { apply: true, changed: false };
+  if (read) {
+    const changed = state.held.delete(graphic);
+    state.airing.add(graphic);
+    return { apply: true, changed, values: read.values };
+  }
   const verb = isRecord(msg) ? msg.t : undefined;
-  if (verb === 'update') {
-    held.delete(graphic);
+  if (state.held.has(graphic)) {
+    if (verb !== 'update') return { apply: verb === 'stop', changed: false };
+    state.held.delete(graphic);
     return { apply: true, changed: true };
   }
-  return { apply: verb === 'stop', changed: false };
+  if (verb === 'update' && state.airing.has(graphic)) {
+    if (isRecord(msg) && own(msg, 'src')) return { apply: true, changed: false, dropData: true };
+    state.airing.delete(graphic);
+  }
+  return { apply: true, changed: false };
 }
 
 // ── The write doors ──────────────────────────────────────────────────────────────────────────
@@ -581,6 +628,8 @@ export interface TypedRecord {
 
 export interface TypedKept {
   cues: Map<string, { bytes: string; whole: boolean }>;
+  /** Every cue the record held: a copy is a cue that was not one of them. */
+  ids: Set<string>;
 }
 
 /** What a write must keep: each cue's envelope, and a read-only cue's every byte. */
@@ -591,23 +640,37 @@ export function typedKeep(show: TypedRecord): TypedKept | null {
     const whole = typedReadOnly(cue);
     cues.set(cue.id, { bytes: JSON.stringify(whole ? cue : cue.typed), whole });
   }
-  return cues.size ? { cues } : null;
+  return cues.size ? { cues, ids: new Set((show.cues ?? []).map((c) => c.id)) } : null;
 }
 
 export const TYPED_KEPT = 'This production has typed cues this version cannot change, so the edit was not saved.';
 
 /**
- * THE TYPED READ GATE AT THE WRITE DOORS (precedent ./profile.ts `readShowProfile`, enforced like
+ * THE TYPED GATE AT THE WRITE DOORS (precedent ./profile.ts `readShowProfile`, enforced like
  * ./productionData.ts `selectionFrozen`): model/shows.ts `patchShowChecked` (both of its writes)
- * and ./rundownHistory.ts `replaceRundown` ask it. This build has no typed writer, so a write is
- * refused whole when it would change a cue's envelope, change or remove a read-only cue in any
- * byte, or give a cue an envelope it did not have, except a cue an undo brings back (`restored`),
- * whose bytes are the record's own from before.
+ * and ./rundownHistory.ts `replaceRundown` ask it. A write is refused whole when it would change a
+ * cue's envelope, change or remove a read-only cue in any byte, or give a cue an envelope it did not
+ * have, with three exceptions: the writer's own cues (`write`, cue id to the exact envelope bytes it
+ * writes, null for none: model/shows.ts `setCueTyped`), a cue an undo brings back (`restored`),
+ * whose bytes are the record's own from before, and a new cue whose envelope is byte for byte one
+ * this record already held (a copy, which carries data the writer made). A read-only cue is never
+ * the writer's.
  */
-export function typedFrozen(before: TypedKept | null, after: TypedRecord, restored: ReadonlySet<string> = new Set()): string | null {
-  if (!before) return (after.cues ?? []).some((c) => c.typed !== undefined && !restored.has(c.id)) ? TYPED_KEPT : null;
+export function typedFrozen(
+  before: TypedKept | null,
+  after: TypedRecord,
+  restored: ReadonlySet<string> = new Set(),
+  write: ReadonlyMap<string, string | null> = new Map(),
+): string | null {
   const now = new Map((after.cues ?? []).map((c) => [c.id, c] as const));
-  for (const [id, kept] of before.cues) {
+  for (const [id, bytes] of write) {
+    const cue = now.get(id);
+    if (!cue || before?.cues.get(id)?.whole || (cue.typed === undefined ? null : JSON.stringify(cue.typed)) !== bytes) return TYPED_KEPT;
+  }
+  const held = new Set<string>();
+  for (const [id, kept] of before?.cues ?? []) {
+    if (!kept.whole) held.add(kept.bytes);
+    if (write.has(id)) continue;
     const cue = now.get(id);
     if (!cue) {
       if (kept.whole) return TYPED_KEPT;
@@ -615,7 +678,10 @@ export function typedFrozen(before: TypedKept | null, after: TypedRecord, restor
     }
     if (JSON.stringify(kept.whole ? cue : cue.typed) !== kept.bytes) return TYPED_KEPT;
   }
-  for (const cue of after.cues ?? []) if (cue.typed !== undefined && !before.cues.has(cue.id) && !restored.has(cue.id)) return TYPED_KEPT;
+  for (const cue of after.cues ?? []) {
+    if (cue.typed === undefined || before?.cues.has(cue.id) || restored.has(cue.id) || write.has(cue.id)) continue;
+    if (before?.ids.has(cue.id) || typedReadOnly(cue) || !held.has(JSON.stringify(cue.typed))) return TYPED_KEPT;
+  }
   return null;
 }
 
@@ -730,4 +796,158 @@ export function nativeOf(envelope: TypedValues): Record<string, string> {
   const out: Record<string, string> = {};
   for (const key of Object.keys(envelope.values).sort()) put(out, key, toNative(envelope.values[key]));
   return out;
+}
+
+// ── The writer (E1.2a) ───────────────────────────────────────────────────────────────────────
+
+/** The declaration's version this build reads. */
+export const DECLARED_VERSION = 1;
+
+/**
+ * A GRAPHIC'S OGRAF DECLARATION, on its template (`SpxTemplate.ograf`): the manifest of the package
+ * it was imported from, kept whole as its JSON and never rewritten, for its schema and its actions.
+ * Its own `v`. Only a stranger's manifest within this reader's bounds is kept
+ * (model/importTemplate.ts); E3 adds the package's own bytes.
+ */
+export interface OgrafDeclared {
+  v: typeof DECLARED_VERSION;
+  manifest: { [key: string]: JsonValue };
+}
+
+export type DeclaredRead =
+  | { status: 'absent' }
+  /** `fields` is the data schema when it is an object this reader carries, else null: the graphic
+   *  then takes no typed data. */
+  | { status: 'ok'; description: OgrafDescription; fields: TypedNode | null }
+  | { status: 'read-only'; reason: string };
+
+const DECLARED_KEYS = new Set(['v', 'manifest']);
+/** Each declaration is described once: every render and every press asks. */
+const declaredReads = new WeakMap<object, DeclaredRead>();
+
+/** Read a graphic's declaration as stored. Never throws; `undefined` is absent. */
+export function readOgrafDeclared(raw: unknown): DeclaredRead {
+  if (raw === undefined) return { status: 'absent' };
+  if (!isRecord(raw)) return { status: 'read-only', reason: UNREADABLE };
+  const known = declaredReads.get(raw);
+  if (known) return known;
+  let read: DeclaredRead;
+  const v = raw.v;
+  if (typeof v === 'number' && Number.isInteger(v) && v > DECLARED_VERSION) read = { status: 'read-only', reason: LATER };
+  else if (v !== DECLARED_VERSION || Object.keys(raw).some((k) => !DECLARED_KEYS.has(k)) || !isRecord(raw.manifest) || readJson(raw.manifest, TYPED_MAX_DEPTH * 3)) read = { status: 'read-only', reason: UNREADABLE };
+  else {
+    const description = describeOgraf(raw.manifest);
+    const fields = description.schema && description.fields?.type === 'object' && description.fields.properties ? description.fields : null;
+    read = { status: 'ok', description, fields };
+  }
+  declaredReads.set(raw, read);
+  return read;
+}
+
+/** Why `envelope` is not a cue's typed data for this declaration, or null: readable, made for this
+ *  schema, and valid against it whole. */
+export function typedValuesFault(declared: DeclaredRead, envelope: unknown): string | null {
+  if (declared.status !== 'ok' || !declared.fields) return 'This cue’s graphic takes no typed data.';
+  const read = readTypedEnvelope(envelope);
+  if (read.status !== 'ok' || read.envelope.kind !== 'values') return 'This typed data cannot be read.';
+  if (read.envelope.schema !== declared.description.schema) return 'This typed data was made for another version of its graphic.';
+  const error = validateTyped(declared.fields, read.envelope.values)[0];
+  return error ? `${error.at || 'The data'}: ${error.reason}.` : null;
+}
+
+/**
+ * A graphic's fields as its published panel carries them (control/hostedControl.ts
+ * `buildPanelSpec`): a field its OGraf declaration names is marked `typed`, so the source route
+ * writes a source's value there as the JSON it is (api/_lib/dataTick.ts `descriptorsOf`,
+ * control/sourceMapping.ts `projectSource`). Every other graphic's fields go as they are.
+ */
+export function typedPublishedFields<F extends { field: string }>(fields: F[], ograf: unknown): (F | (F & { typed: true }))[] {
+  const declared = readOgrafDeclared(ograf);
+  if (declared.status !== 'ok' || !declared.fields) return fields;
+  const keys = new Set((declared.fields.properties ?? []).map((p) => p.key));
+  return fields.map((f) => (keys.has(f.field) ? { ...f, typed: true as const } : f));
+}
+
+/** The longest typed member one command may carry, as UTF-8 JSON: the size a source report's row
+ *  keeps to (0101's 64 KiB), so a typed command is never the one row far larger than the rest. */
+export const TYPED_MAX_SEND_BYTES = 65536;
+
+
+/**
+ * THE TYPED TARGET ADAPTER, the page's half (E1.2a; the route's is control/sourceMapping.ts
+ * `projectSource`): a value from the production tree as a typed field's value, or why not. The
+ * value is taken as the JSON it is, never read from text, and must fit the field's declared node.
+ * A field whose node this reader does not carry keeps the value it has: nothing from outside
+ * replaces it unjudged.
+ */
+export function typedTargetValue(node: TypedNode, value: unknown): { value: JsonValue } | { reason: string } {
+  if (node.type === 'unsupported') return { reason: 'its declared type is not one this version reads' };
+  const fault = readJson(value);
+  if (fault) return { reason: fault };
+  const error = validateTyped(node, value)[0];
+  return error ? { reason: error.at ? `${error.at} ${error.reason}` : error.reason } : { value: value as JsonValue };
+}
+
+/** What a Take or an Update of one cue sends for its typed data. */
+export type TypedSend =
+  | { status: 'none' }
+  | { status: 'ok'; typed: TypedValues }
+  | { status: 'refused'; reason: string };
+
+/**
+ * THE SEND (E1.2a): the envelope a Take or an Update of this cue carries, or why nothing may go.
+ * `bound` is each bound field's value as the TYPED TARGET ADAPTER read it from the production tree
+ * (`typedTargetValue`, asked by control/typedSend.ts): a value, or a reason, or absent for a path that
+ * holds nothing yet, where the cue's own value stays (a missing path writes nothing). The cue's
+ * values with the bound ones over them must validate whole against the graphic's schema and fit
+ * one command; otherwise nothing is dispatched and the cue's stored data is untouched.
+ */
+export function typedForSend(
+  cue: { typed?: unknown },
+  declared: DeclaredRead,
+  bound: ReadonlyMap<string, { value: JsonValue } | { reason: string }> = new Map(),
+): TypedSend {
+  const read = readCueTyped(cue);
+  if (read.status === 'absent') return { status: 'none' };
+  if (read.status === 'read-only') return { status: 'refused', reason: readOnlyWords(read.reason) };
+  const envelope = read.envelope as TypedValues;
+  if (declared.status !== 'ok' || !declared.fields) return { status: 'refused', reason: 'This cue’s graphic takes no typed data.' };
+  const values: TypedValues['values'] = {};
+  for (const key of Object.keys(envelope.values)) put(values, key, envelope.values[key]);
+  for (const [key, got] of bound) {
+    if ('reason' in got) return { status: 'refused', reason: `${key}: ${got.reason}.` };
+    put(values, key, got.value);
+  }
+  const typed: TypedValues = { v: TYPED_VERSION, kind: 'values', standard: OGRAF_STANDARD.commit, schema: envelope.schema, values };
+  const whole = typedValuesFault(declared, typed);
+  if (whole) return { status: 'refused', reason: whole };
+  if (new TextEncoder().encode(JSON.stringify(typed)).length > TYPED_MAX_SEND_BYTES) return { status: 'refused', reason: `This cue’s typed data is larger than one command takes (${TYPED_MAX_SEND_BYTES / 1024} KiB).` };
+  return { status: 'ok', typed };
+}
+
+/** The envelope version an output reads, advertised in its Presence entry (control/livePath.ts
+ *  `LiveEntry.typed`). An output that says none, or less, is sent no envelope. */
+export const TYPED_READER = TYPED_VERSION;
+
+/** What the capability check reads of one Presence entry. */
+export interface TypedPeer {
+  kind: string;
+  name?: string;
+  engine?: string;
+  typed?: number;
+}
+
+/**
+ * THE OUTPUTS' CAPABILITY (E1.2a): why a published production's page may not send an envelope now,
+ * or null. Every output it sees must say it reads this version; one that does not (an older build)
+ * would refuse it, or worse, apply the native members beside it. While its Presence is not joined
+ * the page cannot see its outputs, so nothing typed goes. An unpublished production has no output.
+ */
+export function typedOutputsRefusal(published: boolean, status: string, peers: readonly TypedPeer[]): string | null {
+  if (!published) return null;
+  if (status !== 'joined') return 'Typed data waits until this page can see its outputs.';
+  const old = peers.filter((p) => p.kind === 'output' && !(typeof p.typed === 'number' && p.typed >= TYPED_READER));
+  if (!old.length) return null;
+  const names = old.map((p) => p.name || p.engine || 'an output');
+  return names.length === 1 ? `Reload ${names[0]}: it cannot read typed data yet.` : `Reload ${names.length} outputs (${names.slice(0, 3).join(', ')}): they cannot read typed data yet.`;
 }

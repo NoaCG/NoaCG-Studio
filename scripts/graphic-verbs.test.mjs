@@ -59,7 +59,7 @@ const sel = (extra = {}) => ({
  * One session, one verbs module, a scripted page and wire. `wire` answers each send with a held
  * promise; `flushes` holds each save wait. `log` records every call in order.
  */
-function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {}, ioWith = {} } = {}) {
+function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = false, liveCue = {}, aired = {}, bound = {}, tree = {}, selections = {}, typedSends = null, typedAiring = null, candidates = {}, airedCandidates = {}, airedFields = {}, saved = {}, ioWith = {} } = {}) {
   const session = createPlayoutSession('p1');
   const log = [];
   const sends = [];
@@ -122,6 +122,10 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     boundFields: (graphic) => bound[graphic] ?? {},
     // A cue's live candidate as control/selectionAir.ts would answer it (E7.1): none by default.
     selectionFor: (cue) => selections[cue.id] ?? { status: 'none' },
+    // What a typed cue sends (model/ografTyped.ts `typedForSend`, E1.2a): a page that sends none
+    // has no `typedFor`, unless the test gives it answers.
+    ...(typedSends ? { typedFor: (cue) => typedSends[cue.id] ?? { status: 'none' } } : {}),
+    ...(typedAiring ? { typedAiring: (graphic) => typedAiring.includes(graphic) } : {}),
     selectionAired: (graphic, cueId, take) => {
       log.push(['aired', graphic, cueId, take.status]);
       return { landed: () => log.push(['landed', graphic, cueId]), undo: (failed) => log.push(['unaired', graphic, cueId, ...(failed?.uncertain ? ['uncertain'] : failed?.stale ? ['stale'] : [])]) };
@@ -1020,13 +1024,60 @@ test('no live press sends from a layer airing a cue with typed data, a pinned bl
   await r.verbs.snap(pinned, 'reveal', 'shown');
   await settle();
   assert.equal(r.sends.length, 0);
-  assert.deepEqual(r.notes, Array(3).fill('T1: This cue’s typed data needs a newer version of NoaCG to go on air.'));
+  assert.deepEqual(r.notes, Array(3).fill('T1: Live controls do not reach typed data yet.'));
+  // A layer still airing typed data after its cue's switch went off presses nothing either (E1.2a).
+  const off = graphicCue('t1', 'Score', { score: '3' });
+  const airing = rig({ liveCue: { Score: 't1' }, typedAiring: ['Score'] });
+  const stillTyped = liveSelection('Score', [off], { Score: 't1' });
+  await airing.verbs.event(stillTyped, { event: 'goal', adjust: { score: 1 }, payload: ['score'] });
+  await airing.verbs.bump(stillTyped, 'score', 1);
+  await airing.verbs.snap(stillTyped, 'reveal', 'shown');
+  await settle();
+  assert.equal(airing.sends.length, 0);
+  assert.deepEqual(airing.notes, Array(3).fill('T1: Live controls do not reach typed data yet.'));
   // A native cue on the same block presses as before.
   const native = graphicCue('n1', 'Score', { score: '3' });
   const plain = rig({ liveCue: { Score: 'n1' } });
   void plain.verbs.event(liveSelection('Score', [native], { Score: 'n1' }), { event: 'go' });
   await settle();
   assert.equal(plain.sends.length, 1);
+});
+
+test('E1.2a: Take and Update of a typed cue send its envelope beside empty native data; refused, nothing goes', async () => {
+  const typed = { v: 1, kind: 'values', standard: OGRAF_STANDARD.commit, schema: 'x', values: { score: 3, teams: [{ name: 'H' }] } };
+  const cue = graphicCue('t1', 'Score', { score: '3' }, { typed });
+  const r = rig({ typedSends: { t1: { status: 'ok', typed } } });
+  r.resolved.Score = { score: '9' };
+  void r.verbs.take(cue);
+  await settle();
+  assert.deepEqual(sentAs(r.sends[0].batches[0]).slice(0, 2), [
+    { graphic: 'Score', msg: { t: 'update', data: {}, typed } },
+    { graphic: 'Score', msg: { t: 'play' } },
+  ]);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await settle();
+  const live = sel({ selectedCue: cue, selectedGraphic: 'Score', selectedLayerLive: true, editingCue: cue, editingIsLive: true });
+  void r.verbs.update(live);
+  await settle();
+  assert.deepEqual(sentAs(r.sends[1].batches[0]), [{ graphic: 'Score', msg: { t: 'update', data: {}, typed } }]);
+  // Refused (invalid data, an output that cannot read it): nothing is sent, and the note says why.
+  const no = rig({ typedSends: { t1: { status: 'refused', reason: 'score: above the maximum 9.' } } });
+  await no.verbs.take(cue);
+  void no.verbs.update(live);
+  await settle();
+  assert.equal(no.sends.length, 0);
+  assert.deepEqual(no.notes, ['T1: score: above the maximum 9.', 'T1: score: above the maximum 9.']);
+  // A page that sends no typed data refuses a typed cue rather than air its native strings.
+  const old = rig();
+  await old.verbs.take(cue);
+  await settle();
+  assert.equal(old.sends.length, 0);
+  assert.deepEqual(old.notes, ['T1: Typed data does not go on air from here.']);
+  // A native cue is sent exactly as before: no `typed` member.
+  const plain = rig({ typedSends: {} });
+  void plain.verbs.take(graphicCue('n1', 'Score', { score: '3' }));
+  await settle();
+  assert.deepEqual(sentAs(plain.sends[0].batches[0])[0], { graphic: 'Score', msg: { t: 'update', data: { score: '3' } } });
 });
 
 // ── One sender (§4.1 R4) ─────────────────────────────────────────────────────────────────────
