@@ -71,8 +71,19 @@ changes a spec's digest.
     is what an operator prepares.
   - *Panels*: a typed button never becomes an `event:` capability; E6.1's `foreign:` descriptors are
     unchanged and E6.2 invokes them.
+  - *Kept arguments follow the package* (`TypedAction.schema`, the declared schema's content hash,
+    after `/check` review): a change in how this build parses a schema never drops what was kept.
+  - *A stated limit, not fixed here*: an imported stranger's graphic still airs as a composed page
+    (no production code mounts a stage's `foreign` layer before E3), so a typed action reaches it only
+    if its page defines `noacgDispatch`; `customAction` on a mounted foreign package is mapped
+    (`ografCallFor`) and waits for E3's mount. The press reads "accepted" when the log took it; what
+    the Graphic did with it is E2.2's truthful feedback.
+  - *A typed cue whose graphic's schema cannot be drawn* (declaration lost or unreadable) reads out
+    read-only as E1.2a showed it (`typedUndrawn`), never as editable native strings.
   - *Seams changed and where*: E1's `migrateToTyped` (option), `readTypedWire`, `typedOutputGate`,
-    `typedOutputsRefusal` (`need`), `TYPED_READER` (2), `TypedNode.labels`, the receipt's `defaulted`;
+    `typedOutputsRefusal` (`need`), `TYPED_READER` (2), `TypedNode.labels`, `TypedAction.schema`, the
+    receipt's `defaulted`; `validateActionArgs`' parameter type; the OGraf host's `custom` (a falsy
+    argument passed as it is);
     E1.2a's `setCueTyped` (On fills defaults, keeps drafts) and the editor's read-only typed rows
     (`typedCandidate`, removed); L1's `ControlButton` (`typed`); E6.1's `graphicCapabilities` (skips
     `typed`); `ControlMessage`'s event (`typed`) and the preview `dispatch` payload type.
@@ -86,7 +97,7 @@ changes a spec's digest.
 - **Touched files against `0897d09`:** `src/model/ografTyped.ts`, `src/model/shows.ts`,
   `src/control/ografForm.ts` (new), `src/control/ografContract.ts`, `src/control/typedSend.ts`,
   `src/control/graphicVerbs.ts`, `src/control/panelActions.ts`, `src/control/controlModel.ts`,
-  `src/control/livePath.ts` (comment), `src/blocks/animMachine.ts`, `src/output/stage.ts`,
+  `src/control/livePath.ts` (comment), `src/control/ografHost.ts`, `src/blocks/animMachine.ts`, `src/output/stage.ts`,
   `src/preview/previewProtocol.ts`, `src/components/home/TypedForm.tsx` (new),
   `src/components/home/CueEditor.tsx`, `src/components/home/CueRundown.tsx`,
   `src/components/home/ProductionPage.tsx`, `src/styles/playout-dashboard.css`,
@@ -94,9 +105,10 @@ changes a spec's digest.
   `e2e/configured/ograf-typed-data.spec.ts`, `scripts/ograf-form.test.mjs` (new),
   `scripts/graphic-verbs.test.mjs`, `scripts/ograf-typed.test.mjs`, `scripts/ograf-typed-writer.test.mjs`,
   this file.
-- **Verification.** Node: `scripts/ograf-form.test.mjs` (new, 12 tests), `ograf-typed` (two
-  descriptor hashes re-recorded for `labels` alone: with `labels` stripped they are E1.1's),
-  `ograf-typed-writer`, `ograf-typed-recovery`, `graphic-verbs` (a typed press), `panel-feedback`;
+- **Verification.** Node: `scripts/ograf-form.test.mjs` (new, 13 tests), `ograf-typed` (four
+  descriptor hashes re-recorded for `labels` and the actions' `schema` alone: with both stripped they
+  are E1.1's),
+  `ograf-typed-writer` (a new test of the form's writes), `ograf-typed-recovery`, `graphic-verbs` (a typed press), `panel-feedback`;
   `npm run gates -- run --changed origin/main` (409 tests); eslint on the changed files, both
   tsconfigs, dependency-cruiser. Browser: `e2e/ograf-controls.spec.ts` (new: desktop walk through
   edit, invalid draft, reload, Take with the renderer's own typed readout, a refused and an accepted
@@ -110,7 +122,8 @@ changes a spec's digest.
   keeping hidden values; a URI drawn as an image; a hidden property skipped; the action size cap
   doubled; another action version's arguments sent; an action with unsupported arguments sent; defaults
   applied over existing values; the migration's draft option ignored; the seed's node budget removed;
-  enum labels dropped; the typed press taking the native road; the items-shown cap 51 (Node). The stage
+  enum labels dropped; the typed press taking the native road; the items-shown cap 51; the args record's
+  whole-read check removed; the host's `data || {}` back; the kept-args hash taken from the parse (Node). The stage
   sending the native payload in place of the typed arguments (browser).
 
 ## Row 36 (E1.2b, project phase 40): typed OGraf output replay, baseline and renderer round trip
