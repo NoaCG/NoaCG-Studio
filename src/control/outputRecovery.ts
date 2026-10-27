@@ -41,6 +41,7 @@
 // re-animation is recoverable, a lost take is not.
 
 import type { ControlEventRow, ControlSendItem, LiveReportMap } from './hostedControl';
+import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
 export interface OutputRecoveryPlan {
   /** The row to follow the log FROM — rows after it are fetched and replayed at boot. */
@@ -209,6 +210,14 @@ export function reportedTyped(report: { state?: unknown } | null | undefined): {
   return { typed, steps: typeof steps === 'number' && Number.isInteger(steps) && steps >= 0 && steps <= TYPED_STEPS_MAX ? steps : 0 };
 }
 
+/** A report's typed baseline as a PROGRAM monitor rebuilds it: the envelope read (null when this
+ *  build cannot read it, so the output holds that graphic) and its steps as the `next`s that replay
+ *  them. Null for a native report. */
+export function reportedTypedAir(report: { state?: unknown } | null | undefined): { envelope: TypedValues | null; steps: { t: 'next' }[] } | null {
+  const base = reportedTyped(report);
+  return base ? { envelope: typedValuesOf(base.typed), steps: Array.from({ length: base.steps }, () => ({ t: 'next' as const })) } : null;
+}
+
 /** The steps a graphic has taken since its entrance, after one command: an entrance (or a pose)
  *  starts again at 0, an exit forgets them, a `next` adds one up to TYPED_STEPS_MAX. */
 export function stepsAfter(prev: number | undefined, msg: { t: string }): number | undefined {
@@ -239,6 +248,13 @@ export function unreportedTypedRows<R extends { graphic: string; msg: { t: strin
     else typedNow.delete(row.graphic);
   }
   return typedNow.size ? rows.filter((row) => typedNow.has(row.graphic) && COMMAND_VERBS.has(row.msg.t)) : [];
+}
+
+/** Whether a graphic on air with no report may be airing typed data, by the cue the log's head says
+ *  it last took: not when that is a cue the output's payload publishes, since a cue with typed data
+ *  never is (model/productionData.ts `preparedCue`); a direct trigger or a cue not published may. */
+export function mayAirTyped(headCue: unknown, published: ReadonlySet<string>): boolean {
+  return !(typeof headCue === 'string' && published.has(headCue));
 }
 
 /** How many tail pages that read may take: on the numbered log, the pages up to `followFrom`

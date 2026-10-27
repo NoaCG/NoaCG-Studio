@@ -30,14 +30,17 @@ changes a spec's digest.
     with its reason in READY, its pose is not put back and it is not played again. A graphic with no
     pose steps back to `steps` after its entrance.
   - *#1762, a graphic on air that no report banks*: after the catch-up has heard the log's head,
-    each graphic the head says is on air and that has no report has the log below `followFrom` read
-    for it (`unreportedPages`: every page up to `followFrom`, no ceiling cuts it). If its last
-    operator update there carried an envelope, all its commands there replay first
+    each graphic the head says is on air, that has no report and whose live cue is not a published
+    cue (`mayAirTyped`: a cue with typed data is never published, `preparedCue`) has the log below
+    `followFrom` read for it (`unreportedPages`: every page up to `followFrom`, no ceiling cuts it).
+    If its last operator update there carried an envelope, all its commands there replay first
     (`unreportedTypedRows`); otherwise nothing does, so native recovery replays exactly what it did.
+    A page that cannot be read leaves the whole read out, never half a history.
   - *PROGRAM monitors* (`airState.ts` `seedFromResolve`, `restoreItems`; the hosted page's
-    `restoreProgram`): a typed report seeds the page's typed air with its envelope and steps, and the
-    rebuild airs that envelope (never the report's empty data), the pose or the steps, then the rows
-    after it.
+    `restoreProgram`, both through `reportedTypedAir`): a typed report seeds the page's typed air
+    with its envelope and steps (a native report ends an older entry), and the rebuild airs that
+    envelope (never the report's empty data), the pose and the envelope again, or the steps, then
+    the rows after it. A report whose envelope does not read rebuilds nothing on the hosted page.
   - *#1761, the exported hosted receiver* (`hostedReceiver.ts`): a row carrying `typed` is refused
     whole, said on the console and on the root's `data-noacg-refused`, and the graphic held as the
     output holds it: only a stop reaches it until an update without typed data. Exported bytes change
@@ -89,6 +92,19 @@ changes a spec's digest.
   the page's rebuild ignoring the report; the report banking native data; a typed graphic skipping
   its re-bank (Node). The read below the reports switched off; the steps not restored; the typed
   baseline ignored (browser). The receiver without its hold (browser).
+- **Reviews.** `/check` code review (high): 10 findings. Fixed: the hosted PROGRAM's entrance with
+  rows after a typed report; a native report not ending a stale typed entry on the page; the read
+  below the reports walking for native graphics (now only where the live cue is not a published
+  one); an unreadable report envelope playing on the hosted PROGRAM; a partly read history being
+  replayed; the typed rebuild not restating data after the pose; the configured walk's `'5'`
+  anywhere (now `#f1`). Not defects here: a fast-road `next` counted before its row (the numbered
+  log has no fast road, and by row id there is no head, so steps are never restored there); the
+  hosted page's rebuild after a command (it leaves typed cues out, as before). Not fixed: PROGRAM
+  monitors do not read below the reports for a graphic no report banks (that window is now only
+  graphics an E1.2a output aired, or one less than 800 ms old; air is right). Simplify: one
+  `reportedTypedAir` for both monitors, `ReportState` named once, the onWithoutPose steps read from
+  what the gate accepted, a Set for the read below. Left: the envelope is stringified in each
+  report's dedup key (one per change, debounced).
 - **Follow-ups**: #1760 stays (typed live follow). Nothing new filed.
 - **Touched files against `c614500`:** `docs/work-specs/production-page-refactor/evidence/phase-notes.md`,
   `e2e/configured/ograf-typed-data.spec.ts`, `e2e/hosted-control.spec.ts`,

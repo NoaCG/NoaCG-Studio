@@ -87,8 +87,7 @@ import {
   type ResolvedControlShow,
   type VerbSent,
 } from '../control/hostedControl';
-import { airedAfter, reportedTyped, type AiredMap } from '../control/outputRecovery';
-import { typedValuesOf } from '../model/ografTyped';
+import { airedAfter, reportedTypedAir, type AiredMap } from '../control/outputRecovery';
 import { IDENTITY, lookAfter, publishedAppearance, reportedLook, type AppliedLooks } from '../control/cueAdjust';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
@@ -650,12 +649,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
       // A report of typed data banks its envelope and steps (E1.2b): PROGRAM airs that envelope,
       // never the report's empty native data.
-      const typedBase = replay ? reportedTyped(reportsRef.current[graphic]) : null;
-      const typed = typedBase ? typedValuesOf(typedBase.typed) : null;
+      const typedBase = replay ? reportedTypedAir(reportsRef.current[graphic]) : null;
+      const typed = typedBase?.envelope ?? null;
+      // One this build cannot read is held on air, so PROGRAM plays nothing for it either.
+      if (typedBase && !typed) continue;
       const dataItem = typed
         ? [{ graphic, msg: { t: 'update' as const, data: {}, typed } }]
         : data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
-      const steps = typed && typedBase ? Array.from({ length: typedBase.steps }, () => ({ graphic, msg: { t: 'next' as const } })) : [];
+      const steps = typed && typedBase ? typedBase.steps.map((msg) => ({ graphic, msg })) : [];
       // Its place and size first (rule 4): the report's at boot, else what this page has seen since.
       const look = replay ? reportedLook(reportsRef.current[graphic]) : looksRef.current[graphic];
       programRef.current?.apply([
@@ -663,7 +664,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         ...dataItem,
         ...(groups
           ? [{ graphic, msg: { t: 'snap' as const, snap: groups } }]
-          : rows.length > 0
+          : (typed ? rows.some((item) => item.msg.t === 'play') : rows.length > 0)
             ? [] // a graphic that never reported replays its own entrance below
             : [{ graphic, msg: { t: 'play' as const } }, ...steps]),
         ...dataItem,

@@ -34,7 +34,7 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from './matchClockWire.ts';
-import { airedAfter, reportedTyped, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { airedAfter, reportedTypedAir, type AiredMap, type ReplayItem } from './outputRecovery.ts';
 import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
 import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
@@ -304,12 +304,16 @@ export function seedFromResolve(
   // each entrance, then what the rows after them leave on air. A graphic no report banks has its
   // rows as its only word. Only a live layer keeps one.
   const fromReports: TypedAir = { typedAired: { ...(air.typedAired ?? {}) }, typedSteps: { ...(air.typedSteps ?? {}) } };
+  // A report is the renderer's word for its graphic: one without typed data ends an older entry.
   if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
-    const base = reportedTyped(report);
-    const envelope = base ? typedValuesOf(base.typed) : null;
-    if (!base || !envelope) continue;
-    fromReports.typedAired[graphic] = envelope;
-    fromReports.typedSteps[graphic] = Array.from({ length: base.steps }, () => ({ t: 'next' as const }));
+    const base = reportedTypedAir(report);
+    if (!base?.envelope) {
+      delete fromReports.typedAired[graphic];
+      delete fromReports.typedSteps[graphic];
+      continue;
+    }
+    fromReports.typedAired[graphic] = base.envelope;
+    fromReports.typedSteps[graphic] = base.steps;
   }
   const folded = replay.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), fromReports);
   const typedAired = Object.fromEntries(Object.entries(folded.typedAired).filter(([graphic]) => resolved.liveCue[graphic]));
@@ -368,17 +372,18 @@ export function restoreItems(
     // A graphic this page aired typed data on is rebuilt with that envelope, never its empty native
     // data (E1.2a). While its rows replay, its report's envelope and steps are the base (E1.2b):
     // the rows after the report carry the rest.
-    const reported = replaying ? reportedTyped(report) : null;
-    const typed = replaying ? (reported ? typedValuesOf(reported.typed) : null) : air.typedAired?.[graphic];
+    const reported = replaying ? reportedTypedAir(report) : null;
+    const typed = replaying ? reported?.envelope : air.typedAired?.[graphic];
     if (typed) {
       items.push({ graphic, msg: { t: 'update', data: {}, typed, ...(look ? { appearance: look } : {}) } });
-      if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
+      // The data again after the pose, as the native rebuild restates it (a snap clears inline styles).
+      if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } }, { graphic, msg: { t: 'update', data: {}, typed } });
       else {
         // No pose to snap to: the commands it took since its entrance (the report's steps, or what
         // this page aired since its envelope) carry its entrance and every step, so PROGRAM stands
         // where air does.
         // A replayed entrance starts it again, so nothing before it is needed.
-        const steps: readonly ControlSendItem['msg'][] = reported ? Array.from({ length: reported.steps }, () => ({ t: 'next' as const })) : (air.typedSteps?.[graphic] ?? []);
+        const steps: readonly ControlSendItem['msg'][] = reported ? reported.steps : (air.typedSteps?.[graphic] ?? []);
         if (!rows.some((item) => item.msg.t === 'play')) {
           if (!steps.some((msg) => msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });
           items.push(...steps.map((msg) => ({ graphic, msg })));

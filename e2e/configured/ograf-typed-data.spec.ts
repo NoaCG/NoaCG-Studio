@@ -151,7 +151,7 @@ test('a typed cue saves, reloads, takes and updates with its envelope on the log
   // RECONNECT: the output reloads, airs the typed values from that report (the cue's own text says
   // 2), refuses nothing, and Update still goes.
   await output.reload();
-  await expect(output.frameLocator('iframe').first().locator('body')).toContainText('5', { timeout: 30_000 });
+  await expect(output.frameLocator('iframe').first().locator('#f1')).toHaveText('5', { timeout: 30_000 });
   const afterReload = (await updates(showId)).length;
   await expect(page.getByTestId('verb-update')).toBeEnabled({ timeout: 30_000 });
   await page.getByTestId('verb-update').click();

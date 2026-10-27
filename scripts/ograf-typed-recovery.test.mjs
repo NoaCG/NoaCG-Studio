@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import './lib/tsResolve.mjs';
 
 const {
-  TYPED_STEPS_MAX, planOutputRecovery, reportedTyped, stepsAfter, unreportedPages, unreportedTypedRows,
+  TYPED_STEPS_MAX, mayAirTyped, planOutputRecovery, reportedTyped, stepsAfter, unreportedPages, unreportedTypedRows,
 } = await import('../src/control/outputRecovery.ts');
 const { OGRAF_STANDARD, TYPED_VERSION, typedOutputGate } = await import('../src/model/ografTyped.ts');
 const { airAtRequest, restoreItems, seedFromResolve } = await import('../src/control/airState.ts');
@@ -85,9 +85,18 @@ test('the read below the reports takes every page up to followFrom, past the cat
   const main = source('src/output/main.ts');
   const ceiling = Number(/const MAX_CATCH_UP_PAGES = (\d+);/.exec(main)[1]);
   assert.ok(unreportedPages(30_000, true, CONTROL_TAIL_PAGE) > ceiling, 'a long log is read whole, not cut at the catch-up ceiling');
-  // The output asks it only for graphics on air (the head) with no report, and puts their rows first.
-  assert.match(main, /const unreported = stage\.graphics\.filter\(\(key\) => !resolved\.live\[key\] && headOn\.get\(key\) === true\);/);
+  // The output asks it only for graphics on air (the head) with no report whose live cue is not a
+  // published native cue, puts their rows first, and leaves a read it could not finish out whole.
+  assert.match(main, /\(key\) => !resolved\.live\[key\] && headOn\.get\(key\) === true && mayAirTyped\(headCue\.get\(key\), publishedCues\),/);
+  assert.match(main, /if \(!tail\.ok\) \{\n\s+below = \[\];/);
   assert.match(main, /missed = unreportedTyped\.concat\(missed\);/);
+  // A typed cue is never published, so a published cue on air is native: nothing more is read.
+  const published = new Set(['native-cue']);
+  assert.equal(mayAirTyped('native-cue', published), false);
+  assert.equal(mayAirTyped('typed-cue', published), true);
+  assert.equal(mayAirTyped(null, published), true, 'a direct trigger may carry typed data');
+  assert.equal(mayAirTyped(undefined, published), true);
+  assert.match(source('src/model/productionData.ts'), /export const preparedCue = \(cue: \{ selection\?: unknown; typed\?: unknown \}\): boolean => cue\.selection === undefined && cue\.typed === undefined;/);
 });
 
 test('the output banks typed data in its report, rebuilds it through the gate, and native reports are as they were', () => {
@@ -125,7 +134,11 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
   // With a pose, the pose is the step.
   const posed = { Board: { data: {}, state: { typed: env, steps: 0, groups: { main: 'in' } }, event: 10 } };
   const withPose = seedFromResolve({ ...NO_AIR, reports: posed }, { liveCue: { Board: 'c1' }, live: posed }, after, airAtRequest(NO_AIR), [], specs);
-  assert.deepEqual(restoreItems(withPose, {}, specs).items.map((item) => item.msg.t), ['update', 'snap', 'next']);
+  assert.deepEqual(restoreItems(withPose, {}, specs).items.map((item) => item.msg.t), ['update', 'snap', 'update', 'next'], 'the data again after the pose');
+  // A later native report ends an envelope the page held from before.
+  const nativeNow = { Board: { data: { f0: 'B' }, state: null, event: 20 } };
+  const ended = seedFromResolve({ ...seeded, reports: nativeNow }, { liveCue: { Board: 'c1' }, live: nativeNow }, [], airAtRequest(seeded), [], specs);
+  assert.deepEqual([ended.typedAired, ended.typedSteps], [{}, {}]);
   // A report whose envelope does not read rebuilds nothing typed from it.
   const later = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };
   const unread = seedFromResolve({ ...NO_AIR, reports: later }, { liveCue: { Board: 'c1' }, live: later }, [], airAtRequest(NO_AIR), [], specs);
@@ -141,7 +154,7 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
     { graphic: 'Board', msg: { t: 'next' } },
   ]);
   // The hosted page's PROGRAM reads the same baseline.
-  assert.match(source('src/components/HostedControlPage.tsx'), /const typedBase = replay \? reportedTyped\(reportsRef\.current\[graphic\]\) : null;/);
+  assert.match(source('src/components/HostedControlPage.tsx'), /const typedBase = replay \? reportedTypedAir\(reportsRef\.current\[graphic\]\) : null;/);
 });
 
 test('the exported receiver refuses a typed row whole and holds, in ES5', () => {

@@ -54,6 +54,7 @@ import {
 import { outputReadiness, outputStateWords, type ChangePrep, type GraphicCheck, type HeldVersion } from '../control/readiness';
 import {
   alreadyInSnapshot,
+  mayAirTyped,
   planOutputRecovery,
   reportedTyped,
   seqBaselines,
@@ -412,10 +413,15 @@ async function boot(): Promise<void> {
   const headOn = new Map<string, boolean>();
   /** A head has been heard in this epoch: until then headOn says nothing, not "nothing on air". */
   let headHeard = false;
-  const noteHead = (graphics: Record<string, { on?: boolean }> | undefined) => {
+  /** …and the cue the head says each graphic last took (a cue id, or null). */
+  const headCue = new Map<string, unknown>();
+  const noteHead = (graphics: Record<string, { on?: boolean; cue?: string | null }> | undefined) => {
     if (!graphics) return;
     headHeard = true;
-    for (const graphic of Object.keys(graphics)) headOn.set(graphic, graphics[graphic].on === true);
+    for (const graphic of Object.keys(graphics)) {
+      headOn.set(graphic, graphics[graphic].on === true);
+      headCue.set(graphic, graphics[graphic].cue);
+    }
   };
   /** Graphics a play, snap or stop has reached since boot: for them `liveGraphics` is this
    *  renderer's own truth about what it shows. */
@@ -951,9 +957,15 @@ async function boot(): Promise<void> {
   // `unreportedTypedRows`): its typed Take can be older than `followFrom`, so the log below it is
   // read for that graphic alone, every page up to `followFrom` (`unreportedPages`), and its commands
   // there replay before the rows above. Only the numbered log's head says what is on air, and a
-  // graphic every report banks, or one that is not on air, reads nothing more.
-  const unreported = stage.graphics.filter((key) => !resolved.live[key] && headOn.get(key) === true);
-  const below: ControlEventRow[] = [];
+  // graphic every report banks, one that is not on air, or one whose live cue is a published native
+  // cue (`mayAirTyped`: a typed cue is never published) reads nothing more. A page that cannot be
+  // read leaves the whole read out: half a history could replay an envelope a later Take replaced.
+  const publishedCues = new Set(payload.cues.map((cue) => cue.id));
+  const unreported = stage.graphics.filter(
+    (key) => !resolved.live[key] && headOn.get(key) === true && mayAirTyped(headCue.get(key), publishedCues),
+  );
+  const unreportedSet = new Set(unreported);
+  let below: ControlEventRow[] = [];
   if (unreported.length > 0) {
     let cursor = 0;
     for (let page = 0; page < unreportedPages(followFrom, !!seqMode, CONTROL_TAIL_PAGE); page += 1) {
@@ -961,9 +973,13 @@ async function boot(): Promise<void> {
         limit: 6,
         onRetry: (attempts, error) => dbg('catch-up', `log read below the reports failed (${attempts}): ${error}`),
       });
-      if (!tail.ok) break;
+      if (!tail.ok) {
+        below = [];
+        dbg('catch-up', 'log below the reports unread: typed data no report banks waits for its next Take');
+        break;
+      }
       const rows = tail.value.filter((row) => position(row) <= followFrom);
-      below.push(...rows.filter((row) => unreported.includes(row.graphic)));
+      below.push(...rows.filter((row) => unreportedSet.has(row.graphic)));
       if (rows.length < CONTROL_TAIL_PAGE) break;
       cursor = position(rows[rows.length - 1]);
     }
@@ -1049,7 +1065,7 @@ async function boot(): Promise<void> {
     if (typedRefused.has(key)) continue;
     stage.apply(key, { t: 'play' });
     // A typed graphic with no pose steps back to where its report says it stood (E1.2b).
-    const steps = reportedTyped(reports[key])?.steps ?? 0;
+    const steps = stepsSince.get(key) ?? 0;
     for (let step = 0; step < steps; step += 1) stage.apply(key, { t: 'next' });
     stepsSince.set(key, steps);
     liveGraphics.add(key);
