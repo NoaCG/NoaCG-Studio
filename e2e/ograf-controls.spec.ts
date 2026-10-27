@@ -150,6 +150,17 @@ test('a typed cue is edited through its generated form, kept as typed, reloaded,
   await page.getByTestId('cue-typed-teams[0].score').fill('3');
   await page.getByTestId('cue-typed-teams[0].score').blur();
   await expect(page.getByTestId('cue-typed-error-teams[0].score')).toHaveCount(0);
+  // A required number emptied and sent while the box still holds it (no blur) is missing, so the
+  // Update refuses rather than air the number it held before.
+  await page.getByTestId('cue-typed-teams[0].score').fill('');
+  await page.getByTestId('verb-update').dispatchEvent('click');
+  await expect.poll(async () => (await stored(page, showId)).values?.teams).toEqual([{ name: 'Away' }]);
+  await expect(page.getByTestId('cue-typed-error-teams[0].score')).toBeVisible();
+  await expect(page.getByTestId('production-note')).toContainText('teams[0].score');
+  await expect(shown).toContainText('teams=list:[{"name":"Away","score":3}]');
+  await page.getByTestId('cue-typed-teams[0].score').fill('3');
+  await page.getByTestId('cue-typed-teams[0].score').blur();
+  await expect(page.getByTestId('cue-typed-error-teams[0].score')).toHaveCount(0);
 
   // A PRESS whose arguments do not fit sends nothing and says where.
   await page.getByTestId('cue-action-highlight').click();

@@ -132,9 +132,14 @@ changes a spec's digest.
     (`control/typedSend.ts` `createTypedSaves`, cue by cue) refuses Take, ✎ Update and a press with the
     reason, rather than air the older record, until its next typed write lands or typed data is
     turned Off or On (the form then shows what is stored); other cues take.
-  - *An image declared only by `contentMediaType: image/*`* draws the picture picker in the flat
-    contract (bench, bridge) and a text line in the typed form, since E1's node does not carry the
-    media type: the safe direction (the value is kept as its string), for E3's asset road to settle.
+  - *An image declared only by `contentMediaType: image/*`* draws the picture picker in the typed
+    form as in the flat contract (bench, bridge): E1's node now carries it (`TypedNode.image`), and
+    the value is still kept as its string. The envelope's schema hash is of the declared schema, so
+    no stored envelope changes.
+  - *An emptied number is absent*: the number control keeps an empty box as its own draft and never
+    reported it, so a Take or ✎ Update pressed before the box lost focus sent the number it held
+    before. `FieldControl` now says so (`onEmpty`, number only, used by the typed form alone); the
+    typed form stores the number absent, and a required one is marked missing and refuses the send.
   - *Actions only where they can be received*: until E3 mounts a stranger's package, an imported
     graphic airs as a composed page that takes an action only through `noacgDispatch`; a page that
     defines none is offered no ⚡ button and no argument form (`receivesTypedActions`).
@@ -160,7 +165,7 @@ changes a spec's digest.
   `src/control/graphicVerbs.ts`, `src/control/panelActions.ts`, `src/control/controlModel.ts`,
   `src/control/livePath.ts` (comment), `src/control/ografHost.ts`, `src/control/hostedReceiver.ts`,
   `src/model/rundownHistory.ts`,
-  `src/components/fields/FieldControl.tsx` (`isSegmented` exported), `src/blocks/animMachine.ts`, `src/output/stage.ts`,
+  `src/components/fields/FieldControl.tsx` (`isSegmented` exported, the number control's `onEmpty`), `src/blocks/animMachine.ts`, `src/output/stage.ts`,
   `src/preview/previewProtocol.ts`, `src/components/home/TypedForm.tsx` (new),
   `src/components/home/CueEditor.tsx`, `src/components/home/CueRundown.tsx`,
   `src/components/home/ProductionPage.tsx`, `src/styles/playout-dashboard.css`,

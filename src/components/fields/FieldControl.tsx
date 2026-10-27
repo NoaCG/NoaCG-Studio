@@ -34,10 +34,13 @@ export interface FieldControlProps {
   imageHint?: string;
   /** data-testid for the control's primary input. */
   testId?: string;
+  /** `number` only: the box was emptied (or holds text that is no number), which `onChange` never
+   *  reports. A surface whose value may be absent says so here; others fall back on blur. */
+  onEmpty?: () => void;
 }
 
 /** Numbers: −/+ steppers around the value, clamped to the descriptor's bounds. */
-function NumberControl({ descriptor: d, value, onChange, testId }: FieldControlProps) {
+function NumberControl({ descriptor: d, value, onChange, testId, onEmpty }: FieldControlProps) {
   // Hold the raw text while typing so the box can be empty or mid-edit ("-", "1."); the value
   // only commits once the text parses as a number.
   const [draft, setDraft] = useState<string | null>(null);
@@ -68,6 +71,7 @@ function NumberControl({ descriptor: d, value, onChange, testId }: FieldControlP
           setDraft(e.target.value);
           const n = Number(e.target.value);
           if (e.target.value.trim() !== '' && Number.isFinite(n)) onChange(clampToField(d, n));
+          else onEmpty?.();
         }}
         onBlur={() => setDraft(null)} // an unparsable draft falls back to the committed value
       />

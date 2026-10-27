@@ -96,6 +96,9 @@ export interface TypedNode {
   hidden?: true;
   /** A `file-path` GDD type: the value names an asset. Its identity is the string, not a picture. */
   asset?: true;
+  /** A string declaring an image `contentMediaType` (E2.1): drawn as the picture picker, still kept
+   *  as its string. */
+  image?: true;
   /** A GDD colour: its exact pattern, checked without running the package's expression. */
   colour?: 'rrggbb' | 'rrggbbaa';
   default?: JsonValue;
@@ -207,6 +210,7 @@ function readNode(raw: unknown, at: string, path: string, depth: number, budget:
     const colour = COLOUR[family];
     if (colour && type === 'string') node.colour = colour.colour;
   }
+  if (type === 'string' && typeof raw.contentMediaType === 'string' && raw.contentMediaType.startsWith('image/')) node.image = true;
   // A package's pattern is never run: only the GDD colour patterns, checked by our own expression.
   if (own(raw, 'pattern') && !(node.colour && raw.pattern === COLOUR[node.gddType ?? '']?.pattern)) note('pattern', 'only the GDD colour patterns are supported');
   const numeric = type === 'number' || type === 'integer';

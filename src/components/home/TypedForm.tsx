@@ -38,11 +38,13 @@ export function TypedForm(props: TypedFormProps) {
   const { node, value, onChange, errors, testIdPrefix } = props;
   // An edit is keyed by its path's JSON; the commit, which the hook repoints every render, reads it
   // into the newest value through the node at that path.
-  // An optional value emptied is absent again, never an empty string the schema may refuse.
+  // An optional value emptied is absent again, never an empty string the schema may refuse; an
+  // emptied number is absent too (a required one is then marked missing and refuses the send).
   const edits = useDeferredEdits((key, text) => {
     const path = JSON.parse(key) as TypedPath;
     const leaf = typedLeaf(typedNodeAt(node, path) ?? node, pathKey(path));
-    if (leaf) onChange((current) => setAt(current, path, text === '' && typedOptionalAt(node, path) ? undefined : leaf.read(text)));
+    const absent = text === '' && (typedOptionalAt(node, path) || leaf?.descriptor.kind === 'number');
+    if (leaf) onChange((current) => setAt(current, path, absent ? undefined : leaf.read(text)));
   });
 
   const flushNow = useRef(edits.flush);
@@ -101,6 +103,7 @@ export function TypedForm(props: TypedFormProps) {
             else if (v === '' && optional) onChange((current) => setAt(current, path, undefined));
             else if (v !== 'other' && !(v === '' && n.enum)) onChange((current) => setAt(current, path, leaf.read(v)));
           }}
+          onEmpty={leaf.descriptor.kind === 'number' ? () => edits.type(editKey, '') : undefined}
           images={props.images}
           imageHint={props.imageHint}
           testId={`${testIdPrefix}-${key}`}

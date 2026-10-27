@@ -98,6 +98,9 @@ test('each leaf is the control its declared type means, and an edit gives back t
   assert.equal(form.typedLeaf(node('logo'), 'logo').descriptor.kind, 'image');
   const video = describeOgraf({ schema: { type: 'object', properties: { clip: { type: 'string', gddType: 'file-path/video-path' }, any: { type: 'string', gddType: 'file-path' } } } }).fields;
   for (const p of video.properties) assert.equal(form.typedLeaf(p.node, p.key).descriptor.kind, 'text', p.key);
+  // An image media type draws the picker as the flat contract does; a URI declaring none stays text.
+  const media = describeOgraf({ schema: { type: 'object', properties: { pic: { type: 'string', contentMediaType: 'image/png' }, link: { type: 'string', format: 'uri' } } } }).fields;
+  assert.deepEqual(media.properties.map((p) => form.typedLeaf(p.node, p.key).descriptor.kind), ['image', 'text']);
   // A container has no leaf.
   assert.equal(form.typedLeaf(node('teams'), 'teams'), null);
 });

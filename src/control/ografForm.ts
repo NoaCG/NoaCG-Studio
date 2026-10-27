@@ -146,7 +146,7 @@ export function typedLeaf(node: TypedNode, key: string, label = typedLabel(node,
   }
   switch (node.type) {
     case 'string': {
-      const image = node.asset && /^file-path\/image-path(\/|$)/.test(node.gddType ?? '');
+      const image = node.image || (node.asset && /^file-path\/image-path(\/|$)/.test(node.gddType ?? ''));
       const kind = image ? 'image' : node.colour === 'rrggbb' ? 'color' : LINES.has(node.gddType ?? '') ? 'lines' : 'text';
       return {
         descriptor: { ...base, kind, defaultValue: typeof node.default === 'string' ? node.default : '' },
