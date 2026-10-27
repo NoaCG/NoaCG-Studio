@@ -19,6 +19,7 @@
 // Pure (model layer): no DOM and no zip. The archive is read in export/targets/ografForeign.ts.
 
 import type { AssetFile, SpxTemplate } from './types';
+import { readOgrafDeclared } from './ografTyped';
 
 export const FOREIGN_PACKAGE_VERSION = 1;
 
@@ -95,6 +96,18 @@ export function foreignPublishRefusal(graphics: readonly { name: string; templat
 
 /** The words for a package this page will not act on: "Results board was imported by ...". */
 export const foreignRefusal = (name: string, reason: string) => `${name} ${reason}, so it is kept as it is and does not load here.`;
+
+/** The top-level fields a stranger's package declares, by the GDD `label` or JSON Schema `title`
+ *  its author gave each: what the cue's typed form will offer. */
+export function declaredFieldLabels(template: Pick<SpxTemplate, 'ograf'>): string[] {
+  const read = readOgrafDeclared(template.ograf);
+  if (read.status !== 'ok' || !read.fields?.properties) return [];
+  const raw = (template.ograf?.manifest as { schema?: { properties?: Record<string, { label?: unknown }> } } | undefined)?.schema?.properties ?? {};
+  return read.fields.properties.filter((p) => !p.node.hidden).map((p) => {
+    const label = raw[p.key]?.label;
+    return typeof label === 'string' && label ? label : p.node.title || p.key;
+  });
+}
 
 /** Lowercase hex of a digest. */
 const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');

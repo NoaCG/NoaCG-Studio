@@ -34,7 +34,7 @@ import {
   type ForeignPackageRecord,
 } from '../../model/foreignPackage';
 import { DEFAULT_GRAPHICS_FORMAT, projectFormatForResolution, resolutionForSelection } from '../../model/projectFormat';
-import { DEFAULT_SETTINGS, type AssetFile, type SpxTemplate } from '../../model/types';
+import { DEFAULT_SETTINGS, type AssetFile, type Resolution, type SpxTemplate } from '../../model/types';
 import { findManifestPath, readNoacgVendorBlock } from './ografImport';
 import { validateOgrafManifest, validateOgrafPackage } from './ografSchema';
 
@@ -313,7 +313,9 @@ function referencesIn(path: string, text: string, max: number): string[] {
   return out;
 }
 
-export type ForeignRead = { ok: true; template: SpxTemplate; record: ForeignPackageRecord } | { ok: false; reason: string };
+/** `stated`: the manifest's render requirements gave both the canvas and the frame rate, so the
+ *  format is the package's own word rather than a default. */
+export type ForeignRead = { ok: true; template: SpxTemplate; record: ForeignPackageRecord; stated: boolean } | { ok: false; reason: string };
 
 const MIME: Record<string, string> = {
   mjs: 'text/javascript', js: 'text/javascript', json: 'application/json', css: 'text/css', html: 'text/html',
@@ -329,18 +331,25 @@ function base64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-/** The package's canvas: its first render requirement's ideal size, else the default format. */
-function resolutionOf(manifest: Record<string, unknown>) {
+/** The package's canvas: its first render requirement's ideal size, or null when it states none. */
+function resolutionOf(manifest: Record<string, unknown>): Resolution | null {
   const first = Array.isArray(manifest.renderRequirements) ? manifest.renderRequirements[0] : undefined;
   const res = isRecordValue(first) && isRecordValue(first.resolution) ? first.resolution : null;
   const ideal = (d: unknown) => (isRecordValue(d) && typeof d.ideal === 'number' && Number.isInteger(d.ideal) && d.ideal > 0 && d.ideal <= 7680 ? d.ideal : null);
   const width = res ? ideal(res.width) : null;
   const height = res ? ideal(res.height) : null;
-  if (width && height) {
-    const preset = projectFormatForResolution({ width, height });
-    return preset ? { width: preset.width, height: preset.height, label: preset.label } : { width, height, label: `Imported (${width}×${height})` };
-  }
-  return resolutionForSelection(DEFAULT_GRAPHICS_FORMAT);
+  if (!width || !height) return null;
+  const preset = projectFormatForResolution({ width, height });
+  return preset ? { width: preset.width, height: preset.height, label: preset.label } : { width, height, label: `Imported (${width}×${height})` };
+}
+
+/** The package's frame rate: its first render requirement's ideal, else 50 (said as assumed). */
+function frameRateOf(manifest: Record<string, unknown>): number;
+function frameRateOf(manifest: Record<string, unknown>, fallback: null): number | null;
+function frameRateOf(manifest: Record<string, unknown>, fallback: number | null = 50): number | null {
+  const first = Array.isArray(manifest.renderRequirements) ? manifest.renderRequirements[0] : undefined;
+  const rate = isRecordValue(first) && isRecordValue(first.frameRate) ? first.frameRate.ideal : undefined;
+  return typeof rate === 'number' && Number.isFinite(rate) && rate > 0 && rate <= 240 ? rate : fallback;
 }
 
 /** A file map that `isForeignOgraf` admitted, read into the library entry, or refused. */
@@ -409,8 +418,8 @@ export async function readForeignFiles(fileName: string, files: ReadonlyMap<stri
   const template: SpxTemplate = {
     name,
     type: 'blank',
-    resolution: resolutionOf(manifest),
-    fps: 50,
+    resolution: resolutionOf(manifest) ?? resolutionForSelection(DEFAULT_GRAPHICS_FORMAT),
+    fps: frameRateOf(manifest),
     html: '',
     css: '',
     js: '',
@@ -423,7 +432,7 @@ export async function readForeignFiles(fileName: string, files: ReadonlyMap<stri
     ...(readOgrafDeclared(declared).status === 'ok' ? { ograf: declared } : {}),
     foreign: record as unknown as SpxTemplate['foreign'],
   };
-  return { ok: true, template, record };
+  return { ok: true, template, record, stated: frameRateOf(manifest, null) !== null && resolutionOf(manifest) !== null };
 }
 
 /** A dropped zip: the stranger's package it holds, a refusal with its reason, or null when it is

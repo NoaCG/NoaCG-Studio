@@ -85,6 +85,10 @@ test('two packages by two authors import as foreign entries: bytes untouched, no
     assert.equal(record.id, manifest.id);
     assert.equal(record.version, manifest.version);
     assert.deepEqual(template.ograf, { v: 1, manifest }, 'E1 reads the manifest as it came');
+    // The format is the package's word where it gives one, and said to be assumed where not.
+    const req = manifest.renderRequirements?.[0];
+    assert.equal(read.stated, Boolean(req?.frameRate?.ideal && req?.resolution?.width?.ideal));
+    if (read.stated) assert.deepEqual([template.resolution.width, template.resolution.height, template.fps], [req.resolution.width.ideal, req.resolution.height.ideal, req.frameRate.ideal]);
     // Every file kept, hashed, as an asset under its own path.
     assert.deepEqual(record.files.map((f) => f.path), [...files.keys()].sort());
     for (const f of record.files) assert.equal(f.sha256, sha(files.get(f.path)), f.path);

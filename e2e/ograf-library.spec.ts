@@ -106,6 +106,8 @@ test('two strangers\' packages go in, come out byte for byte, join a production,
     // Nothing here to edit: the artwork door is not offered.
     await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
     await expect(page.getByTestId('wz-finish-edit-artwork')).toHaveCount(0);
+    await expect(page.locator('.wz-finish-summary')).toContainText(`${f.label}, kept byte for byte`);
+    await expect(page.getByTestId('wz-finish-export')).toContainText('The OGraf package, exactly as it came in.');
 
     // Out: the files exactly as they came in, under the package's id.
     const out = await exportFromFinish(page);

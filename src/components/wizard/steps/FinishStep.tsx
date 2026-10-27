@@ -3,6 +3,7 @@ import { ALL_PRESETS } from '../../../blocks/presetRegistry';
 import { FONTS } from '../../../model/fonts';
 import type { SpxTemplate } from '../../../model/types';
 import type { ImportedTemplateResult } from '../../../model/importTemplate';
+import { declaredFieldLabels, readForeignPackage } from '../../../model/foreignPackage';
 import { resolveShowName, type Show } from '../../../model/shows';
 import { librarySaveEffect, type LibraryNameEntry } from '../../../model/library';
 import { paletteById, type TemplateVariant } from '../../../model/wizard';
@@ -69,6 +70,8 @@ interface Props {
   onExport: () => void;
   /** Disabled while there is nothing built to finish. */
   busy: boolean;
+  /** A stranger's OGraf package: Export gives that package back and nothing else, so its door says so. */
+  packageOnly?: boolean;
   /** The library record this stretch of wizard has ALREADY made, when the reader has been here
    *  before (walked back in, or pressed a door twice). It is what every door writes to from
    *  then on, under whatever the name field now says. Null on a first pass. */
@@ -193,6 +196,16 @@ export function aiSummaryRows(template: SpxTemplate, valid: boolean): SummaryRow
 export function importedSummaryRows(imported: ImportedTemplateResult): SummaryRow[] {
   const { template, detection } = imported;
   const count = template.fields.length;
+  const foreign = readForeignPackage(template);
+  if (foreign.status === 'ok') {
+    const fields = declaredFieldLabels(template);
+    return [
+      { label: 'Template', value: template.name },
+      { label: 'Project format', value: `${formatProjectSummary(template.resolution, template.fps)}${detection.certain ? '' : ' (assumed)'}` },
+      { label: 'Operator fields', value: fields.length > 0 ? `${fields.length}: ${fields.join(', ')}` : 'None declared' },
+      { label: 'Package', value: `OGraf ${foreign.record.id}${foreign.record.version ? ` ${foreign.record.version}` : ''}, kept byte for byte` },
+    ];
+  }
   return [
     { label: 'Template', value: template.name },
     {
@@ -229,6 +242,7 @@ export default function FinishStep({
   onEditArtwork,
   onExport,
   busy,
+  packageOnly = false,
   madeId = null,
   libraryIndex = [],
   fields = [],
@@ -462,8 +476,8 @@ export default function FinishStep({
             <strong>Export it</strong>
           </span>
           <span className="hint">
-            Just the files: OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay
-            {isRenderConfigured() ? ', or a rendered video' : ''}.{' '}
+            {packageOnly ? 'The OGraf package, exactly as it came in.' : <>Just the files: OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay
+            {isRenderConfigured() ? ', or a rendered video' : ''}.</>}{' '}
             {/* This door asks NOTHING before it writes - it saves and opens the export window -
                 so the one place the save can be described accurately is the door's own face. */}
             {librarySentence}

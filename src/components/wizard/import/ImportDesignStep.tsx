@@ -6,8 +6,7 @@ import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { probeAsset } from '../../../assets/assetInfo';
 import { importSvgMarkup, isSvgFile, type SvgImportResult } from '../../../assets/svgImport';
 import { isTemplateFile, type ImportedTemplateResult } from '../../../model/importTemplate';
-import { readForeignPackage } from '../../../model/foreignPackage';
-import { readOgrafDeclared } from '../../../model/ografTyped';
+import { declaredFieldLabels, readForeignPackage } from '../../../model/foreignPackage';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import SectionHead from '../SectionHead';
 import { SVG_EXAMPLES_URL } from '../../../downloads/links';
@@ -476,10 +475,10 @@ export default function ImportDesignStep({
               <p className="hint mono" data-testid="import-template-package">
                 OGraf {foreignOf(templateFile)!.id}{foreignOf(templateFile)!.version ? ` ${foreignOf(templateFile)!.version}` : ''}
               </p>
-              {declaredFields(templateFile).length > 0 && (
+              {declaredFieldLabels(templateFile.template).length > 0 && (
                 <p className="hint" data-testid="import-template-fields">
-                  {declaredFields(templateFile).length} operator field
-                  {declaredFields(templateFile).length === 1 ? '' : 's'}: {declaredFields(templateFile).join(', ')}
+                  {declaredFieldLabels(templateFile.template).length} operator field
+                  {declaredFieldLabels(templateFile.template).length === 1 ? '' : 's'}: {declaredFieldLabels(templateFile.template).join(', ')}
                 </p>
               )}
             </>
@@ -612,16 +611,4 @@ export default function ImportDesignStep({
 function foreignOf(file: ImportedTemplateResult) {
   const read = readForeignPackage(file.template);
   return read.status === 'ok' ? read.record : null;
-}
-
-/** The top-level fields a stranger's package declares, by the GDD `label` or JSON Schema `title`
- *  its author gave each. */
-function declaredFields(file: ImportedTemplateResult): string[] {
-  const read = readOgrafDeclared(file.template.ograf);
-  if (read.status !== 'ok' || !read.fields?.properties) return [];
-  const raw = (file.template.ograf?.manifest as { schema?: { properties?: Record<string, { label?: unknown }> } } | undefined)?.schema?.properties ?? {};
-  return read.fields.properties.filter((p) => !p.node.hidden).map((p) => {
-    const label = raw[p.key]?.label;
-    return typeof label === 'string' && label ? label : p.node.title || p.key;
-  });
 }

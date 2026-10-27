@@ -17,5 +17,5 @@ export async function importDroppedTemplate(file: File): Promise<ImportedTemplat
   if (!read) return importTemplateFile(new File([data], file.name));
   if (!read.ok) throw new Error(`This OGraf package cannot be imported. ${read.reason}`);
   const { resolution } = read.template;
-  return { template: read.template, detection: { resolution, fps: null, certain: false, messages: [] }, noacg: null };
+  return { template: read.template, detection: { resolution, fps: read.stated ? read.template.fps : null, certain: read.stated, messages: [] }, noacg: null };
 }

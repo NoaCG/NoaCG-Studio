@@ -1267,7 +1267,7 @@ export default function CreationWizard() {
                 summary={importedSummaryRows(importedFile)}
                 productions={finishProductions}
                 libraryIndex={finishLibrary}
-                fields={importedFile.template.fields.map((f) => f.field)}
+                fields={importedFile.template.fields.map((f) => f.field)} packageOnly={isForeignGraphic(importedFile.template)}
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={(dest) => void doors.addToProduction(applyImportedFile, dest, importedName)}
