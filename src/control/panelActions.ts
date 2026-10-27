@@ -181,6 +181,9 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
   const live = !!g.live;
   const caps: PanelCapability[] = [];
   const control = (c: ArrangedControl, place: PanelCapability['place'], section?: string) => {
+    // A foreign OGraf action drawn in the block (E2.1) reaches a panel only as its foreign
+    // descriptor (`foreignCapabilities`): E6.2 invokes it, never this native road.
+    if (c.button.typed) return;
     const allowed = live && g.legal(c.button.event);
     const note = !live ? offAirNote(g.graphic) : allowed ? undefined : `${c.label} cannot fire in the graphic's state now`;
     const options = c.options?.options;

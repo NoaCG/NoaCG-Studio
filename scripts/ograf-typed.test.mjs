@@ -79,12 +79,13 @@ test('the fixtures are manifests of that standard: the EBU examples of the commi
 });
 
 /** The exact field and action descriptors of every fixture. A change in what is read, carried or
- *  noted moves a hash here: re-read the diff, then re-record. */
+ *  noted moves a hash here: re-read the diff, then re-record. E2.1 re-recorded two for the enum
+ *  `labels` alone (the hashes with `labels` stripped are the E1.1 ones). */
 const DESCRIPTOR_HASHES = {
   'ebu-bar-chart.ograf.json': '0fc745fe6c17d53729bc940b8bc5703abbca2eaaf9bd1de727e89d7f71ef4489 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
   'ebu-scoreboard.ograf.json': '4f735d02c2e55a828b7ea75f1622689a8cf0393bcd27aefaf781c1cc791c2841 7baf191679b6af1044f27fa10a5dc4d82b8a4646a1be7e802b9f11309c22a4a1',
-  'ebu-weather.ograf.json': '61842ed690327337bbede746f19dfbc7ffa17351afcb05625b8916e823b65844 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
-  'stranger.ograf.json': 'ea2ab3d4c29ff0839419f2ead765119d820f7017bf7da4293f1b6a1aa95b5cf2 1f79a74e7b05e13708ada999654270efe19579c53b52b8bdbad148cdf3654b6d',
+  'ebu-weather.ograf.json': '1f7c1a67c7326748c077f10507647f07719bedd9830313527916d47a88879800 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945',
+  'stranger.ograf.json': '6f909074372a36fb8b9e6c8922557d42e3c56e89c63e8d934f4dedee8838a52e 1f79a74e7b05e13708ada999654270efe19579c53b52b8bdbad148cdf3654b6d',
 };
 
 test('exact field and action descriptor hashes of every fixture', () => {

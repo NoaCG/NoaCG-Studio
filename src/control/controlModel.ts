@@ -7,7 +7,7 @@
 import type { AppliedAppearance } from './cueAdjust';
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
-import type { TypedValues } from '../model/ografTyped';
+import type { TypedActionCall, TypedValues } from '../model/ografTyped';
 import { parseAnimData } from '../blocks/animData';
 import { deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
 import { upgradeControls } from './controlUpgrades';
@@ -828,7 +828,9 @@ export type ControlMessage =
   // row paint the same second and a replayed row resumes from where it really started rather
   // than from when it was replayed. Optional: a local BroadcastChannel panel has no server time
   // and no second renderer to agree with, and a graphic that ignores it behaves exactly as before.
-  | { t: 'event'; event: string; payload?: Record<string, string>; at?: number }
+  // `typed` (docs/work-specs/playout-ograf-controls/spec.md, E2.1): a foreign OGraf custom action's
+  // typed arguments in E1's action envelope, naming this event; sent only to outputs that read it.
+  | { t: 'event'; event: string; payload?: Record<string, string>; at?: number; typed?: TypedActionCall }
   | { t: 'snap'; snap: Record<string, string> | null }
   | { t: 'hello' };
 

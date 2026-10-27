@@ -33,7 +33,7 @@ import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../contr
 import type { ControlMessage } from '../control/controlModel';
 import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
 import { facesCss } from '../control/cueStyle';
-import { typedValuesOf } from '../model/ografTyped';
+import { readTypedWire, typedValuesOf } from '../model/ografTyped';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
@@ -644,7 +644,7 @@ export function createOutputStage(
     if (foreignLayer) {
       // A foreign package takes no place and size yet (after E3): its data only, and an update that
       // carried nothing else reaches it not at all.
-      if (typedData) return foreignLayer.send({ t: 'update', data: typedData as unknown as Record<string, string> });
+      if (typedData) return foreignLayer.send(msg as ControlMessage);
       if (dataless) return;
       if (msg.t === 'update' && 'appearance' in msg && msg.appearance !== undefined) {
         if (Object.keys(msg.data ?? {}).length === 0) return;
@@ -677,11 +677,17 @@ export function createOutputStage(
       case 'next':
         post(graphic, { cmd: 'next' });
         break;
-      case 'event':
+      case 'event': {
+        // A TYPED ACTION (E2.1): its arguments reach the graphic as the JSON they are; one this
+        // build cannot read reaches it not at all (the output's gate refused it first).
+        const typed = msg.typed === undefined ? null : readTypedWire(msg);
+        if (msg.typed !== undefined && !(typed && 'action' in typed)) return;
+        const payload = typed && 'action' in typed ? (typed.args ?? {}) : msg.payload;
         // `at` rides along: a graphic that runs its own clock anchors it to the row's instant
         // rather than to this renderer's Date.now(), so every renderer agrees (controlModel.ts).
-        post(graphic, { cmd: 'dispatch', event: msg.event, payload: msg.payload, at: msg.at });
+        post(graphic, { cmd: 'dispatch', event: msg.event, payload, at: msg.at });
         break;
+      }
       case 'snap':
         // Recovery semantics stated explicitly — the wire field means opposite things to the
         // editor simulator (parked design view, timers off) and to a renderer (timers arm).

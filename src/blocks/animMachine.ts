@@ -325,6 +325,9 @@ export interface ControlButton {
   add?: Record<string, string>;
   remove?: Record<string, string>;
   destructive?: boolean;
+  /** A foreign OGraf custom action (control/ografContract.ts `typedActionButtons`, E2.1): its
+   *  press carries the cue's typed arguments in E1's action envelope, never a native payload. */
+  typed?: true;
 }
 
 /**

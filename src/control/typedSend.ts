@@ -8,10 +8,13 @@
 // (`typedOutputsRefusal`). A cue with a live candidate takes none, and a published tree not yet
 // read sends nothing bound from it.
 //
-// Pure, and Node-importable: scripts/ograf-typed-writer.test.mjs drives it.
+// A press of a foreign OGraf custom action (E2.1, `typedActionSendFor`) asks the same outputs a
+// higher capability: each must say it reads typed actions.
+//
+// Pure, and Node-importable: scripts/ograf-typed-writer.test.mjs and scripts/ograf-form.test.mjs drive it.
 
 import { getPath, type JsonValue } from '../model/productionData.ts';
-import { typedForSend, typedOutputsRefusal, typedTargetValue, type DeclaredRead, type TypedPeer, type TypedSend } from '../model/ografTyped.ts';
+import { TYPED_ACTIONS_READER, typedActionFor, typedForSend, typedOutputsRefusal, typedTargetValue, type DeclaredRead, type TypedActionSend, type TypedPeer, type TypedSend } from '../model/ografTyped.ts';
 
 /** What the decision reads, all of it from the page's newest state. */
 export interface TypedSendFacts {
@@ -71,4 +74,14 @@ export function createTypedSendMemo(): (cue: { typed?: unknown; selection?: unkn
     if (key) kept.set(key, { facts, selection: cue.selection, out });
     return out;
   };
+}
+
+/** What a press of `action` sends from this cue's kept arguments (E2.1): the action envelope,
+ *  validated whole, then only while every output this page sees reads typed actions. */
+export function typedActionSendFor(cue: { typedArgs?: unknown }, action: string, facts: Pick<TypedSendFacts, 'declared' | 'published' | 'presence' | 'showId'>): TypedActionSend {
+  const send = typedActionFor(facts.declared, action, cue.typedArgs);
+  if (send.status !== 'ok') return send;
+  const { presence } = facts;
+  const outputs = typedOutputsRefusal(facts.published, presence.showId === facts.showId ? presence.status : 'joining', presence.peers, TYPED_ACTIONS_READER);
+  return outputs ? { status: 'refused', reason: outputs } : send;
 }

@@ -11,6 +11,8 @@
  * matching shapes a listener reads back off `window.addEventListener('message', …)`.
  */
 
+import type { JsonValue } from '../model/productionData';
+
 export const PREVIEW_CMD_TYPE = 'spx-preview-cmd';
 export const PREVIEW_BOX_TYPE = 'spx-preview-box';
 export const PREVIEW_STATE_TYPE = 'spx-preview-state';
@@ -89,7 +91,8 @@ export type PreviewCmd =
   // `at` carries the ControlMessage's own instant (see control/controlModel.ts): a graphic that
   // runs a clock anchors it to that rather than to its local Date.now(), so two renderers given
   // the same log row agree. Absent for an editor-driven dispatch, which has neither.
-  | { cmd: 'dispatch'; event: string; payload?: Record<string, string>; at?: number }
+  // `payload` is a typed action's arguments as they are (E2.1), or a native event's strings.
+  | { cmd: 'dispatch'; event: string; payload?: Record<string, string> | JsonValue; at?: number }
   | { cmd: 'state' }
   /**
    * THE WARM PASS (READY's guarantee 5): run `update` with `data` off air, in the command queue like

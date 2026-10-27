@@ -139,8 +139,11 @@ test('AC-2, AC-4: the writer turns typed data on and off through the doors; save
     const on = shows.setCueTyped(show.id, cue.id, true);
     assert.equal(on.error, null);
     assert.deepEqual(on.receipt.converted, ['round', 'teams', 'title']);
+    // E2.1: the schema's declared defaults fill what the strings did not say, once, at On.
+    const defaults = { accent: '#005ca9', live: true, opacity: 0.8, ratio: 1 };
+    assert.deepEqual(on.receipt.defaulted, Object.keys(defaults));
     const saved = read().cues[0];
-    assert.deepEqual(saved.typed, envelope());
+    assert.deepEqual(saved.typed, envelope({ ...values, ...defaults }));
     // Save and reload: the record as stored reads back the same bytes.
     const reloaded = JSON.parse(stored.get('spx-gfx-shows')).find((s) => s.id === show.id).cues[0].typed;
     assert.equal(JSON.stringify(reloaded), JSON.stringify(saved.typed));
@@ -158,11 +161,11 @@ test('AC-2, AC-4: the writer turns typed data on and off through the doors; save
     assert.equal(shows.setCueTyped(show.id, cue.id, false).error, null);
     const off = read().cues[0];
     assert.equal(off.typed, undefined);
-    assert.deepEqual(off.values, native);
+    assert.deepEqual(off.values, { ...native, accent: '#005ca9', live: 'true', opacity: '0.8', ratio: '1' });
     assert.equal(JSON.stringify(read().graphics[0].template.ograf), manifestBytes);
     // On again from those strings gives the same envelope: the round trip is lossless.
     shows.setCueTyped(show.id, cue.id, true);
-    assert.deepEqual(read().cues[0].typed, envelope());
+    assert.deepEqual(read().cues[0].typed, envelope({ ...values, ...defaults }));
     // A cue of a later version is never written, on or off.
     const all = JSON.parse(stored.get('spx-gfx-shows'));
     all.find((s) => s.id === show.id).cues[0].typed = { v: 2, values: { title: 'Later' } };
@@ -178,7 +181,7 @@ test('AC-2, AC-4: the writer turns typed data on and off through the doors; save
     // wins over the production's own copy.
     shows.updateShowCueChecked(plain.id, plainCue.id, { values: native });
     assert.equal(shows.setCueTyped(plain.id, plainCue.id, true, declared).error, null);
-    assert.deepEqual(shows.loadShows().find((s) => s.id === plain.id).cues[0].typed, envelope());
+    assert.deepEqual(shows.loadShows().find((s) => s.id === plain.id).cues[0].typed, envelope({ ...values, ...defaults }));
   } finally {
     globalThis.localStorage = previous;
   }
@@ -383,7 +386,12 @@ test('an output that does not say it reads typed data is sent none, and the page
   assert.equal(typedOutputsRefusal(true, 'joined', []), null);
   assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: TYPED_READER }), { kind: 'operator' }]), null);
   assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: TYPED_READER }), output('Caspar 1-20')]), 'Reload Caspar 1-20: it cannot read typed data yet.');
-  assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: TYPED_READER - 1 }), output('B', { typed: '1' })]), 'Reload 2 outputs (A, B): they cannot read typed data yet.');
+  assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: 0 }), output('B', { typed: '1' })]), 'Reload 2 outputs (A, B): they cannot read typed data yet.');
+  // E2.1: an E1.2a output (1) reads values, not actions; this build's (2) reads both.
+  assert.equal(TYPED_READER, 2);
+  assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: 1 })]), null);
+  assert.equal(typedOutputsRefusal(true, 'joined', [output('A', { typed: 1 }), output('B', { typed: 2 })], 2), 'Reload A: it cannot read typed actions yet.');
+  assert.equal(typedOutputsRefusal(true, 'joined', [output('B', { typed: 2 })], 2), null);
   assert.equal(typedOutputsRefusal(true, 'joined', [{ kind: 'output', engine: 'CasparCG · Chromium 71' }]), 'Reload CasparCG · Chromium 71: it cannot read typed data yet.');
   // The Presence entry keeps the capability only as a positive whole number.
   const entry = (typedValue) => readLiveEntry({ kind: 'output', id: 'o1', typed: typedValue });

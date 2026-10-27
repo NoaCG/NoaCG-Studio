@@ -61,7 +61,7 @@ import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSend
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
 import { SHARED_NOT_MOVED, changedNote, offAirNote, unheldNote } from './liveControls.ts';
-import { typedSendRefusal, type TypedSend, type TypedValues } from '../model/ografTyped.ts';
+import { typedReadOnly, typedSendRefusal, type TypedActionSend, type TypedSend, type TypedValues } from '../model/ografTyped.ts';
 import type { PressDone } from './panelActions';
 
 /** What one send came to: landed, with what it left alone, or the note line's sentence.
@@ -147,6 +147,10 @@ export interface GraphicPage {
    *  outputs' capability asked (model/ografTyped.ts `typedForSend`, `typedOutputsRefusal`; E1.2a).
    *  Absent: this page sends no typed data, and a cue carrying it is refused. */
   typedFor?: (cue: ShowCue, graphic: string) => TypedSend;
+  /** What a press of a foreign OGraf custom action sends from this cue's kept typed arguments, with
+   *  the outputs' capability for typed actions asked (model/ografTyped.ts `typedActionFor`; E2.1).
+   *  Absent: this page sends no typed action. */
+  typedActionFor?: (cue: ShowCue, graphic: string, action: string) => TypedActionSend;
   /** The graphic airs typed data now, by what was last applied to it (control/airState.ts
    *  `typedAired`), whatever its cue's switch says since. */
   typedAiring?: (graphic: string) => boolean;
@@ -1023,12 +1027,43 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return doneOf(outcome, graphic);
   };
 
+  /**
+   * A FOREIGN OGraf CUSTOM ACTION (E2.1): the live cue's kept typed arguments in E1's action envelope,
+   * validated whole after the wait, sent only to outputs that read typed actions. It moves no field
+   * and no tree, and the arguments are never read from text: refused, nothing goes and nothing kept
+   * changes, with the reason on the note line.
+   */
+  const pressTyped = (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, still: () => boolean): Promise<PressDone> =>
+    afterPress(graphic, async (): Promise<PressDone> => {
+      await p.flush();
+      if (!still()) return refused(changedNote(graphic));
+      const cue = sel.airCue;
+      if (!cue) return refused(unheldNote(graphic));
+      const read: TypedActionSend = typedReadOnly(cue)
+        ? { status: 'refused', reason: typedSendRefusal(cue) ?? '' }
+        : p.typedActionFor
+          ? p.typedActionFor(cue, graphic, button.event)
+          : { status: 'refused', reason: 'Typed actions do not go on air from here.' };
+      if (read.status === 'refused') {
+        s.note(`${cue.label}: ${read.reason}`);
+        return refused(`${cue.label}: ${read.reason}`);
+      }
+      const outcome = await sendWith(s, [[{ graphic, msg: { t: 'event' as const, event: button.event, typed: read.typed } }]], `Event ${button.event}`);
+      if (!outcome.ok) s.note(outcome.note);
+      return doneOf(outcome, graphic);
+    });
+
   /** Fire a machine event on the live graphic, after the live press before it on its graphic. */
   const event = (sel: VerbSelection, button: ControlButton, named?: string): Promise<PressDone> => {
     const s = sender();
     const p = page();
     const graphic = sel.selectedGraphic;
     if (!graphic || !sel.selectedLayerLive) return Promise.resolve(refused(offAirNote(graphic ?? 'The graphic')));
+    if (button.typed) {
+      const still = instance(s, graphic, sel.airCue, named);
+      if (!still()) return Promise.resolve(refused(changedNote(graphic)));
+      return pressTyped(s, p, sel, button, graphic, still);
+    }
     const typed = typedRefused(s, sel.airCue, graphic);
     if (typed) return Promise.resolve(refused(typed));
     const still = instance(s, graphic, sel.airCue, named);
