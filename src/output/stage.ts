@@ -676,7 +676,8 @@ export function createOutputStage(
           paintAppearance(frames.get(graphic)!.iframe, graphic);
           paintStyle(frames.get(graphic)!, alone);
         }
-        if (dataless || alone) break;
+        if (dataless) break;
+        if (alone) break;
         post(graphic, { cmd: 'update', data: JSON.stringify(typedData ?? msg.data ?? {}) });
         break;
       }
