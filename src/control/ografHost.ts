@@ -38,6 +38,8 @@ export interface OgrafHostOptions {
   /** Run as the isolation boundary: impose the package network policy and answer lifecycle
    *  calls over the MessagePort the embedding page sends with OGRAF_PORT_TYPE. */
   sandbox?: boolean;
+  /** The 504 deadline of one call (OGRAF_CALL_TIMEOUT_MS unless a harness shortens it). */
+  callTimeoutMs?: number;
 }
 
 /**
@@ -49,12 +51,17 @@ export interface OgrafHostOptions {
  */
 export const OGRAF_PORT_TYPE = 'noacg-ograf-port';
 /** The calls the bridge admits; anything else is dropped unanswered. `offair` takes effect at
- *  once and answers nothing; the rest run one at a time in arrival order and answer each. */
+ *  once and answers nothing. `mount` is `load()`, which every other call waits for (OGraf's
+ *  renderer contract); after it, each call is made in arrival order the moment it arrives, never
+ *  behind an earlier call's answer: OGraf's concurrency contract has the Graphic take a call at
+ *  any time, so an action held or a loop running at a held step locks nothing (E2.2, AC-2). Each
+ *  call is answered on its own. */
 export const OGRAF_CALLS = ['mount', 'play', 'stop', 'update', 'custom', 'offair'] as const;
 export type OgrafCall = (typeof OGRAF_CALLS)[number];
-/** How long one call may take before the calls behind it go ahead (answered 504). A Graphic that
- *  never resolves an action must not hold the operator's Stop hostage. */
-const OGRAF_CALL_TIMEOUT_MS = 15_000;
+/** How long a call may go unanswered before it is answered 504 for the Graphic. Its real answer,
+ *  should it come later, is never sent: a late success must not overwrite the timeout the operator
+ *  was already told. */
+export const OGRAF_CALL_TIMEOUT_MS = 15_000;
 
 /** JSON for an inline <script>: a `</script>` inside a string must not end the element. */
 const inScript = (value: unknown): string => JSON.stringify(value).replace(/</g, '\\u003c');
@@ -110,16 +117,17 @@ export function ografHostDocument(opts: OgrafHostOptions): string {
     ? `<meta http-equiv="Content-Security-Policy" content="${ografNetworkPolicy(base)}">\n`
     : '';
   // Driven by the embedding page over the ONE port its parent hands over (OGRAF_PORT_TYPE).
+  const timeout = Number.isInteger(opts.callTimeoutMs) && (opts.callTimeoutMs as number) > 0 ? (opts.callTimeoutMs as number) : OGRAF_CALL_TIMEOUT_MS;
   const bridge = opts.sandbox
     ? `
   const host = window.__ografHost;
   const calls = ${inScript(OGRAF_CALLS)};
   let port = null;
-  let chain = Promise.resolve();
-  const answer = (p) => {
+  let loaded = Promise.resolve();
+  const answer = (run) => {
     let timer;
-    const late = new Promise((r) => { timer = setTimeout(() => r({ statusCode: 504, statusMessage: 'no answer within ${OGRAF_CALL_TIMEOUT_MS} ms' }), ${OGRAF_CALL_TIMEOUT_MS}); });
-    return Promise.race([p, late]).finally(() => clearTimeout(timer));
+    const late = new Promise((r) => { timer = setTimeout(() => r({ statusCode: 504, statusMessage: 'no answer within ${timeout} ms' }), ${timeout}); });
+    return Promise.race([Promise.resolve().then(run), late]).finally(() => clearTimeout(timer));
   };
   window.addEventListener('message', (ev) => {
     if (port || ev.source !== window.parent || !ev.data || ev.data.type !== ${inScript(OGRAF_PORT_TYPE)} || !ev.ports[0]) return;
@@ -128,7 +136,11 @@ export function ografHostDocument(opts: OgrafHostOptions): string {
       const m = e.data;
       if (!m || !calls.includes(m.call) || !Array.isArray(m.args)) return;
       if (m.call === 'offair') { host.offair(m.args[0]); return; }
-      chain = chain.then(() => answer(host[m.call](...m.args))).then((out) => {
+      // load() first; every later call starts as soon as it is through, in arrival order (the
+      // callbacks of one promise run in the order they were added), none waiting on another.
+      const call = () => answer(() => host[m.call](...m.args));
+      const done = m.call === 'mount' ? (loaded = loaded.then(call)) : loaded.then(call);
+      done.then((out) => {
         // The ReturnPayload's own fields only: a Graphic may return anything, and a value
         // postMessage cannot clone would otherwise stall every call behind this one.
         port.postMessage({ id: m.id, payload: { statusCode: out && out.statusCode, statusMessage: out && out.statusMessage, currentStep: out && out.currentStep } });

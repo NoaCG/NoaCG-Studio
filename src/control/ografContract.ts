@@ -272,7 +272,7 @@ function defaultFor(prop: Json, kind: FieldKind): string | number {
 /** One call on a Graphic's lifecycle, in the shape the OGraf host document's driver takes
  *  (`src/control/ografHost.ts`): `play(params)`, `stop(params)`, `update(data)`, `custom(id, payload)`. */
 export type OgrafLifecycleCall =
-  | { call: 'play'; args: [{ goto?: number; delta?: number }] }
+  | { call: 'play'; args: [{ goto?: number; delta?: number; skipAnimation?: true }] }
   | { call: 'stop'; args: [Record<string, never>] }
   | { call: 'update'; args: [Record<string, string> | TypedValues['values']] }
   | { call: 'custom'; args: [string, Record<string, string> | JsonValue] };

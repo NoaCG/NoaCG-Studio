@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "stranger-step-walk",
+  "version": "1.0.0",
+  "name": "Step walk (third party)",
+  "description": "A hand-written OGraf Graphic with a dynamic step count, a held step whose loop never ends, and actions whose answers a spec holds, rejects or lets come late. The step and feedback half of e2e/foreign-ograf-sandbox.spec.ts (E2.2).",
+  "author": { "name": "A third party" },
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "count": { "type": "integer", "title": "Steps", "default": 3 },
+      "loop": { "type": "integer", "title": "Looping step", "default": -1 }
+    }
+  },
+  "stepCount": -1,
+  "customActions": [
+    { "id": "hold", "name": "Hold", "description": "Answers once released." },
+    { "id": "release", "name": "Release", "description": "Answers every held action." },
+    { "id": "reject", "name": "Reject", "description": "Refuses." },
+    { "id": "mark", "name": "Mark", "description": "Writes its argument.", "schema": { "type": "object", "properties": { "v": { "type": "string" } } } }
+  ]
+}
