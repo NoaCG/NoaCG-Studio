@@ -1,3 +1,4 @@
+// covers: src/components/control/HostedCueAdjust.tsx, src/control/hostedAdjust.ts
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';

@@ -4,7 +4,7 @@ import { getCssVariable } from '../../model/cssVars';
 import { FONTS } from '../../model/fonts';
 import { withAnchor, type AppliedAppearance } from '../../control/cueAdjust';
 import { asDesignedPatch, facePickPatch, styleReach, COLOUR_VARS, SVG_DESIGN_MARKER, type StyleContext } from '../../control/cueStyle';
-import { hostedAdjustState, hostedRecords, stageAdjustPromote, stageAdjustReset, stageAdjustStep, stageAdjustWrite, type StagedWrite } from '../../control/hostedAdjust';
+import { adjustedElsewhere, hostedAdjustState, hostedRecords, stageAdjustPromote, stageAdjustReset, stageAdjustStep, stageAdjustWrite, type StagedWrite } from '../../control/hostedAdjust';
 import type { OutputCue, OutputGraphicSpec } from '../../control/hostedControl';
 import { storePart } from '../../control/storePart';
 import CueAdjust from '../home/CueAdjust';
@@ -47,8 +47,7 @@ export default function HostedCueAdjust({
   const mine = cues.filter((c) => c.graphic === cue.graphic);
   const others = mine.filter((c) => c.id !== cue.id);
   const ownRecord = (c: OutputCue) => !!c.adjust && hostedRecords(c.adjust, buffer, c.id).cue !== undefined;
-  const elsewhere = others.some(ownRecord);
-  const state = hostedAdjustState(pub, records, cue.id, applied, elsewhere, styleCtx);
+  const state = hostedAdjustState(pub, records, cue.id, applied, adjustedElsewhere(cue, cues, buffer), styleCtx);
   const scope = state.eff.own.length > 0 || onlyThisCue ? 'cue' : 'graphic';
   const run = (write: StagedWrite) => {
     if (typeof write === 'string') refused(write);

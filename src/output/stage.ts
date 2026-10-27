@@ -666,9 +666,8 @@ export function createOutputStage(
         // Rule 1: an update without an appearance keeps the one applied; rule 3: one that carries
         // it replaces it. Applied at once, before the data, with no replay (a cut, as a Take is).
         const look = 'appearance' in msg && msg.appearance !== undefined ? readAppearance(msg.appearance) : null;
-        // AN APPEARANCE-ONLY UPDATE (empty `data`, a send to on-air graphics) moves the look and
-        // nothing else: no data command goes, so the document keeps the values it airs and refits
-        // with them (a `{}` would leave its refit nothing to fit).
+        // AN APPEARANCE-ONLY UPDATE (empty `data`, a send to on-air graphics) carries no values of
+        // its own: its style refits at once with the values the document last took.
         const alone = !!look && !typedData && Object.keys(msg.data ?? {}).length === 0;
         if (look) {
           if (isIdentity(look)) appearances.delete(graphic);
@@ -677,7 +676,6 @@ export function createOutputStage(
           paintStyle(frames.get(graphic)!, alone);
         }
         if (dataless) break;
-        if (alone) break;
         post(graphic, { cmd: 'update', data: JSON.stringify(typedData ?? msg.data ?? {}) });
         break;
       }

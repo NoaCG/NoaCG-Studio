@@ -13,6 +13,7 @@ import { Swatch } from './CueAdjust';
  */
 export default function ProductionLook({
   look,
+  canActivate,
   on,
   setOn,
   brands,
@@ -34,6 +35,8 @@ export default function ProductionLook({
   onClose,
 }: {
   look: ProjectBrand | null;
+  /** There is a look to turn on: the captured one, or the saved brand the production names. */
+  canActivate: boolean;
   on: boolean;
   setOn: (on: boolean) => void;
   brands: readonly { id: string; name: string }[];
@@ -80,7 +83,7 @@ export default function ProductionLook({
         <strong>Look</strong>
         <span className="muted">this production</span>
         <span className="pd-look-onoff" role="group" aria-label="Look on or off">
-          <button type="button" className={on ? 'on' : ''} aria-pressed={on} disabled={readOnly || !look} onClick={() => !on && setOn(true)} data-testid="look-on">
+          <button type="button" className={on ? 'on' : ''} aria-pressed={on} disabled={readOnly || !canActivate} onClick={() => !on && setOn(true)} data-testid="look-on">
             On
           </button>
           <button type="button" className={on ? '' : 'on'} aria-pressed={!on} disabled={readOnly} onClick={() => on && setOn(false)} data-testid="look-off">

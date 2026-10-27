@@ -136,7 +136,7 @@ import { clearStyleExceptions, editShowLook, promoteCueAdjust, setCueAdjust, set
 import type { AdjustPatch, FontRef } from '../../model/adjust';
 import CueAdjust from './CueAdjust';
 import ProductionLook from './ProductionLook';
-import { publishedAdjustOf } from '../../control/hostedAdjust';
+import { carriesAdjust, publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
@@ -2554,8 +2554,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           const state = adjustStateOf(cue, latest, lib, ctx);
           if (!g || !state) return undefined;
           const lookLayer = ctx.lookFor?.(g.id);
-          // A graphic nobody adjusted and no look reaches carries nothing, as before.
-          const adjust = state.eff.any || lookLayer ? publishedAdjustOf(g, cue, lookLayer, state.m, frameOf(g, lib), stage) : undefined;
+          const adjust = carriesAdjust(g, latest.cues ?? [], lookLayer) ? publishedAdjustOf(g, cue, lookLayer, state.m, frameOf(g, lib), stage) : undefined;
           return { ...(state.send ? { appearance: state.send } : {}), ...(adjust ? { adjust } : {}) };
         };
       },
@@ -3990,6 +3989,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {lookOpen && (
           <ProductionLook
             look={show.look ?? null}
+            canActivate={!!lookToActivate(show, savedBrands)}
             on={!!show.lookApplied}
             setOn={(on) => lookWrite(setShowLookApplied(show.id, on, on ? (lookToActivate(show, savedBrands) ?? undefined) : undefined))}
             brands={savedBrands.map((b) => ({ id: b.id, name: b.name }))}
@@ -4004,7 +4004,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             reach={show.look ? lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), show.look, styleCtx.imported) : null}
             exceptions={lookExceptions(show)}
             clearExceptions={() => void history.write(() => clearStyleExceptions(show.id), 'Clear look exceptions')}
-            onAir={Object.keys(liveCue).length}
+            onAir={Object.values(liveCue).filter((cueId) => cues.some((c) => c.id === cueId && c.source !== 'playout')).length}
             send={() => void sendLookToAir()}
             sending={lookSending}
             sent={lookSent}

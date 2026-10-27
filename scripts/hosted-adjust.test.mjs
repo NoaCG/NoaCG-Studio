@@ -115,9 +115,28 @@ describe('the doors, as on the production page', () => {
     assert.equal(kept.style, null);
   });
 
-  test('Publish carries nothing new for a graphic nobody adjusted and no look reaches', () => {
-    const p = H.publishedAdjustOf({ id: 'g' }, {}, undefined, null, HD, HD);
-    assert.deepEqual(p, { graphicId: 'g', frame: HD, stage: HD });
+  test('Publish carries records for every cue of an adjusted graphic, and nothing for one nobody adjusted', () => {
+    const cues = [{ sourceId: 'g', adjust: { v: 1, x: 2 } }, { sourceId: 'g' }, { sourceId: 'other' }];
+    assert.equal(H.carriesAdjust({ id: 'g' }, cues, undefined), true, 'a sibling\'s record is enough');
+    assert.equal(H.carriesAdjust({ id: 'other' }, cues, undefined), false);
+    assert.equal(H.carriesAdjust({ id: 'other' }, cues, { vars: { accent: '#f00' } }), true, 'the look reaches it');
+    assert.equal(H.carriesAdjust({ id: 'other', adjust: { v: 1 } }, cues, undefined), true);
+    assert.deepEqual(H.publishedAdjustOf({ id: 'g' }, {}, undefined, null, HD, HD), { graphicId: 'g', frame: HD, stage: HD });
+  });
+
+  test('a sibling\'s exception staged here makes a Take of a plain cue send the identity, and one reset there stops it', () => {
+    const plain = pubOf({ graphic: undefined });
+    const a = cueOf('a', plain);
+    const b = cueOf('b', plain);
+    assert.equal(H.hostedAppearance(b, [a, b], {}, null, ctx), undefined, 'nobody adjusted: nothing');
+    let buffer = apply({}, H.stageAdjustWrite(plain, H.hostedRecords(plain, {}, 'a'), 'a', 'cue', { y: -5 }));
+    // b stages nothing of its own, so it airs what was published; a's exception counts for it only
+    // once b has something staged too.
+    buffer = apply(buffer, H.stageAdjustReset(plain, H.hostedRecords(plain, buffer, 'b'), 'b', 'cue'));
+    assert.equal(H.adjustedElsewhere(b, [a, b], buffer), true);
+    assert.deepEqual(H.hostedAppearance(b, [a, b], buffer, null, ctx), A.IDENTITY, 'the identity, so a\'s place is not left on air');
+    buffer = apply(buffer, H.stageAdjustReset(plain, H.hostedRecords(plain, buffer, 'a'), 'a', 'cue'));
+    assert.equal(H.adjustedElsewhere(b, [a, b], buffer), false);
   });
 });
 

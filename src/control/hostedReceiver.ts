@@ -84,6 +84,30 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     if (!noacgApplyAppearance(a)) return;
     look = a.frame ? a : null;
   }
+  // A row that changes the type on the root (a face, the heading weight, or back to the design's)
+  // refits once the face in effect is in: the values this document SHOWS go to update() again, as
+  // the relay receiver does (./localReceiver.ts). An appearance-only update (phase 3's send to
+  // on-air graphics, empty data) has no values of its own to fit with. A newer change takes the
+  // refit over.
+  var typeSeq = 0;
+  var shown = {};
+  function given(d) { if (d) { for (var k in d) { if (Object.prototype.hasOwnProperty.call(d, k)) shown[k] = d[k]; } } }
+  var payloadsKept = false;
+  function keepPayloads() {
+    if (payloadsKept || typeof noacgApplyPayload !== 'function') return;
+    payloadsKept = true;
+    var own = noacgApplyPayload;
+    noacgApplyPayload = function (payload) { given(payload); return own.apply(this, arguments); };
+  }
+  function typeHere() {
+    var t = document.documentElement.__noacgType;
+    return t === undefined ? noacgApplyAppearance.typeOf(null) : t;
+  }
+  function refit() {
+    var seq = ++typeSeq;
+    var loaded = noacgApplyAppearance.loaded();
+    if (loaded) loaded.then(function () { if (seq === typeSeq && typeof update === 'function') update(JSON.stringify(shown)); });
+  }
 
   // AN RPC EITHER ANSWERED OR FAILED, and this block must never confuse the two. A dropped
   // request says nothing about the show, so it is reported AS a failure (the ok flag) and the
@@ -167,10 +191,13 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     }
     else if (m.t === 'next' && typeof next === 'function') next();
     else if (m.t === 'update' && typeof update === 'function') {
+      var typeBefore = typeHere();
       applyLook(m.appearance);
+      given(m.data);
       update(JSON.stringify(m.data || {}));
+      if (typeHere() !== typeBefore) refit();
     }
-    else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
+    else if (m.t === 'event' && typeof noacgDispatch === 'function') { keepPayloads(); noacgDispatch(m.event, m.payload); }
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
     else return; // 'staged' / 'live' meta rows are for control pages, not for us
     // A held graphic never reports, as on the /output renderer: its report would bank the previous
@@ -365,6 +392,7 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
       if (mine.state && mine.state.appearance) applyLook(mine.state.appearance);
       // Reset is two operations, and recovery is both: the data half, then the visual half
       // (snap arms timers — recovery semantics).
+      given(mine.data);
       if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
       if (mine.state && mine.state.groups && typeof noacgSnap === 'function') {
         noacgSnap(mine.state.groups);

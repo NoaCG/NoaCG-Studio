@@ -1068,3 +1068,33 @@ test('the hosted page lists server cues by their address, apart from the graphic
   expect(block).toContain('slotAddress(');
   expect(block).not.toMatch(/<button|role="button"|onClick|onPointer|onKey/);
 });
+
+// THE PRODUCTION LOOK SENT TO A HOSTED GRAPHIC (playout adjustments, phase 3): "Send to on-air
+// graphics" is an update with an appearance and EMPTY data, so the graphic is given no values of its
+// own; when the face changes, the receiver refits with the values it shows, as the relay receiver
+// does, and never leaves the fit measured in the old face.
+test('a hosted graphic refits with the values it shows when an appearance-only update changes its face', async ({ page, context }) => {
+  const html = receiverHost(await receiverBlock(page));
+  const graphic = await context.newPage();
+  let socket: import('@playwright/test').WebSocketRoute | null = null;
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => { socket = ws; });
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 5, live: { Board: { data: { f0: 'ON AIR' }, state: null } } }] });
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR', { timeout: 30_000 });
+  await expect.poll(() => socket !== null).toBe(true);
+  let id = 6;
+  const deliver = (msg: unknown) => socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: { id: id++, graphic: 'Board', msg } } } }));
+  // A colour alone moves no text: nothing is refitted.
+  deliver({ t: 'update', data: {}, appearance: { v: 1, vars: { accent: '#ff7a00' } } });
+  await expect.poll(() => graphic.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#ff7a00');
+  // A face: the values shown go to update() again once it is in.
+  deliver({ t: 'update', data: {}, appearance: { v: 1, vars: { accent: '#ff7a00', 'font-heading': '"Archivo", Arial, sans-serif' } } });
+  await expect.poll(() => appliedIn(graphic), { timeout: 10_000 }).toEqual(['update:ON AIR', 'update:', 'update:', 'update:ON AIR']);
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR');
+  await graphic.close();
+});

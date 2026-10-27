@@ -138,8 +138,8 @@ export type PreviewCmd =
    * through its own update() when its face came after the cap, and answers `PREVIEW_RESTYLED_TYPE`; a
    * load that completes after a newer `style` does nothing (the latest-request guard).
    */
-  /** `alone`: no data update follows (an appearance-only update, phase 3), so a refit the style
-   *  needs runs at once with the values the graphic last took. */
+  /** `alone`: the update it rides carries no values (an appearance-only update, phase 3), so a
+   *  refit the style needs runs at once with the values the graphic last took. */
   | { cmd: 'style'; vars: Record<string, string> | null; faces: string; alone?: boolean }
   /**
    * The legacy simulator lifecycle, distinct from the plain

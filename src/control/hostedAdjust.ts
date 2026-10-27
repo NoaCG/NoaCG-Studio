@@ -103,11 +103,20 @@ export function hostedAdjustState(
   return pub.box ? { ...state, fresh: true } : state;
 }
 
+/** Another cue of this cue's graphic holds its own record, staged here or published. */
+export function adjustedElsewhere(
+  cue: { id: string; graphic: string },
+  cues: readonly { id: string; graphic: string; adjust?: PublishedAdjust }[],
+  buffer: Readonly<Record<string, string>> | undefined,
+): boolean {
+  return cues.some((c) => c.id !== cue.id && c.graphic === cue.graphic && !!c.adjust && hostedRecords(c.adjust, buffer, c.id).cue !== undefined);
+}
+
 /** RULE 2 ON THE HOSTED PAGE: with nothing staged, what was published (`publishedAppearance`);
  *  with a staged record, what the fold now resolves to. */
 export function hostedAppearance(
   cue: { id: string; graphic: string; appearance?: AppliedAppearance; adjust?: PublishedAdjust },
-  cues: readonly { graphic: string; appearance?: AppliedAppearance }[],
+  cues: readonly { id: string; graphic: string; appearance?: AppliedAppearance; adjust?: PublishedAdjust }[],
   buffer: Readonly<Record<string, string>> | undefined,
   applied: AppliedAppearance | null | undefined,
   styleCtx: StyleContext,
@@ -115,8 +124,7 @@ export function hostedAppearance(
   if (!cue.adjust) return publishedAppearance(cue, cues, applied);
   const records = hostedRecords(cue.adjust, buffer, cue.id);
   if (!records.staged) return publishedAppearance(cue, cues, applied);
-  const elsewhere = cues.some((c) => c !== cue && c.graphic === cue.graphic && c.appearance !== undefined);
-  return hostedAdjustState(cue.adjust, records, cue.id, applied, elsewhere, styleCtx).send;
+  return hostedAdjustState(cue.adjust, records, cue.id, applied, adjustedElsewhere(cue, cues, buffer), styleCtx).send;
 }
 
 /** What one press stages: buffer keys to values, or the wording of a refusal. */
@@ -159,6 +167,12 @@ export function stageAdjustPromote(pub: PublishedAdjust, records: HostedRecords,
   const graphic = patchAdjust(records.graphic, members);
   if (typeof graphic === 'string') return graphic;
   return { [stagedAdjustKey(null)]: stageValue(pub, 'graphic', graphic), [stagedAdjustKey(cueId)]: stageValue(pub, 'cue', null) };
+}
+
+/** Publish carries records for every cue of a graphic adjusted at either scope, or that the look
+ *  reaches, so a default staged from one cue on the hosted page reaches its siblings. */
+export function carriesAdjust(graphic: { id: string; adjust?: unknown }, cues: readonly { sourceId: string; adjust?: unknown }[], look: LookLayer | undefined): boolean {
+  return graphic.adjust !== undefined || !!look || cues.some((c) => c.sourceId === graphic.id && c.adjust !== undefined);
 }
 
 /** Publish's half: what a cue carries for the hosted page, or nothing for a graphic nobody adjusted

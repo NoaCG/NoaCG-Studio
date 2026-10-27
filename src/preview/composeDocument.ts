@@ -493,7 +493,9 @@ window.addEventListener('unhandledrejection', function (ev) {
   });
   function run(msg) {
     if (msg.cmd === 'update') {
-      lastData = msg.data;
+      /* An update with no values (an appearance-only one, phase 3) leaves the values a refit
+         gives the graphic as they were. */
+      if (msg.data !== '{}') lastData = msg.data;
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
       afterFonts(function () {
