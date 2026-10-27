@@ -126,7 +126,7 @@ import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGrap
 import { loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
 import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
-import { lightPanel, lookExceptions, lookFontRef, lookForOf, lookReach, lookSentWords, lookToActivate } from '../../control/productionLook';
+import { lightPanel, lookExceptions, lookFontRef, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
 import { getCssVariable } from '../../model/cssVars';
@@ -2165,7 +2165,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const poolTemplates = useMemo(() => (show?.graphics ?? []).map((g) => templateForSavedGraphic(g, library)), [show?.graphics, library]);
   // THE PRODUCTION LOOK (phase 3, control/productionLook.ts): while it is on, the widest scope of
   // every graphic's style, limited per graphic to what its stylesheet paints with.
-  const styleCtxOf = (record: Show | null | undefined, templates: typeof poolTemplates) => styleContextFor(templates, lookForOf(record, templates));
+  const styleCtxOf = (record: Show | null | undefined, templates: typeof poolTemplates) => lookStyleContext(record, templates);
+  /** Where a face's bytes are read by path: the pool, and the look's own imported face. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const faceAssets = useMemo(() => withLookAssets(show, poolTemplates), [poolTemplates, show?.look, show?.lookApplied]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const styleCtx = useMemo(() => styleCtxOf(show, poolTemplates), [poolTemplates, show?.look, show?.lookApplied]);
   const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library, ctx = styleCtx) => {
@@ -2206,7 +2209,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  by its text, which an imported face can run to megabytes. */
   const previewStyleOf = (state: ReturnType<typeof adjustStateOf> | null | undefined): PreviewStyle | null => {
     const style = state?.style;
-    return state && style ? { id: state.styleId, vars: style.vars ?? null, faces: facesCss(style.fonts, assetDataIn(poolTemplates)) } : null;
+    return state && style ? { id: state.styleId, vars: style.vars ?? null, faces: facesCss(style.fonts, assetDataIn(faceAssets)) } : null;
   };
   /** One document at a time measures the adjusted cues PREVIEW has not shown (components/home/measureCue.ts). */
   const measurer = useMemo(

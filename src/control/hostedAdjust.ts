@@ -95,7 +95,13 @@ export function hostedAdjustState(
   styleCtx: StyleContext,
 ): CueAdjustState {
   const geometry: GeometryPart = pub.box ? { byCue: {}, byGraphic: { [pub.graphicId]: pub.box } } : NO_GEOMETRY;
-  const ctx: StyleContext = { ...styleCtx, lookFor: () => pub.look };
+  // The look's imported face resolves here as on the production page (its bytes ride with the
+  // payload's first graphic).
+  const lookFont = pub.look?.font;
+  const imported = lookFont && typeof lookFont === 'object' && 'family' in lookFont && !styleCtx.imported.some((f) => f.family === lookFont.family && f.assetPath === lookFont.assetPath)
+    ? [...styleCtx.imported, { family: lookFont.family, assetPath: lookFont.assetPath }]
+    : styleCtx.imported;
+  const ctx: StyleContext = { ...styleCtx, imported, lookFor: () => pub.look };
   const state = cueAdjustState({ id: pub.graphicId, savedAt: '', adjust: records.graphic }, { id: cueId, adjust: records.cue }, pub.frame, pub.stage, {}, geometry, applied, adjustedElsewhere, ctx);
   // The published box is the last qualified one: it stands until a new Publish, so the block reads
   // it as current rather than "measuring" a box nobody here will measure.

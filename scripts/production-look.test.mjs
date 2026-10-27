@@ -25,6 +25,7 @@ const G = await import('../src/control/adjustGeometry.ts');
 const St = await import('../src/control/cueStyle.ts');
 const L = await import('../src/control/productionLook.ts');
 const { audienceBrandFor } = await import('../src/audience/audienceBrand.ts');
+const { fontById, fontStack } = await import('../src/model/fonts.ts');
 
 const HD = { width: 1920, height: 1080 };
 /** A look of Archivo and accent #ff7a00 (the spec's AC-6). */
@@ -121,6 +122,32 @@ describe('what the look reaches, over emitted templates (AC-6)', () => {
     assert.deepEqual(reach.untouched, ['Quiz art']);
     // A face no graphic can resolve reaches none of them.
     assert.equal(L.lookReach(pool, { ...LOOK, fontId: null, customFont: { family: 'Mine', format: 'woff2', asset: { path: 'fonts/mine.woff2', data: '' } } }, []).type, 0);
+  });
+});
+
+describe('the faces a look names reach the document', () => {
+  const imported = { ...LOOK, fontId: null, customFont: { family: 'Brand Sans', format: 'woff2', asset: { path: 'fonts/brand-sans.woff2', data: 'data:font/woff2;base64,AAAA' } } };
+  const strap = { css: ':root { --font-heading: "Inter"; --accent: #f00; }\n.x { font-family: var(--font-heading); color: var(--accent); }', js: '', assets: [] };
+
+  test('a brand\'s imported typeface resolves from the look\'s own copy, though no pool graphic ships it', () => {
+    const show = { look: imported, lookApplied: true, graphics: [{ id: 'g' }] };
+    const ctx = L.lookStyleContext(show, [strap]);
+    assert.deepEqual(ctx.imported, [{ family: 'Brand Sans', assetPath: 'fonts/brand-sans.woff2' }]);
+    const style = St.resolveStyle(A.effectiveAdjust(undefined, undefined, ctx.lookFor('g')), ctx.imported);
+    assert.match(style.vars['font-heading'], /Brand Sans/);
+    assert.ok(style.fonts.some((f) => f.family === 'Brand Sans' && f.src === 'fonts/brand-sans.woff2'));
+    // Its bytes are found by path beside the pool, for PREVIEW, the measurer and the export.
+    const css = St.facesCss(style.fonts, St.assetDataIn(L.withLookAssets(show, [strap])));
+    assert.match(css, /Brand Sans[^}]*data:font\/woff2/);
+    assert.equal(L.withLookAssets({ ...show, lookApplied: undefined }, [strap]).length, 1, 'the look off: nothing added');
+    assert.equal(L.lookImportedFace({ look: LOOK, lookApplied: true }), null, 'a bundled face has no bytes to carry');
+  });
+
+  test('a label face a look\'s token names is declared with the heading\'s', () => {
+    const oswald = fontStack(fontById('oswald'));
+    const style = St.resolveStyle(A.effectiveAdjust(undefined, undefined, { vars: { 'font-label': oswald }, font: { fontId: 'archivo' } }), []);
+    assert.equal(style.vars['font-label'], oswald);
+    assert.ok(style.fonts.some((f) => f.family === 'Oswald'), `the label face ships: ${style.fonts.map((f) => f.family)}`);
   });
 });
 

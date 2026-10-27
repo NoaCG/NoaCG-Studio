@@ -19,6 +19,7 @@ import {
   customFontFaceCss,
   ensureFontFace,
   fontById,
+  fontByStack,
   fontFormatForExt,
   fontStack,
   fontWeights,
@@ -169,6 +170,8 @@ export function resolveStyle(
     }
   };
   for (const [k, v] of Object.entries(eff.vars ?? {})) if (v !== '') vars[k] = v;
+  // A label face named by its stack (a brand's `font-label` token) ships as the heading does.
+  const label = vars['font-label'] ? fontByStack(vars['font-label']) : null;
   const face = faceOf(eff.font, imported);
   if (face && 'bundled' in face) {
     vars['font-heading'] = fontStack(face.bundled);
@@ -183,6 +186,7 @@ export function resolveStyle(
     // Uneven digits fall back to the bundled mono, which ships only if it is declared here.
     if (vars['font-numeric'] === MONO_STACK) declare(bundledDeclarations(fontById('jetbrains-mono')));
   }
+  if (label) declare(bundledDeclarations(label));
   if (Object.keys(vars).length === 0 && fonts.length === 0) return null;
   return { ...(Object.keys(vars).length > 0 ? { vars } : {}), ...(fonts.length > 0 ? { fonts } : {}) };
 }

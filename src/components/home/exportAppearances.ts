@@ -11,8 +11,8 @@ import { activeEntryValues, CONTROLLER_TARGET } from '../../export/showExport';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import type { Show } from '../../model/shows';
 import { measureCue, type PreviewStyle } from './measureCue';
-import { assetDataIn, facesCss, resolveStyle, styleContextFor } from '../../control/cueStyle';
-import { lookForOf } from '../../control/productionLook';
+import { assetDataIn, facesCss, resolveStyle } from '../../control/cueStyle';
+import { lookForOf, lookStyleContext, withLookAssets } from '../../control/productionLook';
 
 export async function measureExportAppearances(show: Show, targetId: string): Promise<ExportAppearances | undefined> {
   const cues = show.cues ?? [];
@@ -23,8 +23,8 @@ export async function measureExportAppearances(show: Show, targetId: string): Pr
   const adjusted = adjustedGraphics(show.graphics, cues, lookFor);
   if (adjusted.length === 0) return undefined;
   const templates = new Map(show.graphics.map((g, i) => [g.id, pool[i]] as const));
-  const imported = styleContextFor(pool).imported;
-  const assetData = assetDataIn(pool);
+  const imported = lookStyleContext(show, pool).imported;
+  const assetData = assetDataIn(withLookAssets(show, pool));
   // Each box in the type it will be drawn in: a face or a weight moves the text, so the fold's
   // style goes into the hidden document and into the key (a colour does neither).
   const styleOf = (graphicId: string, graphicAdjust: unknown, cueAdjust?: unknown): PreviewStyle | null => {

@@ -27,6 +27,7 @@ import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // audience): publish is the courier, not the author.
 import { audienceBrandFor } from '../audience/audienceBrand';
 import type { PublishedAdjust } from './hostedAdjust';
+import { lookImportedFace } from './productionLook';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
@@ -428,6 +429,12 @@ export async function buildOutputPayload(
 ): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
   const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
+  // The production look's imported face rides once, with the first graphic: every stage reads a
+  // face's bytes from any graphic of the production (output/stage.ts `assetData`).
+  const lookFace = lookImportedFace(show);
+  if (lookFace && graphics[0] && !graphics.some((g) => g.assets.some((a) => a.path === lookFace.asset.path)) && typeof lookFace.asset.data === 'string') {
+    graphics[0] = { ...graphics[0], assets: [...graphics[0].assets, { path: lookFace.asset.path, data: lookFace.asset.data }] };
+  }
   // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
   const resolution = graphics.reduce<Resolution>(
     (r, g) => ({

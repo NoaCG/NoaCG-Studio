@@ -16,7 +16,8 @@
 import { readAdjust, readFont, styleValue, STYLE_VARS, type FontRef } from '../model/adjust.ts';
 import { cssPaintsWith, parseCssColor, relativeLuminance } from '../model/cssVars.ts';
 import type { ProjectBrand } from '../model/brand';
-import { COLOUR_VARS, SVG_DESIGN_MARKER, faceOf, styleReach, type ImportedFace } from './cueStyle.ts';
+import { COLOUR_VARS, SVG_DESIGN_MARKER, faceOf, styleContextFor, styleReach, type ImportedFace, type StyleContext } from './cueStyle.ts';
+import type { AssetFile } from '../model/types.ts';
 import type { LookLayer } from './cueAdjust.ts';
 
 /** The look a production's graphics take: its `look` while it is on, else none. */
@@ -84,6 +85,35 @@ export function lookForOf(
   const layer = lookLayerOf(look);
   const byId = new Map(show.graphics.map((g, i) => [g.id, templates[i] ? lookLayerFor(layer, templates[i]) : undefined] as const));
   return (graphicId) => byId.get(graphicId);
+}
+
+/** THE LOOK'S IMPORTED FACE while the look is on, as the fold resolves faces, and the one place its
+ *  bytes come from: the look's own copy (`customFont.asset`), so a brand's imported typeface reaches
+ *  a production whose graphics never shipped it. Null for a bundled face, or the look off. */
+export function lookImportedFace(show: { look?: ProjectBrand; lookApplied?: true } | null | undefined): { face: ImportedFace; asset: AssetFile } | null {
+  const look = productionLookOf(show);
+  const ref = look && lookFontRef(look);
+  if (!look?.customFont || !ref || 'fontId' in ref) return null;
+  return { face: { family: ref.family, assetPath: ref.assetPath }, asset: look.customFont.asset };
+}
+
+/** A production's style context: its pool's imported faces, the look's imported face beside them,
+ *  and the look on each graphic (`lookForOf`). */
+export function lookStyleContext(
+  show: { look?: ProjectBrand; lookApplied?: true; graphics: readonly { id: string }[] } | null | undefined,
+  templates: readonly { css: string; js: string; assets: readonly { path: string }[] }[],
+): StyleContext {
+  const ctx = styleContextFor(templates, lookForOf(show, templates));
+  const own = lookImportedFace(show);
+  if (!own || ctx.imported.some((f) => f.family === own.face.family && f.assetPath === own.face.assetPath)) return ctx;
+  return { ...ctx, imported: [...ctx.imported, own.face] };
+}
+
+/** The pool with the look's imported face beside it, where a surface reads a face's bytes by path
+ *  (`assetDataIn`, `withAppearanceFaces`). */
+export function withLookAssets<T extends { assets: readonly AssetFile[] }>(show: { look?: ProjectBrand; lookApplied?: true } | null | undefined, pool: readonly T[]): (T | { css: string; assets: AssetFile[] })[] {
+  const own = lookImportedFace(show);
+  return own && !pool.some((t) => t.assets.some((a) => a.path === own.asset.path)) ? [...pool, { css: '', assets: [own.asset] }] : [...pool];
 }
 
 /** One pool graphic as the Look panel counts it. */
