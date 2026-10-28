@@ -15,14 +15,14 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { measureFixture } from './endurance-fixture.mjs';
+import { MIN_MINUTES, measureFixture } from './endurance-fixture.mjs';
 import { judge } from './endurance-judge.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'endurance-output');
 const argv = process.argv.slice(2);
 const minutes = Number(argv.includes('--minutes') ? argv[argv.indexOf('--minutes') + 1] : 60);
-if (!(minutes > 0)) throw new Error('--minutes must be a positive number');
+if (!(minutes >= MIN_MINUTES)) throw new Error(`--minutes must be at least ${MIN_MINUTES}: a shorter run leaves the verdict too few steady values to judge`);
 
 const run = (cmd, args, options = {}) => spawnSync(cmd, args, { encoding: 'utf8', ...options, windowsHide: true });
 

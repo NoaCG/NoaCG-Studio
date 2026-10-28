@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
-import { ACTION_MS, BODY_CAP_BYTES, CANDIDATES, CUE_SWITCH_MS, STEP_MS, candidates, countedAt, enduranceTimeline, measureFixture, partyVotes, revisionAt, schedule, stepKind, votesAt } from './endurance-fixture.mjs';
+import { ACTION_MS, BODY_CAP_BYTES, MIN_MINUTES, CANDIDATES, CUE_SWITCH_MS, STEP_MS, candidates, countedAt, enduranceTimeline, measureFixture, partyVotes, revisionAt, schedule, stepKind, votesAt } from './endurance-fixture.mjs';
 import { judge } from './endurance-judge.mjs';
 import { startReplayServer } from './election-replay-server.mjs';
 
@@ -22,10 +22,10 @@ const fmt = (n) => n.toLocaleString('en-GB');
 const MIB = 1024 * 1024;
 
 /** A healthy record of a run, built as the driver writes one. */
-function healthy() {
-  const plan = schedule(MIN);
+function healthy(minutes = MIN) {
+  const plan = schedule(minutes);
   const iso = (t) => new Date(t).toISOString();
-  const r = { minutes: MIN, schedule: plan, t0: T0, end: T0 + plan.totalMs + 2_000, errors: [], takes: [], actions: [], faults: [], samples: [], frames: [], snapshots: [], provider: [], reads: [], agents: [], rows: [], credentialLeaked: false };
+  const r = { minutes, schedule: plan, t0: T0, end: T0 + plan.totalMs + 2_000, errors: [], takes: [], actions: [], faults: [], samples: [], frames: [], snapshots: [], provider: [], reads: [], agents: [], rows: [], credentialLeaked: false };
   r.fixture = { candidates: CANDIDATES, bodyBytes: 150_710, jsonbBytes: 164_408, capBytes: BODY_CAP_BYTES };
   const paused = [];
   let epoch = 1;
@@ -101,7 +101,7 @@ function healthy() {
   }
   r.frames = r.frames.filter((f, i, all) => i === 0 || JSON.stringify({ ...f, at: 0 }) !== JSON.stringify({ ...all[i - 1], at: 0 }));
   for (let t = T0; t < r.end; t += 10_000) {
-    const gc = (t - T0) % 60_000 === 0;
+    const gc = (t - T0) % Math.min(60_000, plan.cycleMs / 2) === 0;
     const side = (heap, channels = 3) => ({ heap, nodes: 3_000, listeners: 600, documents: 4, frames: 6, channels, gc });
     r.samples.push({ at: t, controller: side(30 * MIB), output: side(20 * MIB, 2), stateReadsInFlight: 0, stateReadsMax: 1, agent: { reading: (t / 10_000) % 2, undelivered: 0, posting: 0, rss: 60 * MIB }, agentsAlive: 1, snapshots: 1, driver: { rss: 200 * MIB, heap: 50 * MIB, handles: 30 } });
     r.snapshots.push({ at: t, epoch: epochAt(t), revision: Math.max(1, Math.floor((t - T0) / STEP_MS)), state: 'changed', bytes: 164_000 });
@@ -134,6 +134,10 @@ test('a healthy record passes every check', () => {
   assert.equal(v.memory['controller.heap'].length, 3);
 });
 
+
+test('a healthy record of the shortest run the entry accepts, and of a half hour, passes every check', () => {
+  for (const m of [MIN_MINUTES, 25, 30]) assert.deepEqual(failed(healthy(m)), [], `${m} min`);
+});
 
 test('every run length has two steady windows after its warmup, and an hour keeps ten-minute cycles', () => {
   for (const m of [1, 2, 3, 3.75, 4, 10, 19, 20, 25, 29, 30, 45, 60]) {

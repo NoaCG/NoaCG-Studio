@@ -18,6 +18,8 @@
 export const CANDIDATES = 1000;
 export const STEP_MS = 5_000;
 export const CUE_SWITCH_MS = 15_000;
+/** The shortest run the verdict can judge: shorter, too few steady values are owed once the faults are excused. */
+export const MIN_MINUTES = 15;
 export const ACTION_MS = 60_000;
 export const PAUSE_MS = 30_000;
 export const DISCONNECT_MS = 20_000;
@@ -197,8 +199,8 @@ export function measureFixture(minutes, people = candidates()) {
 export function schedule(minutes) {
   const total = Math.round(minutes * 60_000);
   // At least three cycles, so a short run still has two steady windows after its warmup, each a whole
-  // number of 75 s so every fifth of it falls on a cue switch; a smoke under 3.75 minutes, too short
-  // for that, takes plain thirds.
+  // number of 75 s so every fifth of it falls on a cue switch; a run under 3.75 minutes (only the
+  // tests make one; the entry refuses under MIN_MINUTES) takes plain thirds.
   const aligned = Math.floor(total / 3 / (5 * CUE_SWITCH_MS)) * 5 * CUE_SWITCH_MS;
   const cycleMs = Math.min(10 * 60_000, aligned || Math.floor(total / 3));
   const cycles = Math.floor(total / cycleMs);
