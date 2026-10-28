@@ -1,6 +1,6 @@
 // guards: scripts/endurance-judge.mjs, scripts/endurance-fixture.mjs, scripts/election-replay-server.mjs
 //
-// The endurance verdict (phase E8.1b) can fail. A healthy record of a 30-minute run passes every
+// The endurance verdict (phase E8.1b) can fail. A healthy record of a 40-minute run passes every
 // check, and each defect the envelope names turns its own check red: a wrong-person frame, a mixed
 // record, a stale-owner write, a duplicate action, an unbounded queue, a leaked subscription, memory
 // growth, an unhandled error, a Pause that leaks, a revision over the ingress limit. The fixture's
@@ -13,7 +13,7 @@ import { ACTION_MS, BODY_CAP_BYTES, CANDIDATES, CUE_SWITCH_MS, STEP_MS, candidat
 import { judge } from './endurance-judge.mjs';
 import { startReplayServer } from './election-replay-server.mjs';
 
-const MIN = 30;
+const MIN = 40;
 const T0 = 1_800_000_000_000;
 const people = candidates();
 const key = (d, c) => people.find((p) => p.district === d && p.candidate === c);
@@ -54,11 +54,6 @@ function healthy() {
   const person = (x) => key(x.key[0], x.key[1]);
   const events = [];
   // A Take writes its values and its play in one moment; the output reports what it shows.
-  for (const x of r.takes) {
-    events.push({ t: x.clickAt + 100, row: { graphic: 'Candidate card', t: 'update', data: { f0: person(x).name, f2: fmt(votesAt(person(x), 1)) } } });
-    events.push({ t: x.clickAt + 100, row: { graphic: 'Candidate card', t: 'play' } });
-    events.push({ t: x.clickAt + 900, row: { graphic: 'Candidate card', t: 'live', data: { f0: person(x).name } } });
-  }
   const applied = [];
   for (let i = 0; T0 + i * STEP_MS < r.end; i++) {
     if (stepKind(i) !== 'count') {
@@ -75,6 +70,13 @@ function healthy() {
       const a = aired(t + 1_500);
       if (a) events.push({ t: t + 1_500, row: { graphic: 'Candidate card', t: 'update', data: { f0: person(a).name, f2: fmt(votesAt(person(a), rev)) } } });
     }
+  }
+  // A Take sends the values of the tree the page holds at that moment.
+  for (const x of r.takes) {
+    const held = applied.findLast((a) => a.t <= x.clickAt)?.rev ?? 1;
+    events.push({ t: x.clickAt + 100, row: { graphic: 'Candidate card', t: 'update', data: { f0: person(x).name, f2: fmt(votesAt(person(x), held)) } } });
+    events.push({ t: x.clickAt + 100, row: { graphic: 'Candidate card', t: 'play' } });
+    events.push({ t: x.clickAt + 900, row: { graphic: 'Candidate card', t: 'live', data: { f0: person(x).name } } });
   }
   events.sort((a, b) => a.t - b.t);
   for (const e of events) r.rows.push({ id: r.rows.length + 1, ...e.row, at: e.t });
@@ -127,7 +129,7 @@ test('a healthy record passes every check', () => {
   const v = judge(healthy());
   assert.deepEqual(v.checks.filter((c) => !c.ok), []);
   for (const road of ['dispatch', 'dispatchToAir', 'fetchToApply', 'providerToApply', 'applyToRenderBound', 'providerToRenderBound', 'applyToRenderCandidates']) assert.ok(v.timings[road].n > 0, road);
-  assert.equal(v.memory['controller.heap'].length, 2);
+  assert.equal(v.memory['controller.heap'].length, 3);
 });
 
 red('a wrong-person frame', (r) => {
@@ -221,6 +223,23 @@ red('a bound value that never renders', (r) => {
 }, /failed to reach the output in time/);
 red('memory never measured on the output', (r) => {
   for (const s of r.samples) s.output = { failed: 'CDP session unavailable' };
+}, /memory and instance counts/);
+red('an older revision reaching air', (r) => {
+  const row = r.rows.find((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at > r.t0 + 20 * 60_000);
+  row.data = { f8: fmt(partyVotes('KOK', 5)) };
+  const f = r.frames.find((x) => x.at > r.t0 + 20 * 60_000 && x.kok);
+  r.frames.splice(r.frames.indexOf(f) + 1, 0, { ...f, at: f.at + 100, kok: fmt(partyVotes('KOK', 5)) });
+}, /no older revision reached air/);
+red('an older candidate figure on the card', (r) => {
+  const i = r.frames.findIndex((x) => x.at > r.t0 + 20 * 60_000 && x.votes);
+  const p = people.find((x) => x.name === r.frames[i].name);
+  r.frames.splice(i + 1, 0, { ...r.frames[i], at: r.frames[i].at + 100, votes: fmt(votesAt(p, 2)) });
+}, /no older revision reached air/);
+red('controller memory rising in every window, inside the allowance', (r) => {
+  for (const s of r.samples) {
+    const w = Math.floor((s.at - r.t0) / (10 * 60_000));
+    s.controller.heap = (30 + w * 1) * MIB;
+  }
 }, /memory and instance counts/);
 red('a bound field slow to air', (r) => {
   for (const f of r.frames) f.at += f.at > r.t0 + 15 * 60_000 && f.at < r.t0 + 16 * 60_000 ? 12_000 : 0;
