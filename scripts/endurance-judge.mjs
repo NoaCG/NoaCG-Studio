@@ -379,16 +379,20 @@ export function judge(record) {
       else if (!onCard || onCard.at > due) missed.push({ road: 'candidates', at: r.at - t0, person: aired.person.name, want, room });
     }
   }
-  // The source keeps being applied: every revision the provider served in a steady moment is on
-  // the board (or overtaken by a newer one) within 15 s. Coalescing is allowed; a stall is not.
+  // The source keeps being applied: every revision the provider's timeline published in a steady
+  // moment is on the board (or overtaken by a newer one) within 15 s. The obligations come from the
+  // fixture's own timeline, which moves whether or not anyone reads it, so an agent that stops
+  // reading stalls here too. Coalescing is allowed; a stall is not.
   const appliedRevs = boardRows.map((r) => ({ at: r.at, rev: partyRevision('KOK', num(r.data.f8)) ?? 0 }));
   const stalled = [];
-  for (const [name, at] of served) {
-    const rev = Number(/^count-(\d+)$/.exec(name)?.[1] ?? NaN);
-    if (!Number.isFinite(rev) || at < t0 || at + 15_000 > (record.end ?? 0) || inside(windows, at) || inside(windows, at + 15_000)) continue;
+  let obligations = 0;
+  for (let rev = 1; moved(rev) !== null && moved(rev) + 15_000 <= (record.end ?? 0); rev++) {
+    const at = moved(rev);
+    if (at < t0 || inside(windows, at) || inside(windows, at + 15_000)) continue;
+    obligations++;
     if (!appliedRevs.some((a) => a.rev >= rev && a.at <= at + 15_000)) stalled.push({ at: at - t0, rev });
   }
-  check('every revision the provider served was applied within 15 s (or overtaken by a newer one)', served.size > 0 && stalled.length === 0, `${stalled.length} stalled: ${JSON.stringify(stalled.slice(0, 3))}`);
+  check('every revision the provider published was applied within 15 s (or overtaken by a newer one)', obligations > 0 && stalled.length === 0, `${stalled.length} of ${obligations} stalled: ${JSON.stringify(stalled.slice(0, 3))}`);
   const report = Object.fromEntries(Object.entries(timings).map(([k, xs]) => [k, stats(xs)]));
   check('a Take is on air within 10 s', report.dispatchToAir.n > 0 && report.dispatchToAir.max <= CEILING.dispatch, JSON.stringify(report.dispatchToAir));
   check('a bound field is on air within 10 s of the provider\'s move', report.providerToRenderBound.n > 0 && report.providerToRenderBound.max <= CEILING.bound, JSON.stringify(report.providerToRenderBound));

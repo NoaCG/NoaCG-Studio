@@ -247,6 +247,13 @@ red('the provider\'s revisions no longer applied', (r) => {
   const held = r.frames.findLast((f) => f.at < from);
   r.frames = r.frames.map((f) => (f.at > from ? { ...f, kok: held.kok, votes: f.name === held.name ? held.votes : f.votes } : f));
 }, /applied within 15 s/);
+red('the agent stops reading while alive', (r) => {
+  const from = r.t0 + 39.2 * 60_000;
+  r.provider = r.provider.filter((x) => x.at <= from);
+  r.rows = r.rows.filter((x) => !(x.at > from && x.t === 'update'));
+  const held = r.frames.findLast((f) => f.at < from);
+  r.frames = r.frames.map((f) => (f.at > from ? { ...f, kok: held.kok, votes: f.name === held.name ? held.votes : f.votes } : f));
+}, /applied within 15 s/);
 red('the scorebug clock unreadable after the first minute', (r) => {
   for (const f of r.frames) if (f.at > r.t0 + 60_000) f.clock = null;
 }, /clock kept running/);
