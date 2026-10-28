@@ -496,7 +496,8 @@ export function keyArgs(
 	const kind = cap.slice(0, cap.indexOf(':'))
 	if (kind === 'step') return Number(o.delta) < 0 ? { args: { delta: -1 } } : { args: { delta: 1 } }
 	if (kind === 'event') {
-		const option = typeof o.option === 'string' ? o.option.trim() : ''
+		// A pick's value exactly as the page declares it: spaces may be part of it.
+		const option = typeof o.option === 'string' ? o.option : ''
 		return { args: option ? { option } : {} }
 	}
 	const text = typeof o.args === 'string' ? o.args.trim() : ''

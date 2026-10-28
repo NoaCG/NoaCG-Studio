@@ -613,6 +613,9 @@ export class PanelClient {
 					answer = await this.#relay.press(this.#key, press)
 				} catch (err) {
 					this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
+					// The page already said what it came to: that stands, whatever the calls' own answers.
+					const said = this.#settledSaid.get(press.id)
+					if (said !== undefined) return { ok: true, sentence: said }
 					// Both calls failed: it may still have reached the page, so a graphic key reads not
 					// known, and a `settled` that comes still says what it came to.
 					if (this.#unsettled.has(press.id)) awaitSettled()

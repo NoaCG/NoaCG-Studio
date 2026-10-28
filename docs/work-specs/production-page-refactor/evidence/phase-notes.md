@@ -62,7 +62,9 @@ changes a spec's digest.
     until the key's next press. No answer, or both relay calls failing, reads not known (the press
     may have run) and a later `settled` still says what it came to; it is never sent again. A
     press refused before it went shows failed for 2 s over the key's last sent press without
-    replacing it, so that press's own outcome still lands (the fresh `/so` on `955c28d`).
+    replacing it, so that press's own outcome still lands (the fresh `/so` on `955c28d`). A
+    `settled` heard before both calls failed stands over the calls' failure (Codex P2 on
+    `955c28d`). A pick's option is sent exactly as declared, spaces included (the same review).
   - *The module measures arguments as the relay does* (the same `/so`): the text as jsonb writes it
     back (a space after every `:` and `,`), at most 4096, nested at most 8, before anything is sent,
     so a key refuses here what would come back `bad-press`. The typed text is capped at 4096 before
@@ -93,7 +95,7 @@ changes a spec's digest.
   module `ARGS_MAX_CHARS` 4096 to 4097 and its comparison one past, `ARGS_MAX_DEPTH` 8 to 9 and its
   comparison one past, the jsonb spaces dropped (each kind), the local-refusal mark dropped, a
   local refusal writing over the key's last press, the both-calls-failed press no longer awaiting
-  its `settled`, the newest-press guard of
+  its `settled`, the both-calls-failed path ignoring an earlier `settled`, and the option trimmed, the newest-press guard of
   `#keyOutcome`, the same guard on a refusal (a late or lost answer of an older press of the key, found by `/check`), `offerShape` with `live`, presets for unpinned graphics, foreign forced
   non-invocable, no answer read as failed, and `action_unknown` without an offer
   (`companion-module/src/__tests__/graphic-keys.test.ts`).

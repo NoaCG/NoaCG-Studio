@@ -282,7 +282,8 @@ test("AC-3: arguments are read in time linear in their size, within the relay's 
 	assert.equal(ARGS_MAX_CHARS, 4096)
 	assert.deepEqual(keyArgs('step:home', { delta: '-1' }), { args: { delta: -1 } })
 	assert.deepEqual(keyArgs('step:home', { delta: 'x' }), { args: { delta: 1 } })
-	assert.deepEqual(keyArgs('event:choose', { option: ' A ' }), { args: { option: 'A' } })
+	// A declared value is sent exactly: spaces may be part of it (Codex P2 on 955c28d).
+	assert.deepEqual(keyArgs('event:choose', { option: ' A ' }), { args: { option: ' A ' } })
 	assert.deepEqual(keyArgs('event:goal', { args: '{"x":1}' }), { args: {} })
 	assert.deepEqual(keyArgs('foreign:x', { args: '' }), { args: {} })
 	// Measured as the server writes it back: `{"t": "x…"}`, one space more than typed.
@@ -471,4 +472,23 @@ test('AC-2: a press whose two calls both failed reads not known, and a settled t
 	assert.equal(panel.lastPress, 'Done')
 	assert.equal(relay.count('press'), 2, 'the one same-id retry, never a third')
 	assert.deepEqual(new Set(sent(relay).map((p) => p.id)), new Set(['deck:1']))
+})
+
+test('a settled that came before both calls failed stands: the key reads what the action came to', async () => {
+	const { relay, panel } = await answering()
+	const { press, fb } = companion(panel)
+	const k = { graphic: 'Scorebug', cap: 'event:goal-home' }
+	// The page runs the press and says so; both of the module's calls then lose their answers.
+	let calls = 0
+	relay.press = async (_key, p) => {
+		relay.calls.push({ name: 'press', args: [_key, p] })
+		if (++calls === 1) relay.emit('settled', { av: 2, id: p.id, outcome: 'accepted' })
+		throw new Error('reset')
+	}
+	const out = await press(key(k))
+	assert.equal(out.ok, true)
+	assert.equal(out.sentence, 'Done')
+	assert.equal(fb('action_outcome', { ...k, outcome: 'done' }), true)
+	assert.equal(panel.lastPress, 'Done')
+	assert.equal(relay.count('press'), 2)
 })
