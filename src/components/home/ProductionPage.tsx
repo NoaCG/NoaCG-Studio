@@ -931,8 +931,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const casparTarget = casparOutputTarget(relevanceSettings);
   const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
     bridgeWatch.current?.slotActed();
-    if (result.state === 'ok') bridgeWatch.current?.slotOwned(what === 'air');
     if (show && result.state === 'ok') {
+      // Loaded here, the output is this page's to bring back after a server restart (#1657).
+      bridgeWatch.current?.slotOwned(what === 'air');
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), casparOutput: what === 'air' ? target : undefined });
       // Unloading on purpose is not losing the slot.
       if (what === 'stop') writeBridge(session, { slotSeenOurs: false });

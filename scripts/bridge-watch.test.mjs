@@ -106,7 +106,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     // through `onAirChanged`, which drops reads already out, owns the slot and reads it again.
     reload: async () => {
       calls.push('reload');
-      const result = reloading.answer();
+      const result = await reloading.answer();
       if (!result) return null;
       watch.slotActed();
       if (result.state === 'ok') {
@@ -524,6 +524,35 @@ test('an output this page only saw, another production, an Unload or an unpublis
   await settle();
   await restartServer(unpublished);
   assert.ok(!unpublished.calls.includes('reload'), 'unpublished');
+});
+
+test('Publish\'s own load, landing before the page renders it published, is still brought back', async () => {
+  const t = rig({ items: [] });
+  t.update({ hostedSlug: null });
+  t.answer(OK);
+  await settle();
+  // Publish loads the output and then the page renders with the production published.
+  t.watch.slotOwned(true);
+  t.update({ hostedSlug: 'abc', slotRev: 1 });
+  await settle();
+  assert.equal(t.session.bridge.get().slotSeenOurs, true);
+  await restartServer(t);
+  assert.ok(t.calls.includes('reload'));
+});
+
+test('an Unload during a reload leaves nothing saying it reloads', async () => {
+  const t = await loadedRig();
+  let release;
+  t.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve({ state: 'ok', detail: '' });
+  });
+  await restartServer(t);
+  assert.deepEqual(t.session.bridge.get().slotReload, { state: 'reloading' });
+  t.watch.slotOwned(false);
+  assert.equal(t.session.bridge.get().slotReload, null);
+  release();
+  await settle();
+  assert.equal(t.session.bridge.get().slotReload, null, 'the late answer writes nothing');
 });
 
 test('a server that keeps failing is tried three times, spaced out, then left to Load', async () => {

@@ -253,6 +253,13 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       setSlotBusy(false);
     }
   };
+  /** The load itself, tagged with the production's CasparCG destination, and what it changed. */
+  const sendLoad = async (settings: PlayoutSettings, url: string): Promise<PlayoutResult> => {
+    const casparId = casparDestinationId(loadShows().find((s) => s.id === show.id)?.outputSetup) ?? 'casparcg';
+    const result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
+    onAirChanged('air', result, casparOutputTarget(settings));
+    return result;
+  };
   const loadOnSlot = (url: string, replace = false): Promise<void> => slotAction(async () => {
     const settings = loadPlayoutSettings();
     const where = slotAddress(slotOf(settings));
@@ -277,9 +284,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       }
     }
     setReplaceAsk(false);
-    const casparId = casparDestinationId(loadShows().find((s) => s.id === show.id)?.outputSetup) ?? 'casparcg';
-    const result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
-    onAirChanged('air', result, casparOutputTarget(settings));
+    const result = await sendLoad(settings, url);
     if (result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
   });
   /** LOAD THE LOST OUTPUT AGAIN BY ITSELF (control/bridgeWatch.ts, issue #1657): as Load, but only
@@ -295,9 +300,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       if (!reading.reply) return;
       const slug = new URL(url).searchParams.get('production');
       if (slotHolds(reading.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, slug) !== 'empty') return;
-      const casparId = casparDestinationId(loadShows().find((s) => s.id === show.id)?.outputSetup) ?? 'casparcg';
-      result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
-      onAirChanged('air', result, casparOutputTarget(settings));
+      result = await sendLoad(settings, url);
     });
     return result;
   };
