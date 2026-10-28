@@ -85,7 +85,7 @@ test('a graphic saved before the latin-ext fix sets Š and Ž in its own face on
     } as never);
   }, { css: SAVED_BEFORE_1744, name: NAME });
   // The composed document becomes the page itself, at the same root path /output loads from.
-  await page.route('**/saved-font-output', (route) => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.route('**/saved-font-output', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: html }));
   await page.goto('/saved-font-output');
   const weights = await page.evaluate(async (name) => {
     await document.fonts.load('700 40px "Bebas Neue"', name);
