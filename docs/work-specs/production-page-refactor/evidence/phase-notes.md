@@ -16,12 +16,14 @@ changes a spec's digest.
   finding on #1780). A package frame took no place or size, and a stage never mounted a package again.
 - **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
   `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no message kind. A report's
-  `state.ograf` may carry `acted`, `unknown` and `was`, which a reverted page reads past; a reverted
+  `state.ograf` may carry `acted`, `unknown`, `was` and `sent`, which a reverted page reads past; a reverted
   output again restores no package and ignores a package's appearance.
 - **What landed.**
-  - *The inventory* (`output/main.ts`): the boot's recovery plan, the typed-data read below the
-    reports and the per-graphic restore run over the composed graphics AND the published packages,
-    so a package's bank counts and its values and place come back from its report.
+  - *The inventory* (`output/main.ts`): the boot's recovery plan and the per-graphic restore run
+    over the composed graphics AND the published packages, so a package's bank counts and its
+    values and place come back from its report. The typed-data read below the reports stays on the
+    composed graphics: a package with no report is not replayed from below its bank, it reads as
+    not confirmed.
   - *Only what the Graphic proved* (`control/ografRecovery.ts` `ografRestore`): a Take the report
     says the Graphic accepted comes back at the step its answers reached, through `playAction`
     (the first step, then one step at a time). A custom action is never repeated: a row of one in
@@ -121,7 +123,7 @@ changes a spec's digest.
   - *#1775 item 2* (Back, Goto, skip and their `step` command row) is a control and a command
     migration, not recovery: it stays on #1775.
 - **Seams changed and where:** E3.2a's `mountPublished` split into `attach`, `remount` and `send`;
-  `OgrafOutcome` gains `acted`, `unknown`, `was`; E2's `ForeignOgrafLayer` gains `frame`; the stage
+  `OgrafOutcome` gains `acted`, `unknown`, `was`, `sent`; E2's `ForeignOgrafLayer` gains `frame`; the stage
   gains `markUnknown` and the `ografReplaced` option; L2's `CueAdjust` style gains `package`. E1's
   typed paths and wire untouched.
 - **Not in this row:** Back/Goto/skip (#1775 item 2), Companion, type, colour or look on a
