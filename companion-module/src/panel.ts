@@ -62,6 +62,13 @@ export const FLASH_MS = 1_200
 /** The rejoin backoff, then every 8 s. */
 const BACKOFF_MS = [1_000, 2_000, 4_000, 8_000]
 
+/** What a graphic key's last press came to, as its key shows it: on its way (`running`), done, not
+ *  known (`unknown`: it may have run, and is never sent again), or refused or failed. */
+export type KeyOutcome = 'running' | 'done' | 'unknown' | 'failed'
+
+/** How long a key shows done or failed; running lasts until it settles, unknown until its next press. */
+export const OUTCOME_MS = 2_000
+
 export interface PressOutcome {
 	ok: boolean
 	sentence: string
@@ -126,6 +133,10 @@ export class PanelClient {
 	/** What graphic actions came to, by press id, once said: a press whose own answers come late
 	 *  reads this rather than "no answer". Bounded like `#unsettled`. */
 	#settledSaid = new Map<string, string>()
+	/** Each graphic key's last outcome (`<graphic>/<capability id>`), and the press it belongs to. */
+	#keyOutcomes = new Map<string, { outcome: KeyOutcome; id: string; until: number }>()
+	/** The key each graphic-action press id was made on, for its `settled`. Bounded like `#unsettled`. */
+	#pressKeys = new Map<string, string>()
 	#heardAt = 0
 	#counter = 0
 	#attempt = 0
@@ -177,6 +188,30 @@ export class PanelClient {
 	}
 	get lastPress(): string {
 		return this.#lastPress
+	}
+	/** Why graphic actions cannot be pressed at all now, or '' when they can. */
+	get actionsNote(): string {
+		if (this.#status !== 'ok') return this.#note
+		if (this.#actionsNewer) return "Update the NoaCG module to press this production's graphic actions"
+		const a = this.actions
+		if (!a) return 'No graphic actions from the operator page'
+		if (!a.relay) return 'Graphic actions wait for a NoaCG server update'
+		return ''
+	}
+	/** What the last press of a graphic key came to, while its key shows it. */
+	keyOutcome(graphic: string, cap: string): KeyOutcome | null {
+		const k = this.#keyOutcomes.get(`${graphic}/${cap}`)
+		return k && k.until > this.#clock.now() ? k.outcome : null
+	}
+
+	#keyOutcome(id: string, outcome: KeyOutcome): void {
+		const key = this.#pressKeys.get(id)
+		if (key === undefined) return
+		// Only the key's newest press writes what it shows.
+		const held = this.#keyOutcomes.get(key)
+		if (held && held.id !== id) return
+		const until = outcome === 'done' || outcome === 'failed' ? this.#clock.now() + OUTCOME_MS : Infinity
+		this.#keyOutcomes.set(key, { outcome, id, until })
 	}
 
 	#set(status: Status, note: string): void {
@@ -426,6 +461,10 @@ export class PanelClient {
 				const seq = settled && this.#unsettled.get(settled.id)
 				if (!settled || seq === undefined) return
 				this.#unsettled.delete(settled.id)
+				this.#keyOutcome(
+					settled.id,
+					settled.outcome === 'accepted' ? 'done' : settled.outcome === 'unknown' ? 'unknown' : 'failed',
+				)
 				this.#settledSaid.set(settled.id, settledSentence(settled))
 				for (const id of this.#settledSaid.keys())
 					if (this.#settledSaid.size > UNSETTLED_MAX) this.#settledSaid.delete(id)
@@ -467,9 +506,16 @@ export class PanelClient {
 	 * the action came to (`settled`) arrives after, into the last-press sentence. Never queued, never
 	 * resent but for the one same-id retry every press has.
 	 */
-	async pressAction(graphic: string, cap: string, args: Record<string, unknown> = {}): Promise<PressOutcome> {
+	async pressAction(
+		graphic: string,
+		cap: string,
+		args: Record<string, unknown> = {},
+		/** Why the key's own arguments cannot be sent (`keyArgs`): refused here, nothing goes. */
+		unsendable?: string,
+	): Promise<PressOutcome> {
 		const send = this.#sender({ verb: ACTION_VERB, row: `${graphic}/${cap}` })
 		if (this.#status !== 'ok' || !this.#state) return send.refused(this.#note)
+		if (unsendable) return send.refused(unsendable)
 		if (this.#actionsNewer) return send.refused("Update the NoaCG module to press this production's graphic actions")
 		const actions = this.actions
 		const known = capabilityState(actions, graphic, cap)
@@ -495,8 +541,17 @@ export class PanelClient {
 		const tell = (sentence: string) => {
 			if (seq === this.#pressSeq) this.#lastPress = sentence
 		}
-		const refused = (sentence: string, result?: PressResult): PressOutcome => {
+		const refused = (sentence: string, result?: PressResult, outcome: KeyOutcome = 'failed'): PressOutcome => {
 			this.#flash = { ...flash, until: this.#clock.now() + FLASH_MS }
+			// A graphic key refused before it went, or answered refused, shows failed briefly; one that
+			// went unanswered shows not known until what it came to is said. The press it belongs to is
+			// kept, so its own `settled` still writes it.
+			if (flash.verb === ACTION_VERB) {
+				const held = this.#keyOutcomes.get(flash.row)
+				const id = held?.outcome === 'running' ? held.id : ''
+				const until = outcome === 'failed' ? this.#clock.now() + OUTCOME_MS : Infinity
+				this.#keyOutcomes.set(flash.row, { outcome, id, until })
+			}
 			tell(sentence)
 			this.#opts.onChange?.()
 			return { ok: false, sentence, ...(result ? { result } : {}) }
@@ -521,6 +576,9 @@ export class PanelClient {
 			if (press.verb === ACTION_VERB) {
 				this.#unsettled.set(press.id, seq)
 				for (const id of this.#unsettled.keys()) if (this.#unsettled.size > UNSETTLED_MAX) this.#unsettled.delete(id)
+				this.#pressKeys.set(press.id, flash.row)
+				for (const id of this.#pressKeys.keys()) if (this.#pressKeys.size > UNSETTLED_MAX) this.#pressKeys.delete(id)
+				this.#keyOutcomes.set(flash.row, { outcome: 'running', id: press.id, until: Infinity })
 			}
 			// Sent and not yet answered: the last-press variable says so, apart from done and refused.
 			tell(PENDING_SENTENCE)
@@ -535,7 +593,8 @@ export class PanelClient {
 				} catch (err) {
 					this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
 					this.#unsettled.delete(press.id)
-					return refused(`NoaCG offline: ${(err as Error).message}`)
+					// Both calls failed: it may still have reached the page, so a graphic key reads not known.
+					return refused(`NoaCG offline: ${(err as Error).message}`, undefined, 'unknown')
 				}
 			}
 			if (!answer.ok) {
@@ -556,6 +615,7 @@ export class PanelClient {
 				this.#clock.setTimeout(() => {
 					if (this.#unsettled.get(press.id) !== seq) return
 					this.#unsettled.delete(press.id)
+					this.#keyOutcome(press.id, 'unknown')
 					tell(UNSETTLED_SENTENCE)
 					this.#opts.onChange?.()
 				}, SETTLE_MS)
@@ -576,7 +636,7 @@ export class PanelClient {
 				if (this.#unsettled.has(press.id)) awaitSettled()
 				// No `result` heard and nothing settled yet: say so; a `settled` that comes still says
 				// what it came to, so a lost acknowledgement never reads as a press that did nothing.
-				if (!result) return refused('No answer from the operator page')
+				if (!result) return refused('No answer from the operator page', undefined, 'unknown')
 				tell(RUNNING_SENTENCE)
 				this.#opts.onChange?.()
 				return { ok: true, sentence: RUNNING_SENTENCE, result }

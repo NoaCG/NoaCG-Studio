@@ -255,6 +255,13 @@ test('action arguments are kept per action version and sent in E1’s envelope, 
   assert.equal(readTypedArgs({ v: 2, actions: {} }).status, 'read-only');
   assert.equal(readTypedArgs({ v: 1, actions: { a: { schema: 's' } } }).status, 'read-only');
   assert.equal(typedActionFor(declared, 'highlight', { v: 2 }).status, 'refused');
+  // A panel key's own arguments (E6.2) take the kept ones' place, validated the same way; the cue's
+  // kept arguments, read-only or not, are not read for them.
+  assert.deepEqual(typedActionFor(declared, 'highlight', kept, { team: 3 }).typed.args, { team: 3 });
+  assert.equal(typedActionFor(declared, 'highlight', { v: 2 }, { team: 1 }).status, 'ok');
+  assert.equal(typedActionFor(declared, 'highlight', kept, { team: 4 }).status, 'refused');
+  assert.deepEqual(typedActionFor(declared, 'highlight', kept, { team: 'five' }).reason, 'Highlight a team: team a string is not a whole number.');
+  assert.deepEqual(typedActionFor(declared, 'reset', undefined, { x: 1 }).status, 'refused');
   // The size one command takes.
   const huge = { v: 1, actions: { highlight: { schema: actionSchemaOf(highlight), args: { team: 1, colour: '#00000000', pulse: { note: 'x'.repeat(TYPED_MAX_SEND_BYTES) } } } } };
   assert.match(typedActionFor(declared, 'highlight', huge).reason, /larger than one command takes \(64 KiB\)/);
@@ -316,7 +323,7 @@ test('the wire: an action envelope on its own event reaches the Graphic typed; a
   assert.deepEqual(contract.ografCallFor({ t: 'event', event: 'go', payload: { a: 'b' } }), { call: 'custom', args: ['go', { a: 'b' }] });
 });
 
-test('declared actions are ordinary arranged buttons; a panel sees them only as E6.1 foreign descriptors', () => {
+test('declared actions are ordinary arranged buttons; a panel sees them as their foreign actions', () => {
   const buttons = contract.typedActionButtons({ v: 1, manifest: stranger });
   assert.deepEqual(buttons, [{ event: 'highlight', label: 'Highlight a team', typed: true }, { event: 'reset', label: 'Reset', typed: true }]);
   assert.deepEqual(contract.typedActionButtons(undefined), []);
@@ -347,14 +354,17 @@ test('declared actions are ordinary arranged buttons; a panel sees them only as 
     legal: () => true,
     stepping: true,
     aired: null,
+    held: true,
+    foreign: foreignCapabilities(stranger),
   });
-  assert.deepEqual(caps.map((c) => c.id), ['event:goal']);
+  // E6.2: the block's typed buttons reach a panel as its foreign actions, never as native events.
+  assert.deepEqual(caps.map((c) => [c.id, c.kind, c.place]), [['foreign:highlight', 'foreign', 'pinned'], ['event:goal', 'event', 'section'], ['foreign:reset', 'foreign', 'more']]);
   // A hosted follower leaves a typed action out without holding its graphic; a typed update holds.
   const receiver = readFileSync(path.join(root, 'src/control/hostedReceiver.ts'), 'utf8');
   assert.match(receiver, /if \(Object\.prototype\.hasOwnProperty\.call\(m, 'typed'\)\) \{[\s\S]{0,240}if \(m\.t === 'event'\) return true;\s*refuse\(/);
-  // E6.1's foreign descriptors are unchanged: advertised, never invocable.
+  // E6.1's foreign descriptors, pressable since E6.2 once a block draws them on a held live cue.
   const foreign = foreignCapabilities(stranger);
-  assert.deepEqual(foreign.caps.map((c) => [c.id, c.invocable]), [['foreign:highlight', false], ['foreign:reset', false]]);
+  assert.deepEqual(foreign.caps.map((c) => [c.id, c.invocable, c.allowed]), [['foreign:highlight', true, false], ['foreign:reset', true, false]]);
   assert.deepEqual(foreign.refused, []);
 });
 

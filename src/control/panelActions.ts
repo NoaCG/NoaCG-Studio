@@ -8,8 +8,10 @@
 // Its target is the POOL GRAPHIC: a press resolves to the cue live on that graphic's layer
 // (control/liveControls.ts `liveSelection`), never the page's selection, and runs through
 // control/graphicVerbs.ts like the block's own button. Argument descriptors are E1's typed nodes
-// (model/ografTyped.ts), so a native option and a foreign OGraf action argument are one model; a
-// foreign action is advertised as a DESCRIPTOR ONLY and never invoked here.
+// (model/ografTyped.ts), so a native option and a foreign OGraf action argument are one model. A
+// foreign action (E6.2) is the block's typed ⚡ button: it targets the program instance (the cue live
+// on the layer, named by the press), its legality is unknown (the Graphic decides, never greyed by a
+// machine), and it sends the key's own arguments, or with none the live cue's, as the button does.
 //
 // Old modules read every feedback payload's `v` and stop at a number they do not know, so the
 // `actions` and `settled` events carry `av` (the actions protocol) and no `v`: an old module ignores
@@ -25,7 +27,7 @@ import { withLiveLabels } from '../blocks/controlLabels.ts';
 import { actionCarriesValues } from './selectionAir.ts';
 import { liveNumberFields, offAirNote, pickButton, pickOptions, unheldNote } from './liveControls.ts';
 import { VersionRing } from './panelFeedback.ts';
-import { describeOgraf, readJson, typedUnsupportedAt, validateActionArgs, type TypedNode } from '../model/ografTyped.ts';
+import { describeOgraf, readJson, readOgrafDeclared, typedUnsupportedAt, validateActionArgs, type TypedNode } from '../model/ografTyped.ts';
 
 /** The graphic-actions protocol. The panel protocol stays 1 for every existing message and verb. */
 export const ACTIONS_PROTOCOL = 2;
@@ -72,7 +74,8 @@ export interface PanelCapability {
   /** Whether the page would take this press now, and why not. */
   allowed: boolean;
   note?: string;
-  /** False for a foreign descriptor: advertised, never run (E6.2 invokes them). */
+  /** False for a control a panel cannot press (a foreign action whose arguments this version does
+   *  not carry): advertised, visible and disabled, never run. */
   invocable: boolean;
 }
 
@@ -128,6 +131,10 @@ export interface GraphicControls {
   stepping: boolean;
   /** What air shows, for a pick's active option. */
   aired: Record<string, string> | null;
+  /** The live cue is one this page holds, so its typed ⚡ button would send (a foreign action). */
+  held: boolean;
+  /** The graphic's declared foreign actions (`declaredForeign`), for its typed ⚡ buttons. */
+  foreign: ForeignActions;
 }
 
 /** What the page reads one pool graphic's controls from (its template's declaration, parsed once). */
@@ -137,6 +144,8 @@ export interface ControlsMachine {
   /** The events Continue walks: a payload riding one of these is preparation, never a pick. */
   path: ReadonlySet<string>;
   legality: Record<string, Record<string, string[]>>;
+  /** Its declared OGraf actions as a panel may press them (`declaredForeign`), read once. */
+  foreign?: ForeignActions;
 }
 
 /**
@@ -170,6 +179,8 @@ export function graphicControls(g: {
     legal: (event) => !!m.buttons.find((b) => b.event === event)?.typed || (isEventLegal(m.legality, event, g.state) && (!!g.sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] }))),
     stepping: g.sel.editingIsLive,
     aired: g.aired,
+    held: !!g.sel.airCue,
+    foreign: m.foreign ?? NO_FOREIGN,
   };
 }
 
@@ -182,9 +193,7 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
   const live = !!g.live;
   const caps: PanelCapability[] = [];
   const control = (c: ArrangedControl, place: PanelCapability['place'], section?: string) => {
-    // A foreign OGraf action drawn in the block (E2.1) reaches a panel only as its foreign
-    // descriptor (`foreignCapabilities`): E6.2 invokes it, never this native road.
-    if (c.button.typed) return;
+    if (c.button.typed) return void caps.push(foreignCapability(g, c, place, section));
     const allowed = live && g.legal(c.button.event);
     const note = !live ? offAirNote(g.graphic) : allowed ? undefined : `${c.label} cannot fire in the graphic's state now`;
     const options = c.options?.options;
@@ -213,6 +222,25 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
   return caps.filter((c) => CAP_ID.test(c.id)).slice(0, ACTION_CAPS_MAX);
 }
 
+/**
+ * A TYPED ⚡ BUTTON AS A PANEL CAPABILITY (E6.2): the declared foreign action under the block's own
+ * label and place, pressable while its graphic is live with a cue this page holds, as the button
+ * is. Never greyed by the machine: its legality is unknown and the Graphic decides. An action whose
+ * arguments this version does not carry is offered visible and disabled, with the reason.
+ */
+function foreignCapability(g: GraphicControls, c: ArrangedControl, place: PanelCapability['place'], section?: string): PanelCapability {
+  const id = `foreign:${c.button.event}`;
+  const declared = g.foreign.caps.find((f) => f.id === id);
+  const at = { label: c.label, place, ...(section ? { section } : {}) };
+  if (!declared) {
+    const why = g.foreign.refused.find((r) => r.action === c.button.event)?.reason;
+    return { id, kind: 'foreign', ...at, args: null, allowed: false, note: `${c.label} cannot be pressed from a panel${why ? `: ${why}` : ''}`, invocable: false };
+  }
+  const allowed = !!g.live && g.held;
+  const note = !g.live ? offAirNote(g.graphic) : allowed ? undefined : unheldNote(g.graphic);
+  return { ...declared, ...at, allowed, ...(note ? { note } : {}), invocable: true };
+}
+
 /** One pool graphic as a panel sees it, or null when it has nothing to press or a name the relay
  *  cannot carry (a graphic with no live controls draws no block either). */
 export function panelGraphic(g: GraphicControls, pinned: boolean): PanelGraphic | null {
@@ -227,9 +255,23 @@ export interface ForeignRefusal {
   reason: string;
 }
 
+/** A graphic's declared foreign actions: the pressable ones and the refused ones with why. */
+export interface ForeignActions {
+  caps: PanelCapability[];
+  refused: ForeignRefusal[];
+}
+const NO_FOREIGN: ForeignActions = { caps: [], refused: [] };
+
+/** The foreign actions a graphic's kept OGraf declaration (`SpxTemplate.ograf`, `{v, manifest}`)
+ *  offers a panel: none for one this build cannot read, whose typed buttons the page draws none of. */
+export function declaredForeign(ograf: unknown): ForeignActions {
+  const read = readOgrafDeclared(ograf);
+  return read.status === 'ok' ? foreignCapabilities((ograf as { manifest: unknown }).manifest) : NO_FOREIGN;
+}
+
 /**
  * A FOREIGN OGraf PACKAGE'S ACTIONS AS DESCRIPTORS (E1's model, `describeOgraf`): each custom
- * action with its typed argument schema, never invocable here. An action whose arguments use
+ * action with its typed argument schema. An action whose arguments use
  * something E1 does not carry (a note at or under its schema) is refused with that reason rather
  * than offered with a plausible form, as is one whose id cannot be a capability id.
  */
@@ -247,7 +289,7 @@ export function foreignCapabilities(manifest: unknown): { caps: PanelCapability[
     const unsupported = action.args && typedUnsupportedAt(action.args) !== null;
     if (!CAP_ID.test(id)) refused.push({ action: action.id, reason: 'its id is not one a panel can name' });
     else if (note || unsupported) refused.push({ action: action.id, reason: note?.reason ?? 'its arguments use a schema feature this version does not carry' });
-    else caps.push({ id, kind: 'foreign', label: action.name, place: 'section', args: action.args, allowed: false, note: 'Foreign actions are not pressed from a panel yet', invocable: false });
+    else caps.push({ id, kind: 'foreign', label: action.name, place: 'section', args: action.args, allowed: false, invocable: true });
   }
   return { caps, refused };
 }
@@ -388,11 +430,16 @@ export function judgeAction(press: ActionPress, now: PanelActions, then: PanelAc
     return graphic.live ? { refused: 'stale', note: `the cue on ${press.target} changed` } : { refused: 'not-allowed', note: offAirNote(press.target) };
   }
   const args = Object.keys(press.args).length === 0 && !cap.args ? undefined : press.args;
-  const errors = validateActionArgs({ id: cap.id, name: cap.label, args: cap.args }, args);
+  // A foreign key with no arguments sends the live cue's, as the block's button does; those are
+  // validated whole when the press is sent (model/ografTyped.ts `typedActionFor`).
+  const errors = usesCueArgs(cap, press.args) ? [] : validateActionArgs({ id: cap.id, name: cap.label, args: cap.args }, args);
   if (errors.length > 0) return { refused: 'invalid', note: `${cap.label}: ${errors[0].at ? `${errors[0].at} ` : ''}${errors[0].reason}` };
   if (!cap.allowed) return { refused: 'not-allowed', note: cap.note ?? `${cap.label} is not allowed right now` };
   return { run: { graphic: press.target, cap, args: press.args, instance: press.instance } };
 }
+
+/** A foreign press with no arguments of its own sends the live cue's kept ones (E2.1's button). */
+export const usesCueArgs = (cap: Pick<PanelCapability, 'kind'>, args: Record<string, unknown>) => cap.kind === 'foreign' && Object.keys(args).length === 0;
 
 /** RUN A JUDGED CAPABILITY through the page's one dispatcher, with the selection a press on that
  *  graphic uses (`liveSelection`): the block's own verb, the block's own button. */
@@ -401,7 +448,7 @@ export function runCapability(
   machine: ControlsMachine | undefined,
   sel: VerbSelection,
   verbs: {
-    event: (sel: VerbSelection, button: ControlButton, named?: string) => Promise<PressDone>;
+    event: (sel: VerbSelection, button: ControlButton, named?: string, args?: Record<string, unknown>) => Promise<PressDone>;
     bump: (sel: VerbSelection, field: string, delta: number, named?: string) => Promise<PressDone>;
   },
 ): Promise<PressDone> {
@@ -409,21 +456,24 @@ export function runCapability(
   if (!press) return Promise.resolve({ outcome: 'refused', note: `that action is no longer on ${run.graphic}` });
   // The cue the key was drawn for, held to after every wait: the judge compared it with the offer,
   // which can be a render old, and the selection draws no cue for a layer this page cannot see.
+  if ('foreign' in press) return verbs.event(sel, press.foreign, run.instance, usesCueArgs(run.cap, run.args) ? undefined : run.args);
   return 'event' in press ? verbs.event(sel, press.event, run.instance) : verbs.bump(sel, press.step, press.delta, run.instance);
 }
 
 /** What a capability presses, from the graphic's declared controls: the event button (a pick's
- *  option set, as the page's own option button), or the field and step of a ± number. */
+ *  option set, as the page's own option button), the typed ⚡ button of a foreign action, or the
+ *  field and step of a ± number. */
 export function capabilityPress(
   run: ActionRun,
   buttons: readonly ControlButton[],
   pickOf: (button: ControlButton) => { field: string; options: { label: string; value: string }[] } | null,
-): { event: ControlButton } | { step: string; delta: number } | null {
+): { event: ControlButton } | { foreign: ControlButton } | { step: string; delta: number } | null {
   const [kind, name] = [run.cap.kind, run.cap.id.slice(run.cap.id.indexOf(':') + 1)];
   if (kind === 'step') return { step: name, delta: run.args.delta as number };
-  if (kind !== 'event') return null;
-  const button = buttons.find((b) => b.event === name);
+  // Each kind presses only its own buttons: a native id never reaches a typed button, nor back.
+  const button = buttons.find((b) => b.event === name && !!b.typed === (kind === 'foreign'));
   if (!button) return null;
+  if (kind === 'foreign') return { foreign: button };
   const group = pickOf(button);
   return { event: group ? pickButton(button, group, String(run.args.option)) : button };
 }

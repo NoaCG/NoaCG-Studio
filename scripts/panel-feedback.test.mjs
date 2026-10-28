@@ -166,10 +166,17 @@ await import('./lib/tsResolve.mjs');
 const { readFileSync } = await import('node:fs');
 const {
   ACTIONS_PROTOCOL, ACTION_VERB, ACTION_ARGS_MAX_CHARS, ACTION_ARGS_MAX_DEPTH, ACTION_CAPS_MAX, ACTION_GRAPHICS_MAX, ACTION_OFFER_MAX_BYTES, CAP_ID,
-  ActionsRing, capabilityPress, foreignCapabilities, graphicCapabilities, judgeAction, panelGraphic, readActionPress, wireActions,
+  ActionsRing, capabilityPress, declaredForeign, foreignCapabilities, graphicCapabilities, judgeAction, panelGraphic, readActionPress, runCapability, wireActions,
 } = await import('../src/control/panelActions.ts');
 const { arrangeControls, fieldDescriptors } = await import('../src/control/controlModel.ts');
 const { liveNumberFields, pickOptions } = await import('../src/control/liveControls.ts');
+const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/ograf-typed/${name}.ograf.json`, import.meta.url), 'utf8'));
+/** The stranger's package with an argument schema E1 does not carry. */
+const strangerBad = () => {
+  const bad = fixture('stranger');
+  bad.customActions[0].schema.properties.team.oneOf = [{ maximum: 1 }, { minimum: 3 }];
+  return bad;
+};
 
 /** A quiz-and-score graphic as the page reads it: a goal, a reveal, a pick off the default path,
  *  a hidden reset, and two number fields one of which the goal moves. */
@@ -196,6 +203,8 @@ const controls = (over = {}) => ({
   legal: (event) => event !== 'reveal',
   stepping: true,
   aired: { picked: 'B' },
+  held: true,
+  foreign: { caps: [], refused: [] },
   ...over,
 });
 
@@ -360,12 +369,12 @@ test('a capability presses the graphic\'s own control: a pick as its option set,
   assert.equal(capabilityPress(run('event:goal', {}), quizButtons.slice(1), pickOf), null);
 });
 
-test("a foreign package's actions are typed descriptors from E1's model, validated against its fixtures, never invocable", () => {
-  const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/ograf-typed/${name}.ograf.json`, import.meta.url), 'utf8'));
+test("a foreign package's actions are typed descriptors from E1's model, validated against its fixtures", () => {
   const score = foreignCapabilities(fixture('ebu-scoreboard'));
+  // Pressable once a block draws them on a live cue (`foreignCapability`); never allowed by themselves.
   assert.deepEqual(score.caps.map((c) => [c.id, c.label, c.args, c.invocable, c.allowed]), [
-    ['foreign:goal-home', 'Goal (Home)', null, false, false],
-    ['foreign:goal-away', 'Goal (Away)', null, false, false],
+    ['foreign:goal-home', 'Goal (Home)', null, true, false],
+    ['foreign:goal-away', 'Goal (Away)', null, true, false],
   ]);
   assert.deepEqual(score.refused, []);
   const stranger = foreignCapabilities(fixture('stranger'));
@@ -374,15 +383,87 @@ test("a foreign package's actions are typed descriptors from E1's model, validat
   assert.equal(highlight.args.properties[1].node.colour, 'rrggbbaa');
   assert.equal(foreignCapabilities(fixture('ebu-weather')).caps.length, 0);
   // An action whose arguments use something E1 does not carry is refused with E1's reason.
-  const bad = fixture('stranger');
-  bad.customActions[0].schema.properties.team.oneOf = [{ maximum: 1 }, { minimum: 3 }];
-  const refused = foreignCapabilities(bad);
+  const refused = foreignCapabilities(strangerBad());
   assert.deepEqual(refused.refused, [{ action: 'highlight', reason: 'this keyword is not supported' }]);
   assert.deepEqual(refused.caps.map((c) => c.id), ['foreign:reset']);
-  // Advertised, a press on one is refused before anything runs.
+  // The kept declaration (`SpxTemplate.ograf`) is read through E1's gate: unreadable offers nothing.
+  assert.deepEqual(declaredForeign({ v: 1, manifest: fixture('stranger') }).caps.map((c) => c.id), ['foreign:highlight', 'foreign:reset']);
+  assert.deepEqual(declaredForeign({ v: 99, manifest: fixture('stranger') }), { caps: [], refused: [] });
+  assert.deepEqual(declaredForeign(undefined), { caps: [], refused: [] });
+});
+
+// ── FOREIGN ACTIONS THROUGH A PANEL (E6.2) ─────────────────────────────────────────────────────────
+
+/** A stranger's package as a pool graphic: its typed ⚡ buttons (control/ografContract.ts
+ *  `typedActionButtons`), arranged as its block draws them. No machine: every machine legality is false. */
+const foreignButtons = [
+  { event: 'highlight', label: 'Highlight', typed: true },
+  { event: 'reset', label: 'Reset', typed: true },
+];
+const foreignControls = (over = {}, declared = fixture('stranger')) => ({
+  graphic: 'Results',
+  live: 'cue_r1',
+  cue: 'Results 1',
+  arranged: arrangeControls(foreignButtons, { reset: { name: 'Clear', pinned: true } }, () => null),
+  numbers: [],
+  legal: () => false,
+  stepping: false,
+  aired: null,
+  held: true,
+  foreign: foreignCapabilities(declared),
+  ...over,
+});
+
+test('a typed ⚡ button is offered as its foreign action under the block\'s label and place, never greyed by a machine (AC-1)', () => {
+  const caps = graphicCapabilities(foreignControls());
+  assert.deepEqual(caps.map((c) => [c.id, c.kind, c.label, c.place, c.allowed, c.invocable]), [
+    ['foreign:reset', 'foreign', 'Clear', 'pinned', true, true],
+    ['foreign:highlight', 'foreign', 'Highlight', 'section', true, true],
+  ]);
+  // Its argument form is the declared one, so the module draws the same form the cue editor does.
+  assert.equal(caps[1].args.properties[0].key, 'team');
+  // Off air, or a live cue this page does not hold (no arguments to send): drawn, not pressable.
+  assert.deepEqual(graphicCapabilities(foreignControls({ live: null })).map((c) => [c.allowed, c.note]), [[false, 'Results is off air'], [false, 'Results is off air']]);
+  const unheld = graphicCapabilities(foreignControls({ held: false }));
+  assert.ok(unheld.every((c) => !c.allowed && c.invocable && /Results/.test(c.note)));
+  // An action this version cannot carry stays visible and disabled, with E1's reason.
+  const bad = graphicCapabilities(foreignControls({}, strangerBad())).find((c) => c.id === 'foreign:highlight');
+  assert.deepEqual([bad.invocable, bad.allowed, bad.args, bad.note], [false, false, null, 'Highlight cannot be pressed from a panel: this keyword is not supported']);
+  // A typed button never reaches a panel as a native event, nor a native one as foreign.
+  assert.equal(graphicCapabilities(foreignControls()).some((c) => c.kind === 'event'), false);
+});
+
+test('a foreign press is judged like any graphic action and runs the typed button on the named instance, with the key\'s arguments or the cue\'s (AC-2)', async () => {
+  const now = { relay: true, graphics: [panelGraphic(foreignControls())] };
   const ring = new ActionsRing();
-  const withForeign = { relay: true, graphics: [{ graphic: 'Results', pinned: false, live: 'cue_r', cue: 'R', caps: stranger.caps }] };
-  ring.put(4, withForeign);
-  const p = readActionPress(actionPress({ target: 'Results', instance: 'cue_r', cap: 'foreign:reset', args: {} }));
-  assert.deepEqual(judgeAction(p, withForeign, ring.get(4)), { refused: 'not-here', note: 'Reset cannot be pressed from a panel' });
+  ring.put(4, now);
+  const judge = (over, current = now) => {
+    const p = readActionPress(actionPress({ target: 'Results', instance: 'cue_r1', cap: 'foreign:highlight', args: {}, ...over }));
+    return judgeAction(p, current, ring.get(p.seen));
+  };
+  // No arguments of its own: the live cue's, validated when it is sent (E2.1's button).
+  assert.equal(judge({}).run.cap.id, 'foreign:highlight');
+  // Its own arguments: validated against the declaration here, at the page's boundary.
+  assert.deepEqual(judge({ args: { team: 2 } }).run.args, { team: 2 });
+  assert.deepEqual(judge({ args: { team: 'two' } }), { refused: 'invalid', note: 'Highlight: team a string is not a whole number' });
+  assert.deepEqual(judge({ args: { colour: '#ff0000ff' } }), { refused: 'invalid', note: 'Highlight: team required' });
+  // The program instance is explicit: a key drawn on another cue's instance is stale, never moved over.
+  assert.deepEqual(judge({ instance: 'cue_r0' }), { refused: 'stale', note: 'the cue on Results changed' });
+  assert.deepEqual(judge({}, { relay: true, graphics: [panelGraphic(foreignControls({ live: null }))] }), { refused: 'not-allowed', note: 'Results is off air' });
+  const notCarried = { relay: true, graphics: [panelGraphic(foreignControls({}, strangerBad()))] };
+  ring.put(5, notCarried);
+  const p5 = readActionPress(actionPress({ target: 'Results', instance: 'cue_r1', cap: 'foreign:highlight', seen: 5, args: {} }));
+  assert.equal(judgeAction(p5, notCarried, ring.get(5)).refused, 'not-here');
+  // Run: the typed button, the instance the key named, and the arguments only when the key gave them.
+  const calls = [];
+  const verbs = {
+    event: async (sel, button, named, args) => (calls.push([button.event, !!button.typed, named, args]), { outcome: 'accepted' }),
+    bump: async () => ({ outcome: 'refused' }),
+  };
+  const machine = { buttons: [{ event: 'highlight', label: 'native namesake' }, ...foreignButtons], descriptors: [], path: new Set(), legality: {} };
+  assert.deepEqual(await runCapability(judge({}).run, machine, {}, verbs), { outcome: 'accepted' });
+  await runCapability(judge({ args: { team: 2 } }).run, machine, {}, verbs);
+  assert.deepEqual(calls, [['highlight', true, 'cue_r1', undefined], ['highlight', true, 'cue_r1', { team: 2 }]]);
+  // A package edit that drops the action presses nothing.
+  assert.deepEqual(await runCapability(judge({}).run, { ...machine, buttons: [] }, {}, verbs), { outcome: 'refused', note: 'that action is no longer on Results' });
 });

@@ -16,6 +16,7 @@ const FIXED: Record<string, string> = {
 	answering: 'The page that answers the panel',
 	connection: 'Connection status, in words',
 	last_press: 'What happened to the last press',
+	graphic_actions: 'Why graphic actions cannot be pressed now (empty when they can)',
 }
 
 export function UpdateVariableDefinitions(self: ModuleInstance): void {
@@ -42,6 +43,7 @@ export function variableValues(panel: PanelClient, now: number): VariablesSchema
 		answering: state ? state.label : '',
 		connection: panel.status === 'ok' ? `Answered by ${state?.label || 'the operator page'}` : panel.note,
 		last_press: panel.lastPress,
+		graphic_actions: panel.actionsNote,
 	}
 	;(rows?.rows ?? []).forEach((r, i) => (values[`row_${i + 1}`] = r.label))
 	return values

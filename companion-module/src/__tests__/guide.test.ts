@@ -23,3 +23,12 @@ test('the guide describes the lease, not the switch it replaced', () => {
 	assert.ok(help.includes('**Use here**'))
 	assert.ok(/refused, never queued/.test(help))
 })
+
+test('the guide covers graphic keys: the action, the presets, the outcomes and the one-press rule', () => {
+	assert.ok(help.includes('**Graphic action**'))
+	assert.ok(help.includes('**Pinned graphics**'))
+	assert.ok(help.includes('`graphic_actions`'))
+	assert.ok(/never sent again/.test(help))
+	assert.ok(/keep working/.test(help), 'unpinning stops nothing')
+	assert.ok(!/—/.test(help), 'no em dashes')
+})

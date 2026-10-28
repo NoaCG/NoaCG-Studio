@@ -317,7 +317,7 @@ export interface Capability {
 	active?: string
 	allowed: boolean
 	note?: string
-	/** False for a foreign descriptor: shown, never pressed. */
+	/** False for a control the page says a panel cannot press: shown, never pressed. */
 	invocable: boolean
 }
 
@@ -381,8 +381,8 @@ export function readActions(p: unknown): PanelActions | 'newer' | null {
 		for (const c of Array.isArray(g.caps) ? g.caps.slice(0, CAPS_MAX) : []) {
 			if (!isObject(c) || typeof c.id !== 'string' || !CAP_ID.test(c.id)) continue
 			const kind = c.id.slice(0, c.id.indexOf(':')) as Capability['kind']
-			// A foreign descriptor is never pressed, whatever the payload says.
-			const invocable = kind !== 'foreign' && c.invocable === true
+			// Pressed only when the page says so: an older page offers foreign actions as descriptors.
+			const invocable = c.invocable === true
 			const options = Array.isArray(c.options)
 				? c.options
 						.filter(isObject)
@@ -460,6 +460,50 @@ export function capabilityState(
 		return { state: 'refused', note: cap.note ?? `${cap.label} cannot be pressed from a panel`, ...base }
 	if (!cap.allowed) return { state: 'refused', note: cap.note ?? 'Not allowed right now', ...base }
 	return { state: 'allowed', note: cap.label, ...base }
+}
+
+/** The longest argument text a key may carry: the relay's own bound on the argument object. */
+export const ARGS_MAX_CHARS = 4096
+
+/**
+ * THE ARGUMENTS A SAVED KEY SENDS, from its options and its capability's kind (the id's prefix, never
+ * the offer): a pick's option, a number's step, a foreign action's JSON object, or none. A foreign
+ * key with no arguments sends the live cue's, as the page's own button does. Null, with why, for
+ * arguments a key cannot send; the page validates the rest against the declared schema.
+ */
+export function keyArgs(
+	cap: string,
+	o: { option?: unknown; delta?: unknown; args?: unknown },
+): { args: Record<string, unknown> } | { refused: string } {
+	const kind = cap.slice(0, cap.indexOf(':'))
+	if (kind === 'step') return Number(o.delta) < 0 ? { args: { delta: -1 } } : { args: { delta: 1 } }
+	if (kind === 'event') {
+		const option = typeof o.option === 'string' ? o.option.trim() : ''
+		return { args: option ? { option } : {} }
+	}
+	const text = typeof o.args === 'string' ? o.args.trim() : ''
+	if (kind !== 'foreign' || !text) return { args: {} }
+	if (text.length > ARGS_MAX_CHARS) return { refused: 'The arguments are longer than a press takes' }
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(text)
+	} catch {
+		return { refused: 'The arguments are not JSON: write them like {"team": 2}' }
+	}
+	return isObject(parsed) ? { args: parsed } : { refused: 'The arguments must be an object, like {"team": 2}' }
+}
+
+/** What a graphic key shows of its capability's offer, for redefining presets and choices: the
+ *  graphics, their pins and their capabilities' ids, labels and options, never what moves live. */
+export function offerShape(actions: PanelActions | null): string {
+	if (!actions) return ''
+	return JSON.stringify(
+		actions.graphics.map((g) => [
+			g.graphic,
+			g.pinned,
+			g.caps.map((c) => [c.id, c.label, c.invocable, c.options?.map((o) => [o.value, o.label]) ?? null]),
+		]),
+	)
 }
 
 /** A payload's protocol version, for the "update the module" check. */

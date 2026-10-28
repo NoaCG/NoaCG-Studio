@@ -117,8 +117,8 @@ test('the page offer is read as sent: labels, places, options and the live insta
 			['event:goal', 'Goal', 'section', true],
 			['event:pick', 'Answer', 'pinned', true],
 			['step:score', 'Score', 'section', true],
-			// A foreign descriptor is shown, never pressed, whatever the payload claims.
-			['foreign:highlight', 'Highlight', 'section', false],
+			// A foreign action is pressed when its page says so (E6.2).
+			['foreign:highlight', 'Highlight', 'section', true],
 		],
 	)
 	assert.deepEqual(g.caps[1].options, [
@@ -202,7 +202,20 @@ test('a saved key is matched by capability id only: a renamed or removed action 
 
 test('a foreign descriptor, a refused capability and an older server are refused here with the reason', async () => {
 	const { relay, panel } = await answering()
-	assert.match((await panel.pressAction('Scorebug', 'foreign:highlight')).sentence, /cannot be pressed|not pressed/)
+	// An E6.1 page offers foreign actions as descriptors only: shown, refused here, never sent.
+	const descriptor = actions({ actionsVer: 3_000_005 })
+	const g = descriptor.graphics[0] as { caps: Record<string, unknown>[] }
+	g.caps[3] = {
+		...g.caps[3],
+		allowed: false,
+		invocable: false,
+		note: 'Foreign actions are not pressed from a panel yet',
+	}
+	relay.emit('actions', descriptor)
+	assert.equal(
+		(await panel.pressAction('Scorebug', 'foreign:highlight')).sentence,
+		'Foreign actions are not pressed from a panel yet',
+	)
 	relay.emit('actions', actions({ actionsVer: 3_000_006, relay: false }))
 	assert.equal(
 		(await panel.pressAction('Scorebug', 'event:goal')).sentence,
