@@ -321,15 +321,16 @@ afterwards follows the command log, as for any output loaded fresh. The decision
 `src/control/bridgeWatch.ts`; the page only sends the load.
 
 - **It never replaces anything.** A slot another production or client took still asks before Load
-  replaces it. The slot is read once more right before the load, which goes only if it still reads
-  empty, the settings still name that slot, and no Load or Unload landed meanwhile.
+  replaces it, and a clip, still or other page another client played there is never covered. The
+  slot is read once more right before the load, which goes only if the layer is still vacant, the
+  settings still name that slot, and no Load or Unload landed meanwhile.
 - **Only this page's output, on its own slot.** Not an output only another browser loaded, not a
   slot the settings moved to, and not after Unload, unpublishing or switching CasparCG off. A slot
   emptied while everything kept answering (Unload in another browser, a client's `CLEAR`) is left
   alone, and gives the output up, so a later outage does not bring it back.
 - **No loop.** A server that keeps failing is tried three times, at once and then about 10 s and
-  60 s later (`RELOAD_AFTER_READS`). Then the row reads "Not on 1-20" in red with the last reason,
-  and Load is the operator's.
+  60 s later (`RELOAD_AFTER_READS`). Then the slot row reads "Empty" in red with the last reason
+  under it, the status says "Not on 1-20", and Load is the operator's.
 - **Limits.** "Loaded here" is page memory: after the browser page itself is reloaded, a server
   restart needs Load from it again. A restart so quick that no poll saw the server gone (the status
   is asked every few seconds, less often in a background tab, which the browser slows) reads as a

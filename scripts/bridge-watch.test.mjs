@@ -58,9 +58,10 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     },
     readState: (s, channel) => {
       calls.push(`state ${channel}`);
-      const reply = { result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', observedAt: 0, slots: channel === s.channel ? [slotLayer] : [] } };
-      if (!hold) return Promise.resolve(reply);
-      return new Promise((resolve) => held.push(() => resolve(reply)));
+      // A held reading answers with the slot as it is when the test lets it go.
+      const reply = () => ({ result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', observedAt: 0, slots: channel === s.channel ? [slotLayer] : [] } });
+      if (!hold) return Promise.resolve(reply());
+      return new Promise((resolve) => held.push(() => resolve(reply())));
     },
     listLibrary: (s, kind) => {
       calls.push(`list ${kind}`);
@@ -523,6 +524,17 @@ test('an output this page only saw, another production, an Unload here or elsewh
   await restartServer(cleared);
   assert.ok(!cleared.calls.includes('reload'), 'a later outage');
 
+  // During the outage another client put a clip on the layer: the slot is theirs, never covered.
+  const clip = await loadedRig();
+  clip.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  clip.setSlot({ layer: 20, producer: 'video', file: 'AMB', paused: false, loop: true });
+  clip.answer(OK);
+  await settle();
+  clip.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+  await restartServer(clip);
+  assert.ok(!clip.calls.includes('reload'), 'another client\'s clip, and the slot after it');
+
   // Unloaded on purpose (onAirChanged('stop') clears what was seen and gives the slot up).
   const unloaded = await loadedRig();
   unloaded.watch.slotOwned(false, unloaded.inputs.casparTarget);
@@ -627,9 +639,9 @@ test('a reload is for the slot it was loaded on, and for a page still open', asy
   await restartServer(moved);
   assert.ok(!moved.calls.includes('reload'), 'another slot');
 
-  // The page goes, or the settings move the slot, or the operator's own Load lands, while the
-  // reload reads the slot once more: nothing is sent.
-  for (const cut of ['stop', 'moved', 'acted']) {
+  // The page goes, the settings move the slot, the operator's own Load lands or another client
+  // plays a clip there, while the reload reads the slot once more: nothing is sent.
+  for (const cut of ['stop', 'moved', 'acted', 'clip']) {
     const t = await loadedRig();
     await restartServer(t);
     t.take();
@@ -647,6 +659,7 @@ test('a reload is for the slot it was loaded on, and for a page still open', asy
     if (cut === 'stop') t.watch.stop();
     if (cut === 'moved') t.state.settings = { ...t.state.settings, channel: 2, layer: 30 };
     if (cut === 'acted') t.watch.slotActed();
+    if (cut === 'clip') t.setSlot({ layer: 20, producer: 'video', file: 'AMB', paused: false, loop: true });
     for (const answer of t.held.splice(0)) answer();
     await settle();
     assert.ok(!t.take().includes('reload'), `${cut}: nothing sent`);

@@ -40,7 +40,7 @@
 
 import type { PlayoutItem, PlayoutMediaKind, ShowCue, ShowFolder } from '../model/shows';
 import type { PlayoutResult, PlayoutSettings, StudioSync } from './playoutLink';
-import type { CasparSlot, ItemKind, ListItem, StateReply } from './playoutProtocol';
+import type { CasparSlot, ItemKind, ListItem, SlotState, StateReply } from './playoutProtocol';
 import type { BridgePart, PlayoutSession } from './playoutSession';
 import type { SlotReading, StatusCheck } from './playoutStatus';
 import type { ServerPlayoutStore } from './serverPlayoutStore';
@@ -134,6 +134,12 @@ export interface BridgeWatch {
   /** Read the server's state now: after an action. */
   wake: () => void;
   stop: () => void;
+}
+
+/** Nothing at all on the layer: what a restarted server answers. A clip, a still, a colour or
+ *  another page there is somebody's, and a reload never covers it. */
+function isVacant(layer: SlotState | null): boolean {
+  return !layer || layer.producer === 'empty';
 }
 
 /** One poll and its key: a new key stops the run before and starts the next, as an effect's
@@ -237,14 +243,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     let live = true;
     let reading = false;
     const actionRev = slotActions;
-    const settle = (next: SlotReading | undefined) => {
+    const settle = (next: SlotReading | undefined, vacant = false) => {
       if (next?.holds === 'ours' && i.showId) {
         io.rememberOutput(i.showId, i.casparTarget);
         writeBridge(session, { slotSeenOurs: true });
       }
       const prev = session.bridge.get().outputSlot;
       writeBridge(session, { outputSlot: prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next });
-      if (next) bringBack(next, i.casparTarget);
+      if (next) bringBack(next, i.casparTarget, vacant);
     };
     const read = () => {
       if (reading) return; // a slow Bridge: never stack reads
@@ -254,10 +260,12 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
           (r) => {
             if (!live || actionRev !== slotActions) return;
             // A refused read is a fault the status names, never "Checking…" for ever.
+            const layer = r.reply?.slots.filter((s) => s.layer === settings.layer)[0] ?? null;
             settle(
               r.reply
-                ? { holds: slotHolds(r.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, i.outputSlug) }
+                ? { holds: slotHolds(layer, i.outputSlug) }
                 : { holds: 'failed', detail: r.result.detail },
+              !!r.reply && isVacant(layer),
             );
           },
           () => {
@@ -280,7 +288,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
 
   // A LOST OUTPUT, LOADED AGAIN (#1657): each reading of the slot decides. Ours again ends the
   // tries; another production's ends them too, and the slot is no longer this page's to take back.
-  const bringBack = (reading: SlotReading, target: string) => {
+  const bringBack = (reading: SlotReading, target: string, vacant: boolean) => {
     if (reading.holds === 'failed') outageSinceOurs = true;
     if (reading.holds === 'ours') {
       outageSinceOurs = false;
@@ -288,7 +296,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return;
     }
-    if (reading.holds === 'other') {
+    // Another production, or anything else another client put there (a clip, a still, a page that is
+    // not NoaCG's, all of which `slotHolds` calls empty): the slot is theirs now.
+    if (reading.holds === 'other' || (reading.holds === 'empty' && !vacant)) {
       loadedHere = null;
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return;
@@ -325,9 +335,10 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const actionRev = slotActions;
     const wanted = () => alive && run === reloads && loadedHere === target && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
     if (!wanted()) return null;
-    const read = await io.readState(settings, settings.channel);
-    if (!wanted() || !read.reply) return null;
-    if (slotHolds(read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, inputs?.outputSlug ?? null) !== 'empty') return null;
+    // A read that fails sends nothing and is not a try: the next reading decides again.
+    const read = await io.readState(settings, settings.channel).catch(() => null);
+    if (!wanted() || !read?.reply) return null;
+    if (!isVacant(read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null)) return null;
     return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null) => {
