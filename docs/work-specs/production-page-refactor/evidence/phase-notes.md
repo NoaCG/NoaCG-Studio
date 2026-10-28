@@ -60,7 +60,12 @@ changes a spec's digest.
     standard does not say `playAction({goto: 0})` resets what `customAction` did, so the truthful
     reading is the conservative one.
   - *Remount only on a Take, and only a lost instance*: a healthy re-Take keeps its instance (row
-    40); an update or a step to a lost instance is not a re-cue.
+    40); an update or a step to a lost instance is not a re-cue. One call that timed out (a slow
+    `updateAction` too) makes the instance lost, so the operator's next Take replaces it; the new
+    instance names the old one (`was`), and an action's effect goes with the old instance.
+  - *A restore walks at most 32 steps* (`RESTORE_STEPS_MAX`, the PR review of 7f8704c): a step is
+    a stranger's own answer, sent as calls without waiting, and a frame holds 64 unanswered. Past
+    it, the Take comes back at its first step and the step is not known.
   - *"Host" and "Bridge" are the frame's host document and its MessagePort bridge* (the names
     `foreignOgraf.ts` uses): dropping either is the same fault to the stage, no answer. The NoaCG
     Bridge to CasparCG stays non-gating. The output's own server connection keeps the existing

@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ografRestore, heldActions, UNKNOWN_ACTED, UNKNOWN_UNCONFIRMED, UNKNOWN_STEP } = await import('../src/control/ografRecovery.ts');
+const { ografRestore, heldActions, RESTORE_STEPS_MAX, UNKNOWN_ACTED, UNKNOWN_UNCONFIRMED, UNKNOWN_STEP } = await import('../src/control/ografRecovery.ts');
 const { acceptOutcome, isOgrafInstance, ografOutcomeWords, readOgrafOutcome } = await import('../src/control/ografOutcome.ts');
 
 const stateOf = (ograf) => ({ ograf });
@@ -53,6 +53,12 @@ test('a Take that was never confirmed is not repeated by itself: the operator re
   // Up with no step its answers confirm: its Take comes back, its step is not known.
   assert.deepEqual(ografRestore(report({ ...up, step: null }), true, []), { play: true, steps: 0, unknown: UNKNOWN_STEP });
   assert.deepEqual(ografRestore(report({ ...up, step: 'end' }), true, []), { play: true, steps: 0, unknown: UNKNOWN_STEP });
+  // A stranger's step is bounded before it becomes calls: at the bound it is walked, past it the Take
+  // comes back at its first step and the step is not known.
+  assert.equal(RESTORE_STEPS_MAX, 32);
+  assert.deepEqual(ografRestore(report({ ...up, step: 32 }), true, []), { play: true, steps: 32, unknown: null });
+  assert.deepEqual(ografRestore(report({ ...up, step: 33 }), true, []), { play: true, steps: 0, unknown: UNKNOWN_STEP });
+  assert.deepEqual(ografRestore(report({ ...up, step: 1e12 }), true, []), { play: true, steps: 0, unknown: UNKNOWN_STEP });
   // What one restart could not prove stays unproven through the next, until the operator's re-cue.
   assert.deepEqual(ografRestore(report({ ...up, unknown: UNKNOWN_ACTED }), true, []), { play: true, steps: 1, unknown: UNKNOWN_ACTED });
   assert.deepEqual(ografRestore(report({ ...up, unknown: UNKNOWN_UNCONFIRMED, step: null }), true, []), { play: true, steps: 0, unknown: UNKNOWN_UNCONFIRMED });
