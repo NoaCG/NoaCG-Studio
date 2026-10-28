@@ -75,7 +75,7 @@ import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 import { publishedOgrafBase } from '../backend/productionOgraf';
-import { ografCheck } from '../control/ografOutcome';
+import { isOgrafInstance, ografCheck } from '../control/ografOutcome';
 import { heldActions, ografRestore } from '../control/ografRecovery';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
@@ -229,7 +229,7 @@ async function boot(): Promise<void> {
   try {
     const held: unknown = JSON.parse(sessionStorage.getItem(instancesKey) ?? '{}');
     if (held && typeof held === 'object' && !Array.isArray(held)) {
-      for (const [key, i] of Object.entries(held)) if (typeof i === 'string' && /^[0-9a-f]{1,32}$/.test(i)) ografReplaced[key] = i;
+      for (const [key, i] of Object.entries(held)) if (isOgrafInstance(i)) ografReplaced[key] = i;
     }
   } catch {
     // No session storage (a locked-down browser source): nothing is named, and nothing breaks.
@@ -712,7 +712,9 @@ async function boot(): Promise<void> {
     scheduleReport(graphic);
     const outcome = stage.ografOutcomes.get(graphic);
     try {
+      // A package not mounted again yet keeps the instance it had, for its own mount to name.
       const mounted: Record<string, string> = {};
+      for (const key of packages) if (ografReplaced[key] && !stage.ografOutcomes.has(key)) mounted[key] = ografReplaced[key];
       for (const [key, o] of stage.ografOutcomes) if (o.i !== null) mounted[key] = o.i;
       sessionStorage.setItem(instancesKey, JSON.stringify(mounted));
     } catch {
@@ -1038,7 +1040,7 @@ async function boot(): Promise<void> {
   // cue (`mayAirTyped`: a typed cue is never published) reads nothing more. A page that cannot be
   // read leaves the whole read out: half a history could replay an envelope a later Take replaced.
   const publishedCues = new Set(payload.cues.map((cue) => cue.id));
-  const unreported = recoverable.filter(
+  const unreported = stage.graphics.filter(
     (key) => !resolved.live[key] && headOn.get(key) === true && mayAirTyped(headCue.get(key), publishedCues),
   );
   const unreportedSet = new Set(unreported);
@@ -1168,7 +1170,8 @@ async function boot(): Promise<void> {
   }
   if (onWithoutPose.length > 0) dbg('catch-up', `on air with no pose, played again: ${onWithoutPose.join(', ')}`);
   for (const { key, plan } of ografPlans) {
-    if (!plan.play) continue;
+    // A held package is not played again either: its entrance would air the previous cue's values.
+    if (!plan.play || typedRefused.has(key)) continue;
     stage.apply(key, { t: 'play' });
     for (let step = 0; step < plan.steps; step += 1) stage.apply(key, { t: 'next' });
     if (stepsSince.has(key)) stepsSince.set(key, plan.steps);

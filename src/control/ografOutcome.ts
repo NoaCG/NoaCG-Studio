@@ -43,6 +43,8 @@ export interface OutcomeLine {
 const CALLS: readonly string[] = ['mount', 'play', 'stop', 'update', 'custom'];
 const MSG_MAX = 200;
 const INSTANCE = /^[0-9a-f]{1,32}$/;
+/** A mounted instance's id as a report may name it (a frame's `data-instance`). */
+export const isOgrafInstance = (v: unknown): v is string => typeof v === 'string' && INSTANCE.test(v);
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** A report's `state.ograf`, read: anything malformed is no word at all, never a success. */

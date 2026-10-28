@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { ografRestore, heldActions, UNKNOWN_ACTED, UNKNOWN_UNCONFIRMED, UNKNOWN_STEP } = await import('../src/control/ografRecovery.ts');
-const { acceptOutcome, ografOutcomeWords, readOgrafOutcome } = await import('../src/control/ografOutcome.ts');
+const { acceptOutcome, isOgrafInstance, ografOutcomeWords, readOgrafOutcome } = await import('../src/control/ografOutcome.ts');
 
 const stateOf = (ograf) => ({ ograf });
 const report = (ograf) => ({ state: stateOf(ograf) });
@@ -50,6 +50,12 @@ test('a Take that was never confirmed is not repeated by itself: the operator re
   // Up with no step its answers confirm: its Take comes back, its step is not known.
   assert.deepEqual(ografRestore(report({ ...up, step: null }), true, []), { play: true, steps: 0, unknown: UNKNOWN_STEP });
   assert.deepEqual(ografRestore(report({ ...up, step: 'end' }), true, []), { play: true, steps: 0, unknown: UNKNOWN_STEP });
+  // What one restart could not prove stays unproven through the next, until the operator's re-cue.
+  assert.deepEqual(ografRestore(report({ ...up, unknown: UNKNOWN_ACTED }), true, []), { play: true, steps: 1, unknown: UNKNOWN_ACTED });
+  assert.deepEqual(ografRestore(report({ ...up, unknown: UNKNOWN_UNCONFIRMED, step: null }), true, []), { play: true, steps: 0, unknown: UNKNOWN_UNCONFIRMED });
+  // A snap has no OGraf meaning: it is no Take, so the bank still decides.
+  assert.deepEqual(ografRestore(report(up), true, [row('snap')]), { play: true, steps: 1, unknown: null });
+  assert.deepEqual(ografRestore(null, true, [row('snap')]), { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED });
 });
 
 test('the catch-up reads past every action on a package and nothing else', () => {
@@ -77,6 +83,8 @@ test('a report from an instance the output replaced is refused, and only from th
   for (let n = 0; n < 20; n += 1) replaced = acceptOutcome(replaced, { ...fresh, i: `b${n}`, was: `a${n}` }).replaced;
   assert.equal(replaced.length, 16);
   assert.deepEqual(replaced.slice(0, 2), ['a4', 'a5']);
+  assert.ok(isOgrafInstance('0a1b2c3d'));
+  for (const bad of ['', 'A1', 'x', 'a'.repeat(33), 7, null]) assert.equal(isOgrafInstance(bad), false, String(bad));
   // `was` is read only as an instance id, and never as the instance itself.
   assert.equal(readOgrafOutcome(stateOf({ ...up, was: 'not-hex' })).was, undefined);
   assert.equal(readOgrafOutcome(stateOf({ ...up, was: up.i })).was, undefined);

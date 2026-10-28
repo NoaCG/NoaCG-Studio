@@ -44,7 +44,8 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
     for (let i = rows.length - 1; i >= 0; i -= 1) if (ts.includes(rows[i].msg.t)) return i;
     return -1;
   };
-  const lastTake = last('play', 'snap');
+  // A snap has no OGraf meaning (control/ografContract.ts `ografCallFor`): only a Take puts it up.
+  const lastTake = last('play');
   const lastOut = last('stop');
   const actedAfter = (from: number) => rows.slice(from + 1).some((r) => r.msg.t === 'event');
   // A Take or Out after the bank replays as the log has it, and decides whether it is up.
@@ -57,8 +58,10 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   if (!up) return NOTHING;
   if (!o || o.i === null || !o.on) return { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED };
   const acted = o.acted === true || actedAfter(-1);
-  if (typeof o.step !== 'number') return { play: true, steps: 0, unknown: acted ? UNKNOWN_ACTED : UNKNOWN_STEP };
-  return { play: true, steps: o.step, unknown: acted ? UNKNOWN_ACTED : null };
+  // A state an earlier restart could not prove stays unproven through the next one.
+  const carried = o.unknown ?? null;
+  if (typeof o.step !== 'number') return { play: true, steps: 0, unknown: acted ? UNKNOWN_ACTED : (carried ?? UNKNOWN_STEP) };
+  return { play: true, steps: o.step, unknown: acted ? UNKNOWN_ACTED : carried };
 }
 
 /** The catch-up's rows that are a custom action on a package: read past, never sent, since a

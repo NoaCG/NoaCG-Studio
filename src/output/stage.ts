@@ -539,12 +539,13 @@ export function createOutputStage(
   const ografReturns = new Map<string, readonly OgrafReturn[]>();
   /** Every foreign layer's load, and every published package's mount (or its failure). */
   const ografLoads: Promise<void>[] = [];
-  const mountSpec = (spec: ForeignOgrafSpec): boolean => {
+  /** `again`: a re-cue's mount, which nothing waiting for the stage's first load waits on. */
+  const mountSpec = (spec: ForeignOgrafSpec, again = false): boolean => {
     try {
       const layer = mountForeignOgraf(stage, spec, payload.resolution, options.ograf);
       foreign.set(spec.key, layer);
       ografReturns.set(spec.key, layer.returns);
-      ografLoads.push(layer.loaded);
+      if (!again) ografLoads.push(layer.loaded);
       // A layer that joins a stage already off air (a boot's catch-up) is told so before anything
       // it was sent meanwhile can play: the replay settles unseen, as for a NoaCG frame (`adopt`).
       if (offAir) layer.setOffAir(true);
@@ -617,20 +618,16 @@ export function createOutputStage(
    *  the tab's session): the first mount here names it as the one it replaced. */
   const replacedOnBoot = new Map(Object.entries(options.ografReplaced ?? {}));
   /** Mount a package from its base and say what it does from its `load()` answer on. */
-  const attach = (key: string, layer: number, spec: OutputGraphicSpec, base: string, was: string | undefined): boolean => {
+  const attach = (key: string, layer: number, spec: OutputGraphicSpec, base: string, was: string | undefined, again = false): boolean => {
     // `load()` starts from the defaults its schema declares, so a Graphic that builds itself from
     // its data in `load()` has what its manifest says it starts with; a cue's values follow on Take.
-    if (!mountSpec({ key, layer, packageBase: base, manifest: spec.ograf?.manifest, data: ografLoadData(spec.ograf?.manifest) })) return false;
+    if (!mountSpec({ key, layer, packageBase: base, manifest: spec.ograf?.manifest, data: ografLoadData(spec.ograf?.manifest) }, again)) return false;
     servedFrom.set(key, { layer, spec, base });
     lost.delete(key);
     const layerNow = foreign.get(key)!;
     paintAppearance(layerNow.frame, key);
     let on = false;
-    /** Actions sent since its last Take that the Graphic did not refuse: their effect is in the
-     *  Graphic alone, and no restart repeats them. */
-    let acted = 0;
-    acting.set(key, () => (acted += 1));
-    taking.set(key, () => (acted = 0));
+    acts.set(key, 0);
     // Nothing is said until the Graphic answers its `load()`: a frame built is not a package loaded.
     layerNow.onAnswer((call, answer, newest) => {
       // LATE WORD FROM AN OLD INSTANCE (E3.2b): one replaced or removed says nothing more here.
@@ -641,7 +638,9 @@ export function createOutputStage(
         if (call === 'play') on = true;
         else if (call === 'stop') on = false;
       }
-      if (call === 'custom' && answer.status === 'rejected') acted = Math.max(0, acted - 1);
+      // Refused by the Graphic, an action changed nothing; one sent before a later Take or step was
+      // already reset or outweighed, so only the newest counts back (`newest`).
+      if (call === 'custom' && answer.status === 'rejected' && newest) acts.set(key, Math.max(0, (acts.get(key) ?? 0) - 1));
       // An instance that answered nothing in time, or never loaded, is not trusted with the next
       // Take: that Take mounts the package again (`apply`).
       if (answer.status === 'timeout' || (call === 'mount' && answer.status !== 'done')) lost.add(key);
@@ -655,16 +654,16 @@ export function createOutputStage(
         ...('statusMessage' in answer && answer.statusMessage ? { msg: answer.statusMessage } : 'reason' in answer ? { msg: answer.reason } : {}),
         step: at,
         on,
-        ...(acted > 0 ? { acted: true as const } : {}),
+        ...((acts.get(key) ?? 0) > 0 ? { acted: true as const } : {}),
         ...(why ? { unknown: why } : {}),
         ...(was ? { was } : {}),
       });
     });
     return true;
   };
-  /** Per mounted package: count an action sent, and start a Take's count again. */
-  const acting = new Map<string, () => void>();
-  const taking = new Map<string, () => void>();
+  /** Per mounted package, the actions sent since its last Take that the Graphic did not refuse:
+   *  their effect is in the Graphic alone, and no restart repeats them. */
+  const acts = new Map<string, number>();
   const mountPublished = (spec: OutputGraphicSpec, layer: number, version?: string) => {
     const key = spec.key;
     if (frames.has(key) || foreign.has(key) || waitingOgraf.has(key) || plates.has(key)) return;
@@ -708,7 +707,7 @@ export function createOutputStage(
     old.destroy();
     foreign.delete(key);
     ografReturns.delete(key);
-    if (!attach(key, from.layer, from.spec, from.base, old.instance)) {
+    if (!attach(key, from.layer, from.spec, from.base, old.instance, true)) {
       told(key, { i: null, status: 'unmounted', msg: 'its package could not be reached', on: false });
       return undefined;
     }
@@ -719,8 +718,8 @@ export function createOutputStage(
   };
   /** One message to a mounted package, with the bookkeeping recovery reads. */
   const send = (key: string, layer: ForeignOgrafLayer, msg: ControlMessage) => {
-    if (msg.t === 'play' || msg.t === 'stop') taking.get(key)?.();
-    else if (msg.t === 'event' && ografCallFor(msg)) acting.get(key)?.();
+    if (msg.t === 'play' || msg.t === 'stop') acts.set(key, 0);
+    else if (msg.t === 'event' && ografCallFor(msg)) acts.set(key, (acts.get(key) ?? 0) + 1);
     layer.send(msg);
   };
   payload.graphics.forEach((spec, index) => {
@@ -1078,7 +1077,7 @@ export function createOutputStage(
       foreign.delete(graphic);
       ografReturns.delete(graphic);
       waitingOgraf.delete(graphic);
-      for (const map of [servedFrom, ografData, unknownWhy, acting, taking] as Map<string, unknown>[]) map.delete(graphic);
+      for (const map of [servedFrom, ografData, unknownWhy, acts] as Map<string, unknown>[]) map.delete(graphic);
       lost.delete(graphic);
       if (!frames.has(graphic)) appearances.delete(graphic);
       plates.get(graphic)?.remove();
