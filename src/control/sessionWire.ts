@@ -47,6 +47,9 @@ import { handoverPingId } from './prepareLive.ts';
 /** How far behind the log head the action log seeds its history. Global ids mean this is a ceiling
  *  on rows READ, not on rows shown: a busy instance yields fewer of this show's. */
 export const LOG_HISTORY_SPAN = 400;
+/** A refused hand-over ping is asked again this much later, at most this many times (#1797). */
+export const HANDOVER_RETRY_MS = 1_000;
+export const HANDOVER_RETRIES = 2;
 /** How often the output's last heartbeat is asked, and the header clock moved. */
 export const SEEN_EVERY_MS = 30_000;
 
@@ -65,6 +68,7 @@ export interface SessionWireIo {
   armRpc: CueArmWireOptions['rpc'];
   setInterval: (run: () => void, ms: number) => unknown;
   clearInterval: (timer: unknown) => void;
+  setTimeout: (run: () => void, ms: number) => unknown;
 }
 
 /** What the wire asks of the page and tells it, read at each call. */
@@ -177,13 +181,26 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     // So once this page's road to the log is up, it sends ONE ping through the numbered path
     // (migration 0072): it airs nothing and moves only the head's seq, so an output with a gap in
     // front of it reads the tail and applies what it missed, once and in seq order. Nothing is
-    // resent and no older value can air. Once per start, never on a timer, as 0072 asks; outputs
-    // do not answer it, so it cannot take the place of a Prepare for Live press's answer.
+    // resent and no older value can air. Once per start, never on a timer, as 0072 asks; a ping
+    // the server refused (its head lock or burst cap, while a feed writes hard) is asked again a
+    // second later, twice at most. Outputs do not answer it, so it cannot take the place of a
+    // Prepare for Live press's answer.
     let handedOver = false;
+    const ping = (retries: number) => {
+      void io.controlPingSeq(slug, handoverPingId()).then(
+        (answer) => {
+          if (answer.ok || answer.unavailable || retries === 0 || !live()) return;
+          io.setTimeout(() => {
+            if (live()) ping(retries - 1);
+          }, HANDOVER_RETRY_MS);
+        },
+        () => undefined,
+      );
+    };
     const handOver = (status: ControlFollowStatus) => {
       if (handedOver || !resolved.seq || status.status !== 'SUBSCRIBED') return;
       handedOver = true;
-      void io.controlPingSeq(slug, handoverPingId()).catch(() => undefined);
+      ping(HANDOVER_RETRIES);
     };
     const described = history.map((row) => page().describe(row)).filter((e): e is LogEntry => !!e);
     session.apply((parts) => ({ ...parts, log: logged(parts.log, described, io.appendLog) }));

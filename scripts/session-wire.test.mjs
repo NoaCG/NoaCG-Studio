@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { moveLiveCue } from '../src/control/airState.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, createPlayoutSession } from '../src/control/playoutSession.ts';
-import { LOG_HISTORY_SPAN, SEEN_EVERY_MS, startSessionWire } from '../src/control/sessionWire.ts';
+import { HANDOVER_RETRIES, HANDOVER_RETRY_MS, LOG_HISTORY_SPAN, SEEN_EVERY_MS, startSessionWire } from '../src/control/sessionWire.ts';
 import { createSeqFollower } from '../src/control/seqFollow.ts';
 import { answersPing } from '../src/control/prepareLive.ts';
 import { REORDER_WINDOW_MS } from '../src/control/logFollow.ts';
@@ -109,6 +109,11 @@ function scriptedWire() {
       return timerId;
     },
     clearInterval: (id) => timers.delete(id),
+    setTimeout: (run, ms) => {
+      timerId += 1;
+      timers.set(timerId, { run, ms, once: true });
+      return timerId;
+    },
   };
   const wire = { io, calls, resolves, replays, tails, follows, seen, arms, pings, timers, onPing: null };
   return wire;
@@ -473,7 +478,7 @@ test('THE HAND-OVER (#1797): a value applied while the page reloaded, whose fram
   assert.deepEqual(wire.pings, [], 'nothing before the page\'s own road is up');
   t.mock.timers.tick(10_000);
   await flush();
-  assert.deepEqual(aired, [], 'with no further update the output hears nothing by itself (its floor is the 30 s poll)');
+  assert.deepEqual(aired, [], 'with no further update nothing tells the output it is behind: no frame, so no gap');
   follow.opts.onStatus({ status: 'CHANNEL_ERROR', everJoined: false });
   assert.deepEqual(wire.pings, [], 'nor on a join that failed');
   follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
@@ -505,4 +510,49 @@ test('the hand-over is the numbered log\'s only: a production on row ids sends n
   await flush();
   assert.deepEqual(wire.pings, []);
   stop();
+});
+
+test('a hand-over ping the server refused is asked again a second later, at most twice; one it does not have is not', async () => {
+  for (const [answer, expected] of [
+    [{ ok: false, unavailable: false, detail: 'too many commands, slow down' }, 1 + HANDOVER_RETRIES],
+    [{ ok: false, unavailable: true, detail: 'PGRST202' }, 1],
+  ]) {
+    const wire = scriptedWire();
+    wire.onPing = () => answer;
+    const page = fakePage();
+    const { stop } = start(wire, page);
+    await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+    wire.follows[0].answer.resolve(() => {});
+    await flush();
+    wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+    for (let i = 0; i < 4; i += 1) {
+      await flush();
+      const retry = [...wire.timers].find(([, timer]) => timer.once);
+      if (!retry) continue;
+      assert.equal(retry[1].ms, HANDOVER_RETRY_MS);
+      wire.timers.delete(retry[0]);
+      retry[1].run();
+    }
+    await flush();
+    assert.equal(wire.pings.length, expected, answer.detail);
+    assert.equal(new Set(wire.pings).size, expected, 'each a fresh id');
+    stop();
+  }
+});
+
+test('a hand-over retry due after the stop asks nothing', async () => {
+  const wire = scriptedWire();
+  wire.onPing = () => ({ ok: false, unavailable: false, detail: 'lock' });
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  const retry = [...wire.timers.values()].find((timer) => timer.once);
+  stop();
+  retry.run();
+  await flush();
+  assert.equal(wire.pings.length, 1);
 });
