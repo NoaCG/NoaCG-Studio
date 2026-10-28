@@ -31,6 +31,7 @@ import type { CueArmWire } from './cueArmWire';
 import type { ControlSendItem } from './hostedControl';
 import type { LiveCueMap, VerbSent } from './liveCue';
 import type { PlayoutSession } from './playoutSession';
+import type { AppliedAppearance } from './cueAdjust';
 import {
   END_WORDS,
   aired,
@@ -53,6 +54,7 @@ import {
   type LaneArm,
 } from './cueAuto.ts';
 import { clearCueItems, takeCueItems } from './cueItems.ts';
+import { withPeersOff } from './ografOutcome.ts';
 import { leftAlone, reachedOutput, withLiveCue } from './liveCue.ts';
 
 /** The shortest timer the engine sets, in ms. */
@@ -80,7 +82,11 @@ export interface CueArmPage {
   /** The cue as the operator currently sees it, draft over record. */
   cueView: (cue: ShowCue) => { values: Record<string, string> };
   withBoundValues: (graphic: string, values: Record<string, string>) => Record<string, string>;
+  /** The place and size a Take of the cue carries (./cueAdjust.ts rule 2); absent, none. */
+  appearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined;
   graphicOf: (cue: ShowCue) => string | null;
+  /** The graphics a Take of this one replaces on its layer (./ografOutcome.ts `packageLayerPeers`). */
+  layerPeers?: (graphic: string) => readonly string[];
   liveCueOf: () => LiveCueMap;
   setLiveCue: (fold: (map: LiveCueMap) => LiveCueMap) => void;
   /** A timed cue's end took `cue`: its folder misses and step follow it. */
@@ -157,17 +163,22 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
     if (out) items.push(clearCueItems(graphic));
     // A live candidate cue is never taken by a timed end (./cueAuto.ts `nextGraphicCue`), whatever an
     // older arm named: it would air with its prepared values (E7.1).
+    // Nor one carrying typed OGraf data (E1.2a): its native strings are not its data.
     const named = arm.next ? p.cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
-    const candidate = named?.selection !== undefined ? named : undefined;
+    const candidate = named?.selection !== undefined || named?.typed !== undefined ? named : undefined;
     const next = candidate ? undefined : named;
     const nextGraphic = next ? p.graphicOf(next) : null;
     if (next && nextGraphic) {
       // The draft already owns preparation. Its cloud acknowledgement must not delay the timer.
       p.flush();
-      items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values) }));
+      const appearance = p.appearanceOf?.(next, nextGraphic);
+      // What else is up on its layer goes off with it (an imported OGraf package's layer, E3.2a).
+      const live = p.liveCueOf();
+      const peers = (p.layerPeers?.(nextGraphic) ?? []).filter((g) => g !== nextGraphic && !(out && g === graphic) && live[g]);
+      items.push(...withPeersOff(peers, takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values), ...(appearance ? { appearance } : {}) })));
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
-    if (candidate) p.note(`${candidate.label} shows a live candidate, so a timed end does not take it.`);
+    if (candidate) p.note(candidate.selection !== undefined ? `${candidate.label} shows a live candidate, so a timed end does not take it.` : `${candidate.label} has typed data, so a timed end does not take it.`);
     const gone = !!arm.next && !candidate && !(next && nextGraphic);
     // Published, the server's fire row says "Auto Out sent" on every page; this one only adds what
     // went wrong here.

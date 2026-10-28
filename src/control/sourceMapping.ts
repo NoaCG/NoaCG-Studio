@@ -104,6 +104,15 @@ function leafText(value: unknown, adapter: SourceListAdapter | undefined): strin
   return fillList({ adapter, main: 'text' }, rows).values.text ?? '';
 }
 
+// ── E1.2a: the typed foreign target adapter ──────────────────────────────────────────────────
+//
+// A field of a foreign OGraf graphic that its manifest declares (`FieldDescriptor.typed`) takes a
+// source's value as the JSON the provider sent, never as the text above: E5's typed values reach it
+// in E1's envelope, and nothing is read from a string that happens to look like a number. The route
+// writes the value as it is (migration 0104 judges what a bound path may hold); the page checks it
+// against the field's declared schema before anything is dispatched (model/ografTyped.ts
+// `typedTargetValue`, `typedForSend`).
+
 // ── E5.1: the versioned recipe ───────────────────────────────────────────────────────────────
 //
 // A connector source may carry a declarative recipe (`config.mapping`, productionData
@@ -426,6 +435,9 @@ function outputText(
 export interface SourceProjection {
   /** Bound path -> the text it now holds, for every bound path the payload gives a value. */
   writes: Record<string, string>;
+  /** Bound path -> the JSON value it now holds, for a path only typed fields read (E1.2a). Kept
+   *  apart so a database that takes only text can be sent the rest (api/data/[...path].ts). */
+  typedWrites: Record<string, JsonValue>;
   /** Bound leaves the payload does not carry: they keep their value. */
   missing: string[];
   /** Bound leaves whose value is not one, or that their fields cannot all hold: they keep theirs. */
@@ -453,10 +465,13 @@ export function projectSource(o: {
   lists?: Readonly<Record<string, SourceListAdapter>>;
   mapping?: unknown;
   configRevision?: number;
+  /** The production's published collection recipes (`Show.collections`, E7.2b), as stored. */
+  collections?: unknown;
 }): SourceProjection {
   const prefix = `${sourcePrefix(o.sourceId, 'external')}.`;
   const paths = [...new Set(sourcePaths(o.bindings, o.sourceId).map((p) => p.path).filter((p) => p.startsWith(prefix) && p.length > prefix.length))].sort();
   const writes: Record<string, string> = {};
+  const typedWrites: Record<string, JsonValue> = {};
   const missing: string[] = [];
   const unfit: string[] = [];
   const problems: Record<string, string> = {};
@@ -467,7 +482,7 @@ export function projectSource(o: {
   const read = readSourceRecipe(o.mapping, o.sourceId, o.configRevision);
   if (read.status === 'read-only' || read.status === 'invalid') {
     const error = read.status === 'invalid' ? read.error : `the mapping is version ${read.version}; this build reads version ${RECIPE_VERSION}, so it is held read-only`;
-    return { writes, missing, unfit: paths.map((p) => p.slice(prefix.length)), problems, held: { readOnly: read.status === 'read-only', error }, provenance: { sourceId: o.sourceId, recipe: null } };
+    return { writes, typedWrites, missing, unfit: paths.map((p) => p.slice(prefix.length)), problems, held: { readOnly: read.status === 'read-only', error }, provenance: { sourceId: o.sourceId, recipe: null } };
   }
   const recipe = read.status === 'ok' ? read.recipe : null;
   const format = formatters();
@@ -475,6 +490,21 @@ export function projectSource(o: {
     const leaf = path.slice(prefix.length);
     const adapter = o.lists && hasOwn(o.lists, leaf) ? o.lists[leaf] : undefined;
     const output = recipe && hasOwn(recipe.outputs, leaf) ? recipe.outputs[leaf] : undefined;
+    const connected = connectedFields(o.bindings, path, o.fieldsOf);
+    const typed = connected.filter((d) => d.typed);
+    if (typed.length) {
+      // A typed field reads the value as sent: a list's grammar, a format or a fallback would make
+      // text of it, which is what a typed field never takes.
+      if (typed.length !== connected.length) hold(leaf, 'typed and text fields are connected to one value');
+      else if (adapter || (output && ('columns' in output || output.format || output.fallback !== undefined))) hold(leaf, 'a typed field takes the value as the source sends it, with no list, format or fallback');
+      else if (output && !isObject(o.payload)) hold(leaf, 'the payload is not a JSON object');
+      else {
+        const value = atPath(o.payload as JsonValue, output ? output.from : leaf);
+        if (value === undefined) missing.push(leaf);
+        else typedWrites[path] = value;
+      }
+      continue;
+    }
     let text: string | null;
     if (output) {
       if (!isObject(o.payload)) {
@@ -500,12 +530,86 @@ export function projectSource(o: {
       }
       text = leafText(value, adapter);
     }
-    const result = text === null ? null : pathValue(connectedFields(o.bindings, path, o.fieldsOf), text);
+    const result = text === null ? null : pathValue(connected, text);
     if (result === null && output) hold(leaf, 'the connected fields cannot all hold this value');
     else if (result === null) unfit.push(leaf);
     else writes[path] = result;
   }
-  return { writes, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: RECIPE_VERSION, configRevision: recipe.configRevision } : null } };
+  // Every bound path of the source counts for clashes, the bare `external.<id>` too (as 0102 counts it).
+  const bound = new Set(
+    Object.values(o.bindings ?? {})
+      .flatMap((fields) => (isObject(fields) ? Object.values(fields) : []))
+      .filter((p): p is string => typeof p === 'string' && (p === prefix.slice(0, -1) || p.startsWith(prefix))),
+  );
+  projectCollections(o.collections, o.sourceId, o.payload, bound, { writes, missing, hold });
+  return { writes, typedWrites, missing, unfit, problems, provenance: { sourceId: o.sourceId, recipe: recipe ? { v: RECIPE_VERSION, configRevision: recipe.configRevision } : null } };
+}
+
+// ── E7.2b: a collection through the source route ─────────────────────────────────────────────
+//
+// A live candidate's collection is read by the page from the tree, at `external.<source>.<from>`
+// (below), and no field binds that leaf: the cue's selection, not a shared binding, reads it. So
+// the route writes each published collection recipe's leaf of this source as the JSON text of the
+// payload's object there, one accepted revision whole, and migration 0102 lets exactly those
+// leaves through beside the bound ones. Nothing here makes an update row: an unbound leaf moves
+// the tree only, so outputs keep receiving resolved values only. What no page could read (not a
+// record, no revision, no items, too many, too long) is held here instead of written; a schema
+// revision the recipe was not mapped for is written, and each page holds its cards with that
+// reason. A leaf above or below a bound path or another collection's leaf is never written: text
+// there would replace the subtree, or land inside text.
+
+/** At most this many published recipes are read; a longer list holds every collection leaf. */
+export const MAX_PUBLISHED_COLLECTIONS = 64;
+
+function projectCollections(
+  raw: unknown,
+  sourceId: string,
+  payload: unknown,
+  bound: ReadonlySet<string>,
+  out: { writes: Record<string, string>; missing: string[]; hold: (leaf: string, problem: string) => void },
+): void {
+  if (raw === undefined || raw === null) return;
+  const prefix = `${sourcePrefix(sourceId, 'external')}.`;
+  if (!Array.isArray(raw) || raw.length > MAX_PUBLISHED_COLLECTIONS) {
+    // Not a leaf (a path cannot hold brackets), so it cannot be mistaken for one.
+    out.hold('[collections]', `the production's collections are not a list of at most ${MAX_PUBLISHED_COLLECTIONS}`);
+    return;
+  }
+  const leaves = new Set<string>();
+  // Every v 1 recipe of this source with a path counts for clashes, as migration 0102 counts them,
+  // even one this build cannot use; only a usable one is written.
+  const named: string[] = [];
+  for (const entry of raw) {
+    // Another source's recipe is never read whole.
+    if (!isObject(entry) || entry.sourceId !== sourceId) continue;
+    if (entry.v === SELECTION_VERSION && recipePath(entry.from)) named.push(entry.from);
+    const read = readCollectionRecipe(entry);
+    if (read.status === 'ok') leaves.add(read.recipe.from);
+  }
+  // A leaf equal to, above or below a bound path or another collection's leaf is never written.
+  const taken = [...[...bound].filter((p) => p.startsWith(prefix)).map((p) => p.slice(prefix.length)), ...named];
+  // A binding of the whole source sits above every leaf.
+  const whole = bound.has(prefix.slice(0, -1));
+  const clashes = (leaf: string) => whole || taken.some((other) => (other !== leaf && (other.startsWith(`${leaf}.`) || leaf.startsWith(`${other}.`))) || bound.has(prefix + leaf));
+  for (const leaf of [...leaves].sort()) {
+    if (clashes(leaf)) continue;
+    const value = isObject(payload) ? atPath(payload as JsonValue, leaf) : undefined;
+    if (value === undefined) {
+      out.missing.push(leaf);
+      continue;
+    }
+    const shape = collectionShape(value);
+    if ('reason' in shape) {
+      out.hold(leaf, shape.reason);
+      continue;
+    }
+    const text = JSON.stringify(value);
+    if (text.length > MAX_COLLECTION_TEXT) {
+      out.hold(leaf, `the collection is longer than ${MAX_COLLECTION_TEXT} characters`);
+      continue;
+    }
+    out.writes[prefix + leaf] = text;
+  }
 }
 
 // ── E7.1: keyed selectors ────────────────────────────────────────────────────────────────────
@@ -656,15 +760,22 @@ function readCollection(recipe: CollectionRecipe, tree: unknown): { revision: nu
     value = parsedText(value);
     if (value === undefined) return hold('the collection is not JSON', null);
   }
-  if (!isObject(value)) return hold('the collection is not a record', null);
+  const shape = collectionShape(value, recipe.schemaRevision);
+  return 'reason' in shape ? hold(shape.reason, shape.revision) : shape;
+}
+
+/** One revision of a collection as a value, or why no page can use it: the page's read and the
+ *  source route's write (which passes no schema revision) judge it with this one function. */
+function collectionShape(value: unknown, schemaRevision?: number): { revision: number; items: unknown[] } | { reason: string; revision: number | null } {
+  if (!isObject(value)) return { reason: 'the collection is not a record', revision: null };
   const revision = value.revision;
-  if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) return hold('the collection has no revision', null);
-  if (value.schemaRevision !== recipe.schemaRevision) {
-    return hold(`the collection is schema revision ${JSON.stringify(value.schemaRevision)}, and its fields were mapped for ${recipe.schemaRevision}`, revision);
+  if (typeof revision !== 'number' || !Number.isInteger(revision) || revision < 0) return { reason: 'the collection has no revision', revision: null };
+  if (schemaRevision !== undefined && value.schemaRevision !== schemaRevision) {
+    return { reason: `the collection is schema revision ${JSON.stringify(value.schemaRevision)}, and its fields were mapped for ${schemaRevision}`, revision };
   }
   const items = value.items;
-  if (!Array.isArray(items)) return hold('the collection has no items', revision);
-  if (items.length > MAX_ITEMS) return hold(`the collection has more than ${MAX_ITEMS} items`, revision);
+  if (!Array.isArray(items)) return { reason: 'the collection has no items', revision };
+  if (items.length > MAX_ITEMS) return { reason: `the collection has more than ${MAX_ITEMS} items`, revision };
   return { revision, items };
 }
 

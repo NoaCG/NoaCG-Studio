@@ -96,8 +96,9 @@ test('a third-party OGraf package reads as conformant and its operator surface i
   expect(result.kind).toBe('ograf');
   expect(result.errors).toEqual([]);
   expect(result.noacg, 'a third-party package carries no v_noacg').toBeNull();
-  // One descriptor per visible property, in manifest order; the hidden one stays out of the form.
-  expect(result.descriptors).toEqual(['homeTeam:text:Home team', 'awayTeam:text:Away team', 'homeGoals:number:Home goals', 'awayGoals:number:Away goals']);
+  // One descriptor per property, in manifest order. The hidden one is offered too: in the pinned
+  // standard `hidden` keeps a value out of the Graphic's display name, not out of the form (E2.1).
+  expect(result.descriptors).toEqual(['homeTeam:text:Home team', 'awayTeam:text:Away team', 'homeGoals:number:Home goals', 'awayGoals:number:Away goals', 'competition:text:Competition']);
   // One button per custom action; the payload schema rides with the one that declares it.
   expect(result.buttons?.map((b) => b.event)).toEqual(['goal', 'reset']);
   expect(result.buttons?.[0].label).toBe('Goal!');

@@ -46,6 +46,7 @@ export default function ProductionShell({
   panelDialog,
   onPlayoutSettings,
   onLinks,
+  onLook,
   views,
   onExport,
   onKey,
@@ -78,6 +79,8 @@ export default function ProductionShell({
   panelDialog?: React.ReactNode;
   onPlayoutSettings: () => void;
   onLinks?: () => void;
+  /** Setup › Look (home/ProductionLook.tsx). */
+  onLook?: () => void;
   /** Which views the production uses, and how many audience submissions are waiting. */
   views: { data: boolean; audience: boolean; waiting: number };
   onExport: () => void;
@@ -274,6 +277,7 @@ export default function ProductionShell({
           onPanel={onPanel}
           onPlayoutSettings={onPlayoutSettings}
           onLinks={onLinks}
+          onLook={onLook}
           onExport={onExport}
         />
         {panelDialog}

@@ -64,7 +64,7 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type AirPart, type DraftPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
 import { createCueDraft, unsentNow, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
 import type { StorePart } from '../../control/storePart';
-import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, type ClockSpecs } from '../../control/airState';
+import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, withoutTypedAir, type ClockSpecs } from '../../control/airState';
 import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
@@ -78,14 +78,19 @@ import { folderStep, type FolderStep, type StepMember } from '../../control/fold
 import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
-import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSender } from '../../control/graphicVerbs';
+import { createGraphicVerbs, type GraphicPage, type GraphicVerbIo, type VerbSelection, type VerbSender } from '../../control/graphicVerbs';
+import { createPressMarks } from '../../control/pressFeedback';
 import { decideVerb } from '../../control/verbDispatch';
 import { panelSnapshot, verbView } from '../../control/verbView';
 import ClipClock from './ClipClock';
-import type { Resolution } from '../../model/types';
-import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type ResolvedValues } from '../../model/productionData';
+import type { Resolution, SpxTemplate } from '../../model/types';
+import { actionArgsOf, nativeOf, readOgrafDeclared, typedReadOnly, typedSendRefusal, typedValuesOf, type DeclaredRead, type TypedSend } from '../../model/ografTyped';
+import { typedErrorsByPath, typedSummary, typedUnsent } from '../../control/ografForm';
+import { graphicButtons, receivesTypedActions } from '../../control/ografContract';
+import { createTypedSaves, createTypedSendMemo, typedActionPart, typedActionSendFor, TYPED_VALUES_PART } from '../../control/typedSend';
+import { resolveBindings, selectedFields, selectionReadOnly, sourcePaths, SELECTION_VERSION, type CollectionRecipe, type CueSelection, type JsonValue, type ResolvedValues } from '../../model/productionData';
 import { loadLiveData, loadSelectionAir, saveLiveData, saveSelectionAir, PRODUCTION_DATA_KEY } from '../../model/productionState';
-import { CANDIDATE_READ_MS, actionCarriesValues, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
+import { CANDIDATE_READ_MS, airedOf as airedSelectionOf, airedValues, watchSettling, followAired, followsCandidates, protectedFields, foreignSelection, protectedSelections, pressSelection, readSelectionAir, selectionTake, staleSelection, writeSelectionAir, type SelectionAir, type SelectionAirIo, type SelectionFacts, type SelectionTake } from '../../control/selectionAir';
 import { collectionEntities, readCollectionRecipe, selectionCheck, selectionGate } from '../../control/sourceMapping';
 import SelectionHolds from './SelectionHolds';
 import {
@@ -106,6 +111,8 @@ import {
 } from '../playoutKeys';
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
+import { foreignTakeRefusal, isForeignGraphic } from '../../model/foreignPackage';
+import { acceptOutcome, confirmedLines, packageLayerPeers, readOgrafOutcome, type OgrafOutcome } from '../../control/ografOutcome';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
@@ -117,12 +124,25 @@ import SourcesLine, { ownSheetReader, ownSheetReaders } from './SourcesLine';
 import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
-import type { SavedGraphic } from '../../model/packets';
+import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
+import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
+import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
+import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
+import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
+import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
+import { FONTS } from '../../model/fonts';
+import { getCssVariable } from '../../model/cssVars';
+import type { PreviewStyle } from './measureCue';
+import { measureCue } from './measureCue';
+import { clearStyleExceptions, editShowLook, promoteCueAdjust, setCueAdjust, setGraphicAdjust, setShowLookApplied, stepAdjust } from '../../model/shows';
+import type { AdjustPatch, FontRef } from '../../model/adjust';
+import CueAdjust from './CueAdjust';
+import ProductionLook from './ProductionLook';
+import { publishedAdjustOf } from '../../control/hostedAdjust';
 import { formerReaders as storedFormerReaders, setFormerReaders as setStoredFormerReaders, setOwnReaderHolds } from '../../model/ownReaderHolds';
 import { hasLiveData, ownReaderRemoval, stripLiveData } from '../../control/liveData';
 import { canonical } from '../../model/publishedRecord';
-import { setCueSelection, setGraphicSounds } from '../../model/shows';
+import { setCueSelection, setCueTyped, setCueTypedArgs, setCueTypedValues, setGraphicSounds } from '../../model/shows';
 import ProductionSounds from './ProductionSounds';
 import { soundTopology } from '../../assets/productionSounds';
 import {
@@ -164,6 +184,7 @@ import {
   firstPublishedSources,
   sendControlVerbs,
   untilAnswered,
+  libraryGraphicDigests,
   sendsInOrder,
   sentHere,
   verbAired,
@@ -215,7 +236,7 @@ import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
 import { createFolderPlayout, type FolderPage, type FolderPlayoutIo } from '../../control/folderPlayout';
 import { startCueArmEngine, type CueArmEngine, type CueArmEngineIo, type CueArmPage } from '../../control/cueArmEngine';
 import { CUE_ARM_RPC } from '../../control/cueArmRpc';
-import CueEditor, { useCueView, type CandidatePicker, type CueCandidate, type OwnReader } from './CueEditor';
+import CueEditor, { useCueView, type CandidatePicker, type CueCandidate, type CueTypedForm, type CueTypedSwitch, type OwnReader } from './CueEditor';
 import { actionButtonFor } from './CueActions';
 import LiveControls, { type LiveBlockView } from './LiveControls';
 import { liveBlocks, liveNumberFields as liveNumbersOf, liveSelection, pickFields, pickOptions } from '../../control/liveControls';
@@ -229,6 +250,7 @@ import { rundownActions, useRundownAuthoring } from './useRundownAuthoring';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, usePanelAnswer } from '../control/PanelControl';
 import { PANEL_VERBS, panelClip, rundownPanelRows, type PanelVerb } from '../../control/panelFeedback';
+import { declaredForeign, graphicControls, panelGraphic, runCapability, type ControlsMachine, type GraphicControls, type PanelGraphic, type PanelOffer } from '../../control/panelActions';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
@@ -387,10 +409,16 @@ function usePacedPart<T, S>(part: StorePart<T>, select: (value: T) => S): S {
 interface DrawnDraft {
   /** The edited cue's unsent fields, and the on-air cues with any (control/cueDraft.ts). */
   unsent: { fields: string[]; cues: string[] };
+  /** Typed values waiting to air (E2.1): the edited cue's keys, and the on-air cues with any. */
+  typed: { editing: string[]; cues: string[] };
   /** The countdown chip's cue label, as typed. */
   chipLabel: string | null;
+  /** Place and size waiting to air (playout adjustments): on the edited cue, and the on-air cues. */
+  place: { editing: boolean; cues: string[] };
 }
-function useDrawnDraft(part: StorePart<DraftPart | null>): (draw: () => DrawnDraft) => DrawnDraft {
+/** `also`: another part the drawing reads (what the page measured, `geometry`), so a measurement
+ *  after a keystroke renders the page only when what it draws reads differently. */
+function useDrawnDraft(part: StorePart<DraftPart | null>, also: StorePart<unknown>): (draw: () => DrawnDraft) => DrawnDraft {
   const latest = useRef<(() => string) | null>(null);
   const drawn = useRef('');
   const [, redraw] = useState(0);
@@ -399,8 +427,9 @@ function useDrawnDraft(part: StorePart<DraftPart | null>): (draw: () => DrawnDra
       if (latest.current && latest.current() !== drawn.current) redraw((n) => n + 1);
     };
     check();
-    return part.subscribe(check);
-  }, [part]);
+    const off = [part.subscribe(check), also.subscribe(check)];
+    return () => off.forEach((stop) => stop());
+  }, [part, also]);
   return (draw) => {
     const answer = draw();
     latest.current = () => JSON.stringify(draw());
@@ -427,6 +456,23 @@ function entitiesIn(recipe: CollectionRecipe, tree: object): ReturnType<typeof c
   return byRecipe.get(key)!;
 }
 const airedOf = (air: AirPart) => air.aired;
+const NO_LOOKS: AppliedLooks = {};
+/** The unsent entry a waiting place-and-size change adds: no field has this id. */
+const PLACE_UNSENT = '@place';
+/** How long Publish waits for the adjusted cues to be measured. */
+const PUBLISH_MEASURE_CAP_MS = 8_000;
+const looksOf = (air: AirPart) => air.looks ?? NO_LOOKS;
+const NO_TYPED_AIR: NonNullable<AirPart['typedAired']> = {};
+/** No Presence: PREVIEW asks no output whether it reads typed data. */
+const NO_PRESENCE = { showId: null, status: 'joined', peers: [] } as const;
+const typedAiredOf = (air: AirPart) => air.typedAired ?? NO_TYPED_AIR;
+/** What the background measurer composes for one cue. */
+interface MeasureInput {
+  template: SpxTemplate;
+  values: Record<string, string>;
+  /** The type and colour the cue airs in (phase 2), applied before the settle. */
+  style: PreviewStyle | null;
+}
 const bootLiveOf = (air: AirPart) => air.bootLive;
 const entriesOf = (log: LogPart) => log.entries;
 
@@ -456,17 +502,14 @@ function writeSheetLease(key: string, lease: SheetLease): boolean {
 /** A source's reader as the page builds it: its id, kind and config, and whether it feeds Messages. */
 /** One pool graphic's machine and fields, parsed once per pool resolution: what the activity feed
  *  names, what Next asks, and what a pinned block draws and greys by. */
-interface PoolMachine {
-  buttons: ControlButton[];
+interface PoolMachine extends ControlsMachine {
   js: string;
-  descriptors: FieldDescriptor[];
-  /** The events Continue walks: a payload riding one of these is preparation, never a pick. */
-  path: Set<string>;
-  legality: Record<string, Record<string, string[]>>;
   stateGroups: ReturnType<typeof machineStateGroups>;
   stateNames: Record<string, Record<string, string>>;
 }
 
+/** What a published production's sources write carries (control/hostedControl.ts `writePublishedSources`). */
+type PublishedSources = Pick<Show, 'bindings' | 'sources' | 'collections'>;
 type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'>, boolean];
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
@@ -645,6 +688,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A getter, so the publish flow and the modules hold one stable `{ current }` (the compiler lint
   // reads a plain ref handed to the render-time publish call as read during render).
   const liveCueRef = useMemo(() => ({ get current() { return drawnLiveCue.current; } }), []);
+  /** Each ⚡ button's last press and what it came to (control/pressFeedback.ts), dropped as soon as
+   *  the session's `air` part puts another instance on its layer, an Out and a Take of the same cue
+   *  included. */
+  const pressMarks = useMemo(() => createPressMarks(session.air), [session]);
+  useEffect(() => pressMarks.follow(), [pressMarks]);
   const airedData = usePacedPart(session.air, airedOf);
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
@@ -696,7 +744,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   renders.current += 1;
   /** What NoaCG Bridge last said: the server's status, the output's slot, the server files and
    *  whether this session saw its output on the slot (control/bridgeWatch.ts asks, below). */
-  const { status: bridgeStatus, outputSlot, serverFiles, slotSeenOurs } = useStorePart(session.bridge);
+  const { status: bridgeStatus, outputSlot, serverFiles, slotSeenOurs, slotReload } = useStorePart(session.bridge);
   /** The Bridge watch, while it runs: an output action and a server verb reach it here. */
   const bridgeWatch = useRef<BridgeWatch | null>(null);
   /** Bumped by the Playout panel's Check again: the server and the slot are asked again at once. */
@@ -785,6 +833,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  not about the cue sitting on preview. Only the monitor can answer it - the fit ladder is a
    *  measurement of the rendered graphic, and no source check can stand in for it. */
   const [programOverflow, setProgramOverflow] = useState<Record<string, string[]>>({});
+  /** What the OUTPUTS say each imported OGraf package did (control/ografOutcome.ts), from their
+   *  reports alone: the PROGRAM monitor never loads a package, so nothing here is simulated. */
+  const [outputOgraf, setOutputOgraf] = useState<Record<string, OgrafOutcome>>({});
+  /** Per package, the instances an output has said it replaced: their late reports are refused. */
+  const replacedOgraf = useRef(new Map<string, string[]>());
+  const noteOutputOgraf = useCallback((graphic: string, state: unknown) => {
+    const o = readOgrafOutcome(state);
+    if (!o) return;
+    const { accept, replaced } = acceptOutcome(replacedOgraf.current.get(graphic) ?? [], o);
+    replacedOgraf.current.set(graphic, replaced);
+    if (!accept) return;
+    setOutputOgraf((m) => (JSON.stringify(m[graphic] ?? null) === JSON.stringify(o) ? m : { ...m, [graphic]: o }));
+  }, []);
   const noteMachineState = useCallback(
     (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
       setMachineStates((m) => {
@@ -808,6 +869,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useEffect(() => {
     setSendOwed(false);
     setLoggedAt(null);
+    setOutputOgraf({});
+    replacedOgraf.current.clear();
   }, [hostedSlug]);
   /** The graphics whose PUBLISHED payload still reads a Sheet in its own code, as this page last saw
    *  it (its resolve, its own successful Publish): what the output runs, not what the copy says, so
@@ -869,6 +932,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
     bridgeWatch.current?.slotActed();
     if (show && result.state === 'ok') {
+      // Loaded here, the output is this page's to bring back after a server restart (#1657).
+      bridgeWatch.current?.slotOwned(what === 'air', target);
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), casparOutput: what === 'air' ? target : undefined });
       // Unloading on purpose is not losing the slot.
       if (what === 'stop') writeBridge(session, { slotSeenOurs: false });
@@ -1248,6 +1313,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const serverFileItems = playoutItems.filter(i => cues.some(c => c.source === 'playout' && c.sourceId === i.id));
   const serverFileKey = JSON.stringify({ show: show?.id, target: statusTarget, items: serverFileItems.map(i => ({ id: i.id, kind: i.kind, name: i.name })), refs: cues.filter(c => c.source === 'playout').map(c => c.sourceId) });
   const needsServerFiles = cues.some(c => c.source === 'playout');
+  /** Load the lost output again (useProductionPublish.ts `reloadOnSlot`), set once it exists below. */
+  const reloadRef = useRef<() => Promise<PlayoutResult | null>>(async () => null);
   const rundownRef = useRef({ cues, playoutItems, folders });
   rundownRef.current = { cues, playoutItems, folders };
   useEffect(() => {
@@ -1257,6 +1324,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       serverPlayout,
       settingsChanged: () => setPlayoutSettingsRev((n) => n + 1),
       learnt: (showId, facts) => setShows(fillPlayoutItemFacts(showId, facts)),
+      reload: () => reloadRef.current(),
     });
     bridgeWatch.current = watch;
     return () => {
@@ -1311,8 +1379,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }),
     [session],
   );
-  const { flush: flushDraft, cancel: cancelDraft } = cueDraft;
-  const drawnDraft = useDrawnDraft(cueDraft.part);
+  const { flush: flushCueDraft, cancel: cancelDraft } = cueDraft;
+  /** A typed form's edit still settling (home/TypedForm, E2.1) lands with the draft: every verb's
+   *  wait covers it, a key or a panel's Take as much as a click that blurred the box. */
+  const typedFlushers = useRef(new Set<() => void>());
+  const registerTypedFlush = useCallback((flush: () => void) => {
+    typedFlushers.current.add(flush);
+    return () => void typedFlushers.current.delete(flush);
+  }, []);
+  /** The typed form's writes still landing through the rundown's history, awaited by the same wait,
+   *  and whether the last one failed: then nothing typed is sent, since what is stored is not what the
+   *  operator typed, until a later typed write lands. */
+  const typedWrites = useRef<Promise<unknown>>(Promise.resolve());
+  const typedSaves = useRef(createTypedSaves());
+  const flushDraft = useCallback(() => {
+    for (const flush of typedFlushers.current) flush();
+    // Started at once, as before: a caller cancels the draft right after asking (`selectCue`).
+    const native = flushCueDraft();
+    return typedWrites.current.then(() => native);
+  }, [flushCueDraft]);
+  const drawnDraft = useDrawnDraft(cueDraft.part, session.geometry as StorePart<unknown>);
   const history = useRundownHistory(show ?? null, setShows, setRundownNote, (a, b) => historySafety.current(a, b), cancelDraft);
   historyRef.current = history;
   useEffect(() => cueDraft.listen(DRAFT_ADAPTERS), [cueDraft]);
@@ -1406,6 +1492,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const graphic = graphicsRef.current?.find((g) => g.name === name);
     return graphic ? fieldDescriptors(templateForSavedGraphic(graphic, libraryRef.current).fields) : null;
   }, []);
+  /** A pool graphic's OGraf declaration (E1.2a), from its library version as its fields are. */
+  const templateOgrafOf = useCallback((name: string): unknown => {
+    const graphic = graphicsRef.current?.find((g) => g.name === name);
+    return graphic ? templateForSavedGraphic(graphic, libraryRef.current).ograf : undefined;
+  }, []);
+  const declaredOf = useCallback((name: string): DeclaredRead => readOgrafDeclared(templateOgrafOf(name)), [templateOgrafOf]);
+  const livePresenceRef = useRef(livePresence);
+  livePresenceRef.current = livePresence;
 
   // ── LIVE CANDIDATES (E7.1; control/selectionAir.ts): what a cue's selection resolves to in the
   // newest tree, and the instances this page aired, kept in this browser across a reload. ──
@@ -1425,6 +1519,40 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     [session, fieldsOf],
   );
+  /** WHAT A TAKE OR AN UPDATE SENDS FOR A CUE'S TYPED DATA (E1.2a, model/ografTyped.ts): its
+   *  envelope with each bound field's value from the newest tree, read by the typed target adapter
+   *  (never as text), validated whole; then only while every output this page sees reads it. */
+  const typedMemo = useRef(createTypedSendMemo());
+  const typedFor = useCallback(
+    (cue: ShowCue, graphic: string): TypedSend => {
+      const data = session.data.get();
+      return typedMemo.current(cue, {
+        declared: declaredOf(graphic),
+        bindings: bindingsRef.current?.[graphic],
+        tree: data.liveData,
+        treeRead: data.treeRead,
+        published: publishedRef.current,
+        presence: livePresenceRef.current,
+        showId: id,
+      });
+    },
+    [session, declaredOf, id],
+  );
+  /** The typed values a Take of this cue would carry, for PREVIEW: the same envelope and adapter,
+   *  without the outputs' capability, which is no question for a monitor on this page. */
+  const typedPreviewMemo = useRef(createTypedSendMemo());
+  const typedPreviewOf = (cue: ShowCue, graphic: string): TypedSend => {
+    const data = session.data.get();
+    return typedPreviewMemo.current(cue, {
+      declared: declaredOf(graphic),
+      bindings: bindingsRef.current?.[graphic],
+      tree: data.liveData,
+      treeRead: data.treeRead,
+      published: false,
+      presence: NO_PRESENCE,
+      showId: id,
+    });
+  };
   /** The fields of a cue nothing typed or pressed here may move (E7.1): its candidate's, and every
    *  field of a cue this build reads only (a later version's selection). */
   const candidateFields = (cue: ShowCue): string[] =>
@@ -1471,15 +1599,103 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cues, liveData, treeRead, hostedSlug, show?.collections, bindings, selectionFacts, cueGraphicName]);
   const candidateTake = (cue: ShowCue): SelectionTake => candidates.get(cue.id) ?? selectionTake(cue, cueGraphicName(cue), selectionFacts());
-  /** The edited cue's live candidate as the editor shows it (E7.1). */
+  /** The edited cue's live candidate as the editor shows it (E7.1). A cue carrying typed OGraf
+   *  data is read-only here, with the reason (model/ografTyped.ts, E1.1). */
   const candidateOf = (cue: ShowCue | null): CueCandidate | null => {
-    if (!cue || cue.selection === undefined) return null;
+    const typed = cue && typedReadOnly(cue) ? typedSendRefusal(cue) : null;
+    if (typed) return { readOnly: typed, label: '', fields: new Set(), values: {}, notReady: null };
+    if (!cue || cue.selection === undefined) return typedUndrawn(cue);
     const fields = new Set(selectedFields(cue, show?.collections));
     const gate = selectionGate(cue, show?.collections, cueGraphicName(cue), bindings);
     if (gate.status === 'read-only') return { readOnly: gate.reason, label: '', fields, values: {}, notReady: null };
     const take = candidateTake(cue);
     const label = gate.status === 'ok' ? `Live candidate: ${gate.recipe.key.map((path, i) => `${path} ${String(gate.selection.key[i])}`).join(', ')}` : 'Live candidate';
     return { readOnly: null, label, fields, values: take.status === 'ok' ? take.values : {}, notReady: take.status === 'refused' ? take.reason : null };
+  };
+  /** A cue whose typed data is on but whose graphic's schema this page cannot draw now (its
+   *  declaration lost or unreadable): its envelope's values read out, read-only, as E1.2a showed
+   *  them, so its native strings never look editable for air. */
+  const typedUndrawn = (cue: ShowCue | null): CueCandidate | null => {
+    const envelope = cue ? typedValuesOf(cue.typed) : null;
+    if (!cue || !envelope) return null;
+    const declared = declaredOf(cueGraphicName(cue) ?? '');
+    if (declared.status === 'ok' && declared.fields) return null;
+    const bound = boundFields(cueGraphicName(cue));
+    const values = nativeOf(envelope);
+    return { readOnly: null, label: '', mark: 'Typed', fields: new Set(Object.keys(values).filter((k) => !bound[k])), values, notReady: null };
+  };
+  /** The editor's typed data switch (E1.2a), for a cue whose graphic declares an OGraf schema. */
+  const [typedNote, setTypedNote] = useState<{ cueId: string; note: string } | null>(null);
+  const typedSwitch = (cue: ShowCue | null): CueTypedSwitch | null => {
+    const graphic = cue ? cueGraphicName(cue) : null;
+    const declared = graphic ? declaredOf(graphic) : null;
+    if (!cue || cue.source === 'playout' || cue.selection !== undefined || declared?.status !== 'ok' || !declared.fields || typedReadOnly(cue)) return null;
+    return {
+      on: cue.typed !== undefined,
+      note: typedNote?.cueId === cue.id ? typedNote.note : null,
+      toggle: async (on) => {
+        if (!show || !(await flushDraft())) return;
+        const result = setCueTyped(show.id, cue.id, on, templateOgrafOf(graphic!));
+        setShows(result.shows);
+        const failure = result.error ?? (await commitDurableWrites());
+        setTypedNote(failure ? { cueId: cue.id, note: failure } : null);
+        // The form now shows what is stored, so an earlier failed typed edit no longer stands.
+        if (!failure) typedSaves.current.landed(cue.id, TYPED_VALUES_PART, true);
+      },
+    };
+  };
+  /** Each typed cue's rundown summary from its typed values (E2.1, `typedSummary`), made once per
+   *  rundown and graphics, not per row and render. */
+  const typedSummaries = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const cue of cues) {
+      const envelope = typedValuesOf(cue.typed);
+      const graphic = envelope ? cueGraphicName(cue) : null;
+      const declared = graphic ? declaredOf(graphic) : null;
+      if (envelope && declared?.status === 'ok' && declared.fields) out.set(cue.id, typedSummary(declared.fields, envelope.values));
+    }
+    return out;
+  }, [cues, cueGraphicName, declaredOf]);
+  /** A cue as stored now, read after a verb's wait (E2.1): the typed form writes the record itself,
+   *  so its last edit is newer than the render the press was made from. */
+  const storedCue = (cue: ShowCue): ShowCue => loadShows().find((s) => s.id === id)?.cues?.find((c) => c.id === cue.id) ?? cue;
+  /** The edited cue's TYPED FORM (E2.1, home/TypedForm): its typed values while they are on, and
+   *  each declared action's arguments. Every edit is one write of the draft as it is; a value that
+   *  does not fit is marked, kept, and refused only by what would send it. A field bound to the
+   *  production's data is judged by the value the tree gives it, so its kept value marks nothing. */
+  const typedFormOf = (cue: ShowCue | null): CueTypedForm | null => {
+    const graphic = cue ? cueGraphicName(cue) : null;
+    const declared = graphic ? declaredOf(graphic) : null;
+    if (!show || !cue || cue.source === 'playout' || declared?.status !== 'ok' || typedReadOnly(cue)) return null;
+    const envelope = typedValuesOf(cue.typed);
+    const bound = boundFields(graphic);
+    const fields = declared.fields;
+    // Through the rundown's history, like every authored edit: undoable, and never read as another
+    // tab's change that clears the stacks. A refusal is the history's note.
+    const kept = (write: () => { error: string | null; shows: Show[] }, label: string, part: string) => {
+      const landing = history.write(write, label).then((ok) => {
+        typedSaves.current.landed(cue.id, part, ok);
+        return ok;
+      });
+      typedWrites.current = typedWrites.current.then(() => landing);
+    };
+    const values = envelope && fields
+      ? {
+          fields,
+          value: envelope.values,
+          errors: new Map([...typedErrorsByPath(fields, envelope.values)].filter(([at]) => !bound[at.split(/[.[]/)[0]])),
+          onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedValues(show.id, cue.id, update), 'Edit typed data', TYPED_VALUES_PART),
+        }
+      : null;
+    // Argument forms only where a press can be received (`receivesTypedActions`), as its ⚡ button.
+    const pooled = graphicsRef.current?.find((g) => g.name === graphic);
+    const receives = !!pooled && receivesTypedActions(templateForSavedGraphic(pooled, libraryRef.current));
+    const actions = declared.description.actions.flatMap((a) => {
+      if (!a.args || !receives) return [];
+      const value = actionArgsOf(a, cue.typedArgs);
+      return [{ id: a.id, name: a.name, node: a.args, value, errors: typedErrorsByPath(a.args, value), onChange: (update: (current: JsonValue | undefined) => JsonValue | undefined) => kept(() => setCueTypedArgs(show.id, cue.id, a, update), `Edit ${a.name}`, typedActionPart(a.id)) }];
+    });
+    return values || actions.length ? { values, actions, register: registerTypedFlush, onAir: !!graphic && liveCue[graphic] === cue.id } : null;
   };
   /** The writer's menu for the edited cue (E7.2a): the people each of its graphic's recipes
    *  offers in this render's tree, and the cue's pick. Null for a cue no recipe serves, or one this
@@ -1637,7 +1853,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // newer sources, unless the row has never had any (published before migration 0097); every
   // change after it is, a return to that first value included.
   // Keys sorted: a record read back from the server (jsonb reorders keys) is not a change.
-  const sourcesPlan = hostedSlug ? canonical([bindings ?? {}, show?.sources ?? []]) : null;
+  const sourcesPlan = hostedSlug ? canonical({ bindings: bindings ?? {}, sources: show?.sources ?? [], collections: show?.collections ?? [] }) : null;
   const sourcesPlanRef = useRef(sourcesPlan);
   sourcesPlanRef.current = sourcesPlan;
   const sourcesWriter = useRef<ReturnType<typeof latestWriter<string>> | null>(null);
@@ -1646,9 +1862,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     let noted = false;
     const writer = latestWriter(
       async (plan: string) => {
-        const [planBindings, planSources] = JSON.parse(plan) as [Show['bindings'], Show['sources']];
-        await writePublishedSources(id, { bindings: planBindings, sources: planSources });
-        for (const source of planSources ?? []) sourceStatus.poke(source.id);
+        const planned = JSON.parse(plan) as PublishedSources;
+        await writePublishedSources(id, planned);
+        for (const source of planned.sources ?? []) sourceStatus.poke(source.id);
       },
       {
         setTimer: (run, ms) => setTimeout(run, ms),
@@ -1668,9 +1884,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const first = () => {
       const plan = sourcesPlanRef.current;
       if (!live || !plan) return;
-      const [planBindings, planSources] = JSON.parse(plan) as [Show['bindings'], Show['sources']];
+      const planned = JSON.parse(plan) as PublishedSources;
+      const planSources = planned.sources;
       if (!planSources?.length) return;
-      firstPublishedSources(id, { bindings: planBindings, sources: planSources })
+      firstPublishedSources(id, planned)
         .then((wrote) => {
           if (live && wrote) for (const source of planSources) sourceStatus.poke(source.id);
         })
@@ -1759,6 +1976,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       for (const [graphic, report] of Object.entries(resolved.live)) {
         if (report && typeof report === 'object' && 'state' in report) {
           noteMachineState(graphic, (report as { state?: { groups?: Record<string, string> } | null }).state ?? null);
+          noteOutputOgraf(graphic, (report as { state?: unknown }).state);
         }
       }
     },
@@ -1777,7 +1995,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     hear: hearCommand,
     // A 'live' row is the renderer REPORTING what it applied — machine state included, which is
     // what keeps the action buttons' greying honest about air.
-    machineState: (graphic, state) => noteMachineState(graphic, state),
+    machineState: (graphic, state) => {
+      noteMachineState(graphic, state);
+      noteOutputOgraf(graphic, state);
+    },
     // THE TREE MOVED SERVER-SIDE: re-read it, rather than subscribing to `control_shows` a second
     // time. Any `src`, not `api` alone: this page's own `withBoundValues` airs the tree on the next
     // Take, so missing a hosted press would put its figure back the moment somebody took a cue.
@@ -1882,7 +2103,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // structural guard they grey by, and its states for the recovery snap picker. All parsed
   // from the same live template the editor's fields come from, so the panel can never describe
   // a different graphic than the fields do. Empty on a template with no explicit machine.
-  const events = useMemo(() => (editorTemplate ? eventButtons(editorTemplate.js) : []), [editorTemplate]);
+  const events = useMemo(() => (editorTemplate ? graphicButtons(eventButtons(editorTemplate.js), editorTemplate) : []), [editorTemplate]);
   const legality = useMemo(() => (editorTemplate ? eventLegality(editorTemplate.js) : {}), [editorTemplate]);
   const stateGroups = useMemo(() => (editorTemplate ? machineStateGroups(editorTemplate.js) : []), [editorTemplate]);
   // The NAMES for the chip come from their own resolver rather than from `stateGroups`: that
@@ -1900,12 +2121,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // The PREVIEW settles with bound fields overlaid too, for the same reason Take does: the
   // monitor has to show what a Take would actually put on air, not the cue's prepared value. The
   // monitor reads the cue's values from the draft itself (D12) and settles them through this.
-  const settleOf = (cue: ShowCue, values: Record<string, string>) =>
+  const nativeSettleOf = (cue: ShowCue, values: Record<string, string>) =>
     JSON.stringify({
       ...withBoundValues(cueGraphicName(cue) ?? '', values),
       ...candidateOverlay(cue),
       ...(connectPreview && connectPreview.graphic === cueGraphicName(cue) ? connectPreview.values : {}),
     });
+  // A cue with typed data settles PREVIEW with the values its Take carries, as they are (E1.2a), so
+  // a number or a list looks on PREVIEW as it will on PROGRAM.
+  const settleOf = (cue: ShowCue, values: Record<string, string>) => {
+    const graphic = cueGraphicName(cue);
+    const typed = graphic && cue.typed !== undefined && connectPreview?.graphic !== graphic ? typedPreviewOf(cue, graphic) : null;
+    return typed?.status === 'ok' ? JSON.stringify(typed.typed.values) : nativeSettleOf(cue, values);
+  };
   /** Which of the values being typed PREVIEW says do not fit - measured by the monitor
    *  (PlayoutMonitors), read here by the editor's field marks. */
   const [previewOverflow, setPreviewOverflow] = useState<string[]>([]);
@@ -1936,6 +2164,124 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [poolResolutionKey, library],
   );
 
+  // ── PLACE AND SIZE (docs/work-specs/playout-adjustments/spec.md, phase 1). The records live on the
+  // show (model/shows.ts setGraphicAdjust, setCueAdjust, promoteCueAdjust), written through the
+  // rundown history so Ctrl+Z reverts a press; what the page measured lives in the session's
+  // `geometry` part (control/adjustGeometry.ts), what each graphic holds applied in the `air` part's
+  // `looks`; one answer per cue comes from `cueAdjustState`. ──
+  // Read through `get()`, never subscribed here: the block and PREVIEW subscribe themselves, and the
+  // page draws only what `drawnDraft` says changed ("typing a value never renders the page").
+  const appliedLooks = usePacedPart(session.air, looksOf);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  /** The cue whose "Only this cue" is on before it has a record of its own. */
+  const [onlyThisCue, setOnlyThisCue] = useState<string | null>(null);
+  const frameOf = (g: SavedGraphic, lib = library) => templateForSavedGraphic(g, lib).resolution;
+  /** A graphic as a measurement identity sees it: `savedAt` is when the design it resolves to was
+   *  last edited, so a box measured of an older design is never taken for a newer one's. */
+  const designed = (g: SavedGraphic, lib = library) => ({ ...g, savedAt: designEditedAt(g, lib) });
+  /** The values a Take of the cue settles and airs, which name its measurement. */
+  const airedValuesOf = (cue: ShowCue): Record<string, string> => JSON.parse(nativeSettleOf(cue, cueDraft.view(cue).values)) as Record<string, string>;
+  /** The newest record this page rendered, read at the moment of a press after its wait (a Take's
+   *  page object is the one of its press, which can be seconds older). */
+  const latestShow = useRef(show);
+  latestShow.current = show;
+  /** Adjust writes still in the history's queue: a Take waits for them (`appearanceOf`). */
+  const adjustWrites = useMemo(() => pendingWrites(), []);
+  const writeAdjust = (mutation: () => { shows: Show[]; error: string | null }, label: string) => adjustWrites.hold(history.write(mutation, label));
+  /** The production's own templates: where an imported face's bytes and a graphic's heading come from. */
+  const poolTemplates = useMemo(() => (show?.graphics ?? []).map((g) => templateForSavedGraphic(g, library)), [show?.graphics, library]);
+  // THE PRODUCTION LOOK (phase 3, control/productionLook.ts): while it is on, the widest scope of
+  // every graphic's style, limited per graphic to what its stylesheet paints with.
+  const styleCtxOf = (record: Show | null | undefined, templates: typeof poolTemplates) => lookStyleContext(record, templates);
+  /** Where a face's bytes are read by path: the pool, and the look's own imported face. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const faceAssets = useMemo(() => withLookAssets(show, poolTemplates), [poolTemplates, show?.look, show?.lookApplied]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const styleCtx = useMemo(() => styleCtxOf(show, poolTemplates), [poolTemplates, show?.look, show?.lookApplied]);
+  const adjustStateOf = (cue: ShowCue, record: Show | null = latestShow.current ?? null, lib = library, ctx = styleCtx) => {
+    const g = record?.graphics.find((x) => x.id === cue.sourceId);
+    if (!g || cue.source === 'playout') return null;
+    const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
+    // An imported OGraf package takes no look or style: cueAdjustState reads its template.
+    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, ctx);
+  };
+  // SETUP › LOOK (home/ProductionLook.tsx): the look, its activation, what it reaches and the bulk
+  // send. Its writes go straight to the record (the look is not part of the rundown's history);
+  // "Clear exceptions" edits the records, so it joins the history and Ctrl+Z reverts it.
+  const [lookOpen, setLookOpen] = useState(false);
+  const [lookSent, setLookSent] = useState<string | null>(null);
+  const [lookSending, setLookSending] = useState(false);
+  const savedBrands = useMemo(() => (lookOpen ? loadLooks() : []), [lookOpen]);
+  /** The style context a send to on-air graphics resolves with, for the record it was built from. */
+  const lookCtx = useRef<{ key: string; ctx: ReturnType<typeof styleContextFor> } | null>(null);
+  // What the panel counts, once per change of what it counts (each count scans every stylesheet).
+  // The look the panel starts from: the production's own, else one captured off its first graphic,
+  // so a production made from library graphics (which captures none) can take a look without a
+  // saved brand. Nothing is written until it is turned on or edited.
+  const panelLook = useMemo(
+    () => (show ? (show.look ?? lookToActivate(show, savedBrands) ?? (lookOpen && poolTemplates[0] ? captureLookFromTemplate(poolTemplates[0]) : null)) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [show?.look, show?.brandId, savedBrands, lookOpen, poolTemplates],
+  );
+  const lookCounts = useMemo(
+    () => (lookOpen && show && panelLook ? { reach: lookReach(show.graphics.map((g, i) => ({ name: g.name, template: poolTemplates[i] })), panelLook, lookPanelImported(panelLook, styleCtx.imported)), exceptions: lookExceptions(show) } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lookOpen, panelLook, show?.graphics, show?.cues, poolTemplates, styleCtx.imported],
+  );
+  const lookWrite = (result: { shows: Show[]; error: string | null }) => {
+    setShows(result.shows);
+    if (result.error) setNote(result.error);
+  };
+  const sendLookToAir = async () => {
+    setLookSending(true);
+    try {
+      const sent = await verbs.sendLook();
+      // A published output reads a face's file from what was published; a send carries none.
+      const faceUnpublished = !!show && !!lookImportedFace(show) && lookFaceUnpublished(show, await libraryGraphicDigests(show, loadGraphics()), publishedStamp?.g);
+      setLookSent(lookSentWords(sent, faceUnpublished));
+    } finally {
+      setLookSending(false);
+    }
+  };
+  /** What a document is told to draw a cue's style in: its variables and the faces they name, the
+   *  imported ones' bytes from the production's own copies. A surface compares it by `id`, never
+   *  by its text, which an imported face can run to megabytes. */
+  const previewStyleOf = (state: ReturnType<typeof adjustStateOf> | null | undefined): PreviewStyle | null => {
+    const style = state?.style;
+    return state && style ? { id: state.styleId, vars: style.vars ?? null, faces: facesCss(style.fonts, assetDataIn(faceAssets)) } : null;
+  };
+  /** One document at a time measures the adjusted cues PREVIEW has not shown (components/home/measureCue.ts). */
+  const measurer = useMemo(
+    () => createMeasurer(session.geometry, { measure: (input) => measureCue((input as MeasureInput).template, (input as MeasureInput).values, (input as MeasureInput).style) }, session.alive),
+    [session],
+  );
+  /** `everyGraphic`: also one cue of each graphic nobody adjusted, for
+   *  Publish, so the hosted page's Adjust block has a box to resolve its presets against (a
+   *  graphic's other cues read its last box). */
+  const measureJobs = (record: Show, lib = library, everyGraphic = false): MeasureJob[] => {
+    const seen = new Set<string>();
+    return (record.cues ?? []).flatMap((cue) => {
+      const g = record.graphics.find((x) => x.id === cue.sourceId);
+      // A package is never measured here: this page does not load one (it has no measurement).
+      if (!g || cue.source === 'playout' || isForeignGraphic(g.template)) return [];
+      if (g.adjust === undefined && cue.adjust === undefined) {
+        if (!everyGraphic || seen.has(g.id)) return [];
+        seen.add(g.id);
+      }
+      const values = airedValuesOf(cue);
+      const state = adjustStateOf(cue, record, lib);
+      const styleId = state?.measureStyleId ?? '';
+      const input: MeasureInput = { template: templateForSavedGraphic(g, lib), values, style: previewStyleOf(state) };
+      return [{ cueId: cue.id, graphicId: g.id, id: measureId(g.id, designEditedAt(g, lib), cue.id, values, stage, styleId), input }];
+    });
+  };
+  // Again when a bound value moves (a feed, the data panel): it is part of what a Take airs, so of
+  // the identity a cue's box was measured for.
+  useEffect(() => {
+    if (show) measurer.want(measureJobs(show));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, library, stage, measurer, resolved]);
+
   /**
    * EVERY POOL GRAPHIC'S MACHINE, not just the selected one.
    *
@@ -1952,11 +2298,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // move anything (`canAdvance`). The rest is what a PINNED block of this graphic draws and
       // greys by (home/LiveControls.tsx), read from the same template the editor reads.
       out.set(g.name, {
-        buttons: eventButtons(tpl.js),
+        buttons: graphicButtons(eventButtons(tpl.js), tpl),
         js: tpl.js,
         descriptors: fieldDescriptors(tpl.fields),
         path: continueEvents(tpl.js),
         legality: eventLegality(tpl.js),
+        foreign: declaredForeign(tpl.ograf),
         stateGroups: machineStateGroups(tpl.js),
         stateNames: machineStateNames(tpl.js),
       });
@@ -2114,9 +2461,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   /** PRODUCTION DATA, the dispatch half: the tree's changes go out through this page's sender,
    *  unpublished only (control/productionDataSession.ts `dispatch` says why). */
+  // A graphic airing typed data (E1.2a) is left out: its bound values are typed and go with ✎ Update
+  // in its envelope, never as the text this dispatch resolves. What it airs is what was last
+  // applied to it (the air part's `typedAired`), never what its cue is set to now.
+  const typedAired = usePacedPart(session.air, typedAiredOf);
+  const dispatched = useMemo(() => withoutTypedAir(resolved, typedAired), [resolved, typedAired]);
   useEffect(() => {
-    dataSession.dispatch(resolved, liveData, runVerb);
-  }, [dataSession, resolved, liveData, dataKey, runVerb]);
+    dataSession.dispatch(dispatched, liveData, runVerb);
+  }, [dataSession, dispatched, liveData, dataKey, runVerb]);
 
   /** LIVE CANDIDATES ON AIR follow their captured selector (control/selectionAir.ts): a newer
    *  revision goes out as one update of every mapped field, anything else holds the picture. An
@@ -2236,12 +2588,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
   const clashes = duplicateLayers(show.graphics);
 
-  const { claimName, downloadEmbed, copy, loadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish } = publishActions(
+  const { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish } = publishActions(
     publishState,
     {
       show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
       hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, casparOn, accountCaspar, publishedReaders,
       setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, prepareFlow,
+      // Each adjusted cue measured for the copy being published, from the designs Publish just
+      // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
+      // measurer has not answered for publishes its last placement).
+      // Every graphic cue carries its records (none, for a graphic nobody adjusted) and the box this
+      // page measured (one cue of an unadjusted graphic is measured here for it), so the hosted page's Adjust block can start from any of them; only an
+      // adjusted cue carries an appearance.
+      appearanceFor: async (latest) => {
+        const lib = loadGraphics();
+        await Promise.all(measureJobs(latest, lib, true).map((job) => measurer.now(job, PUBLISH_MEASURE_CAP_MS)));
+        const templates = latest.graphics.map((g) => templateForSavedGraphic(g, lib));
+        const ctx = styleCtxOf(latest, templates);
+        return (cue) => {
+          const g = latest.graphics.find((x) => x.id === cue.sourceId);
+          const state = adjustStateOf(cue, latest, lib, ctx);
+          if (!g || !state) return undefined;
+          const adjust = publishedAdjustOf(g, cue, ctx.lookFor?.(g.id), state.m, frameOf(g, lib), stage);
+          return { ...(state.send ? { appearance: state.send } : {}), adjust };
+        };
+      },
       // REHEARSAL ENDS AT THE FIRST PUBLISH: the live map and PROGRAM stay this page's.
       onFirstPublish: (rehearsed) => {
         applyProgram(clearAllCueBatches(rehearsed).flat());
@@ -2251,6 +2622,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
 
   preparePublishRef.current = () => publishNow();
+  reloadRef.current = async () => (outputUrl ? reloadOnSlot(outputUrl) : null);
 
   /** The layers that are up, each with the cue that put it there, front to back. */
   const liveLayers = show.graphics
@@ -2277,7 +2649,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A graphic cue's pool graphic, for an All-together folder's refusals. */
   const graphicOfCue = (c: ShowCue) => {
     const g = graphicByPoolId.get(c.sourceId);
-    return g ? { name: g.name, layer: graphicLayer(g) } : null;
+    return g ? { name: g.name, layer: graphicLayer(g), foreignRefusal: foreignTakeRefusal(g.template, g.name) } : null;
   };
   const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
   /** This render's facts for the Take refusals (control/takeBlockers.ts). */
@@ -2297,7 +2669,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     slots: PLAYOUT_SLOTS,
     selectionBlocker: (cue) => {
       const take = candidateTake(cue);
-      return take.status === 'refused' ? take.reason : null;
+      if (take.status === 'refused') return take.reason;
+      const graphic = cue.typed === undefined ? null : cueGraphicName(cue);
+      const typed = graphic ? typedFor(cue, graphic) : null;
+      return typed?.status === 'refused' ? typed.reason : null;
     },
   };
   const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn);
@@ -2388,7 +2763,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * keystroke renders the page only when one of them reads differently.
    */
   const chipGraphic = chipLane(cueArms);
-  const { unsent, chipLabel } = drawnDraft(() => ({
+  /** A cue's place and size differ from what its graphic holds applied (playout adjustments): a
+   *  waiting change like an unsent value, counted by the fate line and the rundown row. */
+  const placeUnsent = (cue: ShowCue, graphic: string) => placeWaiting(adjustStateOf(cue), appliedLooks[graphic]);
+  const { unsent, typed: typedWaiting, chipLabel, place } = drawnDraft(() => ({
     unsent: unsentNow(
       cueDraft,
       editingIsLive && selectedGraphic && editingCue ? { cue: editingCue, graphic: selectedGraphic } : null,
@@ -2397,17 +2775,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return cue ? [{ cue, graphic }] : [];
       }),
       airedData,
-      // A live candidate's fields come from its source, like a bound field: never "unsent".
+      // A live candidate's fields come from its source, like a bound field: never "unsent". Nor a
+      // typed cue's (E1.2a): its native strings wait for Off, and its data is its envelope.
       (graphic, cue) => {
+        if (cue.typed !== undefined) return Object.fromEntries(Object.keys(cue.values).map((f) => [f, 'typed']));
         const candidate = selectedFields(cue, show?.collections);
         return candidate.length ? { ...boundFields(graphic), ...Object.fromEntries(candidate.map((f) => [f, 'candidate'])) } : boundFields(graphic);
       },
     ),
+    // A typed cue's values against the envelope its layer aired (E2.1): an edit after a Take waits
+    // for ✎ Update like a native one.
+    typed: {
+      editing: editingIsLive && selectedGraphic && editingCue ? typedUnsent(editingCue.typed, typedAired[selectedGraphic], boundFields(selectedGraphic)) : [],
+      cues: Object.entries(liveCue).flatMap(([graphic, cueId]) => {
+        const cue = cueId ? cues.find((c) => c.id === cueId) : undefined;
+        return cue && typedUnsent(cue.typed, typedAired[graphic], boundFields(graphic)).length ? [cue.id] : [];
+      }),
+    },
     chipLabel: chipGraphic ? (cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic) : null,
+    place: {
+      editing: !!(editingIsLive && selectedGraphic && editingCue && placeUnsent(editingCue, selectedGraphic)),
+      cues: Object.entries(liveCue).flatMap(([graphic, cueId]) => {
+        const cue = cueId ? cues.find((c) => c.id === cueId) : undefined;
+        return cue && placeUnsent(cue, graphic) ? [cue.id] : [];
+      }),
+    },
   }));
-  const unsentFields = unsent.fields;
+  const unsentFields = [...unsent.fields, ...typedWaiting.editing, ...(place.editing ? [PLACE_UNSENT] : [])];
   const hasUnsent = unsentFields.length > 0;
-  const unsentOnAir = new Set(unsent.cues);
+  const unsentOnAir = new Set([...unsent.cues, ...typedWaiting.cues, ...place.cues]);
 
   /** A removal drops the draft as the page state it replaced went: after this task, so the save
    *  the removal waits for first (`writeRundown` flushes in the same tick) still writes it. */
@@ -2482,6 +2878,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // §2.0, phase 1) reads this page through `armPage`: what it sends with, the rundown, the cue as the
   // operator sees it, and the lines it writes. ──────────────────────────────────────────────────
   const logAuto = (graphic: string, text: string) => logHere([(id) => autoEntry(id, graphic, text)]);
+  /** The graphics a Take of this one replaces on its layer (control/ografOutcome.ts). */
+  const layerPeersOf = (graphic: string) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic);
   armPage.current = {
     published: !!hostedSlug,
     timedOff: !!hostedSlug && armsServer === 'missing',
@@ -2489,7 +2887,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     send: sendVerb,
     cueView,
     withBoundValues,
+    appearanceOf: (cue) => adjustStateOf(cue)?.send,
     graphicOf: cueGraphicName,
+    layerPeers: (graphic) => layerPeersOf(graphic),
     liveCueOf: () => liveCueRef.current,
     setLiveCue,
     took: (cue) => {
@@ -2590,16 +2990,56 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   verbPage.current = {
     graphics: show.graphics,
     liveCue,
+    layerPeers: layerPeersOf,
+    answersOnOutput: (graphic) => isForeignGraphic(show.graphics.find((g) => g.name === graphic)?.template),
     liveLayers,
     livePlayoutLayers,
     graphicOf: cueGraphicName,
     cueView,
     resolvedOf: (graphic) => resolvedRef.current[graphic] ?? {},
+    // Read after the wait (this object is the render's): the place and size a Take or Update
+    // carries, decided in control/adjustGeometry.ts `pressAppearance`.
+    cueById: (cueId) => cuesRef.current.find((c) => c.id === cueId),
+    // A send to on-air graphics: the style as the stored record gives it once the page's writes
+    // landed, beside the place and size the graphic holds (control/adjustGeometry.ts `lookAppearance`).
+    lookAppearanceOf: async (taken, graphic) => {
+      await history.settle();
+      const record = loadShows().find((s) => s.id === id) ?? latestShow.current ?? null;
+      const cue = record?.cues?.find((c) => c.id === taken.id) ?? taken;
+      // One context per stored record: a press over several graphics on air builds it once.
+      const key = `${record?.id}:${record?.updatedAt}`;
+      if (lookCtx.current?.key !== key) lookCtx.current = { key, ctx: styleCtxOf(record, (record?.graphics ?? []).map((g) => templateForSavedGraphic(g, library))) };
+      return lookAppearance(adjustStateOf(cue, record, library, lookCtx.current.ctx), session.air.get().looks?.[graphic]);
+    },
+    appearanceOf: (taken) => {
+      const cueIn = (record: Show | null) => record?.cues?.find((c) => c.id === taken.id) ?? cuesRef.current.find((c) => c.id === taken.id) ?? taken;
+      return pressAppearance({
+        pendingWrites: adjustWrites.pending,
+        settleWrites: () => history.settle(),
+        rendered: () => latestShow.current ?? null,
+        stored: () => loadShows().find((s) => s.id === id) ?? null,
+        stateOf: (record) => adjustStateOf(cueIn(record), record),
+        jobOf: (record) => measureJobs(record).find((j) => j.cueId === taken.id),
+        now: measurer.now,
+        setTimeout: (run, ms) => setTimeout(run, ms),
+      });
+    },
     flush: async () => {
       await flushDraft(); await history.closeGroup();
     },
     boundFields,
     selectionFor: (cue, graphic) => selectionTake(cue, graphic, selectionFacts()),
+    // After the wait: a typed form's edit it landed is in the record, newer than this render's cue.
+    typedFor: (cue, graphic) => {
+      const unsaved = cue.typed === undefined ? null : typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART]);
+      return unsaved ? { status: 'refused', reason: unsaved } : typedFor(storedCue(cue), graphic);
+    },
+    typedActionFor: (cue, graphic, action, args) => {
+      // A panel key's own arguments (E6.2) do not read the cue's, so only the cue's values part counts.
+      const unsaved = typedSaves.current.refusal(cue.id, args ? [TYPED_VALUES_PART] : [TYPED_VALUES_PART, typedActionPart(action)]);
+      return unsaved ? { status: 'refused', reason: unsaved } : typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id }, args as JsonValue | undefined);
+    },
+    typedAiring: (graphic) => graphic in (session.air.get().typedAired ?? NO_TYPED_AIR),
     selectionAired,
     candidateFields,
     airedCandidateFields: (graphic) => {
@@ -2875,20 +3315,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           : null
       : null;
 
+  /** A ⚡ press, marked on its button while out and with what it came to, for the cue on air at the
+   *  press (control/pressFeedback.ts, E2.2): from the selected block and a pinned one alike. */
+  const pressMarked = (sel: VerbSelection, button: ControlButton, named?: string, args?: Record<string, unknown>) => {
+    const graphic = sel.selectedGraphic;
+    if (!graphic) return verbs.event(sel, button, named, args);
+    // The instance is the session's, as the press's own check reads it. Unpublished, the press
+    // moves this page's PROGRAM and nothing else; published, a press taken with no output
+    // reporting reads so, never as sent.
+    return pressMarks.press(graphic, button.event, session.air.get().liveCue[graphic] ?? null, () => verbs.event(sel, button, named, args), () => !hostedSlugRef.current || usableOutputRef.current);
+  };
+  const marksOf = (graphic: string | null) => (graphic ? { part: pressMarks.part, graphic } : undefined);
+
   /** Fire a machine event on the live graphic, or snap it straight to a state (control/graphicVerbs.ts
    *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
    *  waits for the one before it on its graphic. */
-  const fireEvent = (button: ControlButton): Promise<void> => verbs.event(view, button);
+  const fireEvent = (button: ControlButton) => pressMarked(view, button);
   const snapTo = (groupId: string | null, stateId: string) => verbs.snap(view, groupId, stateId);
 
   /** The selected graphic's ⚡ button (home/CueActions.tsx `actionButtonFor`), greyed against
    *  the machine state PROGRAM reports for it and pressed with the page's own selection. */
   const actionButton = actionButtonFor({
     live: selectedLayerLive,
-    legal: (event) => isEventLegal(legality, event, machineState),
+    // A declared OGraf action is not the machine's: its legality is unknown, never greyed by it (E2.1).
+    legal: (event) => !!events.find((b) => b.event === event)?.typed || isEventLegal(legality, event, machineState),
     labelOf: (key) => descriptors.find((d) => d.key === key)?.label,
     aired: selectedGraphic ? (airedData[selectedGraphic] ?? null) : null,
     fire: (b) => void fireEvent(b),
+    marks: marksOf(selectedGraphic),
+    airLabel: view.airCue?.label,
   });
 
   /**
@@ -2996,6 +3451,50 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
 
+  /** WHAT A PANEL MAY PRESS ON EACH POOL GRAPHIC (control/panelActions.ts, E6.1): the controls each
+   *  graphic's live block draws, greyed as the block greys them, a press resolved to the cue live on
+   *  that graphic's layer (`liveSelection`, never the selection) and run through the block's own
+   *  verbs. A pin is presentation only: every pool graphic is offered, pinned or not. */
+  /** The offer is read at every publish, and a publish between renders (a timing reading) sees the
+   *  same render: worked out once per render, on the first read. */
+  const panelOffer = (): PanelOffer => {
+    let listed: { graphics: PanelGraphic[] } | null = null;
+    return {
+      list: () => {
+        if (listed) return listed;
+        const pins = new Set(pinnedGraphicsOf(show.profile));
+        const graphics: PanelGraphic[] = [];
+        for (const graphic of poolMachines.keys()) {
+          const g = panelGraphic(liveControlsOf(graphic, liveSelection(graphic, cues, liveCue)), pins.has(graphic));
+          if (g) graphics.push(g);
+        }
+        return (listed = { graphics });
+      },
+      // A panel key's press marks the same button a click does.
+      act: (run) => runCapability(run, poolMachines.get(run.graphic), liveSelection(run.graphic, cues, liveCue), { ...verbs, event: pressMarked }),
+    };
+  };
+  /** One pool graphic's live controls for the selection a press on it uses (control/panelActions.ts
+   *  `graphicControls`): what its pinned block draws, and what a panel is offered; once per render. */
+  const controlsThisRender = new Map<string, GraphicControls>();
+  const liveControlsOf = (graphic: string, sel: VerbSelection): GraphicControls => {
+    const known = controlsThisRender.get(graphic);
+    if (known) return known;
+    const live = sel.selectedLayerLive ? (liveCue[graphic] ?? null) : null;
+    const g = graphicControls({
+      graphic,
+      machine: poolMachines.get(graphic)!,
+      sel,
+      live,
+      state: machineStates[graphic] ?? null,
+      aired: live ? (airedData[graphic] ?? null) : null,
+      arrange: arrangeFor(show.profile, graphic),
+      candidate: sel.editingCue ? candidateFields(sel.editingCue) : [],
+    });
+    controlsThisRender.set(graphic, g);
+    return g;
+  };
+
   // What a panel's keys show (protocol.md §8), from the same values the verb bar greys with. Read
   // only while the page answers a panel, at each publish and each press.
   /** Which cues' own Take would be refused, worked out once per render: a timing reading publishes
@@ -3023,6 +3522,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     (verb, target) => onVerb(verb, { repeat: false, cue: target || undefined }),
     // A refused press is a note in the activity feed, not a command row: nothing was sent.
     (text) => logHere([(id) => noteEntry(id, text)]),
+    panelOffer(),
   );
 
   /** LIVE ACTIONS FIRST (docs/research/control-surfaces-review-2026-10-02 slice 4; owner,
@@ -3047,7 +3547,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const sel = liveSelection(graphic, cues, liveCue);
     const live = sel.selectedLayerLive;
     const state = machineStates[graphic] ?? null;
-    const aired = live ? (airedData[graphic] ?? null) : null;
+    // The arrangement, numbers and greying a panel is offered too (`liveControlsOf`).
+    const g = liveControlsOf(graphic, sel);
     return {
       ...shared,
       events: m.buttons,
@@ -3057,16 +3558,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       stateGroups: m.stateGroups,
       snapTo: (groupId, stateId) => verbs.snap(sel, groupId, stateId),
       selectedGraphic: graphic,
-      arranged: arrangeControls(withLiveLabels(m.buttons, aired), arrangeFor(show.profile, graphic), (b) => pickOptions(b, m.descriptors, m.path, m.buttons)),
+      arranged: g.arranged,
       actionButton: actionButtonFor({
         live,
-        // A layer holding a cue this page cannot see has no values to carry: such presses wait.
-        legal: (event) => isEventLegal(m.legality, event, state) && (!!sel.airCue || !actionCarriesValues(m.buttons.find((b) => b.event === event) ?? { payload: [] })),
+        legal: g.legal,
         labelOf: (key) => m.descriptors.find((d) => d.key === key)?.label,
-        aired,
-        fire: (b) => void verbs.event(sel, b),
+        aired: g.aired,
+        fire: (b) => void pressMarked(sel, b),
+        marks: marksOf(graphic),
+        airLabel: sel.airCue?.label,
       }),
-      liveNumberFields: liveNumbersOf(m.descriptors, m.buttons, sel.editingCue ? candidateFields(sel.editingCue) : []),
+      liveNumberFields: [...g.numbers],
       editingIsLive: sel.editingIsLive,
       bumpLive: (key, delta) => verbs.bump(sel, key, delta),
     };
@@ -3130,6 +3632,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     bridge: bridgeFact,
     slot: playoutRelevance.slot && outputSlot ? { where: slotWhere, channel: playoutSettings.channel, ...outputSlot, reporting: casparReporting } : undefined,
     slotLost,
+    slotReload,
     ready: readySummary,
     noOutputTake,
     fileCheck: needsServerFiles && bridgeOk ? serverFiles?.key === serverFileKey ? serverFiles.check : { key: 'files', tone: 'warn', short: 'Checking server files…', label: 'Checking referenced CasparCG files…' } : null,
@@ -3267,6 +3770,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onPlayoutSettings={() => setPlayoutSettingsOpen(true)}
       // A build that cannot publish has no links to show, unless the record already holds some.
       onLinks={backendConfigured || hostedSlug ? () => setLinksOpen(true) : undefined}
+      onLook={() => setLookOpen(true)}
       views={views}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
@@ -3353,6 +3857,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   : 'nothing selected'
           }
           settleOf={settleOf}
+          previewLook={{ part: session.geometry as StorePart<unknown>, of: () => (previewCue ? (adjustStateOf(previewCue)?.look ?? null) : null) }}
+          previewStyle={previewStyleOf(previewCue ? adjustStateOf(previewCue) : null)}
+          guides={adjustOpen && !!previewCue && previewCue.id === editingCue?.id}
+          measure={(() => {
+            const g = previewCue && previewCue.source !== 'playout' ? graphicByPoolId.get(previewCue.sourceId) : undefined;
+            if (!previewCue || !g || (!adjustOpen && g.adjust === undefined && previewCue.adjust === undefined)) return null;
+            const cueId = previewCue.id;
+            const styleId = adjustStateOf(previewCue)?.measureStyleId ?? '';
+            return {
+              keyOf: (data: string) => measureId(g.id, designEditedAt(g, library), cueId, JSON.parse(data) as Record<string, string>, stage, styleId),
+              onMeasured: (key: string, m: Measurement) => session.geometry.set((part) => measured(part, cueId, g.id, key, m)),
+            };
+          })()}
           hasCues={cues.length > 0}
           emptyHint={
             selectedFolder && spaceMode === 'take' && !previewCue && heldStep
@@ -3362,6 +3879,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               : undefined
           }
           liveLayers={liveLayers}
+          confirmed={hostedSlug ? confirmedLines(show.graphics.filter((g) => isForeignGraphic(g.template)).map((g) => g.name), outputOgraf).map((line) => ({ ...line, recue: !!liveCue[line.name] })) : []}
+          onRecue={(name) => {
+            const cue = cues.find((c) => c.id === liveCue[name]);
+            if (cue) void takeCue(cue);
+          }}
           serverLayers={livePlayoutLayers}
           previewServer={previewCue ? playoutItemFor(previewCue) : null}
           previewSeconds={(() => {
@@ -3534,6 +4056,34 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         <div className="pd-control-area" data-testid="control-area">
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
         <div ref={rundownFeedback} className="pd-rundown-feedback" />
+        {lookOpen && (
+          <ProductionLook
+            look={panelLook}
+            canActivate={!!panelLook || savedBrands.some((b) => b.id === show.brandId)}
+            on={!!show.lookApplied}
+            setOn={(on) => lookWrite(setShowLookApplied(show.id, on, on ? (lookToActivate(show, savedBrands) ?? panelLook ?? undefined) : undefined))}
+            brands={savedBrands.map((b) => ({ id: b.id, name: b.name }))}
+            brandId={show.brandId ?? null}
+            pickBrand={(brandId) => {
+              const saved = savedBrands.find((b) => b.id === brandId);
+              if (saved) lookWrite(editShowLook(show.id, structuredClone(saved.brand), brandId));
+            }}
+            edit={(next) => lookWrite(editShowLook(show.id, next, null))}
+            bundled={FONTS}
+            weights={panelLook ? weightsFor(lookFontRef(panelLook), {}, lookPanelImported(panelLook, styleCtx.imported)) : []}
+            reach={lookCounts?.reach ?? null}
+            exceptions={lookCounts?.exceptions ?? lookExceptions(show)}
+            clearExceptions={() => void history.write(() => clearStyleExceptions(show.id), 'Clear look exceptions')}
+            onAir={Object.values(liveCue).filter((cueId) => cues.some((c) => c.id === cueId && c.source !== 'playout')).length}
+            send={() => void sendLookToAir()}
+            sending={lookSending}
+            sent={lookSent}
+            joinBundledOnly={!!panelLook?.customFont}
+            lightPanel={!!panelLook && lightPanel(panelLook)}
+            readOnly={!authoringAllowed}
+            onClose={() => setLookOpen(false)}
+          />
+        )}
         {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
         <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />
 
@@ -3641,6 +4191,77 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             ownReader={ownReaderOf(poolGraphic)}
             candidate={candidateOf(editingCue)}
             picker={candidatePicker(editingCue)}
+            typed={typedSwitch(editingCue)}
+            typedForm={typedFormOf(editingCue)}
+            adjust={(() => {
+              const g = graphicByPoolId.get(editingCue.sourceId);
+              const state = adjustStateOf(editingCue);
+              if (!g || !state) return null;
+              const mine = (show.cues ?? []).filter((c) => c.sourceId === g.id);
+              const scope = state.eff.own.length > 0 || onlyThisCue === editingCue.id ? 'cue' : 'graphic';
+              // The anchor is taken from the measurement as it stands at the press, not at this render.
+              const anchorFor = <P extends AdjustPatch>(patch: P) => {
+                const now = adjustStateOf(editingCue) ?? state;
+                return withAnchor(now.eff, now.m, frameOf(g), patch);
+              };
+              const write = (patch: AdjustPatch) => {
+                const anchored = anchorFor(patch);
+                writeAdjust(
+                  () => (scope === 'cue' ? setCueAdjust(show.id, editingCue.id, anchored) : setGraphicAdjust(show.id, g.id, anchored)),
+                  `Adjust ${g.name}`,
+                );
+              };
+              return (
+                <CueAdjust
+                  graphicName={g.name}
+                  cueCount={mine.length}
+                  exceptions={mine.filter((c) => c.id !== editingCue.id && c.adjust !== undefined).length}
+                  scope={scope}
+                  onlyThisCue={onlyThisCue === editingCue.id}
+                  setOnlyThisCue={(on) => setOnlyThisCue(on ? editingCue.id : null)}
+                  measured={session.geometry as StorePart<unknown>}
+                  stateOf={() => adjustStateOf(editingCue) ?? state}
+                  measures={!isForeignGraphic(g.template)}
+                  category={g.type}
+                  open={adjustOpen}
+                  setOpen={setAdjustOpen}
+                  write={write}
+                  step={(by) => {
+                    const anchored = anchorFor({});
+                    writeAdjust(() => stepAdjust(show.id, editingCue.id, scope, by, anchored), `Adjust ${g.name}`);
+                  }}
+                  reset={(at) => {
+                    if (at === 'cue') setOnlyThisCue(null);
+                    writeAdjust(() => (at === 'cue' ? setCueAdjust(show.id, editingCue.id, null) : setGraphicAdjust(show.id, g.id, null)), `Reset ${g.name}`);
+                  }}
+                  promote={() => {
+                    setOnlyThisCue(null);
+                    writeAdjust(() => promoteCueAdjust(show.id, editingCue.id), `Adjust ${g.name}`);
+                  }}
+                  style={(() => {
+                    const template = templateForSavedGraphic(g, library);
+                    const { css } = template;
+                    const reach = styleReach(template);
+                    const design: Record<string, string> = {};
+                    for (const k of ['font-heading', 'font-numeric', ...COLOUR_VARS]) {
+                      const v = getCssVariable(css, k);
+                      if (v !== null) design[k] = v;
+                    }
+                    return {
+                      reach,
+                      artwork: g.type === 'imported-design',
+                      package: isForeignGraphic(g.template),
+                      imported: styleCtx.imported,
+                      bundled: FONTS,
+                      design,
+                      asDesigned: (row: 'type' | 'colour') => write(asDesignedPatch(row, scope, g.adjust, reach)),
+                      designedFace: () => write({ font: asDesignedPatch('type', scope, g.adjust, reach).font }),
+                      pickFace: (next: FontRef, weight: string) => write(facePickPatch(next, weight, scope, g.adjust, design, styleCtx.imported)),
+                    };
+                  })()}
+                />
+              );
+            })()}
             endsRow={() => {
               const auto = readAuto(editingCue);
               const nextId = nextGraphicCue(cues, editingCue.id);
@@ -3732,6 +4353,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         pinnedGraphics={pinned}
         onPin={writePin}
         candidateValues={(cue) => (cue.selection === undefined ? null : candidateOverlay(cue))}
+        typedSummaryOf={(cue) => typedSummaries.get(cue.id) ?? null}
         accentPreview={accentPreview?.productionId === show.id ? accentPreview : null}
         onAccentPreview={(cueId, color) => setAccentPreview(color ? { productionId: show.id, cueId, color } : null)}
         show={show}

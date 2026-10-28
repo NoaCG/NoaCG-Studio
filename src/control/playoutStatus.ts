@@ -68,6 +68,8 @@ export interface StatusFacts {
   slot?: SlotReading & { where: string; channel: number; reporting?: boolean };
   /** This session saw this production on its slot, and the slot no longer holds it. */
   slotLost?: boolean;
+  /** The page loading its lost output again by itself (control/bridgeWatch.ts, issue #1657). */
+  slotReload?: { state: 'reloading' } | { state: 'failed'; detail: string } | null;
   /** READY's summary (readiness.ts `describeReadiness`), or null when no output is known. */
   ready: Pick<ReadySummary, 'tone' | 'label' | 'outputs' | 'ready' | 'lead' | 'leadShort' | 'preparing' | 'broken' | 'lost'> | null;
   /** A graphic Take was sent while nothing that could air it was reporting. */
@@ -137,9 +139,12 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     } else if (holds === 'other') {
       checks.push({ key: 'slot', tone: 'bad', label: `Another production is on ${at}`, short: `Another production on ${at}` });
     } else {
-      checks.push(f.slotLost
-        ? { key: 'slot', tone: 'bad', label: `This production left ${at}`, short: `Not on ${at}` }
-        : { key: 'slot', tone: 'idle', label: `Not loaded on ${at}`, short: `Not loaded on ${at}` });
+      const reload = f.slotLost ? f.slotReload : null;
+      checks.push(reload?.state === 'reloading'
+        ? { key: 'slot', tone: 'warn', label: `This production left ${at} and is loading again`, short: `Reloading on ${at}` }
+        : f.slotLost
+          ? { key: 'slot', tone: 'bad', label: `This production left ${at}`, short: `Not on ${at}`, ...(reload ? { advice: `Loading it again did not bring it back.${reload.detail ? ` ${reload.detail}` : ''}` } : {}) }
+          : { key: 'slot', tone: 'idle', label: `Not loaded on ${at}`, short: `Not loaded on ${at}` });
     }
   }
 

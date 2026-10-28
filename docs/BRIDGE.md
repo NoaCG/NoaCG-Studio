@@ -312,6 +312,31 @@ the page shows whatever the server holds as unidentified rather than guessing fr
 and says that Play next stopped there. What the server already had queued still plays by the
 server's own rule.
 
+A restarted CasparCG server keeps nothing: every layer is empty when it answers again. The
+production page puts its own output back by itself (issue #1657, owner 2026-10-24). When an output
+this page loaded, and saw on its slot, reads empty after the server or the Bridge stopped answering,
+the page loads the output URL again onto the same channel and layer with no press, as a Bridge
+restart already recovers. While it reloads, the slot row reads "Reloading…" (amber). What is on air
+afterwards follows the command log, as for any output loaded fresh. The decision is
+`src/control/bridgeWatch.ts`; the page only sends the load.
+
+- **It never replaces anything.** A slot another production or client took still asks before Load
+  replaces it, and a clip, still or other page another client played there is never covered. The
+  slot is read once more right before the load, which goes only if the layer is still vacant, the
+  settings still name that slot, and no Load or Unload landed meanwhile.
+- **Only this page's output, on its own slot.** Not an output only another browser loaded, not a
+  slot the settings moved to, and not after Unload, unpublishing or switching CasparCG off. A slot
+  emptied while everything kept answering (Unload in another browser, a client's `CLEAR`) is left
+  alone, and gives the output up, so a later outage does not bring it back.
+- **No loop.** A server that keeps failing is tried three times, at once and then about 10 s and
+  60 s later (`RELOAD_AFTER_READS`). Then the slot row reads "Empty" in red with the last reason
+  under it, the status says "Not on 1-20", and Load is the operator's.
+- **Limits.** "Loaded here" is page memory: after the browser page itself is reloaded, a server
+  restart needs Load from it again. A restart so quick that no poll saw the server gone (the status
+  is asked every few seconds, less often in a background tab, which the browser slows) reads as a
+  `CLEAR`, and Load is needed as before. Two browsers that each pressed Load both reload, which
+  loads the same URL twice, at most a flicker.
+
 ### 3a. The playout protocol (v2)
 
 `cli/src/playout/protocol.ts`, mirrored byte for byte at `src/control/playoutProtocol.ts` (a test
@@ -795,7 +820,11 @@ Stated plainly, because this doc's whole purpose is to not overstate.
 - **Reproduced on this machine (2026-08-24)**: everything in §1.
 - **On real servers on this machine, 2026-09-10** (2.3.2 and 2.5.0, screen consumer): the output
   URL loaded with one command, cued from the dashboard, updated live, recovering after a channel
-  restart and a server `RESTART`; the first agent's `status`, `play` and `stop`.
+  restart and a server `RESTART`; the first agent's `status`, `play` and `stop`. Whether a press
+  was needed was not recorded; on 2026-10-24 (2.5.0, Bridge 0.12.3) a server restart needed Load,
+  which is what #1657 changed (§3, after a restarted Bridge). The reload by itself is pinned against
+  fakes (`scripts/bridge-watch.test.mjs`, `e2e/bridge-connect.spec.ts`); on a real server it is
+  parent phase S's walk.
 - **On the real 2.5.0 with its media scanner, 2026-09-22**: `TLS`, `CLS`, `CINF`, `THUMBNAIL
   LIST` and `THUMBNAIL RETRIEVE` captured and written into the parsers' tests; a clip named
   `Jääkiekko` played under its own name; `CG ADD` with data holding a quote, a newline and an `ä`

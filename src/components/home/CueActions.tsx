@@ -1,10 +1,12 @@
-import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import { useSyncExternalStore, type ComponentProps, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { adjustWords, controlName, illegalEventTitle, labelCarriesDelta, type ArrangedControl, type ArrangedControls, type ControlButton, type MachineStateGroup } from '../../control/controlModel';
 import { pickButton } from '../../control/liveControls';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { ArrangeEntry, ShowProfile } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import { IconPin } from '../icons';
+import { PRESS_SAYS, markTitle, pressKey, type PressMark } from '../../control/pressFeedback';
+import type { StorePart } from '../../control/storePart';
 
 /** What one graphic's ⚡ buttons are judged and pressed against: whether the layer is up, whether
  *  the machine accepts an event where it stands, the operator's word for a field, what the layer
@@ -15,6 +17,39 @@ export interface ActionContext {
   labelOf: (key: string) => string | undefined;
   aired: Record<string, string> | null;
   fire: (button: ControlButton) => void;
+  /** The press marks (control/pressFeedback.ts), which keep only the instance on air's, and the
+   *  graphic: each button subscribes to its own, so a press redraws that button and not the page. */
+  marks?: { part: StorePart<Readonly<Record<string, PressMark>>>; graphic: string };
+  /** The cue on air, whose kept arguments a declared OGraf action's press sends. */
+  airLabel?: string;
+}
+
+const noSubscribe = () => () => {};
+const noMark = () => null;
+
+/** What a button's last press came to on the instance on air now, subscribed by that button alone. */
+function useMark(marks: ActionContext['marks'], event: string): PressMark | null {
+  const read = marks ? () => marks.part.get()[pressKey(marks.graphic, event)] ?? null : noMark;
+  return useSyncExternalStore(marks ? marks.part.subscribe : noSubscribe, read);
+}
+
+/** The mark's attributes: its state for styling and tests, its icon drawn by CSS beside the label. */
+const markAttrs = (mark: PressMark | null) => (mark ? { 'data-press': mark.state, 'data-press-icon': PRESS_SAYS[mark.state].icon } : {});
+
+/** A ⚡ button wearing its last press's mark. */
+function MarkedButton({ marks, event, title, ...rest }: ComponentProps<'button'> & { marks: ActionContext['marks']; event: string; title: string }) {
+  const mark = useMark(marks, event);
+  return <button {...rest} title={markTitle(title, mark)} {...markAttrs(mark)} />;
+}
+
+/** A one-press pick's label wearing its last press's mark. */
+function MarkedLabel({ marks, event, label }: { marks: ActionContext['marks']; event: string; label: string }) {
+  const mark = useMark(marks, event);
+  return (
+    <span className="pd-pick-label" title={mark ? markTitle(label, mark) : undefined} {...markAttrs(mark)}>
+      {label}
+    </span>
+  );
 }
 
 /** One graphic's ⚡ button, drawn the same in its three places (pinned above the fold, inside its
@@ -43,6 +78,10 @@ export function actionButtonFor(ctx: ActionContext) {
             // shows; a `set` press puts one back to a declared figure (a reset); an `add` press
             // puts a line on a list - the hint says which, and to what.
             `Fires ${name} on the live graphic and moves ${moved} with it.`
+          : b.typed
+            ? // A declared OGraf action: the arguments are the on-air cue's, and whether the Graphic
+              // takes it is its own, never the machine's confirmed legality (E2.2, AC-3).
+              `Fires ${name} on the live graphic with ${ctx.airLabel ? `${ctx.airLabel}’s` : 'its cue’s'} arguments. The graphic decides whether it takes it.`
           : b.payload?.length
             ? // The payload in the OPERATOR'S words, not as `f7`: what makes an action
               // self-explanatory is "it shows the Audience results field, which you type above".
@@ -52,7 +91,7 @@ export function actionButtonFor(ctx: ActionContext) {
       const active = ctx.aired?.[options.field];
       return (
         <span key={b.event} className="pd-pick" role="group" aria-label={label} data-testid={`cue-action-${b.event}`}>
-          <span className="pd-pick-label">{label}</span>
+          <MarkedLabel marks={ctx.marks} event={b.event} label={label} />
           {options.options.map((o) => (
             <button
               key={o.value}
@@ -70,8 +109,10 @@ export function actionButtonFor(ctx: ActionContext) {
       );
     }
     return (
-      <button
+      <MarkedButton
         key={b.event}
+        marks={ctx.marks}
+        event={b.event}
         // A label that names a player holds a FIXED slot, so a name sent mid-show never moves the
         // buttons under the operator's finger; a long one truncates and the hover has it whole.
         className={`pd-action${b.destructive ? ' destructive' : ''}${named ? ' named' : ''}`}
@@ -81,7 +122,7 @@ export function actionButtonFor(ctx: ActionContext) {
         data-testid={`cue-action-${b.event}`}
       >
         ⚡ {label}
-      </button>
+      </MarkedButton>
     );
   };
 }
@@ -135,7 +176,7 @@ export default function CueActions({
   actionButton: (control: ArrangedControl, section?: string) => ReactNode;
   liveNumberFields: FieldDescriptor[];
   editingIsLive: boolean;
-  bumpLive: (fieldKey: string, delta: number) => Promise<void>;
+  bumpLive: (fieldKey: string, delta: number) => Promise<unknown>;
   pin?: BlockPin;
   /** In the LIVE stack: the graphic's name and the cue live on its layer. */
   heading?: { graphic: string; cue: string | null };

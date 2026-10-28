@@ -40,6 +40,7 @@ import { dataTickOn } from '../_lib/systemSettings.js';
 import { cappedFetch, cronAuthorized, descriptorsOf, runDataTick, TICK_OWNER, type DueSource, type PanelField } from '../_lib/dataTick.js';
 import { parseSourceEnvelope, readExternalRegistration, SOURCE_BODY_BYTES, SOURCE_LEASE_MS, type SourceEnvelope } from '../../src/control/externalSource.js';
 import { projectSource } from '../../src/control/sourceMapping.js';
+import { sourcePrefix } from '../../src/model/productionData.js';
 
 /** Field values, not uploads: a whole scoreboard of labels fits in a few hundred bytes. */
 const MAX_BODY_BYTES = 16_384;
@@ -427,7 +428,7 @@ async function source(req: Request): Promise<Response> {
     // A changed report is evaluated as sent; an unchanged one against the accepted payload again, so
     // a field bound since that revision is filled (the database writes only paths never written).
     if (acquisition.status === 'changed' || acquisition.status === 'unchanged') {
-      const context = await rpc<{ entry: unknown; payload: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]> } | null>(
+      const context = await rpc<{ entry: unknown; payload: unknown; bindings: Record<string, Record<string, string>>; fields: Record<string, PanelField[]>; collections?: unknown } | null>(
         'control_source_context_by_key',
         { p_key: key, p_source: envelope.sourceId },
       );
@@ -445,14 +446,33 @@ async function source(req: Request): Promise<Response> {
         lists: registration?.lists,
         mapping: registration?.mapping,
         configRevision: registration?.configRevision,
+        // E7.2b: the published collection recipes' leaves of this source (migration 0102; an
+        // instance without it answers none, and only bound leaves are written, as before).
+        collections: context.collections,
       });
     }
-    const [answer, wanted] = await Promise.all([
+    const report = (writes: Record<string, unknown>) =>
       rpc<Record<string, unknown>>('control_source_report_by_key', {
         p_key: key,
         p_source: envelope.sourceId,
         p_report: { ...acquisition, claim: envelope.claim },
-        p_writes: projection?.writes ?? {},
+        p_writes: writes,
+      });
+    const typedPaths = Object.keys(projection?.typedWrites ?? {});
+    const [answer, wanted] = await Promise.all([
+      report({ ...projection?.typedWrites, ...projection?.writes }).catch((error: unknown) => {
+        // E1.2a: a database before 0104 takes text only and refuses the whole report for a typed
+        // value. The text goes on as before; the typed values wait, and the agent is told so. 0104
+        // refuses a typed value only where nothing binds it, in its own words: no retry for that.
+        const message = error instanceof Error ? error.message : String(error);
+        if (!projection || typedPaths.length === 0 || !message.includes('not a source report') || message.includes('typed value')) throw error;
+        const prefix = `${sourcePrefix(envelope.sourceId, 'external')}.`;
+        for (const path of typedPaths) {
+          const leaf = path.slice(prefix.length);
+          projection.problems[leaf] = TYPED_WAITS;
+          projection.unfit.push(leaf);
+        }
+        return report(projection.writes);
       }),
       sampleWanted(db, key, envelope.sourceId),
     ]);
@@ -484,6 +504,9 @@ async function source(req: Request): Promise<Response> {
 // source can have (a source id has no dot), so the fence, the context and the claim, which all
 // read the source's own row, never see it, and nothing evaluates or applies it. No migration: the
 // table is service role only and its rows go with their production.
+
+/** What a typed value says while the database takes only text (before migration 0104). */
+const TYPED_WAITS = 'the database did not take typed values: it may need a NoaCG server update';
 
 /** An ask older than this is not waited on any more: the page reads through the hosted fetcher. */
 const SAMPLE_WAIT_MS = 60_000;

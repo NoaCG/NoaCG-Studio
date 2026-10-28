@@ -9,11 +9,12 @@ import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownC
 // library at publish time (docs/SAVED_CONTENT_MODEL.md §4) — the hosted page renders them as
 // a read-only switcher, so picking one stages its data and airing it stays a deliberate take.
 
+import type { AppliedAppearance } from './cueAdjust';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { isBackendConfigured, loadBackendConfig } from '../backend/config';
 import { publishAudio } from '../backend/productionAudio';
-import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/shows';
+import { graphicLayer, type CueAuto, type CueEnd, type Show, type ShowCue } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
@@ -25,9 +26,12 @@ import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
 // audience): publish is the courier, not the author.
 import { audienceBrandFor } from '../audience/audienceBrand';
+import type { PublishedAdjust } from './hostedAdjust';
+import { lookImportedFace, withLookFaceIn } from './productionLook';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
 // boundary where a library draft becomes something a renderer trusts.
-import { assertProductionGate } from '../validation/productionGate';
+import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
+import { isForeignGraphic, verifyForeignPackage } from '../model/foreignPackage';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
@@ -53,6 +57,7 @@ import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
 import { SHEET_LEASE_MS, initialStatus, type SheetLeaseDoor, type SheetReadState, type SheetStatus } from './sheetSource';
 import { preparedCue, type JsonObject } from '../model/productionData';
+import { typedPublishedFields } from '../model/ografTyped';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
@@ -131,6 +136,19 @@ export interface OutputGraphicSpec {
    *  (higher = in front). ADDITIVE OPTIONAL: a payload published before the field falls back
    *  to its position in the array, which is exactly what the stage used to do. */
   layer?: number;
+  /** ADDITIVE OPTIONAL (E3.2a, docs/work-specs/playout-ograf-rundown/spec.md): this graphic is a
+   *  stranger's OGraf package. `assets` are its files under their package paths, html/css/js are
+   *  empty, and the output mounts it behind the isolation boundary (output/foreignOgraf.ts) from a
+   *  base the server serves those files under (api/_lib/outputOgraf.ts), never composing it. An
+   *  older output does not know the member and builds an empty document, which shows nothing. */
+  ograf?: OutputOgraf;
+}
+
+/** What an output needs of a published package: which bytes (`revision`, what the server serves
+ *  them by) and the manifest it mounts (`main`, `stepCount`, the declared actions). */
+export interface OutputOgraf {
+  revision: string;
+  manifest: unknown;
 }
 
 /** One cue as published — ShowCue re-keyed by graphic name (the wire key). */
@@ -149,7 +167,19 @@ export interface OutputCue {
    *  before timed cues, and the hosted page then takes it as one. */
   auto?: CueAuto;
   next?: string;
+  /** ADDITIVE OPTIONAL (playout adjustments, phase 1): the place and size this cue's Take and
+   *  Update carry, resolved at Publish against the box the production page measured. The hosted
+   *  page applies it and does not edit it. Absent: the cue's graphic was never adjusted. */
+  appearance?: AppliedAppearance;
+  /** ADDITIVE OPTIONAL (playout adjustments, phase 3): the records, the production look and the
+   *  measured box the hosted page's Adjust block folds and stages over (control/hostedAdjust.ts).
+   *  Absent: nobody adjusted its graphic and no look reaches it. */
+  adjust?: PublishedAdjust;
 }
+
+/** What Publish carries beside one cue for the hosted page: its applied appearance and the
+ *  records its Adjust block edits. */
+export type CuePublished = (cue: ShowCue) => { appearance?: AppliedAppearance; adjust?: PublishedAdjust } | undefined;
 
 /** What the hosted page airs for one cue, scoped to its own staged edits (cueStaging.ts). */
 export { cueStageData, hostedCueValues } from './cueStaging';
@@ -196,11 +226,18 @@ export interface OutputPayload {
  *  renderer rebuilds from `data`/`state` and replays only rows after it. Absent on a pre-0033
  *  server or from a pre-0033 renderer, and then the entry is REPLAYED rather than trusted
  *  (control/outputRecovery.ts owns that rule). */
+/** What a report's `state` holds: the machine's pose, and (playout adjustments) the place and size
+ *  applied, kept here because the report's RPC stores `state` as sent, so no migration. A graphic
+ *  airing typed data adds `typed`, `steps` and `on`, its typed baseline (E1.2b, ./outputRecovery.ts
+ *  `reportedTyped`). */
+export type ReportState = { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number; on?: boolean } | null;
+
 export type LiveReportMap = Record<
   string,
   {
     data?: Record<string, string>;
-    state?: { groups?: Record<string, string> } | null;
+    /** The machine state and what rides with it (`ReportState`). */
+    state?: ReportState;
     at?: string;
     event?: number;
     /** Protocol 2 only: the same baseline in the per-production sequence (0071). */
@@ -321,7 +358,7 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
     const template = templateForSavedGraphic(g, library);
     return {
       name: g.name,
-      fields: template.fields,
+      fields: typedPublishedFields(template.fields, template.ograf),
       js: template.js,
       images: template.assets
         .filter((a) => isImageAsset(a.path))
@@ -381,6 +418,7 @@ async function serializeAssets(template: SpxTemplate): Promise<OutputGraphicSpec
 
 /** One graphic as the output renders it: the payload's entry, and what its version digest covers. */
 async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
+  if (isForeignGraphic(template)) return foreignSpec(g, template);
   return {
     key: g.name,
     html: template.html,
@@ -393,12 +431,42 @@ async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): 
   };
 }
 
+/** A stranger's package as published: its bytes checked against its record first (a changed or
+ *  missing file refuses the publish by name, as the export does), then sent as they are. */
+async function foreignSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
+  const check = await verifyForeignPackage(template);
+  if (!check.ok) throw new ProductionGateError([{ name: g.name, errors: [{ rule: 'foreign-package', message: `${g.name} cannot go on air: ${check.reason}.` }] }]);
+  const manifest = template.ograf?.manifest ?? JSON.parse(new TextDecoder().decode(check.files.get(check.record.manifest)));
+  return {
+    key: g.name,
+    html: '',
+    css: '',
+    js: '',
+    assets: await serializeAssets({ ...template, assets: template.assets.filter((a) => check.files.has(a.path)) }),
+    resolution: template.resolution,
+    fps: template.fps,
+    layer: graphicLayer(g),
+    ograf: { revision: check.record.revision, manifest },
+  };
+}
+
 /** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
  *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
  *  graphic name. Async because Blob assets serialize to data URLs. */
-export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<OutputPayload> {
+export async function buildOutputPayload(
+  show: Show,
+  library: GraphicDoc[] = loadGraphics(),
+  /** Each cue's appearance as the production page resolved it and the records behind it (playout
+   *  adjustments): what the hosted page's Take and Update carry and its Adjust block edits.
+   *  Absent, no cue carries either. */
+  publishedOf?: CuePublished,
+): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
   const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
+  // The production look's imported face rides once, with the first graphic, on or off: a look sent
+  // and then turned off stays on air until the next Take, and a reload restores it (productionLook.ts).
+  const lookFace = lookImportedFace(show);
+  if (lookFace) graphics.splice(0, graphics.length, ...withLookFaceIn(graphics, lookFace.asset));
   // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
   const resolution = graphics.reduce<Resolution>(
     (r, g) => ({
@@ -426,6 +494,10 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         ...(c.note ? { note: c.note } : {}),
         ...(auto ? { auto } : {}),
         ...(next ? { next } : {}),
+        ...((() => {
+          const published = publishedOf?.(c);
+          return { ...(published?.appearance ? { appearance: published.appearance } : {}), ...(published?.adjust ? { adjust: published.adjust } : {}) };
+        })()),
       };
     });
   const itemById = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
@@ -486,9 +558,17 @@ const libraryDigestMemo = new Map<string, string>();
  */
 export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};
-  for (const g of show.graphics) {
+  // The first graphic carries the look's imported face when Publish does (buildOutputPayload), so
+  // its digest is read as Publish would write it, never memoised: the face is not the graphic's.
+  const lookFace = lookImportedFace(show);
+  for (const [i, g] of show.graphics.entries()) {
     const doc = resolveSavedGraphicDoc(g, library);
     if (!doc && g.graphicId) continue;
+    if (i === 0 && lookFace) {
+      const [carrier] = withLookFaceIn([await graphicSpec(g, templateForSavedGraphic(g, library))], lookFace.asset);
+      digests[g.name] = await graphicDigest(carrier);
+      continue;
+    }
     const memoKey = doc
       ? `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}|${JSON.stringify(g.soundConfig)}`
       : JSON.stringify(g);
@@ -508,16 +588,18 @@ export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = 
  *  the two surfaces must agree on the cue list). Prunes log rows older than 7 days (the 0029
  *  owner DELETE policy) so a 24/7 output URL never grows the log without bound.
  *  Returns every capability slug, or null offline. */
-export async function publishControlShow(show: Show): Promise<PublishedCapabilities | null> {
+export async function publishControlShow(show: Show, publishedOf?: CuePublished): Promise<PublishedCapabilities | null> {
   // THE LIBRARY->AIR GATE, before anything else - including the backend check: an invalid
   // graphic cannot publish, and that is true of this function whoever calls it and wherever it
   // runs (validation/productionGate.ts - the same publishGate the community door runs). A
   // library record may be a broken draft; what is pinned to an output URL may not.
   const library = loadGraphics();
-  assertProductionGate(show.graphics, library);
+  // `publish`: a stranger's OGraf package would reach the outputs as an empty document until its
+  // isolated mount does (E3.2a), so the gate refuses a production holding one.
+  assertProductionGate(show.graphics, library, 'publish');
   const sb = await getSupabase();
   if (!sb) return null;
-  const raw = await buildOutputPayload(show, library);
+  const raw = await buildOutputPayload(show, library, publishedOf);
   const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
   // THE VERSION STAMP (payloadVersion.ts): the previous stamp, read as ONE field so the
   // multi-megabyte payload is not downloaded to learn it. A production published for the first
@@ -559,6 +641,9 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     // policy reads the column: a Sheet link grants reading, and no output or audience function
     // selects it.
     sources: show.sources ?? [],
+    // The COLLECTION RECIPES too (migration 0102, E7.2b): a source's agent writes each one's leaf
+    // through the source route only while the row names it. Read by the route alone.
+    collections: show.collections ?? [],
     // The control PROFILE travels at publish for the same reason the bindings do: how this
     // production arranges its controls is AUTHORED state, like the panel and the
     // payload, and the hosted surfaces must not have to guess it (migration 0058,
@@ -591,8 +676,14 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // extra round trip, only on the instances that need it, and only until they are migrated.
   if (error === 'moved') throw new PublishBehind(RACED);
   if (error) {
-    const { profile: _dropped, sources: _unknown, ...withoutProfile } = published;
-    const retry = await writeControlShow(sb, withoutProfile, expected);
+    // An instance behind only on 0102 (PGRST204 naming `collections`) keeps its sources and
+    // profile; any other error retries as before, without the three.
+    const { collections: _new, ...withoutCollections } = published;
+    let retry = error.code === 'PGRST204' && error.message.includes("'collections'") ? await writeControlShow(sb, withoutCollections, expected) : error;
+    if (retry && retry !== 'moved') {
+      const { profile: _dropped, sources: _unknown, ...withoutProfile } = withoutCollections;
+      retry = await writeControlShow(sb, withoutProfile, expected);
+    }
     if (retry === 'moved') throw new PublishBehind(RACED);
     // The retry failing means the error was never about this column — report the ORIGINAL, which
     // is the one that describes what is actually wrong.
@@ -627,6 +718,8 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   };
   // The brand travels at publish, merged into the state rather than replacing it — `open`,
   // `mode` and the round pointer are the operator's, not the publisher's.
+  // The activated look when it is on, the captured one otherwise: activation copies the look it
+  // turns on into `look` (model/shows.ts `setShowLookApplied`), so one member answers both.
   const brand = audienceBrandFor(show.look);
   if (row.audience_state) {
     await sb
@@ -654,42 +747,61 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
 
 /**
  * CONNECT, DISCONNECT AND PAUSE ON A PUBLISHED PRODUCTION (data-sources C2, AC-3): the row's
- * `bindings` and `sources` written at once, so a field connected after publishing moves the
- * output with no new publish, the server's operator door accepts its path, and the tick honours
- * a Pause with the page closed. Only these two columns: the panel and the payload stay as last
+ * `bindings`, `sources` and `collections` written at once, so a field connected after publishing
+ * moves the output with no new publish, the server's operator door accepts its path, and the tick
+ * honours a Pause with the page closed. Only these columns: the panel and the payload stay as last
  * published. Throws on a refusal, or when it matched no row, so the page can say the change has not
  * reached the server and try again.
  */
-export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<void> {
+export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  const write = (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).select('id');
-  let { data, error } = await write({ bindings: show.bindings ?? {}, sources: show.sources ?? [] });
-  // PGRST204: an instance that has not run 0097 has no `sources` column; the bindings still go.
-  if (error?.code === 'PGRST204') ({ data, error } = await write({ bindings: show.bindings ?? {} }));
+  const { data, error } = await writeNewestColumns(publishedColumns(show), (columns) => sb.from('control_shows').update(columns).eq('id', showId).select('id'));
   if (error) throw new Error(error.message);
   // Signed out, or no longer this account's row: the write matches nothing and says nothing.
   if ((data ?? []).length === 0) throw new Error('this account cannot change the published production');
 }
 
 /**
- * A row published before migration 0097 has never had its sources written (NULL): give it this
- * page's, and only while it is still NULL, so it can never replace sources another page wrote in
- * the meantime. Answers whether this write set them; false when the row had them already (or has
- * no such column). Throws when the write itself failed, so the caller can try the same again.
+ * A row published before migration 0097 has never had its sources written (NULL), or before 0102
+ * its collections: give it this page's, and only while it is still NULL, so it can never replace
+ * what another page wrote in the meantime. Answers whether this write set the sources; false when
+ * the row had them already (or has no such column). Throws when the write itself failed, so the
+ * caller can try the same again.
  */
-export async function firstPublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources'>): Promise<boolean> {
+export async function firstPublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Promise<boolean> {
   const sb = await getSupabase();
   if (!sb) return false;
-  const { data, error } = await sb
-    .from('control_shows')
-    .update({ bindings: show.bindings ?? {}, sources: show.sources ?? [] })
-    .eq('id', showId)
-    .is('sources', null)
-    .select('id');
-  if (error?.code === 'PGRST204' || error?.code === '42703') return false;
+  const first = (column: string) => (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).is(column, null).select('id');
+  const { data, error } = await writeNewestColumns(publishedColumns(show).slice(0, 2), first('sources'));
+  if (missingColumn(error)) return false;
   if (error) throw new Error(error.message);
-  return (data ?? []).length > 0;
+  const wrote = (data ?? []).length > 0;
+  if (!wrote && (show.collections ?? []).length > 0) {
+    const late = await first('collections')({ collections: show.collections });
+    if (late.error && !missingColumn(late.error)) throw new Error(late.error.message);
+  }
+  return wrote;
+}
+
+/** What a published production's sources write sends, newest columns first: an instance that has
+ *  not run 0102 has no `collections`, one before 0097 no `sources` either; what it has still goes. */
+const publishedColumns = (show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Record<string, unknown>[] => [
+  { bindings: show.bindings ?? {}, sources: show.sources ?? [], collections: show.collections ?? [] },
+  { bindings: show.bindings ?? {}, sources: show.sources ?? [] },
+  { bindings: show.bindings ?? {} },
+];
+const missingColumn = (error: { code?: string } | null | undefined): boolean => error?.code === 'PGRST204' || error?.code === '42703';
+
+/** Write the first of `tiers` the instance has every column of (PostgREST answers PGRST204 for a
+ *  column it does not know), and answer that write. */
+async function writeNewestColumns<T extends { error: { code?: string; message: string } | null }>(tiers: Record<string, unknown>[], write: (columns: Record<string, unknown>) => PromiseLike<T>): Promise<T> {
+  let answer = await write(tiers[0]);
+  for (const columns of tiers.slice(1)) {
+    if (answer.error?.code !== 'PGRST204') break;
+    answer = await write(columns);
+  }
+  return answer;
 }
 
 /** What `control_source_lease` and `control_source_commit` answer (migration 0097). */
@@ -1269,7 +1381,7 @@ export async function controlOutputReportSeq(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string> } | null,
+  state: ReportState,
   baseline: {
     /** The last seq applied, and the epoch it belongs to: the server banks the seq only in that
      *  epoch (a republish the renderer has not seen yet must not get a baseline from a gone log). */
@@ -1308,7 +1420,7 @@ export async function controlOutputReport(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string> } | null,
+  state: ReportState,
   /** The last log row applied when this truth was captured — the graphic's recovery baseline. */
   lastEventId: number | null = null,
 ): Promise<void> {

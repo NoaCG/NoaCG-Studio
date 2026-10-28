@@ -300,3 +300,32 @@ test('buildDraftTemplate: the Finish name, the font stack, declared overrides on
     await browser.close();
   }
 });
+
+test('buildDraftTemplate: a heading weight on a single-weight face is drawn as the file is', async () => {
+  const scripts = await Promise.all([
+    browserScript(src('components/wizard/draft.ts'), 'NOACG_DRAFT'),
+    browserScript(src('templates/catalog.ts'), 'NOACG_CATALOG'),
+  ]);
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    for (const content of scripts) await page.addScriptTag({ content });
+    const seen = await page.evaluate(() => {
+      const { initialDraft, mergeDraft, buildDraftTemplate } = window.NOACG_DRAFT;
+      const cssVar = (css, name) => new RegExp(`--${name}:\\s*([^;]+);`).exec(css)?.[1]?.trim() ?? null;
+      // lt43: a sport-family strap (heading weight 800) whose default face is Bebas Neue, one static weight.
+      const variant = window.NOACG_CATALOG.variantById('lt43');
+      const picked = mergeDraft(initialDraft(), { category: variant.category, variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) });
+      const css = (patch) => buildDraftTemplate(variant, mergeDraft(picked, patch)).css;
+      const bebas = css({ cssVarOverrides: { 'display-weight': '900' } });
+      return {
+        weight: cssVar(bebas, 'display-weight'),
+        face: /fonts\/bebas-neue\.woff2[^}]*font-weight: ([^;]+);/.exec(bebas)?.[1] ?? null,
+      };
+    });
+    assert.equal(seen.weight, '900', 'the override is kept: it weights the design\'s other faces too');
+    assert.equal(seen.face, '100 900', 'and Bebas Neue declares every weight, so 900 draws the file, never a smear');
+  } finally {
+    await browser.close();
+  }
+});

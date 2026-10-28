@@ -31,7 +31,13 @@ import {
 } from '../preview/previewProtocol';
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
 import type { ControlMessage } from '../control/controlModel';
-import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
+import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance } from '../control/cueAdjust';
+import { facesCss } from '../control/cueStyle';
+import { readTypedWire, typedValuesOf } from '../model/ografTyped';
+import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafOptions, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
+import { ografLoadData, type OgrafOutcome } from '../control/ografOutcome';
+import { UNKNOWN_REMOUNTED } from '../control/ografRecovery';
+import { ografCallFor } from '../control/ografContract';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
 import { DEFAULT_SETTINGS } from '../model/types';
@@ -70,6 +76,9 @@ export interface OutputStage {
   requestState(graphic: string): void;
   /** The latest machine state each document reported (null = none / not machine-bearing). */
   states: ReadonlyMap<string, PreviewMachineState | null>;
+  /** The place and size each graphic holds applied (playout adjustments): the last `update` that
+   *  carried an `appearance`, kept across a stop, a rebuilt document and a swap. Absent: none. */
+  appearances: ReadonlyMap<string, AppliedAppearance>;
   /** The field ids each document last reported as TOO LONG to fit (`noacgTextOverflow()`, see
    *  PreviewStateMessage.overflow). Empty for a graphic that fits, and for every template that
    *  answers no such question. */
@@ -93,6 +102,21 @@ export interface OutputStage {
   /** What each FOREIGN OGraf Graphic has answered, in arrival order (foreignOgraf.ts). A foreign
    *  Graphic reports no machine state, so this is all a caller hears back from one. */
   ografReturns: ReadonlyMap<string, readonly OgrafReturn[]>;
+  /** A FOREIGN Graphic's layer, for its answered calls and its step controls (foreignOgraf.ts
+   *  `call`, `step`, E2.2). A NoaCG graphic has none: it steps by » Next and recovers by Snap,
+   *  and neither is ever offered as an OGraf step. */
+  foreignLayer(key: string): ForeignOgrafLayer | undefined;
+  /** What each PUBLISHED foreign package (a payload graphic with `ograf`, E3.2a) last came to on
+   *  this stage, by key: its instance and its last answered call, or why it is not mounted. This
+   *  is the output's own word, what its report carries; nothing here is the controller's. */
+  ografOutcomes: ReadonlyMap<string, OgrafOutcome>;
+  /** Called whenever an entry of `ografOutcomes` changes. */
+  onOgraf(cb: (graphic: string) => void): void;
+  /** Resolves once every call sent to every package so far has settled. */
+  ografSettled(): Promise<void>;
+  /** A published package whose state a restart could not prove (control/ografRecovery.ts): its
+   *  outcome says so, with `why`, until the operator's next Take or Out of it. */
+  markUnknown(key: string, why: string): void;
   /** Take the WHOLE stage off or back on air — the renderer's own surface, never the graphics'
    *  own state. Boot catch-up replays missed commands as commands, so their animations run;
    *  airing that replay would put the outage's history on screen. Off air it settles unseen and
@@ -138,8 +162,9 @@ export interface OutputStage {
    */
   prepare(spec: OutputGraphicSpec, options?: { loadSound?: (asset: SoundAssetRef) => Promise<Blob> }): StagedFrame;
   /** Add a graphic the stage did not host, the way a boot builds one: commands queue until its
-   *  document loads, and `onLoaded` fires for it. */
-  add(spec: OutputGraphicSpec): void;
+   *  document loads, and `onLoaded` fires for it. `version` is the publication it comes from, which
+   *  an imported package's base is asked with (`ografBase`). */
+  add(spec: OutputGraphicSpec, version?: string): void;
   /** Take a graphic and its frame off the stage. */
   remove(graphic: string): void;
   destroy(): void;
@@ -176,6 +201,20 @@ export interface OutputStageOptions {
    *  own isolated frame (foreignOgraf.ts, docs/OGRAF_ECOSYSTEM.md §3). The published graphics
    *  load exactly as they do without it. */
   foreign?: ForeignOgrafSpec[];
+  /** How those packages are driven (foreignOgraf.ts); a harness shortens the call deadline. */
+  ograf?: ForeignOgrafOptions;
+  /** THE BASE A PUBLISHED PACKAGE IS SERVED FROM (E3.2a): a payload graphic with `ograf` mounts from
+   *  the URL this answers (the /output page asks the server, api/_lib/outputOgraf.ts), or, answered
+   *  null, is not mounted and says why. Absent (the production page's monitors, which serve no
+   *  package), each such graphic draws a plate saying it is not shown here while it is up. */
+  ografBase?: (spec: OutputGraphicSpec, version?: string) => Promise<string | null>;
+  /** The instance this output's previous document had mounted for each package (E3.2b): a package's
+   *  first mount here names it as the instance it replaced, so its late word is refused. */
+  ografReplaced?: Record<string, string>;
+  /** An imported face's bytes this stage's payload does not hold, by path, read when a style names
+   *  it: the production page's PROGRAM monitor, whose payload is built once per pool, hands the
+   *  production look's own face in here, so a look turned on later reaches it with no rebuild. */
+  faceAsset?: (src: string) => string | null;
 }
 
 /** How long a warm pass waits for the document's answer once it has loaded: the document caps its
@@ -265,6 +304,8 @@ export function createOutputStage(
     budgetKeys: Set<string>;
     onRelease: () => void;
     whenLoaded: Promise<void>;
+    /** The style its document was last told (control/cueAdjust.ts `styleKey`), '' for none. */
+    styled?: string;
   }
 
   /** Each graphic's current frame, by key. */
@@ -275,6 +316,40 @@ export function createOutputStage(
    *  holding `stage.graphics` sees graphics join and leave. */
   const graphics: string[] = [];
   const states = new Map<string, PreviewMachineState | null>();
+  const appearances = new Map<string, AppliedAppearance>();
+  /** THE FRAME TRANSFORM (playout adjustments): place and size live on the frame NoaCG owns, never
+   *  in the document, so no template code, reset or snap can undo them. The applied record is
+   *  written on the frame as `data-appearance`, what a test reads; the identity writes nothing. */
+  const paintAppearance = (iframe: HTMLIFrameElement, graphic: string) => {
+    const look = appearances.get(graphic);
+    const css = frameCss(look);
+    iframe.style.transform = css.transform;
+    iframe.style.transformOrigin = css.origin;
+    if (look) iframe.dataset.appearance = JSON.stringify(look);
+    else delete iframe.dataset.appearance;
+  };
+  /** An imported face's bytes, for a declaration's `src`: the graphic's own copy of the file first,
+   *  then any graphic of this production that ships it (the production holds a face once). */
+  const assetData = (graphic: string, src: string): string | null => {
+    const own = frames.get(graphic)?.spec.assets.find((a) => a.path === src);
+    if (own) return own.data;
+    for (const f of frames.values()) {
+      const found = f.spec.assets.find((a) => a.path === src);
+      if (found) return found.data;
+    }
+    return options.faceAsset?.(src) ?? null;
+  };
+  /** TYPE AND COLOUR (phase 2): unlike the frame transform, style lives in the document, so it is
+   *  told to the graphic's current document whenever it changes and to each new one it moves to. */
+  /** `alone`: no data update rides with this style (a send to on-air graphics, phase 3), so the
+   *  document refits with the values it airs instead of waiting for one. */
+  const paintStyle = (frame: Frame, alone = false) => {
+    const look = appearances.get(frame.key);
+    const key = styleKey(look);
+    if ((frame.styled ?? '') === key) return;
+    frame.styled = key;
+    postTo(frame, { cmd: 'style', vars: look?.vars ?? null, faces: facesCss(look?.fonts, (src) => assetData(frame.key, src)), ...(alone ? { alone: true } : {}) });
+  };
   const overflow = new Map<string, string[]>();
   const motion = new Map<string, number>();
   const replies = new Map<string, number>();
@@ -283,8 +358,10 @@ export function createOutputStage(
   const allLoaded = new Promise<void>((resolve) => {
     resolveLoaded = resolve;
   });
+  /** The payload's NoaCG graphics; a published foreign package (`ograf`) is never composed. */
+  const isNative = (spec: OutputGraphicSpec) => spec.ograf === undefined;
   /** Boot frames not loaded yet; a payload with no graphics has nothing to wait for. */
-  let bootPending = payload.graphics.length;
+  let bootPending = payload.graphics.filter(isNative).length;
   if (bootPending === 0) resolveLoaded();
   const bootSettled = (frame: Frame) => {
     if (!frame.boot) return;
@@ -454,6 +531,7 @@ export function createOutputStage(
   };
 
   payload.graphics.forEach((spec, index) => {
+    if (!isNative(spec)) return;
     const frame = makeFrame(spec, layerOf(spec, index), true);
     frame.boot = true;
     adopt(frame, true);
@@ -461,18 +539,226 @@ export function createOutputStage(
 
   // A stranger's package never goes through composeDocument: its own frame, its own bridge.
   const foreign = new Map<string, ForeignOgrafLayer>();
+  const ografReturns = new Map<string, readonly OgrafReturn[]>();
+  /** Every foreign layer's load, and every published package's mount (or its failure). */
+  const ografLoads: Promise<void>[] = [];
+  /** `again`: a re-cue's mount, which nothing waiting for the stage's first load waits on. */
+  const mountSpec = (spec: ForeignOgrafSpec, again = false): boolean => {
+    try {
+      const layer = mountForeignOgraf(stage, spec, payload.resolution, options.ograf);
+      foreign.set(spec.key, layer);
+      ografReturns.set(spec.key, layer.returns);
+      if (!again) ografLoads.push(layer.loaded);
+      // A layer that joins a stage already off air (a boot's catch-up) is told so before anything
+      // it was sent meanwhile can play: the replay settles unseen, as for a NoaCG frame (`adopt`).
+      if (offAir) layer.setOffAir(true);
+      return true;
+    } catch (err) {
+      console.error(`output stage: foreign package "${spec.key}" skipped:`, err);
+      return false;
+    }
+  };
   // One bad package is that package's problem: the rest of the stage still airs.
   for (const spec of options.foreign ?? []) {
     if (frames.has(spec.key) || foreign.has(spec.key)) {
       console.error(`output stage: foreign package "${spec.key}" skipped, its key is already on the stage`);
       continue;
     }
-    try {
-      foreign.set(spec.key, mountForeignOgraf(stage, spec, payload.resolution));
-    } catch (err) {
-      console.error(`output stage: foreign package "${spec.key}" skipped:`, err);
-    }
+    mountSpec(spec);
   }
+
+  // ── PUBLISHED FOREIGN PACKAGES (E3.2a) ──────────────────────────────────────────────────────
+  const ografOutcomes = new Map<string, OgrafOutcome>();
+  const ografCbs: ((graphic: string) => void)[] = [];
+  const notify = (key: string) => {
+    for (const cb of ografCbs) cb(key);
+  };
+  const told = (key: string, outcome: OgrafOutcome) => {
+    ografOutcomes.set(key, outcome);
+    notify(key);
+  };
+  /** Commands that reached a package whose base is still being asked for, in order. Bounded: a
+   *  base that never answers cannot grow it, and what it held is lost with the mount anyway. */
+  const waitingOgraf = new Map<string, ControlMessage[]>();
+  const WAITING_KEPT = 200;
+  /** A package this stage cannot mount: a plate on its layer says so while it is up, so a monitor
+   *  never shows an empty picture as the package's. */
+  const plates = new Map<string, HTMLDivElement>();
+  const plateFor = (spec: OutputGraphicSpec, layer: number, why: string) => {
+    const plate = document.createElement('div');
+    plate.dataset.layer = String(layer);
+    plate.dataset.ograf = 'unavailable';
+    plate.dataset.testid = 'ograf-unavailable';
+    plate.title = why;
+    plate.textContent = `${spec.key} · not shown here`;
+    plate.style.cssText = [
+      'position:absolute',
+      'left:50%',
+      'top:50%',
+      'transform:translate(-50%,-50%)',
+      'max-width:90%',
+      `z-index:${layer}`,
+      'padding:32px 56px',
+      'border-radius:24px',
+      'background:rgba(15,17,21,0.82)',
+      'color:#e8eaed',
+      'font:600 112px/1.2 system-ui,sans-serif',
+      'text-align:center',
+      'display:none',
+    ].join(';');
+    stage.appendChild(plate);
+    plates.set(spec.key, plate);
+  };
+  /** RECOVERY (E3.2b, AC-3), per published package: where it is served from, so a re-cue can mount
+   *  it again; the values it holds, merged, so a new instance gets them before its Take; whether
+   *  its instance stopped answering or never loaded (`lost`); and why its state is not proven after
+   *  a restart (`unknown`, until the operator's next Take or Out). */
+  const servedFrom = new Map<string, { layer: number; spec: OutputGraphicSpec; base: string }>();
+  const ografData = new Map<string, Record<string, unknown>>();
+  const lost = new Set<string>();
+  const unknownWhy = new Map<string, string>();
+  /** The operator's Take or Out sent to the current instance and not yet answered by it, or an Out
+   *  it refused, until their next Take or Out. */
+  const sentCall = new Map<string, 'play' | 'stop'>();
+  /** The instance an output's earlier document had mounted, by key (output/main.ts reads it from
+   *  the tab's session): the first mount here names it as the one it replaced. */
+  const replacedOnBoot = new Map(Object.entries(options.ografReplaced ?? {}));
+  /** Mount a package from its base and say what it does from its `load()` answer on. */
+  const attach = (key: string, layer: number, spec: OutputGraphicSpec, base: string, was: string | undefined, again = false): boolean => {
+    // `load()` starts from the defaults its schema declares, so a Graphic that builds itself from
+    // its data in `load()` has what its manifest says it starts with; a cue's values follow on Take.
+    if (!mountSpec({ key, layer, packageBase: base, manifest: spec.ograf?.manifest, data: ografLoadData(spec.ograf?.manifest) }, again)) return false;
+    servedFrom.set(key, { layer, spec, base });
+    lost.delete(key);
+    sentCall.delete(key);
+    const layerNow = foreign.get(key)!;
+    paintAppearance(layerNow.frame, key);
+    let on = false;
+    acts.set(key, 0);
+    // Nothing is said until the Graphic answers its `load()`: a frame built is not a package loaded.
+    layerNow.onAnswer((call, answer, newest) => {
+      // LATE WORD FROM AN OLD INSTANCE (E3.2b): one replaced or removed says nothing more here.
+      if (foreign.get(key) !== layerNow) return;
+      // Only the newest Take, step or Out says whether it is up: an older one answering late
+      // (a Take that settles after the Out pressed behind it) moves nothing.
+      if (answer.status === 'done' && newest) {
+        if (call === 'play') on = true;
+        else if (call === 'stop') on = false;
+      }
+      // Refused by the Graphic, an action changed nothing. Counted back only while no Take, step or
+      // Out was sent after it (`newest`): past one, it stays counted, which errs towards not known.
+      if (call === 'custom' && answer.status === 'rejected' && newest) acts.set(key, Math.max(0, (acts.get(key) ?? 0) - 1));
+      // The newest Take or Out answered: `on` says where it is again. An Out the Graphic REFUSED is
+      // not: the operator meant it off, so it stays said until their next Take or Out (a step's
+      // answer, a `play` too, does not clear it), and a restart keeps it off.
+      if (newest && sentCall.get(key) === call && (answer.status === 'done' || (answer.status === 'rejected' && call === 'play'))) sentCall.delete(key);
+      // An instance that answered nothing at all (its document or bridge is gone), or never loaded,
+      // is not trusted with the next Take: that Take mounts the package again (`apply`). A Graphic
+      // the host timed out is alive and only slow: it keeps its instance and what its actions built.
+      if ((answer.status === 'timeout' && answer.unanswered) || (call === 'mount' && answer.status !== 'done')) lost.add(key);
+      const at = layerNow.position().at;
+      const why = unknownWhy.get(key);
+      told(key, {
+        i: layerNow.instance,
+        call,
+        status: answer.status,
+        ...('statusCode' in answer ? { code: answer.statusCode } : {}),
+        ...('statusMessage' in answer && answer.statusMessage ? { msg: answer.statusMessage } : 'reason' in answer ? { msg: answer.reason } : {}),
+        step: at,
+        on,
+        ...((acts.get(key) ?? 0) > 0 ? { acted: true as const } : {}),
+        ...(why ? { unknown: why } : {}),
+        ...(was ? { was } : {}),
+        ...(sentCall.has(key) ? { sent: sentCall.get(key) } : {}),
+      });
+    });
+    return true;
+  };
+  /** Per mounted package, the actions its instance was sent that the Graphic did not refuse: their
+   *  effect is in the Graphic alone, no restart repeats them, and OGraf promises no Take or Out
+   *  undoes them, so they count for the instance's whole life (a new instance starts at none). */
+  const acts = new Map<string, number>();
+  const mountPublished = (spec: OutputGraphicSpec, layer: number, version?: string) => {
+    const key = spec.key;
+    if (frames.has(key) || foreign.has(key) || waitingOgraf.has(key) || plates.has(key)) return;
+    const ask = options.ografBase;
+    if (!ask) {
+      plateFor(spec, layer, 'An imported OGraf package plays on the outputs; this monitor does not load it.');
+      told(key, { i: null, status: 'unmounted', msg: 'not loaded on this monitor', on: false });
+      return;
+    }
+    waitingOgraf.set(key, []);
+    ografLoads.push(
+      ask(spec, version)
+        .catch(() => null)
+        .then(async (base) => {
+          const held = waitingOgraf.get(key);
+          waitingOgraf.delete(key);
+          if (destroyed || !held) return;
+          const was = replacedOnBoot.get(key);
+          replacedOnBoot.delete(key);
+          if (base === null || !attach(key, layer, spec, new URL(base, location.href).href, was)) {
+            told(key, { i: null, status: 'unmounted', msg: 'its package could not be reached', on: false });
+            return;
+          }
+          const layerNow = foreign.get(key)!;
+          for (const msg of held) send(key, layerNow, msg);
+          await layerNow.loaded;
+        }),
+    );
+  };
+  /**
+   * AN EXPLICIT RE-CUE OF A LOST INSTANCE (E3.2b, AC-3): its frame stopped answering (a dropped
+   * host or bridge) or its `load()` failed (an asset gone), so the Take mounts the package again
+   * as a new instance, which names the one it replaced. The old one's calls still out read `gone`
+   * and nothing it says reaches this stage again. The new one is given the values held, then the
+   * Take. Nothing else mounts again by itself: a restart repeats no call on its own.
+   */
+  const remount = (key: string): ForeignOgrafLayer | undefined => {
+    const from = servedFrom.get(key);
+    const old = foreign.get(key);
+    if (!from || !old) return old;
+    old.destroy();
+    foreign.delete(key);
+    ografReturns.delete(key);
+    if (!attach(key, from.layer, from.spec, from.base, old.instance, true)) {
+      told(key, { i: null, status: 'unmounted', msg: 'its package could not be reached', on: false });
+      return undefined;
+    }
+    // Until the new instance answers its `load()`, its word is that nothing about it is known: the
+    // old instance's would ride a report banked meanwhile, whose cursor already counts the Take and
+    // any action sent to the new one, and a restart would read the old state as proven. Off, at no
+    // known step, so the Take that follows is said as `sent` and a restart reads it unconfirmed; the
+    // page says it is not known, and its load answer replaces this word. Not a load answer, so READY
+    // waits for the real one (`ografCheck`).
+    const layerNow = foreign.get(key)!;
+    const prev = ografOutcomes.get(key);
+    ografOutcomes.set(key, { i: layerNow.instance, call: 'play', status: 'gone', step: null, on: false, unknown: UNKNOWN_REMOUNTED, ...(prev?.i ? { was: prev.i } : {}) });
+    const data = ografData.get(key);
+    if (data && Object.keys(data).length > 0) layerNow.send({ t: 'update', data } as ControlMessage);
+    return layerNow;
+  };
+  /** One message to a mounted package, with the bookkeeping recovery reads. */
+  const send = (key: string, layer: ForeignOgrafLayer, msg: ControlMessage) => {
+    const call = ografCallFor(msg)?.call;
+    if (call === 'custom') acts.set(key, (acts.get(key) ?? 0) + 1);
+    layer.send(msg);
+    // Said at once, not with the answer: a report banked meanwhile counts the row as applied, so a
+    // restart before the answer must read an action as `acted` and a Take, step or Out as no known
+    // step, never the state before it.
+    // A Take or Out leaves `on` as it was until its answer, so it is said as `sent` meanwhile.
+    const sent = msg.t === 'play' || msg.t === 'stop' ? msg.t : null;
+    if (sent && foreign.get(key) === layer) sentCall.set(key, sent);
+    const now = ografOutcomes.get(key);
+    if (!now || now.i !== layer.instance) return;
+    const acted = call === 'custom' && !now.acted;
+    const moved = (call === 'play' || call === 'stop') && (now.step !== null || (sent !== null && now.sent !== sent));
+    if (acted || moved) told(key, { ...now, ...(acted ? { acted: true as const } : {}), ...(moved ? { step: null, ...(sent ? { sent } : {}) } : {}) });
+  };
+  payload.graphics.forEach((spec, index) => {
+    if (!isNative(spec)) mountPublished(spec, layerOf(spec, index));
+  });
+
 
   /** The document that sent `ev`, current or prepared, or null. */
   const senderOf = (ev: MessageEvent): Frame | null => {
@@ -581,15 +867,82 @@ export function createOutputStage(
   };
   window.addEventListener('message', onMessage);
 
+  /** Graphics whose data on this stage is a typed envelope's (E1.2a). */
+  const typedAiring = new Set<string>();
   const apply = (graphic: string, msg: ControlEventRow['msg']) => {
     // A status row has no OGraf meaning either; ografCallFor drops whatever it cannot map.
-    const foreignLayer = foreign.get(graphic);
-    if (foreignLayer) return foreignLayer.send(msg as ControlMessage);
+    // TYPED DATA (E1.2a): an update's envelope values are the graphic's data as they are, never
+    // strings; one this build cannot read sends no data at all (the output's gate refused it first).
+    const typedMember = msg.t === 'update' && 'typed' in msg && msg.typed !== undefined;
+    const typedData = typedMember ? (typedValuesOf(msg.typed)?.values ?? null) : null;
+    // The output's rule (model/ografTyped.ts `typedOutputGate`), here for every stage, the page's
+    // PROGRAM monitor included: on a graphic airing typed data, a data road's native update (`src`)
+    // moves its look only, and an operator's native update ends the typed data.
+    let dataless = typedMember && !typedData;
+    if (msg.t === 'update') {
+      if (typedData) typedAiring.add(graphic);
+      else if (!typedMember && typedAiring.has(graphic)) {
+        if ((msg as { src?: unknown }).src !== undefined) dataless = true;
+        else typedAiring.delete(graphic);
+      }
+    }
+    // A plate shows while its package is up: from a Take or a snap until an Out.
+    const plate = plates.get(graphic);
+    if (plate && (msg.t === 'play' || msg.t === 'snap')) plate.style.display = '';
+    else if (plate && msg.t === 'stop') plate.style.display = 'none';
+    let foreignLayer = foreign.get(graphic);
+    const waiting = waitingOgraf.get(graphic);
+    if (foreignLayer || waiting) {
+      // The operator's Take or Out ends what a restart could not prove (`markUnknown`); a Take on
+      // an instance that is lost mounts the package again.
+      if (msg.t === 'play' || msg.t === 'stop') unknownWhy.delete(graphic);
+      if (foreignLayer && msg.t === 'play' && lost.has(graphic)) foreignLayer = remount(graphic);
+      const deliver = (m: ControlMessage) => {
+        if (foreignLayer) send(graphic, foreignLayer, m);
+        else if (waiting && waiting.length < WAITING_KEPT && ografCallFor(m)) waiting.push(m);
+      };
+      // PLACE AND SIZE ONLY (playout adjustments AC-10, E3.2b): a package's frame takes the frame
+      // transform of the appearance, as a NoaCG graphic's does; type and colour have no hook in the
+      // standard, so they reach it not at all. An update that carried nothing else ends here.
+      if (msg.t === 'update' && 'appearance' in msg && msg.appearance !== undefined) {
+        const look = readAppearance(msg.appearance);
+        if (look) {
+          if (look.frame) appearances.set(graphic, { v: 1, frame: look.frame });
+          else appearances.delete(graphic);
+          if (foreignLayer) paintAppearance(foreignLayer.frame, graphic);
+        }
+      }
+      if (msg.t === 'update') {
+        const values = typedData ?? (dataless ? null : msg.data);
+        if (values && Object.keys(values).length > 0) ografData.set(graphic, { ...ografData.get(graphic), ...values });
+      }
+      if (typedData) return deliver(msg as ControlMessage);
+      if (dataless) return;
+      if (msg.t === 'update' && 'appearance' in msg && msg.appearance !== undefined) {
+        if (Object.keys(msg.data ?? {}).length === 0) return;
+        return deliver({ t: 'update', data: msg.data });
+      }
+      return deliver(msg as ControlMessage);
+    }
     if (!frames.has(graphic)) return;
     switch (msg.t) {
-      case 'update':
-        post(graphic, { cmd: 'update', data: JSON.stringify(msg.data ?? {}) });
+      case 'update': {
+        // Rule 1: an update without an appearance keeps the one applied; rule 3: one that carries
+        // it replaces it. Applied at once, before the data, with no replay (a cut, as a Take is).
+        const look = 'appearance' in msg && msg.appearance !== undefined ? readAppearance(msg.appearance) : null;
+        // AN APPEARANCE-ONLY UPDATE (empty `data`, a send to on-air graphics) carries no values of
+        // its own: its style refits at once with the values the document last took.
+        const alone = !!look && !typedData && Object.keys(msg.data ?? {}).length === 0;
+        if (look) {
+          if (isIdentity(look)) appearances.delete(graphic);
+          else appearances.set(graphic, look);
+          paintAppearance(frames.get(graphic)!.iframe, graphic);
+          paintStyle(frames.get(graphic)!, alone);
+        }
+        if (dataless) break;
+        post(graphic, { cmd: 'update', data: JSON.stringify(typedData ?? msg.data ?? {}) });
         break;
+      }
       case 'play':
         post(graphic, { cmd: 'play' });
         break;
@@ -599,11 +952,17 @@ export function createOutputStage(
       case 'next':
         post(graphic, { cmd: 'next' });
         break;
-      case 'event':
+      case 'event': {
+        // A TYPED ACTION (E2.1): its arguments reach the graphic as the JSON they are; one this
+        // build cannot read reaches it not at all (the output's gate refused it first).
+        const typed = msg.typed === undefined ? null : readTypedWire(msg);
+        if (msg.typed !== undefined && !(typed && 'action' in typed)) return;
+        const payload = typed && 'action' in typed ? (typed.args ?? {}) : msg.payload;
         // `at` rides along: a graphic that runs its own clock anchors it to the row's instant
         // rather than to this renderer's Date.now(), so every renderer agrees (controlModel.ts).
-        post(graphic, { cmd: 'dispatch', event: msg.event, payload: msg.payload, at: msg.at });
+        post(graphic, { cmd: 'dispatch', event: msg.event, payload, at: msg.at });
         break;
+      }
       case 'snap':
         // Recovery semantics stated explicitly — the wire field means opposite things to the
         // editor simulator (parked design view, timers off) and to a renderer (timers arm).
@@ -650,12 +1009,23 @@ export function createOutputStage(
       if (frames.get(graphic)?.loaded) post(graphic, { cmd: 'state' });
     },
     states,
+    appearances,
     overflow,
     motion,
     replies,
     onState: (cb) => stateCbs.push(cb),
     graphics,
-    ografReturns: new Map([...foreign].map(([key, layer]) => [key, layer.returns])),
+    ografReturns,
+    foreignLayer: (key) => foreign.get(key),
+    ografOutcomes,
+    onOgraf: (cb) => ografCbs.push(cb),
+    ografSettled: () => Promise.all([...foreign.values()].map((layer) => layer.settled())).then(() => undefined),
+    markUnknown: (key, why) => {
+      if (!foreign.has(key) && !waitingOgraf.has(key)) return;
+      unknownWhy.set(key, why);
+      const now = ografOutcomes.get(key);
+      if (now && now.i !== null) told(key, { ...now, unknown: why });
+    },
     // FROM INSIDE EACH DOCUMENT, never by hiding the stage from out here. This used to set the
     // stage's own opacity to 0, on the reasoning that the documents would keep compositing and
     // their timelines keep ticking. They do not: Chromium throttles the rendering of an iframe
@@ -679,10 +1049,16 @@ export function createOutputStage(
       const frame = frames.get(graphic);
       return frame ? warmFrame(frame, data) : Promise.resolve(null);
     },
-    whenLoaded: () =>
-      foreign.size ? Promise.all([allLoaded, ...[...foreign.values()].map((l) => l.loaded)]).then(() => undefined) : allLoaded,
+    whenLoaded: () => (ografLoads.length ? Promise.all([allLoaded, ...ografLoads]).then(() => undefined) : allLoaded),
     rescale,
     prepare: (spec, prepOptions = {}) => {
+      // A published package is not rebuilt beside itself, nor replaced by a NoaCG graphic of its name:
+      // either changes on this output when the output loads again (E3.2b), and READY says so rather
+      // than swapping in an empty document or leaving the old package driven under a new graphic.
+      if (!isNative(spec) || foreign.has(spec.key) || waitingOgraf.has(spec.key) || plates.has(spec.key)) {
+        const why = 'An imported OGraf package changes on this output when the output reloads.';
+        return { spec, whenLoaded: Promise.resolve(), warm: () => Promise.resolve(null), error: () => why, swapIn: () => {}, discard: () => {} };
+      }
       // Beside the frame it may replace, at the same place in the stack, so a swap moves nothing.
       const frame = makeFrame(spec, laterLayerOf(spec), false, prepOptions.loadSound, frames.get(spec.key)?.iframe);
       staged.add(frame);
@@ -699,6 +1075,9 @@ export function createOutputStage(
           frame.current = true;
           delete frame.iframe.dataset.prepared;
           adopt(frame);
+          // The graphic's place and size go with it onto its new document.
+          paintAppearance(frame.iframe, frame.key);
+          paintStyle(frame);
           // Its graphic's values reach it before any Take can, and showing it paints nothing: its
           // document sits in its invisible start state.
           if (data && Object.keys(data).length > 0) postTo(frame, { cmd: 'update', data: JSON.stringify(data) });
@@ -722,16 +1101,29 @@ export function createOutputStage(
         },
       };
     },
-    add: (spec) => {
-      if (!frames.has(spec.key)) adopt(makeFrame(spec, laterLayerOf(spec), true));
+    add: (spec, version) => {
+      if (!isNative(spec)) mountPublished(spec, laterLayerOf(spec), version);
+      else if (!frames.has(spec.key)) adopt(makeFrame(spec, laterLayerOf(spec), true));
     },
     remove: (graphic) => {
+      // A foreign package leaves with its instance: every call still out on it reads `gone`.
+      foreign.get(graphic)?.destroy();
+      foreign.delete(graphic);
+      ografReturns.delete(graphic);
+      waitingOgraf.delete(graphic);
+      for (const map of [servedFrom, ografData, unknownWhy, acts] as Map<string, unknown>[]) map.delete(graphic);
+      lost.delete(graphic);
+      sentCall.delete(graphic);
+      if (!frames.has(graphic)) appearances.delete(graphic);
+      plates.get(graphic)?.remove();
+      plates.delete(graphic);
+      if (ografOutcomes.delete(graphic)) notify(graphic);
       const frame = frames.get(graphic);
       if (!frame) return;
       frames.delete(graphic);
       const at = graphics.indexOf(graphic);
       if (at >= 0) graphics.splice(at, 1);
-      for (const map of [states, overflow, motion, replies, held, errors, sounds] as Map<string, unknown>[]) map.delete(graphic);
+      for (const map of [states, appearances, overflow, motion, replies, held, errors, sounds] as Map<string, unknown>[]) map.delete(graphic);
       dispose(frame);
     },
     destroy: () => {

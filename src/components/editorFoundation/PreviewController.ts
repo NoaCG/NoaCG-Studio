@@ -1,5 +1,6 @@
 import { fileToDataUrl, inlineAssetRefs } from '../../assets/assetUtils';
 import { composeDocument } from '../../preview/composeDocument';
+import { upgradeFontCss } from '../../model/fonts';
 import { locateAnimData, parseAnimData } from '../../blocks/animData';
 import type { SpxTemplate } from '../../model/types';
 import { foundationRuntime } from './runtime';
@@ -175,7 +176,7 @@ export class PreviewController {
     if (cssOnly) {
       this.expected = this.envelope(revision);
       this.iframe.contentWindow?.postMessage({ ...this.expected, kind: 'apply-css',
-        previous: previousEnvelope.revision, css: inlineAssetRefs(template.css, this.resolvedAssets), ...position }, '*');
+        previous: previousEnvelope.revision, css: inlineAssetRefs(upgradeFontCss(template.css), this.resolvedAssets), ...position }, '*');
     } else if (keyOnly) {
       this.expected = this.envelope(revision);
       this.iframe.contentWindow?.postMessage({ ...this.expected, kind: 'apply',
@@ -214,7 +215,7 @@ export class PreviewController {
   /** A transient stylesheet never becomes the document or a history entry. */
   previewCss(css: string, kind = 'drag') {
     this.transient = css !== this.template?.css;
-    this.pendingCss = inlineAssetRefs(css, this.resolvedAssets);
+    this.pendingCss = inlineAssetRefs(upgradeFontCss(css), this.resolvedAssets);
     this.seek(this.targetTime, kind, this.targetCue);
   }
   previewTemplate(template: SpxTemplate, kind = 'drag', copies: { source: string; target: string }[] = []) {
@@ -278,7 +279,7 @@ export class PreviewController {
         attributes: Object.fromEntries(['x', 'y', 'cx', 'cy'].map(name => [name, node.getAttribute(name)])) }] : [];
     }) : [];
     this.iframe.contentWindow?.postMessage({ ...this.expected, kind: exitKind ?? (draft ? 'preview-template' : css === null ? 'seek' : 'preview-css'),
-      css: draft ? inlineAssetRefs(draft.css, this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry, copies } : {}), ...position }, '*');
+      css: draft ? inlineAssetRefs(upgradeFontCss(draft.css), this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry, copies } : {}), ...position }, '*');
   }
   /** Source acceptance and correlated rendered-pose acknowledgement are separate receipts. */
   receipt(revision: Revision, view: { time: number; cue?: number }) {

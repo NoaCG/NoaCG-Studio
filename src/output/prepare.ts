@@ -68,7 +68,9 @@ export interface Preparer {
 /** What one hidden frame found, in a stage of its own (the whole-reload path only). */
 async function testGraphic(payload: OutputPayload, key: string, values: Record<string, string> | null, options: OutputStageOptions): Promise<ReadyIssue | null> {
   const spec = payload.graphics.find((g) => g.key === key);
-  if (!spec) return null;
+  // An imported OGraf package is not composed: it has no frame to test here, and the reload mounts
+  // it from the server as the boot does (output/stage.ts).
+  if (!spec || spec.ograf) return null;
   const box = document.createElement('div');
   // Out of sight and out of the way: nothing here may reach air or take a click.
   box.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1;';

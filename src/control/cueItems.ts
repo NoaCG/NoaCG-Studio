@@ -6,6 +6,8 @@
 
 import type { MarkerAuto } from './cueAuto';
 import type { ControlSendItem } from './hostedControl';
+import type { AppliedAppearance } from './cueAdjust';
+import type { TypedValues } from '../model/ografTyped';
 
 // Each verb is defined ONCE, as the list of commands it is — and then either sent to the log or
 // applied to a local rehearsal stage (docs/CLOUD_PLAYOUT.md §4a). Keeping the sequence as DATA
@@ -31,9 +33,15 @@ export function takeCueItems(cue: {
   /** A timed cue's arm (control/cueAuto.ts `markerAuto`), carried on its marker so every follower
    *  learns the countdown from the Take's own row. */
   auto?: MarkerAuto | null;
+  /** Its place and size, when the page has one to send (./cueAdjust.ts `appearanceToSend`): absent,
+   *  the update is exactly what it always was. */
+  appearance?: AppliedAppearance;
+  /** Its typed data (model/ografTyped.ts `typedForSend`, E1.2a): absent, the update is exactly what
+   *  it always was; present, it rides beside `values`, which are then empty. */
+  typed?: TypedValues;
 }): ControlSendItem[] {
   return [
-    { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
+    { graphic: cue.graphic, msg: { t: 'update', data: cue.values, ...(cue.appearance ? { appearance: cue.appearance } : {}), ...(cue.typed ? { typed: cue.typed } : {}) } },
     { graphic: cue.graphic, msg: { t: 'play' } },
     { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id, ...(cue.direct ? { direct: true } : {}), ...(cue.auto ? { auto: cue.auto } : {}) } },
   ];
@@ -51,7 +59,7 @@ export function clearCueItems(liveGraphic: string): ControlSendItem[] {
  * THE MOST ITEMS ONE `control_send_many` CALL TAKES (migration 0029: a count outside 1..8 raises
  * `not a command batch` and the WHOLE insert is refused). It is a verb, not an ingest API.
  */
-const COMMAND_BATCH_MAX = 8;
+export const COMMAND_BATCH_MAX = 8;
 
 /** An all-layers clear pays two items per layer, so it goes out in batches of four layers. */
 const LAYERS_PER_CLEAR_BATCH = COMMAND_BATCH_MAX / 2;

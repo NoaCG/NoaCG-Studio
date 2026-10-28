@@ -103,6 +103,13 @@ fix needs a product decision or a change well outside the pull request's scope.
   `npm run contracts:compile`). Resolve mechanical conflicts yourself; hand a conflict about
   meaning to a fresh agent session with both sides' intent. Then `/check` with targeted checks and
   queue again: the pull request's CI and the merge group both test the merge with `main`.
+- **GitHub's test merge is stuck:** the queue removes the pull request with `INVALID_MERGE_COMMIT`
+  and builds no merge group, or `mergeable` stays null for 15 minutes while `merge-tree` is clean
+  and `refs/pull/<n>/merge` does not follow the head. This is a GitHub fault and needs no person.
+  Close the pull request with a comment saying why, then queue again: queueing reuses only an open
+  pull request, so it opens a fresh one from the same branch (in the cloud, step 2 below). Link
+  the old one and move the repair-owner comment to it. A draft toggle or a new push did not clear
+  it in #1759; a fresh pull request did.
 - A landing that reached no verdict (killed at its cap, the runner gone, CI with no result) is
   retried once automatically; a verdict the queue reached is never retried behind anyone's back.
 - `npm run jobs` shows each branch's state (`QUEUED`, `LANDED`, `LANDING FAILED` with the refusal).

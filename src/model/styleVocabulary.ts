@@ -138,8 +138,8 @@ export const LENGTH_TOKENS: Record<
   'display-tracking': { min: -0.06, max: 0.15, step: 0.005, unit: 'em' },
 };
 
-/** Heading weight is a number too, but a constrained one — the bundled faces are variable
- *  fonts covering 400-900 and a free slider would invite 437. */
+/** Heading weight is a number too, but a constrained one — a free slider would invite 437. The
+ *  Style panel offers only those the heading face really draws (model/fonts.ts `fontWeights`). */
 export const WEIGHT_CHOICES = ['400', '500', '600', '700', '800', '900'];
 
 /**

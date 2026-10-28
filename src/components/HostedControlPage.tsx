@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { packageLayerPeers, withPeersOff } from '../control/ografOutcome';
 import {
   adjustWords,
   controlName,
@@ -87,7 +88,11 @@ import {
   type ResolvedControlShow,
   type VerbSent,
 } from '../control/hostedControl';
-import { airedAfter, type AiredMap } from '../control/outputRecovery';
+import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap } from '../control/outputRecovery';
+import { IDENTITY, lookAfter, reportedLook, type AppliedAppearance, type AppliedLooks } from '../control/cueAdjust';
+import { styleContextFor } from '../control/cueStyle';
+import { hostedAdjustState, hostedAppearance, hostedPlaceWaiting, hostedRecords } from '../control/hostedAdjust';
+import HostedCueAdjust from './control/HostedCueAdjust';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
@@ -241,6 +246,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // declared before the effects that close over it.
   const airedRef = useRef(airedData);
   airedRef.current = airedData;
+  /** The place and size each graphic holds applied (playout adjustments), from the reports and the
+   *  rows since: what a rebuilt PROGRAM restores, and what decides an explicit identity on a Take. */
+  const looksRef = useRef<AppliedLooks>({});
   /** Per graphic, the figures this page's presses sent that are not answered yet (`figures`). */
   const sentFigures = useRef<Record<string, Record<string, string>>>({});
   /** Per graphic, the last live press, which the next one waits for (`figures.press`). */
@@ -330,6 +338,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         bootReplay.current = null;
         // …and remember what it put on air, which is what makes "not sent yet" honest.
         setAiredData((prev) => airedAfter(prev, item.graphic, msg));
+        looksRef.current = lookAfter(looksRef.current, item.graphic, msg);
       }
     }
   }, []);
@@ -390,6 +399,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // 0034), seeded before following so old rows can never overwrite a newer fact.
       setLiveCue(resolved.liveCue);
       setMachineState(Object.fromEntries(Object.entries(resolved.live).map(([g, report]) => [g, report?.state ?? null])));
+      looksRef.current = (bootReplay.current ?? []).reduce<AppliedLooks>(
+        (looks, item) => lookAfter(looks, item.graphic, item.msg),
+        Object.fromEntries(Object.entries(resolved.live).flatMap(([graphic, report]) => {
+          const look = reportedLook(report);
+          return look ? [[graphic, look] as const] : [];
+        })),
+      );
       // The unsent baseline starts at what each live graphic REPORTED applying, and what the rows
       // after that report aired — a page opened mid-show must not announce changes against a
       // baseline it never saw aired.
@@ -514,6 +530,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const cues: OutputCue[] = useMemo(() => resolved?.output?.cues ?? [], [resolved]);
   const payload = resolved?.output ?? null;
   const selectedCue = cues.find((c) => c.id === selectedCueId) ?? cues[0] ?? null;
+  // PLAYOUT ADJUSTMENTS (control/hostedAdjust.ts): what a Take or Update of a cue carries, and what
+  // PREVIEW shows, with a record staged here or by another operator over what was published.
+  const styleCtx = useMemo(() => styleContextFor(payload?.graphics ?? []), [payload]);
+  const appearanceFor = (cue: OutputCue): AppliedAppearance | undefined =>
+    hostedAppearance(cue, cues, stagedRef.current[cue.graphic], looksRef.current[cue.graphic], styleCtx);
+  const previewLookOf = (cue: OutputCue): AppliedAppearance => {
+    const records = cue.adjust ? hostedRecords(cue.adjust, staged[cue.graphic], cue.id) : null;
+    return cue.adjust && records?.staged ? hostedAdjustState(cue.adjust, records, cue.id, null, false, styleCtx).look : (cue.appearance ?? IDENTITY);
+  };
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it shows.
   const panel = usePanelAnswer({ slug, where: 'control', label: 'Hosted control page', runs: HOSTED_PANEL_VERBS, auto: false });
   const [panelOpen, setPanelOpen] = useState(false);
@@ -584,10 +609,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     [],
   );
   const showOnPreview = useCallback(
-    (cue: OutputCue | null, values?: Record<string, string>) => {
+    (cue: OutputCue | null, values?: Record<string, string>, look?: AppliedAppearance) => {
       if (!cue) return;
       previewRef.current?.apply([
-        { graphic: cue.graphic, msg: { t: 'update', data: values ?? cue.values } },
+        // Its appearance, published or staged, so PREVIEW shows where and how the Take puts it.
+        { graphic: cue.graphic, msg: { t: 'update', data: values ?? cue.values, appearance: look ?? cue.appearance ?? IDENTITY } },
         { graphic: cue.graphic, msg: { t: 'play' } },
       ]);
     },
@@ -634,14 +660,33 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const data = replay ? reportsRef.current[graphic]?.data : (airedRef.current[graphic] ?? reportsRef.current[graphic]?.data);
       const groups = machineStateRef.current[graphic]?.groups;
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
-      const dataItem = data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
+      // A report of typed data banks its envelope and steps (E1.2b): PROGRAM airs that envelope,
+      // never the report's empty native data.
+      const typedBase = replay ? reportedTypedAir(reportsRef.current[graphic]) : null;
+      const typed = typedBase?.envelope ?? null;
+      // One this build cannot read is held on air, so PROGRAM rebuilds nothing from it either, and
+      // replays the rows after it as the output does: held until an update it can air.
+      if (typedBase && !typed) {
+        // Its place and size still go back first, as the output puts them back on the graphic it holds.
+        const held = reportedLook(reportsRef.current[graphic]);
+        const past = [...(held ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: held } }] : []), ...rowsPastHold(rows)];
+        if (past.length > 0) programRef.current?.apply(past);
+        continue;
+      }
+      const dataItem = typed
+        ? [{ graphic, msg: { t: 'update' as const, data: {}, typed } }]
+        : data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
+      const steps = typed && typedBase ? typedBase.steps.map((msg) => ({ graphic, msg })) : [];
+      // Its place and size first (rule 4): the report's at boot, else what this page has seen since.
+      const look = replay ? reportedLook(reportsRef.current[graphic]) : looksRef.current[graphic];
       programRef.current?.apply([
+        ...(look ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: look } }] : []),
         ...dataItem,
         ...(groups
           ? [{ graphic, msg: { t: 'snap' as const, snap: groups } }]
-          : rows.length > 0
+          : (typed ? rows.some((item) => item.msg.t === 'play') : rows.length > 0)
             ? [] // a graphic that never reported replays its own entrance below
-            : [{ graphic, msg: { t: 'play' as const } }]),
+            : [{ graphic, msg: { t: 'play' as const } }, ...steps]),
         ...dataItem,
         // …then what air did after that report.
         ...rows,
@@ -665,6 +710,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const previewValuesKey = previewedCue
     ? JSON.stringify(hostedCueValues(previewedCue, staged, resolveBindings(dataTree, bindings), cues))
     : '';
+  const previewLookKey = previewedCue ? JSON.stringify(previewLookOf(previewedCue)) : '';
   const previewShown = useRef<{ arrived: boolean; graphic: string | null }>({ arrived: false, graphic: null });
   useEffect(() => {
     if (!payload) return;
@@ -674,10 +720,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const was = previewShown.current.graphic;
       if (was && was !== graphic) previewRef.current?.apply([{ graphic: was, msg: { t: 'stop' } }]);
       previewShown.current = { arrived: true, graphic };
-      if (previewedCue) showOnPreview(previewedCue, JSON.parse(previewValuesKey) as Record<string, string>);
+      if (previewedCue) showOnPreview(previewedCue, JSON.parse(previewValuesKey) as Record<string, string>, JSON.parse(previewLookKey) as AppliedAppearance);
     }, previewShown.current.arrived ? 0 : 400);
     return () => clearTimeout(t);
-  }, [payload, previewedCue, previewValuesKey, showOnPreview]);
+  }, [payload, previewedCue, previewValuesKey, previewLookKey, showOnPreview]);
 
   if (show === 'loading') {
     return (
@@ -854,8 +900,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     setOwnStaged((own) => noteOwnStaged(own, cue.graphic, cueStageData(cue.id, fields)));
   const stageShared = (cue: OutputCue, fields: Record<string, string>) => {
     if (Object.keys(fields).length === 0) return;
-    const graphic = cue.graphic;
-    const data = cueStageData(cue.id, fields);
+    stageKeys(cue.graphic, cueStageData(cue.id, fields));
+  };
+  /** Stage buffer keys as they are: a cue's fields (above), or an Adjust record (hostedAdjust.ts). */
+  const stageKeys = (graphic: string, data: Record<string, string>) => {
     setOwnStaged((own) => sendOwnStaged(noteOwnStaged(own, graphic, data), graphic, data));
     const answered = (ok: boolean) =>
       setOwnStaged((own) => answerOwnStaged(own, graphic, data, ok, sharedStaged.current[graphic]));
@@ -918,10 +966,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     const auto = cue.auto ? readAuto({ auto: cue.auto }) : null;
     return auto ? markerAuto({ auto, next: cue.next ?? null }) : null;
   };
-  const takeCue = (cue: OutputCue, direct = false) => {
+  /** The live graphics a Take of this one replaces on its layer: an imported OGraf package's layer
+   *  holds one graphic (control/ografOutcome.ts `packageLayerPeers`, E3.2a). */
+  const livePeersOf = (graphic: string, except?: string) =>
+    packageLayerPeers((resolved?.output?.graphics ?? []).map((g, i) => ({ name: g.key, layer: Number.isFinite(g.layer) ? Number(g.layer) : i + 1, foreign: g.ograf !== undefined })), graphic)
+      .filter((g) => g !== except && liveCueRef.current[g]);
+  const takeCue = async (cue: OutputCue, direct = false) => {
     const ownAuto = cue.auto?.then === 'out' ? cue.auto : cue.auto?.then === 'out-next' ? { ...cue.auto, then: 'out' as const } : undefined;
     const auto = direct ? ownAuto ? markerAuto({ auto: ownAuto, next: null }) : null : markerFor(cue);
-    return sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto, direct }));
+    const appearance = appearanceFor(cue);
+    const batches = withPeersOff(livePeersOf(cue.graphic), takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto, direct, ...(appearance ? { appearance } : {}) }));
+    return batches.length === 1 ? sendVerb(batches[0]) : (await sendVerbs(batches)) !== null;
   };
   /**
    * A TIMED CUE'S END ACTION, sent once: the server said `ok` to this page's fire (cueArmWire.ts).
@@ -933,7 +988,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // The server checked the lane still holds the cue before it said ok; this page's view may trail it.
     if (playsOut(arm.then)) batches.push(clearCueItems(graphic));
     const next = arm.next ? cues.find((c) => c.id === arm.next) : undefined;
-    if (next) batches.push(takeCueItems({ id: next.id, graphic: next.graphic, values: cueValues(next), auto: markerFor(next) }));
+    const appearance = next ? appearanceFor(next) : undefined;
+    if (next) batches.push(...withPeersOff(livePeersOf(next.graphic, playsOut(arm.then) ? graphic : undefined), takeCueItems({ id: next.id, graphic: next.graphic, values: cueValues(next), auto: markerFor(next), ...(appearance ? { appearance } : {}) })));
     const gone = !!arm.next && !next;
     if (batches.length && !(await sendVerbs(batches))) return;
     if (gone) setError(batches.length ? 'The cue armed to be taken next is gone, so only Out ran.' : 'The cue armed to be taken next is gone, so nothing was taken.');
@@ -949,7 +1005,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   };
   const updateLive = () => {
     if (selectedGraphic && selectedCue && selectedIsLive) {
-      void sendVerb([{ graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } }]);
+      const appearance = appearanceFor(selectedCue);
+      void sendVerb([{ graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue), ...(appearance ? { appearance } : {}) } }]);
     }
   };
   /**
@@ -1402,6 +1459,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                     : []
               }
               airedValues={airedData[selectedCue.graphic] ?? null}
+              placeUnsent={selectedIsLive && hostedPlaceWaiting(selectedCue, cues, staged[selectedCue.graphic], looksRef.current[selectedCue.graphic], styleCtx)}
               onAir={selectedLayerCue ? { cue: selectedLayerCue, values: cueValues(selectedLayerCue) } : null}
               // Typing refreshes PREVIEW only while this cue IS on it - the same rule the
               // exported controller's editor has always applied to its preview stream.
@@ -1421,6 +1479,23 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               figures={figures}
               stack={liveStack}
               stackPinned={pins.includes(selectedCue.graphic)}
+              adjust={(() => {
+                const graphic = payload?.graphics.find((g) => g.key === selectedCue.graphic);
+                const pub = selectedCue.adjust;
+                return graphic && pub ? (
+                  <HostedCueAdjust
+                    key={selectedCue.id}
+                    cue={{ ...selectedCue, adjust: pub }}
+                    cues={cues}
+                    graphic={graphic}
+                    buffer={staged[selectedCue.graphic]}
+                    applied={looksRef.current[selectedCue.graphic]}
+                    styleCtx={styleCtx}
+                    stage={(data) => stageKeys(selectedCue.graphic, data)}
+                    refused={setError}
+                  />
+                ) : null;
+              })()}
             />
           )}
           {!(selectedCue && spec) && liveStack?.(null)}
@@ -2016,6 +2091,8 @@ function HostedCueEditor({
   figures,
   stack,
   stackPinned,
+  adjust,
+  placeUnsent = false,
 }: {
   cue: OutputCue;
   spec: PanelGraphicSpec;
@@ -2037,6 +2114,8 @@ function HostedCueEditor({
   overflow: string[];
   /** What the graphic was last told to show, or null when it is not on air. */
   airedValues: Record<string, string> | null;
+  /** The cue is on air and its Adjust block holds a change the wire has not sent yet. */
+  placeUnsent?: boolean;
   /** The cue on air on this cue's layer and the values a Take of it sends, or null when the
    *  layer is off. A ⚡ press acts on it. */
   onAir: { cue: OutputCue; values: Record<string, string> } | null;
@@ -2070,6 +2149,8 @@ function HostedCueEditor({
   stack?: (own: ReactNode) => ReactNode;
   /** This graphic is itself pinned: its block in the stack is its pinned one. */
   stackPinned?: boolean;
+  /** The Adjust block (control/HostedCueAdjust.tsx), under the fields as on the production page. */
+  adjust?: ReactNode;
 }) {
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const fieldGroups = useMemo(() => groupCueFields(descriptors), [descriptors]);
@@ -2179,7 +2260,9 @@ function HostedCueEditor({
   const unsentFields = live && airedValues
     ? descriptors.map((d) => d.key).filter((key) => (airedValues[key] ?? '') !== valueOf(key))
     : [];
-  const hasUnsent = unsentFields.length > 0;
+  // A staged Adjust change counts as one change, as it does on the production page.
+  const unsentCount = unsentFields.length + (placeUnsent ? 1 : 0);
+  const hasUnsent = unsentCount > 0;
 
   // The chip names states the way the AUTHOR named them, exactly as every other operator
   // surface does — one formatter, `controlModel.ts formatMachineState`. This page used to
@@ -2322,8 +2405,8 @@ function HostedCueEditor({
           {layer !== null ? `L${layer} · ` : ''}
           {hasUnsent
             ? keptStates
-              ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. ✎ Update keeps ${keptStates} on air, ⟳ Re-take starts over with these values`
-              : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. Press ✎ Update`
+              ? `${unsentCount} change${unsentCount === 1 ? '' : 's'} not on air yet. ✎ Update keeps ${keptStates} on air, ⟳ Re-take starts over with these values`
+              : `${unsentCount} change${unsentCount === 1 ? '' : 's'} not on air yet. Press ✎ Update`
             : live
               ? 'changes push live on ✎ Update'
               : 'changes air on ⟳ TAKE'}
@@ -2504,6 +2587,7 @@ function HostedCueEditor({
         })}
       </div>
       )}
+      {adjust}
 
       {!stack && !liveFirst && liveBlock()}
     </div>

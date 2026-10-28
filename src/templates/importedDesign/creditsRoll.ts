@@ -64,6 +64,29 @@ export function creditsIndex(svg: DesignSvg): number {
   return typeof at === 'number' && at >= 0 && at < svg.fields.length ? at : -1;
 }
 
+/** New imports scroll original artwork. Absence preserves previously saved editable bindings. */
+export function isArtworkCredits(svg: DesignSvg): boolean {
+  return svg.behaviour?.kind === 'recipe' && svg.behaviour.recipe === CREDITS_RECIPE_ID && svg.behaviour.options?.artwork === true;
+}
+
+/** A composed text can expose several field candidates. Protect its entire original subtree,
+ *  not just the candidate chosen as Credits, from field writes and automatic text fitting. */
+export function creditsArtworkFields(svg: DesignSvg, root?: Element): Set<number> {
+  const indices = new Set<number>();
+  if (!isArtworkCredits(svg)) return indices;
+  const field = svg.fields[creditsIndex(svg)];
+  if (!field) return indices;
+  const scope = root ?? new DOMParser().parseFromString(svg.markup, 'image/svg+xml').documentElement;
+  const selected = scope.querySelector(`[${SVG_CANDIDATE_ATTR}="${field.candidateId}"]`);
+  const text = selected?.closest('text') ?? selected;
+  if (!text) return indices;
+  svg.fields.forEach((candidate, i) => {
+    const node = scope.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidate.candidateId}"]`);
+    if (node && (node.closest('text') ?? node) === text) indices.add(i);
+  });
+  return indices;
+}
+
 /**
  * The sample as the operator first sees it in the Credits box: one line per drawn baseline.
  * The import's own `sample` joins a block's lines with a SPACE, which is right for a question

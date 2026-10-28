@@ -252,7 +252,7 @@ export default function BehaviourSection({
   // read off the recipe's own roles, so a recipe added tomorrow needs no new block here.
   const generic = behaviour?.kind === 'recipe' ? behaviour : null;
   const genericRecipe = generic ? recipeById(generic.recipe) : null;
-  const genericRoles = genericRecipe?.roles ?? [];
+  const genericRoles = (genericRecipe?.roles ?? []).filter((role) => generic?.recipe !== 'credits' || role.id !== 'box');
   const genericRows = generic?.rows ?? null;
   const patchGeneric = (patch: Partial<SvgRecipeDraft>) => {
     if (generic) onDraft({ svgBehaviour: { ...generic, ...patch } });
@@ -352,7 +352,7 @@ export default function BehaviourSection({
     : scoreDrawn.map((g) => ({ id: g.id, label: g.label, hidden: g.hidden }));
   // A hidden group already declared a switch or a choice is in use, whatever the pickers say.
   const fillTaken = draft.svgExtras.map((e) => e.candidateId);
-  const fillPickers = behaviour ? pickersOf(behaviour, fillText) : [];
+  const fillPickers = behaviour ? pickersOf(behaviour, fillText).filter((pick) => recipeId !== 'credits' || pick.role !== 'box') : [];
   /** Each row's key as the hints and the fill speak it - the key the row's own layer carries. */
   const rowKeyAt = behaviour ? rowKeysOf(behaviour, fillText) : [];
   /** A layer with the box the artwork was measured at, so the count can tell the board's own
@@ -577,6 +577,9 @@ export default function BehaviourSection({
                     kind: 'recipe',
                     recipe: want,
                     layers: {},
+                    // Choosing Credits is enough for a design with one text object, whatever
+                    // Illustrator named it. Multiple objects still require an explicit pick.
+                    ...(want === 'credits' && onFields.length === 1 ? { fields: { credits: onFields[0].candidateId } } : {}),
                     ...(wanted.rows ? { rows: Array.from({ length: wanted.rows.min }, emptyRecipeRow) } : {}),
                     options: {},
                   };

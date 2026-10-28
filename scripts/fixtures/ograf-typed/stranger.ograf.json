@@ -1,0 +1,64 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "stranger-results",
+  "version": "1.0.0",
+  "name": "Results board",
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "stepCount": 1,
+  "schema": {
+    "type": "object",
+    "required": ["title", "teams"],
+    "properties": {
+      "title": { "type": "string", "label": "Title", "gddType": "single-line", "default": "Results", "maxLength": 40 },
+      "round": { "type": "integer", "gddType": "select", "gddOptions": { "labels": { "1": "Round one", "2": "Round two", "3": "Final" } }, "enum": [1, 2, 3], "default": 1 },
+      "ratio": { "type": "number", "gddType": "select", "gddOptions": { "labels": { "0.5": "Half", "1": "Whole" } }, "enum": [0.5, 1], "default": 1 },
+      "live": { "type": "boolean", "enum": [true], "default": true },
+      "accent": { "type": "string", "gddType": "color-rrggbb", "pattern": "^#[0-9a-f]{6}$", "default": "#005ca9" },
+      "logo": { "type": "string", "gddType": "file-path/image-path", "gddOptions": { "extensions": ["png", "svg"] } },
+      "opacity": { "type": "number", "gddType": "percentage", "minimum": 0, "maximum": 1, "multipleOf": 0.1, "default": 0.8 },
+      "teams": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "score"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "score": { "type": "integer", "minimum": 0 },
+            "flags": { "type": "array", "items": { "type": "string" } },
+            "tie": { "type": "string", "oneOf": [{ "maxLength": 3 }, { "minLength": 10 }] }
+          }
+        },
+        "default": [{ "name": "Home", "score": 0 }]
+      },
+      "meta": {
+        "type": "object",
+        "hidden": true,
+        "properties": {
+          "source": { "type": "string", "pattern": "^[a-z]+$" },
+          "revision": { "type": "integer", "default": 0 }
+        }
+      }
+    }
+  },
+  "customActions": [
+    {
+      "id": "highlight",
+      "name": "Highlight a team",
+      "schema": {
+        "type": "object",
+        "required": ["team"],
+        "properties": {
+          "team": { "type": "integer", "minimum": 0, "maximum": 3 },
+          "colour": { "type": "string", "gddType": "color-rrggbbaa", "pattern": "^#[0-9a-f]{8}$" },
+          "pulse": { "type": "object", "properties": { "times": { "type": "integer", "minimum": 1 }, "fast": { "type": "boolean" } } }
+        }
+      }
+    },
+    { "id": "reset", "name": "Reset", "schema": null }
+  ]
+}

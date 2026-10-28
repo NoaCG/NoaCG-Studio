@@ -1765,6 +1765,12 @@ test('inspect advises once when LIVE holds nothing but the transport verbs', () 
   assert.equal(text.split('\n').filter((l) => l.startsWith('Advice:')).length, 1, text);
 });
 
+test('inspect prints what a production can adjust, and an older bridge that says nothing prints nothing', () => {
+  const text = describeInspection({ ...inspection([], [], []), adjustable: 'place and size, typeface, accent colour' });
+  assert.equal(text.split('\n').filter((l) => l === 'Adjustable: place and size, typeface, accent colour').length, 1, text);
+  assert.ok(!describeInspection(inspection([], [], [])).includes('Adjustable:'));
+});
+
 const arrow = (event) => ({ from: 'a', to: 'b', trigger: 'operator', event });
 const machine = (events, controls) => ({ groups: [{ id: 'main', initial: 'off', defaultPath: ['a', 'b'], states: [], transitions: events.map(arrow) }], ...(controls ? { controls } : {}) });
 const live = (m, fields) => missingLiveControls(m, new Set(fields)).map((i) => `${i.rule}: ${i.message}`);

@@ -29,6 +29,9 @@
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import type { ControlButton } from '../blocks/animMachine';
 import type { ControlMessage } from './controlModel';
+import type { JsonValue } from '../model/productionData';
+import { readOgrafDeclared, readTypedWire, type TypedValues } from '../model/ografTyped.ts';
+import type { OgrafStepParams } from './ografSteps';
 
 /** The operator surface one manifest describes. */
 export interface OgrafControlContract {
@@ -101,7 +104,10 @@ function kindForProperty(prop: Json): FieldKind | null {
       return 'toggle';
     case 'string':
       if (prop.format === 'color') return 'color';
-      if (prop.format === 'uri' || prop.format === 'uri-reference' || prop.contentMediaType) return 'image';
+      // A URI names a resource, which is not necessarily a picture (E2.1): it stays a text line,
+      // and only declared image semantics (the `image-path` GDD type above, an image media type)
+      // draw a picture picker.
+      if (typeof prop.contentMediaType === 'string' && prop.contentMediaType.startsWith('image/')) return 'image';
       return 'text';
     default:
       // An object/array/null property has no single-control shape; the standard lets a Graphic
@@ -111,11 +117,12 @@ function kindForProperty(prop: Json): FieldKind | null {
 }
 
 /**
- * Read a manifest's operator surface. `includeHidden` mirrors `fieldDescriptors`' option: the
- * operator panels skip `hidden: true` properties (the spec says they SHOULD NOT label a GUI),
- * the Data panel edits them too.
+ * Read a manifest's operator surface. A `hidden: true` property is still a control: in the pinned
+ * standard it means only that its value SHOULD NOT be used to build the Graphic's display name or
+ * label in a GUI (Specification.md, `schema`), not that the operator may not set it (E2.1). A
+ * surface that hides a control on purpose does so in its own profile (ARRANGE), never here.
  */
-export function ografContract(manifest: unknown, { includeHidden = false } = {}): OgrafControlContract {
+export function ografContract(manifest: unknown): OgrafControlContract {
   const notes: string[] = [];
   const descriptors: FieldDescriptor[] = [];
   const buttons: ControlButton[] = [];
@@ -127,10 +134,9 @@ export function ografContract(manifest: unknown, { includeHidden = false } = {})
   const properties = schema && isRecord(schema.properties) ? schema.properties : {};
   for (const [key, raw] of Object.entries(properties)) {
     const prop = isRecord(raw) ? raw : {};
-    if (prop.hidden === true && !includeHidden) continue;
     const kind = kindForProperty(prop);
     if (!kind) {
-      notes.push(`"${key}" declares a ${String(prop.type ?? 'typeless')} property; an operator panel has no control for that shape.`);
+      notes.push(`schema.properties.${key}: a ${String(prop.type ?? 'typeless')} property has no single text control; a cue's typed form edits it.`);
       continue;
     }
     const title = typeof prop.title === 'string' && prop.title.length ? prop.title : key;
@@ -222,6 +228,39 @@ export function ografContract(manifest: unknown, { includeHidden = false } = {})
   return { descriptors, buttons, steps, notes };
 }
 
+/**
+ * A GRAPHIC'S DECLARED ACTIONS AS ⚡ BUTTONS (E2.1): one per custom action of the OGraf manifest it
+ * was imported with (`SpxTemplate.ograf`), named as declared and marked `typed`, so a press sends its
+ * arguments in E1's action envelope (control/graphicVerbs.ts) rather than a native payload, and a
+ * panel offers it only as E6.1's foreign descriptor. ARRANGE, More and pinning arrange them like any
+ * other button and change nothing they do. None for a graphic with no readable declaration.
+ */
+export function typedActionButtons(ograf: unknown): ControlButton[] {
+  const declared = readOgrafDeclared(ograf);
+  if (declared.status !== 'ok') return [];
+  return declared.description.actions.map((a) => ({ event: a.id, label: a.name, typed: true as const }));
+}
+
+/**
+ * WHETHER A GRAPHIC CAN RECEIVE A DECLARED ACTION: a stranger's package (`foreign`, E3.2a) is mounted
+ * on the outputs and called with `customAction`; any other imported graphic airs as a composed page,
+ * which takes an action only through `noacgDispatch` (preview/composeDocument.ts). A page that
+ * defines none is offered no ⚡ button and no argument form: a press there would read "accepted"
+ * and do nothing.
+ */
+export function receivesTypedActions(template: { js: string; foreign?: unknown }): boolean {
+  return template.foreign !== undefined || /\bnoacgDispatch\b/.test(template.js);
+}
+
+/** A graphic's ⚡ buttons: its machine's, then its declared OGraf actions (`typedActionButtons`) when
+ *  its page can receive them. The one place both are put together; an action named like a machine
+ *  event is left out, so a press never means two things. */
+export function graphicButtons(machine: ControlButton[], template: { js: string; ograf?: unknown; foreign?: unknown }): ControlButton[] {
+  if (!receivesTypedActions(template)) return machine;
+  const native = new Set(machine.map((b) => b.event));
+  return [...machine, ...typedActionButtons(template.ograf).filter((b) => !native.has(b.event))];
+}
+
 /** A property's default in the control's natural type: numbers stay numbers, everything else
  *  stringifies the way SPX sample data does (the descriptor contract in model/fieldModel.ts). */
 function defaultFor(prop: Json, kind: FieldKind): string | number {
@@ -235,10 +274,10 @@ function defaultFor(prop: Json, kind: FieldKind): string | number {
 /** One call on a Graphic's lifecycle, in the shape the OGraf host document's driver takes
  *  (`src/control/ografHost.ts`): `play(params)`, `stop(params)`, `update(data)`, `custom(id, payload)`. */
 export type OgrafLifecycleCall =
-  | { call: 'play'; args: [{ goto?: number; delta?: number }] }
+  | { call: 'play'; args: [OgrafStepParams] }
   | { call: 'stop'; args: [Record<string, never>] }
-  | { call: 'update'; args: [Record<string, string>] }
-  | { call: 'custom'; args: [string, Record<string, string>] };
+  | { call: 'update'; args: [Record<string, string> | TypedValues['values']] }
+  | { call: 'custom'; args: [string, Record<string, string> | JsonValue] };
 
 /**
  * The renderer half of the contract: the one ControlMessage every control surface already sends,
@@ -246,6 +285,9 @@ export type OgrafLifecycleCall =
  * lands on the first step instead of advancing; » Next is `playAction({delta: 1})`, which the
  * Graphic resolves against its own `stepCount`; an operator event is `customAction`. A `snap` is
  * NoaCG's machine vocabulary and has no OGraf meaning, so it (like `hello`) maps to nothing.
+ * TYPED (E1.2a, E2.1): an update's values envelope is `updateAction(values)` and an event's action
+ * envelope is `customAction({id, payload: args})`, each as the JSON it is; an envelope this build
+ * cannot read maps to nothing, never to the native strings beside it.
  */
 export function ografCallFor(msg: ControlMessage): OgrafLifecycleCall | null {
   switch (msg.t) {
@@ -255,10 +297,16 @@ export function ografCallFor(msg: ControlMessage): OgrafLifecycleCall | null {
       return { call: 'play', args: [{ delta: 1 }] };
     case 'stop':
       return { call: 'stop', args: [{}] };
-    case 'update':
-      return { call: 'update', args: [msg.data ?? {}] };
-    case 'event':
-      return { call: 'custom', args: [msg.event, msg.payload ?? {}] };
+    case 'update': {
+      if (msg.typed === undefined) return { call: 'update', args: [msg.data ?? {}] };
+      const typed = readTypedWire(msg);
+      return typed && 'values' in typed ? { call: 'update', args: [typed.values] } : null;
+    }
+    case 'event': {
+      if (msg.typed === undefined) return { call: 'custom', args: [msg.event, msg.payload ?? {}] };
+      const typed = readTypedWire(msg);
+      return typed && 'action' in typed ? { call: 'custom', args: [typed.action, typed.args ?? {}] } : null;
+    }
     default:
       return null;
   }

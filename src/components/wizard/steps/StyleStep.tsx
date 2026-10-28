@@ -420,6 +420,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
               isOverridden={(name) => name in draft.cssVarOverrides}
               onReset={clearOverride}
               exclude={PALETTE_VARS}
+              importedFonts={draft.customFont ? [draft.customFont.family] : undefined}
             />
           </details>
         )}

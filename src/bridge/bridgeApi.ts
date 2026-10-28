@@ -23,6 +23,7 @@ import { publishGate } from '../validation/publishGate';
 import { continueEvents, eventButtons, fieldDescriptors, machineStateGroups, type ControlButton } from '../control/controlModel';
 import { livePanel, type LivePanel } from '../control/livePanel';
 import { ografContract } from '../control/ografContract';
+import { adjustableLine, styleContractUnpainted } from '../control/cueStyle';
 import { buildGraphicPackage } from '../export/noacgPackage';
 import { readOgrafPackage, type OgrafPackageRead, type PackageFiles } from '../export/targets/ografImport';
 import type { FieldDescriptor } from '../model/fieldModel';
@@ -405,7 +406,11 @@ export async function validate(template: SpxTemplate, opts: BridgeValidateOption
     // failure over panel editability - the in-app harness's own rule after conversion had its chance.
     if (!parseAnimData(template.js)) bench = demoteEditability(bench);
   }
-  const merged = bench ? mergeResults(gate, bench) : gate;
+  const benched = bench ? mergeResults(gate, bench) : gate;
+  // Not in validateTemplate: the editor would warn on every imported SVG, which paints none of
+  // the contract by design.
+  const unpainted = styleContractUnpainted(template);
+  const merged = unpainted ? { ...benched, warnings: [...benched.warnings, unpainted] } : benched;
   const support = scanEngineSupport(template);
   const lines = [
     ...merged.errors.map((e) => `- ERROR ${e.rule}: ${e.message}`),
@@ -436,6 +441,8 @@ export interface BridgeInspection {
   steps: { count: number; stepped: boolean };
   /** The same surface as PREP and LIVE (control/livePanel.ts). */
   panel: LivePanel;
+  /** What a production's Adjust can change on it, in one line (control/cueStyle.ts `adjustableLine`). */
+  adjustable: string;
   notes: string[];
 }
 
@@ -452,11 +459,12 @@ export function inspect(input: { template?: SpxTemplate; manifest?: unknown }): 
       stateGroups: machineStateGroups(t.js),
       steps: { count, stepped: count > 1 },
       panel: livePanel(descriptors, buttons, continueEvents(t.js)),
+      adjustable: adjustableLine(t),
       notes: ['Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.'],
     };
   }
   const c = ografContract(input.manifest);
-  return { descriptors: c.descriptors, buttons: c.buttons, stateGroups: [], steps: c.steps, panel: livePanel(c.descriptors, c.buttons, new Set()), notes: c.notes };
+  return { descriptors: c.descriptors, buttons: c.buttons, stateGroups: [], steps: c.steps, panel: livePanel(c.descriptors, c.buttons, new Set()), adjustable: adjustableLine(null), notes: c.notes };
 }
 
 // ── Compose (what the CLI screenshots) ───────────────────────────────────────

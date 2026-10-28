@@ -2,6 +2,7 @@ import type { Show, ShowCue, ShowFolder, PlayoutItem } from './shows';
 import type { SavedGraphic } from './packets';
 import { foldersContiguous, throughRefusal } from './showFolders.ts';
 import { selectionFrozen, selectionKeep, selectionReadOnly } from './productionData.ts';
+import { typedFrozen, typedKeep, typedValuesOf } from './ografTyped.ts';
 
 /** Only prepared rundown data. Air, publication, datasets and production metadata stay outside. */
 export interface RundownSlice {
@@ -42,7 +43,9 @@ export function liveRundownRefusal(expected: RundownSlice, replacement: RundownS
   for (const id of live.sources) {
     const before = [...expected.graphics, ...expected.playoutItems].find(s => s.id === id);
     const after = [...replacement.graphics, ...replacement.playoutItems].find(s => s.id === id);
-    if (before && JSON.stringify(ordered(before)) !== JSON.stringify(ordered(after))) return 'Take the affected source off air before undoing this edit.';
+    // Its place and size do not touch air by themselves (the next Take or Update carries them), so
+    // undoing an adjustment of a graphic on air is allowed (playout adjustments: "Undo").
+    if (before && JSON.stringify(ordered(withoutAdjust(before))) !== JSON.stringify(ordered(after && withoutAdjust(after)))) return 'Take the affected source off air before undoing this edit.';
   }
   for (const id of live.folders) {
     const members = (slice: RundownSlice) => slice.cues.filter(c => c.folderId === id).map(c => c.id);
@@ -51,6 +54,12 @@ export function liveRundownRefusal(expected: RundownSlice, replacement: RundownS
   }
   if (live.unidentifiedServer && JSON.stringify(ordered(expected.playoutItems)) !== JSON.stringify(ordered(replacement.playoutItems))) return 'Clear the unidentified server output before undoing this edit.';
   return null;
+}
+
+function withoutAdjust<T extends object>(source: T): T {
+  if (!('adjust' in source)) return source;
+  const { adjust: _adjust, ...rest } = source as T & { adjust?: unknown };
+  return rest as T;
 }
 
 export function rundownRefusal(slice: RundownSlice): string | null {
@@ -93,7 +102,17 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
     const to = JSON.stringify(cue.selection ?? null);
     if (now && JSON.stringify(now.selection ?? null) !== to && !selectionReadOnly(cue, show.collections)) moved.set(cue.id, to);
   }
-  const frozen = selectionFrozen(selectionKeep(show), next, new Set(copy.cues.map((c) => c.id)), moved.size ? { cues: moved } : undefined);
+  // So does a cue whose typed values the form changed (E2.1): undone or redone, it goes back to the
+  // envelope the record had. Only between two envelopes this build reads: turning typed data on or
+  // off is still refused here, and a later version's is never rewritten.
+  const typedMoved = new Map<string, string>();
+  for (const cue of copy.cues) {
+    const now = show.cues?.find((c) => c.id === cue.id);
+    const to = JSON.stringify(cue.typed ?? null);
+    if (now && typedValuesOf(now.typed) && typedValuesOf(cue.typed) && JSON.stringify(now.typed) !== to) typedMoved.set(cue.id, to);
+  }
+  const restored = new Set(copy.cues.map((c) => c.id));
+  const frozen = selectionFrozen(selectionKeep(show), next, restored, moved.size ? { cues: moved } : undefined) ?? typedFrozen(typedKeep(show), next, restored, typedMoved);
   return frozen ? { show: null, refused: frozen } : { show: next, refused: null };
 }
 

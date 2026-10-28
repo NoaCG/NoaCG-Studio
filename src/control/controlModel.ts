@@ -4,8 +4,10 @@
 // descriptors drive every surface that edits a field: the in-app Data and Control panels
 // (through the shared components/fields control), and the standalone controlpanel.html export.
 
+import type { AppliedAppearance } from './cueAdjust';
 import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
+import type { TypedActionCall, TypedValues } from '../model/ografTyped';
 import { parseAnimData } from '../blocks/animData';
 import { deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
 import { upgradeControls } from './controlUpgrades';
@@ -808,7 +810,15 @@ export function continueEvents(js: string): Set<string> {
 // jumps), and `hello` asks the graphic to answer with its current machine state.
 
 export type ControlMessage =
-  | { t: 'update'; data: Record<string, string> }
+  // `appearance` (docs/work-specs/playout-adjustments/spec.md): the graphic's place and size, the
+  // whole applied appearance, on a Take's or a full Update's update only (./cueAdjust.ts says the
+  // four rules). Optional and outside `data`, so no template, data API or package ever sees it, and
+  // a receiver that does not know it ignores it.
+  // `typed` (docs/work-specs/playout-ograf-contract/spec.md, E1.2a): a foreign OGraf cue's typed
+  // values in E1's envelope, beside `data` (then empty) and never inside it. Sent only to outputs
+  // that say they read it (model/ografTyped.ts `typedOutputsRefusal`); an output that cannot read
+  // it refuses the command whole and never applies `data` in its place.
+  | { t: 'update'; data: Record<string, string>; appearance?: AppliedAppearance; typed?: TypedValues }
   | { t: 'play' }
   | { t: 'stop'; sound?: false }
   | { t: 'next' }
@@ -818,7 +828,9 @@ export type ControlMessage =
   // row paint the same second and a replayed row resumes from where it really started rather
   // than from when it was replayed. Optional: a local BroadcastChannel panel has no server time
   // and no second renderer to agree with, and a graphic that ignores it behaves exactly as before.
-  | { t: 'event'; event: string; payload?: Record<string, string>; at?: number }
+  // `typed` (docs/work-specs/playout-ograf-controls/spec.md, E2.1): a foreign OGraf custom action's
+  // typed arguments in E1's action envelope, naming this event; sent only to outputs that read it.
+  | { t: 'event'; event: string; payload?: Record<string, string>; at?: number; typed?: TypedActionCall }
   | { t: 'snap'; snap: Record<string, string> | null }
   | { t: 'hello' };
 

@@ -412,6 +412,10 @@ export interface LiveEntry {
   prep?: PrepRequest;
   /** An output's answer to the last command path ping it received (migration 0072, R9). */
   ack?: PingAck;
+  /** What typed data an output reads (model/ografTyped.ts `TYPED_READER`): 1 values (E1.2a), 2
+   *  values and actions (E2.1). Absent from an output built before it: a page sends such an output
+   *  no envelope. */
+  typed?: number;
 }
 
 /** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
@@ -422,7 +426,7 @@ export function liveEntry(
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack'>,
+  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack' | 'typed'>,
 ): LiveEntry {
   return {
     kind,
@@ -484,6 +488,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     ...(stamp ? { stamp } : {}),
     ...(prep ? { prep } : {}),
     ...(ack ? { ack } : {}),
+    ...(typeof m.typed === 'number' && Number.isInteger(m.typed) && m.typed > 0 ? { typed: m.typed } : {}),
   };
 }
 
