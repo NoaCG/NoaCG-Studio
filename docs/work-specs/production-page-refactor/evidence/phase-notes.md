@@ -84,7 +84,7 @@ changes a spec's digest.
   (`scripts/panel-feedback.test.mjs`); `typedActionFor` ignoring `given`
   (`scripts/ograf-form.test.mjs`); `pressTyped` dropping `args` (`scripts/graphic-verbs.test.mjs`);
   module `ARGS_MAX_CHARS` 4096 to 4097 and its comparison one past, the newest-press guard of
-  `#keyOutcome`, `offerShape` with `live`, presets for unpinned graphics, foreign forced
+  `#keyOutcome`, the same guard on a refusal (a late or lost answer of an older press of the key, found by `/check`), `offerShape` with `live`, presets for unpinned graphics, foreign forced
   non-invocable, no answer read as failed, and `action_unknown` without an offer
   (`companion-module/src/__tests__/graphic-keys.test.ts`).
 - **Touched files against `6dd736c`:** `companion-module/companion/HELP.md`,

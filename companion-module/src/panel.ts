@@ -541,16 +541,18 @@ export class PanelClient {
 		const tell = (sentence: string) => {
 			if (seq === this.#pressSeq) this.#lastPress = sentence
 		}
+		/** The press this key sent, once it went: its own `settled` may still write what the key shows. */
+		let sentId = ''
 		const refused = (sentence: string, result?: PressResult, outcome: KeyOutcome = 'failed'): PressOutcome => {
 			this.#flash = { ...flash, until: this.#clock.now() + FLASH_MS }
 			// A graphic key refused before it went, or answered refused, shows failed briefly; one that
 			// went unanswered shows not known until what it came to is said. The press it belongs to is
 			// kept, so its own `settled` still writes it.
-			if (flash.verb === ACTION_VERB) {
-				const held = this.#keyOutcomes.get(flash.row)
-				const id = held?.outcome === 'running' ? held.id : ''
+			// A newer press of the same key holds what it shows: an older one's answer writes nothing.
+			const held = this.#keyOutcomes.get(flash.row)
+			if (flash.verb === ACTION_VERB && !(sentId && held && held.id !== sentId)) {
 				const until = outcome === 'failed' ? this.#clock.now() + OUTCOME_MS : Infinity
-				this.#keyOutcomes.set(flash.row, { outcome, id, until })
+				this.#keyOutcomes.set(flash.row, { outcome, id: sentId, until })
 			}
 			tell(sentence)
 			this.#opts.onChange?.()
@@ -576,6 +578,7 @@ export class PanelClient {
 			if (press.verb === ACTION_VERB) {
 				this.#unsettled.set(press.id, seq)
 				for (const id of this.#unsettled.keys()) if (this.#unsettled.size > UNSETTLED_MAX) this.#unsettled.delete(id)
+				sentId = press.id
 				this.#pressKeys.set(press.id, flash.row)
 				for (const id of this.#pressKeys.keys()) if (this.#pressKeys.size > UNSETTLED_MAX) this.#pressKeys.delete(id)
 				this.#keyOutcomes.set(flash.row, { outcome: 'running', id: press.id, until: Infinity })

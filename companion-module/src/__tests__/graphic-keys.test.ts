@@ -391,3 +391,33 @@ test('L1 AC-8: unpinning a graphic drops its presets and refuses nothing: a save
 	live.graphics[1].caps[1] = { ...live.graphics[1].caps[1], active: 'A', allowed: false }
 	assert.equal(offerShape(readActions(live) as never), offerShape(readActions(offer()) as never))
 })
+
+test('AC-2: an older press answered late, or not at all, never rewrites what a newer press of the key shows', async () => {
+	const { relay, clock, panel } = await answering()
+	const { press, fb } = companion(panel)
+	const k = { graphic: 'Scorebug', cap: 'step:home' }
+	// Only the second press is answered: the first one's result is lost.
+	relay.autoResult = null
+	const original = relay.press.bind(relay)
+	relay.press = async (keyId, p) => {
+		const answer = await original(keyId, p)
+		if (p.id === 'deck:2') queueMicrotask(() => relay.emit('result', { v: 1, id: p.id, panel: 'k1', outcome: 'ran' }))
+		return answer
+	}
+	const first = press(key({ ...k }))
+	await settle()
+	await press(key({ ...k, delta: '-1' }))
+	assert.equal(fb('action_outcome', { ...k, outcome: 'running' }), true)
+	await clock.advance(1_500)
+	await first
+	assert.equal(
+		fb('action_outcome', { ...k, outcome: 'running' }),
+		true,
+		'the first press timing out says nothing on the key',
+	)
+	relay.emit('settled', { av: 2, id: 'deck:1', outcome: 'accepted' })
+	assert.equal(fb('action_outcome', { ...k, outcome: 'running' }), true)
+	relay.emit('settled', { av: 2, id: 'deck:2', outcome: 'accepted' })
+	assert.equal(fb('action_outcome', { ...k, outcome: 'done' }), true)
+	assert.equal(relay.count('press'), 2)
+})
