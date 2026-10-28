@@ -126,6 +126,7 @@ on hosted staging and passed on retry).
 | [#1737](https://github.com/NoaCG/NoaCG-Studio/issues/1737) | Published collections have no byte cap of their own (the 256 KiB revision cap still holds). |
 | [#1733](https://github.com/NoaCG/NoaCG-Studio/issues/1733) | Adjustments: the rundown glyph, the pack install line and a nudge dead zone. |
 | [#1586](https://github.com/NoaCG/NoaCG-Studio/issues/1586) | On a short screen the sources line (with a stale Sheet and its **Pause**) can scroll out of sight. Scroll the control area to the top to see it. |
+| [#796](https://github.com/NoaCG/NoaCG-Studio/issues/796) | Two tabs or two people editing one production can overwrite each other's change without a sign. While preparing a show, edit in one tab at a time. |
 | [#1758](https://github.com/NoaCG/NoaCG-Studio/issues/1758) | The Companion module's own tests run in no GitHub workflow, so a module change is not checked by CI. |
 
 Not affecting any criterion: [#1771](https://github.com/NoaCG/NoaCG-Studio/issues/1771) and
