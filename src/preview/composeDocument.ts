@@ -512,8 +512,9 @@ window.addEventListener('unhandledrejection', function (ev) {
              rows, and the second Take aired the header over an empty board. The editor's monitor
              always reset here (simulatorRuntime.ts sim-play); this is the same reset, followed by
              the values the graphic was last given, since a fit or a rebuild may have written inline
-             styles of its own. */
-          if (afterOut) {
+             styles of its own. Only under the house builder contract, as there: a design without it
+             (an import) may carry authored inline styles a reset would wipe. */
+          if (afterOut && typeof window.buildInTimeline === 'function') {
             resetGraphicInline(window);
             window.update && window.update(lastData != null ? lastData : '{}');
           } else if (msg.data != null) {

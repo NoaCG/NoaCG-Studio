@@ -259,12 +259,12 @@ test.describe('the /output shell, a graphic taken again', () => {
   });
 
   /** The board's rows as they draw: the lowest opacity on the path from each row up to the body. */
-  async function rowsShown(page: Page): Promise<{ rows: number; minOpacity: number; bodyStyle: string | null }> {
+  async function rowsShown(page: Page): Promise<{ rows: number; minOpacity: number }> {
     // The board's own document: the one frame holding a results board (the other is lt01's).
     const frames = page.frames().filter((f) => f !== page.mainFrame());
     const has = await Promise.all(frames.map((f) => f.evaluate(() => !!document.querySelector('.results-board-body')).catch(() => false)));
     const frame = frames[has.indexOf(true)];
-    if (!frame) return { rows: 0, minOpacity: 0, bodyStyle: null };
+    if (!frame) return { rows: 0, minOpacity: 0 };
     return frame.evaluate(() => {
       const body = document.querySelector('.results-board-body') as HTMLElement | null;
       const rows = body ? Array.from(body.children) as HTMLElement[] : [];
@@ -274,13 +274,13 @@ test.describe('the /output shell, a graphic taken again', () => {
           minOpacity = Math.min(minOpacity, Number(getComputedStyle(el).opacity));
         }
       }
-      return { rows: rows.length, minOpacity, bodyStyle: body?.getAttribute('style') ?? null };
+      return { rows: rows.length, minOpacity };
     });
   }
 
   for (const board of ['st01', 'rs01', 'br01', 'tt01']) {
     test(`${board}: Take, Out, Take again shows the rows, with and without an Update and with another graphic on air`, async ({ page }) => {
-      test.setTimeout(90_000);
+      test.setTimeout(60_000);
       await page.goto(`/first-paint/output?designs=${board},lt01`);
       await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
       const apply = (graphic: string, msg: unknown) =>
@@ -289,8 +289,7 @@ test.describe('the /output shell, a graphic taken again', () => {
         await expect
           .poll(async () => (await rowsShown(page)).minOpacity, { message: `${board}, ${label}: the rows are drawn`, timeout: 8_000 })
           .toBe(1);
-        const shown = await rowsShown(page);
-        expect(shown.rows, `${board}, ${label}: the board has rows`).toBeGreaterThan(0);
+        expect((await rowsShown(page)).rows, `${board}, ${label}: the board has rows`).toBeGreaterThan(0);
       };
       const out = async () => {
         await apply(board, { t: 'stop' });
