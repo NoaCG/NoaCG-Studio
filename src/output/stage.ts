@@ -617,7 +617,8 @@ export function createOutputStage(
   const ografData = new Map<string, Record<string, unknown>>();
   const lost = new Set<string>();
   const unknownWhy = new Map<string, string>();
-  /** The operator's Take or Out sent to the current instance and not yet answered by it. */
+  /** The operator's Take or Out sent to the current instance and not yet answered by it, or an Out
+   *  it refused, until their next Take or Out. */
   const sentCall = new Map<string, 'play' | 'stop'>();
   /** The instance an output's earlier document had mounted, by key (output/main.ts reads it from
    *  the tab's session): the first mount here names it as the one it replaced. */
@@ -647,8 +648,10 @@ export function createOutputStage(
       // Refused by the Graphic, an action changed nothing. Counted back only while no Take, step or
       // Out was sent after it (`newest`): past one, it stays counted, which errs towards not known.
       if (call === 'custom' && answer.status === 'rejected' && newest) acts.set(key, Math.max(0, (acts.get(key) ?? 0) - 1));
-      // The newest Take, step or Out answered (accepted or refused): `on` says where it is again.
-      if (newest && (call === 'play' || call === 'stop') && (answer.status === 'done' || answer.status === 'rejected')) sentCall.delete(key);
+      // The newest Take or Out answered: `on` says where it is again. An Out the Graphic REFUSED is
+      // not: the operator meant it off, so it stays said until their next Take or Out (a step's
+      // answer, a `play` too, does not clear it), and a restart keeps it off.
+      if (newest && sentCall.get(key) === call && (answer.status === 'done' || (answer.status === 'rejected' && call === 'play'))) sentCall.delete(key);
       // An instance that answered nothing at all (its document or bridge is gone), or never loaded,
       // is not trusted with the next Take: that Take mounts the package again (`apply`). A Graphic
       // the host timed out is alive and only slow: it keeps its instance and what its actions built.

@@ -725,6 +725,20 @@ test.describe('a foreign OGraf package on the output stage', () => {
     expect(out).toEqual({ on: true, sent: 'stop' });
     await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'done', on: false });
     expect((await outcome('walk'))?.sent, 'answered: no longer pending').toBeUndefined();
+    // An Out the Graphic REFUSES stays said through later calls (an update here) until the next
+    // Take or Out, so a restart on any road keeps the package off rather than restoring it.
+    await apply(page, 'walk', { t: 'update', data: { refuseStop: true } });
+    await apply(page, 'walk', { t: 'play' });
+    await expect.poll(async () => (await outcome('walk'))?.status).toBe('done');
+    await apply(page, 'walk', { t: 'stop' });
+    await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'rejected', on: true, sent: 'stop' });
+    await apply(page, 'walk', { t: 'update', data: { count: 4 } });
+    await expect.poll(async () => (await outcome('walk'))?.call).toBe('update');
+    expect((await outcome('walk'))?.sent, 'a refused Out outlives a later call').toBe('stop');
+    await apply(page, 'walk', { t: 'update', data: { refuseStop: false } });
+    await apply(page, 'walk', { t: 'stop' });
+    await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'done', on: false });
+    expect((await outcome('walk'))?.sent, 'the next Out clears it').toBeUndefined();
   });
 
   test('a monitor that serves no package draws a plate for it while it is up, never an empty picture', async ({ page }) => {

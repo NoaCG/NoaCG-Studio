@@ -81,6 +81,8 @@ test('a Take that was never confirmed is not repeated by itself: the operator re
   // An Out keeps it off; a Take puts back only what was proven up, at its first step; not known.
   for (const head of [undefined, false]) assert.deepEqual(ografRestore(report({ ...up, step: null, sent: 'stop' }), head, []), { play: false, steps: 0, unknown: UNKNOWN_OUT }, `head ${head}`);
   assert.deepEqual(ografRestore(report({ ...up, step: null, sent: 'stop', acted: true }), undefined, []), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
+  // A refused Out stays `sent` through later calls (output/stage.ts): a later update is no proof.
+  assert.deepEqual(ografRestore(report({ ...up, call: 'update', sent: 'stop' }), undefined, []), { play: false, steps: 0, unknown: UNKNOWN_OUT });
   for (const head of [undefined, true]) {
     assert.deepEqual(ografRestore(report({ ...up, step: null, sent: 'play' }), head, []), { play: true, steps: 0, unknown: UNKNOWN_UNCONFIRMED }, `head ${head}`);
     assert.deepEqual(ografRestore(report({ ...up, on: false, step: null, sent: 'play' }), head, []), { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED }, `head ${head}`);

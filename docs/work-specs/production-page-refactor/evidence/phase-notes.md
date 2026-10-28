@@ -36,15 +36,18 @@ changes a spec's digest.
     catch-up, kept through late answers and updates, cleared by the operator's next Take or Out.
     PROGRAM's line reads "Board: not known on the output (<why>)" in amber with a Re-cue button
     (`PlayoutMonitors` `onRecue`: the Take of the graphic's live cue).
-  - *A lost instance is mounted again only by a re-cue* (`stage.ts` `remount`): an instance whose
-    call timed out (a dropped host document or bridge) or whose `load()` failed (a removed file) is
-    lost; the next Take mounts the package as a new instance from its served base, hands it the
-    values held (merged updates, typed as sent) and then the Take. Nothing mounts again by itself.
+  - *A lost instance is mounted again only by a Take* (`stage.ts` `remount`): an instance whose
+    call nobody answered (a dropped host document or bridge) or whose `load()` failed (a removed
+    file) is lost; the next Take mounts the package as a new instance from its served base, hands it
+    the values held (merged updates, typed as sent) and then the Take. That Take is the operator's:
+    a re-cue, or their own Take delivered late by a follow's refill. Nothing else mounts again.
   - *Late old-instance word refused*: on the stage, an answer from a replaced instance tells nothing
     (its calls settle `gone`, its port is closed, `onAnswer` checks the current layer). On the page,
     a new instance names the one it replaced (`was`: from a remount, or from the tab's session on a
     reload, `noacg-ograf-instances:<slug>`), and `acceptOutcome` refuses any later report about it
-    (a write still on its way when the output reloaded). Bounded at 16 instances per graphic.
+    (a write still on its way when the output reloaded). Bounded at 16 instances per graphic. The
+    tab's session is the reach: a playout that restarts its browser process starts a fresh tab and
+    names nothing, so a late write from the old document could stand until the new one reports.
   - *Recovery is hidden until the package settles* (`output/catchUp.ts`): the boot's reveal waits,
     within its cap, for every call sent to a package to settle (`stage.ografSettled`), since a
     package reports no machine state. A re-cue's new instance is checked for READY by its own load.
@@ -81,7 +84,8 @@ changes a spec's digest.
     restart in between keeps an Out off and puts a Take back only as far as it was proven up, at
     its first step, both not known. This holds on the row-id road too, where no head says what the
     operator last did. Expected: a restart during a Take's entrance comes back not known with a
-    Re-cue, never restored as proven.
+    Re-cue, never restored as proven. An Out the Graphic refused stays `sent` through later calls
+    until the operator's next Take or Out, so a restart keeps it off on every road.
     `acted`, `unknown`, `was` and `sent` are members of the report's `state.ograf`, not of the
     control wire: no message kind or command member is added.
   - *Lost means unanswered*: only this page's own deadline (no reply at all: the frame's document
