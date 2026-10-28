@@ -556,3 +556,16 @@ test('a press that falls out of the bounded wait reads not known on its key, nev
 	assert.equal(panel.keyOutcome('Scorebug', 'event:clock-start'), 'unknown')
 	assert.equal(panel.keyOutcome('Scorebug', 'event:goal-home'), 'running')
 })
+
+test('a press still waiting keeps its key while many later presses settle, and its own settled lands', async () => {
+	const { relay, panel } = await answering()
+	await pressGraphicKey(panel, key({ cap: 'event:clock-start' }))
+	// 64 presses of another key each settle at once: the first press is still waited for.
+	for (let i = 2; i <= 65; i++) {
+		await pressGraphicKey(panel, key({ cap: 'event:goal-home' }))
+		relay.emit('settled', { av: 2, id: `deck:${i}`, outcome: 'accepted' })
+	}
+	assert.equal(panel.keyOutcome('Scorebug', 'event:clock-start'), 'running')
+	relay.emit('settled', { av: 2, id: 'deck:1', outcome: 'accepted' })
+	assert.equal(panel.keyOutcome('Scorebug', 'event:clock-start'), 'done')
+})

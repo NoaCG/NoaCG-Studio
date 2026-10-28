@@ -76,7 +76,9 @@ changes a spec's digest.
     points before it is parsed, so a hostile entry costs time linear in its size.
   - *A control no panel can press gets no preset*, and what keys show is held for at most 64 keys
     (the same review). A press that falls out of the bounded wait for `settled` reads not known
-    on its key rather than running for good (the `/so` on `fbdc090`). Empty, or `{}`, means the cue's
+    on its key rather than running for good (the `/so` on `fbdc090`). A press's key is kept exactly
+    as long as the press is waited for, so later presses settling never cost a waiting press its
+    key (Codex P2 and the `/so` on `5d519f5`, graded A). Empty, or `{}`, means the cue's
     arguments; the guide and the option's tooltip say so.
   - *A headless Companion run is not qualified on this machine* (no Companion install, no surface
     modules allowed), so the verification row's fallback applies: module lint, test and package,
@@ -106,7 +108,8 @@ changes a spec's digest.
   its `settled`, the both-calls-failed path ignoring an earlier `settled`, the option trimmed, the
   exponent refusal dropped, code points counted as UTF-16 units (each place), presets for a
   non-pressable control, the 64-key hold, the safe-integer and unstorable-text refusals (value and
-  name), and the not-known mark of a press that falls out of the wait, the newest-press guard of
+  name), the not-known mark of a press that falls out of the wait, and a
+  press's key trimmed apart from its wait, the newest-press guard of
   `#keyOutcome`, the same guard on a refusal (a late or lost answer of an older press of the key, found by `/check`), `offerShape` with `live`, presets for unpinned graphics, foreign forced
   non-invocable, no answer read as failed, and `action_unknown` without an offer
   (`companion-module/src/__tests__/graphic-keys.test.ts`).

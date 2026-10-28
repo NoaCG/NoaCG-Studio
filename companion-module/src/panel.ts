@@ -137,7 +137,8 @@ export class PanelClient {
 	#keyOutcomes = new Map<string, { outcome: KeyOutcome; id: string; until: number }>()
 	/** The graphic key whose press was refused before it went, while it shows so. */
 	#refusedHere: { row: string; until: number } | null = null
-	/** The key each graphic-action press id was made on, for its `settled`. Bounded like `#unsettled`. */
+	/** The key each graphic-action press still waited for was made on: an entry lives exactly as long
+	 *  as the press's place in `#unsettled`, so it is bounded by that. */
 	#pressKeys = new Map<string, string>()
 	#heardAt = 0
 	#counter = 0
@@ -207,6 +208,13 @@ export class PanelClient {
 		if (here && here.row === `${graphic}/${cap}` && here.until > this.#clock.now()) return 'failed'
 		const k = this.#keyOutcomes.get(`${graphic}/${cap}`)
 		return k && k.until > this.#clock.now() ? k.outcome : null
+	}
+
+	/** A press is no longer waited for: its key shows `outcome` (when given), and it is forgotten. */
+	#settle(id: string, outcome: KeyOutcome | null): void {
+		if (outcome) this.#keyOutcome(id, outcome)
+		this.#unsettled.delete(id)
+		this.#pressKeys.delete(id)
 	}
 
 	/** What a key shows, kept for at most UNSETTLED_MAX keys: shown ones expire, the oldest go first. */
@@ -474,8 +482,7 @@ export class PanelClient {
 				const settled = readSettled(payload)
 				const seq = settled && this.#unsettled.get(settled.id)
 				if (!settled || seq === undefined) return
-				this.#unsettled.delete(settled.id)
-				this.#keyOutcome(
+				this.#settle(
 					settled.id,
 					settled.outcome === 'accepted' ? 'done' : settled.outcome === 'unknown' ? 'unknown' : 'failed',
 				)
@@ -594,14 +601,9 @@ export class PanelClient {
 			if (press.verb === ACTION_VERB) {
 				this.#unsettled.set(press.id, seq)
 				// A press that falls off the end is no longer waited for: its key reads not known.
-				for (const id of this.#unsettled.keys())
-					if (this.#unsettled.size > UNSETTLED_MAX) {
-						this.#unsettled.delete(id)
-						this.#keyOutcome(id, 'unknown')
-					}
+				for (const id of this.#unsettled.keys()) if (this.#unsettled.size > UNSETTLED_MAX) this.#settle(id, 'unknown')
 				sentId = press.id
 				this.#pressKeys.set(press.id, flash.row)
-				for (const id of this.#pressKeys.keys()) if (this.#pressKeys.size > UNSETTLED_MAX) this.#pressKeys.delete(id)
 				this.#setOutcome(flash.row, { outcome: 'running', id: press.id, until: Infinity })
 				if (this.#refusedHere?.row === flash.row) this.#refusedHere = null
 			}
@@ -610,8 +612,7 @@ export class PanelClient {
 			const awaitSettled = () =>
 				this.#clock.setTimeout(() => {
 					if (this.#unsettled.get(press.id) !== seq) return
-					this.#unsettled.delete(press.id)
-					this.#keyOutcome(press.id, 'unknown')
+					this.#settle(press.id, 'unknown')
 					tell(UNSETTLED_SENTENCE)
 					this.#opts.onChange?.()
 				}, SETTLE_MS)
@@ -638,7 +639,7 @@ export class PanelClient {
 			}
 			if (!answer.ok) {
 				this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
-				this.#unsettled.delete(press.id)
+				this.#settle(press.id, null)
 				if (answer.refused === 'no-page') {
 					this.#noPage()
 				} else if (answer.refused === 'revoked' || answer.refused === 'unknown-key') {
@@ -660,7 +661,7 @@ export class PanelClient {
 				// A duplicate with no note is the answer to the one retry of a press that ran.
 				const ran = result?.outcome === 'ran' || (result?.outcome === 'duplicate' && !result.note)
 				if (result && !ran) {
-					this.#unsettled.delete(press.id)
+					this.#settle(press.id, null)
 					return refused(outcomeSentence(result), result)
 				}
 				if (this.#unsettled.has(press.id)) awaitSettled()
