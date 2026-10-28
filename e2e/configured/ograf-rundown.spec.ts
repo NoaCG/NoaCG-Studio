@@ -306,17 +306,18 @@ test('a foreign package comes back from an output reload as far as its answers p
   // A SECOND ACTION THE OUTPUT NEVER REPORTS: its reports are refused from here to the reload, so
   // Board's bank stays before the action's row and the reload's catch-up reads it (it is read past,
   // never sent). Mutation-tested: delivering that row puts `data-marks` back on the new instance.
-  const refusedReports: string[] = [];
-  await output.route('**/rest/v1/rpc/control_output_report_seq', async (route) => {
-    refusedReports.push(String((route.request().postDataJSON() as { p_graphic?: unknown } | null)?.p_graphic));
-    await route.abort();
-  });
+  await output.route('**/rest/v1/rpc/control_output_report_seq', (route) => route.abort());
   await cueRow(page, 'Board').getByTestId('select-cue').click();
   await page.getByTestId('cue-args-mark-v').fill('twice');
   await page.getByTestId('cue-args-mark-v').blur();
   await page.getByTestId('cue-action-mark').click();
   await expect(board).toHaveAttribute('data-marks', '2', { timeout: 20_000 });
-  await expect.poll(() => refusedReports.includes('Board'), { timeout: 20_000 }).toBe(true);
+  // Past the report debounce (800 ms, output/main.ts): an identical outcome reports nothing, and any
+  // other is refused above. The scenario is then asserted, not assumed: the bank is before the row.
+  await output.waitForTimeout(1_000);
+  const actionSeq = (await admin().from('control_events').select('seq, msg').eq('show_id', showId).eq('graphic', 'Board').order('seq')).data!.filter((r) => (r.msg as { t?: string }).t === 'event').at(-1)!.seq as number;
+  const bankSeq = ((await admin().from('control_heads').select('live').eq('show_id', showId).single()).data?.live as Record<string, { seq?: number }>).Board?.seq;
+  expect(bankSeq, 'Board\'s bank is before the unreported action').toBeLessThan(actionSeq);
   await output.unrouteAll({ behavior: 'ignoreErrors' });
   const sent = (await commands(showId)).length;
 

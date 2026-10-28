@@ -26,7 +26,7 @@ changes a spec's digest.
     says the Graphic accepted comes back at the step its answers reached, through `playAction`
     (the first step, then one step at a time). A custom action is never repeated: a row of one in
     the catch-up is read past and counted applied (`heldActions`, `apply(.., deliver=false)`, so the
-    follow never sends it either), and a package an action reached since its Take is put back as far
+    follow never sends it either), and a package whose instance an action reached is put back as far
     as its Take and step and marked not known. A Take never confirmed (refused, unanswered, no
     report) is not repeated: not known. A Take or Out after the bank replays from the log as before.
   - *Not known, with a re-cue* (`stage.markUnknown`, `OgrafOutcome.unknown`): marked after the
@@ -42,8 +42,10 @@ changes a spec's digest.
     a new instance names the one it replaced (`was`: from a remount, or from the tab's session on a
     reload, `noacg-ograf-instances:<slug>`), and `acceptOutcome` refuses any later report about it
     (a write still on its way when the output reloaded). Bounded at 16 instances per graphic.
-  - *Actions counted* (`acted`): actions sent since the last Take, less those the Graphic refused,
-    ride the report, so a restart knows the Graphic holds state no restart reproduces.
+  - *Actions counted* (`acted`): the actions an instance was sent, less those the Graphic refused,
+    ride the report for the instance's whole life, so a restart knows the Graphic holds state no
+    restart reproduces. OGraf promises no Take or Out undoes an action, so neither resets the count;
+    a new instance starts at none.
   - *The foreign frame adjust* (L2 AC-10's foreign case): the stage applies an appearance's frame to
     the package's iframe (`ForeignOgrafLayer.frame`) and keeps it frame-only, so the report banks and
     a reload restores place and size alone; vars and fonts never reach a package. The page resolves
@@ -54,6 +56,9 @@ changes a spec's digest.
   - *Restore the proven part and say the rest is not known*, rather than leave an acted-on package
     off air: Take, step, values and place are proven by the Graphic's answers; an action's effect is
     not. The operator decides with one press.
+  - *An action keeps its instance not known through later Takes* (the fresh `/so` review, O3): the
+    standard does not say `playAction({goto: 0})` resets what `customAction` did, so the truthful
+    reading is the conservative one.
   - *Remount only on a Take, and only a lost instance*: a healthy re-Take keeps its instance (row
     40); an update or a step to a lost instance is not a re-cue.
   - *"Host" and "Bridge" are the frame's host document and its MessagePort bridge* (the names
@@ -73,6 +78,9 @@ changes a spec's digest.
   - A local configured run needs `chromium_headless_shell-1228` symlinked to `-1243` (#1647). The
     job queue refuses `--cap 12` for unreviewed source, so a mutation run under it is red from the
     admission, not the mutation: read why a run is red before counting it.
+  - An identical outcome writes no report (`lastReported`), so an action whose answer matches the
+    last one leaves the bank before its row. The configured test refuses reports around a second
+    action and then asserts the bank is before the row, so the catch-up's read-past is exercised.
   - A jsonb round trip reorders keys: compare an appearance read back from the log as an object.
 - **Touched files against `373d896`:** `src/control/ografRecovery.ts` (new),
   `scripts/ograf-recovery.test.mjs` (new), `src/control/ografOutcome.ts`, `src/output/stage.ts`,
