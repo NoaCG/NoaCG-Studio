@@ -706,6 +706,14 @@ test.describe('a foreign OGraf package on the output stage', () => {
     // as applied, so a restart then must not put the Graphic back at the step before it.
     expect([before, sent]).toEqual([0, null]);
     await expect(walk).toHaveAttribute('data-step', '1');
+    // The host timed that step out (its 504): the Graphic is slow, not gone, so the next Take is
+    // the same instance and nothing it built is lost.
+    expect(await outcome('walk')).toMatchObject({ call: 'play', status: 'timeout' });
+    const slow = await walkFrame.getAttribute('data-instance');
+    await apply(page, 'walk', { t: 'update', data: { playMs: 0 } });
+    await apply(page, 'walk', { t: 'play' });
+    await expect.poll(async () => (await outcome('walk'))?.status).toBe('done');
+    expect(await walkFrame.getAttribute('data-instance'), 'a slow Graphic is not mounted again').toBe(slow);
     // An Out not yet answered leaves `on` as it was, so it is said as `sent` until its answer: a
     // restart in between keeps the package off, not known, on either road.
     const out = await page.evaluate(() => {

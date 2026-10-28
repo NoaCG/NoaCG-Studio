@@ -649,9 +649,10 @@ export function createOutputStage(
       if (call === 'custom' && answer.status === 'rejected' && newest) acts.set(key, Math.max(0, (acts.get(key) ?? 0) - 1));
       // The newest Take, step or Out answered (accepted or refused): `on` says where it is again.
       if (newest && (call === 'play' || call === 'stop') && (answer.status === 'done' || answer.status === 'rejected')) sentCall.delete(key);
-      // An instance that answered nothing in time, or never loaded, is not trusted with the next
-      // Take: that Take mounts the package again (`apply`).
-      if (answer.status === 'timeout' || (call === 'mount' && answer.status !== 'done')) lost.add(key);
+      // An instance that answered nothing at all (its document or bridge is gone), or never loaded,
+      // is not trusted with the next Take: that Take mounts the package again (`apply`). A Graphic
+      // the host timed out is alive and only slow: it keeps its instance and what its actions built.
+      if ((answer.status === 'timeout' && answer.unanswered) || (call === 'mount' && answer.status !== 'done')) lost.add(key);
       const at = layerNow.position().at;
       const why = unknownWhy.get(key);
       told(key, {

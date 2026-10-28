@@ -81,7 +81,14 @@ changes a spec's digest.
     operator last did. Expected: a restart during a Take's entrance comes back not known with a
     Re-cue, never restored as proven.
     `acted`, `unknown`, `was` and `sent` are members of the report's `state.ograf`, not of the
-    control wire: no message kind or command member is added. Residual: a Take that reaches a
+    control wire: no message kind or command member is added.
+  - *Lost means unanswered*: only this page's own deadline (no reply at all: the frame's document
+    or bridge is gone) or a failed load marks an instance lost. A host 504 is a live Graphic slower
+    than its window: the next Take keeps its instance and what its actions built.
+  - Residuals: on the row-id road, a live Take that lands between tail rows of the boot's unread
+    history is marked not known again by the next tail row (safe direction, Re-cue offered); a
+    re-cue whose new load fails reads in the bad tone without a Re-cue button, and an ordinary
+    Take mounts it again. A Take that reaches a
     package whose base is still being fetched at first mount has no word yet, so a restart there on
     the row-id road comes back off with nothing said.
   - *The foreign frame adjust* (L2 AC-10's foreign case): the stage applies an appearance's frame to

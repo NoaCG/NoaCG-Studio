@@ -56,7 +56,9 @@ export interface OgrafReturn {
 export type OgrafAnswer =
   | { status: 'done'; statusCode: number; statusMessage?: string; currentStep?: number }
   | { status: 'rejected'; statusCode: number; statusMessage?: string }
-  | { status: 'timeout'; statusMessage?: string }
+  /** `unanswered`: this page's own deadline passed with no reply at all (the frame's document or
+   *  bridge is gone); without it, the host answered for a Graphic slower than its window (504). */
+  | { status: 'timeout'; statusMessage?: string; unanswered?: true }
   | { status: 'gone' }
   | { status: 'refused'; reason: string };
 
@@ -208,13 +210,13 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
       // The host starts a call's own deadline only once load() has answered, so this page's
       // fallback does the same: a slow load never eats into the answer window of the calls behind it.
       const arm = () => {
-        if (pending.has(callId)) timer = setTimeout(() => settle({ status: 'timeout', statusMessage: 'the graphic answered nothing' }), deadline);
+        if (pending.has(callId)) timer = setTimeout(() => settle({ status: 'timeout', statusMessage: 'the graphic answered nothing', unanswered: true }), deadline);
       };
       if (call === 'mount') arm();
       else void loadAnswered.then(arm);
     });
     // A Graphic that never answers cannot grow the book forever: the oldest call is given up.
-    if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered' });
+    if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered', unanswered: true });
     outstanding.add(answered);
     void answered.then(() => outstanding.delete(answered));
     channel.port1.postMessage({ id: callId, call, args });

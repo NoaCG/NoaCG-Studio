@@ -9,9 +9,10 @@
 //     its own lifecycle calls (`playAction` to the first step, then one step at a time);
 //   - never a custom action: its effect lives in the Graphic alone and may not be repeatable, so a
 //     row of one in the catch-up is not sent, and a package whose instance an action reached is put
-//     back as far as its Take and step and said to be NOT KNOWN (`unknown`), until the operator
-//     takes or outs it again. OGraf promises no Take or Out undoes an action, so a later Take does
-//     not make it known;
+//     back as far as its Take and step and said to be NOT KNOWN (`unknown`). OGraf promises no Take
+//     undoes an action, so a Take REPLAYED from the log after it does not make it known; the
+//     operator's own next Take or Out, live, does (output/stage.ts `markUnknown`): that is them
+//     deciding what goes to air;
 //   - a Take that was never confirmed (refused, unanswered, or no report) is not repeated by itself
 //     either: it is said to be not known, and the re-cue is the operator's.
 //
