@@ -62,7 +62,8 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   const acted = (o !== null && o.i !== null && o.acted === true) || rows.some((r) => r.msg.t === 'event');
   // A Take or Out after the bank replays as the log has it, and decides whether it is up.
   if (lastTake >= 0 || lastOut >= 0) {
-    if (lastOut > lastTake) return NOTHING;
+    // Off, as the log has it; an action pressed after that Out was not delivered, which is said.
+    if (lastOut > lastTake) return last('event') > lastOut ? { play: false, steps: 0, unknown: UNKNOWN_ACTED } : NOTHING;
     return { play: false, steps: 0, unknown: acted ? UNKNOWN_ACTED : null };
   }
   // A Take or Out the bank counts but the Graphic had not answered (`sent`): its `on` is the state
