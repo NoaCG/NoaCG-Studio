@@ -5,6 +5,59 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 43 (E8.1a, project phase 48): evidence reconciliation and cross-feature checks
+
+- **Previous verified `main` sha:** `ae887d2` (row 42 passed, PR #1786). This branch was built on
+  `3b871c3` (that plus two quarantine-list PRs, #1788 and #1789).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration, no stored shape, no wire
+  change. A revert puts the foreign-package style guard back in the page and removes the record
+  and the tests.
+- **What landed.**
+  - *The reconciliation record*
+    (`docs/work-specs/playout-expanded-acceptance/evidence/e8-1a-reconciliation.md`): every
+    required criterion of the parent, Q, data, Sheet, audience, H0, E1 to E8, L1 and L2, with the
+    rows and the ledger's checker entries that passed it, its evidence class (software, Q, laptop,
+    kit, real studio, provider), the dependency-based reuse decision, what is owed to E8.1b, E8.2,
+    H0.2 and S, the open findings O-1 to O-8, the 23 named follow-ups classified, and the hashes.
+  - *The cross-feature cases*: five press-level tests at the end of
+    `scripts/graphic-verbs.test.mjs` and two fold-level tests at the end of
+    `scripts/cue-adjust.test.mjs` ("Cross-feature cases (E8.1a)").
+  - *One focused fix*: the rule that an imported OGraf package takes no look or style moved from
+    `ProductionPage.tsx` `adjustStateOf` into `cueAdjustState` (`src/control/adjustGeometry.ts`),
+    which reads the graphic's `template`. Closes #1784's item 1; item 2 stays open.
+- **Decisions.**
+  - *Where the record lives:* neither `extensions.md` nor the E8 spec names a place for acceptance
+    receipts, so `playout-expanded-acceptance/evidence/`, as the brief says.
+  - *The checker's ledger entry is the criterion receipt.* Each `phase <n> pass` entry on the
+    recovery branch carries a per-criterion evidence list; the record cites the entry and the
+    merge SHA's runs (read from the Actions API), and never a builder's note alone.
+  - *Reuse follows dependencies, not dates* (parent §6): a criterion held by tests is reused
+    because those tests ran green on the candidate; a laptop receipt stays bound to its SHA; Q
+    records are reused as dated provider measurements because the reader's cadence and the tick's
+    limits are unchanged; nothing physical is assumed.
+  - *Cases already covered stay as they are*: foreign typed actions through the route, the quiz
+    clock, data never taking, groups and stale monitors each point to their existing tests.
+  - *The new tests extend the maintained files* rather than a new file, per the durable-check
+    rule: the verbs rig and the appearance fold are where those flows are tested.
+- **Traps.**
+  - A module a plain-Node test imports names its `.ts` imports with the extension
+    (`../model/foreignPackage.ts`); without it `graphic-verbs.test.mjs` fails to load.
+  - A mutation that lets a held press send leaves the press pending; Node reports "Promise
+    resolution is still pending" and counts it under neither pass nor fail. Read `not ok`.
+  - The data session's dispatch goes through the verbs' `run`, and its first call sends the whole
+    baseline: answer that send before the source's patch, or the next dispatch is the second send.
+  - The commit hook refuses a `Co-Authored-By` trailer.
+- **Mutation checks** (each red, restored after): `liveSelection` taking the first cue of the
+  graphic (three cases), the typed-airing guard off for live presses, a package Take reading ✓,
+  the bound press ignoring the tree, the data dispatch carrying an identity appearance, the data
+  dispatch also sending `play`, the look send not waiting behind a live press, the package style
+  guard removed from `cueAdjustState`, the look's face overriding the cue's.
+- **Touched files against `3b871c3`:**
+  `docs/work-specs/playout-expanded-acceptance/evidence/e8-1a-reconciliation.md` (new),
+  `scripts/cue-adjust.test.mjs`, `scripts/graphic-verbs.test.mjs`,
+  `src/components/home/ProductionPage.tsx`, `src/control/adjustGeometry.ts`, this file.
+
 ## Row 42 (E6.2, project phase 47): custom and foreign actions through the Companion module
 
 - **Previous verified `main` sha:** `660a404` (row 41 passed, PR #1781). This branch was built on
