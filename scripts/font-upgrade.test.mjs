@@ -150,6 +150,14 @@ test('a saved block written on one line, or with a single-quoted family, still g
   assert.equal(upgradeFontCss(out), out);
 });
 
+test('an imported block embedded as a data URL (a single-file export read back) keeps its src whole', () => {
+  for (const src of ['url("data:font/otf;base64,AAEAAA==")', 'url(data:font/otf;base64,AAEAAA==)']) {
+    const embedded = OLD_IMPORTED.replace('url("fonts/Neue-Machina.otf")', src);
+    const [rule] = rules(upgradeFontCss(embedded));
+    assert.ok(rule.includes(`src: ${src} format("opentype");\n  font-weight: 100 900;`), rule);
+  }
+});
+
 test('an imported family the stylesheet also gives weighted files keeps its weight-less rule', () => {
   const bold = `@font-face {
   font-family: "Neue Machina";

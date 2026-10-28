@@ -579,10 +579,12 @@ export function upgradeFontCss(css: string): string {
   // A family the stylesheet also gives other weighted files (the old note said to add them) keeps
   // its weight-less rule as it was: claiming 100-900 would take their weights from them.
   const weighted = new Set(faceRules(out).filter((r) => /font-weight\s*:/.test(r)).map((r) => ruleFamily(r)));
+  // The weight goes after the whole src declaration: past its line breaks and past a data: URL's
+  // own semicolon (a single-file export read back in embeds the file that way).
   return out.replace(/(\/\* Imported font[^*]*\*\/\s*)(@font-face\s*\{[^}]*\})/g, (whole, comment: string, rule: string) => {
     if (/font-weight\s*:/.test(rule) || weighted.has(ruleFamily(rule))) return whole;
     const upgraded = rule
-      .replace(/^([ \t]*src:[^;]*;)/m, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
+      .replace(/^([ \t]*src:(?:"[^"]*"|'[^']*'|url\([^)]*\)|[^;"'])*;)/m, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
       .replace(OLD_IMPORTED_NOTE, IMPORTED_NOTE);
     return comment + upgraded;
   });
