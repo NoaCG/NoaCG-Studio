@@ -206,7 +206,9 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
       await deliver(acquisition);
       return true;
     } catch (error) {
-      say(`${config.sourceId} the sender failed: ${error?.message ?? error}`);
+      // The network's own reason too (a reset socket, a refused connection): fetch says only "fetch failed".
+      const cause = error?.cause?.code ?? error?.cause?.message;
+      say(`${config.sourceId} the sender failed: ${error?.message ?? error}${cause ? ` (${cause})` : ''}`);
       return false;
     }
   };
@@ -223,7 +225,20 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
   let undelivered = null;
   let epoch = ownerEpoch;
 
+  /** Reads in flight now, and the most at once since the backlog was last asked (the endurance run). */
+  let reading = 0;
+  let readingPeak = 0;
   async function read() {
+    reading++;
+    readingPeak = Math.max(readingPeak, reading);
+    try {
+      return await readNow();
+    } finally {
+      reading--;
+    }
+  }
+
+  async function readNow() {
     const own = new AbortController();
     controller = own;
     const { signal } = own;
@@ -336,6 +351,13 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     get state() {
       return { ...state, failures, nextDelayMs: nextDelay, ownerEpoch: epoch };
     },
+    /** What waits here (the endurance run's queue depth): the most reads in flight at once since
+     *  the last ask, and the revisions kept to offer again. */
+    backlog() {
+      const peak = readingPeak;
+      readingPeak = reading;
+      return { reading: peak, undelivered: undelivered ? 1 : 0 };
+    },
     exportConfig: () => exportConnectorConfig(config),
     redact,
   };
@@ -365,14 +387,16 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
   let answeredAt = -Infinity;
   /** Before this, a kept revision is not sent: the production asked to wait (Retry-After). */
   let notBefore = -Infinity;
-  /** Requests in flight, so shutdown can end them. */
+  /** Requests in flight, so shutdown can end them, and the most at once since last asked. */
   const inFlight = new Set();
+  let postingPeak = 0;
   // A production that stalls must not stall the reading: the request and its answer end within
   // `timeoutMs` (an error, so a kept revision is offered again), and `abort()` ends them at shutdown.
   const post = async (body) => {
     const controller = new AbortController();
     const deadline = setTimeout(() => controller.abort(new Error(`the production did not answer in ${timeoutMs / 1000} seconds`)), timeoutMs);
     inFlight.add(controller);
+    postingPeak = Math.max(postingPeak, inFlight.size);
     try {
       const response = await fetchImpl(address, {
         method: 'POST',
@@ -486,6 +510,13 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
     get sampling() {
       return sampling;
     },
+    /** The most requests to the production in flight at once since last asked (the endurance
+     *  run's queue depth): a report, a claim's renewal and a sample can overlap, nothing more. */
+    posting() {
+      const peak = postingPeak;
+      postingPeak = inFlight.size;
+      return peak;
+    },
     /** End every request in flight (shutdown). */
     abort: () => inFlight.forEach((c) => c.abort(new Error('stopped'))),
     bind: (c) => void (connector = c),
@@ -549,12 +580,17 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     if (minutes > 0) setTimeout(resolve, minutes * 60_000);
   });
   const stopRenewing = sender?.keepClaim();
+  // Spawned with an IPC channel (the endurance run), it answers what waits in it, and nothing else.
+  const answerBacklog = (message) => message?.ask === 'backlog' && process.send?.({ id: message.id, backlog: { ...connector.backlog(), posting: sender?.posting() ?? 0 } });
+  if (process.send) process.on('message', answerBacklog);
   connector.start();
   await done;
   connector.stop();
   stopRenewing?.();
   sender?.abort();
   await sender?.release();
+  process.off('message', answerBacklog);
+  process.disconnect?.();
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

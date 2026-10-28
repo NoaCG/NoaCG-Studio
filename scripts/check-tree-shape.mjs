@@ -77,6 +77,8 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // https://noacg.studio rather than at anything local, which is a tier the three configs above
   // cannot cover, so it sits beside them rather than inside e2e/.
   'playwright.production.config.ts',
+  // The election endurance run's one long walk (E8.1b), started only by endurance.yml's script.
+  'playwright.endurance.config.ts',
   'privacy.html', 'public', 're-design', 'render-worker', 'roadmap.html', 'scripts', 'src',
   'supabase', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts', 'whats-new.html',
 ]);

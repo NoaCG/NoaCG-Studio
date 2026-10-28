@@ -5,6 +5,52 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 44 (E8.1b, project phase 49): the 60-minute election endurance run
+
+- **Previous verified `main` sha:** `132bd5b` (row 43 passed, PR #1790). This branch was built on
+  it and merged `origin/main` once (`8f250530`, the output fixes #1792 to #1794); `main` is
+  `55f98f9` and contained.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration, no stored shape, no wire
+  change. A revert removes the walk, the judge, the fixture, the entry, its config and its
+  receipt, and the agent's backlog answer and peak counts.
+- **What landed.** The run `npm run endurance:election -- --minutes <n>` for `endurance.yml`:
+  `scripts/endurance-election.mjs` (local stack only, the account, the fixture measured in
+  Postgres, the walk, the verdict), `e2e/endurance/election-endurance.ts` with
+  `playwright.endurance.config.ts` (allowed at the root in `check-tree-shape.mjs`),
+  `scripts/endurance-fixture.mjs`, `scripts/endurance-judge.mjs` and its test. The trusted agent
+  answers a `backlog` ask over IPC with its peak reads and posts, and logs the network's reason
+  when a send fails. The replay server takes a custom `{ length, at(i) }` timeline.
+- **Evidence:** run 40728515115 on `e71ff75e`, green; the receipt is
+  `docs/work-specs/playout-expanded-acceptance/evidence/e8-1b-endurance.md`.
+- **Decisions.**
+  - *Each road is excused only by the faults that stop it*, and owed until its own ceiling or the
+    first such fault: applying by a Pause or a handover, a bound field by an output disconnect,
+    the card by a disconnect or a reload, the count bug by all of applying and the output. A
+    value with under 2 s of room is counted apart. No ceiling, record count or schedule changed.
+  - *A Pause does not excuse the card*: nothing in the page holds a correction while data is
+    paused (a review found the earlier rule hid the Resume corrections).
+  - *A run under 15 minutes is refused* before it starts: shorter, too few steady values are owed.
+  - *The schedule's cycle* is ten minutes for an hour, at most a third of a shorter run, in whole
+    75 s so every fault lands 3 s after a cue switch.
+- **Traps.**
+  - The output's graphics are sandboxed frames: read them through Playwright's frames by title,
+    not the DOM.
+  - The analytics consent banner takes clicks: a locator handler answers it.
+  - A Take writes an update row and a play row in one moment; the output's `live` rows are reports,
+    not commands. The snapshot's `accepted_revision` is the agent's own sequence, not the
+    provider's revision.
+  - A frozen old owner's in-flight request fails as it wakes ("the sender failed: fetch failed"):
+    expected only from its waking to its end.
+  - The command guard refuses inline scripts that mention dotenv files, and the commit hook refuses
+    some words in messages: write scripts to files and reword.
+  - Playwright here wants headless shell 1228; it was linked to the installed 1243 under
+    `/opt/pw-browsers` with no repo change (#1647).
+- **Open findings for the coordinator.** The output dropped one Party totals value applied during
+  a controller reload (once in 18 reloads over three hours; the next value reached air 6.6 s
+  later, inside the 10 s ceiling). The output page's heap rises about 10 KB a minute in all three
+  full hours (inside this hour's thresholds). Both are in the receipt.
+
 ## Row 43 (E8.1a, project phase 48): evidence reconciliation and cross-feature checks
 
 - **Previous verified `main` sha:** `ae887d2` (row 42 passed, PR #1786). This branch was built on
