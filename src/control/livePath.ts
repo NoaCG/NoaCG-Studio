@@ -600,6 +600,9 @@ export function joinLivePresence(opts: {
       // the preview branch: a dashboard went on listing an output for good after it was closed. The
       // events themselves carry intact refs, so a map of ref to entry stays right; a key that
       // presenceState() no longer has at all is dropped too, which is how a rejoin reconciles.
+      // The ghosts also grew every page's heap for as long as it stayed on air (#1798): 2.110.9
+      // copies the metas instead (scripts/realtime-presence-retrack.test.mjs), and this map stays
+      // as the peers' own record.
       const byRef = new Map<string, { key: string; entry: LiveEntry }>();
       const emit = () => {
         const keys = new Set(Object.keys(ch.presenceState()));
