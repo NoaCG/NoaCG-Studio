@@ -44,6 +44,10 @@ test('an action is never repeated: the Take and step come back, and the state is
   assert.deepEqual(ografRestore(report(up), true, [row('event'), row('play')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
   // With no action anywhere, a Take after the bank replays and is known by its own answer.
   assert.deepEqual(ografRestore(report(up), true, [row('update'), row('play'), row('next')]), { play: false, steps: 0, unknown: null });
+  // An action pressed on a package that is off, after the bank: not delivered, and said.
+  for (const head of [undefined, false]) assert.deepEqual(ografRestore(report({ ...up, call: 'stop', on: false }), head, [row('event')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED }, `head ${head}`);
+  // An Out banked after an action is still the recorded decision: off is known.
+  assert.deepEqual(ografRestore(report({ ...up, call: 'stop', on: false, acted: true }), false, []), { play: false, steps: 0, unknown: null });
   // An Out after it all: off, as the log says.
   assert.deepEqual(ografRestore(report({ ...up, acted: true }), true, [row('play'), row('event'), row('stop')]), { play: false, steps: 0, unknown: null });
 });

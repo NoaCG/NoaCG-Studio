@@ -87,7 +87,10 @@ changes a spec's digest.
   - *Lost means unanswered*: only this page's own deadline (no reply at all: the frame's document
     or bridge is gone) or a failed load marks an instance lost. A host 504 is a live Graphic slower
     than its window: the next Take keeps its instance and what its actions built.
-  - Residuals: on the row-id road, a live Take that lands between tail rows of the boot's unread
+  - Residuals: after a restart that follows an Out the Graphic refused or had not answered, the
+    package comes back off and its line reads "not known (its Out was not confirmed ...)" with no
+    Re-cue, since nothing is cued live; it stays until that graphic's next Take or Out (safe
+    direction: the new instance is off). On the row-id road, a live Take that lands between tail rows of the boot's unread
     history is marked not known again by the next tail row (safe direction, Re-cue offered); a
     re-cue whose new load fails reads in the bad tone without a Re-cue button, and an ordinary
     Take mounts it again. A Graphic that hangs for good inside a live frame answers every call with
