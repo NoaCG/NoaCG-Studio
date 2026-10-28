@@ -287,21 +287,14 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     const result = await sendLoad(settings, url);
     if (result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
   });
-  /** LOAD THE LOST OUTPUT AGAIN BY ITSELF (control/bridgeWatch.ts, issue #1657): as Load, but only
-   *  onto a slot that still reads empty, and never while another output action is out, so it cannot
-   *  load twice beside the operator's own press or replace anything. The watch shows the outcome, so
-   *  no note: the Bridge's answer, or null when nothing was sent. */
-  const reloadOnSlot = async (url: string, wanted: () => boolean): Promise<PlayoutResult | null> => {
+  /** LOAD THE LOST OUTPUT AGAIN (control/bridgeWatch.ts decides when, issue #1657): the load alone,
+   *  under Load's own guard, so it never goes beside the operator's Load or Unload. No note: the
+   *  watch shows the outcome. The Bridge's answer, or null when nothing was sent. */
+  const reloadOnSlot = async (url: string): Promise<PlayoutResult | null> => {
     let result: PlayoutResult | null = null;
     await slotAction(async () => {
       const settings = loadPlayoutSettings();
-      if (!playoutConfigured(settings)) return;
-      const reading = await readState(settings, settings.channel);
-      // The page may have gone while the slot was read: nothing airs for a production left behind.
-      if (!reading.reply || !wanted()) return;
-      const slug = new URL(url).searchParams.get('production');
-      if (slotHolds(reading.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, slug) !== 'empty') return;
-      result = await sendLoad(settings, url);
+      if (playoutConfigured(settings)) result = await sendLoad(settings, url);
     });
     return result;
   };

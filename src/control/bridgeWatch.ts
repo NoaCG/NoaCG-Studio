@@ -47,6 +47,7 @@ import type { ServerPlayoutStore } from './serverPlayoutStore';
 import { folderMode } from '../model/showFolders.ts';
 import { mediaKindOf } from './cuePlayback.ts';
 import { slotHolds } from './prepareLive.ts';
+import { casparOutputTarget } from './playoutStatus.ts';
 import { applyReading } from './serverState.ts';
 import { pollServerState } from './serverStatePoll.ts';
 
@@ -92,10 +93,9 @@ export interface BridgeWatchAdapters {
   settingsChanged: () => void;
   /** The server's list filled in facts an older clip was missing (model/shows.ts `fillPlayoutItemFacts`). */
   learnt: (showId: string, facts: Map<string, { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }>) => void;
-  /** Load this production's output on its slot again, unless the slot no longer reads empty, an
-   *  output action is already out or `wanted` turned false while it read (the page went): the
-   *  Bridge's answer, or null when nothing was sent. */
-  reload: (wanted: () => boolean) => Promise<PlayoutResult | null>;
+  /** Load this production's output on its slot again, as Load does, unless an output action is
+   *  already out: the Bridge's answer, or null when nothing was sent. The watch decides whether. */
+  reload: () => Promise<PlayoutResult | null>;
 }
 
 /** What the page knows at a render, handed over after each one. */
@@ -311,10 +311,24 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const run = reloads;
     run.inFlight = true;
     writeBridge(session, { slotReload: { state: 'reloading' } });
-    void adapters.reload(() => alive && run === reloads).then(
+    void reloadOnce(run, target).then(
       (result) => done(run, result),
       (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }),
     );
+  };
+  /** One reload, decided here and sent by the page: only while this run is still the one, the
+   *  settings still name the slot it was loaded on, no output action landed meanwhile, and the slot,
+   *  read once more, still reads empty. A page gone, a slot moved or an operator's own Load in the
+   *  read's time sends nothing. */
+  const reloadOnce = async (run: typeof reloads, target: string): Promise<PlayoutResult | null> => {
+    const settings = io.loadSettings();
+    const actionRev = slotActions;
+    const wanted = () => alive && run === reloads && loadedHere === target && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
+    if (!wanted()) return null;
+    const read = await io.readState(settings, settings.channel);
+    if (!wanted() || !read.reply) return null;
+    if (slotHolds(read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, inputs?.outputSlug ?? null) !== 'empty') return null;
+    return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null) => {
     if (!alive || run !== reloads) return;

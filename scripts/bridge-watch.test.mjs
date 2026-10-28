@@ -102,11 +102,10 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     serverPlayout,
     settingsChanged: () => calls.push('settings changed'),
     learnt: (showId, facts) => learnt.push([showId, facts]),
-    // The page's half (useProductionPublish.ts `reloadOnSlot`): a sent load reaches the watch
+    // The page's half (useProductionPublish.ts `reloadOnSlot`), the load alone: a sent load reaches the watch
     // through `onAirChanged`, which drops reads already out, owns the slot and reads it again.
-    reload: async (wanted) => {
+    reload: async () => {
       calls.push('reload');
-      reloading.wanted = wanted;
       const result = await reloading.answer();
       if (!result) return null;
       watch.slotActed();
@@ -487,7 +486,7 @@ async function restartServer(t) {
 test('after a server restart the output this page loaded goes back on its slot by itself, once', async () => {
   const t = await loadedRig();
   await restartServer(t);
-  assert.deepEqual(t.take().filter((c) => c === 'reload' || c.startsWith('state')), ['state 1', 'reload', 'state 1'], 'read empty, loaded once, read again');
+  assert.deepEqual(t.take().filter((c) => c === 'reload' || c.startsWith('state')), ['state 1', 'state 1', 'reload', 'state 1'], 'read empty, read once more, loaded once, read again');
   assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
   assert.equal(t.session.bridge.get().slotReload, null, 'back on its slot: nothing left to say');
   await t.readSlot();
@@ -608,6 +607,9 @@ test('no double load: a reload that found the operator\'s Load already out is no
   // A reading still out when the next tick comes is never stacked, so nothing loads twice at once.
   t.held.shift()();
   await settle();
+  // The reload reads the slot once more before it sends.
+  t.held.shift()();
+  await settle();
   assert.equal(t.calls.filter((c) => c === 'reload').length, 1);
   t.setHold(false);
   skip = false;
@@ -625,15 +627,28 @@ test('a reload is for the slot it was loaded on, and for a page still open', asy
   await restartServer(moved);
   assert.ok(!moved.calls.includes('reload'), 'another slot');
 
-  // The page goes while the reload reads the slot: `wanted` turns false, so the page sends nothing.
-  const gone = await loadedRig();
-  let release;
-  gone.reloading.answer = () => new Promise((resolve) => {
-    release = () => resolve(null);
-  });
-  await restartServer(gone);
-  assert.equal(gone.reloading.wanted(), true);
-  gone.watch.stop();
-  assert.equal(gone.reloading.wanted(), false, 'the page went');
-  release();
+  // The page goes, or the settings move the slot, or the operator's own Load lands, while the
+  // reload reads the slot once more: nothing is sent.
+  for (const cut of ['stop', 'moved', 'acted']) {
+    const t = await loadedRig();
+    await restartServer(t);
+    t.take();
+    t.setHold(true);
+    // The first try already went (the rig answers ok and fills the slot); empty it again after an
+    // outage and catch the next try in its read.
+    t.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+    t.answer({ state: 'server', detail: 'gone' });
+    await settle();
+    t.answer(OK);
+    await settle();
+    for (const answer of t.held.splice(0)) answer();
+    await settle();
+    assert.equal(t.session.bridge.get().slotReload?.state, 'reloading', `${cut}: a try is out`);
+    if (cut === 'stop') t.watch.stop();
+    if (cut === 'moved') t.state.settings = { ...t.state.settings, channel: 2, layer: 30 };
+    if (cut === 'acted') t.watch.slotActed();
+    for (const answer of t.held.splice(0)) answer();
+    await settle();
+    assert.ok(!t.take().includes('reload'), `${cut}: nothing sent`);
+  }
 });

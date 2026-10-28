@@ -313,23 +313,28 @@ and says that Play next stopped there. What the server already had queued still 
 server's own rule.
 
 A restarted CasparCG server keeps nothing: every layer is empty when it answers again. The
-production page puts its own output back by itself (issue #1657, owner 2026-10-24): when an output
+production page puts its own output back by itself (issue #1657, owner 2026-10-24). When an output
 this page loaded, and saw on its slot, reads empty after the server or the Bridge stopped answering,
-it loads the output URL again onto the same channel and layer, with no press, as a Bridge restart
-already recovers. A slot emptied while everything kept answering (Unload in another browser, a
-client's `CLEAR`) is left alone, and gives the output up, so a later outage does not bring it back.
-While it reloads, the slot row reads "Reloading…" (amber). What is on air afterwards follows the
-command log, as for any output loaded fresh. It never replaces anything: a slot another production
-or client took still asks before Load replaces it, and the reload is sent only onto a slot that
-still reads empty and while no Load or Unload is out. It is only the slot it was loaded on, and it
-does not happen after Unload, once the production is unpublished or its CasparCG switch is off, or
-for an output only another browser loaded. "Loaded here" is page memory: after the browser page
-itself is reloaded, a server restart needs Load from it again. Two browsers that each pressed Load
-both reload, which loads the same URL twice (at most a flicker). A server that keeps failing is
-tried three times, at once and then about 10 s and 60 s later (`RELOAD_AFTER_READS` in
-`src/control/bridgeWatch.ts`), then the row reads "Not on 1-20" in red with the last reason and Load
-is the operator's. A restart so quick that no poll saw the server gone reads as a `CLEAR`, and Load
-is needed as before.
+the page loads the output URL again onto the same channel and layer with no press, as a Bridge
+restart already recovers. While it reloads, the slot row reads "Reloading…" (amber). What is on air
+afterwards follows the command log, as for any output loaded fresh. The decision is
+`src/control/bridgeWatch.ts`; the page only sends the load.
+
+- **It never replaces anything.** A slot another production or client took still asks before Load
+  replaces it. The slot is read once more right before the load, which goes only if it still reads
+  empty, the settings still name that slot, and no Load or Unload landed meanwhile.
+- **Only this page's output, on its own slot.** Not an output only another browser loaded, not a
+  slot the settings moved to, and not after Unload, unpublishing or switching CasparCG off. A slot
+  emptied while everything kept answering (Unload in another browser, a client's `CLEAR`) is left
+  alone, and gives the output up, so a later outage does not bring it back.
+- **No loop.** A server that keeps failing is tried three times, at once and then about 10 s and
+  60 s later (`RELOAD_AFTER_READS`). Then the row reads "Not on 1-20" in red with the last reason,
+  and Load is the operator's.
+- **Limits.** "Loaded here" is page memory: after the browser page itself is reloaded, a server
+  restart needs Load from it again. A restart so quick that no poll saw the server gone (the status
+  is asked every few seconds, less often in a background tab, which the browser slows) reads as a
+  `CLEAR`, and Load is needed as before. Two browsers that each pressed Load both reload, which
+  loads the same URL twice, at most a flicker.
 
 ### 3a. The playout protocol (v2)
 
