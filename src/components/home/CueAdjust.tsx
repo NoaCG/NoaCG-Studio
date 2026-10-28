@@ -69,6 +69,8 @@ export default function CueAdjust({
     reach: StyleReach;
     /** An imported design: its type and colour are the artwork's own. */
     artwork: boolean;
+    /** An imported OGraf package: its frame takes place and size, and nothing reaches inside it. */
+    package?: boolean;
     imported: readonly ImportedFace[];
     bundled: readonly { id: string; family: string }[];
     /** The design's own `--font-heading`, `--font-numeric` (where it draws live numbers) and colour values. */
@@ -291,7 +293,7 @@ function StyleRows({
   if (!reachesAny(reach)) {
     return (
       <p className="muted pd-adjust-why" data-testid="adjust-style-none">
-        Type and colour: as designed{style.artwork ? ' (imported artwork)' : ''}
+        Type and colour: {style.package ? 'not available for this package' : `as designed${style.artwork ? ' (imported artwork)' : ''}`}
       </p>
     );
   }

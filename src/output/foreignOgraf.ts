@@ -64,6 +64,9 @@ export interface ForeignOgrafLayer {
   /** This mount's own id, unique per instance: written on its frame as `data-instance`, so a
    *  replacement is a different instance and nothing it says is mistaken for the one it replaced. */
   instance: string;
+  /** Its frame, which the stage places and sizes like a NoaCG graphic's (playout adjustments
+   *  AC-10): the transform is on the element NoaCG owns, never inside the package's document. */
+  frame: HTMLIFrameElement;
   /** Called with every settled answer, after `position()` has taken it in. `newest`: no later Take,
    *  step or Out was sent before it settled, so a play or stop answer still says where it is. */
   onAnswer(cb: (call: OgrafCall, answer: OgrafAnswer, newest: boolean) => void): void;
@@ -260,6 +263,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
 
   return {
     instance: suffix,
+    frame,
     onAnswer: (cb) => void answerCbs.push(cb),
     send: (msg) => void call(msg),
     call,

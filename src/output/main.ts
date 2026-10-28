@@ -76,6 +76,7 @@ import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 import { publishedOgrafBase } from '../backend/productionOgraf';
 import { ografCheck } from '../control/ografOutcome';
+import { heldActions, ografRestore } from '../control/ografRecovery';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -220,7 +221,21 @@ async function boot(): Promise<void> {
   const soundBudget = createSoundBudget();
   let programAudioVersion = resolved.output.ver?.h ?? '';
   const audio = (payload: typeof resolved.output) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
+  // THE INSTANCES THIS TAB'S PREVIOUS DOCUMENT HAD MOUNTED (E3.2b, AC-3): a package mounted again
+  // here names the one it replaced, so a report that old instance still had on its way when the
+  // output reloaded is refused by the pages (control/ografOutcome.ts `acceptOutcome`).
+  const instancesKey = `noacg-ograf-instances:${outputSlug}`;
+  const ografReplaced: Record<string, string> = {};
+  try {
+    const held: unknown = JSON.parse(sessionStorage.getItem(instancesKey) ?? '{}');
+    if (held && typeof held === 'object' && !Array.isArray(held)) {
+      for (const [key, i] of Object.entries(held)) if (typeof i === 'string' && /^[0-9a-f]{1,32}$/.test(i)) ografReplaced[key] = i;
+    }
+  } catch {
+    // No session storage (a locked-down browser source): nothing is named, and nothing breaks.
+  }
   const stage = createOutputStage(document.body, resolved.output, {
+    ografReplaced,
     sound: 'program',
     soundBudget,
     loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset),
@@ -584,8 +599,13 @@ async function boot(): Promise<void> {
   // applied either way: it is the baseline an older renderer or page reads from a report.
   let followEpoch = seqMode?.epoch ?? null;
   dbg('protocol', seqMode ? 'numbered log (proto 2)' : resolved.seq ? 'row id (proto 1: older rows need it)' : 'row id (proto 1)');
-  const byId = planOutputRecovery(stage.graphics, resolved.live);
-  const { followFrom, snapshotAt } = seqMode ? planOutputRecovery(stage.graphics, seqBaselines(resolved.live)) : byId;
+  // An imported OGraf package is recovered from its report and the log after it as every graphic is
+  // (E3.2b; Codex P1 on #1780): its bank counts, so a newer NoaCG graphic's bank cannot carry the
+  // catch-up past the package's own rows.
+  const bootPackages = [...packages];
+  const recoverable = [...stage.graphics, ...bootPackages];
+  const byId = planOutputRecovery(recoverable, resolved.live);
+  const { followFrom, snapshotAt } = seqMode ? planOutputRecovery(recoverable, seqBaselines(resolved.live)) : byId;
   let lastAppliedId = byId.followFrom;
   let lastAppliedSeq = seqMode ? followFrom : 0;
   /** Where a row sits in the log this renderer follows. */
@@ -691,6 +711,13 @@ async function boot(): Promise<void> {
   stage.onOgraf((graphic) => {
     scheduleReport(graphic);
     const outcome = stage.ografOutcomes.get(graphic);
+    try {
+      const mounted: Record<string, string> = {};
+      for (const [key, o] of stage.ografOutcomes) if (o.i !== null) mounted[key] = o.i;
+      sessionStorage.setItem(instancesKey, JSON.stringify(mounted));
+    } catch {
+      // As above: nothing is named next time.
+    }
     if (!outcome) {
       // Removed: it leaves READY with its instance.
       if (packages.delete(graphic)) checks.delete(graphic);
@@ -893,7 +920,9 @@ async function boot(): Promise<void> {
     if (pairEffect?.when === 'after') applyClock(row.graphic, pairEffect.values);
   };
 
-  const apply = (row: ControlEventRow, road?: LiveRoad, animate = true) => {
+  /** `deliver` false: the row is read past and counted applied, but never reaches the stage (a
+   *  custom action on a package in the boot catch-up, which a restart never repeats). */
+  const apply = (row: ControlEventRow, road?: LiveRoad, animate = true, deliver = true) => {
     // The id baseline is the highest id applied on either road: that is what an older reader of
     // the report (an old renderer, a page's id-road boot replay) takes as "already in the snapshot".
     lastAppliedId = Math.max(lastAppliedId, row.id);
@@ -935,6 +964,10 @@ async function boot(): Promise<void> {
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
     if (alreadyInSnapshot(snapshotAt, row.graphic, position(row))) return;
+    if (!deliver) {
+      applied.claim(row.msg);
+      return;
+    }
     applyCommand(row.graphic, row.msg, row.created_at, road, animate);
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
@@ -1005,7 +1038,7 @@ async function boot(): Promise<void> {
   // cue (`mayAirTyped`: a typed cue is never published) reads nothing more. A page that cannot be
   // read leaves the whole read out: half a history could replay an envelope a later Take replaced.
   const publishedCues = new Set(payload.cues.map((cue) => cue.id));
-  const unreported = stage.graphics.filter(
+  const unreported = recoverable.filter(
     (key) => !resolved.live[key] && headOn.get(key) === true && mayAirTyped(headCue.get(key), publishedCues),
   );
   const unreportedSet = new Set(unreported);
@@ -1054,8 +1087,19 @@ async function boot(): Promise<void> {
       !reports[key]?.state?.groups &&
       !replayed.some((row) => row.graphic === key && (row.msg.t === 'play' || row.msg.t === 'snap')),
   );
+  // AN IMPORTED OGRAF PACKAGE is put back only as far as its Graphic's answers prove (E3.2b, AC-3,
+  // control/ografRecovery.ts): a Take it accepted, at its step; never a custom action, whose row is
+  // read past here; and otherwise it is said to be not known until the operator's next Take or Out.
+  const packageSet = new Set(bootPackages);
+  const unsentActions = heldActions(replayed, packageSet);
+  const ografPlans = bootPackages.map((key) => ({
+    key,
+    plan: ografRestore(reports[key], seqMode ? headOn.get(key) : undefined, replayed.filter((row) => row.graphic === key)),
+  }));
+  const ografUnknown = new Map(ografPlans.flatMap(({ key, plan }) => (plan.unknown ? [[key, plan.unknown] as const] : [])));
   const animates =
     onWithoutPose.length > 0 ||
+    ografPlans.some(({ plan }) => plan.play) ||
     replayed.some((row) => row.msg.t === 'play' || row.msg.t === 'stop' || row.msg.t === 'next' || row.msg.t === 'event');
   if (animates) {
     stage.setVisible(false);
@@ -1063,7 +1107,7 @@ async function boot(): Promise<void> {
   }
 
   // ── Boot recovery, per graphic: the data half, then the visual half (snap arms timers). ──
-  for (const key of stage.graphics) {
+  for (const key of recoverable) {
     const mine = resolved.live[key];
     if (!mine) continue;
     if (mine.data || mine.state?.groups) touched.add(key);
@@ -1123,6 +1167,16 @@ async function boot(): Promise<void> {
     touched.add(key);
   }
   if (onWithoutPose.length > 0) dbg('catch-up', `on air with no pose, played again: ${onWithoutPose.join(', ')}`);
+  for (const { key, plan } of ografPlans) {
+    if (!plan.play) continue;
+    stage.apply(key, { t: 'play' });
+    for (let step = 0; step < plan.steps; step += 1) stage.apply(key, { t: 'next' });
+    if (stepsSince.has(key)) stepsSince.set(key, plan.steps);
+    liveGraphics.add(key);
+    commanded.add(key);
+    touched.add(key);
+  }
+  if (ografUnknown.size > 0) dbg('catch-up', `not known after the restart: ${[...ografUnknown.keys()].join(', ')}`);
 
   // ── Replay what was missed, then come back on air once the replay has stood still. ──
   //
@@ -1134,7 +1188,9 @@ async function boot(): Promise<void> {
   // it was catching up on ON AIR: the whole output flashed a second after a CasparCG browser
   // source loaded it. Both halves are fixed - the documents go off air from the inside and keep
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
-  missed.forEach((row) => apply(row));
+  missed.forEach((row) => apply(row, undefined, true, !unsentActions.has(row)));
+  // Said once everything the boot sends has gone, so a Take among the replayed rows cannot clear it.
+  for (const [key, why] of ografUnknown) stage.markUnknown(key, why);
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
   markRecovered();
   if (animates) {

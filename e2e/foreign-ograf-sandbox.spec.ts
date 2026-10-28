@@ -105,10 +105,12 @@ interface Served {
   /** Every request that reached the internet. */
   exfil: string[];
   swapped: boolean;
+  /** Package paths answered 404, as a file removed from what is served (E3.2b). */
+  missing: Set<string>;
 }
 
 async function mountHarness(page: Page): Promise<Served> {
-  const served: Served = { scope: [], exfil: [], swapped: false };
+  const served: Served = { scope: [], exfil: [], swapped: false, missing: new Set() };
   await page.addInitScript((credential) => {
     // The TOP document only: this script runs in every frame, the sandboxed ones included.
     if (window.top === window) {
@@ -134,7 +136,7 @@ async function mountHarness(page: Page): Promise<Served> {
       return route.fulfill({ status: 200, contentType: 'application/json', headers: open, body: JSON.stringify({ credential: CREDENTIAL }) });
     }
     const m = /^\/__foreign-ograf\/packages\/([a-z]+)\/(.+)$/.exec(path);
-    const body = m ? PACKAGES.get(m[1])?.get(decodeURIComponent(m[2])) : undefined;
+    const body = m && !served.missing.has(path) ? PACKAGES.get(m[1])?.get(decodeURIComponent(m[2])) : undefined;
     if (!body) return route.fulfill({ status: 404, headers: open, body: 'not in package' });
     const ext = path.slice(path.lastIndexOf('.'));
     return route.fulfill({ status: 200, contentType: TYPES[ext] ?? 'application/octet-stream', headers: open, body });
@@ -568,6 +570,113 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await page.evaluate(() => (window as unknown as { __stage: { remove(k: string): void } }).__stage.remove('walk'));
     await expect(walkFrame).toHaveCount(0);
     expect(await outcome('walk')).toBeNull();
+  });
+
+  // RESTART, FAILURE AND TRUTHFUL RECOVERY (E3.2b, AC-3) and the frame adjust (playout adjustments
+  // AC-10's foreign case), on the stage. Mutation-tested: without the stage's check that an answer
+  // is the CURRENT instance's, the replaced instance's late `gone` is told over the new one and the
+  // "never the old instance" assertion goes red; with a remount on any Take (not only a lost
+  // instance's), the healthy re-Take reads a new instance; with the appearance's style passed
+  // through, `data-appearance` carries `vars`.
+  test('a lost instance is mounted again only by a re-cue, its old word is refused, and a removed file and a refused action say what they are', async ({ page }) => {
+    await openStage(page, '', 'output&timeout=600');
+    type Outcome = { i: string | null; call?: string; status: string; on: boolean; step?: unknown; was?: string; acted?: boolean; unknown?: string; msg?: string };
+    const outcome = (key: string) => page.evaluate((k) => (window as unknown as { __stage: { ografOutcomes: Map<string, unknown> } }).__stage.ografOutcomes.get(k) ?? null, key) as Promise<Outcome | null>;
+    await page.evaluate(() => {
+      const w = window as unknown as { __stage: { onOgraf(cb: (k: string) => void): void; ografOutcomes: Map<string, unknown> }; __told: unknown[] };
+      w.__told = [];
+      w.__stage.onOgraf((k) => k === 'walk' && w.__told.push(w.__stage.ografOutcomes.get(k)));
+      (window as unknown as { __release: () => void }).__release();
+    });
+    const walkFrame = page.locator('iframe[title="walk"]');
+    const walk = page.frameLocator('iframe[title="walk"]').locator('.walk');
+    await expect.poll(async () => (await outcome('walk'))?.call).toBe('mount');
+    const first = (await walkFrame.getAttribute('data-instance'))!;
+
+    // THE FRAME ADJUST: place and size reach the package's frame, never its document; type and
+    // colour reach it not at all, and an update that carries nothing else is no call to it.
+    const returned = (await returnsOf(page, 'walk')).length;
+    await apply(page, 'walk', { t: 'update', data: {}, appearance: { v: 1, frame: { dx: 40, dy: -20, s: 0.9, ox: 960, oy: 540 }, vars: { accent: '#ff0000' } } });
+    await expect(walkFrame).toHaveAttribute('data-appearance', JSON.stringify({ v: 1, frame: { dx: 40, dy: -20, s: 0.9, ox: 960, oy: 540 } }));
+    expect(await walkFrame.evaluate((f) => [f.style.transform, f.style.transformOrigin])).toEqual(['translate(40px, -20px) scale(0.9)', '960px 540px']);
+    // Taken up, with a refused action (the Graphic's own refusal, its state as it was) and one it took.
+    await apply(page, 'walk', { t: 'update', data: { count: 4 } });
+    await apply(page, 'walk', { t: 'play' });
+    await expect(walk).toHaveAttribute('data-step', '0');
+    expect((await returnsOf(page, 'walk')).slice(returned).map((r) => r.call), 'the appearance alone made no call').toEqual(['update', 'play']);
+    await apply(page, 'walk', { t: 'event', event: 'reject', payload: {} });
+    await expect.poll(() => outcome('walk')).toMatchObject({ i: first, call: 'custom', status: 'rejected', msg: 'not now', on: true, step: 0 });
+    expect((await outcome('walk'))?.acted, 'a refused action changed nothing').toBeUndefined();
+    await apply(page, 'walk', { t: 'event', event: 'mark', payload: { v: 'once' } });
+    await expect(walk).toHaveAttribute('data-mark', 'once');
+    await expect.poll(async () => (await outcome('walk'))?.acted).toBe(true);
+    // A healthy instance's Take is the same instance (row 40): nothing mounts again by itself.
+    await apply(page, 'walk', { t: 'play' });
+    await expect.poll(async () => (await outcome('walk'))?.acted, 'a Take starts its count again').toBeUndefined();
+    expect(await walkFrame.getAttribute('data-instance')).toBe(first);
+
+    // A DROPPED HOST: the frame's document goes away, so the bridge's far end is gone. The next call
+    // is answered by nobody, and the page's own deadline says so; nothing mounts again yet.
+    await walkFrame.evaluate((f: HTMLIFrameElement) => (f.src = 'about:blank'));
+    await apply(page, 'walk', { t: 'next' });
+    await expect.poll(() => outcome('walk'), { timeout: 10_000 }).toMatchObject({ i: first, call: 'play', status: 'timeout' });
+    await expect(walkFrame).toHaveCount(1);
+    expect(await walkFrame.getAttribute('data-instance')).toBe(first);
+    // A call still out on the old instance when the re-cue comes ...
+    await apply(page, 'walk', { t: 'update', data: { count: 5 } });
+    const told = await page.evaluate(() => (window as unknown as { __told: unknown[] }).__told.length);
+    // THE RE-CUE: a Take mounts the package again as a new instance naming the one it replaced,
+    // given the values held (count 5), then the Take. The action is not repeated.
+    await apply(page, 'walk', { t: 'play' });
+    await expect(walkFrame).toHaveCount(1);
+    await expect.poll(() => walkFrame.getAttribute('data-instance')).not.toBe(first);
+    const second = (await walkFrame.getAttribute('data-instance'))!;
+    await expect(walk).toHaveAttribute('data-count', '5');
+    await expect(walk).toHaveAttribute('data-step', '0');
+    expect(await walk.getAttribute('data-mark'), 'no action repeated').toBeNull();
+    await expect.poll(() => outcome('walk')).toEqual({ i: second, call: 'play', status: 'done', code: 200, step: 0, on: true, was: first });
+    await expect(walkFrame).toHaveAttribute('data-appearance', JSON.stringify({ v: 1, frame: { dx: 40, dy: -20, s: 0.9, ox: 960, oy: 540 } }));
+    // ... and nothing the old instance said after that is believed (its call settled `gone`).
+    const since = await page.evaluate((n) => (window as unknown as { __told: { i: string | null }[] }).__told.slice(n), told);
+    expect(since.length).toBeGreaterThan(0);
+    expect(since.every((o) => o.i === second), 'never the old instance').toBe(true);
+
+    // NOT KNOWN AFTER A RESTART (output/main.ts marks it): said until the operator's Take or Out.
+    await page.evaluate(() => (window as unknown as { __stage: { markUnknown(k: string, w: string): void } }).__stage.markUnknown('walk', 'its Take was not confirmed before the restart'));
+    await expect.poll(async () => (await outcome('walk'))?.unknown).toBe('its Take was not confirmed before the restart');
+    await apply(page, 'walk', { t: 'update', data: { count: 6 } });
+    await expect(walk).toHaveAttribute('data-count', '6');
+    await expect.poll(async () => (await outcome('walk'))?.call).toBe('update');
+    expect((await outcome('walk'))?.unknown, 'an update proves nothing').toBe('its Take was not confirmed before the restart');
+    await apply(page, 'walk', { t: 'stop' });
+    await expect.poll(async () => (await outcome('walk'))?.call).toBe('stop');
+    expect((await outcome('walk'))?.unknown).toBeUndefined();
+
+    // A REMOVED FILE: the package's module is no longer served. A re-cue of a lost instance mounts it
+    // again and its load is refused, said in its own word; served again, the next re-cue airs it.
+    served.missing.add('/__foreign-ograf/packages/steps/graphic.mjs');
+    await walkFrame.evaluate((f: HTMLIFrameElement) => (f.src = 'about:blank'));
+    await apply(page, 'walk', { t: 'next' });
+    await expect.poll(async () => (await outcome('walk'))?.status, { timeout: 10_000 }).toBe('timeout');
+    const beforeRemoved = await page.evaluate(() => (window as unknown as { __told: unknown[] }).__told.length);
+    await apply(page, 'walk', { t: 'play' });
+    await expect.poll(async () => { const o = await outcome('walk'); return o?.i !== second && o?.call; }, { timeout: 10_000 }).toBe('play');
+    const refused = (await outcome('walk'))!;
+    expect(refused.on, JSON.stringify(refused)).toBe(false);
+    expect(refused.status, JSON.stringify(refused)).not.toBe('done');
+    const load = await page.evaluate((n) => (window as unknown as { __told: Outcome[] }).__told.slice(n).find((o) => o.call === 'mount'), beforeRemoved);
+    expect(load?.i).toBe(refused.i);
+    expect(load?.status, JSON.stringify(load)).not.toBe('done');
+    served.missing.clear();
+    await apply(page, 'walk', { t: 'play' });
+    await expect.poll(async () => { const o = await outcome('walk'); return o?.i !== refused.i && o?.call; }, { timeout: 10_000 }).toBe('play');
+    expect(await outcome('walk')).toMatchObject({ status: 'done', on: true, was: refused.i });
+    await expect(walk).toHaveAttribute('data-count', '6');
+
+    // Manual native operation stays available throughout.
+    const idle = await freshState(page, 'lt0');
+    await apply(page, 'lt0', { t: 'play' });
+    await expect.poll(() => freshState(page, 'lt0')).not.toBe(idle);
   });
 
   test('a monitor that serves no package draws a plate for it while it is up, never an empty picture', async ({ page }) => {

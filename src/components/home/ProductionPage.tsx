@@ -112,7 +112,7 @@ import {
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
 import { foreignTakeRefusal, isForeignGraphic } from '../../model/foreignPackage';
-import { confirmedLines, packageLayerPeers, readOgrafOutcome, type OgrafOutcome } from '../../control/ografOutcome';
+import { acceptOutcome, confirmedLines, packageLayerPeers, readOgrafOutcome, type OgrafOutcome } from '../../control/ografOutcome';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
@@ -127,7 +127,7 @@ import { createSheetInbox } from '../../audience/sheetMessages';
 import { designEditedAt, loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, updateGraphic } from '../../model/library';
 import { captureLookFromTemplate, loadLooks, type SavedGraphic } from '../../model/packets';
 import { measureId, withAnchor, type AppliedLooks, type Measurement } from '../../control/cueAdjust';
-import { createMeasurer, cueAdjustState, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
+import { createMeasurer, cueAdjustState, NO_STYLE_CONTEXT, lookAppearance, measured, pendingWrites, placeWaiting, pressAppearance, type MeasureJob } from '../../control/adjustGeometry';
 import { lightPanel, lookExceptions, lookFaceUnpublished, lookFontRef, lookImportedFace, lookPanelImported, lookReach, lookStyleContext, lookSentWords, lookToActivate, withLookAssets } from '../../control/productionLook';
 import { asDesignedPatch, assetDataIn, facePickPatch, facesCss, styleContextFor, styleReach, weightsFor, COLOUR_VARS } from '../../control/cueStyle';
 import { FONTS } from '../../model/fonts';
@@ -836,9 +836,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** What the OUTPUTS say each imported OGraf package did (control/ografOutcome.ts), from their
    *  reports alone: the PROGRAM monitor never loads a package, so nothing here is simulated. */
   const [outputOgraf, setOutputOgraf] = useState<Record<string, OgrafOutcome>>({});
+  /** Per package, the instances an output has said it replaced: their late reports are refused. */
+  const replacedOgraf = useRef(new Map<string, string[]>());
   const noteOutputOgraf = useCallback((graphic: string, state: unknown) => {
     const o = readOgrafOutcome(state);
     if (!o) return;
+    const { accept, replaced } = acceptOutcome(replacedOgraf.current.get(graphic) ?? [], o);
+    replacedOgraf.current.set(graphic, replaced);
+    if (!accept) return;
     setOutputOgraf((m) => (JSON.stringify(m[graphic] ?? null) === JSON.stringify(o) ? m : { ...m, [graphic]: o }));
   }, []);
   const noteMachineState = useCallback(
@@ -865,6 +870,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setSendOwed(false);
     setLoggedAt(null);
     setOutputOgraf({});
+    replacedOgraf.current.clear();
   }, [hostedSlug]);
   /** The graphics whose PUBLISHED payload still reads a Sheet in its own code, as this page last saw
    *  it (its resolve, its own successful Publish): what the output runs, not what the copy says, so
@@ -2191,7 +2197,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const g = record?.graphics.find((x) => x.id === cue.sourceId);
     if (!g || cue.source === 'playout') return null;
     const elsewhere = (record?.cues ?? []).some((c) => c.sourceId === g.id && c.id !== cue.id && c.adjust !== undefined);
-    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, ctx);
+    // An imported OGraf package takes place and size alone, on its frame (playout adjustments
+    // AC-10): the standard has no hook for type or colour, so no look or style resolves for it.
+    const style = isForeignGraphic(g.template) ? NO_STYLE_CONTEXT : ctx;
+    return cueAdjustState(designed(g, lib), cue, frameOf(g, lib), stage, airedValuesOf(cue), session.geometry.get(), session.air.get().looks?.[g.name], elsewhere, style);
   };
   // SETUP › LOOK (home/ProductionLook.tsx): the look, its activation, what it reaches and the bulk
   // send. Its writes go straight to the record (the look is not part of the rundown's history);
@@ -2250,7 +2259,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const seen = new Set<string>();
     return (record.cues ?? []).flatMap((cue) => {
       const g = record.graphics.find((x) => x.id === cue.sourceId);
-      if (!g || cue.source === 'playout') return [];
+      // A package is never measured here: this page does not load one (it has no measurement).
+      if (!g || cue.source === 'playout' || isForeignGraphic(g.template)) return [];
       if (g.adjust === undefined && cue.adjust === undefined) {
         if (!everyGraphic || seen.has(g.id)) return [];
         seen.add(g.id);
@@ -3862,7 +3872,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               : undefined
           }
           liveLayers={liveLayers}
-          confirmed={hostedSlug ? confirmedLines(show.graphics.filter((g) => isForeignGraphic(g.template)).map((g) => g.name), outputOgraf) : []}
+          confirmed={hostedSlug ? confirmedLines(show.graphics.filter((g) => isForeignGraphic(g.template)).map((g) => g.name), outputOgraf).map((line) => ({ ...line, recue: !!liveCue[line.name] })) : []}
+          onRecue={(name) => {
+            const cue = cues.find((c) => c.id === liveCue[name]);
+            if (cue) void takeCue(cue);
+          }}
           serverLayers={livePlayoutLayers}
           previewServer={previewCue ? playoutItemFor(previewCue) : null}
           previewSeconds={(() => {
@@ -4200,6 +4214,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   setOnlyThisCue={(on) => setOnlyThisCue(on ? editingCue.id : null)}
                   measured={session.geometry as StorePart<unknown>}
                   stateOf={() => adjustStateOf(editingCue) ?? state}
+                  measures={!isForeignGraphic(g.template)}
                   category={g.type}
                   open={adjustOpen}
                   setOpen={setAdjustOpen}
@@ -4228,6 +4243,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     return {
                       reach,
                       artwork: g.type === 'imported-design',
+                      package: isForeignGraphic(g.template),
                       imported: styleCtx.imported,
                       bundled: FONTS,
                       design,
