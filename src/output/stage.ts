@@ -111,6 +111,8 @@ export interface OutputStage {
   ografOutcomes: ReadonlyMap<string, OgrafOutcome>;
   /** Called whenever an entry of `ografOutcomes` changes. */
   onOgraf(cb: (graphic: string) => void): void;
+  /** Resolves once every call sent to every package so far has settled. */
+  ografSettled(): Promise<void>;
   /** A published package whose state a restart could not prove (control/ografRecovery.ts): its
    *  outcome says so, with `why`, until the operator's next Take or Out of it. */
   markUnknown(key: string, why: string): void;
@@ -986,6 +988,7 @@ export function createOutputStage(
     foreignLayer: (key) => foreign.get(key),
     ografOutcomes,
     onOgraf: (cb) => ografCbs.push(cb),
+    ografSettled: () => Promise.all([...foreign.values()].map((layer) => layer.settled())).then(() => undefined),
     markUnknown: (key, why) => {
       if (!foreign.has(key) && !waitingOgraf.has(key)) return;
       unknownWhy.set(key, why);

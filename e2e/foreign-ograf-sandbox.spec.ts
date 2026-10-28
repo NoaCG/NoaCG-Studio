@@ -679,6 +679,20 @@ test.describe('a foreign OGraf package on the output stage', () => {
     const idle = await freshState(page, 'lt0');
     await apply(page, 'lt0', { t: 'play' });
     await expect.poll(() => freshState(page, 'lt0')).not.toBe(idle);
+
+    // A boot's catch-up comes back on air only once the package's calls have settled
+    // (output/catchUp.ts): `ografSettled` waits for a step the Graphic answers 600 ms late.
+    await apply(page, 'walk', { t: 'update', data: { playMs: 600 } });
+    await expect.poll(async () => (await outcome('walk'))?.call).toBe('update');
+    const waited = await page.evaluate(async () => {
+      const s = (window as unknown as { __stage: { apply(g: string, m: unknown): void; ografSettled(): Promise<void> } }).__stage;
+      s.apply('walk', { t: 'next' });
+      const started = performance.now();
+      await s.ografSettled();
+      return performance.now() - started;
+    });
+    expect(waited).toBeGreaterThan(400);
+    await expect(walk).toHaveAttribute('data-step', '1');
   });
 
   test('a monitor that serves no package draws a plate for it while it is up, never an empty picture', async ({ page }) => {

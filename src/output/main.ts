@@ -76,7 +76,7 @@ import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 import { publishedOgrafBase } from '../backend/productionOgraf';
 import { isOgrafInstance, ografCheck } from '../control/ografOutcome';
-import { heldActions, ografRestore } from '../control/ografRecovery';
+import { heldActions, ografRestore, UNKNOWN_ACTED } from '../control/ografRecovery';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -708,6 +708,8 @@ async function boot(): Promise<void> {
     sinceBank.set(graphic, 0);
   };
   stage.onState((graphic) => scheduleReport(graphic));
+  /** The instance each package's READY check was taken from. */
+  const checkedInstance = new Map<string, string | null>();
   stage.onOgraf((graphic) => {
     scheduleReport(graphic);
     const outcome = stage.ografOutcomes.get(graphic);
@@ -727,10 +729,13 @@ async function boot(): Promise<void> {
       return;
     }
     packages.add(graphic);
-    // The first word decides its check (its load), and a later call never changes it.
+    // The first word decides its check (its load), and a later call never changes it. A new
+    // instance (a re-cue's mount) is checked again by its own load (E3.2b).
+    if (outcome.i !== checkedInstance.get(graphic) && checks.delete(graphic)) readyChanged();
     const check = checks.has(graphic) ? null : ografCheck(outcome);
     if (check) {
       checks.set(graphic, check);
+      checkedInstance.set(graphic, outcome.i);
       readyChanged();
     }
   });
@@ -1019,6 +1024,10 @@ async function boot(): Promise<void> {
     return { ok: true, value: answer.value.rows };
   };
   let missed: ControlEventRow[] = [];
+  /** The catch-up stopped short of the log's end (a read that failed, or the page ceiling): the
+   *  follow's first refill then brings history, and a package's action in it is read past as the
+   *  catch-up would have (E3.2b, `heldLate`). */
+  let bootGapOpen = true;
   for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
     const tail = await untilAnswered(
       () => readTail(missed.length > 0 ? position(missed[missed.length - 1]) : followFrom),
@@ -1029,7 +1038,10 @@ async function boot(): Promise<void> {
       break;
     }
     missed.push(...tail.value);
-    if (tail.value.length < CONTROL_TAIL_PAGE) break;
+    if (tail.value.length < CONTROL_TAIL_PAGE) {
+      bootGapOpen = false;
+      break;
+    }
   }
   // A GRAPHIC ON AIR THAT NO REPORT BANKS, AIRING TYPED DATA (issue #1762; control/outputRecovery.ts
   // `unreportedTypedRows`): its typed Take can be older than `followFrom`, so the log below it is
@@ -1192,6 +1204,14 @@ async function boot(): Promise<void> {
   // source loaded it. Both halves are fixed - the documents go off air from the inside and keep
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
   missed.forEach((row) => apply(row, undefined, true, !unsentActions.has(row)));
+  /** A row of history the catch-up left unread that is a package's action: read past and said, as
+   *  `heldActions` does for the rows it did read. */
+  const heldLate = (row: ControlEventRow): boolean => {
+    if (!bootGapOpen || row.msg.t !== 'event' || !packageSet.has(row.graphic)) return false;
+    apply(row, 'tail', true, false);
+    stage.markUnknown(row.graphic, UNKNOWN_ACTED);
+    return true;
+  };
   // Said once everything the boot sends has gone, so a Take among the replayed rows cannot clear it.
   for (const [key, why] of ografUnknown) stage.markUnknown(key, why);
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
@@ -1265,7 +1285,9 @@ async function boot(): Promise<void> {
         if (replayed) live.refilled();
         const quiet = replayed ? supersededAnimations(rows) : null;
         if (replayed && rows.length) stage.setSoundQuiet(true);
-        for (const row of rows) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
+        for (const row of rows) if (!(replayed && heldLate(row))) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
+        // The first refill after the boot has read the gap the catch-up left.
+        if (replayed) bootGapOpen = false;
         if (replayed && rows.length) stage.setSoundQuiet(false);
       },
       onHole: () => live.hole(),
@@ -1334,6 +1356,9 @@ async function boot(): Promise<void> {
           read.counted = true;
           live.refilled();
         }
+        // A live row means the follow has caught up past whatever the boot left unread.
+        if (!read) bootGapOpen = false;
+        if (read && heldLate(row)) return;
         apply(row, read ? 'tail' : 'log');
       },
       onHole: () => live.hole(),

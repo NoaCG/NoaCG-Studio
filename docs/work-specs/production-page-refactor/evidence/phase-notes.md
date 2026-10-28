@@ -42,6 +42,11 @@ changes a spec's digest.
     a new instance names the one it replaced (`was`: from a remount, or from the tab's session on a
     reload, `noacg-ograf-instances:<slug>`), and `acceptOutcome` refuses any later report about it
     (a write still on its way when the output reloaded). Bounded at 16 instances per graphic.
+  - *Recovery is hidden until the package settles* (`output/catchUp.ts`): the boot's reveal waits,
+    within its cap, for every call sent to a package to settle (`stage.ografSettled`), since a
+    package reports no machine state. A re-cue's new instance is checked for READY by its own load.
+    A follow refill that brings history the catch-up left unread (a failed read, the page ceiling)
+    reads a package's action past and marks it not known, as the catch-up does (`heldLate`).
   - *Actions counted* (`acted`): the actions an instance was sent, less those the Graphic refused,
     ride the report for the instance's whole life, so a restart knows the Graphic holds state no
     restart reproduces. OGraf promises no Take or Out undoes an action, so neither resets the count;
@@ -89,7 +94,7 @@ changes a spec's digest.
   - A jsonb round trip reorders keys: compare an appearance read back from the log as an object.
 - **Touched files against `373d896`:** `src/control/ografRecovery.ts` (new),
   `scripts/ograf-recovery.test.mjs` (new), `src/control/ografOutcome.ts`, `src/output/stage.ts`,
-  `src/output/foreignOgraf.ts`, `src/output/main.ts`, `src/components/home/ProductionPage.tsx`,
+  `src/output/foreignOgraf.ts`, `src/output/main.ts`, `src/output/catchUp.ts`, `src/components/home/ProductionPage.tsx`,
   `src/components/home/PlayoutMonitors.tsx`, `src/components/home/CueAdjust.tsx`,
   `src/components/control/HostedCueAdjust.tsx`, `src/styles/playout-dashboard.css`,
   `e2e/foreign-ograf-sandbox.spec.ts`, `e2e/configured/ograf-rundown.spec.ts`,
