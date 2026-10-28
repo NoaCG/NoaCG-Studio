@@ -242,14 +242,25 @@ test('a correction landing between a Take\'s click and its answer is owed by the
   assert.deepEqual(failed(r), []);
 });
 
-test('a correction landing just before the output goes offline is held by the disconnect, not missed', () => {
-  // The output is frozen for the fault from 200 ms after the row; it catches up after reconnecting.
+test('a value applied just before the output goes offline is held by the disconnect, not missed', () => {
+  // The last board row before a disconnect, and the card's correction for it, never render: the
+  // output is dark from 200 ms after the row until it reconnects (the judge before this rule failed it).
   const r = healthy();
   const f = r.faults.find((x) => x.kind === 'disconnect' && x.at > r.t0 + 15 * 60_000);
-  const row = r.rows.find((x) => x.graphic === 'Candidate card' && x.t === 'update' && x.at > f.at - 2_000 && x.at < f.at);
-  if (row) r.frames = r.frames.filter((x) => !(x.at >= row.at && x.at <= f.end + 500 && x.votes === row.data.f2));
+  const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at);
+  assert.ok(row && f.at - row.at < 5_000, 'a board row lands shortly before the disconnect');
+  const card = r.rows.find((x) => x.graphic === 'Candidate card' && x.t === 'update' && x.at > row.at && x.at < f.at + 1_000);
+  r.frames = r.frames.map((x) => (x.at > row.at - 50 && x.at < f.end + 300 ? { ...x, kok: row.data.f8 === x.kok ? '' : x.kok, votes: card && x.votes === card.data.f2 ? '' : x.votes } : x));
+  r.frames = r.frames.filter((x) => !(x.at > row.at - 50 && x.at < f.end + 300 && x.kok === ''));
+  f.at = row.at + 200;
   assert.deepEqual(failed(r), []);
 });
+
+red('a value missed just before a Pause: a Pause stops nothing already applied', (r) => {
+  const f = r.faults.find((x) => x.kind === 'pause' && x.at > r.t0 + 15 * 60_000);
+  const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at);
+  r.frames = r.frames.filter((x) => !(x.at > row.at - 50 && x.at < row.at + 12_000 && x.kok === row.data.f8));
+}, /failed to reach the output in time|bound field/);
 
 red('corrections that never reach the card', (r) => {
   for (const f of r.frames) {
