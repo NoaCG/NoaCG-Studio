@@ -543,6 +543,24 @@ function ruleFace(rule: string): BundledFont | undefined {
   return file ? FONTS.find((f) => f.file === file || latinExtFile(f) === file) : undefined;
 }
 
+/** Just past the `;` that ends a rule's `src` declaration, or -1. A scan rather than a regex: the
+ *  `;` inside a quoted string or a `url(...)` (a data: URL has one) does not end it. */
+function srcDeclarationEnd(rule: string): number {
+  const start = rule.search(/src\s*:/);
+  if (start < 0) return -1;
+  let quote = '';
+  let depth = 0;
+  for (let i = start; i < rule.length; i++) {
+    const c = rule[i];
+    if (quote) { if (c === quote) quote = ''; }
+    else if (c === '"' || c === "'") quote = c;
+    else if (c === '(') depth++;
+    else if (c === ')') depth = Math.max(0, depth - 1);
+    else if (c === ';' && depth === 0) return i + 1;
+  }
+  return -1;
+}
+
 /**
  * Bring a stylesheet's font rules up to what the generators write today (#1746), so a graphic
  * saved before #1744/#1745 sets Š and Ž in its own face and never draws a synthesised bold:
@@ -585,10 +603,10 @@ export function upgradeFontCss(css: string): string {
   // own semicolon (a single-file export read back in embeds the file that way).
   return out.replace(/(\/\* Imported font[^*]*\*\/\s*)(@font-face\s*\{[^}]*\})/g, (whole, comment: string, rule: string) => {
     if (/font-weight\s*:/.test(rule) || weighted.has(ruleFamily(rule))) return whole;
-    const upgraded = rule
-      .replace(/(src:(?:"[^"]*"|'[^']*'|url\([^)]*\)|[^;"'])*;)/, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
-      .replace(OLD_IMPORTED_NOTE, IMPORTED_NOTE);
-    return comment + upgraded;
+    const end = srcDeclarationEnd(rule);
+    if (end < 0) return whole;
+    const weightLine = `\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`;
+    return comment + (rule.slice(0, end) + weightLine + rule.slice(end)).replace(OLD_IMPORTED_NOTE, IMPORTED_NOTE);
   });
 }
 

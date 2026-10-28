@@ -165,6 +165,13 @@ test('an imported block written on one line gains its weight too', () => {
   assert.equal(upgradeFontCss(out), out);
 });
 
+test('a long, unterminated src is scanned in linear time', () => {
+  const css = `/* Imported font (your file). */\n@font-face { font-family: "Mine"; src: ${'url()'.repeat(50000)} }`;
+  const started = performance.now();
+  assert.equal(upgradeFontCss(css), css, 'no terminating semicolon: left as it was');
+  assert.ok(performance.now() - started < 1000);
+});
+
 test('an imported family the stylesheet also gives weighted files keeps its weight-less rule', () => {
   const bold = `@font-face {
   font-family: "Neue Machina";
