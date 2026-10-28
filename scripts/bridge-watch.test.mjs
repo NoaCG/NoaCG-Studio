@@ -104,14 +104,15 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     learnt: (showId, facts) => learnt.push([showId, facts]),
     // The page's half (useProductionPublish.ts `reloadOnSlot`): a sent load reaches the watch
     // through `onAirChanged`, which drops reads already out, owns the slot and reads it again.
-    reload: async () => {
+    reload: async (wanted) => {
       calls.push('reload');
+      reloading.wanted = wanted;
       const result = await reloading.answer();
       if (!result) return null;
       watch.slotActed();
       if (result.state === 'ok') {
         if (reloading.refill) slotLayer = ourPage;
-        watch.slotOwned(true);
+        watch.slotOwned(true, inputs.casparTarget);
       }
       // setSlotRev: the page reads the slot again at its next render, after the load returned.
       setImmediate(() => {
@@ -468,7 +469,7 @@ async function loadedRig() {
   t.update();
   t.answer(OK);
   await settle();
-  t.watch.slotOwned(true);
+  t.watch.slotOwned(true, t.inputs.casparTarget);
   assert.equal(t.session.bridge.get().slotSeenOurs, true);
   t.take();
   return t;
@@ -522,7 +523,7 @@ test('an output this page only saw, another production, an Unload here or elsewh
 
   // Unloaded on purpose (onAirChanged('stop') clears what was seen and gives the slot up).
   const unloaded = await loadedRig();
-  unloaded.watch.slotOwned(false);
+  unloaded.watch.slotOwned(false, unloaded.inputs.casparTarget);
   await restartServer(unloaded);
   assert.ok(!unloaded.calls.includes('reload'), 'unloaded');
 
@@ -541,7 +542,7 @@ test('Publish\'s own load, landing before the page renders it published, is stil
   t.answer(OK);
   await settle();
   // Publish loads the output and then the page renders with the production published.
-  t.watch.slotOwned(true);
+  t.watch.slotOwned(true, t.inputs.casparTarget);
   t.update({ hostedSlug: 'abc', slotRev: 1 });
   await settle();
   assert.equal(t.session.bridge.get().slotSeenOurs, true);
@@ -557,7 +558,7 @@ test('an Unload during a reload leaves nothing saying it reloads', async () => {
   });
   await restartServer(t);
   assert.deepEqual(t.session.bridge.get().slotReload, { state: 'reloading' });
-  t.watch.slotOwned(false);
+  t.watch.slotOwned(false, t.inputs.casparTarget);
   assert.equal(t.session.bridge.get().slotReload, null);
   release();
   await settle();
@@ -582,7 +583,7 @@ test('a server that keeps failing is tried three times, spaced out, then left to
   for (let n = 0; n < 20; n += 1) await t.readSlot();
   assert.equal(loads(), 3, 'no loop: the rest is the operator\'s');
   // The operator's own Load starts afresh.
-  t.watch.slotOwned(true);
+  t.watch.slotOwned(true, t.inputs.casparTarget);
   assert.equal(t.session.bridge.get().slotReload, null);
 });
 
@@ -610,4 +611,26 @@ test('no double load: a reload that found the operator\'s Load already out is no
   await t.readSlot();
   assert.equal(t.calls.filter((c) => c === 'reload').length, 2, 'the next empty reading tries for real');
   assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
+});
+
+test('a reload is for the slot it was loaded on, and for a page still open', async () => {
+  // The settings move the output to an empty 2-30: this page never loaded anything there.
+  const moved = await loadedRig();
+  moved.state.settings = { ...moved.state.settings, channel: 2, layer: 30 };
+  moved.update({ casparTarget: '["caspar",5250,2,30]' });
+  await settle();
+  await restartServer(moved);
+  assert.ok(!moved.calls.includes('reload'), 'another slot');
+
+  // The page goes while the reload reads the slot: `wanted` turns false, so the page sends nothing.
+  const gone = await loadedRig();
+  let release;
+  gone.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve(null);
+  });
+  await restartServer(gone);
+  assert.equal(gone.reloading.wanted(), true);
+  gone.watch.stop();
+  assert.equal(gone.reloading.wanted(), false, 'the page went');
+  release();
 });

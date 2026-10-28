@@ -933,7 +933,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     bridgeWatch.current?.slotActed();
     if (show && result.state === 'ok') {
       // Loaded here, the output is this page's to bring back after a server restart (#1657).
-      bridgeWatch.current?.slotOwned(what === 'air');
+      bridgeWatch.current?.slotOwned(what === 'air', target);
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), casparOutput: what === 'air' ? target : undefined });
       // Unloading on purpose is not losing the slot.
       if (what === 'stop') writeBridge(session, { slotSeenOurs: false });
@@ -1314,7 +1314,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const serverFileKey = JSON.stringify({ show: show?.id, target: statusTarget, items: serverFileItems.map(i => ({ id: i.id, kind: i.kind, name: i.name })), refs: cues.filter(c => c.source === 'playout').map(c => c.sourceId) });
   const needsServerFiles = cues.some(c => c.source === 'playout');
   /** Load the lost output again (useProductionPublish.ts `reloadOnSlot`), set once it exists below. */
-  const reloadRef = useRef<() => Promise<PlayoutResult | null>>(async () => null);
+  const reloadRef = useRef<(wanted: () => boolean) => Promise<PlayoutResult | null>>(async () => null);
   const rundownRef = useRef({ cues, playoutItems, folders });
   rundownRef.current = { cues, playoutItems, folders };
   useEffect(() => {
@@ -1324,7 +1324,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       serverPlayout,
       settingsChanged: () => setPlayoutSettingsRev((n) => n + 1),
       learnt: (showId, facts) => setShows(fillPlayoutItemFacts(showId, facts)),
-      reload: () => reloadRef.current(),
+      reload: (wanted) => reloadRef.current(wanted),
     });
     bridgeWatch.current = watch;
     return () => {
@@ -2622,7 +2622,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
 
   preparePublishRef.current = () => publishNow();
-  reloadRef.current = async () => (outputUrl ? reloadOnSlot(outputUrl) : null);
+  reloadRef.current = async (wanted) => (outputUrl ? reloadOnSlot(outputUrl, wanted) : null);
 
   /** The layers that are up, each with the cue that put it there, front to back. */
   const liveLayers = show.graphics

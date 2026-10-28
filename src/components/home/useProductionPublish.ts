@@ -291,13 +291,14 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
    *  onto a slot that still reads empty, and never while another output action is out, so it cannot
    *  load twice beside the operator's own press or replace anything. The watch shows the outcome, so
    *  no note: the Bridge's answer, or null when nothing was sent. */
-  const reloadOnSlot = async (url: string): Promise<PlayoutResult | null> => {
+  const reloadOnSlot = async (url: string, wanted: () => boolean): Promise<PlayoutResult | null> => {
     let result: PlayoutResult | null = null;
     await slotAction(async () => {
       const settings = loadPlayoutSettings();
       if (!playoutConfigured(settings)) return;
       const reading = await readState(settings, settings.channel);
-      if (!reading.reply) return;
+      // The page may have gone while the slot was read: nothing airs for a production left behind.
+      if (!reading.reply || !wanted()) return;
       const slug = new URL(url).searchParams.get('production');
       if (slotHolds(reading.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, slug) !== 'empty') return;
       result = await sendLoad(settings, url);
