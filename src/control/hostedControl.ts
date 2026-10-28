@@ -2022,12 +2022,17 @@ export async function followControlLog(opts: {
       epoch: plan.epoch,
       tail: plan.tail,
       onRows: (rows, replayed) => {
-        if (replayed && rows.length) opts.onReplay?.(true);
-        rows.forEach((row) => {
-          heard.claim(row.msg);
-          opts.onRow(row);
-        });
-        if (replayed && rows.length) opts.onReplay?.(false);
+        const bracket = replayed && rows.length > 0;
+        if (bracket) opts.onReplay?.(true);
+        try {
+          rows.forEach((row) => {
+            heard.claim(row.msg);
+            opts.onRow(row);
+          });
+        } finally {
+          // A row that threw must not leave the surface believing it is still replaying.
+          if (bracket) opts.onReplay?.(false);
+        }
       },
       onHead: (head, epoch) => learnHead(plan.session, epoch, head.graphics),
       onEpoch: (epoch, reset) => {

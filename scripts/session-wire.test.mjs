@@ -672,3 +672,22 @@ test('a hand-over ping whose call threw is sent again a second later, within the
   assert.equal(wire.pings.length, 1 + HANDOVER_RETRIES);
   stop();
 });
+
+test('a hand-over ping answered first and back live inside the confirm window is not sent again', async () => {
+  const wire = scriptedWire();
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  const follow = wire.follows[0];
+  follow.answer.resolve(() => {});
+  await flush();
+  follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  const confirm = [...wire.timers.values()].find((timer) => timer.once);
+  assert.equal(confirm?.ms, HANDOVER_CONFIRM_MS, 'the answer came first: the page is waiting for the row');
+  follow.opts.onRow({ id: 901, seq: 51, graphic: '', msg: { t: 'ping', id: wire.pings[0], at: 0 } });
+  confirm.run();
+  await flush();
+  assert.equal(wire.pings.length, 1, 'the row came back live before the window ran out');
+  stop();
+});
