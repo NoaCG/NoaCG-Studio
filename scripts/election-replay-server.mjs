@@ -138,7 +138,7 @@ export async function startReplayServer({ token, cert, key, clock = Date.now, st
   if (!(Number.isFinite(stepMs) && stepMs > 0)) throw new Error('stepMs must be a positive number of milliseconds');
   // A timeline of its own (`{ length, at(i) }`, the endurance run's) makes each step's text when asked.
   const custom = typeof timeline === 'object' && timeline !== null;
-  if (!custom && timeline !== 'research' && timeline !== 'package') throw new Error('timeline must be research, package or { length, at(i) }');
+  if (!custom && timeline !== 'research' && timeline !== 'package') throw new Error('timeline must be research or package, or { length, at(i) }');
   if (custom && !(Number.isInteger(timeline.length) && timeline.length > 0 && typeof timeline.at === 'function')) throw new Error('a timeline of its own needs a length and at(i)');
   const fixed = custom ? null : timeline === 'package' ? packageTimeline() : replayTimeline();
   const steps = custom ? { length: timeline.length, at: (i) => timeline.at(i) } : { length: fixed.length, at: (i) => fixed[i] };

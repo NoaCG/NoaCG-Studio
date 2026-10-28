@@ -24,7 +24,7 @@ const argv = process.argv.slice(2);
 const minutes = Number(argv.includes('--minutes') ? argv[argv.indexOf('--minutes') + 1] : 60);
 if (!(minutes > 0)) throw new Error('--minutes must be a positive number');
 
-const run = (cmd, args, options = {}) => spawnSync(cmd, args, { encoding: 'utf8', windowsHide: true, ...options });
+const run = (cmd, args, options = {}) => spawnSync(cmd, args, { encoding: 'utf8', ...options, windowsHide: true });
 
 // The local stack only: its keys are the CLI's published defaults and live only on this machine.
 const status = run('supabase', ['status', '-o', 'json'], { cwd: ROOT });
