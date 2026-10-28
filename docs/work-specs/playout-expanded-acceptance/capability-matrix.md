@@ -92,8 +92,10 @@ Each can change what is on air or what the operator believes is on air. All are 
 
 Filed before this programme's extension rows; open on `c6fc146`. This list and the one above
 hold every open issue whose defect changes what airs or what the operator believes airs,
-including how a graphic is drawn on air. Issues only in the editor, the agent tools or the tests
-are not listed.
+including how a graphic is drawn on air. Not listed: issues only in the editor, the agent tools or
+the tests; feature requests; and test flakes that name no reproduced on-air failure (for example
+[#923](https://github.com/NoaCG/NoaCG-Studio/issues/923)'s quiz reveal after a reload, seen once
+on hosted staging and passed on retry).
 
 | Issue | What happens | What to do meanwhile |
 | --- | --- | --- |
@@ -109,6 +111,8 @@ are not listed.
 | [#1144](https://github.com/NoaCG/NoaCG-Studio/issues/1144) | In an imported SVG, a turned line on an upright strip wraps across the strip's edges, with no warning. | Same: try the longest value on PREVIEW before the show. |
 | [#1259](https://github.com/NoaCG/NoaCG-Studio/issues/1259) | A line that a graphic's reveal mask cuts at rest is not reported by the design check, so it can air cut. | Look at each graphic at rest on PREVIEW before the show. |
 | [#779](https://github.com/NoaCG/NoaCG-Studio/issues/779) | Two graphics with the same name in one production (for example two "Lower third"s in a team production) replace each other on the output: the production and its output key graphics by name. | Give every graphic in a production its own name; check the rundown for duplicates before the show. |
+| [#778](https://github.com/NoaCG/NoaCG-Studio/issues/778) | Text on imported artwork: uneven wrapping, growth toward the wrong side, the vote band's height, and a value sent while an imported board is hidden not showing when it reappears. | For imported artwork, try long values on PREVIEW; after updating a hidden imported board, take it again. |
+| [#792](https://github.com/NoaCG/NoaCG-Studio/issues/792) | Typing in a Data table saves the whole production on every letter, which can cause sync conflicts between two operators mid-show; an armed row delete can do nothing. | During a show, let one person edit the Data tab at a time; check a delete took. |
 | [#758](https://github.com/NoaCG/NoaCG-Studio/issues/758) | A page left open across a deploy can fail to load more code. | Do not deploy during a show; reload open pages after one. |
 
 ### Data and setup limits (not on-air defects)

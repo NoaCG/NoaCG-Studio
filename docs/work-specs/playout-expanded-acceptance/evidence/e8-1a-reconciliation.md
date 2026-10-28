@@ -398,13 +398,13 @@ end).
 | #1775 | foreign step controls | O-4; Next and declared actions wired by E3.2a; Back/Goto/skip (item 1) and the `step` row (item 2) open, item 4 unverified; matrix limit |
 | #1777 | L2 AC-6 edge | O-8, open; runbook |
 | #1778 | e2e seed settling | test hygiene; no criterion |
-| #1784 | E3 AC-3, L2 AC-10 | item 1 closed by this row (below); item 2 open, display only |
+| #1784 | E3 AC-3, L2 AC-10 | item 1 closed by this row (below); item 2 open, display only, in the matrix's on-air list (an operator reads that line) |
 | #1795 | no criterion; on air for exported boards | O-10, open; matrix and runbook |
 | #1797 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
 | #1802 | no criterion; on air, #1797's follow-up | O-9, open; matrix and runbook |
 | #1798 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
 | #1618, #1657, #1746 | parent AC-14, data AC-16 on real outputs | O-10, fixed in software; physical check owed to S |
-| #1567, #1572, #885, #1671, #1347, #1048, #1063, #775, #758, #779, #1171, #1144, #1259 | older open on-air defects, filed before the extension rows | no gated criterion's text; listed in the matrix with what to do meanwhile |
+| #1567, #1572, #885, #1671, #1347, #1048, #1063, #775, #758, #779, #1171, #1144, #1259, #778, #792 | older open on-air defects, filed before the extension rows | no gated criterion's text; listed in the matrix with what to do meanwhile |
 
 ## E8 AC-2, the cross-feature cases (this row)
 

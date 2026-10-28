@@ -27,7 +27,7 @@ Bridge; use Chrome, Edge or Firefox for a CasparCG show.
 1. On the production page press **Playout** in the header and switch on **CasparCG via
    Bridge**. On the **NoaCG Bridge** row press **Download**; on the page that opens, download
    NoaCG Bridge, then double-click the file.
-   Windows may warn that the file is unsigned: choose **More info**, then **Run**.
+   Windows may warn that the file is unsigned: choose **More info**, then **Run anyway**.
 2. A page opens in your browser (or press **Pair** on the same row). One click pairs this
    browser with the Bridge. If the browser asks whether the site may reach your local network,
    allow it.
@@ -51,7 +51,7 @@ Follow the module's own guide, which Companion shows as the **?** beside the con
 ([`companion-module/companion/HELP.md`](../../../companion-module/companion/HELP.md)). In short:
 
 1. In Companion open **Modules**, press **Import module package** and choose the file
-   `noacg-studio-0.2.0.tgz` (or newer).
+   `noacg-studio-0.2.0.tgz` (or newer) that the maintainer gives you.
 2. On the production page open **Setup**, then **Stream Deck panel…**, and press **Pair a panel**.
    A code like `ABCD-EFGH` appears; it works once, for five minutes.
 3. In Companion open **Connections**, search `NoaCG`, press **Add** beside **NoaCG: NoaCG
