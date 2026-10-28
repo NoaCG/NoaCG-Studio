@@ -195,7 +195,10 @@ test('a mixed rundown takes a foreign package on a real output: per-child outcom
   expect(at('Board', 'stop')).toBeGreaterThan(at('Board', 'play'));
   expect(at('Bug', 'play') - at('Board', 'stop'), 'the package\'s Out rode with the Take').toBe(2);
 
-  // A FOLDER WHOSE CHILDREN SHARE A LAYER is refused before anything is sent.
+  // A FOLDER WHOSE CHILDREN SHARE A LAYER is refused before anything is sent. Bug goes off first:
+  // with one of its cues up, the folder's button would be its Out, not a Take.
+  await page.getByTestId('verb-out').click();
+  await expect.poll(async () => (await commands(showId)).at(-1)?.msg.t, { timeout: 20_000 }).toBe('stop');
   const sent = (await commands(showId)).length;
   await folder(page, 'Clash').getByTestId('select-folder').click();
   await expect(page.getByTestId('folder-take-blocked')).toContainText('both air on layer 21');
