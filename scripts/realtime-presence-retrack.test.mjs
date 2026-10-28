@@ -1,4 +1,4 @@
-// guards: src/control/livePath.ts, package.json (@supabase/supabase-js)
+// guards: src/control/livePath.ts, package.json, package-lock.json
 //
 // A RE-TRACK LEAVES ONE ENTRY, NOT A GHOST (#1798). Every page on air keeps the live topic's
 // Presence state (src/control/livePath.ts `joinLivePresence`), and each change to an entry is a
