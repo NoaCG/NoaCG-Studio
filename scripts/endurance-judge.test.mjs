@@ -207,6 +207,21 @@ red('an output that never caught up after a disconnect', (r) => {
   const frozen = r.frames.filter((x) => x.at <= f.at).at(-1);
   r.frames = r.frames.map((x) => (x.at > f.at && x.at < f.end + 25_000 ? { ...x, kok: frozen.kok } : x));
 }, /caught up/);
+red('corrections that never reach the card', (r) => {
+  for (const f of r.frames) {
+    if (f.at < r.t0 + 60_000 || !f.name) continue;
+    const p = people.find((x) => x.name === f.name);
+    f.votes = fmt(votesAt(p, 1));
+  }
+}, /failed to reach the output in time/);
+red('a bound value that never renders', (r) => {
+  const from = r.t0 + 15 * 60_000 + 20_000;
+  const held = r.frames.findLast((f) => f.at < from).kok;
+  for (const f of r.frames) if (f.at >= from && f.at < from + 30_000) f.kok = held;
+}, /failed to reach the output in time/);
+red('memory never measured on the output', (r) => {
+  for (const s of r.samples) s.output = { failed: 'CDP session unavailable' };
+}, /memory and instance counts/);
 red('a bound field slow to air', (r) => {
   for (const f of r.frames) f.at += f.at > r.t0 + 15 * 60_000 && f.at < r.t0 + 16 * 60_000 ? 12_000 : 0;
   r.frames.sort((a, b) => a.at - b.at);

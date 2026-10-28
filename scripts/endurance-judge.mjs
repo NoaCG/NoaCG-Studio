@@ -224,6 +224,9 @@ export function judge(record) {
     });
   const growth = [];
   const memory = {};
+  // A series counts only when it was measured: a failed CDP read leaves its window empty.
+  const needed = Math.min(2, steady.length);
+  const unmeasured = [];
   for (const [side, field, slack] of [
     ['controller', 'heap', 0.2],
     ['output', 'heap', 0.2],
@@ -237,6 +240,7 @@ export function judge(record) {
     const xs = series(side, field);
     memory[`${side}.${field}`] = xs;
     const known = xs.filter((x) => x !== null);
+    if (known.length < needed) unmeasured.push(`${side}.${field}`);
     if (known.length < 2) continue;
     const allowance = field === 'heap' ? known[0] * slack + 2 * MIB : Math.max(known[0] * slack, field === 'documents' ? 0 : 50);
     if (known.at(-1) > known[0] + allowance) growth.push({ series: `${side}.${field}`, first: known[0], last: known.at(-1) });
@@ -245,13 +249,16 @@ export function judge(record) {
   const agentRss = steady.map((w) => median(inWindow(w).filter((s) => Number.isFinite(s.agent?.rss)).map((s) => s.agent.rss)));
   memory['agent.rss'] = agentRss;
   const knownRss = agentRss.filter((x) => x !== null);
+  if (knownRss.length < needed) unmeasured.push('agent.rss');
   if (knownRss.length >= 2 && knownRss.at(-1) > knownRss[0] * 1.25 + 10 * MIB) growth.push({ series: 'agent.rss', first: knownRss[0], last: knownRss.at(-1) });
   const enough = steady.length >= 2 || record.minutes < 20;
-  check('memory and instance counts hold across the steady-state windows', enough && growth.length === 0, growth.length ? JSON.stringify(growth) : `${steady.length} steady windows`);
+  check('memory and instance counts hold across the steady-state windows', enough && unmeasured.length === 0 && growth.length === 0, growth.length ? JSON.stringify(growth) : unmeasured.length ? `not measured: ${unmeasured.join(', ')}` : `${steady.length} steady windows`);
 
   // ── Timings, each road on its own ──
   const timings = { dispatch: [], dispatchToAir: [], fetchToApply: [], providerToApply: [], applyToRenderBound: [], providerToRenderBound: [], applyToRenderCandidates: [] };
   const recovering = [];
+  /** Values applied in a steady moment that never reached the output in time: each one a failure. */
+  const missed = [];
   for (const [i, t] of takes.entries()) {
     const play = plays[i];
     if (play) timings.dispatch.push(play.at - t.clickAt);
@@ -276,6 +283,7 @@ export function judge(record) {
     if (moved(rev) !== null && steadyRow) timings.providerToApply.push(r.at - moved(rev));
     const shown = frames.find((f) => f.at >= r.at - 50 && num(f.kok) >= kok);
     if (shown) (steadyRow ? timings.applyToRenderBound : recovering).push(shown.at - r.at);
+    if (steadyRow && r.at + CEILING.bound <= (record.end ?? Infinity) && (!shown || shown.at - r.at > CEILING.bound)) missed.push({ road: 'bound', at: r.at - t0, kok: r.data.f8 });
     if (shown && steadyRow && moved(rev) !== null) timings.providerToRenderBound.push(shown.at - moved(rev));
     // The aired card moves at the page's own read of the tree.
     const aired = takes.findLast((t) => t.at <= r.at);
@@ -284,12 +292,18 @@ export function judge(record) {
       const onCard = frames.find((f) => f.at >= r.at - 50 && f.name === aired.person.name && num(f.votes) >= want);
       const nextTake = takes.find((t) => t.clickAt > r.at);
       if (onCard && (!nextTake || onCard.at < nextTake.clickAt)) timings.applyToRenderCandidates.push(onCard.at - r.at);
+      // Owed by the earlier of the ceiling and the next Take (which replaces the card); a row too
+      // close to that Take, or to the run's end, cannot be judged.
+      const due = Math.min(r.at + CEILING.candidates, nextTake?.clickAt ?? Infinity, record.end ?? Infinity);
+      const room = due - r.at;
+      if (room >= 2_000 && (!onCard || onCard.at > due)) missed.push({ road: 'candidates', at: r.at - t0, person: aired.person.name, want, room });
     }
   }
   const report = Object.fromEntries(Object.entries(timings).map(([k, xs]) => [k, stats(xs)]));
   check('a Take is on air within 10 s', report.dispatchToAir.n > 0 && report.dispatchToAir.max <= CEILING.dispatch, JSON.stringify(report.dispatchToAir));
   check('a bound field is on air within 10 s of the provider\'s move', report.providerToRenderBound.n > 0 && report.providerToRenderBound.max <= CEILING.bound, JSON.stringify(report.providerToRenderBound));
   check('the aired card follows a correction within 13 s of its apply', report.applyToRenderCandidates.n > 0 && report.applyToRenderCandidates.max <= CEILING.candidates, JSON.stringify(report.applyToRenderCandidates));
+  check('no value applied in a steady moment failed to reach the output in time', missed.length === 0, `${missed.length} missed: ${JSON.stringify(missed.slice(0, 3))}`);
 
-  return { minutes: record.minutes, passed: checks.every((c) => c.ok), checks, timings: report, memory, readsInFlightByWindow: readsByWindow, recoveries: { disconnects: recovered, renderDuringFaults: stats(recovering) } };
+  return { minutes: record.minutes, passed: checks.every((c) => c.ok), checks, timings: report, memory, readsInFlightByWindow: readsByWindow, recoveries: { disconnects: recovered, renderDuringFaults: stats(recovering) }, missed };
 }
