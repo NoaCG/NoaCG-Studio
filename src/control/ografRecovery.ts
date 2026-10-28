@@ -19,6 +19,7 @@
 // Pure and DOM-free: scripts/ograf-recovery.test.mjs runs it in Node.
 
 import { readOgrafOutcome } from './ografOutcome.ts';
+import { typedOutputGate, type TypedOutputState } from '../model/ografTyped.ts';
 
 export interface OgrafRestore {
   /** Take it again on its new instance (its report says the Graphic accepted its Take). */
@@ -190,6 +191,16 @@ export function heldSteps<R extends { graphic: string; msg: { t: string } }>(row
     else if (row.msg.t === 'next') held.add(row);
   }
   return { held, untaken: still };
+}
+
+/**
+ * A ROW READ PAST (an action, or a step of a package not taken) is not sent, but the output's typed
+ * gate still reads it (model/ografTyped.ts `typedOutputGate`): one carrying data this build cannot
+ * read holds its graphic, as delivering it would, so a restart cannot step around an older output's
+ * compatibility hold. True when the held set moved (READY says it).
+ */
+export function readPastGate(typed: TypedOutputState, row: { graphic: string; msg: unknown }): boolean {
+  return typedOutputGate(typed, row.graphic, row.msg).changed;
 }
 
 /** The catch-up's rows that are a custom action on a package: read past, never sent, since a

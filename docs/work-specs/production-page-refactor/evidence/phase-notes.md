@@ -77,6 +77,9 @@ changes a spec's digest.
     (`UNKNOWN_REMOUNTED`, off, no step) until it answers its `load()`: the re-cue's Take is then
     said as `sent`, a restart in between reads it unconfirmed on either road, and the page says it
     is not known meanwhile. READY still waits for the real load answer.
+  - *A row read past still meets the typed gate* (`readPastGate`): an action or step not sent is
+    still read by `typedOutputGate`, so one carrying data this build cannot read holds its graphic
+    as delivering it would, and the Take after it is refused as on the output that first had it.
   - *A package the boot did not take is not stepped* (`heldSteps`): its step rows in the catch-up,
     and in the unread history, are read past until its next Take or Out there, since a Graphic
     stepped without a Take can show itself unproven.

@@ -76,7 +76,7 @@ import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 import { publishedOgrafBase } from '../backend/productionOgraf';
 import { isOgrafInstance, ografCheck } from '../control/ografOutcome';
-import { bootGap, heldActions, heldSteps, ografRestore, UNKNOWN_ACTED } from '../control/ografRecovery';
+import { bootGap, heldActions, heldSteps, ografRestore, readPastGate, UNKNOWN_ACTED } from '../control/ografRecovery';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -973,6 +973,7 @@ async function boot(): Promise<void> {
     if (alreadyInSnapshot(snapshotAt, row.graphic, position(row))) return;
     if (!deliver) {
       applied.claim(row.msg);
+      if (readPastGate(typed, row)) readyChanged();
       return;
     }
     applyCommand(row.graphic, row.msg, row.created_at, road, animate);

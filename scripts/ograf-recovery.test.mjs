@@ -108,6 +108,21 @@ test('the catch-up reads past every action on a package and nothing else', () =>
   assert.equal(heldActions(rows, new Set()).size, 0);
 });
 
+test('a row read past still goes through the typed gate: an unreadable one holds its graphic, and the Take after it is refused', async () => {
+  const { readPastGate } = await import('../src/control/ografRecovery.ts');
+  const { typedOutputGate } = await import('../src/model/ografTyped.ts');
+  const typed = { held: new Map(), airing: new Set() };
+  // An action whose envelope this build cannot read, read past by the catch-up (never sent).
+  assert.equal(readPastGate(typed, { graphic: 'Board', msg: { t: 'event', event: 'mark', typed: { v: 999 } } }), true);
+  assert.equal(typed.held.has('Board'), true, 'held, as delivering it would have held it');
+  // The Take after it in the log is refused by the same gate, as on the output that first had it.
+  assert.equal(typedOutputGate(typed, 'Board', { t: 'play' }).apply, false);
+  // A readable action read past changes nothing.
+  const clear = { held: new Map(), airing: new Set() };
+  assert.equal(readPastGate(clear, { graphic: 'Board', msg: { t: 'event', event: 'mark', payload: {} } }), false);
+  assert.equal(clear.held.size, 0);
+});
+
 test('a package the boot did not take is not stepped: its steps are read past until its next Take or Out', async () => {
   const { heldSteps, bootGap } = await import('../src/control/ografRecovery.ts');
   // Its Take was not proven (`sent`), and a Next went before the restart: the step is not sent.
