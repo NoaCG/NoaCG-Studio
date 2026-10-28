@@ -118,3 +118,17 @@ export function ografLoadData(manifest: unknown): Record<string, unknown> {
   const fields = describeOgraf(manifest).fields;
   return fields ? typedWithDefaults(fields, {}).values : {};
 }
+
+/** A published package's READY check, from the output's first word about it (control/readiness.ts
+ *  `GraphicCheck`): its `load()` answered done is prepared, a refused, unanswered or replaced load
+ *  or a package with no frame is a failure named in its own words; no word yet is still preparing
+ *  (null). A package has no fonts or images of ours to count. */
+export function ografCheck(outcome: OgrafOutcome | undefined): { done: true; error: string | null; silent: boolean; fontsFailed: string[]; fontsLoading: string[]; imagesBroken: string[] } | null {
+  if (!outcome) return null;
+  const empty = { fontsFailed: [], fontsLoading: [], imagesBroken: [] };
+  if (outcome.status === 'unmounted') return { done: true, error: `not loaded: ${outcome.msg}`, silent: false, ...empty };
+  if (outcome.call !== 'mount') return null;
+  if (outcome.status === 'done') return { done: true, error: null, silent: false, ...empty };
+  if (outcome.status === 'timeout') return { done: true, error: null, silent: true, ...empty };
+  return { done: true, error: `its load() ${outcome.status === 'gone' ? 'was replaced before it answered' : `refused${outcome.msg ? `: ${outcome.msg}` : ''}`}`, silent: false, ...empty };
+}

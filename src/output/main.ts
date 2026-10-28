@@ -75,6 +75,7 @@ import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 import { publishedOgrafBase } from '../backend/productionOgraf';
+import { ografCheck } from '../control/ografOutcome';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -287,7 +288,10 @@ async function boot(): Promise<void> {
     }
     return merged;
   };
-  const readiness = () => outputReadiness({ graphics: stage.graphics, checks: withRefusals(), held: stage.held, version: heldVersion, catchingUp, chg });
+  /** The imported OGraf packages this output holds (E3.2a): READY counts them beside the composed
+   *  graphics, each prepared once its `load()` answered, or failed in its own words. */
+  const packages = new Set(payload.graphics.filter((g) => g.ograf).map((g) => g.key));
+  const readiness = () => outputReadiness({ graphics: [...stage.graphics, ...packages], checks: withRefusals(), held: stage.held, version: heldVersion, catchingUp, chg });
   // `presence` is joined below; nothing here runs before it exists.
   const readyChanged = () => {
     // Worded only where it is shown: a playout box's main thread is the one that must not miss frames.
@@ -681,7 +685,23 @@ async function boot(): Promise<void> {
     sinceBank.set(graphic, 0);
   };
   stage.onState((graphic) => scheduleReport(graphic));
-  stage.onOgraf((graphic) => scheduleReport(graphic));
+  stage.onOgraf((graphic) => {
+    scheduleReport(graphic);
+    const outcome = stage.ografOutcomes.get(graphic);
+    if (!outcome) {
+      // Removed: it leaves READY with its instance.
+      if (packages.delete(graphic)) checks.delete(graphic);
+      readyChanged();
+      return;
+    }
+    packages.add(graphic);
+    // The first word decides its check (its load), and a later call never changes it.
+    const check = checks.has(graphic) ? null : ografCheck(outcome);
+    if (check) {
+      checks.set(graphic, check);
+      readyChanged();
+    }
+  });
 
   // ── Which graphics are LIVE (played/snapped and not yet stopped): only those can change
   // state on a timer, so only those need the 1 s machine-state poll — an idle stacked

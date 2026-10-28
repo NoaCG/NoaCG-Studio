@@ -8,7 +8,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const { readOgrafOutcome, ografOutcomeWords, confirmedLines, packageLayerPeers, withPeersOff, ografLoadData } = await import('../src/control/ografOutcome.ts');
+const { readOgrafOutcome, ografOutcomeWords, confirmedLines, packageLayerPeers, withPeersOff, ografLoadData, ografCheck } = await import('../src/control/ografOutcome.ts');
+const { outputReadiness } = await import('../src/control/readiness.ts');
 
 const on = { i: '0a1b2c3d', call: 'play', status: 'done', code: 200, step: 1, on: true, data: { count: 3 } };
 
@@ -96,10 +97,29 @@ test('a package loads with the defaults its schema declares, typed as declared, 
 test('the output holds a published package\'s version with its graphics, so a publish that changes it is a change, not an addition', async () => {
   const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
   assert.match(main, /for \(const spec of payload\.graphics\) if \(spec\.ograf\) bootDigests\[spec\.key\] = payload\.ver\?\.g\[spec\.key\] \?\? '';/);
+  // READY counts its packages beside its composed graphics, each by its load's check.
+  assert.match(main, /outputReadiness\(\{ graphics: \[\.\.\.stage\.graphics, \.\.\.packages\]/);
+  assert.match(main, /const check = checks\.has\(graphic\) \? null : ografCheck\(outcome\);/);
   const { planPublish } = await import('../src/output/swapPlan.ts');
   // Held at boot, a changed package is built again (and the stage refuses to swap it: READY says
   // it changes at the next reload), never added over the instance already mounted.
   assert.deepEqual(planPublish({ held: { Strap: 's', Board: 'b1' }, ready: {} }, { Strap: 's', Board: 'b2' }, ['Strap', 'Board']), { build: ['Board'], add: [], remove: [], drop: [] });
+});
+
+test('READY counts a package by its load: prepared when load() answered, failed in its own words, preparing until then', () => {
+  const mount = (status, extra = {}) => ({ i: '0a1b2c3d', call: 'mount', status, step: null, on: false, ...extra });
+  assert.equal(ografCheck(undefined), null, 'no word yet: still preparing');
+  assert.equal(ografCheck({ ...on, call: 'play' }), null, 'only the load decides it');
+  assert.deepEqual(ografCheck(mount('done')), { done: true, error: null, silent: false, fontsFailed: [], fontsLoading: [], imagesBroken: [] });
+  assert.equal(ografCheck(mount('rejected', { code: 500, msg: 'no data' })).error, 'its load() refused: no data');
+  assert.equal(ografCheck(mount('timeout')).silent, true);
+  assert.equal(ografCheck({ i: null, status: 'unmounted', msg: 'its package could not be reached', on: false }).error, 'not loaded: its package could not be reached');
+  // A package-only output whose package never mounted is NOT ready; one whose load answered is.
+  const ready = (check) => outputReadiness({ graphics: ['Board'], checks: new Map(check ? [['Board', check]] : []), version: null });
+  assert.notEqual(JSON.stringify(ready(ografCheck({ i: null, status: 'unmounted', msg: 'x', on: false }))), JSON.stringify(ready(ografCheck(mount('done')))));
+  assert.equal(ready(ografCheck(mount('done'))).n, 1);
+  assert.equal(ready(null).n, 0, 'preparing: not counted as prepared');
+  assert.ok(JSON.stringify(ready(ografCheck({ i: null, status: 'unmounted', msg: 'x', on: false }))).includes('not loaded: x'));
 });
 
 test('reading a hostile report stays linear', () => {
