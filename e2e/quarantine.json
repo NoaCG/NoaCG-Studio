@@ -2,11 +2,6 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/editor-canvas-transforms.spec.ts": {
-      "since": "2026-10-26",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40316984004"
-    },
     "e2e/import-svg.spec.ts": {
       "since": "2026-10-27",
       "count": 4,
@@ -105,6 +100,10 @@
     "e2e/editor-base-edits.spec.ts": {
       "count": 2,
       "last": "2026-10-11"
+    },
+    "e2e/editor-canvas-transforms.spec.ts": {
+      "count": 2,
+      "last": "2026-10-28"
     },
     "e2e/editor-foundation.spec.ts": {
       "count": 3,
