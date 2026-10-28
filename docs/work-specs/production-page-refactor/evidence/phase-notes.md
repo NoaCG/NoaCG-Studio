@@ -46,7 +46,9 @@ changes a spec's digest.
     within its cap, for every call sent to a package to settle (`stage.ografSettled`), since a
     package reports no machine state. A re-cue's new instance is checked for READY by its own load.
     A follow refill that brings history the catch-up left unread (a failed read, the page ceiling)
-    reads a package's action past and marks it not known, as the catch-up does (`heldLate`).
+    reads a package's action past and marks it not known, as the catch-up does (`heldLate`). The
+    gap closes with the follow's first batch of rows on protocol 2 (rows come in seq order from the
+    applied cursor) and with its first live row on protocol 1.
   - *Actions counted* (`acted`): the actions an instance was sent, less those the Graphic refused,
     ride the report for the instance's whole life, so a restart knows the Graphic holds state no
     restart reproduces. OGraf promises no Take or Out undoes an action, so neither resets the count;

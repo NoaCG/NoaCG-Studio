@@ -1286,8 +1286,9 @@ async function boot(): Promise<void> {
         const quiet = replayed ? supersededAnimations(rows) : null;
         if (replayed && rows.length) stage.setSoundQuiet(true);
         for (const row of rows) if (!(replayed && heldLate(row))) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
-        // The first refill after the boot has read the gap the catch-up left.
-        if (replayed) bootGapOpen = false;
+        // Rows arrive in seq order from the applied cursor, so any batch, a refill or a live row,
+        // means the gap the catch-up left has been read.
+        bootGapOpen = false;
         if (replayed && rows.length) stage.setSoundQuiet(false);
       },
       onHole: () => live.hole(),

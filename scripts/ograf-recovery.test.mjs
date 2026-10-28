@@ -4,7 +4,7 @@
 // (src/control/ografOutcome.ts `acceptOutcome`). The stage half (re-cue of a lost instance, a removed
 // asset, a failed action) is e2e/foreign-ograf-sandbox.spec.ts; the reload through a real backend
 // is e2e/configured/ograf-rundown.spec.ts.
-// guards: src/control/ografRecovery.ts
+// guards: src/control/ografRecovery.ts, src/output/catchUp.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -122,4 +122,35 @@ test('reading a hostile report stays linear', () => {
   readOgrafOutcome(stateOf({ ...up, was: big, unknown: big, msg: big, i: big }));
   readOgrafOutcome(stateOf({ ...up, was: `${'0'.repeat(32)}!`, unknown: big }));
   assert.ok(performance.now() - started < 500, 'bounded reads, no backtracking');
+});
+
+test('a boot comes back on air once its packages have settled, and never later than its cap', async () => {
+  const { airWhenSettled } = await import('../src/output/catchUp.ts');
+  const stage = (ografSettled) => {
+    let visible = false;
+    return {
+      graphics: [],
+      requestState() {},
+      motion: new Map(),
+      replies: new Map(),
+      whenLoaded: () => Promise.resolve(),
+      setVisible: (v) => (visible = v),
+      ografSettled,
+      visible: () => visible,
+    };
+  };
+  const timing = { floorMs: 0, capMs: 300, pollMs: 10 };
+  // A package whose calls settle at 120 ms: the reveal waits for them.
+  let settledAt = 0;
+  const started = Date.now();
+  const late = stage(() => new Promise((r) => setTimeout(() => ((settledAt = Date.now()), r()), 120)));
+  await airWhenSettled(late, timing);
+  assert.ok(settledAt > 0 && settledAt - started >= 100, 'waited for the package');
+  assert.equal(late.visible(), true);
+  // A package that never settles holds it no longer than the cap.
+  const t0 = Date.now();
+  const never = stage(() => new Promise(() => {}));
+  assert.equal(await airWhenSettled(never, timing), 'cap');
+  assert.ok(Date.now() - t0 < 1_000, 'the cap holds');
+  assert.equal(never.visible(), true);
 });
