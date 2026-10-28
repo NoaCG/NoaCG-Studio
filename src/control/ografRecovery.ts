@@ -27,7 +27,7 @@ export interface OgrafRestore {
   unknown: string | null;
 }
 
-export const UNKNOWN_ACTED = 'an action since its Take is not repeated after a restart';
+export const UNKNOWN_ACTED = 'an action was not repeated after the restart';
 export const UNKNOWN_UNCONFIRMED = 'its Take was not confirmed before the restart';
 export const UNKNOWN_STEP = 'its step was not confirmed before the restart';
 

@@ -316,9 +316,9 @@ test('a foreign package comes back from an output reload as far as its answers p
   await expect(boardFrame).toHaveAttribute('data-appearance', frame);
   expect(await board.getAttribute('data-marks'), 'no action repeated by the restart').toBeNull();
   await expect.poll(async () => (await reported(showId, 'Board'))?.i, { timeout: 20_000 }).toBe(second);
-  expect(await reported(showId, 'Board')).toMatchObject({ was: first, on: true, unknown: 'an action since its Take is not repeated after a restart' });
+  expect(await reported(showId, 'Board')).toMatchObject({ was: first, on: true, unknown: 'an action was not repeated after the restart' });
   const confirmed = page.getByTestId('program-confirmed').locator('li[data-graphic="Board"]');
-  await expect(confirmed).toHaveText('Board: not known on the output (an action since its Take is not repeated after a restart)Re-cue', { timeout: 20_000 });
+  await expect(confirmed).toHaveText('Board: not known on the output (an action was not repeated after the restart)Re-cue', { timeout: 20_000 });
   await expect(confirmed).toHaveAttribute('data-tone', 'unknown');
   expect((await commands(showId)).length, 'a reload writes no command').toBe(sent);
 
@@ -348,6 +348,18 @@ test('a foreign package comes back from an output reload as far as its answers p
   await expect(boardFrame).toHaveAttribute('data-appearance', frame);
   await expect(confirmed).toHaveText('Board: on air on the output, step 1', { timeout: 20_000 });
   await expect(confirmed).toHaveAttribute('data-tone', 'ok');
+
+  // THE CONTROLLER'S CONNECTION DROPS (its page reloads): it sends nothing on coming back, and reads
+  // the outputs' word from their reports.
+  const third = await boardFrame.getAttribute('data-instance');
+  const beforeController = (await commands(showId)).length;
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await expect(confirmed).toHaveText('Board: on air on the output, step 1', { timeout: 20_000 });
+  expect((await commands(showId)).length, 'a controller coming back sends nothing').toBe(beforeController);
+  expect(await boardFrame.getAttribute('data-instance')).toBe(third);
+  expect(await board.getAttribute('data-marks')).toBeNull();
 
   // NO ADJUST RECORD, NO APPEARANCE: Poll's Take carries none; Board's carried its frame and no style.
   await cueRow(page, 'Poll').getByTestId('select-cue').click();
