@@ -76,6 +76,9 @@ function faultWindows(record) {
   });
 }
 const inside = (windows, t) => windows.some((w) => t >= w.from && t <= w.to);
+/** Whether any fault's window touches the span from `from` to `to`: a value owed in that span may be
+ *  held by the fault (an output offline cannot render what lands just before it goes dark). */
+const overlaps = (windows, from, to) => windows.some((w) => w.from <= to && w.to >= from);
 
 export function judge(record) {
   const checks = [];
@@ -380,7 +383,8 @@ export function judge(record) {
     const kok = num(r.data.f8);
     const rev = partyRevision('KOK', kok);
     const fetchAt = served.get(`count-${rev}`);
-    const steadyRow = !inside(windows, r.at);
+    // Steady only if nothing faults between the row and the latest moment it is owed on air.
+    const steadyRow = !overlaps(windows, r.at, r.at + Math.max(CEILING.bound, CEILING.candidates));
     if (!steadyRow) {
       for (const road of ['fetchToApply', 'providerToApply', 'applyToRenderBound', 'providerToRenderBound']) excluded[road]++;
       if (takes.some((t) => t.at <= r.at)) excluded.applyToRenderCandidates++;
@@ -416,7 +420,7 @@ export function judge(record) {
   let obligations = 0;
   for (let rev = 1; moved(rev) !== null && moved(rev) + 15_000 <= (record.end ?? 0); rev++) {
     const at = moved(rev);
-    if (at < t0 || inside(windows, at) || inside(windows, at + 15_000)) continue;
+    if (at < t0 || overlaps(windows, at, at + 15_000)) continue;
     obligations++;
     if (!appliedRevs.some((a) => a.rev >= rev && a.at <= at + 15_000)) stalled.push({ at: at - t0, rev });
   }
@@ -428,7 +432,7 @@ export function judge(record) {
   for (let rev = 2; moved(rev) !== null && moved(rev) + 15_000 <= (record.end ?? 0); rev++) {
     if (countedAt(rev) === countedAt(rev - 1)) continue;
     const at = moved(rev);
-    if (at < t0 || inside(windows, at) || inside(windows, at + 15_000)) continue;
+    if (at < t0 || overlaps(windows, at, at + 15_000)) continue;
     bugMoves++;
     if (!frames.some((f) => f.at > at && f.at <= at + 15_000 && (areas(f.counted) ?? -1) >= countedAt(rev))) staleBug.push({ at: at - t0, rev, want: countedAt(rev) });
   }

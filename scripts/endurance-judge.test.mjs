@@ -242,6 +242,15 @@ test('a correction landing between a Take\'s click and its answer is owed by the
   assert.deepEqual(failed(r), []);
 });
 
+test('a correction landing just before the output goes offline is held by the disconnect, not missed', () => {
+  // The output is frozen for the fault from 200 ms after the row; it catches up after reconnecting.
+  const r = healthy();
+  const f = r.faults.find((x) => x.kind === 'disconnect' && x.at > r.t0 + 15 * 60_000);
+  const row = r.rows.find((x) => x.graphic === 'Candidate card' && x.t === 'update' && x.at > f.at - 2_000 && x.at < f.at);
+  if (row) r.frames = r.frames.filter((x) => !(x.at >= row.at && x.at <= f.end + 500 && x.votes === row.data.f2));
+  assert.deepEqual(failed(r), []);
+});
+
 red('corrections that never reach the card', (r) => {
   for (const f of r.frames) {
     if (f.at < r.t0 + 60_000 || !f.name) continue;
