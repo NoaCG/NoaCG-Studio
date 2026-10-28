@@ -376,6 +376,7 @@ const SESSION_WIRE_IO: SessionWireIo = {
   hostedControlTail,
   followControlLog,
   controlOutputSeenAt,
+  controlPingSeq,
   createCueArmWire,
   appendLog: appendLogEntries,
   armRpc: CUE_ARM_RPC,

@@ -14,6 +14,8 @@
 //   follow    the timed cues' arm wire (numbered log only), the log's history into the `log`
 //             part, then `followControlLog` on both roads: commands to the page's `hear`, rows to
 //             the log, the arm wire, the machine states and the data tree
+//   hand-over numbered log only: at the follow's first join, one ping through the command path,
+//             so an output that missed a frame while this page loaded reads it now (#1797)
 //   seen      every 30 s, the output's last heartbeat and the header clock
 //   stop      unsubscribe (also when the follow answers after the stop), the 30 s timer, the arm
 //             wire. Every answer that lands after the stop changes nothing: no write, no call into
@@ -32,6 +34,7 @@ import type {
   ResolvedControlShow,
   bootMonitorReplay,
   controlOutputSeenAt,
+  controlPingSeq,
   controlShowBySlug,
   followControlLog,
   untilAnswered,
@@ -54,6 +57,7 @@ export interface SessionWireIo {
   hostedControlTail: (slug: string, after: number) => Promise<ControlEventRow[]>;
   followControlLog: typeof followControlLog;
   controlOutputSeenAt: typeof controlOutputSeenAt;
+  controlPingSeq: typeof controlPingSeq;
   createCueArmWire: typeof createCueArmWire;
   /** How the action log takes new lines (./eventLog.ts `appendLogEntries`). */
   appendLog: AppendLog;
@@ -166,6 +170,19 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     }
     const history = await io.hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
     if (!live()) return;
+    // THE HAND-OVER (#1797). A frame on `seq-<show>` can be lost, and an output finds out only when
+    // the next frame arrives with a gap in front of it, or at the 30 s poll. The endurance run lost
+    // one while this page reloaded: a value applied mid-reload stayed off air until the next one.
+    // So once this page's road to the log is up, it sends ONE ping through the numbered path
+    // (migration 0072): it airs nothing and moves only the head's seq, so an output with a gap in
+    // front of it reads the tail and applies what it missed, once and in seq order. Nothing is
+    // resent and no older value can air. Once per start, never on a timer, as 0072 asks.
+    let handedOver = false;
+    const handOver = (status: ControlFollowStatus) => {
+      if (handedOver || !resolved.seq || status.status !== 'SUBSCRIBED') return;
+      handedOver = true;
+      void io.controlPingSeq(slug, `handover${Math.random().toString(36).slice(2, 12)}`).catch(() => undefined);
+    };
     const described = history.map((row) => page().describe(row)).filter((e): e is LogEntry => !!e);
     session.apply((parts) => ({ ...parts, log: logged(parts.log, described, io.appendLog) }));
     const off = await io.followControlLog({
@@ -175,7 +192,9 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
       seq: resolved.seq,
       onEpochReset: () => arm?.reset(),
       onStatus: (s) => {
-        if (live()) page().follow(s);
+        if (!live()) return;
+        page().follow(s);
+        handOver(s);
       },
       onCommandStatus: (s) => {
         if (live()) page().commandStatus(s);
