@@ -1,4 +1,4 @@
-// guards: src/control/sessionWire.ts, src/control/airState.ts, src/control/playoutSession.ts, src/control/seqFollow.ts
+// guards: src/control/sessionWire.ts, src/control/airState.ts, src/control/playoutSession.ts, src/control/seqFollow.ts, src/control/prepareLive.ts
 //
 // A PUBLISHED PRODUCTION'S WIRE, driven with a scripted backend (production-page refactor spec §3,
 // AC-4, AC-6): resolve, seed, follow and stop, in order; a resolve that fails and is asked again; a
@@ -13,6 +13,7 @@ import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, createPlayoutSession } from '../src/control/playoutSession.ts';
 import { LOG_HISTORY_SPAN, SEEN_EVERY_MS, startSessionWire } from '../src/control/sessionWire.ts';
 import { createSeqFollower } from '../src/control/seqFollow.ts';
+import { answersPing } from '../src/control/prepareLive.ts';
 import { REORDER_WINDOW_MS } from '../src/control/logFollow.ts';
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -479,6 +480,7 @@ test('THE HAND-OVER (#1797): a value applied while the page reloaded, whose fram
   await flush();
   assert.equal(wire.pings.length, 1, 'one ping at the first join');
   assert.match(wire.pings[0], /^[a-z0-9]{8,40}$/, 'an id control_ping_seq takes');
+  assert.equal(answersPing(wire.pings[0]), false, 'and one no output answers in place of a Prepare for Live press');
   // The ping's frame has a gap in front of it: the reorder window, then one tail read.
   t.mock.timers.tick(REORDER_WINDOW_MS);
   for (let i = 0; i < 5; i += 1) await flush();

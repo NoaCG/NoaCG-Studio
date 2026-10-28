@@ -290,7 +290,10 @@ The page:
   The production page also sends one at its follow's first join on the numbered log (#1797,
   `control/sessionWire.ts`): a renderer that lost a `seq-` frame while the page loaded sees the
   ping's number with a gap in front of it, reads the tail and applies what it missed, rather than
-  waiting for the next row or the 30 s poll.
+  waiting for the next row or the 30 s poll. Its id starts `handover`, and a renderer does not
+  answer it (`answersPing`), so it never replaces the answer a Prepare for Live press waits for.
+  It covers a frame lost before the page's follow joins; a frame lost later still waits for the
+  next row or the poll.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.

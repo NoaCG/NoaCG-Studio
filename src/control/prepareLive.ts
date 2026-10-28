@@ -300,6 +300,20 @@ export function requestId(): string {
   return id.slice(0, 12);
 }
 
+/** What starts the id of the production page's hand-over ping (control/sessionWire.ts, #1797). */
+const HANDOVER_PING = 'handover';
+
+/** The id of a hand-over ping: a ping no Prepare for Live is waiting on. */
+export function handoverPingId(): string {
+  return HANDOVER_PING + requestId();
+}
+
+/** Does an output answer this ping in its Presence entry? Not a hand-over's: it only moves the
+ *  log's number, and its answer would replace one a Prepare for Live press is waiting for. */
+export function answersPing(id: string): boolean {
+  return !id.startsWith(HANDOVER_PING);
+}
+
 /**
  * THE BRIDGE AND CASPARCG LINES (AC-10). Nothing configured, nothing said: a production played
  * through a browser source alone has nothing to check here. The output layer holding another

@@ -42,7 +42,7 @@ import type {
 import type { PlayoutSession } from './playoutSession';
 import { airAtRequest, forgetBootReplay, logged, seedFromResolve, withReports, type AirAtRequest, type AppendLog, type ClockSpecs } from './airState.ts';
 import { writeArms } from './cueArmEngine.ts';
-import { requestId } from './prepareLive.ts';
+import { handoverPingId } from './prepareLive.ts';
 
 /** How far behind the log head the action log seeds its history. Global ids mean this is a ceiling
  *  on rows READ, not on rows shown: a busy instance yields fewer of this show's. */
@@ -177,12 +177,13 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     // So once this page's road to the log is up, it sends ONE ping through the numbered path
     // (migration 0072): it airs nothing and moves only the head's seq, so an output with a gap in
     // front of it reads the tail and applies what it missed, once and in seq order. Nothing is
-    // resent and no older value can air. Once per start, never on a timer, as 0072 asks.
+    // resent and no older value can air. Once per start, never on a timer, as 0072 asks; outputs
+    // do not answer it, so it cannot take the place of a Prepare for Live press's answer.
     let handedOver = false;
     const handOver = (status: ControlFollowStatus) => {
       if (handedOver || !resolved.seq || status.status !== 'SUBSCRIBED') return;
       handedOver = true;
-      void io.controlPingSeq(slug, requestId()).catch(() => undefined);
+      void io.controlPingSeq(slug, handoverPingId()).catch(() => undefined);
     };
     const described = history.map((row) => page().describe(row)).filter((e): e is LogEntry => !!e);
     session.apply((parts) => ({ ...parts, log: logged(parts.log, described, io.appendLog) }));
