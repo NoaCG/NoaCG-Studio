@@ -557,6 +557,8 @@ function ruleFace(rule: string): BundledFont | undefined {
 export function upgradeFontCss(css: string): string {
   if (!css.includes('@font-face')) return css;
   const faceRules = (text: string) => text.match(/@font-face\s*\{[^}]*\}/g) ?? [];
+  // Any rule naming a static bundled file, hand-written ones included: the file has one weight, so
+  // widening the range only stops the synthesised bold.
   let out = css.replace(/@font-face\s*\{[^}]*\}/g, (rule) => {
     const face = ruleFace(rule);
     if (!face || face.weights[0] !== face.weights[1]) return rule;

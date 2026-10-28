@@ -118,10 +118,13 @@ export function videoFontFaceCss(
   fonts: VideoFont[] = VIDEO_FONTS,
 ): string {
   return fonts.map((f) => {
+    // A static file (Bebas Neue: one weight) declares every weight, as model/fonts.ts
+    // `faceWeightLine` does, so a heavier request draws the file as it is, never a synthesised bold.
+    const weight = f.weights[0] === f.weights[1] ? '100 900' : `${f.weights[0]} ${f.weights[1]}`;
     const latin = `@font-face {
   font-family: "${f.family}";
   src: url("${resolve(f.file)}") format("woff2");
-  font-weight: ${f.weights[0]} ${f.weights[1]};
+  font-weight: ${weight};
   font-display: block;
 }`;
     // A latin-ext file the resolver could not supply (an empty URL) is left out, not left dead.
@@ -130,7 +133,7 @@ export function videoFontFaceCss(
 @font-face {
   font-family: "${f.family}";
   src: url("${ext}") format("woff2");
-  font-weight: ${f.weights[0]} ${f.weights[1]};
+  font-weight: ${weight};
   font-display: block;
   unicode-range: ${LATIN_EXT_RANGE};
 }` : latin;

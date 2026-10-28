@@ -200,6 +200,8 @@ test('the composed document carries the upgrade; the saved template is not touch
 test('the video faces declare the latin-ext file too', () => {
   assert.equal(video.LATIN_EXT_RANGE, LATIN_EXT_RANGE, 'the video world carries the same range');
   const css = video.videoFontFaceCss((f) => `fonts/${f}`);
+  const bebas = css.match(/@font-face \{[^}]*"Bebas Neue"[^}]*\}/g);
+  assert.ok(bebas.length === 2 && bebas.every((r) => r.includes('font-weight: 100 900;')), 'a static video face draws no synthesised bold');
   assert.ok(!video.videoFontFaceCss((f) => (f.includes('latin-ext') ? '' : `fonts/${f}`)).includes('url("")'), 'a missing latin-ext file is left out');
   for (const f of video.VIDEO_FONTS) {
     const ext = f.file.replace(/\.woff2$/, '-latin-ext.woff2');
