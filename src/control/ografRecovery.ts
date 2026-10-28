@@ -70,6 +70,36 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   return { play: true, steps: o.step, unknown: acted ? UNKNOWN_ACTED : carried };
 }
 
+/**
+ * HISTORY THE CATCH-UP LEFT UNREAD (a read that failed, the page ceiling): the follow's refills
+ * bring it later, and a package's action in them is read past as `heldActions` reads the catch-up's
+ * (`holds`), its package said not known once its batch is applied (`batchDone`'s keys), so a Take
+ * later in the same history does not clear it. Only a LIVE batch closes the gap: it is applied only
+ * contiguous with the cursor, while a refill comes a page at a time and says nothing of the next.
+ */
+export function bootGap(open: boolean, packages: ReadonlySet<string>) {
+  let gap = open;
+  const held = new Set<string>();
+  return {
+    /** Is this row of history a package's action to read past? */
+    holds(row: { graphic: string; msg: { t: string } }): boolean {
+      if (!gap || row.msg.t !== 'event' || !packages.has(row.graphic)) return false;
+      held.add(row.graphic);
+      return true;
+    },
+    /** A batch is applied: the packages to say not known, and the gap closed by a live one. */
+    batchDone(live: boolean): string[] {
+      const out = [...held];
+      held.clear();
+      if (live) gap = false;
+      return out;
+    },
+    get open() {
+      return gap;
+    },
+  };
+}
+
 /** The catch-up's rows that are a custom action on a package: read past, never sent, since a
  *  restart repeats none (the boot still counts them applied, so the follow never sends them either). */
 export function heldActions<R extends { graphic: string; msg: { t: string } }>(rows: readonly R[], packages: ReadonlySet<string>): Set<R> {

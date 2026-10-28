@@ -154,3 +154,23 @@ test('a boot comes back on air once its packages have settled, and never later t
   assert.ok(Date.now() - t0 < 1_000, 'the cap holds');
   assert.equal(never.visible(), true);
 });
+
+test('history the catch-up left unread reads a package action past, page after page, until a live batch', async () => {
+  const { bootGap } = await import('../src/control/ografRecovery.ts');
+  const action = { graphic: 'Board', msg: { t: 'event' } };
+  // A catch-up that read to the end leaves nothing to hold.
+  assert.equal(bootGap(false, new Set(['Board'])).holds(action), false);
+  const gap = bootGap(true, new Set(['Board']));
+  // A two-page refill: an action on each page is read past, and each batch says which package.
+  assert.equal(gap.holds(action), true);
+  assert.equal(gap.holds({ graphic: 'Strap', msg: { t: 'event' } }), false, 'a NoaCG graphic is not held');
+  assert.equal(gap.holds({ graphic: 'Board', msg: { t: 'play' } }), false, 'only an action is held');
+  assert.deepEqual(gap.batchDone(false), ['Board']);
+  assert.equal(gap.open, true, 'a refill page says nothing of the pages after it');
+  assert.equal(gap.holds(action), true);
+  assert.deepEqual(gap.batchDone(false), ['Board']);
+  // A live batch is contiguous with the cursor: the gap is read, and a later action is sent.
+  assert.deepEqual(gap.batchDone(true), []);
+  assert.equal(gap.open, false);
+  assert.equal(gap.holds(action), false);
+});
