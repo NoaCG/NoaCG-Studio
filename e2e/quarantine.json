@@ -12,6 +12,11 @@
       "count": 4,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40501378385"
     },
+    "e2e/publish-output-setup.spec.ts": {
+      "since": "2026-10-28",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40765654275"
+    },
     "e2e/rundown-history.spec.ts": {
       "since": "2026-10-28",
       "count": 3,
@@ -158,10 +163,6 @@
     "e2e/production-chat-intake.spec.ts": {
       "count": 2,
       "last": "2026-10-25"
-    },
-    "e2e/publish-output-setup.spec.ts": {
-      "count": 1,
-      "last": "2026-10-18"
     },
     "e2e/wizard-shell.spec.ts": {
       "count": 5,
