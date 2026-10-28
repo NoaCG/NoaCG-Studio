@@ -721,7 +721,13 @@ export function createOutputStage(
   };
   /** One message to a mounted package, with the bookkeeping recovery reads. */
   const send = (key: string, layer: ForeignOgrafLayer, msg: ControlMessage) => {
-    if (msg.t === 'event' && ografCallFor(msg)) acts.set(key, (acts.get(key) ?? 0) + 1);
+    if (msg.t === 'event' && ografCallFor(msg)) {
+      acts.set(key, (acts.get(key) ?? 0) + 1);
+      // Said at once, not with the answer: a report banked meanwhile counts the action's row as
+      // applied, so it must carry `acted` too, or a restart before the answer would read it proven.
+      const now = ografOutcomes.get(key);
+      if (now && now.i === layer.instance && !now.acted) told(key, { ...now, acted: true });
+    }
     layer.send(msg);
   };
   payload.graphics.forEach((spec, index) => {

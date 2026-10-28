@@ -78,36 +78,68 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
 
 /**
  * HISTORY THE CATCH-UP LEFT UNREAD (a read that failed, the page ceiling): the follow's refills
- * bring it later, and a package's action in them is read past as `heldActions` reads the catch-up's
- * (`holds`). Every package held so far is said not known again after each batch (`batchDone`'s
- * keys), so a Take on a later page of the same history cannot clear it. The gap closes at the END
- * of that history: a live batch (applied only contiguous with the cursor) or a read shorter than a
- * full page (a polling follow's every batch is a read), never between two full pages.
+ * bring it later, and this decides, row by row and batch by batch, what the output does with it.
+ *
+ *   - A package's custom action in it is READ PAST (counted applied, never sent), as `heldActions`
+ *     reads the catch-up's, and its package is said not known (`mark`) after every batch of that
+ *     history, so a Take later in it cannot clear the mark. An Out after the action ends it, as in
+ *     `ografRestore`: off is known. The packages the boot already left not known for an action are
+ *     held the same way (`actedAtBoot`).
+ *   - The gap closes at the END of that history, never between two full pages: on the numbered log
+ *     (protocol 2) a live batch, which the follow applies only contiguous with the cursor, or a read
+ *     shorter than a page, an empty one included; on the row-id road (protocol 1) a tail read
+ *     shorter than a page, once its last row (by id) is applied, since a live row's id says nothing
+ *     about history committed late below it. A live batch's own Take or Out is the operator's and
+ *     stands: it marks nothing.
+ *
+ * Pure: scripts/ograf-recovery.test.mjs drives it as the follows do (output/main.ts wires it).
  */
-export function bootGap(open: boolean, packages: ReadonlySet<string>, actedAtBoot: readonly string[] = []) {
+export function bootGap(open: boolean, packages: ReadonlySet<string>, actedAtBoot: readonly string[] = [], pageSize = 500) {
   let gap = open;
-  // The packages the boot already said an action left not known: a Take in the unread history must
-  // not clear that either (`ografRestore` keeps an action's mark through a later Take).
   const held = new Set<string>(open ? actedAtBoot : []);
+  /** Protocol 1: the id that ends the history, once a short read has named it. */
+  let endsAt = Infinity;
+  const readsPast = (row: { graphic: string; msg: { t: string } }): boolean => {
+    if (!gap || !packages.has(row.graphic)) return false;
+    if (row.msg.t === 'stop') held.delete(row.graphic);
+    if (row.msg.t !== 'event') return false;
+    held.add(row.graphic);
+    return true;
+  };
+  const done = (end: boolean, live = false): string[] => {
+    const mark = live ? [] : [...held];
+    if (end) {
+      gap = false;
+      held.clear();
+    }
+    return mark;
+  };
   return {
-    /** Is this row of history a package's action to read past? */
-    holds(row: { graphic: string; msg: { t: string } }): boolean {
-      if (!gap || row.msg.t !== 'event' || !packages.has(row.graphic)) return false;
-      held.add(row.graphic);
-      return true;
-    },
-    /** A batch is applied: the packages to say not known, and the gap closed at the history's end.
-     *  `live`: a batch of new commands, whose own Take or Out is the operator's and stands. */
-    batchDone(end: boolean, live = false): string[] {
-      const out = live ? [] : [...held];
-      if (end) {
-        gap = false;
-        held.clear();
-      }
-      return out;
-    },
     get open() {
       return gap;
+    },
+    /** Protocol 2: a batch the follow hands over, `replayed` when a read brought it. */
+    batch<R extends { graphic: string; msg: { t: string } }>(rows: readonly R[], replayed: boolean): { readPast: Set<R>; mark: string[] } {
+      const readPast = new Set(replayed ? rows.filter(readsPast) : []);
+      return { readPast, mark: done(!replayed || rows.length < pageSize, !replayed) };
+    },
+    /** Protocol 2: a read that answered no rows, which the follow hands to no one. */
+    emptyRead(): string[] {
+      return done(true);
+    },
+    /** Protocol 1: a tail read that answered, and the applied cursor at that moment. */
+    tailRead(rows: readonly { id: number }[], cursor: number): string[] {
+      if (!gap || rows.length >= pageSize) return [];
+      const last = rows.length ? rows[rows.length - 1].id : 0;
+      if (last <= cursor) return done(true);
+      endsAt = Math.min(endsAt, last);
+      return [];
+    },
+    /** Protocol 1: one row the follow hands over, `fromTail` when a read brought it. */
+    row(row: { id: number; graphic: string; msg: { t: string } }, fromTail: boolean): { readPast: boolean; mark: string[] } {
+      if (!fromTail || !gap) return { readPast: false, mark: [] };
+      const readPast = readsPast(row);
+      return { readPast, mark: done(row.id >= endsAt) };
     },
   };
 }

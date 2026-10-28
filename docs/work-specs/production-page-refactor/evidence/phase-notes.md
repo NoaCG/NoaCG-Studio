@@ -48,11 +48,18 @@ changes a spec's digest.
     package reports no machine state. A re-cue's new instance is checked for READY by its own load.
     A follow refill that brings history the catch-up left unread (a failed read, the page ceiling)
     reads a package's action past and marks it not known, as the catch-up does (`bootGap`). The
-    gap closes at the end of that history (`bootGap`): a live batch (applied only contiguous with
-    the cursor), or a read shorter than a full page, so a polling-only follow closes it too; never
-    between two full pages. Every package read past is said not known again after each batch of
-    history, so a Take later in that history cannot clear it; the operator's live Take can.
-  - *Actions counted* (`acted`): the actions an instance was sent, less those the Graphic refused,
+    gap closes at the end of that history (`bootGap`, one pure helper both follows go through):
+    on the numbered log a live batch (applied only contiguous with the cursor) or a read shorter
+    than a full page, an empty one included; on the row-id road only a short read, once its last
+    row (by id) is applied, since a live row's id says nothing of history committed late below it.
+    Never between two full pages, and a polling-only follow closes it too. Every package read past,
+    and every package the boot left not known for an action, is said not known again after each
+    batch of that history, so a Take later in it cannot clear the mark; an Out in it ends the mark
+    (off is known, as in `ografRestore`); the operator's live Take or Out clears it. Residual: an
+    operator's action that arrives inside that history (a polling follow, or a press during the
+    gap) is read past with it: not sent, its package marked not known, pressed again after a re-cue.
+  - *Actions counted* (`acted`, said the moment an action is sent, so a report banked before its
+    answer already carries it): the actions an instance was sent, less those the Graphic refused,
     ride the report for the instance's whole life, so a restart knows the Graphic holds state no
     restart reproduces. OGraf promises no Take or Out undoes an action, so neither resets the count;
     a new instance starts at none.

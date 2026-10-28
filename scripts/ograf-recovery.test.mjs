@@ -161,36 +161,62 @@ test('a boot comes back on air once its packages have settled, and never later t
   assert.equal(never.visible(), true);
 });
 
-test('history the catch-up left unread reads a package action past, page after page, until a live batch', async () => {
+test('protocol 2: unread history reads a package action past, page after page, until its end', async () => {
   const { bootGap } = await import('../src/control/ografRecovery.ts');
-  const action = { graphic: 'Board', msg: { t: 'event' } };
-  // A catch-up that read to the end leaves nothing to hold.
-  assert.equal(bootGap(false, new Set(['Board'])).holds(action), false);
-  const gap = bootGap(true, new Set(['Board']));
-  // A two-page refill: an action on each page is read past, and each batch says which package.
-  assert.equal(gap.holds(action), true);
-  assert.equal(gap.holds({ graphic: 'Strap', msg: { t: 'event' } }), false, 'a NoaCG graphic is not held');
-  assert.equal(gap.holds({ graphic: 'Board', msg: { t: 'play' } }), false, 'only an action is held');
-  assert.deepEqual(gap.batchDone(false), ['Board']);
-  assert.equal(gap.open, true, 'a full refill page says nothing of the pages after it');
-  // A later page with no action of its own (a Take, say) still says Board is not known.
-  assert.deepEqual(gap.batchDone(false), ['Board'], 'kept across pages, so a historical Take cannot clear it');
-  // A live batch is contiguous with the cursor: the gap is read, the operator's own Take stands, and
-  // a later action is sent.
-  assert.deepEqual(gap.batchDone(true, true), []);
+  const ev = (graphic = 'Board') => ({ graphic, msg: { t: 'event' } });
+  const take = { graphic: 'Board', msg: { t: 'play' } };
+  const page = (n, ...head) => [...head, ...Array.from({ length: n - head.length }, () => ({ graphic: 'Strap', msg: { t: 'update' } }))];
+  // A catch-up that read to the end leaves nothing to read past.
+  assert.equal(bootGap(false, new Set(['Board']), [], 4).batch([ev()], true).readPast.size, 0);
+  const gap = bootGap(true, new Set(['Board']), [], 4);
+  // A full first page: Board's action is read past (a NoaCG graphic's never is), Board is marked.
+  const first = page(4, ev(), ev('Strap'));
+  const one = gap.batch(first, true);
+  assert.deepEqual([...one.readPast], [first[0]]);
+  assert.deepEqual(one.mark, ['Board']);
+  assert.equal(gap.open, true, 'a full page says nothing of the next');
+  // A Take on the next full page cannot clear the mark: it is said again after that batch.
+  assert.deepEqual(gap.batch(page(4, take), true).mark, ['Board']);
+  // A short page reached the end: it still marks, and the gap closes.
+  assert.deepEqual(gap.batch([ev()], true).mark, ['Board']);
   assert.equal(gap.open, false);
-  assert.equal(gap.holds(action), false);
-  // A polling follow's batches are all reads: one shorter than a page ends the history, and still
-  // says what it held.
-  const polled = bootGap(true, new Set(['Board']));
-  assert.equal(polled.holds(action), true);
-  assert.deepEqual(polled.batchDone(true), ['Board']);
-  assert.equal(polled.open, false);
-  assert.equal(polled.holds(action), false, 'a newly pressed action is sent');
-  // A package the boot already left not known for an action stays so through a Take in the unread
-  // history; with no gap, nothing is held.
-  const seeded = bootGap(true, new Set(['Board']), ['Board']);
-  assert.deepEqual(seeded.batchDone(false), ['Board']);
-  assert.deepEqual(seeded.batchDone(true, true), []);
-  assert.deepEqual(bootGap(false, new Set(['Board']), ['Board']).batchDone(false), []);
+  assert.equal(gap.batch([ev()], true).readPast.size, 0, 'a later action is sent');
+  // A live batch closes it at once, and its own Take is the operator's: it marks nothing.
+  const live = bootGap(true, new Set(['Board']), ['Board'], 4);
+  assert.deepEqual(live.batch([take], false), { readPast: new Set(), mark: [] });
+  assert.equal(live.open, false);
+  // An empty read is the end, with the boot's own action marks said once more.
+  const empty = bootGap(true, new Set(['Board']), ['Board'], 4);
+  assert.deepEqual(empty.batch(page(4, take), true).mark, ['Board'], "the boot's mark survives a Take in history");
+  assert.deepEqual(empty.emptyRead(), ['Board']);
+  assert.equal(empty.open, false);
+  // An Out after the action ends it, as `ografRestore` reads it: off is known.
+  const out = bootGap(true, new Set(['Board']), [], 4);
+  assert.deepEqual(out.batch([ev(), { graphic: 'Board', msg: { t: 'stop' } }], true).mark, []);
+});
+
+test('protocol 1: unread history closes only once a short read is applied, by id, never by a live row', async () => {
+  const { bootGap } = await import('../src/control/ografRecovery.ts');
+  const row = (id, t = 'update', graphic = 'Board') => ({ id, graphic, msg: { t } });
+  const gap = bootGap(true, new Set(['Board']), [], 3);
+  // A full read names no end; its action is read past and marked.
+  assert.deepEqual(gap.tailRead([row(11), row(12), row(13)], 10), []);
+  assert.deepEqual(gap.row(row(11, 'event'), true), { readPast: true, mark: ['Board'] });
+  // A live row, even past the cursor, says nothing of history committed late below it.
+  assert.deepEqual(gap.row(row(99, 'event'), false), { readPast: false, mark: [] });
+  assert.equal(gap.open, true);
+  // A short read names its last id; the gap closes once that row is applied, marks said once more.
+  assert.deepEqual(gap.tailRead([row(14), row(15)], 13), []);
+  assert.deepEqual(gap.row(row(14, 'event'), true), { readPast: true, mark: ['Board'] });
+  assert.deepEqual(gap.row(row(15), true), { readPast: false, mark: ['Board'] });
+  assert.equal(gap.open, false);
+  assert.deepEqual(gap.row(row(16, 'event'), true), { readPast: false, mark: [] }, 'a later action is sent');
+  // A short read whose rows another walk already applied closes at once (the follow drops duplicates).
+  const dup = bootGap(true, new Set(['Board']), ['Board'], 3);
+  assert.deepEqual(dup.tailRead([row(8), row(9)], 9), ['Board']);
+  assert.equal(dup.open, false);
+  // An empty read is the end too.
+  const empty = bootGap(true, new Set(['Board']), [], 3);
+  assert.deepEqual(empty.tailRead([], 5), []);
+  assert.equal(empty.open, false);
 });
