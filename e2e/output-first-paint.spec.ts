@@ -2,7 +2,7 @@
 // host document it loads, the ControlMessage -> OGraf call mapping, and the benign and hostile
 // fixtures. The one spec that proves the boundary, and output-first-paint because the stage
 // module is what the published graphics load through as well.
-// covers: {src/output/{stage.ts,foreignOgraf.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
+// covers: {src/preview/composeDocument.ts,src/output/{stage.ts,foreignOgraf.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
 
 import { test, expect, type Page } from '@playwright/test';
 
@@ -30,13 +30,21 @@ const HARNESS = `
 import { createOutputStage } from '/src/output/stage.ts';
 import { airWhenSettled } from '/src/output/catchUp.ts';
 import { lt01 } from '/src/templates/lowerThirds/lt01.ts';
+import { st01 } from '/src/templates/competition/results/st01.ts';
+import { rs01 } from '/src/templates/competition/results/rs01.ts';
+import { br01 } from '/src/templates/competition/results/br01.ts';
+import { tt01 } from '/src/templates/competition/results/tt01.ts';
 
 const q = new URLSearchParams(location.search);
-const design = lt01.create();
+const variants = { lt01, st01, rs01, br01, tt01 };
+// ?designs=st01,lt01 names each graphic's design; without it, n copies of lt01.
+const keys = q.get('designs') ? q.get('designs').split(',') : Array.from({ length: Number(q.get('n') || 1) }, () => 'lt01');
 const graphics = [];
-for (let i = 0; i < Number(q.get('n') || 1); i++) {
+let design;
+keys.forEach((id, i) => {
+  design = variants[id].create();
   graphics.push({
-    key: 'lt' + i,
+    key: q.get('designs') ? id : 'lt' + i,
     html: design.html,
     css: design.css,
     js: design.js,
@@ -45,7 +53,7 @@ for (let i = 0; i < Number(q.get('n') || 1); i++) {
     fps: design.fps,
     layer: 20 + i,
   });
-}
+});
 // A moment of nothing first, the way the real boot waits on its resolve.
 await new Promise((r) => setTimeout(r, Number(q.get('delay') || 250)));
 const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] });
@@ -227,4 +235,90 @@ test.describe('the /output shell on load', () => {
       .poll(async () => page.evaluate(() => getComputedStyle(document.querySelector('iframe')!).visibility))
       .toBe('visible');
   });
+});
+
+/**
+ * A BOARD TAKEN AGAIN AFTER AN OUT (#1618). The output renderer plays the graphic's own play()
+ * in a document that stays loaded between cues, so whatever an Out wrote inline is still there
+ * at the next Take. A results board's rows cascade animates the rows and never their container,
+ * and the Out fades that container (`.results-board-body`) to opacity 0: the second Take showed
+ * the frame and header with no rows, on CasparCG and OBS alike, while the editor's monitor (which
+ * resets the graphic before each play) showed them. Read here on the shipped stage, inside each
+ * board's own frame, for the four board types.
+ */
+test.describe('the /output shell, a graphic taken again', () => {
+  let harness: { swapped: boolean };
+
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 480, height: 270 });
+    harness = await mountHarness(page);
+  });
+
+  test.afterEach(() => {
+    expect(harness.swapped, 'the /output shell still loads its boot module the way this spec swaps').toBe(true);
+  });
+
+  /** The board's rows as they draw: the lowest opacity on the path from each row up to the body. */
+  async function rowsShown(page: Page): Promise<{ rows: number; minOpacity: number; bodyStyle: string | null }> {
+    // The board's own document: the one frame holding a results board (the other is lt01's).
+    const frames = page.frames().filter((f) => f !== page.mainFrame());
+    const has = await Promise.all(frames.map((f) => f.evaluate(() => !!document.querySelector('.results-board-body')).catch(() => false)));
+    const frame = frames[has.indexOf(true)];
+    if (!frame) return { rows: 0, minOpacity: 0, bodyStyle: null };
+    return frame.evaluate(() => {
+      const body = document.querySelector('.results-board-body') as HTMLElement | null;
+      const rows = body ? Array.from(body.children) as HTMLElement[] : [];
+      let minOpacity = 1;
+      for (const row of rows) {
+        for (let el: HTMLElement | null = row; el && el !== document.body; el = el.parentElement) {
+          minOpacity = Math.min(minOpacity, Number(getComputedStyle(el).opacity));
+        }
+      }
+      return { rows: rows.length, minOpacity, bodyStyle: body?.getAttribute('style') ?? null };
+    });
+  }
+
+  for (const board of ['st01', 'rs01', 'br01', 'tt01']) {
+    test(`${board}: Take, Out, Take again shows the rows, with and without an Update and with another graphic on air`, async ({ page }) => {
+      test.setTimeout(90_000);
+      await page.goto(`/first-paint/output?designs=${board},lt01`);
+      await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+      const apply = (graphic: string, msg: unknown) =>
+        page.evaluate(([g, m]) => (window as unknown as { __stage: { apply(g: string, m: unknown): void } }).__stage.apply(g as string, m), [graphic, msg] as const);
+      const settled = async (label: string) => {
+        await expect
+          .poll(async () => (await rowsShown(page)).minOpacity, { message: `${board}, ${label}: the rows are drawn`, timeout: 8_000 })
+          .toBe(1);
+        const shown = await rowsShown(page);
+        expect(shown.rows, `${board}, ${label}: the board has rows`).toBeGreaterThan(0);
+      };
+      const out = async () => {
+        await apply(board, { t: 'stop' });
+        await page.waitForTimeout(1_200);
+      };
+
+      await apply(board, { t: 'play' });
+      await settled('first Take');
+
+      // Plain Take, Out, Take.
+      await out();
+      await apply(board, { t: 'play' });
+      await settled('second Take');
+
+      // An Update before the Out.
+      await apply(board, { t: 'update', data: { f0: 'Updated title' } });
+      await out();
+      await apply(board, { t: 'play' });
+      await settled('Take after an Update and an Out');
+
+      // Another graphic on air across the Out and the Take.
+      await apply('lt01', { t: 'play' });
+      await out();
+      await apply(board, { t: 'play' });
+      await settled('Take with another graphic on air');
+      // The rows hold: still drawn well after the entrance would have finished.
+      await page.waitForTimeout(2_000);
+      expect((await rowsShown(page)).minOpacity, `${board}: the rows stay drawn`).toBe(1);
+    });
+  }
 });
