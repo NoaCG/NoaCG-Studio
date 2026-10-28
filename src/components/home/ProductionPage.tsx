@@ -744,7 +744,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   renders.current += 1;
   /** What NoaCG Bridge last said: the server's status, the output's slot, the server files and
    *  whether this session saw its output on the slot (control/bridgeWatch.ts asks, below). */
-  const { status: bridgeStatus, outputSlot, serverFiles, slotSeenOurs } = useStorePart(session.bridge);
+  const { status: bridgeStatus, outputSlot, serverFiles, slotSeenOurs, slotReload } = useStorePart(session.bridge);
   /** The Bridge watch, while it runs: an output action and a server verb reach it here. */
   const bridgeWatch = useRef<BridgeWatch | null>(null);
   /** Bumped by the Playout panel's Check again: the server and the slot are asked again at once. */
@@ -932,6 +932,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
     bridgeWatch.current?.slotActed();
     if (show && result.state === 'ok') {
+      // Loaded here, the output is this page's to bring back after a server restart (#1657).
+      bridgeWatch.current?.slotOwned(what === 'air', target);
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), casparOutput: what === 'air' ? target : undefined });
       // Unloading on purpose is not losing the slot.
       if (what === 'stop') writeBridge(session, { slotSeenOurs: false });
@@ -1311,6 +1313,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const serverFileItems = playoutItems.filter(i => cues.some(c => c.source === 'playout' && c.sourceId === i.id));
   const serverFileKey = JSON.stringify({ show: show?.id, target: statusTarget, items: serverFileItems.map(i => ({ id: i.id, kind: i.kind, name: i.name })), refs: cues.filter(c => c.source === 'playout').map(c => c.sourceId) });
   const needsServerFiles = cues.some(c => c.source === 'playout');
+  /** Load the lost output again (useProductionPublish.ts `reloadOnSlot`), set once it exists below. */
+  const reloadRef = useRef<() => Promise<PlayoutResult | null>>(async () => null);
   const rundownRef = useRef({ cues, playoutItems, folders });
   rundownRef.current = { cues, playoutItems, folders };
   useEffect(() => {
@@ -1320,6 +1324,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       serverPlayout,
       settingsChanged: () => setPlayoutSettingsRev((n) => n + 1),
       learnt: (showId, facts) => setShows(fillPlayoutItemFacts(showId, facts)),
+      reload: () => reloadRef.current(),
     });
     bridgeWatch.current = watch;
     return () => {
@@ -2583,7 +2588,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
   const clashes = duplicateLayers(show.graphics);
 
-  const { claimName, downloadEmbed, copy, loadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish } = publishActions(
+  const { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish } = publishActions(
     publishState,
     {
       show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
@@ -2617,6 +2622,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
 
   preparePublishRef.current = () => publishNow();
+  reloadRef.current = async () => (outputUrl ? reloadOnSlot(outputUrl) : null);
 
   /** The layers that are up, each with the cue that put it there, front to back. */
   const liveLayers = show.graphics
@@ -3626,6 +3632,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     bridge: bridgeFact,
     slot: playoutRelevance.slot && outputSlot ? { where: slotWhere, channel: playoutSettings.channel, ...outputSlot, reporting: casparReporting } : undefined,
     slotLost,
+    slotReload,
     ready: readySummary,
     noOutputTake,
     fileCheck: needsServerFiles && bridgeOk ? serverFiles?.key === serverFileKey ? serverFiles.check : { key: 'files', tone: 'warn', short: 'Checking server files…', label: 'Checking referenced CasparCG files…' } : null,
