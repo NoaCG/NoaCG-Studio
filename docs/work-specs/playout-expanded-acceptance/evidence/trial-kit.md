@@ -122,7 +122,7 @@ On production A (L2 AC-11, the adjustments; each prepared on PREVIEW, then taken
       checks that the first lower-third cue has no exception of its own (its Adjust block offers
       no **Stop this cue’s exception**; if it does, press it). Then says: "Move the first
       lower-third cue to the top, for this cue only." Then: "That was a mistake. Put it back to
-      the graphic's own place, without undo." Done when it is back with **Stop this cue's
+      the graphic's own place, without undo." Done when it is back with **Stop this cue’s
       exception**. Then: "Move all the lower thirds to the top." Then: "That was a
       mistake too. Undo it." Done when it is back with Ctrl+Z. Each recovery must reach the
       output (take or update the cue when the page asks).

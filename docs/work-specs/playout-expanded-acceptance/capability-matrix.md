@@ -57,6 +57,7 @@ Nothing below is passed by H0.2 or S yet: both are the owner's, after this row.
 | **vMix** | Existing regressions kept; no expanded qualification in this programme. A production in a vMix Web Browser input aired on 2026-10-12 (vMix 29, Chromium 115, below NoaCG's floor of 117). NoaCG Bridge 0.10.0 can drive vMix overlay channels, but the studio page does not offer vMix as a playout system yet. | [`docs/VMIX_ON_A_REAL_HOST.md`](../../VMIX_ON_A_REAL_HOST.md); [`docs/PLAYOUT_COMPATIBILITY.md`](../../PLAYOUT_COMPATIBILITY.md); `cli/BRIDGE_CHANGELOG.md` 0.10.0 |
 | **SPX** | Existing regressions kept (the SPX export and operator specs run on every merge); no expanded qualification in this programme. | [`docs/SPX_ON_A_REAL_SERVER.md`](../../SPX_ON_A_REAL_SERVER.md); `e2e/spx-operator.spec.ts`; [`docs/ACCEPTANCE_SPX_CASPARCG.md`](../../ACCEPTANCE_SPX_CASPARCG.md) is a manual checklist with no result recorded |
 | **Unattended cloud reading** | Not claimed. The server tick that reads a published Sheet while every page is closed is switched off in production. The trusted agent is a process on a machine you keep running; it is not a cloud service. | `tick-cost-estimate.md`; row 9; [`docs/DATA_API.md`](../../DATA_API.md) |
+| **SDI key and fill through a CasparCG DeckLink card** | Not qualified. Never checked; every CasparCG walk above used a channel with no consumers. | [#976](https://github.com/NoaCG/NoaCG-Studio/issues/976) |
 | **Running for more than an hour** | Not measured. The output page's memory rises about 10 KB a minute (#1798). | [`evidence/e8-1b-endurance.md`](evidence/e8-1b-endurance.md) |
 
 This matrix makes no claim of parity with any vendor's product, no claim that NoaCG runs
@@ -85,6 +86,7 @@ Each can change what is on air or what the operator believes is on air. All are 
 | [#1726](https://github.com/NoaCG/NoaCG-Studio/issues/1726) | A candidate cue's label in the rundown keeps the old person's name after a pick, and a candidate card aired alone has no "synthetic results" label. | Read the cue editor's fields, not the rundown label. In a rehearsal with replayed results, keep a labelled graphic on air beside the card. |
 | [#1755](https://github.com/NoaCG/NoaCG-Studio/issues/1755) | Two quick type or colour changes on air can show one brief frame before the text refits. | Wait for one style change to show before making the next. |
 | [#1754](https://github.com/NoaCG/NoaCG-Studio/issues/1754) | An uploaded font named like a bundled one can be left out of a package. | Give uploaded fonts their own names. |
+| [#1784](https://github.com/NoaCG/NoaCG-Studio/issues/1784) (item 2) | After a production page reload, an imported OGraf graphic's outcome line under PROGRAM can show the replaced instance's line until the next report. The output is right. | Read the output; the line corrects at the next report. |
 
 ### Older on-air defects still open
 
@@ -123,8 +125,8 @@ are not listed.
 | [#1758](https://github.com/NoaCG/NoaCG-Studio/issues/1758) | The Companion module's own tests run in no GitHub workflow, so a module change is not checked by CI. |
 
 Not affecting any criterion: [#1771](https://github.com/NoaCG/NoaCG-Studio/issues/1771) and
-[#1778](https://github.com/NoaCG/NoaCG-Studio/issues/1778) are test gaps or test hygiene;
-[#1784](https://github.com/NoaCG/NoaCG-Studio/issues/1784)'s item 2 is display only.
+[#1778](https://github.com/NoaCG/NoaCG-Studio/issues/1778) are test gaps or test hygiene.
+[#1784](https://github.com/NoaCG/NoaCG-Studio/issues/1784)'s item 2 is in the on-air list above.
 
 ## Fixed in software, physical check owed to S
 

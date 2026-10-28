@@ -102,11 +102,10 @@ Nothing NoaCG exports carries a credential: a package names the connector's addr
 query string and says the connection does not come with it. The agent's log shows a key as
 `[redacted]`. If a key may have leaked: for the provider's key, put the new one in its variable
 and restart the agent (until then reads report `denied` and the fields keep their values); for the
-data key, unpublish the production and publish it again, which makes a new key (the output and
-control addresses stay the same), then restart the agent with the new one; the old key is refused
-at once. Do this between shows, never while on air: it also unpairs every Companion panel (pair
-them again) and resets the source's count history, so start the agent again only once the source
-is at its newest count. Details: [`docs/DATA_API.md`](../../DATA_API.md), "Rotating a credential".
+data key, ask the maintainer to change the production's data key (there is no button for it on
+the page; [`docs/DATA_API.md`](../../DATA_API.md), "For the production owner"), then restart the
+agent with the new key. Do this between shows only. Details:
+[`docs/DATA_API.md`](../../DATA_API.md), "Rotating a credential".
 
 ## 3. Is the data fresh?
 
@@ -222,7 +221,6 @@ The ones to keep in front of you:
 - [#1802](https://github.com/NoaCG/NoaCG-Studio/issues/1802): a value that does not reach the
   output can stay missing for up to 30 seconds, with nothing marking it stale, if no newer value
   follows. If a bound board looks behind the source, press **✎ Update**.
-
 - [#779](https://github.com/NoaCG/NoaCG-Studio/issues/779): two graphics with the same name in
   one production replace each other on the output. Give every graphic in a production its own
   name, and check the rundown for duplicates before the show.
