@@ -3544,3 +3544,183 @@ test('a declared action whose send is taken by a later press, refused as stale, 
   }
   assert.deepEqual(outcomes, ['refused', 'refused', 'unknown', 'failed']);
 });
+
+// ── Cross-feature cases (docs/work-specs/playout-expanded-acceptance/spec.md E8.1a, AC-2) ───────
+// Features that each have their own rows above, pressed together as a show uses them: a pinned
+// block (L1) on an imported OGraf package (E3) and on a graphic bound to a source (C1), a source
+// moving an adjusted cue (L2.1), a pinned press on an adjusted graphic, and a production look sent
+// over a pinned press (L2.3). The fold half of the look and typeface cases is in
+// scripts/cue-adjust.test.mjs's section of the same name.
+
+const { createProductionDataSession } = await import('../src/control/productionDataSession.ts');
+const { resolveBindings } = await import('../src/model/productionData.ts');
+const { rememberAired } = await import('../src/control/airState.ts');
+const { takeCueItems: takeItems } = await import('../src/control/cueItems.ts');
+
+/** The page's own copy of what landed (airState.ts `claimAndApply` remembers every program item). */
+const landedHere = (r, sent) => r.session.apply((parts) => ({ ...parts, air: rememberAired(parts.air, sent.batches.flat()) }));
+/** A local production's tree on the rig's session, its changes dispatched through the verbs as the
+ *  page dispatches them (ProductionPage.tsx `dataSession.dispatch(…, runVerb)`). */
+function treeOn(r, local, bindings) {
+  const data = createProductionDataSession(r.session, {
+    backendConfigured: false,
+    loadLiveData: () => local,
+    saveLiveData: () => {},
+    onStorage: () => () => {},
+    note: () => {},
+  });
+  data.published(null);
+  const resolved = () => resolveBindings(r.session.data.get().liveData, bindings);
+  r.page.boundFields = (graphic) => bindings[graphic] ?? {};
+  r.page.boundNow = (graphic) => ({ ...(resolved()[graphic] ?? {}) });
+  r.page.resolvedOf = (graphic) => resolved()[graphic] ?? {};
+  const dispatch = () => data.dispatch(resolved(), r.session.data.get().liveData, r.verbs.run);
+  return { data, dispatch };
+}
+
+test('a pinned imported OGraf package: its block\'s action goes to the program instance with that cue\'s arguments while another cue of it is edited, its ± and native events send nothing, and its Take reads sent (E3 with L1)', async () => {
+  const typed = (n) => ({ v: 1, kind: 'action', standard: OGRAF_STANDARD.commit, schema: 'h', action: 'mark', args: { n } });
+  const onAir = graphicCue('k1', 'Board');
+  const edited = graphicCue('k2', 'Board');
+  const r = rig({ seed: false, liveCue: { Board: 'k1', Bug: 'b1' }, typedActions: { 'k1:mark': { status: 'ok', typed: typed(1) }, 'k2:mark': { status: 'ok', typed: typed(2) } }, typedAiring: ['Board'] });
+  r.page.graphics = [{ name: 'Board' }, { name: 'Bug' }];
+  r.page.answersOnOutput = (graphic) => graphic === 'Board';
+  r.page.layerPeers = (graphic) => (graphic === 'Board' ? ['Bug'] : []);
+  const mark = { event: 'mark', label: 'Mark', typed: true };
+  const pinned = () => liveSelection('Board', [edited, onAir], r.liveCue());
+  const pressing = r.verbs.event(pinned(), mark);
+  await settle();
+  assert.deepEqual(r.sends[0].batches, [[{ graphic: 'Board', msg: { t: 'event', event: 'mark', typed: typed(1) } }]], 'the program instance\'s arguments, never the edited cue\'s');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await pressing, { outcome: 'accepted' });
+  // A package takes no native press: nothing goes for a ± or a machine event.
+  await r.verbs.bump(pinned(), 'f0', 1);
+  await r.verbs.event(pinned(), { event: 'goal' });
+  assert.equal(r.sends.length, 1);
+  assert.deepEqual(r.notes.filter((n) => /typed data/.test(n)), ['K1: Live controls do not reach typed data yet.', 'K1: Live controls do not reach typed data yet.']);
+  // Taking the edited cue replaces the instance and the layer's other graphic, and says it was sent.
+  const taking = r.verbs.takeGraphic(edited, 'Take');
+  await settle();
+  assert.deepEqual(r.log.filter((e) => e[0] === 'send').at(-1), ['send', 'Bug:stop+Bug:cue+Board:update+Board:play+Board:cue']);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await taking, { ok: true, unconfirmed: true, note: 'Take: K2 sent to the outputs' });
+  assert.deepEqual(r.liveCue(), { Board: 'k2' });
+  const again = r.verbs.event(pinned(), mark);
+  await settle();
+  assert.deepEqual(r.sends[2].batches[0][0].msg.typed, typed(2), 'the block follows the new instance');
+  r.sends[2].answer.resolve({ ...noneLeft });
+  await again;
+});
+
+test('a pinned graphic bound to a source: the source moves air with an update alone, never a Take, and the block\'s ± counts from the source\'s figure into the tree (C1 with L1)', async () => {
+  const banner = graphicCue('b1', 'Score', { home: '0' });
+  const staged = graphicCue('b2', 'Score', { home: '0' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '2' } } });
+  const tree = treeOn(r, { match: { home: 2 } }, { Score: { home: 'match.home' } });
+  tree.dispatch();
+  assert.equal(r.sends.length, 1, 'the first dispatch sets the baseline on air');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await settle();
+  // The source reads 5.
+  assert.equal(await tree.data.applySourcePatch({ match: { home: 5 } }), true);
+  tree.dispatch();
+  assert.deepEqual(sentAs(r.sends[1].batches), [[{ graphic: 'Score', msg: { t: 'update', data: { home: '5' } } }]], 'an update, no cue marker, entrance or event');
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await settle();
+  assert.deepEqual(r.liveCue(), { Score: 'b1' });
+  assert.equal(r.moves(), 0, 'data arrival never moves the marker');
+  // The pinned block's +1 while another cue of the banner is edited: the tree, from 5.
+  await r.verbs.bump(liveSelection('Score', [staged, banner], r.liveCue()), 'home', 1);
+  assert.deepEqual(r.log.filter(([k]) => k === 'patch' || k === 'writeCue' || k === 'writeLive'), [['patch', 'match.home=6']]);
+  assert.equal(r.sends.length, 2, 'nothing sent from the cue');
+});
+
+test('a source moving an adjusted cue on air keeps its place and size: the update carries no appearance, and the next Update sends the whole one again (L2.1 with C1)', async () => {
+  const placed = { v: 1, frame: { dx: 1270, dy: 0, s: 0.95, ox: 530, oy: 961 } };
+  const cue = graphicCue('c1', 'Score', { home: '0' });
+  const r = rig({ seed: false });
+  r.page.appearanceOf = (c, graphic) => (c.id === 'c1' && graphic === 'Score' ? placed : undefined);
+  const tree = treeOn(r, { match: { home: 2 } }, { Score: { home: 'match.home' } });
+  const taking = r.verbs.take(cue);
+  await settle();
+  assert.deepEqual(sentAs(r.sends[0].batches[0][0]), { graphic: 'Score', msg: { t: 'update', data: { home: '2' }, appearance: placed } });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  landedHere(r, r.sends[0]);
+  tree.dispatch();
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  await settle();
+  const before = r.sends.length;
+  await tree.data.applySourcePatch({ match: { home: 3 } });
+  tree.dispatch();
+  assert.equal(r.sends.length, before + 1);
+  const update = r.sends.at(-1);
+  assert.deepEqual(sentAs(update.batches), [[{ graphic: 'Score', msg: { t: 'update', data: { home: '3' } } }]]);
+  update.answer.resolve({ ...noneLeft });
+  await settle();
+  landedHere(r, update);
+  assert.deepEqual(r.session.air.get().looks.Score, placed, 'the applied place and size stand');
+  assert.equal(r.session.air.get().aired.Score.home, '3');
+  const updating = r.verbs.update(sel({ editingCue: cue, selectedGraphic: 'Score', editingIsLive: true }));
+  await settle();
+  assert.deepEqual(sentAs(r.sends.at(-1).batches), [[{ graphic: 'Score', msg: { t: 'update', data: { home: '3' }, appearance: placed } }]]);
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  await updating;
+});
+
+test('a pinned press on an adjusted graphic keeps the on-air cue\'s place and size and never sends the edited cue\'s (L1 with L2.1)', async () => {
+  const left = { v: 1, frame: { dx: 0, dy: 0, s: 0.95, ox: 120, oy: 961 } };
+  const right = { v: 1, frame: { dx: 1270, dy: 0, s: 1, ox: 530, oy: 961 } };
+  const onAir = graphicCue('b1', 'Score', { home: '7', name: 'Katri' });
+  const edited = graphicCue('b2', 'Score', { home: '0', name: 'Aino' });
+  const r = rig({ seed: false, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
+  r.page.appearanceOf = (c) => (c.id === 'b1' ? left : c.id === 'b2' ? right : undefined);
+  landedHere(r, { batches: [takeItems({ id: 'b1', graphic: 'Score', values: { home: '7' }, appearance: left })] });
+  const pinned = () => liveSelection('Score', [edited, onAir], r.liveCue());
+  const bumping = r.verbs.bump(pinned(), 'home', 1);
+  await settle();
+  const firing = r.verbs.event(pinned(), { event: 'show', payload: ['name'] });
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await bumping;
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await firing;
+  assert.deepEqual(sentAs(r.sends.map((s) => s.batches)), [
+    [[{ graphic: 'Score', msg: { t: 'update', data: { home: '8' } } }]],
+    [[{ graphic: 'Score', msg: { t: 'event', event: 'show', payload: { name: 'Katri' } } }]],
+  ]);
+  for (const s of r.sends) landedHere(r, s);
+  assert.deepEqual(r.session.air.get().looks.Score, left);
+});
+
+test('a production look sent over a pinned press waits behind it, goes to that graphic\'s on-air cue, and stays applied through the block\'s next press (L2.3 with L1)', async () => {
+  const look = { v: 1, vars: { accent: '#ff7a00' } };
+  const cues = [graphicCue('c1', 'Strap', { f0: 'Ann' }), graphicCue('c2', 'Score', { home: '1' }), graphicCue('c3', 'Score', { home: '0' })];
+  const r = rig({ seed: false, liveCue: { Strap: 'c1', Score: 'c2' }, aired: { Score: { home: '1' } } });
+  const read = [];
+  r.page.cueById = (id) => cues.find((c) => c.id === id);
+  r.page.lookAppearanceOf = (cue) => (read.push(cue.id), look);
+  // The operator edits c3 while the Score block's +1 is out.
+  const pinned = () => liveSelection('Score', [cues[2], cues[1]], r.liveCue());
+  const bumping = r.verbs.bump(pinned(), 'home', 1);
+  await settle();
+  const sending = r.verbs.sendLook();
+  await settle();
+  assert.deepEqual(r.sends.map((s) => s.batches[0][0].graphic), ['Score', 'Strap'], 'the strap goes; the score waits behind its press');
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await bumping;
+  await settle();
+  assert.deepEqual(read, ['c1', 'c2'], 'the on-air cue\'s look, never the edited cue\'s');
+  assert.deepEqual(sentAs(r.sends[2].batches), [[{ graphic: 'Score', msg: { t: 'update', data: {}, appearance: look } }]]);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  r.sends[2].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await sending, { of: 2, updated: 2, gone: [], changed: [], failed: [] });
+  for (const s of r.sends) landedHere(r, s);
+  const next = r.verbs.bump(pinned(), 'home', 1);
+  await settle();
+  assert.deepEqual(sentAs(r.sends[3].batches), [[{ graphic: 'Score', msg: { t: 'update', data: { home: '3' } } }]]);
+  r.sends[3].answer.resolve({ ...noneLeft });
+  await next;
+  landedHere(r, r.sends[3]);
+  assert.deepEqual(r.session.air.get().looks, { Strap: look, Score: look });
+});

@@ -12,6 +12,8 @@
 // behind `io.measure`, components/home/measureCue.ts). Node-tested with a fake `measure`.
 
 import type { StorePart } from './storePart';
+import { isForeignGraphic } from '../model/foreignPackage.ts';
+import type { SpxTemplate } from '../model/types';
 import type { Zone9 } from '../model/adjust';
 import {
   appearanceEquals,
@@ -287,7 +289,7 @@ export function pressAppearance<R>(
 export function cueAdjustState(
   /** `savedAt`: when the design it resolves to was last edited (model/library.ts `designEditedAt`),
    *  part of the identity a measurement is for. */
-  graphic: { id: string; savedAt: string; adjust?: unknown },
+  graphic: { id: string; savedAt: string; adjust?: unknown; template?: Pick<SpxTemplate, 'foreign'> | null },
   cue: { id: string; adjust?: unknown },
   frameSize: Size,
   stage: Size,
@@ -298,8 +300,11 @@ export function cueAdjustState(
   /** Another cue of the same graphic has its own record. */
   adjustedElsewhere: boolean,
   /** What the style resolves against (phase 2): the production's imported faces. */
-  styleCtx: StyleContext = NO_STYLE_CONTEXT,
+  context: StyleContext = NO_STYLE_CONTEXT,
 ): CueAdjustState {
+  // An imported OGraf package takes place and size alone, on its frame (playout adjustments
+  // AC-10): the standard has no hook for type or colour, so no look or style resolves for it.
+  const styleCtx = isForeignGraphic(graphic.template) ? NO_STYLE_CONTEXT : context;
   const eff = effectiveAdjust(graphic.adjust, cue.adjust, styleCtx.lookFor?.(graphic.id));
   const style = styleCtx.resolve(eff, styleCtx.imported);
   const styleId = styleKey(appearanceOf(null, style));

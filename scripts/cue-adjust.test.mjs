@@ -1074,3 +1074,70 @@ describe('type and colour in a package (phase 2)', () => {
     assert.deepEqual(upload.assets, [named]);
   });
 });
+
+// ── Cross-feature cases (docs/work-specs/playout-expanded-acceptance/spec.md E8.1a, AC-2) ───────
+// The fold half of two cases the run names: a production look over an imported OGraf package
+// beside a native graphic (L2.3 with E3), and a bound cue with its own typeface under that look
+// (L2.2 with L2.3 and C1). The press halves are in scripts/graphic-verbs.test.mjs's section of the
+// same name.
+
+describe('cross-feature cases (E8.1a)', () => {
+  const look = { vars: { accent: '#ff7a00' }, font: { fontId: 'archivo' } };
+  const lookOn = () => St.styleContextFor([], () => look);
+  const nudged = { v: 1, x: 40 };
+  const frame = { dx: 40, dy: 0, s: 1, ox: 960, oy: 540 };
+
+  test('an active look reaches a native graphic and never an imported OGraf package, which keeps its place and size alone (L2.3 with E3, #1784)', () => {
+    const native = G.cueAdjustState({ id: 'g', savedAt: 't', adjust: nudged }, { id: 'c' }, HD, HD, {}, G.NO_GEOMETRY, null, false, lookOn());
+    assert.equal(native.send.vars.accent, '#ff7a00', 'the look is laid under the native graphic');
+    assert.equal(native.send.fonts[0].family, 'Archivo');
+    // The same records on a package: the frame goes, no variable and no face.
+    const pkg = G.cueAdjustState({ id: 'g', savedAt: 't', adjust: nudged, template: { foreign: {} } }, { id: 'c', adjust: { v: 1, font: { fontId: 'oswald' } } }, HD, HD, {}, G.NO_GEOMETRY, null, false, lookOn());
+    assert.equal(pkg.style, null);
+    assert.deepEqual(pkg.send, { v: 1, frame });
+    assert.equal(pkg.styleId, '', 'and nothing of a style names its measurement');
+    // A package that held a look's appearance is sent the frame alone: the style comes off.
+    const held = G.cueAdjustState({ id: 'g', savedAt: 't', adjust: nudged, template: { foreign: {} } }, { id: 'c' }, HD, HD, {}, G.NO_GEOMETRY, native.send, false, lookOn());
+    assert.deepEqual(held.send, { v: 1, frame });
+  });
+
+  test('the look a production turns on is never handed to an imported OGraf package, so Publish and the hosted page resolve none for it either (L2.3 with E3)', async () => {
+    const L = await import('../src/control/productionLook.ts');
+    const brand = { styleTag: 'clean', palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#c8c8c8', panel: '#101820' }, fontId: 'archivo', customFont: null };
+    const css = '.card { color: var(--accent); font-family: var(--font-heading); }';
+    const show = { look: brand, lookApplied: true, graphics: [{ id: 'native' }, { id: 'pkg' }] };
+    const lookFor = L.lookForOf(show, [{ css, js: '' }, { css, js: '', foreign: {} }]);
+    assert.equal(lookFor('native').vars.accent, '#ff7a00');
+    assert.equal(lookFor('pkg'), undefined, 'the same stylesheet in a package takes nothing');
+    const reach = L.lookReach([{ name: 'Strap', template: { css, js: '' } }, { name: 'Board', template: { css, js: '', foreign: {} } }], brand, []);
+    assert.deepEqual([reach.accent, reach.type, reach.untouched], [1, 1, ['Board']], 'and Setup › Look counts it as untouched');
+    // The hosted fold has no template to read: with no look handed to it, it resolves none.
+    const hosted = G.cueAdjustState({ id: 'pkg', savedAt: '', adjust: nudged }, { id: 'c' }, HD, HD, {}, G.NO_GEOMETRY, null, false, St.styleContextFor([], lookFor));
+    assert.deepEqual(hosted.send, { v: 1, frame });
+  });
+
+  test('a bound cue with its own typeface under an active look: a source moving its value re-measures the box, never the face, the look or the style it sends (L2.2, L2.3 with C1)', () => {
+    const graphic = { id: 'g', savedAt: 't', adjust: { v: 1, place: 'bl', anchor: 'bl' } };
+    const cue = { id: 'c', adjust: { v: 1, font: { fontId: 'oswald' } } };
+    const before = { f0: 'Home 1 - 0 Away' };
+    const after = { f0: 'Home 12 - 10 Away' };
+    const at = (values, geometry) => G.cueAdjustState(graphic, cue, HD, HD, values, geometry, null, false, lookOn());
+    const first = at(before, G.NO_GEOMETRY);
+    const geometry = { byCue: { c: { id: A.measureId('g', 't', 'c', before, HD, first.measureStyleId), m: { info: LT, paint: LT, minText: 30 } } }, byGraphic: {} };
+    const measuredNow = at(before, geometry);
+    const moved = at(after, geometry);
+    assert.equal(measuredNow.fresh, true);
+    assert.equal(moved.fresh, false, 'the box measured for the old value is not taken for the new one');
+    assert.match(moved.style.vars['font-heading'], /^"Oswald"/, 'the cue\'s face wins over the look\'s');
+    assert.equal(moved.style.vars.accent, '#ff7a00', 'and the look still colours it');
+    assert.deepEqual(moved.style, measuredNow.style);
+    assert.equal(moved.styleId, measuredNow.styleId);
+    assert.equal(moved.measureStyleId, measuredNow.measureStyleId);
+    // Air holds the cue's styled appearance; an update the source sends carries none (rule 1), so
+    // the face stays applied.
+    let air = rememberAired({ ...NO_AIR }, takeCueItems({ id: 'c', graphic: 'Score', values: before, appearance: measuredNow.send }));
+    air = rememberAired(air, [{ graphic: 'Score', msg: { t: 'update', data: after } }]);
+    assert.deepEqual(air.looks.Score, measuredNow.send);
+    assert.equal(air.aired.Score.f0, after.f0);
+  });
+});

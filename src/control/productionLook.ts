@@ -17,7 +17,8 @@ import { readAdjust, readFont, styleValue, STYLE_VARS, type FontRef } from '../m
 import { cssPaintsWith, parseCssColor, relativeLuminance } from '../model/cssVars.ts';
 import type { ProjectBrand } from '../model/brand';
 import { COLOUR_VARS, SVG_DESIGN_MARKER, faceOf, styleContextFor, styleReach, type ImportedFace, type StyleContext } from './cueStyle.ts';
-import type { AssetFile } from '../model/types.ts';
+import type { AssetFile, SpxTemplate } from '../model/types.ts';
+import { isForeignGraphic } from '../model/foreignPackage.ts';
 import { contentHash } from '../model/contentHash.ts';
 import type { LookLayer } from './cueAdjust.ts';
 
@@ -103,15 +104,16 @@ export function lookLayerFor(layer: LookLayer, template: { css: string; js: stri
 }
 
 /** THE LOOK ON EACH POOL GRAPHIC of a production while it is on, by pool graphic id (the fold's
- *  `lookFor`), or undefined when it is off. `templates` are the pool's, in pool order. */
+ *  `lookFor`), or undefined when it is off. `templates` are the pool's, in pool order. An imported
+ *  OGraf package takes none, whatever its stylesheet paints with (playout adjustments AC-10). */
 export function lookForOf(
   show: { look?: ProjectBrand; lookApplied?: true; graphics: readonly { id: string }[] } | null | undefined,
-  templates: readonly { css: string; js: string }[],
+  templates: readonly ({ css: string; js: string } & Partial<Pick<SpxTemplate, 'foreign'>>)[],
 ): ((graphicId: string) => LookLayer | undefined) | undefined {
   const look = productionLookOf(show);
   if (!look || !show) return undefined;
   const layer = lookLayerOf(look);
-  const byId = new Map(show.graphics.map((g, i) => [g.id, templates[i] ? lookLayerFor(layer, templates[i]) : undefined] as const));
+  const byId = new Map(show.graphics.map((g, i) => [g.id, templates[i] && !isForeignGraphic(templates[i]) ? lookLayerFor(layer, templates[i]) : undefined] as const));
   return (graphicId) => byId.get(graphicId);
 }
 
@@ -182,7 +184,7 @@ export function withLookFaceIn<G extends { assets: readonly { path: string; data
 /** One pool graphic as the Look panel counts it. */
 export interface LookPoolGraphic {
   name: string;
-  template: { css: string; js: string };
+  template: { css: string; js: string } & Partial<Pick<SpxTemplate, 'foreign'>>;
 }
 
 /** THE REACH, PER PROPERTY, OVER THE POOL: how many graphics the look's typeface reaches (the face
@@ -203,7 +205,7 @@ export function lookReach(pool: readonly LookPoolGraphic[], look: ProjectBrand, 
   let accent = 0;
   const untouched: string[] = [];
   for (const g of pool) {
-    const on = lookLayerFor(layer, g.template);
+    const on = isForeignGraphic(g.template) ? undefined : lookLayerFor(layer, g.template);
     if (on?.font && faceResolves) type += 1;
     if (on?.vars?.accent) accent += 1;
     if (!on) untouched.push(g.name);
