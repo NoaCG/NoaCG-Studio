@@ -182,14 +182,14 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     // (migration 0072): it airs nothing and moves only the head's seq, so an output with a gap in
     // front of it reads the tail and applies what it missed, once and in seq order. Nothing is
     // resent and no older value can air. Once per start, never on a timer, as 0072 asks; a ping
-    // the server refused (its head lock or burst cap, while a feed writes hard) is asked again a
-    // second later, twice at most. Outputs do not answer it, so it cannot take the place of a
+    // refused for a moment (the head lock or the burst cap, while a feed writes hard) is asked
+    // again a second later, twice at most. Outputs do not answer it, so it cannot take the place of a
     // Prepare for Live press's answer.
     let handedOver = false;
     const ping = (retries: number) => {
       void io.controlPingSeq(slug, handoverPingId()).then(
         (answer) => {
-          if (answer.ok || answer.unavailable || retries === 0 || !live()) return;
+          if (answer.ok || !answer.passing || retries === 0 || !live()) return;
           io.setTimeout(() => {
             if (live()) ping(retries - 1);
           }, HANDOVER_RETRY_MS);

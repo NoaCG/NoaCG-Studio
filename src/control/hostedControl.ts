@@ -1842,8 +1842,14 @@ async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody,
   return readSendAnswer(data);
 }
 
-/** What `control_ping_seq` answered: the server's clock at the commit, or why there was no ping. */
-export type PingAnswer = { ok: true; at: number } | { ok: false; unavailable: boolean; detail: string };
+/** What `control_ping_seq` answered: the server's clock at the commit, or why there was no ping.
+ *  `passing`: a refusal that may not hold a second later (the head lock, the burst cap, a timeout,
+ *  the network), as opposed to one that will (hosted control off, a bad id). */
+export type PingAnswer = { ok: true; at: number } | { ok: false; unavailable: boolean; detail: string; passing?: boolean };
+
+/** SQLSTATEs a ping can meet and pass a moment later: lock_not_available, check_violation (the
+ *  burst cap), query_canceled (a statement timeout). */
+const PASSING_PING_REFUSALS = new Set(['55P03', '23514', '57014']);
 
 /**
  * `control_ping_seq` (migration 0072, docs/work-specs/playout-ready/spec.md R9): one row through
@@ -1854,7 +1860,9 @@ export async function controlPingSeq(slug: string, id: string): Promise<PingAnsw
   const sb = await getSupabase();
   if (!sb) return { ok: false, unavailable: true, detail: 'no backend' };
   const { data, error } = await sb.rpc('control_ping_seq', { p_slug: slug, p_id: id });
-  if (error) return { ok: false, unavailable: error.code === 'PGRST202', detail: error.message.slice(0, 160) };
+  if (error) {
+    return { ok: false, unavailable: error.code === 'PGRST202', detail: error.message.slice(0, 160), passing: !error.code || PASSING_PING_REFUSALS.has(error.code) };
+  }
   const at = (data as { at?: unknown } | null)?.at;
   return typeof at === 'number' ? { ok: true, at } : { ok: false, unavailable: false, detail: 'no answer' };
 }

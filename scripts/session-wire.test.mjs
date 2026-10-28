@@ -512,10 +512,11 @@ test('the hand-over is the numbered log\'s only: a production on row ids sends n
   stop();
 });
 
-test('a hand-over ping the server refused is asked again a second later, at most twice; one it does not have is not', async () => {
+test('a hand-over ping refused for a moment is asked again a second later, at most twice; a lasting refusal is not', async () => {
   for (const [answer, expected] of [
-    [{ ok: false, unavailable: false, detail: 'too many commands, slow down' }, 1 + HANDOVER_RETRIES],
-    [{ ok: false, unavailable: true, detail: 'PGRST202' }, 1],
+    [{ ok: false, unavailable: false, detail: 'too many commands, slow down', passing: true }, 1 + HANDOVER_RETRIES],
+    [{ ok: false, unavailable: false, detail: 'hosted control is switched off for this page', passing: false }, 1],
+    [{ ok: false, unavailable: true, detail: 'PGRST202', passing: false }, 1],
   ]) {
     const wire = scriptedWire();
     wire.onPing = () => answer;
@@ -542,7 +543,7 @@ test('a hand-over ping the server refused is asked again a second later, at most
 
 test('a hand-over retry due after the stop asks nothing', async () => {
   const wire = scriptedWire();
-  wire.onPing = () => ({ ok: false, unavailable: false, detail: 'lock' });
+  wire.onPing = () => ({ ok: false, unavailable: false, detail: 'lock', passing: true });
   const page = fakePage();
   const { stop } = start(wire, page);
   await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
