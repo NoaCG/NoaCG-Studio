@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
-import { ACTION_MS, BODY_CAP_BYTES, CANDIDATES, CUE_SWITCH_MS, STEP_MS, candidates, enduranceTimeline, measureFixture, partyVotes, revisionAt, schedule, stepKind, votesAt } from './endurance-fixture.mjs';
+import { ACTION_MS, BODY_CAP_BYTES, CANDIDATES, CUE_SWITCH_MS, STEP_MS, candidates, countedAt, enduranceTimeline, measureFixture, partyVotes, revisionAt, schedule, stepKind, votesAt } from './endurance-fixture.mjs';
 import { judge } from './endurance-judge.mjs';
 import { startReplayServer } from './election-replay-server.mjs';
 
@@ -46,7 +46,7 @@ function healthy() {
   }
   const isPaused = (t) => paused.some((f) => t > f.paused && t < f.resuming);
   const epochAt = (t) => 1 + r.faults.filter((f) => f.kind === 'handover' && f.claimed <= t).length;
-  for (const g of ['Party totals', 'Count bug', 'Ticker', 'Club Scorebug', 'Arena Quiz']) r.rows.push({ id: r.rows.length + 1, graphic: g, t: 'play', at: T0 - 5_000 });
+  for (const g of ['Party totals', 'Count bug', 'Ticker', 'Scoreboard', 'Club Scorebug', 'House Scorebug', 'Arena Quiz', 'Board']) r.rows.push({ id: r.rows.length + 1, graphic: g, t: 'play', at: T0 - 5_000 });
   let n = 0;
   for (let at = 0; at < plan.totalMs; at += CUE_SWITCH_MS) {
     const p = CUES[n++ % CUES.length];
@@ -94,7 +94,7 @@ function healthy() {
   for (let t = T0; t < r.end; t += 250) {
     rev = applied.findLast((x) => x.t <= t - 250)?.rev ?? 0;
     const a = aired(t - 400);
-    const now = { name: a ? person(a).name : '', votes: a && rev ? fmt(votesAt(person(a), rev)) : '', kok: rev ? fmt(partyVotes('KOK', rev)) : '' };
+    const now = { name: a ? person(a).name : '', votes: a && rev ? fmt(votesAt(person(a), rev)) : '', kok: rev ? fmt(partyVotes('KOK', rev)) : '', counted: rev ? `${countedAt(rev)} of 100 areas counted` : '' };
     if (!shown || !dark.some((f) => t > f.at + 1_000 && t < f.end + 500)) shown = now;
     const clock = `${String(Math.floor((t - T0 + 120_000) / 60_000)).padStart(2, '0')}:${String(Math.floor(((t - T0 + 120_000) % 60_000) / 1_000)).padStart(2, '0')}`;
     r.frames.push({ at: t, ...shown, clock, frames: 6 });
@@ -210,6 +210,11 @@ red('a Resume that sent one graphic twice', (r) => {
 red('a subscription leaked by an output reconnect', (r) => {
   for (const s of r.samples) if (s.at - r.t0 >= 25 * 60_000) s.output.channels = 3;
 }, /output's subscriptions/);
+red('the count bug stuck while the board moves', (r) => {
+  for (const f of r.frames) if (f.counted) f.counted = '0 of 100 areas counted';
+}, /count bug followed/);
+red('a data change that stopped the foreign Board', (r) => r.rows.push({ id: 1e9, graphic: 'Board', t: 'stop', at: r.t0 + 60_000 }), /foreign Board/);
+red('a steady graphic that was never taken', (r) => (r.rows = r.rows.filter((x) => !(x.graphic === 'House Scorebug' && x.t === 'play'))), /after their one Take/);
 red('a data change that took the quiz', (r) => r.rows.push({ id: 1e9, graphic: 'Arena Quiz', t: 'next', at: r.t0 + 60_000 }), /after their one Take/);
 red('a revision over the ingress limit', (r) => (r.snapshots[30].bytes = BODY_CAP_BYTES + 1), /ingress limit/);
 red('a refusal the run did not cause', (r) => r.reads.push({ agent: 'agent-1', at: r.t0, line: 'election changed revision 9 not taken (409 budget)' }), /did not cause/);

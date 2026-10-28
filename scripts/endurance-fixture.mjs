@@ -107,11 +107,14 @@ export function stepOfRevision(revision) {
   for (let i = 0, n = 0; ; i++) if (stepKind(i) === 'count' && ++n === revision) return i;
 }
 
+/** The count bug's areas counted at a revision (its `summary.counted`). */
+export const countedAt = (revision) => Math.min(100, Math.floor(revision / 12));
+
 const pct = (n) => `${n.toFixed(1)}%`;
 /** The provider's document at a revision, compact as a service would answer it. */
 export function resultsDoc(people, revision) {
   const at = new Date(Date.UTC(2027, 3, 18, 17, 0, 0) + revision * STEP_MS).toISOString().replace('.000Z', 'Z');
-  const counted = Math.min(100, Math.floor(revision / 12));
+  const counted = countedAt(revision);
   const totals = PARTIES.map(([code]) => partyVotes(code, revision));
   const all = totals.reduce((a, b) => a + b, 0);
   const items = people

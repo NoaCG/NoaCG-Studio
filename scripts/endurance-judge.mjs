@@ -9,12 +9,15 @@
 // window (Pause, a reload until the next Take, an output disconnect and its recovery, a handover)
 // are reported but held to the recovery checks instead.
 
-import { STEP_MS, candidates, partyRevision, revisionOf, schedule as planOf, stepOfRevision } from './endurance-fixture.mjs';
+import { STEP_MS, candidates, countedAt, partyRevision, revisionOf, schedule as planOf, stepOfRevision } from './endurance-fixture.mjs';
 
 const GRACE_MS = 5_000;
 const RECOVER_MS = 20_000;
 const CEILING = { dispatch: 10_000, bound: 10_000, candidates: 13_000 };
 const ELECTION = ['Party totals', 'Count bug', 'Ticker', 'Candidate card'];
+/** Every graphic the walk puts on air once for the whole run (the card takes turns, Board takes
+ *  the foreign actions). */
+const STEADY = ['Party totals', 'Count bug', 'Ticker', 'Scoreboard', 'Club Scorebug', 'House Scorebug', 'Arena Quiz'];
 const MOVES = new Set(['play', 'stop', 'next', 'snap', 'event']);
 /** Refusals the run causes on purpose: the 5 s gap (and the wait it asks for), a Pause, and an
  *  old owner or a waiting new one around a handover. */
@@ -44,6 +47,11 @@ function slope(points) {
   const sxx = points.reduce((a, [x]) => a + (x - mx) ** 2, 0);
   return sxx ? points.reduce((a, [x, y]) => a + (x - mx) * (y - my), 0) / sxx : 0;
 }
+/** The areas counted in a count bug's text ("12 of 100 areas counted"), or null. */
+const areas = (text) => {
+  const m = /^(\d+) of 100 areas counted$/.exec(text ?? '');
+  return m ? Number(m[1]) : null;
+};
 const num = (text) => (typeof text === 'string' && /^[\d,]+$/.test(text) ? Number(text.replace(/,/g, '')) : null);
 const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b);
@@ -152,6 +160,7 @@ export function judge(record) {
     }
   };
   watch(frames, () => 'KOK', (f) => num(f.kok), 'output');
+  watch(frames, () => 'counted', (f) => areas(f.counted), 'output');
   watch(frames, (f) => f.name, (f) => (f.name ? num(f.votes) : null), 'output');
   watch(rows.filter((r) => r.graphic === 'Party totals' && r.t === 'update' && r.at >= t0), () => 'KOK', (r) => num(r.data?.f8), 'rows');
   watch(rows.filter((r) => r.graphic === 'Candidate card' && r.t === 'update' && r.at >= t0), (r) => r.data?.f0, (r) => (r.data?.f0 ? num(r.data?.f2) : null), 'rows');
@@ -181,11 +190,13 @@ export function judge(record) {
   check('every card update row carries the aired person at one revision', badRows.length === 0, JSON.stringify(badRows.slice(0, 3)));
   // Every graphic on air for the hour (the election ones, the scorebugs, the quiz, the foreign
   // Scoreboard): the card takes turns and Board takes its actions, so those two are judged apart.
-  const steadyGraphics = [...new Set(rows.map((r) => r.graphic))].filter((g) => g && g !== 'Candidate card' && g !== 'Board');
   // Each was taken in the setup (where the scorebug's clock is also started); from the run's start
   // nothing may take, advance, reset or press any of them.
-  const otherMoves = steadyGraphics.map((g) => [g, rows.filter((r) => r.graphic === g && MOVES.has(r.t) && r.at >= t0).map((r) => r.t), rows.some((r) => r.graphic === g && r.t === 'play' && r.at < t0)]);
-  check('nothing took, advanced or reset the other graphics after their one Take', steadyGraphics.length >= ELECTION.length - 1 && otherMoves.every(([, ts, taken]) => taken && ts.length === 0), JSON.stringify(otherMoves.filter(([, ts, taken]) => !taken || ts.length)));
+  const otherMoves = STEADY.map((g) => [g, rows.filter((r) => r.graphic === g && MOVES.has(r.t) && r.at >= t0).map((r) => r.t), rows.some((r) => r.graphic === g && r.t === 'play' && r.at < t0)]);
+  check('nothing took, advanced or reset the other graphics after their one Take', otherMoves.every(([, ts, taken]) => taken && ts.length === 0), JSON.stringify(otherMoves.filter(([, ts, taken]) => !taken || ts.length)));
+  // Board takes its foreign actions as presses (`event`); nothing may take, stop or reset it.
+  const boardMoves = rows.filter((r) => r.graphic === 'Board' && r.at >= t0 && MOVES.has(r.t) && r.t !== 'event');
+  check('nothing took, stopped or reset the foreign Board: only its actions', rows.some((r) => r.graphic === 'Board' && r.t === 'play' && r.at < t0) && boardMoves.length === 0, JSON.stringify(boardMoves.slice(0, 3)));
   const cardMoves = card.filter((r) => MOVES.has(r.t) && r.t !== 'play');
   check('nothing but the Takes moved the card', cardMoves.length === 0, JSON.stringify(cardMoves.slice(0, 3)));
   check('no update row carried the collection', rows.every((r) => r.t !== 'update' || !JSON.stringify(r.data ?? {}).includes('schemaRevision')));
@@ -219,7 +230,8 @@ export function judge(record) {
   check('Pause held every graphic: no update row while paused', pauses.length > 0 && leaked.length === 0, JSON.stringify(leaked.slice(0, 3)));
   // Resume appends its final values in the same call: the data rows it wrote land with it.
   const resumed = pauses.map((f) => {
-    const written = rows.filter((r) => r.t === 'update' && r.src === 'api' && r.at >= f.resuming - 50 && r.at <= f.resuming + 250);
+    // From the call to its answer: the rows it wrote, timed by the database on the same machine.
+    const written = rows.filter((r) => r.t === 'update' && r.src === 'api' && r.at >= f.resuming - 50 && r.at <= (f.end ?? f.resuming) + 50);
     const perGraphic = Object.values(Object.groupBy(written, (r) => r.graphic)).map((xs) => xs.length);
     return { writes: f.resume?.writes, rows: written.length, most: most(perGraphic) };
   });
@@ -406,6 +418,18 @@ export function judge(record) {
     if (!appliedRevs.some((a) => a.rev >= rev && a.at <= at + 15_000)) stalled.push({ at: at - t0, rev });
   }
   check('every revision the provider published was applied within 15 s (or overtaken by a newer one)', obligations > 0 && stalled.length === 0, `${stalled.length} of ${obligations} stalled: ${JSON.stringify(stalled.slice(0, 3))}`);
+  // The count bug's own bound value moves every twelfth revision: each move published in a steady
+  // moment is on the output within the bound road's ceiling plus the provider's step.
+  const staleBug = [];
+  let bugMoves = 0;
+  for (let rev = 2; moved(rev) !== null && moved(rev) + 15_000 <= (record.end ?? 0); rev++) {
+    if (countedAt(rev) === countedAt(rev - 1)) continue;
+    const at = moved(rev);
+    if (at < t0 || inside(windows, at) || inside(windows, at + 15_000)) continue;
+    bugMoves++;
+    if (!frames.some((f) => f.at > at && f.at <= at + 15_000 && (areas(f.counted) ?? -1) >= countedAt(rev))) staleBug.push({ at: at - t0, rev, want: countedAt(rev) });
+  }
+  check('the count bug followed every count the provider published within 15 s', record.minutes < 5 || (bugMoves > 0 && staleBug.length === 0), `${staleBug.length} of ${bugMoves} late: ${JSON.stringify(staleBug.slice(0, 3))}`);
   const report = Object.fromEntries(Object.entries(timings).map(([k, xs]) => [k, stats(xs)]));
   check('a Take is on air within 10 s', report.dispatchToAir.n > 0 && report.dispatchToAir.max <= CEILING.dispatch, JSON.stringify(report.dispatchToAir));
   check('a bound field is on air within 10 s of the provider\'s move', report.providerToRenderBound.n > 0 && report.providerToRenderBound.max <= CEILING.bound, JSON.stringify(report.providerToRenderBound));
