@@ -49,7 +49,7 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   const lastTake = last('play');
   const lastOut = last('stop');
   const o = readOgrafOutcome(report?.state);
-  const acted = o?.acted === true || rows.some((r) => r.msg.t === 'event');
+  const acted = (o !== null && o.i !== null && o.acted === true) || rows.some((r) => r.msg.t === 'event');
   // A Take or Out after the bank replays as the log has it, and decides whether it is up.
   if (lastTake >= 0 || lastOut >= 0) {
     if (lastOut > lastTake) return NOTHING;
