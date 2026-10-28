@@ -88,7 +88,9 @@ changes a spec's digest.
   - Residuals: on the row-id road, a live Take that lands between tail rows of the boot's unread
     history is marked not known again by the next tail row (safe direction, Re-cue offered); a
     re-cue whose new load fails reads in the bad tone without a Re-cue button, and an ordinary
-    Take mounts it again. A Take that reaches a
+    Take mounts it again. A Graphic that hangs for good inside a live frame answers every call with
+    the host's 504, so neither a Take nor a Re-cue mounts it again; reloading the
+    output does. A Take that reaches a
     package whose base is still being fetched at first mount has no word yet, so a restart there on
     the row-id road comes back off with nothing said.
   - *The foreign frame adjust* (L2 AC-10's foreign case): the stage applies an appearance's frame to
@@ -105,9 +107,10 @@ changes a spec's digest.
     standard does not say `playAction({goto: 0})` resets what `customAction` did, so the truthful
     reading is the conservative one.
   - *Remount only on a Take, and only a lost instance*: a healthy re-Take keeps its instance (row
-    40); an update or a step to a lost instance is not a re-cue. One call that timed out (a slow
-    `updateAction` too) makes the instance lost, so the operator's next Take replaces it; the new
-    instance names the old one (`was`), and an action's effect goes with the old instance.
+    40); an update or a step to a lost instance is not a re-cue. A call nobody answered at all, or
+    a failed load, makes the instance lost, so the operator's next Take replaces it; a host 504
+    keeps the instance. The new instance names the old one (`was`), and an action's effect goes
+    with the old instance.
   - *A restore walks at most 32 steps* (`RESTORE_STEPS_MAX`, the PR review of 7f8704c): a step is
     a stranger's own answer, sent as calls without waiting, and a frame holds 64 unanswered. Past
     it, the Take comes back at its first step and the step is not known.

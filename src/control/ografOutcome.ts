@@ -25,8 +25,8 @@ export type OgrafOutcomeStatus = (typeof STATUSES)[number] | 'unmounted';
  * Graphic accepted left it up, and `step` where its answers put it (a step, `end`, or null when
  * unknown). `unmounted` is a package the stage holds no frame for, `msg` saying why.
  *
- * RECOVERY (E3.2b, AC-3): `acted` is set while an action sent since its last Take may have changed
- * it, which no restart repeats; `unknown` says why its state after a restart is not proven, until
+ * RECOVERY (E3.2b, AC-3): `acted` is set once an action its instance was sent may have changed it,
+ * for the instance's whole life (no Take is promised to undo one), and no restart repeats it; `unknown` says why its state after a restart is not proven, until
  * the operator's next Take or Out; `was` names the instance it replaced on the same output, whose
  * later word is then stale (`acceptOutcome`); `sent` is a Take or Out sent to it that its Graphic
  * has not yet answered, so `on` is still the state before it (a report member only, never sent).

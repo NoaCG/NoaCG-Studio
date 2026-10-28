@@ -57,7 +57,8 @@ export type OgrafAnswer =
   | { status: 'done'; statusCode: number; statusMessage?: string; currentStep?: number }
   | { status: 'rejected'; statusCode: number; statusMessage?: string }
   /** `unanswered`: this page's own deadline passed with no reply at all (the frame's document or
-   *  bridge is gone); without it, the host answered for a Graphic slower than its window (504). */
+   *  bridge is gone). Without it, the host answered for a Graphic slower than its window (504), or
+   *  the oldest of too many calls waiting was given up, and the frame may well be alive. */
   | { status: 'timeout'; statusMessage?: string; unanswered?: true }
   | { status: 'gone' }
   | { status: 'refused'; reason: string };
@@ -216,7 +217,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
       else void loadAnswered.then(arm);
     });
     // A Graphic that never answers cannot grow the book forever: the oldest call is given up.
-    if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered', unanswered: true });
+    if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered' });
     outstanding.add(answered);
     void answered.then(() => outstanding.delete(answered));
     channel.port1.postMessage({ id: callId, call, args });
