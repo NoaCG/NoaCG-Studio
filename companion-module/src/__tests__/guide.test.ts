@@ -32,3 +32,17 @@ test('the guide covers graphic keys: the action, the presets, the outcomes and t
 	assert.ok(/keep working/.test(help), 'unpinning stops nothing')
 	assert.ok(!/—/.test(help), 'no em dashes')
 })
+
+// The page's Setup menu, read from the app's source beside this module (build-test/__tests__ -> repo root).
+const setupMenu = readFileSync(
+	fileURLToPath(new URL('../../../src/components/home/ProductionSetupMenu.tsx', import.meta.url)),
+	'utf8',
+)
+
+test('the guide names the Setup menu item as the production page draws it', () => {
+	const named = [...help.matchAll(/\*\*Setup\*\*, then \*\*([^*]+)\*\*/g)].map((m) => m[1])
+	assert.ok(named.length > 0, 'the guide says which Setup item opens the panel list')
+	// A menu item's label is a JSX text line of its own; "Panel" alone also appears in code.
+	const labels = new Set(setupMenu.split('\n').map((line) => line.trim()))
+	for (const item of named) assert.ok(labels.has(item), `the Setup menu has an item "${item}"`)
+})

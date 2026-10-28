@@ -5,6 +5,63 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 45 (E8.2, project phase 50): runbook, capability matrix, agent-evidence verdict and trial kit
+
+- **Previous verified `main` sha:** `f0adf9b` (row 44 passed, PR #1791). This branch was built on
+  `c6fc146` (that plus #1799, a CI/CD plan document; no product change).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration, no stored shape, no wire
+  change. A revert removes the runbook, the matrix, the kit and the guide check, takes the
+  reconciliation record back to row 43's, and puts the Companion guide's old (wrong) Setup step
+  back.
+- **What landed** (all in `docs/work-specs/playout-expanded-acceptance/`):
+  - `runbook.md`, the operator guide (AC-4): install and pairing (NoaCG, Bridge, OBS, Companion,
+    the agent, with rebind), credentials, source status and cadence, manual and Fill fallback,
+    restarts (agent, production page, Bridge, CasparCG with #1657's words, output, Companion),
+    PREVIEW against PROGRAM, unsupported OGraf recovery, restoring the prior release, and the
+    on-air defects not fixed. It links the existing guides rather than repeating them.
+  - `capability-matrix.md` (AC-4): what the build does, each line with its receipt and status
+    (software, laptop walk, owed to H0.2 or S, not qualified); official feed, vMix, SPX and
+    unattended cloud apart; every known on-air defect not fixed with its issue (#1795, #1797,
+    #1798 and the rest); #1618, #1657 and #1746 as fixed in software with the physical check
+    owed to S.
+  - `evidence/trial-kit.md` (AC-3): seven tasks (connect a sample API, select a live candidate,
+    preview or air, recover a source failure, a declared Companion button, L1 AC-11's
+    two-graphic show, L2 AC-11's adjustments), six questions, the four-of-five reading guide with
+    the participant rule, and where findings go. On the owner list as a manual item on #1553.
+  - `evidence/e8-2-guide-check.md`: each runbook step and matrix line, run here, read in the
+    code, or from a receipt, and what could not be run and why.
+  - `evidence/e8-1a-reconciliation.md` updated, not a second record: the verdict (AC-1's agent
+    part), rows 43 and 44, O-9 (#1797, #1798), O-10 (the owner's fixes and #1795), the L1 AC-8
+    citation corrected to row 42's entry, the E8, L1 AC-11 and L2 AC-11 rows.
+  - *One focused fix:* Companion's `HELP.md` step 1 said **Setup**, then **Panel**; the menu item
+    has read **Stream Deck panel…** since row 38a. Fixed, with a test in
+    `companion-module/src/__tests__/guide.test.ts` that reads the Setup menu's labels (red with the
+    old wording: plain `includes` passed it, because "Panel" occurs in the code).
+- **Decisions.**
+  - *Where the documents live:* neither the E8 spec nor `extensions.md` names a place, so the
+    runbook and matrix sit in the spec folder and the kit, check and verdict in `evidence/`, as
+    the parent's §9.1 places kits.
+  - *Reuse, not rewrite:* the runbook gives the short version and links `docs/BRIDGE.md`,
+    Companion's `HELP.md`, `docs/DATA_API.md`, the election `rehearsal.md` and
+    `docs/OBS_ON_A_REAL_HOST.md`; the kit borrows the E6.2 kit's setup for its Companion task and
+    points to the C7 and H0.1 kits instead of repeating them.
+  - *The kit's source-failure task stops the agent*, because that is the failure an operator
+    cannot see in a status line today (there is no Connector line, only "Received N s ago").
+  - *Restoring the prior release is a maintainer step* in the runbook: the operator has no such
+    control on the site, and saying otherwise would be false.
+  - *The archive hash names one build:* this row's two builds are recorded; H0.2 builds its own.
+- **Traps.**
+  - Playwright here wants headless shell 1228; linked to the installed 1243 under
+    `/opt/pw-browsers` with no repo change (#1647). Browser tests go through
+    `node scripts/jobs.mjs add "..." --cap 5`; a `|` in a `--grep` inside that string is read by
+    the shell.
+  - Companion 5.1.0's image listens on IPv6 by default and the container has none: pass
+    `--admin-address 0.0.0.0 --admin-port 8000`, and make the mounted config folder writable.
+  - The agent's `--export` prints to stdout; it writes no file of its own.
+  - The Another system card's "Received" time is stamped only when something is applied, so it
+    ages through unchanged results.
+
 ## Row 44 (E8.1b, project phase 49): the 60-minute election endurance run
 
 - **Previous verified `main` sha:** `132bd5b` (row 43 passed, PR #1790). This branch was built on

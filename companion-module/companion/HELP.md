@@ -10,7 +10,7 @@ Companion 4.3 or later (the steps below use Companion 5.1's words). If **NoaCG: 
 
 ### Set it up
 
-1. Publish the production in NoaCG once. On the production page open **Setup**, then **Panel** (on the hosted control page, **Panel** is in the header). Press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
+1. Publish the production in NoaCG once. On the production page open **Setup**, then **Stream Deck panel…** (on the hosted control page, **Panel** is in the header). Press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
 2. In Companion, open **Connections**, type `NoaCG` in the search box on the right, press **Add** beside **NoaCG: NoaCG Studio**, then **Add** again. Type the code into **Pairing code**, give the panel a name in **Panel name**, and press **Save**. The code field clears and the panel appears in the page's list.
 3. Keep the production page open. It answers the panel by itself; the header shows **Panel ✓**.
 4. Open **Buttons**, then the **Presets** tab, press **NoaCG**, open a section and drag keys onto your buttons: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), **Cues** (Take, Select and Trigger keys for each cue of your rundown), and **Pinned graphics** (the live controls of each graphic you pinned on the production page).

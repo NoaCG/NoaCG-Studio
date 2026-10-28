@@ -1,11 +1,52 @@
-# E8.1a: software reconciliation of every required criterion
+# E8.1a and E8.2: reconciliation of every required criterion, and the verdict on the agent evidence
 
-Row 43 of the production-page run (E8.1a, project phase 48), E8 AC-1's software part. It lists
-every required criterion of the parent baseline phases, Q's records, the data, Sheet and audience
-records, and the child specs (H0, E1 to E8, L1, L2), each with the evidence that passed it or an
-open finding. It is not E8's final verdict: E8.2 judges the agent evidence complete, and the final
-owner block (H0.2 and S) adds the physical receipts and closes AC-1 in S's
-`final-acceptance.md`. Nothing that only H0.2 or S can pass is counted as passed here.
+Row 43 of the production-page run (E8.1a, project phase 48) wrote this record as E8 AC-1's
+software part; row 45 (E8.2, project phase 50) brought it up to date through phase 49 and added
+the verdict below. It lists every required criterion of the parent baseline phases, Q's records,
+the data, Sheet and audience records, and the child specs (H0, E1 to E8, L1, L2), each with the
+evidence that passed it or an open finding. It is not E8's final verdict: the final owner block
+(H0.2 and S) adds the physical receipts and closes AC-1 in S's `final-acceptance.md`. Nothing
+that only H0.2 or S can pass is counted as passed here.
+
+## E8.2: the verdict on the agent evidence (row 45)
+
+**Every required criterion an agent can pass has criterion-level evidence or an explicit open
+finding, through phase 49.** Rows 1 to 44 are 49 project phases with 49 `phase <n> pass` entries
+in the run's ledger, each the independent checker's verdict on its merge SHA with a per-criterion
+evidence list (the table at the end). Row 45's own criteria (E8 AC-1's agent part, AC-3's kit,
+AC-4) are this row's merge and its checker's entry; they cannot cite themselves here.
+
+- **What is owed, and never counted as passed.** H0.2: H0 AC-1's guide walk on the archive
+  actually installed, H0 AC-4, E6 AC-4 and the deck's end of L1 AC-8. S: parent AC-14's real
+  outputs, data AC-16's actual outputs, E3 AC-2 and E7 AC-4 on the real studio, E8 AC-2's and
+  AC-3's physical part (the 30-minute dress rehearsal with L1 AC-11's quiz-and-score case and L2
+  AC-11's adjustment case), the physical checks of #1618, #1657 and #1746, and E8 AC-1's final
+  reconciliation with H0.2's and S's receipts. Provider qualification: the official election
+  feed, a separate verdict, never simulated.
+- **The classes stay apart** (table below): software rehearsal (SW), Q's dated provider records,
+  laptop scratch walks (LW, non-gating, each bound to its SHA, none on the final candidate), trial
+  kits (KT: four landed, none run; a trial's result is reported, never required), real-studio
+  outputs (RS: none yet) and provider qualification (PQ: none). Session success, a green group or
+  a package build is not counted as evidence: each pass cites the checker's entry and its runs.
+- **Reuse for rows 43 to 45.** Rows 43 and 44 passed on `132bd5b` and `f0adf9b`. `main` at
+  `c6fc146` differs from `f0adf9b` only in `docs/work-specs/cicd-improvement/` and
+  `.agent-workflows/plan-run.md`, which no criterion depends on, so every SW criterion's evidence
+  carries to it under parent §6. Row 45 changes documents, plus the Companion module's `HELP.md`
+  and its guide test (a wrong step found while checking the runbook): that touches no `src/`,
+  `e2e/`, `scripts/` or `package.json`, so nothing SW goes stale; it does touch H0 AC-1's guide,
+  whose walk is H0.2's anyway.
+- **The Companion archive** (O-3): 0.2.0 was built and hashed on this row's worker, imported into
+  a scratch Companion 5.1.0 and listed at that version
+  ([`e8-2-guide-check.md`](e8-2-guide-check.md)). The build is not byte-reproducible, so H0.2
+  must still build, hash and record the archive it installs from the final candidate.
+- **Open findings** that no criterion's text fails but an operator must know are in the
+  [capability matrix](../capability-matrix.md) with what to do meanwhile; the runbook repeats the
+  ones that change what is on air. The three the owner named (#1795, #1797, #1798) are open on
+  `c6fc146` and listed there.
+- **AC-3's kit** is [`trial-kit.md`](trial-kit.md), with L1 AC-11's two-graphic task (task 6)
+  and L2 AC-11's adjustment task (task 7), on the owner list (#1553). **AC-4** is the
+  [runbook](../runbook.md) and the [matrix](../capability-matrix.md), checked against the build in
+  [`e8-2-guide-check.md`](e8-2-guide-check.md).
 
 ## Sources and candidate
 
@@ -15,6 +56,12 @@ owner block (H0.2 and S) adds the physical receipts and closes AC-1 in S's
   configured-suite [40667728066](https://github.com/NoaCG/NoaCG-Studio/actions/runs/40667728066)
   success, Quarantine 40667727951 success (it runs the two quarantined specs, `import-svg` and
   `rundown-history`, on every push), Post-landing 40667728080 success.
+- **E8.2's update:** `main` at `c6fc146b8807f629645c980d75fa53735dd0453d` (rows 43 and 44
+  landed, `132bd5b` and `f0adf9b`, then #1792 to #1794 and #1799). On `f0adf9b`: CI
+  [40745259392](https://github.com/NoaCG/NoaCG-Studio/actions/runs/40745259392) success,
+  configured-suite [40745259430](https://github.com/NoaCG/NoaCG-Studio/actions/runs/40745259430)
+  success; the product code of `c6fc146` is identical. The ledger was read at
+  `dcf2f4742564b0b01f2bf36b35a92d0814623aaa` (rows 43 and 44 below).
 - **Checker verdicts:** the run ledger on `claude/noacg-recovery/plan-production-page-2026-10-21`
   at `8a4e7680dc0b0a1785f8566bd813ec66da04a00b` (`ledger.md`, its `phase <n> pass` entries). Each
   entry is the independent checker's verdict on the merge SHA, with a per-criterion `evidence`
@@ -155,7 +202,7 @@ end).
 
 | AC | Evidence (rows) | Status |
 | --- | --- | --- |
-| AC-1 archive installs from the guide | 2 packaging and guide portion (`noacg-studio-0.1.2.tgz` in a real Companion 5.1.0 container; the checker's build on the merge SHA `995272d` hashed sha256 `a8740f46…a7084c`, the builder's on `2a89eb41d` `9914d383…f500ce6`: the archive build is not byte-reproducible); LW `h0-1-companion.md` on `995272d` | part owed: H0.2 (the owner's guide walk); the archive is stale, see O-3 |
+| AC-1 archive installs from the guide | 2 packaging and guide portion (`noacg-studio-0.1.2.tgz` in a real Companion 5.1.0 container; the checker's build on the merge SHA `995272d` hashed sha256 `a8740f46…a7084c`, the builder's on `2a89eb41d` `9914d383…f500ce6`: the archive build is not byte-reproducible); LW `h0-1-companion.md` on `995272d`; 45: 0.2.0 built and imported into Companion 5.1.0, the guide's Setup step corrected | part owed: H0.2 (the owner's guide walk on the archive it installs); see O-3 |
 | AC-2 actions and feedback on the real route | 2 | passed (SW) for the 0.1.2 module; held for 0.2.0 by the module's tests (O-3) |
 | AC-3 ownership and credentials | 2 | passed (SW) |
 | AC-4 physical deck and outputs | none | owed: H0.2 |
@@ -220,18 +267,18 @@ end).
 
 | AC | Evidence | Status |
 | --- | --- | --- |
-| AC-1 | this record (software reconciliation) | part owed: E8.2 (agent evidence complete), S (final reconciliation with H0.2's and S's receipts) |
-| AC-2 | this row: the cross-feature cases below | cross-feature part: this row's merge and checker; part owed: E8.1b (60-minute endurance) and S (the dress rehearsal's failures) |
-| AC-3 | none | owed: E8.2 (kit), S (physical part) |
-| AC-4 | none | owed: E8.2 (runbook, capability matrix) |
+| AC-1 | 43 (software reconciliation), 45 (the verdict above) | agent part: row 45's merge and checker; part owed: S (final reconciliation with H0.2's and S's receipts) |
+| AC-2 | 43 cross-feature cases (below), 44 endurance (`e8-1b-endurance.md`, run 40728515115) | passed (SW); open findings #1797, #1798 (O-9); part owed: S (the dress rehearsal's failures) |
+| AC-3 | 45 (`trial-kit.md`) | kit: row 45's merge and checker (KT); owed: S (physical part) |
+| AC-4 | 45 (`../runbook.md`, `../capability-matrix.md`, `e8-2-guide-check.md`) | row 45's merge and checker |
 
 ### L1, pinned live controls (`pinned-live-controls/spec.md`)
 
 | AC | Evidence (rows) | Status |
 | --- | --- | --- |
 | AC-1 to AC-7, AC-9, AC-10 | 32a (third check, after repairs #1730 and #1731) | passed (SW) |
-| AC-8 the deck reaches pinned controls | 34 target kind, 42 pinned presets | passed (SW) through the module; the deck itself is H0.2 |
-| AC-11 two-graphic show, timed | none | owed: E8.2 (kit task), S (quiz-and-score case) |
+| AC-8 the deck reaches pinned controls | 42 (its ledger entry carries the L1 AC-8 line: pinned presets, invocable only); row 34 built the target kind, which its entry checks under E6 AC-1 to AC-3, not as L1 AC-8 | passed (SW) through the module; the deck itself is H0.2 |
+| AC-11 two-graphic show, timed | 45 kit task 6 (`trial-kit.md`) | kit landed (KT); owed: S (quiz-and-score case) |
 | the cross-feature cases L1 assigns to E8.1a | this row | see below |
 
 ### L2, playout adjustments (`playout-adjustments/spec.md`)
@@ -244,17 +291,17 @@ end).
 | AC-7 | 38a | passed (SW) |
 | AC-9 | 32b renderer half, 32c receivers and exports | passed (SW); the exported-overlay laptop walk row 32c names was not run, see O-5 |
 | AC-10 | 32b unchanged production, 32c those targets, 32d imported SVG and agent-made, 41 foreign | passed (SW) |
-| AC-11 the adjustments run from one screen | none | owed: E8.2 (kit task), S (adjustment case) |
+| AC-11 the adjustments run from one screen | 45 kit task 7 (`trial-kit.md`) | kit landed (KT); owed: S (adjustment case) |
 
 
 ## Owed to later rows and the owner block (never passed here)
 
 | Owner | What it owes |
 | --- | --- |
-| E8.1b (row 44) | E8 AC-2's 60-minute endurance in `endurance.yml`: memory, queue depth, dispatch, fetch-to-apply and apply-to-render timings |
-| E8.2 (row 45) | E8 AC-1's verdict that the agent evidence is complete; AC-3's kit with L1 AC-11's two-graphic task and L2 AC-11's adjustment task; AC-4's runbook and capability matrix, which carries the limits below |
-| H0.2 (row 46) | H0 AC-1's guide walk on the archive actually shipped, H0 AC-4, E6 AC-4, the operator's buttons on the deck (L1 AC-8's physical end) |
-| S (row 47) | parent AC-14's real outputs and `final-acceptance.md`; data AC-16's actual outputs; E3 AC-2, E7 AC-4 and E8 AC-3's physical part (the 30-minute dress rehearsal, with L1 AC-11's quiz-and-score case and L2 AC-11's adjustment case); E8 AC-1's final reconciliation including H0.2's and S's receipts |
+| E8.1b (row 44) | delivered: passed on `f0adf9b` (run 40728515115) |
+| E8.2 (row 45) | delivered by this update: the verdict, the kit, the runbook and the matrix |
+| H0.2 (row 46) | H0 AC-1's guide walk on the archive actually shipped (built and hashed from the final candidate), H0 AC-4, E6 AC-4, the operator's buttons on the deck (L1 AC-8's physical end) |
+| S (row 47) | parent AC-14's real outputs and `final-acceptance.md`; data AC-16's actual outputs; E3 AC-2, E7 AC-4 and E8 AC-3's physical part (the 30-minute dress rehearsal, with L1 AC-11's quiz-and-score case and L2 AC-11's adjustment case); the physical checks of #1618, #1657 and #1746; E8 AC-1's final reconciliation including H0.2's and S's receipts |
 | PQ | the official Finnish/Yle election feed (access, licence, schema, rate): a separate qualification verdict; the programme can finish with it stated as unqualified |
 
 ## Open findings
@@ -276,7 +323,12 @@ end).
   0.2.0 (`companion-module/` tree `02bf90f9213ad07f7c35703e59491524307ded45`), built and tested
   by row 42's checker but with no recorded archive hash and no real Companion run. The module's
   73 tests run in no GitHub workflow (#1758). Stale for H0 AC-1; the archive H0.2 installs must be
-  built and hashed on the final candidate, and E8.2's verdict should name that.
+  built and hashed on the final candidate, and E8.2's verdict should name that. **E8.2:** 0.2.0
+  built on `c6fc146` (sha256 `983fd6c3…cccbfff5`), imported into a scratch Companion 5.1.0 and
+  listed at 0.2.0; rebuilt with the corrected `HELP.md` (sha256 `3a9a43de…6f79502e`). The guide's
+  step 1 named a Setup item, **Panel**, that has read **Stream Deck panel…** since row 38a; fixed,
+  with a test that reads the menu (`e8-2-guide-check.md`). The verdict names the rest: H0.2 builds
+  and hashes the archive it installs.
 - **O-4, typed and foreign limits.** #1760: a source moving a typed (foreign) cue's bound value
   reaches air at the next Update, not by itself (a native cue follows within a second). #1769: a
   PROGRAM monitor can miss the typed values of a graphic no report banks (air right). #1770: an
@@ -304,6 +356,19 @@ end).
 - **O-8, adjustments.** #1733, #1754, #1755, #1777, #1778: small or edge cases left by L2's rows,
   none failing a checked criterion's text. #1777 (a reloaded output in the fallback face after
   a replaced look and a Publish) is a runbook caveat.
+- **O-9, the endurance hour's findings (row 44).** #1797: a value applied during a controller
+  reload missed the output until the next update (once in 18 reloads over three hours; the next
+  value reached air 6.6 s later, inside the 10 s ceiling). #1798: the output page's heap rises
+  about 10 KB a minute, repeatably, cause not found (inside the hour's thresholds; row 44's
+  checker called it a judgement call). Neither fails E8 AC-2 as written; both are on-air limits in
+  the matrix and the runbook. A run longer than an hour is not measured.
+- **O-10, the owner's on-air fixes (2026-10-28).** Three defects outside the phase rows were fixed
+  and landed through the merge queue: #1618 (a results board taken again draws no rows;
+  `55f98f9`, PR #1793), #1657 (the CasparCG output comes back by itself after a server restart;
+  `e5d28ef`, PR #1792) and #1746 (saved graphics' Š, Ž and bold; `e375917`, PR #1794). Each is
+  fixed in software with its own tests and its physical check owed to S. #1795 (an exported
+  results board played outside `/output`) is #1618's open follow-up, read from the code and not
+  yet reproduced. E8.1a did not list these; this update does.
 
 ### The follow-up issues the brief names
 
@@ -332,6 +397,10 @@ end).
 | #1777 | L2 AC-6 edge | O-8, open; runbook |
 | #1778 | e2e seed settling | test hygiene; no criterion |
 | #1784 | E3 AC-3, L2 AC-10 | item 1 closed by this row (below); item 2 open, display only |
+| #1795 | no criterion; on air for exported boards | O-10, open; matrix and runbook |
+| #1797 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
+| #1798 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
+| #1618, #1657, #1746 | parent AC-14, data AC-16 on real outputs | O-10, fixed in software; physical check owed to S |
 
 ## E8 AC-2, the cross-feature cases (this row)
 
@@ -380,7 +449,7 @@ Output, provider and environment: hosted outputs follow `main`'s deploys (deploy
 merge, in the ledger's merge checks); providers as dated in Q; the cloud environment
 `env_017nuiDZBW9smUNLdWVQK8cf`; no real-studio output version is recorded yet (S).
 
-## Rows 1 to 42: landings, checkers and runs
+## Rows 1 to 44: landings, checkers and runs
 
 | Row | Phase | Merge (PR) | Checker, ledger PASS (UTC) | CI / configured-suite on the merge SHA | Checker receipt |
 |---|---|---|---|---|---|
@@ -432,4 +501,7 @@ merge, in the ledger's merge checks); providers as dated in Q; the cloud environ
 | 41 | E3.2b | `660a404d7` (#1781) | `p46-pp-p46c-cba4`, 2026-10-28T08:03 | CI 40651918059 success; configured 40651918160 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1781#issuecomment-6463855205) |
 | 42 | E6.2 | `ae887d254` (#1786) | `p47-pp-p47c-9846`, 2026-10-28T10:09 | CI 40667808475 success (dispatch), 40663901817 cancelled; configured 40663901945 success; push CI red only on rundown-history:276 (released flake), its re-run cancelled as superseded, stand-in dispatch 40667808475 on the merge SHA green | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1786#issuecomment-6466198696) |
 
-The ledger entry of each row carries the per-criterion evidence; a PR comment link is given where the checker posted one.
+| 43 | E8.1a | `132bd5b68` (#1790) | `p48-pp-p48c-2d38`, 2026-10-28T12:08 | CI 40680316527 success; configured 40680316462 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1790#issuecomment-6468565947) |
+| 44 | E8.1b | `f0adf9b5f` (#1791) | `p49-pp-p49c-13e0`, 2026-10-28T18:45 | CI 40745259392 success; configured 40745259430 success; endurance 40728515115 on `e71ff75` reused under §6 (the diff to the merge is evidence only) | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1791#issuecomment-6477585287) |
+
+The ledger entry of each row carries the per-criterion evidence; a PR comment link is given where the checker posted one. Rows 43 and 44 were added by E8.2 from the ledger at `dcf2f474`.
