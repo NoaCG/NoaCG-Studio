@@ -2,11 +2,6 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/configured/late-send-abandoned.spec.ts": {
-      "since": "2026-10-26",
-      "count": 15,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40286791477"
-    },
     "e2e/editor-canvas-transforms.spec.ts": {
       "since": "2026-10-26",
       "count": 2,
@@ -58,6 +53,10 @@
     "e2e/configured/hosted-reveal-after-reload.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
+    },
+    "e2e/configured/late-send-abandoned.spec.ts": {
+      "count": 15,
+      "last": "2026-10-28"
     },
     "e2e/configured/operator-outage-not-unpublished.spec.ts": {
       "count": 1,
