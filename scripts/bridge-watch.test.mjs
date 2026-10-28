@@ -466,10 +466,10 @@ test('a disposed session takes no write from a watch still running', async () =>
 /** A published page that loaded its output and saw it on the slot. */
 async function loadedRig() {
   const t = rig({ items: [] });
+  t.watch.slotOwned(true, t.inputs.casparTarget);
   t.update();
   t.answer(OK);
   await settle();
-  t.watch.slotOwned(true, t.inputs.casparTarget);
   assert.equal(t.session.bridge.get().slotSeenOurs, true);
   t.take();
   return t;
@@ -520,6 +520,9 @@ test('an output this page only saw, another production, an Unload here or elsewh
   await cleared.readSlot();
   assert.ok(!cleared.calls.includes('reload'), 'emptied while the server kept answering');
   assert.equal(cleared.session.bridge.get().slotReload, null);
+  // ...and a later outage does not bring back what someone took off.
+  await restartServer(cleared);
+  assert.ok(!cleared.calls.includes('reload'), 'a later outage');
 
   // Unloaded on purpose (onAirChanged('stop') clears what was seen and gives the slot up).
   const unloaded = await loadedRig();

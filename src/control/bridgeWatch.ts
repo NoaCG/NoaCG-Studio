@@ -173,8 +173,10 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   /** Bumped by an output action, so a slot read that was out before it is dropped. */
   let slotActions = 0;
   let wakeState: (() => void) | null = null;
-  /** Where this page loaded the output and has not unloaded it since (#1657), or null. */
+  /** Where this page loaded the output and has not unloaded it since (#1657), or null; and whether
+   *  the slot has held it since that load. */
   let loadedHere: string | null = null;
+  let seenSinceLoad = false;
   /** The server or the Bridge stopped answering, or the slot could not be read, since the slot last
    *  held ours: only then is an empty slot a restart, not another browser's Unload or a client's
    *  CLEAR (#1657). */
@@ -282,6 +284,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (reading.holds === 'failed') outageSinceOurs = true;
     if (reading.holds === 'ours') {
       outageSinceOurs = false;
+      seenSinceLoad = true;
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return;
     }
@@ -291,7 +294,13 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       return;
     }
     // Only the slot it was loaded on: a slot the settings moved to is not this page's to fill.
-    if (reading.holds !== 'empty' || !outageSinceOurs || loadedHere !== target || !session.bridge.get().slotSeenOurs || reloads.inFlight) return;
+    if (reading.holds !== 'empty' || loadedHere !== target || !seenSinceLoad || reloads.inFlight) return;
+    // Emptied while everything answered: someone took it off on purpose, and a later outage must
+    // not bring it back.
+    if (!outageSinceOurs) {
+      loadedHere = null;
+      return;
+    }
     if (reloads.tries >= RELOAD_AFTER_READS.length) {
       // Out of tries: said once, and Load is the operator's.
       if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail: reloads.detail } });
@@ -452,9 +461,12 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     },
     slotOwned: (loaded, target) => {
       loadedHere = loaded ? target : null;
-      // The operator's own Load or Unload starts the tries afresh; a reload's own load, still in
-      // flight, is not one.
-      if (!loaded || !reloads.inFlight) resetReloads();
+      // The operator's own Load or Unload starts afresh; a reload's own load, still in flight, is
+      // not one.
+      if (!loaded || !reloads.inFlight) {
+        resetReloads();
+        seenSinceLoad = false;
+      }
     },
     wake: () => wakeState?.(),
     stop: () => {
