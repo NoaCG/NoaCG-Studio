@@ -2976,6 +2976,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     graphics: show.graphics,
     liveCue,
     layerPeers: layerPeersOf,
+    answersOnOutput: (graphic) => isForeignGraphic(show.graphics.find((g) => g.name === graphic)?.template),
     liveLayers,
     livePlayoutLayers,
     graphicOf: cueGraphicName,
@@ -3147,11 +3148,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     liveCueOf: () => liveCueRef.current,
     setLiveCue,
     serverVerb,
-    // An imported OGraf package's Take is sent; only its output's answer says it is on air.
-    takeGraphic: async (cue, label) => {
-      const taken = await takeGraphicCue(cue, label);
-      return taken?.ok && isForeignGraphic(graphicByPoolId.get(cue.sourceId)?.template) ? { ...taken, unconfirmed: true as const } : taken;
-    },
+    takeGraphic: takeGraphicCue,
     takeCue,
     send: sendVerb,
     flush: async () => {

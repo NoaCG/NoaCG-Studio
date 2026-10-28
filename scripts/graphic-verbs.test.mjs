@@ -365,6 +365,20 @@ test('a Take on an imported OGraf package\'s layer takes off what else is up the
   await again;
 });
 
+test('a Take of an imported OGraf package says it was sent, never a ✓ from the send alone (E3.2a)', async () => {
+  const r = rig();
+  r.page.graphics = [{ name: 'Strap' }, { name: 'Board' }];
+  r.page.answersOnOutput = (graphic) => graphic === 'Board';
+  const taking = r.verbs.takeGraphic(graphicCue('k1', 'Board'), 'Take');
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await taking, { ok: true, unconfirmed: true, note: 'Take: K1 sent to the outputs' });
+  const native = r.verbs.takeGraphic(graphicCue('s1', 'Strap'), 'Take');
+  await settle();
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  assert.deepEqual(await native, { ok: true, note: '✓ Take: S1' });
+});
+
 test('a live candidate\'s correction says why it failed once, and answers how', async () => {
   const r = rig();
   const correcting = r.verbs.runSent([[{ graphic: 'Strap', msg: { t: 'update', data: { f1: '2' } } }]], 'Live candidate');

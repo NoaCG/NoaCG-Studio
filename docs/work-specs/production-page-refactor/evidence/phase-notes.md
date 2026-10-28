@@ -60,7 +60,10 @@ changes a spec's digest.
     page's simulation: it never loads a package and draws a plate "<name> · not shown here" on its
     layer while it is up; PREVIEW says the cue plays on the outputs and is not previewed. An
     All-together Take counts a package child as sent, never as on air ("1 of 3 on air, 2 sent to
-    the outputs").
+    the outputs"), and its note carries no ✓ while one is waiting on its output. A package's own
+    Take says "Take: Board sent to the outputs" (`GraphicPage.answersOnOutput`), never a ✓ from the
+    send alone; the ON AIR mark still follows the send, as Out needs it, and PROGRAM's line is the
+    output's word.
   - *Take* (`takeBlockers.ts`, `foreignTakeRefusal`): a cue over a package this build reads takes;
     a record it cannot act on (a later version's) is still refused, by name.
   - *Actions and steps (#1775 items 1 and 3)*: a package's declared actions are ⚡ buttons with

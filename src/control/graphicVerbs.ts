@@ -74,6 +74,8 @@ export type Sent = ({ ok: true } & VerbSent) | ({ ok: false; note: string } & Se
 interface GraphicTake {
   ok: boolean;
   note: string;
+  /** Sent, and only its output can say whether it is on air (an imported OGraf package). */
+  unconfirmed?: true;
 }
 
 /** The selection a verb acts on, as the render that handled the press drew it (./verbView.ts). */
@@ -129,6 +131,9 @@ export interface GraphicPage {
    *  one replaces on its layer, whichever of them is up then. Absent or empty: a Take replaces
    *  nothing (NoaCG graphics sharing a layer stack as they always have, under the clash warning). */
   layerPeers?: (graphic: string) => readonly string[];
+  /** True for an imported OGraf package: only its output says whether a Take put it on air, so the
+   *  note says it was sent, never a ✓ from the send alone. */
+  answersOnOutput?: (graphic: string) => boolean;
   /** The graphic layers that are up, and the server cues this page put up. */
   liveLayers: readonly { graphic: string }[];
   livePlayoutLayers: readonly { cue: ShowCue }[];
@@ -751,6 +756,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // A capture lands only with its press on the output; a later press that overtook it stands.
     for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
     p.clearMisses([cue.id]);
+    if (p.answersOnOutput?.(graphic)) return { ok: true, unconfirmed: true, note: `${label}: ${cue.label} sent to the outputs` };
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };
 

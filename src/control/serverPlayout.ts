@@ -646,8 +646,9 @@ export function togetherNote(folderName: string, results: readonly MemberResult[
   // A member only its output can confirm is counted as sent, never as on air.
   const pending = results.filter((r) => r.ok && r.unconfirmed).length;
   const count = `${up} of ${results.length} on air${pending ? `, ${pending} sent to the outputs` : ''}`;
-  const said = results.filter((r) => !r.ok || !r.note.startsWith('✓'));
-  if (!said.length) return `✓ Take: ${folderName}, ${count}`;
+  // A sent member is already in the count; a ✓ only when every member is confirmed on air.
+  const said = results.filter((r) => !r.ok || (!r.unconfirmed && !r.note.startsWith('✓')));
+  if (!said.length) return `${pending ? '' : '✓ '}Take: ${folderName}, ${count}`;
   const sentence = (note: string) => (/[.!?…]$/.test(note) ? note : `${note}.`);
   return [`Take: ${folderName}, ${count}.`, ...said.map((r) => sentence(r.note))].join(' ');
 }
