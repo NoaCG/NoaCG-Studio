@@ -70,10 +70,13 @@ changes a spec's digest.
     so a key refuses here what would come back `bad-press`. Characters are counted as code points,
     as the server counts them, and a number JavaScript would write with an exponent (or cannot
     write: `1e400`) is refused, since the server writes numbers out in full and the value sent
-    would not be the one typed (the `/so` on `0c82ce0`). The typed text is capped at 4096 code
+    would not be the one typed (the `/so` on `0c82ce0`), as is an integer past the safe range and
+    text the server cannot store (NUL, half a surrogate pair), which would fail the call and read
+    as offline (the `/so` on `fbdc090`). The typed text is capped at 4096 code
     points before it is parsed, so a hostile entry costs time linear in its size.
   - *A control no panel can press gets no preset*, and what keys show is held for at most 64 keys
-    (the same review). Empty, or `{}`, means the cue's
+    (the same review). A press that falls out of the bounded wait for `settled` reads not known
+    on its key rather than running for good (the `/so` on `fbdc090`). Empty, or `{}`, means the cue's
     arguments; the guide and the option's tooltip say so.
   - *A headless Companion run is not qualified on this machine* (no Companion install, no surface
     modules allowed), so the verification row's fallback applies: module lint, test and package,
@@ -102,7 +105,8 @@ changes a spec's digest.
   local refusal writing over the key's last press, the both-calls-failed press no longer awaiting
   its `settled`, the both-calls-failed path ignoring an earlier `settled`, the option trimmed, the
   exponent refusal dropped, code points counted as UTF-16 units (each place), presets for a
-  non-pressable control, and the 64-key hold, the newest-press guard of
+  non-pressable control, the 64-key hold, the safe-integer and unstorable-text refusals (value and
+  name), and the not-known mark of a press that falls out of the wait, the newest-press guard of
   `#keyOutcome`, the same guard on a refusal (a late or lost answer of an older press of the key, found by `/check`), `offerShape` with `live`, presets for unpinned graphics, foreign forced
   non-invocable, no answer read as failed, and `action_unknown` without an offer
   (`companion-module/src/__tests__/graphic-keys.test.ts`).

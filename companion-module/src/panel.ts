@@ -211,7 +211,7 @@ export class PanelClient {
 
 	/** What a key shows, kept for at most UNSETTLED_MAX keys: shown ones expire, the oldest go first. */
 	#setOutcome(key: string, k: { outcome: KeyOutcome; id: string; until: number }): void {
-		this.#keyOutcomes.delete(key)
+		// A key keeps its place when it is written again: the bound drops the longest-held key.
 		this.#keyOutcomes.set(key, k)
 		const now = this.#clock.now()
 		for (const [row, held] of this.#keyOutcomes)
@@ -223,7 +223,7 @@ export class PanelClient {
 		if (key === undefined) return
 		// Only the key's newest press writes what it shows.
 		const held = this.#keyOutcomes.get(key)
-		if (held && held.id !== id) return
+		if (!held || held.id !== id) return
 		const until = outcome === 'done' || outcome === 'failed' ? this.#clock.now() + OUTCOME_MS : Infinity
 		this.#setOutcome(key, { outcome, id, until })
 	}
@@ -593,7 +593,12 @@ export class PanelClient {
 			// this RPC's own answer: it is listened for from now. Bounded, oldest first.
 			if (press.verb === ACTION_VERB) {
 				this.#unsettled.set(press.id, seq)
-				for (const id of this.#unsettled.keys()) if (this.#unsettled.size > UNSETTLED_MAX) this.#unsettled.delete(id)
+				// A press that falls off the end is no longer waited for: its key reads not known.
+				for (const id of this.#unsettled.keys())
+					if (this.#unsettled.size > UNSETTLED_MAX) {
+						this.#unsettled.delete(id)
+						this.#keyOutcome(id, 'unknown')
+					}
 				sentId = press.id
 				this.#pressKeys.set(press.id, flash.row)
 				for (const id of this.#pressKeys.keys()) if (this.#pressKeys.size > UNSETTLED_MAX) this.#pressKeys.delete(id)

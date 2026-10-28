@@ -307,6 +307,15 @@ test("AC-3: arguments are read in time linear in their size, within the relay's 
 			refused: 'A number in the arguments is too large or too small to send',
 		})
 	assert.deepEqual(keyArgs('foreign:x', { args: '{"n":[-2.5, 1e3, 0]}' }), { args: { n: [-2.5, 1000, 0] } })
+	// An integer past the safe range would arrive as another number: refused, never changed.
+	assert.ok('refused' in keyArgs('foreign:x', { args: '{"n":9007199254740993}' }))
+	assert.ok('args' in keyArgs('foreign:x', { args: '{"n":9007199254740991}' }))
+	// Text the server cannot store (NUL, half a surrogate pair), in a value or a name, is refused here.
+	for (const bad of ['{"t":"\\u0000"}', '{"t":"\\ud800"}', '{"t":"\\udc00x"}', '{"\\u0000":1}'])
+		assert.deepEqual(keyArgs('foreign:x', { args: bad }), {
+			refused: 'The arguments hold a character that cannot be sent',
+		})
+	assert.ok('args' in keyArgs('foreign:x', { args: '{"t":"\\ud83d\\ude00 ok"}' }))
 	// Nesting: the object and seven more levels, never eight.
 	assert.equal(ARGS_MAX_DEPTH, 8)
 	assert.ok('args' in keyArgs('foreign:x', { args: `{"d":${'['.repeat(7)}${']'.repeat(7)}}` }))
@@ -537,4 +546,13 @@ test('what keys show is kept for a bounded number of keys', async () => {
 	assert.equal(relay.count('press'), 96)
 	assert.equal(panel.keyOutcome('G31', 'event:c'), 'running')
 	assert.equal(panel.keyOutcome('G0', 'event:a'), null)
+})
+
+test('a press that falls out of the bounded wait reads not known on its key, never running for good', async () => {
+	const { panel } = await answering()
+	await pressGraphicKey(panel, key({ cap: 'event:clock-start' }))
+	// 64 newer presses of another key, each still waiting for what it came to.
+	for (let i = 0; i < 64; i++) await pressGraphicKey(panel, key({ cap: 'event:goal-home' }))
+	assert.equal(panel.keyOutcome('Scorebug', 'event:clock-start'), 'unknown')
+	assert.equal(panel.keyOutcome('Scorebug', 'event:goal-home'), 'running')
 })

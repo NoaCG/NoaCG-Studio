@@ -469,6 +469,10 @@ export const ARGS_MAX_DEPTH = 8
 
 /** Why the relay would refuse these arguments, or null: measured as the server measures them, so a
  *  key refuses here what would come back `bad-press`. One walk, iterative. */
+/** NUL, or a surrogate without its pair. */
+// eslint-disable-next-line no-control-regex -- NUL is the character refused
+const UNSTORABLE = /\u0000|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/
+
 function argsFault(args: Record<string, unknown>): string | null {
 	let spaces = 0
 	const stack: [unknown, number][] = [[args, 1]]
@@ -476,10 +480,17 @@ function argsFault(args: Record<string, unknown>): string | null {
 		const [v, depth] = stack.pop()!
 		// The server writes a number out in full: one JavaScript writes with an exponent (or cannot
 		// write at all) would not be what was typed, or not the length measured here.
-		if (typeof v === 'number' && !/^-?\d+(\.\d+)?$/.test(String(v)))
+		if (
+			typeof v === 'number' &&
+			(!/^-?\d+(\.\d+)?$/.test(String(v)) || (Number.isInteger(v) && !Number.isSafeInteger(v)))
+		)
 			return 'A number in the arguments is too large or too small to send'
+		// The server stores no NUL and no half of a surrogate pair: such text would fail the call.
+		if (typeof v === 'string' && UNSTORABLE.test(v)) return 'The arguments hold a character that cannot be sent'
 		if (typeof v !== 'object' || v === null) continue
 		if (depth > ARGS_MAX_DEPTH) return `The arguments nest deeper than ${ARGS_MAX_DEPTH} levels`
+		if (!Array.isArray(v) && Object.keys(v).some((k) => UNSTORABLE.test(k)))
+			return 'The arguments hold a character that cannot be sent'
 		const items = Array.isArray(v) ? (v as unknown[]) : Object.values(v)
 		spaces += Math.max(0, items.length - 1) + (Array.isArray(v) ? 0 : items.length)
 		for (const item of items) stack.push([item, depth + 1])
