@@ -347,12 +347,21 @@ test('a Take on an imported OGraf package\'s layer takes off what else is up the
   assert.equal(r.liveCue().Bug, undefined, 'its marker went with it');
   assert.equal(r.liveCue().Board, 'k1');
   assert.equal(r.liveCue().Strap, 's1', 'another layer is untouched');
+  // Peers past one command call go first in batches of their own; none is left on air.
+  r.page.layerPeers = () => ['A', 'B', 'C'];
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { ...parts.air.liveCue, A: 'a', B: 'b', C: 'c' } } }));
+  const many = r.verbs.take(graphicCue('k2', 'Board'));
+  await settle();
+  assert.deepEqual(r.log.filter((e) => e[0] === 'send').at(-1), ['send', 'A:stop+A:cue+B:stop+B:cue+C:stop+C:cue | Board:update+Board:play+Board:cue']);
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  await many;
+  for (const g of ['A', 'B', 'C']) assert.equal(r.liveCue()[g], undefined, `${g} went off`);
   // With no rule given, a Take replaces nothing, as before.
   delete r.page.layerPeers;
   const again = r.verbs.take(graphicCue('s2', 'Strap'));
   await settle();
   assert.deepEqual(r.log.filter((e) => e[0] === 'send').at(-1), ['send', 'Strap:update+Strap:play+Strap:cue']);
-  r.sends[1].answer.resolve({ ...noneLeft });
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
   await again;
 });
 

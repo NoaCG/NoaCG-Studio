@@ -623,9 +623,11 @@ export function createOutputStage(
           const layerNow = foreign.get(key)!;
           let on = false;
           // Nothing is said until the Graphic answers its `load()`: a frame built is not a package loaded.
-          layerNow.onAnswer((call, answer) => {
+          layerNow.onAnswer((call, answer, newest) => {
             if (foreign.get(key) !== layerNow) return;
-            if (answer.status === 'done') {
+            // Only the newest Take, step or Out says whether it is up: an older one answering late
+            // (a Take that settles after the Out pressed behind it) moves nothing.
+            if (answer.status === 'done' && newest) {
               if (call === 'play') on = true;
               else if (call === 'stop') on = false;
             }

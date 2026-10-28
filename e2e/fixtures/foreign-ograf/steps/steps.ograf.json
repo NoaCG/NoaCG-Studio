@@ -15,7 +15,8 @@
       "loop": { "type": "integer", "title": "Looping step", "default": -1 },
       "refuse": { "type": "integer", "title": "Refused step", "default": -1 },
       "refuseStop": { "type": "boolean", "title": "Refuse Out", "default": false },
-      "loadMs": { "type": "integer", "title": "Load delay (ms)", "default": 0 }
+      "loadMs": { "type": "integer", "title": "Load delay (ms)", "default": 0 },
+      "playMs": { "type": "integer", "title": "Play answer delay (ms)", "default": 0 }
     }
   },
   "stepCount": -1,

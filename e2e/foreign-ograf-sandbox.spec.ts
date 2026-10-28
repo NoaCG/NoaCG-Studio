@@ -520,6 +520,17 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await expect.poll(async () => ((await outcome('walk')) as { call: string; on: boolean }).call).toBe('stop');
     expect(((await outcome('walk')) as { on: boolean }).on).toBe(false);
 
+    // A Take whose answer comes after the Out pressed behind it says nothing about being up: the
+    // Out's answer is the newest, so the package reads off air (Codex P2 on 229d34f).
+    const before = (await returnsOf(page, 'walk')).length;
+    await apply(page, 'walk', { t: 'update', data: { playMs: 800 } });
+    await apply(page, 'walk', { t: 'play' });
+    await apply(page, 'walk', { t: 'stop' });
+    await expect.poll(async () => (await returnsOf(page, 'walk')).slice(before).map((r) => r.call), { timeout: 10_000 }).toEqual(['update', 'stop', 'play']);
+    await expect.poll(async () => ((await outcome('walk')) as { call: string }).call).toBe('play');
+    expect(((await outcome('walk')) as { on: boolean }).on, 'the late Take moved nothing').toBe(false);
+    await apply(page, 'walk', { t: 'update', data: { playMs: 0 } });
+
     // A refusal is reported as one, never as on air.
     await apply(page, 'walk', { t: 'update', data: { refuse: 0 } });
     await apply(page, 'walk', { t: 'play' });
