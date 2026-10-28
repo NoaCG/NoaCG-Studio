@@ -123,8 +123,29 @@ export function videoFontFaceCss(
   src: url("${resolve(f.file)}") format("woff2");
   font-weight: ${f.weights[0]} ${f.weights[1]};
   font-display: block;
+}
+@font-face {
+  font-family: "${f.family}";
+  src: url("${resolve(videoLatinExtFile(f.file))}") format("woff2");
+  font-weight: ${f.weights[0]} ${f.weights[1]};
+  font-display: block;
+  unicode-range: ${LATIN_EXT_RANGE};
 }`,
   ).join('\n');
+}
+
+/**
+ * Each file is Google's `latin` subset; Š Ž Ł ő ğ live in its `latin-ext` twin beside it, declared
+ * second and limited to this range so a name like "Šimon Žáková" sets in the face. The same
+ * range and file name as model/fonts.ts (`LATIN_EXT_RANGE`, `latinExtFile`), pinned equal by
+ * scripts/font-upgrade.test.mjs.
+ */
+export const LATIN_EXT_RANGE =
+  'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF';
+
+/** The latin-ext file beside a face's latin `file` under public/fonts. */
+export function videoLatinExtFile(file: string): string {
+  return file.replace(/\.woff2$/, '-latin-ext.woff2');
 }
 
 /**

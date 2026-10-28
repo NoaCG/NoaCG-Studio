@@ -26,6 +26,7 @@ import { stripChatGraphic } from '../showchat/chatGraphicBlock';
 import { stripRealtimeControl } from '../control/realtimeControl';
 import { GSAP_DETACH_JS, RENDER_RUNTIME_JS } from './runtimeScript';
 import type { SpxTemplate } from '../model/types';
+import { upgradeFontCss } from '../model/fonts';
 
 export interface ComposeRenderOptions {
   /** Must match the host page's color scheme (Remotion host sets light). */
@@ -108,7 +109,7 @@ export async function composeRenderDocument(
   const js = stripRealtimeControl(stripChatGraphic(stripLiveData(template.js)));
 
   let html = stripLocalAssetTags(inlineAssetRefs(template.html, template.assets));
-  const css = await inlineBundledFonts(inlineAssetRefs(template.css, template.assets));
+  const css = await inlineBundledFonts(inlineAssetRefs(upgradeFontCss(template.css), template.assets));
 
   const { width, height } = template.resolution;
   const baseStyle = `html, body { width: ${width}px; height: ${height}px; overflow: hidden; margin: 0; background: transparent; }`;

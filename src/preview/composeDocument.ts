@@ -6,6 +6,7 @@
 // package keeps the external references (the files are written to disk by the exporter).
 
 import { prepareOutRuntime } from '../blocks/animMigration';
+import { upgradeFontCss } from '../model/fonts';
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
 import { flexGapShimTag } from '../assets/flexGapSupport';
@@ -150,7 +151,7 @@ function serializeHelper(fn: { name: string; toString(): string }, alias: string
 
 /** Inject inline <style>, GSAP, and the template JS into the document <head>/<body>. */
 export function composeDocument(template: SpxTemplate, options: ComposeOptions = {}): string {
-  template = { ...template, js: prepareOutRuntime(template.js) };
+  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
   // Inline uploaded assets (assets/foo.png -> data URL) so the preview renders media
   // without a server. The exported package keeps the relative paths + real files.
   // `inset` rewritten into longhands for CasparCG 2.3's Chromium 71, which drops it (assets/cssCompat.ts).

@@ -2,6 +2,7 @@ import { scriptKind } from '../../model/scriptKind';
 import { APPEARANCE_RUNTIME_JS } from '../../control/appearanceRuntime';
 import { isIdentity, type AppliedAppearance } from '../../control/cueAdjust';
 import { prepareOutRuntime } from '../../blocks/animMigration';
+import { upgradeFontCss } from '../../model/fonts';
 // OGraf export: packages the template as an EBU OGraf v1 Graphic — a manifest
 // (<slug>.ograf.json) plus a JS entry point (graphic.mjs) exporting a Web Component that
 // wraps the template's own play()/stop()/update() runtime. Spec:
@@ -2241,7 +2242,7 @@ export async function addOgrafPackage(
   usage: GraphicUsage = 'live',
   opts: OgrafPackageOptions = {},
 ): Promise<Record<string, unknown>> {
-  template = { ...template, js: prepareOutRuntime(template.js) };
+  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
   if (usage !== 'live') {
     const compatibility = validateOgrafOfflineCompatibility(template);
     if (!compatibility.compatible) {

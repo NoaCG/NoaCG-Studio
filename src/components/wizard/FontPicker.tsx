@@ -4,6 +4,8 @@ import {
   familyFromFileName,
   fontAssetPath,
   fontFormatForExt,
+  LATIN_EXT_RANGE,
+  latinExtFile,
   registerAndMeasureFont,
   type BundledFont,
   type CustomFont,
@@ -43,14 +45,16 @@ const loaded = new Set<string>();
 export function ensureAppFontFace(font: BundledFont): void {
   if (loaded.has(font.id) || typeof FontFace === 'undefined') return;
   loaded.add(font.id);
-  const face = new FontFace(font.family, `url(/fonts/${font.file})`, {
-    // A static face declares every weight, as its template's own copy does (model/fonts.ts
-    // faceWeightLine), so the placement canvas previews what airs, never a synthesised bold.
-    weight: font.weights[0] === font.weights[1] ? '100 900' : `${font.weights[0]} ${font.weights[1]}`,
-  });
-  face
-    .load()
-    .then((f) => (document.fonts as unknown as { add(f: FontFace): void }).add(f))
+  // A static face declares every weight, as its template's own copy does (model/fonts.ts
+  // faceWeightLine), so the placement canvas previews what airs, never a synthesised bold.
+  const weight = font.weights[0] === font.weights[1] ? '100 900' : `${font.weights[0]} ${font.weights[1]}`;
+  // Both files, as the template declares them (bundledFaceRules): the latin-ext one sets Š and Ž.
+  const faces = [
+    new FontFace(font.family, `url(/fonts/${font.file})`, { weight }),
+    new FontFace(font.family, `url(/fonts/${latinExtFile(font)})`, { weight, unicodeRange: LATIN_EXT_RANGE }),
+  ];
+  Promise.all(faces.map((face) => face.load()))
+    .then((ready) => ready.forEach((f) => (document.fonts as unknown as { add(f: FontFace): void }).add(f)))
     .catch(() => loaded.delete(font.id));
 }
 

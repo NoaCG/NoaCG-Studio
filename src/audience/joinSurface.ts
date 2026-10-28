@@ -15,7 +15,7 @@
 // Never a tally (the reveal is a graphic, on air, at the operator's moment), never the answer
 // key, never anybody else's words.
 
-import { FONTS } from '../model/fonts';
+import { bundledFaceRules, FONTS } from '../model/fonts';
 import { AUDIENCE_LIMITS, type AudienceBrand, type JoinView, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
@@ -109,14 +109,10 @@ const CSS = `
  * The URL is ABSOLUTE. The template exports use a relative `fonts/<file>` because they ship the
  * files beside themselves; this page is served from the app's own origin, and `/join/<name>`
  * would resolve a relative path to `/join/fonts/<file>`. `/fonts` serves them with CORS, so the
- * operator's rehearsal preview inside the studio gets the same faces from the same place.
+ * operator's rehearsal preview inside the studio gets the same faces from the same place. Each
+ * face is the templates' own pair of rules (latin, then latin-ext for Š and Ž).
  */
-const FONT_FACE_CSS = FONTS.map((font) => `@font-face {
-  font-family:"${font.family}";
-  src:url("/fonts/${font.file}") format("woff2");
-  font-weight:${font.weights[0]} ${font.weights[1]};
-  font-display:swap;
-}`).join('\n');
+const FONT_FACE_CSS = FONTS.map((font) => bundledFaceRules(font.family, font).replace(/url\("fonts\//g, 'url("/fonts/')).join('\n');
 
 /**
  * Put the join look on a document. Exported because the join ENTRY renders two things this

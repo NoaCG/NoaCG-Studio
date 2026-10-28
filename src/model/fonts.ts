@@ -372,7 +372,12 @@ export function bundledFaceRules(family: string, font: BundledFont, weightLine =
 ${weightLine}
   font-display: swap;          /* show fallback text until the font loads */
 }
-@font-face {
+${latinExtFaceRule(family, font, weightLine)}`;
+}
+
+/** The second of {@link bundledFaceRules}: the latin-ext file, limited to its range. */
+function latinExtFaceRule(family: string, font: BundledFont, weightLine: string): string {
+  return `@font-face {
   font-family: "${family}";
   src: url("fonts/${latinExtFile(font)}") format("woff2");
 ${weightLine}
@@ -497,20 +502,80 @@ export function importedFontFamilies(css: string): string[] {
  * failure that degrades SILENTLY — the export carries a `url("fonts/…")` nothing wrote,
  * `font-display: swap` quietly renders the fallback stack, and the graphic only comes up in
  * the wrong typeface at playout, where nobody is watching the CSS. Idempotent: a face already
- * referenced is left alone.
+ * referenced by both its files is left alone.
  */
 export function ensureFontFace(
   css: string,
   face: BundledFont | null,
   why = 'A style variable points at this face, so its file ships with the graphic.',
 ): string {
-  if (!face || css.includes(`fonts/${face.file}`)) return css;
+  if (!face) return css;
+  const ext = `fonts/${latinExtFile(face)}`;
+  if (css.includes(`fonts/${face.file}`)) {
+    if (css.includes(ext)) return css;
+    // Declared before #1744, with the latin file alone: add its twin rather than a second block.
+    const upgraded = upgradeFontCss(css);
+    if (upgraded.includes(ext)) return upgraded;
+  }
   return `${supportingFontFaceCss(face, why)}\n\n${css}`;
 }
 
 /** The same guarantee for whatever `--font-numeric` resolved to. */
 export function ensureNumericFontFace(css: string, font: NumericSource): string {
   return ensureFontFace(css, numericFaceFor(font));
+}
+
+const GENERATED_BUNDLED_RE =
+  /(\/\* (?:Bundled open-source font|Design-owned label font|Supporting face)[^*]*(?:\*(?!\/)[^*]*)*\*\/\s*)(@font-face\s*\{[^}]*\})/g;
+const OLD_IMPORTED_NOTE =
+  `/* Single file: the browser synthesizes bold/italic. Add more @font-face rules
+     with their own files for true weights. */`;
+const IMPORTED_NOTE =
+  `/* Single file: the style controls offer Regular only. Add more @font-face rules with
+     their own files and font-weight for true weights. */`;
+
+/** The bundled face whose latin or latin-ext file a rule's `src` names. */
+function ruleFace(rule: string): BundledFont | undefined {
+  const file = /url\(["']?(?:\.\/)?fonts\/([\w.-]+\.woff2)["']?\)/.exec(rule)?.[1];
+  return file ? FONTS.find((f) => f.file === file || latinExtFile(f) === file) : undefined;
+}
+
+/**
+ * Bring a stylesheet's font rules up to what the generators write today (#1746), so a graphic
+ * saved before #1744/#1745 sets Š and Ž in its own face and never draws a synthesised bold:
+ * - a static bundled face's `font-weight: 400 400` (or an alias's `400`) becomes 100-900;
+ * - a generated bundled block whose latin file has no latin-ext twin gains it, under the same
+ *   family and weight;
+ * - an `Imported font` block that declares no weight gains `font-weight: 100 900`.
+ * Applied on a transient copy where the CSS is used (the composed preview and output document,
+ * the render document, every export), never to the saved record, so nothing stamps `updatedAt`.
+ * Idempotent, and CSS written by today's generators passes through unchanged.
+ */
+export function upgradeFontCss(css: string): string {
+  let out = css.replace(/@font-face\s*\{[^}]*\}/g, (rule) => {
+    const face = ruleFace(rule);
+    if (!face || face.weights[0] !== face.weights[1]) return rule;
+    return rule.replace(/^[ \t]*font-weight:\s*400(?:\s+400)?\s*;[^\n]*$/m, faceWeightLine(face));
+  });
+  out = out.replace(GENERATED_BUNDLED_RE, (whole, _comment: string, rule: string) => {
+    const face = ruleFace(rule);
+    if (!face || !rule.includes(`fonts/${face.file}`)) return whole;
+    const family = /font-family:\s*"([^"]+)"/.exec(rule)?.[1];
+    if (!family) return whole;
+    const twinned = [...out.matchAll(/@font-face\s*\{[^}]*\}/g)].some(
+      ([r]) => r.includes(`fonts/${latinExtFile(face)}`) && r.includes(`"${family}"`),
+    );
+    if (twinned) return whole;
+    const weightLine = /^[ \t]*font-weight:[^\n]*$/m.exec(rule)?.[0] ?? faceWeightLine(face);
+    return `${whole}\n${latinExtFaceRule(family, face, weightLine)}`;
+  });
+  return out.replace(/(\/\* Imported font[^*]*\*\/\s*)(@font-face\s*\{[^}]*\})/g, (whole, comment: string, rule: string) => {
+    if (/font-weight\s*:/.test(rule)) return whole;
+    const weighted = rule
+      .replace(/^([ \t]*src:[^\n]*)$/m, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
+      .replace(OLD_IMPORTED_NOTE, IMPORTED_NOTE);
+    return comment + weighted;
+  });
 }
 
 // The OFL itself, vendored at src/assets/OFL.txt and imported here so the licence TRAVELS with

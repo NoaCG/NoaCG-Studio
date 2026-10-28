@@ -27,13 +27,21 @@ export const LOOK = {
 };
 
 /** The pack's typeface: bundled Outfit (variable 400–900, tabular digits — so the clock and
- *  the ticker never twitch). One family, contrast through weight (DESIGN_LANGUAGE §1). */
+ *  the ticker never twitch). One family, contrast through weight (DESIGN_LANGUAGE §1). Its
+ *  latin and latin-ext files, as model/fonts.ts `fontFaceCss` writes them, so Š and Ž set in Outfit. */
 export const FONT_FACE_CSS = `/* Bundled open-source font (the file ships with the export — no internet at playout). */
 @font-face {
   font-family: "Outfit";
   src: url("fonts/outfit.woff2") format("woff2");
   font-weight: 400 900;        /* variable font: covers this weight range */
   font-display: swap;          /* show fallback text until the font loads */
+}
+@font-face {
+  font-family: "Outfit";
+  src: url("fonts/outfit-latin-ext.woff2") format("woff2");
+  font-weight: 400 900;        /* variable font: covers this weight range */
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */
 }`;
 
 /** The :root style contract every NoaCG template exposes (src/templates/AGENTS.md), tinted

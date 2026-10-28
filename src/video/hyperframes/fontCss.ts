@@ -15,7 +15,7 @@
 // Browser-only (fetches /fonts/*), like render/composeRenderDocument.ts, whose inlining
 // pattern this mirrors.
 
-import { videoFontFaceCss, VIDEO_FONTS } from '../videoFonts';
+import { videoFontFaceCss, videoLatinExtFile, VIDEO_FONTS } from '../videoFonts';
 
 async function fetchAsDataUrl(url: string): Promise<string | null> {
   try {
@@ -46,12 +46,13 @@ export function loadHyperframesFontCss(): Promise<string> {
   cached ??= (async () => {
     const urls = new Map<string, string>();
     await Promise.all(
-      VIDEO_FONTS.map(async (f) => {
-        const dataUrl = await fetchAsDataUrl(`/fonts/${f.file}`);
-        if (dataUrl) urls.set(f.file, dataUrl);
+      VIDEO_FONTS.flatMap((f) => [f.file, videoLatinExtFile(f.file)]).map(async (file) => {
+        const dataUrl = await fetchAsDataUrl(`/fonts/${file}`);
+        if (dataUrl) urls.set(file, dataUrl);
       }),
     );
-    const available = VIDEO_FONTS.filter((f) => urls.has(f.file));
+    // A face ships with both its files (latin, and latin-ext for Š Ž) or not at all.
+    const available = VIDEO_FONTS.filter((f) => urls.has(f.file) && urls.has(videoLatinExtFile(f.file)));
     if (available.length === 0) return '';
     return videoFontFaceCss((file) => urls.get(file) ?? '', available);
   })();
