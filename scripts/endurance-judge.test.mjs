@@ -33,6 +33,8 @@ function healthy() {
     const at = T0 + e.at;
     if (e.kind === 'pause') {
       const f = { kind: 'pause', at, paused: at + 200, resuming: at + 200 + e.ms, end: at + 400 + e.ms, answer: { paused: true, writes: 0 }, resume: { paused: false, writes: 2 } };
+      // Resume's own rows, written in the same call.
+      r.rows.push({ graphic: 'Party totals', t: 'update', src: 'api', data: {}, at: f.resuming + 30 }, { graphic: 'Count bug', t: 'update', src: 'api', data: {}, at: f.resuming + 31 });
       paused.push(f);
       r.faults.push(f);
     } else if (e.kind === 'handover') {
@@ -44,7 +46,7 @@ function healthy() {
   }
   const isPaused = (t) => paused.some((f) => t > f.paused && t < f.resuming);
   const epochAt = (t) => 1 + r.faults.filter((f) => f.kind === 'handover' && f.claimed <= t).length;
-  for (const g of ['Party totals', 'Count bug', 'Ticker']) r.rows.push({ id: r.rows.length + 1, graphic: g, t: 'play', at: T0 - 5_000 });
+  for (const g of ['Party totals', 'Count bug', 'Ticker', 'Club Scorebug', 'Arena Quiz']) r.rows.push({ id: r.rows.length + 1, graphic: g, t: 'play', at: T0 - 5_000 });
   let n = 0;
   for (let at = 0; at < plan.totalMs; at += CUE_SWITCH_MS) {
     const p = CUES[n++ % CUES.length];
@@ -100,8 +102,8 @@ function healthy() {
   r.frames = r.frames.filter((f, i, all) => i === 0 || JSON.stringify({ ...f, at: 0 }) !== JSON.stringify({ ...all[i - 1], at: 0 }));
   for (let t = T0; t < r.end; t += 10_000) {
     const gc = (t - T0) % 60_000 === 0;
-    const side = (heap) => ({ heap, nodes: 3_000, listeners: 600, documents: 4, frames: 6, channels: 3, gc });
-    r.samples.push({ at: t, controller: side(30 * MIB), output: side(20 * MIB), stateReadsInFlight: 0, stateReadsMax: 1, agent: { reading: (t / 10_000) % 2, undelivered: 0, posting: 0, rss: 60 * MIB }, agentsAlive: 1, snapshots: 1, driver: { rss: 200 * MIB, heap: 50 * MIB, handles: 30 } });
+    const side = (heap, channels = 3) => ({ heap, nodes: 3_000, listeners: 600, documents: 4, frames: 6, channels, gc });
+    r.samples.push({ at: t, controller: side(30 * MIB), output: side(20 * MIB, 2), stateReadsInFlight: 0, stateReadsMax: 1, agent: { reading: (t / 10_000) % 2, undelivered: 0, posting: 0, rss: 60 * MIB }, agentsAlive: 1, snapshots: 1, driver: { rss: 200 * MIB, heap: 50 * MIB, handles: 30 } });
     r.snapshots.push({ at: t, epoch: epochAt(t), revision: Math.max(1, Math.floor((t - T0) / STEP_MS)), state: 'changed', bytes: 164_000 });
   }
   let marks = 0;
@@ -174,7 +176,7 @@ red('a foreign action on an instance not on air that ran', (r) => {
 red('a foreign action that did not run', (r) => {
   r.actions[3] = { ...r.actions[3], outcome: 'stale', settled: null, marksAfter: r.actions[3].marksBefore };
 }, /every foreign action/);
-red('a data change that took the card', (r) => r.rows.push({ id: 1e9, graphic: 'Party totals', t: 'play', at: r.t0 + 60_000 }), /one Take each/);
+red('a data change that took the card', (r) => r.rows.push({ id: 1e9, graphic: 'Party totals', t: 'play', at: r.t0 + 60_000 }), /after their one Take/);
 red('two provider reads in flight', (r) => (r.samples[40].agent.reading = 2), /pending provider reads/);
 red('a second buffered revision', (r) => (r.samples[40].agent.undelivered = 2), /buffered updates/);
 red('a second snapshot row for the source', (r) => (r.samples[40].snapshots = 2), /buffered updates/);
@@ -201,6 +203,14 @@ red('an update row while paused', (r) => {
   r.rows.push({ id: 1e9, graphic: 'Count bug', t: 'update', src: 'api', data: { f2: '9 of 100' }, at: f.paused + 5_000 });
 }, /Pause held/);
 red('a Resume that sent nothing', (r) => (r.faults.find((x) => x.kind === 'pause').resume.writes = 0), /Resume sent/);
+red('a Resume that sent one graphic twice', (r) => {
+  const f = r.faults.find((x) => x.kind === 'pause');
+  r.rows.push({ graphic: 'Party totals', t: 'update', src: 'api', data: {}, at: f.resuming + 40 });
+}, /Resume sent/);
+red('a subscription leaked by an output reconnect', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 25 * 60_000) s.output.channels = 3;
+}, /output's subscriptions/);
+red('a data change that took the quiz', (r) => r.rows.push({ id: 1e9, graphic: 'Arena Quiz', t: 'next', at: r.t0 + 60_000 }), /after their one Take/);
 red('a revision over the ingress limit', (r) => (r.snapshots[30].bytes = BODY_CAP_BYTES + 1), /ingress limit/);
 red('a refusal the run did not cause', (r) => r.reads.push({ agent: 'agent-1', at: r.t0, line: 'election changed revision 9 not taken (409 budget)' }), /did not cause/);
 red('the credential in an agent log', (r) => (r.credentialLeaked = true), /credential/);

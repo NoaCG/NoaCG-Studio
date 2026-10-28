@@ -221,7 +221,8 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     output.on('pageerror', (e) => error('output', e.message));
     await output.goto(`${baseURL}/output?production=${encodeURIComponent(outputSlug)}`);
 
-    // Everything but the candidate card on air once; the card and the foreign Board take turns below.
+    // Everything on air once, for the hour; below, the candidate cues take turns on the card and
+    // Board takes the foreign actions.
     const firstCue = async (graphic: string) =>
       page.evaluate(
         async ({ id, graphic }) => {

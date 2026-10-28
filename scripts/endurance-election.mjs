@@ -86,6 +86,8 @@ for (const [road, s] of Object.entries(verdict.timings)) console.log(`timing ${r
 for (const [road, n] of Object.entries(verdict.excluded)) console.log(`excluded from ${road} (in a fault's window): ${n}`);
 for (const line of verdict.unmeasured) console.log(`not measured: ${line}`);
 for (const [series, xs] of Object.entries(verdict.memory)) console.log(`window medians ${series}: ${xs.map((x) => (x === null ? '-' : Math.round(x))).join(', ')}`);
+for (const [series, s] of Object.entries(verdict.slopes)) console.log(`fitted slope ${series}: ${Math.round(s.perMinute)} per minute, ${Math.round(s.across)} across the steady span`);
+for (const l of verdict.lifetimes) console.log(`lifetime ${l.series} from ${Math.round(l.from / 1000)} s: ${Math.round(l.first)} to ${Math.round(l.last)}`);
 const passed = verdict.passed && walk.status === 0;
 console.log(`${minutes} min: ${passed ? 'passed' : 'FAILED'}`);
 process.exit(passed ? 0 : 1);

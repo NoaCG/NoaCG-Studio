@@ -179,8 +179,13 @@ export function judge(record) {
     if ((r.data?.f0 !== undefined && r.data.f0 !== person.name) || (r.data?.f2 !== undefined && (votes === null || revisionOf(person, votes, maxRevision + 1) === null))) badRows.push({ id: r.id, data: r.data, expected: person.name });
   }
   check('every card update row carries the aired person at one revision', badRows.length === 0, JSON.stringify(badRows.slice(0, 3)));
-  const otherMoves = ELECTION.filter((g) => g !== 'Candidate card').map((g) => [g, rows.filter((r) => r.graphic === g && MOVES.has(r.t)).map((r) => r.t)]);
-  check('nothing took, advanced or reset the other graphics: one Take each', otherMoves.every(([, ts]) => ts.length === 1 && ts[0] === 'play'), JSON.stringify(otherMoves));
+  // Every graphic on air for the hour (the election ones, the scorebugs, the quiz, the foreign
+  // Scoreboard): the card takes turns and Board takes its actions, so those two are judged apart.
+  const steadyGraphics = [...new Set(rows.map((r) => r.graphic))].filter((g) => g && g !== 'Candidate card' && g !== 'Board');
+  // Each was taken in the setup (where the scorebug's clock is also started); from the run's start
+  // nothing may take, advance, reset or press any of them.
+  const otherMoves = steadyGraphics.map((g) => [g, rows.filter((r) => r.graphic === g && MOVES.has(r.t) && r.at >= t0).map((r) => r.t), rows.some((r) => r.graphic === g && r.t === 'play' && r.at < t0)]);
+  check('nothing took, advanced or reset the other graphics after their one Take', steadyGraphics.length >= ELECTION.length - 1 && otherMoves.every(([, ts, taken]) => taken && ts.length === 0), JSON.stringify(otherMoves.filter(([, ts, taken]) => !taken || ts.length)));
   const cardMoves = card.filter((r) => MOVES.has(r.t) && r.t !== 'play');
   check('nothing but the Takes moved the card', cardMoves.length === 0, JSON.stringify(cardMoves.slice(0, 3)));
   check('no update row carried the collection', rows.every((r) => r.t !== 'update' || !JSON.stringify(r.data ?? {}).includes('schemaRevision')));
@@ -212,7 +217,13 @@ export function judge(record) {
   const pauses = kinds('pause');
   const leaked = pauses.flatMap((f) => rows.filter((r) => ELECTION.includes(r.graphic) && r.t === 'update' && !takeRows.has(r.id) && r.at > f.paused + 500 && r.at < f.resuming));
   check('Pause held every graphic: no update row while paused', pauses.length > 0 && leaked.length === 0, JSON.stringify(leaked.slice(0, 3)));
-  check('Resume sent the final values once: at most one row per bound graphic', pauses.every((f) => f.answer?.paused === true && f.resume?.paused === false && f.resume.writes >= 1 && f.resume.writes <= 2), JSON.stringify(pauses.map((f) => f.resume)));
+  // Resume appends its final values in the same call: the data rows it wrote land with it.
+  const resumed = pauses.map((f) => {
+    const written = rows.filter((r) => r.t === 'update' && r.src === 'api' && r.at >= f.resuming - 50 && r.at <= f.resuming + 250);
+    const perGraphic = Object.values(Object.groupBy(written, (r) => r.graphic)).map((xs) => xs.length);
+    return { writes: f.resume?.writes, rows: written.length, most: most(perGraphic) };
+  });
+  check('Resume sent the final values once: one row per moved graphic, no more', pauses.length > 0 && pauses.every((f) => f.answer?.paused === true && f.resume?.paused === false) && resumed.every((x) => x.writes >= 1 && x.rows === x.writes && x.most === 1), JSON.stringify(resumed));
 
   // ── Output disconnect ──
   // Offline, the output must really stop hearing (else the fault proved nothing), then catch up.
@@ -252,6 +263,8 @@ export function judge(record) {
   const readsByWindow = steady.map((w) => most(inWindow(w).map((s) => s.stateReadsMax ?? 0)));
   const restsByWindow = steady.map((w) => inWindow(w).some((s) => (s.stateReadsInFlight ?? 0) === 0));
   check('the controller\'s tree reads in flight come back to none and do not grow', restsByWindow.every(Boolean) && (readsByWindow.length < 2 || readsByWindow.at(-1) <= readsByWindow[0] + 1), JSON.stringify(readsByWindow));
+  const outputBaseline = samples[0]?.output?.channels;
+  check('the output\'s subscriptions are back to baseline after every reconnect', Number.isInteger(outputBaseline) && samples.filter((s) => !inside(windows, s.at)).every((s) => s.output?.channels === outputBaseline), JSON.stringify(samples.filter((s) => !inside(windows, s.at) && s.output?.channels !== outputBaseline).map((s) => [s.at - t0, s.output?.channels]).slice(0, 3)));
   const baseline = samples[0]?.controller?.channels;
   const settled = samples.filter((s) => !inside(windows, s.at));
   check('the controller\'s subscriptions are back to baseline after reloads', Number.isInteger(baseline) && settled.length > 0 && settled.every((s) => s.controller?.channels === baseline), JSON.stringify(settled.filter((s) => s.controller?.channels !== baseline).map((s) => [s.at - t0, s.controller?.channels]).slice(0, 3)));
