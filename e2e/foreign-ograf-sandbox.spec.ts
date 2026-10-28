@@ -629,14 +629,15 @@ test.describe('a foreign OGraf package on the output stage', () => {
     const told = await page.evaluate(() => (window as unknown as { __told: unknown[] }).__told.length);
     // THE RE-CUE: a Take mounts the package again as a new instance naming the one it replaced,
     // given the values held (count 5), then the Take. The action is not repeated.
-    // Until the new instance answers its load, the stage has no word on the package: a report
-    // banked then must not carry the old instance's step as proven.
+    // Until the new instance answers its load, its word proves nothing: a report banked then must
+    // not carry the old instance's step as proven, and says the Take as sent, not answered.
     const between = await page.evaluate(() => {
       const s = (window as unknown as { __stage: { apply(g: string, m: unknown): void; ografOutcomes: Map<string, unknown> } }).__stage;
       s.apply('walk', { t: 'play' });
       return s.ografOutcomes.get('walk') ?? null;
     });
-    expect(between, 'no word between the re-cue and the new load').toBeNull();
+    expect(between, 'nothing proven between the re-cue and the new load').toMatchObject({ on: false, step: null, sent: 'play', was: first, unknown: 'mounted again, not answered yet' });
+    expect((between as { i: string }).i).not.toBe(first);
     await expect(walkFrame).toHaveCount(1);
     await expect.poll(() => walkFrame.getAttribute('data-instance')).not.toBe(first);
     const second = (await walkFrame.getAttribute('data-instance'))!;
@@ -669,7 +670,7 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await expect.poll(async () => (await outcome('walk'))?.status, { timeout: 10_000 }).toBe('timeout');
     const beforeRemoved = await page.evaluate(() => (window as unknown as { __told: unknown[] }).__told.length);
     await apply(page, 'walk', { t: 'play' });
-    await expect.poll(async () => { const o = await outcome('walk'); return o?.i !== second && o?.call; }, { timeout: 10_000 }).toBe('play');
+    await expect.poll(async () => { const o = await outcome('walk'); return o?.i !== second && !o?.unknown && o?.call; }, { timeout: 10_000 }).toBe('play');
     const refused = (await outcome('walk'))!;
     expect(refused.on, JSON.stringify(refused)).toBe(false);
     expect(refused.status, JSON.stringify(refused)).not.toBe('done');
@@ -678,7 +679,7 @@ test.describe('a foreign OGraf package on the output stage', () => {
     expect(load?.status, JSON.stringify(load)).not.toBe('done');
     served.missing.clear();
     await apply(page, 'walk', { t: 'play' });
-    await expect.poll(async () => { const o = await outcome('walk'); return o?.i !== refused.i && o?.call; }, { timeout: 10_000 }).toBe('play');
+    await expect.poll(async () => { const o = await outcome('walk'); return o?.i !== refused.i && !o?.unknown && o?.call; }, { timeout: 10_000 }).toBe('play');
     expect(await outcome('walk')).toMatchObject({ status: 'done', on: true, was: refused.i });
     await expect(walk).toHaveAttribute('data-count', '6');
 

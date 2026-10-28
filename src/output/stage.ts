@@ -36,6 +36,7 @@ import { facesCss } from '../control/cueStyle';
 import { readTypedWire, typedValuesOf } from '../model/ografTyped';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafOptions, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
 import { ografLoadData, type OgrafOutcome } from '../control/ografOutcome';
+import { UNKNOWN_REMOUNTED } from '../control/ografRecovery';
 import { ografCallFor } from '../control/ografContract';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
@@ -720,11 +721,15 @@ export function createOutputStage(
       told(key, { i: null, status: 'unmounted', msg: 'its package could not be reached', on: false });
       return undefined;
     }
-    // Until the new instance answers its `load()`, there is no word about this package: the old
-    // instance's would ride a report banked meanwhile, whose cursor already counts the Take and any
-    // action sent to the new one, and a restart would then read the old state as proven.
-    ografOutcomes.delete(key);
+    // Until the new instance answers its `load()`, its word is that nothing about it is known: the
+    // old instance's would ride a report banked meanwhile, whose cursor already counts the Take and
+    // any action sent to the new one, and a restart would read the old state as proven. Off, at no
+    // known step, so the Take that follows is said as `sent` and a restart reads it unconfirmed; the
+    // page says it is not known, and its load answer replaces this word. Not a load answer, so READY
+    // waits for the real one (`ografCheck`).
     const layerNow = foreign.get(key)!;
+    const prev = ografOutcomes.get(key);
+    ografOutcomes.set(key, { i: layerNow.instance, call: 'play', status: 'gone', step: null, on: false, unknown: UNKNOWN_REMOUNTED, ...(prev?.i ? { was: prev.i } : {}) });
     const data = ografData.get(key);
     if (data && Object.keys(data).length > 0) layerNow.send({ t: 'update', data } as ControlMessage);
     return layerNow;

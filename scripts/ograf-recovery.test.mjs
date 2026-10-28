@@ -92,6 +92,24 @@ test('the catch-up reads past every action on a package and nothing else', () =>
   assert.equal(heldActions(rows, new Set()).size, 0);
 });
 
+test('a package the boot did not take is not stepped: its steps are read past until its next Take or Out', async () => {
+  const { heldSteps, bootGap } = await import('../src/control/ografRecovery.ts');
+  // Its Take was not proven (`sent`), and a Next went before the restart: the step is not sent.
+  assert.deepEqual(ografRestore(report({ ...up, on: false, step: null, sent: 'play' }), true, [row('next')]).play, false);
+  const rows = [row('next'), row('update'), row('next'), row('play'), row('next'), { graphic: 'Strap', msg: { t: 'next' } }];
+  const steps = heldSteps(rows, new Set(['Board']));
+  assert.deepEqual([...steps.held], [rows[0], rows[2]], 'up to its Take, never after it, never another graphic');
+  assert.deepEqual([...steps.untaken], []);
+  const off = heldSteps([row('next'), row('stop'), row('next')], new Set(['Board']));
+  assert.equal(off.held.size, 1, 'an Out among them is the operator taking it out: what follows replays');
+  assert.deepEqual([...heldSteps([row('update')], new Set(['Board'])).untaken], ['Board']);
+  // Unread history keeps reading its steps past until its Take there.
+  const gap = bootGap(true, new Set(['Board']), [], 4, () => false, ['Board']);
+  const history = [row('next'), row('play'), row('next'), row('update')];
+  assert.deepEqual([...gap.batch(history, true).readPast], [history[0]]);
+  assert.equal(bootGap(false, new Set(['Board']), [], 4, () => false, ['Board']).batch([row('next')], true).readPast.size, 0);
+});
+
 test('a report from an instance the output replaced is refused, and only from then on', () => {
   const old = readOgrafOutcome(stateOf(up));
   const fresh = readOgrafOutcome(stateOf({ ...up, i: 'ffee0011', was: '0a1b2c3d', step: 0 }));
@@ -207,6 +225,15 @@ test('protocol 2: unread history reads a package action past, page after page, u
   // An Out after the action ends it, as `ografRestore` reads it: off is known.
   const out = bootGap(true, new Set(['Board']), [], 4);
   assert.deepEqual(out.batch([ev(), { graphic: 'Board', msg: { t: 'stop' } }], true).mark, []);
+  // A row Board's own report already holds (the refill starts at an older graphic's bank) neither
+  // marks nor ends a mark, and still counts towards a page.
+  const at = (seq, t) => ({ seq, graphic: 'Board', msg: { t } });
+  const banked = bootGap(true, new Set(['Board']), [], 4, (r) => r.seq !== undefined && r.seq <= 100);
+  const refill = [at(50, 'event'), ...page(3)];
+  assert.deepEqual(banked.batch(refill, true), { readPast: new Set(), mark: [] }, 'a held action is no omitted one');
+  assert.equal(banked.open, true, 'a full page, covered rows counted');
+  const held = bootGap(true, new Set(['Board']), ['Board'], 4, (r) => r.seq !== undefined && r.seq <= 100);
+  assert.deepEqual(held.batch([at(60, 'stop'), ...page(3)], true).mark, ['Board'], 'a banked Out does not end a mark');
 });
 
 test('protocol 1: unread history closes only once a short read is applied, by id, never by a live row', async () => {
@@ -233,4 +260,8 @@ test('protocol 1: unread history closes only once a short read is applied, by id
   const empty = bootGap(true, new Set(['Board']), [], 3);
   assert.deepEqual(empty.tailRead([], 5), []);
   assert.equal(empty.open, false);
+  // A row Board's own report already holds is not read past and ends no mark.
+  const banked = bootGap(true, new Set(['Board']), ['Board'], 3, (r) => r.id <= 20);
+  assert.deepEqual(banked.row(row(18, 'event'), true), { readPast: false, mark: ['Board'] });
+  assert.deepEqual(banked.row(row(19, 'stop'), true), { readPast: false, mark: ['Board'] });
 });

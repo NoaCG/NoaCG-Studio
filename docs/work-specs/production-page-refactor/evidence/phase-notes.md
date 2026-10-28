@@ -66,17 +66,24 @@ changes a spec's digest.
   - *A step not yet answered is no known step*: a Take, step or Out sent to the current instance
     clears its told `step` at once, for the same reason, so a report banked before the answer
     restores the Take at its first step and says the step is not known, never the step before it.
-    A re-cue's remount drops the old instance's word until the new one answers its `load()`, so a
-    report banked in between carries no `ograf` and a restart reads the package as unconfirmed.
+    A re-cue's remount replaces the old instance's word with the new instance's "not known"
+    (`UNKNOWN_REMOUNTED`, off, no step) until it answers its `load()`: the re-cue's Take is then
+    said as `sent`, a restart in between reads it unconfirmed on either road, and the page says it
+    is not known meanwhile. READY still waits for the real load answer.
+  - *A package the boot did not take is not stepped* (`heldSteps`): its step rows in the catch-up,
+    and in the unread history, are read past until its next Take or Out there, since a Graphic
+    stepped without a Take can show itself unproven.
+  - *A row a package's own report holds* (the refill starts at the oldest bank) is not counted by
+    `bootGap`: it neither marks nor ends a mark, and still counts towards a page.
     A Take or Out leaves `on` as it was until its answer, so it is said as `sent` meanwhile: a
     restart in between keeps an Out off and puts a Take back only as far as it was proven up, at
     its first step, both not known. This holds on the row-id road too, where no head says what the
     operator last did. Expected: a restart during a Take's entrance comes back not known with a
     Re-cue, never restored as proven.
     `acted`, `unknown`, `was` and `sent` are members of the report's `state.ograf`, not of the
-    control wire: no message kind or command member is added. Residual: between a re-cue and the
-    new instance's `load()` answer, the page keeps the old instance's line (its Re-cue included); a
-    second press there is one more Take, never an action.
+    control wire: no message kind or command member is added. Residual: a Take that reaches a
+    package whose base is still being fetched at first mount has no word yet, so a restart there on
+    the row-id road comes back off with nothing said.
   - *The foreign frame adjust* (L2 AC-10's foreign case): the stage applies an appearance's frame to
     the package's iframe (`ForeignOgrafLayer.frame`) and keeps it frame-only, so the report banks and
     a reload restores place and size alone; vars and fonts never reach a package. The page resolves

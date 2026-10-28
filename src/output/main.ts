@@ -76,7 +76,7 @@ import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
 import { publishedOgrafBase } from '../backend/productionOgraf';
 import { isOgrafInstance, ografCheck } from '../control/ografOutcome';
-import { bootGap, heldActions, ografRestore, UNKNOWN_ACTED } from '../control/ografRecovery';
+import { bootGap, heldActions, heldSteps, ografRestore, UNKNOWN_ACTED } from '../control/ografRecovery';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -1110,6 +1110,9 @@ async function boot(): Promise<void> {
     key,
     plan: ografRestore(reports[key], seqMode ? headOn.get(key) : undefined, replayed.filter((row) => row.graphic === key)),
   }));
+  // A package not taken again is not stepped either (`heldSteps`).
+  const steps = heldSteps(replayed, new Set(ografPlans.flatMap(({ key, plan }) => (!plan.play || typedRefused.has(key) ? [key] : []))));
+  for (const row of steps.held) unsentActions.add(row);
   const ografUnknown = new Map(ografPlans.flatMap(({ key, plan }) => (plan.unknown ? [[key, plan.unknown] as const] : [])));
   const animates =
     onWithoutPose.length > 0 ||
@@ -1204,7 +1207,14 @@ async function boot(): Promise<void> {
   // source loaded it. Both halves are fixed - the documents go off air from the inside and keep
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
   missed.forEach((row) => apply(row, undefined, true, !unsentActions.has(row)));
-  const gap = bootGap(bootGapOpen, packageSet, [...ografUnknown].flatMap(([key, why]) => (why === UNKNOWN_ACTED ? [key] : [])), seqMode ? SEQ_TAIL_PAGE : CONTROL_TAIL_PAGE);
+  const gap = bootGap<ControlEventRow>(
+    bootGapOpen,
+    packageSet,
+    [...ografUnknown].flatMap(([key, why]) => (why === UNKNOWN_ACTED ? [key] : [])),
+    seqMode ? SEQ_TAIL_PAGE : CONTROL_TAIL_PAGE,
+    (row) => alreadyInSnapshot(snapshotAt, row.graphic, position(row)),
+    steps.untaken,
+  );
   const markHeld = (keys: readonly string[]) => {
     for (const key of keys) stage.markUnknown(key, UNKNOWN_ACTED);
   };

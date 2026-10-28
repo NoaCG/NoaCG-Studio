@@ -32,6 +32,8 @@ export const UNKNOWN_ACTED = 'an action was not repeated after the restart';
 export const UNKNOWN_UNCONFIRMED = 'its Take was not confirmed before the restart';
 export const UNKNOWN_STEP = 'its step was not confirmed before the restart';
 export const UNKNOWN_OUT = 'its Out was not confirmed before the restart';
+/** A re-cue's new instance until it answers its `load()` (output/stage.ts `remount`). */
+export const UNKNOWN_REMOUNTED = 'mounted again, not answered yet';
 
 /** The most steps a restore walks. A step is a stranger's own answer, so it is bounded before it
  *  becomes calls: each is one `playAction` sent without waiting, and a frame holds at most 64 calls
@@ -96,17 +98,32 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
  *     shorter than a page, once its last row (by id) is applied, since a live row's id says nothing
  *     about history committed late below it. A live batch's own Take or Out is the operator's and
  *     stands: it marks nothing.
+ *   - A row the package's own report already holds (`covered`: the refill starts at the oldest
+ *     bank, so another graphic's can bring it back) is history that package was rebuilt from: it
+ *     neither marks nor ends a mark. It still counts towards a page.
+ *   - A step of a package the boot did not take (`untaken`, as `heldSteps` leaves it) is read past
+ *     until its next Take or Out in that history.
  *
  * Pure: scripts/ograf-recovery.test.mjs drives it as the follows do (output/main.ts wires it).
  */
-export function bootGap(open: boolean, packages: ReadonlySet<string>, actedAtBoot: readonly string[] = [], pageSize = 500) {
+export function bootGap<R extends { graphic: string; msg: { t: string } }>(
+  open: boolean,
+  packages: ReadonlySet<string>,
+  actedAtBoot: readonly string[] = [],
+  pageSize = 500,
+  covered: (row: R) => boolean = () => false,
+  untaken: Iterable<string> = [],
+) {
+  const off = new Set(open ? untaken : []);
   let gap = open;
   const held = new Set<string>(open ? actedAtBoot : []);
   /** Protocol 1: the id that ends the history, once a short read has named it. */
   let endsAt = Infinity;
-  const readsPast = (row: { graphic: string; msg: { t: string } }): boolean => {
-    if (!gap || !packages.has(row.graphic)) return false;
+  const readsPast = (row: R): boolean => {
+    if (!gap || !packages.has(row.graphic) || covered(row)) return false;
     if (row.msg.t === 'stop') held.delete(row.graphic);
+    if (row.msg.t === 'play' || row.msg.t === 'stop') off.delete(row.graphic);
+    if (row.msg.t === 'next') return off.has(row.graphic);
     if (row.msg.t !== 'event') return false;
     held.add(row.graphic);
     return true;
@@ -124,7 +141,7 @@ export function bootGap(open: boolean, packages: ReadonlySet<string>, actedAtBoo
       return gap;
     },
     /** Protocol 2: a batch the follow hands over, `replayed` when a read brought it. */
-    batch<R extends { graphic: string; msg: { t: string } }>(rows: readonly R[], replayed: boolean): { readPast: Set<R>; mark: string[] } {
+    batch(rows: readonly R[], replayed: boolean): { readPast: Set<R>; mark: string[] } {
       const readPast = new Set(replayed ? rows.filter(readsPast) : []);
       return { readPast, mark: done(!replayed || rows.length < pageSize, !replayed) };
     },
@@ -141,12 +158,29 @@ export function bootGap(open: boolean, packages: ReadonlySet<string>, actedAtBoo
       return [];
     },
     /** Protocol 1: one row the follow hands over, `fromTail` when a read brought it. */
-    row(row: { id: number; graphic: string; msg: { t: string } }, fromTail: boolean): { readPast: boolean; mark: string[] } {
+    row(row: R & { id: number }, fromTail: boolean): { readPast: boolean; mark: string[] } {
       if (!fromTail || !gap) return { readPast: false, mark: [] };
       const readPast = readsPast(row);
       return { readPast, mark: done(row.id >= endsAt) };
     },
   };
+}
+
+/**
+ * A STEP OF A PACKAGE THE BOOT DID NOT TAKE (its restore played nothing: off, or a Take not proven)
+ * is not sent either: a Graphic stepped without a Take can show itself, unproven. The catch-up's
+ * step rows for such a package, up to its next Take or Out among them, are read past like an
+ * action's; `untaken` is the packages still not taken after these rows, for `bootGap`.
+ */
+export function heldSteps<R extends { graphic: string; msg: { t: string } }>(rows: readonly R[], untaken: ReadonlySet<string>): { held: Set<R>; untaken: Set<string> } {
+  const still = new Set(untaken);
+  const held = new Set<R>();
+  for (const row of rows) {
+    if (!still.has(row.graphic)) continue;
+    if (row.msg.t === 'play' || row.msg.t === 'stop') still.delete(row.graphic);
+    else if (row.msg.t === 'next') held.add(row);
+  }
+  return { held, untaken: still };
 }
 
 /** The catch-up's rows that are a custom action on a package: read past, never sent, since a
