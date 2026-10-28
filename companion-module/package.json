@@ -1,6 +1,6 @@
 {
 	"name": "noacg-studio",
-	"version": "0.1.2",
+	"version": "0.2.0",
 	"description": "Run a NoaCG Studio production from a Stream Deck or any Companion surface",
 	"main": "dist/main.js",
 	"type": "module",

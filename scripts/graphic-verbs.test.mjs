@@ -125,7 +125,7 @@ function rig({ seed = true, fast = false, published = 'slug-1', flushHeld = fals
     // What a typed cue sends (model/ografTyped.ts `typedForSend`, E1.2a): a page that sends none
     // has no `typedFor`, unless the test gives it answers.
     ...(typedSends ? { typedFor: (cue) => typedSends[cue.id] ?? { status: 'none' } } : {}),
-    ...(typedActions ? { typedActionFor: (cue, graphic, action) => typedActions[`${cue.id}:${action}`] ?? { status: 'refused', reason: 'not declared' } } : {}),
+    ...(typedActions ? { typedActionFor: (cue, graphic, action, args) => (args ? { status: 'ok', typed: { ...typedActions[`${cue.id}:${action}`]?.typed, args } } : typedActions[`${cue.id}:${action}`]) ?? { status: 'refused', reason: 'not declared' } } : {}),
     ...(typedAiring ? { typedAiring: (graphic) => typedAiring.includes(graphic) } : {}),
     selectionAired: (graphic, cueId, take) => {
       log.push(['aired', graphic, cueId, take.status]);
@@ -3480,6 +3480,15 @@ test('a foreign action press carries the live cue\'s typed arguments in the acti
   // Off air or with no cue this page holds, nothing goes.
   assert.equal((await r.verbs.event(sel({ selectedGraphic: 'Score', selectedLayerLive: false, airCue: cue }), { event: 'highlight', typed: true })).outcome, 'refused');
   assert.equal(r.sends.length, 1);
+  // A panel key's own arguments (E6.2) reach the page's send in place of the cue's, on the same
+  // instance and through the same wait; a native event never takes them.
+  const keyed = r.verbs.event(view, { event: 'highlight', label: 'Highlight a team', typed: true }, 't1', { team: 7 });
+  await settle();
+  assert.deepEqual(r.sends[1].batches[0][0].msg.typed.args, { team: 7 });
+  r.sends[1].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await keyed, { outcome: 'accepted' });
+  assert.equal((await r.verbs.event(view, { event: 'highlight', typed: true }, 't0', { team: 7 })).outcome, 'refused');
+  assert.equal(r.sends.length, 2);
 });
 
 // ── Typed actions on the program instance (E2.2, L1) ────────────────────────────────────────────

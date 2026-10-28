@@ -317,7 +317,7 @@ export interface Capability {
 	active?: string
 	allowed: boolean
 	note?: string
-	/** False for a foreign descriptor: shown, never pressed. */
+	/** False for a control the page says a panel cannot press: shown, never pressed. */
 	invocable: boolean
 }
 
@@ -381,8 +381,8 @@ export function readActions(p: unknown): PanelActions | 'newer' | null {
 		for (const c of Array.isArray(g.caps) ? g.caps.slice(0, CAPS_MAX) : []) {
 			if (!isObject(c) || typeof c.id !== 'string' || !CAP_ID.test(c.id)) continue
 			const kind = c.id.slice(0, c.id.indexOf(':')) as Capability['kind']
-			// A foreign descriptor is never pressed, whatever the payload says.
-			const invocable = kind !== 'foreign' && c.invocable === true
+			// Pressed only when the page says so: an older page offers foreign actions as descriptors.
+			const invocable = c.invocable === true
 			const options = Array.isArray(c.options)
 				? c.options
 						.filter(isObject)
@@ -460,6 +460,96 @@ export function capabilityState(
 		return { state: 'refused', note: cap.note ?? `${cap.label} cannot be pressed from a panel`, ...base }
 	if (!cap.allowed) return { state: 'refused', note: cap.note ?? 'Not allowed right now', ...base }
 	return { state: 'allowed', note: cap.label, ...base }
+}
+
+/** The relay's bounds on the argument object (migration 0103): its text as the server writes it
+ *  back (`", "` and `": "` between members), and how deep its containers nest (the object is 1). */
+export const ARGS_MAX_CHARS = 4096
+export const ARGS_MAX_DEPTH = 8
+
+/** Why the relay would refuse these arguments, or null: measured as the server measures them, so a
+ *  key refuses here what would come back `bad-press`. One walk, iterative. */
+/** NUL, or a surrogate without its pair. */
+// eslint-disable-next-line no-control-regex -- NUL is the character refused
+const UNSTORABLE = /\u0000|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/
+
+function argsFault(args: Record<string, unknown>): string | null {
+	let spaces = 0
+	const stack: [unknown, number][] = [[args, 1]]
+	while (stack.length) {
+		const [v, depth] = stack.pop()!
+		// The server writes a number out in full: one JavaScript writes with an exponent (or cannot
+		// write at all) would not be what was typed, or not the length measured here.
+		if (
+			typeof v === 'number' &&
+			(!/^-?\d+(\.\d+)?$/.test(String(v)) || (Number.isInteger(v) && !Number.isSafeInteger(v)))
+		)
+			return 'A number in the arguments is too large or too small to send'
+		// The server stores no NUL and no half of a surrogate pair: such text would fail the call.
+		if (typeof v === 'string' && UNSTORABLE.test(v)) return 'The arguments hold a character that cannot be sent'
+		if (typeof v !== 'object' || v === null) continue
+		if (depth > ARGS_MAX_DEPTH) return `The arguments nest deeper than ${ARGS_MAX_DEPTH} levels`
+		if (!Array.isArray(v) && Object.keys(v).some((k) => UNSTORABLE.test(k)))
+			return 'The arguments hold a character that cannot be sent'
+		const items = Array.isArray(v) ? (v as unknown[]) : Object.values(v)
+		spaces += Math.max(0, items.length - 1) + (Array.isArray(v) ? 0 : items.length)
+		for (const item of items) stack.push([item, depth + 1])
+	}
+	// Counted in characters, as the server counts them, never in UTF-16 units.
+	return longer(JSON.stringify(args), ARGS_MAX_CHARS - spaces) ? 'The arguments are longer than a press takes' : null
+}
+
+/** Whether `text` holds more than `max` characters (code points), counting no further than that. */
+function longer(text: string, max: number): boolean {
+	if (text.length <= max) return false
+	let n = 0
+	for (const _char of text) if (++n > max) return true
+	return false
+}
+
+/**
+ * THE ARGUMENTS A SAVED KEY SENDS, from its options and its capability's kind (the id's prefix, never
+ * the offer): a pick's option, a number's step, a foreign action's JSON object, or none. A foreign
+ * key with no arguments sends the live cue's, as the page's own button does. Null, with why, for
+ * arguments a key cannot send; the page validates the rest against the declared schema.
+ */
+export function keyArgs(
+	cap: string,
+	o: { option?: unknown; delta?: unknown; args?: unknown },
+): { args: Record<string, unknown> } | { refused: string } {
+	const kind = cap.slice(0, cap.indexOf(':'))
+	if (kind === 'step') return Number(o.delta) < 0 ? { args: { delta: -1 } } : { args: { delta: 1 } }
+	if (kind === 'event') {
+		// A pick's value exactly as the page declares it: spaces may be part of it.
+		const option = typeof o.option === 'string' ? o.option : ''
+		return { args: option ? { option } : {} }
+	}
+	const text = typeof o.args === 'string' ? o.args.trim() : ''
+	// Empty, or `{}`, sends the cue's own arguments: the page reads an empty object so.
+	if (kind !== 'foreign' || !text) return { args: {} }
+	if (longer(text, ARGS_MAX_CHARS)) return { refused: 'The arguments are longer than a press takes' }
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(text)
+	} catch {
+		return { refused: 'The arguments are not JSON: write them like {"team": 2}' }
+	}
+	if (!isObject(parsed)) return { refused: 'The arguments must be an object, like {"team": 2}' }
+	const fault = argsFault(parsed)
+	return fault ? { refused: fault } : { args: parsed }
+}
+
+/** What a graphic key shows of its capability's offer, for redefining presets and choices: the
+ *  graphics, their pins and their capabilities' ids, labels and options, never what moves live. */
+export function offerShape(actions: PanelActions | null): string {
+	if (!actions) return ''
+	return JSON.stringify(
+		actions.graphics.map((g) => [
+			g.graphic,
+			g.pinned,
+			g.caps.map((c) => [c.id, c.label, c.invocable, c.options?.map((o) => [o.value, o.label]) ?? null]),
+		]),
+	)
 }
 
 /** A payload's protocol version, for the "update the module" check. */

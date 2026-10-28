@@ -165,9 +165,9 @@ export interface GraphicPage {
    *  Absent: this page sends no typed data, and a cue carrying it is refused. */
   typedFor?: (cue: ShowCue, graphic: string) => TypedSend;
   /** What a press of a foreign OGraf custom action sends from this cue's kept typed arguments, with
-   *  the outputs' capability for typed actions asked (model/ografTyped.ts `typedActionFor`; E2.1).
-   *  Absent: this page sends no typed action. */
-  typedActionFor?: (cue: ShowCue, graphic: string, action: string) => TypedActionSend;
+   *  the outputs' capability for typed actions asked (model/ografTyped.ts `typedActionFor`; E2.1),
+   *  or from `args` when a panel key carries its own (E6.2). Absent: this page sends no typed action. */
+  typedActionFor?: (cue: ShowCue, graphic: string, action: string, args?: Record<string, unknown>) => TypedActionSend;
   /** The graphic airs typed data now, by what was last applied to it (control/airState.ts
    *  `typedAired`), whatever its cue's switch says since. */
   typedAiring?: (graphic: string) => boolean;
@@ -250,7 +250,7 @@ export interface GraphicVerbs {
   allOut: () => Promise<void>;
   /** `named`: the cue a panel key was drawn for (control/panelActions.ts), held to as the selection's
    *  own cue is, for a layer whose cue the selection could not draw. */
-  event: (sel: VerbSelection, button: ControlButton, named?: string) => Promise<PressDone>;
+  event: (sel: VerbSelection, button: ControlButton, named?: string, args?: Record<string, unknown>) => Promise<PressDone>;
   snap: (sel: VerbSelection, groupId: string | null, stateId: string) => Promise<void>;
   /** "SEND TO ON-AIR GRAPHICS" (phase 3): the production look to every graphic on air, as one
    *  appearance-only update each (empty `data`), so nothing typed airs with it. */
@@ -1068,9 +1068,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
    * A FOREIGN OGraf CUSTOM ACTION (E2.1): the live cue's kept typed arguments in E1's action envelope,
    * validated whole after the wait, sent only to outputs that read typed actions. It moves no field
    * and no tree, and the arguments are never read from text: refused, nothing goes and nothing kept
-   * changes, with the reason on the note line.
+   * changes, with the reason on the note line. A panel key's own `args` (E6.2) take the place of the
+   * cue's, validated the same way; the cue and its instance are the button's.
    */
-  const pressTyped = (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, still: () => boolean): Promise<PressDone> =>
+  const pressTyped = (s: VerbSender, p: GraphicPage, sel: VerbSelection, button: ControlButton, graphic: string, still: () => boolean, args?: Record<string, unknown>): Promise<PressDone> =>
     afterPress(graphic, async (): Promise<PressDone> => {
       await p.flush();
       if (!still()) return refused(changedNote(graphic));
@@ -1079,7 +1080,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const read: TypedActionSend = typedReadOnly(cue)
         ? { status: 'refused', reason: typedSendRefusal(cue) ?? '' }
         : p.typedActionFor
-          ? p.typedActionFor(cue, graphic, button.event)
+          ? p.typedActionFor(cue, graphic, button.event, args)
           : { status: 'refused', reason: 'Typed actions do not go on air from here.' };
       if (read.status === 'refused') {
         s.note(`${cue.label}: ${read.reason}`);
@@ -1091,7 +1092,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     });
 
   /** Fire a machine event on the live graphic, after the live press before it on its graphic. */
-  const event = (sel: VerbSelection, button: ControlButton, named?: string): Promise<PressDone> => {
+  const event = (sel: VerbSelection, button: ControlButton, named?: string, args?: Record<string, unknown>): Promise<PressDone> => {
     const s = sender();
     const p = page();
     const graphic = sel.selectedGraphic;
@@ -1099,7 +1100,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     if (button.typed) {
       const still = instance(s, graphic, sel.airCue, named);
       if (!still()) return Promise.resolve(refused(changedNote(graphic)));
-      return pressTyped(s, p, sel, button, graphic, still);
+      return pressTyped(s, p, sel, button, graphic, still, args);
     }
     const typed = typedRefused(s, sel.airCue, graphic);
     if (typed) return Promise.resolve(refused(typed));

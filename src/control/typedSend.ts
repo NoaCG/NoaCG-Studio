@@ -76,10 +76,11 @@ export function createTypedSendMemo(): (cue: { typed?: unknown; selection?: unkn
   };
 }
 
-/** What a press of `action` sends from this cue's kept arguments (E2.1): the action envelope,
- *  validated whole, then only while every output this page sees reads typed actions. */
-export function typedActionSendFor(cue: { typedArgs?: unknown }, action: string, facts: Pick<TypedSendFacts, 'declared' | 'published' | 'presence' | 'showId'>): TypedActionSend {
-  const send = typedActionFor(facts.declared, action, cue.typedArgs);
+/** What a press of `action` sends from this cue's kept arguments (E2.1), or from a panel key's own
+ *  (`given`, E6.2): the action envelope, validated whole, then only while every output this page
+ *  sees reads typed actions. */
+export function typedActionSendFor(cue: { typedArgs?: unknown }, action: string, facts: Pick<TypedSendFacts, 'declared' | 'published' | 'presence' | 'showId'>, given?: JsonValue): TypedActionSend {
+  const send = typedActionFor(facts.declared, action, cue.typedArgs, given);
   if (send.status !== 'ok') return send;
   const { presence } = facts;
   const outputs = typedOutputsRefusal(facts.published, presence.showId === facts.showId ? presence.status : 'joining', presence.peers, TYPED_ACTIONS_READER);

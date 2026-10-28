@@ -250,7 +250,7 @@ import { rundownActions, useRundownAuthoring } from './useRundownAuthoring';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, usePanelAnswer } from '../control/PanelControl';
 import { PANEL_VERBS, panelClip, rundownPanelRows, type PanelVerb } from '../../control/panelFeedback';
-import { graphicControls, panelGraphic, runCapability, type ControlsMachine, type GraphicControls, type PanelGraphic, type PanelOffer } from '../../control/panelActions';
+import { declaredForeign, graphicControls, panelGraphic, runCapability, type ControlsMachine, type GraphicControls, type PanelGraphic, type PanelOffer } from '../../control/panelActions';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { teamShowsStatus } from '../../model/teamShows';
 import { announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
@@ -2300,6 +2300,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         descriptors: fieldDescriptors(tpl.fields),
         path: continueEvents(tpl.js),
         legality: eventLegality(tpl.js),
+        foreign: declaredForeign(tpl.ograf),
         stateGroups: machineStateGroups(tpl.js),
         stateNames: machineStateNames(tpl.js),
       });
@@ -3029,9 +3030,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const unsaved = cue.typed === undefined ? null : typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART]);
       return unsaved ? { status: 'refused', reason: unsaved } : typedFor(storedCue(cue), graphic);
     },
-    typedActionFor: (cue, graphic, action) => {
-      const unsaved = typedSaves.current.refusal(cue.id, [TYPED_VALUES_PART, typedActionPart(action)]);
-      return unsaved ? { status: 'refused', reason: unsaved } : typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id });
+    typedActionFor: (cue, graphic, action, args) => {
+      // A panel key's own arguments (E6.2) do not read the cue's, so only the cue's values part counts.
+      const unsaved = typedSaves.current.refusal(cue.id, args ? [TYPED_VALUES_PART] : [TYPED_VALUES_PART, typedActionPart(action)]);
+      return unsaved ? { status: 'refused', reason: unsaved } : typedActionSendFor(storedCue(cue), action, { declared: declaredOf(graphic), published: publishedRef.current, presence: livePresenceRef.current, showId: id }, args as JsonValue | undefined);
     },
     typedAiring: (graphic) => graphic in (session.air.get().typedAired ?? NO_TYPED_AIR),
     selectionAired,
@@ -3311,13 +3313,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   /** A ⚡ press, marked on its button while out and with what it came to, for the cue on air at the
    *  press (control/pressFeedback.ts, E2.2): from the selected block and a pinned one alike. */
-  const pressMarked = (sel: VerbSelection, button: ControlButton, named?: string) => {
+  const pressMarked = (sel: VerbSelection, button: ControlButton, named?: string, args?: Record<string, unknown>) => {
     const graphic = sel.selectedGraphic;
-    if (!graphic) return verbs.event(sel, button, named);
+    if (!graphic) return verbs.event(sel, button, named, args);
     // The instance is the session's, as the press's own check reads it. Unpublished, the press
     // moves this page's PROGRAM and nothing else; published, a press taken with no output
     // reporting reads so, never as sent.
-    return pressMarks.press(graphic, button.event, session.air.get().liveCue[graphic] ?? null, () => verbs.event(sel, button, named), () => !hostedSlugRef.current || usableOutputRef.current);
+    return pressMarks.press(graphic, button.event, session.air.get().liveCue[graphic] ?? null, () => verbs.event(sel, button, named, args), () => !hostedSlugRef.current || usableOutputRef.current);
   };
   const marksOf = (graphic: string | null) => (graphic ? { part: pressMarks.part, graphic } : undefined);
 

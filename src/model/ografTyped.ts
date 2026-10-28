@@ -1136,18 +1136,18 @@ export type TypedActionSend = { status: 'ok'; typed: TypedActionCall } | { statu
 
 /**
  * THE TYPED ACTION (E2.1): the envelope a press of `actionId` carries, built from the cue's kept
- * arguments (`actionArgsOf`), validated whole against the action's argument schema and the size one
- * command takes. A refusal names the first failing path; nothing is dispatched and nothing kept is
+ * arguments (`actionArgsOf`), or the ones a panel key gives (`given`, E6.2), validated whole against
+ * the action's argument schema and the size one command takes. A refusal names the first failing path; nothing is dispatched and nothing kept is
  * changed. An action whose arguments use something this reader does not carry is refused rather
  * than sent with a guess.
  */
-export function typedActionFor(declared: DeclaredRead, actionId: string, stored: unknown): TypedActionSend {
+export function typedActionFor(declared: DeclaredRead, actionId: string, stored: unknown, given?: JsonValue): TypedActionSend {
   if (declared.status !== 'ok') return { status: 'refused', reason: 'This graphic’s actions cannot be read.' };
   const action = declared.description.actions.find((a) => a.id === actionId);
   if (!action) return { status: 'refused', reason: `"${actionId}" is not an action of this graphic.` };
-  if (readTypedArgs(stored).status === 'read-only') return { status: 'refused', reason: 'This cue’s action arguments were saved by another version of NoaCG.' };
+  if (given === undefined && readTypedArgs(stored).status === 'read-only') return { status: 'refused', reason: 'This cue’s action arguments were saved by another version of NoaCG.' };
   if (action.args && typedUnsupportedAt(action.args) !== null) return { status: 'refused', reason: `${action.name}: its arguments use a schema feature this version does not carry.` };
-  const args = actionArgsOf(action, stored);
+  const args = given !== undefined ? given : actionArgsOf(action, stored);
   const error = validateActionArgs(action, args)[0];
   if (error) return { status: 'refused', reason: `${action.name}: ${error.at ? `${error.at} ` : ''}${error.reason}.` };
   const typed: TypedActionCall = { v: TYPED_VERSION, kind: 'action', standard: OGRAF_STANDARD.commit, schema: actionSchemaOf(action), action: action.id };
