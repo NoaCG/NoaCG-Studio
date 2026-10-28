@@ -85,6 +85,15 @@ test('a report from an instance the output replaced is refused, and only from th
   // The old instance's report on its way when the output reloaded lands after: refused.
   assert.equal(acceptOutcome(after.replaced, old).accept, false);
   assert.equal(acceptOutcome(after.replaced, fresh).accept, true);
+  // Two reloads whose reports arrive out of order: C (was B), then B (was A), then A. B is refused
+  // and still records that it replaced A, so A is refused too.
+  const c = { ...fresh, i: 'cccc0003', was: 'bbbb0002' };
+  const b2 = { ...fresh, i: 'bbbb0002', was: 'aaaa0001' };
+  const a1 = { ...old, i: 'aaaa0001' };
+  const r1 = acceptOutcome([], c);
+  const r2 = acceptOutcome(r1.replaced, b2);
+  assert.equal(r2.accept, false);
+  assert.equal(acceptOutcome(r2.replaced, a1).accept, false);
   // Another output's instance is not touched by it.
   assert.equal(acceptOutcome(after.replaced, { ...old, i: '12345678' }).accept, true);
   // Bounded at 16 instances.

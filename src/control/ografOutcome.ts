@@ -82,10 +82,12 @@ export function readOgrafOutcome(state: unknown): OgrafOutcome | null {
  * this fold. Returns whether `next` stands and the record after it.
  */
 export function acceptOutcome(replaced: readonly string[], next: OgrafOutcome): { accept: boolean; replaced: string[] } {
-  if (next.i !== null && replaced.includes(next.i)) return { accept: false, replaced: [...replaced] };
-  if (next.i === null || !next.was || replaced.includes(next.was)) return { accept: true, replaced: [...replaced] };
+  const accept = next.i === null || !replaced.includes(next.i);
+  // What a report says it replaced is kept even when the report itself is stale: after two reloads
+  // whose reports arrive out of order, the oldest instance is still refused.
+  if (next.i === null || !next.was || replaced.includes(next.was)) return { accept, replaced: [...replaced] };
   // Bounded: a long show's reloads cannot grow it, and only the recent instances can still write.
-  return { accept: true, replaced: [...replaced, next.was].slice(-REPLACED_KEPT) };
+  return { accept, replaced: [...replaced, next.was].slice(-REPLACED_KEPT) };
 }
 const REPLACED_KEPT = 16;
 
