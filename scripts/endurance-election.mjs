@@ -73,6 +73,15 @@ env.ENDURANCE_JSONB_BYTES = String(size.jsonbBytes);
 
 const walk = run('npx', ['playwright', 'test', '--config=playwright.endurance.config.ts'], { cwd: ROOT, env, stdio: 'inherit' });
 
+// DIAGNOSTIC (#1798): the three-snapshot diff of each page's snapshots.
+for (const who of ['output', 'frame0', 'frame1', 'frame2', 'frame3']) {
+  const files = ['m8', 'm18', 'm28'].map((t) => path.join(OUT, `${who}-${t}.heapsnapshot`));
+  if (!files.every((f) => existsSync(f))) continue;
+  const d = run('node', ['--max-old-space-size=6000', path.join(ROOT, 'scripts/diag-heap-diff.mjs'), ...files], { cwd: ROOT, maxBuffer: 1 << 26 });
+  writeFileSync(path.join(OUT, `${who}-heap-diff.txt`), `${d.stdout}\n${d.stderr}`);
+  console.log(`--- ${who} heap diff ---\n${d.stdout.slice(0, 20000)}\n${d.stderr.slice(0, 2000)}`);
+}
+
 // The verdict, from the record whatever the walk's own exit said.
 const recordFile = path.join(OUT, 'record.json');
 if (!existsSync(recordFile)) {
