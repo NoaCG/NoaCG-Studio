@@ -336,6 +336,10 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     get state() {
       return { ...state, failures, nextDelayMs: nextDelay, ownerEpoch: epoch };
     },
+    /** What waits here (the endurance run's queue depth): reads in flight and revisions kept to offer again. */
+    get backlog() {
+      return { reading: inFlight ? 1 : 0, undelivered: undelivered ? 1 : 0 };
+    },
     exportConfig: () => exportConnectorConfig(config),
     redact,
   };
@@ -486,6 +490,10 @@ export function createSourceSender({ address, key, config, fetchImpl = fetch, lo
     get sampling() {
       return sampling;
     },
+    /** Requests to the production in flight (the endurance run's queue depth). */
+    get posting() {
+      return inFlight.size;
+    },
     /** End every request in flight (shutdown). */
     abort: () => inFlight.forEach((c) => c.abort(new Error('stopped'))),
     bind: (c) => void (connector = c),
@@ -549,12 +557,17 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     if (minutes > 0) setTimeout(resolve, minutes * 60_000);
   });
   const stopRenewing = sender?.keepClaim();
+  // Spawned with an IPC channel (the endurance run), it answers what waits in it, and nothing else.
+  const answerBacklog = (message) => message === 'backlog' && process.send?.({ backlog: { ...connector.backlog, posting: sender?.posting ?? 0 } });
+  if (process.send) process.on('message', answerBacklog);
   connector.start();
   await done;
   connector.stop();
   stopRenewing?.();
   sender?.abort();
   await sender?.release();
+  process.off('message', answerBacklog);
+  process.disconnect?.();
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

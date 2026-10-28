@@ -136,8 +136,12 @@ const digest = (text) => createHash('sha256').update(String(text)).digest();
 export async function startReplayServer({ token, cert, key, clock = Date.now, stepMs = DEFAULT_STEP_MS, host = '127.0.0.1', port = 0, timeline = 'research', onStep = () => {} }) {
   if (!token) throw new Error('the replay server needs a bearer token');
   if (!(Number.isFinite(stepMs) && stepMs > 0)) throw new Error('stepMs must be a positive number of milliseconds');
-  if (timeline !== 'research' && timeline !== 'package') throw new Error('timeline must be research or package');
-  const steps = timeline === 'package' ? packageTimeline() : replayTimeline();
+  // A timeline of its own (`{ length, at(i) }`, the endurance run's) makes each step's text when asked.
+  const custom = typeof timeline === 'object' && timeline !== null;
+  if (!custom && timeline !== 'research' && timeline !== 'package') throw new Error('timeline must be research, package or { length, at(i) }');
+  if (custom && !(Number.isInteger(timeline.length) && timeline.length > 0 && typeof timeline.at === 'function')) throw new Error('a timeline of its own needs a length and at(i)');
+  const fixed = custom ? null : timeline === 'package' ? packageTimeline() : replayTimeline();
+  const steps = custom ? { length: timeline.length, at: (i) => timeline.at(i) } : { length: fixed.length, at: (i) => fixed[i] };
   const expected = digest(`Bearer ${token}`);
   let start = null;
   let served = -1;
@@ -157,9 +161,9 @@ export async function startReplayServer({ token, cert, key, clock = Date.now, st
     // The first read of each step, so a person can time a step from the moment it was served.
     if (at !== served) {
       served = at;
-      onStep(steps[at].name, clock());
+      onStep(steps.at(at).name, clock());
     }
-    const { name, text } = steps[at];
+    const { name, text } = steps.at(at);
     answer(res, 200, text, { 'x-replay-step': name });
   });
   await new Promise((resolve, reject) => {
@@ -169,10 +173,12 @@ export async function startReplayServer({ token, cert, key, clock = Date.now, st
   const { port: bound } = server.address();
   return {
     url: `https://${host.includes(':') ? `[${host}]` : host}:${bound}/results`,
-    steps: steps.map((s) => s.name),
+    steps: fixed ? fixed.map((s) => s.name) : null,
     /** Each step's text by its sha256, as the rehearsal record names it. */
-    digests: steps.map((s) => ({ name: s.name, sha256: digest(s.text).toString('hex') })),
-    step: () => steps[step()].name,
+    digests: fixed ? fixed.map((s) => ({ name: s.name, sha256: digest(s.text).toString('hex') })) : null,
+    step: () => steps.at(step()).name,
+    /** The index of the step served now. */
+    index: () => step(),
     /** Move the timeline to step `i` (from the clock's present reading). */
     at: (i) => void (start = clock() - i * stepMs),
     close: () =>
