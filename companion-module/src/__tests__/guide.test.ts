@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { ACTION_VERBS } from '../actions.js'
 import { PANEL_VERBS, VERB_NAMES } from '../protocol.js'
+import { GetConfigFields } from '../config.js'
 
 // The guide an operator installs from, read as shipped (build-test/__tests__ -> companion/HELP.md).
 const help = readFileSync(fileURLToPath(new URL('../../companion/HELP.md', import.meta.url)), 'utf8')
@@ -31,4 +32,24 @@ test('the guide covers graphic keys: the action, the presets, the outcomes and t
 	assert.ok(/never sent again/.test(help))
 	assert.ok(/keep working/.test(help), 'unpinning stops nothing')
 	assert.ok(!/—/.test(help), 'no em dashes')
+})
+
+// The page's Setup menu, read from the app's source beside this module (build-test/__tests__ -> repo root).
+// This assumes the NoaCG Studio repository layout; the module's tests run in no workflow yet (#1758).
+const setupMenu = readFileSync(
+	fileURLToPath(new URL('../../../src/components/home/ProductionSetupMenu.tsx', import.meta.url)),
+	'utf8',
+)
+
+test('the guide and the pairing hint name the Setup menu item as the production page draws it', () => {
+	const intro = GetConfigFields().find((field) => field.id === 'intro')
+	const hint = intro && 'value' in intro ? String(intro.value) : ''
+	const named = [
+		...[...help.matchAll(/\*\*Setup\*\*, then \*\*([^*]+)\*\*/g)].map((m) => m[1]),
+		...[...hint.matchAll(/Setup, then (.+?), and/g)].map((m) => m[1]),
+	]
+	assert.ok(named.length >= 2, 'the guide and the pairing hint each say which Setup item opens the panel list')
+	// A menu item's label is a JSX text line of its own, after any leading icon; "Panel" alone also appears in code.
+	const labels = new Set(setupMenu.split('\n').map((line) => line.trim().replace(/^<\w+ \/>\s*/, '')))
+	for (const item of named) assert.ok(labels.has(item), `the Setup menu has an item "${item}"`)
 })

@@ -47,11 +47,10 @@ Authorization: Bearer <data key>
   VERBS, and it prejudged the read-back an integrator legitimately needs after a restart -
   `docs/PRODUCTION_DATA_PLAN.md` §7. The invariant above is the one that actually matters, and a
   read endpoint is compatible with it.)
-- **Rotation / revocation** (owner-side): unpublishing and re-publishing the production mints
-  a fresh key (the four viewer/operator URLs deliberately survive that; the data key
-  deliberately does not). The owner can also overwrite or clear the key directly on the row -
-  a cleared key (`NULL`) switches ingest off for that production while everything else keeps
-  running.
+- **Rotation / revocation** (owner-side): overwrite or clear the key directly on the row - a
+  cleared key (`NULL`) switches ingest off for that production while everything else keeps
+  running. The production page has no unpublish control; its published row goes, key included,
+  only when the production is deleted.
 
 ## Write production data: `PATCH /api/data/patch`
 
@@ -520,6 +519,5 @@ The key is on the production's `control_shows` row (`data_key`), minted at publi
 the production's **Data** tab (the Another system card, then Reveal or Copy); an owner session can also read
 the column directly, since the row is RLS-guarded and only you and the server can see it.
 
-Hand it to the integrator out of band. Rotate by unpublishing and re-publishing (viewer and
-operator URLs survive that by design), or by updating the column; clear it to `NULL` to turn
-ingest off entirely.
+Hand it to the integrator out of band. Rotate by updating the column (the page has no unpublish
+control); clear it to `NULL` to turn ingest off entirely.
