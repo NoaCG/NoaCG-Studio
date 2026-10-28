@@ -259,6 +259,12 @@ test('the run sends each server cue alone, then the graphics; a refusal stops no
   assert.deepEqual(results.map((r) => [r.cueId, r.ok, r.sent]), [['vt', true, true], ['bed', false, true], ['strap', true, true]]);
   assert.equal(togetherNote('Opening', results), 'Take: Opening, 2 of 3 on air. Take of BED did not reach the playout server: refused (server).');
   assert.equal(togetherNote('Opening', results.map((r) => ({ ...r, ok: true, note: '✓ fine' }))), '✓ Take: Opening, 3 of 3 on air');
+  // E3.2a: a member only its output confirms (an imported OGraf package) is sent, never on air.
+  const foreign = results.map((r, i) => ({ ...r, ok: true, note: '✓ fine', ...(i === 0 ? { unconfirmed: true } : {}) }));
+  assert.equal(togetherNote('Opening', foreign), 'Take: Opening, 2 of 3 on air, 1 sent to the outputs', 'no ✓ while a member awaits its output');
+  // A sent member's own sentence is not repeated; a member that failed still says why.
+  const mixed = foreign.map((r, i) => (i === 0 ? { ...r, note: 'Take: VT sent to the outputs' } : i === 1 ? { ...r, ok: false, note: 'BED refused' } : r));
+  assert.equal(togetherNote('Opening', mixed), 'Take: Opening, 1 of 3 on air, 1 sent to the outputs. BED refused.');
   void items;
 });
 

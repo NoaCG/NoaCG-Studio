@@ -5,6 +5,143 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 40 (E3.2a, project phase 45): foreign OGraf in a mixed rundown and on browser outputs
+
+- **Previous verified `main` sha:** `302d565` (row 39 passed, PR #1779). This branch was built on
+  it. Before editing, main had: the foreign library entry with its kept bytes and revision
+  (`model/foreignPackage.ts`), the isolated host and `mountForeignOgraf` with answered calls, steps
+  and `gone` (rows 38 and 39), the stage's `foreign` option used by specs only, E1/E2's typed
+  envelopes on the wire, All together's plan with its same-layer refusal before anything is sent
+  (`togetherPlan`, already on main and pinned again here with a foreign child) and per-child
+  results (`runTogether`). It had no way to get a stranger's package onto an output: Take was
+  refused ("do not play on outputs yet"), Publish refused a production holding one, nothing served
+  library bytes to a frame, no foreign Graphic's answer left the stage, and ⚡ buttons were offered
+  only to a page with `noacgDispatch`, so a mounted package's `customAction` was unreachable (#1775).
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. Migration 0105 adds two service-only functions
+  and nothing reads them once reverted, so it stays (dropping them is optional and safe). A
+  payload published by this build carries `ograf` on a package's graphic: a reverted output ignores
+  the member and composes the empty html, which shows nothing; a reverted page refuses Take on the
+  cue again. A report's `state.ograf` is one more key a reverted page ignores.
+- **What landed.**
+  - *Publish* (`control/hostedControl.ts` `foreignSpec`): a package's graphic goes out as its files
+    under their package paths, empty html/css/js, and `ograf: {revision, manifest}`; its bytes are
+    checked against the record first (`verifyForeignPackage`), and a changed or missing file
+    refuses the publish by name. `productionGate` no longer refuses the publish door.
+  - *Serving* (`api/_lib/outputOgraf.ts`, through `api/output/assets.ts`, no new function): the
+    output POSTs `?ograf` with its capability, the published version and the revision, and is
+    answered `/ograf/<sealed>/`, the production id, the capability and the revision sealed with
+    AES-256-GCM under a key derived from the server secret (HKDF), its IV a keyed hash of what it
+    seals, so every output of one publication gets the same base and a CDN answers the repeats.
+    Every file is `GET /ograf/<sealed>/<path>` (vercel.json rewrite; `scripts/dataDevPlugin.mjs` in
+    dev), looked up by exact path in the payload as it is now, and only while the production is
+    published under that capability and not suspended (migration 0105: `control_output_ograf_show`,
+    `control_output_ograf_file`, service-only), so rotating the capability revokes its bases.
+    CORS `*`, `nosniff`, `Content-Security-Policy: sandbox`, pages served as text, no redirect, an
+    hour's cache, 1200 requests a minute per address.
+  - *The output* (`output/stage.ts`, `output/main.ts`, `backend/productionOgraf.ts`): a payload
+    graphic with `ograf` is never composed; it mounts behind the boundary from its base, and
+    commands that reach it while the base is asked for wait in order (200 at most), and a layer
+    that joins a stage off air (a boot's catch-up) is told so first. From its `load()` answer on,
+    each answer becomes the stage's `ografOutcomes` entry: the instance (`data-instance`), the last
+    call and status, the step, whether it is up; the output reports it in `state.ograf` and counts a
+    package on air before a reload. A base refused reads `unmounted`. A republish that changes a package is said in
+    READY ("changes on this output when the output reloads"), never swapped to an empty document.
+  - *Same-layer replacement* (`control/ografOutcome.ts` `packageLayerPeers` and `withPeersOff`,
+    used by the production page's Take, its timed ends `cueArmEngine.ts` and the hosted page's Take
+    and timed ends): a Take of a package takes off whatever else is up on its layer, and a Take on a
+    package's layer takes the package off, with the Take (in its own command call when they fit,
+    else in calls of their own sent first), each by its own Out with its marker. So the log, every output, the PROGRAM simulation and the page's ON AIR marks all see
+    it. NoaCG graphics among themselves stack on a browser output as before (the clash warning
+    stands): no native production changes.
+  - *The page* (`control/ografOutcome.ts`, `PlayoutMonitors.tsx`, `ProductionPage.tsx`): PROGRAM
+    lists what the outputs said for each package ("Board: on air on the output, step 2", "Poll:
+    the graphic refused the Take (503: not ready)"), read from `live` rows only. The picture is the
+    page's simulation: it never loads a package and draws a plate "<name> · not shown here" on its
+    layer while it is up; PREVIEW says the cue plays on the outputs and is not previewed. An
+    All-together Take counts a package child as sent, never as on air ("1 of 3 on air, 2 sent to
+    the outputs"), and its note carries no ✓ while one is waiting on its output. A package's own
+    Take says "Take: Board sent to the outputs" (`GraphicPage.answersOnOutput`), never a ✓ from the
+    send alone; the ON AIR mark still follows the send, as Out needs it, and PROGRAM's line is the
+    output's word.
+  - *Take* (`takeBlockers.ts`, `foreignTakeRefusal`): a cue over a package this build reads takes;
+    a record it cannot act on (a later version's) is still refused, by name.
+  - *Actions and steps (#1775 items 1 and 3)*: a package's declared actions are ⚡ buttons with
+    their typed argument forms (`receivesTypedActions` reads the template), reaching
+    `customAction` on the mounted instance; » Next steps it (`playAction({delta: 1})`), and both
+    are confirmed by the output's answer.
+- **Decisions.**
+  - *The sealed base, not the capability or the production id*: a frame can navigate itself away
+    with its URL (docs/OGRAF_ECOSYSTEM.md §3 residuals). The output capability would let it read the
+    production's payload, and a production id is the read key of its `seq-` topic, so neither may be
+    in the base. The sealed token grants only that package's files. Its IV is a keyed hash of what
+    it seals (deterministic, SIV-style), so one publication's package has one cacheable base.
+  - *Residuals, stated*: a revoked base (rotated capability, suspension, a republish without the
+    package) stops the database read at once, but a file already fetched may be answered from a
+    cache for up to an hour (`max-age=3600`). The files are served from the app's own origin under
+    `/ograf/` only: exact paths, `CSP: sandbox`, pages as text, so no stranger's file becomes a
+    document of this origin; docs/OGRAF_ECOSYSTEM.md §3 says so.
+  - *Files from the payload as published now, by exact path*: no folder walk, so an encoded `..` or
+    a twin name finds nothing; the static reference check (row 39) stays a first refusal and the
+    frame's network policy stays the boundary (row 39 checker, note 1).
+  - *Take keeps one instance*: a Take on a package already mounted is `playAction({goto: 0})` on the
+    same instance, as row 38 built it; a new instance comes only with a reload (E3.2b) or a remove.
+    Same-layer replacement is between graphics, so the replaced package's instance stays (pinned).
+  - *The replacement policy lives in the Take verb, not the stage* (`/check` review): a stage that
+    took a graphic off by itself left the output's own `liveGraphics`, the log's head and the page's
+    marker saying it was still up, so a reboot snapped it back beside its replacement. As commands,
+    every follower sees it. Scoped to packages so that no native production's stacking changes.
+    The rule is the controllers' (the production page, its timed ends, the hosted page); the output
+    stage stacks what it is sent, so another sender of a bare `play` (an agent, the CLI, an exported
+    panel) stacks a package over a graphic on its layer. Layers are read from the local production,
+    so a layer edited after Publish counts at the next Publish.
+  - *One line per package, from the newest report*: the server banks one report per graphic,
+    whichever output wrote it, so with two outputs the line is the latest one's word. It never says
+    on air from a send.
+  - *Only the outputs confirm*: an accepted send is "sent"; nothing on the page says on air for a
+    package except an output's report of an accepted Take. A malformed report is no word at all.
+  - *Vendor metadata (row 39 checker, note 2)*: a package's buttons come from E1's declaration
+    (`typedActionButtons`), which ignores `v_*`; `ografContract` (CLI and Bridge reads) is not on
+    this road. Pinned: a stranger's `v_noacg {section, destructive, adjust, set}` yields plain typed
+    buttons. Unknown legality stays unknown: nothing greys a package's action or Next.
+  - *Asset readiness is not Take acceptance*: the output says `unmounted` for a package it could
+    not load, and READY's failure for a republished one; a Take accepted by the server is sent.
+- **Seams changed and where:** E1's typed wire untouched; E2's `mountForeignOgraf` gains
+  `instance` and `onAnswer`, the stage gains `ografBase`, `ografOutcomes` and `onOgraf`; the Take
+  verb gains `layerPeers`; `withLookFaceIn` skips a package; `prepare.ts` does not test one; `receivesTypedActions` takes the template; E3.1's `FOREIGN_NOT_PLAYABLE` is
+  replaced by `foreignTakeRefusal`; `productionGate` lets the publish door through; L2's
+  appearance is untouched (a package still takes data only). `MemberTake.unconfirmed` and
+  `togetherNote`'s sent count (serverPlayout.ts).
+- **Not in this row:** Back, Goto and skip-animation controls and their `step` command row (#1775
+  item 2, a command migration), restart and reload recovery of a package (E3.2b; a reboot replays
+  only rows after the native graphics' baseline, and boot recovery's per-graphic loops read the
+  composed graphics only), the foreign-frame adjust (L2 AC-10), Companion.
+- **Traps.**
+  - `addGraphicToShow` seeds a cue per graphic labelled by its name; a spec labels cues before
+    folding them.
+  - The stage's `ografReturns` used to be a snapshot built when the stage returned; with a mount
+    that waits for its base it must be a live map.
+  - `ograf-foreign`'s linearity test can read 4x on this machine while a browser job runs beside
+    it; alone it passes. Actions decides it.
+- **Touched files against `302d565`:** `api/_lib/outputOgraf.ts` (new), `api/_lib/outputOgraf.test.ts`
+  (new), `api/output/assets.ts`, `supabase/migrations/0105_output_ograf_files.sql` (new),
+  `vercel.json`, `scripts/dataDevPlugin.mjs`, `scripts/run-ai-gateway-tests.mjs`,
+  `src/backend/productionOgraf.ts` (new), `src/control/ografOutcome.ts` (new),
+  `src/control/hostedControl.ts`, `src/control/ografContract.ts`, `src/control/serverPlayout.ts`,
+  `src/control/graphicVerbs.ts`, `src/control/productionLook.ts`, `src/output/prepare.ts`,
+  `src/control/cueArmEngine.ts`, `src/control/cueItems.ts`, `src/components/HostedControlPage.tsx`,
+  `e2e/fixtures/foreign-ograf/steps/` (`playMs`), `scripts/cue-arm-engine.test.mjs`,
+  `src/control/takeBlockers.ts`, `src/model/foreignPackage.ts`, `src/output/foreignOgraf.ts`,
+  `src/output/main.ts`, `src/output/stage.ts`, `src/validation/productionGate.ts`,
+  `src/components/home/PlayoutMonitors.tsx`, `src/components/home/ProductionPage.tsx`,
+  `src/styles/playout-dashboard.css`, `e2e/configured/ograf-rundown.spec.ts` (new),
+  `e2e/configured/expected-run.json`, `e2e/fixtures/foreign-ograf/rundown/` (new),
+  `e2e/foreign-ograf-sandbox.spec.ts`, `e2e/ograf-library.spec.ts`, `scripts/ograf-outcome.test.mjs`
+  (new), `scripts/ograf-foreign.test.mjs`, `scripts/ograf-form.test.mjs`,
+  `scripts/ograf-typed-recovery.test.mjs`, `scripts/take-blockers.test.mjs`,
+  `scripts/folder-playout.test.mjs`, `scripts/graphic-verbs.test.mjs`,
+  `scripts/production-look.test.mjs`, `docs/OGRAF_ECOSYSTEM.md`, this file.
+
 ## Row 39 (E3.1, project phase 44): foreign OGraf library identity, persistence, assets and isolation
 
 - **Previous verified `main` sha:** `8057a51` (row 38a passed, PR #1776). This branch was built on

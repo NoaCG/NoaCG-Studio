@@ -242,20 +242,21 @@ export function typedActionButtons(ograf: unknown): ControlButton[] {
 }
 
 /**
- * WHETHER A GRAPHIC'S PAGE CAN RECEIVE A DECLARED ACTION: until E3 mounts a stranger's package and
- * calls its `customAction`, an imported graphic airs as a composed page, which takes an action only
- * through `noacgDispatch` (preview/composeDocument.ts). A page that defines none is offered no ⚡
- * button and no argument form: a press there would read "accepted" and do nothing.
+ * WHETHER A GRAPHIC CAN RECEIVE A DECLARED ACTION: a stranger's package (`foreign`, E3.2a) is mounted
+ * on the outputs and called with `customAction`; any other imported graphic airs as a composed page,
+ * which takes an action only through `noacgDispatch` (preview/composeDocument.ts). A page that
+ * defines none is offered no ⚡ button and no argument form: a press there would read "accepted"
+ * and do nothing.
  */
-export function receivesTypedActions(js: string): boolean {
-  return /\bnoacgDispatch\b/.test(js);
+export function receivesTypedActions(template: { js: string; foreign?: unknown }): boolean {
+  return template.foreign !== undefined || /\bnoacgDispatch\b/.test(template.js);
 }
 
 /** A graphic's ⚡ buttons: its machine's, then its declared OGraf actions (`typedActionButtons`) when
  *  its page can receive them. The one place both are put together; an action named like a machine
  *  event is left out, so a press never means two things. */
-export function graphicButtons(machine: ControlButton[], template: { js: string; ograf?: unknown }): ControlButton[] {
-  if (!receivesTypedActions(template.js)) return machine;
+export function graphicButtons(machine: ControlButton[], template: { js: string; ograf?: unknown; foreign?: unknown }): ControlButton[] {
+  if (!receivesTypedActions(template)) return machine;
   const native = new Set(machine.map((b) => b.event));
   return [...machine, ...typedActionButtons(template.ograf).filter((b) => !native.has(b.event))];
 }

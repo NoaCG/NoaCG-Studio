@@ -334,6 +334,51 @@ test('Take and Out tell the layer they move the marker; Out is a press on the la
   assert.deepEqual(r.notes.at(-1), 'Out failed: the server did not answer');
 });
 
+test('a Take on an imported OGraf package\'s layer takes off what else is up there in the same batch, its marker with it (E3.2a)', async () => {
+  const r = rig({ liveCue: { Bug: 'b1', Strap: 's1' } });
+  r.page.graphics = [{ name: 'Strap' }, { name: 'Bug' }, { name: 'Board' }];
+  r.page.layerPeers = (graphic) => (graphic === 'Board' ? ['Bug', 'Card'] : graphic === 'Bug' ? ['Board'] : []);
+  const taking = r.verbs.take(graphicCue('k1', 'Board'));
+  await settle();
+  // Bug is up and shares Board's layer; Card shares it but is not up; Strap is another layer.
+  assert.deepEqual(r.log.filter((e) => e[0] === 'send').at(-1), ['send', 'Bug:stop+Bug:cue+Board:update+Board:play+Board:cue']);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  assert.equal(r.liveCue().Bug, undefined, 'its marker went with it');
+  assert.equal(r.liveCue().Board, 'k1');
+  assert.equal(r.liveCue().Strap, 's1', 'another layer is untouched');
+  // Peers past one command call go first in batches of their own; none is left on air.
+  r.page.layerPeers = () => ['A', 'B', 'C'];
+  r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { ...parts.air.liveCue, A: 'a', B: 'b', C: 'c' } } }));
+  const many = r.verbs.take(graphicCue('k2', 'Board'));
+  await settle();
+  assert.deepEqual(r.log.filter((e) => e[0] === 'send').at(-1), ['send', 'A:stop+A:cue+B:stop+B:cue+C:stop+C:cue | Board:update+Board:play+Board:cue']);
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  await many;
+  for (const g of ['A', 'B', 'C']) assert.equal(r.liveCue()[g], undefined, `${g} went off`);
+  // With no rule given, a Take replaces nothing, as before.
+  delete r.page.layerPeers;
+  const again = r.verbs.take(graphicCue('s2', 'Strap'));
+  await settle();
+  assert.deepEqual(r.log.filter((e) => e[0] === 'send').at(-1), ['send', 'Strap:update+Strap:play+Strap:cue']);
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  await again;
+});
+
+test('a Take of an imported OGraf package says it was sent, never a ✓ from the send alone (E3.2a)', async () => {
+  const r = rig();
+  r.page.graphics = [{ name: 'Strap' }, { name: 'Board' }];
+  r.page.answersOnOutput = (graphic) => graphic === 'Board';
+  const taking = r.verbs.takeGraphic(graphicCue('k1', 'Board'), 'Take');
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.deepEqual(await taking, { ok: true, unconfirmed: true, note: 'Take: K1 sent to the outputs' });
+  const native = r.verbs.takeGraphic(graphicCue('s1', 'Strap'), 'Take');
+  await settle();
+  r.sends.at(-1).answer.resolve({ ...noneLeft });
+  assert.deepEqual(await native, { ok: true, note: '✓ Take: S1' });
+});
+
 test('a live candidate\'s correction says why it failed once, and answers how', async () => {
   const r = rig();
   const correcting = r.verbs.runSent([[{ graphic: 'Strap', msg: { t: 'update', data: { f1: '2' } } }]], 'Live candidate');

@@ -74,6 +74,8 @@ import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografT
 import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
+import { publishedOgrafBase } from '../backend/productionOgraf';
+import { ografCheck } from '../control/ografOutcome';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -218,7 +220,15 @@ async function boot(): Promise<void> {
   const soundBudget = createSoundBudget();
   let programAudioVersion = resolved.output.ver?.h ?? '';
   const audio = (payload: typeof resolved.output) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
-  const stage = createOutputStage(document.body, resolved.output, { sound: 'program', soundBudget, loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset) });
+  const stage = createOutputStage(document.body, resolved.output, {
+    sound: 'program',
+    soundBudget,
+    loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset),
+    // An imported OGraf package is served by the server under a sealed base (E3.2a), asked for with
+    // this output's capability and the version that holds it.
+    // A package added by a later publication is asked for with that publication's version (`add`).
+    ografBase: (spec, version) => (spec.ograf ? publishedOgrafBase(outputSlug, version ?? programAudioVersion)(spec.ograf.revision) : Promise.resolve(null)),
+  });
   dbg('graphics', stage.graphics.join(', '));
 
   // ── READY (control/readiness.ts; docs/work-specs/playout-ready/spec.md R1, R6, R7): this output
@@ -278,7 +288,10 @@ async function boot(): Promise<void> {
     }
     return merged;
   };
-  const readiness = () => outputReadiness({ graphics: stage.graphics, checks: withRefusals(), held: stage.held, version: heldVersion, catchingUp, chg });
+  /** The imported OGraf packages this output holds (E3.2a): READY counts them beside the composed
+   *  graphics, each prepared once its `load()` answered, or failed in its own words. */
+  const packages = new Set(payload.graphics.filter((g) => g.ograf).map((g) => g.key));
+  const readiness = () => outputReadiness({ graphics: [...stage.graphics, ...packages], checks: withRefusals(), held: stage.held, version: heldVersion, catchingUp, chg });
   // `presence` is joined below; nothing here runs before it exists.
   const readyChanged = () => {
     // Worded only where it is shown: a playout box's main thread is the one that must not miss frames.
@@ -434,6 +447,8 @@ async function boot(): Promise<void> {
   const airCount = () => {
     let n = 0;
     for (const graphic of stage.graphics) if (onAirHere(graphic)) n += 1;
+    // An imported OGraf package on air holds a reload as any graphic does (E3.2a).
+    for (const graphic of stage.ografOutcomes.keys()) if (onAirHere(graphic)) n += 1;
     return n;
   };
   /** Each graphic's first cue values in `cues`, or null. */
@@ -442,6 +457,9 @@ async function boot(): Promise<void> {
   // itself: after its graphics take newer bodies, its bodies and assets are dead weight.
   const bootDigests: Record<string, string> = {};
   for (const key of stage.graphics) bootDigests[key] = payload.ver?.g[key] ?? '';
+  // An imported OGraf package is held too, though it has no composed frame (E3.2a): a publish that
+  // changes it is then a change READY reports ("when the output reloads"), not a new graphic.
+  for (const spec of payload.graphics) if (spec.ograf) bootDigests[spec.key] = payload.ver?.g[spec.key] ?? '';
   // ── PER-GRAPHIC REPLACEMENT (./swap.ts; docs/work-specs/per-graphic-replacement/spec.md): a
   // publish's changes are built beside the running graphics and each takes over its graphic as
   // soon as that graphic is off air here, without a reload and without touching any other. ──
@@ -463,11 +481,14 @@ async function boot(): Promise<void> {
       // Warmed, once its document loads, with its own first cue (the onLoaded pass above).
       const cue = firstCueOf(next.cues, spec.key);
       if (cue) firstCue.set(spec.key, cue);
+      // A package counts as preparing from here, not from its first word.
+      if (spec.ograf) packages.add(spec.key);
       learnClocks(spec);
       giveUpOnLoad([spec.key]);
       readyChanged();
     },
     onRemoved: (graphic) => {
+      packages.delete(graphic);
       for (const map of [checks, mergedData, typedData, typedEnvelope, stepsSince, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
       for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
       clearTimeout(reportTimers.get(graphic));
@@ -626,7 +647,12 @@ async function boot(): Promise<void> {
           const machine = stage.states.get(graphic) ?? null;
           const look = stage.appearances.get(graphic);
           const withLook = look ? { ...(machine ?? {}), appearance: look } : machine;
-          const state = airingTyped ? { ...(withLook ?? {}), typed: typedEnvelope.get(graphic), steps: stepsSince.get(graphic) ?? 0, on: liveGraphics.has(graphic) } : withLook;
+          const typedState = airingTyped ? { ...(withLook ?? {}), typed: typedEnvelope.get(graphic), steps: stepsSince.get(graphic) ?? 0, on: liveGraphics.has(graphic) } : withLook;
+          // AN IMPORTED OGRAF PACKAGE reports what its Graphic answered (E3.2a, control/ografOutcome.ts):
+          // the instance, its last call and where it is. This is the output's word, the only one the
+          // production page shows as confirmed.
+          const ograf = stage.ografOutcomes.get(graphic);
+          const state = ograf ? { ...(typedState ?? {}), ograf } : typedState;
           // Byte-identical truth needs no second write (the 1 s state poll answers every second),
           // unless the write is due for its baseline.
           const key = JSON.stringify([data, state]);
@@ -662,6 +688,23 @@ async function boot(): Promise<void> {
     sinceBank.set(graphic, 0);
   };
   stage.onState((graphic) => scheduleReport(graphic));
+  stage.onOgraf((graphic) => {
+    scheduleReport(graphic);
+    const outcome = stage.ografOutcomes.get(graphic);
+    if (!outcome) {
+      // Removed: it leaves READY with its instance.
+      if (packages.delete(graphic)) checks.delete(graphic);
+      readyChanged();
+      return;
+    }
+    packages.add(graphic);
+    // The first word decides its check (its load), and a later call never changes it.
+    const check = checks.has(graphic) ? null : ografCheck(outcome);
+    if (check) {
+      checks.set(graphic, check);
+      readyChanged();
+    }
+  });
 
   // ── Which graphics are LIVE (played/snapped and not yet stopped): only those can change
   // state on a timer, so only those need the 1 s machine-state poll — an idle stacked

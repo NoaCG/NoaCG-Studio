@@ -2,7 +2,8 @@
 // is its data's `count`, which an update changes while it airs. The step named by `loop` starts an
 // animation loop that never ends and never answers its playAction, as a held step that keeps
 // moving. A step to the one named by `refuse` is refused. `refuseStop` refuses Out.
-// `loadMs` slows load(); `slow` answers after its `ms`. `hold` answers only once `release`
+// `loadMs` slows load(); `playMs` holds every playAction's answer (its step is taken at once);
+// `slow` answers after its `ms`. `hold` answers only once `release`
 // comes; `reject` refuses. Everything it did is written
 // onto its root's data attributes for e2e/foreign-ograf-sandbox.spec.ts to read.
 export default class StepWalk extends HTMLElement {
@@ -59,6 +60,7 @@ export default class StepWalk extends HTMLElement {
     }
     this._step = target;
     this._show();
+    if (this._data.playMs > 0) return new Promise((r) => setTimeout(() => r({ statusCode: 200, currentStep: target }), this._data.playMs));
     if (target !== this._data.loop) return Promise.resolve({ statusCode: 200, currentStep: target });
     // The held step's loop: it runs for as long as the step is held, and its answer never comes.
     const tick = () => {

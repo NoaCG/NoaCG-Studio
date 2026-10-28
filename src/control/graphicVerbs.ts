@@ -56,6 +56,7 @@ import { ALL_OUT_CONFIRM_MS, allOutTargets } from './allOut.ts';
 import { moveLiveCue } from './airState.ts';
 import { mintOid, oidOf } from './commandRoads.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
+import { withPeersOff } from './ografOutcome.ts';
 import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
@@ -73,6 +74,8 @@ export type Sent = ({ ok: true } & VerbSent) | ({ ok: false; note: string } & Se
 interface GraphicTake {
   ok: boolean;
   note: string;
+  /** Sent, and only its output can say whether it is on air (an imported OGraf package). */
+  unconfirmed?: true;
 }
 
 /** The selection a verb acts on, as the render that handled the press drew it (./verbView.ts). */
@@ -124,6 +127,13 @@ export interface GraphicPage {
   graphics: readonly { name: string }[];
   /** The live map this render drew (the page's render copy of the `air` part). */
   liveCue: LiveCueMap;
+  /** THE SAME-LAYER RULE FOR AN IMPORTED OGRAF PACKAGE (E3.2a): the other graphics a Take of this
+   *  one replaces on its layer, whichever of them is up then. Absent or empty: a Take replaces
+   *  nothing (NoaCG graphics sharing a layer stack as they always have, under the clash warning). */
+  layerPeers?: (graphic: string) => readonly string[];
+  /** True for an imported OGraf package: only its output says whether a Take put it on air, so the
+   *  note says it was sent, never a ✓ from the send alone. */
+  answersOnOutput?: (graphic: string) => boolean;
   /** The graphic layers that are up, and the server cues this page put up. */
   liveLayers: readonly { graphic: string }[];
   livePlayoutLayers: readonly { cue: ShowCue }[];
@@ -732,16 +742,21 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // envelope's, bound values included, and its native `data` is empty.
     const { data: values, typed: envelope } = sendData(p, cue, graphic, selection, typed);
     // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
-    const captured = p.selectionAired(graphic, cue.id, selection, true);
-    const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
+    // What else is up on its layer goes off with it, by its own Out, as on a playout server: the
+    // log, every output and this page's marker all see it. In the Take's own batch when they fit in
+    // one command call, else in batches of their own sent first.
+    const peers = (p.layerPeers?.(graphic) ?? []).filter((g) => g !== graphic && session.air.get().liveCue[g]);
+    const captured = [{ g: graphic, c: p.selectionAired(graphic, cue.id, selection, true) }, ...peers.map((g) => ({ g, c: p.selectionAired(g, '', { status: 'none' }, true) }))];
+    const take = takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) });
+    const sent = await sendWith(s, withPeersOff(peers, take), label);
     if (!sent.ok) {
-      captured.undo(sent);
+      for (const { c } of captured) c.undo(sent);
       return { ok: false, note: sent.note };
     }
-    // The capture lands only with the values on the output; a later press that overtook it stands.
-    if (reachedOutput(sent, graphic)) captured.landed();
-    else captured.undo();
+    // A capture lands only with its press on the output; a later press that overtook it stands.
+    for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
     p.clearMisses([cue.id]);
+    if (p.answersOnOutput?.(graphic)) return { ok: true, unconfirmed: true, note: `${label}: ${cue.label} sent to the outputs` };
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };
 

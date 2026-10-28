@@ -328,8 +328,15 @@ test('declared actions are ordinary arranged buttons; a panel sees them only as 
   assert.deepEqual(contract.graphicButtons(machine, { js: receiving, ograf: undefined }), machine);
   // A page that cannot receive an action is offered none: a press would read "accepted" and do nothing.
   assert.deepEqual(contract.graphicButtons(machine, { js: 'window.update = function () {};', ograf: { v: 1, manifest: stranger } }), machine);
-  assert.equal(contract.receivesTypedActions('window.noacgDispatch=f'), true);
-  assert.equal(contract.receivesTypedActions('window.noacgDispatched = 1'), false);
+  assert.equal(contract.receivesTypedActions({ js: 'window.noacgDispatch=f' }), true);
+  assert.equal(contract.receivesTypedActions({ js: 'window.noacgDispatched = 1' }), false);
+  // E3.2a: a stranger's package mounted on the outputs takes its declared actions by customAction,
+  // with no page code of ours, and its vendor metadata gives no button a native meaning (no section,
+  // no destructive mark, no ± or set figures): unknown vendor keys stay the stranger's.
+  const vendor = { ...stranger, customActions: stranger.customActions.map((a) => ({ ...a, v_noacg: { section: 'Danger', destructive: true, adjust: { homeScore: 1 }, set: { homeScore: '0' } } })) };
+  const pkg = { js: '', ograf: { v: 1, manifest: vendor }, foreign: { v: 1 } };
+  assert.equal(contract.receivesTypedActions(pkg), true);
+  assert.deepEqual(contract.graphicButtons([], pkg), buttons, 'typed, named as declared, nothing more');
   const control = (button) => ({ button, label: button.label, named: false });
   const caps = graphicCapabilities({
     graphic: 'Results',

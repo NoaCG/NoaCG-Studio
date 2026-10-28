@@ -111,7 +111,8 @@ import {
 } from '../playoutKeys';
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
-import { isForeignGraphic } from '../../model/foreignPackage';
+import { foreignTakeRefusal, isForeignGraphic } from '../../model/foreignPackage';
+import { confirmedLines, packageLayerPeers, readOgrafOutcome, type OgrafOutcome } from '../../control/ografOutcome';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
@@ -832,6 +833,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  not about the cue sitting on preview. Only the monitor can answer it - the fit ladder is a
    *  measurement of the rendered graphic, and no source check can stand in for it. */
   const [programOverflow, setProgramOverflow] = useState<Record<string, string[]>>({});
+  /** What the OUTPUTS say each imported OGraf package did (control/ografOutcome.ts), from their
+   *  reports alone: the PROGRAM monitor never loads a package, so nothing here is simulated. */
+  const [outputOgraf, setOutputOgraf] = useState<Record<string, OgrafOutcome>>({});
+  const noteOutputOgraf = useCallback((graphic: string, state: unknown) => {
+    const o = readOgrafOutcome(state);
+    if (!o) return;
+    setOutputOgraf((m) => (JSON.stringify(m[graphic] ?? null) === JSON.stringify(o) ? m : { ...m, [graphic]: o }));
+  }, []);
   const noteMachineState = useCallback(
     (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
       setMachineStates((m) => {
@@ -855,6 +864,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useEffect(() => {
     setSendOwed(false);
     setLoggedAt(null);
+    setOutputOgraf({});
   }, [hostedSlug]);
   /** The graphics whose PUBLISHED payload still reads a Sheet in its own code, as this page last saw
    *  it (its resolve, its own successful Publish): what the output runs, not what the copy says, so
@@ -1668,7 +1678,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       : null;
     // Argument forms only where a press can be received (`receivesTypedActions`), as its ⚡ button.
     const pooled = graphicsRef.current?.find((g) => g.name === graphic);
-    const receives = !!pooled && receivesTypedActions(templateForSavedGraphic(pooled, libraryRef.current).js);
+    const receives = !!pooled && receivesTypedActions(templateForSavedGraphic(pooled, libraryRef.current));
     const actions = declared.description.actions.flatMap((a) => {
       if (!a.args || !receives) return [];
       const value = actionArgsOf(a, cue.typedArgs);
@@ -1955,6 +1965,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       for (const [graphic, report] of Object.entries(resolved.live)) {
         if (report && typeof report === 'object' && 'state' in report) {
           noteMachineState(graphic, (report as { state?: { groups?: Record<string, string> } | null }).state ?? null);
+          noteOutputOgraf(graphic, (report as { state?: unknown }).state);
         }
       }
     },
@@ -1973,7 +1984,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     hear: hearCommand,
     // A 'live' row is the renderer REPORTING what it applied — machine state included, which is
     // what keeps the action buttons' greying honest about air.
-    machineState: (graphic, state) => noteMachineState(graphic, state),
+    machineState: (graphic, state) => {
+      noteMachineState(graphic, state);
+      noteOutputOgraf(graphic, state);
+    },
     // THE TREE MOVED SERVER-SIDE: re-read it, rather than subscribing to `control_shows` a second
     // time. Any `src`, not `api` alone: this page's own `withBoundValues` airs the tree on the next
     // Take, so missing a hosted press would put its figure back the moment somebody took a cue.
@@ -2620,7 +2634,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A graphic cue's pool graphic, for an All-together folder's refusals. */
   const graphicOfCue = (c: ShowCue) => {
     const g = graphicByPoolId.get(c.sourceId);
-    return g ? { name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) } : null;
+    return g ? { name: g.name, layer: graphicLayer(g), foreignRefusal: foreignTakeRefusal(g.template, g.name) } : null;
   };
   const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
   /** This render's facts for the Take refusals (control/takeBlockers.ts). */
@@ -2849,6 +2863,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // §2.0, phase 1) reads this page through `armPage`: what it sends with, the rundown, the cue as the
   // operator sees it, and the lines it writes. ──────────────────────────────────────────────────
   const logAuto = (graphic: string, text: string) => logHere([(id) => autoEntry(id, graphic, text)]);
+  /** The graphics a Take of this one replaces on its layer (control/ografOutcome.ts). */
+  const layerPeersOf = (graphic: string) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic);
   armPage.current = {
     published: !!hostedSlug,
     timedOff: !!hostedSlug && armsServer === 'missing',
@@ -2858,6 +2874,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     withBoundValues,
     appearanceOf: (cue) => adjustStateOf(cue)?.send,
     graphicOf: cueGraphicName,
+    layerPeers: (graphic) => layerPeersOf(graphic),
     liveCueOf: () => liveCueRef.current,
     setLiveCue,
     took: (cue) => {
@@ -2958,6 +2975,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   verbPage.current = {
     graphics: show.graphics,
     liveCue,
+    layerPeers: layerPeersOf,
+    answersOnOutput: (graphic) => isForeignGraphic(show.graphics.find((g) => g.name === graphic)?.template),
     liveLayers,
     livePlayoutLayers,
     graphicOf: cueGraphicName,
@@ -3843,6 +3862,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               : undefined
           }
           liveLayers={liveLayers}
+          confirmed={hostedSlug ? confirmedLines(show.graphics.filter((g) => isForeignGraphic(g.template)).map((g) => g.name), outputOgraf) : []}
           serverLayers={livePlayoutLayers}
           previewServer={previewCue ? playoutItemFor(previewCue) : null}
           previewSeconds={(() => {

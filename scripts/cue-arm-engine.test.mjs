@@ -316,6 +316,18 @@ test('the next cue\'s Take carries its place and size, as every Take does (playo
   r.engine.stop();
 });
 
+test('a timed end that takes the next cue onto an imported OGraf package\'s layer takes what is up there off with it (E3.2a)', async () => {
+  const r = rig({ cues: [timed('a', 2, 'out-next'), manual('b')] });
+  // B shares its layer with a package P that is up, and with A, which this end takes off anyway.
+  r.page.layerPeers = (graphic) => (graphic === 'B' ? ['A', 'P'] : []);
+  r.engine.onMarker(take('a'));
+  r.setLive({ A: 'a', P: 'p' });
+  r.engine.onProgramState('A');
+  await r.advance(2000);
+  assert.deepEqual(r.sent[0].batches.map((b) => b.map((i) => `${i.graphic}:${i.msg.t}`).join('+')), ['A:stop+A:cue', 'P:stop+P:cue+B:update+B:play+B:cue']);
+  r.engine.stop();
+});
+
 test('an Out whose layer no longer holds the cue sends nothing and says so', async () => {
   const r = rig();
   r.engine.onMarker(take('a'));

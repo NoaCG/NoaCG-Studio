@@ -34,8 +34,8 @@ export interface ForeignOgrafSpec {
   packageBase: string;
   /** The package's `.ograf.json`, already read. Only `id` and `main` are consulted here. */
   manifest: unknown;
-  /** The data `load()` starts from. */
-  data?: Record<string, string>;
+  /** The data `load()` starts from (typed values stay typed). */
+  data?: Record<string, unknown>;
 }
 
 /** What a Graphic answered, as far as the page will believe it. */
@@ -61,6 +61,12 @@ export type OgrafAnswer =
   | { status: 'refused'; reason: string };
 
 export interface ForeignOgrafLayer {
+  /** This mount's own id, unique per instance: written on its frame as `data-instance`, so a
+   *  replacement is a different instance and nothing it says is mistaken for the one it replaced. */
+  instance: string;
+  /** Called with every settled answer, after `position()` has taken it in. `newest`: no later Take,
+   *  step or Out was sent before it settled, so a play or stop answer still says where it is. */
+  onAnswer(cb: (call: OgrafCall, answer: OgrafAnswer, newest: boolean) => void): void;
   /** Route one ControlMessage. Anything with no OGraf meaning (`snap`, `hello`) is dropped. */
   send(msg: ControlMessage): void;
   /** The same, answered: what the Graphic said to this call, or null for a message with no OGraf
@@ -140,6 +146,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   frame.setAttribute('title', spec.key);
   frame.dataset.layer = String(spec.layer);
   frame.dataset.ograf = 'foreign';
+  frame.dataset.instance = suffix;
   frame.style.cssText = [
     'position:absolute',
     'left:0',
@@ -166,6 +173,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   let walk = 0;
   /** `load()`'s answer, however it came: every later call's deadline starts from it. */
   let loadAnswered: Promise<unknown> = Promise.resolve();
+  const answerCbs: ((call: OgrafCall, answer: OgrafAnswer, newest: boolean) => void)[] = [];
   // Posted at once: a port holds what it is sent until the far end starts listening, so nothing
   // waits on the frame's load here, and `load()` is the first call the Graphic sees.
   const post = (call: OgrafCall, args: unknown[]): Promise<OgrafAnswer> => {
@@ -200,6 +208,8 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
     // A Graphic that never answers cannot grow the book forever: the oldest call is given up.
     if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered' });
     channel.port1.postMessage({ id: callId, call, args });
+    const sentAt = walk;
+    if (call !== 'offair') void answered.then((answer) => { for (const cb of answerCbs) cb(call, answer, sentAt === walk); });
     return answered;
   };
   loadAnswered = post('mount', [spec.data ?? {}, { resolution: { width: resolution.width, height: resolution.height } }]);
@@ -249,6 +259,8 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   parent.appendChild(frame);
 
   return {
+    instance: suffix,
+    onAnswer: (cb) => void answerCbs.push(cb),
     send: (msg) => void call(msg),
     call,
     step: (op) => {

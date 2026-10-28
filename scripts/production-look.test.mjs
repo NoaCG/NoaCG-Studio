@@ -183,6 +183,10 @@ describe('the faces a look names reach the document', () => {
     const carried = L.withLookFaceIn(specs, asset);
     assert.deepEqual(carried.map((g) => g.assets.map((x) => x.path)), [[LOOK_PATH], []]);
     assert.deepEqual(L.withLookFaceIn(carried, asset), carried, 'never twice');
+    // E3.2a: never into an imported OGraf package, which is not composed; the first NoaCG graphic.
+    const behind = L.withLookFaceIn([{ key: 'Pkg', assets: [], ograf: { revision: 'r' } }, ...specs], asset);
+    assert.deepEqual(behind[0].assets, []);
+    assert.ok(behind[1].assets.some((a) => a.path === asset.path));
   });
 
   test('two brands\' fonts at one file name travel at two paths, so a stage never keeps the first one\'s bytes', () => {

@@ -59,7 +59,7 @@ export function clearCueItems(liveGraphic: string): ControlSendItem[] {
  * THE MOST ITEMS ONE `control_send_many` CALL TAKES (migration 0029: a count outside 1..8 raises
  * `not a command batch` and the WHOLE insert is refused). It is a verb, not an ingest API.
  */
-const COMMAND_BATCH_MAX = 8;
+export const COMMAND_BATCH_MAX = 8;
 
 /** An all-layers clear pays two items per layer, so it goes out in batches of four layers. */
 const LAYERS_PER_CLEAR_BATCH = COMMAND_BATCH_MAX / 2;

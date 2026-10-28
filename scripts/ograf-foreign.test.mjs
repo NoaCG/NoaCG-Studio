@@ -410,14 +410,13 @@ test('a foreign entry passes the gate on its record, is refused in a pack, and l
   assert.ok(JSON.stringify(findings).includes('imported OGraf package, made by someone else'), JSON.stringify(findings));
 });
 
-test('the production gate: a foreign package does not publish, exports by OGraf alone, and says why', async () => {
+test('the production gate: a foreign package publishes (E3.2a), exports by OGraf alone, and says why', async () => {
   const gate = await load(path.join(root, 'src/validation/productionGate.ts'));
   const { template } = await importForeignOgraf('s.zip', await zipOf(fixture('ebu-scoreboard')));
   const graphics = [{ id: 'g', name: 'Scoreboard', type: 'blank', savedAt: '', template }];
   assert.deepEqual(gate.productionGateFailures(graphics, []), [], 'no door named: the record gate alone');
   assert.deepEqual(gate.productionGateFailures(graphics, [], 'ograf'), []);
-  const publish = gate.productionGateFailures(graphics, [], 'publish');
-  assert.equal(gate.describeProductionGate(publish), '"Scoreboard": Imported OGraf packages do not play on outputs yet. Remove it from the production to publish.');
+  assert.deepEqual(gate.productionGateFailures(graphics, [], 'publish'), [], 'its bytes are checked again as the payload is built');
   for (const target of ['spx', 'casparcg', 'html-overlay']) {
     assert.equal(gate.describeProductionGate(gate.productionGateFailures(graphics, [], target)), '"Scoreboard": Scoreboard is an imported OGraf package, so it exports only as OGraf.');
   }
@@ -504,4 +503,17 @@ test('a production pack carries a foreign package and reads it back the same', a
   // A record this build cannot read is refused by name, never read as a native graphic.
   const later = { ...entry, foreign: { ...entry.foreign, v: 2 } };
   assert.match(packs.parsePack(JSON.stringify({ format: 'noacg-pack', version: 1, name: 'Backup', graphics: [later] })).error, /“Scoreboard” was imported by a later version of NoaCG/);
+});
+
+test('E3.2a: the configured rundown spec\'s own package imports as a foreign entry the outputs can serve', async () => {
+  const dir = path.join(root, 'e2e/fixtures/foreign-ograf/rundown');
+  const files = new Map(readdirSync(dir).map((n) => [n, readFileSync(path.join(dir, n))]));
+  const read = await importForeignOgraf('rundown.zip', await zipOf(files, 'rundown/'));
+  assert.ok(read && read.ok, read && !read.ok ? read.reason : 'not read as foreign');
+  const check = await model.verifyForeignPackage(read.template);
+  assert.ok(check.ok);
+  assert.deepEqual([...check.files.keys()].sort(), ['graphic.mjs', 'rundown.ograf.json']);
+  assert.equal(read.template.ograf.manifest.stepCount, 3);
+  assert.equal(model.foreignTakeRefusal(read.template, 'Board'), null, 'a package this build reads takes');
+  assert.match(model.foreignTakeRefusal({ ...read.template, foreign: { ...read.template.foreign, v: 2 } }, 'Board'), /^Board was imported by a later version of NoaCG/);
 });

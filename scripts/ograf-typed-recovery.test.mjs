@@ -108,7 +108,9 @@ test('the output banks typed data in its report, rebuilds it through the gate, a
   const main = source('src/output/main.ts');
   // The report: native data unchanged; a typed graphic's data empty, its envelope and steps in state.
   assert.match(main, /const data = airingTyped \? \{\} : \(mergedData\.get\(graphic\) \?\? \{\}\);/);
-  assert.match(main, /const state = airingTyped \? \{ \.\.\.\(withLook \?\? \{\}\), typed: typedEnvelope\.get\(graphic\), steps: stepsSince\.get\(graphic\) \?\? 0, on: liveGraphics\.has\(graphic\) \} : withLook;/);
+  assert.match(main, /const typedState = airingTyped \? \{ \.\.\.\(withLook \?\? \{\}\), typed: typedEnvelope\.get\(graphic\), steps: stepsSince\.get\(graphic\) \?\? 0, on: liveGraphics\.has\(graphic\) \} : withLook;/);
+  // An imported OGraf package's answers ride beside it (E3.2a), never in place of it.
+  assert.match(main, /const state = ograf \? \{ \.\.\.\(typedState \?\? \{\}\), ograf \} : typedState;/);
   // By row id there is no head: a typed report's own `on` puts a graphic with no pose back on air.
   assert.match(main, /\(headOn\.get\(key\) === true \|\| \(!seqMode && reportedTyped\(reports\[key\]\)\?\.on === true\)\) &&/);
   // Only a held graphic keeps its bank where it is.

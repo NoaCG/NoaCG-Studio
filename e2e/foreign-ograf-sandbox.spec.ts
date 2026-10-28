@@ -32,6 +32,8 @@ import type { OgrafReturn } from '../src/output/foreignOgraf';
 const FIXTURES = fileURLToPath(new URL('fixtures/foreign-ograf/', import.meta.url));
 const CREDENTIAL = `cap-e2e-${Math.random().toString(36).slice(2, 12)}`;
 const EXFIL = 'https://exfil.example.com';
+/** The pinned OGraf standard a typed envelope names (model/ografTyped.ts `OGRAF_STANDARD`). */
+const STANDARD = 'c821671195a077be13bbb96989d4220eea157b99';
 
 const HARNESS = `
 import { createOutputStage } from '/src/output/stage.ts';
@@ -47,9 +49,29 @@ for (const [i, name] of (q.get('foreign') || '').split(',').filter(Boolean).entr
   foreign.push({ key: name, layer: 20 + i, packageBase, manifest, data: name === 'benign' ? { headline: 'Opening night', score: '3' } : {} });
 }
 const timeout = Number(q.get('timeout')) || undefined;
-const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] }, { foreign, ograf: { callTimeoutMs: timeout } });
+// PUBLISHED PACKAGES (E3.2a): payload graphics with \`ograf\`, mounted from the base the stage is
+// answered. 'walk' shares lt0's layer 10, and its base waits until the spec releases it; 'lost' is a
+// package whose base is refused. \`monitor\` gives no base at all, as the production page's monitors.
+const mode = q.get('published');
+let ografBase;
+if (mode) {
+  const base = location.origin + '/__foreign-ograf/packages/steps/';
+  const manifest = await (await fetch(base + 'steps.ograf.json')).json();
+  const pkg = (key, layer) => ({ key, html: '', css: '', js: '', assets: [], resolution: design.resolution, fps: design.fps, layer, ograf: { revision: 'a'.repeat(64), manifest } });
+  graphics.push(pkg('walk', 10), pkg('lost', 30));
+  let release;
+  const released = new Promise((r) => (release = r));
+  window.__release = release;
+  window.__pkg = pkg;
+  window.__asked = [];
+  if (mode !== 'monitor') ografBase = (spec, version) => {
+    window.__asked.push([spec.key, version ?? null]);
+    return spec.key === 'lost' ? Promise.resolve(null) : released.then(() => base);
+  };
+}
+const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] }, { foreign, ograf: { callTimeoutMs: timeout }, ografBase });
 window.__stage = stage;
-await stage.whenLoaded();
+if (!mode) await stage.whenLoaded();
 window.__stageReady = true;
 `;
 
@@ -134,8 +156,8 @@ type StageHandle = {
   ografReturns: Map<string, OgrafReturn[]>;
 };
 
-async function openStage(page: Page, foreign: string): Promise<void> {
-  await page.goto(`/foreign-ograf/output?production=${CREDENTIAL}&foreign=${foreign}`);
+async function openStage(page: Page, foreign: string, published = ''): Promise<void> {
+  await page.goto(`/foreign-ograf/output?production=${CREDENTIAL}&foreign=${foreign}${published ? `&published=${published}` : ''}`);
   await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady === true, undefined, { timeout: 20_000 });
 }
 
@@ -451,5 +473,113 @@ test.describe('a foreign OGraf package on the output stage', () => {
       secondReturns: ['mount', 'play'],
       at: 0,
     });
+  });
+  test('a published package mounts from its served base beside a NoaCG graphic, off air when the stage is, and says what it did', async ({ page }) => {
+    await openStage(page, '', 'output');
+    const outcome = (key: string) => page.evaluate((k) => (window as unknown as { __stage: { ografOutcomes: Map<string, unknown> } }).__stage.ografOutcomes.get(k) ?? null, key);
+    // A package whose base is refused is not mounted, and its stage says so in its own word.
+    await expect.poll(() => outcome('lost')).toEqual({ i: null, status: 'unmounted', msg: 'its package could not be reached', on: false });
+    await expect(page.locator('iframe[title="lost"]')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __stage: StageHandle & { graphics: string[] } }).__stage.graphics), 'a package is never composed').toEqual(['lt0']);
+
+    // A boot's catch-up: the stage goes off air, and what reaches the package while its base is still
+    // being asked for waits, in order. The stage stays dumb about layers: lt0 shares the package's
+    // layer and stays as it is (the Take verb owns the same-layer rule, control/graphicVerbs.ts).
+    const idle = await freshState(page, 'lt0');
+    await apply(page, 'lt0', { t: 'play' });
+    await expect.poll(() => freshState(page, 'lt0')).not.toBe(idle);
+    const upState = await freshState(page, 'lt0');
+    await page.evaluate(() => (window as unknown as { __stage: { setVisible(v: boolean): void } }).__stage.setVisible(false));
+    await apply(page, 'walk', { t: 'update', data: { count: 4 } });
+    await apply(page, 'walk', { t: 'play' });
+    await expect(page.locator('iframe[title="walk"]')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __stage: { ografOutcomes: Map<string, unknown> } }).__stage.ografOutcomes.has('walk')), 'nothing said before the Graphic answers').toBe(false);
+
+    // Released, the package mounts OFF AIR, so the replay settles unseen, and what reached it while
+    // it waited arrives in order.
+    await page.evaluate(() => (window as unknown as { __release: () => void }).__release());
+    const walkFrame = page.locator('iframe[title="walk"]');
+    await expect(walkFrame).toHaveAttribute('data-ograf', 'foreign');
+    await expect(walkFrame).toHaveAttribute('sandbox', 'allow-scripts');
+    const instance = await walkFrame.getAttribute('data-instance');
+    expect(instance).toMatch(/^[0-9a-f]{8}$/);
+    const walk = page.frameLocator('iframe[title="walk"]').locator('.walk');
+    const hostStage = page.frameLocator('iframe[title="walk"]').locator('#stage');
+    await expect(walk).toHaveAttribute('data-count', '4');
+    await expect(walk).toHaveAttribute('data-step', '0');
+    await expect(hostStage).toHaveCSS('opacity', '0');
+    await page.evaluate(() => (window as unknown as { __stage: { setVisible(v: boolean): void } }).__stage.setVisible(true));
+    await expect(hostStage).toHaveCSS('opacity', '1');
+    expect(await freshState(page, 'lt0'), 'the NoaCG graphic on the same layer is the stage\'s to leave alone').toBe(upState);
+    // The outcome is the output's own reading of the Graphic's answers: its instance, its last
+    // call, whether it is up and where.
+    await expect.poll(() => outcome('walk')).toEqual({ i: instance, call: 'play', status: 'done', code: 200, step: 0, on: true });
+
+    // Typed data reaches it as typed values; an Out takes it down.
+    await apply(page, 'walk', { t: 'update', data: {}, typed: { v: 1, kind: 'values', standard: STANDARD, schema: 's', values: { count: 6 } } });
+    await expect(walk).toHaveAttribute('data-count', '6');
+    await expect.poll(async () => ((await outcome('walk')) as { call: string }).call).toBe('update');
+    expect(((await outcome('walk')) as { on: boolean }).on, 'an update leaves it up').toBe(true);
+    await apply(page, 'walk', { t: 'stop' });
+    await expect(walk).toHaveAttribute('data-step', '-1');
+    await expect.poll(async () => ((await outcome('walk')) as { call: string; on: boolean }).call).toBe('stop');
+    expect(((await outcome('walk')) as { on: boolean }).on).toBe(false);
+
+    // A Take whose answer comes after the Out pressed behind it says nothing about being up: the
+    // Out's answer is the newest, so the package reads off air (Codex P2 on 229d34f).
+    const before = (await returnsOf(page, 'walk')).length;
+    await apply(page, 'walk', { t: 'update', data: { playMs: 800 } });
+    await apply(page, 'walk', { t: 'play' });
+    await apply(page, 'walk', { t: 'stop' });
+    await expect.poll(async () => (await returnsOf(page, 'walk')).slice(before).map((r) => r.call), { timeout: 10_000 }).toEqual(['update', 'stop', 'play']);
+    await expect.poll(async () => ((await outcome('walk')) as { call: string }).call).toBe('play');
+    expect(((await outcome('walk')) as { on: boolean }).on, 'the late Take moved nothing').toBe(false);
+    await apply(page, 'walk', { t: 'update', data: { playMs: 0 } });
+
+    // A refusal is reported as one, never as on air.
+    await apply(page, 'walk', { t: 'update', data: { refuse: 0 } });
+    await apply(page, 'walk', { t: 'play' });
+    await expect.poll(() => outcome('walk')).toEqual({ i: instance, call: 'play', status: 'rejected', code: 409, msg: 'not that step now', step: null, on: false });
+    // A declared action reaches the mounted package's customAction.
+    await apply(page, 'walk', { t: 'event', event: 'mark', payload: {}, typed: { v: 1, kind: 'action', standard: STANDARD, schema: 's', action: 'mark', args: { v: 'typed' } } });
+    await expect(walk).toHaveAttribute('data-mark', 'typed');
+    await expect.poll(async () => ((await outcome('walk')) as { call: string }).call).toBe('custom');
+
+    // A package a later publication adds is asked for with THAT publication's version, which this
+    // output has not adopted yet (output/swap.ts hands it over).
+    await page.evaluate(() => {
+      const w = window as unknown as { __stage: { add(spec: unknown, version?: string): void }; __pkg: (key: string, layer: number) => unknown };
+      w.__stage.add(w.__pkg('later', 31), 'v2');
+    });
+    await expect(page.locator('iframe[title="later"]')).toHaveAttribute('data-ograf', 'foreign');
+    expect(await page.evaluate(() => (window as unknown as { __asked: unknown[] }).__asked)).toContainEqual(['later', 'v2']);
+    expect(await page.evaluate(() => (window as unknown as { __asked: unknown[] }).__asked)).toContainEqual(['walk', null]);
+
+    // A NoaCG graphic of the package's name is not swapped in over it: the output says it changes at
+    // its next reload, and the package keeps the layer it holds.
+    const swapped = await page.evaluate(() => {
+      const w = window as unknown as { __stage: { prepare(spec: unknown): { error(): string | null } } };
+      return w.__stage.prepare({ key: 'walk', html: '<div></div>', css: '', js: '', assets: [], resolution: { width: 1920, height: 1080 }, fps: 25, layer: 10 }).error();
+    });
+    expect(swapped).toBe('An imported OGraf package changes on this output when the output reloads.');
+    await expect(walkFrame).toHaveCount(1);
+
+    // Removed, its instance goes with every word about it.
+    await page.evaluate(() => (window as unknown as { __stage: { remove(k: string): void } }).__stage.remove('walk'));
+    await expect(walkFrame).toHaveCount(0);
+    expect(await outcome('walk')).toBeNull();
+  });
+
+  test('a monitor that serves no package draws a plate for it while it is up, never an empty picture', async ({ page }) => {
+    await openStage(page, '', 'monitor');
+    const plate = page.locator('[data-testid="ograf-unavailable"][data-layer="10"]');
+    await expect(plate).toBeHidden();
+    await expect(page.locator('iframe[title="walk"]')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __stage: { ografOutcomes: Map<string, unknown> } }).__stage.ografOutcomes.get('walk'))).toEqual({ i: null, status: 'unmounted', msg: 'not loaded on this monitor', on: false });
+    await apply(page, 'walk', { t: 'play' });
+    await expect(plate).toBeVisible();
+    await expect(plate).toHaveText('walk · not shown here');
+    await apply(page, 'walk', { t: 'stop' });
+    await expect(plate).toBeHidden();
   });
 });

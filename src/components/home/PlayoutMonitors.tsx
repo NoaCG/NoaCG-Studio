@@ -15,6 +15,7 @@ import { useServerThumbnail } from './serverThumbnail';
 import { useCueView } from './CueEditor';
 import { useStorePart } from './useStorePart';
 import { storePart, type StorePart } from '../../control/storePart';
+import { isForeignGraphic } from '../../model/foreignPackage';
 
 /** A part nobody writes, for a monitor with nothing to subscribe to (hooks run unconditionally). */
 const NO_PART = storePart<unknown>(null);
@@ -63,6 +64,7 @@ export default function PlayoutMonitors({
   hasCues,
   emptyHint,
   liveLayers,
+  confirmed = [],
   serverLayers,
   previewServer = null,
   previewSeconds,
@@ -103,6 +105,9 @@ export default function PlayoutMonitors({
   emptyHint?: string;
   /** The graphics up on air, each with the cue that put it there, front to back. */
   liveLayers: { layer: number; label: string }[];
+  /** What the outputs say each imported OGraf package did (control/ografOutcome.ts
+   *  `confirmedLines`): drawn apart from the picture, which is this page's simulation. */
+  confirmed?: readonly { name: string; text: string; tone: 'ok' | 'bad' | 'unknown' }[];
   /** The server cues this page put up - named on PROGRAM's header. */
   serverLayers: Pick<ServerLayer, 'slot' | 'label'>[];
   /** The server item on PREVIEW, when the previewed cue is one: its still and, for a clip, its
@@ -316,7 +321,13 @@ export default function PlayoutMonitors({
           </span>
         </h2>
         <div className="pd-screen">
-          {previewDoc && previewTemplate ? (
+          {previewTemplate && isForeignGraphic(previewTemplate) ? (
+            // A stranger's package runs only behind the outputs' isolation boundary; this page
+            // composes no document of it, so PREVIEW says so rather than showing a blank frame.
+            <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }} data-testid="preview-ograf">
+              <p className="hint pd-frame-note">Plays on the outputs; no preview here.</p>
+            </div>
+          ) : previewDoc && previewTemplate ? (
             <div
               className="pd-frame"
               ref={setStageEl}
@@ -455,6 +466,18 @@ export default function PlayoutMonitors({
             />
           </div>
         </div>
+        {/* THE OUTPUTS' OWN WORD on each imported OGraf package (E3.2a): the picture above is this
+            page's simulation, which never loads a stranger's package, so what the package did is
+            only ever what an output reported. */}
+        {confirmed.length > 0 && (
+          <ul className="pd-confirmed" data-testid="program-confirmed">
+            {confirmed.map((c) => (
+              <li key={c.name} data-tone={c.tone} data-graphic={c.name}>
+                {c.text}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

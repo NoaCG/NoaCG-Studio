@@ -182,7 +182,9 @@ export function createSwapper(opts: SwapperOptions): Swapper {
       for (const graphic of plan.remove) gone.add(graphic);
       const specOf = (graphic: string) => payload.graphics.find((g) => g.key === graphic)!;
       for (const graphic of plan.add) {
-        stage.add(specOf(graphic));
+        // The publication it comes from: an imported package's base is asked with it, before this
+        // output has adopted that version.
+        stage.add(specOf(graphic), payload.ver?.h);
         held[graphic] = next[graphic] ?? '';
         opts.onAdded(specOf(graphic), payload);
       }
