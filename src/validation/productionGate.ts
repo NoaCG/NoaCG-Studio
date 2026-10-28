@@ -17,7 +17,7 @@ import type { SavedGraphic } from '../model/packets';
 import { publishGate } from './publishGate';
 import type { ValidationIssue } from './validateTemplate';
 import type { SpxTemplate } from '../model/types';
-import { FOREIGN_NOT_PLAYABLE, foreignExportRefusal, isForeignGraphic } from '../model/foreignPackage';
+import { foreignExportRefusal, isForeignGraphic } from '../model/foreignPackage';
 
 /** Early rundown admission and publication use the same production eligibility. */
 export function validateProductionTemplate(template: SpxTemplate) {
@@ -34,9 +34,9 @@ export interface ProductionGateFailure {
 export type ProductionDoor = 'publish' | string;
 
 /** Every pool graphic that would be refused at the boundary, with why. Empty = may go to air.
- *  A stranger's OGraf package (model/foreignPackage.ts) passes its record's gate, but it leaves
- *  only by the OGraf target and does not publish yet (its outputs are E3.2a's), so `door` says
- *  which way this production is going. */
+ *  A stranger's OGraf package (model/foreignPackage.ts) passes its record's gate and publishes (its
+ *  bytes are checked again as the payload is built, control/hostedControl.ts), but it leaves only
+ *  by the OGraf target, so `door` says which way this production is going. */
 export function productionGateFailures(
   graphics: readonly SavedGraphic[],
   library: GraphicDoc[],
@@ -47,9 +47,8 @@ export function productionGateFailures(
     const template = templateForSavedGraphic(g, library);
     const result = validateProductionTemplate(template);
     if (!result.ok) failures.push({ name: g.name, errors: result.errors });
-    else if (door && door !== 'ograf' && isForeignGraphic(template)) {
-      const message = door === 'publish' ? `${FOREIGN_NOT_PLAYABLE} Remove it from the production to publish.` : foreignExportRefusal(g.name);
-      failures.push({ name: g.name, errors: [{ rule: 'foreign-package', message }] });
+    else if (door && door !== 'ograf' && door !== 'publish' && isForeignGraphic(template)) {
+      failures.push({ name: g.name, errors: [{ rule: 'foreign-package', message: foreignExportRefusal(g.name) }] });
     }
   }
   return failures;

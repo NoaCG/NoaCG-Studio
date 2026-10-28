@@ -74,6 +74,7 @@ import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografT
 import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
+import { publishedOgrafBase } from '../backend/productionOgraf';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -218,7 +219,14 @@ async function boot(): Promise<void> {
   const soundBudget = createSoundBudget();
   let programAudioVersion = resolved.output.ver?.h ?? '';
   const audio = (payload: typeof resolved.output) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
-  const stage = createOutputStage(document.body, resolved.output, { sound: 'program', soundBudget, loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset) });
+  const stage = createOutputStage(document.body, resolved.output, {
+    sound: 'program',
+    soundBudget,
+    loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset),
+    // An imported OGraf package is served by the server under a sealed base (E3.2a), asked for with
+    // this output's capability and the version that holds it.
+    ografBase: (spec) => (spec.ograf ? publishedOgrafBase(outputSlug, programAudioVersion)(spec.ograf.revision) : Promise.resolve(null)),
+  });
   dbg('graphics', stage.graphics.join(', '));
 
   // ── READY (control/readiness.ts; docs/work-specs/playout-ready/spec.md R1, R6, R7): this output
@@ -626,7 +634,12 @@ async function boot(): Promise<void> {
           const machine = stage.states.get(graphic) ?? null;
           const look = stage.appearances.get(graphic);
           const withLook = look ? { ...(machine ?? {}), appearance: look } : machine;
-          const state = airingTyped ? { ...(withLook ?? {}), typed: typedEnvelope.get(graphic), steps: stepsSince.get(graphic) ?? 0, on: liveGraphics.has(graphic) } : withLook;
+          const typedState = airingTyped ? { ...(withLook ?? {}), typed: typedEnvelope.get(graphic), steps: stepsSince.get(graphic) ?? 0, on: liveGraphics.has(graphic) } : withLook;
+          // AN IMPORTED OGRAF PACKAGE reports what its Graphic answered (E3.2a, control/ografOutcome.ts):
+          // the instance, its last call and where it is. This is the output's word, the only one the
+          // production page shows as confirmed.
+          const ograf = stage.ografOutcomes.get(graphic);
+          const state = ograf ? { ...(typedState ?? {}), ograf } : typedState;
           // Byte-identical truth needs no second write (the 1 s state poll answers every second),
           // unless the write is due for its baseline.
           const key = JSON.stringify([data, state]);
@@ -662,6 +675,7 @@ async function boot(): Promise<void> {
     sinceBank.set(graphic, 0);
   };
   stage.onState((graphic) => scheduleReport(graphic));
+  stage.onOgraf((graphic) => scheduleReport(graphic));
 
   // ── Which graphics are LIVE (played/snapped and not yet stopped): only those can change
   // state on a timer, so only those need the 1 s machine-state poll — an idle stacked

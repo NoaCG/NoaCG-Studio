@@ -203,9 +203,9 @@ test('two strangers\' packages go in, come out byte for byte, join a production,
   await page.goto(`/app#/production/${showId}`);
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
 
-  // On the page: a cue over a package is not taken yet, and says why.
+  // On the page: a cue over a package takes like any cue (E3.2a), so nothing refuses it here.
   await page.getByText('Second half copy').first().click();
-  await expect(page.locator('[title="Imported OGraf packages do not play on outputs yet."]').first()).toBeAttached();
+  await expect(page.getByTestId('production-page').locator('[title*="do not play on outputs"]')).toHaveCount(0);
 });
 
 test('malformed archives and escaping references are refused on the card with their reasons', async ({ page }) => {

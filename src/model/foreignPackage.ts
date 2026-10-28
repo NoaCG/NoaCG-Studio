@@ -87,9 +87,13 @@ export function readForeignPackage(template: Pick<SpxTemplate, 'foreign'>): Fore
   return { status: 'ok', record: raw as unknown as ForeignPackageRecord };
 }
 
-/** Why a cue over a stranger's package is not taken yet: its isolated mount on the outputs is
- *  E3.2a's (docs/work-specs/playout-ograf-rundown/spec.md). */
-export const FOREIGN_NOT_PLAYABLE = 'Imported OGraf packages do not play on outputs yet.';
+/** Why a cue over this graphic is not taken, as far as its package record goes: a record this
+ *  build cannot act on (a later version's, or unreadable) keeps its package off air. Null for a
+ *  native graphic and for a package this build reads. */
+export function foreignTakeRefusal(template: Pick<SpxTemplate, 'foreign'>, name: string): string | null {
+  const read = readForeignPackage(template);
+  return read.status === 'read-only' ? foreignRefusal(name, read.reason) : null;
+}
 
 /** The words for a package this page will not act on: "Results board was imported by ...". */
 export const foreignRefusal = (name: string, reason: string) => `${name} ${reason}, so it is kept as it is and does not load here.`;

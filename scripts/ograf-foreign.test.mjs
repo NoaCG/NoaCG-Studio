@@ -410,14 +410,13 @@ test('a foreign entry passes the gate on its record, is refused in a pack, and l
   assert.ok(JSON.stringify(findings).includes('imported OGraf package, made by someone else'), JSON.stringify(findings));
 });
 
-test('the production gate: a foreign package does not publish, exports by OGraf alone, and says why', async () => {
+test('the production gate: a foreign package publishes (E3.2a), exports by OGraf alone, and says why', async () => {
   const gate = await load(path.join(root, 'src/validation/productionGate.ts'));
   const { template } = await importForeignOgraf('s.zip', await zipOf(fixture('ebu-scoreboard')));
   const graphics = [{ id: 'g', name: 'Scoreboard', type: 'blank', savedAt: '', template }];
   assert.deepEqual(gate.productionGateFailures(graphics, []), [], 'no door named: the record gate alone');
   assert.deepEqual(gate.productionGateFailures(graphics, [], 'ograf'), []);
-  const publish = gate.productionGateFailures(graphics, [], 'publish');
-  assert.equal(gate.describeProductionGate(publish), '"Scoreboard": Imported OGraf packages do not play on outputs yet. Remove it from the production to publish.');
+  assert.deepEqual(gate.productionGateFailures(graphics, [], 'publish'), [], 'its bytes are checked again as the payload is built');
   for (const target of ['spx', 'casparcg', 'html-overlay']) {
     assert.equal(gate.describeProductionGate(gate.productionGateFailures(graphics, [], target)), '"Scoreboard": Scoreboard is an imported OGraf package, so it exports only as OGraf.');
   }

@@ -30,7 +30,8 @@ import type { PublishedAdjust } from './hostedAdjust';
 import { lookImportedFace, withLookFaceIn } from './productionLook';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
 // boundary where a library draft becomes something a renderer trusts.
-import { assertProductionGate } from '../validation/productionGate';
+import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
+import { isForeignGraphic, verifyForeignPackage } from '../model/foreignPackage';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
@@ -135,6 +136,19 @@ export interface OutputGraphicSpec {
    *  (higher = in front). ADDITIVE OPTIONAL: a payload published before the field falls back
    *  to its position in the array, which is exactly what the stage used to do. */
   layer?: number;
+  /** ADDITIVE OPTIONAL (E3.2a, docs/work-specs/playout-ograf-rundown/spec.md): this graphic is a
+   *  stranger's OGraf package. `assets` are its files under their package paths, html/css/js are
+   *  empty, and the output mounts it behind the isolation boundary (output/foreignOgraf.ts) from a
+   *  base the server serves those files under (api/_lib/outputOgraf.ts), never composing it. An
+   *  older output does not know the member and builds an empty document, which shows nothing. */
+  ograf?: OutputOgraf;
+}
+
+/** What an output needs of a published package: which bytes (`revision`, what the server serves
+ *  them by) and the manifest it mounts (`main`, `stepCount`, the declared actions). */
+export interface OutputOgraf {
+  revision: string;
+  manifest: unknown;
 }
 
 /** One cue as published — ShowCue re-keyed by graphic name (the wire key). */
@@ -404,6 +418,7 @@ async function serializeAssets(template: SpxTemplate): Promise<OutputGraphicSpec
 
 /** One graphic as the output renders it: the payload's entry, and what its version digest covers. */
 async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
+  if (isForeignGraphic(template)) return foreignSpec(g, template);
   return {
     key: g.name,
     html: template.html,
@@ -413,6 +428,25 @@ async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): 
     resolution: template.resolution,
     fps: template.fps,
     layer: graphicLayer(g),
+  };
+}
+
+/** A stranger's package as published: its bytes checked against its record first (a changed or
+ *  missing file refuses the publish by name, as the export does), then sent as they are. */
+async function foreignSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
+  const check = await verifyForeignPackage(template);
+  if (!check.ok) throw new ProductionGateError([{ name: g.name, errors: [{ rule: 'foreign-package', message: `${g.name} cannot go on air: ${check.reason}.` }] }]);
+  const manifest = template.ograf?.manifest ?? JSON.parse(new TextDecoder().decode(check.files.get(check.record.manifest)));
+  return {
+    key: g.name,
+    html: '',
+    css: '',
+    js: '',
+    assets: await serializeAssets({ ...template, assets: template.assets.filter((a) => check.files.has(a.path)) }),
+    resolution: template.resolution,
+    fps: template.fps,
+    layer: graphicLayer(g),
+    ograf: { revision: check.record.revision, manifest },
   };
 }
 

@@ -596,6 +596,9 @@ export function folderTakeBlocker(folder: Pick<ShowFolder, 'id' | 'mode' | 'end'
 export interface MemberTake {
   ok: boolean;
   note: string;
+  /** Sent, and only its output can say whether it is on air: an imported OGraf package, whose
+   *  Graphic answers on the output alone (control/ografOutcome.ts). */
+  unconfirmed?: true;
 }
 
 export interface MemberResult extends MemberTake {
@@ -639,11 +642,14 @@ export async function runTogether(plan: Extract<TogetherPlan, { ok: true }>, sen
 /** The note line after an All-together Take: `✓ Take: Opening, 3 of 3 on air`, or the count and
  *  every member's own sentence where one did not go, or went with a warning. */
 export function togetherNote(folderName: string, results: readonly MemberResult[]): string {
-  const up = results.filter((r) => r.ok).length;
+  const up = results.filter((r) => r.ok && !r.unconfirmed).length;
+  // A member only its output can confirm is counted as sent, never as on air.
+  const pending = results.filter((r) => r.ok && r.unconfirmed).length;
+  const count = `${up} of ${results.length} on air${pending ? `, ${pending} sent to the outputs` : ''}`;
   const said = results.filter((r) => !r.ok || !r.note.startsWith('✓'));
-  if (!said.length) return `✓ Take: ${folderName}, ${up} of ${results.length} on air`;
+  if (!said.length) return `✓ Take: ${folderName}, ${count}`;
   const sentence = (note: string) => (/[.!?…]$/.test(note) ? note : `${note}.`);
-  return [`Take: ${folderName}, ${up} of ${results.length} on air.`, ...said.map((r) => sentence(r.note))].join(' ');
+  return [`Take: ${folderName}, ${count}.`, ...said.map((r) => sentence(r.note))].join(' ');
 }
 
 /**
