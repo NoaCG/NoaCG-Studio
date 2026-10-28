@@ -77,14 +77,32 @@ function faultWindows(record) {
 }
 const inside = (windows, t) => windows.some((w) => t >= w.from && t <= w.to);
 /**
- * Whether a fault of one of `kinds` begins or lasts between `from` and `to`: a value owed on air in
- * that span cannot render through it. Only two faults stop a render of what was already applied: an
- * output offline (every road), and a reloaded controller, which holds the card until the next Take
- * (the card's road). A Pause or a handover stops nothing already applied, so neither excuses it.
+ * The faults that stop each road, and nothing else. Applying the source stops for a Pause (no rows
+ * while paused) and a handover (no owner while a claim lapses). A bound field already applied stops
+ * rendering only while the output is offline. The card's correction is sent by the page, which holds
+ * it while data is paused and after a reload until the next Take, and the output must be online to
+ * show it. The count bug needs its value applied and rendered, so it stops for all three of theirs.
  */
-const blackout = (windows, kinds, from, to) => windows.some((w) => kinds.includes(w.kind) && w.from <= to && w.to >= from);
-const OUTPUT_DARK = ['disconnect'];
-const CARD_HELD = ['disconnect', 'reload'];
+const STOPS = {
+  apply: ['pause', 'handover'],
+  bound: ['disconnect'],
+  card: ['disconnect', 'reload', 'pause'],
+  bug: ['pause', 'handover', 'disconnect'],
+};
+/** Rows this close to the moment they stop being owed cannot be judged; they are counted apart. */
+const MIN_ROOM_MS = 2_000;
+/**
+ * Until when a value of `road` starting at `at` is owed: its ceiling, or the start of the first fault
+ * that stops that road, whichever is first. Null when it starts inside one, or ends after the run.
+ */
+function owedUntil(windows, road, at, ceiling, end) {
+  const kinds = STOPS[road];
+  if (windows.some((w) => kinds.includes(w.kind) && at >= w.from && at <= w.to)) return null;
+  // The output is read until the run's end: a value whose ceiling runs past it cannot be judged.
+  if (at + ceiling > end) return null;
+  const next = windows.filter((w) => kinds.includes(w.kind) && w.from > at).reduce((a, w) => Math.min(a, w.from), Infinity);
+  return Math.min(at + ceiling, next);
+}
 
 export function judge(record) {
   const checks = [];
@@ -366,6 +384,7 @@ export function judge(record) {
   const recovering = [];
   /** Samples left out of each road's steady population because they fell in a fault's window. */
   const excluded = { dispatch: 0, dispatchToAir: 0, fetchToApply: 0, providerToApply: 0, applyToRenderBound: 0, providerToRenderBound: 0, applyToRenderCandidates: 0, candidatesTooCloseToATake: 0 };
+  // (A row with under 2 s before a fault stops its road counts in that road's exclusions.)
   /** Values applied in a steady moment that never reached the output in time: each one a failure. */
   const missed = [];
   for (const [i, t] of takes.entries()) {
@@ -383,40 +402,45 @@ export function judge(record) {
     const i = stepOfRevision(rev);
     return first === undefined || i === null ? null : first + i * STEP_MS;
   };
+  // The walk reads the output until the run's own end; obligations stop there.
+  const readUntil = Math.min(record.end ?? Infinity, t0 + plan.totalMs);
   // From the run's start: the setup's first rows land before the output has its graphics.
   const boardRows = rows.filter((r) => r.graphic === 'Party totals' && r.t === 'update' && r.data?.f8 && r.at >= t0);
   for (const r of boardRows) {
     const kok = num(r.data.f8);
     const rev = partyRevision('KOK', kok);
     const fetchAt = served.get(`count-${rev}`);
-    // Steady: applied outside every fault's window. A render is owed only if, besides, nothing that
-    // stops that road's render begins before its own ceiling has passed.
-    const steadyRow = !inside(windows, r.at);
-    const boundOwed = steadyRow && !blackout(windows, OUTPUT_DARK, r.at, r.at + CEILING.bound);
-    const cardOwed = steadyRow && !blackout(windows, CARD_HELD, r.at, r.at + CEILING.candidates);
-    if (!steadyRow) for (const road of ['fetchToApply', 'providerToApply']) excluded[road]++;
-    if (!boundOwed) for (const road of ['applyToRenderBound', 'providerToRenderBound']) excluded[road]++;
-    if (!cardOwed && takes.some((t) => t.clickAt <= r.at)) excluded.applyToRenderCandidates++;
-    if (fetchAt && steadyRow) timings.fetchToApply.push(r.at - fetchAt);
-    if (moved(rev) !== null && steadyRow) timings.providerToApply.push(r.at - moved(rev));
+    // Each road is owed until its ceiling or the first fault that stops it (STOPS), whichever is
+    // first; a row starting inside such a fault, or left under 2 s of room, is counted apart.
+    const applied = !windows.some((w) => STOPS.apply.includes(w.kind) && r.at >= w.from && r.at <= w.to);
+    if (!applied) for (const road of ['fetchToApply', 'providerToApply']) excluded[road]++;
+    if (fetchAt && applied) timings.fetchToApply.push(r.at - fetchAt);
+    if (moved(rev) !== null && applied) timings.providerToApply.push(r.at - moved(rev));
     const shown = frames.find((f) => f.at >= r.at - 50 && num(f.kok) >= kok);
-    if (shown) (boundOwed ? timings.applyToRenderBound : recovering).push(shown.at - r.at);
-    if (boundOwed && r.at + CEILING.bound <= (record.end ?? Infinity) && (!shown || shown.at - r.at > CEILING.bound)) missed.push({ road: 'bound', at: r.at - t0, kok: r.data.f8 });
-    if (shown && boundOwed && moved(rev) !== null) timings.providerToRenderBound.push(shown.at - moved(rev));
+    const boundDue = owedUntil(windows, 'bound', r.at, CEILING.bound, readUntil);
+    if (boundDue === null || boundDue - r.at < MIN_ROOM_MS) {
+      for (const road of ['applyToRenderBound', 'providerToRenderBound']) excluded[road]++;
+      if (shown) recovering.push(shown.at - r.at);
+    } else if (!shown || shown.at > boundDue) missed.push({ road: 'bound', at: r.at - t0, kok: r.data.f8, room: boundDue - r.at });
+    else {
+      timings.applyToRenderBound.push(shown.at - r.at);
+      if (moved(rev) !== null) timings.providerToRenderBound.push(shown.at - moved(rev));
+    }
     // The aired card moves at the page's own read of the tree. It is owed to the person last
     // clicked: once a Take is clicked the card is being replaced, and the person leaving owes nothing.
     const aired = takes.findLast((t) => t.clickAt <= r.at);
-    if (aired && cardOwed) {
+    const cardDue = aired ? owedUntil(windows, 'card', r.at, CEILING.candidates, readUntil) : null;
+    if (aired && cardDue === null) excluded.applyToRenderCandidates++;
+    if (aired && cardDue !== null) {
       const want = aired.person.base + rev * aired.person.step;
       const onCard = frames.find((f) => f.at >= r.at - 50 && f.name === aired.person.name && num(f.votes) >= want);
+      // The next Take replaces the card, so the correction is owed until then at the latest.
       const nextTake = takes.find((t) => t.clickAt > r.at);
-      if (onCard && (!nextTake || onCard.at < nextTake.clickAt)) timings.applyToRenderCandidates.push(onCard.at - r.at);
-      // Owed by the earlier of the ceiling and the next Take (which replaces the card); a row too
-      // close to that Take, or to the run's end, cannot be judged.
-      const due = Math.min(r.at + CEILING.candidates, nextTake?.clickAt ?? Infinity, record.end ?? Infinity);
+      const due = Math.min(cardDue, nextTake?.clickAt ?? Infinity);
       const room = due - r.at;
-      if (room < 2_000) excluded.candidatesTooCloseToATake++;
+      if (room < MIN_ROOM_MS) excluded.candidatesTooCloseToATake++;
       else if (!onCard || onCard.at > due) missed.push({ road: 'candidates', at: r.at - t0, person: aired.person.name, want, room });
+      else timings.applyToRenderCandidates.push(onCard.at - r.at);
     }
   }
   // The source keeps being applied: every revision the provider's timeline published in a steady
@@ -428,7 +452,8 @@ export function judge(record) {
   let obligations = 0;
   for (let rev = 1; moved(rev) !== null && moved(rev) + 15_000 <= (record.end ?? 0); rev++) {
     const at = moved(rev);
-    if (at < t0 || inside(windows, at) || inside(windows, at + 15_000)) continue;
+    // Judged only with its whole 15 s clear of what stops applying the source.
+    if (at < t0 || owedUntil(windows, 'apply', at, 15_000, readUntil) !== at + 15_000) continue;
     obligations++;
     if (!appliedRevs.some((a) => a.rev >= rev && a.at <= at + 15_000)) stalled.push({ at: at - t0, rev });
   }
@@ -440,7 +465,7 @@ export function judge(record) {
   for (let rev = 2; moved(rev) !== null && moved(rev) + 15_000 <= (record.end ?? 0); rev++) {
     if (countedAt(rev) === countedAt(rev - 1)) continue;
     const at = moved(rev);
-    if (at < t0 || inside(windows, at) || inside(windows, at + 15_000) || blackout(windows, OUTPUT_DARK, at, at + 15_000)) continue;
+    if (at < t0 || owedUntil(windows, 'bug', at, 15_000, readUntil) !== at + 15_000) continue;
     bugMoves++;
     if (!frames.some((f) => f.at > at && f.at <= at + 15_000 && (areas(f.counted) ?? -1) >= countedAt(rev))) staleBug.push({ at: at - t0, rev, want: countedAt(rev) });
   }

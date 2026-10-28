@@ -256,6 +256,24 @@ test('a value applied just before the output goes offline is held by the disconn
   assert.deepEqual(failed(r), []);
 });
 
+red('a bound value missed 11 s before a disconnect: the bound road looks ahead its own 10 s, not the card\'s 13', (r) => {
+  const f = r.faults.find((x) => x.kind === 'disconnect' && x.at > r.t0 + 15 * 60_000);
+  const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at - 11_000);
+  f.at = row.at + 11_000;
+  // Nothing at or above its figure reaches the board before the disconnect.
+  r.frames = r.frames.map((x) => (x.at > row.at - 50 && x.at < f.at ? { ...x, kok: '' } : x));
+}, /failed to reach the output in time/);
+red('a value missed well before a disconnect began: its deadline passed before the fault', (r) => {
+  const f = r.faults.find((x) => x.kind === 'disconnect' && x.at > r.t0 + 15 * 60_000);
+  const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at - 4_000);
+  r.frames = r.frames.filter((x) => !(x.at > row.at - 50 && x.at < f.at && x.kok === row.data.f8));
+  r.frames = r.frames.map((x) => (x.at > row.at - 50 && x.at < f.at && x.kok && Number(x.kok.replace(/,/g, '')) > Number(row.data.f8.replace(/,/g, '')) ? { ...x, kok: '' } : x));
+}, /failed to reach the output in time|figure ever went down|bound field/);
+red('a stall around a reload: a reload stops nothing the source applies', (r) => {
+  const f = r.faults.find((x) => x.kind === 'reload' && x.at > r.t0 + 15 * 60_000);
+  r.rows = r.rows.filter((x) => !(x.at > f.at - 1_000 && x.at < f.at + 25_000 && x.graphic === 'Party totals' && x.t === 'update'));
+  r.frames = r.frames.map((x) => (x.at > f.at - 1_000 && x.at < f.at + 25_000 ? { ...x, kok: '', counted: '' } : x));
+}, /applied within 15 s/);
 red('a value missed just before a Pause: a Pause stops nothing already applied', (r) => {
   const f = r.faults.find((x) => x.kind === 'pause' && x.at > r.t0 + 15 * 60_000);
   const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at);
@@ -339,7 +357,7 @@ red('a Take slow to air', (r) => {
 red('a bound field slow to air', (r) => {
   for (const f of r.frames) f.at += f.at > r.t0 + 15 * 60_000 && f.at < r.t0 + 16 * 60_000 ? 12_000 : 0;
   r.frames.sort((a, b) => a.at - b.at);
-}, /bound field/);
+}, /bound field|failed to reach the output in time/);
 red('a run cut short', (r) => (r.end = r.t0 + 60_000), /minutes asked/);
 red('a fault that never ended', (r) => delete r.faults[1].end, /fault ran to its end/);
 red('a provider step never read as held', (r) => (r.reads = r.reads.filter((x) => !/ invalid /.test(x.line))), /each served and held/);
