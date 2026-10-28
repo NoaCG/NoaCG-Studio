@@ -65,6 +65,7 @@ export default function PlayoutMonitors({
   emptyHint,
   liveLayers,
   confirmed = [],
+  onRecue,
   serverLayers,
   previewServer = null,
   previewSeconds,
@@ -107,7 +108,10 @@ export default function PlayoutMonitors({
   liveLayers: { layer: number; label: string }[];
   /** What the outputs say each imported OGraf package did (control/ografOutcome.ts
    *  `confirmedLines`): drawn apart from the picture, which is this page's simulation. */
-  confirmed?: readonly { name: string; text: string; tone: 'ok' | 'bad' | 'unknown' }[];
+  confirmed?: readonly { name: string; text: string; tone: 'ok' | 'bad' | 'unknown'; recue?: boolean }[];
+  /** Take a package's live cue again, offered on a line whose state is not known and whose package
+   *  has a live cue (`recue`; E3.2b, AC-3): the explicit re-cue a restart never makes by itself. */
+  onRecue?: (name: string) => void;
   /** The server cues this page put up - named on PROGRAM's header. */
   serverLayers: Pick<ServerLayer, 'slot' | 'label'>[];
   /** The server item on PREVIEW, when the previewed cue is one: its still and, for a clip, its
@@ -474,6 +478,11 @@ export default function PlayoutMonitors({
             {confirmed.map((c) => (
               <li key={c.name} data-tone={c.tone} data-graphic={c.name}>
                 {c.text}
+                {c.tone === 'unknown' && c.recue && onRecue && (
+                  <button type="button" className="pd-recue" onClick={() => onRecue(c.name)} data-testid="ograf-recue">
+                    Re-cue
+                  </button>
+                )}
               </li>
             ))}
           </ul>

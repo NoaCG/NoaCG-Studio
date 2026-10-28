@@ -5,6 +5,158 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 41 (E3.2b, project phase 46): foreign OGraf restart, failure and truthful recovery; the foreign frame adjust
+
+- **Previous verified `main` sha:** `373d896` (row 40 passed, PR #1780). This branch was built on
+  it. Before editing, main had: E1.2b's report baseline and typed recovery for composed graphics,
+  row 40's mounted packages with their outcomes (`state.ograf`), the stage's `gone` for a removed
+  instance, and L2's appearance on native frames. A reloaded output left a package out of its
+  recovery inventory (`stage.graphics` holds composed graphics only), so a newer native report
+  carried the catch-up past the package's Take and it came back without its values (the P1 review
+  finding on #1780). A package frame took no place or size, and a stage never mounted a package again.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no message kind. A report's
+  `state.ograf` may carry `acted`, `unknown`, `was` and `sent`, which a reverted page reads past; a reverted
+  output again restores no package and ignores a package's appearance.
+- **What landed.**
+  - *The inventory* (`output/main.ts`): the boot's recovery plan and the per-graphic restore run
+    over the composed graphics AND the published packages, so a package's bank counts and its
+    values and place come back from its report. The typed-data read below the reports stays on the
+    composed graphics: a package with no report is not replayed from below its bank, it reads as
+    not confirmed.
+  - *Only what the Graphic proved* (`control/ografRecovery.ts` `ografRestore`): a Take the report
+    says the Graphic accepted comes back at the step its answers reached, through `playAction`
+    (the first step, then one step at a time). A custom action is never repeated: a row of one in
+    the catch-up is read past and counted applied (`heldActions`, `apply(.., deliver=false)`, so the
+    follow never sends it either), and a package whose instance an action reached is put back as far
+    as its Take and step and marked not known. A Take never confirmed (refused, unanswered, no
+    report) is not repeated: not known. An Out the log holds but the Graphic's last word does not
+    (refused, or its answer not banked) is not undone either: it stays off, its Out not confirmed. A Take or Out after the bank replays from the log as before.
+  - *Not known, with a re-cue* (`stage.markUnknown`, `OgrafOutcome.unknown`): marked after the
+    catch-up, kept through late answers and updates, cleared by the operator's next Take or Out.
+    PROGRAM's line reads "Board: not known on the output (<why>)" in amber with a Re-cue button
+    (`PlayoutMonitors` `onRecue`: the Take of the graphic's live cue).
+  - *A lost instance is mounted again only by a Take* (`stage.ts` `remount`): an instance whose
+    call nobody answered (a dropped host document or bridge) or whose `load()` failed (a removed
+    file) is lost; the next Take mounts the package as a new instance from its served base, hands it
+    the values held (merged updates, typed as sent) and then the Take. That Take is the operator's:
+    a re-cue, or their own Take delivered late by a follow's refill. Nothing else mounts again.
+  - *Late old-instance word refused*: on the stage, an answer from a replaced instance tells nothing
+    (its calls settle `gone`, its port is closed, `onAnswer` checks the current layer). On the page,
+    a new instance names the one it replaced (`was`: from a remount, or from the tab's session on a
+    reload, `noacg-ograf-instances:<slug>`), and `acceptOutcome` refuses any later report about it
+    (a write still on its way when the output reloaded). Bounded at 16 instances per graphic. The
+    tab's session is the reach: a playout that restarts its browser process starts a fresh tab and
+    names nothing, so a late write from the old document could stand until the new one reports.
+  - *Recovery is hidden until the package settles* (`output/catchUp.ts`): the boot's reveal waits,
+    within its cap, for every call sent to a package to settle (`stage.ografSettled`), since a
+    package reports no machine state. A re-cue's new instance is checked for READY by its own load.
+    A follow refill that brings history the catch-up left unread (a failed read, the page ceiling)
+    reads a package's action past and marks it not known, as the catch-up does (`bootGap`). The
+    gap closes at the end of that history (`bootGap`, one pure helper both follows go through):
+    on the numbered log a live batch (applied only contiguous with the cursor) or a read shorter
+    than a full page, an empty one included; on the row-id road only a short read, once its last
+    row (by id) is applied, since a live row's id says nothing of history committed late below it.
+    Never between two full pages, and a polling-only follow closes it too. Every package read past,
+    and every package the boot left not known for an action, is said not known again after each
+    batch of that history, so a Take or Out later in it cannot clear the mark (as in
+    `ografRestore`); the operator's live Take or Out clears it. Residual: an
+    operator's action that arrives inside that history (a polling follow, or a press during the
+    gap) is read past with it: not sent, its package marked not known, pressed again after a re-cue.
+  - *Actions counted* (`acted`, said the moment an action is sent, so a report banked before its
+    answer already carries it): the actions an instance was sent, less those the Graphic refused,
+    ride the report for the instance's whole life, so a restart knows the Graphic holds state no
+    restart reproduces. OGraf promises no Take or Out undoes an action, so neither resets the count,
+    in the report or in the log: a package an action reached comes back, on or off, said not known
+    until the operator's own next Take or Out (off with no Re-cue, like an unconfirmed Out). A new
+    instance starts at none.
+  - *A step not yet answered is no known step*: a Take, step or Out sent to the current instance
+    clears its told `step` at once, for the same reason, so a report banked before the answer
+    restores the Take at its first step and says the step is not known, never the step before it.
+    A re-cue's remount replaces the old instance's word with the new instance's "not known"
+    (`UNKNOWN_REMOUNTED`, off, no step) until it answers its `load()`: the re-cue's Take is then
+    said as `sent`, a restart in between reads it unconfirmed on either road, and the page says it
+    is not known meanwhile. READY still waits for the real load answer.
+  - *A row read past still meets the typed gate* (`readPastGate`): an action or step not sent is
+    still read by `typedOutputGate`, so one carrying data this build cannot read holds its graphic
+    as delivering it would, and the Take after it is refused as on the output that first had it.
+  - *A package the boot did not take is not stepped* (`heldSteps`): its step rows in the catch-up,
+    and in the unread history, are read past until its next Take or Out there, since a Graphic
+    stepped without a Take can show itself unproven.
+  - *A row a package's own report holds* (the refill starts at the oldest bank) is not counted by
+    `bootGap`: it neither marks nor ends a mark, and still counts towards a page.
+    A Take or Out leaves `on` as it was until its answer, so it is said as `sent` meanwhile: a
+    restart in between keeps an Out off and puts a Take back only as far as it was proven up, at
+    its first step, both not known. This holds on the row-id road too, where no head says what the
+    operator last did. Expected: a restart during a Take's entrance comes back not known with a
+    Re-cue, never restored as proven. An Out the Graphic refused stays `sent` through later calls
+    until the operator's next Take or Out, so a restart keeps it off on every road.
+    `acted`, `unknown`, `was` and `sent` are members of the report's `state.ograf`, not of the
+    control wire: no message kind or command member is added.
+  - *Lost means unanswered*: only this page's own deadline (no reply at all: the frame's document
+    or bridge is gone) or a failed load marks an instance lost. A host 504 is a live Graphic slower
+    than its window: the next Take keeps its instance and what its actions built.
+  - Residuals: after a restart that follows an Out the Graphic refused or had not answered, the
+    package comes back off and its line reads "not known (its Out was not confirmed ...)" with no
+    Re-cue, since nothing is cued live; it stays until that graphic's next Take or Out (safe
+    direction: the new instance is off). On the row-id road, a live Take that lands between tail rows of the boot's unread
+    history is marked not known again by the next tail row (safe direction, Re-cue offered); a
+    re-cue whose new load fails reads in the bad tone without a Re-cue button, and an ordinary
+    Take mounts it again. A Graphic that hangs for good inside a live frame answers every call with
+    the host's 504, so neither a Take nor a Re-cue mounts it again; reloading the
+    output does. A Take that reaches a
+    package whose base is still being fetched at first mount has no word yet, so a restart there on
+    the row-id road comes back off with nothing said.
+  - *The foreign frame adjust* (L2 AC-10's foreign case): the stage applies an appearance's frame to
+    the package's iframe (`ForeignOgrafLayer.frame`) and keeps it frame-only, so the report banks and
+    a reload restores place and size alone; vars and fonts never reach a package. The page resolves
+    no look or style for a package (`NO_STYLE_CONTEXT`) and never measures one, so the Adjust block
+    shows nudge and size, "no measurement" (presets need one), and "Type and colour: not available
+    for this package" (the hosted page's block too). No adjust record, no `appearance` (pinned).
+- **Decisions.**
+  - *Restore the proven part and say the rest is not known*, rather than leave an acted-on package
+    off air: Take, step, values and place are proven by the Graphic's answers; an action's effect is
+    not. The operator decides with one press.
+  - *An action keeps its instance not known through later Takes* (the fresh `/so` review, O3): the
+    standard does not say `playAction({goto: 0})` resets what `customAction` did, so the truthful
+    reading is the conservative one.
+  - *Remount only on a Take, and only a lost instance*: a healthy re-Take keeps its instance (row
+    40); an update or a step to a lost instance is not a re-cue. A call nobody answered at all, or
+    a failed load, makes the instance lost, so the operator's next Take replaces it; a host 504
+    keeps the instance. The new instance names the old one (`was`), and an action's effect goes
+    with the old instance.
+  - *A restore walks at most 32 steps* (`RESTORE_STEPS_MAX`, the PR review of 7f8704c): a step is
+    a stranger's own answer, sent as calls without waiting, and a frame holds 64 unanswered. Past
+    it, the Take comes back at its first step and the step is not known.
+  - *"Host" and "Bridge" are the frame's host document and its MessagePort bridge* (the names
+    `foreignOgraf.ts` uses): dropping either is the same fault to the stage, no answer. The NoaCG
+    Bridge to CasparCG stays non-gating. The output's own server connection keeps the existing
+    follow (seq cursor and `oid` dedupe); the controller's drop is pinned as its page reload.
+  - *#1775 item 2* (Back, Goto, skip and their `step` command row) is a control and a command
+    migration, not recovery: it stays on #1775.
+- **Seams changed and where:** E3.2a's `mountPublished` split into `attach`, `remount` and `send`;
+  `OgrafOutcome` gains `acted`, `unknown`, `was`, `sent`; E2's `ForeignOgrafLayer` gains `frame`; the stage
+  gains `markUnknown` and the `ografReplaced` option; L2's `CueAdjust` style gains `package`. E1's
+  typed paths and wire untouched.
+- **Not in this row:** Back/Goto/skip (#1775 item 2), Companion, type, colour or look on a
+  package, E8's cross-feature checks.
+- **Traps.**
+  - `readOgrafOutcome` takes a report's `state`, not the report.
+  - A local configured run needs `chromium_headless_shell-1228` symlinked to `-1243` (#1647). The
+    job queue refuses `--cap 12` for unreviewed source, so a mutation run under it is red from the
+    admission, not the mutation: read why a run is red before counting it.
+  - An identical outcome writes no report (`lastReported`), so an action whose answer matches the
+    last one leaves the bank before its row. The configured test refuses reports around a second
+    action and then asserts the bank is before the row, so the catch-up's read-past is exercised.
+  - A jsonb round trip reorders keys: compare an appearance read back from the log as an object.
+- **Touched files against `373d896`:** `src/control/ografRecovery.ts` (new),
+  `scripts/ograf-recovery.test.mjs` (new), `src/control/ografOutcome.ts`, `src/output/stage.ts`,
+  `src/output/foreignOgraf.ts`, `src/output/main.ts`, `src/output/catchUp.ts`, `src/components/home/ProductionPage.tsx`,
+  `src/components/home/PlayoutMonitors.tsx`, `src/components/home/CueAdjust.tsx`,
+  `src/components/control/HostedCueAdjust.tsx`, `src/styles/playout-dashboard.css`,
+  `e2e/foreign-ograf-sandbox.spec.ts`, `e2e/configured/ograf-rundown.spec.ts`,
+  `e2e/fixtures/foreign-ograf/rundown/graphic.mjs` (`data-marks`), this file.
+
 ## Row 40 (E3.2a, project phase 45): foreign OGraf in a mixed rundown and on browser outputs
 
 - **Previous verified `main` sha:** `302d565` (row 39 passed, PR #1779). This branch was built on

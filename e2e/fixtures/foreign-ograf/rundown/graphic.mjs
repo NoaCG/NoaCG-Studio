@@ -1,13 +1,15 @@
 // A hand-written OGraf v1 Graphic with three steps. Every value it is given is written onto its
 // root as it came (`data-values`, JSON, so a number stays a number), with where it is (`data-step`)
 // and whether it is up (`data-on`). Its Take is refused (503) while its data's `fail` is "yes".
-// `mark` writes its argument. Read by e2e/configured/ograf-rundown.spec.ts.
+// `mark` writes its argument and counts its runs on this instance (`data-marks`), so a repeated
+// action is arithmetic, not a picture. Read by e2e/configured/ograf-rundown.spec.ts.
 export default class RundownCard extends HTMLElement {
   constructor() {
     super();
     this._data = {};
     this._step = -1;
     this._root = null;
+    this._marks = 0;
   }
 
   _show() {
@@ -59,6 +61,7 @@ export default class RundownCard extends HTMLElement {
   async customAction(params) {
     if (params && params.id === 'mark') {
       this._root.dataset.mark = String((params.payload && params.payload.v) || '');
+      this._root.dataset.marks = String((this._marks += 1));
       return { statusCode: 200 };
     }
     return { statusCode: 404, statusMessage: 'no such action' };

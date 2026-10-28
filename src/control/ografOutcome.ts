@@ -24,9 +24,15 @@ export type OgrafOutcomeStatus = (typeof STATUSES)[number] | 'unmounted';
  * `data-instance`), `call` and `status` its last settled call, `on` whether its last Take or Out the
  * Graphic accepted left it up, and `step` where its answers put it (a step, `end`, or null when
  * unknown). `unmounted` is a package the stage holds no frame for, `msg` saying why.
+ *
+ * RECOVERY (E3.2b, AC-3): `acted` is set once an action its instance was sent may have changed it,
+ * for the instance's whole life (no Take is promised to undo one), and no restart repeats it; `unknown` says why its state after a restart is not proven, until
+ * the operator's next Take or Out; `was` names the instance it replaced on the same output, whose
+ * later word is then stale (`acceptOutcome`); `sent` is a Take or Out sent to it that its Graphic
+ * has not yet answered, so `on` is still the state before it (a report member only, never sent).
  */
 export type OgrafOutcome =
-  | { i: string; call: OgrafCall; status: Exclude<OgrafOutcomeStatus, 'unmounted'>; code?: number; msg?: string; step: number | 'end' | null; on: boolean }
+  | { i: string; call: OgrafCall; status: Exclude<OgrafOutcomeStatus, 'unmounted'>; code?: number; msg?: string; step: number | 'end' | null; on: boolean; acted?: true; unknown?: string; was?: string; sent?: 'play' | 'stop' }
   | { i: null; status: 'unmounted'; msg: string; on: false };
 
 /** One line of the page: what an output said, and how it is drawn. */
@@ -38,6 +44,8 @@ export interface OutcomeLine {
 const CALLS: readonly string[] = ['mount', 'play', 'stop', 'update', 'custom'];
 const MSG_MAX = 200;
 const INSTANCE = /^[0-9a-f]{1,32}$/;
+/** A mounted instance's id as a report may name it (a frame's `data-instance`). */
+export const isOgrafInstance = (v: unknown): v is string => typeof v === 'string' && INSTANCE.test(v);
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** A report's `state.ograf`, read: anything malformed is no word at all, never a success. */
@@ -51,6 +59,9 @@ export function readOgrafOutcome(state: unknown): OgrafOutcome | null {
   if (typeof o.call !== 'string' || CALLS.indexOf(o.call) < 0) return null;
   const step = o.step === 'end' ? 'end' : typeof o.step === 'number' && Number.isInteger(o.step) && o.step >= 0 ? o.step : null;
   const code = typeof o.code === 'number' && Number.isInteger(o.code) ? o.code : undefined;
+  const unknown = typeof o.unknown === 'string' && o.unknown ? o.unknown.slice(0, MSG_MAX) : undefined;
+  const was = typeof o.was === 'string' && INSTANCE.test(o.was) && o.was !== o.i ? o.was : undefined;
+  const sent = o.sent === 'play' || o.sent === 'stop' ? o.sent : undefined;
   return {
     i: o.i,
     call: o.call as OgrafCall,
@@ -59,8 +70,29 @@ export function readOgrafOutcome(state: unknown): OgrafOutcome | null {
     ...(msg ? { msg } : {}),
     step,
     on,
+    ...(o.acted === true ? { acted: true as const } : {}),
+    ...(unknown ? { unknown } : {}),
+    ...(was ? { was } : {}),
+    ...(sent ? { sent } : {}),
   };
 }
+
+/**
+ * LATE WORD FROM A REPLACED INSTANCE IS REFUSED (E3.2b, AC-3). An output that mounts a package again
+ * (its reload, a re-cue after its frame stopped answering) names the instance it replaced (`was`);
+ * from then on a report about that old instance, a write that was still on its way when the output
+ * reloaded, is stale and changes nothing. `replaced` is the page's own record, per graphic, kept by
+ * this fold. Returns whether `next` stands and the record after it.
+ */
+export function acceptOutcome(replaced: readonly string[], next: OgrafOutcome): { accept: boolean; replaced: string[] } {
+  const accept = next.i === null || !replaced.includes(next.i);
+  // What a report says it replaced is kept even when the report itself is stale: after two reloads
+  // whose reports arrive out of order, the oldest instance is still refused.
+  if (next.i === null || !next.was || replaced.includes(next.was)) return { accept, replaced: [...replaced] };
+  // Bounded: a long show's reloads cannot grow it, and only the recent instances can still write.
+  return { accept, replaced: [...replaced, next.was].slice(-REPLACED_KEPT) };
+}
+const REPLACED_KEPT = 16;
 
 const CALL_WORD: Record<string, string> = { mount: 'its load', play: 'the Take', stop: 'the Out', update: 'the update', custom: 'the action' };
 
@@ -70,6 +102,7 @@ const CALL_WORD: Record<string, string> = { mount: 'its load', play: 'the Take',
  */
 export function ografOutcomeWords(name: string, o: OgrafOutcome): OutcomeLine {
   if (o.status === 'unmounted') return { text: `${name}: the output could not load it (${o.msg})`, tone: 'bad' };
+  if (o.unknown) return { text: `${name}: not known on the output (${o.unknown})`, tone: 'unknown' };
   const what = CALL_WORD[o.call] || 'a call';
   const said = o.msg ? `: ${o.msg}` : '';
   if (o.status === 'rejected') return { text: `${name}: the graphic refused ${what}${o.code ? ` (${o.code}${said})` : said}`, tone: 'bad' };

@@ -92,6 +92,7 @@ export default function HostedCueAdjust({
       style={{
         reach,
         artwork,
+        package: graphic.ograf !== undefined,
         imported,
         bundled: FONTS,
         design,

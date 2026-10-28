@@ -56,7 +56,10 @@ export interface OgrafReturn {
 export type OgrafAnswer =
   | { status: 'done'; statusCode: number; statusMessage?: string; currentStep?: number }
   | { status: 'rejected'; statusCode: number; statusMessage?: string }
-  | { status: 'timeout'; statusMessage?: string }
+  /** `unanswered`: this page's own deadline passed with no reply at all (the frame's document or
+   *  bridge is gone). Without it, the host answered for a Graphic slower than its window (504), or
+   *  the oldest of too many calls waiting was given up, and the frame may well be alive. */
+  | { status: 'timeout'; statusMessage?: string; unanswered?: true }
   | { status: 'gone' }
   | { status: 'refused'; reason: string };
 
@@ -64,6 +67,9 @@ export interface ForeignOgrafLayer {
   /** This mount's own id, unique per instance: written on its frame as `data-instance`, so a
    *  replacement is a different instance and nothing it says is mistaken for the one it replaced. */
   instance: string;
+  /** Its frame, which the stage places and sizes like a NoaCG graphic's (playout adjustments
+   *  AC-10): the transform is on the element NoaCG owns, never inside the package's document. */
+  frame: HTMLIFrameElement;
   /** Called with every settled answer, after `position()` has taken it in. `newest`: no later Take,
    *  step or Out was sent before it settled, so a play or stop answer still says where it is. */
   onAnswer(cb: (call: OgrafCall, answer: OgrafAnswer, newest: boolean) => void): void;
@@ -80,6 +86,9 @@ export interface ForeignOgrafLayer {
   setOffAir(off: boolean): void;
   /** Every reply in arrival order, the most recent RETURNS_KEPT only. */
   returns: readonly OgrafReturn[];
+  /** Resolves once every call sent so far has settled (answered, timed out or gone): a boot's
+   *  catch-up waits on it before it comes back on air (output/catchUp.ts). */
+  settled(): Promise<void>;
   /** Resolves once the host document has loaded and been handed the port, with `load()` and
    *  every call sent so far waiting on it (or the layer was destroyed first). */
   loaded: Promise<void>;
@@ -174,6 +183,8 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
   /** `load()`'s answer, however it came: every later call's deadline starts from it. */
   let loadAnswered: Promise<unknown> = Promise.resolve();
   const answerCbs: ((call: OgrafCall, answer: OgrafAnswer, newest: boolean) => void)[] = [];
+  /** Every call not settled yet; each settles by its deadline at the latest. */
+  const outstanding = new Set<Promise<OgrafAnswer>>();
   // Posted at once: a port holds what it is sent until the far end starts listening, so nothing
   // waits on the frame's load here, and `load()` is the first call the Graphic sees.
   const post = (call: OgrafCall, args: unknown[]): Promise<OgrafAnswer> => {
@@ -200,13 +211,15 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
       // The host starts a call's own deadline only once load() has answered, so this page's
       // fallback does the same: a slow load never eats into the answer window of the calls behind it.
       const arm = () => {
-        if (pending.has(callId)) timer = setTimeout(() => settle({ status: 'timeout', statusMessage: 'the graphic answered nothing' }), deadline);
+        if (pending.has(callId)) timer = setTimeout(() => settle({ status: 'timeout', statusMessage: 'the graphic answered nothing', unanswered: true }), deadline);
       };
       if (call === 'mount') arm();
       else void loadAnswered.then(arm);
     });
     // A Graphic that never answers cannot grow the book forever: the oldest call is given up.
     if (pending.size > PENDING_KEPT) pending.get(pending.keys().next().value as number)?.settle({ status: 'timeout', statusMessage: 'too many calls unanswered' });
+    outstanding.add(answered);
+    void answered.then(() => outstanding.delete(answered));
     channel.port1.postMessage({ id: callId, call, args });
     const sentAt = walk;
     if (call !== 'offair') void answered.then((answer) => { for (const cb of answerCbs) cb(call, answer, sentAt === walk); });
@@ -260,6 +273,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
 
   return {
     instance: suffix,
+    frame,
     onAnswer: (cb) => void answerCbs.push(cb),
     send: (msg) => void call(msg),
     call,
@@ -269,6 +283,7 @@ export function mountForeignOgraf(parent: HTMLElement, spec: ForeignOgrafSpec, r
       return post('play', [judged.params]);
     },
     position: () => ({ at, declared: manifest.stepCount }),
+    settled: () => Promise.all([...outstanding]).then(() => undefined),
     setOffAir: (off) => void post('offair', [off]),
     returns,
     loaded,
