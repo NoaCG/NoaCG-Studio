@@ -42,6 +42,7 @@ import type {
 import type { PlayoutSession } from './playoutSession';
 import { airAtRequest, forgetBootReplay, logged, seedFromResolve, withReports, type AirAtRequest, type AppendLog, type ClockSpecs } from './airState.ts';
 import { writeArms } from './cueArmEngine.ts';
+import { requestId } from './prepareLive.ts';
 
 /** How far behind the log head the action log seeds its history. Global ids mean this is a ceiling
  *  on rows READ, not on rows shown: a busy instance yields fewer of this show's. */
@@ -181,7 +182,7 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     const handOver = (status: ControlFollowStatus) => {
       if (handedOver || !resolved.seq || status.status !== 'SUBSCRIBED') return;
       handedOver = true;
-      void io.controlPingSeq(slug, `handover${Math.random().toString(36).slice(2, 12)}`).catch(() => undefined);
+      void io.controlPingSeq(slug, requestId()).catch(() => undefined);
     };
     const described = history.map((row) => page().describe(row)).filter((e): e is LogEntry => !!e);
     session.apply((parts) => ({ ...parts, log: logged(parts.log, described, io.appendLog) }));

@@ -287,6 +287,10 @@ The page:
   minute). A renderer from this landing on always carries `ack` (empty until a ping arrives), so a
   page can tell one that cannot answer from one that did not. Older renderers and pages ignore the
   row: its type is unknown to them and its graphic names nothing they hold.
+  The production page also sends one at its follow's first join on the numbered log (#1797,
+  `control/sessionWire.ts`): a renderer that lost a `seq-` frame while the page loaded sees the
+  ping's number with a gap in front of it, reads the tail and applies what it missed, rather than
+  waiting for the next row or the 30 s poll.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
