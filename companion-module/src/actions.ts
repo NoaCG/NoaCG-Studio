@@ -124,7 +124,8 @@ export function graphicKeyOptions(actions: PanelActions | null): {
 			type: 'textinput' as const,
 			label: 'Arguments (for an OGraf action)',
 			default: '',
-			tooltip: 'Empty sends the on-air cue\'s arguments, as the button on the page does. Or JSON, like {"team": 2}.',
+			tooltip:
+				'Empty (or {}) sends the on-air cue\'s arguments, as the button on the page does. Or JSON, like {"team": 2}.',
 		},
 	}
 }

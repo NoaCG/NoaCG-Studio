@@ -135,6 +135,8 @@ export class PanelClient {
 	#settledSaid = new Map<string, string>()
 	/** Each graphic key's last outcome (`<graphic>/<capability id>`), and the press it belongs to. */
 	#keyOutcomes = new Map<string, { outcome: KeyOutcome; id: string; until: number }>()
+	/** The graphic key whose press was refused before it went, while it shows so. */
+	#refusedHere: { row: string; until: number } | null = null
 	/** The key each graphic-action press id was made on, for its `settled`. Bounded like `#unsettled`. */
 	#pressKeys = new Map<string, string>()
 	#heardAt = 0
@@ -200,6 +202,9 @@ export class PanelClient {
 	}
 	/** What the last press of a graphic key came to, while its key shows it. */
 	keyOutcome(graphic: string, cap: string): KeyOutcome | null {
+		// A press refused before it went shows failed briefly over whatever the key's last sent press shows.
+		const here = this.#refusedHere
+		if (here && here.row === `${graphic}/${cap}` && here.until > this.#clock.now()) return 'failed'
 		const k = this.#keyOutcomes.get(`${graphic}/${cap}`)
 		return k && k.until > this.#clock.now() ? k.outcome : null
 	}
@@ -545,12 +550,14 @@ export class PanelClient {
 		let sentId = ''
 		const refused = (sentence: string, result?: PressResult, outcome: KeyOutcome = 'failed'): PressOutcome => {
 			this.#flash = { ...flash, until: this.#clock.now() + FLASH_MS }
-			// A graphic key refused before it went, or answered refused, shows failed briefly; one that
-			// went unanswered shows not known until what it came to is said. The press it belongs to is
-			// kept, so its own `settled` still writes it.
-			// A newer press of the same key holds what it shows: an older one's answer writes nothing.
+			// A graphic key's press that went and was answered refused shows failed briefly; one that
+			// went unanswered shows not known until its own `settled` says what it came to. A newer
+			// press of the same key holds what it shows, and a press refused before it went writes
+			// nothing (its flash reads failed), so an earlier press's outcome is never hidden.
 			const held = this.#keyOutcomes.get(flash.row)
-			if (flash.verb === ACTION_VERB && !(sentId && held && held.id !== sentId)) {
+			if (flash.verb === ACTION_VERB && !sentId)
+				this.#refusedHere = { row: flash.row, until: this.#clock.now() + OUTCOME_MS }
+			else if (flash.verb === ACTION_VERB && !(held && held.id !== sentId)) {
 				const until = outcome === 'failed' ? this.#clock.now() + OUTCOME_MS : Infinity
 				this.#keyOutcomes.set(flash.row, { outcome, id: sentId, until })
 			}
@@ -582,7 +589,18 @@ export class PanelClient {
 				this.#pressKeys.set(press.id, flash.row)
 				for (const id of this.#pressKeys.keys()) if (this.#pressKeys.size > UNSETTLED_MAX) this.#pressKeys.delete(id)
 				this.#keyOutcomes.set(flash.row, { outcome: 'running', id: press.id, until: Infinity })
+				if (this.#refusedHere?.row === flash.row) this.#refusedHere = null
 			}
+			/** A graphic action that may still say what it came to: unsaid in SETTLE_MS, it is not
+			 *  confirmed. */
+			const awaitSettled = () =>
+				this.#clock.setTimeout(() => {
+					if (this.#unsettled.get(press.id) !== seq) return
+					this.#unsettled.delete(press.id)
+					this.#keyOutcome(press.id, 'unknown')
+					tell(UNSETTLED_SENTENCE)
+					this.#opts.onChange?.()
+				}, SETTLE_MS)
 			// Sent and not yet answered: the last-press variable says so, apart from done and refused.
 			tell(PENDING_SENTENCE)
 			this.#opts.onChange?.()
@@ -595,13 +613,15 @@ export class PanelClient {
 					answer = await this.#relay.press(this.#key, press)
 				} catch (err) {
 					this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
-					this.#unsettled.delete(press.id)
-					// Both calls failed: it may still have reached the page, so a graphic key reads not known.
+					// Both calls failed: it may still have reached the page, so a graphic key reads not
+					// known, and a `settled` that comes still says what it came to.
+					if (this.#unsettled.has(press.id)) awaitSettled()
 					return refused(`NoaCG offline: ${(err as Error).message}`, undefined, 'unknown')
 				}
 			}
 			if (!answer.ok) {
 				this.#waits.get(press.id)?.({ v: PROTOCOL, id: press.id, panel: '', outcome: 'not-here' })
+				this.#unsettled.delete(press.id)
 				if (answer.refused === 'no-page') {
 					this.#noPage()
 				} else if (answer.refused === 'revoked' || answer.refused === 'unknown-key') {
@@ -612,16 +632,6 @@ export class PanelClient {
 				return refused(refusalSentence(code(answer.refused), answer.note))
 			}
 			const result = await answered
-			/** A graphic action that may still say what it came to: unsaid in SETTLE_MS, it is not
-			 *  confirmed. */
-			const awaitSettled = () =>
-				this.#clock.setTimeout(() => {
-					if (this.#unsettled.get(press.id) !== seq) return
-					this.#unsettled.delete(press.id)
-					this.#keyOutcome(press.id, 'unknown')
-					tell(UNSETTLED_SENTENCE)
-					this.#opts.onChange?.()
-				}, SETTLE_MS)
 			if (press.verb === ACTION_VERB) {
 				// What a graphic action came to is `settled`'s to say, whenever it comes: before the
 				// press's own `result`, after the wait for it, or instead of a lost one.

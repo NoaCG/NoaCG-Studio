@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { PanelClient, OUTCOME_MS, SETTLE_MS, type PressOutcome } from '../panel.js'
-import { ARGS_MAX_CHARS, keyArgs, offerShape, readActions, type ActionPress } from '../protocol.js'
+import { ARGS_MAX_CHARS, ARGS_MAX_DEPTH, keyArgs, offerShape, readActions, type ActionPress } from '../protocol.js'
 import { UpdateActions, capChoices, graphicChoices, pressGraphicKey, type GraphicKeyOptions } from '../actions.js'
 import { UpdateFeedbacks } from '../feedbacks.js'
 import { buildPresets, graphicPresets } from '../presets.js'
@@ -285,15 +285,27 @@ test("AC-3: arguments are read in time linear in their size, within the relay's 
 	assert.deepEqual(keyArgs('event:choose', { option: ' A ' }), { args: { option: 'A' } })
 	assert.deepEqual(keyArgs('event:goal', { args: '{"x":1}' }), { args: {} })
 	assert.deepEqual(keyArgs('foreign:x', { args: '' }), { args: {} })
-	const atBound = `{"t":"${'x'.repeat(ARGS_MAX_CHARS - 8)}"}`
-	assert.equal(atBound.length, ARGS_MAX_CHARS)
+	// Measured as the server writes it back: `{"t": "x…"}`, one space more than typed.
+	const atBound = `{"t":"${'x'.repeat(ARGS_MAX_CHARS - 9)}"}`
+	assert.equal(atBound.length + 1, ARGS_MAX_CHARS)
 	assert.ok('args' in keyArgs('foreign:x', { args: atBound }))
-	const pastBound = `{"t":"${'x'.repeat(ARGS_MAX_CHARS - 7)}"}`
-	assert.equal(pastBound.length, ARGS_MAX_CHARS + 1)
-	assert.ok('refused' in keyArgs('foreign:x', { args: pastBound }))
+	const pastBound = `{"t":"${'x'.repeat(ARGS_MAX_CHARS - 8)}"}`
+	assert.deepEqual(keyArgs('foreign:x', { args: pastBound }), {
+		refused: 'The arguments are longer than a press takes',
+	})
+	// Every member and item adds its space: 3 colons and 2 commas, and 1 comma in the list.
+	const spaced = (n: number) => `{"a":1,"b":[1,2],"t":"${'x'.repeat(n)}"}`
+	assert.ok('args' in keyArgs('foreign:x', { args: spaced(ARGS_MAX_CHARS - 30) }))
+	assert.ok('refused' in keyArgs('foreign:x', { args: spaced(ARGS_MAX_CHARS - 29) }))
+	// Nesting: the object and seven more levels, never eight.
+	assert.equal(ARGS_MAX_DEPTH, 8)
+	assert.ok('args' in keyArgs('foreign:x', { args: `{"d":${'['.repeat(7)}${']'.repeat(7)}}` }))
+	assert.deepEqual(keyArgs('foreign:x', { args: `{"d":${'['.repeat(8)}${']'.repeat(8)}}` }), {
+		refused: 'The arguments nest deeper than 8 levels',
+	})
 	const t = process.hrtime.bigint()
 	assert.ok('refused' in keyArgs('foreign:x', { args: '['.repeat(5_000_000) }))
-	assert.ok('refused' in keyArgs('foreign:x', { args: '{"a":' + '['.repeat(2000) + ']'.repeat(2000) + '}' }) === false)
+	assert.ok('refused' in keyArgs('foreign:x', { args: '{"a":' + '['.repeat(2000) + ']'.repeat(2000) + '}' }))
 	assert.ok(Number(process.hrtime.bigint() - t) / 1e6 < 500)
 })
 
@@ -420,4 +432,43 @@ test('AC-2: an older press answered late, or not at all, never rewrites what a n
 	relay.emit('settled', { av: 2, id: 'deck:2', outcome: 'accepted' })
 	assert.equal(fb('action_outcome', { ...k, outcome: 'done' }), true)
 	assert.equal(relay.count('press'), 2)
+})
+
+test('AC-2: a press refused before it went never hides what an earlier press of the key may have done', async () => {
+	const { relay, clock, panel } = await answering()
+	const { press, fb } = companion(panel)
+	const k = { graphic: 'Scorebug', cap: 'event:goal-home' }
+	await press(key(k))
+	assert.equal(fb('action_outcome', { ...k, outcome: 'running' }), true)
+	// The scorebug goes off air: a second press is refused here and shows so, briefly.
+	const off = offer({ actionsVer: 3_000_016 })
+	off.graphics[0] = {
+		...off.graphics[0],
+		live: null,
+		caps: off.graphics[0].caps.map((c) => ({ ...c, allowed: false, note: 'Scorebug is off air' })),
+	}
+	relay.emit('actions', off)
+	await press(key(k))
+	assert.equal(fb('action_outcome', { ...k, outcome: 'failed' }), true)
+	await clock.advance(OUTCOME_MS)
+	// Then the first press shows again, and what it came to is still said on the key.
+	assert.equal(fb('action_outcome', { ...k, outcome: 'running' }), true)
+	relay.emit('settled', { av: 2, id: 'deck:1', outcome: 'unknown', note: 'no answer from the server' })
+	assert.equal(fb('action_outcome', { ...k, outcome: 'unknown' }), true)
+	assert.equal(relay.count('press'), 1)
+})
+
+test('AC-2: a press whose two calls both failed reads not known, and a settled that comes still says what it came to', async () => {
+	const { relay, panel } = await answering()
+	const { press, fb } = companion(panel)
+	const k = { graphic: 'Scorebug', cap: 'event:goal-home' }
+	relay.pressAnswers.push(new Error('reset'), new Error('reset'))
+	const out = await press(key(k))
+	assert.match(out.sentence, /NoaCG offline/)
+	assert.equal(fb('action_outcome', { ...k, outcome: 'unknown' }), true)
+	relay.emit('settled', { av: 2, id: 'deck:1', outcome: 'accepted' })
+	assert.equal(fb('action_outcome', { ...k, outcome: 'done' }), true)
+	assert.equal(panel.lastPress, 'Done')
+	assert.equal(relay.count('press'), 2, 'the one same-id retry, never a third')
+	assert.deepEqual(new Set(sent(relay).map((p) => p.id)), new Set(['deck:1']))
 })

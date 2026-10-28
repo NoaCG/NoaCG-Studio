@@ -59,7 +59,7 @@ A graphic's key also shows what its last press came to:
 - **Take a cue**: airs that cue whatever the SPACE mode; pressed again while it is on air, takes it off. The selection stays where it was.
 - **Trigger a cue**: plays or restarts that cue. The selection and PREVIEW stay where they were.
 
-- **Graphic action**: one live control of one graphic, as its block on the production page draws it. It acts on the cue on air on that graphic, never on the selected cue. Choose the **Graphic** and the **Action**; a pick also takes its **Option**, a number its **Step** (+1 or -1). An OGraf action sends the on-air cue's arguments, as the button on the page does, unless you type your own into **Arguments** as JSON, like `{"team": 2}`.
+- **Graphic action**: one live control of one graphic, as its block on the production page draws it. It acts on the cue on air on that graphic, never on the selected cue. Choose the **Graphic** and the **Action**; a pick also takes its **Option**, a number its **Step** (+1 or -1). An OGraf action sends the on-air cue's arguments, as the button on the page does, unless you type your own into **Arguments** as JSON, like `{"team": 2}`. Empty, or `{}`, means the cue's.
 
 The hosted control page has no server clips, so it refuses the clip keys with "not on this page". It runs no graphic actions either.
 

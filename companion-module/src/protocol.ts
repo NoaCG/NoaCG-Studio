@@ -462,8 +462,26 @@ export function capabilityState(
 	return { state: 'allowed', note: cap.label, ...base }
 }
 
-/** The longest argument text a key may carry: the relay's own bound on the argument object. */
+/** The relay's bounds on the argument object (migration 0103): its text as the server writes it
+ *  back (`", "` and `": "` between members), and how deep its containers nest (the object is 1). */
 export const ARGS_MAX_CHARS = 4096
+export const ARGS_MAX_DEPTH = 8
+
+/** Why the relay would refuse these arguments, or null: measured as the server measures them, so a
+ *  key refuses here what would come back `bad-press`. One walk, iterative. */
+function argsFault(args: Record<string, unknown>): string | null {
+	let spaces = 0
+	const stack: [unknown, number][] = [[args, 1]]
+	while (stack.length) {
+		const [v, depth] = stack.pop()!
+		if (typeof v !== 'object' || v === null) continue
+		if (depth > ARGS_MAX_DEPTH) return `The arguments nest deeper than ${ARGS_MAX_DEPTH} levels`
+		const items = Array.isArray(v) ? (v as unknown[]) : Object.values(v)
+		spaces += Math.max(0, items.length - 1) + (Array.isArray(v) ? 0 : items.length)
+		for (const item of items) stack.push([item, depth + 1])
+	}
+	return JSON.stringify(args).length + spaces > ARGS_MAX_CHARS ? 'The arguments are longer than a press takes' : null
+}
 
 /**
  * THE ARGUMENTS A SAVED KEY SENDS, from its options and its capability's kind (the id's prefix, never
@@ -482,6 +500,7 @@ export function keyArgs(
 		return { args: option ? { option } : {} }
 	}
 	const text = typeof o.args === 'string' ? o.args.trim() : ''
+	// Empty, or `{}`, sends the cue's own arguments: the page reads an empty object so.
 	if (kind !== 'foreign' || !text) return { args: {} }
 	if (text.length > ARGS_MAX_CHARS) return { refused: 'The arguments are longer than a press takes' }
 	let parsed: unknown
@@ -490,7 +509,9 @@ export function keyArgs(
 	} catch {
 		return { refused: 'The arguments are not JSON: write them like {"team": 2}' }
 	}
-	return isObject(parsed) ? { args: parsed } : { refused: 'The arguments must be an object, like {"team": 2}' }
+	if (!isObject(parsed)) return { refused: 'The arguments must be an object, like {"team": 2}' }
+	const fault = argsFault(parsed)
+	return fault ? { refused: fault } : { args: parsed }
 }
 
 /** What a graphic key shows of its capability's offer, for redefining presets and choices: the
