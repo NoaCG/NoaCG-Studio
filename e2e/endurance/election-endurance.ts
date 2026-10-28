@@ -264,8 +264,18 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       p.on('requestfailed', done);
     };
     watchReads(page);
+    // The agent's resident memory, from Linux's own account of its process (null elsewhere).
+    const rss = (pid: number | undefined) => {
+      try {
+        const kb = /VmRSS:\s+(\d+) kB/.exec(readFileSync(`/proc/${pid}/status`, 'utf8'))?.[1];
+        return kb ? Number(kb) * 1024 : null;
+      } catch {
+        return null;
+      }
+    };
     const sample = async (at: number, gc: boolean) => {
-      const agent = await backlog(current);
+      const waiting = await backlog(current);
+      const agent = waiting ? { ...waiting, rss: rss(current.child.pid) } : null;
       const snap = await snapshot();
       record.samples.push({
         at,

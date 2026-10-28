@@ -223,7 +223,20 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
   let undelivered = null;
   let epoch = ownerEpoch;
 
+  /** Reads in flight now, and the most at once since the backlog was last asked (the endurance run). */
+  let reading = 0;
+  let readingPeak = 0;
   async function read() {
+    reading++;
+    readingPeak = Math.max(readingPeak, reading);
+    try {
+      return await readNow();
+    } finally {
+      reading--;
+    }
+  }
+
+  async function readNow() {
     const own = new AbortController();
     controller = own;
     const { signal } = own;
@@ -336,9 +349,12 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
     get state() {
       return { ...state, failures, nextDelayMs: nextDelay, ownerEpoch: epoch };
     },
-    /** What waits here (the endurance run's queue depth): reads in flight and revisions kept to offer again. */
-    get backlog() {
-      return { reading: inFlight ? 1 : 0, undelivered: undelivered ? 1 : 0 };
+    /** What waits here (the endurance run's queue depth): the most reads in flight at once since
+     *  the last ask, and the revisions kept to offer again. */
+    backlog() {
+      const peak = readingPeak;
+      readingPeak = reading;
+      return { reading: peak, undelivered: undelivered ? 1 : 0 };
     },
     exportConfig: () => exportConnectorConfig(config),
     redact,
@@ -558,7 +574,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   });
   const stopRenewing = sender?.keepClaim();
   // Spawned with an IPC channel (the endurance run), it answers what waits in it, and nothing else.
-  const answerBacklog = (message) => message === 'backlog' && process.send?.({ backlog: { ...connector.backlog, posting: sender?.posting ?? 0 } });
+  const answerBacklog = (message) => message === 'backlog' && process.send?.({ backlog: { ...connector.backlog(), posting: sender?.posting ?? 0 } });
   if (process.send) process.on('message', answerBacklog);
   connector.start();
   await done;

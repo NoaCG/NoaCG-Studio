@@ -90,7 +90,7 @@ function healthy() {
   for (let t = T0; t < r.end; t += 10_000) {
     const gc = (t - T0) % 60_000 === 0;
     const side = (heap) => ({ heap, nodes: 3_000, listeners: 600, documents: 4, frames: 6, channels: 3, gc });
-    r.samples.push({ at: t, controller: side(30 * MIB), output: side(20 * MIB), stateReadsInFlight: 0, stateReadsMax: 1, agent: { reading: (t / 10_000) % 2, undelivered: 0, posting: 0 }, agentsAlive: 1, snapshots: 1, driver: { rss: 200 * MIB, heap: 50 * MIB, handles: 30 } });
+    r.samples.push({ at: t, controller: side(30 * MIB), output: side(20 * MIB), stateReadsInFlight: 0, stateReadsMax: 1, agent: { reading: (t / 10_000) % 2, undelivered: 0, posting: 0, rss: 60 * MIB }, agentsAlive: 1, snapshots: 1, driver: { rss: 200 * MIB, heap: 50 * MIB, handles: 30 } });
     r.snapshots.push({ at: t, epoch: epochAt(t), revision: Math.max(1, Math.floor((t - T0) / STEP_MS)), state: 'changed', bytes: 164_000 });
   }
   let marks = 0;
@@ -177,6 +177,9 @@ red('an output instance left behind by a replacement', (r) => r.frames.push({ ..
 red('two agents alive after a handover', (r) => (r.samples[100].agentsAlive = 2), /one agent alive/);
 red('controller memory growing window on window', (r) => {
   for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.controller.heap = 45 * MIB;
+}, /memory and instance counts/);
+red('the agent\'s memory growing', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.agent.rss = 120 * MIB;
 }, /memory and instance counts/);
 red('listeners growing on the output', (r) => {
   for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.output.listeners = 900;

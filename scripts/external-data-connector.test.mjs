@@ -326,6 +326,20 @@ describe('limits', () => {
     assert.match(done.error, /did not answer in 10 seconds/);
   });
 
+  test('one read in flight per source: a second ask shares it, and the backlog reports the peak since it was last asked (E8.1b)', async () => {
+    const { c, clock } = connector({ net: fakeNet(stalled) });
+    assert.deepEqual(c.backlog(), { reading: 0, undelivered: 0 });
+    const first = c.readOnce();
+    assert.equal(c.readOnce(), first, 'the second ask is the same read');
+    await clock.advance(1);
+    assert.deepEqual(c.backlog(), { reading: 1, undelivered: 0 });
+    await clock.advance(10_000);
+    await first;
+    // That read was still in flight at the last ask, so it counts once more; then none.
+    assert.deepEqual(c.backlog(), { reading: 1, undelivered: 0 });
+    assert.deepEqual(c.backlog(), { reading: 0, undelivered: 0 });
+  });
+
   test('a body that stalls after its headers fails at 10 s too', async () => {
     const respond = (req) => ({
       status: 200,

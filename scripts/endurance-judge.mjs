@@ -220,6 +220,11 @@ export function judge(record) {
     const allowance = field === 'heap' ? known[0] * slack + 2 * MIB : Math.max(known[0] * slack, field === 'documents' ? 0 : 50);
     if (known.at(-1) > known[0] + allowance) growth.push({ series: `${side}.${field}`, first: known[0], last: known.at(-1) });
   }
+  // The agent restarts at every handover, so each window's median is that window's own process.
+  const agentRss = steady.map((w) => median(inWindow(w).filter((s) => Number.isFinite(s.agent?.rss)).map((s) => s.agent.rss)));
+  memory['agent.rss'] = agentRss;
+  const knownRss = agentRss.filter((x) => x !== null);
+  if (knownRss.length >= 2 && knownRss.at(-1) > knownRss[0] * 1.25 + 10 * MIB) growth.push({ series: 'agent.rss', first: knownRss[0], last: knownRss.at(-1) });
   const enough = steady.length >= 2 || record.minutes < 20;
   check('memory and instance counts hold across the steady-state windows', enough && growth.length === 0, growth.length ? JSON.stringify(growth) : `${steady.length} steady windows`);
 
