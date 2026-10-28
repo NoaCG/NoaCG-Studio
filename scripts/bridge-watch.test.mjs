@@ -494,7 +494,7 @@ test('after a server restart the output this page loaded goes back on its slot b
   assert.ok(!t.take().includes('reload'), 'ours again: no more loads');
 });
 
-test('an output this page only saw, another production, an Unload or an unpublish is never loaded again', async () => {
+test('an output this page only saw, another production, an Unload here or elsewhere, or an unpublish is never loaded again', async () => {
   // Seen on the slot but loaded by another browser: that browser brings it back.
   const seen = rig({ items: [] });
   seen.update();
@@ -510,6 +510,15 @@ test('an output this page only saw, another production, an Unload or an unpublis
   other.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
   await other.readSlot();
   assert.ok(!other.calls.includes('reload'), 'another production');
+
+  // Emptied with no outage: another browser's Unload or unpublish, or a client's CLEAR. This page
+  // hears of it only through the slot, and leaves it alone.
+  const cleared = await loadedRig();
+  cleared.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+  await cleared.readSlot();
+  await cleared.readSlot();
+  assert.ok(!cleared.calls.includes('reload'), 'emptied while the server kept answering');
+  assert.equal(cleared.session.bridge.get().slotReload, null);
 
   // Unloaded on purpose (onAirChanged('stop') clears what was seen and gives the slot up).
   const unloaded = await loadedRig();

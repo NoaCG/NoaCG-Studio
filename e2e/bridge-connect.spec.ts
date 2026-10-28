@@ -1243,23 +1243,42 @@ test('after a CasparCG restart the output this page loaded goes back on its slot
   await slot.getByTestId('caspar-put-on-air').click();
   await expect(slot).toContainText('Loading…');
   expect(bridge.actions).toHaveLength(1);
-  // The server restarts: every layer is wiped. Check again reads the slot at once rather than at
-  // the next 10 s reading.
+  // Emptied while everything kept answering (another browser's Unload, a client's CLEAR): left alone.
+  // Check again reads the slot at once rather than at the next 10 s reading.
   bridge.showPage('2-30', null);
-  await panel.getByTestId('playout-check-now').click();
-  // It is loaded again onto the same slot with no press, once.
-  await expect.poll(() => bridge.actions.length).toBe(2);
-  expect(bridge.actions[1]).toMatchObject(LOAD_2_30);
-  await expect(slot).toContainText('Loading…');
-  await expect(page.getByTestId('production-note').filter({ hasText: 'failed' })).toHaveCount(0);
-  // Unloaded on purpose, a wiped slot stays empty.
-  await slot.getByTestId('caspar-take-off-air').click();
-  await expect(slot).toContainText('Empty');
   const reads = bridge.stateCalls;
   await panel.getByTestId('playout-check-now').click();
   await expect.poll(() => bridge.stateCalls).toBeGreaterThan(reads);
   await expect(slot).toContainText('Empty');
-  expect(bridge.actions.map((a) => a.verb)).toEqual(['take', 'take', 'out']);
+  expect(bridge.actions).toHaveLength(1);
+  // A restart: the server is put back on the slot, then goes away, and answers again with every
+  // layer wiped (the Bridge stands in for it going quiet here).
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(slot).toContainText('Loading…');
+  expect(bridge.actions).toHaveLength(2);
+  bridge.missing = true;
+  await panel.getByTestId('playout-check-now').click();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'bad');
+  bridge.showPage('2-30', null);
+  bridge.missing = false;
+  await panel.getByTestId('playout-check-now').click();
+  // It is loaded again onto the same slot with no press, once.
+  await expect.poll(() => bridge.actions.length).toBe(3);
+  expect(bridge.actions[2]).toMatchObject(LOAD_2_30);
+  await expect(slot).toContainText('Loading…');
+  await expect(page.getByTestId('production-note').filter({ hasText: 'failed' })).toHaveCount(0);
+  // Unloaded on purpose, a slot emptied by a restart stays empty.
+  await slot.getByTestId('caspar-take-off-air').click();
+  await expect(slot).toContainText('Empty');
+  bridge.missing = true;
+  await panel.getByTestId('playout-check-now').click();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'bad');
+  bridge.missing = false;
+  const after = bridge.stateCalls;
+  await panel.getByTestId('playout-check-now').click();
+  await expect.poll(() => bridge.stateCalls).toBeGreaterThan(after);
+  await expect(slot).toContainText('Empty');
+  expect(bridge.actions.map((a) => a.verb)).toEqual(['take', 'take', 'take', 'out']);
 });
 
 test('Load asks before replacing another production on the slot, and Cancel sends nothing', async ({ page }) => {

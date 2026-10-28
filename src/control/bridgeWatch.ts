@@ -26,7 +26,9 @@
 //
 // THE OUTPUT COMES BACK BY ITSELF (issue #1657, owner 2026-10-24): an output this page loaded, seen
 // on its slot and then read empty (a CasparCG restart wipes every layer) is loaded again onto the
-// same slot, as a Bridge restart already recovers. Never a slot another production or client took,
+// same slot, as a Bridge restart already recovers. Only after the server or the Bridge stopped
+// answering since the slot last held ours, so another browser's Unload or a client's CLEAR is left
+// alone. Never a slot another production or client took,
 // which still asks; never after Unload or once the slot stops being watched (unpublished, CasparCG
 // switched off); at most RELOAD_AFTER_READS.length tries, spaced by empty readings, then the part
 // says it failed and Load is the operator's. What airs after a reload follows the command log, as
@@ -172,6 +174,10 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   let wakeState: (() => void) | null = null;
   /** This page loaded the output on its slot and has not unloaded it since (#1657). */
   let loadedHere = false;
+  /** The server or the Bridge stopped answering, or the slot could not be read, since the slot last
+   *  held ours: only then is an empty slot a restart, not another browser's Unload or a client's
+   *  CLEAR (#1657). */
+  let outageSinceOurs = false;
   /** The last slot start was published with CasparCG on, so a start without either is a change. */
   let watched = false;
   /** The reloads of a lost output: tries made, empty readings since the last, one in flight. */
@@ -194,6 +200,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     let live = true;
     const off = io.subscribeTargetStatus(io.loadSettings(), (result) => {
       if (!live) return;
+      if (result.state !== 'ok') outageSinceOurs = true;
       writeBridge(session, { status: result });
       follow();
     });
@@ -250,7 +257,11 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
                 : { holds: 'failed', detail: r.result.detail },
             );
           },
-          () => live && settle(undefined),
+          () => {
+            if (!live) return;
+            outageSinceOurs = true;
+            settle(undefined);
+          },
         )
         .finally(() => {
           reading = false;
@@ -267,7 +278,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   // A LOST OUTPUT, LOADED AGAIN (#1657): each reading of the slot decides. Ours again ends the
   // tries; another production's ends them too, and the slot is no longer this page's to take back.
   const bringBack = (reading: SlotReading) => {
+    if (reading.holds === 'failed') outageSinceOurs = true;
     if (reading.holds === 'ours') {
+      outageSinceOurs = false;
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return;
     }
@@ -276,7 +289,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return;
     }
-    if (reading.holds !== 'empty' || !loadedHere || !session.bridge.get().slotSeenOurs || reloads.inFlight) return;
+    if (reading.holds !== 'empty' || !outageSinceOurs || !loadedHere || !session.bridge.get().slotSeenOurs || reloads.inFlight) return;
     if (reloads.tries >= RELOAD_AFTER_READS.length) {
       // Out of tries: said once, and Load is the operator's.
       if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail: reloads.detail } });
