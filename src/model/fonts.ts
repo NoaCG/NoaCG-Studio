@@ -510,13 +510,10 @@ export function ensureFontFace(
   why = 'A style variable points at this face, so its file ships with the graphic.',
 ): string {
   if (!face) return css;
-  const ext = `fonts/${latinExtFile(face)}`;
-  if (css.includes(`fonts/${face.file}`)) {
-    if (css.includes(ext)) return css;
-    // Declared before #1744, with the latin file alone: add its twin rather than a second block.
-    const upgraded = upgradeFontCss(css);
-    if (upgraded.includes(ext)) return upgraded;
-  }
+  // Both files count. A block saved before #1744 names the latin file alone; when the use-time
+  // upgrade adds its twin, the saved CSS is left as it is.
+  const ships = (text: string) => text.includes(`fonts/${face.file}`) && text.includes(`fonts/${latinExtFile(face)}`);
+  if (ships(css) || (css.includes(`fonts/${face.file}`) && ships(upgradeFontCss(css)))) return css;
   return `${supportingFontFaceCss(face, why)}\n\n${css}`;
 }
 
@@ -533,6 +530,11 @@ const OLD_IMPORTED_NOTE =
 const IMPORTED_NOTE =
   `/* Single file: the style controls offer Regular only. Add more @font-face rules with
      their own files and font-weight for true weights. */`;
+
+/** The family an `@font-face` rule declares. */
+function ruleFamily(rule: string): string | undefined {
+  return /font-family:\s*"([^"]+)"/.exec(rule)?.[1];
+}
 
 /** The bundled face whose latin or latin-ext file a rule's `src` names. */
 function ruleFace(rule: string): BundledFont | undefined {
@@ -552,29 +554,35 @@ function ruleFace(rule: string): BundledFont | undefined {
  * Idempotent, and CSS written by today's generators passes through unchanged.
  */
 export function upgradeFontCss(css: string): string {
+  if (!css.includes('@font-face')) return css;
+  const faceRules = (text: string) => text.match(/@font-face\s*\{[^}]*\}/g) ?? [];
   let out = css.replace(/@font-face\s*\{[^}]*\}/g, (rule) => {
     const face = ruleFace(rule);
     if (!face || face.weights[0] !== face.weights[1]) return rule;
-    return rule.replace(/^[ \t]*font-weight:\s*400(?:\s+400)?\s*;[^\n]*$/m, faceWeightLine(face));
+    return rule.replace(/font-weight:\s*400(?:\s+400)?\s*;([ \t]*\/\*[^*]*\*\/)?/, faceWeightLine(face).trim());
   });
+  // The latin-ext twins already declared, as "<family>|<file>".
+  const twins = new Set(faceRules(out).flatMap((rule) => {
+    const face = ruleFace(rule);
+    const family = ruleFamily(rule);
+    return face && family && rule.includes(`fonts/${latinExtFile(face)}`) ? [`${family}|${face.file}`] : [];
+  }));
   out = out.replace(GENERATED_BUNDLED_RE, (whole, _comment: string, rule: string) => {
     const face = ruleFace(rule);
-    if (!face || !rule.includes(`fonts/${face.file}`)) return whole;
-    const family = /font-family:\s*"([^"]+)"/.exec(rule)?.[1];
-    if (!family) return whole;
-    const twinned = [...out.matchAll(/@font-face\s*\{[^}]*\}/g)].some(
-      ([r]) => r.includes(`fonts/${latinExtFile(face)}`) && r.includes(`"${family}"`),
-    );
-    if (twinned) return whole;
+    const family = ruleFamily(rule);
+    if (!face || !family || !rule.includes(`fonts/${face.file}`) || twins.has(`${family}|${face.file}`)) return whole;
     const weightLine = /^[ \t]*font-weight:[^\n]*$/m.exec(rule)?.[0] ?? faceWeightLine(face);
     return `${whole}\n${latinExtFaceRule(family, face, weightLine)}`;
   });
+  // A family the stylesheet also gives other weighted files (the old note said to add them) keeps
+  // its weight-less rule as it was: claiming 100-900 would take their weights from them.
+  const weighted = new Set(faceRules(out).filter((r) => /font-weight\s*:/.test(r)).map((r) => ruleFamily(r)));
   return out.replace(/(\/\* Imported font[^*]*\*\/\s*)(@font-face\s*\{[^}]*\})/g, (whole, comment: string, rule: string) => {
-    if (/font-weight\s*:/.test(rule)) return whole;
-    const weighted = rule
+    if (/font-weight\s*:/.test(rule) || weighted.has(ruleFamily(rule))) return whole;
+    const upgraded = rule
       .replace(/^([ \t]*src:[^\n]*)$/m, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
       .replace(OLD_IMPORTED_NOTE, IMPORTED_NOTE);
-    return comment + weighted;
+    return comment + upgraded;
   });
 }
 

@@ -117,21 +117,24 @@ export function videoFontFaceCss(
   resolve: (file: string) => string,
   fonts: VideoFont[] = VIDEO_FONTS,
 ): string {
-  return fonts.map(
-    (f) => `@font-face {
+  return fonts.map((f) => {
+    const latin = `@font-face {
   font-family: "${f.family}";
   src: url("${resolve(f.file)}") format("woff2");
   font-weight: ${f.weights[0]} ${f.weights[1]};
   font-display: block;
-}
+}`;
+    // A latin-ext file the resolver could not supply (an empty URL) is left out, not left dead.
+    const ext = resolve(videoLatinExtFile(f.file));
+    return ext ? `${latin}
 @font-face {
   font-family: "${f.family}";
-  src: url("${resolve(videoLatinExtFile(f.file))}") format("woff2");
+  src: url("${ext}") format("woff2");
   font-weight: ${f.weights[0]} ${f.weights[1]};
   font-display: block;
   unicode-range: ${LATIN_EXT_RANGE};
-}`,
-  ).join('\n');
+}` : latin;
+  }).join('\n');
 }
 
 /**

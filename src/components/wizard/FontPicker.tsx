@@ -49,13 +49,10 @@ export function ensureAppFontFace(font: BundledFont): void {
   // faceWeightLine), so the placement canvas previews what airs, never a synthesised bold.
   const weight = font.weights[0] === font.weights[1] ? '100 900' : `${font.weights[0]} ${font.weights[1]}`;
   // Both files, as the template declares them (bundledFaceRules): the latin-ext one sets Š and Ž.
-  const faces = [
-    new FontFace(font.family, `url(/fonts/${font.file})`, { weight }),
-    new FontFace(font.family, `url(/fonts/${latinExtFile(font)})`, { weight, unicodeRange: LATIN_EXT_RANGE }),
-  ];
-  Promise.all(faces.map((face) => face.load()))
-    .then((ready) => ready.forEach((f) => (document.fonts as unknown as { add(f: FontFace): void }).add(f)))
-    .catch(() => loaded.delete(font.id));
+  // Each loads on its own: a missing latin-ext file costs Š and Ž, never the whole face.
+  const add = (f: FontFace) => (document.fonts as unknown as { add(f: FontFace): void }).add(f);
+  new FontFace(font.family, `url(/fonts/${font.file})`, { weight }).load().then(add).catch(() => loaded.delete(font.id));
+  new FontFace(font.family, `url(/fonts/${latinExtFile(font)})`, { weight, unicodeRange: LATIN_EXT_RANGE }).load().then(add).catch(() => {});
 }
 
 /** Chromium's Local Font Access API (feature-detected; absent everywhere else). */

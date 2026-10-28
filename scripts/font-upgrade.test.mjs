@@ -1,5 +1,5 @@
 // gate: build
-// guards: src/model/fonts.ts, src/preview/composeDocument.ts, src/video/videoFonts.ts
+// guards: src/model/fonts.ts, src/preview/composeDocument.ts, src/video/videoFonts.ts, scripts/packs/newsroom/look.mjs
 //
 // A GRAPHIC SAVED BEFORE THE FONT FIXES SETS Š AND Ž IN ITS OWN FACE AND DRAWS NO SYNTHESISED BOLD
 // (issue #1746). #1744 gave every bundled face a second `@font-face` for its latin-ext file and
@@ -125,19 +125,41 @@ test('the upgrade is idempotent, leaves the rest of the stylesheet as it was, an
   assert.equal(upgradeFontCss(current), current, 'CSS the generators write today is already current');
 });
 
-test('a hand-written face outside a generated block is left alone', () => {
+test('a hand-written face gets no twin; a static one is still widened, on one line as on several', () => {
   const hand = `@font-face { font-family: "Mine"; src: url("fonts/inter.woff2") format("woff2"); font-weight: 400 800; }`;
   assert.equal(upgradeFontCss(hand), hand);
+  const oneLine = `@font-face { font-family: "Shout"; src: url("fonts/anton.woff2") format("woff2"); font-weight: 400; }`;
+  const out = upgradeFontCss(oneLine);
+  assert.match(out, /font-weight: 100 900;/);
+  assert.equal(rules(out).length, 1, 'still one rule');
+  assert.equal(upgradeFontCss(out), out);
 });
 
-test('ensureFontFace counts a face declared with its latin file alone as missing its latin-ext half', () => {
+test('an imported family the stylesheet also gives weighted files keeps its weight-less rule', () => {
+  const bold = `@font-face {
+  font-family: "Neue Machina";
+  src: url("fonts/Neue-Machina-Bold.otf") format("opentype");
+  font-weight: 700;
+}`;
+  const css = `${OLD_IMPORTED}\n${bold}`;
+  assert.equal(upgradeFontCss(css), css, 'the Bold file keeps the heavy requests');
+});
+
+test('ensureFontFace counts both files, and leaves a saved block the use-time upgrade completes as it is', () => {
   const saira = fontById('saira');
-  const out = ensureFontFace(OLD_SUPPORTING_SAIRA, saira);
-  assert.equal(rulesFor(out, 'Saira').length, 2, 'the twin is added beside the saved rule, not a second block');
-  assert.ok(out.includes('fonts/saira-latin-ext.woff2'));
-  assert.equal(ensureFontFace(out, saira), out, 'and then left alone');
+  assert.equal(ensureFontFace(OLD_SUPPORTING_SAIRA, saira), OLD_SUPPORTING_SAIRA, 'no saved-record rewrite');
   const current = supportingFontFaceCss(saira, 'why');
   assert.equal(ensureFontFace(current, saira), current);
+  // A hand-written rule with the latin file alone: the upgrade cannot complete it, so the face's
+  // own block, with both files, is added (before #1746 this counted as shipped).
+  const hand = `@font-face { font-family: "Saira"; src: url("fonts/saira.woff2") format("woff2"); }`;
+  const out = ensureFontFace(hand, saira);
+  assert.ok(out.includes('fonts/saira-latin-ext.woff2') && out.endsWith(hand));
+});
+
+test('the newsroom pack declares Outfit exactly as the generator does', async () => {
+  const look = await import(new URL('./packs/newsroom/look.mjs', import.meta.url).href);
+  assert.equal(look.FONT_FACE_CSS, fontFaceCss(fontById('outfit')));
 });
 
 test('the composed document carries the upgrade; the saved template is not touched', async () => {
@@ -155,6 +177,7 @@ test('the composed document carries the upgrade; the saved template is not touch
 test('the video faces declare the latin-ext file too', () => {
   assert.equal(video.LATIN_EXT_RANGE, LATIN_EXT_RANGE, 'the video world carries the same range');
   const css = video.videoFontFaceCss((f) => `fonts/${f}`);
+  assert.ok(!video.videoFontFaceCss((f) => (f.includes('latin-ext') ? '' : `fonts/${f}`)).includes('url("")'), 'a missing latin-ext file is left out');
   for (const f of video.VIDEO_FONTS) {
     const ext = f.file.replace(/\.woff2$/, '-latin-ext.woff2');
     assert.ok(css.includes(`url("fonts/${ext}")`), `${f.family}: latin-ext declared`);

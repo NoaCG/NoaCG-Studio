@@ -51,8 +51,7 @@ export function loadHyperframesFontCss(): Promise<string> {
         if (dataUrl) urls.set(file, dataUrl);
       }),
     );
-    // A face ships with both its files (latin, and latin-ext for Š Ž) or not at all.
-    const available = VIDEO_FONTS.filter((f) => urls.has(f.file) && urls.has(videoLatinExtFile(f.file)));
+    const available = VIDEO_FONTS.filter((f) => urls.has(f.file));
     if (available.length === 0) return '';
     return videoFontFaceCss((file) => urls.get(file) ?? '', available);
   })();
