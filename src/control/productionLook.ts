@@ -171,9 +171,12 @@ export function lookFaceUnpublished(
 /** A published payload's graphics with the look's imported face carried once, by the first
  *  graphic, unless one already ships that file: every stage reads a face's bytes from any graphic
  *  of the production (output/stage.ts `assetData`). */
-export function withLookFaceIn<G extends { assets: readonly { path: string; data: string }[] }>(graphics: readonly G[], asset: AssetFile): G[] {
-  if (!graphics[0] || typeof asset.data !== 'string' || graphics.some((g) => g.assets.some((a) => a.path === asset.path))) return [...graphics];
-  return [{ ...graphics[0], assets: [...graphics[0].assets, { path: asset.path, data: asset.data }] }, ...graphics.slice(1)];
+export function withLookFaceIn<G extends { assets: readonly { path: string; data: string }[]; ograf?: unknown }>(graphics: readonly G[], asset: AssetFile): G[] {
+  // The first NoaCG graphic: an imported OGraf package is never composed, so a face in its files
+  // would reach no document (E3.2a).
+  const at = graphics.findIndex((g) => g.ograf === undefined);
+  if (at < 0 || typeof asset.data !== 'string' || graphics.some((g) => g.assets.some((a) => a.path === asset.path))) return [...graphics];
+  return graphics.map((g, i) => (i === at ? { ...g, assets: [...g.assets, { path: asset.path, data: asset.data }] } : g));
 }
 
 /** One pool graphic as the Look panel counts it. */

@@ -530,8 +530,6 @@ export function createOutputStage(
   // A stranger's package never goes through composeDocument: its own frame, its own bridge.
   const foreign = new Map<string, ForeignOgrafLayer>();
   const ografReturns = new Map<string, readonly OgrafReturn[]>();
-  /** Each foreign package's layer number, for the same-layer rule below. */
-  const ografLayer = new Map<string, number>();
   /** Every foreign layer's load, and every published package's mount (or its failure). */
   const ografLoads: Promise<void>[] = [];
   const mountSpec = (spec: ForeignOgrafSpec): boolean => {
@@ -539,8 +537,10 @@ export function createOutputStage(
       const layer = mountForeignOgraf(stage, spec, payload.resolution, options.ograf);
       foreign.set(spec.key, layer);
       ografReturns.set(spec.key, layer.returns);
-      ografLayer.set(spec.key, spec.layer);
       ografLoads.push(layer.loaded);
+      // A layer that joins a stage already off air (a boot's catch-up) is told so before anything
+      // it was sent meanwhile can play: the replay settles unseen, as for a NoaCG frame (`adopt`).
+      if (offAir) layer.setOffAir(true);
       return true;
     } catch (err) {
       console.error(`output stage: foreign package "${spec.key}" skipped:`, err);
@@ -598,7 +598,6 @@ export function createOutputStage(
   const mountPublished = (spec: OutputGraphicSpec, layer: number) => {
     const key = spec.key;
     if (frames.has(key) || foreign.has(key) || waitingOgraf.has(key) || plates.has(key)) return;
-    ografLayer.set(key, layer);
     const ask = options.ografBase;
     if (!ask) {
       plateFor(spec, layer, 'An imported OGraf package plays on the outputs; this monitor does not load it.');
@@ -620,14 +619,12 @@ export function createOutputStage(
           }
           const layerNow = foreign.get(key)!;
           let on = false;
-          let data: Record<string, unknown> | undefined;
-          told(key, { i: layerNow.instance, call: 'mount', status: 'done', step: null, on: false });
-          layerNow.onAnswer((call, answer, args) => {
+          // Nothing is said until the Graphic answers its `load()`: a frame built is not a package loaded.
+          layerNow.onAnswer((call, answer) => {
             if (foreign.get(key) !== layerNow) return;
             if (answer.status === 'done') {
               if (call === 'play') on = true;
               else if (call === 'stop') on = false;
-              else if (call === 'update' || call === 'mount') data = (args[0] ?? {}) as Record<string, unknown>;
             }
             const at = layerNow.position().at;
             told(key, {
@@ -638,7 +635,6 @@ export function createOutputStage(
               ...('statusMessage' in answer && answer.statusMessage ? { msg: answer.statusMessage } : 'reason' in answer ? { msg: answer.reason } : {}),
               step: at,
               on,
-              ...(data ? { data } : {}),
             });
           });
           for (const msg of held) layerNow.send(msg);
@@ -650,11 +646,8 @@ export function createOutputStage(
     if (!isNative(spec)) mountPublished(spec, layerOf(spec, index));
   });
 
-  /** THE SAME-LAYER RULE (model/shows.ts `duplicateLayers`): one graphic on a layer at a time, on
-   *  every output alike. A Take on a layer takes off whatever else is up there first, by its own
-   *  Out, as CasparCG and SPX do; the stack of different layers is untouched. */
+  /** Packages up on this stage (a Take or a snap, until an Out): only their plates read it. */
   const up = new Set<string>();
-  const layerOfKey = (key: string): number | undefined => frames.get(key)?.layer ?? ografLayer.get(key);
 
   /** The document that sent `ev`, current or prepared, or null. */
   const senderOf = (ev: MessageEvent): Frame | null => {
@@ -782,14 +775,12 @@ export function createOutputStage(
         else typedAiring.delete(graphic);
       }
     }
-    const layer = layerOfKey(graphic);
-    if (layer !== undefined) {
-      if (msg.t === 'play') for (const other of [...up]) if (other !== graphic && layerOfKey(other) === layer) apply(other, { t: 'stop' });
+    const plate = plates.get(graphic);
+    if (plate) {
       if (msg.t === 'play' || msg.t === 'snap') up.add(graphic);
       else if (msg.t === 'stop') up.delete(graphic);
+      plate.style.display = up.has(graphic) ? '' : 'none';
     }
-    const plate = plates.get(graphic);
-    if (plate) plate.style.display = up.has(graphic) ? '' : 'none';
     const foreignLayer = foreign.get(graphic);
     const waiting = waitingOgraf.get(graphic);
     if (foreignLayer || waiting) {
@@ -985,7 +976,6 @@ export function createOutputStage(
       foreign.get(graphic)?.destroy();
       foreign.delete(graphic);
       ografReturns.delete(graphic);
-      ografLayer.delete(graphic);
       waitingOgraf.delete(graphic);
       plates.get(graphic)?.remove();
       plates.delete(graphic);

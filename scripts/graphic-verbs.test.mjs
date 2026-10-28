@@ -334,6 +334,28 @@ test('Take and Out tell the layer they move the marker; Out is a press on the la
   assert.deepEqual(r.notes.at(-1), 'Out failed: the server did not answer');
 });
 
+test('a Take on an imported OGraf package\'s layer takes off what else is up there in the same batch, its marker with it (E3.2a)', async () => {
+  const r = rig({ liveCue: { Bug: 'b1', Strap: 's1' } });
+  r.page.graphics = [{ name: 'Strap' }, { name: 'Bug' }, { name: 'Board' }];
+  r.page.layerPeers = (graphic) => (graphic === 'Board' ? ['Bug', 'Card'] : graphic === 'Bug' ? ['Board'] : []);
+  const taking = r.verbs.take(graphicCue('k1', 'Board'));
+  await settle();
+  // Bug is up and shares Board's layer; Card shares it but is not up; Strap is another layer.
+  assert.deepEqual(r.log.filter((e) => e[0] === 'send').at(-1), ['send', 'Bug:stop+Bug:cue+Board:update+Board:play+Board:cue']);
+  r.sends[0].answer.resolve({ ...noneLeft });
+  await taking;
+  assert.equal(r.liveCue().Bug, undefined, 'its marker went with it');
+  assert.equal(r.liveCue().Board, 'k1');
+  assert.equal(r.liveCue().Strap, 's1', 'another layer is untouched');
+  // With no rule given, a Take replaces nothing, as before.
+  delete r.page.layerPeers;
+  const again = r.verbs.take(graphicCue('s2', 'Strap'));
+  await settle();
+  assert.deepEqual(r.log.filter((e) => e[0] === 'send').at(-1), ['send', 'Strap:update+Strap:play+Strap:cue']);
+  r.sends[1].answer.resolve({ ...noneLeft });
+  await again;
+});
+
 test('a live candidate\'s correction says why it failed once, and answers how', async () => {
   const r = rig();
   const correcting = r.verbs.runSent([[{ graphic: 'Strap', msg: { t: 'update', data: { f1: '2' } } }]], 'Live candidate');

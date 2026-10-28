@@ -442,6 +442,8 @@ async function boot(): Promise<void> {
   const airCount = () => {
     let n = 0;
     for (const graphic of stage.graphics) if (onAirHere(graphic)) n += 1;
+    // An imported OGraf package on air holds a reload as any graphic does (E3.2a).
+    for (const graphic of stage.ografOutcomes.keys()) if (onAirHere(graphic)) n += 1;
     return n;
   };
   /** Each graphic's first cue values in `cues`, or null. */

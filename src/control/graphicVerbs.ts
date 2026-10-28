@@ -124,6 +124,10 @@ export interface GraphicPage {
   graphics: readonly { name: string }[];
   /** The live map this render drew (the page's render copy of the `air` part). */
   liveCue: LiveCueMap;
+  /** THE SAME-LAYER RULE FOR AN IMPORTED OGRAF PACKAGE (E3.2a): the other graphics a Take of this
+   *  one replaces on its layer, whichever of them is up then. Absent or empty: a Take replaces
+   *  nothing (NoaCG graphics sharing a layer stack as they always have, under the clash warning). */
+  layerPeers?: (graphic: string) => readonly string[];
   /** The graphic layers that are up, and the server cues this page put up. */
   liveLayers: readonly { graphic: string }[];
   livePlayoutLayers: readonly { cue: ShowCue }[];
@@ -733,14 +737,21 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     const { data: values, typed: envelope } = sendData(p, cue, graphic, selection, typed);
     // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
     const captured = p.selectionAired(graphic, cue.id, selection, true);
-    const sent = await sendWith(s, [takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
+    // What else is up on its layer goes off in the same batch, by its own Out, as on a playout
+    // server: the log, every output and this page's marker all see it (at most two, so the batch
+    // stays inside one command call).
+    const peers = (p.layerPeers?.(graphic) ?? []).filter((g) => g !== graphic && session.air.get().liveCue[g]).slice(0, 2);
+    const peerCaptured = peers.map((g) => ({ g, c: p.selectionAired(g, '', { status: 'none' }, true) }));
+    const sent = await sendWith(s, [[...peers.flatMap(clearCueItems), ...takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })]], label);
     if (!sent.ok) {
       captured.undo(sent);
+      for (const { c } of peerCaptured) c.undo(sent);
       return { ok: false, note: sent.note };
     }
     // The capture lands only with the values on the output; a later press that overtook it stands.
     if (reachedOutput(sent, graphic)) captured.landed();
     else captured.undo();
+    for (const { g, c } of peerCaptured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
     p.clearMisses([cue.id]);
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };

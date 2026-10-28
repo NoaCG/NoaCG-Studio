@@ -16,7 +16,7 @@
 // never a redirect (it would relax the policy's path match), never as a document of this origin
 // (`Content-Security-Policy: sandbox`, and HTML as text), and `nosniff`.
 
-import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHmac, hkdfSync } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { apiError, bearerToken, ipHash, json, readJson } from './http.js';
 import { supabaseSecretKey } from './jobStore.js';
@@ -25,8 +25,9 @@ import { hitRateLimit } from './rateLimit.js';
 export interface OgrafDependencies {
   /** The production behind the output capability, when its published `version` holds `revision`. */
   show: (slug: string, version: string, revision: string) => Promise<string | null>;
-  /** One file of that package in the production's current payload, as its data URL, or null. */
-  file: (show: string, revision: string, path: string) => Promise<string | null>;
+  /** One file of that package in the production's current payload, as its data URL, or null: only
+   *  while the production is still published under the same output capability and not suspended. */
+  file: (show: string, slug: string, revision: string, path: string) => Promise<string | null>;
   /** The key the sealed bases are made with (32 bytes), or null when this server has none. */
   key: () => Buffer | null;
 }
@@ -35,26 +36,35 @@ const HEX64 = /^[0-9a-f]{64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 /** The longest path a package file may have (ografForeign.ts refuses names past 240 characters). */
 const PATH_MAX = 512;
-/** A sealed base: 12 bytes of IV, the 101-byte plaintext, the 16-byte tag. */
-const SEALED_MAX = 256;
+/** The longest output capability a base carries. */
+const SLUG_MAX = 128;
+/** A sealed base: 12 bytes of IV, the plaintext (at most 36 + 128 + 64 + 2 bytes), the 16-byte tag. */
+const SEALED_MAX = 360;
 
 /** Package fetches per address and minute: a package loads once per output boot, its files read at
- *  most a few hundred times, and a CDN in front answers the repeats. */
+ *  most a few hundred times, and a CDN in front answers the repeats (the base is the same for every
+ *  output of one publication, `sealBase`). */
 export const OGRAF_RATE = { windowMs: 60_000, max: 1200 };
 
 const b64url = (b: Buffer) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const fromB64url = (s: string) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 
-/** `show\nrevision`, sealed (AES-256-GCM, a fresh IV each time). */
-export function sealBase(key: Buffer, show: string, revision: string): string {
-  const iv = randomBytes(12);
+/**
+ * `show\nslug\nrevision`, sealed (AES-256-GCM). The IV is derived from the plaintext (a keyed hash,
+ * as SIV does), so the same package of the same publication always has the same base and a CDN can
+ * answer its files; two different plaintexts never share an IV. The output capability inside means a
+ * rotated capability (or an unpublished production) revokes every base issued under the old one.
+ */
+export function sealBase(key: Buffer, show: string, slug: string, revision: string): string {
+  const plain = `${show}\n${slug}\n${revision}`;
+  const iv = createHmac('sha256', key).update(plain).digest().subarray(0, 12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const body = Buffer.concat([cipher.update(`${show}\n${revision}`, 'utf8'), cipher.final()]);
+  const body = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
   return b64url(Buffer.concat([iv, body, cipher.getAuthTag()]));
 }
 
 /** What a sealed base says, or null for anything this key did not seal. */
-export function openBase(key: Buffer, sealed: string): { show: string; revision: string } | null {
+export function openBase(key: Buffer, sealed: string): { show: string; slug: string; revision: string } | null {
   if (!sealed || sealed.length > SEALED_MAX || !/^[A-Za-z0-9_-]+$/.test(sealed)) return null;
   const raw = fromB64url(sealed);
   if (raw.length < 12 + 16 + 1) return null;
@@ -62,8 +72,8 @@ export function openBase(key: Buffer, sealed: string): { show: string; revision:
     const decipher = createDecipheriv('aes-256-gcm', key, raw.subarray(0, 12));
     decipher.setAuthTag(raw.subarray(raw.length - 16));
     const text = Buffer.concat([decipher.update(raw.subarray(12, raw.length - 16)), decipher.final()]).toString('utf8');
-    const [show, revision, extra] = text.split('\n');
-    return extra === undefined && UUID.test(show ?? '') && HEX64.test(revision ?? '') ? { show, revision } : null;
+    const [show, slug, revision, extra] = text.split('\n');
+    return extra === undefined && UUID.test(show ?? '') && !!slug && slug.length <= SLUG_MAX && HEX64.test(revision ?? '') ? { show, slug, revision } : null;
   } catch {
     return null;
   }
@@ -129,6 +139,7 @@ export function createOutputOgrafHandler(deps: OgrafDependencies) {
   const base = async (req: Request): Promise<Response> => {
     const slug = bearerToken(req);
     if (!slug) return apiError('unauthorized', 'Send the output capability.', 401);
+    if (slug.length > SLUG_MAX || slug.includes('\n')) return apiError('unauthorized', 'This package is not in the published version.', 403);
     let body: { version?: unknown; revision?: unknown };
     try {
       body = await readJson(req, 2048);
@@ -143,7 +154,7 @@ export function createOutputOgrafHandler(deps: OgrafDependencies) {
     try {
       const show = await deps.show(slug, body.version, body.revision);
       if (!show || !UUID.test(show)) return apiError('unauthorized', 'This package is not in the published version.', 403);
-      return json({ base: `/ograf/${sealBase(key, show, body.revision)}/` });
+      return json({ base: `/ograf/${sealBase(key, show, slug, body.revision)}/` });
     } catch {
       return apiError('unavailable', 'The package is temporarily unavailable. Reload the output.', 503);
     }
@@ -160,12 +171,12 @@ export function createOutputOgrafHandler(deps: OgrafDependencies) {
     if (!opened || !path || path.length > PATH_MAX || path.includes('\0')) return missing();
     let data: string | null;
     try {
-      data = await deps.file(opened.show, opened.revision, path);
+      data = await deps.file(opened.show, opened.slug, opened.revision, path);
       // A router that hands the path on as the browser escaped it (a space as %20): read once more.
       if (data === null && path.includes('%')) {
         let read: string | null = null;
         try { read = decodeURIComponent(path); } catch { read = null; }
-        if (read && read !== path && !read.includes('\0')) data = await deps.file(opened.show, opened.revision, read);
+        if (read && read !== path && !read.includes('\0')) data = await deps.file(opened.show, opened.slug, opened.revision, read);
       }
     } catch {
       return new Response('Unavailable', { status: 503, headers: { ...FILE_HEADERS, 'cache-control': 'no-store' } });
@@ -174,9 +185,10 @@ export function createOutputOgrafHandler(deps: OgrafDependencies) {
     if (!bytes) return missing();
     return new Response(new Uint8Array(bytes), {
       status: 200,
-      // The same sealed base names the same bytes for as long as the package is published; a
-      // republish that drops it answers 404 again once this hour has passed.
-      headers: { ...FILE_HEADERS, 'content-type': ografFileType(path), 'cache-control': 'public, max-age=3600' },
+      // The same sealed base names the same bytes for as long as the package is published under it,
+      // so a CDN answers the repeats; a republish that drops it, or a rotated capability, answers 404
+      // again once this hour has passed.
+      headers: { ...FILE_HEADERS, 'content-type': ografFileType(path), 'cache-control': 'public, max-age=3600, s-maxage=3600' },
     });
   };
 
@@ -201,8 +213,8 @@ export const outputOgrafHandler = createOutputOgrafHandler({
     if (error) throw new Error('Package unavailable.');
     return typeof data === 'string' ? data : null;
   },
-  file: async (show, revision, path) => {
-    const { data, error } = await client().rpc('control_output_ograf_file', { p_show: show, p_revision: revision, p_path: path });
+  file: async (show, slug, revision, path) => {
+    const { data, error } = await client().rpc('control_output_ograf_file', { p_show: show, p_output_slug: slug, p_revision: revision, p_path: path });
     if (error) throw new Error('Package unavailable.');
     return typeof data === 'string' ? data : null;
   },

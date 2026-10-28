@@ -12,9 +12,12 @@
 --
 --   * control_output_ograf_show(slug, version, revision): the production behind an output
 --     capability, when the PUBLISHED version it names holds a graphic of that package revision.
---   * control_output_ograf_file(show, revision, path): one file of that package, as the data URL
---     the current payload holds, or null. Read from the payload as it is NOW, so a republish that
---     drops the package stops serving it, and one that keeps it keeps its files reachable.
+--   * control_output_ograf_file(show, slug, revision, path): one file of that package, as the data
+--     URL the current payload holds, or null. Read from the payload as it is NOW, and only while the
+--     production is still published under the output capability the base was issued for and hosted
+--     control is not switched off for its owner: a republish that drops the package, a rotated or
+--     removed capability, or a suspension stops serving it; a republish that keeps it keeps its
+--     files reachable under the same base.
 --
 -- Both are SECURITY DEFINER, service_role only: no client calls them. Additive: two new functions.
 -- Revert: drop both; the route then answers 503 and a foreign graphic does not mount (said there).
@@ -36,19 +39,21 @@ $$;
 revoke all on function public.control_output_ograf_show(text, text, text) from public, anon, authenticated;
 grant execute on function public.control_output_ograf_show(text, text, text) to service_role;
 
-create or replace function public.control_output_ograf_file(p_show uuid, p_revision text, p_path text)
+create or replace function public.control_output_ograf_file(p_show uuid, p_output_slug text, p_revision text, p_path text)
 returns text language sql stable security definer set search_path = '' as $$
   select a->>'data'
     from public.control_shows s,
          jsonb_array_elements(case when jsonb_typeof(s.output->'graphics') = 'array' then s.output->'graphics' else '[]'::jsonb end) g,
          jsonb_array_elements(case when jsonb_typeof(g->'assets') = 'array' then g->'assets' else '[]'::jsonb end) a
    where s.id = p_show
+     and s.output_slug = p_output_slug and p_output_slug is not null
+     and not public.feature_denied_for(s.owner_id, 'control.hosted')
      and g->'ograf'->>'revision' = p_revision
      and a->>'path' = p_path
    limit 1;
 $$;
-revoke all on function public.control_output_ograf_file(uuid, text, text) from public, anon, authenticated;
-grant execute on function public.control_output_ograf_file(uuid, text, text) to service_role;
+revoke all on function public.control_output_ograf_file(uuid, text, text, text) from public, anon, authenticated;
+grant execute on function public.control_output_ograf_file(uuid, text, text, text) to service_role;
 
 -- ── Self-check: grants, then behaviour on a throwaway production, always rolled back ──────────
 do $$
@@ -59,10 +64,10 @@ declare
 begin
   if has_function_privilege('anon', 'public.control_output_ograf_show(text,text,text)', 'execute')
      or has_function_privilege('authenticated', 'public.control_output_ograf_show(text,text,text)', 'execute')
-     or has_function_privilege('anon', 'public.control_output_ograf_file(uuid,text,text)', 'execute')
-     or has_function_privilege('authenticated', 'public.control_output_ograf_file(uuid,text,text)', 'execute')
+     or has_function_privilege('anon', 'public.control_output_ograf_file(uuid,text,text,text)', 'execute')
+     or has_function_privilege('authenticated', 'public.control_output_ograf_file(uuid,text,text,text)', 'execute')
      or not has_function_privilege('service_role', 'public.control_output_ograf_show(text,text,text)', 'execute')
-     or not has_function_privilege('service_role', 'public.control_output_ograf_file(uuid,text,text)', 'execute') then
+     or not has_function_privilege('service_role', 'public.control_output_ograf_file(uuid,text,text,text)', 'execute') then
     raise exception '0105 self-check failed: the reads have the wrong grants';
   end if;
 
@@ -86,10 +91,21 @@ begin
        or public.control_output_ograf_show(null, 'v1', v_rev) is not null then
       raise exception '0105 self-check failed: the show read';
     end if;
-    if public.control_output_ograf_file(v_show, v_rev, 'graphic.mjs') is distinct from 'data:,pkg'
-       or public.control_output_ograf_file(v_show, v_rev, '../graphic.mjs') is not null
-       or public.control_output_ograf_file(v_show, repeat('b', 64), 'graphic.mjs') is not null then
+    if public.feature_denied_for(v_user, 'control.hosted') then
+      raise notice '0105 self-check: hosted control is switched off on this instance, skipping the file half';
+      raise exception '0105 self-check passed';
+    end if;
+    if public.control_output_ograf_file(v_show, '0105-self-check-output', v_rev, 'graphic.mjs') is distinct from 'data:,pkg'
+       or public.control_output_ograf_file(v_show, '0105-self-check-output', v_rev, '../graphic.mjs') is not null
+       or public.control_output_ograf_file(v_show, '0105-self-check-output', repeat('b', 64), 'graphic.mjs') is not null
+       or public.control_output_ograf_file(v_show, 'another-output', v_rev, 'graphic.mjs') is not null
+       or public.control_output_ograf_file(v_show, null, v_rev, 'graphic.mjs') is not null then
       raise exception '0105 self-check failed: the file read';
+    end if;
+    -- A rotated capability revokes the bases issued under the old one.
+    update public.control_shows set output_slug = '0105-self-check-rotated' where id = v_show;
+    if public.control_output_ograf_file(v_show, '0105-self-check-output', v_rev, 'graphic.mjs') is not null then
+      raise exception '0105 self-check failed: a rotated capability still reads';
     end if;
     raise exception '0105 self-check passed';
   exception when others then

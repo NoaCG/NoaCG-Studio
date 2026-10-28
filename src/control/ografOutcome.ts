@@ -18,12 +18,11 @@ export type OgrafOutcomeStatus = 'done' | 'rejected' | 'timeout' | 'gone' | 'ref
 /**
  * A PUBLISHED FOREIGN PACKAGE'S LAST WORD on a stage. `i` is the mounted instance (its frame's
  * `data-instance`), `call` and `status` its last settled call, `on` whether its last Take or Out the
- * Graphic accepted left it up, `step` where its answers put it (a step, `end`, or null when unknown),
- * and `data` the values it accepted last, as it was given them (typed values stay typed).
- * `unmounted` is a package the stage holds no frame for, `msg` saying why.
+ * Graphic accepted left it up, and `step` where its answers put it (a step, `end`, or null when
+ * unknown). `unmounted` is a package the stage holds no frame for, `msg` saying why.
  */
 export type OgrafOutcome =
-  | { i: string; call: OgrafCall; status: Exclude<OgrafOutcomeStatus, 'unmounted'>; code?: number; msg?: string; step: number | 'end' | null; on: boolean; data?: Record<string, unknown> }
+  | { i: string; call: OgrafCall; status: Exclude<OgrafOutcomeStatus, 'unmounted'>; code?: number; msg?: string; step: number | 'end' | null; on: boolean }
   | { i: null; status: 'unmounted'; msg: string; on: boolean };
 
 const STATUSES: readonly string[] = ['done', 'rejected', 'timeout', 'gone', 'refused'];
@@ -32,8 +31,7 @@ const MSG_MAX = 200;
 const INSTANCE = /^[0-9a-f]{1,32}$/;
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/** A report's `state.ograf`, read: anything malformed is no word at all, never a success. The values
- *  are not kept here: the page shows what the Graphic did, not what it holds. */
+/** A report's `state.ograf`, read: anything malformed is no word at all, never a success. */
 export function readOgrafOutcome(state: unknown): OgrafOutcome | null {
   if (!isRecord(state) || !isRecord(state.ograf)) return null;
   const o = state.ograf;
@@ -83,4 +81,17 @@ export function confirmedLines(foreignNames: readonly string[], reported: Readon
     if (o) out.push({ name, ...ografOutcomeWords(name, o) });
   }
   return out;
+}
+
+/**
+ * THE SAME-LAYER RULE FOR AN IMPORTED OGRAF PACKAGE (E3.2a): the graphics a Take of `graphic`
+ * replaces on its layer. A package replaces whatever else shares its layer, and a Take on a
+ * package's layer replaces the package, as one CG layer holds one thing on a playout server. NoaCG
+ * graphics among themselves are left as they were: they stack on a browser output, and the rundown's
+ * clash warning says they replace each other elsewhere, so no native production changes here.
+ */
+export function packageLayerPeers(graphics: readonly { name: string; layer: number; foreign: boolean }[], graphic: string): string[] {
+  const taken = graphics.find((g) => g.name === graphic);
+  if (!taken) return [];
+  return graphics.filter((g) => g.name !== graphic && g.layer === taken.layer && (g.foreign || taken.foreign)).map((g) => g.name);
 }

@@ -469,7 +469,7 @@ test.describe('a foreign OGraf package on the output stage', () => {
       at: 0,
     });
   });
-  test('a published package mounts from its served base beside a NoaCG graphic, one graphic per layer, and says what it did', async ({ page }) => {
+  test('a published package mounts from its served base beside a NoaCG graphic, off air when the stage is, and says what it did', async ({ page }) => {
     await openStage(page, '', 'output');
     const outcome = (key: string) => page.evaluate((k) => (window as unknown as { __stage: { ografOutcomes: Map<string, unknown> } }).__stage.ografOutcomes.get(k) ?? null, key);
     // A package whose base is refused is not mounted, and its stage says so in its own word.
@@ -477,17 +477,21 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await expect(page.locator('iframe[title="lost"]')).toHaveCount(0);
     expect(await page.evaluate(() => (window as unknown as { __stage: StageHandle & { graphics: string[] } }).__stage.graphics), 'a package is never composed').toEqual(['lt0']);
 
-    // The NoaCG graphic goes up; then a Take on the package that shares its layer, sent while the
-    // package's base is still being asked for, takes it off by its own Out before anything airs.
+    // A boot's catch-up: the stage goes off air, and what reaches the package while its base is still
+    // being asked for waits, in order. The stage stays dumb about layers: lt0 shares the package's
+    // layer and stays as it is (the Take verb owns the same-layer rule, control/graphicVerbs.ts).
     const idle = await freshState(page, 'lt0');
     await apply(page, 'lt0', { t: 'play' });
     await expect.poll(() => freshState(page, 'lt0')).not.toBe(idle);
+    const upState = await freshState(page, 'lt0');
+    await page.evaluate(() => (window as unknown as { __stage: { setVisible(v: boolean): void } }).__stage.setVisible(false));
     await apply(page, 'walk', { t: 'update', data: { count: 4 } });
     await apply(page, 'walk', { t: 'play' });
     await expect(page.locator('iframe[title="walk"]')).toHaveCount(0);
-    await expect.poll(() => freshState(page, 'lt0'), { timeout: 10_000 }).toBe(idle);
+    expect(await page.evaluate(() => (window as unknown as { __stage: { ografOutcomes: Map<string, unknown> } }).__stage.ografOutcomes.has('walk')), 'nothing said before the Graphic answers').toBe(false);
 
-    // Released, the package mounts, and what reached it while it waited arrives in order.
+    // Released, the package mounts OFF AIR, so the replay settles unseen, and what reached it while
+    // it waited arrives in order.
     await page.evaluate(() => (window as unknown as { __release: () => void }).__release());
     const walkFrame = page.locator('iframe[title="walk"]');
     await expect(walkFrame).toHaveAttribute('data-ograf', 'foreign');
@@ -495,26 +499,31 @@ test.describe('a foreign OGraf package on the output stage', () => {
     const instance = await walkFrame.getAttribute('data-instance');
     expect(instance).toMatch(/^[0-9a-f]{8}$/);
     const walk = page.frameLocator('iframe[title="walk"]').locator('.walk');
+    const hostStage = page.frameLocator('iframe[title="walk"]').locator('#stage');
     await expect(walk).toHaveAttribute('data-count', '4');
     await expect(walk).toHaveAttribute('data-step', '0');
+    await expect(hostStage).toHaveCSS('opacity', '0');
+    await page.evaluate(() => (window as unknown as { __stage: { setVisible(v: boolean): void } }).__stage.setVisible(true));
+    await expect(hostStage).toHaveCSS('opacity', '1');
+    expect(await freshState(page, 'lt0'), 'the NoaCG graphic on the same layer is the stage\'s to leave alone').toBe(upState);
     // The outcome is the output's own reading of the Graphic's answers: its instance, its last
-    // call, where it is, and the values it accepted as it was given them.
-    await expect.poll(() => outcome('walk')).toEqual({ i: instance, call: 'play', status: 'done', code: 200, step: 0, on: true, data: { count: 4 } });
+    // call, whether it is up and where.
+    await expect.poll(() => outcome('walk')).toEqual({ i: instance, call: 'play', status: 'done', code: 200, step: 0, on: true });
 
-    // Typed data reaches it as typed values, and an Out on the layer by the NoaCG graphic's Take.
+    // Typed data reaches it as typed values; an Out takes it down.
     await apply(page, 'walk', { t: 'update', data: {}, typed: { v: 1, kind: 'values', standard: STANDARD, schema: 's', values: { count: 6 } } });
     await expect(walk).toHaveAttribute('data-count', '6');
-    await expect.poll(async () => ((await outcome('walk')) as { data?: unknown } | null)?.data).toEqual({ count: 6 });
-    await apply(page, 'lt0', { t: 'play' });
+    await expect.poll(async () => ((await outcome('walk')) as { call: string }).call).toBe('update');
+    expect(((await outcome('walk')) as { on: boolean }).on, 'an update leaves it up').toBe(true);
+    await apply(page, 'walk', { t: 'stop' });
     await expect(walk).toHaveAttribute('data-step', '-1');
     await expect.poll(async () => ((await outcome('walk')) as { call: string; on: boolean }).call).toBe('stop');
     expect(((await outcome('walk')) as { on: boolean }).on).toBe(false);
 
     // A refusal is reported as one, never as on air.
-    await apply(page, 'lt0', { t: 'stop' });
     await apply(page, 'walk', { t: 'update', data: { refuse: 0 } });
     await apply(page, 'walk', { t: 'play' });
-    await expect.poll(() => outcome('walk')).toEqual({ i: instance, call: 'play', status: 'rejected', code: 409, msg: 'not that step now', step: null, on: false, data: { refuse: 0 } });
+    await expect.poll(() => outcome('walk')).toEqual({ i: instance, call: 'play', status: 'rejected', code: 409, msg: 'not that step now', step: null, on: false });
     // A declared action reaches the mounted package's customAction.
     await apply(page, 'walk', { t: 'event', event: 'mark', payload: {}, typed: { v: 1, kind: 'action', standard: STANDARD, schema: 's', action: 'mark', args: { v: 'typed' } } });
     await expect(walk).toHaveAttribute('data-mark', 'typed');

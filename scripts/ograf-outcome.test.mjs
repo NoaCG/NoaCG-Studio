@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { readOgrafOutcome, ografOutcomeWords, confirmedLines } = await import('../src/control/ografOutcome.ts');
+const { readOgrafOutcome, ografOutcomeWords, confirmedLines, packageLayerPeers } = await import('../src/control/ografOutcome.ts');
 
 const on = { i: '0a1b2c3d', call: 'play', status: 'done', code: 200, step: 1, on: true, data: { count: 3 } };
 
@@ -54,6 +54,22 @@ test('the confirmed lines: one per package an output reported on, in pool order,
   const reported = { Poll: { ...on, status: 'rejected', code: 409, on: false }, Board: on, Native: on };
   assert.deepEqual(confirmedLines(['Board', 'Poll', 'Quiet'], reported).map((l) => [l.name, l.tone]), [['Board', 'ok'], ['Poll', 'bad']]);
   assert.deepEqual(confirmedLines([], reported), []);
+});
+
+test('the same-layer rule: a package replaces what shares its layer and is replaced there; NoaCG graphics stack as before', () => {
+  const pool = [
+    { name: 'Strap', layer: 20, foreign: false },
+    { name: 'Bug', layer: 21, foreign: false },
+    { name: 'Board', layer: 21, foreign: true },
+    { name: 'Poll', layer: 22, foreign: true },
+    { name: 'Ticker', layer: 20, foreign: false },
+  ];
+  assert.deepEqual(packageLayerPeers(pool, 'Board'), ['Bug']);
+  assert.deepEqual(packageLayerPeers(pool, 'Bug'), ['Board']);
+  assert.deepEqual(packageLayerPeers(pool, 'Strap'), [], 'two NoaCG graphics on one layer: unchanged');
+  assert.deepEqual(packageLayerPeers(pool, 'Poll'), []);
+  assert.deepEqual(packageLayerPeers(pool, 'Gone'), []);
+  assert.deepEqual(packageLayerPeers([...pool, { name: 'Card', layer: 21, foreign: true }], 'Board'), ['Bug', 'Card']);
 });
 
 test('reading a hostile report stays linear', () => {

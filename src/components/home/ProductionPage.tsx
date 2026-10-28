@@ -112,7 +112,7 @@ import {
 import { useRundownHistory } from './useRundownHistory';
 import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
 import { foreignTakeRefusal, isForeignGraphic } from '../../model/foreignPackage';
-import { confirmedLines, readOgrafOutcome, type OgrafOutcome } from '../../control/ografOutcome';
+import { confirmedLines, packageLayerPeers, readOgrafOutcome, type OgrafOutcome } from '../../control/ografOutcome';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { UnorderedSends } from '../UnorderedSends';
 import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
@@ -2972,6 +2972,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   verbPage.current = {
     graphics: show.graphics,
     liveCue,
+    layerPeers: (graphic) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic),
     liveLayers,
     livePlayoutLayers,
     graphicOf: cueGraphicName,
