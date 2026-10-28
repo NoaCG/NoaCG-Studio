@@ -6,8 +6,9 @@
 // guards: src/control/ografOutcome.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
-const { readOgrafOutcome, ografOutcomeWords, confirmedLines, packageLayerPeers, withPeersOff } = await import('../src/control/ografOutcome.ts');
+const { readOgrafOutcome, ografOutcomeWords, confirmedLines, packageLayerPeers, withPeersOff, ografLoadData } = await import('../src/control/ografOutcome.ts');
 
 const on = { i: '0a1b2c3d', call: 'play', status: 'done', code: 200, step: 1, on: true, data: { count: 3 } };
 
@@ -80,6 +81,25 @@ test('a Take with the Outs it replaces: one command call when they fit, else the
   assert.deepEqual(shape(withPeersOff(['A', 'B', 'C'], take)), ['A:stop+A:cue+B:stop+B:cue+C:stop+C:cue', 'K:update+K:play+K:cue']);
   const five = withPeersOff(['A', 'B', 'C', 'D', 'E'], take);
   assert.deepEqual(five.map((b) => b.length), [8, 2, 3], 'no call past 8 items, every peer cleared');
+});
+
+test('a package loads with the defaults its schema declares, typed as declared, and nothing else', () => {
+  const manifest = {
+    id: 'x', main: 'graphic.mjs', supportsRealTime: true, supportsNonRealTime: false,
+    schema: { type: 'object', properties: { teams: { type: 'array', items: { type: 'string' }, default: ['Home', 'Away'] }, score: { type: 'integer', default: 0 }, title: { type: 'string' } } },
+  };
+  assert.deepEqual(ografLoadData(manifest), { teams: ['Home', 'Away'], score: 0 });
+  assert.deepEqual(ografLoadData({ id: 'x', main: 'graphic.mjs' }), {});
+  assert.deepEqual(ografLoadData(null), {});
+});
+
+test('the output holds a published package\'s version with its graphics, so a publish that changes it is a change, not an addition', async () => {
+  const main = readFileSync(new URL('../src/output/main.ts', import.meta.url), 'utf8');
+  assert.match(main, /for \(const spec of payload\.graphics\) if \(spec\.ograf\) bootDigests\[spec\.key\] = payload\.ver\?\.g\[spec\.key\] \?\? '';/);
+  const { planPublish } = await import('../src/output/swapPlan.ts');
+  // Held at boot, a changed package is built again (and the stage refuses to swap it: READY says
+  // it changes at the next reload), never added over the instance already mounted.
+  assert.deepEqual(planPublish({ held: { Strap: 's', Board: 'b1' }, ready: {} }, { Strap: 's', Board: 'b2' }, ['Strap', 'Board']), { build: ['Board'], add: [], remove: [], drop: [] });
 });
 
 test('reading a hostile report stays linear', () => {

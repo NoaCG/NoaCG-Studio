@@ -34,8 +34,8 @@ export interface ForeignOgrafSpec {
   packageBase: string;
   /** The package's `.ograf.json`, already read. Only `id` and `main` are consulted here. */
   manifest: unknown;
-  /** The data `load()` starts from. */
-  data?: Record<string, string>;
+  /** The data `load()` starts from (typed values stay typed). */
+  data?: Record<string, unknown>;
 }
 
 /** What a Graphic answered, as far as the page will believe it. */

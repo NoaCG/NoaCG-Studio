@@ -453,6 +453,9 @@ async function boot(): Promise<void> {
   // itself: after its graphics take newer bodies, its bodies and assets are dead weight.
   const bootDigests: Record<string, string> = {};
   for (const key of stage.graphics) bootDigests[key] = payload.ver?.g[key] ?? '';
+  // An imported OGraf package is held too, though it has no composed frame (E3.2a): a publish that
+  // changes it is then a change READY reports ("when the output reloads"), not a new graphic.
+  for (const spec of payload.graphics) if (spec.ograf) bootDigests[spec.key] = payload.ver?.g[spec.key] ?? '';
   // ── PER-GRAPHIC REPLACEMENT (./swap.ts; docs/work-specs/per-graphic-replacement/spec.md): a
   // publish's changes are built beside the running graphics and each takes over its graphic as
   // soon as that graphic is off air here, without a reload and without touching any other. ──

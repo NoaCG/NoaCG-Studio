@@ -35,7 +35,7 @@ import { frameCss, isIdentity, readAppearance, styleKey, type AppliedAppearance 
 import { facesCss } from '../control/cueStyle';
 import { readTypedWire, typedValuesOf } from '../model/ografTyped';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafOptions, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
-import type { OgrafOutcome } from '../control/ografOutcome';
+import { ografLoadData, type OgrafOutcome } from '../control/ografOutcome';
 import { ografCallFor } from '../control/ografContract';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
@@ -616,7 +616,9 @@ export function createOutputStage(
           const held = waitingOgraf.get(key);
           waitingOgraf.delete(key);
           if (destroyed || !held) return;
-          const mounted = base !== null && mountSpec({ key, layer, packageBase: new URL(base, location.href).href, manifest: spec.ograf?.manifest, data: {} });
+          // `load()` starts from the defaults its schema declares, so a Graphic that builds itself from
+          // its data in `load()` has what its manifest says it starts with; a cue's values follow on Take.
+          const mounted = base !== null && mountSpec({ key, layer, packageBase: new URL(base, location.href).href, manifest: spec.ograf?.manifest, data: ografLoadData(spec.ograf?.manifest) });
           if (!mounted) {
             told(key, { i: null, status: 'unmounted', msg: 'its package could not be reached', on: false });
             return;

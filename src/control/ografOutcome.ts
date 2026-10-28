@@ -10,6 +10,7 @@
 // Pure and DOM-free: scripts/ograf-outcome.test.mjs runs it in Node.
 
 import type { OgrafCall } from './ografHost.ts';
+import { describeOgraf, typedWithDefaults } from '../model/ografTyped.ts';
 import type { ControlSendItem } from './hostedControl.ts';
 import { clearCueItems, COMMAND_BATCH_MAX } from './cueItems.ts';
 
@@ -108,4 +109,12 @@ export function withPeersOff(peers: readonly string[], take: ControlSendItem[]):
   const batches: ControlSendItem[][] = [];
   for (let i = 0; i < clears.length; i += COMMAND_BATCH_MAX) batches.push(clears.slice(i, i + COMMAND_BATCH_MAX));
   return [...batches, take];
+}
+
+/** What a published package's `load()` starts from: the defaults its schema declares (model/
+ *  ografTyped.ts `typedWithDefaults`), so a Graphic that builds itself from its data in `load()` has
+ *  what its manifest says it starts with. A cue's own values follow with its Take. */
+export function ografLoadData(manifest: unknown): Record<string, unknown> {
+  const fields = describeOgraf(manifest).fields;
+  return fields ? typedWithDefaults(fields, {}).values : {};
 }
