@@ -134,6 +134,17 @@ test('a healthy record passes every check', () => {
   assert.equal(v.memory['controller.heap'].length, 3);
 });
 
+
+test('every run length has two steady windows after its warmup, and an hour keeps ten-minute cycles', () => {
+  for (const m of [10, 19, 20, 25, 29, 30, 45, 60]) {
+    const plan = schedule(m);
+    assert.ok(plan.windows.filter((w) => !w.warmup).length >= 2, `${m} min`);
+    for (const e of plan.events) assert.equal((e.at - 3_000) % CUE_SWITCH_MS, 0, `${m} min: a fault 3 s after a cue switch`);
+  }
+  assert.equal(schedule(60).cycleMs, 10 * 60_000);
+  assert.equal(schedule(60).windows.length, 6);
+});
+
 red('a wrong-person frame', (r) => {
   const late = r.takes[20].at + 8_000;
   r.frames.push({ at: late, name: 'Example 0500', votes: '', kok: '', frames: 6 });
@@ -268,7 +279,7 @@ red('a value missed well before a disconnect began: its deadline passed before t
   const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at - 4_000);
   r.frames = r.frames.filter((x) => !(x.at > row.at - 50 && x.at < f.at && x.kok === row.data.f8));
   r.frames = r.frames.map((x) => (x.at > row.at - 50 && x.at < f.at && x.kok && Number(x.kok.replace(/,/g, '')) > Number(row.data.f8.replace(/,/g, '')) ? { ...x, kok: '' } : x));
-}, /failed to reach the output in time|figure ever went down|bound field/);
+}, /failed to reach the output in time/);
 red('a stall around a reload: a reload stops nothing the source applies', (r) => {
   const f = r.faults.find((x) => x.kind === 'reload' && x.at > r.t0 + 15 * 60_000);
   r.rows = r.rows.filter((x) => !(x.at > f.at - 1_000 && x.at < f.at + 25_000 && x.graphic === 'Party totals' && x.t === 'update'));

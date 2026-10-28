@@ -5,9 +5,9 @@
 // Ceilings. Parent §7's thresholds compare a repeat with the owner's laptop baselines; they cannot
 // be compared on an Actions runner, so they stay the laptop's (O-1). The absolute bounds here are
 // the ones E7.2b's rehearsal walk fails at: a bound field on air within 10 s of the provider's move,
-// a candidates-only change within 13 s; a Take on air within 10 s. Samples taken inside a fault's
-// window (Pause, a reload until the next Take, an output disconnect and its recovery, a handover)
-// are reported but held to the recovery checks instead.
+// a candidates-only change within 13 s; a Take on air within 10 s. Each road is excused only by the
+// faults that stop it (STOPS below); a value starting inside one is reported but held to the
+// recovery checks instead.
 
 import { STEP_MS, candidates, countedAt, partyRevision, revisionOf, schedule as planOf, stepOfRevision } from './endurance-fixture.mjs';
 
@@ -80,13 +80,14 @@ const inside = (windows, t) => windows.some((w) => t >= w.from && t <= w.to);
  * The faults that stop each road, and nothing else. Applying the source stops for a Pause (no rows
  * while paused) and a handover (no owner while a claim lapses). A bound field already applied stops
  * rendering only while the output is offline. The card's correction is sent by the page, which holds
- * it while data is paused and after a reload until the next Take, and the output must be online to
- * show it. The count bug needs its value applied and rendered, so it stops for all three of theirs.
+ * it after a reload until the next Take, and the output must be online to show it; a Pause holds no
+ * correction (the tree on air stays the page's), so it does not excuse the card. The count bug needs
+ * its value applied and rendered, so it stops for all of applying and the output.
  */
 const STOPS = {
   apply: ['pause', 'handover'],
   bound: ['disconnect'],
-  card: ['disconnect', 'reload', 'pause'],
+  card: ['disconnect', 'reload'],
   bug: ['pause', 'handover', 'disconnect'],
 };
 /** Rows this close to the moment they stop being owed cannot be judged; they are counted apart. */
@@ -384,7 +385,7 @@ export function judge(record) {
   const recovering = [];
   /** Samples left out of each road's steady population because they fell in a fault's window. */
   const excluded = { dispatch: 0, dispatchToAir: 0, fetchToApply: 0, providerToApply: 0, applyToRenderBound: 0, providerToRenderBound: 0, applyToRenderCandidates: 0, candidatesTooCloseToATake: 0 };
-  // (A row with under 2 s before a fault stops its road counts in that road's exclusions.)
+  // A bound row with under 2 s of room counts in its road's exclusions; a card row, in candidatesTooCloseToATake.
   /** Values applied in a steady moment that never reached the output in time: each one a failure. */
   const missed = [];
   for (const [i, t] of takes.entries()) {
