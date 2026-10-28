@@ -100,6 +100,8 @@ test('the output holds a published package\'s version with its graphics, so a pu
   // READY counts its packages beside its composed graphics, each by its load's check.
   assert.match(main, /outputReadiness\(\{ graphics: \[\.\.\.stage\.graphics, \.\.\.packages\]/);
   assert.match(main, /const check = checks\.has\(graphic\) \? null : ografCheck\(outcome\);/);
+  // A package a publish ADDS counts as preparing from the add, before its load answers.
+  assert.match(main, /onAdded: \(spec, next\) => \{[^}]*if \(spec\.ograf\) packages\.add\(spec\.key\);/);
   const { planPublish } = await import('../src/output/swapPlan.ts');
   // Held at boot, a changed package is built again (and the stage refuses to swap it: READY says
   // it changes at the next reload), never added over the instance already mounted.

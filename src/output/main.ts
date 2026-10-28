@@ -481,11 +481,14 @@ async function boot(): Promise<void> {
       // Warmed, once its document loads, with its own first cue (the onLoaded pass above).
       const cue = firstCueOf(next.cues, spec.key);
       if (cue) firstCue.set(spec.key, cue);
+      // A package counts as preparing from here, not from its first word.
+      if (spec.ograf) packages.add(spec.key);
       learnClocks(spec);
       giveUpOnLoad([spec.key]);
       readyChanged();
     },
     onRemoved: (graphic) => {
+      packages.delete(graphic);
       for (const map of [checks, mergedData, typedData, typedEnvelope, stepsSince, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
       for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
       clearTimeout(reportTimers.get(graphic));
