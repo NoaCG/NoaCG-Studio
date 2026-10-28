@@ -74,7 +74,9 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   // The log says an Out went, but the Graphic's last word left it up (it refused the Out, or its
   // answer was not banked yet): the operator's Out is not undone by a restart, so it stays off, and
   // the Out is said not to be confirmed.
-  if (headOn === false && o !== null && o.i !== null && o.on) return { play: false, steps: 0, unknown: UNKNOWN_OUT };
+  // Where no head says so (the row-id road, or no head heard yet), the report's own last call does:
+  // an Out it refused or never answered leaves it up by its word, and is not undone either.
+  if (o !== null && o.i !== null && o.on && (headOn === false || (headOn === undefined && o.call === 'stop'))) return { play: false, steps: 0, unknown: UNKNOWN_OUT };
   const up = headOn ?? o?.on === true;
   // Off, as it was: what an earlier restart could not prove is still not proven, and an action
   // pressed after the bank was not delivered, which is said too.

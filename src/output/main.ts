@@ -1341,6 +1341,8 @@ async function boot(): Promise<void> {
         for (const graphic of stage.graphics) {
           if (liveGraphics.has(graphic) || mergedData.has(graphic) || typed.airing.has(graphic)) scheduleReport(graphic, true);
         }
+        // A package's word goes into the new log too, so a later restart restores it (E3.2b).
+        for (const [graphic, outcome] of stage.ografOutcomes) if (outcome.i !== null) scheduleReport(graphic, true);
         dbg('protocol', 'numbered log (proto 2), republished: following the new log from its start');
       },
       onStatus,
