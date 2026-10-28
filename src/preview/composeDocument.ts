@@ -417,24 +417,31 @@ window.addEventListener('unhandledrejection', function (ev) {
     if (values && typeof values === 'object' && !Array.isArray(values)) keepValues(values);
     else lastData = json;
   }
-  /* THE GRAPHIC AT REST: every element's inline style attribute as it stood just before the last
-     Take (or the first command that animated it), once its values were in and before anything
-     animated it. Put back verbatim, never
-     with GSAP's clearProps, which also wipes layout a design's own code wrote inline and will not
-     write again for unchanged values (the Minute Rule's tick positions). The render runtime's
-     probe reset is the same move (src/render/runtimeScript.ts). Null until something first
-     animates the graphic: a freshly loaded document has nothing to clean. */
+  /* THE GRAPHIC AT REST: every element's inline style attribute (and an SVG element's transform
+     attribute, where GSAP writes an SVG transform) as it stood just before the last Take, or the
+     first command that animated it, once its values were in. Put back verbatim, never with GSAP's
+     clearProps, which also wipes layout a design's own code wrote inline and will not write again
+     for unchanged values (the Minute Rule's tick positions). The render runtime's probe reset is
+     the same move (src/render/runtimeScript.ts). Null until something first animates the
+     graphic: a freshly loaded document has nothing to clean. */
   var restStyles = null;
   function keepRest() {
     var all = document.body ? document.body.querySelectorAll('*') : [];
     restStyles = [];
-    for (var i = 0; i < all.length; i++) restStyles.push([all[i], all[i].getAttribute('style')]);
+    for (var i = 0; i < all.length; i++) {
+      var svg = typeof SVGElement !== 'undefined' && all[i] instanceof SVGElement;
+      restStyles.push([all[i], all[i].getAttribute('style'), svg ? all[i].getAttribute('transform') : undefined]);
+    }
+  }
+  function putAttr(el, name, value) {
+    if (value === null) el.removeAttribute(name);
+    else el.setAttribute(name, value);
   }
   function backToRest() {
     for (var i = 0; i < restStyles.length; i++) {
-      var el = restStyles[i][0], style = restStyles[i][1];
-      if (style === null) el.removeAttribute('style');
-      else el.setAttribute('style', style);
+      var el = restStyles[i][0];
+      putAttr(el, 'style', restStyles[i][1]);
+      if (restStyles[i][2] !== undefined) putAttr(el, 'transform', restStyles[i][2]);
       /* GSAP keeps its own copy of a transform; have it read the restored one. */
       if (el._gsap) el._gsap.uncache = 1;
     }
@@ -549,7 +556,8 @@ window.addEventListener('unhandledrejection', function (ev) {
           var builder = typeof window.buildInTimeline === 'function';
           if (builder && restStyles) {
             backToRest();
-            window.update && window.update(lastData != null ? lastData : '{}');
+            /* A restatement that throws must not keep the Take off air. */
+            try { window.update && window.update(lastData != null ? lastData : '{}'); } catch (e) {}
           } else if (msg.data != null) {
             window.update && window.update(msg.data);
           }

@@ -315,6 +315,15 @@ test.describe('the /output shell, a graphic taken again', () => {
     expect(await ticks(), 'every tick keeps its position after the second Take').toEqual(first);
   });
 
+  /** The board's title field, read inside its own frame. */
+  async function titleOf(page: Page): Promise<string | null> {
+    for (const f of page.frames().filter((x) => x !== page.mainFrame())) {
+      const text = await f.evaluate(() => (document.querySelector('.results-board-body') ? document.getElementById('f0')?.textContent ?? null : null)).catch(() => null);
+      if (text !== null) return text;
+    }
+    return null;
+  }
+
   for (const board of ['st01', 'rs01', 'br01', 'tt01']) {
     // An output that reloads mid-show puts an on-air graphic back with a snap, never a Take.
     test(`${board}: snapped back on air after a reload, then Out and Take, shows the rows`, async ({ page }) => {
@@ -359,6 +368,7 @@ test.describe('the /output shell, a graphic taken again', () => {
         await expect.poll(async () => (await rowsShown(page)).root, { message: `${board}: the Out ends`, timeout: 8_000 }).toBe(0);
       };
 
+      await apply(board, { t: 'update', data: { f0: 'First title' } });
       await apply(board, { t: 'play' });
       await settled('first Take');
 
@@ -372,6 +382,8 @@ test.describe('the /output shell, a graphic taken again', () => {
       await out();
       await apply(board, { t: 'play' });
       await settled('Take after an Update and an Out');
+      // The values a Take again restates are the latest, never the ones the board first went up with.
+      expect(await titleOf(page), `${board}: the title after the Take`).toBe('Updated title');
 
       // A Take pressed while the Out is still running.
       await apply(board, { t: 'stop' });
