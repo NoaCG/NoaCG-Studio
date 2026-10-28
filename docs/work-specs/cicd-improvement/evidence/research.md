@@ -1,4 +1,7 @@
-# Research reconciliation, 2026-10-25
+# Research reconciliation
+
+The original 2026-10-25 receipt follows. The 2026-10-28 review disposition below updates its
+planning status; original observations are retained as historical evidence.
 
 This receipt describes planning evidence, not implementation acceptance. Local source HEAD and the
 GitHub main branch read both identified `d8dd1304910736437486d6f9f9cd9e401ac65589` during inspection.
@@ -94,3 +97,37 @@ client-secret scan and copy checks. Relative Markdown link targets exist; the ac
 has a matching normalized spec hash, draft authority, no claimed review and eight open criteria.
 Whitespace checks passed. These checks validate the planning artifacts only. Product builds,
 browser tests, live dispatch experiments and future acceptance criteria were not executed.
+
+## Opus review disposition, 2026-10-28
+
+[Complete supplied opinion](opus-review-2026-10-28.txt), verdict AGREE WITH CORRECTIONS.
+The reviewed source commit was 17aeb43e133af760c44ca8b443d7bbbb3b67ca6a. Its normalized spec
+and research hashes match those recorded in the supplied review. Opus inspected newer main
+55f98f9e6 and reports no changes to the relevant selectors/workflows from the planning baseline.
+This session did not independently fetch or remeasure that newer main or Actions sample.
+
+| Finding | Disposition and verification boundary |
+| --- | --- |
+| B1 | Accept P1 selector hardening. Direct source inspection confirms broad trace bypass with BROAD_ESCALATES=false, focus interception of catalog fallback, name-only rename enumeration and absence of forbidOnly in offline config. Exact scenario counts and probe verdicts are attributed to Opus, not rerun here. Include the smaller output/fixture/copy/header gaps in reproduction and tests. |
+| B2 | Accept reported owner decision: required selected configured PR job inside CI gate, full configured suite each landing. Explicit merge-group exception and PR-base/integrated-tree risk documented. Deployment ordering remains unknown to resolve at P0. |
+| B3 | Accept. P5/P6, snapshot reconciliation and AC-7 are outside initial implementation/completion. Current full-main latency is reported evidence, not new measurement. |
+| M1 | Accept. Direct inspection confirms existing nightly full coverage and catalog-gates scoped demand/midday path. Reuse it. |
+| M2 | Accept triage, scheduled-pass alarm, culprit replay and moving daily-bound drills into P3/AC-5. Qualification: midday counts only executed coverage. An affected subset cannot prove exhaustive unrelated coverage within 24 hours. Require a demonstrated complete deadline or retain prior pre-merge scope. Nightly delays/failure counts remain supplied measurements. |
+| M3 | Accept. Directly confirmed scoped bench skips its nonempty assertion and references an absent scope-guard file. Require manifest-wide completeness while permitting legitimately empty individual slices. Savings remain estimates. |
+| M4 | Accept ref-group isolation and separate schedule, requested/actual SHA assertion and recovery of any superseded result still required. Full reuse tuple deferred. New immutable input may require caller wiring; do not promise a one-file fix before inspecting callers. |
+| M5 | Accept distinct critical/shared sets and existing-spec-first selection. Counts/minutes are Opus's snapshot. Physical-device qualification remains a disclosed limit. |
+| M6 | Accept retroactive plus continuing audit using existing full-main data; no duplicate shadow phase. |
+| M7 | Accept measurement of actual waiting and burst demand, with dependency/eligibility limits on interpretation. Reviewer capacity and current runner wait remain unmeasured. |
+| M8 | Accept one canonical guidance landing and mark parallel-plans D3 fulfilled by it when implemented. |
+| P4 dependency | Modify recommendation: require P1 selector/backend safety rows as well as dispatch isolation before expansion. P2/P3 are not prerequisites. Reason: do not knowingly multiply work while identified false-negative protection gaps remain. |
+
+The owner decisions in the opinion are recorded as supplied by the owner for this master planner;
+they do not authorize execution of the revised draft. No runtime code, workflow, test, setting,
+production plan, worker or deployed state was changed. Initial acceptance scopes AC-1..AC-6 and
+AC-8; work.json remains draft with review:null. A full-record converge will still list optional
+AC-7; initial execution must bind the explicit initial IDs instead of claiming whole-record convergence.
+
+Unverified operational items remain: nightly failure causes, queue waits, review capacity,
+deployment timing relative to configured checks, merge-group/landing SHA identity, and final
+production-page acceptance. The previous successful planning verification applies to the original
+commit; the revised documents receive a fresh changed-file gate/link/hash check before commit.

@@ -1,4 +1,4 @@
-# Opus second-opinion prompt
+# Opus follow-up review prompt
 
 Copy the complete block below. The review is read-only and does not authorize implementation.
 
@@ -7,7 +7,7 @@ You are the independent second-opinion reviewer for NoaCG Studio's CI/CD improve
 Use Opus. Follow the repository's .agent-workflows/so.md read-only procedure. Do not implement,
 dispatch experiments, edit workflows/settings, launch plans or alter the production-page run.
 
-Review docs/work-specs/cicd-improvement/spec.md and evidence/research.md from the supplied
+Review the revised docs/work-specs/cicd-improvement/spec.md and evidence/research.md from the supplied
 planning branch/artifact, not an assumed copy on main. Local branch: codex/cicd-master-plan.
 Local checkout: C:/Users/ahonemi/.codex/worktrees/7ccd/NoaCG-Studio.
 If that checkout/branch is unavailable, ask for these documents; do not review a different spec.
@@ -20,7 +20,10 @@ not a second roadmap running beside parallel-plans or e2e-suite-budget.
 
 The owner explicitly accepts detection within 24 hours for unrelated, non-critical regressions
 after selection qualification. Known affected behavior and critical flows stay protected before
-merge. Shared/uncertain graphics changes still require broad pre-merge checks. The full-main
+merge. Shared/uncertain graphics changes still require broad pre-merge checks. Selected configured specs become required on triggered PRs; the full configured suite stays
+per landing. Backend checks intentionally skip merge groups, so the combined backend tree is
+verified after landing. Do not describe this as pre-merge backend integration protection.
+P0-P4 alone determine initial success; P5/P6 and AC-7 are optional follow-ups. The full-main
 validation target remains 60 minutes. Do not reinterpret this as all tests moving to nightly.
 
 Read the current code and the linked source documents, especially:
@@ -33,10 +36,14 @@ Read the current code and the linked source documents, especially:
   catalog-specs.mjs, e2e-run-integrity.mjs and the relevant tests
 - e2e/_catalogScope.ts and playwright.catalog.config.ts
 
+Read evidence/opus-review-2026-10-28.txt first. The original draft was 17aeb43e133af760c44ca8b443d7bbbb3b67ca6a; review the revised branch tip, not that original draft.
 The planning source baseline is d8dd1304910736437486d6f9f9cd9e401ac65589. Distinguish that
 baseline, the reviewed draft and newer main. Prior research is not proof of current behavior.
 The two longer supplied research attachments were identical, not independent corroboration.
 
+Focus on whether B1-B3 and M1-M8 were resolved. Challenge two planner qualifications: a midday
+scoped pass only satisfies the daily deadline for checks it actually executes, and P4 also requires
+P1 selector/backend safety work (not P2/P3). Treat batching/reuse questions below as optional only.
 Challenge these questions rather than rubber-stamping the proposal:
 1. Does the ordering address repeated design/review repair before optimizing a smaller CI tail?
    Can we remove any proposed ceremony without losing independent scrutiny? Is the model

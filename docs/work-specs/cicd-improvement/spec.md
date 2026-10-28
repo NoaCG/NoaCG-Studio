@@ -1,12 +1,13 @@
 # Faster delivery with credible site and graphics protection
 
-Status: draft for owner and Opus review, 2026-10-25. Planning is authorized; implementation,
+Status: revised draft after Opus review, 2026-10-28. Planning is authorized; implementation,
 experiments, workflow activation and changes to the production-page run are not. This is the
 master proposal for the work after production-page completion, integrating the
 [suite-budget plan](../e2e-suite-budget/spec.md) and [parallel-plan proposal](../parallel-plans/spec.md).
 It does not silently supersede their active procedures. The proposed replacements are listed below.
-Research is pinned to `d8dd1304910736437486d6f9f9cd9e401ac65589`; see
-[evidence and limitations](evidence/research.md). The [Opus prompt](opus-review-prompt.md) is ready to use.
+Initial research is pinned to `d8dd1304910736437486d6f9f9cd9e401ac65589`; see
+[evidence and limitations](evidence/research.md). The [Opus opinion](evidence/opus-review-2026-10-28.txt) reviewed the original draft. Its findings and
+reported owner decisions are incorporated below; see the research receipt for disposition and limits.
 
 ## Why and goal
 
@@ -30,10 +31,15 @@ are each insufficient to call a feature complete.
 - Work starts after the production-page work is complete. Do not edit its plan, ledger, workers,
   rows or worktrees. Confirm its final independent acceptance before any live trial here.
 - The owner accepted on 2026-10-25: daily detection for unrelated, non-critical regressions,
-  after selection qualification. Critical flows and affected graphics contracts remain pre-merge;
+  after selection qualification. Critical offline flows and affected graphics contracts are the pre-merge target;
   shared rendering, export and playout changes still receive broad checks before merge.
-- Retain independent reviewers and acceptance. The owner will obtain Opus's second opinion
-  before implementation. That review and its disposition are still pending.
+- Retain independent reviewers and acceptance. Opus returned AGREE WITH CORRECTIONS on 2026-10-28.
+  Approval of this revised draft and implementation admission remain pending.
+- Owner decision reported in that review: when a change touches the backend paths the configured
+  specs declare, those specs run as a required pull-request check. The full configured suite stays
+  post-landing, once per landing. This adds pre-merge protection that does not exist in the baseline.
+- Owner decision: P0-P4 are the initial implementation; P5/P6 are optional follow-ups as recorded
+  verbatim in their section below.
 - Carry forward the supplied constraints: public GitHub Team, standard runners, 60 concurrent
   jobs, no additional paid services or infrastructure, and only the merge queue writes main.
 - Three plans are the immediate parallelism target. Ten contributors are a later capacity question.
@@ -61,7 +67,9 @@ mandatory design-review ceremony.
 Keep `/check` and fresh independent acceptance after landing. Give reviewers a compact map from
 acceptance criteria to changed behavior and evidence, with the exact base and head. The checker
 gets the contract and artifacts, not the builder's repair conversation as its starting context.
-It chooses its own boundary probes and judges whether evidence proves the contract. Tests may
+It chooses its own boundary probes and judges whether evidence proves the contract. Land this
+guidance once in the plan-run builder brief and check procedure, and mark parallel-plans D3 as
+fulfilled by those canonical changes. Tests may
 share setup; an independent oracle must not simply repeat the production algorithm.
 
 One outstanding review request per revision and scope. Resolve related confirmed findings together,
@@ -78,7 +86,13 @@ test expectations, infrastructure failures and delayed review service in the rec
 
 Black-box means driving public inputs and checking observable results rather than inspecting
 internal state. Build it by identifying and extending maintained journeys, not by creating a
-second copy of every flow. Inventory existing coverage before writing any new test.
+second copy of every flow. Inventory existing coverage before writing any new test. Opus counted 286 offline and 53 configured
+specs at its source revision; remeasure at P0. Label/select existing cases and add only demonstrated gaps.
+
+Keep two distinct sets: critical journeys run for every product change (target <=5 minutes), while
+the shared-change set is the broader escalation set. Today the latter is encoded by 77 `// focus`
+headers, about 68 historical test-minutes according to the review. The proposed explicit
+`SHARED_CHANGE_SET` inventory is not yet implemented; these two sets must not be conflated.
 
 | Contract | Observable proof | Cheapest faithful coverage retained |
 | --- | --- | --- |
@@ -87,7 +101,7 @@ second copy of every flow. Inventory existing coverage before writing any new te
 | Production and playout | Preview, Take, Update and Stop have the specified visible effect; wrong/stale writers cannot replace current output | Model tests plus real browser/output boundary; backend integration when required |
 | Export portability | An exported artifact loads in its supported harness, accepts fields and performs its lifecycle | Artifact-level integration per supported format, not only a schema assertion |
 | Graphics runtime | Text/media/data updates paint, assets load, layout remains in bounds and entry/exit reaches the required state | Blank-page renderer checks and affected-design visual checks |
-| Access and durability | Tenant/access boundaries, concurrent writes, identity and recovery retain their contract | Real isolated backend tests, including negative cases; mocks alone are insufficient |
+| Access and durability | Tenant/access boundaries, concurrent writes, identity and recovery retain their contract | Selected pre-merge on triggered PRs; full suite per landing. Real isolated backend and negative cases; mocks alone are insufficient |
 
 Derive expected outcomes from the approved contract. Include known defect classes: cross-tab lost
 updates, competing writers, same revision with different content, stale/delayed acknowledgements,
@@ -105,15 +119,27 @@ the existing safe exemption. Cheap contract tests run on relevant changes. The i
 target for the small journey set is <=5 minutes of execution on existing Actions resources,
 measured separately from setup. This is a design target, not permission to truncate checks.
 Representatives do not certify every design, font, viewport, browser or physical playout device.
-Keep explicit qualification coverage for the boundaries they cannot prove.
+Keep explicit qualification coverage for the boundaries they cannot prove. Physical playout devices
+remain a stated qualification limit and do not become an automated landing prerequisite.
 
 ## D3. Select affected graphics and behavior, conservatively
 
 Extend `scripts/e2e-affected.mjs` and `scripts/catalog-affected.mjs`; do not introduce a second
 selector. The former already combines declared coverage and traces; the latter already maps
 design declarations and transitive importers. Local catalog checks accept selected design IDs.
-The CI catalog calibration job currently runs the entire catalog when its flag is true. Qualify
-using that existing selection in CI before reducing its scope.
+The ci.yml catalog calibration job currently runs the entire catalog when its flag is true.
+However, catalog-gates.yml already runs scoped batteries in Actions on demand and for a midday
+landed range; nightly.yml already runs full offline/catalog checks and sweeps daily. Reuse the
+catalog-gates scoped path in ci.yml after qualification, rather than introducing another path.
+
+Pre-merge offline selection is already live, not awaiting a shadow rollout. P1 first hardens known
+gaps: broad traced files must select at least critical journeys; fallback changes that can reach
+designs must escalate catalog checks using the existing dependency machinery, with conservative
+fallback for dependencies it cannot resolve. Preserve both rename paths using name-status/-M
+(including working-tree renames), enable forbidOnly in CI configurations that run these suites,
+and map output.html and filesystem-read fixtures. Audit short-regex copy locators and the
+spaceKey.ts header override. Pin every reproduced case in selector/verdict tests. This safety
+work may increase PR cost; report it honestly. It is not evidence of a performance regression.
 
 | Change | Proposed pre-merge work after qualification |
 | --- | --- |
@@ -142,17 +168,27 @@ must prove that narrowing a selection does not defeat completeness checks.
 
 ## D4. Put checks at the right layer and cadence
 
-This is the target policy after qualification. Current required executions remain until the
-corresponding activation phase has passed.
+This is the initial target policy after qualification. Current required executions remain until
+the corresponding activation phase has passed. Backend selection is a new required PR protection.
+
+Add a job inside ci.yml, reporting into its existing required CI gate. On PRs whose plan has the
+configured flag, run the specs selected by CONFIGURED_TRIGGERS against an isolated local stack,
+using shared configured-suite bootstrap/verdict logic and local default keys, without hosted secrets.
+Expected cases/skips derive from the selected manifest. The gate accepts a skipped backend job only
+when the flag is off or the event is merge_group. Missing/failing triggered PR evidence cannot pass.
+Keep the full configured suite per landing. This intentionally leaves a gap between PR-base
+backend validation and validation of the combined landed tree: merge groups skip this backend job.
+Do not claim backend integration is checked before merge. P0 must establish whether deployment
+precedes that verdict and document the existing incident/recovery path.
 
 | Stage | Checks and evidence | Detection/acceptance requirement |
 | --- | --- | --- |
 | Builder feedback | Affected Node/browser checks; selected isolated backend tests on capable workers | Existing five-minute small / single twelve-minute broader bounds; whole suites in Actions |
 | PR checkpoint | Required build/tooling, critical journeys, affected integration/design checks; broader checks for shared/uncertain impact | Known affected and critical protection before merge; review exact final head |
-| Merge group | Required checks on the combined source, critical journeys and union of affected coverage | PR green never substitutes for the integrated tree |
+| Merge group | Required offline checks on combined source and union of affected coverage; selected configured job intentionally skipped | PR green never substitutes for the integrated tree |
 | After deployment | Reuse/extend existing deployment verification of the actual served build and critical smoke | Failed/skipped deployment is not tested production; no destructive probes on customer data |
 | After landing | Independent criterion checks on exact merge; required exact-merge evidence under current policy | Dependants still wait for PASS |
-| Qualified full-main validation | Full maintained regression suite plus configured integration and catalog where range impact requires it, on pinned main snapshots | Relevant landing included in completed validation within 60 minutes; stale alarms and recovery |
+| Full-main validation per landing | Full maintained offline regression, full configured suite and catalog when triggered, attributed to the exact landing; recover superseded required runs | Completed validation target within 60 minutes; existing exact obligations retained |
 | Exhaustive validation | Individually approved expensive combinations, qualification walks and whole catalog visual sweep | Unrelated, non-critical regression detection <=24 hours, with attributable range and owner |
 
 Daily cadence does not mean a cron launch is sufficient: completion must meet the 24-hour bound
@@ -180,11 +216,77 @@ Every new feature extends an existing journey where possible and adds pure logic
 
 ## D5. Preserve exact attribution while removing repeated work
 
-First isolate unrelated configured-suite dispatches. Use immutable source, workflow/configuration,
-resolved inputs/selection, environment and purpose in evidence; separate scheduled requests.
-Check requested versus checked-out SHA. Preserve required main results and cancellation of
-obsolete ordinary PR CI. Never cancel evidence an independent checker still requires. Until
-main scheduling is changed and verified, retain the existing owned exact-SHA recovery dispatch.
+First isolate manual configured-suite dispatches by ref, give the schedule its own group and keep
+per-SHA landing groups with cancel-in-progress false. Add an immutable requested SHA and fail if
+checkout differs. Grouping by ref controls scheduling, not proof of source identity. Genuine
+same-branch pending supersession remains possible; recover any cancelled verdict still required
+by a checker. Preserve obsolete ordinary PR cancellation and the owned exact-SHA recovery path.
+The full reuse identity tuple is not a prerequisite for this first scheduling slice.
+
+## D6. Earlier backend feedback and three concurrent plans
+
+Reuse configured-suite setup/verdict code for selected tests on qualified cloud workers. This is
+earlier feedback, not replacement for authoritative Actions. Qualify cold startup, ports, resource
+headroom, pinned tools, migrations, auth, grants and realtime, with disposable local credentials
+and rejection of hosted fallback. Start with one stack and one browser job per worker. Retain
+Actions on providers where the stack is unqualified. Include startup in the cost/latency comparison.
+Reproduce the historical exposure finding classes locally before gating them; retain hosted
+advisors. This optional pilot is not a prerequisite for selection or parallel-plan work.
+
+Use existing coordinators and ledgers for three compatible plans. Land shared foundations first;
+record ownership of protocols, migrations, fixtures and common registries. Different files do not
+prove independence. Qualify isolated native workers and enough reviewer/checker capacity; three
+subagents on one VM do not establish three cloud resources. Within each chain, dependants wait
+for PASS; final integration checks the combined product. Keep one acknowledged repair owner per PR.
+
+Three plans can each fan out many Actions jobs. Opus reports a five-build merge-queue limit;
+five groups of about 16 jobs plus a main run of about 25 can exceed 60 jobs in a burst, although
+not all jobs are eligible simultaneously. P0 reads current settings and actual job waiting rather
+than inferring capacity from average occupancy. Reviewer/checker capacity remains unknown.
+Keep current merge settings initially; measure before changing concurrency.
+
+## One implementation sequence
+
+Register future rows in the existing plan machinery only after the owner accepts the Opus-reviewed
+spec and production-page completion is confirmed. Each row has a single coherent outcome, `/check`,
+`/queue-merge`, a repair owner and independent acceptance. Do not run three overlapping roadmaps.
+
+| Phase | Deliverable and prerequisite | Reversal |
+| --- | --- | --- |
+| P0: reconcile and baseline | Pin current main, rules and production-page completion receipt. Read existing main/configured/merge-group durations and queue waits. Triage the reported nightly failures before relying on them. Freeze cohorts. | Documents only |
+| P1: safety and feedback | Separate reversible rows: (a) dispatch isolation; (b) selector hardening; (c) selected configured PR job after (a); (d) D1 guidance. Measure added safety cost separately. | Revert each scheduling/guidance change independently; a safety repair needs retained protection before reversal |
+| P2: contracts and miss audit | Distinguish critical/shared sets, fill demonstrated gaps and replay historical full-main failures against culprit selections. Continue the audit for two weeks after the last selection correction, starting after P1(b). Use existing full-main evidence; no duplicate shadow executions. | Retain existing full protection and corrected mappings |
+| P3: scoped catalog and maintenance | Fix scoped-report integrity first; reuse catalog-gates path in ci.yml. Prove the 24-hour coverage/completion bound, failed/missed-pass alarm, culprit and rollback drills before narrowing. Pair existing scoped/full evidence where identities match. Land three remeasured maintenance candidates. Optional worker backend feedback measured separately. | Restore full catalog/previous faithful placements; disable worker caller |
+| P4: three-plan cohort | Two-plan smoke then three plans with four rows each. Requires P1 safety/dispatch rows and compatibility, but not P2/P3 completion. Hold configuration stable for each measured cohort and retain exact obligations. | Pause additional admissions; retain repair owners |
+
+Initial success is judged on P0-P4 alone. D1 and scoped catalog target individual latency;
+dispatch isolation and P4 target throughput. Selector hardening and configured PR coverage add
+safety and may cost more. No combined measurement can establish which intervention helped.
+The reviewer proposed P4 depending only on P1(a); this draft additionally requires P1(b/c) so
+known safety gaps are not left open during expansion. No dependency on full test-maintenance work.
+
+## Optional follow-ups (not part of the initial implementation)
+
+Owner decision recorded by Opus on 2026-10-28:
+
+> P5 (batched full-main validation) and P6 (automatic reuse) are optional follow-ups outside the
+> initial implementation. Implement and measure P0-P4 first. Reconsider P5 only if repeated
+> full-main validation remains a meaningful bottleneck. Reconsider P6 separately, only if
+> duplicate identical checks still cause material cost or waiting. Neither is required to declare
+> the initial improvement successful. Their qualification requirements are preserved, and
+> neither activates automatically.
+
+Opus reports successful main runs at p50 14 / p90 17 minutes, with 91 success, 3 failure and 6
+cancelled among 100 runs, and two exact-SHA recoveries among 100 dispatches. These are attributed
+measurements, not remeasured here; they do not establish a current full-main bottleneck.
+Keep per-landing validation and exact-SHA recovery in initial scope. The policy conflict below
+exists only if P5 is reconsidered. Verify whether landed and merge-group SHAs are identical before
+using merge-group results as exact-landing evidence; do not assume this from the queue's name.
+
+P5 would retain two-week selection qualification, capacity checks, stale/culprit/rollback drills
+and explicit approval of exact-versus-range reconciliation. Its rollback must restore per-landing
+full validation. P6 would require the observer runbook and explicit experiment-complete receipt;
+its rollback returns to observation and reconciles outstanding intents.
 
 Automatic duplicate suppression is a separate later option. The verification observer remains
 observation-only. Its current workflows do not emit the complete identity artifact needed for
@@ -215,51 +317,11 @@ monotonic failure, no blaming the latest commit by default. If attribution is un
 the whole suspect range and stop affected dependent admission. The acknowledged owner repairs
 or reverts the demonstrated culprit through the merge queue. Missing reports never mean green.
 
-## D6. Earlier backend feedback and three concurrent plans
-
-Reuse configured-suite setup/verdict code for selected tests on qualified cloud workers. This is
-earlier feedback, not replacement for authoritative Actions. Qualify cold startup, ports, resource
-headroom, pinned tools, migrations, auth, grants and realtime, with disposable local credentials
-and rejection of hosted fallback. Start with one stack and one browser job per worker. Retain
-Actions on providers where the stack is unqualified. Include startup in the cost/latency comparison.
-Reproduce the historical exposure finding classes locally before gating them; retain hosted
-advisors. This optional pilot is not a prerequisite for selection or parallel-plan work.
-
-Use existing coordinators and ledgers for three compatible plans. Land shared foundations first;
-record ownership of protocols, migrations, fixtures and common registries. Different files do not
-prove independence. Qualify isolated native workers and enough reviewer/checker capacity; three
-subagents on one VM do not establish three cloud resources. Within each chain, dependants wait
-for PASS; final integration checks the combined product. Keep one acknowledged repair owner per PR.
-
-Three plans can each fan out many Actions jobs. Three fifteen-shard matrices alone request 45
-jobs; the supplied ordinary-work model estimates about 13 runners on average for three lanes,
-but that omits some work and does not bound bursts. Review-service capacity is also unknown.
-Keep current merge settings initially. Measure demand and waiting before changing concurrency.
-
-## One implementation sequence
-
-Register future rows in the existing plan machinery only after the owner accepts the Opus-reviewed
-spec and production-page completion is confirmed. Each row has a single coherent outcome, `/check`,
-`/queue-merge`, a repair owner and independent acceptance. Do not run three overlapping roadmaps.
-
-| Phase | Deliverable and prerequisite | Reversal |
-| --- | --- | --- |
-| P0: reconcile and baseline | Pin new main, active rules and completed production-page receipt. Remeasure post-sharding timings; map current coverage and open suite-budget work. Freeze cohorts and comparison windows. | Documents only; no activation |
-| P1: earlier convergence and dispatch isolation | Separate small rows for D1 guidance and configured request identity/isolation. Measure them separately. Preserve observer mode and all current test cadence. | Revert guidance or dispatch change independently; reconcile in-flight verdicts |
-| P2: contract coverage and selection shadow | Reuse critical journeys; fill demonstrated contract gaps. Exercise selector scenarios and selected-report integrity. Run proposed selections alongside existing full protection without narrowing the gate. Begin two-week audit after last selection fix. | Keep full coverage; disable proposed selection |
-| P3: cheaper faithful tests and affected catalog CI | Three reviewed maintenance candidates. Qualify affected-design CI versus complete reference runs before activation; retain full post-merge coverage. Backend feedback is an optional separately measured row. | Restore previous placements/full catalog; disable worker-stack caller |
-| P4: three-plan cohort | After isolation and compatible work are ready, short two-plan operational smoke, then three plans with four rows each. Hold workflow configuration stable for the cohort; independent checkers and all exact obligations remain. | Stop additional admissions through existing pause route; retain repair owners |
-| P5: cadence qualification and activation | Two clean weeks of selection audit, adversarial replay, live capacity gate, stale/culprit/rollback drills, approved exact-vs-range reconciliation. Activate batching, then separately approved exhaustive moves. | Proven switch back to per-landing full validation and full catalog; keep missed-deadline/failed history |
-| P6: optional automatic reuse | Only if duplicate wait/cost remains material; satisfy observer runbook and explicit experiment-complete receipt. | Return to observation-only, reconcile persisted intents |
-
-P1 targets individual waiting and rework; P2-P3 reduce feedback cost and suite growth; P4 targets
-completed work per hour and can modestly slow an individual change; P5-P6 reduce repeated execution
-but add attribution obligations. Do not claim a combined timing change proves which intervention
-helped. Read/plan lookahead, ten-plan scaling, merge-limit increases and new orchestration are deferred.
-
 ## Observable acceptance criteria
 
 All criteria below are future implementation criteria. None is passed by this planning document.
+Initial acceptance comprises AC-1 through AC-6 and AC-8; AC-7 is reserved for optional P5/P6 and
+is excluded from initial completion. Future execution records must scope these IDs explicitly.
 
 ### AC-1: Baseline distinguishes delay from execution
 
@@ -269,7 +331,10 @@ Stratify extraction, feature and backend/stateful work. Report missing samples a
 Measure builder-to-PASS, request-to-review, material repair rounds/finding families, setup/test/report
 time, concurrency/dependency wait versus eligible runner wait, ready-to-queue, queue-to-merge,
 merge-to-validation, cancelled/failed runner-minutes and escaped defects. Never add overlapping
-intervals as exclusive work or infer active work from commit frequency. Layer: analysis of existing records.
+intervals as exclusive work or infer active work from commit frequency. P0 triages the four failed
+nightlies reported among the last ten and establishes deployment timing relative to backend checks.
+Measure queued-to-started job wait, labelling dependency/concurrency components and unknown eligible
+times rather than calling the whole interval runner shortage. Layer: analysis of existing records.
 
 ### AC-2: Review convergence improves without suppressing findings
 
@@ -289,10 +354,12 @@ gaps and physical-device limits. Layer: Node, browser, artifact and configured i
 
 ### AC-4: Selection never silently narrows an unknown change
 
-Planner fixtures cover design dependency closure, shared fonts/CSS/rendering, unknown/new/renamed/
+Reproduce and pin the P1 broad-trace, catalog fallback, rename, test.only, output/fixture and
+copy/header cases first. Planner fixtures cover design dependency closure, shared fonts/CSS/rendering, unknown/new/renamed/
 deleted paths, stale/incomplete traces, custom contexts, selector edits and combined merge groups.
-Malformed/missing reports and omitted selected cases fail. Proposed selected runs and continuing
-full runs are compared for at least two weeks after the last relevant selection correction. Replay
+Malformed/missing reports and omitted selected cases fail. Start by replaying existing full-main failures retroactively against culprit plans. Existing
+selected and full runs are compared for at least two weeks after the last relevant selection correction;
+this is an audit inside P2, not a separate duplicate-run shadow phase. Replay
 every full-run failure against its culprit's original PR/merge-group selection; investigate all
 misses, including faults classified as flakes. Zero unexplained misses is necessary, not completeness
 proof. Layer: selector/verdict Node tests, defect replay and paired Actions evidence.
@@ -302,10 +369,27 @@ proof. Layer: selector/verdict Node tests, defect replay and paired Actions evid
 Three candidates have a named behavior/failure/boundary inventory, replacement receipt and measured
 before/after setup, execution and runner cost on comparable environments. A one-design CI change
 selects all proven dependants; shared/uncertain machinery still broadens coverage. Keep the necessary
-UI/renderer integration and human visual review. No capacity exception, baseline or maintenance
+UI/renderer integration and human visual review. Before narrowing, fix catalog-bench scoped
+completeness: expected selected IDs/categories must match actual measured IDs; unknown IDs,
+category mismatch or an empty overall selection cannot pass. Empty individual slices are valid
+only if the complete selected manifest still ran. The cited scope-guard file is absent at baseline.
+
+Daily-pass drills belong to P3: missed, failed and late runs alarm with the uncovered range; replay
+scheduled failures against candidate landings, including interactions, and exercise full-scope
+rollback. Midday scoped passes count only for the exact cases/designs actually checked. They do
+not automatically close the 24-hour gap for unrelated designs omitted by selection. Prove a
+completed full or collectively exhaustive pass inside the bound with scheduling margin; if the
+existing schedule cannot do that, add the smallest justified fallback using existing workflows
+or retain pre-merge coverage. Do not describe delayed cron starts as a guaranteed daily verdict.
+No capacity exception, baseline or maintenance
 entry is manufactured by a repair. Layer: focused tests, real rendered output and full comparison runs.
 
 ### AC-6: Parallel validation keeps every required verdict
+
+Triggered configured PR cases execute exactly the selected manifest and feed the required CI
+gate. Missing reports, unexpected skips and failed selected tests fail the gate; an untriggered
+PR and merge-group event exercise the explicit skip cases. Full configured validation remains
+per landing. Observe the added PR time and the combined-tree detection gap.
 
 Three unrelated candidate SHAs dispatched together complete with attributable verdicts. Exercise
 moved refs, schedules, superseded PRs, missing reports and lost acknowledgement. Preserve exact-main
@@ -315,7 +399,10 @@ matched serial completion rate and <=25% increase in category-matched median lat
 queue-to-landing p50 <=10 / p90 <=20 minutes. Report tails and unfinished rows. Layer: bounded Actions
 trial and independent plan acceptance. Small cohorts are operating evidence, not statistical proof.
 
-### AC-7: Cadence changes retain deadlines, attribution and recovery
+### AC-7: Optional cadence changes retain deadlines, attribution and recovery
+
+Outside initial acceptance; applies only if P5/P6 are later admitted. Catalog daily-pass
+qualification is already required by AC-5 and cannot wait for this optional phase.
 
 Before activation, AC-3/4 pass, the capacity gate is live, policy reconciliation is approved and
 stale, missing-report, culprit/interaction and rollback drills pass. A relevant landing is covered
@@ -327,6 +414,7 @@ quarantine policy. Layer: orchestration fixtures and bounded live workflow drill
 
 ### AC-8: Gains persist within the existing resource envelope
 
+Judge initial success on P0-P4 only; optional AC-7 is not a completion requirement.
 Report before/after per-change latency, completed work/hour and runner-minutes per accepted change,
 including failures, cancellation and unfinished work. Retain the suite-budget 85% warning / 95%
 exception policy against a reviewed fixed envelope based on current resources; extra shards do not
@@ -334,7 +422,8 @@ silently buy extra budget. Weekly maintenance reports identify growth and owners
 critical defect, missing required verdict or unsafe admission immediately stops the affected rollout.
 Investigate any increase in first-check failures or escapes before expansion. Timing misses permit
 one bounded correction and remeasurement, then pause expansion if still outside bounds. No test
-weakening, cost increase or removal of slow rows from the statistics. Layer: existing reports and receipts.
+weakening, additional paid resources or removal of slow rows from the statistics. Report the
+intentional safety cost of P1(b/c) separately from optimization savings. Layer: existing reports and receipts.
 
 ## Reconciliation with previous proposals
 
@@ -349,11 +438,12 @@ weakening, cost increase or removal of slow rows from the statistics. Layer: exi
   boundary coverage and the exact-merge policy reconciliation. It does not defer all full tests to night.
 - Existing selection and cheaper-layer guidance have partly landed. P0 records what remains;
   implementation is not a second removal of the expired sprint switch or a new selector.
-- The earlier proposal excluded activation of reuse/batching. They appear here as separately
-  qualified future phases, not permission to turn them on. No current observer behavior changes.
+- The earlier proposal excluded activation of reuse/batching. They appear here only as optional
+  follow-ups outside initial acceptance, not permission to turn them on. No current observer behavior changes.
 
 ## Phase notes
 
-Planning only. Opus review, current-state remeasurement, implementation and all trials are pending.
+Planning only. Opus review received and reconciled on 2026-10-28. Current-state remeasurement,
+owner acceptance of the revised draft, implementation and all trials are pending.
 This spec and its acceptance ledger are not a runnable plan. Add implementation receipts per phase
 after authorization; do not report the future acceptance criteria as verified by prose review.
