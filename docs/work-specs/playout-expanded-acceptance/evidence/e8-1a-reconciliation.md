@@ -20,8 +20,8 @@ owner block (H0.2 and S) adds the physical receipts and closes AC-1 in S's
   entry is the independent checker's verdict on the merge SHA, with a per-criterion `evidence`
   list naming the commands, tests, mutations and run ids. Those lists are the criterion-level
   receipts this record cites; they are not restated here. Every gating criterion of rows 1 to 42
-  has exactly one such entry (47 phases, 47 PASS entries; 7 rows passed on a second check after a
-  scoped repair).
+  has exactly one such entry (47 phases, 47 PASS entries; 7 rows passed on a later check after a
+  scoped repair: six on the second, row 32a on the third).
 - **Runs:** the CI and configured-suite runs of each merge SHA were read from the Actions API for
   this record, not copied from the phase notes.
 - **Phase notes** (`../../production-page-refactor/evidence/phase-notes.md`) are the builders'
@@ -393,7 +393,7 @@ merge, in the ledger's merge checks); providers as dated in Q; the cloud environ
 | 7 | C1b | `ebbdc78f1` (#1578) | `p7-pp-p7c-f327`, 2026-10-21T14:45 | CI 39613771037 success; configured 39613771110 success | ledger entry |
 | 8 | C1c | `63edc790b` (#1585) | `p8-pp-p8c-c7d7`, 2026-10-21T17:06 | CI 39634815438 success; configured 39634815347 success | ledger entry |
 | 9 | C2 | `4890bbdfd` (#1591, #1592) | `p9-pp-p9c2-3761`, 2026-10-21T23:33 | CI 39690179182 success; configured 39690179226 success | ledger entry |
-| 10 | C3 | `570da40a4` (#1593, #1594) | `p10-pp-p10c2-5440`, 2026-10-22T05:09 | CI 39711172027 success; configured 39722586834 success (dispatch), 39711172079 cancelled; push configured cancelled; dispatch on the merge SHA green | ledger entry |
+| 10 | C3 | `570da40a4` (#1593, #1594) | `p10-pp-p10c2-5440`, 2026-10-22T05:09 | CI 39711172027 success; configured 39722586834 success (dispatch), 39711172079 cancelled; the push configured run failed only agent-access.spec.ts:757 (rolling issue #1596, a spec C3 does not touch), its second attempt failed it again and hit the 40 min cap; the checker passed it under decision 18 on the dispatch green on the merge SHA | ledger entry |
 | 11 | C4 | `503b02997` (#1599, #1601) | `p11-pp-p11c2-29d7`, 2026-10-22T08:43 | CI 39745490839 success; configured 39745490725 success | ledger entry |
 | 12 | C5 | `7057915b4` (#1604) | `p12-pp-p12c-18ae`, 2026-10-22T11:20 | CI 39764904993 success; configured 39764904953 success | ledger entry |
 | 13 | C6 | `f9c9c26de` (#1607, #1610) | `p13-pp-p13c2-1c97`, 2026-10-22T19:03 | CI 39830841575 success; configured 39830841658 success | ledger entry |
@@ -410,7 +410,7 @@ merge, in the ledger's merge checks); providers as dated in Q; the cloud environ
 | 24 | 13b | `a56e14119` (#1648) | `p24-pp-p24c-c25a`, 2026-10-24T04:41 | CI 40060994421 success; configured 40060994406 success | ledger entry |
 | 25 | 14 | `dda88db51` (#1653) | `p25-pp-p25c-176f`, 2026-10-24T06:47 | CI 40068906021 success; configured 40068905966 success | ledger entry |
 | 26 | E4.1 | `b085a1451` (#1655) | `p26-pp-p26c-c09d`, 2026-10-24T08:22 | CI 40075444094 success; configured 40075443993 success | ledger entry |
-| 27 | E4.2 | `029a114bf` (#1658) | `p27-pp-p27c-8b6f`, 2026-10-24T13:11 | CI 40093685216 success; configured 40093685213 cancelled; configured cancelled at the 40 min cap 124/130 with no failure; code-identical successor 40094380185 green (#1667) | ledger entry |
+| 27 | E4.2 | `029a114bf` (#1658) | `p27-pp-p27c-8b6f`, 2026-10-24T13:11 | CI 40093685216 success; configured 40093685213 cancelled; configured cancelled at the 40 min cap 124/130 with no failure; the next main commit (`6949fdcf5`, PR #1665, differing only in `cli/package.json` and its changelog) green in 40094380185; rolling issue #1667 | ledger entry |
 | 28 | E5.1 | `8bdec0692` (#1670) | `p28-pp-p28c-b64f`, 2026-10-24T16:36 | CI 40109269990 success; configured 40109269976 success | ledger entry |
 | 29 | E5.2 | `89abb9eeb` (#1680) | `p29-pp-p29c-99e9`, 2026-10-24T19:53 | CI 40126091878 success (dispatch), 40125446630 cancelled; configured 40125446575 success; push CI cancelled; dispatch on the merge SHA green | ledger entry |
 | 30 | E7.1 | `8ebb429b4` (#1695, #1704) | `p30-pp-p30c2-1f82`, 2026-10-25T06:31 | CI 40166932892 success; configured 40166932918 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1704#issuecomment-6394229525) |
