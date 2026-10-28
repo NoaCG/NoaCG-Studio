@@ -559,9 +559,12 @@ export function createOutputStage(
   // ── PUBLISHED FOREIGN PACKAGES (E3.2a) ──────────────────────────────────────────────────────
   const ografOutcomes = new Map<string, OgrafOutcome>();
   const ografCbs: ((graphic: string) => void)[] = [];
+  const notify = (key: string) => {
+    for (const cb of ografCbs) cb(key);
+  };
   const told = (key: string, outcome: OgrafOutcome) => {
     ografOutcomes.set(key, outcome);
-    for (const cb of ografCbs) cb(key);
+    notify(key);
   };
   /** Commands that reached a package whose base is still being asked for, in order. Bounded: a
    *  base that never answers cannot grow it, and what it held is lost with the mount anyway. */
@@ -646,8 +649,6 @@ export function createOutputStage(
     if (!isNative(spec)) mountPublished(spec, layerOf(spec, index));
   });
 
-  /** Packages up on this stage (a Take or a snap, until an Out): only their plates read it. */
-  const up = new Set<string>();
 
   /** The document that sent `ev`, current or prepared, or null. */
   const senderOf = (ev: MessageEvent): Frame | null => {
@@ -775,12 +776,10 @@ export function createOutputStage(
         else typedAiring.delete(graphic);
       }
     }
+    // A plate shows while its package is up: from a Take or a snap until an Out.
     const plate = plates.get(graphic);
-    if (plate) {
-      if (msg.t === 'play' || msg.t === 'snap') up.add(graphic);
-      else if (msg.t === 'stop') up.delete(graphic);
-      plate.style.display = up.has(graphic) ? '' : 'none';
-    }
+    if (plate && (msg.t === 'play' || msg.t === 'snap')) plate.style.display = '';
+    else if (plate && msg.t === 'stop') plate.style.display = 'none';
     const foreignLayer = foreign.get(graphic);
     const waiting = waitingOgraf.get(graphic);
     if (foreignLayer || waiting) {
@@ -979,8 +978,7 @@ export function createOutputStage(
       waitingOgraf.delete(graphic);
       plates.get(graphic)?.remove();
       plates.delete(graphic);
-      up.delete(graphic);
-      if (ografOutcomes.delete(graphic)) for (const cb of ografCbs) cb(graphic);
+      if (ografOutcomes.delete(graphic)) notify(graphic);
       const frame = frames.get(graphic);
       if (!frame) return;
       frames.delete(graphic);

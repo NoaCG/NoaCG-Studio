@@ -736,22 +736,18 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // envelope's, bound values included, and its native `data` is empty.
     const { data: values, typed: envelope } = sendData(p, cue, graphic, selection, typed);
     // Captured at the press, so a correction for the cue this replaces cannot follow it on air.
-    const captured = p.selectionAired(graphic, cue.id, selection, true);
     // What else is up on its layer goes off in the same batch, by its own Out, as on a playout
     // server: the log, every output and this page's marker all see it (at most two, so the batch
     // stays inside one command call).
     const peers = (p.layerPeers?.(graphic) ?? []).filter((g) => g !== graphic && session.air.get().liveCue[g]).slice(0, 2);
-    const peerCaptured = peers.map((g) => ({ g, c: p.selectionAired(g, '', { status: 'none' }, true) }));
+    const captured = [{ g: graphic, c: p.selectionAired(graphic, cue.id, selection, true) }, ...peers.map((g) => ({ g, c: p.selectionAired(g, '', { status: 'none' }, true) }))];
     const sent = await sendWith(s, [[...peers.flatMap(clearCueItems), ...takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })]], label);
     if (!sent.ok) {
-      captured.undo(sent);
-      for (const { c } of peerCaptured) c.undo(sent);
+      for (const { c } of captured) c.undo(sent);
       return { ok: false, note: sent.note };
     }
-    // The capture lands only with the values on the output; a later press that overtook it stands.
-    if (reachedOutput(sent, graphic)) captured.landed();
-    else captured.undo();
-    for (const { g, c } of peerCaptured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
+    // A capture lands only with its press on the output; a later press that overtook it stands.
+    for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
     p.clearMisses([cue.id]);
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };

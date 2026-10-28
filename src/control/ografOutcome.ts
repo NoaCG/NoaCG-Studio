@@ -13,7 +13,8 @@ import type { OgrafCall } from './ografHost.ts';
 
 /** What one call came to (output/foreignOgraf.ts `OgrafAnswer`), or a package the output holds no
  *  frame for. */
-export type OgrafOutcomeStatus = 'done' | 'rejected' | 'timeout' | 'gone' | 'refused' | 'unmounted';
+const STATUSES = ['done', 'rejected', 'timeout', 'gone', 'refused'] as const;
+export type OgrafOutcomeStatus = (typeof STATUSES)[number] | 'unmounted';
 
 /**
  * A PUBLISHED FOREIGN PACKAGE'S LAST WORD on a stage. `i` is the mounted instance (its frame's
@@ -23,9 +24,14 @@ export type OgrafOutcomeStatus = 'done' | 'rejected' | 'timeout' | 'gone' | 'ref
  */
 export type OgrafOutcome =
   | { i: string; call: OgrafCall; status: Exclude<OgrafOutcomeStatus, 'unmounted'>; code?: number; msg?: string; step: number | 'end' | null; on: boolean }
-  | { i: null; status: 'unmounted'; msg: string; on: boolean };
+  | { i: null; status: 'unmounted'; msg: string; on: false };
 
-const STATUSES: readonly string[] = ['done', 'rejected', 'timeout', 'gone', 'refused'];
+/** One line of the page: what an output said, and how it is drawn. */
+export interface OutcomeLine {
+  text: string;
+  tone: 'ok' | 'bad' | 'unknown';
+}
+
 const CALLS: readonly string[] = ['mount', 'play', 'stop', 'update', 'custom'];
 const MSG_MAX = 200;
 const INSTANCE = /^[0-9a-f]{1,32}$/;
@@ -38,7 +44,7 @@ export function readOgrafOutcome(state: unknown): OgrafOutcome | null {
   const msg = typeof o.msg === 'string' ? o.msg.slice(0, MSG_MAX) : undefined;
   const on = o.on === true;
   if (o.status === 'unmounted') return { i: null, status: 'unmounted', msg: msg || 'not loaded', on: false };
-  if (typeof o.i !== 'string' || !INSTANCE.test(o.i) || typeof o.status !== 'string' || STATUSES.indexOf(o.status) < 0) return null;
+  if (typeof o.i !== 'string' || !INSTANCE.test(o.i) || typeof o.status !== 'string' || (STATUSES as readonly string[]).indexOf(o.status) < 0) return null;
   if (typeof o.call !== 'string' || CALLS.indexOf(o.call) < 0) return null;
   const step = o.step === 'end' ? 'end' : typeof o.step === 'number' && Number.isInteger(o.step) && o.step >= 0 ? o.step : null;
   const code = typeof o.code === 'number' && Number.isInteger(o.code) ? o.code : undefined;
@@ -59,7 +65,7 @@ const CALL_WORD: Record<string, string> = { mount: 'its load', play: 'the Take',
  * The page's line for it: what the OUTPUT says, never what this page sent. `tone` is how it is drawn:
  * `ok` on or off as asked, `bad` refused or never loaded, `unknown` no answer or a replaced instance.
  */
-export function ografOutcomeWords(name: string, o: OgrafOutcome): { text: string; tone: 'ok' | 'bad' | 'unknown' } {
+export function ografOutcomeWords(name: string, o: OgrafOutcome): OutcomeLine {
   if (o.status === 'unmounted') return { text: `${name}: the output could not load it (${o.msg})`, tone: 'bad' };
   const what = CALL_WORD[o.call] || 'a call';
   const said = o.msg ? `: ${o.msg}` : '';
@@ -74,13 +80,8 @@ export function ografOutcomeWords(name: string, o: OgrafOutcome): { text: string
 
 /** The PROGRAM monitor's confirmed lines: one per foreign package the outputs have reported on, in
  *  pool order, apart from the monitor's own picture (a simulation that never loads a package). */
-export function confirmedLines(foreignNames: readonly string[], reported: Readonly<Record<string, OgrafOutcome>>): { name: string; text: string; tone: 'ok' | 'bad' | 'unknown' }[] {
-  const out: { name: string; text: string; tone: 'ok' | 'bad' | 'unknown' }[] = [];
-  for (const name of foreignNames) {
-    const o = reported[name];
-    if (o) out.push({ name, ...ografOutcomeWords(name, o) });
-  }
-  return out;
+export function confirmedLines(foreignNames: readonly string[], reported: Readonly<Record<string, OgrafOutcome>>): (OutcomeLine & { name: string })[] {
+  return foreignNames.flatMap((name) => (reported[name] ? [{ name, ...ografOutcomeWords(name, reported[name]) }] : []));
 }
 
 /**

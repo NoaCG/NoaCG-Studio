@@ -46,8 +46,6 @@ const SEALED_MAX = 360;
  *  output of one publication, `sealBase`). */
 export const OGRAF_RATE = { windowMs: 60_000, max: 1200 };
 
-const b64url = (b: Buffer) => b.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const fromB64url = (s: string) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 
 /**
  * `show\nslug\nrevision`, sealed (AES-256-GCM). The IV is derived from the plaintext (a keyed hash,
@@ -60,13 +58,13 @@ export function sealBase(key: Buffer, show: string, slug: string, revision: stri
   const iv = createHmac('sha256', key).update(plain).digest().subarray(0, 12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   const body = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
-  return b64url(Buffer.concat([iv, body, cipher.getAuthTag()]));
+  return Buffer.concat([iv, body, cipher.getAuthTag()]).toString('base64url');
 }
 
 /** What a sealed base says, or null for anything this key did not seal. */
 export function openBase(key: Buffer, sealed: string): { show: string; slug: string; revision: string } | null {
   if (!sealed || sealed.length > SEALED_MAX || !/^[A-Za-z0-9_-]+$/.test(sealed)) return null;
-  const raw = fromB64url(sealed);
+  const raw = Buffer.from(sealed, 'base64url');
   if (raw.length < 12 + 16 + 1) return null;
   try {
     const decipher = createDecipheriv('aes-256-gcm', key, raw.subarray(0, 12));
@@ -113,13 +111,24 @@ export function ografFileType(path: string): string {
   return (dot >= 0 && TYPES[path.slice(dot + 1).toLowerCase()]) || 'application/octet-stream';
 }
 
-/** A data URL's bytes, or null for anything else. */
+/** A data URL's bytes, read as model/foreignPackage.ts `assetBytes` reads them for the publish
+ *  check (that module's `.ts` imports do not build into the functions), or null. */
 function dataUrlBytes(data: string): Buffer | null {
   const m = /^data:[^,]*?(;base64)?,/.exec(data);
   if (!m) return null;
   const body = data.slice(m[0].length);
   try {
     return m[1] ? Buffer.from(body, 'base64') : Buffer.from(decodeURIComponent(body), 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** A path as a router may hand it on (a space as %20), read back; null when it does not read. */
+function unescaped(path: string): string | null {
+  try {
+    const read = decodeURIComponent(path);
+    return read !== path && !read.includes('\0') ? read : null;
   } catch {
     return null;
   }
@@ -172,12 +181,9 @@ export function createOutputOgrafHandler(deps: OgrafDependencies) {
     let data: string | null;
     try {
       data = await deps.file(opened.show, opened.slug, opened.revision, path);
-      // A router that hands the path on as the browser escaped it (a space as %20): read once more.
-      if (data === null && path.includes('%')) {
-        let read: string | null = null;
-        try { read = decodeURIComponent(path); } catch { read = null; }
-        if (read && read !== path && !read.includes('\0')) data = await deps.file(opened.show, opened.slug, opened.revision, read);
-      }
+      // A router that hands the path on as the browser escaped it: read once more.
+      const read = data === null && path.includes('%') ? unescaped(path) : null;
+      if (read) data = await deps.file(opened.show, opened.slug, opened.revision, read);
     } catch {
       return new Response('Unavailable', { status: 503, headers: { ...FILE_HEADERS, 'cache-control': 'no-store' } });
     }
@@ -206,17 +212,17 @@ function serverKey(): Buffer | null {
   return secret ? Buffer.from(hkdfSync('sha256', secret, 'noacg', 'ograf-package-base-v1', 32)) : null;
 }
 
-const client = () => createClient((process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim(), supabaseSecretKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+/** One client per warm function, not one per file read. */
+const makeClient = () => createClient((process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim(), supabaseSecretKey(), { auth: { persistSession: false, autoRefreshToken: false } });
+let cached: ReturnType<typeof makeClient> | null = null;
+const client = () => (cached ??= makeClient());
+/** A service read's answer as text or nothing; a failure throws, so the caller answers 503. */
+const text = ({ data, error }: { data: unknown; error: unknown }): string | null => {
+  if (error) throw new Error('Package unavailable.');
+  return typeof data === 'string' ? data : null;
+};
 export const outputOgrafHandler = createOutputOgrafHandler({
-  show: async (slug, version, revision) => {
-    const { data, error } = await client().rpc('control_output_ograf_show', { p_output_slug: slug, p_version: version, p_revision: revision });
-    if (error) throw new Error('Package unavailable.');
-    return typeof data === 'string' ? data : null;
-  },
-  file: async (show, slug, revision, path) => {
-    const { data, error } = await client().rpc('control_output_ograf_file', { p_show: show, p_output_slug: slug, p_revision: revision, p_path: path });
-    if (error) throw new Error('Package unavailable.');
-    return typeof data === 'string' ? data : null;
-  },
+  show: async (slug, version, revision) => text(await client().rpc('control_output_ograf_show', { p_output_slug: slug, p_version: version, p_revision: revision })),
+  file: async (show, slug, revision, path) => text(await client().rpc('control_output_ograf_file', { p_show: show, p_output_slug: slug, p_revision: revision, p_path: path })),
   key: serverKey,
 });
