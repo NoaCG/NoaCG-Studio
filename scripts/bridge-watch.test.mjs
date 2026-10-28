@@ -663,5 +663,12 @@ test('a reload is for the slot it was loaded on, and for a page still open', asy
     for (const answer of t.held.splice(0)) answer();
     await settle();
     assert.ok(!t.take().includes('reload'), `${cut}: nothing sent`);
+    if (cut === 'clip') {
+      // Another client's slot now: cleared again, it is still not this page's to fill.
+      t.setHold(false);
+      t.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+      await t.readSlot();
+      assert.ok(!t.take().includes('reload'), 'clip: given up');
+    }
   }
 });

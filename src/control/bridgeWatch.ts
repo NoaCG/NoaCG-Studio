@@ -338,7 +338,13 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // A read that fails sends nothing and is not a try: the next reading decides again.
     const read = await io.readState(settings, settings.channel).catch(() => null);
     if (!wanted() || !read?.reply) return null;
-    if (!isVacant(read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null)) return null;
+    const layer = read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null;
+    if (!isVacant(layer)) {
+      // Back already (another browser's reload), or somebody else's now: then it is theirs, as for
+      // any reading.
+      if (slotHolds(layer, inputs?.outputSlug ?? null) !== 'ours') loadedHere = null;
+      return null;
+    }
     return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null) => {
