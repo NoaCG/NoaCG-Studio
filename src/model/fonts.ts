@@ -533,7 +533,8 @@ const IMPORTED_NOTE =
 
 /** The family an `@font-face` rule declares. */
 function ruleFamily(rule: string): string | undefined {
-  return /font-family:\s*"([^"]+)"/.exec(rule)?.[1];
+  const m = /font-family:\s*(?:"([^"]+)"|'([^']+)')/.exec(rule);
+  return m?.[1] ?? m?.[2];
 }
 
 /** The bundled face whose latin or latin-ext file a rule's `src` names. */
@@ -571,7 +572,8 @@ export function upgradeFontCss(css: string): string {
     const face = ruleFace(rule);
     const family = ruleFamily(rule);
     if (!face || !family || !rule.includes(`fonts/${face.file}`) || twins.has(`${family}|${face.file}`)) return whole;
-    const weightLine = /^[ \t]*font-weight:[^\n]*$/m.exec(rule)?.[0] ?? faceWeightLine(face);
+    const declared = /font-weight:[^;]*;/.exec(rule)?.[0];
+    const weightLine = /^[ \t]*font-weight:[^\n]*$/m.exec(rule)?.[0] ?? (declared ? `  ${declared}` : faceWeightLine(face));
     return `${whole}\n${latinExtFaceRule(family, face, weightLine)}`;
   });
   // A family the stylesheet also gives other weighted files (the old note said to add them) keeps
@@ -580,7 +582,7 @@ export function upgradeFontCss(css: string): string {
   return out.replace(/(\/\* Imported font[^*]*\*\/\s*)(@font-face\s*\{[^}]*\})/g, (whole, comment: string, rule: string) => {
     if (/font-weight\s*:/.test(rule) || weighted.has(ruleFamily(rule))) return whole;
     const upgraded = rule
-      .replace(/^([ \t]*src:[^\n]*)$/m, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
+      .replace(/^([ \t]*src:[^;]*;)/m, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
       .replace(OLD_IMPORTED_NOTE, IMPORTED_NOTE);
     return comment + upgraded;
   });

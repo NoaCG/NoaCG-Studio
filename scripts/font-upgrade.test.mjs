@@ -135,6 +135,21 @@ test('a hand-written face gets no twin; a static one is still widened, on one li
   assert.equal(upgradeFontCss(out), out);
 });
 
+test('an imported block whose src spans lines gains its weight after the whole declaration', () => {
+  const split = OLD_IMPORTED.replace('src: url("fonts/Neue-Machina.otf") format("opentype");', 'src: url("fonts/Neue-Machina.otf")\n       format("opentype");');
+  const [rule] = rules(upgradeFontCss(split));
+  assert.match(rule, /format\("opentype"\);\n {2}font-weight: 100 900;/);
+});
+
+test('a saved block written on one line, or with a single-quoted family, still gains its twin at its own weight', () => {
+  const block = `/* Bundled open-source font (the file ships with the export). */\n@font-face { font-family: 'Archivo-Black'; src: url("fonts/archivo.woff2") format("woff2"); font-weight: 900; font-display: swap; }`;
+  const out = upgradeFontCss(block);
+  const [, ext] = rules(out);
+  assert.ok(ext && ext.includes('fonts/archivo-latin-ext.woff2') && ext.includes('"Archivo-Black"'), out);
+  assert.match(ext, /font-weight: 900;/, 'the pinned weight is carried over');
+  assert.equal(upgradeFontCss(out), out);
+});
+
 test('an imported family the stylesheet also gives weighted files keeps its weight-less rule', () => {
   const bold = `@font-face {
   font-family: "Neue Machina";
