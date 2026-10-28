@@ -11,7 +11,8 @@
 // this handler (vercel.json, scripts/dataDevPlugin.mjs).
 //
 // What the server owes, in order: answer only the package's own files, from the published payload's
-// file list (an exact path match: nothing is decoded into a separator, nothing walks a folder), with
+// file list (an exact path match against that list: a path is read back once from a router's escaping,
+// and whatever it reads as must still be one of the listed names, so nothing walks a folder), with
 // `Access-Control-Allow-Origin: *` because the frame's origin is opaque and sends no credentials,
 // never a redirect (it would relax the policy's path match), never as a document of this origin
 // (`Content-Security-Policy: sandbox`, and HTML as text), and `nosniff`.

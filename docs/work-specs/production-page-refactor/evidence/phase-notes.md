@@ -88,6 +88,10 @@ changes a spec's digest.
     took a graphic off by itself left the output's own `liveGraphics`, the log's head and the page's
     marker saying it was still up, so a reboot snapped it back beside its replacement. As commands,
     every follower sees it. Scoped to packages so that no native production's stacking changes.
+    The rule is the controllers' (the production page, its timed ends, the hosted page); the output
+    stage stacks what it is sent, so another sender of a bare `play` (an agent, the CLI, an exported
+    panel) stacks a package over a graphic on its layer. Layers are read from the local production,
+    so a layer edited after Publish counts at the next Publish.
   - *One line per package, from the newest report*: the server banks one report per graphic,
     whichever output wrote it, so with two outputs the line is the latest one's word. It never says
     on air from a send.

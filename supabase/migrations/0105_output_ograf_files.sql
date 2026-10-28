@@ -31,6 +31,7 @@ returns uuid language sql stable security definer set search_path = '' as $$
   select s.id
     from public.control_shows s
    where s.output_slug = p_output_slug and p_output_slug is not null
+     and not public.feature_denied_for(s.owner_id, 'control.hosted')
      and s.output->'ver'->>'h' = p_version
      and p_revision ~ '^[0-9a-f]{64}$'
      and exists (
@@ -86,15 +87,15 @@ begin
                 jsonb_build_object('key', 'Native', 'assets', jsonb_build_array(jsonb_build_object('path', 'graphic.mjs', 'data', 'data:,native'))),
                 jsonb_build_object('key', 'Pkg', 'ograf', jsonb_build_object('revision', v_rev),
                   'assets', jsonb_build_array(jsonb_build_object('path', 'graphic.mjs', 'data', 'data:,pkg'))))));
+    if public.feature_denied_for(v_user, 'control.hosted') then
+      raise notice '0105 self-check: hosted control is switched off on this instance, skipping the behavioural half';
+      raise exception '0105 self-check passed';
+    end if;
     if public.control_output_ograf_show('0105-self-check-output', 'v1', v_rev) is distinct from v_show
        or public.control_output_ograf_show('0105-self-check-output', 'v0', v_rev) is not null
        or public.control_output_ograf_show('0105-self-check-output', 'v1', repeat('b', 64)) is not null
        or public.control_output_ograf_show(null, 'v1', v_rev) is not null then
       raise exception '0105 self-check failed: the show read';
-    end if;
-    if public.feature_denied_for(v_user, 'control.hosted') then
-      raise notice '0105 self-check: hosted control is switched off on this instance, skipping the file half';
-      raise exception '0105 self-check passed';
     end if;
     if public.control_output_ograf_file(v_show, '0105-self-check-output', v_rev, 'graphic.mjs') is distinct from 'data:,pkg'
        or public.control_output_ograf_file(v_show, '0105-self-check-output', v_rev, '../graphic.mjs') is not null
