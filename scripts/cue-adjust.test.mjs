@@ -1101,6 +1101,19 @@ describe('cross-feature cases (E8.1a)', () => {
     assert.deepEqual(held.send, { v: 1, frame });
   });
 
+  test('the look a production turns on is never handed to an imported OGraf package, so Publish and the hosted page resolve none for it either (L2.3 with E3)', async () => {
+    const L = await import('../src/control/productionLook.ts');
+    const brand = { styleTag: 'clean', palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#c8c8c8', panel: '#101820' }, fontId: 'archivo', customFont: null };
+    const css = '.card { color: var(--accent); font-family: var(--font-heading); }';
+    const show = { look: brand, lookApplied: true, graphics: [{ id: 'native' }, { id: 'pkg' }] };
+    const lookFor = L.lookForOf(show, [{ css, js: '' }, { css, js: '', foreign: {} }]);
+    assert.equal(lookFor('native').vars.accent, '#ff7a00');
+    assert.equal(lookFor('pkg'), undefined, 'the same stylesheet in a package takes nothing');
+    // The hosted fold has no template to read: with no look handed to it, it resolves none.
+    const hosted = G.cueAdjustState({ id: 'pkg', savedAt: '', adjust: nudged }, { id: 'c' }, HD, HD, {}, G.NO_GEOMETRY, null, false, St.styleContextFor([], lookFor));
+    assert.deepEqual(hosted.send, { v: 1, frame });
+  });
+
   test('a bound cue with its own typeface under an active look: a source moving its value re-measures the box, never the face, the look or the style it sends (L2.2, L2.3 with C1)', () => {
     const graphic = { id: 'g', savedAt: 't', adjust: { v: 1, place: 'bl', anchor: 'bl' } };
     const cue = { id: 'c', adjust: { v: 1, font: { fontId: 'oswald' } } };

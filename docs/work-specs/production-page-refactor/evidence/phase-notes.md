@@ -25,7 +25,12 @@ changes a spec's digest.
     `scripts/cue-adjust.test.mjs` ("Cross-feature cases (E8.1a)").
   - *One focused fix*: the rule that an imported OGraf package takes no look or style moved from
     `ProductionPage.tsx` `adjustStateOf` into `cueAdjustState` (`src/control/adjustGeometry.ts`),
-    which reads the graphic's `template`. Closes #1784's item 1; item 2 stays open.
+    which reads the graphic's `template`. Closes #1784's item 1; item 2 stays open. And
+    `lookForOf` (`src/control/productionLook.ts`) hands no look to a package, so Publish gives the
+    hosted page none for one (this row's review).
+  - *Residual:* the hosted fold (`hostedAdjustState`) has no template, so a cue record carrying a
+    typeface for a package still resolves a style there; the output's frame-only guard keeps it
+    off air. `cueAdjustState`'s `template` stays optional for that caller.
 - **Decisions.**
   - *Where the record lives:* neither `extensions.md` nor the E8 spec names a place for acceptance
     receipts, so `playout-expanded-acceptance/evidence/`, as the brief says.
@@ -52,11 +57,13 @@ changes a spec's digest.
   graphic (three cases), the typed-airing guard off for live presses, a package Take reading ✓,
   the bound press ignoring the tree, the data dispatch carrying an identity appearance, the data
   dispatch also sending `play`, the look send not waiting behind a live press, the package style
-  guard removed from `cueAdjustState`, the look's face overriding the cue's.
+  guard removed from `cueAdjustState`, `lookForOf` handing the look to a package, the look's face
+  overriding the cue's.
 - **Touched files against `3b871c3`:**
   `docs/work-specs/playout-expanded-acceptance/evidence/e8-1a-reconciliation.md` (new),
   `scripts/cue-adjust.test.mjs`, `scripts/graphic-verbs.test.mjs`,
-  `src/components/home/ProductionPage.tsx`, `src/control/adjustGeometry.ts`, this file.
+  `src/components/home/ProductionPage.tsx`, `src/control/adjustGeometry.ts`,
+  `src/control/productionLook.ts`, this file.
 
 ## Row 42 (E6.2, project phase 47): custom and foreign actions through the Companion module
 

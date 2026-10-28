@@ -337,7 +337,7 @@ Each named case has a test that joins the features; each went red under the muta
 | A pinned graphic bound to a source (C1 with L1) | same file, "a pinned graphic bound to a source: …" | the bound press ignoring the tree; the data dispatch also sending `play` |
 | An adjusted cue bound to a source (L2.1 with C1) | same file, "a source moving an adjusted cue on air …" | the data dispatch carrying an identity appearance |
 | A pinned adjusted graphic (L1 with L2.1) | same file, "a pinned press on an adjusted graphic …" | `liveSelection` taking the first cue |
-| An activated look over a pinned graphic (L2.3 with L1) | same file, "a production look sent over a pinned press …"; `scripts/cue-adjust.test.mjs` "an active look reaches a native graphic and never an imported OGraf package …" | the look send not waiting behind a live press; the package style guard removed |
+| An activated look over a pinned graphic (L2.3 with L1) | same file, "a production look sent over a pinned press …"; `scripts/cue-adjust.test.mjs` "an active look reaches a native graphic and never an imported OGraf package …" and "the look a production turns on is never handed to an imported OGraf package …" | the look send not waiting behind a live press; the package style guard removed; `lookForOf` handing the look to a package |
 | A bound cue with a cue-level typeface (L2.2, L2.3 with C1) | `scripts/cue-adjust.test.mjs` "a bound cue with its own typeface under an active look …" | the look's face overriding the cue's |
 
 AC-2's other clauses were already covered on main and are reused (class SW, re-proven by the
@@ -351,10 +351,14 @@ candidate's runs):
 | Groups expose collision and partial failure | `scripts/folder-playout.test.mjs`, `e2e/playout-folders.spec.ts`, `e2e/configured/ograf-rundown.spec.ts` |
 | Last-confirmed monitors become visibly stale on loss | `scripts/playout-status.test.mjs`, `e2e/production-controls.spec.ts` "… a lost connection dims PROGRAM (C6)" |
 
-The fix this row made: the rule that an imported OGraf package takes place and size alone moved
-from `ProductionPage.tsx`'s `adjustStateOf` into `cueAdjustState` (`src/control/adjustGeometry.ts`),
-which reads the graphic's template; the page passes its look context unchanged. Before, removing
-the page's guard left every test green (#1784 item 1).
+The fixes this row made, both for "an imported OGraf package takes place and size alone": the
+page's guard moved from `ProductionPage.tsx`'s `adjustStateOf` into `cueAdjustState`
+(`src/control/adjustGeometry.ts`), which reads the graphic's template, so a cue's own typeface
+never resolves for a package (before, removing the page's guard left every test green, #1784
+item 1); and `lookForOf` (`src/control/productionLook.ts`) hands no look to a package, so Publish
+no longer gives the hosted page a look for one (found by this row's review; the output's own
+frame-only guard already kept it off air). A hosted-page cue record carrying a typeface for a
+package is still resolved there, since that fold has no template to read; the output drops it.
 
 ## Packages and hashes on the candidate
 
