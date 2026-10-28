@@ -292,8 +292,9 @@ The page:
   ping's number with a gap in front of it, reads the tail and applies what it missed, rather than
   waiting for the next row or the 30 s poll. Its id starts `handover`, and a renderer does not
   answer it (`answersPing`), so it never replaces the answer a Prepare for Live press waits for.
-  It covers a frame lost before the page's follow joins; a frame lost later still waits for the
-  next row or the poll.
+  The page follows the same topic, so it confirms the ping: one whose row has not come back live
+  within 3 s, or one refused for a moment, is sent again, twice at most. It covers a frame lost
+  before the page's follow joins; a frame lost later still waits for the next row or the poll.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.

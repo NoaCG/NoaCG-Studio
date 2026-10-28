@@ -47,8 +47,11 @@ import { handoverPingId } from './prepareLive.ts';
 /** How far behind the log head the action log seeds its history. Global ids mean this is a ceiling
  *  on rows READ, not on rows shown: a busy instance yields fewer of this show's. */
 export const LOG_HISTORY_SPAN = 400;
-/** A refused hand-over ping is asked again this much later, at most this many times (#1797). */
+/** A hand-over ping refused for a moment is sent again this much later (#1797)… */
 export const HANDOVER_RETRY_MS = 1_000;
+/** …and one whose row has not come back live in this long: a frame arrives in well under a second. */
+export const HANDOVER_CONFIRM_MS = 3_000;
+/** How many more hand-over pings a start may send, for either reason. */
 export const HANDOVER_RETRIES = 2;
 /** How often the output's last heartbeat is asked, and the header clock moved. */
 export const SEEN_EVERY_MS = 30_000;
@@ -178,21 +181,33 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     // THE HAND-OVER (#1797). A frame on `seq-<show>` can be lost, and an output finds out only when
     // the next frame arrives with a gap in front of it, or at the 30 s poll. The endurance run lost
     // one while this page reloaded: a value applied mid-reload stayed off air until the next one.
-    // So once this page's road to the log is up, it sends ONE ping through the numbered path
+    // So once this page's road to the log is up, it sends a ping through the numbered path
     // (migration 0072): it airs nothing and moves only the head's seq, so an output with a gap in
     // front of it reads the tail and applies what it missed, once and in seq order. Nothing is
-    // resent and no older value can air. Once per start, never on a timer, as 0072 asks; a ping
-    // refused for a moment (the head lock or the burst cap, while a feed writes hard) is asked
-    // again a second later, twice at most. Outputs do not answer it, so it cannot take the place of a
+    // resent and no older value can air. Outputs do not answer it, so it cannot take the place of a
     // Prepare for Live press's answer.
+    //
+    // The ping's frame takes the road that lost the first one, so it is CONFIRMED: this page follows
+    // the same topic, and a frame the database could not send reaches nobody. A ping whose row has
+    // not come back live within HANDOVER_CONFIRM_MS (absent, or only through a tail read) is sent
+    // again, and so is one refused for a moment (the head lock or the burst cap); HANDOVER_RETRIES
+    // more at most. Once per start, never on a timer, as 0072 asks.
     let handedOver = false;
+    /** The ping waiting to come back live, and whether this follow is replaying a tail read. */
+    let awaiting: string | null = null;
+    let replaying = false;
     const ping = (retries: number) => {
-      void io.controlPingSeq(slug, handoverPingId()).then(
+      const id = handoverPingId();
+      awaiting = id;
+      const again = (ms: number) =>
+        io.setTimeout(() => {
+          if (live() && awaiting === id) ping(retries - 1);
+        }, ms);
+      void io.controlPingSeq(slug, id).then(
         (answer) => {
-          if (answer.ok || !answer.passing || retries === 0 || !live()) return;
-          io.setTimeout(() => {
-            if (live()) ping(retries - 1);
-          }, HANDOVER_RETRY_MS);
+          if (retries === 0 || !live()) return;
+          if (answer.ok) again(HANDOVER_CONFIRM_MS);
+          else if (answer.passing) again(HANDOVER_RETRY_MS);
         },
         () => undefined,
       );
@@ -210,6 +225,7 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
       tail,
       seq: resolved.seq,
       onEpochReset: () => arm?.reset(),
+      onReplay: (now) => (replaying = now),
       onStatus: (s) => {
         if (!live()) return;
         page().follow(s);
@@ -225,6 +241,7 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
       onRow: (row) => {
         if (!live()) return;
         const msg = row.msg;
+        if (msg.t === 'ping' && msg.id === awaiting && !replaying) awaiting = null;
         // The same door the broadcast comes through; the second copy is dropped there.
         page().hear([{ graphic: row.graphic, msg }]);
         arm?.row(row);

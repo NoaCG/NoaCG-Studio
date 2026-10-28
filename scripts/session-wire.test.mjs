@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { moveLiveCue } from '../src/control/airState.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, createPlayoutSession } from '../src/control/playoutSession.ts';
-import { HANDOVER_RETRIES, HANDOVER_RETRY_MS, LOG_HISTORY_SPAN, SEEN_EVERY_MS, startSessionWire } from '../src/control/sessionWire.ts';
+import { HANDOVER_CONFIRM_MS, HANDOVER_RETRIES, HANDOVER_RETRY_MS, LOG_HISTORY_SPAN, SEEN_EVERY_MS, startSessionWire } from '../src/control/sessionWire.ts';
 import { createSeqFollower } from '../src/control/seqFollow.ts';
 import { answersPing } from '../src/control/prepareLive.ts';
 import { REORDER_WINDOW_MS } from '../src/control/logFollow.ts';
@@ -464,9 +464,11 @@ test('THE HAND-OVER (#1797): a value applied while the page reloaded, whose fram
   // Mid-reload the feed applies 277,600, and Realtime drops its frame: the output never hears it.
   write({ t: 'update', data: { f8: '277,600' }, src: 'api' });
   const wire = scriptedWire();
-  // The ping is a numbered row like any other; its frame reaches the output.
+  // The ping is a numbered row like any other; its frame reaches the output, and this page.
   wire.onPing = (id) => {
-    output.offer({ epoch: 'e1', rows: [write({ t: 'ping', id, at: 0 }, '')] });
+    const row = write({ t: 'ping', id, at: 0 }, '');
+    output.offer({ epoch: 'e1', rows: [row] });
+    wire.follows[0].opts.onRow(row);
     return { ok: true, at: 0 };
   };
   const page = fakePage();
@@ -495,8 +497,96 @@ test('THE HAND-OVER (#1797): a value applied while the page reloaded, whose fram
   follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
   await flush();
   assert.equal(wire.pings.length, 1, 'never a ping per status or per poll');
+  const confirm = [...wire.timers.values()].find((timer) => timer.once);
+  confirm?.run();
+  await flush();
+  assert.equal(wire.pings.length, 1, 'a ping that came back live is not sent again');
   stop();
   output.stop();
+});
+
+test('THE HAND-OVER SURVIVES A LOST PING (#1797): a ping whose frame never comes back is sent again, and the lost value airs', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const log = [1, 2, 3].map((seq) => ({ id: 100 + seq, seq, graphic: 'Party totals', msg: { t: 'update', data: { f8: `277,${seq}00` }, src: 'api' } }));
+  const aired = [];
+  const output = createSeqFollower({
+    from: 3,
+    epoch: 'e1',
+    tail: async (after) => ({ epoch: 'e1', rows: log.filter((r) => r.seq > after) }),
+    onRows: (rows) => aired.push(...rows.map((r) => r.seq)),
+  });
+  const write = (msg, graphic = 'Party totals') => {
+    const row = { id: 100 + log.length + 1, seq: log.length + 1, graphic, msg };
+    log.push(row);
+    return row;
+  };
+  // The value's frame is lost mid-reload, and so is the first ping's: the road is still dropping.
+  write({ t: 'update', data: { f8: '277,600' }, src: 'api' });
+  const wire = scriptedWire();
+  wire.onPing = (id) => {
+    const row = write({ t: 'ping', id, at: 0 }, '');
+    if (wire.pings.length > 1) {
+      output.offer({ epoch: 'e1', rows: [row] });
+      wire.follows[0].opts.onRow(row);
+    }
+    return { ok: true, at: 0 };
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 4 } });
+  const follow = wire.follows[0];
+  follow.answer.resolve(() => {});
+  await flush();
+  follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  t.mock.timers.tick(10_000);
+  for (let i = 0; i < 5; i += 1) await flush();
+  assert.equal(wire.pings.length, 1);
+  assert.deepEqual(aired, [], 'the first ping\'s frame was lost too: the output still knows nothing');
+  const runOnce = async () => {
+    const entry = [...wire.timers].find(([, timer]) => timer.once);
+    if (!entry) return null;
+    wire.timers.delete(entry[0]);
+    entry[1].run();
+    await flush();
+    return entry[1].ms;
+  };
+  assert.equal(await runOnce(), HANDOVER_CONFIRM_MS, 'the page waited for its ping to come back');
+  assert.equal(wire.pings.length, 2, 'and, not seeing it, sent another');
+  t.mock.timers.tick(REORDER_WINDOW_MS);
+  for (let i = 0; i < 5; i += 1) await flush();
+  assert.deepEqual(aired, [4, 5, 6], 'the lost value reached the output, once and in order, with the lost ping');
+  await runOnce();
+  assert.equal(wire.pings.length, 2, 'the second came back live: no third');
+  stop();
+  output.stop();
+});
+
+test('a hand-over ping seen only through a tail read is sent again; the retries are bounded', async () => {
+  const wire = scriptedWire();
+  wire.onPing = (id) => {
+    const follow = wire.follows[0];
+    follow.opts.onReplay(true);
+    follow.opts.onRow({ id: 900 + wire.pings.length, seq: 50 + wire.pings.length, graphic: '', msg: { t: 'ping', id, at: 0 } });
+    follow.opts.onReplay(false);
+    return { ok: true, at: 0 };
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  for (let i = 0; i < 6; i += 1) {
+    await flush();
+    const entry = [...wire.timers].find(([, timer]) => timer.once);
+    if (!entry) continue;
+    wire.timers.delete(entry[0]);
+    entry[1].run();
+  }
+  await flush();
+  assert.equal(wire.pings.length, 1 + HANDOVER_RETRIES);
+  stop();
 });
 
 test('the hand-over is the numbered log\'s only: a production on row ids sends no ping', async () => {
