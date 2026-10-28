@@ -5,6 +5,83 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 41 (E3.2b, project phase 46): foreign OGraf restart, failure and truthful recovery; the foreign frame adjust
+
+- **Previous verified `main` sha:** `373d896` (row 40 passed, PR #1780). This branch was built on
+  it. Before editing, main had: E1.2b's report baseline and typed recovery for composed graphics,
+  row 40's mounted packages with their outcomes (`state.ograf`), the stage's `gone` for a removed
+  instance, and L2's appearance on native frames. A reloaded output left a package out of its
+  recovery inventory (`stage.graphics` holds composed graphics only), so a newer native report
+  carried the catch-up past the package's Take and it came back without its values (the P1 review
+  finding on #1780). A package frame took no place or size, and a stage never mounted a package again.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration and no message kind. A report's
+  `state.ograf` may carry `acted`, `unknown` and `was`, which a reverted page reads past; a reverted
+  output again restores no package and ignores a package's appearance.
+- **What landed.**
+  - *The inventory* (`output/main.ts`): the boot's recovery plan, the typed-data read below the
+    reports and the per-graphic restore run over the composed graphics AND the published packages,
+    so a package's bank counts and its values and place come back from its report.
+  - *Only what the Graphic proved* (`control/ografRecovery.ts` `ografRestore`): a Take the report
+    says the Graphic accepted comes back at the step its answers reached, through `playAction`
+    (the first step, then one step at a time). A custom action is never repeated: a row of one in
+    the catch-up is read past and counted applied (`heldActions`, `apply(.., deliver=false)`, so the
+    follow never sends it either), and a package an action reached since its Take is put back as far
+    as its Take and step and marked not known. A Take never confirmed (refused, unanswered, no
+    report) is not repeated: not known. A Take or Out after the bank replays from the log as before.
+  - *Not known, with a re-cue* (`stage.markUnknown`, `OgrafOutcome.unknown`): marked after the
+    catch-up, kept through late answers and updates, cleared by the operator's next Take or Out.
+    PROGRAM's line reads "Board: not known on the output (<why>)" in amber with a Re-cue button
+    (`PlayoutMonitors` `onRecue`: the Take of the graphic's live cue).
+  - *A lost instance is mounted again only by a re-cue* (`stage.ts` `remount`): an instance whose
+    call timed out (a dropped host document or bridge) or whose `load()` failed (a removed file) is
+    lost; the next Take mounts the package as a new instance from its served base, hands it the
+    values held (merged updates, typed as sent) and then the Take. Nothing mounts again by itself.
+  - *Late old-instance word refused*: on the stage, an answer from a replaced instance tells nothing
+    (its calls settle `gone`, its port is closed, `onAnswer` checks the current layer). On the page,
+    a new instance names the one it replaced (`was`: from a remount, or from the tab's session on a
+    reload, `noacg-ograf-instances:<slug>`), and `acceptOutcome` refuses any later report about it
+    (a write still on its way when the output reloaded). Bounded at 16 instances per graphic.
+  - *Actions counted* (`acted`): actions sent since the last Take, less those the Graphic refused,
+    ride the report, so a restart knows the Graphic holds state no restart reproduces.
+  - *The foreign frame adjust* (L2 AC-10's foreign case): the stage applies an appearance's frame to
+    the package's iframe (`ForeignOgrafLayer.frame`) and keeps it frame-only, so the report banks and
+    a reload restores place and size alone; vars and fonts never reach a package. The page resolves
+    no look or style for a package (`NO_STYLE_CONTEXT`) and never measures one, so the Adjust block
+    shows nudge and size, "no measurement" (presets need one), and "Type and colour: not available
+    for this package" (the hosted page's block too). No adjust record, no `appearance` (pinned).
+- **Decisions.**
+  - *Restore the proven part and say the rest is not known*, rather than leave an acted-on package
+    off air: Take, step, values and place are proven by the Graphic's answers; an action's effect is
+    not. The operator decides with one press.
+  - *Remount only on a Take, and only a lost instance*: a healthy re-Take keeps its instance (row
+    40); an update or a step to a lost instance is not a re-cue.
+  - *"Host" and "Bridge" are the frame's host document and its MessagePort bridge* (the names
+    `foreignOgraf.ts` uses): dropping either is the same fault to the stage, no answer. The NoaCG
+    Bridge to CasparCG stays non-gating. The output's own server connection keeps the existing
+    follow (seq cursor and `oid` dedupe); the controller's drop is pinned as its page reload.
+  - *#1775 item 2* (Back, Goto, skip and their `step` command row) is a control and a command
+    migration, not recovery: it stays on #1775.
+- **Seams changed and where:** E3.2a's `mountPublished` split into `attach`, `remount` and `send`;
+  `OgrafOutcome` gains `acted`, `unknown`, `was`; E2's `ForeignOgrafLayer` gains `frame`; the stage
+  gains `markUnknown` and the `ografReplaced` option; L2's `CueAdjust` style gains `package`. E1's
+  typed paths and wire untouched.
+- **Not in this row:** Back/Goto/skip (#1775 item 2), Companion, type, colour or look on a
+  package, E8's cross-feature checks.
+- **Traps.**
+  - `readOgrafOutcome` takes a report's `state`, not the report.
+  - A local configured run needs `chromium_headless_shell-1228` symlinked to `-1243` (#1647). The
+    job queue refuses `--cap 12` for unreviewed source, so a mutation run under it is red from the
+    admission, not the mutation: read why a run is red before counting it.
+  - A jsonb round trip reorders keys: compare an appearance read back from the log as an object.
+- **Touched files against `373d896`:** `src/control/ografRecovery.ts` (new),
+  `scripts/ograf-recovery.test.mjs` (new), `src/control/ografOutcome.ts`, `src/output/stage.ts`,
+  `src/output/foreignOgraf.ts`, `src/output/main.ts`, `src/components/home/ProductionPage.tsx`,
+  `src/components/home/PlayoutMonitors.tsx`, `src/components/home/CueAdjust.tsx`,
+  `src/components/control/HostedCueAdjust.tsx`, `src/styles/playout-dashboard.css`,
+  `e2e/foreign-ograf-sandbox.spec.ts`, `e2e/configured/ograf-rundown.spec.ts`,
+  `e2e/fixtures/foreign-ograf/rundown/graphic.mjs` (`data-marks`), this file.
+
 ## Row 40 (E3.2a, project phase 45): foreign OGraf in a mixed rundown and on browser outputs
 
 - **Previous verified `main` sha:** `302d565` (row 39 passed, PR #1779). This branch was built on
