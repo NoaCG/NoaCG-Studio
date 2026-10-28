@@ -504,3 +504,16 @@ test('a production pack carries a foreign package and reads it back the same', a
   const later = { ...entry, foreign: { ...entry.foreign, v: 2 } };
   assert.match(packs.parsePack(JSON.stringify({ format: 'noacg-pack', version: 1, name: 'Backup', graphics: [later] })).error, /“Scoreboard” was imported by a later version of NoaCG/);
 });
+
+test('E3.2a: the configured rundown spec\'s own package imports as a foreign entry the outputs can serve', async () => {
+  const dir = path.join(root, 'e2e/fixtures/foreign-ograf/rundown');
+  const files = new Map(readdirSync(dir).map((n) => [n, readFileSync(path.join(dir, n))]));
+  const read = await importForeignOgraf('rundown.zip', await zipOf(files, 'rundown/'));
+  assert.ok(read && read.ok, read && !read.ok ? read.reason : 'not read as foreign');
+  const check = await model.verifyForeignPackage(read.template);
+  assert.ok(check.ok);
+  assert.deepEqual([...check.files.keys()].sort(), ['graphic.mjs', 'rundown.ograf.json']);
+  assert.equal(read.template.ograf.manifest.stepCount, 3);
+  assert.equal(model.foreignTakeRefusal(read.template, 'Board'), null, 'a package this build reads takes');
+  assert.match(model.foreignTakeRefusal({ ...read.template, foreign: { ...read.template.foreign, v: 2 } }, 'Board'), /^Board was imported by a later version of NoaCG/);
+});
