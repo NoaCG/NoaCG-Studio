@@ -2012,6 +2012,8 @@ export async function followControlLog(opts: {
   /** Protocol 2: the production was published again, so every seq this page holds is from a log
    *  that is gone (a timed cue's arm rows are ordered by them, control/cueArmWire.ts). */
   onEpochReset?: () => void;
+  /** Protocol 2: the follower holds rows behind a gap or reads the tail (true), or is level (false). */
+  onBusy?: (busy: boolean) => void;
 }): Promise<() => void> {
   if (opts.seq) {
     const plan = opts.seq;
@@ -2042,7 +2044,11 @@ export async function followControlLog(opts: {
       // WHILE THE FOLLOWER HOLDS ROWS OR READS THE TAIL this page's own presses take the durable
       // road (see `recovering` above): applied to its monitor now, they would land ahead of older
       // rows still on their way, and their echo, dropped by the oid claim, could not put it right.
-      onBusy: (busy) => (busy ? recovering.add(showId) : recovering.delete(showId)),
+      onBusy: (busy) => {
+        if (busy) recovering.add(showId);
+        else recovering.delete(showId);
+        opts.onBusy?.(busy);
+      },
       onHole: opts.onHole,
       onStatus: opts.onStatus,
     });

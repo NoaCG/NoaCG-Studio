@@ -215,8 +215,12 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
         },
       );
     };
-    const handOver = (status: ControlFollowStatus) => {
-      if (handedOver || !resolved.seq || status.status !== 'SUBSCRIBED') return;
+    // Sent once the join's own tail read is done: a ping that read brought back would be taken
+    // for lost, and its live frame, behind the cursor by then, never seen.
+    let joined = false;
+    let busy = false;
+    const handOver = () => {
+      if (handedOver || !resolved.seq || !joined || busy || !live()) return;
       handedOver = true;
       ping(HANDOVER_RETRIES);
     };
@@ -232,7 +236,12 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
       onStatus: (s) => {
         if (!live()) return;
         page().follow(s);
-        handOver(s);
+        if (s.status === 'SUBSCRIBED') joined = true;
+        handOver();
+      },
+      onBusy: (now) => {
+        busy = now;
+        handOver();
       },
       onCommandStatus: (s) => {
         if (live()) page().commandStatus(s);

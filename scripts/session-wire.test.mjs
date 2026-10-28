@@ -691,3 +691,65 @@ test('a hand-over ping answered first and back live inside the confirm window is
   assert.equal(wire.pings.length, 1, 'the row came back live before the window ran out');
   stop();
 });
+
+test('THE HAND-OVER WAITS FOR THE JOIN\'S OWN READ (#1797): on a real numbered follow, one ping, confirmed live', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  // The log: the page resolved at seq 3, and seq 4 (a value applied while it loaded) lost its frame.
+  const log = [1, 2, 3, 4].map((seq) => ({ id: 100 + seq, seq, graphic: 'Party totals', msg: { t: 'update', data: { f8: `277,${seq}00` }, src: 'api' } }));
+  const tail = async (after) => ({ epoch: 'e1', rows: log.filter((r) => r.seq > after) });
+  const aired = [];
+  const output = createSeqFollower({ from: 3, epoch: 'e1', tail, onRows: (rows) => aired.push(...rows.map((r) => r.seq)) });
+  const wire = scriptedWire();
+  // The page's follow as followSeqLog wires it: the same follower, its join refill, its busy flag.
+  let pageFollower = null;
+  wire.io.followControlLog = async (opts) => {
+    pageFollower = createSeqFollower({
+      from: opts.seq.from,
+      epoch: opts.seq.epoch,
+      // The read reaches the database a moment after it is asked, as an RPC does.
+      tail: async (after) => {
+        await flush();
+        return tail(after);
+      },
+      onRows: (rows, replayed) => {
+        if (replayed && rows.length) opts.onReplay?.(true);
+        try {
+          rows.forEach((row) => opts.onRow(row));
+        } finally {
+          if (replayed && rows.length) opts.onReplay?.(false);
+        }
+      },
+      onBusy: opts.onBusy,
+    });
+    wire.joinPage = () => {
+      pageFollower.joined();
+      opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+    };
+    return () => pageFollower.stop();
+  };
+  wire.onPing = (id) => {
+    const row = { id: 200 + log.length, seq: log.length + 1, graphic: '', msg: { t: 'ping', id, at: 0 } };
+    log.push(row);
+    // The ping's frame is not lost: it reaches the output and the page.
+    output.offer({ epoch: 'e1', rows: [row] });
+    pageFollower.offer({ epoch: 'e1', rows: [row] });
+    return { ok: true, at: 0 };
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 3 } });
+  await flush();
+  wire.joinPage();
+  for (let i = 0; i < 5; i += 1) await flush();
+  t.mock.timers.tick(REORDER_WINDOW_MS);
+  for (let i = 0; i < 5; i += 1) await flush();
+  assert.equal(wire.pings.length, 1, 'one ping, sent once the join\'s read was done');
+  assert.deepEqual(aired, [4, 5], 'the lost value reached the output, once and in order');
+  const confirm = [...wire.timers.values()].find((timer) => timer.once);
+  assert.equal(confirm?.ms, HANDOVER_CONFIRM_MS);
+  confirm.run();
+  await flush();
+  assert.equal(wire.pings.length, 1, 'its frame came back live, so no second ping');
+  stop();
+  output.stop();
+});
