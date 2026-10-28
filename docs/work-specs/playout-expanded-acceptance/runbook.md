@@ -110,7 +110,7 @@ refused at once). Details: [`docs/DATA_API.md`](../../DATA_API.md), "Rotating a 
 | --- | --- | --- |
 | Google Sheet or news feed | the sources line under the Playout panel, and the Data page | "checked N s ago · changed N s ago" is healthy. "reading…" is a read under way. "paused" means you paused it. "<problem> since HH:MM" in amber, then " · stale", means reads are failing and the last good values stay on air. A Sheet is read every 5 seconds while a production page is open. |
 | A field connected to a source | the field in the cue editor | "🔗 Sheet: …" or "🔗 Connector: …"; "⚠ stale · …" when its source is failing. A field still waiting reads "waits for the next read". |
-| The agent's JSON source (Connector) | the agent's own window; the Data page's **Another system** card | The agent reads every 2 to 5 seconds and prints each status. The card shows "Received N s ago" for the last new values. That time also grows while results simply do not change, so an old time alone is not a failure: look at the agent's window. There is no Connector line in the sources line yet. |
+| The agent's JSON source (Connector) | the agent's own window; the Data page's **Another system** card | The agent reads every few seconds (every 5 by default; its settings file can set another pace, the election replay's says 2) and prints each status. The card shows "Received N s ago" for the last new values. That time also grows while results simply do not change, so an old time alone is not a failure: look at the agent's window. There is no Connector line in the sources line yet. |
 
 A source never Takes a graphic, never moves to the next step and never clears anything. New
 values reach a graphic that is already on air; nothing new goes on air without your Take.
@@ -184,12 +184,12 @@ If a new release of noacg.studio misbehaves during preparation, do not try to re
 2. **Ask the maintainer to restore the last release that passed its check.** This is not
    something the operator does on the site: the maintainer reverts the change through the merge
    queue, or uses the hosting service's instant rollback to an earlier deployment. The database
-   is never rolled back: every database change in this programme (migrations 0101 to 0105)
-   added to it under the live-safe migration rules, which keep older pages working. A rollback cannot go past a database cleanup;
+   is never rolled back: database changes follow the live-safe migration rules, which keep older
+   pages working. A rollback cannot go past a database cleanup;
    the maintainer's deploy report names the oldest release allowed.
 3. **After the restore, reload every output** (CasparCG: Unload, then Load; OBS: refresh the
-   source), then Take the cues again. An output page from before row 36 (E1.2b) that reboots puts
-   imported OGraf graphics back to their defaults
+   source), then Take the cues again. If the release you went back to is from before
+   27 October 2026, an output that restarts puts imported OGraf graphics back to their defaults
    ([#1770](https://github.com/NoaCG/NoaCG-Studio/issues/1770)); taking them again sends their
    values.
 4. **Your own pieces have their own earlier versions:**
@@ -197,7 +197,7 @@ If a new release of noacg.studio misbehaves during preparation, do not try to re
      and older). Close the Bridge and start the older file.
    - Companion module: import the earlier `noacg-studio-<version>.tgz` the same way as a new one.
      Take, Out, cue and pinned keys keep working with an older production page; keys for an
-     imported OGraf graphic's own actions need a production page from row 42 (E6.2) or later.
+     imported OGraf graphic's own actions need a release from 28 October 2026 or later.
    - The agent: run it from the earlier copy of the repository.
 5. **Never replay a press whose result is unknown.** An amber "?" key, a "not confirmed" tag or
    an unknown OGraf line means it may have run. Look at the output, then decide.

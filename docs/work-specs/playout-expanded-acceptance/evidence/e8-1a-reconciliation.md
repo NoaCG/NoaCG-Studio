@@ -56,8 +56,8 @@ AC-4) are this row's merge and its checker's entry; they cannot cite themselves 
   configured-suite [40667728066](https://github.com/NoaCG/NoaCG-Studio/actions/runs/40667728066)
   success, Quarantine 40667727951 success (it runs the two quarantined specs, `import-svg` and
   `rundown-history`, on every push), Post-landing 40667728080 success.
-- **E8.2's update:** `main` at `c6fc146b8807f629645c980d75fa53735dd0453d` (rows 43 and 44
-  landed, `132bd5b` and `f0adf9b`, then #1792 to #1794 and #1799). On `f0adf9b`: CI
+- **E8.2's update:** `main` at `c6fc146b8807f629645c980d75fa53735dd0453d` (row 43 landed as `132bd5b`, then the owner's fixes #1794, #1792 and #1793, row 44 as
+  `f0adf9b`, then #1799). On `f0adf9b`: CI
   [40745259392](https://github.com/NoaCG/NoaCG-Studio/actions/runs/40745259392) success,
   configured-suite [40745259430](https://github.com/NoaCG/NoaCG-Studio/actions/runs/40745259430)
   success; the product code of `c6fc146` is identical. The ledger was read at

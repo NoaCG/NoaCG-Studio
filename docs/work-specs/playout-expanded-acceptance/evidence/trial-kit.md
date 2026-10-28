@@ -107,12 +107,16 @@ On production A (L2 AC-11, the adjustments; each prepared on PREVIEW, then taken
    4. "Set the quiz cue's text to bold, on air."
    5. "Turn the production look on and send it to what is on air."
    6. The proctor says: "Only the second lower-third cue should sit on the left; the first one
-      stays where you put it." Done when the second cue sits on the left (**Only this cue**) and
-      the first has not moved. If the change lands in the wrong place (the graphic's default, so
-      the first cue moved too, or an exception on the first cue), say "Put the first one back
-      where it was"; done when they recover it with Ctrl+Z or with **Stop this cue's exception**
-      on the cue that should not have one. Write down which scope they used first.
-   Done for task 7 when each step is on the output as asked. There is no time target (L2 AC-11).
+      stays where you put it." Write down which scope the participant used first, and whether
+      the first cue moved.
+   7. The wrong-scope recoveries, both of them, whatever happened in step 6. First the proctor
+      says: "Move the first lower-third cue to the top, for this cue only." Then: "That was a
+      mistake. Put it back the way it was, without undo." Done when it is back with **Stop this
+      cue's exception**. Then: "Move all the lower thirds to the top." Then: "That was a
+      mistake too. Undo it." Done when it is back with Ctrl+Z. Each recovery must reach the
+      output (take or update the cue when the page asks).
+   Done for task 7 when each of steps 1 to 5 and 7 is on the output as asked (step 6 is the
+   scope judgement, recorded). There is no time target (L2 AC-11).
 
 For every task write down: the time, each wrong turn (a menu opened and closed, a field filled
 wrongly, a question asked), and the words of anything that confused the participant.
