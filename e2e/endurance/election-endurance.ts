@@ -19,18 +19,19 @@
 // written whatever happened, so a red run still says what it saw.
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, expect, type BrowserContext, type CDPSession, type Frame, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import JSZip from 'jszip';
+import { addCatalogGraphic } from '../_create';
 import { publishProduction } from '../_publish';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from '../configured/_helpers';
 import { answerPanel, pairPanel, shutStatusPanel, type Json } from '../configured/_panel';
 import { makeTestCertificate, makeToken, startReplayServer } from '../../scripts/election-replay-server.mjs';
-import { ACTION_MS, CUE_SWITCH_MS, STEP_MS, candidates, enduranceTimeline, measureFixture, schedule } from '../../scripts/endurance-fixture.mjs';
+import { ACTION_MS, CUE_SWITCH_MS, EXTRA_MINUTES, STEP_MS, candidates, enduranceTimeline, measureFixture, schedule } from '../../scripts/endurance-fixture.mjs';
 import { judge } from '../../scripts/endurance-judge.mjs';
 
 const MINUTES = Number(process.env.ENDURANCE_MINUTES ?? 5);
@@ -46,6 +47,9 @@ const CUES = [
   { label: 'Sara Example, Uusimaa 103', key: ['02', 103] },
 ] as const;
 const FOREIGN = repoFile('e2e/fixtures/foreign-ograf/rundown/');
+const SCOREBOARD = repoFile('e2e/fixtures/ograf-library/ebu-scoreboard/package/');
+/** The envelope's two score graphics and its quiz (the Club Scorebug carries the running clock). */
+const EXTRA = ['Club Scorebug', 'House Scorebug', 'Arena Quiz'];
 
 const select = (page: Page, label: string) => page.getByTestId('cue-list').locator('.pd-cue').filter({ hasText: label }).first().locator('.pd-cue-label').click();
 async function take(page: Page, label: string) {
@@ -88,7 +92,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     cert: tls.cert,
     key: tls.key,
     stepMs: STEP_MS,
-    timeline: enduranceTimeline(MINUTES + 10, people),
+    timeline: enduranceTimeline(MINUTES + EXTRA_MINUTES, people),
     onStep: (name: string, at: number) => record.provider.push({ name, at }),
   });
   const agents: { name: string; child: ChildProcess; log: string; started: number; ended?: number }[] = [];
@@ -104,6 +108,9 @@ test('the election data path holds for the minutes asked', async ({ page, browse
   let outputContext: BrowserContext | null = null;
   try {
     // ── The production: the election package, published, with a foreign package beside it ──
+    // A first-visit operator answers the analytics prompt whenever it shows; it covers the rundown's foot.
+    const consent = page.getByTestId('analytics-consent');
+    await page.addLocatorHandler(consent, () => consent.getByRole('button', { name: 'No thanks' }).click());
     await signIn(page);
     await page.keyboard.press('Escape');
     await clearPublishedShows(page);
@@ -111,16 +118,24 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     await page.goto('/app#/home/productions');
     await page.getByTestId('import-pack-card').getByTestId('import-pack-file').setInputFiles(repoFile('public/packs/election-rehearsal.noacgpack.json'));
     await expect(page.getByTestId('production-page')).toBeVisible();
-    const zip = new JSZip();
-    for (const name of ['graphic.mjs', 'rundown.ograf.json']) zip.file(`rundown/${name}`, readFileSync(path.join(FOREIGN, name)));
-    const showId = await page.evaluate(async (b64) => {
+    const zipOf = async (folder: string, prefix: string) => {
+      const zip = new JSZip();
+      for (const name of readdirSync(folder)) zip.file(`${prefix}/${name}`, readFileSync(path.join(folder, name)));
+      return (await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })).toString('base64');
+    };
+    const showId = await page.evaluate(async ({ rundown, scoreboard }) => {
       const { importForeignOgraf } = await import('/src/export/targets/ografForeign.ts');
       const m = await import('/src/model/shows.ts');
       const { commitDurableWrites } = await import('/src/model/durableStore.ts');
       const show = m.loadShows().find((s) => s.name === 'Election night rehearsal')!;
-      const read = await importForeignOgraf('rundown.zip', Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+      const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const read = await importForeignOgraf('rundown.zip', bytes(rundown));
       if (!read || !read.ok) throw new Error(`the package did not import: ${read && !read.ok ? read.reason : 'not foreign'}`);
       m.addGraphicToShow(show.id, { ...read.template, name: 'Board' });
+      // The second foreign package: a stranger's live scoreboard from the OGraf library fixtures.
+      const second = await importForeignOgraf('ebu-scoreboard.zip', bytes(scoreboard));
+      if (!second || !second.ok) throw new Error(`the second package did not import: ${second && !second.ok ? second.reason : 'not foreign'}`);
+      m.addGraphicToShow(show.id, { ...second.template, name: 'Scoreboard' });
       const board = m.loadShows().find((x) => x.id === show.id)!.graphics.find((g) => g.name === 'Board')!;
       const first = m.loadShows().find((x) => x.id === show.id)!.cues!.find((c) => c.sourceId === board.id)!;
       m.updateShowCueChecked(show.id, first.id, { label: 'Board', values: { headline: 'Endurance', score: '0' } });
@@ -129,7 +144,9 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       const failure = await commitDurableWrites();
       if (failure) throw new Error(failure);
       return show.id;
-    }, (await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })).toString('base64'));
+    }, { rundown: await zipOf(FOREIGN, 'rundown'), scoreboard: await zipOf(SCOREBOARD, 'ebu-scoreboard') });
+    // Two score graphics and a quiz beside the election graphics, as the envelope's production has.
+    for (const name of EXTRA) await addCatalogGraphic(page, showId, name);
     await page.reload();
     await expect(page.getByTestId('production-page')).toBeVisible();
     await publishProduction(page);
@@ -157,10 +174,14 @@ test('the election data path holds for the minutes asked', async ({ page, browse
         windowsHide: true,
       });
       const agent = { name, child, log: '', started: Date.now() } as (typeof agents)[number];
+      // Whole lines only: a pipe chunk can end inside one.
+      let partial = '';
       child.stderr!.on('data', (chunk) => {
         const text = String(chunk);
         agent.log += text;
-        for (const line of text.split('\n').filter(Boolean)) record.reads.push({ agent: name, at: Date.now(), line });
+        const lines = (partial + text).split('\n');
+        partial = lines.pop() ?? '';
+        for (const line of lines.filter(Boolean)) record.reads.push({ agent: name, at: Date.now(), line });
       });
       child.on('exit', (code, signal) => {
         agent.ended = Date.now();
@@ -169,15 +190,24 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       agents.push(agent);
       return agent;
     };
+    // Each ask carries its own number, so a late answer to an earlier ask is never taken for this one.
+    let asks = 0;
     const backlog = (agent: (typeof agents)[number]) =>
       new Promise<Json | null>((resolve) => {
         if (agent.ended || !agent.child.connected) return resolve(null);
-        const timer = setTimeout(() => resolve(null), 2_000);
-        agent.child.once('message', (m: { backlog?: Json }) => {
+        const id = ++asks;
+        const heard = (m: { backlog?: Json; id?: number }) => {
+          if (m.id !== id) return;
+          done(m.backlog ?? null);
+        };
+        const done = (answer: Json | null) => {
           clearTimeout(timer);
-          resolve(m.backlog ?? null);
-        });
-        agent.child.send('backlog');
+          agent.child.off('message', heard);
+          resolve(answer);
+        };
+        const timer = setTimeout(() => done(null), 2_000);
+        agent.child.on('message', heard);
+        agent.child.send({ ask: 'backlog', id });
       });
     let current = startAgent('agent-1');
     const snapshot = async () => (await db.from('production_source_snapshots').select('owner_epoch, accepted_revision, changed_at, checked_at, status, byte_size').eq('show_id', showId).eq('source_id', 'election')).data ?? [];
@@ -190,10 +220,23 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     await output.goto(`${baseURL}/output?production=${encodeURIComponent(outputSlug)}`);
 
     // Everything but the candidate card on air once; the card and the foreign Board take turns below.
-    for (const label of ['Party totals', 'Count status', 'Headlines', 'Board']) {
+    const firstCue = async (graphic: string) =>
+      page.evaluate(
+        async ({ id, graphic }) => {
+          const show = (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!;
+          const g = show.graphics.find((x) => x.name === graphic)!;
+          return show.cues!.find((c) => c.sourceId === g.id)!.label;
+        },
+        { id: showId, graphic },
+      );
+    const onAir = ['Party totals', 'Count status', 'Headlines', 'Board', await firstCue('Scoreboard'), ...(await Promise.all(EXTRA.map(firstCue)))];
+    for (const label of onAir) {
       await take(page, label);
       record.takes.push({ at: Date.now(), label });
     }
+    // The scorebug's own clock runs through the hour; no data arrival may restart or stop it.
+    await select(page, await firstCue('Club Scorebug'));
+    await page.getByTestId('cue-action-clockStart').click();
     const board = output.frameLocator('iframe[title="Board"]').locator('.card');
     await expect(board).toHaveAttribute('data-on', 'true', { timeout: 30_000 });
     const deck = await pairPanel(page);
@@ -224,7 +267,9 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       const [name, votes] = await text('Candidate card', ['f0', 'f2']);
       const [kok] = await text('Party totals', ['f8']);
       const [counted] = await text('Count bug', ['f2']);
-      const seen = { at: Date.now(), name, votes, kok, counted, frames: frames.length };
+      const clockFrame = [...titles].find(([, t]) => t === 'Club Scorebug')?.[0];
+      const clock = clockFrame ? await clockFrame.evaluate(() => document.querySelector('.scoreboard-clock')?.textContent?.trim() ?? null).catch(() => null) : null;
+      const seen = { at: Date.now(), name, votes, kok, counted, clock, frames: frames.length };
       const key = JSON.stringify({ ...seen, at: 0 });
       if (key !== last) record.frames.push(seen);
       last = key;
@@ -382,7 +427,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
           // A key drawn on the cue that is not on air: refused, the program instance is explicit.
           const astray = await deck.action({ target: 'Board', cap: 'foreign:mark', instance: elsewhere!, seen: offered.actionsVer as number, args: { v: 'elsewhere' } });
           await output.waitForTimeout(2_000);
-          entry.elsewhere = { outcome: astray.outcome, marks: Number(await board.getAttribute('data-marks')) };
+          entry.elsewhere = { outcome: astray.outcome, note: astray.note ?? null, marks: Number(await board.getAttribute('data-marks')) };
         }
       } catch (e) {
         entry.failed = String((e as Error).message ?? e).split('\n')[0];
@@ -423,6 +468,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     // Each job runs on its own and is awaited at the end; the loop keeps reading and sampling.
     const running: Promise<void>[] = [];
     let nextSample = t0 + 10_000;
+    let sampling: Promise<void> | null = null;
     let nextGc = t0 + 60_000;
     while (Date.now() - t0 < plan.totalMs) {
       const now = Date.now();
@@ -430,16 +476,19 @@ test('the election data path holds for the minutes asked', async ({ page, browse
         const job = due.shift()!;
         running.push(job.run().catch((e) => error(job.name, String((e as Error).message ?? e).split('\n')[0])));
       }
-      if (now >= nextSample) {
+      // A sample (garbage collection, the agent's answer, the database) runs beside the loop, one
+      // at a time, so the output is still read while it takes.
+      if (now >= nextSample && !sampling) {
         const gc = now >= nextGc;
         if (gc) nextGc += 60_000;
         nextSample += 10_000;
-        await sample(now, gc);
+        sampling = sample(now, gc).finally(() => (sampling = null));
       }
       await readOutput();
       await new Promise((r) => setTimeout(r, 250));
     }
     await Promise.all(running);
+    await sampling;
     await sample(Date.now(), true);
     record.end = Date.now();
     await deck.close();

@@ -21,6 +21,9 @@ export const CUE_SWITCH_MS = 15_000;
 export const ACTION_MS = 60_000;
 export const PAUSE_MS = 30_000;
 export const DISCONNECT_MS = 20_000;
+/** Minutes of timeline the replay server holds beyond the run: its clock starts at the agent's
+ *  first read, before the run's own start, and the run's teardown reads on. */
+export const EXTRA_MINUTES = 10;
 /** The route's ingress limit for one /api/data/source body (E4, owner 2026-10-20, G). */
 export const BODY_CAP_BYTES = 256 * 1024;
 
@@ -159,7 +162,8 @@ export const SEND_PATHS = ['revision', 'observed_at', 'summary', 'parties', 'can
  * when the caller has asked the database), each against the 256 KiB body cap.
  */
 export function measureFixture(minutes, people = candidates()) {
-  const last = revisionAt(enduranceTimeline(minutes, people).length - 1);
+  // The largest revision the replay server can serve in this run, so nothing served is larger.
+  const last = revisionAt(enduranceTimeline(minutes + EXTRA_MINUTES, people).length - 1);
   const doc = resultsDoc(people, last);
   const projected = Object.fromEntries(SEND_PATHS.map((k) => [k, doc[k]]));
   const payloadBytes = Buffer.byteLength(JSON.stringify(projected));

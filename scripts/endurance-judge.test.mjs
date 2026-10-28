@@ -61,7 +61,10 @@ function healthy() {
   }
   const applied = [];
   for (let i = 0; T0 + i * STEP_MS < r.end; i++) {
-    if (stepKind(i) !== 'count') continue;
+    if (stepKind(i) !== 'count') {
+      r.provider.push({ name: `${stepKind(i)}-${revisionAt(i)}`, at: T0 + i * STEP_MS + 100 });
+      continue;
+    }
     const rev = revisionAt(i);
     const t = T0 + i * STEP_MS;
     r.provider.push({ name: `count-${rev}`, at: t + 100 });
@@ -80,11 +83,17 @@ function healthy() {
   r.reads.push({ agent: 'agent-1', at: T0 + 9_800, line: `${iso(T0 + 9_800)} election invalid accepted=1 the provider's answer is not JSON next=2000ms` });
   r.reads.push({ agent: 'agent-1', at: T0 + 9_900, line: 'election changed revision 2 not taken (409 too_soon)' });
   // The output, read at 4 Hz: what the card and the board show as each row lands.
+  // Offline, the output hears nothing until it reconnects.
+  const dark = r.faults.filter((f) => f.kind === 'disconnect');
   let rev = 0;
+  let shown = null;
   for (let t = T0; t < r.end; t += 250) {
     rev = applied.findLast((x) => x.t <= t - 250)?.rev ?? 0;
     const a = aired(t - 400);
-    r.frames.push({ at: t, name: a ? person(a).name : '', votes: a && rev ? fmt(votesAt(person(a), rev)) : '', kok: rev ? fmt(partyVotes('KOK', rev)) : '', frames: 6 });
+    const now = { name: a ? person(a).name : '', votes: a && rev ? fmt(votesAt(person(a), rev)) : '', kok: rev ? fmt(partyVotes('KOK', rev)) : '' };
+    if (!shown || !dark.some((f) => t > f.at + 1_000 && t < f.end + 500)) shown = now;
+    const clock = `${String(Math.floor((t - T0 + 120_000) / 60_000)).padStart(2, '0')}:${String(Math.floor(((t - T0 + 120_000) % 60_000) / 1_000)).padStart(2, '0')}`;
+    r.frames.push({ at: t, ...shown, clock, frames: 6 });
   }
   r.frames = r.frames.filter((f, i, all) => i === 0 || JSON.stringify({ ...f, at: 0 }) !== JSON.stringify({ ...all[i - 1], at: 0 }));
   for (let t = T0; t < r.end; t += 10_000) {
@@ -96,7 +105,7 @@ function healthy() {
   let marks = 0;
   for (let at = 30_000; at < plan.totalMs; at += ACTION_MS) {
     const a = { at: T0 + at, n: r.actions.length + 1, outcome: 'ran', settled: 'accepted', marksBefore: marks, marksAfter: ++marks, end: T0 + at + 1_000 };
-    if (a.n % 5 === 0) Object.assign(a, { duplicate: { outcome: 'duplicate', marks }, elsewhere: { outcome: 'stale', marks } });
+    if (a.n % 5 === 0) Object.assign(a, { duplicate: { outcome: 'duplicate', marks }, elsewhere: { outcome: 'stale', note: 'the cue on Board changed', marks } });
     r.actions.push(a);
   }
   r.finalSnapshot = { accepted_revision: rev, owner_epoch: epoch };
@@ -204,7 +213,23 @@ red('a bound field slow to air', (r) => {
 }, /bound field/);
 red('a run cut short', (r) => (r.end = r.t0 + 60_000), /minutes asked/);
 red('a fault that never ended', (r) => delete r.faults[1].end, /fault ran to its end/);
-red('a provider step never read as held', (r) => (r.reads = r.reads.filter((x) => !/ invalid /.test(x.line))), /each read and held/);
+red('a provider step never read as held', (r) => (r.reads = r.reads.filter((x) => !/ invalid /.test(x.line))), /each served and held/);
+red('a provider step never served', (r) => (r.provider = r.provider.filter((x) => !x.name.startsWith('duplicate-'))), /each served and held/);
+red('an output that still heard while offline: the disconnect proved nothing', (r) => {
+  const f = r.faults.find((x) => x.kind === 'disconnect');
+  const later = r.frames.find((x) => x.at > f.end + 3_000 && x.kok);
+  r.frames.push({ ...later, at: f.at + 10_000 });
+  r.frames.sort((a, b) => a.at - b.at);
+}, /went dark offline/);
+red('the scorebug clock reset by a data write', (r) => {
+  const f = r.frames.find((x) => x.at > r.t0 + 10 * 60_000);
+  f.clock = '00:00';
+}, /clock kept running/);
+red('the scorebug clock stopped', (r) => {
+  for (const f of r.frames) if (f.at > r.t0 + 10 * 60_000) f.clock = '12:00';
+}, /clock kept running/);
+red('the agent\'s requests to the production piling up', (r) => (r.samples[50].agent.posting = 4), /requests to the production stay bounded/);
+red('an instance refusal for another reason than the instance', (r) => (r.actions.find((x) => x.elsewhere).elsewhere.note = 'the key was drawn too long ago'), /not on air was refused/);
 
 test('the fixture: 1,000 candidates, the package\'s people at their keys, inside the ingress limit with headroom', () => {
   assert.equal(people.length, 1000);

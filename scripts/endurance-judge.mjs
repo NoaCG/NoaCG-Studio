@@ -80,15 +80,18 @@ export function judge(record) {
   // ── The fixture and the ingress limits ──
   const fx = record.fixture ?? {};
   const bytes = Math.max(0, ...(record.snapshots ?? []).map((s) => s.bytes ?? 0));
-  check('the fixture is 1,000 candidates measured inside the 256 KiB body cap before the run', fx.candidates === 1000 && fx.bodyBytes > 0 && fx.bodyBytes <= fx.capBytes && (fx.jsonbBytes ?? 0) <= fx.capBytes, `body ${fx.bodyBytes}, jsonb ${fx.jsonbBytes} of ${fx.capBytes}`);
+  check('the fixture is 1,000 candidates measured inside the 256 KiB body cap before the run', fx.candidates === 1000 && fx.bodyBytes > 0 && fx.bodyBytes <= fx.capBytes && fx.jsonbBytes > 0 && fx.jsonbBytes <= fx.capBytes, `body ${fx.bodyBytes}, jsonb ${fx.jsonbBytes} of ${fx.capBytes}`);
   check('every accepted revision stayed inside the ingress limit', bytes > 0 && bytes <= (fx.capBytes ?? 262144), `largest ${bytes} bytes`);
   // A frozen agent's request in flight fails when it wakes: expected of that agent, after that moment.
   const woken = faults.filter((f) => f.kind === 'handover' && f.mode === 'crash');
   const wokeLate = (r) => woken.some((f) => r.agent === f.from && r.at >= f.woke && /renewal failed|claim failed/.test(r.line));
   const unexpected = reads.filter((r) => REFUSAL.test(r.line) && !EXPECTED_REFUSALS.test(r.line) && !wokeLate(r));
   check('no revision was refused for size, budget or anything the run did not cause', unexpected.length === 0, unexpected.slice(0, 3).map((r) => r.line).join(' | '));
+  // Served, then held: only an older step makes `stale` and only a malformed one `invalid`; a
+  // duplicate is a repeat, which the agent reads as `unchanged` like any second read of a step.
   const statuses = new Set(reads.map((r) => /^\S+ election (\w+) accepted=/.exec(r.line)?.[1]).filter(Boolean));
-  check('the provider\'s duplicate, older and malformed steps were each read and held', ['unchanged', 'stale', 'invalid'].every((s) => statuses.has(s)), [...statuses].join(','));
+  const servedKinds = new Set((record.provider ?? []).map((s) => /^(\w+)-/.exec(s.name)?.[1]));
+  check('the provider\'s duplicate, older and malformed steps were each served and held', ['duplicate', 'older', 'malformed'].every((k) => servedKinds.has(k)) && ['unchanged', 'stale', 'invalid'].every((s) => statuses.has(s)), `served ${[...servedKinds].join(',')}; read ${[...statuses].join(',')}`);
   check('no credential in anything the agents wrote', record.credentialLeaked === false);
 
   // ── Wrong-person frames and mixed records ──
@@ -148,7 +151,7 @@ export function judge(record) {
   const badActions = actions.filter((a) => a.failed || a.outcome !== 'ran' || a.settled !== 'accepted' || a.marksAfter !== a.marksBefore + 1);
   check('every foreign action ran once on the program instance', actions.length >= Math.floor((plan.totalMs - 30_000) / 60_000) && badActions.length === 0, JSON.stringify(badActions.slice(0, 3)));
   const dups = actions.filter((a) => a.duplicate);
-  check('a foreign action keyed to an instance not on air was refused', actions.length < 5 || (dups.length >= 1 && dups.every((a) => a.elsewhere?.outcome === 'stale' && a.elsewhere.marks === a.marksAfter)), JSON.stringify(dups.map((a) => a.elsewhere)));
+  check('a foreign action keyed to an instance not on air was refused', actions.length < 5 || (dups.length >= 1 && dups.every((a) => a.elsewhere?.outcome === 'stale' && /the cue on Board changed/.test(a.elsewhere.note ?? '') && a.elsewhere.marks === a.marksAfter)), JSON.stringify(dups.map((a) => a.elsewhere)));
   check('a foreign action sent twice with one id ran once', (actions.length < 5 || dups.length >= 1) && dups.every((a) => a.duplicate.outcome === 'duplicate' && a.duplicate.marks === a.marksAfter), JSON.stringify(dups.filter((a) => a.duplicate.outcome !== 'duplicate' || a.duplicate.marks !== a.marksAfter)));
 
   // ── Owners: no stale-owner write ──
@@ -171,18 +174,32 @@ export function judge(record) {
   check('Resume sent the final values once: at most one row per bound graphic', pauses.every((f) => f.answer?.paused === true && f.resume?.paused === false && f.resume.writes >= 1 && f.resume.writes <= 2), JSON.stringify(pauses.map((f) => f.resume)));
 
   // ── Output disconnect ──
+  // Offline, the output must really stop hearing (else the fault proved nothing), then catch up.
   const recovered = kinds('disconnect').map((f) => {
-    const before = Math.max(0, ...frames.filter((x) => x.at <= f.at && x.kok).map((x) => num(x.kok)));
+    const before = Math.max(0, ...frames.filter((x) => x.at <= f.at + 3_000 && x.kok).map((x) => num(x.kok)));
+    const heard = frames.some((x) => x.at > f.at + 3_000 && x.at < f.end && num(x.kok) > before);
     const after = frames.find((x) => x.at > f.end && x.at <= f.end + RECOVER_MS && num(x.kok) > before);
-    return { at: f.at - t0, ok: Boolean(after), ms: after ? after.at - f.end : null };
+    return { at: f.at - t0, ok: Boolean(after) && !heard, offline: !heard, ms: after ? after.at - f.end : null };
   });
-  check('the output caught up within 20 s of every reconnect', recovered.length > 0 && recovered.every((r) => r.ok), JSON.stringify(recovered));
+  check('the output went dark offline and caught up within 20 s of every reconnect', recovered.length > 0 && recovered.every((r) => r.ok), JSON.stringify(recovered));
+
+  // The scorebug's own clock, started before the run, keeps counting through it.
+  const seconds = (text) => {
+    const m = /^(\d+):(\d{2})$/.exec(text ?? '');
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const ticks = frames.filter((f) => f.at >= t0 && seconds(f.clock) !== null).map((f) => ({ at: f.at, s: seconds(f.clock) }));
+  const clockBack = ticks.filter((x, i) => i > 0 && x.s < ticks[i - 1].s);
+  const span = ticks.length ? ticks.at(-1).s - ticks[0].s : 0;
+  const elapsed = ticks.length ? (ticks.at(-1).at - ticks[0].at) / 1000 : 0;
+  check('the scorebug\'s clock kept running through the run, never reset', ticks.length > 0 && clockBack.length === 0 && span >= elapsed - 30, `${ticks.length} readings, ${span} s counted over ${Math.round(elapsed)} s, ${clockBack.length} backwards`);
 
   // ── Queues and instances ──
   const steady = plan.windows.filter((w) => !w.warmup);
   const inWindow = (w) => samples.filter((s) => s.at - t0 >= w.from && s.at - t0 < w.to);
   const agentSamples = samples.filter((s) => s.agent);
   check('pending provider reads bounded to one per source', agentSamples.length > 0 && agentSamples.every((s) => s.agent.reading <= 1), `${agentSamples.length} samples`);
+  check('the agent\'s requests to the production stay bounded: a report, a renewal and a sample at most', agentSamples.every((s) => (s.agent.posting ?? 0) <= 3), JSON.stringify(agentSamples.filter((s) => s.agent.posting > 3).map((s) => [s.at - t0, s.agent.posting]).slice(0, 3)));
   check('buffered updates bounded to one latest snapshot', agentSamples.every((s) => s.agent.undelivered <= 1) && samples.every((s) => s.snapshots <= 1));
   const handoverAt = (s) => handovers.some((h) => s.at >= h.at && s.at <= (h.end ?? h.at));
   check('one agent alive outside a handover', samples.filter((s) => !handoverAt(s)).every((s) => s.agentsAlive === 1), JSON.stringify(samples.filter((s) => !handoverAt(s) && s.agentsAlive !== 1).map((s) => [s.at - t0, s.agentsAlive]).slice(0, 3)));
