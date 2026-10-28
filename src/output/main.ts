@@ -1370,8 +1370,9 @@ async function boot(): Promise<void> {
           read.counted = true;
           live.refilled();
         }
-        // A live row means the follow has caught up past whatever the boot left unread.
-        if (!read) batchDone(true, true);
+        // A live row past the cursor means the follow has caught up past whatever the boot left
+        // unread; one at or below it committed late and says nothing about the history after it.
+        if (!read && row.id > lastAppliedId) batchDone(true, true);
         if (read && heldLate(row)) batchDone(row.id >= gapEndsAt);
         else {
           apply(row, read ? 'tail' : 'log');
