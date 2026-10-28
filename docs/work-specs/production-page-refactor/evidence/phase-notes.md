@@ -59,17 +59,17 @@ changes a spec's digest.
     row (by id) is applied, since a live row's id says nothing of history committed late below it.
     Never between two full pages, and a polling-only follow closes it too. Every package read past,
     and every package the boot left not known for an action, is said not known again after each
-    batch of that history, so a Take later in it cannot clear the mark; an Out in it ends the mark
-    (off is known, as in `ografRestore`); the operator's live Take or Out clears it. Residual: an
+    batch of that history, so a Take or Out later in it cannot clear the mark (as in
+    `ografRestore`); the operator's live Take or Out clears it. Residual: an
     operator's action that arrives inside that history (a polling follow, or a press during the
     gap) is read past with it: not sent, its package marked not known, pressed again after a re-cue.
   - *Actions counted* (`acted`, said the moment an action is sent, so a report banked before its
     answer already carries it): the actions an instance was sent, less those the Graphic refused,
-    ride the report, so a restart knows the Graphic holds state no restart reproduces. OGraf
-    promises no Take undoes an action, so a Take does not reset the count; an Out the Graphic
-    accepted does, since off is known (the same rule `ografRestore` reads in the log). So `acted`
-    on a package that is off is an action pressed after its Out, and a restart says it was not
-    repeated. A new instance starts at none.
+    ride the report for the instance's whole life, so a restart knows the Graphic holds state no
+    restart reproduces. OGraf promises no Take or Out undoes an action, so neither resets the count,
+    in the report or in the log: a package an action reached comes back, on or off, said not known
+    until the operator's own next Take or Out (off with no Re-cue, like an unconfirmed Out). A new
+    instance starts at none.
   - *A step not yet answered is no known step*: a Take, step or Out sent to the current instance
     clears its told `step` at once, for the same reason, so a report banked before the answer
     restores the Take at its first step and says the step is not known, never the step before it.

@@ -9,8 +9,8 @@
 //     its own lifecycle calls (`playAction` to the first step, then one step at a time);
 //   - never a custom action: its effect lives in the Graphic alone and may not be repeatable, so a
 //     row of one in the catch-up is not sent, and a package whose instance an action reached is put
-//     back as far as its Take and step and said to be NOT KNOWN (`unknown`). OGraf promises no Take
-//     undoes an action, so a Take REPLAYED from the log after it does not make it known; the
+//     back as far as its Take and step, or left off, and said to be NOT KNOWN (`unknown`). OGraf
+//     promises no Take or Out undoes an action, so neither, REPLAYED from the log, makes it known; the
 //     operator's own next Take or Out, live, does (output/stage.ts `markUnknown`): that is them
 //     deciding what goes to air;
 //   - a Take that was never confirmed (refused, unanswered, or no report) is not repeated by itself
@@ -63,7 +63,7 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   // A Take or Out after the bank replays as the log has it, and decides whether it is up.
   if (lastTake >= 0 || lastOut >= 0) {
     // Off, as the log has it; an action pressed after that Out was not delivered, which is said.
-    if (lastOut > lastTake) return last('event') > lastOut ? { play: false, steps: 0, unknown: UNKNOWN_ACTED } : NOTHING;
+    if (lastOut > lastTake) return acted ? { play: false, steps: 0, unknown: UNKNOWN_ACTED } : NOTHING;
     return { play: false, steps: 0, unknown: acted ? UNKNOWN_ACTED : null };
   }
   // A Take or Out the bank counts but the Graphic had not answered (`sent`): its `on` is the state
@@ -81,8 +81,8 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   // Off, as it was: what an earlier restart could not prove is still not proven, and an action
   // pressed after the bank was not delivered, which is said too.
   if (!up) {
-    // An Out the Graphic accepted ends its count (output/stage.ts), so `acted` on a package that is
-    // off is an action pressed after it.
+    // An action its instance holds (`acted` counts for the instance's life), or one pressed after
+    // the bank, is not on the new instance: off, and said.
     if (rows.some((r) => r.msg.t === 'event') || (o !== null && o.i !== null && o.acted)) return { play: false, steps: 0, unknown: UNKNOWN_ACTED };
     return o !== null && o.i !== null && o.unknown ? { play: false, steps: 0, unknown: o.unknown } : NOTHING;
   }
@@ -99,8 +99,8 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
  *
  *   - A package's custom action in it is READ PAST (counted applied, never sent), as `heldActions`
  *     reads the catch-up's, and its package is said not known (`mark`) after every batch of that
- *     history, so a Take later in it cannot clear the mark. An Out after the action ends it, as in
- *     `ografRestore`: off is known. The packages the boot already left not known for an action are
+ *     history, so a Take or Out later in it cannot clear the mark, as in `ografRestore`. The
+ *     packages the boot already left not known for an action are
  *     held the same way (`actedAtBoot`).
  *   - The gap closes at the END of that history, never between two full pages: on the numbered log
  *     (protocol 2) a live batch, which the follow applies only contiguous with the cursor, or a read
@@ -131,7 +131,6 @@ export function bootGap<R extends { graphic: string; msg: { t: string } }>(
   let endsAt = Infinity;
   const readsPast = (row: R): boolean => {
     if (!gap || !packages.has(row.graphic) || covered(row)) return false;
-    if (row.msg.t === 'stop') held.delete(row.graphic);
     if (row.msg.t === 'play' || row.msg.t === 'stop') off.delete(row.graphic);
     if (row.msg.t === 'next') return off.has(row.graphic);
     if (row.msg.t !== 'event') return false;

@@ -50,12 +50,16 @@ test('an action is never repeated: the Take and step come back, and the state is
   for (const head of [undefined, false]) assert.deepEqual(ografRestore(report({ ...up, call: 'stop', on: false }), head, [row('event')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED }, `head ${head}`);
   // ... and after an Out among the rows after the bank: an Out before the action does not clear it.
   assert.deepEqual(ografRestore(report(up), true, [row('stop'), row('event')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
-  assert.deepEqual(ografRestore(report(up), undefined, [row('event'), row('stop')]), { play: false, steps: 0, unknown: null });
+  // An Out after it does not undo it either: off, and still not known.
+  assert.deepEqual(ografRestore(report(up), undefined, [row('event'), row('stop')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
+  // Take, action, Out, Take on one instance, banked: the action is still on that instance only.
+  for (const head of [true, undefined]) assert.deepEqual(ografRestore(report({ ...up, step: 0, acted: true }), head, []), { play: true, steps: 0, unknown: UNKNOWN_ACTED }, `head ${head}`);
   // Banked: an accepted Out ends the stage's count, so `acted` while off is an action after the Out.
   assert.deepEqual(ografRestore(report({ ...up, call: 'custom', on: false, step: null, acted: true }), false, []), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
   assert.deepEqual(ografRestore(report({ ...up, call: 'stop', on: false, step: null }), undefined, []), { play: false, steps: 0, unknown: null });
-  // An Out after it all: off, as the log says.
-  assert.deepEqual(ografRestore(report({ ...up, acted: true }), true, [row('play'), row('event'), row('stop')]), { play: false, steps: 0, unknown: null });
+  // An Out after it all: off, as the log says, and the action still not repeated.
+  assert.deepEqual(ografRestore(report({ ...up, acted: true }), true, [row('play'), row('event'), row('stop')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
+  assert.deepEqual(ografRestore(report(up), true, [row('play'), row('stop')]), { play: false, steps: 0, unknown: null });
 });
 
 test('a Take that was never confirmed is not repeated by itself: the operator re-cues', () => {
@@ -234,9 +238,9 @@ test('protocol 2: unread history reads a package action past, page after page, u
   assert.deepEqual(empty.batch(page(4, take), true).mark, ['Board'], "the boot's mark survives a Take in history");
   assert.deepEqual(empty.emptyRead(), ['Board']);
   assert.equal(empty.open, false);
-  // An Out after the action ends it, as `ografRestore` reads it: off is known.
+  // An Out after the action does not end it, nor a Take after that, as `ografRestore` reads it.
   const out = bootGap(true, new Set(['Board']), [], 4);
-  assert.deepEqual(out.batch([ev(), { graphic: 'Board', msg: { t: 'stop' } }], true).mark, []);
+  assert.deepEqual(out.batch([ev(), { graphic: 'Board', msg: { t: 'stop' } }, take], true).mark, ['Board']);
   // A row Board's own report already holds (the refill starts at an older graphic's bank) neither
   // marks nor ends a mark, and still counts towards a page.
   const at = (seq, t) => ({ seq, graphic: 'Board', msg: { t } });

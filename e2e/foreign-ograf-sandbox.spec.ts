@@ -739,16 +739,18 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await apply(page, 'walk', { t: 'stop' });
     await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'done', on: false });
     expect((await outcome('walk'))?.sent, 'the next Out clears it').toBeUndefined();
-    // An accepted Out ends the action count (off is known); an action pressed while off is counted,
-    // so a restart says it was not repeated.
-    await apply(page, 'walk', { t: 'play' });
-    await apply(page, 'walk', { t: 'event', event: 'mark', payload: { v: 'up' } });
-    await expect.poll(async () => (await outcome('walk'))?.acted).toBe(true);
-    await apply(page, 'walk', { t: 'stop' });
-    await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'done', on: false });
-    expect((await outcome('walk'))?.acted, 'an accepted Out ends the count').toBeUndefined();
+    // An action pressed while off is counted, and no Out or Take undoes it: Take, action, Out, Take on
+    // one instance still says `acted`, so a restart says it was not repeated.
+    expect((await outcome('walk'))?.acted).toBeUndefined();
     await apply(page, 'walk', { t: 'event', event: 'mark', payload: { v: 'off' } });
     await expect.poll(async () => (await outcome('walk'))?.acted).toBe(true);
+    await apply(page, 'walk', { t: 'play' });
+    await expect.poll(() => outcome('walk')).toMatchObject({ call: 'play', status: 'done', on: true });
+    await apply(page, 'walk', { t: 'stop' });
+    await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'done', on: false });
+    await apply(page, 'walk', { t: 'play' });
+    await expect.poll(() => outcome('walk')).toMatchObject({ call: 'play', status: 'done', on: true });
+    expect((await outcome('walk'))?.acted, 'neither an Out nor a Take undoes an action').toBe(true);
   });
 
   test('a monitor that serves no package draws a plate for it while it is up, never an empty picture', async ({ page }) => {
