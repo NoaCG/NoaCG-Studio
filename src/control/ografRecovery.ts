@@ -67,7 +67,8 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   // the Out is said not to be confirmed.
   if (headOn === false && o !== null && o.i !== null && o.on) return { play: false, steps: 0, unknown: UNKNOWN_OUT };
   const up = headOn ?? o?.on === true;
-  if (!up) return NOTHING;
+  // Off, as it was: what an earlier restart could not prove is still not proven.
+  if (!up) return o !== null && o.i !== null && o.unknown ? { play: false, steps: 0, unknown: o.unknown } : NOTHING;
   if (!o || o.i === null || !o.on) return { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED };
   // A state an earlier restart could not prove stays unproven through the next one.
   const carried = o.unknown ?? null;

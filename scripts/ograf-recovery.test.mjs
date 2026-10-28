@@ -24,6 +24,8 @@ test('a Take the Graphic accepted comes back at its step, through its own lifecy
   // answer was not banked yet): a restart does not undo the operator's Out, and says it is unconfirmed.
   assert.deepEqual(ografRestore(report({ ...up, call: 'stop', status: 'rejected', code: 409 }), false, []), { play: false, steps: 0, unknown: UNKNOWN_OUT });
   assert.deepEqual(ografRestore(report(up), false, []), { play: false, steps: 0, unknown: UNKNOWN_OUT });
+  // A second restart of a package the first left off and not known keeps saying so.
+  assert.deepEqual(ografRestore(report({ ...up, call: 'mount', on: false, step: null, unknown: UNKNOWN_OUT }), false, []), { play: false, steps: 0, unknown: UNKNOWN_OUT });
   // Off in the log and off by the Graphic's word: nothing.
   assert.deepEqual(ografRestore(report({ ...up, call: 'stop', on: false }), false, []), { play: false, steps: 0, unknown: null });
   // Off on the output and off in the log: nothing to put back, nothing unknown.
