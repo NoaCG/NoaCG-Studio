@@ -15,8 +15,20 @@ export function dataApiPlugin() {
         void handle(server, req, res);
       });
       server.middlewares.use('/api/output/assets', (req,res) => { void handle(server,req,res,true); });
+      // vercel.json's rewrite of an imported OGraf package's files, as production routes it.
+      server.middlewares.use('/ograf/', (req, res, next) => {
+        const m = /^\/([^/?]+)\/([^?]*)$/.exec(req.url ?? '');
+        if (!m) return next();
+        req.url = `/?ograf=${encodeURIComponent(m[1])}&path=${encodeURIComponent(safeDecode(m[2]))}`;
+        void handle(server, req, res, true);
+      });
     },
   };
+}
+
+/** A path segment as the browser escaped it, read back (left as it is when it does not read). */
+function safeDecode(s) {
+  try { return decodeURIComponent(s); } catch { return s; }
 }
 
 async function handle(server, req, res, audio = false) {
@@ -27,7 +39,7 @@ async function handle(server, req, res, audio = false) {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
-    const url = `http://${req.headers.host ?? 'localhost'}/api/data/${route}${query ? '?' + query : ''}`;
+    const url = `http://${req.headers.host ?? 'localhost'}/api/${audio ? 'output/assets' : `data/${route}`}${query ? '?' + query : ''}`;
     const request = new Request(url, {
       method: req.method,
       headers: Object.fromEntries(
