@@ -639,9 +639,10 @@ test('a reload is for the slot it was loaded on, and for a page still open', asy
   await restartServer(moved);
   assert.ok(!moved.calls.includes('reload'), 'another slot');
 
-  // The page goes, the settings move the slot, the operator's own Load lands or another client
-  // plays a clip there, while the reload reads the slot once more: nothing is sent.
-  for (const cut of ['stop', 'moved', 'acted', 'clip']) {
+  // The page goes, the settings move the slot, the operator's own Load lands, another client plays
+  // a clip there or another browser already put it back, while the reload reads the slot once
+  // more: nothing is sent.
+  for (const cut of ['stop', 'moved', 'acted', 'clip', 'back']) {
     const t = await loadedRig();
     await restartServer(t);
     t.take();
@@ -660,15 +661,17 @@ test('a reload is for the slot it was loaded on, and for a page still open', asy
     if (cut === 'moved') t.state.settings = { ...t.state.settings, channel: 2, layer: 30 };
     if (cut === 'acted') t.watch.slotActed();
     if (cut === 'clip') t.setSlot({ layer: 20, producer: 'video', file: 'AMB', paused: false, loop: true });
+    if (cut === 'back') t.setSlot(ourPage);
     for (const answer of t.held.splice(0)) answer();
     await settle();
     assert.ok(!t.take().includes('reload'), `${cut}: nothing sent`);
-    if (cut === 'clip') {
-      // Another client's slot now: cleared again, it is still not this page's to fill.
+    if (cut === 'clip' || cut === 'back') {
+      // Another client's slot now, or back (another browser reloaded it): cleared again with
+      // everything answering, it is not this page's to fill.
       t.setHold(false);
       t.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
       await t.readSlot();
-      assert.ok(!t.take().includes('reload'), 'clip: given up');
+      assert.ok(!t.take().includes('reload'), `${cut}: cleared on purpose afterwards`);
     }
   }
 });

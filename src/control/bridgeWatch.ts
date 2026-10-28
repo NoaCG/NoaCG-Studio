@@ -288,23 +288,29 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
 
   // A LOST OUTPUT, LOADED AGAIN (#1657): each reading of the slot decides. Ours again ends the
   // tries; another production's ends them too, and the slot is no longer this page's to take back.
-  const bringBack = (reading: SlotReading, target: string, vacant: boolean) => {
+  /** What any reading of the slot says about owning it, the watch's own and the one right before a
+   *  reload alike: true when the layer is vacant and a reload may be weighed. */
+  const observe = (reading: SlotReading, vacant: boolean): boolean => {
     if (reading.holds === 'failed') outageSinceOurs = true;
     if (reading.holds === 'ours') {
       outageSinceOurs = false;
       seenSinceLoad = true;
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
-      return;
+      return false;
     }
     // Another production, or anything else another client put there (a clip, a still, a page that is
     // not NoaCG's, all of which `slotHolds` calls empty): the slot is theirs now.
     if (reading.holds === 'other' || (reading.holds === 'empty' && !vacant)) {
       loadedHere = null;
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
-      return;
+      return false;
     }
+    return reading.holds === 'empty';
+  };
+  const bringBack = (reading: SlotReading, target: string, vacant: boolean) => {
+    if (!observe(reading, vacant)) return;
     // Only the slot it was loaded on: a slot the settings moved to is not this page's to fill.
-    if (reading.holds !== 'empty' || loadedHere !== target || !seenSinceLoad || reloads.inFlight) return;
+    if (loadedHere !== target || !seenSinceLoad || reloads.inFlight) return;
     // Emptied while everything answered: someone took it off on purpose, and a later outage must
     // not bring it back.
     if (!outageSinceOurs) {
@@ -339,12 +345,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const read = await io.readState(settings, settings.channel).catch(() => null);
     if (!wanted() || !read?.reply) return null;
     const layer = read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null;
-    if (!isVacant(layer)) {
-      // Back already (another browser's reload), or somebody else's now: then it is theirs, as for
-      // any reading.
-      if (slotHolds(layer, inputs?.outputSlug ?? null) !== 'ours') loadedHere = null;
-      return null;
-    }
+    // Back already (another browser's reload) or somebody else's now: this reading counts as any.
+    if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer))) return null;
     return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null) => {
