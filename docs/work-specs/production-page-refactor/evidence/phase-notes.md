@@ -47,10 +47,11 @@ changes a spec's digest.
     call and status, the step, whether it is up; the output reports it in `state.ograf` and counts a
     package on air before a reload. A base refused reads `unmounted`. A republish that changes a package is said in
     READY ("changes on this output when the output reloads"), never swapped to an empty document.
-  - *Same-layer replacement* (`control/graphicVerbs.ts` take, `control/ografOutcome.ts`
-    `packageLayerPeers`): a Take of a package takes off whatever else is up on its layer, and a Take
-    on a package's layer takes the package off, in the same command batch, each by its own Out with
-    its marker. So the log, every output, the PROGRAM simulation and the page's ON AIR marks all see
+  - *Same-layer replacement* (`control/ografOutcome.ts` `packageLayerPeers` and `withPeersOff`,
+    used by the production page's Take, its timed ends `cueArmEngine.ts` and the hosted page's Take
+    and timed ends): a Take of a package takes off whatever else is up on its layer, and a Take on a
+    package's layer takes the package off, with the Take (in its own command call when they fit,
+    else in calls of their own sent first), each by its own Out with its marker. So the log, every output, the PROGRAM simulation and the page's ON AIR marks all see
     it. NoaCG graphics among themselves stack on a browser output as before (the clash warning
     stands): no native production changes.
   - *The page* (`control/ografOutcome.ts`, `PlayoutMonitors.tsx`, `ProductionPage.tsx`): PROGRAM
@@ -70,7 +71,13 @@ changes a spec's digest.
   - *The sealed base, not the capability or the production id*: a frame can navigate itself away
     with its URL (docs/OGRAF_ECOSYSTEM.md §3 residuals). The output capability would let it read the
     production's payload, and a production id is the read key of its `seq-` topic, so neither may be
-    in the base. The sealed token grants only that package's files; a fresh IV each time.
+    in the base. The sealed token grants only that package's files. Its IV is a keyed hash of what
+    it seals (deterministic, SIV-style), so one publication's package has one cacheable base.
+  - *Residuals, stated*: a revoked base (rotated capability, suspension, a republish without the
+    package) stops the database read at once, but a file already fetched may be answered from a
+    cache for up to an hour (`max-age=3600`). The files are served from the app's own origin under
+    `/ograf/` only: exact paths, `CSP: sandbox`, pages as text, so no stranger's file becomes a
+    document of this origin; docs/OGRAF_ECOSYSTEM.md §3 says so.
   - *Files from the payload as published now, by exact path*: no folder walk, so an encoded `..` or
     a twin name finds nothing; the static reference check (row 39) stays a first refusal and the
     frame's network policy stays the boundary (row 39 checker, note 1).
@@ -115,6 +122,8 @@ changes a spec's digest.
   `src/backend/productionOgraf.ts` (new), `src/control/ografOutcome.ts` (new),
   `src/control/hostedControl.ts`, `src/control/ografContract.ts`, `src/control/serverPlayout.ts`,
   `src/control/graphicVerbs.ts`, `src/control/productionLook.ts`, `src/output/prepare.ts`,
+  `src/control/cueArmEngine.ts`, `src/control/cueItems.ts`, `src/components/HostedControlPage.tsx`,
+  `e2e/fixtures/foreign-ograf/steps/` (`playMs`), `scripts/cue-arm-engine.test.mjs`,
   `src/control/takeBlockers.ts`, `src/model/foreignPackage.ts`, `src/output/foreignOgraf.ts`,
   `src/output/main.ts`, `src/output/stage.ts`, `src/validation/productionGate.ts`,
   `src/components/home/PlayoutMonitors.tsx`, `src/components/home/ProductionPage.tsx`,

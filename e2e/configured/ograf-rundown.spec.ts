@@ -127,6 +127,13 @@ test('a mixed rundown takes a foreign package on a real output: per-child outcom
   const instance = await boardFrame.getAttribute('data-instance');
   expect(instance).toMatch(/^[0-9a-f]{8}$/);
 
+  // PREPARE: the package is loaded on the output before any Take (its `load()` answered, nothing up),
+  // and this page's PREVIEW says it is not previewed here rather than showing an empty frame.
+  await expect.poll(async () => (await reported(showId, 'Board'))?.call, { timeout: 20_000 }).toBe('mount');
+  expect((await reported(showId, 'Board'))?.status).toBe('done');
+  await cueRow(page, 'Board').getByTestId('select-cue').click();
+  await expect(page.getByTestId('preview-ograf')).toContainText('Plays on the outputs; no preview here.');
+
   // ALL TOGETHER, ONE CHILD REFUSED: each child's outcome is its own.
   await folder(page, 'Opening').getByTestId('select-folder').click();
   await parkFocusOffControls(page);
@@ -164,13 +171,29 @@ test('a mixed rundown takes a foreign package on a real output: per-child outcom
   await page.getByTestId('cue-action-mark').click();
   await expect(board).toHaveAttribute('data-mark', 'from the rundown', { timeout: 20_000 });
 
-  // SAME-LAYER REPLACEMENT: a NoaCG graphic taken on the package's layer takes it off there.
+  // OUT, confirmed by the output; then a Take of the same cue airs the same instance again.
+  await parkFocusOffControls(page);
+  await page.getByTestId('verb-out').click();
+  await expect(board).toHaveAttribute('data-on', 'false', { timeout: 20_000 });
+  await expect(confirmed.locator('li[data-graphic="Board"]')).toHaveText('Board: off air on the output', { timeout: 20_000 });
+  await page.getByTestId('verb-take').click();
+  await expect(board).toHaveAttribute('data-on', 'true', { timeout: 20_000 });
+  await expect(confirmed.locator('li[data-graphic="Board"]')).toHaveText('Board: on air on the output, step 1', { timeout: 20_000 });
+  expect(await boardFrame.getAttribute('data-instance')).toBe(instance);
+
+  // SAME-LAYER REPLACEMENT: a NoaCG graphic taken on the package's layer takes it off there, by
+  // the package's own Out sent with the Take, so the page no longer marks it on air either.
   await cueRow(page, 'Bug').getByTestId('select-cue').click();
   await parkFocusOffControls(page);
   await page.getByTestId('verb-take').click();
   await expect(board).toHaveAttribute('data-on', 'false', { timeout: 20_000 });
   await expect(confirmed.locator('li[data-graphic="Board"]')).toHaveText('Board: off air on the output', { timeout: 20_000 });
   expect((await reported(showId, 'Board'))?.i, 'the same instance, taken off, not a new one').toBe(instance);
+  // In the log: the package's Out right before the Take's update and play, after its last Take.
+  const rows = await commands(showId);
+  const at = (graphic: string, t: string) => rows.findLastIndex((r) => r.graphic === graphic && r.msg.t === t);
+  expect(at('Board', 'stop')).toBeGreaterThan(at('Board', 'play'));
+  expect(at('Bug', 'play') - at('Board', 'stop'), 'the package\'s Out rode with the Take').toBe(2);
 
   // A FOLDER WHOSE CHILDREN SHARE A LAYER is refused before anything is sent.
   const sent = (await commands(showId)).length;

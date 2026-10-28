@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { packageLayerPeers, withPeersOff } from '../control/ografOutcome';
 import {
   adjustWords,
   controlName,
@@ -965,11 +966,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     const auto = cue.auto ? readAuto({ auto: cue.auto }) : null;
     return auto ? markerAuto({ auto, next: cue.next ?? null }) : null;
   };
-  const takeCue = (cue: OutputCue, direct = false) => {
+  /** The live graphics a Take of this one replaces on its layer: an imported OGraf package's layer
+   *  holds one graphic (control/ografOutcome.ts `packageLayerPeers`, E3.2a). */
+  const livePeersOf = (graphic: string, except?: string) =>
+    packageLayerPeers((resolved?.output?.graphics ?? []).map((g, i) => ({ name: g.key, layer: Number.isFinite(g.layer) ? Number(g.layer) : i + 1, foreign: g.ograf !== undefined })), graphic)
+      .filter((g) => g !== except && liveCueRef.current[g]);
+  const takeCue = async (cue: OutputCue, direct = false) => {
     const ownAuto = cue.auto?.then === 'out' ? cue.auto : cue.auto?.then === 'out-next' ? { ...cue.auto, then: 'out' as const } : undefined;
     const auto = direct ? ownAuto ? markerAuto({ auto: ownAuto, next: null }) : null : markerFor(cue);
     const appearance = appearanceFor(cue);
-    return sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto, direct, ...(appearance ? { appearance } : {}) }));
+    const batches = withPeersOff(livePeersOf(cue.graphic), takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto, direct, ...(appearance ? { appearance } : {}) }));
+    return batches.length === 1 ? sendVerb(batches[0]) : (await sendVerbs(batches)) !== null;
   };
   /**
    * A TIMED CUE'S END ACTION, sent once: the server said `ok` to this page's fire (cueArmWire.ts).
@@ -982,7 +989,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     if (playsOut(arm.then)) batches.push(clearCueItems(graphic));
     const next = arm.next ? cues.find((c) => c.id === arm.next) : undefined;
     const appearance = next ? appearanceFor(next) : undefined;
-    if (next) batches.push(takeCueItems({ id: next.id, graphic: next.graphic, values: cueValues(next), auto: markerFor(next), ...(appearance ? { appearance } : {}) }));
+    if (next) batches.push(...withPeersOff(livePeersOf(next.graphic, playsOut(arm.then) ? graphic : undefined), takeCueItems({ id: next.id, graphic: next.graphic, values: cueValues(next), auto: markerFor(next), ...(appearance ? { appearance } : {}) })));
     const gone = !!arm.next && !next;
     if (batches.length && !(await sendVerbs(batches))) return;
     if (gone) setError(batches.length ? 'The cue armed to be taken next is gone, so only Out ran.' : 'The cue armed to be taken next is gone, so nothing was taken.');

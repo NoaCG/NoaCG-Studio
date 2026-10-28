@@ -54,6 +54,7 @@ import {
   type LaneArm,
 } from './cueAuto.ts';
 import { clearCueItems, takeCueItems } from './cueItems.ts';
+import { withPeersOff } from './ografOutcome.ts';
 import { leftAlone, reachedOutput, withLiveCue } from './liveCue.ts';
 
 /** The shortest timer the engine sets, in ms. */
@@ -84,6 +85,8 @@ export interface CueArmPage {
   /** The place and size a Take of the cue carries (./cueAdjust.ts rule 2); absent, none. */
   appearanceOf?: (cue: ShowCue, graphic: string) => AppliedAppearance | undefined;
   graphicOf: (cue: ShowCue) => string | null;
+  /** The graphics a Take of this one replaces on its layer (./ografOutcome.ts `packageLayerPeers`). */
+  layerPeers?: (graphic: string) => readonly string[];
   liveCueOf: () => LiveCueMap;
   setLiveCue: (fold: (map: LiveCueMap) => LiveCueMap) => void;
   /** A timed cue's end took `cue`: its folder misses and step follow it. */
@@ -169,7 +172,10 @@ export function startCueArmEngine(session: PlayoutSession, io: CueArmEngineIo, p
       // The draft already owns preparation. Its cloud acknowledgement must not delay the timer.
       p.flush();
       const appearance = p.appearanceOf?.(next, nextGraphic);
-      items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values), ...(appearance ? { appearance } : {}) }));
+      // What else is up on its layer goes off with it (an imported OGraf package's layer, E3.2a).
+      const live = p.liveCueOf();
+      const peers = (p.layerPeers?.(nextGraphic) ?? []).filter((g) => g !== nextGraphic && !(out && g === graphic) && live[g]);
+      items.push(...withPeersOff(peers, takeCueItems({ id: next.id, graphic: nextGraphic, values: p.withBoundValues(nextGraphic, p.cueView(next).values), ...(appearance ? { appearance } : {}) })));
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
     if (candidate) p.note(candidate.selection !== undefined ? `${candidate.label} shows a live candidate, so a timed end does not take it.` : `${candidate.label} has typed data, so a timed end does not take it.`);

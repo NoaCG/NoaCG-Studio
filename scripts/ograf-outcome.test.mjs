@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { readOgrafOutcome, ografOutcomeWords, confirmedLines, packageLayerPeers } = await import('../src/control/ografOutcome.ts');
+const { readOgrafOutcome, ografOutcomeWords, confirmedLines, packageLayerPeers, withPeersOff } = await import('../src/control/ografOutcome.ts');
 
 const on = { i: '0a1b2c3d', call: 'play', status: 'done', code: 200, step: 1, on: true, data: { count: 3 } };
 
@@ -70,6 +70,16 @@ test('the same-layer rule: a package replaces what shares its layer and is repla
   assert.deepEqual(packageLayerPeers(pool, 'Poll'), []);
   assert.deepEqual(packageLayerPeers(pool, 'Gone'), []);
   assert.deepEqual(packageLayerPeers([...pool, { name: 'Card', layer: 21, foreign: true }], 'Board'), ['Bug', 'Card']);
+});
+
+test('a Take with the Outs it replaces: one command call when they fit, else the Outs first, none left out', () => {
+  const take = [{ graphic: 'K', msg: { t: 'update', data: {} } }, { graphic: 'K', msg: { t: 'play' } }, { graphic: 'K', msg: { t: 'cue', cue: 'k' } }];
+  const shape = (batches) => batches.map((b) => b.map((i) => `${i.graphic}:${i.msg.t}`).join('+'));
+  assert.deepEqual(shape(withPeersOff([], take)), ['K:update+K:play+K:cue']);
+  assert.deepEqual(shape(withPeersOff(['A', 'B'], take)), ['A:stop+A:cue+B:stop+B:cue+K:update+K:play+K:cue'], '7 items: one call');
+  assert.deepEqual(shape(withPeersOff(['A', 'B', 'C'], take)), ['A:stop+A:cue+B:stop+B:cue+C:stop+C:cue', 'K:update+K:play+K:cue']);
+  const five = withPeersOff(['A', 'B', 'C', 'D', 'E'], take);
+  assert.deepEqual(five.map((b) => b.length), [8, 2, 3], 'no call past 8 items, every peer cleared');
 });
 
 test('reading a hostile report stays linear', () => {

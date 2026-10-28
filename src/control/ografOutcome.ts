@@ -10,6 +10,8 @@
 // Pure and DOM-free: scripts/ograf-outcome.test.mjs runs it in Node.
 
 import type { OgrafCall } from './ografHost.ts';
+import type { ControlSendItem } from './hostedControl.ts';
+import { clearCueItems, COMMAND_BATCH_MAX } from './cueItems.ts';
 
 /** What one call came to (output/foreignOgraf.ts `OgrafAnswer`), or a package the output holds no
  *  frame for. */
@@ -95,4 +97,15 @@ export function packageLayerPeers(graphics: readonly { name: string; layer: numb
   const taken = graphics.find((g) => g.name === graphic);
   if (!taken) return [];
   return graphics.filter((g) => g.name !== graphic && g.layer === taken.layer && (g.foreign || taken.foreign)).map((g) => g.name);
+}
+
+/** A Take's command batches with the Outs of the `peers` it replaces (`packageLayerPeers`, those up
+ *  now): in the Take's own batch when they fit one command call, else in batches of their own sent
+ *  first, so none is left on air. The one builder every surface's Take goes through. */
+export function withPeersOff(peers: readonly string[], take: ControlSendItem[]): ControlSendItem[][] {
+  const clears = peers.flatMap(clearCueItems);
+  if (clears.length + take.length <= COMMAND_BATCH_MAX) return [[...clears, ...take]];
+  const batches: ControlSendItem[][] = [];
+  for (let i = 0; i < clears.length; i += COMMAND_BATCH_MAX) batches.push(clears.slice(i, i + COMMAND_BATCH_MAX));
+  return [...batches, take];
 }

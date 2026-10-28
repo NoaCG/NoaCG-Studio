@@ -16,8 +16,9 @@
 --     URL the current payload holds, or null. Read from the payload as it is NOW, and only while the
 --     production is still published under the output capability the base was issued for and hosted
 --     control is not switched off for its owner: a republish that drops the package, a rotated or
---     removed capability, or a suspension stops serving it; a republish that keeps it keeps its
---     files reachable under the same base.
+--     removed capability, or a suspension stops this read at once (a file already fetched may stay
+--     in a cache for up to the hour its response allows); a republish that keeps it keeps its files
+--     reachable under the same base.
 --
 -- Both are SECURITY DEFINER, service_role only: no client calls them. Additive: two new functions.
 -- Revert: drop both; the route then answers 503 and a foreign graphic does not mount (said there).

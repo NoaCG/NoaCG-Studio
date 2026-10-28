@@ -2863,6 +2863,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // §2.0, phase 1) reads this page through `armPage`: what it sends with, the rundown, the cue as the
   // operator sees it, and the lines it writes. ──────────────────────────────────────────────────
   const logAuto = (graphic: string, text: string) => logHere([(id) => autoEntry(id, graphic, text)]);
+  /** The graphics a Take of this one replaces on its layer (control/ografOutcome.ts). */
+  const layerPeersOf = (graphic: string) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic);
   armPage.current = {
     published: !!hostedSlug,
     timedOff: !!hostedSlug && armsServer === 'missing',
@@ -2872,6 +2874,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     withBoundValues,
     appearanceOf: (cue) => adjustStateOf(cue)?.send,
     graphicOf: cueGraphicName,
+    layerPeers: (graphic) => layerPeersOf(graphic),
     liveCueOf: () => liveCueRef.current,
     setLiveCue,
     took: (cue) => {
@@ -2972,7 +2975,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   verbPage.current = {
     graphics: show.graphics,
     liveCue,
-    layerPeers: (graphic) => packageLayerPeers(show.graphics.map((g) => ({ name: g.name, layer: graphicLayer(g), foreign: isForeignGraphic(g.template) })), graphic),
+    layerPeers: layerPeersOf,
     liveLayers,
     livePlayoutLayers,
     graphicOf: cueGraphicName,

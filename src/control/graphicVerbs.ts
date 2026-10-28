@@ -55,7 +55,8 @@ import type { createSendDebts } from './failedSends';
 import { ALL_OUT_CONFIRM_MS, allOutTargets } from './allOut.ts';
 import { moveLiveCue } from './airState.ts';
 import { mintOid, oidOf } from './commandRoads.ts';
-import { clearAllCueBatches, clearCueItems, COMMAND_BATCH_MAX, takeCueItems } from './cueItems.ts';
+import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
+import { withPeersOff } from './ografOutcome.ts';
 import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
@@ -741,12 +742,8 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // one command call, else in batches of their own sent first.
     const peers = (p.layerPeers?.(graphic) ?? []).filter((g) => g !== graphic && session.air.get().liveCue[g]);
     const captured = [{ g: graphic, c: p.selectionAired(graphic, cue.id, selection, true) }, ...peers.map((g) => ({ g, c: p.selectionAired(g, '', { status: 'none' }, true) }))];
-    const clears = peers.flatMap(clearCueItems);
     const take = takeCueItems({ id: cue.id, graphic, values, ...envelope, ...(appearance ? { appearance } : {}), ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) });
-    const batches = clears.length + take.length <= COMMAND_BATCH_MAX
-      ? [[...clears, ...take]]
-      : [...Array.from({ length: Math.ceil(clears.length / COMMAND_BATCH_MAX) }, (_, i) => clears.slice(i * COMMAND_BATCH_MAX, (i + 1) * COMMAND_BATCH_MAX)), take];
-    const sent = await sendWith(s, batches, label);
+    const sent = await sendWith(s, withPeersOff(peers, take), label);
     if (!sent.ok) {
       for (const { c } of captured) c.undo(sent);
       return { ok: false, note: sent.note };

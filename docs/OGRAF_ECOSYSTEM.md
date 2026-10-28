@@ -408,7 +408,10 @@ NoaCG graphics load exactly as before. What each part does:
   no credentials, and it never redirects, because a redirect relaxes the policy's path match. The spec serves the fixtures this way. A published production's
   packages are served so by `api/_lib/outputOgraf.ts` (E3.2a): the output asks with its
   capability and is answered `/ograf/<sealed>/`, a base that names neither the output nor the
-  production, and each file is looked up by exact path in the published payload.
+  production, and each file is looked up by exact path in the published payload. Residuals: the
+  files are served from the app's own origin (under `/ograf/` only, `CSP: sandbox`, pages as
+  text, so none becomes a document of this origin), and a revoked base stops the database read at
+  once while a file already fetched may be answered from a cache for up to an hour.
 - **The proof.** `e2e/foreign-ograf-sandbox.spec.ts` checks two fixtures on the real `/output`
   shell. A benign package with three steps, a custom action, a sub-module, an image and a data
   file loads, plays, updates, steps and stops. A hostile one tries each escape, and the spec
