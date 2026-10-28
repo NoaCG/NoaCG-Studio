@@ -684,14 +684,19 @@ test.describe('a foreign OGraf package on the output stage', () => {
     // (output/catchUp.ts): `ografSettled` waits for a step the Graphic answers 600 ms late.
     await apply(page, 'walk', { t: 'update', data: { playMs: 600 } });
     await expect.poll(async () => (await outcome('walk'))?.call).toBe('update');
-    const waited = await page.evaluate(async () => {
-      const s = (window as unknown as { __stage: { apply(g: string, m: unknown): void; ografSettled(): Promise<void> } }).__stage;
+    const [waited, before, sent] = await page.evaluate(async () => {
+      const s = (window as unknown as { __stage: { apply(g: string, m: unknown): void; ografSettled(): Promise<void>; ografOutcomes: Map<string, { step?: unknown }> } }).__stage;
+      const before = s.ografOutcomes.get('walk')?.step;
       s.apply('walk', { t: 'next' });
+      const sent = s.ografOutcomes.get('walk')?.step;
       const started = performance.now();
       await s.ografSettled();
-      return performance.now() - started;
+      return [performance.now() - started, before, sent];
     });
     expect(waited).toBeGreaterThan(400);
+    // A step not yet answered is no known step: a report banked before the answer counts the Next
+    // as applied, so a restart then must not put the Graphic back at the step before it.
+    expect([before, sent]).toEqual([0, null]);
     await expect(walk).toHaveAttribute('data-step', '1');
   });
 

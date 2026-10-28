@@ -729,6 +729,13 @@ export function createOutputStage(
       if (now && now.i === layer.instance && !now.acted) told(key, { ...now, acted: true });
     }
     layer.send(msg);
+    // The same for a Take, step or Out: until its answer, where the Graphic is is not known, and a
+    // report banked meanwhile counts its row as applied, so a restart must not read the old step.
+    const call = ografCallFor(msg)?.call;
+    if (call === 'play' || call === 'stop') {
+      const now = ografOutcomes.get(key);
+      if (now && now.i === layer.instance && now.step !== null) told(key, { ...now, step: null });
+    }
   };
   payload.graphics.forEach((spec, index) => {
     if (!isNative(spec)) mountPublished(spec, layerOf(spec, index));
