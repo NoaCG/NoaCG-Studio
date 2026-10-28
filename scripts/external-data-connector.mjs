@@ -206,7 +206,9 @@ export function createConnector({ config, credential = null, net = nodeNet, cloc
       await deliver(acquisition);
       return true;
     } catch (error) {
-      say(`${config.sourceId} the sender failed: ${error?.message ?? error}`);
+      // The network's own reason too (a reset socket, a refused connection): fetch says only "fetch failed".
+      const cause = error?.cause?.code ?? error?.cause?.message;
+      say(`${config.sourceId} the sender failed: ${error?.message ?? error}${cause ? ` (${cause})` : ''}`);
       return false;
     }
   };

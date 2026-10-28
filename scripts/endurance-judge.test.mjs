@@ -223,6 +223,10 @@ test('the old owner\'s report in flight when frozen fails as it wakes: expected 
   r.reads.push({ agent: crash.from, at: crash.woke + 200, line: 'election the sender failed: fetch failed' });
   assert.deepEqual(failed(r), []);
 });
+red('a failed report from a woken old owner after its end', (r) => {
+  const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
+  r.reads.push({ agent: crash.from, at: crash.end + 5_000, line: 'election the sender failed: fetch failed' });
+}, /did not cause/);
 red('a failed report from an agent that was never frozen', (r) => r.reads.push({ agent: 'agent-1', at: r.t0 + 60_000, line: 'election the sender failed: fetch failed' }), /did not cause/);
 red('a refusal the run did not cause', (r) => r.reads.push({ agent: 'agent-1', at: r.t0, line: 'election changed revision 9 not taken (409 budget)' }), /did not cause/);
 red('the credential in an agent log', (r) => (r.credentialLeaked = true), /credential/);

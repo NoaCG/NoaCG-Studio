@@ -114,7 +114,8 @@ export function judge(record) {
   // A frozen agent's request in flight fails when it wakes: expected of that agent, after that moment.
   const woken = faults.filter((f) => f.kind === 'handover' && f.mode === 'crash');
   // A request it had in flight when frozen (a renewal, a claim or a report) fails as it wakes.
-  const wokeLate = (r) => woken.some((f) => r.agent === f.from && r.at >= f.woke && /renewal failed|claim failed|the sender failed: fetch failed/.test(r.line));
+  // Only between its waking and its end: an old owner that lived on would show its failures.
+  const wokeLate = (r) => woken.some((f) => r.agent === f.from && r.at >= f.woke && r.at <= (f.end ?? f.woke) && /renewal failed|claim failed|the sender failed: fetch failed/.test(r.line));
   const unexpected = reads.filter((r) => REFUSAL.test(r.line) && !EXPECTED_REFUSALS.test(r.line) && !wokeLate(r));
   check('no revision was refused for size, budget or anything the run did not cause', unexpected.length === 0, unexpected.slice(0, 3).map((r) => r.line).join(' | '));
   // Served, then held: only an older step makes `stale` and only a malformed one `invalid`; a
