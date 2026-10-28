@@ -259,13 +259,14 @@ test.describe('the /output shell, a graphic taken again', () => {
   });
 
   /** The board's rows as they draw: the lowest opacity on the path from each row up to the body,
-   *  and the rows' container's transform (the Out also leaves it shifted 16 px down). */
-  async function rowsShown(page: Page): Promise<{ rows: number; minOpacity: number; transform: string }> {
+   *  the rows' container's transform (the Out also leaves it shifted 16 px down), and the opacity
+   *  of the container and of the graphic's root, which say where an Out has got to. */
+  async function rowsShown(page: Page): Promise<{ rows: number; minOpacity: number; transform: string; body: number; root: number }> {
     // The board's own document: the one frame holding a results board (the other is lt01's).
     const frames = page.frames().filter((f) => f !== page.mainFrame());
     const has = await Promise.all(frames.map((f) => f.evaluate(() => !!document.querySelector('.results-board-body')).catch(() => false)));
     const frame = frames[has.indexOf(true)];
-    if (!frame) return { rows: 0, minOpacity: 0, transform: 'no board frame' };
+    if (!frame) return { rows: 0, minOpacity: 0, transform: 'no board frame', body: -1, root: -1 };
     return frame.evaluate(() => {
       const body = document.querySelector('.results-board-body') as HTMLElement | null;
       const rows = body ? Array.from(body.children) as HTMLElement[] : [];
@@ -275,7 +276,14 @@ test.describe('the /output shell, a graphic taken again', () => {
           minOpacity = Math.min(minOpacity, Number(getComputedStyle(el).opacity));
         }
       }
-      return { rows: rows.length, minOpacity, transform: body ? getComputedStyle(body).transform : 'no body' };
+      const root = document.querySelector('.results-board');
+      return {
+        rows: rows.length,
+        minOpacity,
+        transform: body ? getComputedStyle(body).transform : 'no body',
+        body: body ? Number(getComputedStyle(body).opacity) : -1,
+        root: root ? Number(getComputedStyle(root).opacity) : -1,
+      };
     });
   }
 
@@ -294,9 +302,10 @@ test.describe('the /output shell, a graphic taken again', () => {
         expect(shown.rows, `${board}, ${label}: the board has rows`).toBeGreaterThan(0);
         expect(['none', 'matrix(1, 0, 0, 1, 0, 0)'], `${board}, ${label}: the rows' container is at rest`).toContain(shown.transform);
       };
+      // An Out is over once the graphic's root is hidden again.
       const out = async () => {
         await apply(board, { t: 'stop' });
-        await page.waitForTimeout(1_200);
+        await expect.poll(async () => (await rowsShown(page)).root, { message: `${board}: the Out ends`, timeout: 8_000 }).toBe(0);
       };
 
       await apply(board, { t: 'play' });
@@ -315,10 +324,11 @@ test.describe('the /output shell, a graphic taken again', () => {
 
       // A Take pressed while the Out is still running.
       await apply(board, { t: 'stop' });
-      await page.waitForTimeout(120);
+      await expect
+        .poll(async () => { const s = await rowsShown(page); return s.body < 1 && s.root > 0; }, { message: `${board}: the Out is under way`, intervals: [10], timeout: 8_000 })
+        .toBe(true);
       await apply(board, { t: 'play' });
       await settled('Take during the Out');
-      await page.waitForTimeout(1_000);
 
       // Another graphic on air across the Out and the Take.
       await apply('lt01', { t: 'play' });
