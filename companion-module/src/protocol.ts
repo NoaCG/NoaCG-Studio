@@ -474,13 +474,26 @@ function argsFault(args: Record<string, unknown>): string | null {
 	const stack: [unknown, number][] = [[args, 1]]
 	while (stack.length) {
 		const [v, depth] = stack.pop()!
+		// The server writes a number out in full: one JavaScript writes with an exponent (or cannot
+		// write at all) would not be what was typed, or not the length measured here.
+		if (typeof v === 'number' && !/^-?\d+(\.\d+)?$/.test(String(v)))
+			return 'A number in the arguments is too large or too small to send'
 		if (typeof v !== 'object' || v === null) continue
 		if (depth > ARGS_MAX_DEPTH) return `The arguments nest deeper than ${ARGS_MAX_DEPTH} levels`
 		const items = Array.isArray(v) ? (v as unknown[]) : Object.values(v)
 		spaces += Math.max(0, items.length - 1) + (Array.isArray(v) ? 0 : items.length)
 		for (const item of items) stack.push([item, depth + 1])
 	}
-	return JSON.stringify(args).length + spaces > ARGS_MAX_CHARS ? 'The arguments are longer than a press takes' : null
+	// Counted in characters, as the server counts them, never in UTF-16 units.
+	return longer(JSON.stringify(args), ARGS_MAX_CHARS - spaces) ? 'The arguments are longer than a press takes' : null
+}
+
+/** Whether `text` holds more than `max` characters (code points), counting no further than that. */
+function longer(text: string, max: number): boolean {
+	if (text.length <= max) return false
+	let n = 0
+	for (const _char of text) if (++n > max) return true
+	return false
 }
 
 /**
@@ -503,7 +516,7 @@ export function keyArgs(
 	const text = typeof o.args === 'string' ? o.args.trim() : ''
 	// Empty, or `{}`, sends the cue's own arguments: the page reads an empty object so.
 	if (kind !== 'foreign' || !text) return { args: {} }
-	if (text.length > ARGS_MAX_CHARS) return { refused: 'The arguments are longer than a press takes' }
+	if (longer(text, ARGS_MAX_CHARS)) return { refused: 'The arguments are longer than a press takes' }
 	let parsed: unknown
 	try {
 		parsed = JSON.parse(text)

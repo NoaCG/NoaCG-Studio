@@ -209,6 +209,15 @@ export class PanelClient {
 		return k && k.until > this.#clock.now() ? k.outcome : null
 	}
 
+	/** What a key shows, kept for at most UNSETTLED_MAX keys: shown ones expire, the oldest go first. */
+	#setOutcome(key: string, k: { outcome: KeyOutcome; id: string; until: number }): void {
+		this.#keyOutcomes.delete(key)
+		this.#keyOutcomes.set(key, k)
+		const now = this.#clock.now()
+		for (const [row, held] of this.#keyOutcomes)
+			if (held.until <= now || this.#keyOutcomes.size > UNSETTLED_MAX) this.#keyOutcomes.delete(row)
+	}
+
 	#keyOutcome(id: string, outcome: KeyOutcome): void {
 		const key = this.#pressKeys.get(id)
 		if (key === undefined) return
@@ -216,7 +225,7 @@ export class PanelClient {
 		const held = this.#keyOutcomes.get(key)
 		if (held && held.id !== id) return
 		const until = outcome === 'done' || outcome === 'failed' ? this.#clock.now() + OUTCOME_MS : Infinity
-		this.#keyOutcomes.set(key, { outcome, id, until })
+		this.#setOutcome(key, { outcome, id, until })
 	}
 
 	#set(status: Status, note: string): void {
@@ -559,7 +568,7 @@ export class PanelClient {
 				this.#refusedHere = { row: flash.row, until: this.#clock.now() + OUTCOME_MS }
 			else if (flash.verb === ACTION_VERB && !(held && held.id !== sentId)) {
 				const until = outcome === 'failed' ? this.#clock.now() + OUTCOME_MS : Infinity
-				this.#keyOutcomes.set(flash.row, { outcome, id: sentId, until })
+				this.#setOutcome(flash.row, { outcome, id: sentId, until })
 			}
 			tell(sentence)
 			this.#opts.onChange?.()
@@ -588,7 +597,7 @@ export class PanelClient {
 				sentId = press.id
 				this.#pressKeys.set(press.id, flash.row)
 				for (const id of this.#pressKeys.keys()) if (this.#pressKeys.size > UNSETTLED_MAX) this.#pressKeys.delete(id)
-				this.#keyOutcomes.set(flash.row, { outcome: 'running', id: press.id, until: Infinity })
+				this.#setOutcome(flash.row, { outcome: 'running', id: press.id, until: Infinity })
 				if (this.#refusedHere?.row === flash.row) this.#refusedHere = null
 			}
 			/** A graphic action that may still say what it came to: unsaid in SETTLE_MS, it is not

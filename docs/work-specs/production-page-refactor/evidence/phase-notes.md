@@ -67,8 +67,13 @@ changes a spec's digest.
     `955c28d`). A pick's option is sent exactly as declared, spaces included (the same review).
   - *The module measures arguments as the relay does* (the same `/so`): the text as jsonb writes it
     back (a space after every `:` and `,`), at most 4096, nested at most 8, before anything is sent,
-    so a key refuses here what would come back `bad-press`. The typed text is capped at 4096 before
-    it is parsed, so a hostile entry costs time linear in its size. Empty, or `{}`, means the cue's
+    so a key refuses here what would come back `bad-press`. Characters are counted as code points,
+    as the server counts them, and a number JavaScript would write with an exponent (or cannot
+    write: `1e400`) is refused, since the server writes numbers out in full and the value sent
+    would not be the one typed (the `/so` on `0c82ce0`). The typed text is capped at 4096 code
+    points before it is parsed, so a hostile entry costs time linear in its size.
+  - *A control no panel can press gets no preset*, and what keys show is held for at most 64 keys
+    (the same review). Empty, or `{}`, means the cue's
     arguments; the guide and the option's tooltip say so.
   - *A headless Companion run is not qualified on this machine* (no Companion install, no surface
     modules allowed), so the verification row's fallback applies: module lint, test and package,
@@ -95,7 +100,9 @@ changes a spec's digest.
   module `ARGS_MAX_CHARS` 4096 to 4097 and its comparison one past, `ARGS_MAX_DEPTH` 8 to 9 and its
   comparison one past, the jsonb spaces dropped (each kind), the local-refusal mark dropped, a
   local refusal writing over the key's last press, the both-calls-failed press no longer awaiting
-  its `settled`, the both-calls-failed path ignoring an earlier `settled`, and the option trimmed, the newest-press guard of
+  its `settled`, the both-calls-failed path ignoring an earlier `settled`, the option trimmed, the
+  exponent refusal dropped, code points counted as UTF-16 units (each place), presets for a
+  non-pressable control, and the 64-key hold, the newest-press guard of
   `#keyOutcome`, the same guard on a refusal (a late or lost answer of an older press of the key, found by `/check`), `offerShape` with `live`, presets for unpinned graphics, foreign forced
   non-invocable, no answer read as failed, and `action_unknown` without an offer
   (`companion-module/src/__tests__/graphic-keys.test.ts`).

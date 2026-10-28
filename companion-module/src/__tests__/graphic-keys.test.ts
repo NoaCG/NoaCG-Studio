@@ -298,6 +298,15 @@ test("AC-3: arguments are read in time linear in their size, within the relay's 
 	const spaced = (n: number) => `{"a":1,"b":[1,2],"t":"${'x'.repeat(n)}"}`
 	assert.ok('args' in keyArgs('foreign:x', { args: spaced(ARGS_MAX_CHARS - 30) }))
 	assert.ok('refused' in keyArgs('foreign:x', { args: spaced(ARGS_MAX_CHARS - 29) }))
+	// Characters, not UTF-16 units: 4089 emoji are 4096 with the server's space.
+	assert.ok('args' in keyArgs('foreign:x', { args: `{"t":"${'\u{1F600}'.repeat(ARGS_MAX_CHARS - 9)}"}` }))
+	assert.ok('refused' in keyArgs('foreign:x', { args: `{"t":"${'\u{1F600}'.repeat(ARGS_MAX_CHARS - 8)}"}` }))
+	// A number JavaScript writes with an exponent is not what the server writes: refused, never changed.
+	for (const n of ['1e300', '1e400', '1e-7', '-1e21'])
+		assert.deepEqual(keyArgs('foreign:x', { args: `{"n":${n}}` }), {
+			refused: 'A number in the arguments is too large or too small to send',
+		})
+	assert.deepEqual(keyArgs('foreign:x', { args: '{"n":[-2.5, 1e3, 0]}' }), { args: { n: [-2.5, 1000, 0] } })
 	// Nesting: the object and seven more levels, never eight.
 	assert.equal(ARGS_MAX_DEPTH, 8)
 	assert.ok('args' in keyArgs('foreign:x', { args: `{"d":${'['.repeat(7)}${']'.repeat(7)}}` }))
@@ -378,6 +387,15 @@ test("L1 AC-8: presets list the pinned graphics' live controls only, picks as op
 	)
 	const { structure } = buildPresets('noacg', rows().rows, panel.actions)
 	assert.equal(structure.at(-1)!.name, 'Pinned graphics')
+	// A control no panel can press (an OGraf action whose arguments this version cannot carry) gets no key.
+	const notCarried = offer({ actionsVer: 3_000_017 })
+	notCarried.graphics[2] = { ...notCarried.graphics[2], pinned: true }
+	notCarried.graphics[2].caps[0] = { ...notCarried.graphics[2].caps[0], allowed: false, invocable: false }
+	const carried = graphicPresets('noacg', readActions(notCarried) as never)
+	assert.deepEqual(
+		carried.groups.at(-1)!.ids.map((id) => (carried.presets[id] as { name: string }).name),
+		['Reset (Results)'],
+	)
 	assert.equal(
 		buildPresets('noacg', [], null).structure.at(-1)!.description,
 		'Pin a graphic on the production page to list its live controls here.',
@@ -491,4 +509,32 @@ test('a settled that came before both calls failed stands: the key reads what th
 	assert.equal(fb('action_outcome', { ...k, outcome: 'done' }), true)
 	assert.equal(panel.lastPress, 'Done')
 	assert.equal(relay.count('press'), 2)
+})
+
+test('what keys show is kept for a bounded number of keys', async () => {
+	const caps = ['a', 'b', 'c'].map((n) => ({
+		id: `event:${n}`,
+		kind: 'event',
+		label: n,
+		place: 'section',
+		args: null,
+		allowed: true,
+		invocable: true,
+	}))
+	const many = offer({
+		graphics: Array.from({ length: 32 }, (_, i) => ({
+			graphic: `G${i}`,
+			pinned: false,
+			live: 'cue',
+			cue: 'Cue',
+			caps,
+		})),
+	})
+	const { relay, panel } = await answering(many)
+	relay.autoResult = 'ran'
+	// 96 keys pressed, each still running: only the newest 64 keys are held.
+	for (let i = 0; i < 32; i++) for (const c of caps) await pressGraphicKey(panel, key({ graphic: `G${i}`, cap: c.id }))
+	assert.equal(relay.count('press'), 96)
+	assert.equal(panel.keyOutcome('G31', 'event:c'), 'running')
+	assert.equal(panel.keyOutcome('G0', 'event:a'), null)
 })

@@ -80,6 +80,8 @@ export function graphicPresets(
 		}
 		const base = { graphic: g.graphic, option: '', delta: '1', args: '' }
 		for (const c of g.caps) {
+			// A control the page says no panel can press gets no ready key.
+			if (!c.invocable) continue
 			if (c.kind === 'step') {
 				key(`-1\\n${c.label}`, `${c.label} -1`, { ...base, cap: c.id, delta: '-1' })
 				key(`+1\\n${c.label}`, `${c.label} +1`, { ...base, cap: c.id })
