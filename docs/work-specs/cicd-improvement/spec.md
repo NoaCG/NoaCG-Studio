@@ -1,6 +1,7 @@
 # Faster delivery with credible site and graphics protection
 
-Status: revised draft after Opus review, 2026-10-28. Planning is authorized; implementation,
+Status: prepared runnable-plan registration, 2026-10-28; full-run second opinion pending.
+The owner authorized preparation and registration only. Implementation,
 experiments, workflow activation and changes to the production-page run are not. This is the
 master proposal for the work after production-page completion, integrating the
 [suite-budget plan](../e2e-suite-budget/spec.md) and [parallel-plan proposal](../parallel-plans/spec.md).
@@ -8,6 +9,8 @@ It does not silently supersede their active procedures. The proposed replacement
 Initial research is pinned to `d8dd1304910736437486d6f9f9cd9e401ac65589`; see
 [evidence and limitations](evidence/research.md). The [Opus opinion](evidence/opus-review-2026-10-28.txt) reviewed the original draft. Its findings and
 reported owner decisions are incorporated below; see the research receipt for disposition and limits.
+The registered run name is `cicd-improvement`; its [runbook](runbook.md) defines admission, row
+scopes, environments and recovery. Registration is not authorization to open a runtime project.
 
 ## Why and goal
 
@@ -247,8 +250,9 @@ Keep current merge settings initially; measure before changing concurrency.
 
 ## One implementation sequence
 
-Register future rows in the existing plan machinery only after the owner accepts the Opus-reviewed
-spec and production-page completion is confirmed. Each row has a single coherent outcome, `/check`,
+The owner authorized registering the prepared plan on 2026-10-28, without implementation launch.
+Open its runtime project only after full-run review, explicit execution authorization with a finite
+deadline, and production-page completion. No start-after-software-only exception was approved. Each row has a single coherent outcome, `/check`,
 `/queue-merge`, a repair owner and independent acceptance. Do not run three overlapping roadmaps.
 
 | Phase | Deliverable and prerequisite | Reversal |
@@ -263,7 +267,31 @@ Initial success is judged on P0-P4 alone. D1 and scoped catalog target individua
 dispatch isolation and P4 target throughput. Selector hardening and configured PR coverage add
 safety and may cost more. No combined measurement can establish which intervention helped.
 The reviewer proposed P4 depending only on P1(a); this draft additionally requires P1(b/c) so
-known safety gaps are not left open during expansion. No dependency on full test-maintenance work.
+known safety gaps are not left open during expansion. These are technical prerequisites. The
+registered serial order below deliberately schedules P4 after P3, without adding scheduler behavior.
+
+## Phases
+
+The numbered list below is the sole executable order, parsed by the existing plan runner.
+Stable project row IDs are ci01-ci15. Each row depends on the preceding row's independent PASS.
+Acceptance scopes, owned edits and environments are the matching rows in [runbook.md](runbook.md).
+P0-P4 above remain programme labels, not a second phase inventory. No optional P5/P6 row is admitted.
+
+1. Baseline and launch-readiness evidence (P0; AC-1 baseline).
+2. Isolate configured candidate dispatches (P1a; AC-6 scheduling).
+3. Harden broad/shared and catalog selection (P1b; AC-4 broad/shared coverage).
+4. Harden path selection and execution integrity (P1b; AC-4 rename/fixture/focus cases).
+5. Require selected configured tests on triggered PRs (P1c; AC-6 backend coverage).
+6. Establish coherent review checkpoints (P1d; AC-2 mechanism and measurement start).
+7. Define critical/shared contract sets and start miss audit (P2; AC-3, AC-4 inventory).
+8. Prove scoped catalog report integrity (P3; AC-5 integrity).
+9. Qualify scheduled detection and recovery (P3; AC-5 daily deadline).
+10. Complete measured test-maintenance candidate one (P3; AC-5 first candidate).
+11. Complete measured test-maintenance candidate two (P3; AC-5 second candidate).
+12. Complete measured test-maintenance candidate three (P3; AC-5 third candidate).
+13. Close selection audit and activate qualified catalog scope (P2/P3; AC-4, AC-5).
+14. Complete the bounded three-plan cohort (P4; AC-6 trial).
+15. Independently accept initial scope and hand off (AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-8).
 
 ## Optional follow-ups (not part of the initial implementation)
 
@@ -445,5 +473,6 @@ intentional safety cost of P1(b/c) separately from optimization savings. Layer: 
 
 Planning only. Opus review received and reconciled on 2026-10-28. Current-state remeasurement,
 owner acceptance of the revised draft, implementation and all trials are pending.
-This spec and its acceptance ledger are not a runnable plan. Add implementation receipts per phase
-after authorization; do not report the future acceptance criteria as verified by prose review.
+This spec is registered as a prepared plan with the 15 numbered rows above; its acceptance ledger
+is not a runtime execution store. No project/block has been opened. Add implementation receipts
+only after execution authorization; preparation verification is [recorded separately](evidence/run-readiness.md).

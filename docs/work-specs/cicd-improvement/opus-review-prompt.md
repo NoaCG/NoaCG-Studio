@@ -1,5 +1,8 @@
 # Opus follow-up review prompt
 
+Historical spec-review prompt. For the registered 15-row run, use the
+[full-run review prompt](full-run-review-prompt.md), which includes runtime admission and recovery.
+
 Copy the complete block below. The review is read-only and does not authorize implementation.
 
 ```text

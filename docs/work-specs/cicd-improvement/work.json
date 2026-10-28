@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "14b29584565ef2a3936cd5d11157d48834e94fa21516b6b11ec1e074599850a0",
+  "specSha256": "5e361500eb415af6bd216460b7b4fd4d99e49fc750bcc40e5f6e21dcb66842a3",
   "authority": {
     "status": "draft",
-    "source": "Owner request in master planning chat, 2026-10-25: create integrated CI/CD spec and Opus second-opinion prompt for work after production-page completion. Owner accepted daily detection for unrelated, non-critical regressions after selection qualification. Full proposal and implementation remain pending Opus review and owner acceptance. Opus opinion received 2026-10-28 records selected configured PR checks and P5/P6 deferral. Revised proposal remains draft; initial scope AC-1..AC-6 and AC-8, optional AC-7 excluded."
+    "source": "Owner master-planner request, 2026-10-28: prepare and register the runnable plan now, do not launch implementation, and provide a full-run second-opinion prompt. Preparation authorized; execution and final spec acceptance pending. Initial scope AC-1..AC-6 and AC-8; AC-7 optional and excluded. Prior daily-detection and selected-backend decisions retained."
   },
   "review": null
 }
