@@ -296,7 +296,6 @@ test('the replay server serves a timeline of its own, step by step', async () =>
     now = 7 * STEP_MS;
     const dup = await get();
     assert.equal(dup.step, 'duplicate-7');
-    assert.equal(server.index(), 7);
     assert.equal(server.steps, null);
     await assert.rejects(startReplayServer({ token, cert: tls.cert, key: tls.key, timeline: { length: 0, at: () => null } }), /length/);
   } finally {

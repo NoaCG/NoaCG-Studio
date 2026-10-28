@@ -96,14 +96,16 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     onStep: (name: string, at: number) => record.provider.push({ name, at }),
   });
   const agents: { name: string; child: ChildProcess; log: string; started: number; ended?: number }[] = [];
+  /** Stop an agent (waking it first, if frozen) and wait for it to exit. */
+  const stop = async (a: (typeof agents)[number]) => {
+    if (a.ended) return;
+    const gone = new Promise((resolve) => a.child.once('exit', resolve));
+    a.child.kill('SIGCONT');
+    a.child.kill('SIGTERM');
+    await gone;
+  };
   const stopAgents = async () => {
-    for (const a of agents) {
-      if (a.ended) continue;
-      const gone = new Promise((resolve) => a.child.once('exit', resolve));
-      a.child.kill('SIGCONT');
-      a.child.kill('SIGTERM');
-      await gone;
-    }
+    for (const a of agents) await stop(a);
   };
   let outputContext: BrowserContext | null = null;
   try {
@@ -255,8 +257,9 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       for (const f of frames) if (!titles.has(f)) titles.set(f, await f.frameElement().then((e) => e.getAttribute('title')).catch(() => null));
       return frames;
     };
+    const frameOf = (title: string) => [...titles].find(([, t]) => t === title)?.[0];
     const text = async (title: string, ids: string[]) => {
-      const frame = [...titles].find(([, t]) => t === title)?.[0];
+      const frame = frameOf(title);
       if (!frame) return ids.map(() => null);
       return frame.evaluate((list) => list.map((id) => document.getElementById(id)?.textContent ?? null), ids).catch(() => ids.map(() => null));
     };
@@ -267,7 +270,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       const [name, votes] = await text('Candidate card', ['f0', 'f2']);
       const [kok] = await text('Party totals', ['f8']);
       const [counted] = await text('Count bug', ['f2']);
-      const clockFrame = [...titles].find(([, t]) => t === 'Club Scorebug')?.[0];
+      const clockFrame = frameOf('Club Scorebug');
       const clock = clockFrame ? await clockFrame.evaluate(() => document.querySelector('.scoreboard-clock')?.textContent?.trim() ?? null).catch(() => null) : null;
       const seen = { at: Date.now(), name, votes, kok, counted, clock, frames: frames.length };
       const key = JSON.stringify({ ...seen, at: 0 });
@@ -372,9 +375,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       const name = `agent-${agents.length + 1}`;
       if (mode === 'release') {
         // A graceful handover: the old agent stops and releases its claim; the new one claims at once.
-        const gone = new Promise((resolve) => old.child.once('exit', resolve));
-        old.child.kill('SIGTERM');
-        await gone;
+        await stop(old);
         current = startAgent(name);
       } else {
         // A crash: the old agent freezes holding its claim, the new one waits out the 30 s lease and
@@ -390,9 +391,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
         old.child.kill('SIGCONT');
         // It reads within its 2 s poll and posts under its old claim; give it three polls.
         await page.waitForTimeout(8_000);
-        const gone = new Promise((resolve) => old.child.once('exit', resolve));
-        old.child.kill('SIGTERM');
-        await gone;
+        await stop(old);
       }
       fault.to = name;
       await expect.poll(async () => (await snapshot())[0]?.owner_epoch, { timeout: 90_000, intervals: [1_000] }).toBeGreaterThan(before?.owner_epoch ?? 0);
@@ -514,7 +513,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     writeFileSync(path.join(OUT, 'record.json'), JSON.stringify(record));
     await clearPublishedShows(page).catch(() => {});
   }
+  // The verdict for a run started by hand; scripts/endurance-election.mjs writes the receipt.
   const verdict = judge(record);
-  writeFileSync(path.join(OUT, 'summary.json'), `${JSON.stringify(verdict, null, 2)}\n`);
   expect(verdict.checks.filter((c: { ok: boolean }) => !c.ok)).toEqual([]);
 });

@@ -9,7 +9,7 @@
 // window (Pause, a reload until the next Take, an output disconnect and its recovery, a handover)
 // are reported but held to the recovery checks instead.
 
-import { STEP_MS, candidates, partyVotes, revisionOf, schedule as planOf, stepOfRevision } from './endurance-fixture.mjs';
+import { STEP_MS, candidates, partyRevision, revisionOf, schedule as planOf, stepOfRevision } from './endurance-fixture.mjs';
 
 const GRACE_MS = 5_000;
 const RECOVER_MS = 20_000;
@@ -25,6 +25,8 @@ const OLD_OWNER_REFUSED = /not taken \((?:409 )?(?:moved|epoch)\)|not claimed \(
 const REFUSAL = / not taken \(| not claimed \(| renewal failed| claim failed| the sender failed| waiting as the production asked/;
 const MIB = 1024 * 1024;
 
+/** The largest of `xs`, or `floor` when empty (no spread: an hour's frames are many). */
+const most = (xs, floor = 0) => xs.reduce((a, b) => (b > a ? b : a), floor);
 const num = (text) => (typeof text === 'string' && /^[\d,]+$/.test(text) ? Number(text.replace(/,/g, '')) : null);
 const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b);
@@ -67,7 +69,7 @@ export function judge(record) {
   // The provider's revisions (the snapshot's accepted revision is the agent's own sequence, which a
   // new owner continues): the newest one the replay server served bounds every figure on air.
   const served = new Map((record.provider ?? []).map((s) => [s.name, s.at]));
-  const maxRevision = Math.max(0, ...[...served.keys()].map((name) => Number(/^count-(\d+)$/.exec(name)?.[1] ?? 0)));
+  const maxRevision = most([...served.keys()].map((name) => Number(/^count-(\d+)$/.exec(name)?.[1] ?? 0)));
 
   // ── It ran ──
   check('the run lasted the minutes asked', record.end && t0 && record.end - t0 >= plan.totalMs, `${Math.round(((record.end ?? 0) - t0) / 1000)} s of ${plan.totalMs / 1000} s`);
@@ -79,7 +81,7 @@ export function judge(record) {
 
   // ── The fixture and the ingress limits ──
   const fx = record.fixture ?? {};
-  const bytes = Math.max(0, ...(record.snapshots ?? []).map((s) => s.bytes ?? 0));
+  const bytes = most((record.snapshots ?? []).map((s) => s.bytes ?? 0));
   check('the fixture is 1,000 candidates measured inside the 256 KiB body cap before the run', fx.candidates === 1000 && fx.bodyBytes > 0 && fx.bodyBytes <= fx.capBytes && fx.jsonbBytes > 0 && fx.jsonbBytes <= fx.capBytes, `body ${fx.bodyBytes}, jsonb ${fx.jsonbBytes} of ${fx.capBytes}`);
   check('every accepted revision stayed inside the ingress limit', bytes > 0 && bytes <= (fx.capBytes ?? 262144), `largest ${bytes} bytes`);
   // A frozen agent's request in flight fails when it wakes: expected of that agent, after that moment.
@@ -100,7 +102,7 @@ export function judge(record) {
   const wrong = [];
   const mixed = [];
   for (const f of frames) {
-    if (f.name && f.name !== '') {
+    if (f.name) {
       const i = takes.findLastIndex((t) => t.at <= f.at);
       const now = takes[i];
       const before = takes[i - 1];
@@ -115,7 +117,7 @@ export function judge(record) {
       if (!person || (f.votes && (votes === null || revisionOf(person, votes, maxRevision + 1) === null))) mixed.push({ at: f.at - t0, name: f.name, votes: f.votes });
     }
     const kok = num(f.kok);
-    if (f.kok && (kok === null || !Number.isInteger((kok - partyVotes('KOK', 0)) / (partyVotes('KOK', 1) - partyVotes('KOK', 0))))) mixed.push({ at: f.at - t0, kok: f.kok });
+    if (f.kok && (kok === null || partyRevision('KOK', kok) === null)) mixed.push({ at: f.at - t0, kok: f.kok });
   }
   check('the output showed frames of the card throughout', frames.filter((f) => f.name).length >= takes.length, `${frames.length} frames`);
   check('no wrong-person frame on the output', wrong.length === 0, JSON.stringify(wrong.slice(0, 3)));
@@ -151,8 +153,10 @@ export function judge(record) {
   const badActions = actions.filter((a) => a.failed || a.outcome !== 'ran' || a.settled !== 'accepted' || a.marksAfter !== a.marksBefore + 1);
   check('every foreign action ran once on the program instance', actions.length >= Math.floor((plan.totalMs - 30_000) / 60_000) && badActions.length === 0, JSON.stringify(badActions.slice(0, 3)));
   const dups = actions.filter((a) => a.duplicate);
-  check('a foreign action keyed to an instance not on air was refused', actions.length < 5 || (dups.length >= 1 && dups.every((a) => a.elsewhere?.outcome === 'stale' && /the cue on Board changed/.test(a.elsewhere.note ?? '') && a.elsewhere.marks === a.marksAfter)), JSON.stringify(dups.map((a) => a.elsewhere)));
-  check('a foreign action sent twice with one id ran once', (actions.length < 5 || dups.length >= 1) && dups.every((a) => a.duplicate.outcome === 'duplicate' && a.duplicate.marks === a.marksAfter), JSON.stringify(dups.filter((a) => a.duplicate.outcome !== 'duplicate' || a.duplicate.marks !== a.marksAfter)));
+  // From the fifth action on, every fifth is also sent twice and keyed to the cue not on air.
+  const pairsDue = actions.length >= 5;
+  check('a foreign action keyed to an instance not on air was refused', !pairsDue || (dups.length >= 1 && dups.every((a) => a.elsewhere?.outcome === 'stale' && /the cue on Board changed/.test(a.elsewhere.note ?? '') && a.elsewhere.marks === a.marksAfter)), JSON.stringify(dups.map((a) => a.elsewhere)));
+  check('a foreign action sent twice with one id ran once', (!pairsDue || dups.length >= 1) && dups.every((a) => a.duplicate.outcome === 'duplicate' && a.duplicate.marks === a.marksAfter), JSON.stringify(dups.filter((a) => a.duplicate.outcome !== 'duplicate' || a.duplicate.marks !== a.marksAfter)));
 
   // ── Owners: no stale-owner write ──
   const snaps = record.snapshots ?? [];
@@ -176,7 +180,7 @@ export function judge(record) {
   // ── Output disconnect ──
   // Offline, the output must really stop hearing (else the fault proved nothing), then catch up.
   const recovered = kinds('disconnect').map((f) => {
-    const before = Math.max(0, ...frames.filter((x) => x.at <= f.at + 3_000 && x.kok).map((x) => num(x.kok)));
+    const before = most(frames.filter((x) => x.at <= f.at + 3_000 && x.kok).map((x) => num(x.kok)));
     const heard = frames.some((x) => x.at > f.at + 3_000 && x.at < f.end && num(x.kok) > before);
     const after = frames.find((x) => x.at > f.end && x.at <= f.end + RECOVER_MS && num(x.kok) > before);
     return { at: f.at - t0, ok: Boolean(after) && !heard, offline: !heard, ms: after ? after.at - f.end : null };
@@ -203,14 +207,14 @@ export function judge(record) {
   check('buffered updates bounded to one latest snapshot', agentSamples.every((s) => s.agent.undelivered <= 1) && samples.every((s) => s.snapshots <= 1));
   const handoverAt = (s) => handovers.some((h) => s.at >= h.at && s.at <= (h.end ?? h.at));
   check('one agent alive outside a handover', samples.filter((s) => !handoverAt(s)).every((s) => s.agentsAlive === 1), JSON.stringify(samples.filter((s) => !handoverAt(s) && s.agentsAlive !== 1).map((s) => [s.at - t0, s.agentsAlive]).slice(0, 3)));
-  const readsByWindow = steady.map((w) => Math.max(0, ...inWindow(w).map((s) => s.stateReadsMax ?? 0)));
+  const readsByWindow = steady.map((w) => most(inWindow(w).map((s) => s.stateReadsMax ?? 0)));
   const restsByWindow = steady.map((w) => inWindow(w).some((s) => (s.stateReadsInFlight ?? 0) === 0));
   check('the controller\'s tree reads in flight come back to none and do not grow', restsByWindow.every(Boolean) && (readsByWindow.length < 2 || readsByWindow.at(-1) <= readsByWindow[0] + 1), JSON.stringify(readsByWindow));
   const baseline = samples[0]?.controller?.channels;
   const settled = samples.filter((s) => !inside(windows, s.at));
   check('the controller\'s subscriptions are back to baseline after reloads', Number.isInteger(baseline) && settled.length > 0 && settled.every((s) => s.controller?.channels === baseline), JSON.stringify(settled.filter((s) => s.controller?.channels !== baseline).map((s) => [s.at - t0, s.controller?.channels]).slice(0, 3)));
   const outFrames = frames.filter((f) => Number.isInteger(f.frames)).map((f) => f.frames);
-  check('the output\'s graphic instances stay at their count after every replacement', outFrames.length > 0 && Math.max(...outFrames) === outFrames[0] && frames.at(-1)?.frames === outFrames[0], `${Math.min(...outFrames)} to ${Math.max(...outFrames)}`);
+  check('the output\'s graphic instances stay at their count after every replacement', outFrames.length > 0 && most(outFrames) === outFrames[0] && frames.at(-1)?.frames === outFrames[0], `${outFrames[0]} to ${most(outFrames)}`);
 
   // ── Memory: steady-state windows compared after warmup ──
   const series = (side, field) =>
@@ -265,7 +269,7 @@ export function judge(record) {
   const boardRows = rows.filter((r) => r.graphic === 'Party totals' && r.t === 'update' && r.data?.f8 && r.at >= t0);
   for (const r of boardRows) {
     const kok = num(r.data.f8);
-    const rev = (kok - partyVotes('KOK', 0)) / (partyVotes('KOK', 1) - partyVotes('KOK', 0));
+    const rev = partyRevision('KOK', kok);
     const fetchAt = served.get(`count-${rev}`);
     const steadyRow = !inside(windows, r.at);
     if (fetchAt && steadyRow) timings.fetchToApply.push(r.at - fetchAt);

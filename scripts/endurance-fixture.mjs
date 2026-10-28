@@ -80,6 +80,11 @@ export const partyVotes = (code, revision) => {
   const [, , , base, step] = PARTIES.find((p) => p[0] === code);
   return base + revision * step;
 };
+/** The revision a party's figure came from, or null when it is none of its revisions. */
+export function partyRevision(code, votes) {
+  const r = (votes - partyVotes(code, 0)) / (partyVotes(code, 1) - partyVotes(code, 0));
+  return Number.isInteger(r) && r >= 0 ? r : null;
+}
 
 /** What a step is: the provider's own revisions, or the pattern's misbehaviour. */
 export function stepKind(i) {
@@ -144,9 +149,10 @@ export function enduranceTimeline(minutes, people = candidates()) {
       const step = Math.min(Math.max(0, i), length - 1);
       const kind = stepKind(step);
       const revision = revisionAt(step);
-      if (kind === 'count') return { name: `count-${revision}`, text: text(revision), revision };
-      if (kind === 'duplicate') return { name: `duplicate-${revision}`, text: text(revision), revision };
-      if (kind === 'older') return { name: `older-${Math.max(1, revision - 3)}`, text: text(Math.max(1, revision - 3)), revision: Math.max(1, revision - 3) };
+      if (kind !== 'malformed') {
+        const shown = kind === 'older' ? Math.max(1, revision - 3) : revision;
+        return { name: `${kind}-${shown}`, text: text(shown), revision: shown };
+      }
       const next = text(revision + 1);
       return { name: `malformed-${revision + 1}`, text: next.slice(0, Math.floor(next.length / 2)), revision: null };
     },
@@ -168,14 +174,15 @@ export function measureFixture(minutes, people = candidates()) {
   const projected = Object.fromEntries(SEND_PATHS.map((k) => [k, doc[k]]));
   const payloadBytes = Buffer.byteLength(JSON.stringify(projected));
   const envelope = { v: 1, sourceId: 'election', configRevision: 1, op: 'report', claim: '00000000-0000-0000-0000-000000000000', acquisition: { v: 1, sourceId: 'election', configRevision: 1, ownerEpoch: 1000, acceptedRevision: last, providerSequence: last, checkedAt: doc.observed_at, changedAt: doc.observed_at, eventTime: doc.observed_at, status: 'changed', payload: projected } };
+  const bodyBytes = Buffer.byteLength(JSON.stringify(envelope));
   return {
     candidates: people.length,
     revision: last,
     providerTextBytes: Buffer.byteLength(JSON.stringify(doc)),
     payloadBytes,
-    bodyBytes: Buffer.byteLength(JSON.stringify(envelope)),
+    bodyBytes,
     capBytes: BODY_CAP_BYTES,
-    headroom: Number((1 - Buffer.byteLength(JSON.stringify(envelope)) / BODY_CAP_BYTES).toFixed(3)),
+    headroom: Number((1 - bodyBytes / BODY_CAP_BYTES).toFixed(3)),
     projected,
   };
 }

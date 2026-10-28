@@ -84,5 +84,6 @@ writeFileSync(path.join(OUT, 'summary.json'), `${JSON.stringify({ fixture: size,
 for (const c of verdict.checks) console.log(`${c.ok ? 'ok  ' : 'FAIL'} ${c.name}${c.detail ? ` (${c.detail})` : ''}`);
 for (const [road, s] of Object.entries(verdict.timings)) console.log(`timing ${road}: n ${s.n}, p50 ${s.p50} ms, p90 ${s.p90} ms, max ${s.max} ms, slowest ${s.slowest.join(', ')}`);
 for (const [series, xs] of Object.entries(verdict.memory)) console.log(`window medians ${series}: ${xs.map((x) => (x === null ? '-' : Math.round(x))).join(', ')}`);
-console.log(`${minutes} min: ${verdict.passed && walk.status === 0 ? 'passed' : 'FAILED'}`);
-process.exit(verdict.passed && walk.status === 0 ? 0 : 1);
+const passed = verdict.passed && walk.status === 0;
+console.log(`${minutes} min: ${passed ? 'passed' : 'FAILED'}`);
+process.exit(passed ? 0 : 1);

@@ -141,7 +141,7 @@ export async function startReplayServer({ token, cert, key, clock = Date.now, st
   if (!custom && timeline !== 'research' && timeline !== 'package') throw new Error('timeline must be research or package, or { length, at(i) }');
   if (custom && !(Number.isInteger(timeline.length) && timeline.length > 0 && typeof timeline.at === 'function')) throw new Error('a timeline of its own needs a length and at(i)');
   const fixed = custom ? null : timeline === 'package' ? packageTimeline() : replayTimeline();
-  const steps = custom ? { length: timeline.length, at: (i) => timeline.at(i) } : { length: fixed.length, at: (i) => fixed[i] };
+  const steps = custom ? timeline : { length: fixed.length, at: (i) => fixed[i] };
   const expected = digest(`Bearer ${token}`);
   let start = null;
   let served = -1;
@@ -177,8 +177,6 @@ export async function startReplayServer({ token, cert, key, clock = Date.now, st
     /** Each step's text by its sha256, as the rehearsal record names it. */
     digests: fixed ? fixed.map((s) => ({ name: s.name, sha256: digest(s.text).toString('hex') })) : null,
     step: () => steps.at(step()).name,
-    /** The index of the step served now. */
-    index: () => step(),
     /** Move the timeline to step `i` (from the clock's present reading). */
     at: (i) => void (start = clock() - i * stepMs),
     close: () =>
