@@ -404,7 +404,7 @@ end).
 | #1802 | no criterion; on air, #1797's follow-up | O-9, open; matrix and runbook |
 | #1798 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
 | #1618, #1657, #1746 | parent AC-14, data AC-16 on real outputs | O-10, fixed in software; physical check owed to S |
-| #1567, #1572, #885, #1671, #1347, #1048, #1063, #775, #758, #779 | older open on-air defects, filed before the extension rows | no gated criterion's text; listed in the matrix with what to do meanwhile |
+| #1567, #1572, #885, #1671, #1347, #1048, #1063, #775, #758, #779, #1171, #1144, #1259 | older open on-air defects, filed before the extension rows | no gated criterion's text; listed in the matrix with what to do meanwhile |
 
 ## E8 AC-2, the cross-feature cases (this row)
 

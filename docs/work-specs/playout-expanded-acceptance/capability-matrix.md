@@ -88,7 +88,10 @@ Each can change what is on air or what the operator believes is on air. All are 
 
 ### Older on-air defects still open
 
-Filed before this programme's extension rows; open on `c6fc146`.
+Filed before this programme's extension rows; open on `c6fc146`. This list and the one above
+hold every open issue whose defect changes what airs or what the operator believes airs,
+including how a graphic is drawn on air. Issues only in the editor, the agent tools or the tests
+are not listed.
 
 | Issue | What happens | What to do meanwhile |
 | --- | --- | --- |
@@ -100,6 +103,9 @@ Filed before this programme's extension rows; open on `c6fc146`.
 | [#1048](https://github.com/NoaCG/NoaCG-Studio/issues/1048) | On SPX 1.4, every dual NoaCG package plays on layer 5, so two of them replace each other. (The SPX export itself is fixed.) | Use the SPX export, not the dual package, on SPX 1.4. |
 | [#1063](https://github.com/NoaCG/NoaCG-Studio/issues/1063) | Prepare for Live can wait without end on the output's first read if the server never answers. | If READY shows nothing new for a minute, reload the output. |
 | [#775](https://github.com/NoaCG/NoaCG-Studio/issues/775) | On Linux playout machines a long name that should shrink can run about 5% past its box. | Check long names on the target machine before the show. |
+| [#1171](https://github.com/NoaCG/NoaCG-Studio/issues/1171) | In an imported SVG, a centred bound line grows left over a logo or crest beside it, with no warning. | For imported SVG graphics, try the longest value on PREVIEW before the show. |
+| [#1144](https://github.com/NoaCG/NoaCG-Studio/issues/1144) | In an imported SVG, a turned line on an upright strip wraps across the strip's edges, with no warning. | Same: try the longest value on PREVIEW before the show. |
+| [#1259](https://github.com/NoaCG/NoaCG-Studio/issues/1259) | A line that a graphic's reveal mask cuts at rest is not reported by the design check, so it can air cut. | Look at each graphic at rest on PREVIEW before the show. |
 | [#779](https://github.com/NoaCG/NoaCG-Studio/issues/779) | Two graphics with the same name in one production (for example two "Lower third"s in a team production) replace each other on the output: the production and its output key graphics by name. | Give every graphic in a production its own name; check the rundown for duplicates before the show. |
 | [#758](https://github.com/NoaCG/NoaCG-Studio/issues/758) | A page left open across a deploy can fail to load more code. | Do not deploy during a show; reload open pages after one. |
 

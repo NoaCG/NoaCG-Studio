@@ -31,8 +31,10 @@ Task 5 below borrows the last one's setup.
   40 min, an older count (refused); 50 min, a broken answer (refused); 60 min, Sara Example
   (district 02, candidate 103, task 2's prepared person) leaves the list; 70 min, the list is
   empty. Tasks 1 to 4 must end within the first hour. A production that has taken a later count refuses an
-  earlier one, so a second participant needs a new production (import the pack again) and a new
-  replay folder, never a restarted timeline on the old one. Open the output in a second browser
+  earlier one, so a second participant needs a new production (delete or rename the previous
+  participant's production first, because the registration in step 2 finds the production by its
+  name; then import the pack again) and a new replay folder, never a restarted timeline on the
+  old one. Open the output in a second browser
   window beside the production page. Then add one graphic from the library with a title and one
   empty text field (any lower third works), titled `Counted`, as a cue that is
   connected to nothing. Keep the agent's and the replay server's windows on the proctor's

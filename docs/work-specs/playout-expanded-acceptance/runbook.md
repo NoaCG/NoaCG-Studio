@@ -104,7 +104,9 @@ query string and says the connection does not come with it. The agent's log show
 and restart the agent (until then reads report `denied` and the fields keep their values); for the
 data key, unpublish the production and publish it again, which makes a new key (the output and
 control addresses stay the same), then restart the agent with the new one; the old key is refused
-at once. Do this between shows, never while on air. Details: [`docs/DATA_API.md`](../../DATA_API.md), "Rotating a credential".
+at once. Do this between shows, never while on air: it also unpairs every Companion panel (pair
+them again) and resets the source's count history, so start the agent again only once the source
+is at its newest count. Details: [`docs/DATA_API.md`](../../DATA_API.md), "Rotating a credential".
 
 ## 3. Is the data fresh?
 
