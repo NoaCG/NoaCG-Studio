@@ -629,7 +629,14 @@ test.describe('a foreign OGraf package on the output stage', () => {
     const told = await page.evaluate(() => (window as unknown as { __told: unknown[] }).__told.length);
     // THE RE-CUE: a Take mounts the package again as a new instance naming the one it replaced,
     // given the values held (count 5), then the Take. The action is not repeated.
-    await apply(page, 'walk', { t: 'play' });
+    // Until the new instance answers its load, the stage has no word on the package: a report
+    // banked then must not carry the old instance's step as proven.
+    const between = await page.evaluate(() => {
+      const s = (window as unknown as { __stage: { apply(g: string, m: unknown): void; ografOutcomes: Map<string, unknown> } }).__stage;
+      s.apply('walk', { t: 'play' });
+      return s.ografOutcomes.get('walk') ?? null;
+    });
+    expect(between, 'no word between the re-cue and the new load').toBeNull();
     await expect(walkFrame).toHaveCount(1);
     await expect.poll(() => walkFrame.getAttribute('data-instance')).not.toBe(first);
     const second = (await walkFrame.getAttribute('data-instance'))!;

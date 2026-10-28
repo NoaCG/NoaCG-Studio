@@ -714,6 +714,10 @@ export function createOutputStage(
       told(key, { i: null, status: 'unmounted', msg: 'its package could not be reached', on: false });
       return undefined;
     }
+    // Until the new instance answers its `load()`, there is no word about this package: the old
+    // instance's would ride a report banked meanwhile, whose cursor already counts the Take and any
+    // action sent to the new one, and a restart would then read the old state as proven.
+    ografOutcomes.delete(key);
     const layerNow = foreign.get(key)!;
     const data = ografData.get(key);
     if (data && Object.keys(data).length > 0) layerNow.send({ t: 'update', data } as ControlMessage);
@@ -721,21 +725,17 @@ export function createOutputStage(
   };
   /** One message to a mounted package, with the bookkeeping recovery reads. */
   const send = (key: string, layer: ForeignOgrafLayer, msg: ControlMessage) => {
-    if (msg.t === 'event' && ografCallFor(msg)) {
-      acts.set(key, (acts.get(key) ?? 0) + 1);
-      // Said at once, not with the answer: a report banked meanwhile counts the action's row as
-      // applied, so it must carry `acted` too, or a restart before the answer would read it proven.
-      const now = ografOutcomes.get(key);
-      if (now && now.i === layer.instance && !now.acted) told(key, { ...now, acted: true });
-    }
-    layer.send(msg);
-    // The same for a Take, step or Out: until its answer, where the Graphic is is not known, and a
-    // report banked meanwhile counts its row as applied, so a restart must not read the old step.
     const call = ografCallFor(msg)?.call;
-    if (call === 'play' || call === 'stop') {
-      const now = ografOutcomes.get(key);
-      if (now && now.i === layer.instance && now.step !== null) told(key, { ...now, step: null });
-    }
+    if (call === 'custom') acts.set(key, (acts.get(key) ?? 0) + 1);
+    layer.send(msg);
+    // Said at once, not with the answer: a report banked meanwhile counts the row as applied, so a
+    // restart before the answer must read an action as `acted` and a Take, step or Out as no known
+    // step, never the state before it.
+    const now = ografOutcomes.get(key);
+    if (!now || now.i !== layer.instance) return;
+    const acted = call === 'custom' && !now.acted;
+    const moved = (call === 'play' || call === 'stop') && now.step !== null;
+    if (acted || moved) told(key, { ...now, ...(acted ? { acted: true as const } : {}), ...(moved ? { step: null } : {}) });
   };
   payload.graphics.forEach((spec, index) => {
     if (!isNative(spec)) mountPublished(spec, layerOf(spec, index));

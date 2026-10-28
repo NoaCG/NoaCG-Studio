@@ -66,6 +66,10 @@ changes a spec's digest.
   - *A step not yet answered is no known step*: a Take, step or Out sent to the current instance
     clears its told `step` at once, for the same reason, so a report banked before the answer
     restores the Take at its first step and says the step is not known, never the step before it.
+    A re-cue's remount drops the old instance's word until the new one answers its `load()`, so a
+    report banked in between carries no `ograf` and a restart reads the package as unconfirmed.
+    `acted`, `unknown` and `was` are members of the report's `state.ograf`, not of the control
+    wire: no message kind or command member is added.
   - *The foreign frame adjust* (L2 AC-10's foreign case): the stage applies an appearance's frame to
     the package's iframe (`ForeignOgrafLayer.frame`) and keeps it frame-only, so the report banks and
     a reload restores place and size alone; vars and fonts never reach a package. The page resolves
