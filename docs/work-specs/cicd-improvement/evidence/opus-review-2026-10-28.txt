@@ -1,0 +1,150 @@
+Opus second opinion on docs/work-specs/cicd-improvement, for the master planner.
+
+Reviewed: branch codex/cicd-master-plan at 17aeb43e133af760c44ca8b443d7bbbb3b67ca6a (clean),
+spec.md sha256 fecce380349d78d641ae9bda10f4f40d086587644a2b0a09cd9f9d9b887815f0, research.md sha256
+0d39eb832a7b61508fd0e648b0398156eed4433aadd874864d636842fd76479f. Planning baseline d8dd13049.
+Code read at main 55f98f9e6. None of the reviewed selector or workflow files changed after the
+baseline. verify.md, cloud-delegate.md and queue-merge.md changed only for local-first work and a
+stuck-merge recovery clause.
+
+VERDICT: AGREE WITH CORRECTIONS. The direction is right. The spec describes CI as it was:
+pre-merge selection is already live and has false negatives, the per-landing full main run
+already meets the 60-minute target, and backend tests never ran before merge.
+
+OWNER DECISIONS (2026-10-28, record under "Owner requirements and decisions")
+1. When a change touches the backend paths the configured specs declare, those specs run as a
+   required pull-request check. The full configured suite stays post-landing, once per landing.
+2. P5 (batched full-main validation) and P6 (automatic reuse) are optional follow-ups outside the
+   initial implementation. Implement and measure P0-P4 first. Reconsider P5 only if repeated
+   full-main validation remains a meaningful bottleneck. Reconsider P6 separately, only if
+   duplicate identical checks still cause material cost or waiting. Neither is required to declare
+   the initial improvement successful. Their qualification requirements are preserved, and
+   neither activates automatically.
+
+BLOCKING CORRECTIONS
+B1. Pre-merge selection already narrows PR and merge-group runs (ci.yml:420-435). Only main's
+    post-landing run is full. Confirmed false negatives at main 55f98f9e6:
+    - Broad files keep only their curated selection (scripts/e2e-affected.mjs:628-630,
+      BROAD_ESCALATES=false). CanvasGuides.tsx runs in 213 specs and selects 1. 314 src files
+      are broad.
+    - The focus fallback skips catalog escalation (:649-662). src/model/easings.ts (imported by
+      18 designs), src/preview/compose.ts and package.json all plan catalog:false.
+    - git diff --name-only (:1073) drops a rename's old path, so a moved CORE file stops
+      escalating (seen in 3c64200e3).
+    - There is no forbidOnly in playwright.config.ts, so a committed test.only drops the rest of
+      its shard unnoticed.
+    - Smaller gaps: output.html selects 1 spec while 9 open /output; fixtures read via readFileSync
+      are untracked; short regex locators are missed by the copy path; a header glob cancelled the
+      documented spaceKey.ts escalation (:124-127).
+    Add to P1 a "selector hardening" row:
+    - Broad files select at least the critical journey set.
+    - Restore catalog escalation for fallback changes that reach a design import (reuse
+      catalog-affected's importer closure).
+    - Use --name-status -M so renames include the old path.
+    - Set forbidOnly: !!process.env.CI.
+    - Map output.html and the fixtures.
+    - Pin each case in scripts/e2e-affected.test.mjs.
+    This row is safety work. It may raise pull-request cost slightly; report that.
+B2. Replace "critical flows remain pre-merge" with the actual rule from owner decision 1. Add a P1
+    row after dispatch isolation:
+    - A ci.yml job reporting into CI gate (path-filtered workflows cannot be required).
+    - It runs when the plan's configured flag is set and only the specs CONFIGURED_TRIGGERS names.
+    - It reuses configured-suite bootstrap and verdict code, with the local stack and published
+      default keys, so no secrets.
+    - Expected counts and skips come from the selection.
+    - It is skipped in merge groups. The gate accepts "skipped" only when the flag is off or the
+      event is merge_group.
+    - Known trade-off: the PR run tests its own base, and post-landing full configured covers the
+      combined tree.
+    D2 access/durability row: "Selected pre-merge on triggered PRs; full suite per landing."
+B3. Move P5, P6, the D5 batching paragraphs and the exact-versus-range reconciliation into a new
+    "Optional follow-ups (not part of the initial implementation)" section, using owner decision 2
+    verbatim.
+    - Evidence: the last 100 main ci.yml runs were 91 success, 3 failure, 6 cancelled. Successful
+      runs took p50 14 / p90 17 minutes. Exact-SHA recovery dispatches were 2 of the last 100
+      dispatches. Full-main validation per landing is not currently a bottleneck.
+    - Keep per-landing full main validation and the existing exact-SHA recovery dispatch.
+    - Remove the exact-merge versus range-snapshot conflict from the initial scope. It applies only
+      if P5 is ever reconsidered.
+    - Note for that case: assuming the merge queue lands the exact merge-group commit (not verified
+      here), that run is already exact critical/affected evidence. Only the full-regression
+      obligation could ever be met by a containing snapshot.
+
+MATERIAL CORRECTIONS
+M1. Acknowledge the existing exhaustive and scoped tiers, which the spec omits.
+    - nightly.yml runs the full offline suite, the whole catalog and the catalog sweeps daily.
+    - catalog-gates.yml already runs catalog-affected-scoped batteries in Actions, on demand per
+      branch and on a midday schedule for the landed range.
+    P3's "affected catalog CI" reuses that scoped path in the ci.yml e2e-catalog job; no new path.
+    Pairing scoped midday runs with full nightly runs gives qualification data at no extra cost.
+M2. 24-hour detection for checks P3 moves out of pre-merge (unrelated catalog designs):
+    - The last 10 nightlies started 04:41-05:47 UTC (cron 00:20), so one pass alone can reach about
+      25.5 hours. Count the midday catalog-gates pass toward the bound.
+    - Add a missed/failed scheduled-pass alarm.
+    - Add culprit replay of a scheduled catalog failure against the day's landings.
+    These drills move from old P5 into P3, since P3 is now what relies on the daily bound.
+    - 4 of the last 10 nightlies failed (Oct 19-23), causes untriaged. P0 triages them before any
+      move relies on the nightly.
+M3. Scoped catalog has an integrity hole. catalog-bench.spec.ts:86 asserts only when unscoped, and
+    the cited e2e/catalog/scope-guard.spec.ts (:61) does not exist, so an empty scoped unit or a
+    category mismatch passes. Fix it in P3 before any narrowing.
+    Expected gain: the full catalog job takes 9-11 minutes in the 8 of the last 40 merge groups
+    that raised it, against a 6-minute merge-group median. Scoping may save 3-5 minutes on about
+    1 in 5 merge groups (estimate, not measured).
+M4. Simplify D5 dispatch isolation, the one measured bottleneck.
+    - Since Oct 14: 50 configured-suite dispatches, 40 cancelled. Mostly same-branch supersession
+      (p41-build: 18 of 19), plus parallel pp-fix branches replacing each other.
+    - First slice: group manual dispatches by ref, give the schedule its own group, keep
+      cancel-in-progress false, and fail when the checked-out SHA differs from the requested one.
+    - The full identity tuple is not needed for P1.
+    - Success: cancelled dispatches fall to genuine same-branch supersessions.
+M5. D2 must name two separate sets and how they relate:
+    - Critical journeys: every product change, design target 5 minutes or less.
+    - Shared-change set: the escalation set, today 77 "// focus" headers, about 68 minutes.
+    - Suite-budget's SHARED_CHANGE_SET is still not implemented.
+    D2 labels and selects among the existing 286 offline and 53 configured specs. It adds tests
+    only for a mapped, demonstrated gap. Physical playout devices remain a stated qualification
+    limit and never block landing.
+M6. Start the AC-4 miss audit retroactively. Main already runs everything per landing, so replay
+    each main full-run failure against its culprit PR's plan from existing runs. The audit and its
+    corrections then run inside P2 with no separate shadow phase. The window is two weeks after the
+    last selection correction, starting after B1 lands.
+M7. Capacity (D6/AC-6): the live ruleset has max_entries_to_build 5. Five merge groups of about 16
+    jobs plus one main run of about 25 can exceed 60 jobs in a burst; the average is well inside.
+    P0 measures job queued-to-started wait from Actions data rather than modelling it. Reviewer
+    and checker capacity stays the named unknown for three plans.
+M8. D1 is sound as written. The reassessment trigger is a warning, not an allowance. Land it once
+    in the plan-run builder brief and .agent-workflows/check.md, and mark parallel-plans D3 as
+    implemented by it, so the same guidance never lives in two places.
+
+REVISED INITIAL SEQUENCE (P0-P4; success is judged on these alone)
+P0: pin main, active rules and the production-page completion receipt. Pull existing run data:
+    main durations, configured dispatch outcomes, runner wait, merge-group durations. Triage the
+    nightly failures. Documents only.
+P1: separate rows, each reversible on its own: (a) configured dispatch isolation; (b) selector
+    hardening (B1); (c) selected configured PR check (B2, after a); (d) D1 guidance.
+P2: label the critical and shared sets (M5), fill demonstrated contract gaps, run the retroactive
+    miss audit (M6) and fix the misses.
+P3: scope-guard fix (M3), then scoped catalog in merge groups via the catalog-gates path, with the
+    24-hour pass alarm and culprit drill (M2). Land three remeasured maintenance candidates.
+    Backend feedback on workers remains an optional, separately measured row.
+P4: three-plan cohort. It needs P1(a) only, not P2 or P3. Run the two-plan smoke, then three plans
+    of four rows each, with unchanged exact obligations.
+Latency gains: D1, scoped catalog. Throughput gains: dispatch isolation, P4. Safety with a small
+cost increase: B1, B2.
+ACCEPTANCE: AC-7 moves to the optional follow-ups, except the catalog daily-pass drills, which
+join AC-5. AC-8 is judged on P0-P4.
+
+SMALLEST FIRST SLICE after production-page completion: the configured-suite.yml concurrency group
+plus the requested-versus-checked-out SHA check. It is one file and measurable by the cancelled
+dispatch ratio.
+
+NOT VERIFIED BY THIS REVIEW
+- Why the nightlies failed.
+- Runner queue wait.
+- Review service capacity.
+- Whether production deploys before the configured verdict.
+- That the merge queue lands the exact merge-group commit.
+- Production-page completion.
+A subagent ran the 132 selector unit tests (all passed) and probe scripts. No build, browser,
+backend or dispatch was run. No acceptance criterion is passed by this review.

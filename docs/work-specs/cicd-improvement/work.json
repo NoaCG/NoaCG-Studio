@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "5e361500eb415af6bd216460b7b4fd4d99e49fc750bcc40e5f6e21dcb66842a3",
+  "authority": {
+    "status": "draft",
+    "source": "Owner master-planner request, 2026-10-28: prepare and register the runnable plan now, do not launch implementation, and provide a full-run second-opinion prompt. Preparation authorized; execution and final spec acceptance pending. Initial scope AC-1..AC-6 and AC-8; AC-7 optional and excluded. Prior daily-detection and selected-backend decisions retained."
+  },
+  "review": null
+}
