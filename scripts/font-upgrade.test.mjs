@@ -172,6 +172,12 @@ test('a long, unterminated src is scanned in linear time', () => {
   assert.ok(performance.now() - started < 1000);
 });
 
+test('two saved blocks for the same face gain one twin between them', () => {
+  const inter = (comment) => `/* ${comment} (bundled). */\n@font-face {\n  font-family: "Inter";\n  src: url("fonts/inter.woff2") format("woff2");\n  font-weight: 400 800;\n}`;
+  const out = upgradeFontCss(`${inter('Bundled open-source font')}\n\n${inter('Supporting face')}`);
+  assert.equal(rulesFor(out, 'Inter').filter((r) => r.includes('inter-latin-ext.woff2')).length, 1);
+});
+
 test('an imported family the stylesheet also gives weighted files keeps its weight-less rule', () => {
   const bold = `@font-face {
   font-family: "Neue Machina";

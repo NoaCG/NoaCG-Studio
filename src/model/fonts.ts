@@ -592,6 +592,7 @@ export function upgradeFontCss(css: string): string {
     const face = ruleFace(rule);
     const family = ruleFamily(rule);
     if (!face || !family || !rule.includes(`fonts/${face.file}`) || twins.has(`${family}|${face.file}`)) return whole;
+    twins.add(`${family}|${face.file}`);
     const declared = /font-weight:[^;]*;/.exec(rule)?.[0];
     const weightLine = /^[ \t]*font-weight:[^\n]*$/m.exec(rule)?.[0] ?? (declared ? `  ${declared}` : faceWeightLine(face));
     return `${whole}\n${latinExtFaceRule(family, face, weightLine)}`;
