@@ -187,4 +187,10 @@ test('history the catch-up left unread reads a package action past, page after p
   assert.deepEqual(polled.batchDone(true), ['Board']);
   assert.equal(polled.open, false);
   assert.equal(polled.holds(action), false, 'a newly pressed action is sent');
+  // A package the boot already left not known for an action stays so through a Take in the unread
+  // history; with no gap, nothing is held.
+  const seeded = bootGap(true, new Set(['Board']), ['Board']);
+  assert.deepEqual(seeded.batchDone(false), ['Board']);
+  assert.deepEqual(seeded.batchDone(true, true), []);
+  assert.deepEqual(bootGap(false, new Set(['Board']), ['Board']).batchDone(false), []);
 });

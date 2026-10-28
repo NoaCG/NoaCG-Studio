@@ -1204,9 +1204,9 @@ async function boot(): Promise<void> {
   // source loaded it. Both halves are fixed - the documents go off air from the inside and keep
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
   missed.forEach((row) => apply(row, undefined, true, !unsentActions.has(row)));
-  const gap = bootGap(bootGapOpen, packageSet);
-  /** Protocol 1: the last row of the first read that reached the log's end. */
-  let gapEndsAt: ControlEventRow | null = null;
+  const gap = bootGap(bootGapOpen, packageSet, [...ografUnknown].flatMap(([key, why]) => (why === UNKNOWN_ACTED ? [key] : [])));
+  /** Protocol 1: the id of the last row of the first read that reached the log's end. */
+  let gapEndsAt = Infinity;
   /** A row of history the catch-up left unread that is a package's action: read past, never sent. */
   const heldLate = (row: ControlEventRow): boolean => {
     if (!gap.holds(row)) return false;
@@ -1282,6 +1282,8 @@ async function boot(): Promise<void> {
       epoch: followEpoch,
       tail: async (after, epoch) => {
         const tail = await untilAnswered(() => controlOutputTailSeq(outputSlug, after, epoch), { limit: 5 });
+        // An empty read reached the log's end, and the follow hands an empty refill to no one.
+        if (tail.ok && !tail.value.reset && tail.value.rows.length === 0) batchDone(true);
         return tail.ok ? tail.value : null;
       },
       onRows: (rows, replayed) => {
@@ -1353,9 +1355,12 @@ async function boot(): Promise<void> {
         const read = { counted: false };
         rows.forEach((row) => fromTail.set(row, read));
         // A read shorter than a page reached the log's end: the boot's gap closes after its last row.
+        // By id, not by row: an overlapping walk may already have applied that row, and the follow
+        // drops a duplicate without handing it on.
         if (tail.ok && rows.length < CONTROL_TAIL_PAGE) {
-          if (rows.length === 0) batchDone(true);
-          else gapEndsAt = rows[rows.length - 1];
+          const last = rows.length ? rows[rows.length - 1].id : 0;
+          if (last <= lastAppliedId) batchDone(true);
+          else gapEndsAt = Math.min(gapEndsAt, last);
         }
         return rows;
       },
@@ -1367,10 +1372,10 @@ async function boot(): Promise<void> {
         }
         // A live row means the follow has caught up past whatever the boot left unread.
         if (!read) batchDone(true, true);
-        if (read && heldLate(row)) batchDone(row === gapEndsAt);
+        if (read && heldLate(row)) batchDone(row.id >= gapEndsAt);
         else {
           apply(row, read ? 'tail' : 'log');
-          if (read) batchDone(row === gapEndsAt);
+          if (read) batchDone(row.id >= gapEndsAt);
         }
       },
       onHole: () => live.hole(),

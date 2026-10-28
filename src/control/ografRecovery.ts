@@ -84,9 +84,11 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
  * of that history: a live batch (applied only contiguous with the cursor) or a read shorter than a
  * full page (a polling follow's every batch is a read), never between two full pages.
  */
-export function bootGap(open: boolean, packages: ReadonlySet<string>) {
+export function bootGap(open: boolean, packages: ReadonlySet<string>, actedAtBoot: readonly string[] = []) {
   let gap = open;
-  const held = new Set<string>();
+  // The packages the boot already said an action left not known: a Take in the unread history must
+  // not clear that either (`ografRestore` keeps an action's mark through a later Take).
+  const held = new Set<string>(open ? actedAtBoot : []);
   return {
     /** Is this row of history a package's action to read past? */
     holds(row: { graphic: string; msg: { t: string } }): boolean {
