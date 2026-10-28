@@ -401,6 +401,52 @@ window.addEventListener('unhandledrejection', function (ev) {
      fonts.ready measured the fallback when its face came in after the 400 ms hold, so a late
      refit gives it the same values again. */
   var lastData = null;
+  /* update() writes only the fields it is given and leaves the rest as they were, so the values
+     the graphic holds are every update merged, oldest first: a one-field bump must not make a
+     later replay forget the others. */
+  function keepValues(values) {
+    if (lastData == null) { lastData = JSON.stringify(values); return; }
+    try {
+      var cur = JSON.parse(lastData) || {};
+      for (var k in values) if (Object.prototype.hasOwnProperty.call(values, k)) cur[k] = values[k];
+      lastData = JSON.stringify(cur);
+    } catch (e) {}
+  }
+  function keepData(json) {
+    var values;
+    try { values = JSON.parse(json); } catch (e) { lastData = json; return; }
+    if (values && typeof values === 'object' && !Array.isArray(values)) keepValues(values);
+    else lastData = json;
+  }
+  /* THE GRAPHIC AT REST: every element's inline style attribute (and an SVG element's transform
+     attribute, where GSAP writes an SVG transform) as it stood just before the last Take, or the
+     first command that animated it, once its values were in. Put back verbatim, never with GSAP's
+     clearProps, which also wipes layout a design's own code wrote inline and will not write again
+     for unchanged values (the Minute Rule's tick positions). The render runtime's probe reset is
+     the same move (src/render/runtimeScript.ts). Null until something first animates the
+     graphic: a freshly loaded document has nothing to clean. */
+  var restStyles = null;
+  function keepRest() {
+    var all = document.body ? document.body.querySelectorAll('*') : [];
+    restStyles = [];
+    for (var i = 0; i < all.length; i++) {
+      var svg = typeof SVGElement !== 'undefined' && all[i] instanceof SVGElement;
+      restStyles.push([all[i], all[i].getAttribute('style'), svg ? all[i].getAttribute('transform') : undefined]);
+    }
+  }
+  function putAttr(el, name, value) {
+    if (value === null) el.removeAttribute(name);
+    else el.setAttribute(name, value);
+  }
+  function backToRest() {
+    for (var i = 0; i < restStyles.length; i++) {
+      var el = restStyles[i][0];
+      putAttr(el, 'style', restStyles[i][1]);
+      if (restStyles[i][2] !== undefined) putAttr(el, 'transform', restStyles[i][2]);
+      /* GSAP keeps its own copy of a transform; have it read the restored one. */
+      if (el._gsap) el._gsap.uncache = 1;
+    }
+  }
   /* An event the template accepts writes its payload into the fields (animRuntime.ts
      noacgApplyPayload) after the update that set lastData, so a late refit would put the old
      values back: the values replayed take each applied payload in. A refused event applies none. */
@@ -410,13 +456,7 @@ window.addEventListener('unhandledrejection', function (ev) {
     payloadsKept = true;
     var apply = window.noacgApplyPayload;
     window.noacgApplyPayload = function (payload) {
-      if (lastData != null && payload && typeof payload === 'object') {
-        try {
-          var cur = JSON.parse(lastData) || {};
-          for (var k in payload) if (Object.prototype.hasOwnProperty.call(payload, k)) cur[k] = payload[k];
-          lastData = JSON.stringify(cur);
-        } catch (e) {}
-      }
+      if (lastData != null && payload && typeof payload === 'object') keepValues(payload);
       return apply.apply(this, arguments);
     };
   }
@@ -493,22 +533,43 @@ window.addEventListener('unhandledrejection', function (ev) {
     drain();
   });
   function run(msg) {
+    /* The rest a later Take returns to is the graphic before ANYTHING animated it, not only before
+       a Take: an output that reloads mid-show snaps a graphic straight back on air, and the Out and
+       Take after that must still come back to rest. */
+    if (!restStyles && (msg.cmd === 'snap' || msg.cmd === 'dispatch' || msg.cmd === 'next' || msg.cmd === 'stop') &&
+        typeof window.buildInTimeline === 'function') keepRest();
     if (msg.cmd === 'update') {
-      /* An update with no values (an appearance-only one, phase 3) leaves the values a refit
-         gives the graphic as they were; a graphic with no fields still takes its first. */
-      if (msg.data !== '{}' || lastData == null) lastData = msg.data;
+      /* An update with no values (an appearance-only one, phase 3) merges nothing, so it leaves
+         the values a refit gives the graphic as they were. */
+      if (msg.data != null) keepData(msg.data);
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
       afterFonts(function () {
         try {
-          if (msg.data != null) { lastData = msg.data; window.update && window.update(msg.data); }
+          if (msg.data != null) keepData(msg.data);
+          /* A TAKE AGAIN starts from the graphic at rest (#1618). This document stays loaded
+             between cues, and an exit (an Out, or an event into an off state) can leave inline
+             props the entrance never resets: a results board's Out fades the rows' container, its
+             cascade entrance animates only the rows, and the second Take aired the header over an
+             empty board. So the styles kept before the last Take go back, and the values the
+             graphic holds are restated over them, as the editor's monitor does before every play
+             (simulatorRuntime.ts sim-play). Only under the house builder contract, as there. */
+          var builder = typeof window.buildInTimeline === 'function';
+          if (builder && restStyles) {
+            backToRest();
+            /* A restatement that throws must not keep the Take off air. */
+            try { window.update && window.update(lastData != null ? lastData : '{}'); } catch (e) {}
+          } else if (msg.data != null) {
+            window.update && window.update(msg.data);
+          }
+          if (builder) keepRest();
           window.play && window.play();
         } catch (e) {}
         report(window);
       });
     } else if (msg.cmd === 'settle') {
       afterFonts(function () {
-        if (msg.data != null) lastData = msg.data;
+        if (msg.data != null) keepData(msg.data);
         settle(window, msg.data);
         /* An identified settle answers with the whole measurement (settleGraphic.ts measureGraphic). */
         if (typeof msg.id === 'number') measureBox(window, msg.id);
@@ -538,6 +599,7 @@ window.addEventListener('unhandledrejection', function (ev) {
          which a plain 'update' swallows. */
       var warmError = null;
       if (msg.data != null) {
+        keepData(msg.data);
         try { window.update && window.update(msg.data); } catch (e) { warmError = String((e && e.message) || e); }
       }
       checkReady(warmError);

@@ -2,7 +2,7 @@
 // host document it loads, the ControlMessage -> OGraf call mapping, and the benign and hostile
 // fixtures. The one spec that proves the boundary, and output-first-paint because the stage
 // module is what the published graphics load through as well.
-// covers: {src/output/{stage.ts,foreignOgraf.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
+// covers: {src/preview/composeDocument.ts,src/output/{stage.ts,foreignOgraf.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
 
 import { test, expect, type Page } from '@playwright/test';
 
@@ -30,13 +30,22 @@ const HARNESS = `
 import { createOutputStage } from '/src/output/stage.ts';
 import { airWhenSettled } from '/src/output/catchUp.ts';
 import { lt01 } from '/src/templates/lowerThirds/lt01.ts';
+import { st01 } from '/src/templates/competition/results/st01.ts';
+import { rs01 } from '/src/templates/competition/results/rs01.ts';
+import { br01 } from '/src/templates/competition/results/br01.ts';
+import { tt01 } from '/src/templates/competition/results/tt01.ts';
+import { ss21 } from '/src/templates/startingSoon/ss21.ts';
 
 const q = new URLSearchParams(location.search);
-const design = lt01.create();
+const variants = { lt01, st01, rs01, br01, tt01, ss21 };
+// ?designs=st01,lt01 names each graphic's design; without it, n copies of lt01.
+const keys = q.get('designs') ? q.get('designs').split(',') : Array.from({ length: Number(q.get('n') || 1) }, () => 'lt01');
 const graphics = [];
-for (let i = 0; i < Number(q.get('n') || 1); i++) {
+let design;
+keys.forEach((id, i) => {
+  design = variants[id].create();
   graphics.push({
-    key: 'lt' + i,
+    key: q.get('designs') ? id : 'lt' + i,
     html: design.html,
     css: design.css,
     js: design.js,
@@ -45,7 +54,7 @@ for (let i = 0; i < Number(q.get('n') || 1); i++) {
     fps: design.fps,
     layer: 20 + i,
   });
-}
+});
 // A moment of nothing first, the way the real boot waits on its resolve.
 await new Promise((r) => setTimeout(r, Number(q.get('delay') || 250)));
 const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] });
@@ -227,4 +236,171 @@ test.describe('the /output shell on load', () => {
       .poll(async () => page.evaluate(() => getComputedStyle(document.querySelector('iframe')!).visibility))
       .toBe('visible');
   });
+});
+
+/**
+ * A BOARD TAKEN AGAIN AFTER AN OUT (#1618). The output renderer plays the graphic's own play()
+ * in a document that stays loaded between cues, so whatever an Out wrote inline is still there
+ * at the next Take. A results board's rows cascade animates the rows and never their container,
+ * and the Out fades that container (`.results-board-body`) to opacity 0: the second Take showed
+ * the frame and header with no rows, on CasparCG and OBS alike, while the editor's monitor (which
+ * resets the graphic before each play) showed them. Read here on the shipped stage, inside each
+ * board's own frame, for the four board types.
+ */
+test.describe('the /output shell, a graphic taken again', () => {
+  let harness: { swapped: boolean };
+
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 480, height: 270 });
+    harness = await mountHarness(page);
+  });
+
+  test.afterEach(() => {
+    expect(harness.swapped, 'the /output shell still loads its boot module the way this spec swaps').toBe(true);
+  });
+
+  /** The board's rows as they draw: the lowest opacity on the path from each row up to the body,
+   *  the rows' container's transform (the Out also leaves it shifted 16 px down), and the opacity
+   *  of the container and of the graphic's root, which say where an Out has got to. */
+  async function rowsShown(page: Page): Promise<{ rows: number; minOpacity: number; transform: string; body: number; root: number }> {
+    // The board's own document: the one frame holding a results board (the other is lt01's).
+    const frames = page.frames().filter((f) => f !== page.mainFrame());
+    const has = await Promise.all(frames.map((f) => f.evaluate(() => !!document.querySelector('.results-board-body')).catch(() => false)));
+    const frame = frames[has.indexOf(true)];
+    if (!frame) return { rows: 0, minOpacity: 0, transform: 'no board frame', body: -1, root: -1 };
+    return frame.evaluate(() => {
+      const body = document.querySelector('.results-board-body') as HTMLElement | null;
+      const rows = body ? Array.from(body.children) as HTMLElement[] : [];
+      let minOpacity = 1;
+      for (const row of rows) {
+        for (let el: HTMLElement | null = row; el && el !== document.body; el = el.parentElement) {
+          minOpacity = Math.min(minOpacity, Number(getComputedStyle(el).opacity));
+        }
+      }
+      const root = document.querySelector('.results-board');
+      return {
+        rows: rows.length,
+        minOpacity,
+        transform: body ? getComputedStyle(body).transform : 'no body',
+        body: body ? Number(getComputedStyle(body).opacity) : -1,
+        root: root ? Number(getComputedStyle(root).opacity) : -1,
+      };
+    });
+  }
+
+  // What a Take again puts back is the graphic at rest, not a blank slate: layout a design's own
+  // code wrote inline stays. The Minute Rule positions its ticks inline and redraws them only when
+  // the duration changes, so a reset that wiped every inline style collapsed its graduation.
+  test('ss21: a design\'s own inline layout survives Take, Out, Take', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/first-paint/output?designs=ss21');
+    await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+    const apply = (msg: unknown) =>
+      page.evaluate((m) => (window as unknown as { __stage: { apply(g: string, m: unknown): void } }).__stage.apply('ss21', m), msg);
+    const frame = page.frames().find((f) => f !== page.mainFrame())!;
+    const ticks = () =>
+      frame.evaluate(() => {
+        const all = Array.from(document.querySelectorAll('.starting-soon-tick')) as HTMLElement[];
+        return { count: all.length, placed: all.filter((t) => t.style.left !== '').length, root: Number(getComputedStyle(document.querySelector('.starting-soon')!).opacity) };
+      }).catch(() => ({ count: 0, placed: 0, root: -1 }));
+    await apply({ t: 'play' });
+    await expect.poll(async () => (await ticks()).root, { timeout: 8_000 }).toBe(1);
+    const first = await ticks();
+    expect(first.count, 'the rule has its ticks').toBeGreaterThan(1);
+    expect(first.placed).toBe(first.count);
+    await apply({ t: 'stop' });
+    await expect.poll(async () => (await ticks()).root, { message: 'the Out ends', timeout: 8_000 }).toBe(0);
+    await apply({ t: 'play' });
+    await expect.poll(async () => (await ticks()).root, { timeout: 8_000 }).toBe(1);
+    expect(await ticks(), 'every tick keeps its position after the second Take').toEqual(first);
+  });
+
+  /** The board's title field, read inside its own frame. */
+  async function titleOf(page: Page): Promise<string | null> {
+    for (const f of page.frames().filter((x) => x !== page.mainFrame())) {
+      const text = await f.evaluate(() => (document.querySelector('.results-board-body') ? document.getElementById('f0')?.textContent ?? null : null)).catch(() => null);
+      if (text !== null) return text;
+    }
+    return null;
+  }
+
+  for (const board of ['st01', 'rs01', 'br01', 'tt01']) {
+    // An output that reloads mid-show puts an on-air graphic back with a snap, never a Take.
+    test(`${board}: snapped back on air after a reload, then Out and Take, shows the rows`, async ({ page }) => {
+      test.setTimeout(60_000);
+      await page.goto(`/first-paint/output?designs=${board}`);
+      await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+      const apply = (msg: unknown) =>
+        page.evaluate(([g, m]) => (window as unknown as { __stage: { apply(g: string, m: unknown): void } }).__stage.apply(g as string, m), [board, msg] as const);
+      // The board's on-air pose: its main group at the first waypoint of its default path.
+      const frame = page.frames().find((f) => f !== page.mainFrame())!;
+      await expect.poll(() => frame.evaluate(() => !!document.querySelector('.results-board-body')).catch(() => false)).toBe(true);
+      const snap = await frame.evaluate(() => {
+        const g = (window as unknown as { noacgMachine: { groups: { id: string; defaultPath?: string[] }[] } }).noacgMachine.groups[0];
+        return { [g.id]: (g.defaultPath ?? [])[0] };
+      });
+      await apply({ t: 'snap', snap });
+      await expect.poll(async () => (await rowsShown(page)).minOpacity, { message: `${board}: snapped on air`, timeout: 8_000 }).toBe(1);
+      await apply({ t: 'stop' });
+      await expect.poll(async () => (await rowsShown(page)).root, { message: `${board}: the Out ends`, timeout: 8_000 }).toBe(0);
+      await apply({ t: 'play' });
+      await expect.poll(async () => (await rowsShown(page)).minOpacity, { message: `${board}: the rows are drawn after the Take`, timeout: 8_000 }).toBe(1);
+      expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain((await rowsShown(page)).transform);
+    });
+
+    test(`${board}: Take, Out, Take again shows the rows: after an Update, during the Out, with another graphic on air`, async ({ page }) => {
+      test.setTimeout(60_000);
+      await page.goto(`/first-paint/output?designs=${board},lt01`);
+      await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+      const apply = (graphic: string, msg: unknown) =>
+        page.evaluate(([g, m]) => (window as unknown as { __stage: { apply(g: string, m: unknown): void } }).__stage.apply(g as string, m), [graphic, msg] as const);
+      const settled = async (label: string) => {
+        await expect
+          .poll(async () => (await rowsShown(page)).minOpacity, { message: `${board}, ${label}: the rows are drawn`, timeout: 8_000 })
+          .toBe(1);
+        const shown = await rowsShown(page);
+        expect(shown.rows, `${board}, ${label}: the board has rows`).toBeGreaterThan(0);
+        expect(['none', 'matrix(1, 0, 0, 1, 0, 0)'], `${board}, ${label}: the rows' container is at rest`).toContain(shown.transform);
+      };
+      // An Out is over once the graphic's root is hidden again.
+      const out = async () => {
+        await apply(board, { t: 'stop' });
+        await expect.poll(async () => (await rowsShown(page)).root, { message: `${board}: the Out ends`, timeout: 8_000 }).toBe(0);
+      };
+
+      await apply(board, { t: 'update', data: { f0: 'First title' } });
+      await apply(board, { t: 'play' });
+      await settled('first Take');
+
+      // Plain Take, Out, Take.
+      await out();
+      await apply(board, { t: 'play' });
+      await settled('second Take');
+
+      // An Update before the Out.
+      await apply(board, { t: 'update', data: { f0: 'Updated title' } });
+      await out();
+      await apply(board, { t: 'play' });
+      await settled('Take after an Update and an Out');
+      // The values a Take again restates are the latest, never the ones the board first went up with.
+      expect(await titleOf(page), `${board}: the title after the Take`).toBe('Updated title');
+
+      // A Take pressed while the Out is still running.
+      await apply(board, { t: 'stop' });
+      await expect
+        .poll(async () => { const s = await rowsShown(page); return s.body < 1 && s.root > 0; }, { message: `${board}: the Out is under way`, intervals: [10], timeout: 8_000 })
+        .toBe(true);
+      await apply(board, { t: 'play' });
+      await settled('Take during the Out');
+
+      // Another graphic on air across the Out and the Take.
+      await apply('lt01', { t: 'play' });
+      await out();
+      await apply(board, { t: 'play' });
+      await settled('Take with another graphic on air');
+      // The rows hold: still drawn well after the entrance would have finished.
+      await page.waitForTimeout(2_000);
+      expect((await rowsShown(page)).minOpacity, `${board}: the rows stay drawn`).toBe(1);
+    });
+  }
 });
