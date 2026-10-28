@@ -34,7 +34,7 @@ Task 5 below borrows the last one's setup.
   earlier one, so a second participant needs a new production (import the pack again) and a new
   replay folder, never a restarted timeline on the old one. Open the output in a second browser
   window beside the production page. Then add one graphic from the library with a title and one
-  empty number or text field (any lower third works), titled `Counted`, as a cue that is
+  empty text field (any lower third works), titled `Counted`, as a cue that is
   connected to nothing. Keep the agent's and the replay server's windows on the proctor's
   screen, out of the participant's sight.
 - **Production Q (two graphics)**, published, with its output open beside it: a quiz board with
@@ -47,8 +47,6 @@ Task 5 below borrows the last one's setup.
 - **Companion** for task 5, set up as the E6.2 kit's "What you need" says: the module 0.2.0 or
   newer, paired with a production that holds the imported OGraf package
   `e2e/fixtures/foreign-ograf/rundown/` with its Mark action, one cue. No Stream Deck is needed.
-- A sheet of paper with the replay results address (`https://127.0.0.1:8443/results`, or the one
-  the replay server printed). Never write a key or token on it.
 - A timer and this page for notes. Do not help, point or explain while the clock runs. If the
   participant is stuck for two minutes, note where, help, and count that task as not done.
 
@@ -59,8 +57,12 @@ its end.
 
 On production E:
 
-1. **Connect a sample API.** "The `Counted` cue should show how much of the vote is counted, from
-   the results address on this paper. Connect it so it follows the results, and put it on air."
+1. **Connect a sample API.** "The results source 'Election results (replay)' is already added to
+   this production. Connect the `Counted` cue's value to how much of the vote is counted, so it
+   follows the results, and put it on air." The route the proctor expects: the cue's **Connect
+   data…**, then **Use existing content…**, "Connector: Election results (replay)" (the page reads
+   the sample through the agent), the value field to the counted share (`60%`), **Connect**, Take.
+   A pasted address does not work here: the page cannot reach the replay server itself (#1734).
    Done when the cue's field is connected (it reads "🔗 Connector: …") and the cue is on air
    showing the first count (60%). The proctor also notes whether the output changes to 61% by
    itself when the second step arrives, ten minutes after the start, with no press.
@@ -94,9 +96,10 @@ On production Q (L1 AC-11, the two-graphic show; record it press by press, see b
 
 6. **The two-graphic show from one screen.** "Take the quiz question and the score banner. Pin
    the score banner. For this question, pick answer B, lock it in, reveal the correct answer, and
-   give competitor 1 one point. Do not select another cue while you do it." Done when the output
-   shows B locked and revealed and competitor 1's score one higher, with no other cue selected
-   after the pin.
+   give competitor 1 one point. Do not select another cue while you do it." Start from a fresh
+   page load (L1 AC-11). The pin can be made from the score banner's ⋯ menu in the rundown while
+   the quiz cue stays selected. Done when the output shows B locked and revealed and competitor
+   1's score one higher, with no other cue selected after the pin.
 
 On production A (L2 AC-11, the adjustments; each prepared on PREVIEW, then taken or updated):
 

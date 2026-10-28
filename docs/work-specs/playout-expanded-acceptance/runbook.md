@@ -42,7 +42,7 @@ download the new Bridge from the same page. Full detail: [`docs/BRIDGE.md`](../.
 ### OBS
 
 Add a **Browser** source of 1920 x 1080 with the production's output address (in Productions,
-the copy button "Copy the browser-output URL"). Detail and known OBS settings:
+press **Output URL** on the production's card in Productions to copy it). Detail and known OBS settings:
 [`docs/OBS_ON_A_REAL_HOST.md`](../../OBS_ON_A_REAL_HOST.md).
 
 ### Companion and the Stream Deck
@@ -94,7 +94,7 @@ mark the file bound (`"credentialBound": true`). If the credential is missing, t
 | Credential | Where it lives | Where it never goes |
 | --- | --- | --- |
 | The production's data key (lets the agent or another system write to this production) | on the production; on the Data page's **Another system** card behind **Reveal** and **Copy** | in a show file, a package, an export, a chat, an issue or this guide |
-| The results provider's key | only in an environment variable on the agent's computer (`NOACG_SOURCE_…`) | in the agent's settings file; the agent refuses unknown settings, so a key written there does nothing |
+| The results provider's key | only in an environment variable on the agent's computer (`NOACG_SOURCE_…`) | in the agent's settings file; the agent refuses to start if one is written there ("unknown configuration keys: …") |
 | The Companion panel key | in Companion's connection, masked | anywhere else; **Revoke** ends it |
 | The Bridge pairing | in the Bridge's own folder on that computer | it never travels in a web address |
 
@@ -102,8 +102,9 @@ Nothing NoaCG exports carries a credential: a package names the connector's addr
 query string and says the connection does not come with it. The agent's log shows a key as
 `[redacted]`. If a key may have leaked: for the provider's key, put the new one in its variable
 and restart the agent (until then reads report `denied` and the fields keep their values); for the
-data key, change it on the production and restart the agent with the new one (the old key is
-refused at once). Details: [`docs/DATA_API.md`](../../DATA_API.md), "Rotating a credential".
+data key, unpublish the production and publish it again, which makes a new key (the output and
+control addresses stay the same), then restart the agent with the new one; the old key is refused
+at once. Do this between shows, never while on air. Details: [`docs/DATA_API.md`](../../DATA_API.md), "Rotating a credential".
 
 ## 3. Is the data fresh?
 
@@ -189,8 +190,8 @@ If a new release of noacg.studio misbehaves during preparation, do not try to re
    pages working. A rollback cannot go past a database cleanup;
    the maintainer's deploy report names the oldest release allowed.
 3. **After the restore, reload every output** (CasparCG: Unload, then Load; OBS: refresh the
-   source), then Take the cues again. If the release you went back to is from before
-   27 October 2026, an output that restarts puts imported OGraf graphics back to their defaults
+   source), then Take the cues again. If the release you went back to is older than PR #1765
+   (merged 27 October 2026), an output that restarts puts imported OGraf graphics back to their defaults
    ([#1770](https://github.com/NoaCG/NoaCG-Studio/issues/1770)); taking them again sends their
    values.
 4. **Your own pieces have their own earlier versions:**

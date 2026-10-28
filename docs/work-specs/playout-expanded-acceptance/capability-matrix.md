@@ -86,6 +86,22 @@ Each can change what is on air or what the operator believes is on air. All are 
 | [#1755](https://github.com/NoaCG/NoaCG-Studio/issues/1755) | Two quick type or colour changes on air can show one brief frame before the text refits. | Wait for one style change to show before making the next. |
 | [#1754](https://github.com/NoaCG/NoaCG-Studio/issues/1754) | An uploaded font named like a bundled one can be left out of a package. | Give uploaded fonts their own names. |
 
+### Older on-air defects still open
+
+Filed before this programme's extension rows; open on `c6fc146`.
+
+| Issue | What happens | What to do meanwhile |
+| --- | --- | --- |
+| [#1567](https://github.com/NoaCG/NoaCG-Studio/issues/1567) | On the hosted control page, two ⚡ Goal presses inside one round trip move a bound score by one, not two, with nothing on screen. (Fixed on the production page.) | Press once per goal and wait for it to land, or use the production page. |
+| [#1572](https://github.com/NoaCG/NoaCG-Studio/issues/1572) | An older write answer can replace a newer data tree on the production page, so a score can go back by one. (Out-of-order reads are guarded since row 30; write answers are not.) | After quick successive presses or feed rows, check the figure before the next press. |
+| [#885](https://github.com/NoaCG/NoaCG-Studio/issues/885) | A press on a field bound to one element of a list (for example one driver's gap) can write back stale values for the list's other bound elements, if the page's copy is older than the feed's. | Do not press list-element fields while a feed is writing the same list. |
+| [#1671](https://github.com/NoaCG/NoaCG-Studio/issues/1671) | A connector without a recipe keeps a tab inside a cell, which splits a ticker or schedule line on air. | Give the connector a recipe (Connect data), which holds such a cell instead. |
+| [#1347](https://github.com/NoaCG/NoaCG-Studio/issues/1347) | An exported HTML overlay (OBS, vMix) of a graphic timed to leave by itself, with a looping entrance, leaves straight away. Read from the code. | Do not set a leave time on a graphic with a looping entrance in an HTML-overlay export. |
+| [#1048](https://github.com/NoaCG/NoaCG-Studio/issues/1048) | On SPX 1.4, every dual NoaCG package plays on layer 5, so two of them replace each other. (The SPX export itself is fixed.) | Use the SPX export, not the dual package, on SPX 1.4. |
+| [#1063](https://github.com/NoaCG/NoaCG-Studio/issues/1063) | Prepare for Live can wait without end on the output's first read if the server never answers. | If READY shows nothing new for a minute, reload the output. |
+| [#775](https://github.com/NoaCG/NoaCG-Studio/issues/775) | On Linux playout machines a long name that should shrink can run about 5% past its box. | Check long names on the target machine before the show. |
+| [#758](https://github.com/NoaCG/NoaCG-Studio/issues/758) | A page left open across a deploy can fail to load more code. | Do not deploy during a show; reload open pages after one. |
+
 ### Data and setup limits (not on-air defects)
 
 | Issue | Limit |
