@@ -18,7 +18,7 @@ run here, and why, is at the end.
 | --- | --- | --- |
 | Companion module: build and tests | in `companion-module/`: `yarn install --immutable`, `yarn test`, `yarn package` (Node 22.22.0, Yarn 4 from npm) | 73 of 73 on `c6fc146`; 74 of 74 with this row's guide test. `noacg-studio-0.2.0.tgz`, sha256 `983fd6c3c70d33bd34e5fabf42be944f0ddf65d9c23c09874a8da1a1cccbfff5` on `c6fc146`; the rebuild with this row's `HELP.md` is in "The archive on this row's head" below |
 | Companion: install from the file (runbook §1) | Companion 5.1.0, the official image `ghcr.io/bitfocus/companion/companion:v5.1.0`, a fresh config, its admin UI driven by Playwright: **Modules**, **Import module package**, the archive | Listed as **NoaCG: NoaCG Studio**, version 0.2.0, as installed; offered under **Connections** as "NoaCG: NoaCG Studio" |
-| Companion: the guide's step 1 | read against `src/components/home/ProductionSetupMenu.tsx` | **Wrong in the build.** `HELP.md` said **Setup**, then **Panel**; the menu item has read **Stream Deck panel…** since row 38a (`a9cd11a`). Fixed in `HELP.md`, with a test in `companion-module/src/__tests__/guide.test.ts` that reads the menu's labels: red with the old wording, green with the new |
+| Companion: the guide's step 1 | read against `src/components/home/ProductionSetupMenu.tsx` | **Wrong in the build, in two places.** `HELP.md` and the connection form's pairing hint (`companion-module/src/config.ts`) said **Setup**, then **Panel**; the menu item has read **Stream Deck panel…** since row 38a (`a9cd11a`). Fixed in both, with a test in `companion-module/src/__tests__/guide.test.ts` that reads the menu's labels and checks both: red with either old wording, green with the new (74 of 74) |
 | The agent's start, refusals and log (runbook §1, §2, §5) | the replay server (`--timeline package --step-ms 60000`) and the agent with `replay-agent.json`, without `--send` | without the credential: "the credential NOACG_SOURCE_REPLAY is not set on this machine"; with it: one JSON report per read, log lines `… election changed accepted=1 next=2000ms` then `unchanged`; the replay token appears in neither the output nor the log (0 matches); `--export` writes `"credentialBound": false`, and the exported file is refused with "this configuration is not bound on this machine (an export, say): bind NOACG_SOURCE_REPLAY here before it reads (rebind)"; `--send` without a data key: "set NOACG_DATA_KEY to the production data key before --send" |
 | The replay's results carry a counted share (kit task 1) | the first report's `payload.summary` | `{"status": "Preliminary", "counted": "60 of 100 areas counted", "counted_share": "60%"}` |
 | Node tests behind runbook §3 to §5 | `node --test` on `scripts/external-data-connector.test.mjs`, `bridge-watch.test.mjs`, `playout-status.test.mjs`, `font-upgrade.test.mjs` | 64, 27, 11 and 16 pass, 0 fail |
@@ -65,8 +65,9 @@ and PRs #1792, #1793 and #1794 with their issues. Every issue in the matrix was 
 
 ## The archive on this row's head
 
-Rebuilt with this row's `HELP.md` (`yarn package`, same worker): `noacg-studio-0.2.0.tgz`, sha256
-`3a9a43de3fbbaa3313f4f143e36234bdf1c3dc2562a3334b0146d6766f79502e`; its `companion/HELP.md` names
-**Stream Deck panel…**. Only `HELP.md` differs from the archive imported above. The build is not
+Rebuilt with this row's `HELP.md` and pairing hint (`yarn package`, same worker):
+`noacg-studio-0.2.0.tgz`, sha256 `3a4c03230229d26a922ef4962827d429d239abd9667b6b49d44304c41cea5c3c`; its `companion/HELP.md` and `main.js` both name
+**Stream Deck panel…**. Only those two texts differ from the archive imported above. (A build with
+the `HELP.md` fix alone hashed `3a9a43de…6f79502e`.) The build is not
 byte-reproducible (tar keeps build times), so a hash names one build: H0.2 builds, hashes and
 records the archive it installs, from the final candidate.

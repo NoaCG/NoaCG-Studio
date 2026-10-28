@@ -34,10 +34,12 @@ changes a spec's digest.
   - `evidence/e8-1a-reconciliation.md` updated, not a second record: the verdict (AC-1's agent
     part), rows 43 and 44, O-9 (#1797, #1798, #1802), O-10 (the owner's fixes and #1795), the L1 AC-8
     citation corrected to row 42's entry, the E8, L1 AC-11 and L2 AC-11 rows.
-  - *One focused fix:* Companion's `HELP.md` step 1 said **Setup**, then **Panel**; the menu item
-    has read **Stream Deck panel…** since row 38a. Fixed, with a test in
-    `companion-module/src/__tests__/guide.test.ts` that reads the Setup menu's labels (red with the
-    old wording: plain `includes` passed it, because "Panel" occurs in the code).
+  - *One focused fix:* Companion's `HELP.md` step 1 and the connection form's pairing hint
+    (`companion-module/src/config.ts`) said **Setup**, then **Panel**; the menu item has read
+    **Stream Deck panel…** since row 38a. Fixed in both, with a test in
+    `companion-module/src/__tests__/guide.test.ts` that reads the Setup menu's labels and checks
+    both texts (red with either old wording: plain `includes` passed it, because "Panel" occurs in
+    the code).
 - **Decisions.**
   - *Where the documents live:* neither the E8 spec nor `extensions.md` names a place, so the
     runbook and matrix sit in the spec folder and the kit, check and verdict in `evidence/`, as

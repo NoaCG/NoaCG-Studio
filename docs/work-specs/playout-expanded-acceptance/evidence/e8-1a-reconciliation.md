@@ -325,8 +325,9 @@ end).
   73 tests run in no GitHub workflow (#1758). Stale for H0 AC-1; the archive H0.2 installs must be
   built and hashed on the final candidate, and E8.2's verdict should name that. **E8.2:** 0.2.0
   built on `c6fc146` (sha256 `983fd6c3…cccbfff5`), imported into a scratch Companion 5.1.0 and
-  listed at 0.2.0; rebuilt with the corrected `HELP.md` (sha256 `3a9a43de…6f79502e`). The guide's
-  step 1 named a Setup item, **Panel**, that has read **Stream Deck panel…** since row 38a; fixed,
+  listed at 0.2.0; rebuilt with the corrected `HELP.md` and pairing hint (sha256 `3a4c0323…1cea5c3c`). The guide's
+  step 1 and the pairing hint named a Setup item, **Panel**, that has read **Stream Deck panel…**
+  since row 38a; fixed,
   with a test that reads the menu (`e8-2-guide-check.md`). The verdict names the rest: H0.2 builds
   and hashes the archive it installs.
 - **O-4, typed and foreign limits.** #1760: a source moving a typed (foreign) cue's bound value

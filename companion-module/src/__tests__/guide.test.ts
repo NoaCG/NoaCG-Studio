@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { ACTION_VERBS } from '../actions.js'
 import { PANEL_VERBS, VERB_NAMES } from '../protocol.js'
+import { GetConfigFields } from '../config.js'
 
 // The guide an operator installs from, read as shipped (build-test/__tests__ -> companion/HELP.md).
 const help = readFileSync(fileURLToPath(new URL('../../companion/HELP.md', import.meta.url)), 'utf8')
@@ -40,9 +41,14 @@ const setupMenu = readFileSync(
 	'utf8',
 )
 
-test('the guide names the Setup menu item as the production page draws it', () => {
-	const named = [...help.matchAll(/\*\*Setup\*\*, then \*\*([^*]+)\*\*/g)].map((m) => m[1])
-	assert.ok(named.length > 0, 'the guide says which Setup item opens the panel list')
+test('the guide and the pairing hint name the Setup menu item as the production page draws it', () => {
+	const intro = GetConfigFields().find((field) => field.id === 'intro')
+	const hint = intro && 'value' in intro ? String(intro.value) : ''
+	const named = [
+		...[...help.matchAll(/\*\*Setup\*\*, then \*\*([^*]+)\*\*/g)].map((m) => m[1]),
+		...[...hint.matchAll(/Setup, then (.+?), and/g)].map((m) => m[1]),
+	]
+	assert.ok(named.length >= 2, 'the guide and the pairing hint each say which Setup item opens the panel list')
 	// A menu item's label is a JSX text line of its own, after any leading icon; "Panel" alone also appears in code.
 	const labels = new Set(setupMenu.split('\n').map((line) => line.trim().replace(/^<\w+ \/>\s*/, '')))
 	for (const item of named) assert.ok(labels.has(item), `the Setup menu has an item "${item}"`)
