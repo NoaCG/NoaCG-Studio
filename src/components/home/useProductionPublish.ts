@@ -253,6 +253,13 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       setSlotBusy(false);
     }
   };
+  /** The load itself, tagged with the production's CasparCG destination, and what it changed. */
+  const sendLoad = async (settings: PlayoutSettings, url: string): Promise<PlayoutResult> => {
+    const casparId = casparDestinationId(loadShows().find((s) => s.id === show.id)?.outputSetup) ?? 'casparcg';
+    const result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
+    onAirChanged('air', result, casparOutputTarget(settings));
+    return result;
+  };
   const loadOnSlot = (url: string, replace = false): Promise<void> => slotAction(async () => {
     const settings = loadPlayoutSettings();
     const where = slotAddress(slotOf(settings));
@@ -277,11 +284,20 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       }
     }
     setReplaceAsk(false);
-    const casparId = casparDestinationId(loadShows().find((s) => s.id === show.id)?.outputSetup) ?? 'casparcg';
-    const result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
-    onAirChanged('air', result, casparOutputTarget(settings));
+    const result = await sendLoad(settings, url);
     if (result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
   });
+  /** LOAD THE LOST OUTPUT AGAIN (control/bridgeWatch.ts decides when, issue #1657): the load alone,
+   *  under Load's own guard, so it never goes beside the operator's Load or Unload. No note: the
+   *  watch shows the outcome. The Bridge's answer, or null when nothing was sent. */
+  const reloadOnSlot = async (url: string): Promise<PlayoutResult | null> => {
+    let result: PlayoutResult | null = null;
+    await slotAction(async () => {
+      const settings = loadPlayoutSettings();
+      if (playoutConfigured(settings)) result = await sendLoad(settings, url);
+    });
+    return result;
+  };
   /** Take this production's renderer off its CasparCG slot through the Bridge: where, and the note
    *  a failure leaves. */
   const takeOffSlot = async (): Promise<{ where: string; failed: string | null }> => {
@@ -431,7 +447,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   };
   // What the sign-in follow-through presses (`useProductionPublish`).
   publishRef.current = publish;
-  return { claimName, downloadEmbed, copy, loadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish };
+  return { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish };
 }
 
 /** The header's one action and the Playout panel's CasparCG facts, from this render's values. */
@@ -511,8 +527,10 @@ export function publishFacts(state: ProductionPublishState, io: {
                 other: 'Another production',
                 failed: 'Cannot read',
                 unreadable: slotLoadedHere ? 'Loaded' : 'Unknown',
-                empty: 'Empty',
+                // A lost output loading again by itself (control/bridgeWatch.ts, #1657).
+                empty: slotCheckLine?.tone === 'warn' ? 'Reloading…' : 'Empty',
               }[outputSlot.holds],
+          detail: outputSlot?.holds === 'empty' && slotCheckLine?.tone === 'bad' ? slotCheckLine.advice : undefined,
           canLoad: !!outputSlot && outputSlot.holds !== 'ours' && !replaceAsk,
           canUnload: outputSlot?.holds === 'ours' || outputSlot?.holds === 'unreadable',
         }

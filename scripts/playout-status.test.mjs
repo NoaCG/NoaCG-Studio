@@ -120,6 +120,16 @@ test('red is for loss and faults, named, and the deciding check comes first', ()
   assert.deepEqual(pair(status({ bridge: { state: 'bridge', detail: '' } })), ['ok', 'Connected']);
 });
 
+test('a lost output loading again by itself is amber, and red with the reason once out of tries (#1657)', () => {
+  const lost = { slot: { ...ours, holds: 'empty' }, slotLost: true, ready: null };
+  assert.deepEqual(pair(caspar({ ...lost, slotReload: { state: 'reloading' } })), ['warn', 'Reloading on 1-20']);
+  const failed = caspar({ ...lost, slotReload: { state: 'failed', detail: 'CasparCG refused the command: 404 PLAY FAILED.' } });
+  assert.deepEqual(pair(failed), ['bad', 'Not on 1-20']);
+  assert.equal(failed.checks[0].advice, 'Loading it again did not bring it back. CasparCG refused the command: 404 PLAY FAILED.');
+  // A slot never seen ours this session is never said to be reloading.
+  assert.deepEqual(pair(caspar({ ...lost, slotLost: false, slotReload: { state: 'reloading' } })), ['idle', 'Not loaded on 1-20']);
+});
+
 test('PROGRAM says what is known of the last command, and never more (data-sources C6, AC-16)', async () => {
   const { programAir } = await import('../src/control/playoutStatus.ts');
   const at = Date.UTC(2026, 9, 22, 12, 3, 4);

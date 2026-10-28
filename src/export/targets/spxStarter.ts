@@ -1,4 +1,5 @@
 import { prepareOutRuntime } from '../../blocks/animMigration';
+import { upgradeFontCss } from '../../model/fonts';
 // SPX export: the canonical package. The exported files mirror exactly what you see in the
 // editor (<slug>.html + css/ + js/ + assets), wrapped in one project folder that drops straight
 // into an SPX/CasparCG templates directory. Plug-and-play: relative paths, bundled GSAP.
@@ -186,7 +187,7 @@ export async function buildStarterInto(
     appearance?: AppliedAppearance;
   },
 ): Promise<void> {
-  template = { ...template, js: prepareOutRuntime(template.js) };
+  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
   const fileName = opts?.fileName ?? `${slug(template.name)}.html`;
   const panelFile = opts?.forSpx ? SPX_PANEL_FILE : 'controlpanel.html';
   // The flex-gap shim's reference goes in at export, like the receiver: SPX hands this file to
