@@ -288,6 +288,29 @@ test.describe('the /output shell, a graphic taken again', () => {
   }
 
   for (const board of ['st01', 'rs01', 'br01', 'tt01']) {
+    // An output that reloads mid-show puts an on-air graphic back with a snap, never a Take.
+    test(`${board}: snapped back on air after a reload, then Out and Take, shows the rows`, async ({ page }) => {
+      test.setTimeout(60_000);
+      await page.goto(`/first-paint/output?designs=${board}`);
+      await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+      const apply = (msg: unknown) =>
+        page.evaluate(([g, m]) => (window as unknown as { __stage: { apply(g: string, m: unknown): void } }).__stage.apply(g as string, m), [board, msg] as const);
+      // The board's on-air pose: its main group at the first waypoint of its default path.
+      const frame = page.frames().find((f) => f !== page.mainFrame())!;
+      await expect.poll(() => frame.evaluate(() => !!document.querySelector('.results-board-body')).catch(() => false)).toBe(true);
+      const snap = await frame.evaluate(() => {
+        const g = (window as unknown as { noacgMachine: { groups: { id: string; defaultPath?: string[] }[] } }).noacgMachine.groups[0];
+        return { [g.id]: (g.defaultPath ?? [])[0] };
+      });
+      await apply({ t: 'snap', snap });
+      await expect.poll(async () => (await rowsShown(page)).minOpacity, { message: `${board}: snapped on air`, timeout: 8_000 }).toBe(1);
+      await apply({ t: 'stop' });
+      await expect.poll(async () => (await rowsShown(page)).root, { message: `${board}: the Out ends`, timeout: 8_000 }).toBe(0);
+      await apply({ t: 'play' });
+      await expect.poll(async () => (await rowsShown(page)).minOpacity, { message: `${board}: the rows are drawn after the Take`, timeout: 8_000 }).toBe(1);
+      expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain((await rowsShown(page)).transform);
+    });
+
     test(`${board}: Take, Out, Take again shows the rows: after an Update, during the Out, with another graphic on air`, async ({ page }) => {
       test.setTimeout(60_000);
       await page.goto(`/first-paint/output?designs=${board},lt01`);

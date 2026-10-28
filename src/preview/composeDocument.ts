@@ -281,7 +281,6 @@ window.addEventListener('unhandledrejection', function (ev) {
   ${serializeHelper(settleGraphic, 'settle')}
   ${serializeHelper(reportGraphicBox, 'report')}
   ${serializeHelper(measureGraphic, 'measureBox')}
-  ${serializeHelper(resetGraphicInline, 'resetGraphicInline')}
   function waitFonts(cb) {
     if (document.fonts && document.fonts.ready) {
       var done = false;
@@ -418,8 +417,28 @@ window.addEventListener('unhandledrejection', function (ev) {
     if (values && typeof values === 'object' && !Array.isArray(values)) keepValues(values);
     else lastData = json;
   }
-  /* Whether this document has taken the graphic before: a first Take starts from a fresh load. */
-  var played = false;
+  /* THE GRAPHIC AT REST: every element's inline style attribute as it stood just before the last
+     Take (or the first command that animated it), once its values were in and before anything
+     animated it. Put back verbatim, never
+     with GSAP's clearProps, which also wipes layout a design's own code wrote inline and will not
+     write again for unchanged values (the Minute Rule's tick positions). The render runtime's
+     probe reset is the same move (src/render/runtimeScript.ts). Null until something first
+     animates the graphic: a freshly loaded document has nothing to clean. */
+  var restStyles = null;
+  function keepRest() {
+    var all = document.body ? document.body.querySelectorAll('*') : [];
+    restStyles = [];
+    for (var i = 0; i < all.length; i++) restStyles.push([all[i], all[i].getAttribute('style')]);
+  }
+  function backToRest() {
+    for (var i = 0; i < restStyles.length; i++) {
+      var el = restStyles[i][0], style = restStyles[i][1];
+      if (style === null) el.removeAttribute('style');
+      else el.setAttribute('style', style);
+      /* GSAP keeps its own copy of a transform; have it read the restored one. */
+      if (el._gsap) el._gsap.uncache = 1;
+    }
+  }
   /* An event the template accepts writes its payload into the fields (animRuntime.ts
      noacgApplyPayload) after the update that set lastData, so a late refit would put the old
      values back: the values replayed take each applied payload in. A refused event applies none. */
@@ -506,6 +525,11 @@ window.addEventListener('unhandledrejection', function (ev) {
     drain();
   });
   function run(msg) {
+    /* The rest a later Take returns to is the graphic before ANYTHING animated it, not only before
+       a Take: an output that reloads mid-show snaps a graphic straight back on air, and the Out and
+       Take after that must still come back to rest. */
+    if (!restStyles && (msg.cmd === 'snap' || msg.cmd === 'dispatch' || msg.cmd === 'next' || msg.cmd === 'stop') &&
+        typeof window.buildInTimeline === 'function') keepRest();
     if (msg.cmd === 'update') {
       /* An update with no values (an appearance-only one, phase 3) merges nothing, so it leaves
          the values a refit gives the graphic as they were. */
@@ -515,25 +539,21 @@ window.addEventListener('unhandledrejection', function (ev) {
       afterFonts(function () {
         try {
           if (msg.data != null) keepData(msg.data);
-          /* A TAKE AGAIN starts from the graphic's CSS rest (#1618). This document stays loaded
+          /* A TAKE AGAIN starts from the graphic at rest (#1618). This document stays loaded
              between cues, and an exit (an Out, or an event into an off state) can leave inline
              props the entrance never resets: a results board's Out fades the rows' container, its
              cascade entrance animates only the rows, and the second Take aired the header over an
-             empty board. The editor's monitor resets before every play (simulatorRuntime.ts
-             sim-play); this is the same reset, after the template's own when it has one (that one
-             also clears press-revealed layers outside the root, and an older one does not re-hide
-             an empty image field), followed by the values the graphic holds, since a fit or a
-             rebuild may have written inline styles of its own. A first Take starts from a fresh
-             load and is left as it was. Only under the house builder contract, as in the monitor:
-             a design without it (an import) may carry authored inline styles a reset would wipe. */
-          if (played && typeof window.buildInTimeline === 'function') {
-            if (typeof window.noacgResetGraphic === 'function') window.noacgResetGraphic();
-            resetGraphicInline(window);
+             empty board. So the styles kept before the last Take go back, and the values the
+             graphic holds are restated over them, as the editor's monitor does before every play
+             (simulatorRuntime.ts sim-play). Only under the house builder contract, as there. */
+          var builder = typeof window.buildInTimeline === 'function';
+          if (builder && restStyles) {
+            backToRest();
             window.update && window.update(lastData != null ? lastData : '{}');
           } else if (msg.data != null) {
             window.update && window.update(msg.data);
           }
-          played = true;
+          if (builder) keepRest();
           window.play && window.play();
         } catch (e) {}
         report(window);
