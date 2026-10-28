@@ -401,6 +401,23 @@ window.addEventListener('unhandledrejection', function (ev) {
      fonts.ready measured the fallback when its face came in after the 400 ms hold, so a late
      refit gives it the same values again. */
   var lastData = null;
+  /* update() writes only the fields it is given and leaves the rest as they were, so the values
+     the graphic holds are every update merged, oldest first: a one-field bump must not make a
+     later replay forget the others. */
+  function keepValues(values) {
+    if (lastData == null) { lastData = JSON.stringify(values); return; }
+    try {
+      var cur = JSON.parse(lastData) || {};
+      for (var k in values) if (Object.prototype.hasOwnProperty.call(values, k)) cur[k] = values[k];
+      lastData = JSON.stringify(cur);
+    } catch (e) {}
+  }
+  function keepData(json) {
+    var values;
+    try { values = JSON.parse(json); } catch (e) { lastData = json; return; }
+    if (values && typeof values === 'object' && !Array.isArray(values)) keepValues(values);
+    else lastData = json;
+  }
   /* Whether an Out has run since the last Take (the reset a Take after an Out needs, below). */
   var outSince = false;
   /* An event the template accepts writes its payload into the fields (animRuntime.ts
@@ -412,13 +429,7 @@ window.addEventListener('unhandledrejection', function (ev) {
     payloadsKept = true;
     var apply = window.noacgApplyPayload;
     window.noacgApplyPayload = function (payload) {
-      if (lastData != null && payload && typeof payload === 'object') {
-        try {
-          var cur = JSON.parse(lastData) || {};
-          for (var k in payload) if (Object.prototype.hasOwnProperty.call(payload, k)) cur[k] = payload[k];
-          lastData = JSON.stringify(cur);
-        } catch (e) {}
-      }
+      if (lastData != null && payload && typeof payload === 'object') keepValues(payload);
       return apply.apply(this, arguments);
     };
   }
@@ -496,16 +507,16 @@ window.addEventListener('unhandledrejection', function (ev) {
   });
   function run(msg) {
     if (msg.cmd === 'update') {
-      /* An update with no values (an appearance-only one, phase 3) leaves the values a refit
-         gives the graphic as they were; a graphic with no fields still takes its first. */
-      if (msg.data !== '{}' || lastData == null) lastData = msg.data;
+      /* An update with no values (an appearance-only one, phase 3) merges nothing, so it leaves
+         the values a refit gives the graphic as they were. */
+      if (msg.data != null) keepData(msg.data);
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
       var afterOut = outSince;
       outSince = false;
       afterFonts(function () {
         try {
-          if (msg.data != null) lastData = msg.data;
+          if (msg.data != null) keepData(msg.data);
           /* A TAKE AFTER AN OUT starts from the graphic's CSS rest (#1618). This document stays
              loaded between cues, and an exit can leave inline props its entrance never resets: a
              results board's Out fades the rows' container, its cascade entrance animates only the
@@ -557,6 +568,7 @@ window.addEventListener('unhandledrejection', function (ev) {
          which a plain 'update' swallows. */
       var warmError = null;
       if (msg.data != null) {
+        keepData(msg.data);
         try { window.update && window.update(msg.data); } catch (e) { warmError = String((e && e.message) || e); }
       }
       checkReady(warmError);
