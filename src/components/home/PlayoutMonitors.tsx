@@ -325,7 +325,7 @@ export default function PlayoutMonitors({
             // A stranger's package runs only behind the outputs' isolation boundary; this page
             // composes no document of it, so PREVIEW says so rather than showing a blank frame.
             <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }} data-testid="preview-ograf">
-              <p className="hint">{previewView?.label ?? 'This cue'} plays on the outputs; it is not previewed here.</p>
+              <p className="hint pd-frame-note">Plays on the outputs; no preview here.</p>
             </div>
           ) : previewDoc && previewTemplate ? (
             <div

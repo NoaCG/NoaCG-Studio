@@ -405,9 +405,10 @@ NoaCG graphics load exactly as before. What each part does:
   rather than a filesystem path, and it compares the raw path: an encoded `..%2f` stays under
   the package prefix as far as the CSP is concerned, so decoding it into a separator would walk
   out. It sends `Access-Control-Allow-Origin: *`, because the frame's origin is opaque and sends
-  no credentials, and it never redirects, because a redirect relaxes the policy's path match. The spec serves the fixtures this way. The in-app scope that stores
-  and serves an imported package is part of the library item
-  ([issue #791](https://github.com/NoaCG/NoaCG-Studio/issues/791)).
+  no credentials, and it never redirects, because a redirect relaxes the policy's path match. The spec serves the fixtures this way. A published production's
+  packages are served so by `api/_lib/outputOgraf.ts` (E3.2a): the output asks with its
+  capability and is answered `/ograf/<sealed>/`, a base that names neither the output nor the
+  production, and each file is looked up by exact path in the published payload.
 - **The proof.** `e2e/foreign-ograf-sandbox.spec.ts` checks two fixtures on the real `/output`
   shell. A benign package with three steps, a custom action, a sub-module, an image and a data
   file loads, plays, updates, steps and stops. A hostile one tries each escape, and the spec

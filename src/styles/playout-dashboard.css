@@ -954,6 +954,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    gap under the pointer (docs/CONTROL_PANEL_PARITY.md §4). */
 .pd-frame iframe { pointer-events: none; }
 .pd-frame-empty { display: flex; align-items: center; justify-content: center; }
+.pd-frame-note { padding: 0 12px; text-align: center; }
 .prod-monitor-stage { position: absolute; inset: 0; overflow: hidden; }
 .prod-monitor-note { position: absolute; left: 12px; top: 12px; margin: 0; }
 .prod-monitor-empty {

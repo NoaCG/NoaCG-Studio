@@ -579,14 +579,17 @@ export function createOutputStage(
     plate.textContent = `${spec.key} · not shown here`;
     plate.style.cssText = [
       'position:absolute',
-      'left:48px',
-      'top:48px',
+      'left:50%',
+      'top:50%',
+      'transform:translate(-50%,-50%)',
+      'max-width:90%',
       `z-index:${layer}`,
-      'padding:16px 28px',
-      'border-radius:12px',
+      'padding:32px 56px',
+      'border-radius:24px',
       'background:rgba(15,17,21,0.82)',
       'color:#e8eaed',
-      'font:600 40px/1.2 system-ui,sans-serif',
+      'font:600 112px/1.2 system-ui,sans-serif',
+      'text-align:center',
       'display:none',
     ].join(';');
     stage.appendChild(plate);
