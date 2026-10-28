@@ -156,8 +156,9 @@ export interface OutputStage {
    */
   prepare(spec: OutputGraphicSpec, options?: { loadSound?: (asset: SoundAssetRef) => Promise<Blob> }): StagedFrame;
   /** Add a graphic the stage did not host, the way a boot builds one: commands queue until its
-   *  document loads, and `onLoaded` fires for it. */
-  add(spec: OutputGraphicSpec): void;
+   *  document loads, and `onLoaded` fires for it. `version` is the publication it comes from, which
+   *  an imported package's base is asked with (`ografBase`). */
+  add(spec: OutputGraphicSpec, version?: string): void;
   /** Take a graphic and its frame off the stage. */
   remove(graphic: string): void;
   destroy(): void;
@@ -200,7 +201,7 @@ export interface OutputStageOptions {
    *  the URL this answers (the /output page asks the server, api/_lib/outputOgraf.ts), or, answered
    *  null, is not mounted and says why. Absent (the production page's monitors, which serve no
    *  package), each such graphic draws a plate saying it is not shown here while it is up. */
-  ografBase?: (spec: OutputGraphicSpec) => Promise<string | null>;
+  ografBase?: (spec: OutputGraphicSpec, version?: string) => Promise<string | null>;
   /** An imported face's bytes this stage's payload does not hold, by path, read when a style names
    *  it: the production page's PROGRAM monitor, whose payload is built once per pool, hands the
    *  production look's own face in here, so a look turned on later reaches it with no rebuild. */
@@ -598,7 +599,7 @@ export function createOutputStage(
     stage.appendChild(plate);
     plates.set(spec.key, plate);
   };
-  const mountPublished = (spec: OutputGraphicSpec, layer: number) => {
+  const mountPublished = (spec: OutputGraphicSpec, layer: number, version?: string) => {
     const key = spec.key;
     if (frames.has(key) || foreign.has(key) || waitingOgraf.has(key) || plates.has(key)) return;
     const ask = options.ografBase;
@@ -609,7 +610,7 @@ export function createOutputStage(
     }
     waitingOgraf.set(key, []);
     ografLoads.push(
-      ask(spec)
+      ask(spec, version)
         .catch(() => null)
         .then(async (base) => {
           const held = waitingOgraf.get(key);
@@ -968,8 +969,8 @@ export function createOutputStage(
         },
       };
     },
-    add: (spec) => {
-      if (!isNative(spec)) mountPublished(spec, laterLayerOf(spec));
+    add: (spec, version) => {
+      if (!isNative(spec)) mountPublished(spec, laterLayerOf(spec), version);
       else if (!frames.has(spec.key)) adopt(makeFrame(spec, laterLayerOf(spec), true));
     },
     remove: (graphic) => {

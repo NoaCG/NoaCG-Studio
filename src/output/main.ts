@@ -225,7 +225,8 @@ async function boot(): Promise<void> {
     loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset),
     // An imported OGraf package is served by the server under a sealed base (E3.2a), asked for with
     // this output's capability and the version that holds it.
-    ografBase: (spec) => (spec.ograf ? publishedOgrafBase(outputSlug, programAudioVersion)(spec.ograf.revision) : Promise.resolve(null)),
+    // A package added by a later publication is asked for with that publication's version (`add`).
+    ografBase: (spec, version) => (spec.ograf ? publishedOgrafBase(outputSlug, version ?? programAudioVersion)(spec.ograf.revision) : Promise.resolve(null)),
   });
   dbg('graphics', stage.graphics.join(', '));
 

@@ -62,7 +62,12 @@ if (mode) {
   let release;
   const released = new Promise((r) => (release = r));
   window.__release = release;
-  if (mode !== 'monitor') ografBase = (spec) => (spec.key === 'lost' ? Promise.resolve(null) : released.then(() => base));
+  window.__pkg = pkg;
+  window.__asked = [];
+  if (mode !== 'monitor') ografBase = (spec, version) => {
+    window.__asked.push([spec.key, version ?? null]);
+    return spec.key === 'lost' ? Promise.resolve(null) : released.then(() => base);
+  };
 }
 const stage = createOutputStage(document.body, { v: 1, resolution: design.resolution, graphics, cues: [] }, { foreign, ograf: { callTimeoutMs: timeout }, ografBase });
 window.__stage = stage;
@@ -539,6 +544,16 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await apply(page, 'walk', { t: 'event', event: 'mark', payload: {}, typed: { v: 1, kind: 'action', standard: STANDARD, schema: 's', action: 'mark', args: { v: 'typed' } } });
     await expect(walk).toHaveAttribute('data-mark', 'typed');
     await expect.poll(async () => ((await outcome('walk')) as { call: string }).call).toBe('custom');
+
+    // A package a later publication adds is asked for with THAT publication's version, which this
+    // output has not adopted yet (output/swap.ts hands it over).
+    await page.evaluate(() => {
+      const w = window as unknown as { __stage: { add(spec: unknown, version?: string): void }; __pkg: (key: string, layer: number) => unknown };
+      w.__stage.add(w.__pkg('later', 31), 'v2');
+    });
+    await expect(page.locator('iframe[title="later"]')).toHaveAttribute('data-ograf', 'foreign');
+    expect(await page.evaluate(() => (window as unknown as { __asked: unknown[] }).__asked)).toContainEqual(['later', 'v2']);
+    expect(await page.evaluate(() => (window as unknown as { __asked: unknown[] }).__asked)).toContainEqual(['walk', null]);
 
     // Removed, its instance goes with every word about it.
     await page.evaluate(() => (window as unknown as { __stage: { remove(k: string): void } }).__stage.remove('walk'));
