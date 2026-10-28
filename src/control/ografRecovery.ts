@@ -62,6 +62,11 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
     if (lastOut > lastTake) return NOTHING;
     return { play: false, steps: 0, unknown: acted ? UNKNOWN_ACTED : null };
   }
+  // A Take or Out the bank counts but the Graphic had not answered (`sent`): its `on` is the state
+  // before it. An Out keeps the package off, as the operator meant; a Take puts back only what was
+  // proven up before it, at its first step. Either way it is not known.
+  if (o !== null && o.i !== null && o.sent === 'stop') return { play: false, steps: 0, unknown: acted ? UNKNOWN_ACTED : UNKNOWN_OUT };
+  if (o !== null && o.i !== null && o.sent === 'play') return { play: o.on && headOn !== false, steps: 0, unknown: acted ? UNKNOWN_ACTED : UNKNOWN_UNCONFIRMED };
   // The log says an Out went, but the Graphic's last word left it up (it refused the Out, or its
   // answer was not banked yet): the operator's Out is not undone by a restart, so it stays off, and
   // the Out is said not to be confirmed.

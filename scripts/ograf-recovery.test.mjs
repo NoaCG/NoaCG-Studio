@@ -68,6 +68,18 @@ test('a Take that was never confirmed is not repeated by itself: the operator re
   // What one restart could not prove stays unproven through the next, until the operator's re-cue.
   assert.deepEqual(ografRestore(report({ ...up, unknown: UNKNOWN_ACTED }), true, []), { play: true, steps: 1, unknown: UNKNOWN_ACTED });
   assert.deepEqual(ografRestore(report({ ...up, unknown: UNKNOWN_UNCONFIRMED, step: null }), true, []), { play: true, steps: 0, unknown: UNKNOWN_UNCONFIRMED });
+  // A Take or Out banked before its answer (`sent`): `on` is the state before it, on either road.
+  // An Out keeps it off; a Take puts back only what was proven up, at its first step; not known.
+  for (const head of [undefined, false]) assert.deepEqual(ografRestore(report({ ...up, step: null, sent: 'stop' }), head, []), { play: false, steps: 0, unknown: UNKNOWN_OUT }, `head ${head}`);
+  assert.deepEqual(ografRestore(report({ ...up, step: null, sent: 'stop', acted: true }), undefined, []), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
+  for (const head of [undefined, true]) {
+    assert.deepEqual(ografRestore(report({ ...up, step: null, sent: 'play' }), head, []), { play: true, steps: 0, unknown: UNKNOWN_UNCONFIRMED }, `head ${head}`);
+    assert.deepEqual(ografRestore(report({ ...up, on: false, step: null, sent: 'play' }), head, []), { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED }, `head ${head}`);
+  }
+  // A step pending on the row-id road: up as proven, its step not known.
+  assert.deepEqual(ografRestore(report({ ...up, step: null }), undefined, []), { play: true, steps: 0, unknown: UNKNOWN_STEP });
+  // Rows after the bank still decide over the marker.
+  assert.deepEqual(ografRestore(report({ ...up, step: null, sent: 'stop' }), undefined, [row('play')]), { play: false, steps: 0, unknown: null });
   // A snap has no OGraf meaning: it is no Take, so the bank still decides.
   assert.deepEqual(ografRestore(report(up), true, [row('snap')]), { play: true, steps: 1, unknown: null });
   assert.deepEqual(ografRestore(null, true, [row('snap')]), { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED });
@@ -111,6 +123,8 @@ test('a report from an instance the output replaced is refused, and only from th
   for (const bad of ['', 'A1', 'x', 'a'.repeat(33), 7, null]) assert.equal(isOgrafInstance(bad), false, String(bad));
   // `was` is read only as an instance id, and never as the instance itself.
   assert.equal(readOgrafOutcome(stateOf({ ...up, was: 'not-hex' })).was, undefined);
+  assert.equal(readOgrafOutcome(stateOf({ ...up, sent: 'event' })).sent, undefined);
+  assert.equal(readOgrafOutcome(stateOf({ ...up, sent: 'stop' })).sent, 'stop');
   assert.equal(readOgrafOutcome(stateOf({ ...up, was: up.i })).was, undefined);
 });
 

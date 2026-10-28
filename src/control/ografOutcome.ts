@@ -28,10 +28,11 @@ export type OgrafOutcomeStatus = (typeof STATUSES)[number] | 'unmounted';
  * RECOVERY (E3.2b, AC-3): `acted` is set while an action sent since its last Take may have changed
  * it, which no restart repeats; `unknown` says why its state after a restart is not proven, until
  * the operator's next Take or Out; `was` names the instance it replaced on the same output, whose
- * later word is then stale (`acceptOutcome`).
+ * later word is then stale (`acceptOutcome`); `sent` is a Take or Out sent to it that its Graphic
+ * has not yet answered, so `on` is still the state before it (a report member only, never sent).
  */
 export type OgrafOutcome =
-  | { i: string; call: OgrafCall; status: Exclude<OgrafOutcomeStatus, 'unmounted'>; code?: number; msg?: string; step: number | 'end' | null; on: boolean; acted?: true; unknown?: string; was?: string }
+  | { i: string; call: OgrafCall; status: Exclude<OgrafOutcomeStatus, 'unmounted'>; code?: number; msg?: string; step: number | 'end' | null; on: boolean; acted?: true; unknown?: string; was?: string; sent?: 'play' | 'stop' }
   | { i: null; status: 'unmounted'; msg: string; on: false };
 
 /** One line of the page: what an output said, and how it is drawn. */
@@ -60,6 +61,7 @@ export function readOgrafOutcome(state: unknown): OgrafOutcome | null {
   const code = typeof o.code === 'number' && Number.isInteger(o.code) ? o.code : undefined;
   const unknown = typeof o.unknown === 'string' && o.unknown ? o.unknown.slice(0, MSG_MAX) : undefined;
   const was = typeof o.was === 'string' && INSTANCE.test(o.was) && o.was !== o.i ? o.was : undefined;
+  const sent = o.sent === 'play' || o.sent === 'stop' ? o.sent : undefined;
   return {
     i: o.i,
     call: o.call as OgrafCall,
@@ -71,6 +73,7 @@ export function readOgrafOutcome(state: unknown): OgrafOutcome | null {
     ...(o.acted === true ? { acted: true as const } : {}),
     ...(unknown ? { unknown } : {}),
     ...(was ? { was } : {}),
+    ...(sent ? { sent } : {}),
   };
 }
 

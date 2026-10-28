@@ -616,6 +616,8 @@ export function createOutputStage(
   const ografData = new Map<string, Record<string, unknown>>();
   const lost = new Set<string>();
   const unknownWhy = new Map<string, string>();
+  /** The operator's Take or Out sent to the current instance and not yet answered by it. */
+  const sentCall = new Map<string, 'play' | 'stop'>();
   /** The instance an output's earlier document had mounted, by key (output/main.ts reads it from
    *  the tab's session): the first mount here names it as the one it replaced. */
   const replacedOnBoot = new Map(Object.entries(options.ografReplaced ?? {}));
@@ -626,6 +628,7 @@ export function createOutputStage(
     if (!mountSpec({ key, layer, packageBase: base, manifest: spec.ograf?.manifest, data: ografLoadData(spec.ograf?.manifest) }, again)) return false;
     servedFrom.set(key, { layer, spec, base });
     lost.delete(key);
+    sentCall.delete(key);
     const layerNow = foreign.get(key)!;
     paintAppearance(layerNow.frame, key);
     let on = false;
@@ -643,6 +646,8 @@ export function createOutputStage(
       // Refused by the Graphic, an action changed nothing. Counted back only while no Take, step or
       // Out was sent after it (`newest`): past one, it stays counted, which errs towards not known.
       if (call === 'custom' && answer.status === 'rejected' && newest) acts.set(key, Math.max(0, (acts.get(key) ?? 0) - 1));
+      // The newest Take, step or Out answered (accepted or refused): `on` says where it is again.
+      if (newest && (call === 'play' || call === 'stop') && (answer.status === 'done' || answer.status === 'rejected')) sentCall.delete(key);
       // An instance that answered nothing in time, or never loaded, is not trusted with the next
       // Take: that Take mounts the package again (`apply`).
       if (answer.status === 'timeout' || (call === 'mount' && answer.status !== 'done')) lost.add(key);
@@ -659,6 +664,7 @@ export function createOutputStage(
         ...((acts.get(key) ?? 0) > 0 ? { acted: true as const } : {}),
         ...(why ? { unknown: why } : {}),
         ...(was ? { was } : {}),
+        ...(sentCall.has(key) ? { sent: sentCall.get(key) } : {}),
       });
     });
     return true;
@@ -731,11 +737,14 @@ export function createOutputStage(
     // Said at once, not with the answer: a report banked meanwhile counts the row as applied, so a
     // restart before the answer must read an action as `acted` and a Take, step or Out as no known
     // step, never the state before it.
+    // A Take or Out leaves `on` as it was until its answer, so it is said as `sent` meanwhile.
+    const sent = msg.t === 'play' || msg.t === 'stop' ? msg.t : null;
+    if (sent && foreign.get(key) === layer) sentCall.set(key, sent);
     const now = ografOutcomes.get(key);
     if (!now || now.i !== layer.instance) return;
     const acted = call === 'custom' && !now.acted;
-    const moved = (call === 'play' || call === 'stop') && now.step !== null;
-    if (acted || moved) told(key, { ...now, ...(acted ? { acted: true as const } : {}), ...(moved ? { step: null } : {}) });
+    const moved = (call === 'play' || call === 'stop') && (now.step !== null || (sent !== null && now.sent !== sent));
+    if (acted || moved) told(key, { ...now, ...(acted ? { acted: true as const } : {}), ...(moved ? { step: null, ...(sent ? { sent } : {}) } : {}) });
   };
   payload.graphics.forEach((spec, index) => {
     if (!isNative(spec)) mountPublished(spec, layerOf(spec, index));
@@ -1095,6 +1104,7 @@ export function createOutputStage(
       waitingOgraf.delete(graphic);
       for (const map of [servedFrom, ografData, unknownWhy, acts] as Map<string, unknown>[]) map.delete(graphic);
       lost.delete(graphic);
+      sentCall.delete(graphic);
       if (!frames.has(graphic)) appearances.delete(graphic);
       plates.get(graphic)?.remove();
       plates.delete(graphic);

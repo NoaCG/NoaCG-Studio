@@ -705,6 +705,17 @@ test.describe('a foreign OGraf package on the output stage', () => {
     // as applied, so a restart then must not put the Graphic back at the step before it.
     expect([before, sent]).toEqual([0, null]);
     await expect(walk).toHaveAttribute('data-step', '1');
+    // An Out not yet answered leaves `on` as it was, so it is said as `sent` until its answer: a
+    // restart in between keeps the package off, not known, on either road.
+    const out = await page.evaluate(() => {
+      const s = (window as unknown as { __stage: { apply(g: string, m: unknown): void; ografOutcomes: Map<string, { on: boolean; sent?: string }> } }).__stage;
+      s.apply('walk', { t: 'stop' });
+      const o = s.ografOutcomes.get('walk');
+      return { on: o?.on, sent: o?.sent };
+    });
+    expect(out).toEqual({ on: true, sent: 'stop' });
+    await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'done', on: false });
+    expect((await outcome('walk'))?.sent, 'answered: no longer pending').toBeUndefined();
   });
 
   test('a monitor that serves no package draws a plate for it while it is up, never an empty picture', async ({ page }) => {

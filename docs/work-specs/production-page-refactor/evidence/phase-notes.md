@@ -68,8 +68,15 @@ changes a spec's digest.
     restores the Take at its first step and says the step is not known, never the step before it.
     A re-cue's remount drops the old instance's word until the new one answers its `load()`, so a
     report banked in between carries no `ograf` and a restart reads the package as unconfirmed.
-    `acted`, `unknown` and `was` are members of the report's `state.ograf`, not of the control
-    wire: no message kind or command member is added.
+    A Take or Out leaves `on` as it was until its answer, so it is said as `sent` meanwhile: a
+    restart in between keeps an Out off and puts a Take back only as far as it was proven up, at
+    its first step, both not known. This holds on the row-id road too, where no head says what the
+    operator last did. Expected: a restart during a Take's entrance comes back not known with a
+    Re-cue, never restored as proven.
+    `acted`, `unknown`, `was` and `sent` are members of the report's `state.ograf`, not of the
+    control wire: no message kind or command member is added. Residual: between a re-cue and the
+    new instance's `load()` answer, the page keeps the old instance's line (its Re-cue included); a
+    second press there is one more Take, never an action.
   - *The foreign frame adjust* (L2 AC-10's foreign case): the stage applies an appearance's frame to
     the package's iframe (`ForeignOgrafLayer.frame`) and keeps it frame-only, so the report banks and
     a reload restores place and size alone; vars and fonts never reach a package. The page resolves
