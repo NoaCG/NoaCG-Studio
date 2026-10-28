@@ -124,6 +124,8 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       const board = m.loadShows().find((x) => x.id === show.id)!.graphics.find((g) => g.name === 'Board')!;
       const first = m.loadShows().find((x) => x.id === show.id)!.cues!.find((c) => c.sourceId === board.id)!;
       m.updateShowCueChecked(show.id, first.id, { label: 'Board', values: { headline: 'Endurance', score: '0' } });
+      // A second cue of it, never taken: a key drawn on it names an instance that is not on air.
+      m.addShowCue(show.id, board.id, { label: 'Board again', values: { headline: 'Never aired', score: '0' } });
       const failure = await commitDurableWrites();
       if (failure) throw new Error(failure);
       return show.id;
@@ -198,6 +200,8 @@ test('the election data path holds for the minutes asked', async ({ page, browse
     await answerPanel(page);
     await page.getByTestId('panel-close').click();
     await deck.hello();
+    const elsewhere = (await deck.rows()).find((r) => r.label === 'Board again')?.id ?? null;
+    expect(elsewhere, 'the second Board cue is offered to the panel').toBeTruthy();
 
     // What the output shows, read at 4 Hz from each graphic's own frame (isolated, so through
     // Playwright's frames, named by their element's title); only changes are kept.
@@ -365,6 +369,10 @@ test('the election data path holds for the minutes asked', async ({ page, browse
           const again = await deck.action({ target: 'Board', cap: 'foreign:mark', instance: g.live, seen: offered.actionsVer as number, args: { v: `endurance ${actions}` }, id: pressed.id });
           await output.waitForTimeout(2_000);
           entry.duplicate = { outcome: again.outcome, marks: Number(await board.getAttribute('data-marks')) };
+          // A key drawn on the cue that is not on air: refused, the program instance is explicit.
+          const astray = await deck.action({ target: 'Board', cap: 'foreign:mark', instance: elsewhere!, seen: offered.actionsVer as number, args: { v: 'elsewhere' } });
+          await output.waitForTimeout(2_000);
+          entry.elsewhere = { outcome: astray.outcome, marks: Number(await board.getAttribute('data-marks')) };
         }
       } catch (e) {
         entry.failed = String((e as Error).message ?? e).split('\n')[0];

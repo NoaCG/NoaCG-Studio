@@ -93,6 +93,12 @@ export function revisionAt(i) {
   return n;
 }
 
+/** The step at which the provider first publishes a revision. */
+export function stepOfRevision(revision) {
+  if (!(Number.isInteger(revision) && revision >= 1)) return null;
+  for (let i = 0, n = 0; ; i++) if (stepKind(i) === 'count' && ++n === revision) return i;
+}
+
 const pct = (n) => `${n.toFixed(1)}%`;
 /** The provider's document at a revision, compact as a service would answer it. */
 export function resultsDoc(people, revision) {

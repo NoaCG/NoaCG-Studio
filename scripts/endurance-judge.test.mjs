@@ -59,11 +59,15 @@ function healthy() {
     events.push({ t: x.clickAt + 100, row: { graphic: 'Candidate card', t: 'play' } });
     events.push({ t: x.clickAt + 900, row: { graphic: 'Candidate card', t: 'live', data: { f0: person(x).name } } });
   }
-  for (let rev = 1; T0 + rev * STEP_MS < r.end; rev++) {
-    const t = T0 + rev * STEP_MS;
-    r.provider.push({ name: `count-${rev}`, at: t });
+  const applied = [];
+  for (let i = 0; T0 + i * STEP_MS < r.end; i++) {
+    if (stepKind(i) !== 'count') continue;
+    const rev = revisionAt(i);
+    const t = T0 + i * STEP_MS;
+    r.provider.push({ name: `count-${rev}`, at: t + 100 });
     r.reads.push({ agent: 'agent-1', at: t + 500, line: `${iso(t + 500)} election changed accepted=${rev} next=2000ms` });
     if (!isPaused(t + 1_000)) {
+      applied.push({ t: t + 1_000, rev });
       events.push({ t: t + 1_000, row: { graphic: 'Party totals', t: 'update', src: 'api', data: { f8: fmt(partyVotes('KOK', rev)) } } });
       const a = aired(t + 1_500);
       if (a) events.push({ t: t + 1_500, row: { graphic: 'Candidate card', t: 'update', data: { f0: person(a).name, f2: fmt(votesAt(person(a), rev)) } } });
@@ -78,7 +82,7 @@ function healthy() {
   // The output, read at 4 Hz: what the card and the board show as each row lands.
   let rev = 0;
   for (let t = T0; t < r.end; t += 250) {
-    if (!isPaused(t)) rev = Math.max(rev, Math.floor((t - T0 - 1_250) / STEP_MS));
+    rev = applied.findLast((x) => x.t <= t - 250)?.rev ?? 0;
     const a = aired(t - 400);
     r.frames.push({ at: t, name: a ? person(a).name : '', votes: a && rev ? fmt(votesAt(person(a), rev)) : '', kok: rev ? fmt(partyVotes('KOK', rev)) : '', frames: 6 });
   }
@@ -92,7 +96,7 @@ function healthy() {
   let marks = 0;
   for (let at = 30_000; at < plan.totalMs; at += ACTION_MS) {
     const a = { at: T0 + at, n: r.actions.length + 1, outcome: 'ran', settled: 'accepted', marksBefore: marks, marksAfter: ++marks, end: T0 + at + 1_000 };
-    if (a.n % 5 === 0) a.duplicate = { outcome: 'duplicate', marks };
+    if (a.n % 5 === 0) Object.assign(a, { duplicate: { outcome: 'duplicate', marks }, elsewhere: { outcome: 'stale', marks } });
     r.actions.push(a);
   }
   r.finalSnapshot = { accepted_revision: rev, owner_epoch: epoch };
@@ -152,6 +156,10 @@ red('a foreign action that ran twice', (r) => {
   const a = r.actions.find((x) => x.duplicate);
   a.duplicate = { outcome: 'ran', marks: a.marksAfter + 1 };
 }, /sent twice with one id/);
+red('a foreign action on an instance not on air that ran', (r) => {
+  const a = r.actions.find((x) => x.elsewhere);
+  a.elsewhere = { outcome: 'ran', marks: a.marksAfter + 1 };
+}, /not on air was refused/);
 red('a foreign action that did not run', (r) => {
   r.actions[3] = { ...r.actions[3], outcome: 'stale', settled: null, marksAfter: r.actions[3].marksBefore };
 }, /every foreign action/);

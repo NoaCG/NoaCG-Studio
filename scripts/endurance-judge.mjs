@@ -9,7 +9,7 @@
 // window (Pause, a reload until the next Take, an output disconnect and its recovery, a handover)
 // are reported but held to the recovery checks instead.
 
-import { candidates, partyVotes, revisionOf, schedule as planOf } from './endurance-fixture.mjs';
+import { STEP_MS, candidates, partyVotes, revisionOf, schedule as planOf, stepOfRevision } from './endurance-fixture.mjs';
 
 const GRACE_MS = 5_000;
 const RECOVER_MS = 20_000;
@@ -64,7 +64,10 @@ export function judge(record) {
   const faults = record.faults ?? [];
   const windows = faultWindows(record);
   const t0 = record.t0 ?? 0;
-  const maxRevision = Math.max(0, ...(record.snapshots ?? []).map((s) => s.revision ?? 0), record.finalSnapshot?.accepted_revision ?? 0);
+  // The provider's revisions (the snapshot's accepted revision is the agent's own sequence, which a
+  // new owner continues): the newest one the replay server served bounds every figure on air.
+  const served = new Map((record.provider ?? []).map((s) => [s.name, s.at]));
+  const maxRevision = Math.max(0, ...[...served.keys()].map((name) => Number(/^count-(\d+)$/.exec(name)?.[1] ?? 0)));
 
   // ── It ran ──
   check('the run lasted the minutes asked', record.end && t0 && record.end - t0 >= plan.totalMs, `${Math.round(((record.end ?? 0) - t0) / 1000)} s of ${plan.totalMs / 1000} s`);
@@ -145,6 +148,7 @@ export function judge(record) {
   const badActions = actions.filter((a) => a.failed || a.outcome !== 'ran' || a.settled !== 'accepted' || a.marksAfter !== a.marksBefore + 1);
   check('every foreign action ran once on the program instance', actions.length >= Math.floor((plan.totalMs - 30_000) / 60_000) && badActions.length === 0, JSON.stringify(badActions.slice(0, 3)));
   const dups = actions.filter((a) => a.duplicate);
+  check('a foreign action keyed to an instance not on air was refused', actions.length < 5 || (dups.length >= 1 && dups.every((a) => a.elsewhere?.outcome === 'stale' && a.elsewhere.marks === a.marksAfter)), JSON.stringify(dups.map((a) => a.elsewhere)));
   check('a foreign action sent twice with one id ran once', (actions.length < 5 || dups.length >= 1) && dups.every((a) => a.duplicate.outcome === 'duplicate' && a.duplicate.marks === a.marksAfter), JSON.stringify(dups.filter((a) => a.duplicate.outcome !== 'duplicate' || a.duplicate.marks !== a.marksAfter)));
 
   // ── Owners: no stale-owner write ──
@@ -228,23 +232,25 @@ export function judge(record) {
     const shown = frames.find((f) => f.at >= t.clickAt && f.name === t.person.name);
     if (shown && !inside(windows, t.clickAt)) timings.dispatchToAir.push(shown.at - t.clickAt);
   }
-  const fetched = new Map();
-  for (const r of reads) {
-    const m = /^(\S+) election changed accepted=(\d+)/.exec(r.line);
-    if (m && !fetched.has(Number(m[2]))) fetched.set(Number(m[2]), Date.parse(m[1]));
-  }
-  const served = new Map((record.provider ?? []).map((s) => [s.name, s.at]));
-  const boardRows = rows.filter((r) => r.graphic === 'Party totals' && r.t === 'update' && r.data?.f8);
+  // Only the agent reads the provider, so a step's first read is the agent's fetch of it; the
+  // provider moved at the step's own start on the server's clock (its first read, plus 5 s a step).
+  const moved = (rev) => {
+    const first = record.provider?.[0]?.at;
+    const i = stepOfRevision(rev);
+    return first === undefined || i === null ? null : first + i * STEP_MS;
+  };
+  // From the run's start: the setup's first rows land before the output has its graphics.
+  const boardRows = rows.filter((r) => r.graphic === 'Party totals' && r.t === 'update' && r.data?.f8 && r.at >= t0);
   for (const r of boardRows) {
     const kok = num(r.data.f8);
     const rev = (kok - partyVotes('KOK', 0)) / (partyVotes('KOK', 1) - partyVotes('KOK', 0));
-    const fetchAt = fetched.get(rev);
+    const fetchAt = served.get(`count-${rev}`);
     const steadyRow = !inside(windows, r.at);
     if (fetchAt && steadyRow) timings.fetchToApply.push(r.at - fetchAt);
-    if (served.has(`count-${rev}`) && steadyRow) timings.providerToApply.push(r.at - served.get(`count-${rev}`));
+    if (moved(rev) !== null && steadyRow) timings.providerToApply.push(r.at - moved(rev));
     const shown = frames.find((f) => f.at >= r.at - 50 && num(f.kok) >= kok);
     if (shown) (steadyRow ? timings.applyToRenderBound : recovering).push(shown.at - r.at);
-    if (shown && steadyRow && served.has(`count-${rev}`)) timings.providerToRenderBound.push(shown.at - served.get(`count-${rev}`));
+    if (shown && steadyRow && moved(rev) !== null) timings.providerToRenderBound.push(shown.at - moved(rev));
     // The aired card moves at the page's own read of the tree.
     const aired = takes.findLast((t) => t.at <= r.at);
     if (aired && steadyRow) {
