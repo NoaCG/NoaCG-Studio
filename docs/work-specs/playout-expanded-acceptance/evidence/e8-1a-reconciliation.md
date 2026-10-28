@@ -155,7 +155,7 @@ end).
 
 | AC | Evidence (rows) | Status |
 | --- | --- | --- |
-| AC-1 archive installs from the guide | 2 packaging and guide portion (`noacg-studio-0.1.2.tgz`, sha256 `9914d383…f500ce6`, in a real Companion 5.1.0 container); LW `h0-1-companion.md` on `995272d` | part owed: H0.2 (the owner's guide walk); the archive is stale, see O-3 |
+| AC-1 archive installs from the guide | 2 packaging and guide portion (`noacg-studio-0.1.2.tgz` in a real Companion 5.1.0 container; the checker's build on the merge SHA `995272d` hashed sha256 `a8740f46…a7084c`, the builder's on `2a89eb41d` `9914d383…f500ce6`: the archive build is not byte-reproducible); LW `h0-1-companion.md` on `995272d` | part owed: H0.2 (the owner's guide walk); the archive is stale, see O-3 |
 | AC-2 actions and feedback on the real route | 2 | passed (SW) for the 0.1.2 module; held for 0.2.0 by the module's tests (O-3) |
 | AC-3 ownership and credentials | 2 | passed (SW) |
 | AC-4 physical deck and outputs | none | owed: H0.2 |
@@ -269,7 +269,10 @@ end).
   required suites on the candidate, so the software routes hold; the laptop walks they cite do not
   cover the extensions. S's final acceptance reconciles them against the final candidate.
 - **O-3, the Companion archive and module evidence.** H0.1's archive is `noacg-studio-0.1.2.tgz`
-  (sha256 `9914d38334e091a76bc114583747cbce5b8eba209b4356a4c4797fa87f500ce6`); the module is now
+  (the checker's build on `995272d`: sha256
+  `a8740f4632b0edda85dd2a1709e50ab4114a747aad7e831e83739e5ba6a7084c`; the builder's on
+  `2a89eb41d` was `9914d38334e091a76bc114583747cbce5b8eba209b4356a4c4797fa87f500ce6`, so the build
+  is not byte-reproducible and a hash names one build, not the source); the module is now
   0.2.0 (`companion-module/` tree `02bf90f9213ad07f7c35703e59491524307ded45`), built and tested
   by row 42's checker but with no recorded archive hash and no real Companion run. The module's
   73 tests run in no GitHub workflow (#1758). Stale for H0 AC-1; the archive H0.2 installs must be
@@ -277,8 +280,11 @@ end).
 - **O-4, typed and foreign limits.** #1760: a source moving a typed (foreign) cue's bound value
   reaches air at the next Update, not by itself (a native cue follows within a second). #1769: a
   PROGRAM monitor can miss the typed values of a graphic no report banks (air right). #1770: an
-  output bundle from before E1.2b reboots a typed report to defaults. #1775 item 2: no Back, Goto
-  or skip control for a foreign package on the page. None fails a checked criterion's text; each
+  output bundle from before E1.2b reboots a typed report to defaults. #1775 (numbered as in the issue):
+  E3.2a wired part of item 1 (» Next steps a package) and item 3 (declared actions as ⚡ buttons,
+  confirmed by the output's answer); item 1's Back, Goto and skip controls and item 2's `step`
+  command row (a migration) stay open; item 4 (calls on a replaced instance reading `gone`) is not
+  verified here. The row 40 and 41 notes number these differently. None fails a checked criterion's text; each
   is a limit E8.2's capability matrix must state, and #1770 is a rollback caveat for the runbook.
 - **O-5, laptop walks not run.** Row 32c's walk of one exported overlay and row 40's scratch
   CasparCG/Bridge and OBS walk have no receipt in `../../production-page-refactor/evidence/local/`.
@@ -322,7 +328,7 @@ end).
 | #1769 | E1 monitor | O-4, open |
 | #1770 | E1 AC-3 rollback | O-4, open; runbook |
 | #1771 | output recovery tests | test gap; behaviour correct; no criterion |
-| #1775 | foreign step controls | O-4, item 2 open; matrix limit |
+| #1775 | foreign step controls | O-4; Next and declared actions wired by E3.2a; Back/Goto/skip (item 1) and the `step` row (item 2) open, item 4 unverified; matrix limit |
 | #1777 | L2 AC-6 edge | O-8, open; runbook |
 | #1778 | e2e seed settling | test hygiene; no criterion |
 | #1784 | E3 AC-3, L2 AC-10 | item 1 closed by this row (below); item 2 open, display only |
@@ -337,7 +343,7 @@ Each named case has a test that joins the features; each went red under the muta
 | A pinned graphic bound to a source (C1 with L1) | same file, "a pinned graphic bound to a source: …" | the bound press ignoring the tree; the data dispatch also sending `play` |
 | An adjusted cue bound to a source (L2.1 with C1) | same file, "a source moving an adjusted cue on air …" | the data dispatch carrying an identity appearance |
 | A pinned adjusted graphic (L1 with L2.1) | same file, "a pinned press on an adjusted graphic …" | `liveSelection` taking the first cue |
-| An activated look over a pinned graphic (L2.3 with L1) | same file, "a production look sent over a pinned press …"; `scripts/cue-adjust.test.mjs` "an active look reaches a native graphic and never an imported OGraf package …" and "the look a production turns on is never handed to an imported OGraf package …" | the look send not waiting behind a live press; the package style guard removed; `lookForOf` handing the look to a package |
+| An activated look over a pinned graphic (L2.3 with L1, and E3) | same file, "a production look sent over a pinned press …"; `scripts/cue-adjust.test.mjs` "an active look reaches a native graphic and never an imported OGraf package …" and "the look a production turns on is never handed to an imported OGraf package …" | the look send not waiting behind a live press; the package style guard removed; `lookForOf` handing the look to a package |
 | A bound cue with a cue-level typeface (L2.2, L2.3 with C1) | `scripts/cue-adjust.test.mjs` "a bound cue with its own typeface under an active look …" | the look's face overriding the cue's |
 
 AC-2's other clauses were already covered on main and are reused (class SW, re-proven by the
@@ -345,7 +351,7 @@ candidate's runs):
 
 | Clause | Tests |
 | --- | --- |
-| Foreign typed actions through the negotiated guarded route, unknown legality, program-instance targeting | `scripts/panel-feedback.test.mjs` (never greyed by a machine; a key drawn on another instance refused), `scripts/graphic-verbs.test.mjs` (declared actions on the program instance, replacement mid-wait), `e2e/configured/panel-graphic-actions.spec.ts` (a real foreign rundown cue through the relay). A foreign package has no preview instance (E3.2a), so preview targeting is the program-instance check |
+| Foreign typed actions through the negotiated guarded route, unknown legality, preview/program targeting | `scripts/panel-feedback.test.mjs` (never greyed by a machine; a key drawn on another instance refused), `scripts/graphic-verbs.test.mjs` (declared actions on the program instance, replacement mid-wait), `e2e/configured/panel-graphic-actions.spec.ts` (a real foreign rundown cue through the relay). A departure from the clause's wording: a foreign package has no preview instance (E3.2a, PREVIEW says it plays on the outputs only), so "preview/program targeting" is met as the program-instance check |
 | A quiz reveal leaves its clock running | `e2e/production-data.spec.ts` "a quiz revealed beside a running clock: …" |
 | Data arrival never Takes | `e2e/production-data.spec.ts` (same test, and the on-air updates without a new entrance), `e2e/configured/election-selection.spec.ts` AC-3, `scripts/data-pause.test.mjs`, `scripts/production-data-session.test.mjs`, and the bound-pinned case above |
 | Groups expose collision and partial failure | `scripts/folder-playout.test.mjs`, `e2e/playout-folders.spec.ts`, `e2e/configured/ograf-rundown.spec.ts` |
@@ -357,7 +363,8 @@ page's guard moved from `ProductionPage.tsx`'s `adjustStateOf` into `cueAdjustSt
 never resolves for a package (before, removing the page's guard left every test green, #1784
 item 1); and `lookForOf` (`src/control/productionLook.ts`) hands no look to a package, so Publish
 no longer gives the hosted page a look for one (found by this row's review; the output's own
-frame-only guard already kept it off air). A hosted-page cue record carrying a typeface for a
+frame-only guard already kept it off air), and Setup › Look's reach count (`lookReach`) counts a
+package as untouched. A hosted-page cue record carrying a typeface for a
 package is still resolved there, since that fold has no template to read; the output drops it.
 
 ## Packages and hashes on the candidate
@@ -413,16 +420,16 @@ merge, in the ledger's merge checks); providers as dated in Q; the cloud environ
 | 32 | E7.2b | `9866960cb` (#1735) | `p34-pp-p34c-e679`, 2026-10-26T07:10 | CI 40281001978 success; configured 40281001994 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1735#issuecomment-6410331062) |
 | 32c | L2.1b | `1dcf26dc9` (#1740) | `p35-pp-p35c-c501`, 2026-10-26T10:08 | CI 40302896428 success; configured 40302896279 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1740#issuecomment-6413401169) |
 | 32d | L2.2 | `42c48f95f` (#1753) | `p36-pp-p36c-6580`, 2026-10-26T17:23 | CI 40364795529 success; configured 40364795490 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1753#issuecomment-6422743451) |
-| 33 | E1.1 | `a9356fb7e` (#1756) | `p37-pp-p37c-0d67`, 2026-10-26T19:11 | CI 40382043321 success; configured 40382043283 success; CI red only on quarantined import-svg, retry job green | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1756#issuecomment-6424996626) |
+| 33 | E1.1 | `a9356fb7e` (#1756) | `p37-pp-p37c-0d67`, 2026-10-26T19:11 | CI 40382043321 success; configured 40382043283 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1756#issuecomment-6424996626) |
 | 34 | E6.1 | `a5360d4c5` (#1757) | `p38-pp-p38c-5e21`, 2026-10-26T21:17 | CI 40400474943 success; configured 40400474947 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1757#issuecomment-6427528910) |
 | 35 | E1.2a | `c614500fb` (#1763) | `p39-pp-p39c-4d2a`, 2026-10-27T06:26 | CI 40458529409 success; configured 40458529397 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1763#issuecomment-6435325604) |
 | 36 | E1.2b | `0897d097f` (#1765) | `p40-pp-p40c-7b19`, 2026-10-27T09:08 | CI 40476286065 success; configured 40476286073 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1765#issuecomment-6437894282) |
-| 37 | E2.1 | `55621f973` (#1772) | `p41-pp-p41c-3e8d`, 2026-10-27T12:29 | CI 40501378385 failure; configured 40501378422 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1772#issuecomment-6441881105) |
-| 38 | E2.2 | `d9c29b9ea` (#1774) | `p42-pp-p42c-9a27`, 2026-10-27T15:05 | CI 40522413204 success; configured 40522413219 success; push CI red only on rundown-history:276 (released flake), stand-in dispatch on the merge SHA green | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1774#issuecomment-6445503274) |
+| 37 | E2.1 | `55621f973` (#1772) | `p41-pp-p41c-3e8d`, 2026-10-27T12:29 | CI 40501378385 failure; configured 40501378422 success; CI red only from quarantined import-svg, retry job 122186353343 green (checker) | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1772#issuecomment-6441881105) |
+| 38 | E2.2 | `d9c29b9ea` (#1774) | `p42-pp-p42c-9a27`, 2026-10-27T15:05 | CI 40522413204 success; configured 40522413219 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1774#issuecomment-6445503274) |
 | 38a | L2.3 | `8057a51f6` (#1776) | `p43-pp-p43c-5b18`, 2026-10-27T19:51 | CI 40569021431 success; configured 40569021396 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1776#issuecomment-6452018182) |
 | 39 | E3.1 | `302d565be` (#1779) | `p44-pp-p44c-2f6d`, 2026-10-28T00:21 | CI 40606317754 success; configured 40606317710 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1779#issuecomment-6457241262) |
 | 40 | E3.2a | `373d89667` (#1780) | `p45-pp-p45c-6a3e`, 2026-10-28T03:19 | CI 40624330559 success; configured 40624330563 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1780#issuecomment-6459768936) |
 | 41 | E3.2b | `660a404d7` (#1781) | `p46-pp-p46c-cba4`, 2026-10-28T08:03 | CI 40651918059 success; configured 40651918160 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1781#issuecomment-6463855205) |
-| 42 | E6.2 | `ae887d254` (#1786) | `p47-pp-p47c-9846`, 2026-10-28T10:09 | CI 40667808475 success (dispatch), 40663901817 cancelled; configured 40663901945 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1786#issuecomment-6466198696) |
+| 42 | E6.2 | `ae887d254` (#1786) | `p47-pp-p47c-9846`, 2026-10-28T10:09 | CI 40667808475 success (dispatch), 40663901817 cancelled; configured 40663901945 success; push CI red only on rundown-history:276 (released flake), its re-run cancelled as superseded, stand-in dispatch 40667808475 on the merge SHA green | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1786#issuecomment-6466198696) |
 
 The ledger entry of each row carries the per-criterion evidence; a PR comment link is given where the checker posted one.

@@ -1109,6 +1109,8 @@ describe('cross-feature cases (E8.1a)', () => {
     const lookFor = L.lookForOf(show, [{ css, js: '' }, { css, js: '', foreign: {} }]);
     assert.equal(lookFor('native').vars.accent, '#ff7a00');
     assert.equal(lookFor('pkg'), undefined, 'the same stylesheet in a package takes nothing');
+    const reach = L.lookReach([{ name: 'Strap', template: { css, js: '' } }, { name: 'Board', template: { css, js: '', foreign: {} } }], brand, []);
+    assert.deepEqual([reach.accent, reach.type, reach.untouched], [1, 1, ['Board']], 'and Setup › Look counts it as untouched');
     // The hosted fold has no template to read: with no look handed to it, it resolves none.
     const hosted = G.cueAdjustState({ id: 'pkg', savedAt: '', adjust: nudged }, { id: 'c' }, HD, HD, {}, G.NO_GEOMETRY, null, false, St.styleContextFor([], lookFor));
     assert.deepEqual(hosted.send, { v: 1, frame });

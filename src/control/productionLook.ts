@@ -184,7 +184,7 @@ export function withLookFaceIn<G extends { assets: readonly { path: string; data
 /** One pool graphic as the Look panel counts it. */
 export interface LookPoolGraphic {
   name: string;
-  template: { css: string; js: string };
+  template: { css: string; js: string } & Partial<Pick<SpxTemplate, 'foreign'>>;
 }
 
 /** THE REACH, PER PROPERTY, OVER THE POOL: how many graphics the look's typeface reaches (the face
@@ -205,7 +205,7 @@ export function lookReach(pool: readonly LookPoolGraphic[], look: ProjectBrand, 
   let accent = 0;
   const untouched: string[] = [];
   for (const g of pool) {
-    const on = lookLayerFor(layer, g.template);
+    const on = isForeignGraphic(g.template) ? undefined : lookLayerFor(layer, g.template);
     if (on?.font && faceResolves) type += 1;
     if (on?.vars?.accent) accent += 1;
     if (!on) untouched.push(g.name);

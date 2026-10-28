@@ -21,13 +21,14 @@ changes a spec's digest.
     kit, real studio, provider), the dependency-based reuse decision, what is owed to E8.1b, E8.2,
     H0.2 and S, the open findings O-1 to O-8, the 23 named follow-ups classified, and the hashes.
   - *The cross-feature cases*: five press-level tests at the end of
-    `scripts/graphic-verbs.test.mjs` and two fold-level tests at the end of
+    `scripts/graphic-verbs.test.mjs` and three fold-level tests at the end of
     `scripts/cue-adjust.test.mjs` ("Cross-feature cases (E8.1a)").
   - *One focused fix*: the rule that an imported OGraf package takes no look or style moved from
     `ProductionPage.tsx` `adjustStateOf` into `cueAdjustState` (`src/control/adjustGeometry.ts`),
     which reads the graphic's `template`. Closes #1784's item 1; item 2 stays open. And
     `lookForOf` (`src/control/productionLook.ts`) hands no look to a package, so Publish gives the
-    hosted page none for one (this row's review).
+    hosted page none for one (this row's review), and `lookReach` counts a package as untouched
+    (the `/so`).
   - *Residual:* the hosted fold (`hostedAdjustState`) has no template, so a cue record carrying a
     typeface for a package still resolves a style there; the output's frame-only guard keeps it
     off air. `cueAdjustState`'s `template` stays optional for that caller.
@@ -43,6 +44,11 @@ changes a spec's digest.
     limits are unchanged; nothing physical is assumed.
   - *Cases already covered stay as they are*: foreign typed actions through the route, the quiz
     clock, data never taking, groups and stale monitors each point to their existing tests.
+  - *A departure from AC-2's wording*: "preview/program instance targeting" for foreign actions
+    is met as the program-instance check, because a foreign package has no preview instance
+    (E3.2a).
+  - *Archive hashes name a build*: H0.1's checker and builder hashed different bytes for the same
+    0.1.2 source, so the record cites the checker's and says the build is not reproducible.
   - *The new tests extend the maintained files* rather than a new file, per the durable-check
     rule: the verbs rig and the appearance fold are where those flows are tested.
 - **Traps.**
@@ -54,11 +60,11 @@ changes a spec's digest.
     baseline: answer that send before the source's patch, or the next dispatch is the second send.
   - The commit hook refuses a `Co-Authored-By` trailer.
 - **Mutation checks** (each red, restored after): `liveSelection` taking the first cue of the
-  graphic (three cases), the typed-airing guard off for live presses, a package Take reading ✓,
+  graphic (four of the five press cases), the typed-airing guard off for live presses, a package Take reading ✓,
   the bound press ignoring the tree, the data dispatch carrying an identity appearance, the data
   dispatch also sending `play`, the look send not waiting behind a live press, the package style
-  guard removed from `cueAdjustState`, `lookForOf` handing the look to a package, the look's face
-  overriding the cue's.
+  guard removed from `cueAdjustState`, `lookForOf` handing the look to a package, `lookReach`
+  counting a package, the look's face overriding the cue's.
 - **Touched files against `3b871c3`:**
   `docs/work-specs/playout-expanded-acceptance/evidence/e8-1a-reconciliation.md` (new),
   `scripts/cue-adjust.test.mjs`, `scripts/graphic-verbs.test.mjs`,
