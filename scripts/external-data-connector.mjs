@@ -581,7 +581,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   });
   const stopRenewing = sender?.keepClaim();
   // Spawned with an IPC channel (the endurance run), it answers what waits in it, and nothing else.
-  const answerBacklog = (message) => message?.ask === 'backlog' && process.send?.({ id: message.id, backlog: { ...connector.backlog(), posting: sender?.posting() ?? 0 } });
+  const answerBacklog = (message) => message?.ask === 'backlog' && process.send?.({ id: message.id, backlog: { ...connector.backlog(), posting: sender?.posting() ?? 0, mem: process.memoryUsage() } });
   if (process.send) process.on('message', answerBacklog);
   connector.start();
   await done;
