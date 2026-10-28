@@ -142,7 +142,7 @@ test('a mixed rundown takes a foreign package on a real output: per-child outcom
   await expect(page.getByTestId('production-note')).toContainText('Take: Opening, 1 of 3 on air, 2 sent to the outputs', { timeout: 20_000 });
   await expect(board).toHaveAttribute('data-on', 'true', { timeout: 20_000 });
   await expect(board).toHaveText('Opening 3');
-  expect(JSON.parse((await board.getAttribute('data-values'))!)).toEqual({ headline: 'Opening', score: '3' });
+  expect(JSON.parse((await board.getAttribute('data-values'))!)).toEqual({ headline: 'Opening', score: '3', fail: '' });
   await expect(poll).toHaveAttribute('data-on', 'false');
   const confirmed = page.getByTestId('program-confirmed');
   await expect(confirmed.locator('li[data-graphic="Board"]')).toHaveText('Board: on air on the output, step 1', { timeout: 20_000 });
