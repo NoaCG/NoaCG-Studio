@@ -281,6 +281,7 @@ window.addEventListener('unhandledrejection', function (ev) {
   ${serializeHelper(settleGraphic, 'settle')}
   ${serializeHelper(reportGraphicBox, 'report')}
   ${serializeHelper(measureGraphic, 'measureBox')}
+  ${serializeHelper(resetGraphicInline, 'resetGraphicInline')}
   function waitFonts(cb) {
     if (document.fonts && document.fonts.ready) {
       var done = false;
@@ -400,6 +401,8 @@ window.addEventListener('unhandledrejection', function (ev) {
      fonts.ready measured the fallback when its face came in after the 400 ms hold, so a late
      refit gives it the same values again. */
   var lastData = null;
+  /* Whether an Out has run since the last Take (the reset a Take after an Out needs, below). */
+  var outSince = false;
   /* An event the template accepts writes its payload into the fields (animRuntime.ts
      noacgApplyPayload) after the update that set lastData, so a late refit would put the old
      values back: the values replayed take each applied payload in. A refused event applies none. */
@@ -498,9 +501,24 @@ window.addEventListener('unhandledrejection', function (ev) {
       if (msg.data !== '{}' || lastData == null) lastData = msg.data;
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
+      var afterOut = outSince;
+      outSince = false;
       afterFonts(function () {
         try {
-          if (msg.data != null) { lastData = msg.data; window.update && window.update(msg.data); }
+          if (msg.data != null) lastData = msg.data;
+          /* A TAKE AFTER AN OUT starts from the graphic's CSS rest (#1618). This document stays
+             loaded between cues, and an exit can leave inline props its entrance never resets: a
+             results board's Out fades the rows' container, its cascade entrance animates only the
+             rows, and the second Take aired the header over an empty board. The editor's monitor
+             always reset here (simulatorRuntime.ts sim-play); this is the same reset, followed by
+             the values the graphic was last given, since a fit or a rebuild may have written inline
+             styles of its own. */
+          if (afterOut) {
+            resetGraphicInline(window);
+            window.update && window.update(lastData != null ? lastData : '{}');
+          } else if (msg.data != null) {
+            window.update && window.update(msg.data);
+          }
           window.play && window.play();
         } catch (e) {}
         report(window);
@@ -514,6 +532,7 @@ window.addEventListener('unhandledrejection', function (ev) {
         else report(window);
       });
     } else if (msg.cmd === 'stop') {
+      outSince = true;
       var priorQuiet = window.noacgSoundQuiet === true;
       if (msg.sound === false && window.noacgSoundSetQuiet) window.noacgSoundSetQuiet(true);
       try { window.stop && window.stop(); } catch (e) {}
