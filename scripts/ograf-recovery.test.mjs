@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ografRestore, heldActions, RESTORE_STEPS_MAX, UNKNOWN_ACTED, UNKNOWN_UNCONFIRMED, UNKNOWN_STEP } = await import('../src/control/ografRecovery.ts');
+const { ografRestore, heldActions, RESTORE_STEPS_MAX, UNKNOWN_ACTED, UNKNOWN_UNCONFIRMED, UNKNOWN_STEP, UNKNOWN_OUT } = await import('../src/control/ografRecovery.ts');
 const { acceptOutcome, isOgrafInstance, ografOutcomeWords, readOgrafOutcome } = await import('../src/control/ografOutcome.ts');
 
 const stateOf = (ograf) => ({ ograf });
@@ -20,8 +20,12 @@ test('a Take the Graphic accepted comes back at its step, through its own lifecy
   assert.deepEqual(ografRestore(report(up), true, []), { play: true, steps: 1, unknown: null });
   // Protocol 1 has no head: the report's own word decides.
   assert.deepEqual(ografRestore(report(up), undefined, []), { play: true, steps: 1, unknown: null });
-  // The log says it went off since (a head with no Out row read is a report older than its Out).
-  assert.deepEqual(ografRestore(report(up), false, []), { play: false, steps: 0, unknown: null });
+  // The log says an Out went, but the Graphic's last word left it up (it refused the Out, or its
+  // answer was not banked yet): a restart does not undo the operator's Out, and says it is unconfirmed.
+  assert.deepEqual(ografRestore(report({ ...up, call: 'stop', status: 'rejected', code: 409 }), false, []), { play: false, steps: 0, unknown: UNKNOWN_OUT });
+  assert.deepEqual(ografRestore(report(up), false, []), { play: false, steps: 0, unknown: UNKNOWN_OUT });
+  // Off in the log and off by the Graphic's word: nothing.
+  assert.deepEqual(ografRestore(report({ ...up, call: 'stop', on: false }), false, []), { play: false, steps: 0, unknown: null });
   // Off on the output and off in the log: nothing to put back, nothing unknown.
   assert.deepEqual(ografRestore(report({ ...up, on: false, call: 'stop' }), false, []), { play: false, steps: 0, unknown: null });
 });

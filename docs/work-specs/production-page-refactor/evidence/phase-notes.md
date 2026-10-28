@@ -28,7 +28,8 @@ changes a spec's digest.
     the catch-up is read past and counted applied (`heldActions`, `apply(.., deliver=false)`, so the
     follow never sends it either), and a package whose instance an action reached is put back as far
     as its Take and step and marked not known. A Take never confirmed (refused, unanswered, no
-    report) is not repeated: not known. A Take or Out after the bank replays from the log as before.
+    report) is not repeated: not known. An Out the log holds but the Graphic's last word does not
+    (refused, or its answer not banked) is not undone either: it stays off, its Out not confirmed. A Take or Out after the bank replays from the log as before.
   - *Not known, with a re-cue* (`stage.markUnknown`, `OgrafOutcome.unknown`): marked after the
     catch-up, kept through late answers and updates, cleared by the operator's next Take or Out.
     PROGRAM's line reads "Board: not known on the output (<why>)" in amber with a Re-cue button

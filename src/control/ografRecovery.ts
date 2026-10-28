@@ -31,6 +31,7 @@ export interface OgrafRestore {
 export const UNKNOWN_ACTED = 'an action was not repeated after the restart';
 export const UNKNOWN_UNCONFIRMED = 'its Take was not confirmed before the restart';
 export const UNKNOWN_STEP = 'its step was not confirmed before the restart';
+export const UNKNOWN_OUT = 'its Out was not confirmed before the restart';
 
 /** The most steps a restore walks. A step is a stranger's own answer, so it is bounded before it
  *  becomes calls: each is one `playAction` sent without waiting, and a frame holds at most 64 calls
@@ -61,6 +62,10 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
     if (lastOut > lastTake) return NOTHING;
     return { play: false, steps: 0, unknown: acted ? UNKNOWN_ACTED : null };
   }
+  // The log says an Out went, but the Graphic's last word left it up (it refused the Out, or its
+  // answer was not banked yet): the operator's Out is not undone by a restart, so it stays off, and
+  // the Out is said not to be confirmed.
+  if (headOn === false && o !== null && o.i !== null && o.on) return { play: false, steps: 0, unknown: UNKNOWN_OUT };
   const up = headOn ?? o?.on === true;
   if (!up) return NOTHING;
   if (!o || o.i === null || !o.on) return { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED };
