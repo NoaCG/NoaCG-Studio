@@ -376,11 +376,13 @@ const SESSION_WIRE_IO: SessionWireIo = {
   hostedControlTail,
   followControlLog,
   controlOutputSeenAt,
+  controlPingSeq,
   createCueArmWire,
   appendLog: appendLogEntries,
   armRpc: CUE_ARM_RPC,
   setInterval: (run, ms) => setInterval(run, ms),
   clearInterval: (timer) => clearInterval(timer as ReturnType<typeof setInterval>),
+  setTimeout: (run, ms) => setTimeout(run, ms),
 };
 
 /**

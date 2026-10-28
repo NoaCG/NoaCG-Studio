@@ -1842,8 +1842,14 @@ async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody,
   return readSendAnswer(data);
 }
 
-/** What `control_ping_seq` answered: the server's clock at the commit, or why there was no ping. */
-export type PingAnswer = { ok: true; at: number } | { ok: false; unavailable: boolean; detail: string };
+/** What `control_ping_seq` answered: the server's clock at the commit, or why there was no ping.
+ *  `passing`: a refusal that may not hold a second later (the head lock, the burst cap, a timeout,
+ *  the network), as opposed to one that will (hosted control off, a bad id). */
+export type PingAnswer = { ok: true; at: number } | { ok: false; unavailable: boolean; detail: string; passing?: boolean };
+
+/** SQLSTATEs a ping can meet and pass a moment later: lock_not_available, check_violation (the
+ *  burst cap), query_canceled (a statement timeout). */
+const PASSING_PING_REFUSALS = new Set(['55P03', '23514', '57014']);
 
 /**
  * `control_ping_seq` (migration 0072, docs/work-specs/playout-ready/spec.md R9): one row through
@@ -1854,7 +1860,9 @@ export async function controlPingSeq(slug: string, id: string): Promise<PingAnsw
   const sb = await getSupabase();
   if (!sb) return { ok: false, unavailable: true, detail: 'no backend' };
   const { data, error } = await sb.rpc('control_ping_seq', { p_slug: slug, p_id: id });
-  if (error) return { ok: false, unavailable: error.code === 'PGRST202', detail: error.message.slice(0, 160) };
+  if (error) {
+    return { ok: false, unavailable: error.code === 'PGRST202', detail: error.message.slice(0, 160), passing: !error.code || PASSING_PING_REFUSALS.has(error.code) };
+  }
   const at = (data as { at?: unknown } | null)?.at;
   return typeof at === 'number' ? { ok: true, at } : { ok: false, unavailable: false, detail: 'no answer' };
 }
@@ -2004,6 +2012,8 @@ export async function followControlLog(opts: {
   /** Protocol 2: the production was published again, so every seq this page holds is from a log
    *  that is gone (a timed cue's arm rows are ordered by them, control/cueArmWire.ts). */
   onEpochReset?: () => void;
+  /** Protocol 2: the follower holds rows behind a gap or reads the tail (true), or is level (false). */
+  onBusy?: (busy: boolean) => void;
 }): Promise<() => void> {
   if (opts.seq) {
     const plan = opts.seq;
@@ -2014,12 +2024,17 @@ export async function followControlLog(opts: {
       epoch: plan.epoch,
       tail: plan.tail,
       onRows: (rows, replayed) => {
-        if (replayed && rows.length) opts.onReplay?.(true);
-        rows.forEach((row) => {
-          heard.claim(row.msg);
-          opts.onRow(row);
-        });
-        if (replayed && rows.length) opts.onReplay?.(false);
+        const bracket = replayed && rows.length > 0;
+        if (bracket) opts.onReplay?.(true);
+        try {
+          rows.forEach((row) => {
+            heard.claim(row.msg);
+            opts.onRow(row);
+          });
+        } finally {
+          // A row that threw must not leave the surface believing it is still replaying.
+          if (bracket) opts.onReplay?.(false);
+        }
       },
       onHead: (head, epoch) => learnHead(plan.session, epoch, head.graphics),
       onEpoch: (epoch, reset) => {
@@ -2029,7 +2044,11 @@ export async function followControlLog(opts: {
       // WHILE THE FOLLOWER HOLDS ROWS OR READS THE TAIL this page's own presses take the durable
       // road (see `recovering` above): applied to its monitor now, they would land ahead of older
       // rows still on their way, and their echo, dropped by the oid claim, could not put it right.
-      onBusy: (busy) => (busy ? recovering.add(showId) : recovering.delete(showId)),
+      onBusy: (busy) => {
+        if (busy) recovering.add(showId);
+        else recovering.delete(showId);
+        opts.onBusy?.(busy);
+      },
       onHole: opts.onHole,
       onStatus: opts.onStatus,
     });

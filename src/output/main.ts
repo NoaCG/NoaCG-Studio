@@ -64,7 +64,7 @@ import {
 } from '../control/outputRecovery';
 import { SEQ_TAIL_PAGE, supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
-import { pingDelay, type PingAck } from '../control/prepareLive';
+import { answersPing, pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
 import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
@@ -962,6 +962,8 @@ async function boot(): Promise<void> {
     // long the row took from the server's commit, and never handed to the stage. Its graphic is
     // empty, so it names nothing here to air or to report.
     if (row.msg.t === 'ping') {
+      // A production page's hand-over ping (#1797) has done its work by moving the number.
+      if (!answersPing(row.msg.id)) return;
       ack = { id: row.msg.id, ms: pingDelay(row.msg.at, Date.now()) };
       dbg('ping', ack.ms === null ? ack.id : ack.id + ' in ' + ack.ms + ' ms');
       presence.touch();

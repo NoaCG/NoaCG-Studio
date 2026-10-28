@@ -1,16 +1,20 @@
-// guards: src/control/sessionWire.ts, src/control/airState.ts, src/control/playoutSession.ts
+// guards: src/control/sessionWire.ts, src/control/airState.ts, src/control/playoutSession.ts, src/control/seqFollow.ts, src/control/prepareLive.ts
 //
 // A PUBLISHED PRODUCTION'S WIRE, driven with a scripted backend (production-page refactor spec §3,
 // AC-4, AC-6): resolve, seed, follow and stop, in order; a resolve that fails and is asked again; a
 // Take while the resolve is out (THE MOVES GUARD through the whole lifetime); a production switch
-// mid-flight; and every answer that lands after the stop, which must change nothing.
+// mid-flight; every answer that lands after the stop, which must change nothing; and the hand-over
+// ping that brings an output a frame it lost while the page reloaded (#1797).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { moveLiveCue } from '../src/control/airState.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, createPlayoutSession } from '../src/control/playoutSession.ts';
-import { LOG_HISTORY_SPAN, SEEN_EVERY_MS, startSessionWire } from '../src/control/sessionWire.ts';
+import { HANDOVER_CONFIRM_MS, HANDOVER_RETRIES, HANDOVER_RETRY_MS, LOG_HISTORY_SPAN, SEEN_EVERY_MS, startSessionWire } from '../src/control/sessionWire.ts';
+import { createSeqFollower } from '../src/control/seqFollow.ts';
+import { answersPing } from '../src/control/prepareLive.ts';
+import { REORDER_WINDOW_MS } from '../src/control/logFollow.ts';
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -38,6 +42,7 @@ function scriptedWire() {
   const follows = [];
   const seen = [];
   const arms = [];
+  const pings = [];
   const timers = new Map();
   let timerId = 0;
   const io = {
@@ -81,6 +86,11 @@ function scriptedWire() {
       seen.push(d);
       return d.promise;
     },
+    controlPingSeq: async (slug, id) => {
+      calls.push(`ping ${slug}`);
+      pings.push(id);
+      return wire.onPing?.(id) ?? { ok: true, at: 0 };
+    },
     createCueArmWire: (options) => {
       const wire = { options, rows: [], resets: 0, stops: 0, onState: null };
       arms.push(wire);
@@ -99,8 +109,14 @@ function scriptedWire() {
       return timerId;
     },
     clearInterval: (id) => timers.delete(id),
+    setTimeout: (run, ms) => {
+      timerId += 1;
+      timers.set(timerId, { run, ms, once: true });
+      return timerId;
+    },
   };
-  return { io, calls, resolves, replays, tails, follows, seen, arms, timers };
+  const wire = { io, calls, resolves, replays, tails, follows, seen, arms, pings, timers, onPing: null };
+  return wire;
 }
 
 /** The page as the wire sees it: every call recorded, `hear` applying nothing by itself. */
@@ -129,6 +145,13 @@ function fakePage(extra = {}) {
     ...extra,
   };
   return page;
+}
+
+/** The one-shot timer due first (stale ones do nothing when run), taken off the clock. */
+function nextOnce(wire) {
+  const entry = [...wire.timers].filter(([, timer]) => timer.once).sort(([a, x], [b, y]) => x.ms - y.ms || a - b)[0];
+  if (entry) wire.timers.delete(entry[0]);
+  return entry?.[1] ?? null;
 }
 
 function start(wire, page, session = createPlayoutSession('prod-1')) {
@@ -427,4 +450,330 @@ test('a restarted wire (unpublish, publish again) forgets the old boot replay, e
   await flush();
   assert.equal(session.air.get().bootReplay, null);
   second.stop();
+});
+
+test('THE HAND-OVER (#1797): a value applied while the page reloaded, whose frame the output lost, airs at the page\'s first join with no further update', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  // The production's numbered log, and an output following it as src/output/main.ts does.
+  const log = [1, 2, 3].map((seq) => ({ id: 100 + seq, seq, graphic: 'Party totals', msg: { t: 'update', data: { f8: `277,${seq}00` }, src: 'api' } }));
+  const aired = [];
+  const output = createSeqFollower({
+    from: 3,
+    epoch: 'e1',
+    tail: async (after) => ({ epoch: 'e1', rows: log.filter((r) => r.seq > after) }),
+    onRows: (rows) => aired.push(...rows.map((r) => r.seq)),
+  });
+  const write = (msg, graphic = 'Party totals') => {
+    const row = { id: 100 + log.length + 1, seq: log.length + 1, graphic, msg };
+    log.push(row);
+    return row;
+  };
+  // Mid-reload the feed applies 277,600, and Realtime drops its frame: the output never hears it.
+  write({ t: 'update', data: { f8: '277,600' }, src: 'api' });
+  const wire = scriptedWire();
+  // The ping is a numbered row like any other; its frame reaches the output, and this page.
+  wire.onPing = (id) => {
+    const row = write({ t: 'ping', id, at: 0 }, '');
+    output.offer({ epoch: 'e1', rows: [row] });
+    wire.follows[0].opts.onRow(row);
+    return { ok: true, at: 0 };
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 4 } });
+  const follow = wire.follows[0];
+  follow.answer.resolve(() => {});
+  await flush();
+  assert.deepEqual(wire.pings, [], 'nothing before the page\'s own road is up');
+  t.mock.timers.tick(10_000);
+  await flush();
+  assert.deepEqual(aired, [], 'with no further update nothing tells the output it is behind: no frame, so no gap');
+  follow.opts.onStatus({ status: 'CHANNEL_ERROR', everJoined: false });
+  assert.deepEqual(wire.pings, [], 'nor on a join that failed');
+  follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  assert.equal(wire.pings.length, 1, 'one ping at the first join');
+  assert.match(wire.pings[0], /^[a-z0-9]{8,40}$/, 'an id control_ping_seq takes');
+  assert.equal(answersPing(wire.pings[0]), false, 'and one no output answers in place of a Prepare for Live press');
+  // The ping's frame has a gap in front of it: the reorder window, then one tail read.
+  t.mock.timers.tick(REORDER_WINDOW_MS);
+  for (let i = 0; i < 5; i += 1) await flush();
+  assert.deepEqual(aired, [4, 5], 'the lost value reached the output, once, before the ping and in order');
+  // A rejoin and every poll tick report SUBSCRIBED again: still the one ping.
+  follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  assert.equal(wire.pings.length, 1, 'never a ping per status or per poll');
+  const confirm = [...wire.timers.values()].find((timer) => timer.once);
+  assert.equal(confirm?.ms, HANDOVER_CONFIRM_MS, 'the page waits for its ping to come back');
+  confirm.run();
+  await flush();
+  assert.equal(wire.pings.length, 1, 'a ping that came back live is not sent again');
+  stop();
+  output.stop();
+});
+
+test('THE HAND-OVER SURVIVES A LOST PING (#1797): a ping whose frame never comes back is sent again, and the lost value airs', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const log = [1, 2, 3].map((seq) => ({ id: 100 + seq, seq, graphic: 'Party totals', msg: { t: 'update', data: { f8: `277,${seq}00` }, src: 'api' } }));
+  const aired = [];
+  const output = createSeqFollower({
+    from: 3,
+    epoch: 'e1',
+    tail: async (after) => ({ epoch: 'e1', rows: log.filter((r) => r.seq > after) }),
+    onRows: (rows) => aired.push(...rows.map((r) => r.seq)),
+  });
+  const write = (msg, graphic = 'Party totals') => {
+    const row = { id: 100 + log.length + 1, seq: log.length + 1, graphic, msg };
+    log.push(row);
+    return row;
+  };
+  // The value's frame is lost mid-reload, and so is the first ping's: the road is still dropping.
+  write({ t: 'update', data: { f8: '277,600' }, src: 'api' });
+  const wire = scriptedWire();
+  wire.onPing = (id) => {
+    const row = write({ t: 'ping', id, at: 0 }, '');
+    if (wire.pings.length > 1) {
+      output.offer({ epoch: 'e1', rows: [row] });
+      wire.follows[0].opts.onRow(row);
+    }
+    return { ok: true, at: 0 };
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 4 } });
+  const follow = wire.follows[0];
+  follow.answer.resolve(() => {});
+  await flush();
+  follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  t.mock.timers.tick(10_000);
+  for (let i = 0; i < 5; i += 1) await flush();
+  assert.equal(wire.pings.length, 1);
+  assert.deepEqual(aired, [], 'the first ping\'s frame was lost too: the output still knows nothing');
+  const runOnce = async () => {
+    const entry = [...wire.timers].find(([, timer]) => timer.once);
+    if (!entry) return null;
+    wire.timers.delete(entry[0]);
+    entry[1].run();
+    await flush();
+    return entry[1].ms;
+  };
+  assert.equal(await runOnce(), HANDOVER_CONFIRM_MS, 'the page waited for its ping to come back');
+  assert.equal(wire.pings.length, 2, 'and, not seeing it, sent another');
+  t.mock.timers.tick(REORDER_WINDOW_MS);
+  for (let i = 0; i < 5; i += 1) await flush();
+  assert.deepEqual(aired, [4, 5, 6], 'the lost value reached the output, once and in order, with the lost ping');
+  await runOnce();
+  assert.equal(wire.pings.length, 2, 'the second came back live: no third');
+  stop();
+  output.stop();
+});
+
+test('a hand-over ping seen only through a tail read is sent again; the retries are bounded', async () => {
+  const wire = scriptedWire();
+  wire.onPing = (id) => {
+    const follow = wire.follows[0];
+    follow.opts.onReplay(true);
+    follow.opts.onRow({ id: 900 + wire.pings.length, seq: 50 + wire.pings.length, graphic: '', msg: { t: 'ping', id, at: 0 } });
+    follow.opts.onReplay(false);
+    return { ok: true, at: 0 };
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  for (let i = 0; i < 6; i += 1) {
+    await flush();
+    const entry = [...wire.timers].find(([, timer]) => timer.once);
+    if (!entry) continue;
+    wire.timers.delete(entry[0]);
+    entry[1].run();
+  }
+  await flush();
+  assert.equal(wire.pings.length, 1 + HANDOVER_RETRIES);
+  stop();
+});
+
+test('the hand-over is the numbered log\'s only: a production on row ids sends no ping', async () => {
+  const wire = scriptedWire();
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire);
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  assert.deepEqual(wire.pings, []);
+  stop();
+});
+
+test('a hand-over ping refused for a moment is asked again a second later, at most twice; a lasting refusal is not', async () => {
+  for (const [answer, expected] of [
+    [{ ok: false, unavailable: false, detail: 'too many commands, slow down', passing: true }, 1 + HANDOVER_RETRIES],
+    [{ ok: false, unavailable: false, detail: 'hosted control is switched off for this page', passing: false }, 1],
+    [{ ok: false, unavailable: true, detail: 'PGRST202', passing: false }, 1],
+  ]) {
+    const wire = scriptedWire();
+    wire.onPing = () => answer;
+    const page = fakePage();
+    const { stop } = start(wire, page);
+    await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+    wire.follows[0].answer.resolve(() => {});
+    await flush();
+    wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+    for (let i = 0; i < 12; i += 1) {
+      await flush();
+      nextOnce(wire)?.run();
+    }
+    await flush();
+    assert.equal(wire.pings.length, expected, answer.detail);
+    assert.equal(new Set(wire.pings).size, expected, 'each a fresh id');
+    stop();
+  }
+});
+
+test('a hand-over retry due after the stop asks nothing', async () => {
+  const wire = scriptedWire();
+  wire.onPing = () => ({ ok: false, unavailable: false, detail: 'lock', passing: true });
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  const retry = [...wire.timers.values()].find((timer) => timer.once);
+  stop();
+  retry.run();
+  await flush();
+  assert.equal(wire.pings.length, 1);
+});
+
+test('a hand-over ping whose call threw is sent again a second later, within the same bound', async () => {
+  const wire = scriptedWire();
+  wire.onPing = () => {
+    throw new Error('the client failed to load');
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  const retry = nextOnce(wire);
+  assert.equal(retry?.ms, HANDOVER_RETRY_MS, 'a call that threw is asked again a second later');
+  retry.run();
+  for (let i = 0; i < 12; i += 1) {
+    await flush();
+    nextOnce(wire)?.run();
+  }
+  await flush();
+  assert.equal(wire.pings.length, 1 + HANDOVER_RETRIES);
+  stop();
+});
+
+test('a hand-over ping whose call never answers is sent again once the confirm window runs out', async () => {
+  const wire = scriptedWire();
+  wire.io.controlPingSeq = (slug, id) => {
+    wire.pings.push(id);
+    return new Promise(() => {});
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  const wait = nextOnce(wire);
+  assert.equal(wait?.ms, HANDOVER_CONFIRM_MS, 'the wait started at the send');
+  wait.run();
+  await flush();
+  assert.equal(wire.pings.length, 2);
+  stop();
+});
+
+test('a hand-over ping answered first and back live inside the confirm window is not sent again', async () => {
+  const wire = scriptedWire();
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  const follow = wire.follows[0];
+  follow.answer.resolve(() => {});
+  await flush();
+  follow.opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  const confirm = [...wire.timers.values()].find((timer) => timer.once);
+  assert.equal(confirm?.ms, HANDOVER_CONFIRM_MS, 'the answer came first: the page is waiting for the row');
+  follow.opts.onRow({ id: 901, seq: 51, graphic: '', msg: { t: 'ping', id: wire.pings[0], at: 0 } });
+  confirm.run();
+  await flush();
+  assert.equal(wire.pings.length, 1, 'the row came back live before the window ran out');
+  stop();
+});
+
+test('THE HAND-OVER WAITS FOR THE JOIN\'S OWN READ (#1797): on a real numbered follow, one ping, confirmed live', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  // The log: the page resolved at seq 3, and seq 4 (a value applied while it loaded) lost its frame.
+  const log = [1, 2, 3, 4].map((seq) => ({ id: 100 + seq, seq, graphic: 'Party totals', msg: { t: 'update', data: { f8: `277,${seq}00` }, src: 'api' } }));
+  const tail = async (after) => ({ epoch: 'e1', rows: log.filter((r) => r.seq > after) });
+  const aired = [];
+  const output = createSeqFollower({ from: 3, epoch: 'e1', tail, onRows: (rows) => aired.push(...rows.map((r) => r.seq)) });
+  const wire = scriptedWire();
+  // The page's follow as followSeqLog wires it: the same follower, its join refill, its busy flag.
+  let pageFollower = null;
+  wire.io.followControlLog = async (opts) => {
+    pageFollower = createSeqFollower({
+      from: opts.seq.from,
+      epoch: opts.seq.epoch,
+      // The read reaches the database a moment after it is asked, as an RPC does.
+      tail: async (after) => {
+        await flush();
+        return tail(after);
+      },
+      onRows: (rows, replayed) => {
+        if (replayed && rows.length) opts.onReplay?.(true);
+        try {
+          rows.forEach((row) => opts.onRow(row));
+        } finally {
+          if (replayed && rows.length) opts.onReplay?.(false);
+        }
+      },
+      onBusy: opts.onBusy,
+    });
+    wire.joinPage = () => {
+      pageFollower.joined();
+      opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+    };
+    return () => pageFollower.stop();
+  };
+  wire.onPing = (id) => {
+    const row = { id: 200 + log.length, seq: log.length + 1, graphic: '', msg: { t: 'ping', id, at: 0 } };
+    log.push(row);
+    // The ping's frame is not lost: it reaches the output and the page.
+    output.offer({ epoch: 'e1', rows: [row] });
+    pageFollower.offer({ epoch: 'e1', rows: [row] });
+    return { ok: true, at: 0 };
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 3 } });
+  await flush();
+  wire.joinPage();
+  for (let i = 0; i < 5; i += 1) await flush();
+  t.mock.timers.tick(REORDER_WINDOW_MS);
+  for (let i = 0; i < 5; i += 1) await flush();
+  assert.equal(wire.pings.length, 1, 'one ping, sent once the join\'s read was done');
+  assert.deepEqual(aired, [4, 5], 'the lost value reached the output, once and in order');
+  const confirm = [...wire.timers.values()].find((timer) => timer.once);
+  assert.equal(confirm?.ms, HANDOVER_CONFIRM_MS);
+  confirm.run();
+  await flush();
+  assert.equal(wire.pings.length, 1, 'its frame came back live, so no second ping');
+  stop();
+  output.stop();
 });
