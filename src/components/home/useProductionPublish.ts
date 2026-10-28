@@ -282,6 +282,25 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     onAirChanged('air', result, casparOutputTarget(settings));
     if (result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
   });
+  /** LOAD THE LOST OUTPUT AGAIN BY ITSELF (control/bridgeWatch.ts, issue #1657): as Load, but only
+   *  onto a slot that still reads empty, and never while another output action is out, so it cannot
+   *  load twice beside the operator's own press or replace anything. The watch shows the outcome, so
+   *  no note: the Bridge's answer, or null when nothing was sent. */
+  const reloadOnSlot = async (url: string): Promise<PlayoutResult | null> => {
+    let result: PlayoutResult | null = null;
+    await slotAction(async () => {
+      const settings = loadPlayoutSettings();
+      if (!playoutConfigured(settings)) return;
+      const reading = await readState(settings, settings.channel);
+      if (!reading.reply) return;
+      const slug = new URL(url).searchParams.get('production');
+      if (slotHolds(reading.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, slug) !== 'empty') return;
+      const casparId = casparDestinationId(loadShows().find((s) => s.id === show.id)?.outputSetup) ?? 'casparcg';
+      result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
+      onAirChanged('air', result, casparOutputTarget(settings));
+    });
+    return result;
+  };
   /** Take this production's renderer off its CasparCG slot through the Bridge: where, and the note
    *  a failure leaves. */
   const takeOffSlot = async (): Promise<{ where: string; failed: string | null }> => {
@@ -431,7 +450,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   };
   // What the sign-in follow-through presses (`useProductionPublish`).
   publishRef.current = publish;
-  return { claimName, downloadEmbed, copy, loadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish };
+  return { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish };
 }
 
 /** The header's one action and the Playout panel's CasparCG facts, from this render's values. */
@@ -511,8 +530,10 @@ export function publishFacts(state: ProductionPublishState, io: {
                 other: 'Another production',
                 failed: 'Cannot read',
                 unreadable: slotLoadedHere ? 'Loaded' : 'Unknown',
-                empty: 'Empty',
+                // A lost output loading again by itself (control/bridgeWatch.ts, #1657).
+                empty: slotCheckLine?.tone === 'warn' ? 'Reloading…' : 'Empty',
               }[outputSlot.holds],
+          detail: outputSlot?.holds === 'empty' && slotCheckLine?.tone === 'bad' ? slotCheckLine.advice : undefined,
           canLoad: !!outputSlot && outputSlot.holds !== 'ours' && !replaceAsk,
           canUnload: outputSlot?.holds === 'ours' || outputSlot?.holds === 'unreadable',
         }

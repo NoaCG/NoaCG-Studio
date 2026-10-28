@@ -16,6 +16,14 @@
 //   studio setup  once per start, and again when the Bridge answers while a change is pending
 //   output slot   published, CasparCG on, answering, readable, output slug, production, target,
 //                 the slot rev (Put on air, Take off)
+//
+// THE OUTPUT COMES BACK BY ITSELF (issue #1657, owner 2026-10-24): an output this page loaded, seen
+// on its slot and then read empty (a CasparCG restart wipes every layer) is loaded again onto the
+// same slot, as a Bridge restart already recovers. Never a slot another production or client took,
+// which still asks; never after Unload or once the slot stops being watched (unpublished, CasparCG
+// switched off); at most RELOAD_AFTER_READS.length tries, spaced by empty readings, then the part
+// says it failed and Load is the operator's. What airs after a reload follows the command log, as
+// for any output loaded fresh.
 //   server files  answering, the rundown's file key (null when it has no server cue)
 //   older clips   answering, the production and the settings rev, once each (`learntFacts`)
 //   server state  readable, has server items, the settings rev
@@ -42,6 +50,11 @@ import { pollServerState } from './serverStatePoll.ts';
 
 /** How often the output's slot is read while it may be read. */
 export const SLOT_READ_MS = 10_000;
+
+/** When each reload of a lost output is tried, in empty readings since the try before it: the
+ *  first at once, then after two readings (the one straight after the try and one 10 s on), then
+ *  after six. A server still failing after the last one is the operator's to Load. */
+export const RELOAD_AFTER_READS = [0, 2, 6] as const;
 
 export interface BridgeWatchIo {
   /** The studio's settings as they stand now. */
@@ -77,6 +90,9 @@ export interface BridgeWatchAdapters {
   settingsChanged: () => void;
   /** The server's list filled in facts an older clip was missing (model/shows.ts `fillPlayoutItemFacts`). */
   learnt: (showId: string, facts: Map<string, { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }>) => void;
+  /** Load this production's output on its slot again, unless the slot no longer reads empty or an
+   *  output action is already out: the Bridge's answer, or null when nothing was sent. */
+  reload: () => Promise<PlayoutResult | null>;
 }
 
 /** What the page knows at a render, handed over after each one. */
@@ -109,6 +125,9 @@ export interface BridgeWatch {
   update: (inputs: BridgeInputs) => void;
   /** An output action finished: a slot read already out says nothing about the slot now. */
   slotActed: () => void;
+  /** An output action landed: Load (`true`) makes the output this page's to bring back, Unload
+   *  (`false`) gives it up. */
+  slotOwned: (loaded: boolean) => void;
   /** Read the server's state now: after an action. */
   wake: () => void;
   stop: () => void;
@@ -151,6 +170,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   /** Bumped by an output action, so a slot read that was out before it is dropped. */
   let slotActions = 0;
   let wakeState: (() => void) | null = null;
+  /** This page loaded the output on its slot and has not unloaded it since (#1657). */
+  let loadedHere = false;
+  /** The reloads of a lost output: tries made, empty readings since the last, one in flight. */
+  let reloads = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
+  const resetReloads = () => {
+    reloads = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
+    writeBridge(session, { slotReload: null });
+  };
   const status = keyed();
   const pending = keyed();
   const slot = keyed();
@@ -180,6 +207,12 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const startSlot = (i: BridgeInputs, answers: boolean, readable: boolean) => {
     const settings = io.loadSettings();
     if (!i.hostedSlug || !i.casparOn || !answers || !io.configured(settings)) {
+      // Unpublished or switched off: the slot is no longer this page's to bring back. A server
+      // that stopped answering keeps it, which is the restart this waits out.
+      if (!i.hostedSlug || !i.casparOn) {
+        loadedHere = false;
+        resetReloads();
+      }
       writeBridge(session, { outputSlot: undefined });
       return;
     }
@@ -197,6 +230,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       }
       const prev = session.bridge.get().outputSlot;
       writeBridge(session, { outputSlot: prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next });
+      if (next) bringBack(next);
     };
     const read = () => {
       if (reading) return; // a slow Bridge: never stack reads
@@ -224,6 +258,46 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       live = false;
       stopEvery();
     };
+  };
+
+  // A LOST OUTPUT, LOADED AGAIN (#1657): each reading of the slot decides. Ours again ends the
+  // tries; another production's ends them too, and the slot is no longer this page's to take back.
+  const bringBack = (reading: SlotReading) => {
+    if (reading.holds === 'ours') {
+      if (reloads.tries || session.bridge.get().slotReload) resetReloads();
+      return;
+    }
+    if (reading.holds === 'other') {
+      loadedHere = false;
+      if (reloads.tries || session.bridge.get().slotReload) resetReloads();
+      return;
+    }
+    if (reading.holds !== 'empty' || !loadedHere || !session.bridge.get().slotSeenOurs || reloads.inFlight) return;
+    if (reloads.tries >= RELOAD_AFTER_READS.length) {
+      // Out of tries: said once, and Load is the operator's.
+      if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail: reloads.detail } });
+      return;
+    }
+    if (reloads.tries > 0) reloads.emptyReads += 1;
+    if (reloads.emptyReads < RELOAD_AFTER_READS[reloads.tries]) return;
+    const run = reloads;
+    run.inFlight = true;
+    writeBridge(session, { slotReload: { state: 'reloading' } });
+    void adapters.reload().then(
+      (result) => done(run, result),
+      (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }),
+    );
+  };
+  const done = (run: typeof reloads, result: PlayoutResult | null) => {
+    if (!alive || run !== reloads) return;
+    run.inFlight = false;
+    // Nothing sent (the slot changed under it, or the operator's own Load is out): not a try.
+    if (!result) return;
+    run.tries += 1;
+    run.emptyReads = 0;
+    // Why the last try did not bring it back, for the failed state: the Bridge's sentence, or a
+    // load that went through and still left the slot empty.
+    run.detail = result.state === 'ok' ? '' : result.detail;
   };
 
   // WHETHER THE RUNDOWN'S SERVER FILES ARE THERE: the server's lists, once per key while the Bridge
@@ -352,6 +426,11 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     },
     slotActed: () => {
       slotActions += 1;
+    },
+    slotOwned: (loaded) => {
+      loadedHere = loaded;
+      // The operator's own Load or Unload starts the tries afresh.
+      if (!reloads.inFlight) resetReloads();
     },
     wake: () => wakeState?.(),
     stop: () => {

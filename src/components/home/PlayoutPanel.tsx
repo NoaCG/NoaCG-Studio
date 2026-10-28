@@ -170,7 +170,7 @@ export interface CasparFacts {
   /** Bridge pairing is not set up in this browser. */
   unpaired: boolean;
   /** The NoaCG output's slot, once published and read. */
-  slot: { where: string; tone: ReadyTone; text: string; canLoad: boolean; canUnload: boolean } | null;
+  slot: { where: string; tone: ReadyTone; text: string; detail?: string; canLoad: boolean; canUnload: boolean } | null;
   /** Another production is on the slot and Load waits for a decision. */
   replaceAsk: { where: string } | null;
   busy: boolean;
@@ -247,6 +247,7 @@ export function CasparSection({
               Unload
             </button>
           )}
+          {slot.detail && <span className="pd-pp-advice pd-pp-advice--row">{slot.detail}</span>}
         </div>
       )}
       {on && replaceAsk && (

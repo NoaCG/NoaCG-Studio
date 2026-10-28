@@ -1234,6 +1234,34 @@ test('with a Bridge that reads the slot, Load and Unload each show in the slot r
   expect(bridge.actions[1]).toMatchObject({ verb: 'out', slot: { channel: 2, layer: 30 } });
 });
 
+test('after a CasparCG restart the output this page loaded goes back on its slot by itself (#1657)', async ({ page }) => {
+  await seedSettings(page, { channel: 2, layer: 30 });
+  const bridge = await slotBridge(page);
+  await publishedProduction(page);
+  const panel = page.getByTestId('production-status-panel');
+  const slot = panel.getByTestId('caspar-slot');
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(slot).toContainText('Loading…');
+  expect(bridge.actions).toHaveLength(1);
+  // The server restarts: every layer is wiped. Check again reads the slot at once rather than at
+  // the next 10 s reading.
+  bridge.showPage('2-30', null);
+  await panel.getByTestId('playout-check-now').click();
+  // It is loaded again onto the same slot with no press, once.
+  await expect.poll(() => bridge.actions.length).toBe(2);
+  expect(bridge.actions[1]).toMatchObject(LOAD_2_30);
+  await expect(slot).toContainText('Loading…');
+  await expect(page.getByTestId('production-note').filter({ hasText: 'failed' })).toHaveCount(0);
+  // Unloaded on purpose, a wiped slot stays empty.
+  await slot.getByTestId('caspar-take-off-air').click();
+  await expect(slot).toContainText('Empty');
+  const reads = bridge.stateCalls;
+  await panel.getByTestId('playout-check-now').click();
+  await expect.poll(() => bridge.stateCalls).toBeGreaterThan(reads);
+  await expect(slot).toContainText('Empty');
+  expect(bridge.actions.map((a) => a.verb)).toEqual(['take', 'take', 'out']);
+});
+
 test('Load asks before replacing another production on the slot, and Cancel sends nothing', async ({ page }) => {
   await seedSettings(page, { channel: 2, layer: 30 });
   const bridge = await slotBridge(page);

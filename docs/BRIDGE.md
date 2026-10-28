@@ -312,6 +312,19 @@ the page shows whatever the server holds as unidentified rather than guessing fr
 and says that Play next stopped there. What the server already had queued still plays by the
 server's own rule.
 
+A restarted CasparCG server keeps nothing: every layer is empty when it answers again. The
+production page puts its own output back by itself (issue #1657, owner 2026-10-24): when an output
+this page loaded, and saw on its slot, reads empty, it loads the output URL again onto the same
+channel and layer, with no press, as a Bridge restart already recovers. The slot row reads
+"Reloading…" (amber) while it does. What is on air afterwards follows the command log, as for any
+output loaded fresh. It never replaces anything: a slot another production or client took still
+asks before Load replaces it, and the reload is sent only onto a slot that still reads empty and
+while no Load or Unload is out. It does not happen after Unload, once the production is unpublished
+or its CasparCG switch is off, or for an output only another browser loaded. A server that keeps
+failing is tried three times, at once and then about 10 s and 60 s later (`RELOAD_AFTER_READS` in
+`src/control/bridgeWatch.ts`), then the row reads "Not on 1-20" in red with the last reason and
+Load is the operator's.
+
 ### 3a. The playout protocol (v2)
 
 `cli/src/playout/protocol.ts`, mirrored byte for byte at `src/control/playoutProtocol.ts` (a test
@@ -795,7 +808,11 @@ Stated plainly, because this doc's whole purpose is to not overstate.
 - **Reproduced on this machine (2026-08-24)**: everything in §1.
 - **On real servers on this machine, 2026-09-10** (2.3.2 and 2.5.0, screen consumer): the output
   URL loaded with one command, cued from the dashboard, updated live, recovering after a channel
-  restart and a server `RESTART`; the first agent's `status`, `play` and `stop`.
+  restart and a server `RESTART`; the first agent's `status`, `play` and `stop`. Whether a press
+  was needed was not recorded; on 2026-10-24 (2.5.0, Bridge 0.12.3) a server restart needed Load,
+  which is what #1657 changed (§3, after a restarted Bridge). The reload by itself is pinned against
+  fakes (`scripts/bridge-watch.test.mjs`, `e2e/bridge-connect.spec.ts`); on a real server it is
+  parent phase S's walk.
 - **On the real 2.5.0 with its media scanner, 2026-09-22**: `TLS`, `CLS`, `CINF`, `THUMBNAIL
   LIST` and `THUMBNAIL RETRIEVE` captured and written into the parsers' tests; a clip named
   `Jääkiekko` played under its own name; `CG ADD` with data holding a quote, a newline and an `ä`

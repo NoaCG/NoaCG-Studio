@@ -59,9 +59,12 @@ export interface BridgePart {
   slotSeenOurs: boolean;
   /** The production and settings rev whose older clips last asked the server what they are. */
   learntFacts: string | null;
+  /** This page loading its lost output again by itself (./bridgeWatch.ts, #1657), or out of tries
+   *  with the reason the last one gave ('' when it went through and the slot stayed empty). */
+  slotReload: { state: 'reloading' } | { state: 'failed'; detail: string } | null;
 }
 
-export const NO_BRIDGE: BridgePart = { status: null, outputSlot: undefined, serverFiles: null, slotSeenOurs: false, learntFacts: null };
+export const NO_BRIDGE: BridgePart = { status: null, outputSlot: undefined, serverFiles: null, slotSeenOurs: false, learntFacts: null, slotReload: null };
 
 /** What the folders remember on this page (./folderPlayout.ts says the rules). Page memory: never saved, never shared. */
 export interface FoldersPart {
