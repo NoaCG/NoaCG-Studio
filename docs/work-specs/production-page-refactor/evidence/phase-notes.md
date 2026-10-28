@@ -48,9 +48,10 @@ changes a spec's digest.
     package reports no machine state. A re-cue's new instance is checked for READY by its own load.
     A follow refill that brings history the catch-up left unread (a failed read, the page ceiling)
     reads a package's action past and marks it not known, as the catch-up does (`bootGap`). The
-    gap closes with the follow's first live rows on either protocol: a live batch is applied only
-    contiguous with the cursor, while a refill comes a page at a time. A package read past this way
-    is marked not known after its batch, so a Take later in the same history does not clear it.
+    gap closes at the end of that history (`bootGap`): a live batch (applied only contiguous with
+    the cursor), or a read shorter than a full page, so a polling-only follow closes it too; never
+    between two full pages. Every package read past is said not known again after each batch of
+    history, so a Take later in that history cannot clear it; the operator's live Take can.
   - *Actions counted* (`acted`): the actions an instance was sent, less those the Graphic refused,
     ride the report for the instance's whole life, so a restart knows the Graphic holds state no
     restart reproduces. OGraf promises no Take or Out undoes an action, so neither resets the count;

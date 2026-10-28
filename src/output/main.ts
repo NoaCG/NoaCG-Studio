@@ -62,7 +62,7 @@ import {
   unreportedPages,
   unreportedTypedRows,
 } from '../control/outputRecovery';
-import { supersededAnimations } from '../control/seqFollow';
+import { SEQ_TAIL_PAGE, supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
 import { pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
@@ -1205,14 +1205,16 @@ async function boot(): Promise<void> {
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
   missed.forEach((row) => apply(row, undefined, true, !unsentActions.has(row)));
   const gap = bootGap(bootGapOpen, packageSet);
+  /** Protocol 1: the last row of the first read that reached the log's end. */
+  let gapEndsAt: ControlEventRow | null = null;
   /** A row of history the catch-up left unread that is a package's action: read past, never sent. */
   const heldLate = (row: ControlEventRow): boolean => {
     if (!gap.holds(row)) return false;
     apply(row, 'tail', true, false);
     return true;
   };
-  const batchDone = (live: boolean) => {
-    for (const key of gap.batchDone(live)) stage.markUnknown(key, UNKNOWN_ACTED);
+  const batchDone = (end: boolean, live = false) => {
+    for (const key of gap.batchDone(end, live)) stage.markUnknown(key, UNKNOWN_ACTED);
   };
   // Said once everything the boot sends has gone, so a Take among the replayed rows cannot clear it.
   for (const [key, why] of ografUnknown) stage.markUnknown(key, why);
@@ -1288,7 +1290,8 @@ async function boot(): Promise<void> {
         const quiet = replayed ? supersededAnimations(rows) : null;
         if (replayed && rows.length) stage.setSoundQuiet(true);
         for (const row of rows) if (!(replayed && heldLate(row))) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
-        batchDone(!replayed);
+        // A refill shorter than a page read to the log's end (the tail RPCs answer full pages).
+        batchDone(!replayed || rows.length < SEQ_TAIL_PAGE, !replayed);
         if (replayed && rows.length) stage.setSoundQuiet(false);
       },
       onHole: () => live.hole(),
@@ -1349,6 +1352,11 @@ async function boot(): Promise<void> {
         const rows = tail.ok ? tail.value : [];
         const read = { counted: false };
         rows.forEach((row) => fromTail.set(row, read));
+        // A read shorter than a page reached the log's end: the boot's gap closes after its last row.
+        if (tail.ok && rows.length < CONTROL_TAIL_PAGE) {
+          if (rows.length === 0) batchDone(true);
+          else gapEndsAt = rows[rows.length - 1];
+        }
         return rows;
       },
       onRow: (row) => {
@@ -1358,9 +1366,12 @@ async function boot(): Promise<void> {
           live.refilled();
         }
         // A live row means the follow has caught up past whatever the boot left unread.
-        if (!read) batchDone(true);
-        if (read && heldLate(row)) return batchDone(false);
-        apply(row, read ? 'tail' : 'log');
+        if (!read) batchDone(true, true);
+        if (read && heldLate(row)) batchDone(row === gapEndsAt);
+        else {
+          apply(row, read ? 'tail' : 'log');
+          if (read) batchDone(row === gapEndsAt);
+        }
       },
       onHole: () => live.hole(),
       // THE FAST ROAD, on the surface it matters most for: the audience's picture. Every command

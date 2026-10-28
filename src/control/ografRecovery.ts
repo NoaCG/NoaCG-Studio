@@ -78,9 +78,10 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
 /**
  * HISTORY THE CATCH-UP LEFT UNREAD (a read that failed, the page ceiling): the follow's refills
  * bring it later, and a package's action in them is read past as `heldActions` reads the catch-up's
- * (`holds`), its package said not known once its batch is applied (`batchDone`'s keys), so a Take
- * later in the same history does not clear it. Only a LIVE batch closes the gap: it is applied only
- * contiguous with the cursor, while a refill comes a page at a time and says nothing of the next.
+ * (`holds`). Every package held so far is said not known again after each batch (`batchDone`'s
+ * keys), so a Take on a later page of the same history cannot clear it. The gap closes at the END
+ * of that history: a live batch (applied only contiguous with the cursor) or a read shorter than a
+ * full page (a polling follow's every batch is a read), never between two full pages.
  */
 export function bootGap(open: boolean, packages: ReadonlySet<string>) {
   let gap = open;
@@ -92,11 +93,14 @@ export function bootGap(open: boolean, packages: ReadonlySet<string>) {
       held.add(row.graphic);
       return true;
     },
-    /** A batch is applied: the packages to say not known, and the gap closed by a live one. */
-    batchDone(live: boolean): string[] {
-      const out = [...held];
-      held.clear();
-      if (live) gap = false;
+    /** A batch is applied: the packages to say not known, and the gap closed at the history's end.
+     *  `live`: a batch of new commands, whose own Take or Out is the operator's and stands. */
+    batchDone(end: boolean, live = false): string[] {
+      const out = live ? [] : [...held];
+      if (end) {
+        gap = false;
+        held.clear();
+      }
       return out;
     },
     get open() {

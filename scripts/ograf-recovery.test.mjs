@@ -170,11 +170,19 @@ test('history the catch-up left unread reads a package action past, page after p
   assert.equal(gap.holds({ graphic: 'Strap', msg: { t: 'event' } }), false, 'a NoaCG graphic is not held');
   assert.equal(gap.holds({ graphic: 'Board', msg: { t: 'play' } }), false, 'only an action is held');
   assert.deepEqual(gap.batchDone(false), ['Board']);
-  assert.equal(gap.open, true, 'a refill page says nothing of the pages after it');
-  assert.equal(gap.holds(action), true);
-  assert.deepEqual(gap.batchDone(false), ['Board']);
-  // A live batch is contiguous with the cursor: the gap is read, and a later action is sent.
-  assert.deepEqual(gap.batchDone(true), []);
+  assert.equal(gap.open, true, 'a full refill page says nothing of the pages after it');
+  // A later page with no action of its own (a Take, say) still says Board is not known.
+  assert.deepEqual(gap.batchDone(false), ['Board'], 'kept across pages, so a historical Take cannot clear it');
+  // A live batch is contiguous with the cursor: the gap is read, the operator's own Take stands, and
+  // a later action is sent.
+  assert.deepEqual(gap.batchDone(true, true), []);
   assert.equal(gap.open, false);
   assert.equal(gap.holds(action), false);
+  // A polling follow's batches are all reads: one shorter than a page ends the history, and still
+  // says what it held.
+  const polled = bootGap(true, new Set(['Board']));
+  assert.equal(polled.holds(action), true);
+  assert.deepEqual(polled.batchDone(true), ['Board']);
+  assert.equal(polled.open, false);
+  assert.equal(polled.holds(action), false, 'a newly pressed action is sent');
 });
