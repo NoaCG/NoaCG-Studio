@@ -136,10 +136,11 @@ test('a healthy record passes every check', () => {
 
 
 test('every run length has two steady windows after its warmup, and an hour keeps ten-minute cycles', () => {
-  for (const m of [10, 19, 20, 25, 29, 30, 45, 60]) {
+  for (const m of [1, 2, 3, 3.75, 4, 10, 19, 20, 25, 29, 30, 45, 60]) {
     const plan = schedule(m);
-    assert.ok(plan.windows.filter((w) => !w.warmup).length >= 2, `${m} min`);
-    for (const e of plan.events) assert.equal((e.at - 3_000) % CUE_SWITCH_MS, 0, `${m} min: a fault 3 s after a cue switch`);
+    assert.equal(plan.windows.length, Math.floor(plan.totalMs / plan.cycleMs), `${m} min`);
+    assert.ok(plan.windows.length >= 3 && plan.windows.filter((w) => !w.warmup).length >= 2, `${m} min`);
+    if (m >= 3.75) for (const e of plan.events) assert.equal((e.at - 3_000) % CUE_SWITCH_MS, 0, `${m} min: a fault 3 s after a cue switch`);
   }
   assert.equal(schedule(60).cycleMs, 10 * 60_000);
   assert.equal(schedule(60).windows.length, 6);

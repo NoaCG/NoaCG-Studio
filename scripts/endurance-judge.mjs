@@ -377,7 +377,7 @@ export function judge(record) {
   const knownRss = agentRss.filter((x) => x !== null);
   if (knownRss.length < needed) unmeasured.push('agent.rss');
   if (knownRss.length >= 2 && knownRss.at(-1) > knownRss[0] * 1.25 + 10 * MIB) growth.push({ series: 'agent.rss', first: knownRss[0], last: knownRss.at(-1) });
-  const enough = steady.length >= 2 || record.minutes < 20;
+  const enough = steady.length >= 2;
   check('memory and instance counts hold across the steady-state windows', enough && unmeasured.length === 0 && growth.length === 0, growth.length ? JSON.stringify(growth) : unmeasured.length ? `not measured: ${unmeasured.join(', ')}` : `${steady.length} steady windows`);
 
   // ── Timings, each road on its own ──

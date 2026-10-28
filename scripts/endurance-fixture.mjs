@@ -197,8 +197,10 @@ export function measureFixture(minutes, people = candidates()) {
 export function schedule(minutes) {
   const total = Math.round(minutes * 60_000);
   // At least three cycles, so a short run still has two steady windows after its warmup, each a whole
-  // number of 75 s so every fifth of it falls on a cue switch.
-  const cycleMs = Math.min(10 * 60_000, Math.floor(total / 3 / (5 * CUE_SWITCH_MS)) * 5 * CUE_SWITCH_MS);
+  // number of 75 s so every fifth of it falls on a cue switch; a smoke under 3.75 minutes, too short
+  // for that, takes plain thirds.
+  const aligned = Math.floor(total / 3 / (5 * CUE_SWITCH_MS)) * 5 * CUE_SWITCH_MS;
+  const cycleMs = Math.min(10 * 60_000, aligned || Math.floor(total / 3));
   const cycles = Math.floor(total / cycleMs);
   const events = [];
   for (let c = 0; c < cycles; c++) {
