@@ -147,6 +147,13 @@ function fakePage(extra = {}) {
   return page;
 }
 
+/** The one-shot timer due first (stale ones do nothing when run), taken off the clock. */
+function nextOnce(wire) {
+  const entry = [...wire.timers].filter(([, timer]) => timer.once).sort(([a, x], [b, y]) => x.ms - y.ms || a - b)[0];
+  if (entry) wire.timers.delete(entry[0]);
+  return entry?.[1] ?? null;
+}
+
 function start(wire, page, session = createPlayoutSession('prod-1')) {
   const stop = startSessionWire(session, wire.io, { slug: 'ctl-1', showId: 'prod-1', page: () => page });
   return { session, stop };
@@ -617,13 +624,9 @@ test('a hand-over ping refused for a moment is asked again a second later, at mo
     wire.follows[0].answer.resolve(() => {});
     await flush();
     wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 12; i += 1) {
       await flush();
-      const retry = [...wire.timers].find(([, timer]) => timer.once);
-      if (!retry) continue;
-      assert.equal(retry[1].ms, HANDOVER_RETRY_MS);
-      wire.timers.delete(retry[0]);
-      retry[1].run();
+      nextOnce(wire)?.run();
     }
     await flush();
     assert.equal(wire.pings.length, expected, answer.detail);
@@ -660,16 +663,37 @@ test('a hand-over ping whose call threw is sent again a second later, within the
   wire.follows[0].answer.resolve(() => {});
   await flush();
   wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
-  for (let i = 0; i < 6; i += 1) {
+  await flush();
+  const retry = nextOnce(wire);
+  assert.equal(retry?.ms, HANDOVER_RETRY_MS, 'a call that threw is asked again a second later');
+  retry.run();
+  for (let i = 0; i < 12; i += 1) {
     await flush();
-    const entry = [...wire.timers].find(([, timer]) => timer.once);
-    if (!entry) continue;
-    assert.equal(entry[1].ms, HANDOVER_RETRY_MS);
-    wire.timers.delete(entry[0]);
-    entry[1].run();
+    nextOnce(wire)?.run();
   }
   await flush();
   assert.equal(wire.pings.length, 1 + HANDOVER_RETRIES);
+  stop();
+});
+
+test('a hand-over ping whose call never answers is sent again once the confirm window runs out', async () => {
+  const wire = scriptedWire();
+  wire.io.controlPingSeq = (slug, id) => {
+    wire.pings.push(id);
+    return new Promise(() => {});
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  await flush();
+  const wait = nextOnce(wire);
+  assert.equal(wait?.ms, HANDOVER_CONFIRM_MS, 'the wait started at the send');
+  wait.run();
+  await flush();
+  assert.equal(wire.pings.length, 2);
   stop();
 });
 
