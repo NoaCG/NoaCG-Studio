@@ -25,7 +25,8 @@ Bridge; use Chrome, Edge or Firefox for a CasparCG show.
 ### NoaCG Bridge (for CasparCG)
 
 1. On the production page press **Playout** in the header and switch on **CasparCG via
-   Bridge**. On the **NoaCG Bridge** row press **Download**, then double-click the file you got.
+   Bridge**. On the **NoaCG Bridge** row press **Download**; on the page that opens, download
+   NoaCG Bridge, then double-click the file.
    Windows may warn that the file is unsigned: choose **More info**, then **Run**.
 2. A page opens in your browser (or press **Pair** on the same row). One click pairs this
    browser with the Bridge. If the browser asks whether the site may reach your local network,
@@ -214,6 +215,9 @@ The three the owner asked to keep in front of you:
   reload.
 - [#1798](https://github.com/NoaCG/NoaCG-Studio/issues/1798): the output page's memory grows
   slowly. Reload outputs between shows.
+- [#1802](https://github.com/NoaCG/NoaCG-Studio/issues/1802): a value that does not reach the
+  output can stay missing for up to 30 seconds, with nothing marking it stale, if no newer value
+  follows. If a bound board looks behind the source, press **✎ Update**.
 
 Fixed in software and still to be seen on the real studio in S: a results board taken twice
 (#1618), the output coming back after a CasparCG restart (#1657, section 5) and saved graphics'

@@ -34,6 +34,7 @@ test('the guide covers graphic keys: the action, the presets, the outcomes and t
 })
 
 // The page's Setup menu, read from the app's source beside this module (build-test/__tests__ -> repo root).
+// This assumes the NoaCG Studio repository layout; the module's tests run in no workflow yet (#1758).
 const setupMenu = readFileSync(
 	fileURLToPath(new URL('../../../src/components/home/ProductionSetupMenu.tsx', import.meta.url)),
 	'utf8',

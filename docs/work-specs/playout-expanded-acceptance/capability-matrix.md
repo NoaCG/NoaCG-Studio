@@ -65,13 +65,14 @@ unattended in the cloud, and no claim of readiness for an election day.
 ## Known on-air defects not fixed
 
 Each can change what is on air or what the operator believes is on air. All are open on
-`c6fc146`.
+`c6fc146` (#1802 was opened during this row, at 2026-10-28T19:16Z).
 
 | Issue | What happens | What to do meanwhile |
 | --- | --- | --- |
 | [#1795](https://github.com/NoaCG/NoaCG-Studio/issues/1795) | An **exported** results board (a CasparCG `.html`, SPX or OGraf package) played again after a stop, outside the `/output` page, may show its header and no rows. Read from the code, not yet reproduced. The `/output` page itself is fixed (#1618). | Play results boards through the `/output` page. If you use an exported board, check the picture after a second play. |
 | [#1797](https://github.com/NoaCG/NoaCG-Studio/issues/1797) | A value that arrives while the production page is reloading can miss the output until the next update. Seen once in 18 reloads; the next value fixed it 6.6 s later. | After reloading the production page, press **✎ Update** on bound boards if the source may have gone quiet. |
 | [#1798](https://github.com/NoaCG/NoaCG-Studio/issues/1798) | The output page's memory grows about 10 KB a minute (about 14 MB a day). Cause not found. Inside the hour measured. | Reload the output page (or the CasparCG/OBS source) between shows; do not leave one running for days. |
+| [#1802](https://github.com/NoaCG/NoaCG-Studio/issues/1802) | A value the output never received (a lost update, with no newer one after it) stays missing until the output's 30-second check: up to 30 s with nothing marking it stale, past the 10 s ceiling for a bound field. Cause of the loss not yet known. | If a bound board looks behind the source, press **✎ Update**. |
 | [#1760](https://github.com/NoaCG/NoaCG-Studio/issues/1760) | A typed (imported OGraf) value bound to a source reaches air at the next **✎ Update**, not by itself. Native graphics follow within seconds. | Press **✎ Update** after the source moves. |
 | [#1769](https://github.com/NoaCG/NoaCG-Studio/issues/1769) | PROGRAM on the page can miss the typed values of an imported graphic; the output is right. | Trust the output, not PROGRAM, for typed values. |
 | [#1770](https://github.com/NoaCG/NoaCG-Studio/issues/1770) | An output page from before row 36 (E1.2b) that reboots puts typed graphics back to their defaults. | After restoring an older release, reload every output, then Take typed cues again. |

@@ -500,7 +500,6 @@ merge, in the ledger's merge checks); providers as dated in Q; the cloud environ
 | 40 | E3.2a | `373d89667` (#1780) | `p45-pp-p45c-6a3e`, 2026-10-28T03:19 | CI 40624330559 success; configured 40624330563 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1780#issuecomment-6459768936) |
 | 41 | E3.2b | `660a404d7` (#1781) | `p46-pp-p46c-cba4`, 2026-10-28T08:03 | CI 40651918059 success; configured 40651918160 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1781#issuecomment-6463855205) |
 | 42 | E6.2 | `ae887d254` (#1786) | `p47-pp-p47c-9846`, 2026-10-28T10:09 | CI 40667808475 success (dispatch), 40663901817 cancelled; configured 40663901945 success; push CI red only on rundown-history:276 (released flake), its re-run cancelled as superseded, stand-in dispatch 40667808475 on the merge SHA green | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1786#issuecomment-6466198696) |
-
 | 43 | E8.1a | `132bd5b68` (#1790) | `p48-pp-p48c-2d38`, 2026-10-28T12:08 | CI 40680316527 success; configured 40680316462 success | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1790#issuecomment-6468565947) |
 | 44 | E8.1b | `f0adf9b5f` (#1791) | `p49-pp-p49c-13e0`, 2026-10-28T18:45 | CI 40745259392 success; configured 40745259430 success; endurance 40728515115 on `e71ff75` reused under §6 (the diff to the merge is evidence only) | [PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1791#issuecomment-6477585287) |
 

@@ -24,11 +24,13 @@ Task 5 below borrows the last one's setup.
   [`playout-election-package/rehearsal.md`](../../playout-election-package/rehearsal.md),
   "Before the rehearsal", steps 1 to 4, with two changes: the replay server starts with
   `--step-ms 600000` (ten minutes a step), and it and the agent start just before task 1, in a
-  new folder. The replay's results are a fixed sequence (`packageTimeline()` in
-  `scripts/election-replay-server.mjs`): the counted share moves once, from 60% to 61%, at the
-  second step, and the candidate list empties at the eighth. Ten-minute steps keep the first
-  count on screen while the participant connects, the change arriving during tasks 2 or 3, and
-  every candidate present through task 4. A production that has taken a later count refuses an
+  new folder. The replay's results are a fixed sequence of eight steps (`packageTimeline()` in
+  `scripts/election-replay-server.mjs`), counted from the agent's first read: 0 min, the first
+  count (counted share 60%); 10 min, a newer count (61%); 20 min, the same count again; 30 min,
+  a correction (one candidate's votes and a party's total go down; the counted share stays);
+  40 min, an older count (refused); 50 min, a broken answer (refused); 60 min, Sara Example
+  (district 02, candidate 103, task 2's prepared person) leaves the list; 70 min, the list is
+  empty. Tasks 1 to 4 must end within the first hour. A production that has taken a later count refuses an
   earlier one, so a second participant needs a new production (import the pack again) and a new
   replay folder, never a restarted timeline on the old one. Open the output in a second browser
   window beside the production page. Then add one graphic from the library with a title and one
@@ -69,16 +71,17 @@ On production E:
    only prepared? Show me where you read that." Done when the participant names Leo as on air
    from PROGRAM or the output, and Sara as only prepared from PREVIEW or the editor's "Not on air
    yet" line.
-4. **Recover a source failure.** Before reading the task, the proctor stops the agent (Ctrl+C)
-   and waits for one replay step to pass. "The count has not moved for a while. Find out whether
-   the results are still arriving, and keep what is on air safe." When the participant has
-   acted, or after three minutes, the proctor starts the agent again with the same command. "The
-   results are back. Carry on." Done when the participant finds that nothing new arrived (the
-   Data page's **Another system** card, "Received N min ago"), keeps the graphics on air rather
-   than taking them out, holds the data (**Pause**, or **Fixed values** on the aired candidate cue
-   followed by **✎ Update**; Fixed values alone leaves the aired card following), and
-   after the restart lets the new values reach air (**Resume**, or picking the candidate again and
-   **✎ Update**).
+4. **Recover a source failure.** Before reading the task, the proctor stops the agent (Ctrl+C).
+   "The results provider has stopped answering. Find out when results last arrived, and keep
+   what is on air safe until it is back." When the participant has acted, or after three
+   minutes, the proctor starts the agent again with the same command. "The results are back.
+   Carry on." Done when the participant finds when data last arrived (the Data page's **Another
+   system** card, "Received N min ago"), keeps the graphics on air rather than taking them out,
+   holds the data (**Pause**, or **Fixed values** on the aired candidate cue followed by **✎
+   Update**; Fixed values alone leaves the aired card following), and after the restart lets new
+   values through again (**Resume**, or picking the candidate again and **✎ Update**). This is
+   judged by those presses: the page cannot tell a stopped agent from results that simply have
+   not changed (the runbook, section 3), and the next replay step may change nothing visible.
 
 On the Companion production:
 
@@ -109,10 +112,12 @@ On production A (L2 AC-11, the adjustments; each prepared on PREVIEW, then taken
    6. The proctor says: "Only the second lower-third cue should sit on the left; the first one
       stays where you put it." Write down which scope the participant used first, and whether
       the first cue moved.
-   7. The wrong-scope recoveries, both of them, whatever happened in step 6. First the proctor
-      says: "Move the first lower-third cue to the top, for this cue only." Then: "That was a
-      mistake. Put it back the way it was, without undo." Done when it is back with **Stop this
-      cue's exception**. Then: "Move all the lower thirds to the top." Then: "That was a
+   7. The wrong-scope recoveries, both of them, whatever happened in step 6. The proctor first
+      checks that the first lower-third cue has no exception of its own (its Adjust block offers
+      no **Stop this cue's exception**; if it does, press it). Then says: "Move the first
+      lower-third cue to the top, for this cue only." Then: "That was a mistake. Put it back to
+      the graphic's own place, without undo." Done when it is back with **Stop this cue's
+      exception**. Then: "Move all the lower thirds to the top." Then: "That was a
       mistake too. Undo it." Done when it is back with Ctrl+Z. Each recovery must reach the
       output (take or update the cue when the page asks).
    Done for task 7 when each of steps 1 to 5 and 7 is on the output as asked (step 6 is the
