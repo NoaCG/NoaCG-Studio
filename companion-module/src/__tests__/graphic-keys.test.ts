@@ -288,7 +288,9 @@ test("AC-3: arguments are read in time linear in their size, within the relay's 
 	const atBound = `{"t":"${'x'.repeat(ARGS_MAX_CHARS - 8)}"}`
 	assert.equal(atBound.length, ARGS_MAX_CHARS)
 	assert.ok('args' in keyArgs('foreign:x', { args: atBound }))
-	assert.ok('refused' in keyArgs('foreign:x', { args: `${atBound} ` + 'x' }))
+	const pastBound = `{"t":"${'x'.repeat(ARGS_MAX_CHARS - 7)}"}`
+	assert.equal(pastBound.length, ARGS_MAX_CHARS + 1)
+	assert.ok('refused' in keyArgs('foreign:x', { args: pastBound }))
 	const t = process.hrtime.bigint()
 	assert.ok('refused' in keyArgs('foreign:x', { args: '['.repeat(5_000_000) }))
 	assert.ok('refused' in keyArgs('foreign:x', { args: '{"a":' + '['.repeat(2000) + ']'.repeat(2000) + '}' }) === false)

@@ -287,7 +287,8 @@ module keeps its HTTPS connection alive between presses. Nothing on the path wai
 ## 10. Graphic actions (actions protocol 2)
 
 Added by `docs/work-specs/playout-companion-actions/spec.md` (E6.1) and migration
-`0103_panel_graphic_actions.sql`. Every message and verb above is unchanged and stays `v` 1.
+`0103_panel_graphic_actions.sql`; E6.2 makes foreign OGraf actions pressable within the same
+protocol (no second bump). Every message and verb above is unchanged and stays `v` 1.
 
 ### 10.1 Compatibility
 
@@ -297,7 +298,10 @@ them ignores them. A module presses a graphic action only after a page advertise
 page is never sent one. A module meeting an `av` it does not speak refuses graphic actions with
 "update the module" and keeps every transport key. A database without 0103 refuses the verb
 `not-a-panel-verb`; the page learns that from `panel_relay` (absent there), says so in its Panel
-dialog and advertises `relay: false`, and the module says the server needs an update.
+dialog and advertises `relay: false`, and the module says the server needs an update. A page from
+before E6.2 offers foreign actions with `invocable: false`, so a newer module refuses them locally
+with the page's note; a module from before E6.2 never presses a foreign action whatever the page
+says, and keeps every native key.
 
 ### 10.2 The offer (`actions`, page to panels)
 
@@ -328,12 +332,19 @@ calls `panel_hello`, so a missed `actions` event is sent again (§7.1).
 | Field | Meaning |
 |---|---|
 | `actionsVer` | counts like `ver`, from the claim's million; a press names the one its key was drawn from |
-| `graphics[]` | every pool graphic with live controls; the target kind is the pool graphic, implied by the nesting (E6.2 adds an explicit one for a foreign action's preview or program instance), and `pinned` is presentation only |
+| `graphics[]` | every pool graphic with live controls; the target kind is the pool graphic, implied by the nesting, and `pinned` is presentation only |
 | `live` | the cue live on the graphic's layer (the instance a press names), or null off air |
 | `caps[].id` | `event:<event>`, `step:<field>` or `foreign:<action id>`; the only key a saved button is matched by |
 | `caps[].args` | the argument object's schema in E1's typed model (`src/model/ografTyped.ts` `TypedNode`), or null |
 | `allowed`, `note` | the page's own greying of that control, and why not |
-| `invocable` | false for a foreign OGraf action: a descriptor only, refused `not-here` |
+| `invocable` | false for a control a panel cannot press (a foreign action whose arguments this version does not carry, or any foreign action from a page before E6.2): shown, refused `not-here` |
+
+A foreign OGraf action (`foreign:<action id>`, E6.2) is offered for each typed ⚡ button its
+graphic's block draws, under the block's label and place, with the manifest's argument schema. Its
+target is the PROGRAM instance, named explicitly by `instance`: the package's cue on air on the
+outputs. A package has no preview instance (PREVIEW says it plays on the outputs only), so a key
+never names one. Its legality is unknown (the Graphic decides), so it is never greyed by a machine:
+`allowed` is false only off air, or while the layer airs a cue this page does not hold.
 
 ### 10.3 The press
 
@@ -349,8 +360,11 @@ nested at most 8 deep. Anything else is `bad-press` with a `note` naming the bou
 The claim and the press id as §6.2 steps 1 and 2 (a duplicate runs nothing). Then, against the
 offer now and the one at `seen` (a ring of 64): `stale` when `seen` is gone, the graphic or the
 capability id is no longer offered, its declaration changed since `seen`, or `instance` is not the
-cue live now; `not-here` for a foreign descriptor or a page that runs none (the hosted control
-page); `not-allowed` off air or greyed; `invalid` when `args` fail the schema. Otherwise it runs
+cue live now; `not-here` for a capability that is not `invocable` or a page that runs none (the
+hosted control page); `not-allowed` off air or greyed; `invalid` when `args` fail the schema. A
+foreign press with empty `args` sends the live cue's own kept arguments, as its ⚡ button does,
+validated whole when it is sent; with arguments of its own they are validated here and sent in
+their place (`model/ografTyped.ts` `typedActionFor`). Otherwise it runs
 through the page's own verbs (`control/graphicVerbs.ts` `event`, or `bump` for a step) with the
 selection `liveSelection` builds for that graphic, never the page's selection, so the dispatcher's
 per-graphic queue, sent-figure base, write-on-acceptance and instance check after every wait all

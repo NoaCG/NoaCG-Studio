@@ -5,6 +5,101 @@ verified `main` sha, the previous merge sha, the revert command, decisions taken
 and the check's findings (parent spec, "Phases"). This is an evidence file, so adding to it never
 changes a spec's digest.
 
+## Row 42 (E6.2, project phase 47): custom and foreign actions through the Companion module
+
+- **Previous verified `main` sha:** `660a404` (row 41 passed, PR #1781). This branch was built on
+  `6dd736c` (that plus the release of `late-send-abandoned` from quarantine, PR #1783). Before
+  editing, main had E6.1's protocol (`av` 2 events, the `v` 2 press, 0103's relay bounds,
+  `panel_hello` recovery), the page's offer of native capabilities, `judgeAction` and
+  `runCapability`, L1's `liveSelection` and pins, and E3's foreign rundown cues with their recovery.
+  The module could press a capability (`PanelClient.pressAction`) but Companion had no action,
+  feedback, variable or preset for one, and every foreign action was a descriptor that nothing
+  could press.
+- **Revert:** in an isolated worktree, `git revert -m 1 <this PR's merge sha>` on
+  `revert/<sha7>`, then `/check` and `/queue-merge`. No migration, no stored shape, no new message
+  kind. A reverted page offers foreign actions as descriptors again (`invocable: false`), which the
+  new module refuses locally, so a deck built on this row keeps its native keys working.
+- **What landed.**
+  - *Foreign actions pressable* (`src/control/panelActions.ts`): each typed ⚡ button a graphic's
+    block draws is offered as `foreign:<action id>` under the block's label and place, with the
+    manifest's argument schema read once per pool resolution (`declaredForeign`, through E1's read
+    gate). `allowed` follows the button: live with a cue this page holds; never greyed by a machine
+    (unknown legality). An action whose arguments E1 does not carry is offered visible and disabled
+    (`invocable: false`, E1's reason). `capabilityPress` keeps the kinds apart: a native id never
+    reaches a typed button, nor back.
+  - *Arguments*: a foreign press with empty `args` sends the live cue's own kept arguments, exactly
+    as its ⚡ button (validated whole when sent); with its own, they are validated in `judgeAction`
+    against the declared schema and replace the cue's (`typedActionFor`'s new `given`, through
+    `typedActionSendFor` and `graphicVerbs.event`'s optional `args`). The cue, its instance, the
+    per-graphic queue, the output capability check and the press mark are the button's.
+  - *The module*: the **Graphic action** (`graphic_action`: graphic, capability id, option, step,
+    JSON arguments; `pressGraphicKey`), feedbacks `action_allowed`, `action_unknown` (not on the
+    graphic any more: dark with "?"), `action_active` (a pick's option on air) and `action_outcome`
+    (running, done, not known, refused or failed, per key and only from that key's newest press),
+    the `graphic_actions` variable, and the **Pinned graphics** presets: each pinned graphic's
+    controls in the block's order, a pick as one key per option, a number as -1 and +1. Definitions
+    are rebuilt when the offer's shape changes (`offerShape`: graphics, pins, ids, labels, options),
+    never for what moves live. Version 0.2.0. The guide (`companion/HELP.md`) and the trial kit
+    (`docs/work-specs/playout-companion-actions/evidence/trial-kit.md`).
+  - *End to end* (`e2e/configured/panel-graphic-actions.spec.ts`, third test): the fixture package
+    on a real foreign rundown cue and a real browser output; the deck takes the cue, presses Mark
+    with the cue's arguments and then its own, and a duplicate, a key on the other cue's instance
+    and arguments the schema refuses move nothing, counted off the Graphic's own `data-marks`.
+- **Decisions.**
+  - *No second protocol bump.* `invocable` already existed; E6.1's module forced foreign actions
+    to non-invocable, so an older module never presses one, and an older page sends them
+    `invocable: false`, which this module refuses with the page's note. Nothing new on the wire.
+  - *The program instance is the explicit target*, named by `instance`. A foreign package has no
+    preview instance (PREVIEW says it plays on the outputs only, E3.2a) and E2.2 kept the press on
+    the program instance's arguments; so protocol.md drops the planned separate field and says so.
+  - *Empty arguments mean the cue's.* The ⚡ button sends the live cue's arguments; a deck key that
+    mirrors it needs no copy of them. A key that sends its own is the "custom button". The one
+    case this cannot express (an action whose schema accepts `{}` and an operator who wants `{}`
+    rather than the cue's) is left to the cue's form.
+  - *Pins are preset material only* (L1 AC-8): presets list pinned graphics; the action reaches
+    every offered graphic, and unpinning redefines presets and refuses nothing.
+  - *Outcome per key*: `done` and `failed` show for 2 s, `running` until settled, `not known`
+    until the key's next press. No answer, or both relay calls failing, reads not known (the press
+    may have run); it is never sent again.
+  - *A headless Companion run is not qualified on this machine* (no Companion install, no surface
+    modules allowed), so the verification row's fallback applies: module lint, test and package,
+    plus the relay contract and the configured walk through the real relay.
+- **Seams changed and where:** E1's `typedActionFor` (`given`) and E2.1's `typedActionSendFor`
+  (`given`), `graphicVerbs.event`/`pressTyped` (an optional `args`) and the page's `typedActionFor`
+  and `pressMarked` pass-through; L1's pool machines carry `foreign`. No E3 recovery code changed:
+  a panel press is one log row like a button's, so E3.2b's "an action is never repeated by recovery"
+  holds unchanged.
+- **Traps.**
+  - Module yarn on a cloud machine: `npm pack @yarnpkg/cli-dist@4.12.0`, then
+    `node package/bin/yarn.js install --immutable` with `YARN_NPM_REGISTRY_SERVER` set (row 34).
+  - Companion's action callback result is not returned to the caller; the tests read the press
+    through the fake instance's `pressAction`.
+  - A module test that waits `SETTLE_MS` passes `SILENCE_MS` too: the page reads gone unless a
+    `state` is emitted again.
+  - `docs/work-specs/*/spec.md` is pinned by its `work.json` digest: link evidence from the notes,
+    not by editing the spec.
+- **Mutation checks** (each red when changed, restored after): page `foreignCapability` without the
+  held check, `usesCueArgs` false, `capabilityPress` without the kind filter, `runCapability`
+  always passing the arguments, `foreignCapabilities` non-invocable
+  (`scripts/panel-feedback.test.mjs`); `typedActionFor` ignoring `given`
+  (`scripts/ograf-form.test.mjs`); `pressTyped` dropping `args` (`scripts/graphic-verbs.test.mjs`);
+  module `ARGS_MAX_CHARS` 4096 to 4097 and its comparison one past, the newest-press guard of
+  `#keyOutcome`, `offerShape` with `live`, presets for unpinned graphics, foreign forced
+  non-invocable, no answer read as failed, and `action_unknown` without an offer
+  (`companion-module/src/__tests__/graphic-keys.test.ts`).
+- **Touched files against `6dd736c`:** `companion-module/companion/HELP.md`,
+  `companion-module/package.json`, `companion-module/src/__tests__/actions.test.ts`,
+  `companion-module/src/__tests__/fakes.ts`, `companion-module/src/__tests__/graphic-keys.test.ts`
+  (new), `companion-module/src/__tests__/guide.test.ts`, `companion-module/src/actions.ts`,
+  `companion-module/src/feedbacks.ts`, `companion-module/src/main.ts`, `companion-module/src/panel.ts`,
+  `companion-module/src/presets.ts`, `companion-module/src/protocol.ts`,
+  `companion-module/src/variables.ts`, `docs/work-specs/hardware-panel-control/protocol.md`,
+  `docs/work-specs/playout-companion-actions/evidence/trial-kit.md` (new),
+  `e2e/configured/expected-run.json`, `e2e/configured/panel-graphic-actions.spec.ts`,
+  `scripts/graphic-verbs.test.mjs`, `scripts/ograf-form.test.mjs`, `scripts/panel-feedback.test.mjs`,
+  `src/components/home/ProductionPage.tsx`, `src/control/graphicVerbs.ts`,
+  `src/control/panelActions.ts`, `src/control/typedSend.ts`, `src/model/ografTyped.ts`, this file.
+
 ## Row 41 (E3.2b, project phase 46): foreign OGraf restart, failure and truthful recovery; the foreign frame adjust
 
 - **Previous verified `main` sha:** `373d896` (row 40 passed, PR #1780). This branch was built on
