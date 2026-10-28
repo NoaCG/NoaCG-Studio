@@ -113,7 +113,8 @@ export function judge(record) {
   check('every accepted revision stayed inside the ingress limit (holds by construction: the route refuses a larger one before storing it)', bytes > 0 && bytes <= (fx.capBytes ?? 262144), `largest ${bytes} bytes`);
   // A frozen agent's request in flight fails when it wakes: expected of that agent, after that moment.
   const woken = faults.filter((f) => f.kind === 'handover' && f.mode === 'crash');
-  const wokeLate = (r) => woken.some((f) => r.agent === f.from && r.at >= f.woke && /renewal failed|claim failed/.test(r.line));
+  // A request it had in flight when frozen (a renewal, a claim or a report) fails as it wakes.
+  const wokeLate = (r) => woken.some((f) => r.agent === f.from && r.at >= f.woke && /renewal failed|claim failed|the sender failed: fetch failed/.test(r.line));
   const unexpected = reads.filter((r) => REFUSAL.test(r.line) && !EXPECTED_REFUSALS.test(r.line) && !wokeLate(r));
   check('no revision was refused for size, budget or anything the run did not cause', unexpected.length === 0, unexpected.slice(0, 3).map((r) => r.line).join(' | '));
   // Served, then held: only an older step makes `stale` and only a malformed one `invalid`; a
@@ -389,8 +390,9 @@ export function judge(record) {
     if (shown) (steadyRow ? timings.applyToRenderBound : recovering).push(shown.at - r.at);
     if (steadyRow && r.at + CEILING.bound <= (record.end ?? Infinity) && (!shown || shown.at - r.at > CEILING.bound)) missed.push({ road: 'bound', at: r.at - t0, kok: r.data.f8 });
     if (shown && steadyRow && moved(rev) !== null) timings.providerToRenderBound.push(shown.at - moved(rev));
-    // The aired card moves at the page's own read of the tree.
-    const aired = takes.findLast((t) => t.at <= r.at);
+    // The aired card moves at the page's own read of the tree. It is owed to the person last
+    // clicked: once a Take is clicked the card is being replaced, and the person leaving owes nothing.
+    const aired = takes.findLast((t) => t.clickAt <= r.at);
     if (aired && steadyRow) {
       const want = aired.person.base + rev * aired.person.step;
       const onCard = frames.find((f) => f.at >= r.at - 50 && f.name === aired.person.name && num(f.votes) >= want);

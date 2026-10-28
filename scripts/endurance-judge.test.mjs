@@ -217,6 +217,13 @@ red('a data change that stopped the foreign Board', (r) => r.rows.push({ id: 1e9
 red('a steady graphic that was never taken', (r) => (r.rows = r.rows.filter((x) => !(x.graphic === 'House Scorebug' && x.t === 'play'))), /after their one Take/);
 red('a data change that took the quiz', (r) => r.rows.push({ id: 1e9, graphic: 'Arena Quiz', t: 'next', at: r.t0 + 60_000 }), /after their one Take/);
 red('a revision over the ingress limit', (r) => (r.snapshots[30].bytes = BODY_CAP_BYTES + 1), /ingress limit/);
+test('the old owner\'s report in flight when frozen fails as it wakes: expected of that agent, after that moment', () => {
+  const r = healthy();
+  const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
+  r.reads.push({ agent: crash.from, at: crash.woke + 200, line: 'election the sender failed: fetch failed' });
+  assert.deepEqual(failed(r), []);
+});
+red('a failed report from an agent that was never frozen', (r) => r.reads.push({ agent: 'agent-1', at: r.t0 + 60_000, line: 'election the sender failed: fetch failed' }), /did not cause/);
 red('a refusal the run did not cause', (r) => r.reads.push({ agent: 'agent-1', at: r.t0, line: 'election changed revision 9 not taken (409 budget)' }), /did not cause/);
 red('the credential in an agent log', (r) => (r.credentialLeaked = true), /credential/);
 red('an output that never caught up after a disconnect', (r) => {
@@ -224,6 +231,13 @@ red('an output that never caught up after a disconnect', (r) => {
   const frozen = r.frames.filter((x) => x.at <= f.at).at(-1);
   r.frames = r.frames.map((x) => (x.at > f.at && x.at < f.end + 25_000 ? { ...x, kok: frozen.kok } : x));
 }, /caught up/);
+test('a correction landing between a Take\'s click and its answer is owed by the person taken, not the one leaving', () => {
+  // A Take answered slowly: every data row lands after the click and before the Take returns.
+  const r = healthy();
+  for (const t of r.takes) t.at = t.clickAt + 1_500;
+  assert.deepEqual(failed(r), []);
+});
+
 red('corrections that never reach the card', (r) => {
   for (const f of r.frames) {
     if (f.at < r.t0 + 60_000 || !f.name) continue;
