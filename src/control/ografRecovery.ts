@@ -8,9 +8,10 @@
 //   - a Take the Graphic ACCEPTED (the report's `ograf.on`), at the step its answers reached, through
 //     its own lifecycle calls (`playAction` to the first step, then one step at a time);
 //   - never a custom action: its effect lives in the Graphic alone and may not be repeatable, so a
-//     row of one in the catch-up is not sent, and a package an action reached since its Take is put
+//     row of one in the catch-up is not sent, and a package whose instance an action reached is put
 //     back as far as its Take and step and said to be NOT KNOWN (`unknown`), until the operator
-//     takes or outs it again;
+//     takes or outs it again. OGraf promises no Take or Out undoes an action, so a later Take does
+//     not make it known;
 //   - a Take that was never confirmed (refused, unanswered, or no report) is not repeated by itself
 //     either: it is said to be not known, and the re-cue is the operator's.
 //
@@ -47,17 +48,16 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   // A snap has no OGraf meaning (control/ografContract.ts `ografCallFor`): only a Take puts it up.
   const lastTake = last('play');
   const lastOut = last('stop');
-  const actedAfter = (from: number) => rows.slice(from + 1).some((r) => r.msg.t === 'event');
+  const o = readOgrafOutcome(report?.state);
+  const acted = o?.acted === true || rows.some((r) => r.msg.t === 'event');
   // A Take or Out after the bank replays as the log has it, and decides whether it is up.
   if (lastTake >= 0 || lastOut >= 0) {
     if (lastOut > lastTake) return NOTHING;
-    return { play: false, steps: 0, unknown: actedAfter(lastTake) ? UNKNOWN_ACTED : null };
+    return { play: false, steps: 0, unknown: acted ? UNKNOWN_ACTED : null };
   }
-  const o = readOgrafOutcome(report?.state);
   const up = headOn ?? o?.on === true;
   if (!up) return NOTHING;
   if (!o || o.i === null || !o.on) return { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED };
-  const acted = o.acted === true || actedAfter(-1);
   // A state an earlier restart could not prove stays unproven through the next one.
   const carried = o.unknown ?? null;
   if (typeof o.step !== 'number') return { play: true, steps: 0, unknown: acted ? UNKNOWN_ACTED : (carried ?? UNKNOWN_STEP) };

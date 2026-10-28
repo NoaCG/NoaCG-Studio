@@ -26,15 +26,18 @@ test('a Take the Graphic accepted comes back at its step, through its own lifecy
   assert.deepEqual(ografRestore(report({ ...up, on: false, call: 'stop' }), false, []), { play: false, steps: 0, unknown: null });
 });
 
-test('an action since the Take is never repeated: the Take and step come back, and the state is said to be not known', () => {
+test('an action is never repeated: the Take and step come back, and the state is said to be not known', () => {
   // Banked in the report (an action the old instance took) ...
   assert.deepEqual(ografRestore(report({ ...up, acted: true }), true, []), { play: true, steps: 1, unknown: UNKNOWN_ACTED });
   // ... or a row after the bank, which the catch-up reads past.
   assert.deepEqual(ografRestore(report(up), true, [row('event')]), { play: true, steps: 1, unknown: UNKNOWN_ACTED });
   // A Take after the bank replays from the log; an action after THAT Take is not repeated.
   assert.deepEqual(ografRestore(report(up), true, [row('update'), row('play'), row('event')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
-  // An action before a later Take is history the Take replaced.
-  assert.deepEqual(ografRestore(report({ ...up, acted: true }), true, [row('event'), row('update'), row('play'), row('next')]), { play: false, steps: 0, unknown: null });
+  // OGraf promises no Take undoes an action: one before a later Take still leaves it not known.
+  assert.deepEqual(ografRestore(report({ ...up, acted: true }), true, [row('event'), row('update'), row('play'), row('next')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
+  assert.deepEqual(ografRestore(report(up), true, [row('event'), row('play')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
+  // With no action anywhere, a Take after the bank replays and is known by its own answer.
+  assert.deepEqual(ografRestore(report(up), true, [row('update'), row('play'), row('next')]), { play: false, steps: 0, unknown: null });
   // An Out after it all: off, as the log says.
   assert.deepEqual(ografRestore(report({ ...up, acted: true }), true, [row('play'), row('event'), row('stop')]), { play: false, steps: 0, unknown: null });
 });

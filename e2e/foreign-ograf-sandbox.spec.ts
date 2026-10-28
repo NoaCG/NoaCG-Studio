@@ -610,9 +610,11 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await apply(page, 'walk', { t: 'event', event: 'mark', payload: { v: 'once' } });
     await expect(walk).toHaveAttribute('data-mark', 'once');
     await expect.poll(async () => (await outcome('walk'))?.acted).toBe(true);
-    // A healthy instance's Take is the same instance (row 40): nothing mounts again by itself.
+    // A healthy instance's Take is the same instance (row 40): nothing mounts again by itself, and
+    // the action still counts (OGraf promises no Take undoes one).
     await apply(page, 'walk', { t: 'play' });
-    await expect.poll(async () => (await outcome('walk'))?.acted, 'a Take starts its count again').toBeUndefined();
+    await expect.poll(async () => (await outcome('walk'))?.call).toBe('play');
+    expect((await outcome('walk'))?.acted).toBe(true);
     expect(await walkFrame.getAttribute('data-instance')).toBe(first);
 
     // A DROPPED HOST: the frame's document goes away, so the bridge's far end is gone. The next call

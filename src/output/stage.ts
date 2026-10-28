@@ -638,8 +638,8 @@ export function createOutputStage(
         if (call === 'play') on = true;
         else if (call === 'stop') on = false;
       }
-      // Refused by the Graphic, an action changed nothing; one sent before a later Take or step was
-      // already reset or outweighed, so only the newest counts back (`newest`).
+      // Refused by the Graphic, an action changed nothing. Counted back only while no Take, step or
+      // Out was sent after it (`newest`): past one, it stays counted, which errs towards not known.
       if (call === 'custom' && answer.status === 'rejected' && newest) acts.set(key, Math.max(0, (acts.get(key) ?? 0) - 1));
       // An instance that answered nothing in time, or never loaded, is not trusted with the next
       // Take: that Take mounts the package again (`apply`).
@@ -661,8 +661,9 @@ export function createOutputStage(
     });
     return true;
   };
-  /** Per mounted package, the actions sent since its last Take that the Graphic did not refuse:
-   *  their effect is in the Graphic alone, and no restart repeats them. */
+  /** Per mounted package, the actions its instance was sent that the Graphic did not refuse: their
+   *  effect is in the Graphic alone, no restart repeats them, and OGraf promises no Take or Out
+   *  undoes them, so they count for the instance's whole life (a new instance starts at none). */
   const acts = new Map<string, number>();
   const mountPublished = (spec: OutputGraphicSpec, layer: number, version?: string) => {
     const key = spec.key;
@@ -718,8 +719,7 @@ export function createOutputStage(
   };
   /** One message to a mounted package, with the bookkeeping recovery reads. */
   const send = (key: string, layer: ForeignOgrafLayer, msg: ControlMessage) => {
-    if (msg.t === 'play' || msg.t === 'stop') acts.set(key, 0);
-    else if (msg.t === 'event' && ografCallFor(msg)) acts.set(key, (acts.get(key) ?? 0) + 1);
+    if (msg.t === 'event' && ografCallFor(msg)) acts.set(key, (acts.get(key) ?? 0) + 1);
     layer.send(msg);
   };
   payload.graphics.forEach((spec, index) => {
