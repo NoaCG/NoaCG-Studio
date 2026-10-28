@@ -28,7 +28,7 @@ run here, and why, is at the end.
 
 | Runbook or matrix words | Where |
 | --- | --- |
-| **Playout**, **CasparCG via Bridge**, **Download**, **Pair**, **Load**, **Loaded** | `src/components/home/ProductionShell.tsx`, `PlayoutPanel.tsx`, `useProductionPublish.ts` |
+| The status button beside the production's name opens the Playout panel; **CasparCG via Bridge**, **Download**, **Pair**, **Load**, **Loaded** | `src/components/home/PlayoutStatusControl.tsx` (`production-status`), `PlayoutPanel.tsx`, `useProductionPublish.ts`. (The header's "Playout" is the workspace tab, shown only beside Data or Messages; it does not open the panel.) |
 | **Reloading…** amber, **Empty** red with "Loading it again did not bring it back.", "Not on 1-20", three tries | `useProductionPublish.ts` (slot text), `src/control/playoutStatus.ts` (the check line), `src/control/bridgeWatch.ts` (`RELOAD_AFTER_READS`); `docs/BRIDGE.md` §3 says the same |
 | "BRIDGE NOT ANSWERING · NOT LIVE", "CONNECTION LOST · NOT LIVE", "sending…", "not confirmed", "logged" | `src/control/playoutStatus.ts` |
 | **■ All out**, **Panel ✓** | `ProductionShell.tsx` |

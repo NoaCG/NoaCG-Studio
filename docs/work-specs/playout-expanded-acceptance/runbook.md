@@ -19,12 +19,13 @@ Do this once per computer, at least a day before the show.
 
 ### NoaCG
 
-Nothing to install. Open noacg.studio in Chrome or Edge and sign in. Safari cannot reach NoaCG
-Bridge; use Chrome, Edge or Firefox for a CasparCG show.
+Nothing to install. Open noacg.studio in Chrome, Edge or Firefox and sign in. Not Safari: it cannot
+reach NoaCG Bridge.
 
 ### NoaCG Bridge (for CasparCG)
 
-1. On the production page press **Playout** in the header and switch on **CasparCG via
+1. On the production page press the status beside the production's name in the header (it
+   reads, for example, **Not published**). The Playout panel opens; switch on **CasparCG via
    Bridge**. On the **NoaCG Bridge** row press **Download**; on the page that opens, download
    NoaCG Bridge, then double-click the file.
    Windows may warn that the file is unsigned: choose **More info**, then **Run anyway**.
