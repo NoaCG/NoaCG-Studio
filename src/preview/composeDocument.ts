@@ -418,6 +418,8 @@ window.addEventListener('unhandledrejection', function (ev) {
     if (values && typeof values === 'object' && !Array.isArray(values)) keepValues(values);
     else lastData = json;
   }
+  /* Whether this document has taken the graphic before: a first Take starts from a fresh load. */
+  var played = false;
   /* An event the template accepts writes its payload into the fields (animRuntime.ts
      noacgApplyPayload) after the update that set lastData, so a late refit would put the old
      values back: the values replayed take each applied payload in. A refused event applies none. */
@@ -513,23 +515,25 @@ window.addEventListener('unhandledrejection', function (ev) {
       afterFonts(function () {
         try {
           if (msg.data != null) keepData(msg.data);
-          /* A TAKE starts from the graphic's CSS rest (#1618). This document stays loaded between
-             cues, and an exit can leave inline props its entrance never resets: a results board's
-             Out fades the rows' container, its cascade entrance animates only the rows, and the
-             second Take aired the header over an empty board. The editor's monitor resets before
-             every play (simulatorRuntime.ts sim-play); this is the same reset, after the template's
-             own when it has one (that one also clears press-revealed layers outside the root, and
-             an older one does not re-hide an empty image field), followed by the values the graphic
-             holds, since a fit or a rebuild may have written inline styles of its own. Only under
-             the house builder contract, as there: a design without it (an import) may carry
-             authored inline styles a reset would wipe. */
-          if (typeof window.buildInTimeline === 'function') {
+          /* A TAKE AGAIN starts from the graphic's CSS rest (#1618). This document stays loaded
+             between cues, and an exit (an Out, or an event into an off state) can leave inline
+             props the entrance never resets: a results board's Out fades the rows' container, its
+             cascade entrance animates only the rows, and the second Take aired the header over an
+             empty board. The editor's monitor resets before every play (simulatorRuntime.ts
+             sim-play); this is the same reset, after the template's own when it has one (that one
+             also clears press-revealed layers outside the root, and an older one does not re-hide
+             an empty image field), followed by the values the graphic holds, since a fit or a
+             rebuild may have written inline styles of its own. A first Take starts from a fresh
+             load and is left as it was. Only under the house builder contract, as in the monitor:
+             a design without it (an import) may carry authored inline styles a reset would wipe. */
+          if (played && typeof window.buildInTimeline === 'function') {
             if (typeof window.noacgResetGraphic === 'function') window.noacgResetGraphic();
             resetGraphicInline(window);
             window.update && window.update(lastData != null ? lastData : '{}');
           } else if (msg.data != null) {
             window.update && window.update(msg.data);
           }
+          played = true;
           window.play && window.play();
         } catch (e) {}
         report(window);
