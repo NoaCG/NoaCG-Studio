@@ -98,7 +98,7 @@ On production Q (L1 AC-11, the two-graphic show; record it press by press, see b
 
 6. **The two-graphic show from one screen.** "Take the score banner, then the quiz question. Pin
    the score banner. For this question, pick answer B, lock it in, reveal the correct answer, and
-   give competitor 1 one point. Do not select another cue while you do it." Start from a fresh
+   give competitor 1 one point. Once the question is on air, do not select another cue until the point is given." Start from a fresh
    page load (L1 AC-11). The pin can be made from the score banner's ⋯ menu in the rundown while
    the quiz cue stays selected. Done when the output shows B locked and revealed and competitor
    1's score one higher, with no cue switch from the pick to the +1 (L1 AC-11 records every

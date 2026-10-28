@@ -42,7 +42,7 @@ download the new Bridge from the same page. Full detail: [`docs/BRIDGE.md`](../.
 
 ### OBS
 
-Add a **Browser** source of 1920 x 1080 with the production's output address (press **Output
+Publish the production first. Then add a **Browser** source of 1920 x 1080 with the production's output address (press **Output
 URL** on the production's card in Productions to copy it). Detail and known OBS settings:
 [`docs/OBS_ON_A_REAL_HOST.md`](../../OBS_ON_A_REAL_HOST.md).
 
@@ -94,7 +94,7 @@ mark the file bound (`"credentialBound": true`). If the credential is missing, t
 
 | Credential | Where it lives | Where it never goes |
 | --- | --- | --- |
-| The production's data key (lets the agent or another system write to this production) | on the production; on the Data page's **Another system** card behind **Reveal** and **Copy** | in a show file, a package, an export, a chat, an issue or this guide |
+| The production's data key (lets the agent or another system write to this production) | on the production; on the Data page (**Setup**, then **Data…**), on the **Another system** card behind **Reveal** and **Copy** | in a show file, a package, an export, a chat, an issue or this guide |
 | The results provider's key | only in an environment variable on the agent's computer (`NOACG_SOURCE_…`) | in the agent's settings file; the agent refuses to start if one is written there ("unknown configuration keys: …") |
 | The Companion panel key | in Companion's connection, masked | anywhere else; **Revoke** ends it |
 | The Bridge pairing | in the Bridge's own folder on that computer | it never travels in a web address |
