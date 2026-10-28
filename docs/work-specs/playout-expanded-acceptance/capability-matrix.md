@@ -100,6 +100,7 @@ Filed before this programme's extension rows; open on `c6fc146`.
 | [#1048](https://github.com/NoaCG/NoaCG-Studio/issues/1048) | On SPX 1.4, every dual NoaCG package plays on layer 5, so two of them replace each other. (The SPX export itself is fixed.) | Use the SPX export, not the dual package, on SPX 1.4. |
 | [#1063](https://github.com/NoaCG/NoaCG-Studio/issues/1063) | Prepare for Live can wait without end on the output's first read if the server never answers. | If READY shows nothing new for a minute, reload the output. |
 | [#775](https://github.com/NoaCG/NoaCG-Studio/issues/775) | On Linux playout machines a long name that should shrink can run about 5% past its box. | Check long names on the target machine before the show. |
+| [#779](https://github.com/NoaCG/NoaCG-Studio/issues/779) | Two graphics with the same name in one production (for example two "Lower third"s in a team production) replace each other on the output: the production and its output key graphics by name. | Give every graphic in a production its own name; check the rundown for duplicates before the show. |
 | [#758](https://github.com/NoaCG/NoaCG-Studio/issues/758) | A page left open across a deploy can fail to load more code. | Do not deploy during a show; reload open pages after one. |
 
 ### Data and setup limits (not on-air defects)
@@ -112,6 +113,7 @@ Filed before this programme's extension rows; open on `c6fc146`.
 | [#1679](https://github.com/NoaCG/NoaCG-Studio/issues/1679) | A changed mapping of an already written field waits for the provider's next change. |
 | [#1737](https://github.com/NoaCG/NoaCG-Studio/issues/1737) | Published collections have no byte cap of their own (the 256 KiB revision cap still holds). |
 | [#1733](https://github.com/NoaCG/NoaCG-Studio/issues/1733) | Adjustments: the rundown glyph, the pack install line and a nudge dead zone. |
+| [#1586](https://github.com/NoaCG/NoaCG-Studio/issues/1586) | On a short screen the sources line (with a stale Sheet and its **Pause**) can scroll out of sight. Scroll the control area to the top to see it. |
 | [#1758](https://github.com/NoaCG/NoaCG-Studio/issues/1758) | The Companion module's own tests run in no GitHub workflow, so a module change is not checked by CI. |
 
 Not affecting any criterion: [#1771](https://github.com/NoaCG/NoaCG-Studio/issues/1771) and

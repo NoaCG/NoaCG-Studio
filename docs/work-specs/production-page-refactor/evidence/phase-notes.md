@@ -23,7 +23,7 @@ changes a spec's digest.
   - `capability-matrix.md` (AC-4): what the build does, each line with its receipt and status
     (software, laptop walk, owed to H0.2 or S, not qualified); official feed, vMix, SPX and
     unattended cloud apart; every known on-air defect not fixed with its issue (#1795, #1797,
-    #1798 and the rest); #1618, #1657 and #1746 as fixed in software with the physical check
+    #1798, #1802 filed during this row, the older ones still open, and the rest); #1618, #1657 and #1746 as fixed in software with the physical check
     owed to S.
   - `evidence/trial-kit.md` (AC-3): seven tasks (connect a sample API, select a live candidate,
     preview or air, recover a source failure, a declared Companion button, L1 AC-11's
@@ -32,7 +32,7 @@ changes a spec's digest.
   - `evidence/e8-2-guide-check.md`: each runbook step and matrix line, run here, read in the
     code, or from a receipt, and what could not be run and why.
   - `evidence/e8-1a-reconciliation.md` updated, not a second record: the verdict (AC-1's agent
-    part), rows 43 and 44, O-9 (#1797, #1798), O-10 (the owner's fixes and #1795), the L1 AC-8
+    part), rows 43 and 44, O-9 (#1797, #1798, #1802), O-10 (the owner's fixes and #1795), the L1 AC-8
     citation corrected to row 42's entry, the E8, L1 AC-11 and L2 AC-11 rows.
   - *One focused fix:* Companion's `HELP.md` step 1 said **Setup**, then **Panel**; the menu item
     has read **Stream Deck panel…** since row 38a. Fixed, with a test in

@@ -94,16 +94,17 @@ On the Companion production:
 
 On production Q (L1 AC-11, the two-graphic show; record it press by press, see below):
 
-6. **The two-graphic show from one screen.** "Take the quiz question and the score banner. Pin
+6. **The two-graphic show from one screen.** "Take the score banner, then the quiz question. Pin
    the score banner. For this question, pick answer B, lock it in, reveal the correct answer, and
    give competitor 1 one point. Do not select another cue while you do it." Start from a fresh
    page load (L1 AC-11). The pin can be made from the score banner's ⋯ menu in the rundown while
    the quiz cue stays selected. Done when the output shows B locked and revealed and competitor
-   1's score one higher, with no other cue selected after the pin.
+   1's score one higher, with no cue switch from the pick to the +1 (L1 AC-11 records every
+   switch; only those during pick, lock, reveal and +1 fail the task).
 
 On production A (L2 AC-11, the adjustments; each prepared on PREVIEW, then taken or updated):
 
-7. **Adjust from one screen.**
+7. **Adjust from one screen.** Start from a fresh page load (L2 AC-11).
    1. "Move the lower third to the right and nudge it a little up. Put it on air."
    2. "Make the score banner 5 % smaller, on air."
    3. "The quiz board looks too big. Decide whether making it smaller is enough, and say what you
@@ -117,7 +118,7 @@ On production A (L2 AC-11, the adjustments; each prepared on PREVIEW, then taken
       the first cue moved.
    7. The wrong-scope recoveries, both of them, whatever happened in step 6. The proctor first
       checks that the first lower-third cue has no exception of its own (its Adjust block offers
-      no **Stop this cue's exception**; if it does, press it). Then says: "Move the first
+      no **Stop this cue’s exception**; if it does, press it). Then says: "Move the first
       lower-third cue to the top, for this cue only." Then: "That was a mistake. Put it back to
       the graphic's own place, without undo." Done when it is back with **Stop this cue's
       exception**. Then: "Move all the lower thirds to the top." Then: "That was a

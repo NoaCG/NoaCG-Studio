@@ -361,7 +361,9 @@ end).
   value reached air 6.6 s later, inside the 10 s ceiling). #1798: the output page's heap rises
   about 10 KB a minute, repeatably, cause not found (inside the hour's thresholds; row 44's
   checker called it a judgement call). Neither fails E8 AC-2 as written; both are on-air limits in
-  the matrix and the runbook. A run longer than an hour is not measured.
+  the matrix and the runbook. A run longer than an hour is not measured. #1802 (filed during row
+  45 as #1797's follow-up): a frame lost at any other moment, with no later row, waits for the
+  output's 30 s poll; open, in the matrix and the runbook.
 - **O-10, the owner's on-air fixes (2026-10-28).** Three defects outside the phase rows were fixed
   and landed through the merge queue: #1618 (a results board taken again draws no rows;
   `55f98f9`, PR #1793), #1657 (the CasparCG output comes back by itself after a server restart;
@@ -399,8 +401,10 @@ end).
 | #1784 | E3 AC-3, L2 AC-10 | item 1 closed by this row (below); item 2 open, display only |
 | #1795 | no criterion; on air for exported boards | O-10, open; matrix and runbook |
 | #1797 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
+| #1802 | no criterion; on air, #1797's follow-up | O-9, open; matrix and runbook |
 | #1798 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
 | #1618, #1657, #1746 | parent AC-14, data AC-16 on real outputs | O-10, fixed in software; physical check owed to S |
+| #1567, #1572, #885, #1671, #1347, #1048, #1063, #775, #758, #779 | older open on-air defects, filed before the extension rows | no gated criterion's text; listed in the matrix with what to do meanwhile |
 
 ## E8 AC-2, the cross-feature cases (this row)
 

@@ -32,8 +32,8 @@ Bridge; use Chrome, Edge or Firefox for a CasparCG show.
    browser with the Bridge. If the browser asks whether the site may reach your local network,
    allow it.
 3. The same page connects to CasparCG. It remembers the servers you used.
-4. Publish the production, then press **Load** in the Playout panel. The slot row reads
-   **Loaded**.
+4. Publish the production. The slot row in the Playout panel should read **Loaded**; if it does
+   not, press **Load**.
 
 On another computer, or a browser that forgot its data: download and pair again (step 1 and 2).
 The Bridge keeps the server list, so you do not retype the server. Updates are never automatic:
@@ -41,8 +41,8 @@ download the new Bridge from the same page. Full detail: [`docs/BRIDGE.md`](../.
 
 ### OBS
 
-Add a **Browser** source of 1920 x 1080 with the production's output address (in Productions,
-press **Output URL** on the production's card in Productions to copy it). Detail and known OBS settings:
+Add a **Browser** source of 1920 x 1080 with the production's output address (press **Output
+URL** on the production's card in Productions to copy it). Detail and known OBS settings:
 [`docs/OBS_ON_A_REAL_HOST.md`](../../OBS_ON_A_REAL_HOST.md).
 
 ### Companion and the Stream Deck
@@ -186,9 +186,10 @@ If a new release of noacg.studio misbehaves during preparation, do not try to re
 2. **Ask the maintainer to restore the last release that passed its check.** This is not
    something the operator does on the site: the maintainer reverts the change through the merge
    queue, or uses the hosting service's instant rollback to an earlier deployment. The database
-   is never rolled back: database changes follow the live-safe migration rules, which keep older
-   pages working. A rollback cannot go past a database cleanup;
-   the maintainer's deploy report names the oldest release allowed.
+   is never rolled back. Migrations only add, unless one was explicitly allowed to remove
+   something (`db:push` refuses a removal by default); before going back past a release that
+   allowed one, the maintainer reads that migration's notes. No report names the oldest safe
+   release yet ([#756](https://github.com/NoaCG/NoaCG-Studio/issues/756) plans one).
 3. **After the restore, reload every output** (CasparCG: Unload, then Load; OBS: refresh the
    source), then Take the cues again. If the release you went back to is older than PR #1765
    (merged 27 October 2026), an output that restarts puts imported OGraf graphics back to their defaults
@@ -207,7 +208,7 @@ If a new release of noacg.studio misbehaves during preparation, do not try to re
 ## 8. Before you go on air: what is not fixed
 
 The full list, with what to do meanwhile, is in the matrix's "Known on-air defects not fixed".
-The three the owner asked to keep in front of you:
+The ones to keep in front of you:
 
 - [#1795](https://github.com/NoaCG/NoaCG-Studio/issues/1795): an exported results board played
   again outside the `/output` page may show no rows. Play results boards through `/output`.
@@ -219,6 +220,10 @@ The three the owner asked to keep in front of you:
 - [#1802](https://github.com/NoaCG/NoaCG-Studio/issues/1802): a value that does not reach the
   output can stay missing for up to 30 seconds, with nothing marking it stale, if no newer value
   follows. If a bound board looks behind the source, press **✎ Update**.
+
+- [#779](https://github.com/NoaCG/NoaCG-Studio/issues/779): two graphics with the same name in
+  one production replace each other on the output. Give every graphic in a production its own
+  name, and check the rundown for duplicates before the show.
 
 Fixed in software and still to be seen on the real studio in S: a results board taken twice
 (#1618), the output coming back after a CasparCG restart (#1657, section 5) and saved graphics'
