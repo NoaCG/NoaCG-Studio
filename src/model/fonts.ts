@@ -586,7 +586,7 @@ export function upgradeFontCss(css: string): string {
   return out.replace(/(\/\* Imported font[^*]*\*\/\s*)(@font-face\s*\{[^}]*\})/g, (whole, comment: string, rule: string) => {
     if (/font-weight\s*:/.test(rule) || weighted.has(ruleFamily(rule))) return whole;
     const upgraded = rule
-      .replace(/^([ \t]*src:(?:"[^"]*"|'[^']*'|url\([^)]*\)|[^;"'])*;)/m, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
+      .replace(/(src:(?:"[^"]*"|'[^']*'|url\([^)]*\)|[^;"'])*;)/, `$1\n  font-weight: 100 900;        /* one file, weight unknown: a static file is drawn as it is, a variable one along its axis, never a synthesised bold */`)
       .replace(OLD_IMPORTED_NOTE, IMPORTED_NOTE);
     return comment + upgraded;
   });

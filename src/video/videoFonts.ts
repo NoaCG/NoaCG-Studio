@@ -143,7 +143,9 @@ export function videoFontFaceCss(
 /**
  * Each file is Google's `latin` subset; Š Ž Ł ő ğ live in its `latin-ext` twin beside it, declared
  * second and limited to this range so a name like "Šimon Žáková" sets in the face. The same
- * range and file name as model/fonts.ts (`LATIN_EXT_RANGE`, `latinExtFile`), pinned equal by
+ * range and file name as model/fonts.ts (`LATIN_EXT_RANGE`, `latinExtFile`), copied rather than
+ * imported because model/fonts.ts imports `../assets/OFL.txt?raw`, which Node's native loader
+ * (scripts/gen-video-font-css.mjs, build-player-host.mjs) cannot resolve. Pinned equal by
  * scripts/font-upgrade.test.mjs.
  */
 export const LATIN_EXT_RANGE =

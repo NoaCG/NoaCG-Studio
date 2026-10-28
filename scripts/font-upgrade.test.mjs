@@ -158,6 +158,13 @@ test('an imported block embedded as a data URL (a single-file export read back) 
   }
 });
 
+test('an imported block written on one line gains its weight too', () => {
+  const oneLine = `/* Imported font (your file). */\n@font-face { font-family: "Mine"; src: url("fonts/Mine.otf") format("opentype"); font-display: swap; }`;
+  const out = upgradeFontCss(oneLine);
+  assert.match(rules(out)[0], /format\("opentype"\);\n {2}font-weight: 100 900;/);
+  assert.equal(upgradeFontCss(out), out);
+});
+
 test('an imported family the stylesheet also gives weighted files keeps its weight-less rule', () => {
   const bold = `@font-face {
   font-family: "Neue Machina";
