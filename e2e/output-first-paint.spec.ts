@@ -34,9 +34,10 @@ import { st01 } from '/src/templates/competition/results/st01.ts';
 import { rs01 } from '/src/templates/competition/results/rs01.ts';
 import { br01 } from '/src/templates/competition/results/br01.ts';
 import { tt01 } from '/src/templates/competition/results/tt01.ts';
+import { ss21 } from '/src/templates/startingSoon/ss21.ts';
 
 const q = new URLSearchParams(location.search);
-const variants = { lt01, st01, rs01, br01, tt01 };
+const variants = { lt01, st01, rs01, br01, tt01, ss21 };
 // ?designs=st01,lt01 names each graphic's design; without it, n copies of lt01.
 const keys = q.get('designs') ? q.get('designs').split(',') : Array.from({ length: Number(q.get('n') || 1) }, () => 'lt01');
 const graphics = [];
@@ -286,6 +287,33 @@ test.describe('the /output shell, a graphic taken again', () => {
       };
     });
   }
+
+  // What a Take again puts back is the graphic at rest, not a blank slate: layout a design's own
+  // code wrote inline stays. The Minute Rule positions its ticks inline and redraws them only when
+  // the duration changes, so a reset that wiped every inline style collapsed its graduation.
+  test('ss21: a design\'s own inline layout survives Take, Out, Take', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/first-paint/output?designs=ss21');
+    await page.waitForFunction(() => (window as unknown as { __stageReady?: boolean }).__stageReady);
+    const apply = (msg: unknown) =>
+      page.evaluate((m) => (window as unknown as { __stage: { apply(g: string, m: unknown): void } }).__stage.apply('ss21', m), msg);
+    const frame = page.frames().find((f) => f !== page.mainFrame())!;
+    const ticks = () =>
+      frame.evaluate(() => {
+        const all = Array.from(document.querySelectorAll('.starting-soon-tick')) as HTMLElement[];
+        return { count: all.length, placed: all.filter((t) => t.style.left !== '').length, root: Number(getComputedStyle(document.querySelector('.starting-soon')!).opacity) };
+      }).catch(() => ({ count: 0, placed: 0, root: -1 }));
+    await apply({ t: 'play' });
+    await expect.poll(async () => (await ticks()).root, { timeout: 8_000 }).toBe(1);
+    const first = await ticks();
+    expect(first.count, 'the rule has its ticks').toBeGreaterThan(1);
+    expect(first.placed).toBe(first.count);
+    await apply({ t: 'stop' });
+    await expect.poll(async () => (await ticks()).root, { message: 'the Out ends', timeout: 8_000 }).toBe(0);
+    await apply({ t: 'play' });
+    await expect.poll(async () => (await ticks()).root, { timeout: 8_000 }).toBe(1);
+    expect(await ticks(), 'every tick keeps its position after the second Take').toEqual(first);
+  });
 
   for (const board of ['st01', 'rs01', 'br01', 'tt01']) {
     // An output that reloads mid-show puts an on-air graphic back with a snap, never a Take.
