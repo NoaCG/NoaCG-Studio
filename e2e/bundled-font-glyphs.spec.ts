@@ -58,3 +58,49 @@ test('every bundled face draws the whole name itself, Š and Ž included', async
   }
   await cdp.detach();
 });
+
+// A graphic SAVED before the latin-ext files and the 100-900 static weight (issue #1746) still
+// names the latin file alone and declares Bebas Neue at 400 400. Composed for output, it must set
+// Š and Ž in Bebas Neue too, and declare the face across every weight so a bold is drawn as the
+// file is, never synthesised (model/fonts.ts `upgradeFontCss`, applied in composeDocument).
+const SAVED_BEFORE_1744 = `/* Bundled open-source font (the file ships with the export — no internet at playout). */
+@font-face {
+  font-family: "Bebas Neue";
+  src: url("fonts/bebas-neue.woff2") format("woff2");
+  font-weight: 400 400;  /* variable font: covers this weight range */
+  font-display: swap;          /* show fallback text until the font loads */
+}
+#name { font: 700 40px "Bebas Neue", monospace; }`;
+
+test('a graphic saved before the latin-ext fix sets Š and Ž in its own face on the output', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.route('**/saved-font-probe', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><body></body>' }));
+  await page.goto('/saved-font-probe');
+  const html = await page.evaluate(async ({ css, name }) => {
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    return composeDocument({
+      name: 'saved', html: `<div id="name">${name}</div>`, css, js: '', assets: [], fields: [], settings: {},
+      resolution: { width: 1920, height: 1080 },
+    } as never);
+  }, { css: SAVED_BEFORE_1744, name: NAME });
+  // The composed document becomes the page itself, at the same root path /output loads from.
+  await page.route('**/saved-font-output', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: html }));
+  await page.goto('/saved-font-output');
+  const weights = await page.evaluate(async (name) => {
+    await document.fonts.load('700 40px "Bebas Neue"', name);
+    await document.fonts.ready;
+    return [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'Bebas Neue').map((f) => f.weight);
+  }, NAME);
+  expect(weights, 'both files, each declared for every weight').toEqual(['100 900', '100 900']);
+
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('DOM.enable');
+  await cdp.send('CSS.enable');
+  const { root } = await cdp.send('DOM.getDocument');
+  const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#name' });
+  const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+  expect(fonts.length, 'drawn at all').toBeGreaterThan(0);
+  expect(fonts.filter((f) => !f.isCustomFont).map((f) => f.familyName), 'no glyph from a system face').toEqual([]);
+  await cdp.detach();
+});
