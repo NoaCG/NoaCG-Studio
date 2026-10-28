@@ -457,6 +457,27 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       entry.end = Date.now();
     };
 
+    // DIAGNOSTIC (#1798): heap snapshots of the output page and its separate frames.
+    const heapSnap = async (s: CDPSession, file: string) => {
+      const chunks: string[] = [];
+      const on = (e: { chunk: string }) => chunks.push(e.chunk);
+      s.on('HeapProfiler.addHeapSnapshotChunk', on);
+      await s.send('HeapProfiler.collectGarbage');
+      await s.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false });
+      s.off('HeapProfiler.addHeapSnapshotChunk', on);
+      writeFileSync(path.join(OUT, file), chunks.join(''));
+    };
+    const snapAll = async (tag: string) => {
+      try {
+        if (!cdp.has(output)) await metrics(output, false);
+        await heapSnap(cdp.get(output)!, `output-${tag}.heapsnapshot`);
+        let k = 0;
+        for (const [f, s] of frameCdp) if (s && !f.isDetached()) await heapSnap(s, `frame${k++}-${tag}.heapsnapshot`).catch(() => {});
+      } catch (e) {
+        error('diag', String(e));
+      }
+    };
+    const snapAt = [8, 18, 28].map((m) => ({ at: m * 60_000, tag: `m${m}` }));
     // ── The run ──
     const t0 = Date.now();
     record.t0 = t0;
@@ -506,6 +527,7 @@ test('the election data path holds for the minutes asked', async ({ page, browse
         nextSample += 10_000;
         sampling = sample(now, gc).finally(() => (sampling = null));
       }
+      if (snapAt.length && now - t0 >= snapAt[0].at && !sampling) await snapAll(snapAt.shift()!.tag);
       await readOutput();
       await new Promise((r) => setTimeout(r, 250));
     }
