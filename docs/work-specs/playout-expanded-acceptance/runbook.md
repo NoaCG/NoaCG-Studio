@@ -124,7 +124,7 @@ taken (413 …)".
 | Situation | What to do |
 | --- | --- |
 | Wrong figures are arriving | On the Data page, press **Pause** on the **Another system** card. It reads "Paused. What it sends is held; your presses still air." **Resume** sends the latest values once. For a Sheet or feed, press **Pause** on its line. |
-| One cue must show something the source does not | For a live candidate cue, choose **Fixed values** in its **Live candidate** menu: the cue keeps what it shows and no count changes it. For any other field, press **Disconnect** (or **Disconnect to edit here** for a list) and type. |
+| One cue must show something the source does not | For a live candidate cue, choose **Fixed values** in its **Live candidate** menu: the cue keeps what it shows and no count changes it. **If that cue is on air, then press ✎ Update**: until you do, the card on air keeps following its person's new counts. For any other field, press **Disconnect** (or **Disconnect to edit here** for a list), type, and press **✎ Update** if the cue is on air. To stop everything changing at once, use **Pause** (above). |
 | You want a one-time copy of the source's values (Fill) | In **Connect data…**, after **Read**, press **Fill this cue** instead of **Connect**. The values are copied into the cue and follow nothing. They go on air at your next Take or **✎ Update**. |
 | The source is down | Do nothing in a hurry: the last good values stay on air. Pause if you do not want them to jump when it comes back. Then restart the agent or the provider (section 5). |
 | Everything must go now | **■ All out** in the page's header. |

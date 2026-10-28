@@ -20,14 +20,21 @@ Task 5 below borrows the last one's setup.
   table. Until [#1734](https://github.com/NoaCG/NoaCG-Studio/issues/1734) is fixed, tasks 1 to 4
   need a development build (`npm run dev`) on a known commit, because registering the replay
   source needs one. Tasks 5 to 7 run on noacg.studio.
-- **Production E (election)**, prepared by the proctor exactly as
+- **Production E (election), new for each participant**, prepared by the proctor as
   [`playout-election-package/rehearsal.md`](../../playout-election-package/rehearsal.md),
-  "Before the rehearsal", steps 1 to 4: the pack imported and published, the source registered,
-  the replay server started with `--step-ms 60000` and the agent running. Open its output in a
-  second browser window beside the production page. Then add one graphic from the library with a
-  title and one empty number or text field (any lower third works), titled `Counted`, as a cue
-  that is connected to nothing. Keep the agent's and the replay server's windows on the
-  proctor's screen, out of the participant's sight.
+  "Before the rehearsal", steps 1 to 4, with two changes: the replay server starts with
+  `--step-ms 600000` (ten minutes a step), and it and the agent start just before task 1, in a
+  new folder. The replay's results are a fixed sequence (`packageTimeline()` in
+  `scripts/election-replay-server.mjs`): the counted share moves once, from 60% to 61%, at the
+  second step, and the candidate list empties at the eighth. Ten-minute steps keep the first
+  count on screen while the participant connects, the change arriving during tasks 2 or 3, and
+  every candidate present through task 4. A production that has taken a later count refuses an
+  earlier one, so a second participant needs a new production (import the pack again) and a new
+  replay folder, never a restarted timeline on the old one. Open the output in a second browser
+  window beside the production page. Then add one graphic from the library with a title and one
+  empty number or text field (any lower third works), titled `Counted`, as a cue that is
+  connected to nothing. Keep the agent's and the replay server's windows on the proctor's
+  screen, out of the participant's sight.
 - **Production Q (two graphics)**, published, with its output open beside it: a quiz board with
   answers A to D (a classic answer board, for example qz01) with one question cue, and a score
   banner with two competitors and ± numbers, with one cue. Nothing pinned. This is the
@@ -52,9 +59,9 @@ On production E:
 
 1. **Connect a sample API.** "The `Counted` cue should show how much of the vote is counted, from
    the results address on this paper. Connect it so it follows the results, and put it on air."
-   Done when the cue's field is connected (it reads "🔗 Connector: …"), the cue is on air, and
-   the value on the output changes by itself when the next replay step arrives (within about a
-   minute).
+   Done when the cue's field is connected (it reads "🔗 Connector: …") and the cue is on air
+   showing the first count (60%). The proctor also notes whether the output changes to 61% by
+   itself when the second step arrives, ten minutes after the start, with no press.
 2. **Select a live candidate.** "Put Leo Example's candidate card on air." Then: "Now get Sara
    Example's card ready, without changing what is on air." Done when Leo airs, and Sara is
    prepared while the output still shows Leo.
@@ -68,7 +75,8 @@ On production E:
    acted, or after three minutes, the proctor starts the agent again with the same command. "The
    results are back. Carry on." Done when the participant finds that nothing new arrived (the
    Data page's **Another system** card, "Received N min ago"), keeps the graphics on air rather
-   than taking them out, holds the data (**Pause**, or **Fixed values** on a candidate cue), and
+   than taking them out, holds the data (**Pause**, or **Fixed values** on the aired candidate cue
+   followed by **✎ Update**; Fixed values alone leaves the aired card following), and
    after the restart lets the new values reach air (**Resume**, or picking the candidate again and
    **✎ Update**).
 
@@ -129,7 +137,7 @@ their words. The right answer follows each question.
    page cannot see the actual picture.)
 3. "The results stop arriving. What happens to the graphics on air, and what do you do?" (Right:
    they keep their last values; nothing is taken off. Look at when data was last received, Pause
-   or use Fixed values if needed, and Resume or Update once it is back.)
+   or use Fixed values and then Update for a card on air, and Resume or Update once it is back.)
 4. "A Companion key turns amber with a '?' after you press it. Should you press it again?"
    (Right: not before looking at the output: it is not known whether it ran, and it is never sent
    again by itself.)
