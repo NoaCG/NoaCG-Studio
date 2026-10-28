@@ -241,6 +241,41 @@ red('controller memory rising in every window, inside the allowance', (r) => {
     s.controller.heap = (30 + w * 1) * MIB;
   }
 }, /memory and instance counts/);
+red('the provider\'s revisions no longer applied', (r) => {
+  const from = r.t0 + 37 * 60_000;
+  r.rows = r.rows.filter((x) => !(x.at > from && x.t === 'update'));
+  const held = r.frames.findLast((f) => f.at < from);
+  r.frames = r.frames.map((f) => (f.at > from ? { ...f, kok: held.kok, votes: f.name === held.name ? held.votes : f.votes } : f));
+}, /applied within 15 s/);
+red('the scorebug clock unreadable after the first minute', (r) => {
+  for (const f of r.frames) if (f.at > r.t0 + 60_000) f.clock = null;
+}, /clock kept running/);
+red('memory measured in one steady window only', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.output = { failed: 'gone' };
+}, /memory and instance counts/);
+red('controller memory growing within each lifetime', (r) => {
+  const reloads = r.faults.filter((f) => f.kind === 'reload').map((f) => f.at);
+  for (const s of r.samples) {
+    const since = s.at - (reloads.findLast((at) => at <= s.at) ?? r.t0);
+    s.controller.heap = 30 * MIB + since * 30;
+  }
+}, /memory and instance counts/);
+red('a KOK figure from a revision never served', (r) => {
+  const f = r.frames.findLast((x) => x.kok);
+  r.frames.push({ ...f, at: f.at + 100, kok: fmt(partyVotes('KOK', 99_999)) });
+}, /one person's at one revision|no older revision/);
+red('no frames of the card at all', (r) => (r.frames = r.frames.map((f) => ({ ...f, name: '', votes: '' }))), /frames of the card throughout/);
+red('a handover that left the old owner', (r) => {
+  const h = r.faults.find((f) => f.kind === 'handover');
+  h.epochAfter = h.epochBefore;
+}, /newer owner/);
+red('a data change that cleared the card', (r) => r.rows.push({ id: 1e9, graphic: 'Candidate card', t: 'stop', at: r.t0 + 60_000 }), /nothing but the Takes moved the card/);
+red('a collection sent to the renderer', (r) => r.rows.push({ id: 1e9, graphic: 'Count bug', t: 'update', data: { f9: '{"schemaRevision":1}' }, at: r.t0 + 61_000 }), /carried the collection/);
+red('a Take slow to air', (r) => {
+  for (const t of r.takes) t.at += 0;
+  const t = r.takes.find((x) => x.clickAt > r.t0 + 15 * 60_000 && x.clickAt < r.t0 + 16 * 60_000);
+  r.frames = r.frames.map((f) => (f.at >= t.clickAt && f.at < t.clickAt + 11_000 && f.name === key(t.key[0], t.key[1]).name ? { ...f, at: f.at + 11_000 } : f)).sort((a, b) => a.at - b.at);
+}, /on air within 10 s|wrong-person/);
 red('a bound field slow to air', (r) => {
   for (const f of r.frames) f.at += f.at > r.t0 + 15 * 60_000 && f.at < r.t0 + 16 * 60_000 ? 12_000 : 0;
   r.frames.sort((a, b) => a.at - b.at);

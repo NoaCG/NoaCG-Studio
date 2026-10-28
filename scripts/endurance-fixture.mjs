@@ -81,9 +81,9 @@ export const partyVotes = (code, revision) => {
   return base + revision * step;
 };
 /** The revision a party's figure came from, or null when it is none of its revisions. */
-export function partyRevision(code, votes) {
+export function partyRevision(code, votes, maxRevision = Infinity) {
   const r = (votes - partyVotes(code, 0)) / (partyVotes(code, 1) - partyVotes(code, 0));
-  return Number.isInteger(r) && r >= 0 ? r : null;
+  return Number.isInteger(r) && r >= 1 && r <= maxRevision ? r : null;
 }
 
 /** What a step is: the provider's own revisions, or the pattern's misbehaviour. */

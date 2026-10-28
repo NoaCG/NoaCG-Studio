@@ -26,6 +26,7 @@ const REFUSAL = / not taken \(| not claimed \(| renewal failed| claim failed| th
 const MIB = 1024 * 1024;
 /** What this run does not measure, said in every verdict so a green run is not read as more. */
 export const UNMEASURED = [
+  'a leak slower than its allowance that a cycle\'s controller reload or agent restart clears: each lifetime is about ten minutes (judged within each lifetime); only the output page lives the whole run',
   'the Vite dev server that hosts /api/data/source (its memory and request backlog)',
   'Postgres and the rest of the local Supabase stack',
   'the replay server, which runs inside the walk\'s own process (its memory is recorded as driver.rss, not judged)',
@@ -35,6 +36,14 @@ export const UNMEASURED = [
 
 /** The largest of `xs`, or `floor` when empty (no spread: an hour's frames are many). */
 const most = (xs, floor = 0) => xs.reduce((a, b) => (b > a ? b : a), floor);
+/** The least-squares slope of [x, y] points, or 0 with fewer than two. */
+function slope(points) {
+  if (points.length < 2) return 0;
+  const mx = points.reduce((a, [x]) => a + x, 0) / points.length;
+  const my = points.reduce((a, [, y]) => a + y, 0) / points.length;
+  const sxx = points.reduce((a, [x]) => a + (x - mx) ** 2, 0);
+  return sxx ? points.reduce((a, [x, y]) => a + (x - mx) * (y - my), 0) / sxx : 0;
+}
 const num = (text) => (typeof text === 'string' && /^[\d,]+$/.test(text) ? Number(text.replace(/,/g, '')) : null);
 const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b);
@@ -93,7 +102,7 @@ export function judge(record) {
   check('the fixture is 1,000 candidates measured inside the 256 KiB body cap before the run', fx.candidates === 1000 && fx.bodyBytes > 0 && fx.bodyBytes <= fx.capBytes && fx.jsonbBytes > 0 && fx.jsonbBytes <= fx.capBytes, `body ${fx.bodyBytes}, jsonb ${fx.jsonbBytes} of ${fx.capBytes}`);
   // A tripwire: the route refuses a larger revision before storing it, so the stored size cannot
   // exceed the cap; a refusal shows in the check below. Kept to report the largest size stored.
-  check('every accepted revision stayed inside the ingress limit (stored size, as the route measured it)', bytes > 0 && bytes <= (fx.capBytes ?? 262144), `largest ${bytes} bytes`);
+  check('every accepted revision stayed inside the ingress limit (holds by construction: the route refuses a larger one before storing it)', bytes > 0 && bytes <= (fx.capBytes ?? 262144), `largest ${bytes} bytes`);
   // A frozen agent's request in flight fails when it wakes: expected of that agent, after that moment.
   const woken = faults.filter((f) => f.kind === 'handover' && f.mode === 'crash');
   const wokeLate = (r) => woken.some((f) => r.agent === f.from && r.at >= f.woke && /renewal failed|claim failed/.test(r.line));
@@ -127,7 +136,7 @@ export function judge(record) {
       if (!person || (f.votes && (votes === null || revisionOf(person, votes, maxRevision + 1) === null))) mixed.push({ at: f.at - t0, name: f.name, votes: f.votes });
     }
     const kok = num(f.kok);
-    if (f.kok && (kok === null || partyRevision('KOK', kok) === null)) mixed.push({ at: f.at - t0, kok: f.kok });
+    if (f.kok && (kok === null || partyRevision('KOK', kok, maxRevision + 1) === null)) mixed.push({ at: f.at - t0, kok: f.kok });
   }
   // Counts only rise in this fixture, so a figure going down on air or in a row is an older
   // revision reaching it (the provider serves one late every 100 s).
@@ -224,7 +233,10 @@ export function judge(record) {
   const clockBack = ticks.filter((x, i) => i > 0 && x.s < ticks[i - 1].s);
   const span = ticks.length ? ticks.at(-1).s - ticks[0].s : 0;
   const elapsed = ticks.length ? (ticks.at(-1).at - ticks[0].at) / 1000 : 0;
-  check('the scorebug\'s clock kept running through the run, never reset', ticks.length > 0 && clockBack.length === 0 && span >= elapsed - 30, `${ticks.length} readings, ${span} s counted over ${Math.round(elapsed)} s, ${clockBack.length} backwards`);
+  // Read throughout: from the run's first half minute to its last, never a gap over half a minute.
+  const gaps = ticks.filter((x, i) => i > 0 && x.at - ticks[i - 1].at > 30_000).length;
+  const covered = ticks.length > 0 && ticks[0].at - t0 <= 30_000 && (record.end ?? 0) - ticks.at(-1).at <= 30_000;
+  check('the scorebug\'s clock kept running through the run, never reset', covered && gaps === 0 && clockBack.length === 0 && span >= elapsed - 30, `${ticks.length} readings, ${span} s counted over ${Math.round(elapsed)} s, ${clockBack.length} backwards, ${gaps} gaps over 30 s${covered ? '' : ', not read from start to end'}`);
 
   // ── Queues and instances ──
   const steady = plan.windows.filter((w) => !w.warmup);
@@ -232,9 +244,9 @@ export function judge(record) {
   const agentSamples = samples.filter((s) => s.agent);
   // Tripwires on the agent's structure: one shared read in flight, one kept revision, and one
   // snapshot row per source (its primary key). They report the shape and catch a regression in it.
-  check('pending provider reads bounded to one per source (peak since each sample)', agentSamples.length > 0 && agentSamples.every((s) => s.agent.reading <= 1), `${agentSamples.length} samples`);
+  check('pending provider reads bounded to one per source (holds by construction: one shared read; peak since each sample)', agentSamples.length > 0 && agentSamples.every((s) => s.agent.reading <= 1), `${agentSamples.length} samples`);
   check('the agent\'s requests to the production stay bounded: a report, a renewal and a sample at most', agentSamples.every((s) => (s.agent.posting ?? 0) <= 3), JSON.stringify(agentSamples.filter((s) => s.agent.posting > 3).map((s) => [s.at - t0, s.agent.posting]).slice(0, 3)));
-  check('buffered updates bounded to one latest snapshot (one kept revision, one snapshot row)', agentSamples.every((s) => s.agent.undelivered <= 1) && samples.every((s) => s.snapshots <= 1));
+  check('buffered updates bounded to one latest snapshot (holds by construction: one kept revision, one snapshot row per source)', agentSamples.every((s) => s.agent.undelivered <= 1) && samples.every((s) => s.snapshots <= 1));
   const handoverAt = (s) => handovers.some((h) => s.at >= h.at && s.at <= (h.end ?? h.at));
   check('one agent alive outside a handover', samples.filter((s) => !handoverAt(s)).every((s) => s.agentsAlive === 1), JSON.stringify(samples.filter((s) => !handoverAt(s) && s.agentsAlive !== 1).map((s) => [s.at - t0, s.agentsAlive]).slice(0, 3)));
   const readsByWindow = steady.map((w) => most(inWindow(w).map((s) => s.stateReadsMax ?? 0)));
@@ -254,8 +266,9 @@ export function judge(record) {
     });
   const growth = [];
   const memory = {};
+  const slopes = {};
   // A series counts only when it was measured: a failed CDP read leaves its window empty.
-  const needed = Math.min(2, steady.length);
+  const needed = steady.length;
   const unmeasured = [];
   for (const [side, field, slack] of [
     ['controller', 'heap', 0.2],
@@ -277,6 +290,31 @@ export function judge(record) {
     // A rise in every window, more than 5% in all, is sustained growth even inside the allowance:
     // it is investigated before the run is accepted.
     if (known.length >= 3 && known.every((x, i) => i === 0 || x > known[i - 1]) && known.at(-1) > known[0] * 1.05) growth.push({ series: `${side}.${field}`, sustained: known });
+    // The least-squares slope over every GC'd steady sample, carried across the steady span.
+    const points = samples.filter((s) => s[side]?.gc && Number.isFinite(s[side]?.[field]) && steady.some((w) => s.at - t0 >= w.from && s.at - t0 < w.to)).map((s) => [s.at - t0, s[side][field]]);
+    const fit = slope(points);
+    const across = steady.length ? (steady.at(-1).to - steady[0].from) * fit : 0;
+    slopes[`${side}.${field}`] = { perMinute: fit * 60_000, across };
+    if (known.length >= 2 && across > allowance) growth.push({ series: `${side}.${field}`, fitted: across, allowance });
+  }
+  // The controller reloads and the agent restarts once a cycle, so the windows compare pages and
+  // processes of one age: a leak each clears is judged within each lifetime, from its first GC'd
+  // sample a minute in to its last.
+  const lifetimes = [];
+  const reloads = faults.filter((f) => f.kind === 'reload').map((f) => f.at);
+  const restarts = faults.filter((f) => f.kind === 'handover').map((f) => f.at);
+  for (const [series, cuts, value] of [
+    ['controller.heap', reloads, (s) => (s.controller?.gc ? s.controller.heap : undefined)],
+    ['agent.rss', restarts, (s) => s.agent?.rss],
+  ]) {
+    const bounds = [t0, ...cuts, record.end ?? Infinity];
+    for (let i = 0; i < bounds.length - 1; i++) {
+      const xs = samples.filter((s) => s.at > bounds[i] + 60_000 && s.at < bounds[i + 1] && Number.isFinite(value(s))).map(value);
+      if (xs.length < 3) continue;
+      const allowance = series === 'agent.rss' ? xs[0] * 0.25 + 10 * MIB : xs[0] * 0.2 + 2 * MIB;
+      lifetimes.push({ series, from: bounds[i] - t0, first: xs[0], last: xs.at(-1) });
+      if (xs.at(-1) > xs[0] + allowance) growth.push({ series, lifetime: bounds[i] - t0, first: xs[0], last: xs.at(-1) });
+    }
   }
   // The agent restarts at every handover, so each window's median is that window's own process.
   const agentRss = steady.map((w) => median(inWindow(w).filter((s) => Number.isFinite(s.agent?.rss)).map((s) => s.agent.rss)));
@@ -291,12 +329,13 @@ export function judge(record) {
   const timings = { dispatch: [], dispatchToAir: [], fetchToApply: [], providerToApply: [], applyToRenderBound: [], providerToRenderBound: [], applyToRenderCandidates: [] };
   const recovering = [];
   /** Samples left out of each road's steady population because they fell in a fault's window. */
-  const excluded = { dispatchToAir: 0, fetchToApply: 0, providerToApply: 0, applyToRenderBound: 0, providerToRenderBound: 0, applyToRenderCandidates: 0 };
+  const excluded = { dispatch: 0, dispatchToAir: 0, fetchToApply: 0, providerToApply: 0, applyToRenderBound: 0, providerToRenderBound: 0, applyToRenderCandidates: 0, candidatesTooCloseToATake: 0 };
   /** Values applied in a steady moment that never reached the output in time: each one a failure. */
   const missed = [];
   for (const [i, t] of takes.entries()) {
     const play = plays[i];
-    if (play) timings.dispatch.push(play.at - t.clickAt);
+    if (play && !inside(windows, t.clickAt)) timings.dispatch.push(play.at - t.clickAt);
+    else if (play) excluded.dispatch++;
     const shown = frames.find((f) => f.at >= t.clickAt && f.name === t.person.name);
     if (shown && !inside(windows, t.clickAt)) timings.dispatchToAir.push(shown.at - t.clickAt);
     else if (shown) excluded.dispatchToAir++;
@@ -315,7 +354,10 @@ export function judge(record) {
     const rev = partyRevision('KOK', kok);
     const fetchAt = served.get(`count-${rev}`);
     const steadyRow = !inside(windows, r.at);
-    if (!steadyRow) for (const road of ['fetchToApply', 'providerToApply', 'applyToRenderBound', 'providerToRenderBound', 'applyToRenderCandidates']) excluded[road]++;
+    if (!steadyRow) {
+      for (const road of ['fetchToApply', 'providerToApply', 'applyToRenderBound', 'providerToRenderBound']) excluded[road]++;
+      if (takes.some((t) => t.at <= r.at)) excluded.applyToRenderCandidates++;
+    }
     if (fetchAt && steadyRow) timings.fetchToApply.push(r.at - fetchAt);
     if (moved(rev) !== null && steadyRow) timings.providerToApply.push(r.at - moved(rev));
     const shown = frames.find((f) => f.at >= r.at - 50 && num(f.kok) >= kok);
@@ -333,14 +375,25 @@ export function judge(record) {
       // close to that Take, or to the run's end, cannot be judged.
       const due = Math.min(r.at + CEILING.candidates, nextTake?.clickAt ?? Infinity, record.end ?? Infinity);
       const room = due - r.at;
-      if (room >= 2_000 && (!onCard || onCard.at > due)) missed.push({ road: 'candidates', at: r.at - t0, person: aired.person.name, want, room });
+      if (room < 2_000) excluded.candidatesTooCloseToATake++;
+      else if (!onCard || onCard.at > due) missed.push({ road: 'candidates', at: r.at - t0, person: aired.person.name, want, room });
     }
   }
+  // The source keeps being applied: every revision the provider served in a steady moment is on
+  // the board (or overtaken by a newer one) within 15 s. Coalescing is allowed; a stall is not.
+  const appliedRevs = boardRows.map((r) => ({ at: r.at, rev: partyRevision('KOK', num(r.data.f8)) ?? 0 }));
+  const stalled = [];
+  for (const [name, at] of served) {
+    const rev = Number(/^count-(\d+)$/.exec(name)?.[1] ?? NaN);
+    if (!Number.isFinite(rev) || at < t0 || at + 15_000 > (record.end ?? 0) || inside(windows, at) || inside(windows, at + 15_000)) continue;
+    if (!appliedRevs.some((a) => a.rev >= rev && a.at <= at + 15_000)) stalled.push({ at: at - t0, rev });
+  }
+  check('every revision the provider served was applied within 15 s (or overtaken by a newer one)', served.size > 0 && stalled.length === 0, `${stalled.length} stalled: ${JSON.stringify(stalled.slice(0, 3))}`);
   const report = Object.fromEntries(Object.entries(timings).map(([k, xs]) => [k, stats(xs)]));
   check('a Take is on air within 10 s', report.dispatchToAir.n > 0 && report.dispatchToAir.max <= CEILING.dispatch, JSON.stringify(report.dispatchToAir));
   check('a bound field is on air within 10 s of the provider\'s move', report.providerToRenderBound.n > 0 && report.providerToRenderBound.max <= CEILING.bound, JSON.stringify(report.providerToRenderBound));
   check('the aired card follows a correction within 13 s of its apply', report.applyToRenderCandidates.n > 0 && report.applyToRenderCandidates.max <= CEILING.candidates, JSON.stringify(report.applyToRenderCandidates));
   check('no value applied in a steady moment failed to reach the output in time', missed.length === 0, `${missed.length} missed: ${JSON.stringify(missed.slice(0, 3))}`);
 
-  return { minutes: record.minutes, passed: checks.every((c) => c.ok), checks, timings: report, excluded, memory, readsInFlightByWindow: readsByWindow, recoveries: { disconnects: recovered, renderDuringFaults: stats(recovering) }, missed, unmeasured: UNMEASURED };
+  return { minutes: record.minutes, passed: checks.every((c) => c.ok), checks, timings: report, excluded, memory, slopes, lifetimes, readsInFlightByWindow: readsByWindow, recoveries: { disconnects: recovered, renderDuringFaults: stats(recovering) }, missed, unmeasured: UNMEASURED };
 }

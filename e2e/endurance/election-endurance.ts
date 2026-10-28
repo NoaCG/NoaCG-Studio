@@ -280,6 +280,14 @@ test('the election data path holds for the minutes asked', async ({ page, browse
 
     // Memory and instance counts, garbage collected first so windows compare like with like.
     const cdp = new Map<Page, CDPSession>();
+    // A graphic's sandboxed frame may run in its own renderer process, where the page's session
+    // neither collects nor counts it: such a frame gets a session of its own, summed in.
+    const frameCdp = new Map<Frame, CDPSession | null>();
+    const read = async (s: CDPSession, gc: boolean) => {
+      if (gc) await s.send('HeapProfiler.collectGarbage');
+      const { metrics: list } = await s.send('Performance.getMetrics');
+      return Object.fromEntries(list.map((x: { name: string; value: number }) => [x.name, x.value])) as Record<string, number>;
+    };
     const metrics = async (p: Page, gc: boolean) => {
       try {
         if (!cdp.has(p)) {
@@ -287,12 +295,26 @@ test('the election data path holds for the minutes asked', async ({ page, browse
           await s.send('Performance.enable');
           cdp.set(p, s);
         }
-        const s = cdp.get(p)!;
-        if (gc) await s.send('HeapProfiler.collectGarbage');
-        const { metrics: list } = await s.send('Performance.getMetrics');
-        const m = Object.fromEntries(list.map((x: { name: string; value: number }) => [x.name, x.value]));
+        const m = await read(cdp.get(p)!, gc);
+        let separate = 0;
+        for (const f of p.frames()) {
+          if (f === p.mainFrame()) continue;
+          if (!frameCdp.has(f)) {
+            // Playwright refuses a session for a frame that shares its parent's process.
+            const s = await p.context().newCDPSession(f).catch(() => null);
+            if (s) await s.send('Performance.enable');
+            frameCdp.set(f, s);
+          }
+          const s = frameCdp.get(f);
+          if (!s) continue;
+          const own = await read(s, gc).catch(() => null);
+          if (!own) continue;
+          separate++;
+          for (const k of ['JSHeapUsedSize', 'Nodes', 'JSEventListeners', 'Documents']) m[k] += own[k] ?? 0;
+        }
+        for (const f of [...frameCdp.keys()]) if (f.isDetached()) frameCdp.delete(f);
         const channels = await p.evaluate(async () => (await (await import('/src/backend/supabase.ts')).getSupabase())?.getChannels().length ?? null).catch(() => null);
-        return { heap: m.JSHeapUsedSize, nodes: m.Nodes, listeners: m.JSEventListeners, documents: m.Documents, frames: m.Frames, channels, gc };
+        return { heap: m.JSHeapUsedSize, nodes: m.Nodes, listeners: m.JSEventListeners, documents: m.Documents, frames: m.Frames, separate, channels, gc };
       } catch (e) {
         return { failed: String((e as Error).message ?? e) };
       }
