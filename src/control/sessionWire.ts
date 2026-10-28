@@ -190,7 +190,7 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     // The ping's frame takes the road that lost the first one, so it is CONFIRMED: this page follows
     // the same topic, and a frame the database could not send reaches nobody. A ping whose row has
     // not come back live within HANDOVER_CONFIRM_MS (absent, or only through a tail read) is sent
-    // again, and so is one refused for a moment (the head lock or the burst cap); HANDOVER_RETRIES
+    // again, and so is one refused for a moment (the head lock, the burst cap, a call that threw); HANDOVER_RETRIES
     // more at most. Once per start, never on a timer, as 0072 asks.
     let handedOver = false;
     /** The ping waiting to come back live, and whether this follow is replaying a tail read. */
@@ -209,7 +209,10 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
           if (answer.ok) again(HANDOVER_CONFIRM_MS);
           else if (answer.passing) again(HANDOVER_RETRY_MS);
         },
-        () => undefined,
+        // A call that threw (the client's chunk failed to load) is a moment's refusal too.
+        () => {
+          if (retries > 0 && live()) again(HANDOVER_RETRY_MS);
+        },
       );
     };
     const handOver = (status: ControlFollowStatus) => {

@@ -498,7 +498,8 @@ test('THE HAND-OVER (#1797): a value applied while the page reloaded, whose fram
   await flush();
   assert.equal(wire.pings.length, 1, 'never a ping per status or per poll');
   const confirm = [...wire.timers.values()].find((timer) => timer.once);
-  confirm?.run();
+  assert.equal(confirm?.ms, HANDOVER_CONFIRM_MS, 'the page waits for its ping to come back');
+  confirm.run();
   await flush();
   assert.equal(wire.pings.length, 1, 'a ping that came back live is not sent again');
   stop();
@@ -646,4 +647,28 @@ test('a hand-over retry due after the stop asks nothing', async () => {
   retry.run();
   await flush();
   assert.equal(wire.pings.length, 1);
+});
+
+test('a hand-over ping whose call threw is sent again a second later, within the same bound', async () => {
+  const wire = scriptedWire();
+  wire.onPing = () => {
+    throw new Error('the client failed to load');
+  };
+  const page = fakePage();
+  const { stop } = start(wire, page);
+  await boot(wire, { ...RESOLVED, seq: { epoch: 'e1', from: 7 } });
+  wire.follows[0].answer.resolve(() => {});
+  await flush();
+  wire.follows[0].opts.onStatus({ status: 'SUBSCRIBED', everJoined: true });
+  for (let i = 0; i < 6; i += 1) {
+    await flush();
+    const entry = [...wire.timers].find(([, timer]) => timer.once);
+    if (!entry) continue;
+    assert.equal(entry[1].ms, HANDOVER_RETRY_MS);
+    wire.timers.delete(entry[0]);
+    entry[1].run();
+  }
+  await flush();
+  assert.equal(wire.pings.length, 1 + HANDOVER_RETRIES);
+  stop();
 });
