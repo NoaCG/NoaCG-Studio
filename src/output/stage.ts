@@ -923,9 +923,10 @@ export function createOutputStage(
     whenLoaded: () => (ografLoads.length ? Promise.all([allLoaded, ...ografLoads]).then(() => undefined) : allLoaded),
     rescale,
     prepare: (spec, prepOptions = {}) => {
-      // A published package is not rebuilt beside itself: it changes on this output when the output
-      // loads again (E3.2b), and READY says so rather than swapping in an empty document.
-      if (!isNative(spec)) {
+      // A published package is not rebuilt beside itself, nor replaced by a NoaCG graphic of its name:
+      // either changes on this output when the output loads again (E3.2b), and READY says so rather
+      // than swapping in an empty document or leaving the old package driven under a new graphic.
+      if (!isNative(spec) || foreign.has(spec.key) || waitingOgraf.has(spec.key) || plates.has(spec.key)) {
         const why = 'An imported OGraf package changes on this output when the output reloads.';
         return { spec, whenLoaded: Promise.resolve(), warm: () => Promise.resolve(null), error: () => why, swapIn: () => {}, discard: () => {} };
       }

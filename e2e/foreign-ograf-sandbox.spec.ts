@@ -555,6 +555,15 @@ test.describe('a foreign OGraf package on the output stage', () => {
     expect(await page.evaluate(() => (window as unknown as { __asked: unknown[] }).__asked)).toContainEqual(['later', 'v2']);
     expect(await page.evaluate(() => (window as unknown as { __asked: unknown[] }).__asked)).toContainEqual(['walk', null]);
 
+    // A NoaCG graphic of the package's name is not swapped in over it: the output says it changes at
+    // its next reload, and the package keeps the layer it holds.
+    const swapped = await page.evaluate(() => {
+      const w = window as unknown as { __stage: { prepare(spec: unknown): { error(): string | null } } };
+      return w.__stage.prepare({ key: 'walk', html: '<div></div>', css: '', js: '', assets: [], resolution: { width: 1920, height: 1080 }, fps: 25, layer: 10 }).error();
+    });
+    expect(swapped).toBe('An imported OGraf package changes on this output when the output reloads.');
+    await expect(walkFrame).toHaveCount(1);
+
     // Removed, its instance goes with every word about it.
     await page.evaluate(() => (window as unknown as { __stage: { remove(k: string): void } }).__stage.remove('walk'));
     await expect(walkFrame).toHaveCount(0);
