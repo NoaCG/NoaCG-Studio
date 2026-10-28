@@ -643,7 +643,12 @@ export function createOutputStage(
       // (a Take that settles after the Out pressed behind it) moves nothing.
       if (answer.status === 'done' && newest) {
         if (call === 'play') on = true;
-        else if (call === 'stop') on = false;
+        else if (call === 'stop') {
+          on = false;
+          // Off is known (the recorded decision, as `ografRestore` reads an Out after an action):
+          // what is counted from here is an action pressed while it is off.
+          acts.set(key, 0);
+        }
       }
       // Refused by the Graphic, an action changed nothing. Counted back only while no Take, step or
       // Out was sent after it (`newest`): past one, it stays counted, which errs towards not known.
@@ -675,8 +680,9 @@ export function createOutputStage(
     return true;
   };
   /** Per mounted package, the actions its instance was sent that the Graphic did not refuse: their
-   *  effect is in the Graphic alone, no restart repeats them, and OGraf promises no Take or Out
-   *  undoes them, so they count for the instance's whole life (a new instance starts at none). */
+   *  effect is in the Graphic alone, no restart repeats them, and OGraf promises no Take undoes
+   *  them, so they count through Takes; an Out the Graphic accepted ends the count, since off is
+   *  known (a new instance starts at none). */
   const acts = new Map<string, number>();
   const mountPublished = (spec: OutputGraphicSpec, layer: number, version?: string) => {
     const key = spec.key;

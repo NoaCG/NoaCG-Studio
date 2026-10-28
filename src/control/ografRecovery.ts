@@ -81,7 +81,9 @@ export function ografRestore(report: { state?: unknown } | null | undefined, hea
   // Off, as it was: what an earlier restart could not prove is still not proven, and an action
   // pressed after the bank was not delivered, which is said too.
   if (!up) {
-    if (rows.some((r) => r.msg.t === 'event')) return { play: false, steps: 0, unknown: UNKNOWN_ACTED };
+    // An Out the Graphic accepted ends its count (output/stage.ts), so `acted` on a package that is
+    // off is an action pressed after it.
+    if (rows.some((r) => r.msg.t === 'event') || (o !== null && o.i !== null && o.acted)) return { play: false, steps: 0, unknown: UNKNOWN_ACTED };
     return o !== null && o.i !== null && o.unknown ? { play: false, steps: 0, unknown: o.unknown } : NOTHING;
   }
   if (!o || o.i === null || !o.on) return { play: false, steps: 0, unknown: UNKNOWN_UNCONFIRMED };

@@ -65,9 +65,11 @@ changes a spec's digest.
     gap) is read past with it: not sent, its package marked not known, pressed again after a re-cue.
   - *Actions counted* (`acted`, said the moment an action is sent, so a report banked before its
     answer already carries it): the actions an instance was sent, less those the Graphic refused,
-    ride the report for the instance's whole life, so a restart knows the Graphic holds state no
-    restart reproduces. OGraf promises no Take or Out undoes an action, so neither resets the count;
-    a new instance starts at none.
+    ride the report, so a restart knows the Graphic holds state no restart reproduces. OGraf
+    promises no Take undoes an action, so a Take does not reset the count; an Out the Graphic
+    accepted does, since off is known (the same rule `ografRestore` reads in the log). So `acted`
+    on a package that is off is an action pressed after its Out, and a restart says it was not
+    repeated. A new instance starts at none.
   - *A step not yet answered is no known step*: a Take, step or Out sent to the current instance
     clears its told `step` at once, for the same reason, so a report banked before the answer
     restores the Take at its first step and says the step is not known, never the step before it.

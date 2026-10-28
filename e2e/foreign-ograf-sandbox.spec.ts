@@ -739,6 +739,16 @@ test.describe('a foreign OGraf package on the output stage', () => {
     await apply(page, 'walk', { t: 'stop' });
     await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'done', on: false });
     expect((await outcome('walk'))?.sent, 'the next Out clears it').toBeUndefined();
+    // An accepted Out ends the action count (off is known); an action pressed while off is counted,
+    // so a restart says it was not repeated.
+    await apply(page, 'walk', { t: 'play' });
+    await apply(page, 'walk', { t: 'event', event: 'mark', payload: { v: 'up' } });
+    await expect.poll(async () => (await outcome('walk'))?.acted).toBe(true);
+    await apply(page, 'walk', { t: 'stop' });
+    await expect.poll(() => outcome('walk')).toMatchObject({ call: 'stop', status: 'done', on: false });
+    expect((await outcome('walk'))?.acted, 'an accepted Out ends the count').toBeUndefined();
+    await apply(page, 'walk', { t: 'event', event: 'mark', payload: { v: 'off' } });
+    await expect.poll(async () => (await outcome('walk'))?.acted).toBe(true);
   });
 
   test('a monitor that serves no package draws a plate for it while it is up, never an empty picture', async ({ page }) => {

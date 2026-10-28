@@ -51,8 +51,9 @@ test('an action is never repeated: the Take and step come back, and the state is
   // ... and after an Out among the rows after the bank: an Out before the action does not clear it.
   assert.deepEqual(ografRestore(report(up), true, [row('stop'), row('event')]), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
   assert.deepEqual(ografRestore(report(up), undefined, [row('event'), row('stop')]), { play: false, steps: 0, unknown: null });
-  // An Out banked after an action is still the recorded decision: off is known.
-  assert.deepEqual(ografRestore(report({ ...up, call: 'stop', on: false, acted: true }), false, []), { play: false, steps: 0, unknown: null });
+  // Banked: an accepted Out ends the stage's count, so `acted` while off is an action after the Out.
+  assert.deepEqual(ografRestore(report({ ...up, call: 'custom', on: false, step: null, acted: true }), false, []), { play: false, steps: 0, unknown: UNKNOWN_ACTED });
+  assert.deepEqual(ografRestore(report({ ...up, call: 'stop', on: false, step: null }), undefined, []), { play: false, steps: 0, unknown: null });
   // An Out after it all: off, as the log says.
   assert.deepEqual(ografRestore(report({ ...up, acted: true }), true, [row('play'), row('event'), row('stop')]), { play: false, steps: 0, unknown: null });
 });
