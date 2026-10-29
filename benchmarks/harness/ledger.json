@@ -3539,6 +3539,64 @@
       "notionalUsd": 0.8871685000000001,
       "wallSeconds": 263,
       "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-29T12:48:58.029Z",
+      "listCostCents": 0,
+      "phase": "L2",
+      "stage": "round-4",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "funding": "subscription",
+      "brief": "futsal-cup-winner-card",
+      "kind": "session",
+      "sessionId": "e5fe49fc-b830-4404-a32d-7821f2b1271a",
+      "notionalUsd": 0.9092682000000001,
+      "wallSeconds": 337,
+      "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-29T12:53:34.741Z",
+      "listCostCents": 0,
+      "phase": "L2",
+      "stage": "round-4",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "funding": "subscription",
+      "brief": "cross-country-race-clock",
+      "kind": "session",
+      "sessionId": "216a604c-20cc-480f-aa30-11b96e988726",
+      "notionalUsd": 0.8347779,
+      "wallSeconds": 247,
+      "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-29T13:10:16.878Z",
+      "listCostCents": 0,
+      "phase": "L2",
+      "stage": "round-4-rerun",
+      "arm": "subscription",
+      "model": "claude-sonnet-5-5",
+      "effort": "high",
+      "funding": "subscription",
+      "brief": "volleyball-set-board",
+      "kind": "session",
+      "sessionId": "6658eaf9-5f00-416e-ab05-a34441e14729",
+      "notionalUsd": 1.8246285,
+      "wallSeconds": 947,
+      "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-29T13:19:07.769Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "L2",
+      "stage": "close",
+      "funding": "none",
+      "outcome": "completed",
+      "note": "teaching Sonnet 5.5 high, no match (ladder/evidence/phase-L2.md): four rounds on the eight ladder briefs and the 15 tuning briefs, three Opus readings a graphic; rounds 1, 3 and 4 kept, round 2 reverted. Best, round 4: 5 of 8 usable, 2.15 a usable, 1.35 a session, median wall 565 s, every frame opened in 4 of 8 (D6 needs 7, 1.35, 600 s, 7); tuning briefs 10 of 15 at 1.40 a usable. No L1 winner and no match, so the plan stops with the curve (D7). 117 sessions 143.28 and 325 readings 436.95 notional on the subscription, no credit"
     }
   ]
 }

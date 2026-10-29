@@ -26,15 +26,15 @@
   },
   "all": {
     "briefs": 8,
-    "ran": 7,
-    "delivered": 7,
-    "usable": 4,
-    "notionalUsd": 8.94,
-    "usdPerUsable": 2.23,
-    "medianWallSeconds": 531,
-    "lookAll": 3,
-    "framesReviewed": 181,
-    "framesOpened": 165,
+    "ran": 8,
+    "delivered": 8,
+    "usable": 5,
+    "notionalUsd": 10.76,
+    "usdPerUsable": 2.15,
+    "medianWallSeconds": 565,
+    "lookAll": 4,
+    "framesReviewed": 210,
+    "framesOpened": 194,
     "rubberStamps": [
       "boxing-night-matchup",
       "collegiate-cs2-scorebug",
@@ -42,30 +42,30 @@
     ],
     "unjudged": [],
     "agreement": {
-      "unanimous": 5,
-      "judged": 7
+      "unanimous": 6,
+      "judged": 8
     }
   },
   "lines": [
     {
       "rule": "at least 7 of 8 delivered and usable",
       "holds": false,
-      "figure": "4 of 8"
+      "figure": "5 of 8"
     },
     {
       "rule": "at most $1.35 notional per usable graphic",
       "holds": false,
-      "figure": "$2.23"
+      "figure": "$2.15"
     },
     {
       "rule": "median wall at most 10 minutes",
       "holds": true,
-      "figure": "531 s"
+      "figure": "565 s"
     },
     {
       "rule": "every reviewed frame opened in at least 7 sessions",
       "holds": false,
-      "figure": "3 of 8"
+      "figure": "4 of 8"
     }
   ],
   "rows": [
@@ -393,19 +393,57 @@
     },
     {
       "brief": "volleyball-set-board",
-      "ran": false,
-      "delivered": false,
-      "usable": false,
-      "judged": false,
+      "ran": true,
+      "id": "volleyball-set-board.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
       "defects": [],
       "missing": [],
+      "readAsOffered": [
+        "undoPoint"
+      ],
       "unmoved": [],
       "validatorErrors": [],
-      "look": null,
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.8246285,
+      "wallSeconds": 947,
+      "overBudget": false,
+      "look": {
+        "reviewed": 29,
+        "opened": 29,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
       "rubberStamp": false,
       "flagsToRead": [],
-      "judgeReadings": [],
-      "agreement": null
+      "judgeReadings": [
+        {
+          "at": "2026-10-29T13:11:47.210Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T13:11:51.030Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T13:13:18.242Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
     },
     {
       "brief": "school-quiz-secret-pick",

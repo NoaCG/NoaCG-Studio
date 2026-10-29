@@ -1,5 +1,5 @@
 {
-  "verdict": "incomplete",
+  "verdict": "measured",
   "screen": {
     "briefs": 4,
     "ran": 4,
@@ -25,15 +25,15 @@
   },
   "all": {
     "briefs": 15,
-    "ran": 13,
-    "delivered": 13,
-    "usable": 6,
-    "notionalUsd": 12.22,
-    "usdPerUsable": 2.04,
+    "ran": 15,
+    "delivered": 15,
+    "usable": 10,
+    "notionalUsd": 13.96,
+    "usdPerUsable": 1.4,
     "medianWallSeconds": 263,
-    "lookAll": 11,
-    "framesReviewed": 247,
-    "framesOpened": 241,
+    "lookAll": 12,
+    "framesReviewed": 285,
+    "framesOpened": 274,
     "rubberStamps": [
       "live-vote",
       "basketball-club-scorebug",
@@ -41,25 +41,22 @@
       "youth-summit-event-bug",
       "choir-final-audience-vote"
     ],
-    "unjudged": [
-      "campus-news-ticker",
-      "christmas-mass-holding"
-    ],
+    "unjudged": [],
     "agreement": {
-      "unanimous": 10,
-      "judged": 11
+      "unanimous": 11,
+      "judged": 15
     }
   },
   "lines": [
     {
       "rule": "at least 7 of 15 delivered and usable",
-      "holds": false,
-      "figure": "6 of 15"
+      "holds": true,
+      "figure": "10 of 15"
     },
     {
       "rule": "at most $1.35 notional per usable graphic",
       "holds": false,
-      "figure": "$2.04"
+      "figure": "$1.40"
     },
     {
       "rule": "median wall at most 10 minutes",
@@ -69,7 +66,7 @@
     {
       "rule": "every reviewed frame opened in at least 7 sessions",
       "holds": true,
-      "figure": "11 of 15"
+      "figure": "12 of 15"
     }
   ],
   "rows": [
@@ -692,16 +689,16 @@
       "outcome": "delivered",
       "reason": null,
       "delivered": true,
-      "judged": false,
-      "airable": null,
-      "confidence": null,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
       "defects": [],
       "missing": [],
       "readAsOffered": [],
       "unmoved": [],
       "validatorErrors": [],
       "functional": true,
-      "usable": false,
+      "usable": true,
       "costCents": 0,
       "notionalUsd": 0.8871685000000001,
       "wallSeconds": 263,
@@ -715,8 +712,27 @@
       },
       "rubberStamp": false,
       "flagsToRead": [],
-      "judgeReadings": [],
-      "agreement": null
+      "judgeReadings": [
+        {
+          "at": "2026-10-29T12:48:45.356Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T12:48:49.095Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T12:49:27.925Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
     },
     {
       "brief": "christmas-mass-holding",
@@ -725,16 +741,16 @@
       "outcome": "delivered",
       "reason": null,
       "delivered": true,
-      "judged": false,
-      "airable": null,
-      "confidence": null,
+      "judged": true,
+      "airable": true,
+      "confidence": "high",
       "defects": [],
       "missing": [],
       "readAsOffered": [],
       "unmoved": [],
       "validatorErrors": [],
       "functional": true,
-      "usable": false,
+      "usable": true,
       "costCents": 0,
       "notionalUsd": 0.8011162000000002,
       "wallSeconds": 241,
@@ -748,40 +764,141 @@
       },
       "rubberStamp": false,
       "flagsToRead": [],
-      "judgeReadings": [],
-      "agreement": null
+      "judgeReadings": [
+        {
+          "at": "2026-10-29T12:50:11.620Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T12:50:17.520Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T12:51:09.465Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "clipped-or-escaping-text"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "2/3"
     },
     {
       "brief": "futsal-cup-winner-card",
-      "ran": false,
-      "delivered": false,
-      "usable": false,
-      "judged": false,
+      "ran": true,
+      "id": "futsal-cup-winner-card.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
       "defects": [],
       "missing": [],
+      "readAsOffered": [],
       "unmoved": [],
       "validatorErrors": [],
-      "look": null,
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 0.9092682000000001,
+      "wallSeconds": 337,
+      "overBudget": false,
+      "look": {
+        "reviewed": 17,
+        "opened": 12,
+        "unopened": [
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-light.jpg",
+          "empty-light.jpg",
+          "take-strip.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
       "rubberStamp": false,
       "flagsToRead": [],
-      "judgeReadings": [],
-      "agreement": null
+      "judgeReadings": [
+        {
+          "at": "2026-10-29T12:52:21.393Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-29T12:52:23.221Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T12:53:36.571Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "2/3"
     },
     {
       "brief": "cross-country-race-clock",
-      "ran": false,
-      "delivered": false,
-      "usable": false,
-      "judged": false,
+      "ran": true,
+      "id": "cross-country-race-clock.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
       "defects": [],
       "missing": [],
+      "readAsOffered": [],
       "unmoved": [],
       "validatorErrors": [],
-      "look": null,
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 0.8347779,
+      "wallSeconds": 247,
+      "overBudget": false,
+      "look": {
+        "reviewed": 21,
+        "opened": 21,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
       "rubberStamp": false,
       "flagsToRead": [],
-      "judgeReadings": [],
-      "agreement": null
+      "judgeReadings": [
+        {
+          "at": "2026-10-29T12:54:58.615Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T12:55:14.391Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-29T12:55:51.174Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "2/3"
     }
   ]
 }

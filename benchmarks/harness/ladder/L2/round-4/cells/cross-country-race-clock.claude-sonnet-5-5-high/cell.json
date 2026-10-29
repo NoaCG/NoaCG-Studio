@@ -1,0 +1,113 @@
+{
+  "costUnread": false,
+  "brief": "cross-country-race-clock",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "216a604c-20cc-480f-aa30-11b96e988726",
+  "costCents": 0,
+  "notionalUsd": 0.8347779,
+  "wallSeconds": 247,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg whoami",
+      "code": 1,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scorebug --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:5d0ccfe83c98f5d949c70cbfccaaffdca95fa39c308c6e10e543374c719f2f3c"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:e6b543e7bbea11996d88fa753e54017fd5c3628f4efa07a1ee1102e9f7732413"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:e6b543e7bbea11996d88fa753e54017fd5c3628f4efa07a1ee1102e9f7732413"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:028eebf3a0ca5b96a59444078915f914ed2dbcedee2b75c1928c394637621cad"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:028eebf3a0ca5b96a59444078915f914ed2dbcedee2b75c1928c394637621cad"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:028eebf3a0ca5b96a59444078915f914ed2dbcedee2b75c1928c394637621cad"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\cross-country-race-clock.claude-sonnet-5-5-high\\frames",
+    "frames": 53,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:028eebf3a0ca5b96a59444078915f914ed2dbcedee2b75c1928c394637621cad"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [
+      "clockStart",
+      "clockStop",
+      "clockReset"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:028eebf3a0ca5b96a59444078915f914ed2dbcedee2b75c1928c394637621cad",
+    "benchValidated": "sha256:028eebf3a0ca5b96a59444078915f914ed2dbcedee2b75c1928c394637621cad",
+    "reviewed": "sha256:028eebf3a0ca5b96a59444078915f914ed2dbcedee2b75c1928c394637621cad",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 21,
+    "opened": 21,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

@@ -251,50 +251,7 @@ The owner starts it with `/plan-run harness-ladder until <time>`.
 Each phase's pull request adds its notes here, newest first: the last check's findings, what the
 next phase must allow for, decisions, traps, spend, shas and the revert.
 
-### L2. Teaching (in progress: PAUSED 2026-10-18 11:10Z in round 4, three sessions left)
-
-- **Checkpoint 2026-10-18 11:10Z: where L2 stands and how to finish it.**
-  - *Done.* Baseline and rounds 1 to 3 measured and decided (rounds 1 and 3 kept, round 2
-    reverted); every figure, hypothesis and decision is in
-    `benchmarks/harness/ladder/evidence/phase-L2.md`. No round has matched D6 (cost line $1.35
-    as the owner amended it); the best on the eight is 5 of 8 usable, the cheapest $2.02 a usable.
-  - *Round 4 in flight* (hypothesis `d4993df07`, changes `759061291`: coverage marks a frame drawn
-    exactly as before so a look at that picture counts; the skill keeps logos off tiles). 20 of
-    its 23 sessions delivered; their `cell.json` and the readings so far are in
-    `benchmarks/harness/ladder/L2/round-4/` (not all judged yet). Interim: the eight 4 usable of 7
-    run, $8.94, every frame opened in 3; the tuning briefs 6 usable of 13 run, $12.22.
-  - *Left:* `futsal-cup-winner-card` and `cross-country-race-clock` (stopped mid-run by this
-    checkpoint, no ledger entry, so the bench runs them again under `round-4`), and
-    `volleyball-set-board`, which the usage limit cut at 08:35Z with nothing printed: the ledger
-    holds it `failed` under `round-4`, so it runs under `round-4-rerun` (#1469); its 11:04Z start
-    under that stage was stopped by this checkpoint and left no ledger entry.
-  - *Where:* worktree `C:\claude\NoaCG-Studio\.claude\worktrees\agent-a1258e6d4dd34801a`, local
-    branch `l2-teaching-resume` pushing to `claude/plan-harness-ladder-p3-build`. The run folder,
-    with every session's files and the readings, is
-    `C:/claude/noacg-bench-archive/harness-ladder-L2/round-4` on the owner's machine. A fresh
-    checkout needs `npm ci` at the root, then `npm ci && npm run build` in `cli/`; a session on
-    another host (Codex) needs the subscription's `claude` CLI on PATH, since every session and
-    reading is a `claude -p` child.
-  - *Commands, in order:*
-    1. `node scripts/harness-bench.mjs --build L2 --arms subscription --model claude-sonnet-5-5
-       --effort high --stage round-4 --lanes 2 --out
-       C:/claude/noacg-bench-archive/harness-ladder-L2/round-4 --briefs
-       futsal-cup-winner-card,cross-country-race-clock`
-    2. the same with `--stage round-4-rerun --lanes 1 --briefs volleyball-set-board`
-    3. `node scripts/harness-bench.mjs --judge C:/claude/noacg-bench-archive/harness-ladder-L2/round-4
-       --phase L2 --delivered-only --concurrency 2` (three readings a graphic; it asks only the
-       missing ones)
-    4. copy each delivered cell's `cell.json`, `judgements.jsonl` and `summary.json` into
-       `benchmarks/harness/ladder/L2/round-4/`, add a `readings.json` for a gate flag the operator
-       surface offers under another name (as rounds 1 to 3 did for the volleyball board's Undo),
-       and run `--tally benchmarks/harness/ladder/L2/round-4` and the same with `--order tuning`
-    5. keep or revert round 4 by its pre-registered lines in the evidence file, write its result
-       there, and rewrite this `### L2` section as built: a draft with every figure but round 4's
-       is `C:/claude/noacg-bench-archive/harness-ladder-L2/l2-phase-notes-draft.md`
-    6. merge `origin/main` (main moved; its skill change is only the CLI version in the `npx` line),
-       `npm run build` in `cli/`, run the changed tests (`node --test scripts/harness-ladder.test.mjs
-       scripts/harness-bench.test.mjs`, `node --test cli/test/coverage.test.mjs
-       cli/test/screenshot-states.test.mjs`), then `/check` and `/queue-merge`. No round 5.
+### L2. Teaching (built 2026-10-29: no match)
 
 - **Check's findings (L1's second check, PASS on `905fabec1`):** three Opus readings a graphic
   (usable at 2 of 3), repeatability 19 of 21 at 3/3; no rung matched D6; D7 as written teaches
@@ -303,92 +260,87 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
   3 and does not qualify. L1's failure patterns: empty defaults, so on-air frames show nothing;
   actions that pass the gate but change nothing on screen; design defects missed after opening
   every frame (a faint crest, an ogonek collision); rubber stamps (a script sets every verdict `ok`
-  after opening 3 of 57 or 8 of 40 frames); NOT READY at the review. Minor: the ledger's L1 close
-  note still said Sonnet `medium` 4 of 8 at $2.74; a correcting entry now follows it (the note
-  itself stays, the ledger being append-only).
-- **Checkpoint 2026-10-17 20:15Z (paused by the subscription's usage limit, resets 21:50Z):**
-  round 1's tuning run reached 6 of its 15 briefs, all delivered (news lower third $0.72,
-  school scoreboard $1.26, lecture countdown $1.07, live vote $1.00, market reporter $0.62, debate
-  clock $1.55; their `cell.json` copied into `benchmarks/harness/ladder/L2/round-1/cells/`, not
-  yet judged). The basketball scorebug and the darts duel were paused by the limit and run again;
-  the other seven have not started. Resume, after `npm ci` at the root and `npm ci && npm run
-  build` in `cli/`: `node scripts/harness-bench.mjs --build L2 --arms subscription --model
-  claude-sonnet-5-5 --effort high --stage round-1 --lanes 2 --out
-  C:/claude/noacg-bench-archive/harness-ladder-L2/round-1 --briefs
-  basketball-club-scorebug,pub-darts-duel,brass-band-sponsor-strip,youth-summit-event-bug,choir-final-audience-vote,campus-news-ticker,christmas-mass-holding,futsal-cup-winner-card,cross-country-race-clock`,
-  then `--judge <that dir> --phase L2 --delivered-only --concurrency 2` and `--tally <that dir>
-  --phase L2 --order tuning`. Round 2's candidate (`coverage --strips` brought back, plus each
-  action's, step's and update's settled moment kept as a full frame beside its strip, with tests)
-  is saved, uncommitted, as `C:/claude/noacg-bench-archive/harness-ladder-L2/round-2-candidate.patch`
-  against `524bedab1`; its hypothesis is not written yet. D6's cost line for L2 is now $1.35
-  estimated (owner, see D6).
-- **Status: paused where the window ended. Baseline done; round 1 ran on the eight (4 of 8
-  usable, from 2; $4.08 per usable, from $8.15) and waits for its 15 tuning briefs before it is
-  kept or reverted.**
-  (`benchmarks/harness/ladder/evidence/phase-L2.md`, the cells and readings in
-  `benchmarks/harness/ladder/L2/baseline/`.) The baseline, Sonnet 5.5 `high` with the skill and
-  CLI as L1 ran them, pre-registered and pushed (`ebd94dbb9`, 16:30:31Z) before its first session
-  (16:33Z):
+  after opening 3 of 57 or 8 of 40 frames); NOT READY at the review. Whether a verdict is honest
+  is the judge's call, not the review's: an `ok` proves only that a verdict was written. Minor: the
+  ledger's L1 close note still said Sonnet `medium` 4 of 8 at $2.74; a correcting entry now follows
+  it (the note itself stays, the ledger being append-only).
+- **Outcome: no match.** Four rounds ran (1, 3 and 4 kept, 2 reverted); none met D6 on the eight.
+  The best round, round 4, has 5 of 8 usable at $2.15 a usable and $1.35 a session; the look line
+  never passed 6 of 8 and was 4 of 8 in the last three rounds. The cost per session on the eight
+  fell from $2.04 to $1.35, and the cost per usable from $8.15 to $2.15. Every figure, hypothesis
+  and decision is in `benchmarks/harness/ladder/evidence/phase-L2.md`; every tally reproduces with
+  `--tally benchmarks/harness/ladder/L2/<round>` (and `--order tuning`). The curve, Sonnet 5.5
+  `high`, three Opus readings a graphic, notional cost on the subscription:
 
-  | set | usable | notional | per usable | median wall | every frame opened | all ok, judge failed |
-  |---|---|---|---|---|---|---|
-  | the eight (L1's screen four and four new) | 2 of 8 (7 delivered) | $16.30 | $8.15 | 527 s | 6 of 8 | 5 |
-  | 15 tuning briefs | 8 of 15 (15 delivered) | $18.82 | $2.35 | 249 s | 12 of 15 | 7 |
+  | round | change | the eight: usable, per session, per usable, median wall, all frames opened | 15 tuning briefs: usable, per session, per usable | decision |
+  |---|---|---|---|---|
+  | baseline | the skill and CLI as L1 ran them | 2, $2.04, $8.15, 527 s, 6 | 8, $1.25, $2.35 | - |
+  | 1 | an action that draws nothing is a coverage finding | 4, $2.04, $4.08, 600.5 s, 5 | 8, $1.40, $2.62 | kept |
+  | 2 | each timeline one picture (strips) | 5, $1.26, $2.02, 463 s, 4 | 5, $0.98, $2.94 | reverted (tuning fell by 3) |
+  | 3 | strips again, with carried verdicts | 4, $1.45, $2.90, 511 s, 4 | 7, $0.91, $1.95 | kept (refuted: no verdict was ever carried) |
+  | 4 | a look at the same picture counts; logos without tiles | 5, $1.35, $2.15, 565 s, 4 | 10, $0.93, $1.40 | kept (refuted on the look line; the logo change held on two of four) |
 
-  The judge agreed with itself on 20 of 22 judged graphics. On the eight, 4 of the 6 failures are
-  an action that moves the machine and draws nothing (the matchup, the scorebug, the quiz, the
-  timing tower), each frame of which its review called `ok`; one is a design call (the hockey
-  board's crests on plates); one stopped `NOT READY` naming defects it did not fix (volleyball).
-- **Round 1** (hypothesis in the evidence file, pushed before any round session): `noacg coverage`
-  compares each action's moments with the same moments unpressed (from the Take, then after each
-  other action that moved the machine) and reports an action that changes almost no pixel at
-  every moment as "shows no change on screen"; `references/hand-in.md` says to fix a coverage
-  finding before the review. The comparison renders are not kept, so the judge's frames do not
-  change. Tried on the baseline's own packages: it finds the tower's Focus and the quiz's Select
-  and Reveal choice, and nothing on the hockey or darts boards. Expected: usable on the eight from
-  2 to at least 4, cost per usable down, cost per session up to a fifth higher. **On the eight:**
-  4 of 8 usable (the volleyball board, and the timing tower at 2/3 readings, joined the alerts and
-  the nominee reveal), $16.32 notional ($2.04 a session, unchanged; $4.08 per usable), median wall
-  600.5 s, every frame opened in 5 of 8; the matchup handed its record into the wrong folder; the
-  quiz still draws nothing for Select under the brief's stress values.
-- **What the next window must allow for:**
-  - Resume in this worktree on this branch: `npm run build` in `cli/` (the plugin is committed;
-    `dist/` is not), then finish round 1 with its 15 tuning briefs into the same `--out`
-    (`C:/claude/noacg-bench-archive/harness-ladder-L2/round-1`, `--stage round-1`; about 40
-    minutes at two lanes, 45 readings), copy them into `benchmarks/harness/ladder/L2/round-1/`,
-    tally with `--order tuning`, then keep or revert round 1 (D7) and write round 2's hypothesis
-    before its first session.
-  - Pass `--phase L2` to `--judge` and `--tally` while a run is still going: without
-    `summary.json` the bench cannot tell the phase (it now refuses to judge; `--tally` takes
-    `--phase`).
-  - D6's cost line cannot be met by usability alone: at about $2 a session on the eight, even 8
-    of 8 is $2 per usable. A matching rung must also roughly halve the session's cost. The
-    measured lever is the frames read (72 to 79% of a session's context growth; three in four
-    reviewed frames are timeline moments): `coverage --strips` is on the branch as `a6ea09595`
-    and held back by `b45c19a24`; reverting the revert is round 2's candidate change.
-  - Other candidates the baseline showed, for later rounds: defaults that air empty (L1); an
-    entrance still running when the "settled" 1.5 s frame is shot (debate clock); a stop at `NOT
-    READY` over defects the agent named (volleyball); Undo below zero putting -1 on air (volleyball,
-    darts); a font missing the brief's letters (market reporter).
+  D6 on the eight needs 7 usable, at most $1.35 a usable, a median wall of 10 minutes and every
+  frame opened in 7 sessions. No round came near the usable line or the look line; the strips
+  brought the cost per session to $1.26 to $1.45, so 7 usable at that cost would have met the
+  cost line. Only the tuning briefs came close on cost ($1.40 a usable in round 4), and they have
+  no match line of their own.
+- **What the next phase must allow for:**
+  - D7: five rounds were allowed; four ran, the usage limit cutting the window twice, and round 4
+    was finished on 2026-10-29 with no round 5. Without an L1 winner and without a match, the plan
+    stops with this curve (D7, phase 3); L3 and L4 do not run unless the owner decides otherwise.
+    The check confirms that. L2 is closed in the ledger (`--close L2`).
+  - A round 5 would take the design failures the judge names on the eight in every round: logos
+    that air as empty placeholders or as text at the brief's own values (the collegiate scorebug,
+    the matchup), text that moves or shrinks with long values (the timing tower, the live vote),
+    and the youth summit bug's doubled "DAY" (#1435). The look line will not move by counting:
+    agents set every verdict at the end with a script; a gate that cannot see reads cannot force
+    them.
+  - The noise between two measurements of the same configuration (rounds 2 and 3) is 1 usable on
+    the eight and 2 on the tuning briefs; a round's change smaller than that cannot be read. Round
+    4's gain on the eight (4 to 5) is within it; its gain on the tuning briefs (7 to 10) is not.
 - **Decisions** (each revertible):
   - DECIDED: the baseline on the eight reuses L1's four Sonnet `high` screen cells and their three
     readings, since `cli/skill` and `cli/src` had not changed since; only the other four ran.
     Revert: run the four again under the stage.
   - DECIDED: the tuning set is the bank's 15 library briefs; the bench refuses the OGraf one.
-  - DECIDED: round 1 is the action that draws nothing, not the cost: it is the most common failure
-    on the eight and a frame-by-frame look cannot see it; the cost round follows on a base that
-    delivers more usable graphics. Revert: run `--strips` as round 1 instead.
+  - DECIDED: round 1 is the action that draws nothing, not the cost. Revert: run strips as round 1.
   - DECIDED: a press counts as drawn when any moment from 20 ms to 10 s differs by about 40 pixels
-    or more; a change that fades again is drawn. Revert: `NO_CHANGE_SHARE` in
-    `cli/src/commands/coverage.ts`.
-- **Traps:** the judge took the exam's Fable judge for one reading while the run was going (see
-  above; $5.32 notional on the subscription, not counted). A threshold of 0.05% of the frame missed
-  a stopped clock's digits (300 to 500 pixels); the round uses 0.002%.
+    or more. Revert: `NO_CHANGE_SHARE` in `cli/src/commands/coverage.ts`.
+  - DECIDED: strips are coverage's default, `--frames` keeps a frame per moment and the bench's
+    capture passes it (the session's hand-in line spells the command out without flags, so a flag
+    only the skill names reaches some agents and not others). Revert: `strips` back to
+    `flagBool(args, 'strips', false)` and the capture without `--frames`.
+  - DECIDED: rounds 3 and 4 each changed two things, said in their hypotheses, because the window
+    had room for one more round each time. Revert: none needed; the evidence names each change's
+    own failure.
+  - DECIDED: `--lanes` takes up to 3; the rounds ran at 2 because free memory never reached 3 GB at
+    a start, and round 4's last three sessions at 1 (about 1.2 GB free).
+  - DECIDED: round 4's `summary.json` is rebuilt over all 23 cells, since each `--build` writes
+    only its own cells (the last one, the volleyball rerun, held one). Revert: none needed; the
+    tallies read the cells, not the summary.
+  - OWNER, 2026-10-17: D6's cost line for a taught rung is $1.35 estimated (D6 above); AC-5's
+    real-host line stays $1.00.
+- **Traps:**
+  - The usage limit cut a session without printing a result (round 4's volleyball board): the
+    bench recorded it `failed` and would not rerun it under the stage; it reran as
+    `round-4-rerun` (#1469). A session the bench must run again after a discarded start needs
+    another stage name too: the ledger is append-only (round 2's `round-2-rerun`).
+  - The youth summit event bug's positional stress keys put the logo's description into a text
+    field when the agent splits day and room; it fails every round for it (#1435).
+  - Pass `--phase L2` to `--judge` and `--tally` while a run is going (no `summary.json` yet); the
+    bench refuses to judge a run whose phase it cannot tell rather than guess the exam's judge.
+  - CI checks out a shallow history, so a test that reads git history (the seal's commit time)
+    must accept the recorded time when the oldest commit has no parent (`sealCommittedAt`).
+  - The browser-work guard counts a running bench, so judging beside a session needs
+    `NOACG_ALLOW_PARALLEL_E2E=1`; the judge drives no browser.
 - **Spend:** $0 credit; the ledger at 5,468 cents spent with $30.00 held for L4 and $8.00 for L3.
-  Subscription, notional: $148.64 (27 sessions $43.95; 75 ladder-judge readings $99.37; the one
-  stray Fable reading $5.32). **Shas:** built on `905fabec1`; the pre-registration `ebd94dbb9`;
-  round 1's hypothesis `05ca783bb`, its change `8d4fa88a0`.
-  **Revert:** nothing has landed; the branch `claude/plan-harness-ladder-p3-build` holds it.
+  Subscription, notional: $580.23 (117 ledger sessions $143.28, discarded, paused and failed
+  starts included; 324 ladder-judge readings $431.63; the one stray Fable reading $5.32).
+  **Shas:** built on `905fabec1`; D6's amendment `ba0a39a0d`; round 1 `05ca783bb` and
+  `8d4fa88a0`; round 2 `62753ce6a`, `7dc3d70e9`, `3634414a6`, `d6fa22b8a`; round 3 `7925a6884`
+  and `f59965f8f`; round 4 `d4993df07` (its hypothesis), `d2f11b46d` and `759061291`. **Revert:** each round's commits revert on
+  their own; the plan's L3 and L4 do not start.
 
 ### L1 repair: the judge's repeatability (built 2026-10-17)
 

@@ -406,3 +406,60 @@ Two changes, each for its own failure; this window has room for this round and n
 - **How it runs**: as round 3, with `--stage round-4 --out
   C:/claude/noacg-bench-archive/harness-ladder-L2/round-4`, two lanes, or three when about 3 GB
   is free at the start.
+
+### Round 4 result, and the decision
+
+Sessions 2026-10-18 08:23Z to 11:05Z, two at a time, then paused by the usage limit and a
+checkpoint; the last three on 2026-10-29 12:43Z to 13:10Z, one at a time (about 1.2 GB free): the
+futsal card and the cross-country clock under `round-4`, the volleyball board under
+`round-4-rerun` (#1469: the usage limit cut its first start at 08:35Z with nothing printed, and the
+ledger holds that start `failed`, $0.37 notional). Readings 2026-10-18 and 2026-10-29, all by the
+frozen Opus ladder judge (`9fa9d7e3ac9b`). Evidence: `benchmarks/harness/ladder/L2/round-4/` (23
+cells, `judgements.jsonl`, `readings.json`, `summary.json` rebuilt over all 23 cells, since each
+`--build` writes only its own, and both tallies); `--tally benchmarks/harness/ladder/L2/round-4`
+and `--tally ... --order tuning` reproduce them.
+
+| the eight | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| round 1 | 7 | 4 | $16.32 | $2.04 | $4.08 | 600.5 s | 5 of 8 | 3 |
+| round 3 (the base) | 7 | 4 | $11.59 | $1.45 | $2.90 | 511 s | 4 of 8 | 3 |
+| round 4 | 8 | **5** | $10.76 | **$1.35** | **$2.15** | 565 s | 4 of 8 | 3 |
+
+| 15 tuning briefs | delivered | usable | notional | per session | per usable | median wall | every frame opened | all ok, judge failed |
+|---|---|---|---|---|---|---|---|---|
+| round 1 | 15 | 8 | $20.93 | $1.40 | $2.62 | 261 s | 11 of 15 | 7 |
+| round 3 (the base) | 15 | 7 | $13.63 | $0.91 | $1.95 | 255 s | 13 of 15 | 8 |
+| round 4 | 15 | **10** | $13.96 | **$0.93** | **$1.40** | 263 s | 12 of 15 | 5 |
+
+- On the eight: the alerts, the nominee reveal and the volleyball board (its per-team `undoA` and
+  `undoB` read as the brief's Undo, `readings.json`, as in rounds 1 to 3) usable again; the quiz
+  (its Select now drawn under the stress values, 3/3) and the hockey board (2/3; its crests "sit
+  on the panel without a plate") joined; the timing tower left (2 of 3 readings against: the gap
+  column leaves the right edge with long values). Not usable either: the matchup (no logo at all,
+  the logo descriptions printed as the blue corner's nickname and record, its Select missing) and
+  the collegiate scorebug (empty dashed logo squares at the brief's own values, each logo on a
+  grey plate of its own when given one).
+- On the tuning briefs: the debate clock, the market reporter, the darts duel and the futsal card
+  (2/3) joined; the basketball scorebug left (clipped text). Not usable in either round: the choir
+  vote (2 of 3 against: a doubled vote count), the live vote (the long question shrinks below its
+  options), the sponsor strip (logos unevenly spaced on a panel the wrong colour, no longer read as
+  tiles) and the youth summit bug ("DAY DAY 2", #1435).
+- The look line did not move: every frame opened in 4 of 8 (round 3: 4) and 12 of 15 (13).
+  `sameSince` credits a picture read before it was drawn again, so the volleyball board (six
+  coverage runs) counts 29 of 29; the sessions short of the line read only part of a fresh
+  coverage and set the rest `ok` (the tower 17 of 23, the matchup 20 of 25, the futsal card 12 of
+  17). Agents still set every verdict at the end, so the review's `ok` is not evidence of a look:
+  3 of 8 and 5 of 15 graphics went in all `ok` and failed the judge.
+- Against the hypothesis: **refuted on the look line** (4 to 4, not up by 2); not refuted on the
+  logos: the hockey board and the sponsor strip are no longer read as tiles, though the scorebug
+  still plates its logos and the matchup draws none. **Decision: round 4 is kept**, by its own
+  pre-registered lines: usable did not fall on either set against round 3 (4 to 5, 7 to 10), and
+  the cost per usable fell on both ($2.90 to $2.15, $1.95 to $1.40). The eight's gain of one is
+  within the noise of one measurement (rounds 2 and 3, the same configuration, differ by 1 on the
+  eight and 2 on the tuning briefs); the tuning briefs' gain of three is beyond it.
+- **D6 on the eight:** 5 of 8 usable (needs 7), $2.15 per usable (at most $1.35), median wall 565
+  s (holds), every frame opened in 4 sessions (needs 7). Round 4 does not match; no round of L2
+  matched. Per D7 (no L1 winner, no match) the plan stops with the curve; the window had room for
+  no round 5.
+- Spend: $0 credit; 25 ledger sessions $25.33 notional (23 counted $24.72, the alerts' paused
+  start $0.24 and the volleyball board's failed start $0.37); 69 readings $92.16 notional.

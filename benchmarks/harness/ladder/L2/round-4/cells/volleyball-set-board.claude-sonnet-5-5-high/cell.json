@@ -1,0 +1,204 @@
+{
+  "costUnread": false,
+  "brief": "volleyball-set-board",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "6658eaf9-5f00-416e-ab05-a34441e14729",
+  "costCents": 0,
+  "notionalUsd": 1.8246285,
+  "wallSeconds": 947,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg whoami",
+      "code": 1,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type duel-score --design neutral --out ./graphic",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type duel-score --design sb26 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --fields Team A:text,Team B:text,Sets A:number,Sets B:number,Points A:number,Points B:number,Final word:text,Set word:text --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:3ab0c9bc6b7df9bb143bfe60a0cec066fe004d9a0491dd5bca872ca0f4589a84"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:a6757df72cfde68569bcb2193a71061d77fda746b7ced912534ff1496c4b8e47"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:7acb53d61901eb1a653f62d57292727f778b979c469448ec6173fbcf96856b29"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:b0351740cb5da1f02410c9958be65b57dc0e5ccf304250f5b62d242457db5c28"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:b0351740cb5da1f02410c9958be65b57dc0e5ccf304250f5b62d242457db5c28"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:7acb53d61901eb1a653f62d57292727f778b979c469448ec6173fbcf96856b29"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:7acb53d61901eb1a653f62d57292727f778b979c469448ec6173fbcf96856b29"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:55ee9e7ecb807d35073b41e194e5b39b068aa19dee6e3b038c17cc45e04deed1"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:55ee9e7ecb807d35073b41e194e5b39b068aa19dee6e3b038c17cc45e04deed1"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:863d7776c8617eeb726a963289c506bcf6a922ab08ca847ce3f9dfbfdeef8e3e"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:863d7776c8617eeb726a963289c506bcf6a922ab08ca847ce3f9dfbfdeef8e3e"
+    },
+    {
+      "command": "noacg screenshot ./graphic --event pointA --event pointA --event pointA --event pointB --event endSet --event pointB --out ./shots/t1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event pointA --event pointA --event pointB --event undoB --event final --out ./shots/t2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event pointA --event pointA --event endSet --event pointB --event endSet --event pointA --event endSet --event final --out ./shots/t3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:7f8dae689fa8fbd26032a94f4aba5694a4a985f1f6eba8f498811682d8c7c0a7"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:7f8dae689fa8fbd26032a94f4aba5694a4a985f1f6eba8f498811682d8c7c0a7"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:7f8dae689fa8fbd26032a94f4aba5694a4a985f1f6eba8f498811682d8c7c0a7"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\volleyball-set-board.claude-sonnet-5-5-high\\frames",
+    "frames": 69,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:7f8dae689fa8fbd26032a94f4aba5694a4a985f1f6eba8f498811682d8c7c0a7"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "pointA",
+      "pointB",
+      "undoA",
+      "undoB",
+      "swapServe",
+      "endSet",
+      "final"
+    ],
+    "missing": [
+      "undoPoint"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:7f8dae689fa8fbd26032a94f4aba5694a4a985f1f6eba8f498811682d8c7c0a7",
+    "benchValidated": "sha256:7f8dae689fa8fbd26032a94f4aba5694a4a985f1f6eba8f498811682d8c7c0a7",
+    "reviewed": "sha256:7f8dae689fa8fbd26032a94f4aba5694a4a985f1f6eba8f498811682d8c7c0a7",
+    "problems": []
+  },
+  "functional": false,
+  "look": {
+    "reviewed": 29,
+    "opened": 29,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}
