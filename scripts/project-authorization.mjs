@@ -65,6 +65,17 @@ export function readProject(text, now = Date.now()) {
   return project;
 }
 
+/** The 1-based row of a phase named by its project id or its row. A number that is one phase's id
+ * and another phase's row is refused, never guessed: that mix-up is what one id everywhere ends. */
+export function phaseRow(phases, name) {
+  const byId = phases.findIndex((phase) => phase.id === name) + 1;
+  const row = /^\d+$/.test(name ?? '') ? Number(name) : 0;
+  if (byId && row && byId !== row) throw Error(`Ambiguous phase "${name}": it is the id of row ${byId} and also row ${row}; name the first by row ${byId}, the second by its id`);
+  if (byId) return byId;
+  if (row >= 1 && row <= phases.length) return row;
+  throw Error(`No phase "${name}": name its project id or its row number`);
+}
+
 export function writeProject(text, project) {
   const line = `Project: ${JSON.stringify(project)}`;
   return LINE.test(text) ? text.replace(LINE, () => line) : `${text.trimEnd()}\n${line}\n`;

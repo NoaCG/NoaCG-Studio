@@ -167,7 +167,7 @@ a branch because that is the namespace a Claude cloud session can push (pushes t
 `refs/noacg-recovery/*` were dropped, `cloud-recovery-probe-2026-10-20.md`). Each
 checkpoint commit holds only `checkpoint.json`, the wave ledger as its own blob
 `ledger.md`, the run kit beside the wave file (`<wave>.kit/`: `state.json`, brief
-templates, briefs sent; text only, 1 MiB) as the `kit/` folder when there is one,
+templates, briefs sent; text only, 8 MiB) as the `kit/` folder when there is one,
 and a `vercel.json` that turns Vercel deployments off, so no preview is
 built and no workflow runs. `checkpoint.json` (at most 256 KiB) names the ledger's
 sha256, and a reader refuses a ledger that differs; the ledger may grow to 8 MiB.

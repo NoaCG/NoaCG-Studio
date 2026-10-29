@@ -36,9 +36,11 @@ const COMMIT_IDENTITY = {
 const DOCUMENT_LIMIT = 256 * 1024, LEDGER_LIMIT = 8 * 1024 * 1024, LEDGER_FILE = 'ledger.md';
 // The run kit (state.json, brief templates, the briefs sent, the block receipt) rides in the same
 // checkpoint as its own `kit/` tree, so it is pushed with every recorded event and `continue`
-// restores it. Text files in at most two levels of folders, 1 MiB in all. The repository is
-// public: a kit holds no credential, exactly like the run issue it mirrors.
-const KIT_LIMIT = 1024 * 1024, KIT_DEPTH = 2;
+// restores it. Text files in at most two levels of folders. The briefs folder grows by a brief per
+// launch (about 150 of 6 KB in a 50-phase run), so the bound is the ledger's 8 MiB: a full kit must
+// never make a record fail to publish. The repository is public: a kit holds no credential,
+// exactly like the run issue it mirrors.
+const KIT_LIMIT = LEDGER_LIMIT, KIT_DEPTH = 2;
 /** The run kit's folder: beside the wave file, named after it. */
 export const kitDir = (wave) => `${wave.replace(/\.md$/i, '')}.kit`;
 // Room for a merged ledger (merge-file output) at its bound.
@@ -174,24 +176,37 @@ function readCheckpoint(git, repository, commit) {
   return { version: 2, doc: snapshot.doc, ledger: bytes.toString('utf8') };
 }
 
-/** The run kit folder as a git tree, or null when there is none (or it is empty). */
-function kitTree(git, repository, dir, depth = 0, total = { bytes: 0 }) {
+/** The run kit folder as a git tree, or null when there is none (or it is empty). Every file is
+ * hashed by one git process, since this runs on every recorded event. */
+function kitTree(git, repository, dir) {
   if (!existsSync(dir)) return null;
-  const entries = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const file = path.join(dir, entry.name);
-    if (!safePath(entry.name)) throw new Error(`Run kit name is not a plain file name: ${file}`);
-    if (entry.isDirectory() && depth < KIT_DEPTH) {
-      const tree = kitTree(git, repository, file, depth + 1, total);
-      if (tree) entries.push(`040000 tree ${tree}\t${entry.name}`);
-    } else if (entry.isFile()) {
-      const text = readFileSync(file, 'utf8');
-      total.bytes += Buffer.byteLength(text);
-      if (total.bytes > KIT_LIMIT) throw new Error('Run kit exceeds 1 MiB; keep briefs and receipts short, link the rest');
-      entries.push(`100644 blob ${git(repository, ['hash-object', '-w', '--stdin'], text)}\t${entry.name}`);
-    } else throw new Error(`Run kit holds only text files in at most ${KIT_DEPTH} levels of folders: ${file}`);
-  }
-  return entries.length ? git(repository, ['mktree'], `${entries.join('\n')}\n`) : null;
+  const files = [];
+  let bytes = 0;
+  const walk = (folder, parts) => {
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+      const file = path.join(folder, entry.name);
+      if (!safePath(entry.name) || /[\r\n]/.test(entry.name)) throw new Error(`Run kit name is not a plain file name: ${file}`);
+      if (entry.isDirectory() && parts.length < KIT_DEPTH) walk(file, [...parts, entry.name]);
+      else if (entry.isFile()) {
+        bytes += statSync(file).size;
+        if (bytes > KIT_LIMIT) throw new Error('Run kit exceeds 8 MiB; keep briefs and receipts short, link the rest');
+        files.push({ parts: [...parts, entry.name], file });
+      } else throw new Error(`Run kit holds only text files in at most ${KIT_DEPTH} levels of folders: ${file}`);
+    }
+  };
+  walk(dir, []);
+  if (!files.length) return null;
+  const blobs = git(repository, ['hash-object', '-w', '--no-filters', '--stdin-paths'], `${files.map(({ file }) => file).join('\n')}\n`).split('\n');
+  const tree = (items) => {
+    const entries = [], folders = new Map();
+    for (const { parts, blob } of items) {
+      if (parts.length === 1) entries.push(`100644 blob ${blob}\t${parts[0]}`);
+      else folders.set(parts[0], [...(folders.get(parts[0]) ?? []), { parts: parts.slice(1), blob }]);
+    }
+    for (const [name, inner] of folders) entries.push(`040000 tree ${tree(inner)}\t${name}`);
+    return git(repository, ['mktree'], `${entries.join('\n')}\n`);
+  };
+  return tree(files.map(({ parts }, i) => ({ parts, blob: blobs[i] })));
 }
 
 /** The kit tree a checkpoint commit carries, or null. */

@@ -22,7 +22,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nextStep, phasePosition, readPhases } from './plan-run.mjs';
-import { instant, readProject } from './project-authorization.mjs';
+import { instant, phaseRow, readProject } from './project-authorization.mjs';
 import { kitDir } from './run-recovery.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,7 +34,7 @@ const nonempty = (s) => typeof s === 'string' && s.trim().length > 0;
 const sha = (s) => /^[a-f0-9]{40}$/.test(s ?? '');
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 // An optional field left empty disappears with the space before it.
-const EMPTY = '\u0000';
+const EMPTY = '';
 
 /** state.json, the run's one small state file. Unknown fields are the coordinator's to use. */
 export function checkState(state) {
@@ -70,12 +70,9 @@ export function initKit(wave, state) {
   return { kit, templates: KINDS.map((kind) => path.join(kit, 'templates', `${kind}.tmpl`)) };
 }
 
-function phaseOf(project, text, target) {
-  const phases = project?.phases ?? readPhases(text).map((title, i) => ({ id: String(i + 1), title }));
-  const phase = /^\d+$/.test(target) ? phases[Number(target) - 1] : phases.find((p) => p.id === target);
-  if (!phase) throw Error(`No phase "${target}": name its project id or its row number`);
-  if (!Array.isArray(phase.acceptance) || !phase.environment) throw Error(`Phase ${phase.id} has no acceptance or environment: a project phase needs both`);
-  return phase;
+function phaseOf(project, target) {
+  if (!project) throw Error('A phase brief needs a continuing project: its phases carry the acceptance and environment');
+  return project.phases[phaseRow(project.phases, target) - 1];
 }
 
 function parentOf(merge) {
@@ -102,7 +99,7 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
     if (!/^\d+$/.test(target)) throw Error('A fix brief names its issue number');
     Object.assign(fields, { N: target, SLUG: `fix-${target}`, BRANCH: `${prefix}-fix-${target}` });
   } else {
-    const phase = phaseOf(readProject(text), text, target), brief = phase.brief ?? {};
+    const phase = phaseOf(readProject(text), target), brief = phase.brief ?? {};
     Object.assign(fields, {
       PHASE: phase.id, TITLE: phase.title, PHASE_ENV: phase.environment, SPEC: phase.spec ?? state.spec ?? 'the plan\'s spec',
       SLUG: slug(phase.id), BRANCH: `${prefix}-${slug(phase.id)}-${kind}`,
@@ -125,7 +122,7 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
   const wrong = required.filter((key) => !nonempty(fields[key]) || fields[key] === 'none' || (['SOURCE', 'MERGE', 'PARENT'].includes(key) && !sha(fields[key])));
   if (wrong.length) throw Error(`A ${kind} brief needs ${wrong.join(', ')} (KEY=value; SOURCE, MERGE and PARENT are full 40-hex SHAs)`);
   const template = readFileSync(path.join(kitDir(wave), 'templates', `${kind}.tmpl`), 'utf8');
-  const out = template.replace(/@([A-Z_]+)@/g, (match, key) => fields[key] ?? match).replace(/ ?\u0000/g, '');
+  const out = template.replace(/@([A-Z_]+)@/g, (match, key) => fields[key] ?? match).replace(/ ?/g, '');
   const left = [...new Set(out.match(/@[A-Z_]+@/g) ?? [])];
   if (left.length) throw Error(`The ${kind} template has placeholders nothing fills: ${left.join(', ')}`);
   const file = path.join(kitDir(wave), 'briefs', `${fields.SLUG}-${kind}-${fields.NONCE}.txt`);

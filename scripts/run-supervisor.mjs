@@ -12,7 +12,7 @@ import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs
 import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, ownerReceipts, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
-import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { DAY_MS, digest, immutableProject, phaseRow, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { admitPhases, changeProject, checkAdmission, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
@@ -235,6 +235,7 @@ export function renewBlock(db, id, now = Date.now()) {
   if (!project.block) throw Error('No block was ever started; start-block opens the first one');
   const boundary = projectBoundary(project, now);
   if (!boundary) return { renewed: false, block: project.block };
+  if (boundary.action === 'blocked') throw Error(`A recorded wait blocks the project (${boundary.why}): resolve it with clear-wait and its evidence, then renew`);
   if (project.status !== 'active' || boundary.action !== 'paused') throw Error(`Project is ${boundary.action} (${boundary.why}); only the owner resumes it`);
   const deadline = new Date(Math.min(now + DAY_MS, Date.parse(project.authorization.deadline))).toISOString();
   updateRun(db, id, 'start-block', { owner: project.block.owner, deadline, evidence: `renewed under the owner's standing permission: ${words}` }, now);
@@ -253,11 +254,8 @@ export function publishCheckpoint(db, id) {
 
 /** A phase named by its 1-based `## Phases` row or by its project id (`p45-E8.2`, the id briefs use). */
 export function phaseNumber(db, id, phase) {
-  if (/^\d+$/.test(phase ?? '')) return Number(phase);
   const project = readProject(readFileSync(rowFor(db, id).doc.manifest.wave, 'utf8'));
-  const index = project?.phases.findIndex((p) => p.id === phase) ?? -1;
-  if (index < 0) throw Error(`No phase "${phase}": name its row number or its project phase id`);
-  return index + 1;
+  return project ? phaseRow(project.phases, phase) : Number(phase);
 }
 
 function acquire(db, id, now) {
@@ -548,8 +546,7 @@ export async function main(args = process.argv.slice(2), options = {}) {
     else if (command === 'renew') {
       if (!value) throw Error('renew needs the path to write the block receipt to');
       output = renewBlock(db, id);
-      const { id: blockId, owner, epoch, startedAt, deadline } = output.block;
-      writeFileSync(value, `${JSON.stringify({ id: blockId, owner, epoch, startedAt, deadline })}\n`);
+      writeFileSync(value, `${JSON.stringify(output.block)}\n`);
     }
     else if (command === 'publish') output = publishCheckpoint(db, id);
     else if (command === 'tick' || command === 'status') {

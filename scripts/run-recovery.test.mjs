@@ -185,14 +185,14 @@ test('the run kit rides in the checkpoint and a continued session gets it back',
   assert.equal(readFileSync(path.join(kitDir(continued.wave), 'templates', 'build.tmpl'), 'utf8'), 'PHASE @PHASE@');
 });
 
-test('a run kit with a deep folder or more than 1 MiB is refused before anything is pushed', (t) => {
+test('a run kit with a deep folder or more than 8 MiB is refused before anything is pushed', (t) => {
   const f = projectFixture(t), kit = kitDir(f.manifest.wave), head = git(f.remote, 'rev-parse', refOf(f));
   mkdirSync(path.join(kit, 'a', 'b', 'c'), { recursive: true });
   writeFileSync(path.join(kit, 'a', 'b', 'c', 'deep.txt'), 'too deep');
   assert.throws(() => publishCheckpoint(f.db, f.manifest.id), /two levels|2 levels/);
   rmSync(path.join(kit, 'a'), { recursive: true });
-  writeFileSync(path.join(kit, 'big.txt'), 'x'.repeat(1024 * 1024 + 1));
-  assert.throws(() => publishCheckpoint(f.db, f.manifest.id), /1 MiB/);
+  writeFileSync(path.join(kit, 'big.txt'), 'x'.repeat(8 * 1024 * 1024 + 1));
+  assert.throws(() => publishCheckpoint(f.db, f.manifest.id), /8 MiB/);
   assert.equal(git(f.remote, 'rev-parse', refOf(f)), head);
 });
 

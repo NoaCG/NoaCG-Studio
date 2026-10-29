@@ -284,6 +284,12 @@ test('an owner phase is handed over, never launched, and its build is recorded w
   const owed = nextStep(f.text(), NOW);
   assert.deepEqual([owed.action, owed.phase, owed.step, owed.id, owed.launched], ['owner', 2, 'build', 'accept', undefined]);
   assert.match(owed.why, /hand-over/);
+  // The coordinator waits on him: its quiet session is alive, not stopped, and still qualifies.
+  const armed = writeWake(f.text(), { host: 'fixture', session: 'coordinator', resume: '/never-run' });
+  const wake = wakeVerdict({ text: armed, now: NOW, stopped: () => ({ resetsAt: null }),
+    inventory: { available: true, rows: [{ sessionId: 'coordinator', pid: 100 }] } });
+  assert.deepEqual([wake.verdict, wake.why], ['alive', "session coordinator is waiting on the owner's phase 2"]);
+  assert.equal(preflight({ context: 'coordinator', wave: f.file, now: NOW, run: networkPass }).ok, true);
   f.record(2, 'build', { actor: 'owner', handover: 'issue comment' });
   assert.deepEqual([nextStep(f.text(), NOW).action, nextStep(f.text(), NOW).launched], ['owner', '{"actor":"owner","handover":"issue comment"}']);
   assert.throws(() => f.record(2, 'build', { actor: 'owner' }), /already launched/);
@@ -299,6 +305,10 @@ test('a phase is named by its row or its project id, never by a guess', (t) => {
   assert.equal(phaseNumber(f.db, f.p.id, '2'), 2);
   assert.equal(phaseNumber(f.db, f.p.id, 'accept'), 2);
   assert.throws(() => phaseNumber(f.db, f.p.id, 'E9'), /No phase "E9"/);
+  // A number that is one phase's id and another's row is refused, never guessed.
+  const numeric = fixture(t, (p) => { p.phases[0].id = '2'; p.phases[1].dependsOn = ['2']; return p; });
+  assert.throws(() => phaseNumber(numeric.db, numeric.p.id, '2'), /Ambiguous phase "2": it is the id of row 1 and also row 2/);
+  assert.equal(phaseNumber(numeric.db, numeric.p.id, 'accept'), 2);
 });
 
 test("a block renews only under the owner's standing permission, only after it ended, never after his pause", (t) => {
