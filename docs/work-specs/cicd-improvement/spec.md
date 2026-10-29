@@ -1,6 +1,6 @@
 # Faster delivery with credible site and graphics protection
 
-Status: prepared runnable-plan registration, 2026-10-28; full-run second opinion pending.
+Status: prepared registration revised after full-run opinion, 2026-10-29; execution not authorized.
 The owner authorized preparation and registration only. Implementation,
 experiments, workflow activation and changes to the production-page run are not. This is the
 master proposal for the work after production-page completion, integrating the
@@ -9,6 +9,8 @@ It does not silently supersede their active procedures. The proposed replacement
 Initial research is pinned to `d8dd1304910736437486d6f9f9cd9e401ac65589`; see
 [evidence and limitations](evidence/research.md). The [Opus opinion](evidence/opus-review-2026-10-28.txt) reviewed the original draft. Its findings and
 reported owner decisions are incorporated below; see the research receipt for disposition and limits.
+The [full-run opinion](evidence/full-run-opus-review-2026-10-29.txt) and
+[reconciliation](evidence/full-run-reconciliation.md) refine order, gating and continuation.
 The registered run name is `cicd-improvement`; its [runbook](runbook.md) defines admission, row
 scopes, environments and recovery. Registration is not authorization to open a runtime project.
 
@@ -36,8 +38,12 @@ are each insufficient to call a feature complete.
 - The owner accepted on 2026-10-25: daily detection for unrelated, non-critical regressions,
   after selection qualification. Critical offline flows and affected graphics contracts are the pre-merge target;
   shared rendering, export and playout changes still receive broad checks before merge.
-- Retain independent reviewers and acceptance. Opus returned AGREE WITH CORRECTIONS on 2026-10-28.
-  Approval of this revised draft and implementation admission remain pending.
+- Retain independent reviewers and acceptance. Opus returned AGREE WITH CORRECTIONS on the spec
+  and again on the full run. Acceptance of the revised intent and execution admission remain pending.
+- Owner decision, 2026-10-29: an independently proven pre-existing, unrelated test failure may
+  coexist with phase PASS only with attribution evidence and a tracking issue. Required merge
+  gates still apply. Failures in checks, selection or shared infrastructure changed by the phase
+  remain blocking; missing, pending and cancelled results are not exceptions.
 - Owner decision reported in that review: when a change touches the backend paths the configured
   specs declare, those specs run as a required pull-request check. The full configured suite stays
   post-landing, once per landing. This adds pre-merge protection that does not exist in the baseline.
@@ -122,8 +128,11 @@ the existing safe exemption. Cheap contract tests run on relevant changes. The i
 target for the small journey set is <=5 minutes of execution on existing Actions resources,
 measured separately from setup. This is a design target, not permission to truncate checks.
 Representatives do not certify every design, font, viewport, browser or physical playout device.
-Keep explicit qualification coverage for the boundaries they cannot prove. Physical playout devices
-remain a stated qualification limit and do not become an automated landing prerequisite.
+Keep explicit qualification coverage for the boundaries they cannot prove. A critical or affected
+check entering quarantine is an owned incident and a recorded coverage gap, not retained blocking protection.
+Use bounded repair and stop affected narrowing/expansion until faithful protection is restored.
+Physical playout devices remain a stated qualification limit and do not become an automated
+landing prerequisite.
 
 ## D3. Select affected graphics and behavior, conservatively
 
@@ -177,6 +186,10 @@ the corresponding activation phase has passed. Backend selection is a new requir
 Add a job inside ci.yml, reporting into its existing required CI gate. On PRs whose plan has the
 configured flag, run the specs selected by CONFIGURED_TRIGGERS against an isolated local stack,
 using shared configured-suite bootstrap/verdict logic and local default keys, without hosted secrets.
+Every configured spec must declare covers or a reviewed none-with-reason. The planner must emit
+an explicit selected-spec/case manifest, not just its current boolean. Edited specs still run;
+configured helpers, live configuration, shared setup, workflow/verdict changes and uncertain
+dependencies select the full configured set. Missing declarations or reports cannot select nothing.
 Expected cases/skips derive from the selected manifest. The gate accepts a skipped backend job only
 when the flag is off or the event is merge_group. Missing/failing triggered PR evidence cannot pass.
 Keep the full configured suite per landing. This intentionally leaves a gap between PR-base
@@ -195,8 +208,12 @@ precedes that verdict and document the existing incident/recovery path.
 | Exhaustive validation | Individually approved expensive combinations, qualification walks and whole catalog visual sweep | Unrelated, non-critical regression detection <=24 hours, with attributable range and owner |
 
 Daily cadence does not mean a cron launch is sufficient: completion must meet the 24-hour bound
-including queue/setup/execution. Schedule with margin and detect missed/incomplete runs. A known
-critical or affected test cannot be moved to daily merely because it is slow. Database durability,
+including queue/setup/execution, measured from each landing to a completed coverage verdict.
+Use the existing midday catalog pass with all designs as the first candidate, measure its whole
+battery cost, and qualify coverage of nightly-only contracts separately. Retain the existing
+schedule alarm and add oldest-uncovered-landing detection with repair margin. Cron start or
+`designs=all` alone is not proof of complete coverage. A known critical or affected test cannot
+be moved to daily merely because it is slow. Database durability,
 access boundaries and on-air correctness are critical. Moving exhaustive variants requires a
 named faithful pre-merge replacement, independent review and a maintenance receipt.
 
@@ -214,7 +231,8 @@ and preserve the necessary boundary. Source overlap and equal test counts do not
 First maintenance candidates come from the existing suite-budget inventory, remeasured after
 production-page completion: geometry cases currently booting the app; repeated playout setup;
 and overlapping editor qualification walks. Keep persistence/UI/packaged-output checks where
-those boundaries matter. Land three small maintenance changes with separate before/after data.
+those boundaries matter. Land three small maintenance changes with separate before/after data,
+moving none to scheduled cadence before qualification. Place them before remaining audit-window work.
 Every new feature extends an existing journey where possible and adds pure logic tests below it.
 
 ## D5. Preserve exact attribution while removing repeated work
@@ -266,34 +284,59 @@ deadline, and production-page completion. No start-after-software-only exception
 Initial success is judged on P0-P4 alone. D1 and scoped catalog target individual latency;
 dispatch isolation and P4 target throughput. Selector hardening and configured PR coverage add
 safety and may cost more. No combined measurement can establish which intervention helped.
-The reviewer proposed P4 depending only on P1(a); this draft additionally requires P1(b/c) so
-known safety gaps are not left open during expansion. These are technical prerequisites. The
-registered serial order below deliberately schedules P4 after P3, without adding scheduler behavior.
+P4 requires P1 selector/backend safety as well as dispatch isolation. The registered serial
+order now puts its measured cohort inside the observation window after maintenance and qualification
+work, before audit closure and activation. Missing authorized workload produces an honest pending
+assessment, not invented work, success or an automatic reorder.
 
 ## Phases
 
-The numbered list below is the sole executable order, parsed by the existing plan runner.
-Stable project row IDs are ci01-ci15. Each row depends on the preceding row's independent PASS.
-Acceptance scopes, owned edits and environments are the matching rows in [runbook.md](runbook.md).
-P0-P4 above remain programme labels, not a second phase inventory. No optional P5/P6 row is admitted.
+The numbered list is the sole executable order. Exact acceptance arrays, environments and stable
+IDs ci01-ci17 are in the [runbook](runbook.md); each phase depends on its predecessor PASS. No runtime
+has opened, so this replaces the prepared 15-row ordering before authorization.
 
 1. Baseline and launch-readiness evidence (P0; AC-1 baseline).
-2. Isolate configured candidate dispatches (P1a; AC-6 scheduling).
-3. Harden broad/shared and catalog selection (P1b; AC-4 broad/shared coverage).
-4. Harden path selection and execution integrity (P1b; AC-4 rename/fixture/focus cases).
-5. Require selected configured tests on triggered PRs (P1c; AC-6 backend coverage).
-6. Establish coherent review checkpoints (P1d; AC-2 mechanism and measurement start).
-7. Define critical/shared contract sets and start miss audit (P2; AC-3, AC-4 inventory).
-8. Prove scoped catalog report integrity (P3; AC-5 integrity).
-9. Qualify scheduled detection and recovery (P3; AC-5 daily deadline).
-10. Complete measured test-maintenance candidate one (P3; AC-5 first candidate).
-11. Complete measured test-maintenance candidate two (P3; AC-5 second candidate).
-12. Complete measured test-maintenance candidate three (P3; AC-5 third candidate).
-13. Close selection audit and activate qualified catalog scope (P2/P3; AC-4, AC-5).
-14. Complete the bounded three-plan cohort (P4; AC-6 trial).
-15. Independently accept initial scope and hand off (AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-8).
+2. Establish coherent review checkpoints (P1d; AC-2 measurement start).
+3. Isolate candidate dispatches and source identity (P1a; AC-6 scheduling).
+4. Harden broad/shared and catalog selection (P1b; AC-4).
+5. Harden path selection and execution integrity (P1b; AC-4).
+6. Require complete selected configured PR checks (P1c; AC-6).
+7. Define critical/shared sets and start the miss audit (P2; AC-3/AC-4 inventory).
+8. Complete measured test-maintenance candidate one (P3; AC-5).
+9. Complete measured test-maintenance candidate two (P3; AC-5).
+10. Complete measured test-maintenance candidate three (P3; AC-5).
+11. Prove critical contract fault detection (P2; AC-3).
+12. Prove scoped-catalog report integrity (P3; AC-5).
+13. Assess scheduled detection and recovery readiness (P3; AC-5).
+14. Measure the authorized three-plan cohort or record its absence (P4; AC-6).
+15. Independently accept audit and qualification evidence (P2/P3; activation gate).
+16. Activate qualified catalog scope or retain full protection (P3; AC-4/AC-5).
+17. Independently report initial outcomes and hand off (P0-P4).
+
+Rows with explicit assessment/no-activation outcomes can PASS only for an accurate, safe disposition.
+That does not pass unmet improvement criteria. In particular, row 15 is evidence-only independent
+qualification, and row 16 can narrow only after its qualified PASS on still-current receipts.
+Row 17 reports every AC as met, not met or pending. Initial success requires current independent
+acceptance and `work-spec converge` returning evidence-complete; otherwise report the run concluded
+with unmet/pending goals. Implementation failures retain the usual bounded repair rules.
 
 ## Optional follow-ups (not part of the initial implementation)
+
+### Preserved qualification requirements (formerly optional AC-7)
+
+Outside initial acceptance; applies only if P5/P6 are later admitted. Catalog daily-pass
+qualification is already required by AC-5 and cannot wait for this optional phase.
+
+Before activation, AC-3/4 pass, the capacity gate is live, policy reconciliation is approved and
+stale, missing-report, culprit/interaction and rollback drills pass. A relevant landing is covered
+by completed full validation within 60 minutes; approved unrelated non-critical exhaustive cases
+within 24 hours. Record every breach, not only percentiles. Drill overdue/incomplete validation,
+two interacting landings, a corrected successor masking an earlier defect, and a lost required
+exact result. None may be reported as an exact green by ancestry. Retain scheduled freshness and
+quarantine policy. Layer: orchestration fixtures and bounded live workflow drills.
+
+These requirements are outside the active acceptance headings. If later authorized, define their
+acceptance in that follow-up spec; do not create an optional open criterion in this initial record.
 
 Owner decision recorded by Opus on 2026-10-28:
 
@@ -348,8 +391,9 @@ or reverts the demonstrated culprit through the merge queue. Missing reports nev
 ## Observable acceptance criteria
 
 All criteria below are future implementation criteria. None is passed by this planning document.
-Initial acceptance comprises AC-1 through AC-6 and AC-8; AC-7 is reserved for optional P5/P6 and
-is excluded from initial completion. Future execution records must scope these IDs explicitly.
+Initial acceptance comprises exactly AC-1 through AC-6 and AC-8. Historical optional AC-7 is
+preserved as ordinary text above, so the existing convergence tool can close this initial record
+without falsely passing an optional criterion.
 
 ### AC-1: Baseline distinguishes delay from execution
 
@@ -387,9 +431,13 @@ copy/header cases first. Planner fixtures cover design dependency closure, share
 deleted paths, stale/incomplete traces, custom contexts, selector edits and combined merge groups.
 Malformed/missing reports and omitted selected cases fail. Start by replaying existing full-main failures retroactively against culprit plans. Existing
 selected and full runs are compared for at least two weeks after the last relevant selection correction;
-this is an audit inside P2, not a separate duplicate-run shadow phase. Replay
+the runbook defines reset classes: selector or header/list semantics, critical/shared membership,
+and mappings corrected after misses. Ordinary additive headers and trace refreshes are audited
+without automatic reset; changed protection or discovered misses may require one. This is an audit
+inside P2, not a separate duplicate-run shadow phase. Replay
 every full-run failure against its culprit's original PR/merge-group selection; investigate all
-misses, including faults classified as flakes. Zero unexplained misses is necessary, not completeness
+misses, including faults classified as flakes and quarantined critical/affected coverage gaps.
+Zero unexplained misses is necessary, not completeness
 proof. Layer: selector/verdict Node tests, defect replay and paired Actions evidence.
 
 ### AC-5: Maintenance preserves behavior and reduces measured work
@@ -414,7 +462,9 @@ entry is manufactured by a repair. Layer: focused tests, real rendered output an
 
 ### AC-6: Parallel validation keeps every required verdict
 
-Triggered configured PR cases execute exactly the selected manifest and feed the required CI
+All configured specs have valid coverage declarations or a justified none; edited specs and broad
+configured infrastructure changes cannot disappear from selection. Triggered configured PR cases
+execute exactly the selected manifest and feed the required CI
 gate. Missing reports, unexpected skips and failed selected tests fail the gate; an untriggered
 PR and merge-group event exercise the explicit skip cases. Full configured validation remains
 per landing. Observe the added PR time and the combined-tree detection gap.
@@ -427,22 +477,9 @@ matched serial completion rate and <=25% increase in category-matched median lat
 queue-to-landing p50 <=10 / p90 <=20 minutes. Report tails and unfinished rows. Layer: bounded Actions
 trial and independent plan acceptance. Small cohorts are operating evidence, not statistical proof.
 
-### AC-7: Optional cadence changes retain deadlines, attribution and recovery
-
-Outside initial acceptance; applies only if P5/P6 are later admitted. Catalog daily-pass
-qualification is already required by AC-5 and cannot wait for this optional phase.
-
-Before activation, AC-3/4 pass, the capacity gate is live, policy reconciliation is approved and
-stale, missing-report, culprit/interaction and rollback drills pass. A relevant landing is covered
-by completed full validation within 60 minutes; approved unrelated non-critical exhaustive cases
-within 24 hours. Record every breach, not only percentiles. Drill overdue/incomplete validation,
-two interacting landings, a corrected successor masking an earlier defect, and a lost required
-exact result. None may be reported as an exact green by ancestry. Retain scheduled freshness and
-quarantine policy. Layer: orchestration fixtures and bounded live workflow drills.
-
 ### AC-8: Gains persist within the existing resource envelope
 
-Judge initial success on P0-P4 only; optional AC-7 is not a completion requirement.
+Judge initial success on P0-P4 only; optional cadence/reuse follow-ups are not completion requirements.
 Report before/after per-change latency, completed work/hour and runner-minutes per accepted change,
 including failures, cancellation and unfinished work. Retain the suite-budget 85% warning / 95%
 exception policy against a reviewed fixed envelope based on current resources; extra shards do not
@@ -471,8 +508,8 @@ intentional safety cost of P1(b/c) separately from optimization savings. Layer: 
 
 ## Phase notes
 
-Planning only. Opus review received and reconciled on 2026-10-28. Current-state remeasurement,
-owner acceptance of the revised draft, implementation and all trials are pending.
-This spec is registered as a prepared plan with the 15 numbered rows above; its acceptance ledger
-is not a runtime execution store. No project/block has been opened. Add implementation receipts
-only after execution authorization; preparation verification is [recorded separately](evidence/run-readiness.md).
+Planning only. The original registration landed in PR #1799. The full-run opinion is reconciled
+on 2026-10-29 in the linked receipt. This revised preparation has 17 phases and seven active
+criteria. All implementation criteria remain open. No runtime project/block or worker is opened.
+Owner acceptance of revised intent, full production-page completion, finite execution authority
+and live continuation qualification are still required. Preparation tests never prove speedups.
