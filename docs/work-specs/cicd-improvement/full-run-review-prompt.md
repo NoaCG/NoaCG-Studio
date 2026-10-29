@@ -1,39 +1,31 @@
-# Full planned-run second opinion
+# Full planned-run follow-up opinion
 
 ```text
-Review the complete prepared NoaCG Studio CI/CD improvement run for readiness, safety and likely interruptions. This is a read-only second opinion. Do not implement, open a runtime project, launch workers, dispatch experiments, change settings or touch the production-page run.
+Review the revised NoaCG Studio cicd-improvement plan after the full-run AGREE WITH CORRECTIONS opinion. Read-only: do not implement, launch a project or workers, dispatch experiments, change settings or touch the production-page run.
 
-Repository: NoaCG/NoaCG-Studio. Plan name: cicd-improvement.
-Read the registration PR/branch supplied with this prompt, or current main only after confirming it contains that registration. The preparation branch is codex/cicd-master-plan. Pin the exact reviewed commit and document hashes; distinguish newer main from that reviewed source. If the documents are unavailable, ask for them rather than reviewing an older draft.
+Repository: NoaCG/NoaCG-Studio. Revision: use the supplied follow-up PR/commit on codex/cicd-run-readiness, or main only after confirming it contains that revision. The previous registered revision was c6fc146b8807f629645c980d75fa53735dd0453d, PR #1799. Pin exact reviewed source/hashes and distinguish current main. Ask for unavailable documents instead of reviewing an old draft.
 
-Read:
-- .agent-workflows/plan-run.md
-- docs/work-specs/cicd-improvement/spec.md
-- docs/work-specs/cicd-improvement/runbook.md
-- docs/work-specs/cicd-improvement/evidence/research.md
-- docs/work-specs/cicd-improvement/evidence/opus-review-2026-10-28.txt
-- docs/work-specs/cicd-improvement/evidence/run-readiness.md
-- docs/work-specs/continuing-plan-preparation/runbook.md
-- .agent-workflows/check.md, verify.md, queue-merge.md and cloud-delegate.md
-Inspect the existing runner, supervisor, authorization and relevant CI/selector code where needed to verify operational claims. Use the repository's second-opinion procedure; do not modify source or live state.
+Read docs/work-specs/cicd-improvement/spec.md, runbook.md, work.json, evidence/full-run-opus-review-2026-10-29.txt and evidence/full-run-reconciliation.md. Consult the original research and review where needed. Read current plan-run, check, verify, queue-merge, cloud-delegate and continuing-plan-preparation procedures. Inspect actual runner/recovery/authorization/convergence and CI/selection code to test operational claims.
 
-The owner authorized preparation and registration only. Implementation has NOT been authorized. No finite execution deadline has been given and no runtime project should exist for this preparation. Full production-page completion remains the start gate, including final owner/studio acceptance; starting after software phase 50 was suggested but not approved.
+Preparation only remains authorized. Full production-page acceptance, revised-intent acceptance, finite execution authority and live continuation qualification are launch gates. No runtime is opened. Seven active criteria are AC-1..AC-6 and AC-8; optional cadence/reuse requirements formerly called AC-7 remain ordinary optional text, outside initial convergence.
 
-Initial implementation is P0-P4 only, represented by 15 numbered executable rows. AC-1..AC-6 and AC-8 define initial acceptance. P5 batching, P6 automatic reuse and AC-7 are optional follow-ups, excluded from initial completion. The optional worker-backend pilot is also excluded. Selected configured tests on triggered PRs are included; full backend tests remain per landing, and merge groups intentionally skip that selected backend job. Check that this integration risk is stated honestly.
+The revised order has 17 serial phases with exact acceptance[] and environment strings in an authority-free array. Review guidance starts sampling early; maintenance precedes fault replay, scope integrity, scheduled coverage and the cohort. Independent evidence-only qualification is row 15; row 16 may activate only after qualified independent PASS on current receipts. Otherwise it records no activation. Accurate assessment/handoff PASS is explicitly distinct from achieving the improvement targets; initial success requires current work-spec convergence.
 
-Review the run as if you had to operate it without the original planner. Look for:
-1. Missing registration, invalid phase parsing, ambiguous row scope or acceptance, unsupported supervisor behavior, or a mismatch between spec, row details and eventual project metadata.
-2. Circular dependencies, oversized rows, incomplete stop/resume rules, or waits that would stall the plan unnecessarily. The runner is serial; it does not implement an arbitrary dependency graph.
-3. Whether the two-week audit is timed correctly after the last selection correction, without blocking useful implementation early or falsely passing on elapsed time alone. Can ten risky rows and three four-row plans actually be obtained from separately authorized useful work? No fabricated filler work or silent deadline extensions.
-4. Whether the selected backend PR gate, selector safety repairs, scoped-catalog integrity and 24-hour detection protections cover the concrete defects in the earlier Opus review. A midday scoped pass cannot certify cases it never ran. What could still silently pass without testing anything?
-5. Whether required exact-merge results survive supersession, moved refs, missing reports and lost dispatch acknowledgements. Are retries, quarantine, culprit attribution and repair ownership preserved?
-6. Whether coordinator/worker qualification, finite authorization, native result retrieval, block expiry, durable wakes and recovery survive laptop sleep, reclaimed workers, lost network, competing owners or a fresh session. Separate what source tests prove from what requires live qualification.
-7. Collision risks with production work, dependency updates, selectors, workflow files and test fixtures. Can other authorized work continue during the audit without invalidating measurements? Do not treat different filenames as semantic independence.
-8. Whether rollback can restore protection without reviving known selector bugs. Are safety increases in PR cost separated from optimization savings? Are product failures distinct from infrastructure waits?
-9. Whether initial completion correctly excludes optional AC-7 even though the existing full-record convergence tool lists it as open. No new ledger/framework or fake acceptance flags.
-10. Whether the smallest first implementation slice and the whole sequence are practical. Recommend removing unnecessary ceremony or splitting genuinely oversized work, not more speculative infrastructure.
+Owner decision on 2026-10-29: independently proven pre-existing unrelated failures may coexist with phase PASS only with attribution evidence and a tracking issue. Required merge checks still apply; failures in checks, selection or shared infrastructure changed by the phase remain blocking. Missing/pending/cancelled verdicts are not exceptions.
 
-Return AGREE, AGREE WITH CORRECTIONS or DISAGREE. Lead with any launch-blocking issue. For each issue give the exact file/section, a concrete interruption/failure scenario and the smallest correction. List missing owner decisions separately from operational choices the coordinator can make. Provide a corrected order only if necessary, what may run concurrently, and an honest readiness verdict: prepared, executable after named prerequisites, or still structurally blocked.
+Challenge:
+1. Were findings 1-6 and C1-C6 resolved without new infrastructure, new authority or weaker protection?
+2. Is expiry honest? Does it stop rather than silently reopen at phase 1? Can a separately authorized remaining-work spec preserve PASS receipts, pending identities and exhausted repair budgets without pretending automatic migration exists?
+3. Is the split qualification/activation gate effective? Try a not-qualified PASS, stale receipt, audit reset between rows, or unproved deadline.
+4. Is reset classification precise enough to avoid endless restarts while detecting real coverage-model changes? Do ordinary tests remain audited?
+5. Can existing convergence reach initial success without optional AC-7, while pending/failed goals and an accurate handoff cannot masquerade as success?
+6. Are coordinator home, real wake qualification, block rollover, known-date waits, usage limits, closure and dated owner-resume fallback explicit? No production-only credentials/session/deadline may be copied.
+7. Do configured header completeness, selected manifests and full escalation for helpers/setup/workflows cover the actual inventory? Verify counts rather than copying the review's snapshot.
+8. Does quarantine of critical or affected checks remain a visible owned coverage incident?
+9. Does all-design midday coverage actually include the required contracts? Check nightly-only omissions, per-landing completed coverage, later fixes masking defects, deadline alarms and real total cost.
+10. Can the three-plan sample run inside the clean window without invented work, unsafe overlap, rate-limit contention or false success? Does the no-wave policy create an owner scheduling issue before launch?
 
-Do not claim implementation acceptance from this review. State exactly what you inspected or tested and what remains unverified. Return the opinion to the owner for the master planning chat; do not send messages elsewhere or start the run.
+Retain prior decisions: hard 24-hour detection for unrelated non-critical regressions after qualification; selected backend PR tests and full backend tests per landing; explicit merge-group backend skip until separately changed; P5/P6 excluded. Deployment timing is still for P0 to measure, not an established fact.
+
+Return AGREE, AGREE WITH CORRECTIONS or DISAGREE. Lead with blocking issues, exact references, concrete failure scenarios and smallest corrections. Separate owner decisions from operational choices. State what you tested and what is unverified. Give an honest readiness verdict. Do not claim implementation acceptance or launch anything; return the opinion to the master planning chat.
 ```
