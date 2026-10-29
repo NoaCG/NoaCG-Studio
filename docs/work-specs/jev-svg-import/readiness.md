@@ -27,6 +27,18 @@ No individual Jev/Haiku/Luna provider key is required if all selected inference 
 Gateway route. Claude Code cloud subscription/session authorization is separate from model API keys.
 Listing a variable proves setup metadata, not billing, provider authorization or test success.
 
+## Preparation validation
+
+The 43 phase IDs, titles, dependencies, verbatim acceptance text and declared paths match the
+spec; work metadata passes structural inspection. All 26 product acceptance criteria remain
+open, and draft authority/review status is intentional. Whitespace validation passed.
+
+The repository command `npm run gates -- run --changed origin/main` did not complete in this
+workspace: contract-freshness reported 874 contract files, then its `git check-ignore --stdin`
+child remained pending for more than seven minutes. The check process was terminated; this is
+not a passing gate receipt. Diagnose or rerun this check in the qualified worker before accepting
+the planning branch. No product build or behavior tests were run for this documentation change.
+
 ## Fixed defaults that should not become overnight owner questions
 
 The spec fixes count-up/manual, duration/Take, target-time resolution, no-Lock/manual Reveal,
