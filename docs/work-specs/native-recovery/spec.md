@@ -1,5 +1,9 @@
 # Native recovery adapter qualification
 
+Continuing finite project authorization and current ownership refusals are defined in
+[continuing preparation](../continuing-plan-preparation/spec.md). This historical
+qualification evidence does not establish remote stale-owner fencing or cloud handoff.
+
 Authority: owner's continuation of #1301 from PR #1307. On 2026-10-17 the owner selected
 existing provider schedulers first; no hosted supervisor or infrastructure is authorized here.
 Parent: [cloud-execution](../cloud-execution/spec.md), AC-3/4/5. Context follow-up: #805.

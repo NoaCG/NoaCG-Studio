@@ -182,12 +182,14 @@ The rolling issue is self-closing, so it clears on the next healthy run - commen
 than closing it by hand, so the record says why it was open. safe-merge Phase 3 has the matching
 rule for a landing: a damaged Route A run is no run, so it falls through to Route B.
 
-## The serverless function budget (the >12 functions error)
+## The serverless function budget
 
-The Vercel **Hobby plan caps a deployment at 12 serverless functions**. Every file under
-`api/` that is not in `api/_lib/` (and not a `.test.ts`) becomes one function. In July 2026
-the api/ tree grew to 29 files and **every production deploy failed for days while the repo
-stayed green** - the wake-up call this runbook exists for.
+The account is on **Vercel Pro**, which has no 12-function cap; the repository keeps its own cap
+as deployment discipline: **13 functions** (`FUNCTION_CAP` in `scripts/check-function-budget.mjs`).
+Every file under `api/` that is not in `api/_lib/` (and not a
+`.test.ts`) becomes one function. On the earlier **Hobby plan** Vercel capped a deployment at 12:
+in July 2026 the api/ tree grew to 29 files and **every production deploy failed for days while
+the repo stayed green** - the wake-up call this runbook exists for.
 
 The historical fix was consolidation to **10 functions** via one catch-all per area;
 the unused admin function was retired in October 2026. Remaining catch-alls include
@@ -202,7 +204,7 @@ in its `_lib` router), never as a new top-level file, unless it genuinely needs 
 **`npm run check:function-budget` now counts them in the build gate**
 (`scripts/check-function-budget.mjs`), implementing Vercel's routing rule rather than an
 approximation: everything under `api/` is a function except paths with an `_` segment and
-`.d.ts` files. It prints the headroom on every build (10 of 12 today) and fails over the cap,
+`.d.ts` files. It prints the headroom on every build and fails over the cap,
 so the count cannot climb back to 29 unnoticed. `scripts/check-function-budget.test.mjs`
 tests the rule against a fixture tree, since `api/` alone only ever exercises today's shape.
 
@@ -213,7 +215,8 @@ tests the rule against a fixture tree, since `api/` alone only ever exercises to
   gate reproduces production. If a Vercel build dies with a TS error CI never saw (e.g.
   TS2550 on `.at()`), an api file is using a library surface newer than the root lib -
   fix the code, do not widen the lib.
-- **The function count** (above): "No more than 12 Serverless Functions" in the build log.
+- **The function count** (above): on the Hobby plan this was "No more than 12 Serverless
+  Functions" in the build log; on Pro the repository's own gate refuses first, in CI.
 - **An invalid route pattern in `vercel.json` leaves NO trace on Vercel at all.** Config is
   validated *before* a deployment is created, so there is no failed build, no deployment row,
   and a project page that looks idle and healthy - production just keeps serving the last

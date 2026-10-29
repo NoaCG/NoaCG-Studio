@@ -108,7 +108,9 @@ they work; drop it and the graphic still PLAYS but the studio cannot edit it.
   `--panel-bg`; the typeface through `--font-heading` (and `--font-numeric` where live numbers
   are set); every dimension is `calc(Npx * var(--scale))` and every font-size additionally
   `* var(--type-scale)`. Declare them in `:root` with your values; write no other hard-coded
-  colours. That is how the Style panel, brands and kits retint a graphic.
+  colours. That is how the Style panel, brands and kits retint a graphic. A production's Adjust
+  changes the typeface and each colour only where a rule paints with its variable, so a graphic
+  that wants them adjustable paints with the variables and ships a real `@font-face` for its face.
 - **The ANIMATION region.** All motion lives between these two EXACT markers in `template.js`:
   ```js
   /* == ANIMATION (generated — the Animation panel rewrites this block) == */
@@ -195,6 +197,17 @@ surface derives one from this list.
    send data must be able to change a fact, that fact is a field the runtime reads back on
    `update()`, and the button that changes it `set`s the same field. That is what keeps a
    generic OGraf host able to drive the graphic from data updates alone, with no return channel.
+
+**Prep or live, one rule.** A value that changes on air gets a declared control: a ⚡ button
+that `set`s, `adjust`s, `add`s or carries it, so the operator presses instead of retyping. A
+value typed before air is a prep field and needs no control: a question, a team name, a quiz
+show's "Answers shown", a clock's duration. Number fields get a ± stepper on their own, and an
+event off the default path whose payload is one dropdown of up to 8 options becomes one button
+per option. `noacg inspect` prints the result as LIVE and PREP; if LIVE holds only
+Take / Update / Next / Out, ask whether the brief has nothing that changes on air. `noacg
+validate` warns `controls-missing-live` when a declared live operation is unmet: an operator
+arrow whose event has no `machine.controls` entry, or a `set`/`adjust` naming a field the graphic
+does not have.
 
 **Parameterize with data, not states.** "Answer B selected" is ONE `selected` state plus a
 field - never four near-identical states. State counts stay small; data carries the variation.

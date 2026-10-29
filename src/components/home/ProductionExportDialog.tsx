@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { EXPORT_TARGETS } from '../../export/registry';
-import { downloadShowZipFor } from '../../export/showExport';
+import { CONTROLLER_TARGET, downloadShowZipFor } from '../../export/showExport';
 import { loadGraphics } from '../../model/library';
 import { loadPrefs, savePrefs } from '../../model/prefs';
 import { buildPack, packFileName } from '../../packs/graphicsPack';
 import { productionGateFailures } from '../../validation/productionGate';
 import type { Show } from '../../model/shows';
 import { useModalGate } from '../spaceKey';
+import { measureExportAppearances } from './exportAppearances';
+import { cueAdjusted } from '../../control/exportAppearance';
 
 /**
  * The production's TARGET PICKER (acceptance finding: "I wasn't able to choose the
@@ -40,14 +42,15 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
   // The export gate, per pool graphic, over the LIVE library template (what actually ships) -
   // THE SAME gate buildShowZipFor enforces (validation/productionGate.ts), so the dialog's
   // verdict and the builder's refusal can never disagree.
-  const blocked = useMemo(() => productionGateFailures(show.graphics, loadGraphics()), [show]);
+  const blocked = useMemo(() => productionGateFailures(show.graphics, loadGraphics(), targetId), [show, targetId]);
 
   const download = async () => {
     setBusy(true);
     setNote(null);
     try {
       savePrefs({ defaultExportTarget: targetId });
-      await downloadShowZipFor(show, targetId);
+      // Place and size are measured as the package will load each graphic, then baked.
+      await downloadShowZipFor(show, targetId, { appearances: await measureExportAppearances(show, targetId) });
       const label = EXPORT_TARGETS.find((t) => t.id === targetId)?.label ?? targetId;
       setNote(`✓ Exported the production as ${label}.`);
     } catch (e) {
@@ -106,6 +109,14 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
               </span>
             </label>
           ))}
+          {/* PLACE AND SIZE (playout adjustments, phase 1b): every package carries each graphic's
+              own; a cue's exception needs a controller that sends it, which only the overlay
+              package has, so the other targets say what they leave out before one is chosen. */}
+          {targetId !== CONTROLLER_TARGET && (show.cues ?? []).some(cueAdjusted) && (
+            <p className="status-warn" data-testid="prod-export-adjust">
+              A cue’s own place and size travels only in the HTML overlay package. This one carries each graphic’s.
+            </p>
+          )}
           <p className="hint">
             Every package also carries <strong>FIELDS.md</strong> — each graphic's fields with the
             ID a playout client sends them under (<code>f0</code>, <code>f1</code>, …).

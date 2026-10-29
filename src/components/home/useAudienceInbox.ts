@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Show } from '../../model/shows';
 import type { ObservableAudience } from '../../audience/audienceTypes';
-import { localAudienceFor } from '../../audience/localAudience';
+import { localAudienceFor, moveKeptMessages } from '../../audience/localAudience';
 import { createSupabaseAudience } from '../../audience/audienceData';
 import { isBackendConfigured } from '../../backend/config';
 
@@ -9,6 +9,30 @@ import { isBackendConfigured } from '../../backend/config';
  *  provider's own 4 s; a count in the header is a nudge, not the moderation surface, so it asks a
  *  third as often and costs a third of the requests. */
 const HEADER_READ_MS = 12_000;
+
+/**
+ * The production's inbox provider: a PUBLISHED production on a build with a backend reads its real
+ * inbox through its control slug, anything else the local provider (src/audience/localAudience.ts).
+ * One choice, shared by the header count, Messages and the cue editor's Fill, so none of them can
+ * read a different inbox.
+ */
+export function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'>): { live: boolean; backend: ObservableAudience };
+export function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'> | null): { live: boolean; backend: ObservableAudience | null };
+export function useMessagesBackend(show: Pick<Show, 'id' | 'name' | 'hostedSlug'> | null): { live: boolean; backend: ObservableAudience | null } {
+  const id = show?.id;
+  const name = show?.name ?? '';
+  const slug = show?.hostedSlug;
+  const live = Boolean(slug) && isBackendConfigured();
+  const backend = useMemo<ObservableAudience | null>(
+    () => (!id ? null : live && slug ? createSupabaseAudience({ controlSlug: slug }) : localAudienceFor(id, name)),
+    [live, slug, id, name],
+  );
+  // Published: the messages kept in this browser before publishing join the published inbox.
+  useEffect(() => {
+    if (live && id && backend) void moveKeptMessages(id, backend).catch(() => {});
+  }, [live, id, backend]);
+  return { live, backend };
+}
 
 export interface AudienceInbox {
   /** Submissions waiting in the inbox (status `new`): the header's "Audience 3". */
@@ -23,18 +47,12 @@ export interface AudienceInbox {
  * published production on a build with a backend reads its real inbox through its control slug,
  * anything else the in-memory rehearsal provider - so the count and the inbox cannot disagree.
  *
- * The rehearsal provider lives in this browser tab only, so on the Playout tab of an unpublished
- * production it is empty, and the count shows on the Audience view's own tab, where it is.
+ * On an unpublished production the local provider's operator-added messages are in browser
+ * storage and reach every tab of the production; its simulated rows live in one tab only, so they
+ * count only on the Messages view's own tab (src/audience/localAudience.ts).
  */
 export function useAudienceInbox(show: Pick<Show, 'id' | 'name' | 'hostedSlug'> | null): AudienceInbox {
-  const id = show?.id;
-  const name = show?.name ?? '';
-  const slug = show?.hostedSlug;
-  const live = Boolean(slug) && isBackendConfigured();
-  const backend = useMemo<ObservableAudience | null>(
-    () => (!id ? null : live && slug ? createSupabaseAudience({ controlSlug: slug }) : localAudienceFor(id, name)),
-    [live, slug, id, name],
-  );
+  const { live, backend } = useMessagesBackend(show);
   const [inbox, setInbox] = useState<AudienceInbox>({ waiting: 0, any: false });
   useEffect(() => {
     if (!backend) return;

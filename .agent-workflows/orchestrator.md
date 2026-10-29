@@ -2,8 +2,8 @@
 
 Shared procedure: `/orchestrator` (alias `/o`) in Claude Code, `$orchestrator` (alias `$o`) in
 Codex; translate `/check` and `/queue-merge` the same way. It drives day and night waves alike.
-Input: the owner's prompt/window. Route ordinary rows through `.agent-workflows/cloud-delegate.md`;
-keep device/private local tasks local. Each executing worker selects its own resources via verify.md.
+Input: the owner's prompt/window. Local work needs no exception; qualified cloud workers are optional.
+Follow `.agent-workflows/cloud-delegate.md`; keep device/private tasks local. Select resources via verify.md.
 
 ## Boundaries
 
@@ -33,7 +33,8 @@ can see becomes a row.
 - **Open the wave**: `node scripts/wave-plan-store.mjs --open <date> <day|night> --until <iso>`.
   It refuses a second open wave and a window over 24 hours, and prints the wave file: the prompt,
   the work list, one line per launch and result, and the report go there. After a restart, open
-  the same date and kind again. Arm the wake-up as in `plan-run.md` step 1 (`--resume orchestrator`).
+  the same date and kind again. Select native coordination and a qualified bounded wake/fallback
+  through cloud-delegate; reuse existing session IDs rather than launching again after reconnect.
 - **Read once**: the prompt; `docs/GOALS.md` headings and the `## Outcomes` rank line; the last
   retro (`## Report` in the last wave file, `node scripts/wave-plan-store.mjs --list`); the machine
   (step 3). Read code only to settle a planning question; each row does its own research.
@@ -49,8 +50,8 @@ Most important first, written in the wave file before the first launch:
 1. Everything the prompt asks for, in its order. Answers it carries from the owner's weekly session
    are recorded where they belong first.
 2. Then the backlog, which is GitHub Issues: `P1`, then `P2`, then `P3`, and within a priority by
-   `docs/GOALS.md` rank with `owner ask` first (`gh issue list --label P1 --limit 200 --json number,title,labels`).
-   Skip an issue that waits on the owner (`needs owner`, a decision, money, an account, his own
+   `docs/GOALS.md` rank with `requested` first (`gh issue list --label P1 --limit 200 --json number,title,labels`).
+   Skip an issue that waits on the owner (`needs decision`, a decision, money, an account, his own
    check), one labelled `later` or speculative, and one whose files a live worktree holds.
 
 **Solve at least as many problems as the wave creates**, so the open list does not grow. A few
@@ -80,11 +81,10 @@ stay modest; when they finish, add rows. Under the `Schedule:` line's launch flo
 own worktrees on `<tool>/<letter>-<name>`, letters A, B, C never repeating in a wave; log each
 launch in the wave file: letter, branch, goal, time.
 
-- **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row` (`wave-row-deciding`
-  for one expensive judgement with the evidence in hand, `wave-row-mechanical` for a written
-  recipe). Each finished row wakes you.
-- **Codex:** `git worktree add -b <branch> <path> origin/main`, then `spawn_agent` with the prompt
-  and that absolute path as the row's only working directory; `wait_agent` with a timeout.
+- Use cloud-delegate's available native launch/worktree tools and completion events; record
+  each row's native ID in the wave file. Verify its source, branch and absolute working directory.
+- **Claude Code:** preserve agent `wave-row` (`wave-row-deciding` for one expensive judgement
+  with evidence in hand, `wave-row-mechanical` for a written recipe), including in a Workflow.
 
 The prompt, about fifteen lines:
 
@@ -114,8 +114,8 @@ A row that fixes an issue puts `Closes #<n>` on its own line in a commit message
 what it checked. Left over: fix a follow-up yourself only when it is small and in the area you are
 already changing; anything else becomes a GitHub issue (`gh issue create`, with a priority, an area
 label and why it matters). Nothing speculative. No handoff file, no new doc unless it is the goal.
-Then /check and /queue-merge. End your report with the link to its next-session comment, not the
-comment's text. Do not wait for the landing after the coordinator acknowledges repair ownership (queue-merge.md).
+Then /check and /queue-merge. End your report with what is left, each
+with its issue. Do not wait for the landing after the coordinator acknowledges repair ownership (queue-merge.md).
 Never merge or push main, never touch another worktree, and leave nothing running.
 ```
 
@@ -129,15 +129,15 @@ Act when a row finishes or the timer fires, and at no other time:
   or cut a row short to fit one more: one finished, well-verified row beats two hurried ones.
 - Read `npm run jobs -- failed` (cloud: each row PR's GitHub checks and mergeability directly):
   each failed landing with its CI log. Acknowledge repair ownership before the worker ends.
-  That row, or one that ended without a PR, is sent the failure (Claude Code: SendMessage to the
-  row; Codex: `send_message`) and resumes in its own worktree. After two failed repairs, report it.
+  Send the failure to that row, or one that ended without a PR; steer/resume its original native
+  ID through cloud-delegate and confirm it resumed in its own worktree. After two failed repairs, report it.
   Another session's failed PR is that session's to repair; if no live session holds it, give it a row.
 - A row past twice the median with no result is reported, never killed; launch beside it only if
   the machine has room.
 
-Use queue-merge.md's proven cloud wake for late CI and base conflicts; jobs are not a cloud ledger. A timer covers a
-row that never reports: a background `sleep 1800` in Claude Code, re-armed while rows run; a
-30-minute heartbeat in Codex. End each turn with one line on what runs, never a promise to wait.
+Use queue-merge.md's proven cloud wake for late CI and base conflicts; jobs are not a cloud ledger.
+Native completions drive progress; cloud-delegate's single bounded wake/fallback covers a row
+that never reports. End each turn with one line on what runs, never a promise to wait.
 ## 5. End
 
 Stop launching when the next row would not land inside the window. When no row is running, wait
@@ -151,7 +151,7 @@ running at the window's end keeps running; the report says so.
 1. **Needs you**, first, each with the exact step, or "nothing".
 2. **Issues**: opened and closed in the wave, and open at its start and end; why each new one waits.
 3. **Shipped**: one line per pull request, what changed for a user and how it was verified.
-4. **Not done or not checked**: one line each, with its issue and its row's next-session link.
+4. **Not done or not checked**: one line each, with its issue.
 5. **Retro**: at most three findings and what was done about each.
 6. **The prompt**, last: one code block a fresh session uses to walk him through 1 and 4, linked.
 

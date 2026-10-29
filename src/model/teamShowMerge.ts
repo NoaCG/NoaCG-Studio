@@ -23,6 +23,11 @@
 // is settled at the end, whichever side each list came from, and a settle is reported as `gathered`:
 // nothing of either side was replaced by it, so it is never one of the `lost` fields.
 //
+// STOPPED SHEET READERS MERGE BY NAME (`ownReaderStops`, data-sources C6). Each name holds a graphic
+// whose output may still run its own reader, so a stop either side added is kept, and one goes only
+// when a side cleared it and the other still had it as in `base`. A binding the merge leaves on a
+// stopped graphic goes, as on a prepared field: two writers would write it.
+//
 // Pure - no storage, no clock beyond the stamp it is given - so the one place it can be wrong is
 // here, on a page of code. Its one runtime import is the folder rules, which are pure too; the `.ts`
 // is what lets Node resolve it.
@@ -40,9 +45,12 @@ const FIELD_LABEL: Record<string, string> = {
   playoutItems: 'the playout items',
   data: 'the production data',
   bindings: 'the field bindings',
+  sources: 'the data sources',
   profile: 'the control panel layout',
   look: 'the look',
   brandId: 'the brand',
+  lookApplied: 'the look being on',
+  ownReaderStops: 'the stopped Sheet readers',
 };
 
 /** Fields the merge never decides: the stamp is written fresh, and `teamId` is the server's. */
@@ -197,6 +205,12 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
   for (const key of keys) {
     if (IGNORED.has(key)) continue;
     if (same(o[key], b[key])) continue; // Our side did not touch it: theirs, already in `doc`.
+    if (key === 'ownReaderStops') {
+      const stops = mergeStops(b[key], o[key], t[key]);
+      if (stops.length > 0) doc[key] = stops;
+      else delete doc[key];
+      continue;
+    }
     if (same(t[key], b[key]) || same(t[key], o[key])) {
       // Only we changed it (or we both made the same change).
       if (o[key] === undefined) delete doc[key];
@@ -211,6 +225,7 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     }
     lost.push(FIELD_LABEL[key] ?? key); // Theirs stands; `doc` already holds it.
   }
+  keepCueExceptions(doc, b, o);
   // Whichever side the cues and the folders came from, and however they merged, each folder's cues
   // end up together where its first cue stands, and no folder is left empty or named by nobody.
   const settled = settleFolders((doc.cues ?? []) as NonNullable<Show['cues']>, doc.folders as Show['folders']);
@@ -219,6 +234,85 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     if (settled.folders.length) doc.folders = settled.folders;
     else delete doc.folders;
   }
+  const dropped = dropBindingsOnPreparedFields(doc as unknown as Show);
+  if ((dropBindingsOnStoppedReaders(doc as unknown as Show) || dropped) && !lost.includes(FIELD_LABEL.bindings)) {
+    lost.push(FIELD_LABEL.bindings);
+  }
   doc.updatedAt = at;
   return { doc: doc as unknown as Show, lost, gathered: settled.changed };
+}
+
+/**
+ * A CUE'S PLACE AND SIZE EXCEPTION IS NEVER DELETED BY A MERGE (playout adjustments, "Promotion is
+ * one saved operation"). A promotion writes the graphic's default and clears the cue's exception in
+ * one write, but this merge is per whole item: a teammate's concurrent edit of the same pool entry
+ * keeps their entry (the old default) while our cue (its exception cleared) goes in. Where our side
+ * cleared a cue's exception and the default it moved onto did not survive, the exception comes back
+ * as it was: left equal to the default at worst, counted on the page, and cleared by one press.
+ */
+function keepCueExceptions(doc: Record<string, unknown>, base: Record<string, unknown>, ours: Record<string, unknown>): void {
+  type Entry = { id: string; sourceId?: string; adjust?: unknown };
+  const list = (v: unknown): Entry[] => (Array.isArray(v) ? (v as Entry[]) : []);
+  const cues = list(doc.cues);
+  if (!cues.length) return;
+  const baseCues = new Map(list(base.cues).map((c) => [c.id, c] as const));
+  const ourCues = new Map(list(ours.cues).map((c) => [c.id, c] as const));
+  const graphicIn = (v: unknown, id: string | undefined) => list(v).find((g) => g.id === id);
+  let changed = false;
+  const next = cues.map((cue) => {
+    const was = baseCues.get(cue.id)?.adjust;
+    const mine = ourCues.get(cue.id);
+    if (cue.adjust !== undefined || was === undefined || !mine || mine.adjust !== undefined) return cue;
+    const defaultBase = graphicIn(base.graphics, cue.sourceId)?.adjust;
+    const defaultOurs = graphicIn(ours.graphics, cue.sourceId)?.adjust;
+    const defaultKept = graphicIn(doc.graphics, cue.sourceId)?.adjust;
+    if (same(defaultOurs, defaultBase) || same(defaultKept, defaultOurs)) return cue;
+    changed = true;
+    return { ...cue, adjust: structuredClone(was) };
+  });
+  if (changed) doc.cues = next;
+}
+
+/** Stopped readers by name: kept when either side has it, unless one side cleared it from `base`
+ *  while the other left it as it was. */
+function mergeStops(base: unknown, ours: unknown, theirs: unknown): string[] {
+  const list = (v: unknown) => new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  const b = list(base);
+  const o = list(ours);
+  const t = list(theirs);
+  return [...new Set([...t, ...o])].filter((name) => (o.has(name) && t.has(name)) || !b.has(name));
+}
+
+/** A binding on a graphic whose stopped reader may still run on the published output: dropped,
+ *  whichever side made it (`ownReaderStops`, read only while published). True when one went. */
+function dropBindingsOnStoppedReaders(doc: Show): boolean {
+  const stops = doc.hostedSlug ? (doc.ownReaderStops ?? []) : [];
+  if (!doc.bindings || !stops.some((name) => doc.bindings![name])) return false;
+  const bindings = Object.fromEntries(Object.entries(doc.bindings).filter(([graphic]) => !stops.includes(graphic)));
+  if (Object.keys(bindings).length > 0) doc.bindings = bindings;
+  else delete doc.bindings;
+  return true;
+}
+
+/**
+ * A PREPARED CUE OWNS ITS VALUES (docs/work-specs/audience-flow/spec.md AC-6). Each side checked
+ * the rule on its own copy (`preparedMessageField` in model/shows.ts), but one side's prepared cue
+ * and the other's binding on the field it filled merge as two unrelated fields. The binding is the
+ * one live route into the approved text, so it goes, whichever side made it. True when one went.
+ */
+function dropBindingsOnPreparedFields(doc: Show): boolean {
+  if (!doc.bindings) return false;
+  let dropped = false;
+  const bindings: NonNullable<Show['bindings']> = {};
+  for (const [graphic, fields] of Object.entries(doc.bindings)) {
+    const ids = new Set(doc.graphics.filter((g) => g.name === graphic).map((g) => g.id));
+    const prepared = new Set((doc.cues ?? []).filter((c) => ids.has(c.sourceId)).flatMap((c) => c.stagedFrom?.fields ?? []));
+    const kept = Object.fromEntries(Object.entries(fields).filter(([field]) => !prepared.has(field)));
+    if (Object.keys(kept).length !== Object.keys(fields).length) dropped = true;
+    if (Object.keys(kept).length > 0) bindings[graphic] = kept;
+  }
+  if (!dropped) return false;
+  if (Object.keys(bindings).length > 0) doc.bindings = bindings;
+  else delete doc.bindings;
+  return true;
 }

@@ -6,6 +6,71 @@ just another data source. The draft spec built from this is
 `docs/work-specs/data-sources/spec.md`. The owner answered its decisions DS1-DS20 on 2026-10-17 by
 accepting every recommendation, and asked for a second opinion before the phases are planned.
 
+**Second opinion, 2026-10-17:** [the follow-up](second-opinion.md) checks the code independently,
+reads primary documentation directly, supplies six starter layouts, and proposes scoped
+connections, explicit list formats and a smaller operator workflow. Its proposals shaped the
+candidate that the two reviews below then reconciled. Original owner answers stay recorded;
+the reconciled changes were agreed on 2026-10-18 (§7 of the synthesis). The source-access note
+below describes this first research pass only.
+
+## Latest owner direction and full-plan review, 2026-10-17
+
+The owner has now accepted the recommendations for inclusion in the plan and clarified the
+main message use case: paste a message from anywhere, or select one from a Sheet, preview it in
+a graphic and put it on air deliberately. Separate Data/Audience systems are not required.
+YouTube is useful now; Twitch is an optional future extension. Live chat and ordinary video
+comments must be qualified separately; current `src/audience/youtubeChat.ts` handles live chat.
+
+The current specs now separate where content arrives from how it is used. A Sheet may feed a
+live ticker or message candidates; candidate refresh never rewrites an approved cue. Native
+paste and Sheet messages work without native X/SMS/WhatsApp connectors. Message identity,
+revisions, local persistence, compatible targets and reliable staging are explicit criteria.
+The initial answers and research below are historical wherever this direction supersedes them.
+
+[Paste-ready independent review prompt](external-review-prompt.md). Give the same brief to each
+reviewer separately before sharing other opinions. It includes the owner's outcomes, all 26
+phases, constraints, source paths and a requested review structure. It asks for an independent
+model first and permits replacing the proposed design.
+
+**Reviews received and reconciled, 2026-10-17.** Two independent reviews of PR #1390 at
+`7313cd8` are stored as received in `reviews/`. The decision record
+[synthesis-2026-10-17.md](synthesis-2026-10-17.md) checks their claims against the code,
+reconciles them in one table, and rewrites the four specs into one proposal: the cue editor as
+the home of "Fill from…" and "Connect…", paste landing first, three refactor phases in this
+window, destination hygiene instead of snapshot flags, a browser-led Sheet reader with a server
+tick, five format adapters, browser-side YouTube. On 2026-10-18 the owner answered all four
+decisions yes (decision 4: yes to both); its §7 records the answers. The parent, Sheet and message
+specs carry the agreed result. The owner explicitly instructed not to start the plan run.
+
+The full-plan read raised these questions before the reviews; the synthesis answered each:
+
+- Which refactor extractions the content work needs. Answer: phases 1, 2+7 and a props-only
+  cue editor move; the rest wait for a later window.
+- Whether the manual message result, then scheduled as phase 23 after feed and API work, could
+  come earlier. Answer: first, as content phase C0, a declared feature change before phase 1.
+- How the continuation is verified, since the parent's §6 matrix covers only 1-14. Answer: the
+  data-sources spec carries a matrix for C0-C7 and track Q, with file names.
+- How navigation, source kind, use and storage relate. Answer: the cue editor is the home; one
+  source feeds bindings, the inbox, or both; no new store.
+- How a competing binding is kept off a prepared message. Answer: destination hygiene at both
+  doors, proved with two cues on one graphic and a binding attempted before and after.
+- What YouTube scope is real. Answer: browser-side comments and live chat with the operator's
+  key, receipts from track Q before anything is promised.
+
+No code, migration, browser walkthrough, provider trial or implementation phase was run in this
+update or in the reconciliation. The owner agreed the continuation on 2026-10-18 and authorized
+`/check` and queue-merge of the planning PR #1390. Starting the parent run remains a separate
+owner instruction; no run starts from this documentation update.
+
+## Earlier research and follow-up corrections
+
+Corrections from the follow-up: standings need a separate column-header update; blank credit
+rows can be section breaks; a CSV read does not discover other tabs. Google's import help names
+only IMPORTDATA/HTML/XML in its hourly-while-open sentence, while its settings page separately
+lists IMPORTFEED as hourly. IMPORTRANGE's own page says hourly checks while open as well as
+describing reload behavior; the settings page still says 30 minutes. A database scheduler is not
+itself a durable chat listener. `DATA_API.md`'s two stale lines are noted in §1.2 below.
+
 **How the outside facts were read.** The cloud environment's network policy denied the hosts
 (support.google.com, developers.google.com, rssboard.org, dev.twitch.tv, owasp.org), so no page
 was opened directly. Each outside claim comes from a search engine's extract of the cited page
@@ -85,10 +150,10 @@ shows the value in its preview, Take airs it, and the cue never stores its own c
 
 **What makes it unclear.** No screen says what the API is for, which names it may send, or when
 it last wrote. The public guide (`/docs#data-api`) leads with the graphic-addressed `/update`,
-the opposite of the plan's own advice (`PRODUCTION_DATA_PLAN.md` §1). `DATA_API.md` still says
-"Not a read API, yet" though `/state` exists, and still tells the owner to read the key from SQL
-though the Data tab shows it. Binding needs paths, and pushing needs an account and a developer
-(the 2026-10-16 walk, `sheet-data-flow` problem 4).
+the opposite of the plan's own advice (`PRODUCTION_DATA_PLAN.md` §1). `DATA_API.md` said "Not a
+read API, yet" though `/state` exists, and told the owner to read the key from SQL though the
+Data tab shows it; both lines were corrected on 2026-10-17. Binding needs paths, and pushing
+needs an account and a developer (the 2026-10-16 walk, `sheet-data-flow` problem 4).
 
 ### 1.3 How a list reaches a ticker today
 
@@ -202,7 +267,7 @@ Google pages are under `support.google.com/docs/answer/` unless named.
 
 The owner's belief that import formulas refresh about hourly is right for IMPORTFEED, IMPORTXML,
 IMPORTHTML and IMPORTDATA, and the refresh is documented only while someone has the sheet open.
-Whether NoaCG reading the CSV export counts as "open" is unknown [unverified]; phase 15 can test
+Whether NoaCG reading the CSV export counts as "open" is unknown [unverified]; track Q can test
 it. So a sheet that pulls a feed or a web table by formula is right for slow lists (a schedule, a
 standings table updated after each match) and wrong for anything live. Scripts and automation
 tools add a minute or more and run on quotas. A score typed into a sheet is possible but slower
@@ -395,7 +460,7 @@ twenty decisions, answered as recommended. A Sheet driving a ticker is also the 
 ## 7. What was not verified
 
 - How soon a Sheet edit shows in the export, and how long Google lets one reader read every 5 s:
-  data sources phase 15 (sheet phase 1) measures both.
+  track Q of the data-sources spec measures both.
 - Whether reading the export makes import formulas refresh as if the sheet were open.
 - How many real feeds send conditional-request headers, and how many allow browsers.
 - Other tools' behaviour on a failed read (whether they keep the last good data), and a few of

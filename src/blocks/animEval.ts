@@ -1,5 +1,5 @@
-// Timeline v2 — the editor-side playhead value resolver (docs/TIMELINE_V2_PLAN.md,
-// decision 11). Deliberately the ONLY timeline logic duplicated from the runtime interpreter,
+// Animation data: the editor-side playhead value resolver (docs/STATE_MACHINE_SCHEMA.md,
+// Animation steps and runtime hooks). Deliberately the ONLY timeline logic duplicated from the runtime interpreter,
 // and deliberately tiny: the preview iframe runs the real interpreter for everything
 // that plays; this resolver answers "what is this property at (step, t)" for the
 // Inspector, the timeline's static rendering and exact splits. The CURVE is not duplicated:

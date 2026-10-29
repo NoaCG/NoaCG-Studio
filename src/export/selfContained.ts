@@ -12,7 +12,7 @@ import lottieSource from '../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isFontAsset } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
 import { inlineBundledFonts } from './bundledFonts';
-import { fontLicenseComment } from '../model/fonts';
+import { fontLicenseComment, upgradeFontCss } from '../model/fonts';
 import type { SpxTemplate } from '../model/types';
 import { flexGapShimTag } from '../assets/flexGapSupport';
 import { appendToBody, injectProjectFormatMeta } from './common';
@@ -40,7 +40,7 @@ export async function composeSelfContainedHtml(
   template: SpxTemplate,
   extraBodyScripts: TargetScript[] = [],
 ): Promise<string> {
-  template = { ...template, js: prepareOutRuntime(template.js) };
+  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
   // Inline uploaded assets (images/foo.png -> data URL) in markup and styles.
   // `inset` becomes longhands: a CasparCG 2.3 loads this file into Chromium 71 (assets/cssCompat.ts).
   let html = expandInsetInMarkup(injectProjectFormatMeta(inlineAssetRefs(template.html, template.assets), template))

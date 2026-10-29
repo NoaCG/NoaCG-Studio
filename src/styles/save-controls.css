@@ -30,6 +30,9 @@
    (the button's primary/quiet styling still signals dirty vs saved). */
 @media (max-width: 1120px) {
   .save-status { display: none; }
+  /* Keep the format warning at narrow widths as an icon with its full accessible label. */
+  .save-status.save-status-warn { display: inline; font-size: 0; }
+  .save-status-warn::before { font-size: 10.5px; }
 }
 .save-btn { white-space: nowrap; }
 .save-menu-btn { padding: 4px 6px; }

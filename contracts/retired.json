@@ -64,6 +64,27 @@
       "since": "2026-10-08",
       "replacement": "a routine writes no file: it ends with one prompt the owner pastes into his next wave, and the weekly session's prompt carries his answers for that wave to record (`docs/ROUTINES.md`)",
       "why": "Files a routine wrote stayed on disk after they were acted on, and a script had to parse them. A prompt is acted on at once and leaves nothing behind."
+    },
+    {
+      "name": "the old code editor shell",
+      "pattern": "\\b(AppShell|WorkspaceDock|CodeEditor|SidePanel)\\b|src/teach/",
+      "since": "2026-10-17",
+      "replacement": "the new editor (src/components/editorFoundation/), the wizard's Finish doors and Home's control page; the video workspace keeps its own code pane (src/components/video/VideoCodeEditor.tsx)",
+      "why": "No route, door or setting had opened AppShell since 2026-09-24 (root/render-old-code-editor-route-never), and docs/work-specs/codebase-lean/spec.md retires the shell, its dock, its Monaco pane and its teaching layer as the first of the old editor's deletions. A contract that still instructs one of them instructs code that is gone."
+    },
+    {
+      "name": "the old editor's timeline dock, canvas and preview stage",
+      "pattern": "\\b(PreviewFrame|CanvasInteraction|CanvasSelection|StepTimeline|LegacyTimeline|MachineGraph|PlayoutSimulator|ProjectFormatMeta|layerTimeline|stepAssign)\\b|src/components/timeline/|canvas/pasteboard|canvas/partLocks",
+      "since": "2026-10-17",
+      "replacement": "the new editor (src/components/editorFoundation/: its stage, timeline, Inspector and keys) and the preview composer (src/preview/composeDocument.ts); the video workspace keeps CanvasGuides and its own stage",
+      "why": "The second deletion of docs/work-specs/codebase-lean/spec.md: the old editor's step timeline, machine graph, legacy chart, Inspector, playout simulator, canvas gestures, selection, pasteboard, part locks and preview stage (thirteen files) were reached only through the deleted AppShell. A contract that still instructs one of them instructs code that is gone."
+    },
+    {
+      "name": "the old editor panels and unmounted system notice",
+      "pattern": "\\b(AIPromptPanel|SampleDataPanel|SpxFieldRow|ModerationPanel|SystemNoticeBar)\\b|\\b(ControlPanel|ExportPanel|StylePanel)\\.tsx\\b|backend/systemNotice",
+      "since": "2026-10-18",
+      "replacement": "the current editor Project and Assets surfaces, wizard, ExportSurface, graphic control page, production page and live video controls",
+      "why": "The approved panels group in docs/work-specs/codebase-lean/spec.md removes seven panels reached only through the deleted graphics shell and the unmounted system-notice reader/bar after admin retirement. Keep the current shared field control, exports, data blocks and account enforcement."
     }
   ]
 }

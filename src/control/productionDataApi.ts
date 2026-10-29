@@ -64,8 +64,22 @@ export async function fetchProductionData(key: string): Promise<ProductionDataSt
  * caller should hold - never the object it hoped for. A feed tick that landed in the same
  * moment is already merged into that answer, so the operator's surface cannot silently
  * overwrite it.
+ *
+ * With `ownerShowId` it is the OWNER's own edit on the Data view, and it goes through
+ * `control_data_owner_patch` (migration 0100) rather than the data key: the owner is not Another
+ * system, so the edit airs while Another system is paused and is never counted as its receipt.
+ * A database that has not run 0100 yet has no such function, and then the key's door is used as
+ * before.
  */
-export async function patchProductionData(key: string, patch: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function patchProductionData(key: string, patch: Record<string, unknown>, ownerShowId?: string): Promise<Record<string, unknown>> {
+  if (ownerShowId) {
+    const sb = await getSupabase();
+    if (sb) {
+      const { data, error, status } = await sb.rpc('control_data_owner_patch', { p_show: ownerShowId, p_patch: patch });
+      if (!error) return ((data as { data?: Record<string, unknown> } | null)?.data ?? {});
+      if (error.code !== 'PGRST202') throw rpcFailure('control_data_owner_patch', error, status);
+    }
+  }
   const response = await fetch('/api/data/patch', {
     method: 'PATCH',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
@@ -118,4 +132,34 @@ export async function fetchProductionDataBySlug(slug: string): Promise<Productio
   if (error || !data) return null;
   const body = data as { data?: Record<string, unknown>; bindings?: Record<string, Record<string, string>> };
   return { data: body.data ?? {}, bindings: body.bindings ?? {} };
+}
+
+// ── Another system's Pause and receipt (data-sources C5, migration 0100) ─────
+
+/** What the "Another system" card shows: whether the API is paused and when it last wrote. */
+export interface AnotherSystemState {
+  paused: boolean;
+  receivedAt: string | null;
+}
+
+/** The owner's own row, read over RLS like the key. Null when it cannot be read: no backend, not
+ *  published, or a database that has not run 0100 yet (the card then offers no Pause). */
+export async function readAnotherSystem(showId: string): Promise<AnotherSystemState | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const { data, error } = await sb.from('control_shows').select('data_paused, data_received_at').eq('id', showId).maybeSingle();
+  if (error || !data) return null;
+  const row = data as { data_paused: boolean | null; data_received_at: string | null };
+  return { paused: row.data_paused === true, receivedAt: row.data_received_at ?? null };
+}
+
+/** Pause or Resume what the data key sends, on the control slug. Resume appends the final values
+ *  once, in the database; the answer says how many graphics it moved. */
+export async function setAnotherSystemPaused(slug: string, paused: boolean): Promise<{ paused: boolean; writes: number }> {
+  const sb = await getSupabase();
+  if (!sb) throw new Error('This production is not connected to a backend.');
+  const { data, error, status } = await sb.rpc('control_data_pause_by_slug', { p_slug: slug, p_paused: paused });
+  if (error) throw rpcFailure('control_data_pause_by_slug', error, status);
+  const body = (data ?? {}) as { paused?: boolean; writes?: unknown[] };
+  return { paused: body.paused === true, writes: Array.isArray(body.writes) ? body.writes.length : 0 };
 }

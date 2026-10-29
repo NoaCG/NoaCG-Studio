@@ -13,6 +13,7 @@
 // The waiting-packages list on Productions: offline it must grow nothing (pack-import.spec.ts);
 // the live half - send, list, Install, Dismiss - is e2e/configured/agent-access.spec.ts.
 // covers: src/backend/agentPackages.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';

@@ -11,7 +11,15 @@
 // test follows the clip clock a panel counts down while a server clip plays, with NoaCG Bridge and
 // CasparCG faked at the network layer (e2e/_fakeBridge.ts) and only the relay real.
 // covers: src/components/home/ProductionPage.tsx, src/components/control/PanelControl.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/control/panelRelay.ts, src/control/panelFeedback.ts, src/control/serverPlayoutStore.ts
+// covers: src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/ProductionShell.tsx
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 
 import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from '../_durable';
@@ -75,6 +83,13 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   expect((afterTake.allowed as Json).out).toBe(true);
   expect((afterTake.allowed as Json)['all-out']).toBe(true);
   console.log(`a relayed Take on the production page: press call to the page's result in ${take.ms} ms`);
+  // UI FRESHNESS (production-page refactor §7, phase 13b): with the page no longer redrawing as the
+  // operator types, what it answers the panel after typing into the on-air cue still offers ✎ Update.
+  expect((afterTake.allowed as Json).update).toBe(true);
+  await op.getByTestId('cue-field-f0').pressSequentially('!');
+  await expect(op.getByTestId('cue-unsent')).toContainText('1 change not on');
+  await expect(op.getByTestId('verb-update')).toBeEnabled();
+  expect(((await deck.state()).allowed as Json).update).toBe(true);
 
   // A REPEATED press id runs nothing: Anna stays up, not taken off by a second toggle.
   const again = await deck.press('take', anna, annaSelected.ver as number, take.id);

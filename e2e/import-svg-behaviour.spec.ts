@@ -1,4 +1,5 @@
 // covers: src/control/**, src/templates/**, src/components/wizard/import/**, src/assets/**
+// covers: src/export/showExport.ts, src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx, src/components/ExportWindow.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // The two walks that drive a CasparCG package's own operator page live with the imported
@@ -49,7 +50,7 @@
 // covers: docs/svg-samples/**
 
 import { test, expect, type BrowserContext, type FrameLocator, type Page, type Route } from '@playwright/test';
-import { switchToAdvancedMode } from './_create';
+import { finishIntoNewEditor, openExportWindow } from './_create';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -151,6 +152,17 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
 
   await intoProduction(page, 'Match scorebug', 'Saturday Match');
   await settleDurableWrites(page);
+
+  // The artwork draws its own type and fills, so Adjust offers place and size and says what else
+  // it does in one line, with no Type or Colour row that would change nothing (playout-adjustments
+  // spec AC-10). Closed again, so the pack's frames below are unchanged.
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('adjust-place')).toBeVisible();
+  await expect(page.getByTestId('adjust-larger')).toBeVisible();
+  await expect(page.getByTestId('adjust-style-none')).toHaveText('Type and colour: as designed (imported artwork)');
+  await expect(page.getByTestId('adjust-type')).toHaveCount(0);
+  await expect(page.getByTestId('adjust-colour')).toHaveCount(0);
+  await page.getByTestId('cue-adjust-toggle').click();
 
   // The scores arrived as NUMBER fields, so the panel offers them as steppers — the generic
   // control model doing it, with nothing in this template asking for it.
@@ -466,10 +478,9 @@ test('imported quiz: drawn layers are proposed from their names, and the operato
   await expect(actions).toContainText('Reveal correct');
   await expect(actions).not.toContainText('audience');
 
-  // Set the answer key and the pick, then take it to air.
+  // Set the answer key, then take it to air; the pick is one press once it is live.
   // Few enough options that the control model renders a segmented picker rather than a select.
   await page.getByTestId('cue-field-f5-opt-C').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
 
@@ -478,7 +489,7 @@ test('imported quiz: drawn layers are proposed from their names, and the operato
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const lit = () => air.locator('.imported-design-look.imported-design-on');
 
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await expect(lit()).toHaveCount(1);
   await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await shot(page, '4-quiz-selected');
@@ -489,7 +500,7 @@ test('imported quiz: drawn layers are proposed from their names, and the operato
   await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await shot(page, '5-quiz-locked');
 
-  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   // C is the key: its row lights, the other three take the wrong treatment.
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
   for (const row of ['A', 'B', 'D']) {
@@ -580,7 +591,6 @@ test('switches and a choice: hidden layers named show: and choice: get their own
   await expect(actions).toContainText('Live');
   await expect(actions).toContainText('Replay');
 
-  await page.getByTestId('cue-field-f4-opt-A').click(); // the pick
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
@@ -607,7 +617,7 @@ test('switches and a choice: hidden layers named show: and choice: get their own
   await dark('choice.status.option/LIVE');
 
   // …and the quiz still selects beside them: composition changed nothing about the arc.
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-A').click();
   await lit('answer.selected/A');
   await lit('choice.status.option/REPLAY');
   await shot(page, '26-quiz-with-switch-and-choice');
@@ -630,7 +640,6 @@ test('an undrawn quiz moment wears NoaCG’s own look, and a drawn one replaces 
   await intoProduction(page, 'Plain quiz', 'Quiz Night');
   await settleDurableWrites(page);
   await page.getByTestId('cue-field-f5-opt-C').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
 
@@ -638,7 +647,7 @@ test('an undrawn quiz moment wears NoaCG’s own look, and a drawn one replaces 
   const made = (token: string) => air.locator(`[data-noacg-default="${token}"]`);
 
   // Nothing is painted until a state says so.
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await expect(made('answer.selected/B')).toHaveClass(/imported-design-on/);
   // The default rings the row's own panel, drawn in the artwork's units: a real box, not a dot.
   const ring = await made('answer.selected/B').locator('rect').first().evaluate((el) => ({
@@ -653,7 +662,7 @@ test('an undrawn quiz moment wears NoaCG’s own look, and a drawn one replaces 
   await expect(made('locked')).toHaveClass(/imported-design-on/);
   await expect(made('locked').locator('text')).toHaveText('LOCKED IN');
 
-  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   await expect(made('answer.correct/C')).toHaveClass(/imported-design-on/);
   await expect(made('answer.wrong/A')).toHaveClass(/imported-design-on/);
   await expect(made('answer.wrong/B')).toHaveClass(/imported-design-on/);
@@ -673,15 +682,14 @@ test('the quiz\u2019s first option: no lock, and Reveal correct works straight f
   await intoProduction(page, 'Direct reveal quiz', 'Quiz Night');
   await settleDurableWrites(page);
   await page.getByTestId('cue-field-f5-opt-C').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   // Legal from the pick, with no lock in between - and the lock is still there for a show that
   // wants it.
-  await expect(page.getByRole('button', { name: /Reveal correct/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '⚡ Reveal correct', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: /Lock it in/ })).toBeEnabled();
-  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
 });
@@ -1276,11 +1284,9 @@ test('imported quiz: the behaviour survives the export and runs standalone from 
   // Driven over file:// on purpose — the trap this catches is a reference that silently resolves
   // in the dev server and dangles on disk (docs/VERIFICATION.md).
   await openImportDoor(page, QUIZ_SVG);
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await finishIntoNewEditor(page);
 
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'CasparCG export' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -1405,6 +1411,12 @@ test('imported board: the EXPORTED CONTROLLER carries the same warning, in the s
   await intoProduction(page, 'Overflow quiz', 'Relay Night');
   await page.getByTestId('cue-field-f0').fill('A'.repeat(400));
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
+  // The typed value reaches the record after the draft's own delay (control/cueDraft.ts), which
+  // the warning can beat: the export below reads the record, so wait for the value to be in it.
+  await expect.poll(() => page.evaluate(async () => {
+    const shows = await import('/src/model/shows.ts');
+    return shows.loadShows().find((s) => s.name === 'Relay Night')?.cues?.[0]?.values.f0?.length ?? 0;
+  })).toBe(400);
   await settleDurableWrites(page);
 
   const b64 = await page.evaluate(async (production) => {
@@ -1476,7 +1488,7 @@ async function casparPackageOnAir(
   context: BrowserContext,
   origin: string,
 ): Promise<{ air: Page; panel: Page }> {
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   await page.locator('.issue', { hasText: 'CasparCG export' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -1519,9 +1531,7 @@ async function casparPackageOnAir(
 test('CasparCG package: the standalone panel drives the imported SCORE board, reset included', async ({ page, context }) => {
   test.setTimeout(180_000);
   await openImportDoor(page, SCORE_SVG);
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await finishIntoNewEditor(page);
 
   const { air, panel } = await casparPackageOnAir(page, context, 'http://caspar-score.local');
   const events = panel.locator('.events');
@@ -1564,9 +1574,7 @@ test('CasparCG package: the standalone panel drives the imported SCORE board, re
 test('CasparCG package: the standalone panel drives the imported QUIZ board through lock and reveal', async ({ page, context }) => {
   test.setTimeout(180_000);
   await openImportDoor(page, QUIZ_SVG);
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await finishIntoNewEditor(page);
 
   const { air, panel } = await casparPackageOnAir(page, context, 'http://caspar-quiz.local');
   const select = panel.getByRole('button', { name: '⚡ Select answer' });
@@ -2219,9 +2227,7 @@ test('CasparCG package: the standalone panel drives the bingo caller, add and ta
   // list box has to move with the press, or a later ✎ Update re-sends the board before the call.
   test.setTimeout(180_000);
   await openImportDoor(page, SHOW('bingo-board'));
-  await switchToAdvancedMode(page);
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+  await finishIntoNewEditor(page);
 
   const { air, panel } = await casparPackageOnAir(page, context, 'http://caspar-bingo.local');
   const events = panel.locator('.events');
@@ -2335,7 +2341,6 @@ test('an Illustrator SAVE AS quiz: the answers keep their type on air, lock and 
   await expect(page.getByTestId('cue-field-f2')).toHaveValue('Tampere');
 
   await page.getByTestId('cue-field-f5-opt-C').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
@@ -2364,11 +2369,11 @@ test('an Illustrator SAVE AS quiz: the answers keep their type on air, lock and 
   expect(Math.round(logo.right - logo.left)).toBe(80);
 
   // The operator's three verbs, reading the designer's own layers.
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await expect(air.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
-  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
   for (const row of ['A', 'B', 'D']) {
     await expect(air.locator(`[data-noacg-role~="answer.wrong/${row}"]`)).toHaveClass(/imported-design-on/);
@@ -2583,7 +2588,6 @@ test('the docs example quiz imports as a quiz and runs select, lock and reveal w
   await settleDurableWrites(page);
 
   await page.getByTestId('cue-field-f5-opt-A').click();
-  await page.getByTestId('cue-field-f6-opt-C').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
@@ -2597,11 +2601,11 @@ test('the docs example quiz imports as a quiz and runs select, lock and reveal w
   ];
   for (const [id, plate] of rows) expectInside(await boxOnAir(air, id), plate);
 
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-C').click();
   await expect(air.locator('[data-noacg-role~="answer.selected/C"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await expect(air.locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
-  await page.getByRole('button', { name: /Reveal correct/ }).click();
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   await expect(air.locator('[data-noacg-role~="answer.correct/A"]')).toHaveClass(/imported-design-on/);
   await expect(air.locator('[data-noacg-role~="answer.wrong/C"]')).toHaveClass(/imported-design-on/);
 

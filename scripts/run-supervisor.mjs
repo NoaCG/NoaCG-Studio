@@ -1,13 +1,19 @@
 #!/usr/bin/env node
-// Opt-in, single-host recovery control. No model client and no scheduler are installed here.
+// Opt-in recovery control. With a recovery ref, any session can continue a project (`continue`)
+// and the coordinator it replaced is refused as superseded. No model client or scheduler here.
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync, realpathSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { nextStep } from './plan-run.mjs';
+import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
 import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
+import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, ownerReceipts, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
+import { repoFromRemote } from './ci-failure-set.mjs';
+import { reconcileNative } from './native-recovery-contract.mjs';
+import { DAY_MS, digest, immutableProject, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { admitPhases, changeProject, checkAdmission, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
 const LEASE_MS = 60_000;
@@ -41,21 +47,33 @@ function validateWait(wait) {
   if (!wait || !WAIT_KINDS.includes(wait.kind) || !required(wait.reason)
       || (wait.until !== null && !iso(wait.until))) throw new Error('Wait needs kind, reason and until (ISO or null)');
   if (wait.kind === 'transient' && wait.until === null) throw new Error('Transient wait needs a retry time');
+  return { kind: wait.kind, reason: wait.reason, until: wait.until };
 }
 
 /** SQLite serializes claims, not agent work. Keep it on a local disk, never a shared network FS. */
-export function openStore(file) {
+export function openStore(file, { recoveryGit } = {}) {
   const db = new DatabaseSync(file);
   db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
     CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, wave TEXT UNIQUE NOT NULL,
       doc TEXT NOT NULL, owner TEXT, leaseUntil INTEGER NOT NULL DEFAULT 0, epoch INTEGER NOT NULL DEFAULT 0);`);
+  recoveryTables(db, recoveryGit);
   return db;
 }
 
-function transaction(db, fn) {
-  db.exec('BEGIN IMMEDIATE');
-  try { const result = fn(); db.exec('COMMIT'); return result; }
-  catch (error) { db.exec('ROLLBACK'); throw error; }
+
+/** A transition whose checkpoint publication fails leaves the ledger as SQLite leaves its row:
+ * unchanged. The file is read under the write lock, so no other admission is undone. A push the
+ * remote accepted anyway is adopted by the next operation (adoptAccepted). */
+function ledgerTransaction(db, wave, fn) {
+  return transaction(db, () => {
+    const before = readFileSync(wave, 'utf8');
+    let written = null;
+    try { return fn(() => { written = readFileSync(wave, 'utf8'); }); } catch (error) {
+      // Only this transition's own write is undone; a line another writer added since stays.
+      if (written !== null && readFileSync(wave, 'utf8') === written) writeFileSync(wave, before);
+      throw error;
+    }
+  });
 }
 
 function rowFor(db, id) {
@@ -71,8 +89,7 @@ export function registerRun(db, manifest, now = Date.now()) {
   const auth = manifest.authorization;
   if (!auth || !required(auth.source) || !required(auth.scope) || !required(auth.permissionPolicy)
       || !iso(auth.startedAt) || !iso(auth.deadline)) throw new Error('Explicit authorization and permission policy required');
-  const start = Date.parse(auth.startedAt), end = Date.parse(auth.deadline);
-  if (start > now || end <= now || end <= start || end - start > MAX_WINDOW_MS) throw new Error('Authorized window must be open and at most 24 hours');
+  const { start, end } = validateAuthorization(auth, { now, kind: manifest.kind });
   validatePacket(manifest.packet);
   if (!path.isAbsolute(manifest.wave) || !path.isAbsolute(manifest.adapter?.command ?? '')
       || !path.isAbsolute(manifest.adapter?.cwd ?? '') || !Array.isArray(manifest.adapter.args)
@@ -83,26 +100,48 @@ export function registerRun(db, manifest, now = Date.now()) {
     ...manifest.adapter, command: realpathSync(manifest.adapter.command), cwd: realpathSync(manifest.adapter.cwd),
   } };
   const text = readFileSync(normalized.wave, 'utf8');
+  const project = readProject(text, now);
+  if (end - start > MAX_WINDOW_MS && !project) throw Error('Multi-day plans require explicit continuing project metadata');
+  if (project && (manifest.kind !== 'plan' || project.id !== manifest.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Manifest differs from original project authorization');
   if (windowStart(text) !== start || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== end) throw new Error('Wave window differs from authorization');
   if (REPORT_HEADING.test(text)) throw new Error('Wave already reported');
-  return transaction(db, () => {
+  return ledgerTransaction(db, normalized.wave, (wrote) => {
+    if (project) {
+      const store = canonical(db.prepare('PRAGMA database_list').all().find((row) => row.name === 'main').file);
+      const locked = withLedgerLock(normalized.wave, () => {
+        const current = readProject(readFileSync(normalized.wave, 'utf8'), now);
+        if (current.authorityStore && current.authorityStore !== store) throw Error('Project already bound to another authoritative local store');
+        if (readFileSync(normalized.wave, 'utf8') !== text) throw Error('Project changed during registration; reconcile');
+        project.authorityStore = store;
+        writeFileSync(normalized.wave, writeProject(text, project));
+        wrote();
+        return {};
+      });
+      if (locked.refusal) throw Error(locked.refusal);
+    }
     const old = db.prepare('SELECT doc FROM runs WHERE id=?').get(normalized.id);
     if (old) {
       if (JSON.stringify(JSON.parse(old.doc).manifest) !== JSON.stringify(normalized)) throw new Error('Run already registered; authorization and adapter are immutable');
       return JSON.parse(old.doc);
     }
     const doc = { manifest: normalized, status: 'active', packet: normalized.packet, wait: null, pending: null, sequence: 0 };
+    if (project) { doc.projectAuthorization = immutableProject(project); doc.projectState = digest(project); }
     db.prepare('INSERT INTO runs(id,wave,doc) VALUES(?,?,?)').run(normalized.id, normalized.wave, JSON.stringify(doc));
+    publishRun(db, normalized.id);
     return doc;
   });
 }
 
 /** Explicit operator/coordinator updates fence any in-flight tick; they never renew authorization. */
-export function updateRun(db, id, operation, value) {
-  return transaction(db, () => {
+export function updateRun(db, id, operation, value, now = Date.now()) {
+  adoptAccepted(db, id);
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
     const { doc } = rowFor(db, id);
     if (doc.status !== 'active') throw new Error('Terminal run cannot be reopened');
-    if (operation === 'wait') { validateWait(value); doc.wait = value; }
+    assertCurrent(db, id, doc); // A superseded coordinator changes nothing, not even its own ledger.
+    const text = readFileSync(doc.manifest.wave, 'utf8');
+    const project = checkedProject(doc, text, now);
+    if (operation === 'wait') doc.wait = validateWait(value);
     else if (operation === 'clear-wait') {
       if (!required(value)) throw new Error('Clearing a wait needs evidence or the owner answer');
       doc.wait = null; doc.waitResolution = value;
@@ -112,10 +151,74 @@ export function updateRun(db, id, operation, value) {
         throw new Error('Checkpoint cannot change the authorized objective or acceptance');
       }
       doc.packet = value;
-    } else if (['finish', 'cancel'].includes(operation)) doc.status = operation === 'finish' ? 'finished' : 'cancelled';
+    } else if (project && ['start-block', 'pause', 'finish', 'cancel'].includes(operation)) { /* handled under the ledger lock below */ }
+    else if (['finish', 'cancel'].includes(operation)) doc.status = operation === 'finish' ? 'finished' : 'cancelled';
     else throw new Error('Unknown update');
+    if (project) {
+      const locked = withLedgerLock(doc.manifest.wave, () => {
+        if (readFileSync(doc.manifest.wave, 'utf8') !== text) throw Error('Ledger changed; reconcile before updating project');
+        const changed = changeProject(doc, project, text, operation, value, now);
+        writeFileSync(doc.manifest.wave, changed);
+        wrote();
+        return {};
+      });
+      if (locked.refusal) throw Error(locked.refusal);
+    }
     db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(doc), id);
+    publishRun(db, id);
     return doc;
+  });
+}
+
+/** One supported phase admission path; SQLite plus the ledger lock serialize local callers. */
+export function recordRun(db, id, phase, event, detail = '', { now = Date.now(), authority } = {}) {
+  adoptAccepted(db, id);
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
+    const row = rowFor(db, id), { doc } = row;
+    if (doc.status !== 'active') throw Error('Terminal run cannot record another phase');
+    // A superseded coordinator is refused here, before it writes the ledger or launches anything.
+    assertCurrent(db, id, doc);
+    const text = readFileSync(doc.manifest.wave, 'utf8');
+    const project = checkedProject(doc, text, now);
+    if (project) {
+      checkBlock(project, authority, now);
+      if (doc.wait || doc.pending || row.owner) throw Error('Reconcile blocked prerequisite, active lease or uncertain action before phase admission');
+    }
+    const result = recordStep(doc.manifest.wave, phase, event, detail, now, { supervised: Boolean(project) });
+    if (result.refusal) throw Error(result.refusal);
+    wrote();
+    db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
+    publishRun(db, id);
+    return result;
+  });
+}
+
+/** Admit owner-receipted phases into an active project: the phase list, `## Phases`, both
+ * project digests and one `admitted` ledger line change together, then the checkpoint publishes. */
+export function admitRun(db, id, admission, { now = Date.now(), authority } = {}) {
+  checkAdmission(admission);
+  adoptAccepted(db, id);
+  // The receipts' network read happens before the store's write lock is taken.
+  const receipts = ownerReceipts(db, rowFor(db, id).doc, admission);
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
+    const { doc } = rowFor(db, id);
+    assertCurrent(db, id, doc);
+    const text = readFileSync(doc.manifest.wave, 'utf8');
+    const project = checkedProject(doc, text, now);
+    if (!project) throw Error('Only a continuing project admits phases');
+    checkBlock(project, authority, now);
+    const locked = withLedgerLock(doc.manifest.wave, () => {
+      if (readFileSync(doc.manifest.wave, 'utf8') !== text) throw Error('Ledger changed; reconcile before admitting phases');
+      const admitted = admitPhases(project, text, admission, receipts, now);
+      writeFileSync(doc.manifest.wave, admitted.text);
+      wrote();
+      doc.projectAuthorization = immutableProject(admitted.project); doc.projectState = digest(admitted.project);
+      return {};
+    });
+    if (locked.refusal) throw Error(locked.refusal);
+    db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(doc), id);
+    publishRun(db, id);
+    return nextStep(readFileSync(doc.manifest.wave, 'utf8'), now);
   });
 }
 
@@ -130,9 +233,12 @@ function acquire(db, id, now) {
 }
 
 function save(db, claim, now) {
-  const result = db.prepare('UPDATE runs SET doc=? WHERE id=? AND owner=? AND epoch=? AND leaseUntil>?')
-    .run(JSON.stringify(claim.doc), claim.id, claim.token, claim.epoch, now);
-  if (result.changes !== 1) throw new Error('Lease lost; reconcile instead of acting');
+  transaction(db, () => {
+    const result = db.prepare('UPDATE runs SET doc=? WHERE id=? AND owner=? AND epoch=? AND leaseUntil>?')
+      .run(JSON.stringify(claim.doc), claim.id, claim.token, claim.epoch, now);
+    if (result.changes !== 1) throw new Error('Lease lost; reconcile instead of acting');
+    publishRun(db, claim.id);
+  });
 }
 
 /** The host adapter must durably deduplicate actionId and preserve permissionPolicy.
@@ -140,6 +246,8 @@ function save(db, claim, now) {
  * reconcile: delivered(workerId) | absent | unknown
  * deliver: delivered(workerId) | not-delivered | unknown
  * All three are deterministic; deliver only accepts/enqueues work, never waits for its completion.
+ * Durable runs require exact native binding/hash/evidence and authoritative final non-delivery
+ * for an absent intent, using reconcileNative's receipt shape. Empty catalogs are not absence.
  */
 export function callAdapter(adapter, request) {
   return new Promise((resolve, reject) => {
@@ -165,37 +273,83 @@ export function callAdapter(adapter, request) {
   });
 }
 
-function deliveryReceipt(result) {
-  if (result?.state !== 'delivered' || !required(result.workerId)) throw new Error('Delivery needs a stable workerId');
-  return result;
-}
-
 export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } = {}) {
+  try { adoptAccepted(db, id); } catch (error) { return { verdict: 'unknown', why: error.message, run: id, actionId: null }; }
   const claim = acquire(db, id, now());
   if (!claim) return { verdict: 'leased' };
   const { doc } = claim, { manifest } = doc;
   const result = (verdict, why) => ({ verdict, why, run: id, actionId: doc.pending?.id ?? null });
+  const deliveryPacket = () => {
+    const text = readFileSync(manifest.wave, 'utf8');
+    const packet = doc.pending?.packet ?? { ...doc.packet, ledger: manifest.kind === 'plan' ? nextStep(text, now()) : { action: 'reconcile-wave', evidence: manifest.wave }, waveSha256: hash(text) };
+    validatePacket(packet); // The ledger's carry can be large too; bound the actual payload.
+    return packet;
+  };
   const ask = (operation) => {
-    let packet;
-    if (operation === 'deliver') {
-      const text = readFileSync(manifest.wave, 'utf8');
-      packet = { ...doc.packet, ledger: manifest.kind === 'plan' ? nextStep(text, now()) : { action: 'reconcile-wave', evidence: manifest.wave }, waveSha256: hash(text) };
-      validatePacket(packet); // The ledger's carry can be large too; bound the actual payload.
-    }
+    const packet = operation === 'deliver' ? deliveryPacket() : null;
     return invoke(manifest.adapter, {
       operation, runId: id, authorization: manifest.authorization, wave: manifest.wave,
+      ...(doc.projectState ? { workBlock: readProject(readFileSync(manifest.wave, 'utf8'), now()).block,
+        checkpointReason: nextStep(readFileSync(manifest.wave, 'utf8'), now()).why } : {}),
       actionId: doc.pending?.id ?? null, fence: claim.epoch, leaseUntil: claim.until,
+      ...(doc.pending?.requestSha256 ? { requestSha256: doc.pending.requestSha256 } : {}),
+      ...(operation === 'restore' ? { restoration: doc.restoration, recovery: doc.packet.recovery } : {}),
       ...(packet ? { packet } : {}),
     });
   };
   try {
-    if (doc.status !== 'active') return result(doc.status);
+    if (doc.status !== 'active') {
+      if (doc.status === 'cancelled' && doc.projectState) {
+        const text = readFileSync(manifest.wave, 'utf8');
+        checkedProject(doc, text, now());
+        if (hasInFlight(text) && !doc.pauseReceipt) {
+          const receipt = await ask('checkpoint');
+          if (!checkpointReceipt(doc, receipt, text)) return result('cancelled', 'Launches stopped; in-flight checkpoint remains unacknowledged');
+          save(db, claim, now());
+        }
+      }
+      return result(doc.status);
+    }
+    assertCurrent(db, id, doc); // Stops a superseded coordinator.
     const text = readFileSync(manifest.wave, 'utf8');
-    if (REPORT_HEADING.test(text)) { doc.status = 'finished'; save(db, claim, now()); return result('finished', 'wave report'); }
+    const project = checkedProject(doc, text, now());
+    if (project && projectBoundary(project, now())) {
+      const boundary = projectBoundary(project, now());
+      if (hasInFlight(text) && !doc.pauseReceipt) {
+        const receipt = await ask('checkpoint');
+        if (!checkpointReceipt(doc, receipt, text)) return result('unknown', 'Checkpoint acknowledgement required; launch authority remains stopped');
+        save(db, claim, now());
+      }
+      return result(boundary.action, boundary.why);
+    }
+    // A project's phases are admitted only by record; a tick never launches project work.
+    if (project) return result('unknown', 'Active project: admit phases with record and follow next; tick launches nothing');
+    if (REPORT_HEADING.test(text)) {
+      doc.status = 'finished'; save(db, claim, now()); return result('finished', 'wave report');
+    }
     if (now() >= Date.parse(manifest.authorization.deadline)) { doc.status = 'expired'; save(db, claim, now()); return result('expired'); }
+    if (now() < Date.parse(manifest.authorization.startedAt)) return result('waiting', 'original authorization has not started');
     if (windowStart(text) !== Date.parse(manifest.authorization.startedAt)
         || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== Date.parse(manifest.authorization.deadline)) {
       return result('unknown', 'wave authorization changed; explicit reauthorization is not implemented in this slice');
+    }
+    // Reconcile a replacement host before handling waits, unresolved sends or dispatch.
+    // The CAS publication invalidates a prior host's next checkpoint; it is not a native lock.
+    if (manifest.recovery) {
+      publishRun(db, id);
+      if (['sessionId', 'environmentId', 'policySha256'].some((key) => !required(doc.packet.recovery.native[key]))) {
+        return result('unknown', 'native identity or effective policy is unavailable');
+      }
+      if (doc.restoration && !doc.restoration.reconciled) {
+        const receipt = await ask('restore');
+        if (!restoredObservation(doc, receipt, now())) return result('unknown', 'restored native/GitHub state needs exact reconciliation');
+        doc.restoration.reconciled = true;
+        doc.restoration.evidence = receipt.evidence;
+        if (receipt.native.state === 'waiting') doc.wait = validateWait(receipt.native.wait);
+        doc.packet.restoredGithub = githubObservations(receipt.github);
+        validatePacket(doc.packet);
+        save(db, claim, now());
+      }
     }
     if (doc.wait) {
       if (['owner', 'permission', 'dependency'].includes(doc.wait.kind) || doc.wait.until === null || now() < Date.parse(doc.wait.until)) return result('waiting', doc.wait.reason);
@@ -204,7 +358,23 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     if (doc.pending) {
       const receipt = await ask('reconcile');
       if (receipt?.state === 'delivered') { doc.pending.receipt = deliveryReceipt(receipt); save(db, claim, now()); }
-      else if (receipt?.state !== 'absent' || doc.pending.receipt) return result('unknown', 'pending delivery needs reconciliation');
+      else if (doc.pending.receipt) return result('unknown', 'pending delivery needs reconciliation');
+      else if (manifest.recovery) {
+        const r = doc.pending.packet.recovery;
+        const intent = { provider: r.native.provider, sessionId: r.native.sessionId, environmentId: r.native.environmentId,
+          policySha256: r.native.policySha256, revision: r.revision, actionId: doc.pending.id, requestSha256: doc.pending.requestSha256 };
+        const observation = { ...receipt, state: receipt?.state === 'absent' ? 'not-delivered' : receipt?.state,
+          nativeId: receipt?.nativeId ?? receipt?.workerId };
+        if (reconcileNative(intent, observation).state !== 'not-delivered') return result('unknown', 'exact authoritative final non-delivery required');
+        const context = { ...doc.pending.packet }; delete context.ledger; delete context.waveSha256;
+        if (JSON.stringify(context) !== JSON.stringify(doc.packet) || doc.pending.packet.waveSha256 !== hash(readFileSync(manifest.wave, 'utf8'))) {
+          // A final rejection permits a new request for the replacement paths. Keep the
+          // original intent in checkpoint history and preserve its bounded retry budget.
+          doc.previousIntent = { ...intent, state: 'not-delivered', authoritative: true, final: true, evidence: receipt.evidence };
+          doc.retryBudget = { attempts: doc.pending.attempts, retryAt: doc.pending.retryAt };
+          doc.pending = null; save(db, claim, now());
+        }
+      } else if (receipt?.state !== 'absent') return result('unknown', 'pending delivery needs reconciliation');
     }
     let observed = await ask('inspect');
     if (observed?.state === 'waiting') {
@@ -213,20 +383,25 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
         // A quota-limited process may still exist; the reset authorizes its next turn.
         observed = { state: 'gone' };
       } else {
-        doc.wait = observed.wait; save(db, claim, now());
+        doc.wait = validateWait(observed.wait); save(db, claim, now());
         return result('waiting', doc.wait.reason);
       }
     }
     if (observed?.state === 'running') {
       if (!required(observed.workerId)) throw new Error('Running observation needs workerId');
       if (doc.pending?.receipt && doc.pending.receipt.workerId !== observed.workerId) return result('unknown', 'worker identity differs from delivery');
-      doc.pending = null; save(db, claim, now()); return result('alive');
+      doc.pending = null; delete doc.retryBudget; save(db, claim, now()); return result('alive');
     }
     if (observed?.state !== 'gone') return result('unknown', 'coordinator absence is unproven');
     if (doc.pending?.receipt) { doc.pending = null; save(db, claim, now()); }
     if (!doc.pending) {
       doc.sequence += 1;
-      doc.pending = { id: `${id}:${doc.sequence}`, attempts: 0, retryAt: 0 };
+      doc.pending = { id: `${id}:${doc.sequence}`, attempts: doc.retryBudget?.attempts ?? 0, retryAt: doc.retryBudget?.retryAt ?? 0 };
+      delete doc.retryBudget;
+      if (manifest.recovery) {
+        doc.pending.packet = deliveryPacket();
+        doc.pending.requestSha256 = hash(JSON.stringify({ actionId: doc.pending.id, authorization: manifest.authorization, packet: doc.pending.packet }));
+      }
       save(db, claim, now()); // Intent is durable before anything external happens.
     }
     if (doc.pending.attempts >= 3) return result('blocked', 'three delivery attempts; explicit reconciliation required');
@@ -246,27 +421,97 @@ export async function tickRun(db, id, { now = Date.now, invoke = callAdapter } =
     if (delivered?.state === 'not-delivered') return result('waiting', 'confirmed non-delivery; bounded backoff');
     return result('unknown', 'delivery outcome is unknown');
   } catch (error) {
-    return result('unknown', error.message);
+    return result(error.code === 'SUPERSEDED' ? 'superseded' : 'unknown', error.message);
   } finally {
     db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0 WHERE id=? AND owner=? AND epoch=?').run(id, claim.token, claim.epoch);
   }
 }
 
-export async function main(args = process.argv.slice(2)) {
+/** Continue the plan's active project from its shared recovery ref in a fresh state directory
+ * under `root`. The new block takes over from whichever coordinator ran it before; that
+ * coordinator's next record, tick or next is refused as superseded. Answers `open` when the
+ * plan has no active project yet. */
+export function continueProject(root, { plan, owner, ...recovery }, { now = Date.now(), recoveryGit: transport } = {}) {
+  if (!required(owner)) throw new Error('Continue needs an owner label for the new block');
+  // Short names: the worktree holds the whole repository, and Windows paths stop at 260 characters.
+  const dir = path.join(path.resolve(root), randomUUID().slice(0, 8));
+  mkdirSync(dir, { recursive: true });
+  const dbFile = path.join(dir, 'control.sqlite'), wave = path.join(dir, 'wave.md'), worktree = path.join(dir, 'src');
+  let db = openStore(dbFile, { recoveryGit: transport });
+  try {
+    const id = activeProject(db, recovery, plan, now);
+    if (!id) {
+      db.close(); db = null; rmSync(dir, { recursive: true, force: true });
+      return { verdict: 'open', why: `no active ${plan} project: open, register and start-block it` };
+    }
+    // The original adapter is never exported; this one answers every native request with unknown.
+    const adapter = { command: process.execPath, args: ['-e', 'process.stdout.write(\'{"state":"unknown"}\')'], cwd: dir };
+    const { checkpoint } = restoreRun(db, { ...recovery, id, worktree, wave, adapter }, now);
+    const project = readProject(readFileSync(wave, 'utf8'), now);
+    if (!project) throw new Error('Recovery checkpoint holds no continuing project');
+    const deadline = Math.min(now + DAY_MS, Date.parse(project.authorization.deadline));
+    const where = { id, db: dbFile, wave, worktree };
+    try {
+      updateRun(db, id, 'start-block', { owner, deadline: new Date(deadline).toISOString(), evidence: `continued from recovery checkpoint ${checkpoint}` }, now);
+    } catch (error) {
+      // A recorded wait or uncertain action: this store owns the project (the restore claimed
+      // it), so it resolves that and then starts its block. Any other failure, such as a lost
+      // network after GitHub accepted the block, is answered by running continue again.
+      const { doc } = rowFor(db, id);
+      if (!doc.wait && !doc.pending) throw new Error(`${error.message}; run continue again`, { cause: error });
+      return { verdict: 'blocked', why: error.message, ...where, next: nextStep(readFileSync(wave, 'utf8'), now) };
+    }
+    const text = readFileSync(wave, 'utf8');
+    return { verdict: 'continued', ...where, block: readProject(text, now).block, next: nextStep(text, now) };
+  } finally { db?.close(); }
+}
+
+/** The checkout's own GitHub repository, as `continue` uses it from the command line. */
+function localRecovery() {
+  const repository = recoveryGit(process.cwd(), ['rev-parse', '--show-toplevel']);
+  const url = recoveryGit(repository, ['remote', 'get-url', 'origin']);
+  return { repository: path.resolve(repository), remote: 'origin', repositoryFullName: repoFromRemote(url) };
+}
+
+export async function main(args = process.argv.slice(2), options = {}) {
   const [command, file, id, value] = args;
-  if (!file || !['register', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'finish', 'cancel'].includes(command)) {
-    process.stderr.write('Usage: run-supervisor.mjs register <db> <manifest.json> | tick|status <db> [id] | wait|checkpoint <db> <id> <json> | clear-wait <db> <id> <evidence> | finish|cancel <db> <id>\n'); return 2;
+  if (!file || !['register', 'restore', 'resume', 'continue', 'next', 'record', 'admit', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'pause', 'finish', 'cancel'].includes(command)) {
+    process.stderr.write('Usage: run-supervisor.mjs continue <state-root> <plan> <owner> | register <db> <manifest.json> | restore|resume <db> <config.json> | next <db> <id> | record <db> <id> <phase> <event> [detail] [--authority <block.json>] | admit <db> <id> <admission.json> --authority <block.json> | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
   }
   let db;
   try {
-    db = openStore(file);
+    if (command === 'continue') {
+      process.stdout.write(`${JSON.stringify(continueProject(file, { plan: id, owner: value, ...localRecovery() }, options))}\n`); return 0;
+    }
+    if (['restore', 'resume'].includes(command)) mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
+    db = openStore(file, options);
     let output;
     if (command === 'register') output = registerRun(db, JSON.parse(readFileSync(id, 'utf8')));
+    else if (command === 'next') {
+      adoptAccepted(db, id);
+      const { doc } = rowFor(db, id);
+      assertCurrent(db, id, doc);
+      output = nextStep(readFileSync(doc.manifest.wave, 'utf8'));
+    }
+    else if (command === 'restore') output = restoreRun(db, JSON.parse(readFileSync(id, 'utf8')));
+    else if (command === 'resume') {
+      const config = JSON.parse(readFileSync(id, 'utf8'));
+      if (!db.prepare('SELECT id FROM runs').get()) restoreRun(db, config);
+      const { doc } = rowFor(db, config.id);
+      if (!sameRepository(doc.manifest.recovery?.repositoryFullName, config.repositoryFullName)) throw new Error('Resume repository differs');
+      output = await tickRun(db, config.id);
+    }
+    else if (command === 'record' || command === 'admit') {
+      const at = args.indexOf('--authority');
+      const authority = at < 0 ? undefined : JSON.parse(readFileSync(args[at + 1], 'utf8'));
+      output = command === 'admit' ? admitRun(db, id, JSON.parse(readFileSync(value, 'utf8')), { authority })
+        : recordRun(db, id, Number(value), args[4], args.slice(5, at < 0 ? undefined : at).join(' '), { authority });
+    }
     else if (command === 'tick' || command === 'status') {
       const ids = id ? [id] : db.prepare('SELECT id FROM runs ORDER BY id').all().map((row) => row.id);
       output = [];
       for (const key of ids) output.push(command === 'tick' ? await tickRun(db, key) : rowFor(db, key));
-    } else output = updateRun(db, id, command, ['wait', 'checkpoint'].includes(command) ? JSON.parse(readFileSync(value, 'utf8')) : value);
+    } else output = updateRun(db, id, command, ['wait', 'checkpoint', 'start-block'].includes(command) ? JSON.parse(readFileSync(value, 'utf8')) : value);
     process.stdout.write(`${JSON.stringify(output)}\n`); return 0;
   } catch (error) { process.stderr.write(`run-supervisor: ${error.message}\n`); return 1; }
   finally { db?.close(); }

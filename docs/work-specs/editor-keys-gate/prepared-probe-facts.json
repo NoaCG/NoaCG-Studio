@@ -1,0 +1,21 @@
+{
+  "preparedAtUtc": "2026-10-19T18:12:26Z",
+  "authorization": "static preparation only; no renewed execution/implementation window",
+  "externalStoppedReceipt": "36c2522b0bf749f1ae4312cc933b1cd8710aed27",
+  "externalSource": "bf86052134d20a055246b7683433b2cae536fcb9",
+  "ownBase": "9ecdb199fe9a67552f93de7f3dba74e484d1b96b",
+  "specSha256": "4c946a7ddd997e00a9fde680813ad7441d5b4d826f1795835f7aae2fecd45929",
+  "browserRuns": 0,
+  "queueJobs": 0,
+  "productEdits": 0,
+  "maintainedTestEdits": 0,
+  "pureStubChecksPassed": 15,
+  "previousPureStubCheck": "First check run failed its late-listener oracle assertion; no-hold state was correct but controller expected-id advancement selected ignored-not-current-envelope rather than problems[]. Oracle corrected; no browser execution occurred.",
+  "files": {
+    "docs/work-specs/editor-keys-gate/prepared-probe-static-check.mjs.txt": "7fcfeeffd61ec59048f0ef3b70e3b69fe3ac0da8b6053f59924f72a043cfe8da",
+    "docs/work-specs/editor-keys-gate/prepared-probe-adapter.ts.txt": "d44cef1928d20a50d53f38ea4cc0e46bf4423ed64d3b47bf3c005a1fc64e1af9",
+    "docs/work-specs/editor-keys-gate/prepared-probe-spec.diff.txt": "647b9f7f089c56250b18bedd302091f304d8c0b53b2525893f160000e02ac2b2",
+    "docs/work-specs/editor-keys-gate/prepared-probe-static-output.txt": "168c23fd185844e543550d61fc17de7a4e5a7d944d60e6cda0323f56b8833480",
+    "docs/work-specs/editor-keys-gate/prepared-probe-init.js.txt": "94c316f670b1c1c5c1b53b6120c7bba89dc14613222652e10073ce8eab0c31ad"
+  }
+}

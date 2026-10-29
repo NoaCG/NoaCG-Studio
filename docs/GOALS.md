@@ -160,9 +160,9 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   A three-member walk on a local backend proves a team's production playing with its creator
   signed out; saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
-  - **The playout dashboard comes first, with its Data and Audience tabs** (owner, 2026-10-16): one
-    `/plan-run production-page`, in order: the page cleanup, then the Sheet data flow (outcome 7),
-    then audience once its spec is agreed.
+  - **The playout dashboard comes first, with data and messages** (owner, 2026-10-19): all 22 steps
+    plus Q and selected H0/E1–E8 in one `/plan-run production-page`; exact order: `work-specs/production-page-refactor/extensions.md`.
+    Data/API, election, Companion and typed OGraf; final CasparCG/Bridge and OBS/browser acceptance. Execution not started.
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
     loop and the other attributes a production genuinely needs; more than that is optional.
   - **Shared productions,** proved by verification before anything is rebuilt: members join the
@@ -191,8 +191,8 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
 ### 7. Data and automation (now, inside outcome 5's playout run)
 
 - **Desired state:** graphics bind to external data, not only typed fields. Data changes values and
-  never operates the show; the operator wins over a feed. **Done for this phase:** a shared Google
-  Sheet drives production values with nothing to wire by hand (`work-specs/sheet-data-flow`).
+  never operates the show; the operator wins over a feed. **Done for this phase:** pasted rows or a
+  shared Sheet drive lists and values with nothing to wire by hand (`work-specs/data-sources`).
 
 ### 8. Later
 

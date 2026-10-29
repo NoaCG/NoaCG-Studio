@@ -3,14 +3,14 @@
 ## Video editor shell (video/)
 
 The PARALLEL editor world for the AI video project kind (VideoProject, src/model/videoTypes.ts).
-App.tsx renders **VideoAppShell** instead of AppShell when docKindStore says 'video'; only the
+App.tsx renders **VideoAppShell** instead of the graphics editor when docKindStore says 'video'; only the
 wizard flips that switch. Every panel follows the project's ENGINE ('remotion' | 'hyperframes',
 picked at creation): the code pane, the preview bridge, the validator, the render manifest and
 the source download all branch on it, while the rest stay one surface.
 **The player stage carries a READINESS SIGNAL and every waiter uses it.** VideoPlayerFrame
 stamps `data-player-pending` on the iframe the moment a (re)load becomes owed - synchronously,
 before the debounce - and `data-player-rev` once the composition has MOUNTED, exactly the
-two-halves contract PreviewFrame uses for SPX (`data-doc-pending`/`data-doc-rev`, and
+two-halves contract the retired PreviewFrame used for SPX (`data-doc-pending`/`data-doc-rev`, and
 src/components/AGENTS.md says why one half alone cannot work). It matters more here: a load ends
 in `autoplay`, so anything read off the stage or the transport while one is owed is about to be
 undone rather than merely early. Keep both halves stamped on every exit from that effect - a
@@ -63,5 +63,5 @@ to its `Pick` or the wizard's choice is silently dropped - pinned by e2e/image-p
 manifest kind through the shared render service, with an upload-budget meter; plus the engine's
 source download, standalone and plug-and-play). **SavedVideoProjects** = the 📁 My videos modal
 (explicit saves; the current slot autosaves separately). The shell binds the same global
-undo/redo keys as AppShell with the same guard. AI chat gates on `needsSignIn` (hosted mode)
-exactly like AIPromptPanel; everything else stays open.
+undo/redo keys the retired AppShell used to bind, with the same guard. AI chat gates on `needsSignIn` (hosted mode)
+through useAuthState and SignInPrompt; everything else stays open.

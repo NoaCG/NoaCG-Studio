@@ -1,0 +1,160 @@
+{
+  "name": "Election night rehearsal",
+  "description": "Party totals, a candidate card, a count bug and a ticker for an election night, connected to labelled synthetic results so the whole show can be rehearsed before any real count.",
+  "graphics": [
+    {
+      "slug": "party-board",
+      "name": "Party totals",
+      "type": "results-board",
+      "layer": 10
+    },
+    {
+      "slug": "candidate-card",
+      "name": "Candidate card",
+      "type": "lower-third",
+      "layer": 20
+    },
+    {
+      "slug": "count-bug",
+      "name": "Count bug",
+      "type": "bug",
+      "layer": 30
+    },
+    {
+      "slug": "ticker",
+      "name": "Ticker",
+      "type": "ticker",
+      "layer": 40
+    }
+  ],
+  "data": "starter/revision-1.json",
+  "bindings": {
+    "Party totals": {
+      "f2": "external.election.summary.status",
+      "f3": "external.election.summary.counted",
+      "f7": "external.election.parties.KOK.share",
+      "f8": "external.election.parties.KOK.votes",
+      "f12": "external.election.parties.SDP.share",
+      "f13": "external.election.parties.SDP.votes",
+      "f17": "external.election.parties.PS.share",
+      "f18": "external.election.parties.PS.votes",
+      "f22": "external.election.parties.KESK.share",
+      "f23": "external.election.parties.KESK.votes",
+      "f27": "external.election.parties.VAS.share",
+      "f28": "external.election.parties.VAS.votes",
+      "f32": "external.election.parties.VIHR.share",
+      "f33": "external.election.parties.VIHR.votes",
+      "f37": "external.election.parties.RKP.share",
+      "f38": "external.election.parties.RKP.votes",
+      "f42": "external.election.parties.KD.share",
+      "f43": "external.election.parties.KD.votes",
+      "f47": "external.election.parties.LIIK.share",
+      "f48": "external.election.parties.LIIK.votes",
+      "f52": "external.election.parties.MUUT.share",
+      "f53": "external.election.parties.MUUT.votes"
+    },
+    "Count bug": {
+      "f1": "external.election.summary.status",
+      "f2": "external.election.summary.counted",
+      "f3": "external.election.summary.counted_share",
+      "f4": "external.election.summary.updated"
+    }
+  },
+  "collections": [
+    {
+      "v": 1,
+      "id": "candidates",
+      "sourceId": "election",
+      "schemaRevision": 1,
+      "graphic": "Candidate card",
+      "from": "candidates",
+      "key": [
+        "district",
+        "candidate"
+      ],
+      "fields": {
+        "f0": {
+          "from": "name"
+        },
+        "f1": {
+          "from": "affiliation"
+        },
+        "f2": {
+          "from": "votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "f3": {
+          "from": "status",
+          "fallback": ""
+        },
+        "f4": {
+          "from": "portrait",
+          "fallback": ""
+        },
+        "f5": {
+          "from": "color",
+          "fallback": "#3DD6C6"
+        }
+      }
+    }
+  ],
+  "cues": [
+    {
+      "graphic": "Party totals",
+      "label": "Party totals"
+    },
+    {
+      "graphic": "Count bug",
+      "label": "Count status"
+    },
+    {
+      "graphic": "Candidate card",
+      "label": "Aino Example, Uusimaa 101",
+      "selection": {
+        "v": 1,
+        "recipe": "candidates",
+        "key": [
+          "02",
+          101
+        ]
+      }
+    },
+    {
+      "graphic": "Candidate card",
+      "label": "Leo Example, Helsinki 101",
+      "selection": {
+        "v": 1,
+        "recipe": "candidates",
+        "key": [
+          "01",
+          101
+        ]
+      }
+    },
+    {
+      "graphic": "Candidate card",
+      "label": "Sara Example, Uusimaa 103",
+      "selection": {
+        "v": 1,
+        "recipe": "candidates",
+        "key": [
+          "02",
+          103
+        ]
+      }
+    },
+    {
+      "graphic": "Ticker",
+      "label": "Headlines"
+    }
+  ],
+  "publish": [
+    "INSTALL.md",
+    "starter/revision-1.json",
+    "starter/revision-2.json"
+  ]
+}

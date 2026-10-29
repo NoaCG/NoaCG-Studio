@@ -4,8 +4,7 @@
  * A graphic is hidden until `play()` runs, so any surface that shows one WITHOUT a playback
  * gesture - a Home card's thumbnail, the operator panel's preview before the first take - must
  * drive it to rest itself, or it reads as an empty black frame. This is that one recipe, shared
- * so those surfaces can never drift into a second render path (the editor canvas settles the
- * same way in PlayoutSimulator).
+ * so those surfaces share one render path. The retired editor simulator used the same recipe.
  *
  * The recipe: write the data, jump the house entrance builder to the end of its FINITE
  * motion, write the data AGAIN, and jump again. The second `update()` is load-bearing - the
@@ -156,5 +155,142 @@ export function reportGraphicBox(win: Window): void {
     }
   } catch {
     /* best-effort: a broken template still gets its frame */
+  }
+}
+
+/**
+ * MEASURE THIS DOCUMENT'S GRAPHIC for place and size (docs/work-specs/playout-adjustments/spec.md,
+ * "What is measured, honestly"), and post it back as an `spx-preview-box` carrying `id` (the
+ * request's) and three answers beside the old box:
+ *
+ * - `info`: the union of the document's information, its text ranges and its pictures;
+ * - `paint`: the union of everything it paints, decoration included (a band, a scrim);
+ * - `minText`: the smallest text it draws, in px as it appears (its transforms included).
+ *
+ * Both rectangles are clipped to every overflow-clipping ancestor and to the frame, since a Range's
+ * rectangle is not clipped by `overflow: hidden` and every ticker is a window over a wider track.
+ * The caller qualifies them (control/cueAdjust.ts `qualify`: two answers 250 ms apart agreeing).
+ * Serialized like `reportGraphicBox`, so it refers to nothing outside itself.
+ */
+export function measureGraphic(win: Window, id: number): void {
+  try {
+    const doc = win.document;
+    const W = win.innerWidth;
+    const H = win.innerHeight;
+    type R = { l: number; t: number; r: number; b: number };
+    const cut = (a: R, b: R): R | null => {
+      const o = { l: Math.max(a.l, b.l), t: Math.max(a.t, b.t), r: Math.min(a.r, b.r), b: Math.min(a.b, b.b) };
+      return o.r - o.l > 0.5 && o.b - o.t > 0.5 ? o : null;
+    };
+    const join = (a: R | null, b: R): R => (a ? { l: Math.min(a.l, b.l), t: Math.min(a.t, b.t), r: Math.max(a.r, b.r), b: Math.max(a.b, b.b) } : b);
+    const of = (d: DOMRect): R => ({ l: d.left, t: d.top, r: d.right, b: d.bottom });
+    const clips = new Map<Element, R | null>();
+    // The window an element's painting is seen through: the frame cut by each clipping ancestor.
+    const clipOf = (el: Element | null): R | null => {
+      if (!el || el === doc.documentElement) return { l: 0, t: 0, r: W, b: H };
+      const known = clips.get(el);
+      if (known !== undefined) return known;
+      const above = clipOf(el.parentElement);
+      let own = above;
+      if (above && el !== doc.body) {
+        const cs = win.getComputedStyle(el);
+        const clipping = (v: string) => v !== 'visible';
+        if (clipping(cs.overflowX) || clipping(cs.overflowY) || cs.clipPath !== 'none') own = cut(above, of(el.getBoundingClientRect()));
+      }
+      clips.set(el, own);
+      return own;
+    };
+    const seen = (el: Element) => {
+      const check = (el as Element & { checkVisibility?: (o: object) => boolean }).checkVisibility;
+      return check ? check.call(el, { opacityProperty: true, visibilityProperty: true }) : win.getComputedStyle(el).visibility !== 'hidden';
+    };
+    let info: R | null = null;
+    let paint: R | null = null;
+    let minText = 0;
+    const walker = doc.createTreeWalker(doc.body, 4);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const parent = n.parentElement;
+      if (!parent || !(n.nodeValue || '').trim() || !seen(parent)) continue;
+      const tag = parent.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE') continue;
+      const window_ = clipOf(parent);
+      if (!window_) continue;
+      const range = doc.createRange();
+      range.selectNodeContents(n);
+      let any = false;
+      const rects = range.getClientRects();
+      for (let i = 0; i < rects.length; i++) {
+        const c = cut(window_, of(rects[i]));
+        if (!c) continue;
+        info = join(info, c);
+        paint = join(paint, c);
+        any = true;
+      }
+      if (any) {
+        const box = parent.getBoundingClientRect();
+        const he = parent as HTMLElement;
+        const ratio = he.offsetHeight > 0 ? box.height / he.offsetHeight : 1;
+        const px = parseFloat(win.getComputedStyle(parent).fontSize) * (ratio > 0 ? ratio : 1);
+        if (px > 0 && (minText === 0 || px < minText)) minText = px;
+      }
+    }
+    const all = doc.body.querySelectorAll('*');
+    for (let i = 0; i < all.length; i++) {
+      const el = all[i];
+      const tag = el.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || !seen(el)) continue;
+      // SVG ARTWORK is measured by what it draws, never by its viewport: an imported design keeps a
+      // full-frame artboard around a small strap, and its <svg> box would read as a band. A shape
+      // counts where it fills or strokes; nothing inside definitions, clips or masks draws itself.
+      if (el.namespaceURI === 'http://www.w3.org/2000/svg') {
+        const name = el.localName.toLowerCase();
+        if (['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'use', 'image'].indexOf(name) < 0) continue;
+        let hidden = false;
+        for (let up = el.parentElement; up && !hidden; up = up.parentElement) {
+          hidden = ['defs', 'clippath', 'mask', 'symbol', 'pattern', 'marker', 'lineargradient', 'radialgradient', 'filter'].indexOf(up.localName.toLowerCase()) >= 0;
+        }
+        const svgStyle = win.getComputedStyle(el);
+        if (hidden || (name !== 'image' && svgStyle.fill === 'none' && svgStyle.stroke === 'none')) continue;
+        const shapeWindow = clipOf(el.parentElement);
+        const shape = shapeWindow && cut(shapeWindow, of(el.getBoundingClientRect()));
+        if (!shape) continue;
+        paint = join(paint, shape);
+        if (name === 'image') info = join(info, shape);
+        continue;
+      }
+      const picture = tag === 'IMG' || tag === 'VIDEO' || tag === 'CANVAS';
+      const cs = win.getComputedStyle(el);
+      const paints =
+        picture ||
+        (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent') ||
+        cs.backgroundImage !== 'none' ||
+        cs.boxShadow !== 'none' ||
+        parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth) > 0;
+      if (!paints) continue;
+      const window_ = clipOf(el.parentElement);
+      const c = window_ && cut(window_, of(el.getBoundingClientRect()));
+      if (!c) continue;
+      paint = join(paint, c);
+      if (picture) info = join(info, c);
+    }
+    const rect = (r: R | null) => (r ? { x: r.l, y: r.t, w: r.r - r.l, h: r.b - r.t } : null);
+    const root = doc.body.querySelector('div');
+    const old = root ? root.getBoundingClientRect() : null;
+    win.parent.postMessage(
+      {
+        type: 'spx-preview-box',
+        id,
+        x: old ? old.left : 0,
+        y: old ? old.top : 0,
+        w: old ? old.width : 0,
+        h: old ? old.height : 0,
+        info: rect(info),
+        paint: rect(paint),
+        minText: minText > 0 ? Math.round(minText * 10) / 10 : null,
+      },
+      '*',
+    );
+  } catch {
+    /* best-effort: a broken template answers nothing, and has no measurement */
   }
 }

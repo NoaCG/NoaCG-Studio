@@ -1,12 +1,100 @@
 # Production page refactor: a thin screen over Node-tested playout modules
 
 Baseline: main `70fad3a94`, 2026-10-11; every line number below is of that revision. Authority:
-owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourteen sequential
-phases, each built by one session and checked by another on `main`, then (owner, 2026-10-16) the
-Sheet data flow's six phases as phases 15-20 and audience after them; see "After the refactor, in
-the same run". Replaces the phase map of
+owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourteen refactor
+phases, each built by one session and checked by another on `main`, and the content continuation
+C0-C7 of `docs/work-specs/data-sources/spec.md`. The run order reconciled on 2026-10-17 (see
+"Run order") was agreed on 2026-10-18 and expanded by the owner on 2026-10-19: all 22 execution
+steps plus qualification Q belong to one project, with remaining refactors after C7. The owner
+now selects H0 and E1–E8 as executable planning scope; the [extension contract](extensions.md)
+adds their child specs and exact 47-phase sequence without dropping baseline work. Replaces
+the phase map of
 [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) (its phases 0-2 are done; its old
 phase 3 is phase 4 here, phase 4 is phase 3, phase 5 is phase 13).
+
+Owner agreement, 2026-10-18: synthesis §7 **1 yes; 2 yes; 3 yes; 4 yes to both**
+(run order; Sheet reader model; destination hygiene with `/update` allowed; opt-in key storage
+and off-air YouTube provenance). The reconciled plan is agreed. Recording and landing this
+planning update does not start `/plan-run production-page`; the owner explicitly said not to.
+
+Owner refinement, 2026-10-19: incorporate the accepted P1–P6 and whole-graphic data-connection
+refinements into the actual plan; keep all refactor phases, use qualified cloud execution where
+equivalent, and local hardware/performance/human acceptance where required. Target start:
+20 October. The owner's latest instruction makes Friday 23 October a progress/testing checkpoint,
+not a completion deadline: unfinished work stays open and no phase or acceptance gate is dropped
+to fit that date. Pixotope and the broader 19 October competitor findings are incorporated below;
+the Argon second opinion has now been reconciled and the owner selected the extensions below.
+This is planning authorization only; execution remains a separate start.
+The current UI stays the design baseline; research mockups show logic only.
+
+The baseline 22-step tranche remains unchanged in scope. The expanded programme additionally
+includes H0 Companion qualification and E1–E8: external acquisition/mapping, keyed election
+cues/package, declared Companion actions, typed OGraf controls, foreign rundown hosting and final
+acceptance. [Executable child specs and exact order](extensions.md) are part of this authority.
+SVG/custom-action import redesign, a NoaCG OGraf Server API/native output system, Bridge packaging,
+custom form designer and Excel/local-file providers (#1507) remain outside this run.
+
+Selected on 2026-10-19 after [Argon reconciliation](../../research/2026-10-custom-graphics-workflow/14-argon-review-reconciliation.md),
+against main `4e067b65674a9bf0a7632430b5dd0772c03a0331`. All runtime acceptance remains open.
+[Reconciliation receipt](evidence/extension-reconciliation-2026-10-19.md) records main changes,
+scope promotion, preserved decisions and planning verification.
+
+**Owner decisions, 2026-10-20** ([receipt](evidence/owner-decisions-2026-10-20.md)). The owner
+cares about the outcome, not rules for their own sake: read every rule, limit and gate for its
+purpose, and where its wording would block the goal without serving that purpose, follow the
+purpose and say why in the pull request. Invariants stay binding: land only through
+`/queue-merge`; only the merge queue writes `main`. The run never stops for a check an agent can
+do itself:
+
+- **A.** Every phase PASS uses only criteria an agent verifies on a cloud worker or in GitHub
+  Actions. Owner-only items (physical Stream Deck, human trials, the real studio, Twitch, the
+  owner's own judgement) never block the next phase: the coordinator sends a phone notification
+  saying exactly what to do, adds the item to its running owner list (§9) and continues.
+- **B.** One cloud coordinator session runs the whole project, so nights continue with the laptop
+  closed. Laptop sessions run the owner-local checks (Windows speed, CasparCG/Bridge, OBS/browser
+  source) whenever the laptop is on, against exact landed revisions, and record receipts
+  afterwards. They never gate; a regression they find becomes a repair (§8).
+- **C.** The final owner block, H0.2 (physical deck, with the operator's buttons) then S (real
+  studio receipts), is the run's last two phases and the only part that waits for the owner.
+- **D.** Human trials are trial kits that agents prepare and the owner runs when he can; findings
+  become issues. **E.** Q is agent-run and each record gates only the phase that needs it.
+- **F.** All features stay; E3's external-controller check is backlog issue
+  [#1531](https://github.com/NoaCG/NoaCG-Studio/issues/1531), and an authenticated replay server
+  we build replaces the external replay provider. **G.** E4's source route has its own ingress
+  limits and E8 a smaller fixture. **H.** C2's tick reuses the existing `CRON_SECRET`, ships
+  switched off and is switched on by the agent only within Pro's included usage.
+
+## Research integration, 2026-10-19
+
+The owner supplied completed research against `86e795dc9f66183633d7c99a73bea8c27e4e32f6`.
+**Code** is source inspection, **Plan** is an unshipped commitment, **Documented** is vendor
+technical documentation, **Claim** is marketing, and **Recommendation** is judgment. No commercial
+system was installed or exercised in that research; there is no measured usability/performance
+ranking. [Integration receipt and sources](evidence/research-integration-2026-10-19.md).
+
+| Finding | Existing support / commitment | Necessary refinement and owner | Priority | Acceptance evidence to collect |
+| --- | --- | --- | --- | --- |
+| Contextual, sample-first data setup | Code: shared tree/bindings; Plan: C0–C7 Fill/Connect, bulk mapping, starter CSV | Preserve the whole-graphic entry and field exceptions; reuse sources, preview sample/rendered result and affected cues; diagnose malformed columns rather than emptying them (C1/C5) | P0 | Data AC-4/7/13: paste schedule; custom Sheet/API round trip; repair/cancel without unintended bindings |
+| Freshness and recovery must be truthful | Plan: last-good hold, last checked/changed, leases, Sheet D4 and API Pause fallback | Show active reader/cadence; unchanged successful reads are healthy; reject late old-owner results (C1/C2). Provider event-age support is a later capability | P0 | Sheet AC-4/5/6/7: closed-controller cadence, old-owner delayed result, two-graphic override through Pause/Resume; data AC-11 malformed versus valid empty |
+| Selection, staging and confirmed output differ | Code: command log, output status and folder operations; Plan: C7 actual-output rehearsal | C6 explicitly owns bounded status/target presentation changes; label simulation and unconfirmed/stale output, inspect child failures/collisions; no new acknowledgement protocol or routine Take dialog | P0 | Data AC-16/C6 cases: staged edit versus live update, failed group child, conflicting layers and connection loss; actual CasparCG/Bridge and OBS receipts |
+| Independent behavior must stay independent | Code: native machine groups, legal events and origin-based clocks; Plan: editor named steps/segments | Reuse these in rehearsal; keep data writes separate from lifecycle actions. No node editor, macro composer or second state owner | P0 preservation | Data AC-7/16: quiz reveal with independent running clock; source update changes values without reset/Take/advance |
+| Foreign OGraf types and controls have real gaps | Code: scalar adapter and isolated host; Plan: full-stack packages A/E/F | Extend existing E/F completion contracts for typed fields/actions, schema semantics and step controls, then normal rundown hosting | P1 selected E1–E3 | Full-stack §8.1 and child specs: unfamiliar package typed round trip and actual rendered actions; native export in an independent controller |
+| A generic API mapper is a separate capability | Code: bearer-authenticated production-data API; Plan: C5 prepared sender | Selected E4/E5 after baseline; sample selection and bounded transforms upstream of target adapter, trusted credentials and connector policy | P1 selected extension | E4/E5 sample/validation/error/credential checks; no arbitrary JSON mapper or wire migration in C5 |
+| Generated controls precede bespoke layouts | Code: ARRANGE/profile, More and pinning; COMBINE removed | Use existing profile; later responsive presets need stable references and reversible generated fallback; sports/quiz prototypes must prove need | P2 proposal | Control-panel road §3: narrow-panel tasks, missing-reference report, saved layout retained, shared state unchanged |
+| Competitive claims must match evidence | Older documents claimed only Singular generates controls | Correct Erizos/Pixotope comparison; keep documented capabilities distinct from MXMZ claims and untested interoperability | Documentation | Traceable source links and evidence labels; no superiority or qualification claim from screenshots |
+
+**Execution boundary.** The October 18 baseline phase order and Q remain. Refactor phases
+preserve behavior; C0–C6 and the selected extension implementation phases declare product
+changes explicitly. C6 owns its status refinement, C7 rehearses, parent phase 14 closes the
+baseline in software and E8 the expanded programme; the final owner block (H0.2, S) closes both
+on real hardware. Evidence reuse follows §6, never redundant runs on unchanged material inputs.
+
+**Complete roadmap, selected scope.** There is no arbitrary phase or project-duration cap.
+The [extension contract](extensions.md) selects E4/E5 acquisition/mapping and E7 election work,
+plus the A/E/F portions of the [OGraf full-stack plan](../../OGRAF_FULL_STACK_PLAN.md) through
+E1/E2/E3. Server/native output, the [responsive layout gate](../../CONTROL_PANEL_ROAD.md#3-capability-vs-workflow---the-production-control-profile),
+private Sheets/OAuth, provider-specific sports/high-rate feeds and import/editor redesign remain
+outside this run. Selection for planning does not start execution or qualify a provider.
 
 ## Verdict
 
@@ -140,9 +228,12 @@ keeping today's numbers; fixing behaviour inside an extraction (§1.3).
 
 Each row is justified by a maintenance or testing benefit, not by size. ProductionPage keeps:
 selection and range state, the session hook, the wires, the derived view, the render. Required
-for the testing benefit: phases 1, 2, 5, 7, 10, 11, 12, 13, 14. Maintenance-only and individually
-droppable before a window is authorised: 3, 4, 6, 8, 9 (each later phase takes the callbacks it
-needs from the page instead, see Phases).
+for the testing benefit: phases 1, 2, 5, 7, 10, 11, 12, 13, 14. Phases 3, 4, 6, 8 and 9 have
+maintenance benefits and are included by the owner's 19 October full-project direction.
+Before each phase, reconcile its outcome with current main: reuse an already-satisfied result
+with evidence and the independent check rather than performing an unnecessary move. Do not
+silently drop a phase or mark an unmet outcome complete. The content phases need only 1, 2+7
+and the props-only half of 13 first; the remaining refactors follow C7 ("Run order").
 
 | Module | Responsibility | Owns | Runtime imports / injected IO | Interface | Benefit |
 |---|---|---|---|---|---|
@@ -277,13 +368,18 @@ Node test; `matchClockWire.ts` has no Node test today (its readers are in-page i
 
 ### 5.3 Inventory
 
-Reconciled against `origin/main` on 2026-10-11: `e2e/quarantine.json` holds
-`e2e/configured/late-send-abandoned.spec.ts` and `e2e/configured/dashboard-hosted-walk.spec.ts`;
-`e2e/configured/production-data-key.spec.ts` was released that day and counts again.
-`e2e/configured/expected-run.json`: floor 96 tests, four allowed skips including
-`bridge-real-server.spec.ts`. `skipOldEditor()` disables nine production-data tests, two
-productions tests, one production-controls test and one hosted-control test; they are not
-coverage. A change to only `ProductionPage.tsx` selects 43 specs through `scripts/e2e-affected.mjs`;
+Reconciled against `origin/main` `331a98a91` on 2026-10-20: `e2e/quarantine.json` holds no
+specs (`late-send-abandoned`, `dashboard-hosted-walk` and `production-data-key` were released
+after consecutive passes; stale PR #1450, which would have quarantined `production-data-key`
+again, was closed the same day). Later that day four specs entered it (`configured/agent-access`,
+`wizard-shell`, `import-svg-behaviour`, `configured/shared-lab-computer`); a quarantined spec
+leaves the blocking shards but still runs on every main push (§8, decision 18).
+`e2e/configured/expected-run.json`: floor (`minTests`) 104
+tests, five allowed skips (the four connector OAuth specs that run on the local stack only, and
+`bridge-real-server.spec.ts`). `skipOldEditor()` no longer exists in `e2e/`, so the ± press on a
+bound field (`e2e/production-data.spec.ts` 741) and the bound adjust (800) run and count.
+`rundown-timing-recovery` is a configured spec (`e2e/configured/`). A change to only
+`ProductionPage.tsx` selects 45 specs through `scripts/e2e-affected.mjs`;
 `e2e/dashboard-operator-walk.spec.ts` declares `covers: none` and is not among them although it
 presses Take, Update, Next and Out.
 
@@ -294,7 +390,7 @@ Coverage by behaviour (e = `e2e/`, c = `e2e/configured/`, Node = `scripts/*.test
 | Take (3100, 2960, 2160) | e productions 684/903, production-controls 58, playout-drills 77, publish-output-setup 230/306, playout-cues 269/709/1032; c output-cold-boot 36, relay-cold-boot 43, playout-both-roads 112, take-behind-out 29; Node seq-send, failed-sends, cue-auto | the page's own Take has no Node test; `takeCueItems`, `withLiveCue`, `leftAlone` untested in Node |
 | Out (3169, 3184) | e productions 684/787/142, playout-cues 435, playout-clock 420, playout-folders 616/1314; c take-behind-out, command-sequence 187; Node server-playout 94, folder-playout 395 | `clearCueItems`, `leftAlone` untested in Node |
 | All out (3229-3298) | e playout-cues 838, playout-folders 683/1286/1387/1584, publish-output-setup 162/359; c all-out-from-heads 22, take-behind-out, command-sequence 235; Node all-out, folder-playout 289 | `headsSay`, `headsStillOn`, `clearAllCueBatches` untested in Node |
-| Update and ± (3113, 3144) | e quiz-live-consistency 75/164, production-controls 129/398, playout-drills 153/178; c quiz-output 25, scorebug-output 43; Node production-data 154/295/315 | a ± press on a bound field on this page runs only in skipped tests |
+| Update and ± (3113, 3144) | e quiz-live-consistency 75/164, production-controls 129/398, playout-drills 153/178, production-data 741/800 (lines at `331a98a91`); c quiz-output 25, scorebug-output 43; Node production-data 154/295/315 | the bound ± press has no Node test |
 | Next (3160) | e live-actions-first 152, playout-cues 709; Node seq-send 140 | nothing configured presses Next; `canAdvance` has no Node test |
 | Re-take (4131, 742-754) | e playout-drills 77, playout-cues 838/1124; c playout-both-roads, scorebug-output; Node server-playout 117/143, folder-playout 190/401 | a graphic re-take has no Node test |
 | Folders (3515-3674) | e playout-folders (51 tests; held takes at 616, 1365, 1387, 1584 assert the fake Bridge action log); Node folder-playout (20), show-folders, rundown-rows | the page's run orchestration (stop flags, `sendingFolders`, `offLate`) is browser-only; no published folder Take anywhere |
@@ -321,7 +417,7 @@ Critical behaviours and where each is proved; "reused" is unchanged:
 | folder cancellation, partial acceptance, failed sends | playout-folders 616/1365/1387/1584, folder-playout Node, failed-sends Node, late-commit-notice 67 | offline: S3 | Node: `folderPlayout` with a scripted send after `stopAll` (phase 10) |
 | duplicate delivery, reconnect, reload, boot replay | playout-both-roads 112, follow-status-is-visible 24, output-realtime-floor 39, output-cold-boot 36, hosted-control-recovery 66, playout-cues 1032 | Node `scripts/command-roads.test.mjs` (`createAppliedOnce`, `withOid`) | Node `airState.claimAndApply`, `seedFromResolve` (phase 11) |
 | production change and disposal while work is pending | cross-tab 42/103, playout-nav 100 | configured `e2e/configured/playout-switch-mid-flight.spec.ts`: Take with `control_send_seq` held, navigate to another production, release; assert the other production's chip reads nothing on air, its PROGRAM `data-plays` is 0, and the first production's `control_tail` holds the play row (the command stood) | Node: `dispose()` mid-flight makes the fold a no-op and refuses the next send (phase 11) |
-| timed cues, clocks, preview-against-air editing, panel and keyboard | rundown-timing 74/107, rundown-timing-recovery 78, cue-auto Node; production-controls 85; panel-production-page 25; productions 787, playout-drills 77 | offline: `u` and `n`; the panel snapshot's `allowed` map against the bar's disabled states, read through the existing panel dialog | Node `verbDispatch`, `verbView` (phase 12), `cueArmEngine` (phase 9) |
+| timed cues, clocks, preview-against-air editing, panel and keyboard | rundown-timing 74/107, c rundown-timing-recovery 78, cue-auto Node; production-controls 85; panel-production-page 25; productions 787, playout-drills 77 | offline: `u` and `n`; the panel snapshot's `allowed` map against the bar's disabled states, read through the existing panel dialog | Node `verbDispatch`, `verbView` (phase 12), `cueArmEngine` (phase 9) |
 | one command on the controller and on a separate output | playout-both-roads 112, output-cold-boot 36, quiz-output 25, scorebug-output 43 | none new | - |
 
 Phase-1 tests use only observables that exist today: PROGRAM `#f0`, `data-plays`, `data-renders`
@@ -333,7 +429,10 @@ repeated harder.
 
 ## 6. Verification matrix (one per phase; the builder follows it as written)
 
-Local targeted specs run through the browser queue: `node scripts/e2e-runs.mjs --wait && npx
+Local targeted specs are focused selections within `.agent-workflows/verify.md`'s bounds (five
+minutes, or one twelve-minute broader selection); a row naming "every ... offline spec" means that
+affected selection in Actions. One configured run on one revision satisfies every configured
+item of the phase, including both rows of 2+7. They run through the browser queue: `node scripts/e2e-runs.mjs --wait && npx
 playwright test <files>`, the configured ones with `--config=playwright.live.config.ts` only
 where a local stack exists, else dispatched. Node tests: `node --test <files>`. Configured
 dispatch on the candidate ref: `gh workflow run configured-suite.yml --ref <branch>` (about 25
@@ -341,13 +440,13 @@ minutes; the run's JSON must meet `expected-run.json`, whose `minTests` the pull
 for every configured spec it adds, with nothing skipped outside the allowlist; a run that exits 0
 with a new spec skipped is not a pass; record the run URL and its `headSha`).
 Independent assessment: A = a fresh read-only session with the `/so` brief
-(`.agent-workflows/so.md`) by `wave-row` (Opus, high); A+ = the same by `wave-row-deciding`
-(Opus, xhigh). Every phase also runs `/check`, `npm run depcruise`, `node scripts/gates.mjs run
+(`.agent-workflows/so.md`); A/A+ keep their established ordinary/deeper assessment depth,
+with builder/checker routing selected by the current landed runner. Every phase also runs `/check`, `npm run depcruise`, `node scripts/gates.mjs run
 --changed origin/main` and AC-8's scope fence. Broad affected suites stay on GitHub Actions.
 
 | Phase | Local targeted specs | Node | Configured dispatch | Assessment | Perf |
 |---|---|---|---|---|---|
-| 1 | playout-air-contract, dashboard-operator-walk | command-roads, the gate's test | yes (playout-adjust-race, playout-resolve-race, playout-switch-mid-flight, production-data-key-dispatch) | none | baseline, twice |
+| 1 | playout-air-contract, dashboard-operator-walk | command-roads, the gate's test | yes (playout-adjust-race, playout-resolve-race, playout-switch-mid-flight, production-data-key-dispatch) | none | baseline, twice (laptop, later) |
 | 2 | playout-cues, hosted-control, playout-drills | live-cue, cue-items, store-part, playout-session (create, dispose) | yes (hosted-control-recovery, playout-both-roads, command-sequence: shared helpers) | A | - |
 | 3 | production-controls, live-actions-first, playout-baseline | - | no | none | - |
 | 4 | publish-output-setup, bridge-connect, playout-feedback-health | - | yes (publish-guard, production-links, playout-status, live-prepare) | A | - |
@@ -357,10 +456,10 @@ Independent assessment: A = a fresh read-only session with the `/so` brief
 | 8 | rundown-history, rundown-history-storage, playout-folders, cross-tab, productions | - | no | none | - |
 | 9 | rundown-timing | cue-arm-engine (fake clock, visibility, stop) | yes (rundown-timing-recovery) | A | - |
 | 10 | playout-folders | folder-playout extended (held send, stopAll, dispose) | yes (take-behind-out, command-sequence) | A | - |
-| 11 | every playout and production offline spec named in §5.3 | air-state, playout-session (parts, apply order, dispose), session-wire (scripted wire; production switch mid-flight) | yes (whole suite) | A+ | repeat |
+| 11 | every playout and production offline spec named in §5.3 | air-state, playout-session (parts, apply order, dispose), session-wire (scripted wire; production switch mid-flight) | yes (whole suite) | A+ | repeat (laptop) |
 | 12 | as 11 plus panel-production-page | graphic-verbs (every §4.2 row), verb-dispatch, verb-view | yes (whole suite) | A+ | - |
-| 13 | playout-air-contract, production-persistence, production-data, playout-drills | cue-draft (edit, flush, cancel, dispose, the unsent selector) | yes (whole suite) | A+ | repeat |
-| 14 | the full offline suite on CI; the automated rehearsal | - | yes (whole suite) | A | final |
+| 13 | playout-air-contract, production-persistence, production-data, playout-drills | cue-draft (edit, flush, cancel, dispose, the unsent selector) | yes (whole suite) | A+ | repeat (laptop) |
+| 14 | the full offline suite on CI; automated rehearsal and the software half of data-sources AC-16 on the completed candidate | - | yes (whole suite); real outputs in S, the trial kit on the owner list | A | final (laptop) |
 
 Evidence (`evidence/phase-<n>.md`): the candidate sha, each command and its summary, the
 configured run URL with its tested sha, the assessor's verdict with the reviewed sha.
@@ -368,10 +467,10 @@ configured run URL with its tested sha, the assessor's verdict with the reviewed
 - **Revalidation.** A commit that changes `src/`, `e2e/`, `scripts/` or `package.json` after any
   evidence invalidates that evidence; the matrix rows the change reaches run again (all of them
   for `src/control/` or the page).
-- **Evidence-only commit.** A commit touching only this spec's `evidence/` directory is allowed
+- **Evidence-only commit.** A commit touching only the programme's `evidence/` directories is allowed
   once after the last material commit; it does not invalidate evidence; `/check` then runs on
   that tip, and its verify step cites the evidence after confirming the tested sha differs only
-  by that commit (`git diff <tested> HEAD -- . ':!docs/work-specs/production-page-refactor/evidence'`
+  by that commit (`git diff <tested> HEAD -- . ':!docs/work-specs/*/evidence/**'`
   is empty). `/queue-merge` requires the stamp on the final tip; a review or simplify change
   during `/check` is a material commit and restarts the matrix.
 - **Mappings.** New Node tests carry `// guards: <module>`; specs whose `// covers:` named a
@@ -396,7 +495,15 @@ and are not cited as one.
 owner's productions). Samples: `--measure --rounds 12 --headless`; medians and p90 computed from
 `playout-lag.json`.
 
-**Baseline validity.** Phase 1 runs the baseline twice on the same build; the thresholds below
+**Who measures, and when (owner, 2026-10-20, B).** The laptop helper (§9.1) runs every measurement
+below on the exact merge SHA of the phase it belongs to, whenever the laptop is next on; nothing
+waits for it. Phase 2 does not wait for phase 1's baselines: they are measured later on phase 1's
+merge SHA, and the repeats after phases 11 and 13b and at 14 on theirs, in any order. A
+comparison is made as soon as both of its sides exist. The purpose of the old ordering was to
+catch a slowdown before it compounds; measuring on the exact historical revisions keeps that
+attribution, so the order no longer needs to gate.
+
+**Baseline validity.** The baseline runs twice on phase 1's merge SHA; the thresholds below
 apply only if the two baselines agree within them; otherwise the tolerance is 1.5 times the
 observed spread and is recorded. Both baselines and every repeat's `playout-lag.json` are kept in
 `evidence/perf/`.
@@ -404,9 +511,11 @@ observed spread and is recorded. Both baselines and every repeat's `playout-lag.
 **Comparison rule** (a repeat against the first baseline): click to command, to played and to
 painted medians within +5 ms and p90 within +10 ms; `rpcSent->rpcDone` and `wsRow` medians within
 +15%; `frozeMs` p90 within +10 ms. A result outside the rule is repeated with `--rounds 24` before
-it is judged; a confirmed regression is a stop (§8). Repeats after phases 11 and 13 and at 14.
+it is judged; a confirmed regression becomes a repair (§8), attributed to the first measured
+revision that breaks the rule.
 
-**Render counts and freshness** (`e2e/playout-air-contract.spec.ts`). `data-renders` on the page
+**Render counts and freshness** (`e2e/playout-air-contract.spec.ts`; these run in Actions and
+gate phase 13b, unlike the timings above). `data-renders` on the page
 root (exists, 5486) and, from phase 13, on the cue editor. Target after phase 13: ten keystrokes
 into a value field move the page root's count by at most 1 (the `unsent` selector's first
 transition, D12) and the editor's by at most 10; a timing reading moves the page root by 0
@@ -431,16 +540,70 @@ phase 1 does not. plan-run does not isolate the refactor from production.
 deploy-verify run, and the exact revert command.
 
 **Ledger sequences** (`scripts/plan-run.mjs`):
-- A failed post-merge check: `fail` -> `repair` (one) -> `landed` -> `check` -> `pass`; a second
-  `fail` makes the coordinator record `stop` and ask the owner; only his real answer is recorded
-  as `answered`.
-- A product regression found after `pass` (the landing's configured run, deploy-verify, a later
-  main run attributed to the phase, an owner report): the coordinator records `stop` on the next
-  phase with the reason, asks the owner (plan-run's stop path with a phone notification), and a
-  repair session lands the revert through the queue. The run resumes only after `answered`; the
-  phase is rebuilt in a later window.
-- Infrastructure unavailable (CI, the local stack, Vercel, GitHub): `stop` with the reason; no
-  revert of healthy source; resume after `answered` once the infrastructure is back.
+- A failed post-merge check: `fail` -> `repair` (one) -> `landed` -> `check` -> `pass`. A second
+  failure is diagnosed, not an automatic owner stop (owner, 2026-10-20, decision 17): one fresh
+  deciding agent, independent of the phase's builders, repairers and checkers, either makes one
+  last scoped repair after product failures (never loosening a test, check or limit), re-checks
+  once after blocked checks whose prerequisite has recovered, or concludes that a genuine owner
+  decision is needed; only then does the coordinator record `stop` and notify him, and only his
+  real answer is recorded as `answered`. Any failure after the diagnosed attempt, product or
+  blocked, stops; counts never go down, and his answer to a phase out of attempts grants exactly
+  one more. Infrastructure and capacity outages are no failures at all: the checker reports the
+  infrastructure unavailable and the coordinator records a wait (runner PRs, below).
+- A product regression found after `pass` (a laptop receipt, the landing's configured run,
+  deploy-verify, a later main run attributed to the phase, an owner report) becomes a repair
+  (owner, 2026-10-20, B): the coordinator uses the helper's issue, or files one with the failing
+  receipt, and, between
+  phases (after the step in flight lands, before the next launch), launches one repair session.
+  It reproduces the failure, lands a fix through `/check` and `/queue-merge`, and the failing
+  check runs again on the repaired merge SHA (in Actions, or by the laptop helper). No
+  owner answer is needed. Only if that repair does not fix it does the coordinator record `stop`
+  on the next phase and notify the owner: revert or redesign is then his decision.
+- Infrastructure unavailable (CI, the local stack, Vercel, GitHub, provider usage limits): no
+  check is spent on known-down infrastructure and no healthy source is reverted. The coordinator
+  launches nothing against it, waits inside its background job and retries when it is back, and
+  notifies the owner only if it lasts more than two hours or needs his account. No `stop` and no
+  `answered` are involved.
+- **Separate from the editor (owner, 2026-10-20, decision 18).** A phase answers only for what
+  it can break: an editor bug or any other unrelated failure never fails a phase or stops the run.
+  A failing spec counts against the phase when the phase adds or changes it, or when it fails
+  again on a second run on the merge SHA and passes on main without the phase (the merge's first
+  parent; the checker runs it there when main's own runs do not show it). Main's push run gives
+  the second run itself; on a dispatched check run the checker re-runs the failed jobs once. A
+  spec that passes on its second run is a flake: it goes to the quarantine flow and never counts
+  against the phase. Test selection is no proof either way, since it has missed real coverage
+  (#927). Any other failing spec, one already failing without the phase, is outside the phase: the checker names
+  it in `mergeChecks` with the issue that tracks it (the rolling red-main issue, or one new issue)
+  and that evidence, and the phase can pass; one in a production-page spec also gets a
+  between-phases repair, as above. Quarantined specs gate nothing; `quarantine.yml` keeps running
+  them. When main cancelled the run on the merge SHA as superseded, the checker pushes a
+  `claude/check-<sha7>` branch at that SHA and dispatches `ci.yml` on it once (an empty
+  `diff_base` runs the full suite; a second dispatch on the same branch would cancel the first);
+  a later main run would test other landings too. The branch points at a landed commit, so no
+  listing counts it as unlanded work.
+- **A red main the phase did not cause.** Main's CI quarantines a fail-then-pass and reverts the
+  landings that turn a green main red, so an editor landing that breaks main undoes itself; if
+  that revert also takes out the phase's merge, the phase's builder lands it again once main is
+  green. Any other red main that blocks a phase's pull request, or that re-landing, is fixed by
+  the repair owner of the landing that broke it (AGENTS.md). The phase waits as for an
+  infrastructure outage, spending nothing, and the coordinator tells the owner after two hours.
+- **A refused landing.** A phase pull request the queue still refuses after its builder's repair
+  attempts (`/queue-merge` allows three per failure) gets one replacement builder (`resume`); if
+  the replacement cannot land it either, the coordinator records `stop` and tells the owner. A
+  quarantine pull request that cannot
+  land (its own CI red, or an owner hold) never holds the run: decision 18 already keeps that
+  spec from failing a phase, the owner hold is an owner-list item, and a red bot pull request is
+  carried through by a session outside the phase ledger, as #1546 did for #1544. In a cloud
+  session a quarantine is entered on its own branch from `origin/main`, never on a phase's
+  branch, with `node scripts/e2e-quarantine.mjs enter <spec> --run <url>` without `--queue` (its
+  `gh pr` calls are GraphQL, refused there), and that branch lands through the cloud path in
+  `/queue-merge`. Between phases the coordinator lists open quarantine pull requests (the
+  §9 REST call) and carries a red one through the same way.
+- **Auto-merge.** A worker's own permission check may refuse turning on auto-merge for its pull
+  request as self-approval (#1408). The coordinator, an owner-started session that can (#1546 to
+  #1550, 2026-10-20), then turns it on for that phase pull request, as the owner's permission
+  policy authorizes (§10 step 3), with `/queue-merge` step 5's checks: the head is the reviewed
+  SHA just before and just after, and auto-merge goes off again if the head moves.
 
 **Revert, default:** in an isolated worktree, `git revert -m 1 <merge sha>` on `revert/<sha7>`,
 `/check`, `/queue-merge`; unrelated landings stay. `scripts/revert-landing.mjs` only when its
@@ -451,86 +614,297 @@ staging project only.
 
 **Final automated completion** (phase 14): the production path on the built app against the
 local stack with the fake Bridge, published output on a second page, All out, folders, timed
-cues, panel keys, recorded in `evidence/rehearsal-automated.md`. Distinct from it: a hardware
-rehearsal on the owner's CasparCG, Bridge, Stream Deck, OBS and vMix, which this plan cannot run;
-each stays unverified until the owner records a walk. The next real show is not the first
-rehearsal; this spec names no show date and claims no waiting period makes it safe.
+cues, panel keys, recorded in `evidence/rehearsal-automated.md`. Phase 14 also closes the software
+half of data-sources AC-16 on the completed candidate, after all remaining refactors. The laptop
+helper then runs the scratch CasparCG/NoaCG Bridge and OBS/browser-source walks on 14's merge SHA
+(§9); they inform repairs and never gate. The required real-output acceptance, the owner's actual
+CasparCG/NoaCG Bridge setup plus an ordinary OBS/browser source in the real studio, is phase S
+of the final owner block. Record the app revision, installed versions, assets/fonts, layers,
+supported verbs, stacked graphics, restart/reconnect and the physical consumer when used.
+Stream Deck behavior is requalified once in H0.2; expanded vMix/SPX acceptance is later, with
+existing regressions retained. Cloud/fake-Bridge checks and laptop walks cannot substitute for
+S's receipts. C7 evidence is reused only where material inputs are unchanged under §6;
+changed playout/data behavior requires the affected final walks again. An unavailable required
+route remains blocked/unverified, never a production-ready pass. The next real show is not
+the first rehearsal.
 
 ## 9. Execution settings
 
-- **Coordinator:** `/plan-run`, sequential; the wave file lists the remaining spec phases as
-  `N. Phase <k> of the spec: <name> (AC-...)`; the ledger numbers them 1..N per run; a later
-  window is a new run whose list starts at the first unfinished spec phase (a wave file cannot be
-  stretched past 24 hours from its recorded start, `scripts/wave-plan-store.mjs` `openWave`).
-- **Builders and ordinary checks:** `wave-row` (Opus, high). One builder owns the page in any
-  phase.
+- **Coordinator:** `/plan-run`, sequential. Its home is ONE Claude cloud session for the whole
+  project (owner, 2026-10-20, B), so nights and mornings continue with the laptop closed; any
+  session can stop and any new one continue (§10 step 6). The wave file lists the phases as `N. Phase <k> of the spec: <name> (AC-...)`, `<k>`
+  being a number for this spec's phases, `C0`..`C7` for the data-sources spec's (C1 as `C1a`,
+  `C1b`, `C1c`), the child IDs (`H0.1`, `E4.1`, ...) and `S` for the studio phase, with `2+7`,
+  `13a` and `13b` preserved. The project holds the exact 47 phases of `extensions.md`, each with
+  its gating acceptance and one environment, in one ledger across bounded work blocks; the
+  coordinator opens each next block itself. Each `landed` receipt carries the phase's merge SHA,
+  which the laptop helper reads. Q is not a phase: each Q record is an acceptance item of the
+  phase it gates.
+- **Never idle, no silent workers (14, 16).** The coordinator waits on builders, checks and CI
+  inside a running background job or monitor, so a cloud machine is not reclaimed. The runner's
+  bounded waits plus its progress check (runner PR) catch a worker with no progress for about 30
+  minutes; the coordinator nudges it, then restarts or repairs it.
+- **Speed (16).** Iteration and landing speed matter; GitHub minutes cost us nothing. Full suites
+  run in Actions, targeted checks on the worker, the Q worker ahead of the phases that need it,
+  and no landing waits for a laptop or owner item. Existing CI job timeouts are unchanged; only the
+  new endurance workflow, landed before the run opens, gets 90 minutes.
+- **Builders and ordinary checks:** use the current landed runner's qualified native
+  worker selection and independent checker procedure; existing `wave-row` roles are fallback
+  roles where that procedure selects them. One builder owns the page in any phase. Every phase of
+  this programme, a child spec's included, writes its notes to `evidence/phase-notes.md`, so no
+  phase changes a spec's digest.
 - **`wave-row-deciding`** (Opus, xhigh): the pre-merge assessments of phases 11-13 (A+), and any
-  narrow state or lifetime decision a builder meets that this spec does not settle (the builder
+  narrow state or lifetime decision a builder meets that this spec does not settle; use the
+  current runner's qualified native equivalent where selected (the builder
   records the question and the decision in the phase notes; it never widens scope).
 - **Optional review mechanisms** (explicit opt-in; none is stacked by default): the Workflow
   tool (multi-agent scripts; needs the owner's opt-in per run), `/code-review ultra` (user
   triggered, billed), `/so`. At most one additional mechanism for phases 11-13:
   `/code-review ultra <PR#>` when the owner triggers it; otherwise none.
-- **Runner readiness is an external prerequisite.** A separate session is improving
-  `/plan-run`'s deadline, checkpoint and continuation handling. This spec does not specify or
-  depend on those changes and does not assume them done; the coordinator revalidates the runner
-  (the ledger commands in `.agent-workflows/plan-run.md` as they stand then) when a run is
-  authorised.
-- **Preflight before phase 1** (recorded in the wave file): `node scripts/work-spec.mjs status
-  docs/work-specs/production-page-refactor/work.json` clean and the plan listed under "Runnable
-  plans"; `origin/main` CI green and the latest `configured-suite` and `deploy-verify` runs on
-  main green (`gh run list --workflow <file> --limit 1`); a local Supabase stack can start or
-  the dispatch route is confirmed, the browser queue is idle enough (`npm run test:e2e:runs`),
-  `gh` is authenticated, `wave-row` and `wave-row-deciding` are available; no open wave or plan
-  run (`scripts/wave-plan-store.mjs`, never assumed from a document); the owner has supplied the
-  window in Helsinki time with its offset.
+- **Runner readiness.** Follow `.agent-workflows/plan-run.md`, `cloud-delegate.md` and
+  `docs/work-specs/continuing-plan-preparation/runbook.md` as landed. The runner change is a
+  separate verified PR (branch `claude/plan-run-container-restart`, free continuation and the
+  progress check; [runner check](evidence/owner-decisions-2026-10-20.md#runner-check)) and must be
+  on `main` before the run opens, with its one live test (start a coordinator, end it, continue in
+  a new session, confirm the ledger carries on) recorded under
+  `docs/work-specs/continuing-plan-preparation/` (landed: #1535, #1539). The second runner PR,
+  from the 2026-10-20 second opinions, landed (#1543): a fenced handoff so a replacement worker
+  can finish its step under its own identity; a progress check that counts only activity since
+  the step's launch and treats a running Actions job as active; consistent ledger, database and
+  checkpoint state when a publication fails; decision 17's diagnosis step; and checking from the
+  observed merge with PASS waiting for every exact-merge check. Recovery checkpoints now live on
+  the branch `claude/noacg-recovery/<id>`, which a cloud session can push (landed: #1545; receipt
+  `docs/work-specs/continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`). A third
+  runner PR, from the second opinions after those, landed (#1549, #1551; unit-tested, no live
+  test needed): failure counts never go down, a coordinator resumed at a diagnosis qualifies, and
+  the progress check counts queued and merge-queue runs and the worker's session events.
+  `run-supervisor.mjs record` takes the row number (1-47) of the `extensions.md` table; the
+  midpoint retro after row 23 is the procedure's ordinary retro step.
+- **Check-in after a lost container.** No watchdog session is built (a routine-started session has
+  no `send_message` or `list_events`). A cloud coordinator's block wake (`plan-run.md` §1,
+  `cloud-delegate.md`) is one `send_later` check-in named `plan-run check-in <project id>`, its
+  message naming the project ID, the current store's `<db>` path and the owner label. Every
+  coordinator turn that ends in a wait leaves exactly one pending for its own session, about 60
+  minutes ahead and never past the deadline: of the check-ins `list_triggers` shows with that name
+  and this session as target, it moves one and refreshes its message (`update_trigger`), arms one
+  if there is none, and deletes the rest. Other sessions' check-ins are left alone. While the
+  project waits for the owner (a `stop`, the owner's pause, the final owner block) or has ended,
+  the coordinator keeps none. When one fires: if the `<db>` file is gone, the coordinator tells the
+  owner and keeps none, since `continue` could take the run back from a session the owner moved it
+  to. Otherwise it asks `node scripts/run-supervisor.mjs next <db> <id>` and carries on from the
+  answer as usual, restarting its background wait unless that process runs on this machine (a new
+  machine keeps the disk but no process). A block end (`paused`, "work block ended") opens the next
+  block. `superseded` ends the check-ins. Any other error is an infrastructure wait (§8): the
+  restarted wait retries it and the check-in stays. Receipt
+  `docs/work-specs/continuing-plan-preparation/send-later-wake-2026-10-20.md`; owner decision R23.
+  It is no help after an account usage limit and is not relied on once the session is closed: then
+  §10 step 6 applies.
+- **Preflight before the run's first step** (C0; recorded in the wave file):
+  `node scripts/work-spec.mjs status` on this spec's and every child's `work.json` with 0
+  problems (open runtime acceptance is expected) and the plan listed under "Runnable plans" in
+  `.agent-workflows/plan-run.md`;
+  `origin/main` CI green; the latest `configured-suite` run on main green; deploy-verify green for
+  main's head, or, when main's head deploy was skipped (Vercel's ignore step builds nothing for a
+  range without deploy-affecting paths, so that SHA has no deploy-verify run), the last real
+  deploy-verify pass on main whose SHA equals
+  `node scripts/deploy-affecting-paths.mjs --last-affecting origin/main` (deploy-verify's own
+  rule), recorded with that judgement; the three runner PRs on main, with the first one's
+  live-test receipt;
+  a local Supabase stack can start or the configured-suite dispatch route is confirmed;
+  `.github/workflows/endurance.yml` on main; the current runner's builder/checker interfaces
+  qualified; one test phone notification received from the coordinator session; the owner has
+  supplied the finite project deadline in Helsinki time with its offset and the actual permission
+  policy. From a fresh cloud session, each checked by its own receipt, never assumed from a
+  document:
+  - **Keys:** `node scripts/production-page-keys.mjs` exits 0: one harmless authenticated read per
+    key, printing only pass or fail, never a value (its header lists the reads).
+  - **Landing operations, one receipt each:** a REST read (`gh api repos/NoaCG/NoaCG-Studio`) and
+    a whole failed-job log (the GitHub connector's job-log read); and, from a recent real landing
+    by a cloud session, never a probe that could queue unfinished work: a `cloud-queue-merge.yml`
+    dispatch on main, auto-merge turned on, a re-run of failed jobs, and a pull request opened and
+    commented on (#1545 to #1549 did all of these on 2026-10-20). gh's GraphQL commands (`gh pr
+    view`, `gh pr merge`) are refused in cloud sessions, so the cloud path in `/queue-merge` is
+    used, never `gh pr`.
+  - **Remote tools:** `create_session`, `get_session`, `send_message`, `list_events`,
+    `send_later`, `list_triggers`, `update_trigger` and `delete_trigger` are present.
+  - **Quarantine bot:** it has opened a quarantine pull request on main's behalf within the last
+    week (its pull request is the receipt), so a flake on main reaches quarantine unattended.
+  - **No other active plan project:** each branch `git ls-remote origin
+    'refs/heads/claude/noacg-recovery/*'` lists is fetched and its `checkpoint.json` read; only
+    this plan's own project may be `active` before its deadline (the test `run-supervisor
+    continue` uses). Checkpoint branches are never deleted, so finished, cancelled and expired
+    ones stay listed and pass. A fresh container's local wave store is empty and proves nothing.
+  - **Open quarantine pull requests reconciled:** `gh api
+    'repos/NoaCG/NoaCG-Studio/pulls?state=open&per_page=100' --jq '.[] |
+    select(.head.ref | startswith("quarantine/")) | .number'` lists them; stale ones are closed through the GitHub connector or REST (`gh api -X PATCH
+    repos/NoaCG/NoaCG-Studio/pulls/<n> -f state=closed`, never `gh pr close`), a
+    fresh fail-then-pass is left to the quarantine flow, and a spec this plan names is repaired
+    first.
+
+  A missing item is one configuration request to the owner before opening, never a gate during
+  the run.
+- **Placement (owner, 2026-10-20, A and B):** qualified cloud workers for implementation, review,
+  targeted software checks and Q's Sheet/feed/YouTube/API records; authoritative full suites in
+  Actions. Those are the only places a gating criterion is checked. The laptop helper (§9.1)
+  runs the laptop entries of the `extensions.md` table on exact merge SHAs; they never gate. The physical deck, the real studio, Twitch, human trials and the owner's judgement
+  are owner-list items; only H0.2 and S, the final owner block, wait for the owner.
+- **Verification lookup:** follow the landed observation-only procedure referenced by
+  `.agent-workflows/plan-run.md` before manual dispatches. Preserve the GitHub Teams measurement
+  process, required checks and failure/retry rules. Reuse existing evidence only as §6 and the
+  shared verification policy already permit; no new CI skipping or cache policy is introduced here.
 - **Preflight before phase 2** (recorded in phase 1's notes): phase 1's tests green on main; S1
-  and S3 decided with evidence and any fix landed; two baselines within tolerance or the widened
-  tolerance recorded.
+  and S3 decided with evidence and any confirmed fix landed.
+
+### 9.1 Owner list, laptop helper and trial kits
+
+**Owner list (A).** The coordinator keeps it in its session and posts each item as a comment on
+the run's tracking issue, which it opens at the start (so a new coordinator can rebuild the list).
+Each item says what to do, where, on which revision, about how long it takes and what it informs,
+and sends one phone notification with that text; then the coordinator continues. An owner look,
+a human trial or a participant task never gates: a look is an owner-list item, a task goes into a
+trial kit. Items: starting the laptop helper
+(§10 step 4), the Twitch live check, the trial-paste pilot, each trial kit as it lands, a YouTube
+live retry if Q found no live stream, any missing prerequisite, and last H0.2 and S. Only H0.2 and
+S hold anything back: the run ends with them. The coordinator also sends one morning summary
+(Helsinki time): phases passed, the phase in flight, the tick's budget projection and the open
+owner items. From its background wait it edits one heartbeat comment on the tracking issue about
+every 30 minutes.
+
+**Laptop helper session (B, 15).** A Claude session on the owner's laptop, started with the §10
+step 4 prompt whenever the laptop is on, runs beside the cloud coordinator. It never starts,
+pauses, continues or changes the run. The repository is the shared channel:
+
+1. It reads the run's ledger from the recovery branch (`git ls-remote origin
+   'refs/heads/claude/noacg-recovery/*'` lists it; the run's is `plan-production-page-<date>`)
+   and lists the landed phases whose `extensions.md` row has a laptop entry (speed checks with
+   `scripts/playout-lag-bench.mjs` as §7 describes).
+2. For each merge SHA that still has no receipt under `evidence/local/` (bench output under
+   `evidence/perf/`), it checks that SHA out in its own worktree, runs the check and writes the
+   receipt. It lands that pass's receipts as one evidence-only change through `/check` and
+   `/queue-merge`.
+3. For a regression it opens one issue titled `production-page run: <phase> <check> regression`
+   with the receipt. Between phases the coordinator reads new receipts and helper issues,
+   acknowledges each helper issue with a comment and turns a regression into a §8 repair on that
+   same issue. If a direct message from the helper to the cloud
+   coordinator works, the helper also sends one as a nudge, never as the only record.
+4. Between passes it waits about 20 minutes inside a background job, never idle. If the
+   coordinator's heartbeat comment is more than 120 minutes old, it tells the owner the coordinator
+   may have stopped (§10 step 6).
+
+Isolation, never the owner's own setup or deck: CasparCG from a scratch config with AMCP outside
+5180-5298, OBS in a new scene collection switched back afterwards, Companion without its surface
+modules, data on the local Supabase stack or a preview branch, as measured in
+`docs/HARDWARE_CONTROL_RESEARCH.md` §4 and §6.1. **First task of the first helper session:** a
+quick channel test: land one test receipt and open one test issue, then check (in the background,
+without waiting on it) that the coordinator acknowledged both with a comment on the issue. This
+test never blocks the run; a failure is reported to the owner. A laptop that stays off delays
+these receipts and nothing else.
+
+**Trial kits (D).** C7 (the content tasks of data AC-14, sheet AC-12 and audience AC-7), H0.1
+(Companion install and pairing), E6.2 (custom and foreign buttons) and E8.2 (E8 AC-3's added
+tasks) each land a short `evidence/trial-kit.md` in their spec folder: the tasks, the
+comprehension questions, the four-of-five reading guide, and where findings go (one GitHub issue
+per finding, linked from the kit). Each kit becomes an owner-list item. The owner runs it when he
+can and reports; its findings become ordinary issues and repairs. No phase waits for a trial.
+
+### 9.2 Prerequisites
+
+Status as checked by the owner on 2026-10-20 unless stated. During the run a missing item never
+stops it: the coordinator continues as the last column says and notifies the owner, except for
+the final owner block, which waits for him.
+
+| Item | Environment | Who | Needed by | Status | If missing |
+| --- | --- | --- | --- | --- | --- |
+| Runner change (free continuation, progress check) and its live test | `main` | agents, separate PR | run opening | landed (#1535, #1539; receipt `continuing-plan-preparation/live-continuation-2026-10-20.md`) | - |
+| Second runner PR (handoff, progress since launch, consistent publication, diagnosis step, check from the merge) | `main` | agents, separate PR | run opening | landed (#1543) | - |
+| Recovery checkpoints on a branch a cloud session can push (`claude/noacg-recovery/<id>`) | `main` | agents, separate PR | run opening | landed (#1545; receipt `continuing-plan-preparation/cloud-checkpoint-branch-2026-10-20.md`) | - |
+| Third runner PR (counts never go down, a resumed diagnosis qualifies, queued and merge-queue runs and session events in the progress check) | `main` | agents, separate PR | run opening | landed (#1549, #1551) | - |
+| Check-in after a lost container (§9) | the coordinator's owner-started cloud session | coordinator | run opening | live-tested (receipt `continuing-plan-preparation/send-later-wake-2026-10-20.md`) | §10 step 6 |
+| Production access for C2's follow-ups: `SUPABASE_ACCESS_TOKEN` (reads the tick's recorded authenticated runs, flips the tick switch) and a readable month-to-date Vercel usage figure (the Vercel connector or the owner's dashboard); without that figure the switch stays off; Vercel logs and billed metrics are a fallback where readable | the coordinator's cloud session | owner | C2 follow-ups (never C2's gate) | token added to the cloud environment (owner, 2026-10-20); the preflight reads with it (`production-page-keys.mjs`) | the tick stays off; the follow-ups join the owner list with exact steps |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Claude cloud environment, the local env file, Vercel | owner | Q Sheet records (gate C1b), C1c, C2 | ready: the service account signs in | Q times reads on the public CSV export and records edit latency as unmeasured; C1b states the measured read figure; the timed edit run joins the owner list |
+| `NOACG_TEST_SHEET_IDS`: six owner-owned Sheets, comma-separated | same | owner | same | ready: the service account reads and writes each; each public CSV export works | as above |
+| `YOUTUBE_API_KEY` | same | owner | Q `youtube` (gates C3), C7 live smoke | ready: works | C3 builds and checks against recorded responses; the live receipt joins the owner list |
+| A reachable public 24/7 YouTube live stream | public | Q worker | Q `youtube` live-chat half | found when Q runs | Q retries later; C3 is not held |
+| `CRON_SECRET` (existing; do not create or rotate) | Vercel Production | owner | C2 tick | ready | the tick stays off; closed-page continuity is reported unavailable |
+| Claude cloud environment `env_017nuiDZBW9smUNLdWVQK8cf` with the keys above | Claude | owner | coordinator, Q and every cloud worker | ready (keys added 2026-10-20) | preflight item |
+| Phone notification from the coordinator | Claude app on the owner's phone | coordinator | owner list | one test at preflight | each new owner item is also a comment on the tracking issue, which GitHub emails (body edits alone are not emailed) |
+| `.github/workflows/endurance.yml` (manual dispatch, 90-minute timeout, runs a named npm script), its own prerequisite change | `main` | an agent session whose GitHub access can write workflow files | E4.1, E8.1b | landed (#1536) | the run does not open: preflight item. No phase lands a workflow file, so nothing waits mid-run |
+| Laptop helper: the desktop app, Docker Desktop (local stack), CasparCG 2.5 with NoaCG Bridge, OBS 32, Companion 5 | owner's Windows laptop, when on | owner starts it with the §10 prompt | non-gating receipts: the laptop entries in `extensions.md` | installed (versions in `docs/HARDWARE_CONTROL_RESEARCH.md` §4) | receipts wait for the laptop |
+| Physical Stream Deck with Companion | owner's laptop | owner | H0.2 | owner's deck | waits (final owner block) |
+| The real studio: the owner's CasparCG/NoaCG Bridge setup and an OBS/browser source | studio | owner | S | owner's setup | waits (final owner block) |
+| A Twitch channel to read | public | owner | owner list; C7 uses recorded fixtures | not needed by any phase | continue |
+| Trial participants | - | owner | trial kits | not needed by any phase | continue |
+| Official Finnish election feed access | provider | owner | a separate qualification outside the run | not obtained | the replay rehearsal is labelled as replay; no election-day feed claim |
 
 ## 10. How the owner starts this plan
 
 1. Execution is `/plan-run`, never an ordinary session working through the phase list by hand.
-   The owner starts ONE coordinator session; it opens the run, launches each phase's builder and,
-   after the landing, its independent checker (`.agent-workflows/plan-run.md` §2), and advances
-   to the next phase by itself when the check passes. The merge safeguards stay: every builder
-   lands through `/check` and `/queue-merge`; only the merge queue writes `main`.
-2. The deadline comes from the owner at the start, from when the computer must be closed. This
-   spec carries no date. A start instruction without a deadline is answered with one question
-   for it before the run is opened. The runner's ceiling is 24 hours from the recorded start; a
-   longer window is refused.
-3. Start template, once the plan is registered under "Runnable plans":
+   The owner starts ONE coordinator; it opens the run, launches each phase's builder and, after
+   the landing, its independent checker (`.agent-workflows/plan-run.md` §2), and advances to the
+   next phase by itself when the check passes. The merge safeguards stay: every builder lands
+   through `/check` and `/queue-merge`; only the merge queue writes `main`.
+2. The finite project deadline comes from the owner at the start. Before opening, record the
+   current authorization, stable project ID, scope, phases, acceptance and environments using the
+   continuing-project runbook. If the deadline is missing, ask once. Do not invent it from the
+   planning targets above.
+3. Start: open a new Claude Code session in the cloud, environment NoaCG
+   (`env_017nuiDZBW9smUNLdWVQK8cf`), from the desktop app or claude.ai/code (not from a routine:
+   a routine-started cloud session lacks the follow-up and transcript tools the coordinator uses,
+   measured 2026-10-17), and send:
 
    ```
-   /plan-run production-page until <date and time with UTC offset>
+   /plan-run production-page until <date and time with UTC offset>, permission policy: auto mode; the coordinator and its workers may turn on auto-merge and dispatch cloud-queue-merge.yml for the run's own reviewed pull requests, and push claude/check-* branches and dispatch ci.yml on them to check the run's merges
    ```
 
-   The coordinator reads this spec on `origin/main`, runs the §9 preflight (phase 1) or the
-   phase-2 prerequisites (recorded in phase 1's notes), opens the run, copies the unfinished
-   phases into the wave file and starts at the first unfinished one. It continues through the
-   following phases inside the authorised window. No per-phase start and no routine approval is
-   needed from the owner; the coordinator stops only on `stop` (§8) and asks him then.
-4. Permission mode is a harness setting, not an execution step. Switching a session to auto mode
+   The coordinator reads this spec on `origin/main`, runs the §9 preflight, prepares the project
+   record with the exact 47-phase sequence in `extensions.md` (gating ACs, one environment each),
+   opens it with its recovery branch, opens the tracking issue, starts the Q worker (data-sources Q),
+   sends the laptop-helper item (step 4) and starts a bounded block. These are execution actions,
+   not performed by this planning edit. No per-phase start and no routine approval is needed; the
+   coordinator stops only on `stop` (§8) and in the final owner block.
+4. Laptop helper, whenever the laptop is on (the coordinator's first owner-list item; it never
+   gates). In the desktop app on the laptop, in the NoaCG-Studio folder, start a session with
+   this prompt; stop it and start it again with the same prompt at any time:
+
+   ```
+   You are the laptop helper for the production-page plan run. Follow docs/work-specs/production-page-refactor/spec.md section 9.1 "Laptop helper session" exactly, on current origin/main. Never start, pause, continue or change the run, and never touch my own CasparCG, OBS or Companion setup or my Stream Deck. Stop when the run's ledger says the project is finished.
+   ```
+
+5. Permission mode is a harness setting, not an execution step. Switching a session to auto mode
    never replaces invoking `/plan-run`, supplying the deadline, passing the preflight, or the
    merge safeguards.
-5. Continuation in a fresh session: open the same run again (`wave-plan-store.mjs --open` with
-   the date the run started), read the ledger with `node scripts/plan-run.mjs next <wave file>`,
-   reconcile the step it names (a merged pull request is recorded as `landed`; a queued one is
-   waited for; a step whose session is gone is started again in its recorded worktree with the
-   same brief and recorded as `resume`), and continue from that step. An expired window is a new
-   run with a new authorised window whose phase list starts at the first unfinished spec phase.
-   The plan is never restarted from phase 1 and no active step is launched twice.
-6. At the window's end the coordinator writes the `## Report` in the wave file (needs-you first,
-   each phase's pull requests and verdicts, where it stopped, what was not checked), sends it to
-   the owner, and adds a self-contained continuation prompt built from the runner's own handoff
-   (the wave file path, the ledger's next step and the start template with a new window). Runner
-   improvements are a separate session's task and are neither specified nor assumed here.
+6. **Stop and continue anywhere (13).** To stop, tell the coordinator to pause the run: it records
+   the pause and deletes its check-in. Stopping or closing its session is not enough, since the
+   check-in would wake it; if the coordinator cannot answer, ask any new Claude Code session to
+   delete the scheduled task named `plan-run check-in <project id>`. A lost container needs nothing
+   from the owner: the check-in carries on within about an hour (§9). To continue after a pause, an
+   account usage limit or a closed session, or to move between cloud and laptop, open a new Claude
+   Code session as in step 3 (the cloud, environment NoaCG, from the desktop app or claude.ai/code,
+   never a routine, which lacks the follow-up and transcript tools), and type the same line with
+   the original deadline. The laptop (the NoaCG-Studio folder) is the fallback when the cloud is
+   unavailable; it needs the same keys in its environment, and without `SUPABASE_ACCESS_TOKEN` the
+   C2 follow-ups wait for a cloud coordinator:
+
+   ```
+   /plan-run production-page until <the original deadline>
+   ```
+
+   It restores the project from its recovery branch, takes over and carries on from the first
+   unfinished step; a worker in flight is reconciled, not relaunched. An older coordinator that is
+   still alive is refused at its next step and stops by itself. Do this also when the morning
+   summary does not arrive or the helper reports a stale heartbeat.
+7. Block end: the coordinator opens the next block itself; the worker in flight keeps going.
+   Reconcile workers, PRs, exact tested revisions and pending external intents before every
+   block; unknown worker status is not proof of absence. Use the supervisor's fenced admission
+   for project events, never direct ledger writes.
+8. An expired or cancelled project is not renewed. Report complete only when every phase,
+   including H0.2 and S, has passed; a paused block is not a completed project.
 
 ## 11. Acceptance criteria
 
 ### AC-1: The safety net exists before any move
-The §5.3 phase-1 tests, the `// covers:` header on `dashboard-operator-walk`, two perf baselines
-and the inventory exist on `main` before phase 2 lands.
+The §5.3 phase-1 tests, the `// covers:` header on `dashboard-operator-walk` and the inventory
+exist on `main` before phase 2 lands (the perf baselines: §7).
 
 ### AC-2: Behaviour is identical at every phase
 Every §5.3 inventory spec and every phase-1 spec passes at every phase with unchanged
@@ -561,7 +935,9 @@ The §7 freshness assertions pass after phase 13.
 `git diff --name-only origin/main...HEAD -- src` lists only the phase's allowed files.
 
 ### AC-9: Performance holds
-§7's comparison rule holds at every repeat; the render targets hold after phase 13.
+The render targets hold after phase 13b (Actions; gating). §7's comparison rule holds at every
+repeat, measured by the laptop helper on the exact merge SHAs (non-gating; a breach becomes a §8
+repair); the final report names any comparison still unmeasured.
 
 ### AC-10: Evidence precedes landing
 Each phase's `evidence/phase-<n>.md` records the shas, commands, run URLs and the assessment;
@@ -580,7 +956,14 @@ the superseded note; covers and guards mappings are updated; #766 is closed.
 A session constructs with no optional capability (Node test); no hosted page code changes.
 
 ### AC-14: Completion evidence names what stays unverified
-`evidence/rehearsal-automated.md` exists and lists the hardware the plan did not exercise.
+`evidence/rehearsal-automated.md` (phase 14) and `evidence/final-acceptance.md` (phase S)
+identify the completed candidate, required automated/content criteria, performance results,
+the laptop walks and the real-studio CasparCG/Bridge and OBS/browser-source receipts. Reconcile
+C7 against later changes and rerun affected walks; record allowed evidence reuse with its
+material-input comparison. Required unavailable evidence blocks completion; optional deferred
+routes are named separately. Human trials are reported from their kits as run, with their
+findings' issues, and never block (owner, 2026-10-20, D). Friday's owner testing and resulting
+fixes are recorded against the revisions actually tested.
 
 ### AC-15: Suspected defects are decided on evidence
 S1 and S3 are reproduced or refuted in phase 1; a confirmed one is fixed in its own pull
@@ -590,8 +973,9 @@ characterised and retained as existing behaviour.
 ## Phases
 
 Each phase runs `/check` and the §6 matrix and lands with `/queue-merge`; the builder adds the
-next phase's notes under `## Phase notes` (the previous verified `main` sha, the merge sha, the
-revert command, traps, the check's findings). Allowed `src` files are exactly those named.
+next phase's notes to `evidence/phase-notes.md` (the previous verified `main` sha, the previous
+merge sha, the revert command, traps, the check's findings), an evidence file so that no phase
+changes a spec's digest. The 2+7 builder pushes a checkpoint commit after phase 2's half. Allowed `src` files are exactly those named.
 Temporary interfaces are the callbacks a module takes from the page while the page still owns the
 state; each is removed in the phase that moves that state.
 
@@ -601,7 +985,7 @@ state; each is removed in the phase that moves that state.
    `e2e/configured/production-data-key-dispatch.spec.ts`, `e2e/configured/expected-run.json`,
    `e2e/dashboard-operator-walk.spec.ts` (header), `scripts/command-roads.test.mjs`,
    `evidence/*`. No `src/`. A confirmed S1 or S3 fix is a separate pull request landed before
-   this phase's tests are declared green.
+   this phase's tests are declared green. The perf baselines: §7.
 2. **Infrastructure and pure helpers** (AC-3, AC-6, AC-8). Files: `src/control/storePart.ts`,
    `src/control/playoutSession.ts` (skeleton: key, alive, apply, dispose; no parts),
    `src/control/liveCue.ts`, `src/control/cueItems.ts`, `src/control/serverPlayoutStore.ts`
@@ -631,7 +1015,7 @@ state; each is removed in the phase that moves that state.
     tests. Temporary interface: `serverVerb`, `takeGraphic`, `send`, `liveCueOf`, the `setLiveCue`
     folds, `flush`.
 11. **airState.ts, sessionWire.ts, the `air` and `log` parts: the liveCue move** (AC-2, AC-3,
-    AC-4 seed, claim and restore, AC-5, AC-6, AC-8, AC-9 repeat, AC-13). Safety-sensitive. Files:
+    AC-4 seed, claim and restore, AC-5, AC-6, AC-8, AC-13; AC-9's repeat is a laptop-helper check). Safety-sensitive. Files:
     the two modules, `playoutSession.ts`, `ProductionPage.tsx`, `PlayoutMonitors.tsx` and
     `CueRundown.tsx` only if a prop type changes, tests. The page's verbs call the session's
     folds; no verb moves; the `liveCueOf` and `setLiveCue` interfaces of phases 9 and 10 are
@@ -639,77 +1023,137 @@ state; each is removed in the phase that moves that state.
 12. **graphicVerbs.ts, verbDispatch.ts, verbView.ts** (AC-2, AC-3, AC-4 all rows, AC-8). Files:
     the three modules, `ProductionPage.tsx`, tests. Selection is passed in; the remaining
     temporary interfaces (`cueView`, `flush`, `resolvedOf`) stay until phase 13.
-13. **cueDraft.ts, the `draft` part, CueEditor.tsx** (AC-2, AC-3, AC-6, AC-7, AC-8, AC-9 repeat).
+13. **cueDraft.ts, the `draft` part, CueEditor.tsx** (AC-2, AC-3, AC-6, AC-7, AC-8, AC-9 render
+    targets; AC-9's timing repeat is a laptop-helper check).
     Safety-sensitive: the draft decides what Take and Update air, and the preview shows it. Files:
     the module, the component, `playoutSession.ts`, `ProductionPage.tsx`, `CueRundown.tsx` (label
     subscription), `PlayoutMonitors.tsx` (its own draft subscription for `settleData`, D12),
-    tests. Removes the last temporary interfaces.
-14. **Close-out** (AC-9 final, AC-11, AC-12, AC-14). Files: `ProductionPage.tsx` (imports),
-    `contracts/rules/...` through `npm run learn`,
+    tests. Removes the last temporary interfaces. Reconciled 2026-10-17: split into **13a**, a
+    props-only move of the cue editor JSX into `CueEditor.tsx` in the phase-3 style (derives
+    nothing, moves no state; the Fill and Connect menus of C0 and C1 live there), run before C1
+    after 2+7. Files for 13a: `src/components/home/CueEditor.tsx` (new) and
+    `src/components/home/ProductionPage.tsx` only; matrix: phase 3's row plus `production-data`
+    and `playout-air-contract`, assessment A. **13b**, the draft part as written here with the
+    file list above, runs later in the same project, after phase 12.
+14. **Close-out** (AC-11, AC-12, AC-14 software half; AC-9 final as a laptop request). Files:
+    `ProductionPage.tsx` (imports), `contracts/rules/...` through `npm run learn`,
     `src/components/home/AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CLIP_PLAYBACK_PLAN.md`,
-    `e2e/*` covers headers, evidence. `Closes #766`.
+    `e2e/*` covers headers, evidence. Reconcile all data-sources acceptance after the refactors
+    in software (`evidence/rehearsal-automated.md`) and request the laptop walks. `Closes #766`.
+    The real-output receipts move to S; human trials run from their kits (owner, 2026-10-20).
+S. **Studio receipts, the final owner block** (AC-14 real-output half; with data-sources AC-16's
+    actual outputs, E3 AC-2, E7 AC-4 and E8's physical dress rehearsal, as `extensions.md` row 47
+    lists). Runs after H0.2, which requalifies the physical deck once. The owner, with an agent
+    session beside him on the laptop, walks the completed candidate through his own CasparCG/NoaCG
+    Bridge setup and an ordinary OBS/browser source in the real studio and the agent records
+    `evidence/final-acceptance.md`. The owner walks H0.2 and S in one sitting; the agent records
+    both phases' receipts, and their landings and checks run afterwards without him. No product
+    files; a defect found is a §8 repair and the affected walk runs again. Environment: the
+    owner's Windows laptop and the real studio.
 
-### After the refactor, in the same run (owner, 2026-10-16)
+### Run order (reconciled 2026-10-17; expanded by owner 2026-10-19)
 
-The owner made the playout dashboard the top priority, with its Data and Audience tabs, and ruled
-one run in this order: "production page cleanup first, then Sheet data, then audience, all in the
-one run." The Sheet work changes the cue editor and the press verbs that phases 12 and 13 move, so
-it follows phase 14 rather than interleaving.
+History. The owner made the playout dashboard the top priority with its data and audience flows
+and ruled on 2026-10-16 "production page cleanup first, then Sheet data, then audience, all in
+the one run". The Sheet-only phases 15-20 were superseded by data-sources DS16 on 2026-10-17,
+then a continuation 15-26 was drafted and sent for two independent whole-plan reviews. Both
+reviews found the order upside-down: the paste result depends on nothing in the refactor, and the
+content work needs the data session and a props-only cue editor move, not the press verbs. The
+reconciliation (`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`) replaces the
+"cleanup first" order with the one below. The refactor's safety contracts (§4-§8) are unchanged.
 
-15-20. **Sheet data flow, its phases 1-6**, in order, as written in
-    `docs/work-specs/sheet-data-flow/spec.md` `## Phases`. Each phase's scope, files and
-    acceptance criteria are that spec's, not this spec's file lists; its findings go under that
-    spec's `## Phase notes`. Built and checked by the same rules (§8, §9). That spec's own stop
-    rule holds: a miss on its D3 freshness target stops the run for the owner.
+One `/plan-run production-page`, sequential; the table below holds the 24 **baseline** steps (C1
+was split into C1a-C1c on 2026-10-20 so each fits one builder session). The normative full
+admission sequence, including H0, E1–E8 subphases and the final owner block, is in
+[extensions.md](extensions.md). The wave file names each phase in §9's format:
 
-Audience phases are added here as 21 onward once an audience spec is agreed; until then the run
-ends after phase 20.
+| Step | Phase | Spec | Result |
+| --- | --- | --- | --- |
+| 1 | C0 | data-sources | Paste a message and safe staging; #1313 fixed. A feature change outside the refactor fence, landed before phase 1 so the baseline includes it |
+| 2 | 1 | this spec | Safety net, S1 and S3 decided (perf baselines: §7) |
+| 3 | 2+7 | this spec | Store part, session skeleton, the production-data session (one phase; both §6 rows run in full: phase 2's targeted specs, Node tests and configured dispatch, and phase 7's) |
+| 4 | 13a | this spec | Props-only cue editor extraction |
+| 5 | C1a | data-sources | Format adapters, "Fill from… Paste rows", list starter rows and the custom scalar CSV |
+| 6 | C1b | data-sources | Sheet source, browser reader with lease, "Connect data…" with whole-graphic matching and field repair |
+| 7 | C1c | data-sources | Data overview, the Playout sources line, real-Sheet receipts |
+| 8 | C2 | data-sources | Published ownership: bindings and sources persist at once, the lease, the server tick behind its switch, Pause, cost |
+| 9 | C3 | data-sources | Sheet messages, the cue-editor message pick, YouTube comments and live chat |
+| 10 | C4 | data-sources | Feeds |
+| 11 | C5 | data-sources | Whole-graphic API connection, prepared collector/sender example, receipt and explicit Pause/fallback |
+| 12 | C6 | data-sources | Compatibility, truthful source/target/output and group status, docs (declared product changes) |
+| 13 | C7 | data-sources | Technical rehearsal in software, Twitch against recorded fixtures, the content trial kit |
+| 14 | 3 | this spec | ProductionShell and CueActions, props-only |
+| 15 | 4 | this spec | Production publish/slot/link hook |
+| 16 | 5 | this spec | Take blockers and server verbs modules |
+| 17 | 6 | this spec | Bridge watch |
+| 18 | 8 | this spec | Rundown authoring hook |
+| 19 | 9 | this spec | Cue arm engine |
+| 20 | 10 | this spec | Folder playout |
+| 21 | 11 | this spec | Air state and session wire; liveCue ownership move, alone |
+| 22 | 12 | this spec | Graphic verbs, dispatch and view |
+| 23 | 13b | this spec | Cue draft ownership and final editor subscriptions |
+| 24 | 14 | this spec | Baseline close-out in software; the real-output part is S |
 
-**Answered 2026-10-17 (data sources DS16, as recommended).** `docs/work-specs/data-sources/spec.md`
-holds one model for every data source and audience input, and phases 15-22 in place of 15-20:
-they carry the Sheet data flow's six phases, re-ordered with lists first, plus RSS feeds and the
-data API made visible. Audience is then 23 onward. That list replaces the two paragraphs above
-once the data sources spec is agreed after its second opinion; no phase from 15 starts before the
-readiness item below.
+Q (data-sources) is agent-run in its own cloud session, started beside step 1; each of its
+records is an acceptance item of the one phase that needs it (the data-sources Q table names
+it), never a phase of its own. H0.1 is inserted after C0. The final owner
+block, H0.2 then S, ends the run after E8.2. All phases follow the exact sequential admission
+table in `extensions.md`. The project manifest prepared at start copies its IDs, gating
+acceptance and environments. No phase is dropped to fit a work block; the block can end and the
+same project continue through the supported path.
 
-## What the plan can demonstrate, and what stays uncertain
+Each content phase uses §8 and §9 of this spec and the verification matrix in the data-sources
+spec; §6 here covers steps 2-4 and 14-24 (phase 13a uses its stated row, 13b phase 13's).
+The D3 rule now reports a measured miss instead of stopping (data-sources Q). Required manual,
+Sheet, YouTube and CasparCG/Bridge/browser outcomes are reported separately from optional Twitch
+and expanded vMix/SPX work. No run starts from this documentation update.
+
+## What the baseline can demonstrate, and what stays uncertain
 
 Demonstrable: behaviour identical on every pinned scenario (the offline suite, the configured
 suite on the local stack, Node contracts with held and reordered answers); one owner for liveCue
 within the page and its modules; the core running in Node; wire-side and monitor latency and
-render comparisons on the owner's machine under §7's rule; a compiled rule that sends new playout
-behaviour to `src/control/`.
-Uncertain: real CasparCG, Bridge-on-server and hardware panel behaviour; hosted-staging latency
+render comparisons on the owner's machine under §7's rule (measured by the laptop helper on exact
+revisions); a compiled rule that sends new playout behaviour to `src/control/`.
+Requires the owner's real setup (phase S): CasparCG/Bridge and OBS/browser behavior on the final
+candidate in the studio; the laptop's scratch walks inform repairs but do not replace it. Other
+uncertainties: hardware panel behavior outside the chosen setup; hosted-staging latency
 (twice-weekly runs, not per phase); output-side render latency (excluded); timings the held
 answers do not reproduce; the hosted page's fitness for the core (not in scope).
 
+The expanded programme's additional capabilities, operating envelope and final evidence are
+owned by `extensions.md` and E8; the baseline limitations above are not its final verdict.
+
 ## Readiness
 
-Before starting phase 1 (the start instruction): this spec and `work.json` landed on `main`,
-`work-spec.mjs status` clean and the "Runnable plans" line present; `origin/main` CI, the latest
-configured-suite run and deploy-verify green; the local Supabase stack or the dispatch route
-confirmed, `gh auth status` ok, the browser queue idle, `wave-row` and `wave-row-deciding`
-available; no open wave or plan run and the runner revalidated as it stands then; the owner's
-window supplied.
+The 18 October planning review gate was satisfied: the two independent reviews were reconciled
+(`docs/research/2026-10-data-sources/synthesis-2026-10-17.md`), and on 2026-10-18 the owner agreed
+the resulting plan, including the run order above and all four synthesis §7 decisions.
+The Argon review is reconciled and the owner has selected H0/E1–E8 for executable specification
+and main reconciliation. Their child specs and `extensions.md` now define that expanded scope.
+The owner's 2026-10-20 decisions remove every owner gate except the final owner block. The
+earlier baseline reviews do not constitute runtime acceptance of new features. The owner still
+starts execution separately; no run, deadline or completed acceptance is invented here.
+
+Before the run's first step: the §9 preflight, which includes this spec, `extensions.md` and
+every child record landed and structurally valid, and the runner change (free continuation, progress
+check) with its live-test receipt on `main`.
 
 Added 2026-10-16: the phase 1 builder reads `evidence/reconcile-2026-10-16.md` first: line numbers
 here are of `70fad3a94`, and code that landed since (#1057's boot replay) is reused. The owner
 answered D8 on 2026-10-17 (no size gate), so that receipt's D8 caveats are settled.
 
-Before starting phase 15: phase 14 checked PASS on `main`, and `node scripts/work-spec.mjs status
-docs/work-specs/sheet-data-flow/work.json` shows the spec agreed. Added 2026-10-17 (owner): the
-owner has agreed `docs/work-specs/data-sources/spec.md` (its `work.json` authority `agreed`, its
-decisions answered, and, owner 2026-10-17, its second opinion reviewed) before phases 15 onward
-start; phase 15 then follows the phase list the owner's
-answer to its DS16 names.
+C0 (step 1) needs nothing from the refactor beyond the run preflight; it lands before phase 1's
+baseline, and phase 1's characterisation then covers it. Readiness for C1a and the later content
+phases is in the data-sources spec. A manual YouTube copy does not prove a direct connector;
+optional Twitch work is not a completion gate.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the
 offline spec, the four configured specs, the Node files, the gate); S1 and S3 decided with
-evidence and any confirmed fix landed in its own pull request; S2 characterised; two baselines
-within tolerance or the widened tolerance recorded, both kept in `evidence/perf/`.
+evidence and any confirmed fix landed in its own pull request; S2 characterised.
 
 ## Phase notes
 
-Each phase's pull request adds here what the next phase must allow for, newest first: the
-previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
-and the check's findings.
+From the 2026-10-20 run on, phase notes go to `evidence/phase-notes.md`, newest first: what the
+next phase must allow for, the previous verified `main` sha, the previous merge sha, the revert
+command, decisions taken, traps found, and the check's findings.

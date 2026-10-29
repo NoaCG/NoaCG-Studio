@@ -1,5 +1,6 @@
-// The NoaCG panel wire protocol, version 1, as the module sees it. The authority is
-// docs/work-specs/hardware-panel-control/protocol.md in the NoaCG Studio repository.
+// The NoaCG panel wire protocol, version 1, and its graphic actions (actions protocol 2), as the
+// module sees it. The authority is docs/work-specs/hardware-panel-control/protocol.md in the NoaCG
+// Studio repository (§10 for graphic actions).
 
 /** The verbs a panel may press (spec D5). */
 export const PANEL_VERBS = [
@@ -102,7 +103,8 @@ export interface PanelRows {
 	more: boolean
 }
 
-export type Outcome = 'ran' | 'duplicate' | 'stale' | 'not-allowed' | 'not-here'
+/** `invalid`: a graphic action's arguments do not fit its declared schema. */
+export type Outcome = 'ran' | 'duplicate' | 'stale' | 'not-allowed' | 'not-here' | 'invalid'
 
 export interface PressResult {
 	v: number
@@ -118,6 +120,8 @@ export interface Beat {
 	claim: number
 	ver: number
 	rowsVer: number
+	/** The page's newest graphic-actions offer (protocol §10.2); absent from a page without them. */
+	actionsVer?: number
 }
 
 /** The only protocol version this module understands. */
@@ -165,6 +169,8 @@ export function refusalSentence(code: string, note?: string): string {
 			return 'No operator page'
 		case 'not-a-panel-verb':
 			return 'That action cannot be pressed from a panel.'
+		case 'not-a-graphic-action':
+			return 'Graphic actions wait for a NoaCG server update.'
 		case 'bad-press':
 			return 'The press was not understood. Update the NoaCG module.'
 		default:
@@ -186,6 +192,8 @@ export function outcomeSentence(result: PressResult): string {
 			return 'Refused: not allowed right now'
 		case 'not-here':
 			return 'Refused: the answering page cannot do that'
+		case 'invalid':
+			return 'Refused: the action does not take that'
 	}
 }
 
@@ -259,7 +267,7 @@ export function readRows(p: unknown): PanelRows | null {
 
 export function readResult(p: unknown): PressResult | null {
 	if (!isObject(p) || typeof p.id !== 'string' || typeof p.outcome !== 'string') return null
-	const outcomes: Outcome[] = ['ran', 'duplicate', 'stale', 'not-allowed', 'not-here']
+	const outcomes: Outcome[] = ['ran', 'duplicate', 'stale', 'not-allowed', 'not-here', 'invalid']
 	if (!outcomes.includes(p.outcome as Outcome)) return null
 	return {
 		v: num(p.v) ?? 0,
@@ -278,7 +286,270 @@ export function readBeat(p: unknown): Beat | null {
 		claim: num(p.claim) ?? 0,
 		ver: num(p.ver) ?? 0,
 		rowsVer: num(p.rowsVer) ?? 0,
+		...(num(p.actionsVer) !== null ? { actionsVer: num(p.actionsVer)! } : {}),
 	}
+}
+
+// ── Graphic actions (protocol §10) ───────────────────────────────────────────────────────────────
+
+/** The graphic-actions protocol this module speaks. Its events carry `av`, never `v`, so a module
+ *  that predates them ignores them; a page advertising a newer `av` is answered "update the module"
+ *  for its actions only, while every transport key keeps working. */
+export const ACTIONS_PROTOCOL = 2
+export const ACTION_VERB = 'graphic-action'
+
+/** An argument schema, as the page sends it (NoaCG's typed model, read only as far as a key needs). */
+export interface ArgSchema {
+	type: string
+	enum?: (string | number | boolean)[]
+	properties?: { key: string; required: boolean; node: ArgSchema }[]
+	[more: string]: unknown
+}
+
+export interface Capability {
+	id: string
+	kind: 'event' | 'step' | 'foreign'
+	label: string
+	place: 'pinned' | 'section' | 'more'
+	section?: string
+	args: ArgSchema | null
+	options?: { value: string; label: string }[]
+	active?: string
+	allowed: boolean
+	note?: string
+	/** False for a control the page says a panel cannot press: shown, never pressed. */
+	invocable: boolean
+}
+
+export interface ActionGraphic {
+	graphic: string
+	pinned: boolean
+	live: string | null
+	cue: string | null
+	caps: Capability[]
+}
+
+/** The `actions` event: what the answering page offers on each pool graphic. */
+export interface PanelActions {
+	av: number
+	actionsVer: number
+	page: string
+	claim: number
+	/** The NoaCG server relays graphic actions. */
+	relay: boolean
+	graphics: ActionGraphic[]
+	more: boolean
+}
+
+/** A graphic action as the module sends it. */
+export interface ActionPress {
+	v: typeof ACTIONS_PROTOCOL
+	verb: typeof ACTION_VERB
+	target: string
+	seen: number
+	id: string
+	cap: string
+	instance: string
+	args: Record<string, unknown>
+}
+
+/** What a graphic action came to on the page, after its `result` said it ran. */
+export interface Settled {
+	id: string
+	outcome: 'accepted' | 'refused' | 'failed' | 'unknown'
+	note?: string
+}
+
+const CAP_ID = /^(event|step|foreign):\P{Cc}{1,96}$/u
+const TEXT_128 = /^\P{Cc}{0,128}$/u
+/** At most this many graphics and capabilities are read from one `actions` event. */
+const GRAPHICS_MAX = 32
+const CAPS_MAX = 48
+
+/** Read an `actions` payload: the actions, `'newer'` for an actions protocol this module does not
+ *  speak, or null when it is not one. Bounded: at most 32 graphics of 48 capabilities are read. */
+export function readActions(p: unknown): PanelActions | 'newer' | null {
+	const av = isObject(p) ? num(p.av) : null
+	if (!isObject(p) || av === null) return null
+	if (av !== ACTIONS_PROTOCOL) return 'newer'
+	const actionsVer = num(p.actionsVer)
+	if (actionsVer === null || typeof p.page !== 'string' || !Array.isArray(p.graphics)) return null
+	const graphics: ActionGraphic[] = []
+	for (const g of p.graphics.slice(0, GRAPHICS_MAX)) {
+		if (!isObject(g) || typeof g.graphic !== 'string' || !g.graphic || !TEXT_128.test(g.graphic)) continue
+		const caps: Capability[] = []
+		for (const c of Array.isArray(g.caps) ? g.caps.slice(0, CAPS_MAX) : []) {
+			if (!isObject(c) || typeof c.id !== 'string' || !CAP_ID.test(c.id)) continue
+			const kind = c.id.slice(0, c.id.indexOf(':')) as Capability['kind']
+			// Pressed only when the page says so: an older page offers foreign actions as descriptors.
+			const invocable = c.invocable === true
+			const options = Array.isArray(c.options)
+				? c.options
+						.filter(isObject)
+						.flatMap((o) =>
+							typeof o.value === 'string'
+								? [{ value: o.value, label: typeof o.label === 'string' ? o.label : o.value }]
+								: [],
+						)
+				: undefined
+			caps.push({
+				id: c.id,
+				kind,
+				label: typeof c.label === 'string' ? c.label : c.id,
+				place: c.place === 'pinned' || c.place === 'more' ? c.place : 'section',
+				...(typeof c.section === 'string' ? { section: c.section } : {}),
+				args: isObject(c.args) && typeof c.args.type === 'string' ? (c.args as ArgSchema) : null,
+				...(options ? { options } : {}),
+				...(typeof c.active === 'string' ? { active: c.active } : {}),
+				allowed: invocable && c.allowed === true,
+				...(typeof c.note === 'string' && c.note ? { note: c.note } : {}),
+				invocable,
+			})
+		}
+		graphics.push({
+			graphic: g.graphic,
+			pinned: g.pinned === true,
+			live: typeof g.live === 'string' && TEXT_128.test(g.live) ? g.live : null,
+			cue: typeof g.cue === 'string' ? g.cue : null,
+			caps,
+		})
+	}
+	return {
+		av: ACTIONS_PROTOCOL,
+		actionsVer,
+		page: p.page,
+		claim: num(p.claim) ?? 0,
+		relay: p.relay === true,
+		graphics,
+		more: p.more === true || p.graphics.length > GRAPHICS_MAX,
+	}
+}
+
+export function readSettled(p: unknown): Settled | null {
+	if (!isObject(p) || num(p.av) !== ACTIONS_PROTOCOL || typeof p.id !== 'string') return null
+	const outcomes: Settled['outcome'][] = ['accepted', 'refused', 'failed', 'unknown']
+	if (!outcomes.includes(p.outcome as Settled['outcome'])) return null
+	return {
+		id: p.id,
+		outcome: p.outcome as Settled['outcome'],
+		...(typeof p.note === 'string' && p.note ? { note: p.note } : {}),
+	}
+}
+
+/** The sentence for what a graphic action came to. */
+export function settledSentence(s: Settled): string {
+	if (s.outcome === 'accepted') return 'Done'
+	if (s.outcome === 'unknown') return s.note ? `Not confirmed: ${s.note}` : 'Sent, not confirmed'
+	return s.note || (s.outcome === 'failed' ? 'Failed' : 'Refused')
+}
+
+/** WHAT A SAVED KEY FOR A GRAPHIC ACTION SHOWS: its capability by id only, never by label or
+ *  position, so a key whose action the graphic no longer declares reads unknown and stays dark. */
+export function capabilityState(
+	actions: PanelActions | null,
+	graphic: string,
+	id: string,
+): { state: 'allowed' | 'refused' | 'unknown'; note: string; cap?: Capability; live?: string | null } {
+	if (!actions) return { state: 'unknown', note: 'No graphic actions from the operator page' }
+	const g = actions.graphics.find((x) => x.graphic === graphic)
+	const cap = g?.caps.find((c) => c.id === id)
+	if (!g || !cap) return { state: 'unknown', note: `That action is not on ${graphic}` }
+	const base = { cap, live: g.live }
+	if (!actions.relay) return { state: 'refused', note: 'Graphic actions wait for a NoaCG server update', ...base }
+	if (!cap.invocable)
+		return { state: 'refused', note: cap.note ?? `${cap.label} cannot be pressed from a panel`, ...base }
+	if (!cap.allowed) return { state: 'refused', note: cap.note ?? 'Not allowed right now', ...base }
+	return { state: 'allowed', note: cap.label, ...base }
+}
+
+/** The relay's bounds on the argument object (migration 0103): its text as the server writes it
+ *  back (`", "` and `": "` between members), and how deep its containers nest (the object is 1). */
+export const ARGS_MAX_CHARS = 4096
+export const ARGS_MAX_DEPTH = 8
+
+/** Why the relay would refuse these arguments, or null: measured as the server measures them, so a
+ *  key refuses here what would come back `bad-press`. One walk, iterative. */
+/** NUL, or a surrogate without its pair. */
+// eslint-disable-next-line no-control-regex -- NUL is the character refused
+const UNSTORABLE = /\u0000|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/
+
+function argsFault(args: Record<string, unknown>): string | null {
+	let spaces = 0
+	const stack: [unknown, number][] = [[args, 1]]
+	while (stack.length) {
+		const [v, depth] = stack.pop()!
+		// The server writes a number out in full: one JavaScript writes with an exponent (or cannot
+		// write at all) would not be what was typed, or not the length measured here.
+		if (
+			typeof v === 'number' &&
+			(!/^-?\d+(\.\d+)?$/.test(String(v)) || (Number.isInteger(v) && !Number.isSafeInteger(v)))
+		)
+			return 'A number in the arguments is too large or too small to send'
+		// The server stores no NUL and no half of a surrogate pair: such text would fail the call.
+		if (typeof v === 'string' && UNSTORABLE.test(v)) return 'The arguments hold a character that cannot be sent'
+		if (typeof v !== 'object' || v === null) continue
+		if (depth > ARGS_MAX_DEPTH) return `The arguments nest deeper than ${ARGS_MAX_DEPTH} levels`
+		if (!Array.isArray(v) && Object.keys(v).some((k) => UNSTORABLE.test(k)))
+			return 'The arguments hold a character that cannot be sent'
+		const items = Array.isArray(v) ? (v as unknown[]) : Object.values(v)
+		spaces += Math.max(0, items.length - 1) + (Array.isArray(v) ? 0 : items.length)
+		for (const item of items) stack.push([item, depth + 1])
+	}
+	// Counted in characters, as the server counts them, never in UTF-16 units.
+	return longer(JSON.stringify(args), ARGS_MAX_CHARS - spaces) ? 'The arguments are longer than a press takes' : null
+}
+
+/** Whether `text` holds more than `max` characters (code points), counting no further than that. */
+function longer(text: string, max: number): boolean {
+	if (text.length <= max) return false
+	let n = 0
+	for (const _char of text) if (++n > max) return true
+	return false
+}
+
+/**
+ * THE ARGUMENTS A SAVED KEY SENDS, from its options and its capability's kind (the id's prefix, never
+ * the offer): a pick's option, a number's step, a foreign action's JSON object, or none. A foreign
+ * key with no arguments sends the live cue's, as the page's own button does. Null, with why, for
+ * arguments a key cannot send; the page validates the rest against the declared schema.
+ */
+export function keyArgs(
+	cap: string,
+	o: { option?: unknown; delta?: unknown; args?: unknown },
+): { args: Record<string, unknown> } | { refused: string } {
+	const kind = cap.slice(0, cap.indexOf(':'))
+	if (kind === 'step') return Number(o.delta) < 0 ? { args: { delta: -1 } } : { args: { delta: 1 } }
+	if (kind === 'event') {
+		// A pick's value exactly as the page declares it: spaces may be part of it.
+		const option = typeof o.option === 'string' ? o.option : ''
+		return { args: option ? { option } : {} }
+	}
+	const text = typeof o.args === 'string' ? o.args.trim() : ''
+	// Empty, or `{}`, sends the cue's own arguments: the page reads an empty object so.
+	if (kind !== 'foreign' || !text) return { args: {} }
+	if (longer(text, ARGS_MAX_CHARS)) return { refused: 'The arguments are longer than a press takes' }
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(text)
+	} catch {
+		return { refused: 'The arguments are not JSON: write them like {"team": 2}' }
+	}
+	if (!isObject(parsed)) return { refused: 'The arguments must be an object, like {"team": 2}' }
+	const fault = argsFault(parsed)
+	return fault ? { refused: fault } : { args: parsed }
+}
+
+/** What a graphic key shows of its capability's offer, for redefining presets and choices: the
+ *  graphics, their pins and their capabilities' ids, labels and options, never what moves live. */
+export function offerShape(actions: PanelActions | null): string {
+	if (!actions) return ''
+	return JSON.stringify(
+		actions.graphics.map((g) => [
+			g.graphic,
+			g.pinned,
+			g.caps.map((c) => [c.id, c.label, c.invocable, c.options?.map((o) => [o.value, o.label]) ?? null]),
+		]),
+	)
 }
 
 /** A payload's protocol version, for the "update the module" check. */

@@ -20,7 +20,7 @@
 
 import type { PlayoutSettings, PlayoutState } from './playoutLink';
 import { bridgeAnswersLabel } from './prepareLive.ts';
-import { type ReadySummary, type ReadyTone } from './readiness.ts';
+import { plural, type ReadySummary, type ReadyTone } from './readiness.ts';
 
 /** READY's four, in the same colours. */
 export type StatusTone = ReadyTone;
@@ -68,6 +68,8 @@ export interface StatusFacts {
   slot?: SlotReading & { where: string; channel: number; reporting?: boolean };
   /** This session saw this production on its slot, and the slot no longer holds it. */
   slotLost?: boolean;
+  /** The page loading its lost output again by itself (control/bridgeWatch.ts, issue #1657). */
+  slotReload?: { state: 'reloading' } | { state: 'failed'; detail: string } | null;
   /** READY's summary (readiness.ts `describeReadiness`), or null when no output is known. */
   ready: Pick<ReadySummary, 'tone' | 'label' | 'outputs' | 'ready' | 'lead' | 'leadShort' | 'preparing' | 'broken' | 'lost'> | null;
   /** A graphic Take was sent while nothing that could air it was reporting. */
@@ -137,9 +139,12 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     } else if (holds === 'other') {
       checks.push({ key: 'slot', tone: 'bad', label: `Another production is on ${at}`, short: `Another production on ${at}` });
     } else {
-      checks.push(f.slotLost
-        ? { key: 'slot', tone: 'bad', label: `This production left ${at}`, short: `Not on ${at}` }
-        : { key: 'slot', tone: 'idle', label: `Not loaded on ${at}`, short: `Not loaded on ${at}` });
+      const reload = f.slotLost ? f.slotReload : null;
+      checks.push(reload?.state === 'reloading'
+        ? { key: 'slot', tone: 'warn', label: `This production left ${at} and is loading again`, short: `Reloading on ${at}` }
+        : f.slotLost
+          ? { key: 'slot', tone: 'bad', label: `This production left ${at}`, short: `Not on ${at}`, ...(reload ? { advice: `Loading it again did not bring it back.${reload.detail ? ` ${reload.detail}` : ''}` } : {}) }
+          : { key: 'slot', tone: 'idle', label: `Not loaded on ${at}`, short: `Not loaded on ${at}` });
     }
   }
 
@@ -180,4 +185,100 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   const quiet = sorted.find((c) => c.tone === 'idle' && c.key !== 'production');
   if (quiet) return { tone: 'idle', text: quiet.short, checks: sorted };
   return { tone: 'idle', text: bridge?.tone === 'ok' ? 'Graphics not connected' : 'Not connected', checks: sorted };
+}
+
+// ── WHAT AN ACTION REACHES, AND WHAT IS KNOWN ABOUT IT (data-sources C6, AC-16) ─────────────────
+//
+// The operator-feedback contract: selection, PREVIEW, staged edits, a pending command and the last
+// confirmed output answer different questions, so each has its own words. These say what this page
+// can observe and nothing more. Its observations: whether the production is published; each
+// graphic send's answer from the command log (an accepted write, never proof of a rendered
+// picture); whether this page can reach the server at all (the browser's network, the resolve
+// retrying); the Bridge's answer and the server's own slot readings for server cues; and the
+// outputs' presence for READY. No output reports its picture back, so nothing here says a picture
+// is confirmed on air.
+
+/** PROGRAM's account of the last graphic command this page sent. */
+export type AirState = 'local' | 'idle' | 'pending' | 'logged' | 'unknown' | 'stale';
+
+export interface AirFacts {
+  published: boolean;
+  /** Graphic sends whose answer has not come back. */
+  sending: number;
+  /** A send that failed is still owed (failedSends.ts `owed`): whether it reached the log, and so
+   *  what the outputs show, is not known. */
+  owed: boolean;
+  /** When the command log last took a command from this page. */
+  loggedAt: number | null;
+  /** This page cannot reach the server: what PROGRAM shows is the last it knew. */
+  lost: boolean;
+}
+
+const hms = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+/** PROGRAM's status tag: its state, its words and its tooltip. Empty words show nothing. */
+export function programAir(f: AirFacts): { state: AirState; text: string; title: string } {
+  if (!f.published) return { state: 'local', text: 'this page only', title: 'Not published: a Take plays on this monitor and nowhere else.' };
+  if (f.lost) {
+    return {
+      state: 'stale',
+      // PROGRAM's centre tag says the connection is lost; this says when the log last took one.
+      text: f.loggedAt !== null ? `last logged ${hms(f.loggedAt)}` : '',
+      title: 'This page cannot reach the server, so PROGRAM keeps the last picture it knew. Air may have changed since.',
+    };
+  }
+  if (f.sending > 0) return { state: 'pending', text: 'sending…', title: 'Sent; waiting for the command log to answer.' };
+  if (f.owed) {
+    return { state: 'unknown', text: 'not confirmed', title: 'A command that failed may still have reached the command log, so what the outputs show is unknown here.' };
+  }
+  if (f.loggedAt === null) return { state: 'idle', text: '', title: '' };
+  return {
+    // Named for what it is: the log took it. Never read it as a picture confirmed on air.
+    state: 'logged',
+    text: `logged ${hms(f.loggedAt)}`,
+    title: `The command log took the last command at ${hms(f.loggedAt)}. Outputs following the log apply it; they do not report their picture back, so it is not confirmed here.`,
+  };
+}
+
+/** The hop of a server cue's route that stopped answering: NoaCG Bridge, or CasparCG behind it. */
+export type LostHop = 'bridge' | 'server';
+
+const hopName = (hop: LostHop) => (hop === 'bridge' ? 'NoaCG Bridge' : 'CasparCG');
+
+/**
+ * The words over a PROGRAM picture that may no longer be air (C6): this page's connection lost
+ * first, else the server cues' hop that stopped answering; null while neither. `badge` is the
+ * server badge's tooltip for a lost hop.
+ */
+export function staleWords(lost: boolean, hop: LostHop | null): { tag: string; title: string; badge: string | null } | null {
+  const badge = hop ? `${hopName(hop)} is not answering: this is what the server last reported, and it may have changed.` : null;
+  if (lost) return { tag: 'CONNECTION LOST · NOT LIVE', title: 'This page cannot reach the server, so PROGRAM keeps the last picture it knew. Air may have changed since.', badge };
+  if (!hop) return null;
+  return { tag: `${hop === 'bridge' ? 'BRIDGE' : 'CASPARCG'} NOT ANSWERING · NOT LIVE`, title: `${hopName(hop)} is not answering: this is what the server last reported.`, badge };
+}
+
+/** Where TAKE sends the selected cue or folder, in the words beside the verbs. */
+export function takeTargets(f: {
+  published: boolean;
+  /** Outputs reporting now. */
+  outputs: number;
+  /** The CasparCG slot this production's output is set to (`1-20`), when CasparCG is on. */
+  caspar: string | null;
+  /** The output is loaded on that slot. */
+  casparLoaded: boolean;
+  /** A server cue's slot, when the selection is one. */
+  server: string | null;
+  /** A held folder with server cues as well as graphics. */
+  serverToo?: boolean;
+}): string {
+  // One line beside the verbs: the server badge on PROGRAM already says it goes through the Bridge.
+  if (f.server) return `To: CasparCG ${f.server}`;
+  const parts: string[] = [];
+  if (!f.published) parts.push('this page only');
+  else {
+    parts.push(plural(f.outputs, 'output'));
+    if (f.caspar) parts.push(`CasparCG ${f.caspar}${f.casparLoaded ? '' : ' (not loaded)'}`);
+  }
+  if (f.serverToo) parts.push('server cues');
+  return `To: ${parts.join(' · ')}`;
 }

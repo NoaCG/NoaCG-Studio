@@ -95,7 +95,7 @@ export function mergeResults(...results: ValidationResult[]): ValidationResult {
 }
 
 // The bench renames the preview error channel inside its composed document so a bench
-// iframe's errors can never reach PreviewFrame's unfiltered 'spx-preview-error' listener
+// iframe's errors can never reach an app preview's 'spx-preview-error' listener
 // and show up as a phantom preview error in the editor.
 const BENCH_ERROR_TYPE = 'noacg-bench-error';
 

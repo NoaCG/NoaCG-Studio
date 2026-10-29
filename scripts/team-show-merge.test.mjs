@@ -149,3 +149,58 @@ test('a merge that keeps every folder whole reports nothing, and settling is ide
   assert.deepEqual(again.doc, doc);
   assert.deepEqual(again.lost, []);
 });
+
+// A PREPARED MESSAGE AND A BINDING ON ITS FIELD, made from one base by two members (audience-flow
+// AC-6). Each side passed the rule on its own copy, and the per-field merge would keep both: a live
+// route into the cue's approved text. The prepared cue owns its values, so the binding goes.
+const qa = { id: 'qa', name: 'House Q&A', layer: 20 };
+const prepared = { id: 'c2', sourceId: 'qa', label: 'Hi', values: { f1: 'Hi' }, stagedFrom: { candidateId: 'm1', fields: ['f1'], at: AT } };
+
+test('our prepared message and their binding on its field: the binding is dropped and reported', () => {
+  const base = show([qa], { cues: [] });
+  const ours = show([qa], { cues: [prepared] });
+  const theirs = show([qa], { cues: [], bindings: { 'House Q&A': { f1: 'feed.question', f2: 'feed.name' } } });
+  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  assert.deepEqual(doc.cues, [prepared]);
+  assert.deepEqual(doc.bindings, { 'House Q&A': { f2: 'feed.name' } });
+  assert.deepEqual(lost, ['the field bindings']);
+});
+
+test('their prepared message and our binding on its field: the binding is dropped and reported', () => {
+  const base = show([qa], { cues: [] });
+  const ours = show([qa], { cues: [], bindings: { 'House Q&A': { f1: 'feed.question' } } });
+  const theirs = show([qa], { cues: [prepared] });
+  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  assert.deepEqual(doc.cues, [prepared]);
+  assert.equal(doc.bindings, undefined);
+  assert.deepEqual(lost, ['the field bindings']);
+});
+
+test('stopped Sheet readers merge by name: an added stop is never lost to a teammate clearing another', () => {
+  const base = show([graphic('G', 20), graphic('H', 21)], { hostedSlug: 'slug', ownReaderStops: ['G'] });
+  // Ours stops H; theirs cleared G on evidence and saved first.
+  const ours = show(base.graphics, { hostedSlug: 'slug', ownReaderStops: ['G', 'H'] });
+  const theirs = show(base.graphics, { hostedSlug: 'slug' });
+  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  assert.deepEqual(doc.ownReaderStops, ['H']);
+  assert.deepEqual(lost, []);
+  // The other way round: theirs added H, ours cleared G.
+  const swapped = mergeTeamShow(base, theirs, ours, AT);
+  assert.deepEqual(swapped.doc.ownReaderStops, ['H']);
+  // Both cleared everything: none left.
+  assert.equal(mergeTeamShow(base, theirs, theirs, AT).doc.ownReaderStops, undefined);
+});
+
+test('a binding the merge leaves on a stopped graphic is dropped and reported', () => {
+  const base = show([graphic('G', 20)], { hostedSlug: 'slug' });
+  const ours = show(base.graphics, { hostedSlug: 'slug', bindings: { G: { f0: 'guest.name' } } });
+  const theirs = show(base.graphics, { hostedSlug: 'slug', ownReaderStops: ['G'] });
+  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  assert.deepEqual(doc.ownReaderStops, ['G']);
+  assert.equal(doc.bindings, undefined);
+  assert.deepEqual(lost, ['the field bindings']);
+  // Unpublished, a stop holds nothing and the binding stays.
+  const quiet = (extra) => show(base.graphics, extra);
+  const kept = mergeTeamShow(quiet({}), quiet({ bindings: { G: { f0: 'guest.name' } } }), quiet({ ownReaderStops: ['G'] }), AT);
+  assert.deepEqual(kept.doc.bindings, { G: { f0: 'guest.name' } });
+});

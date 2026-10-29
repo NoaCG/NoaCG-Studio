@@ -33,10 +33,13 @@
 // `unknown`, and the next firing asks again. A transcript's age is not used: a coordinator stopped
 // on the owner's answer is silent for hours and still alive.
 //
-// THE USAGE LIMIT stops a coordinator without ending its process: its turn ends on a rate-limit
-// error and no timer of its own fires again. So a running coordinator whose transcript ends on that
-// error is `waiting` until the limit's reset time the error records, and `resume` once it has
-// passed: the same message starts its next turn.
+// THE USAGE LIMIT stops a coordinator without ending its process, and no timer of its own fires
+// again: its turn ends on a rate-limit error, or it wraps up cleanly under the harness's grace
+// notice. So a running coordinator whose transcript ends on that error, or whose last turn ran under
+// that notice, is `waiting` until the limit's reset and `resume` once it has passed: the same
+// message starts its next turn. The error records the reset; the notice does not, so the latest
+// error's reset is used while it still lay ahead at the notice, else an hour after the notice. A
+// plan run whose ledger stopped on a question to the owner stays `alive`: his answer wakes it.
 //
 // THE MACHINE stays awake through `awake`, not the app's request_keep_awake, which lets go after
 // about five idle minutes and when the app quits. It starts a detached holder that keeps Windows
@@ -52,9 +55,11 @@ import { fileURLToPath } from 'node:url';
 
 import { buildIndex, inventory as harnessInventory } from './claude-agents.mjs';
 import { processAlive } from './codex-rescue.mjs';
+import { nextStep } from './plan-run.mjs';
 import { primaryCheckout } from './primary-checkout.mjs';
 import { advanceLocalMain } from './worktree-cleanup-lib.mjs';
 import { REPORT_HEADING, SESSION_BLOCK, sessionsIn, WINDOW_END, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
+import { projectBoundary, readProject } from './project-authorization.mjs';
 
 export const WAKE_TASK_ID = 'noacg-run-wake';
 export const WAKE_CRON = '*/30 * * * *';
@@ -83,7 +88,7 @@ export function writeWake(text, { host, session, resume }) {
   return `${text.slice(0, at)}Wake: ${host} ${session} ${resume}\n${text.slice(at + (match?.[0].length ?? 0))}`;
 }
 
-/** How far back a transcript is read for its last entry; one entry is far smaller. */
+/** How far back a transcript is read for its last turn; a turn under the usage limit is far smaller. */
 const TAIL_BYTES = 256 * 1024;
 
 /** The transcript of Claude Code session `id`, under any project folder, or null. */
@@ -96,22 +101,41 @@ function transcriptOf(id, projects = path.join(process.env.CLAUDE_CONFIG_DIR || 
   return null;
 }
 
+/** How long after its grace notice a coordinator is resumed when no reset is recorded, and how that is said. */
+const GRACE_WAIT_MS = 60 * 60 * 1000;
+const GRACE_WAIT = 'an hour after the grace notice, which records no reset';
+
 /**
- * Did the conversation in this transcript text stop on the usage limit? Its last main-chain message
- * is then the harness's rate-limit error: `{ resetsAt }` (ms, or null when the error has none).
- * Otherwise null. Lines that do not parse, such as a first line cut by the tail read, are skipped.
+ * Did the conversation in this transcript text stop on the usage limit? Then `{ resetsAt }` (ms, or
+ * null when nothing records it, plus `basis` when it is the grace wait), otherwise null:
+ * - its last main-chain message is the harness's rate-limit error, which records the reset;
+ * - or its last turn, the user entries sharing the latest `promptId`, holds the harness's grace
+ *   notice (`usageLimitNote: 'wrap_up'`) with no `release` note after it. A later prompt (the
+ *   owner's answer, a timer, a wake-up) is a new turn, so an earlier grace never counts.
+ * Lines that do not parse, such as a first line cut by the tail read, are skipped.
  */
 export function usageStopIn(text) {
-  const lines = String(text).split('\n');
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    let entry;
-    try { entry = JSON.parse(lines[i]); } catch { continue; }
-    if ((entry.type !== 'user' && entry.type !== 'assistant') || entry.isSidechain) continue;
-    if (entry.type !== 'assistant' || entry.error !== 'rate_limit') return null;
-    const at = Number(entry.quotaLimits?.resetsAt);
-    return { resetsAt: at > 0 ? at * 1000 : null };
-  }
-  return null;
+  const entries = String(text).split('\n').flatMap((line) => {
+    try {
+      const entry = JSON.parse(line);
+      return (entry?.type === 'user' || entry?.type === 'assistant') && !entry.isSidechain ? [entry] : [];
+    } catch { return []; }
+  });
+  const limited = (entry) => entry?.type === 'assistant' && entry.error === 'rate_limit';
+  const resetOf = (entry) => {
+    const seconds = Number(entry?.quotaLimits?.resetsAt);
+    return seconds > 0 ? seconds * 1000 : null;
+  };
+  const last = entries.at(-1);
+  if (limited(last)) return { resetsAt: resetOf(last) };
+  const prompts = entries.filter((entry) => entry.type === 'user');
+  const turn = prompts.at(-1)?.promptId;
+  const note = turn ? prompts.findLast((entry) => entry.promptId === turn && entry.usageLimitNote) : null;
+  if (note?.usageLimitNote !== 'wrap_up') return null;
+  const at = Date.parse(note.timestamp);
+  const recorded = resetOf(entries.findLast(limited));
+  if (recorded > at || Number.isNaN(at)) return { resetsAt: recorded };
+  return { resetsAt: at + GRACE_WAIT_MS, basis: GRACE_WAIT };
 }
 
 /** `usageStopIn` for session `id`'s transcript, read from its tail; null (working) when it cannot be read. */
@@ -156,12 +180,17 @@ export function wakeVerdict({ text, inventory, now = Date.now(), stopped = usage
   const stops = live.map((id) => stopped(id));
   const working = live.find((id, i) => !stops[i]);
   if (working) return { verdict: 'alive', why: `session ${working} is running (pid ${index.bySession.get(working).pid})` };
+  // A plan run stopped on a question to the owner is woken by his answer, not by the limit's reset.
+  const owed = nextStep(text, now);
+  if (owed.action === 'stopped') return { verdict: 'alive', why: `session ${live.join(', ')} is waiting on the owner's answer for phase ${owed.phase}` };
   const resets = stops.map((stop) => stop.resetsAt);
   const until = resets.includes(null) ? null : Math.max(...resets);
+  const basis = stops.find((stop) => stop.resetsAt === until)?.basis;
+  const guess = basis ? ` (${basis})` : '';
   if (until && until > now) {
-    return { verdict: 'waiting', why: `session ${live.join(', ')} stopped on the usage limit, which resets at ${new Date(until).toISOString()}` };
+    return { verdict: 'waiting', why: `session ${live.join(', ')} stopped on the usage limit, which resets at ${new Date(until).toISOString()}${guess}` };
   }
-  return { verdict: 'resume', usage: true, why: `session ${live.join(', ')} stopped on the usage limit, which has reset`, ...wake };
+  return { verdict: 'resume', usage: true, why: `session ${live.join(', ')} stopped on the usage limit, which has reset${guess}`, ...wake };
 }
 
 /**
@@ -174,12 +203,12 @@ export function wakeReport(runs) {
   const resume = open.find((run) => run.verdict === 'resume');
   if (resume) {
     const stop = resume.usage
-      ? 'you stopped on the usage limit, which has now reset, and this message starts your next turn'
+      ? 'you stopped on the usage limit, which should have reset by now, and this message starts your next turn'
       : 'your process had stopped and this message started it again';
     return [
       `resume: ${resume.why} for ${resume.file}`,
       `session_id: ${resume.host}`,
-      `message: Wake-up: ${stop}. Continue the run in ${resume.file} with ${resume.resume}: reconcile first, launch nothing twice.`,
+      `message: Wake-up: ${stop}. Continue the run in ${resume.file} with ${resume.resume}: reconcile first, launch nothing twice, and go no further than a question the owner has not answered.`,
       `command: ${resume.resume}`,
     ];
   }
@@ -210,9 +239,9 @@ export function wakeTask(repo) {
       '   - alive, unknown or waiting: end here and do nothing more.',
       `   - idle: pause this task with update_scheduled_task (taskId ${WAKE_TASK_ID}, enabled false).`,
       '   - resume: send the printed message to the printed session_id with mcp__ccd_session_mgmt__send_message;',
-      '     that restarts the run\'s own coordinator session. Only if the send fails, invoke the printed',
-      '     command with the Skill tool (its name without the slash, the rest as arguments), follow it and',
-      '     end without step 3.',
+      '     that restarts the run\'s own coordinator session. A failed or uncertain send requires exact',
+      '     reconciliation of that same session/action; checkpoint and report the blocker. Never invoke',
+      '     a replacement coordinator or retry an uncertain send from an empty local inventory.',
       `3. Clean up: list_task_runs (taskId ${WAKE_TASK_ID}, limit 50), then in one parallel batch archive_session every`,
       '   other run not yet archived (finished firings), then archive_session "self". Write no report.',
     ].join('\n'),
@@ -233,7 +262,13 @@ export function holderScript(until) {
 
 /** Is the window in this text still to be held? The holder asks every minute. */
 export function holdable(text, now = Date.now()) {
-  const until = WINDOW_END.exec(text)?.[2];
+  let project;
+  try { project = readProject(text, now); }
+  catch (error) { return { why: error.message }; }
+  const until = project?.block?.deadline ?? WINDOW_END.exec(text)?.[2];
+  const boundary = project && projectBoundary(project, now);
+  if (boundary) return { until, why: boundary.why };
+  if (nextStep(text, now).action === 'paused') return { until, why: 'run paused; explicit resume required' };
   if (!until || Number.isNaN(Date.parse(until)) || Date.parse(until) <= now) return { until, why: 'it has ended or is unreadable' };
   if (REPORT_HEADING.test(text)) return { until, why: 'the run wrote its report' };
   return { until };

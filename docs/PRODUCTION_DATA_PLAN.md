@@ -13,6 +13,16 @@ says *"the home score is 4"* and never *"sb03 is on air"*.
 - **Phase 3, the stepper half, SHIPPED 2026-09-16** - a ± press and an event's `adjust` on a bound
   field move the shared value on both dashboards (§2.9, migration 0060). The rest of Phase 3 - bind
   all by title, and `liveData.ts`'s retirement - is still open (§14's "still open").
+- **Superseded for Sheets and the `liveData.ts` retirement (2026-10-22).** The
+  [data-sources](work-specs/data-sources/spec.md) and
+  [sheet-data-flow](work-specs/sheet-data-flow/spec.md) specs now own how content reaches a
+  production: a Sheet, a feed or another system connects at the production with Connect data… on
+  a cue, and `Show.sources` names it. Phase C6 retired `liveData.ts` as a way to connect: no
+  graphic is offered the block any more, a graphic that already carries one keeps running it
+  (exports unchanged), Pause never claims to stop it, and Connect data… takes over its fields only
+  after the explicit "Stop its own reader" migration. Where this plan's §3 and Phase 3 say
+  otherwise about Sheets or `liveData.ts`, those specs win; the tree, bindings and the API below
+  stand.
 
 Read `docs/CLOUD_PLAYOUT.md` (§7 is the ingress doctrine), `docs/DATA_API.md` (the shipped
 first slice) and `docs/INTERACTIVE_PLAYOUT_PLAN.md` D3/D5 first - this plan is a thin layer

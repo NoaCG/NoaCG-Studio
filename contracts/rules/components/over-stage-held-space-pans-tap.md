@@ -3,7 +3,7 @@ v: 1
 scope: src/components/PreviewFrame.tsx, src/components/spaceKey.ts
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/components/2026-09-07-over-stage-held-space-pans-tap.md
 ---

@@ -1,5 +1,5 @@
-// Timeline v2 — the runtime interpreter emitted into every data-driven template
-// (docs/TIMELINE_V2_PLAN.md §2). It reads the NOACG_ANIM data literal and defines the
+// Animation data: the runtime interpreter emitted into every data-driven template
+// (docs/STATE_MACHINE_SCHEMA.md). It reads the NOACG_ANIM data literal and defines the
 // SAME builder globals the whole platform already depends on (buildInTimeline /
 // buildOutTimeline / revealNextStep), so the simulator, wizard thumbnails, control
 // engine, and every export work unchanged. Plain commented ES5, no dependencies beyond

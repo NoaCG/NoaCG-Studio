@@ -4,66 +4,53 @@
 
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode, switchToAdvancedMode } from './_create';
+import { finishIntoNewEditor } from './_create';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 import { pickDesign } from './_browse';
 
-// Core UI flows for the choose-first creation wizard + live panels.
+// Core flows of the choose-first creation wizard: what a walk's answers make of the created
+// graphic. Each flow leaves the wizard through a Finish door, which builds the graphic into
+// the working document, and reads that document off the store or mounted the way playout
+// composes it. (The old editor's topbar, Data panel and Style panel flows went with that
+// editor; the defaults create and the SPX download are wizard-finish's and exports's.)
 
-/** Walk the wizard entry → category → variant selection. These flows end in the EDITOR, so
- *  they run in Advanced mode (docs/GOALS_ARCHIVE.md "Student release" step 4). */
+/** Walk the wizard entry → category → variant selection. */
 async function toVariantStep(page: Page, variantName: string) {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await pickDesign(page, variantName);
 }
 
-/** Create into the editor from wherever the walk stands: Skip to finish (remaining steps
- *  keep their defaults - step 6's shortcut) then the Advanced editor door. */
-async function createFromCurrentStep(page: Page) {
-  // Wait out the rebuild here: the default document behind the wizard also binds #f0, so an
-  // assertion (or Play) racing the debounced rebuild would run against the old document.
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByTestId('wz-skip-to-finish').click();
-    await page.getByTestId('wz-finish-editor').click();
-    // 20 s: the modal only closes once applyGenerated's cold Prettier format resolves - the
-    // same cold-module cost text-tools.spec.ts's createBareDesign documents in full.
-    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
+/** The created graphic mounted the way playout composes it, fed the store's sample data. */
+async function mountCreated(page: Page): Promise<FrameLocator> {
+  const doc = await mountWorkingDocument(page);
+  const sample = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().sampleData as Record<string, string>;
   });
+  await updateWorkingDocument(doc, sample);
+  return doc;
 }
 
-function previewFrame(page: Page): FrameLocator {
-  return page.frameLocator('iframe.preview-frame');
+function runtime(doc: FrameLocator, verb: 'play' | 'next'): Promise<void> {
+  return doc.locator('body').evaluate((_, v) => {
+    (window as unknown as Record<string, () => void>)[v]();
+  }, verb);
 }
 
-test('wizard: create a lower third with defaults', async ({ page }) => {
-  await toVariantStep(page, 'Hairline');
-  // Live preview appears once a variant is chosen.
-  await expect(page.locator('.wz-preview iframe')).toBeVisible();
-  await createFromCurrentStep(page);
-
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Hairline');
-  // The generated template renders and binds its first field.
-  const frame = previewFrame(page);
-  await expect(frame.locator('#f0')).toHaveText('Alexandra Riva');
-  // Play runs the entrance (root becomes visible).
-  await page.getByRole('button', { name: '▶ Play' }).click();
-  await expect
-    .poll(async () => frame.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity))
-    .toBe('1');
-});
-
-test('wizard: field titles flow into the Data panel', async ({ page }) => {
+test('wizard: field titles flow into the created graphic', async ({ page }) => {
   await toVariantStep(page, 'Underline');
   await page.getByRole('button', { name: 'Next →' }).click(); // Fields
   const rows = page.locator('.wz-line-row');
   await rows.first().locator('input').first().fill('Guest name');
-  await createFromCurrentStep(page);
+  await finishIntoNewEditor(page);
 
-  await page.getByTestId('dock-tab-data').click();
-  await expect(page.locator('.panel-body')).toContainText('Guest name');
+  const titles = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return useTemplateStore.getState().template.fields.map((f) => f.title);
+  });
+  expect(titles).toContain('Guest name');
 });
 
 test('wizard: steps mode reveals lines on Next', async ({ page }) => {
@@ -76,51 +63,16 @@ test('wizard: steps mode reveals lines on Next', async ({ page }) => {
   await page.getByRole('button', { name: 'Next →' }).click(); // Style
   await page.getByRole('button', { name: 'Next →' }).click(); // Animation
   await page.locator('.wz-step input[type="checkbox"]').check();
-  await createFromCurrentStep(page);
+  await finishIntoNewEditor(page);
 
-  const frame = previewFrame(page);
-  await page.getByRole('button', { name: '▶ Play' }).click();
+  const doc = await mountCreated(page);
+  await runtime(doc, 'play');
   // Line 2 waits behind its mask (translated down) until Next reveals it.
-  const before = await frame.locator('#f1').evaluate((el) => getComputedStyle(el).transform);
-  await page.getByRole('button', { name: '» Next' }).click();
+  const before = await doc.locator('#f1').evaluate((el) => getComputedStyle(el).transform);
+  await runtime(doc, 'next');
   await expect
-    .poll(async () => frame.locator('#f1').evaluate((el) => getComputedStyle(el).transform))
+    .poll(async () => doc.locator('#f1').evaluate((el) => getComputedStyle(el).transform))
     .not.toBe(before);
-});
-
-test('reset: the topbar button restores the original state, undoably', async ({ page }) => {
-  await toVariantStep(page, 'Hairline');
-  await createFromCurrentStep(page);
-
-  // Creating the project captured the pristine baseline. Observe through the live preview:
-  // the accent's original tint. Tolerate the transient "context destroyed" while the preview
-  // iframe rebuilds (reset/undo swap the whole document) — poll simply retries.
-  const accent = () =>
-    previewFrame(page)
-      .locator('.lower-third-accent')
-      .evaluate((el) => getComputedStyle(el).backgroundColor)
-      .catch(() => '');
-  await expect.poll(accent).not.toBe('');
-  const original = await accent();
-
-  // Edit the accent via the Style panel — the preview retints.
-  await page.getByTestId('dock-tab-style').click();
-  await page.getByTestId('style-var-accent').locator('input.grow').fill('#ff2d78');
-  await expect.poll(accent).toBe('rgb(255, 45, 120)');
-
-  // Reset is a two-step inline confirm (arm, then confirm) — no blocking dialog.
-  const reset = page.getByTestId('reset-project');
-  await reset.click();
-  await expect(reset).toHaveText(/Confirm reset/);
-  await reset.click();
-  await expect(reset).toHaveText('↺ Reset'); // disarmed
-
-  // The preview returns to the original accent — the graphic is restored.
-  await expect.poll(accent).toBe(original);
-
-  // The reset is one undoable apply — undo brings the edit back.
-  await page.keyboard.press('Control+z');
-  await expect.poll(accent).toBe('rgb(255, 45, 120)');
 });
 
 test('import graphics: image lands in the logo slot', async ({ page }) => {
@@ -160,49 +112,21 @@ test('import graphics: image lands in the logo slot', async ({ page }) => {
   // Number Badge is the design this test drives: its slot is hand-authored, so a working
   // image here proves the whole path (upload -> asset -> field -> <img> src).
   await page.locator('.wz-variant', { hasText: 'Number Badge' }).click();
-  // The catalog continuation is mode IMPORT, which keeps the classic footer create (the
-  // skip-to-finish shortcut is template mode's - createFromCurrentStep would wait forever).
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: 'Create project' }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden({ timeout: 20_000 });
-  });
+  // The catalog continuation is mode IMPORT, which walks the footer to Finish (no skip-to-finish
+  // shortcut); the export door there builds the graphic into the working document before it
+  // opens the window.
+  const exportDoor = page.getByTestId('wz-finish-export');
+  for (let presses = 0; !(await exportDoor.isVisible()); presses++) {
+    if (presses >= 6) throw new Error('the import continuation never reached Finish');
+    await page.locator('.wz-footer button.wz-next').click();
+  }
+  await exportDoor.click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
 
-  const logo = previewFrame(page).locator('.lower-third-logo');
+  const doc = await mountCreated(page);
+  const logo = doc.locator('.lower-third-logo');
   await expect(logo).toBeVisible();
   await expect
     .poll(async () => logo.evaluate((el: HTMLImageElement) => el.src.startsWith('data:image/png')))
     .toBe(true);
 });
-
-test('style panel: accent retints the live preview', async ({ page }) => {
-  await toVariantStep(page, 'Hairline');
-  await createFromCurrentStep(page);
-
-  await page.getByTestId('dock-tab-style').click();
-  const accentRow = page.getByTestId('style-var-accent');
-  // Wait out the debounced rebuild BEFORE reading inside the iframe: evaluating against a
-  // document that is being replaced throws "execution context was destroyed", and a thrown
-  // callback fails expect.poll outright instead of retrying.
-  await awaitPreviewRebuild(page, () => accentRow.locator('input.grow').fill('#ff2d78'));
-  await expect
-    .poll(async () =>
-      previewFrame(page).locator('.lower-third-accent').evaluate((el) => getComputedStyle(el).backgroundColor),
-    )
-    .toBe('rgb(255, 45, 120)');
-});
-
-
-test('export: downloads a plug-and-play SPX zip', async ({ page }) => {
-  await toVariantStep(page, 'Hairline');
-  await createFromCurrentStep(page);
-  await page.getByTestId('dock-tab-export').click();
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: /Validate & download/ }).click(),
-  ]);
-  expect(download.suggestedFilename()).toMatch(/\.zip$/);
-});
-
-// (The Blocks tab was retired in the UX overhaul — element inserts go through AI, and
-// adding data fields lives in the Data panel; see e2e/ux.spec.ts.)

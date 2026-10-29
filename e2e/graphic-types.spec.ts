@@ -1,7 +1,8 @@
 // covers: src/templates/**
+// covers: src/blocks/**
 
-import { enableAdvancedMode } from './_create';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { toApp } from './_bench';
 
 // GRAPHIC TYPES (docs/GRAPHIC_TYPES.md) — the conformance suite every registered type passes.
 //
@@ -9,14 +10,6 @@ import { test, expect, type Page } from '@playwright/test';
 // events) independently of what it looks like. These checks are what "to the quality bar
 // everything else is measured against" means in practice, and they run per type, so adding a
 // type either passes them or fails the build.
-
-async function toApp(page: Page) {
-  // Editor-subject specs: the Advanced boot keeps '' = the editor under the wizard
-  // (the default studio lands on Home - docs/GOALS_ARCHIVE.md "Student release" step 4).
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await page.keyboard.press('Escape');
-}
 
 const HARNESS = `
   async function types() {

@@ -555,14 +555,18 @@ test('a deep link builds in the brand in force, and a fresh open takes none from
   expect(fresh).not.toBe(ids.accent);
 });
 
-test('a cold open on a step only another walk has lands on Entry', async ({ page }) => {
+test('a cold open on a step only another walk has lands on Entry', async ({ context }) => {
   // Decided in S1c (spec section 4): a reload keeps no walk's material, so a cold open resolves
   // the step name against the template walk alone, and a name only another walk has (the import,
   // design, file, AI, video and kit walks) degrades to the front page.
   for (const slug of ['images', 'template', 'design', 'prepare', 'text', 'template-file', 'create', 'video', 'kit']) {
-    await page.goto('about:blank');
+    // A cold open owns a fresh page. Repeatedly navigating one renderer through this large
+    // dev-module graph exhausted Chromium's resources before App.tsx could load (#1524).
+    const page = await context.newPage();
     await page.goto(`/app#/new/step/${slug}`);
     await expect(page.locator('[data-entry="template"]'), slug).toBeVisible();
     await expect(counter(page), slug).toHaveCount(0);
+    // On failure the fixture keeps the page for its screenshot, then closes the context.
+    await page.close();
   }
 });

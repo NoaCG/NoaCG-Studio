@@ -1,0 +1,170 @@
+{
+  "observedAt": "2026-10-17",
+  "origin": "https://noacg.studio",
+  "buildCommit": "unknown; shipped content-hashed assets, not tied to audit source SHA",
+  "note": "Raw response bytes with Accept-Encoding identity. gzip is a local compression estimate, not observed transfer size. Only HTML-linked resources, not a complete runtime request waterfall.",
+  "pageAssets": {
+    "admin": [
+      "/assets/admin-CzSjqLaA.js",
+      "/assets/rolldown-runtime-aKtaBQYM.js",
+      "/assets/modulepreload-polyfill-Dezn_h7o.js",
+      "/assets/jsx-runtime-2Zwg-L3c.js",
+      "/assets/react-dom-DL79FNtU.js",
+      "/assets/client-Bh9ane2J.js",
+      "/assets/config-Cd5F65nx.js",
+      "/assets/preload-helper-DaercurD.js",
+      "/assets/supabase-9SVoL88p.js",
+      "/assets/durableStore-CpjnPx2w.js",
+      "/assets/outputSetup-rRtazquB.js",
+      "/assets/auth-CNfvo7Gn.js",
+      "/assets/objectSpread2-BmonrgTA.js",
+      "/assets/contract-sn_rYnbL.js",
+      "/assets/contract-DIAjENwN.js",
+      "/assets/admin-Dq4PqNQi.css"
+    ],
+    "app": [
+      "/assets/app-CyKC9RP-.js",
+      "/assets/rolldown-runtime-aKtaBQYM.js",
+      "/assets/modulepreload-polyfill-Dezn_h7o.js",
+      "/assets/jsx-runtime-2Zwg-L3c.js",
+      "/assets/react-dom-DL79FNtU.js",
+      "/assets/client-Bh9ane2J.js",
+      "/assets/config-Cd5F65nx.js",
+      "/assets/preload-helper-DaercurD.js",
+      "/assets/durableStore-CpjnPx2w.js",
+      "/assets/supabase-9SVoL88p.js",
+      "/assets/outputSetup-rRtazquB.js",
+      "/assets/auth-CNfvo7Gn.js",
+      "/assets/objectSpread2-BmonrgTA.js",
+      "/assets/app-D195yLrH.css"
+    ]
+  },
+  "assets": [
+    {
+      "path": "/assets/admin-CzSjqLaA.js",
+      "bytes": 86113,
+      "gzip_estimate": 22400,
+      "content_encoding": null,
+      "etag": "\"0735bc1f70dd1b17362addaeaf7bf634\""
+    },
+    {
+      "path": "/assets/admin-Dq4PqNQi.css",
+      "bytes": 15798,
+      "gzip_estimate": 3780,
+      "content_encoding": null,
+      "etag": "\"9a928f8a097c04cbca1a964db9c35792\""
+    },
+    {
+      "path": "/assets/app-CyKC9RP-.js",
+      "bytes": 6358,
+      "gzip_estimate": 3034,
+      "content_encoding": null,
+      "etag": "\"7aabe528b9c13c4086d441fd144cc596\""
+    },
+    {
+      "path": "/assets/app-D195yLrH.css",
+      "bytes": 236874,
+      "gzip_estimate": 42514,
+      "content_encoding": null,
+      "etag": "\"a69a1eaa3dfc36a20f4198272bf00f53\""
+    },
+    {
+      "path": "/assets/auth-CNfvo7Gn.js",
+      "bytes": 4516,
+      "gzip_estimate": 1733,
+      "content_encoding": null,
+      "etag": "\"7a4eb1a58f2af1aebce9f03a04ec9266\""
+    },
+    {
+      "path": "/assets/client-Bh9ane2J.js",
+      "bytes": 178564,
+      "gzip_estimate": 55579,
+      "content_encoding": null,
+      "etag": "\"7db379d620123717b1c7f429d26ee4da\""
+    },
+    {
+      "path": "/assets/config-Cd5F65nx.js",
+      "bytes": 1819,
+      "gzip_estimate": 963,
+      "content_encoding": null,
+      "etag": "\"5a9eda7c8306646e97af7134fc952ce3\""
+    },
+    {
+      "path": "/assets/contract-DIAjENwN.js",
+      "bytes": 2844,
+      "gzip_estimate": 1034,
+      "content_encoding": null,
+      "etag": "\"260fb54205edef93e1879d4fbac0235e\""
+    },
+    {
+      "path": "/assets/contract-sn_rYnbL.js",
+      "bytes": 696,
+      "gzip_estimate": 373,
+      "content_encoding": null,
+      "etag": "\"5256d88fb9246f0beda34ef12a227354\""
+    },
+    {
+      "path": "/assets/durableStore-CpjnPx2w.js",
+      "bytes": 9719,
+      "gzip_estimate": 3597,
+      "content_encoding": null,
+      "etag": "\"1e9765348ce7a3fbd14a626bb8ba2bf2\""
+    },
+    {
+      "path": "/assets/jsx-runtime-2Zwg-L3c.js",
+      "bytes": 7899,
+      "gzip_estimate": 3008,
+      "content_encoding": null,
+      "etag": "\"9ceef5e379ee91f38ff8168ad8b16c3d\""
+    },
+    {
+      "path": "/assets/modulepreload-polyfill-Dezn_h7o.js",
+      "bytes": 698,
+      "gzip_estimate": 393,
+      "content_encoding": null,
+      "etag": "\"677c89a8090371d5ca8287830fc37a1f\""
+    },
+    {
+      "path": "/assets/objectSpread2-BmonrgTA.js",
+      "bytes": 1290,
+      "gzip_estimate": 584,
+      "content_encoding": null,
+      "etag": "\"b60f932ed237a9e5c645265181103e4b\""
+    },
+    {
+      "path": "/assets/outputSetup-rRtazquB.js",
+      "bytes": 2520,
+      "gzip_estimate": 1042,
+      "content_encoding": null,
+      "etag": "\"e872b6ea0e6fc2715bdb601417e124cf\""
+    },
+    {
+      "path": "/assets/preload-helper-DaercurD.js",
+      "bytes": 1228,
+      "gzip_estimate": 690,
+      "content_encoding": null,
+      "etag": "\"55c8ea4edd2780a6e1b563d9fa1d02cf\""
+    },
+    {
+      "path": "/assets/react-dom-DL79FNtU.js",
+      "bytes": 3596,
+      "gzip_estimate": 1363,
+      "content_encoding": null,
+      "etag": "\"149d7a76247d4fce5cd007277a483e7a\""
+    },
+    {
+      "path": "/assets/rolldown-runtime-aKtaBQYM.js",
+      "bytes": 1084,
+      "gzip_estimate": 623,
+      "content_encoding": null,
+      "etag": "\"fe1c45aeeb5cda97a4081341cf8c64f0\""
+    },
+    {
+      "path": "/assets/supabase-9SVoL88p.js",
+      "bytes": 818,
+      "gzip_estimate": 505,
+      "content_encoding": null,
+      "etag": "\"1317282d0525ec273277efa668241c10\""
+    }
+  ]
+}

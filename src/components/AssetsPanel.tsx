@@ -1,7 +1,8 @@
 // The Assets panel: every file bundled with the template (images, Lottie animations,
 // imported fonts) as folder-grouped rows, with drag-and-drop import, drag-to-canvas
-// placement (see CanvasInteraction), reference-safe move/rename, and an info section
-// that derives metadata on demand (src/assets/assetInfo.ts) — the model stays { path, data }.
+// placement (editorFoundation/Canvas.tsx takes the drop), reference-safe move/rename, and an
+// info section that derives metadata on demand (src/assets/assetInfo.ts)
+// — the model stays { path, data }.
 
 import { useEffect, useRef, useState } from 'react';
 import { useTemplateStore } from '../store/templateStore';
@@ -30,6 +31,7 @@ import type { OrganizationOperation } from '../blocks/editorOrganization';
 import InlineOrganizationName from './editorFoundation/InlineOrganizationName';
 
 export interface AssetPanelActions {
+  insertTemplate?: () => void;
   bins?: {
     directories: string[];
     revision: () => { source: number; assets: number };
@@ -54,7 +56,7 @@ const PUBLISH_MAX_TOTAL = 12 * 1024 * 1024 * 0.75; // the bench caps data-URL ch
 
 const ACCEPT = '.png,.jpg,.jpeg,.gif,.webp,.svg,.avif,.json,.webm,.mp4';
 
-/** The drag payload type the canvas drop target (CanvasInteraction) listens for. */
+/** The drag payload type the editor's canvas drop target (editorFoundation/Canvas.tsx) listens for. */
 export const ASSET_DRAG_TYPE = 'application/x-noacg-asset';
 
 function fmtBytes(n: number): string {
@@ -309,7 +311,8 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
   // list would need a new template field.
   const [pendingFolders, setPendingFolders] = useState<string[]>([]);
   // "Add template graphic" — insert a catalog graphic into THIS project (never replacing
-  // it). The dialog itself is mounted once in AppShell; this just opens it.
+  // it). This only raises the shared open flag; the dialog's one mount was the retired AppShell,
+  // so a new editor surface that offers this button mounts InsertTemplateDialog itself.
   const openInsertDialog = useInsertTemplateUi((s) => s.openDialog);
 
   const assets = template.assets;
@@ -512,9 +515,9 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
           <button className="primary" onClick={() => fileInput.current?.click()} data-testid="assets-import">
             {actions ? 'Import files…' : '+ Import assets…'}
           </button>
-          {!actions && <button
-            onClick={openInsertDialog}
-            title="Insert a graphic from the template catalog into this project — it joins the canvas, timeline, and states without replacing anything"
+          {(!actions || actions.insertTemplate) && <button
+            onClick={actions?.insertTemplate ?? openInsertDialog}
+            title="Insert a graphic from the template catalog into this project, keeping its current artwork"
             data-testid="assets-insert-template"
           >
             ✚ Template graphic…

@@ -3,6 +3,7 @@
 // CasparCG (single self-contained html), OGraf (manifest + Web Component), LiveOS (the
 // OGraf package with NetOn.Live install steps — LiveOS's graphics engine is OGraf-compliant).
 
+import type { AppliedAppearance } from '../control/cueAdjust';
 import type JSZip from 'jszip';
 import type { SpxTemplate } from '../model/types';
 import type { ControlEntry } from '../model/library';
@@ -18,6 +19,12 @@ export interface ExportContext {
   entries?: ControlEntry[];
   /** OGraf playout intent. Other targets ignore it. */
   graphicUsage?: GraphicUsage;
+  /** The production's PLACE AND SIZE for this graphic (docs/work-specs/playout-adjustments/spec.md,
+   *  phase 1b): its default resolved at export, baked so the file shows it from load
+   *  (control/appearanceRuntime.ts `bakeAppearance`). An identity bakes nothing. Present at all, an identity
+   *  included, means the production holds place and size for this graphic, so a relay receiver
+   *  also applies what the controller's rows carry. Absent: the package is what it always was. */
+  appearance?: AppliedAppearance;
 }
 
 export type GraphicUsage = 'live' | 'post-production' | 'both';
@@ -40,4 +47,22 @@ import { casparTarget } from './targets/casparcg';
 import { ografTarget } from './targets/ograf';
 import { liveosTarget } from './targets/liveos';
 
-export const EXPORT_TARGETS: ExportTarget[] = [spxTarget, htmlOverlayTarget, h2rTarget, casparTarget, ografTarget, liveosTarget];
+import { foreignPackageZip } from './targets/ografForeign';
+import { foreignExportRefusal, isForeignGraphic } from '../model/foreignPackage';
+
+/** A stranger's OGraf package (model/foreignPackage.ts) leaves only as itself: the OGraf target
+ *  hands back its own bytes, verified first, and every other target refuses it, since nothing here
+ *  can rebuild somebody else's Graphic for another host. */
+const foreignAware = (target: ExportTarget): ExportTarget => ({
+  ...target,
+  build: (template, ctx) => {
+    if (!isForeignGraphic(template)) return target.build(template, ctx);
+    if (target.id === 'ograf') return foreignPackageZip(template);
+    return Promise.reject(new Error(foreignExportRefusal(template.name)));
+  },
+});
+
+export const EXPORT_TARGETS: ExportTarget[] = [spxTarget, htmlOverlayTarget, h2rTarget, casparTarget, ografTarget, liveosTarget].map(foreignAware);
+/** The targets a graphic can leave by: all of them, or OGraf alone for a stranger's package. */
+export const exportTargetsFor = (template: SpxTemplate): ExportTarget[] =>
+  isForeignGraphic(template) ? EXPORT_TARGETS.filter((t) => t.id === 'ograf') : EXPORT_TARGETS;

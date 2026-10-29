@@ -55,21 +55,29 @@ export function configDir(): string {
  */
 export const UNKNOWN_VERSION = '0.0.0';
 
-/**
- * The CLI's own version, read from its package.json (dist/ sits beside it). Inside
- * NoaCG-Bridge-<version>.exe there is no package.json and no `import.meta.url` to resolve one from, so
- * the exe build bakes the version in as NOACG_BRIDGE_VERSION (cli/scripts/build-bridge-exe.mjs)
- * and that is read first.
- */
-export function cliVersion(): string {
-  const baked = process.env.NOACG_BRIDGE_VERSION?.trim();
-  if (baked) return baked;
+/** The package.json dist/ sits beside, or nothing when there is none to read. */
+function ownPackage(): { version?: string; bridgeVersion?: string } {
   try {
-    const pkg = createRequire(import.meta.url)('../package.json') as { version?: string };
-    return pkg.version ?? UNKNOWN_VERSION;
+    return createRequire(import.meta.url)('../package.json') as { version?: string; bridgeVersion?: string };
   } catch {
-    return UNKNOWN_VERSION;
+    return {};
   }
+}
+
+/** The CLI's own version, read from its package.json. */
+export function cliVersion(): string {
+  return ownPackage().version ?? UNKNOWN_VERSION;
+}
+
+/**
+ * NoaCG Bridge's own version: package.json's `bridgeVersion`, which moves only with a Bridge
+ * release (cli/BRIDGE_CHANGELOG.md), never with the CLI's. Inside NoaCG-Bridge-<version>.exe there
+ * is no package.json and no `import.meta.url` to resolve one from, so the exe build bakes it in as
+ * NOACG_BRIDGE_VERSION (cli/scripts/build-bridge-exe.mjs) and that is read first.
+ */
+export function bridgeVersion(): string {
+  const baked = process.env.NOACG_BRIDGE_VERSION?.trim();
+  return baked || (ownPackage().bridgeVersion ?? UNKNOWN_VERSION);
 }
 
 /** The bridge protocol versions this CLI speaks (src/bridge/bridgeApi.ts BRIDGE_V). */

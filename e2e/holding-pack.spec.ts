@@ -2,11 +2,12 @@
 // Until 2026-08-08 it was reachable from no template path and ten designs landed with every
 // branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
 // covers: src/templates/**
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
-import { enableAdvancedMode, finishIntoEditor, bootstrapGraphic } from './_create';
+import { finishIntoNewEditor, bootstrapGraphic } from './_create';
+import { toApp } from './_bench';
 import { settleDurableWrites } from './_durable';
-import { awaitPreviewRebuild } from './_preview';
 import { chooseType, pickDesign, resultTotal } from './_browse';
 
 // THE HOLDING / CREDITS / CEREMONY PACK.
@@ -23,7 +24,6 @@ import { chooseType, pickDesign, resultTotal } from './_browse';
 
 /** Walk the wizard as far as a category's template grid — the real discovery path. */
 async function toTemplateStep(page: Page, category: string) {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -100,8 +100,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
   await pickDesign(page, 'In Memoriam');
   // Create only appears from the Fields step on, so step forward once first.
   await page.locator('.wz-next').click();
-  await awaitPreviewRebuild(page, () => finishIntoEditor(page));
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await finishIntoNewEditor(page);
   const fields = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
@@ -114,9 +113,7 @@ test('a ceremony card creates from the wizard and lands in the editor', async ({
 // ── The countdown ────────────────────────────────────────────────────────────
 
 test('a start-time countdown chases the wall clock and never goes negative', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   const r = await inTemplate<Record<string, string>>(
     page,
@@ -149,9 +146,7 @@ test('a start-time countdown chases the wall clock and never goes negative', asy
 });
 
 test('the countdown self-corrects through a stalled event loop', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   // The clock is anchored to a deadline, not decremented once per tick. Blocking the event
   // loop drops and coalesces interval callbacks — a decrement-per-tick clock loses exactly
@@ -179,9 +174,7 @@ test('the countdown self-corrects through a stalled event loop', async ({ page }
 });
 
 test('Update re-arms a running countdown, and an update that did not touch it leaves it alone', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   // Owner walk, 2026-08-29, on ss11 "Doors Open": with the countdown ON AIR, changing the
   // minutes and pressing Update did nothing — the only way to correct the clock was to take
@@ -241,9 +234,7 @@ test('Update re-arms a running countdown, and an update that did not touch it le
 });
 
 test('a clock-less holding screen carries no countdown at all', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
   const emitted = await page.evaluate(async () => {
     const { CATALOG } = await import('/src/templates/catalog.ts');
     const t = CATALOG['starting-soon']!.find((v) => v.id === 'ss08')!.create({});
@@ -261,9 +252,7 @@ test('a clock-less holding screen carries no countdown at all', async ({ page })
 // ── The loop ─────────────────────────────────────────────────────────────────
 
 test('the credit reel loops with no seam and does not stack clones on replay', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   const r = await inTemplate<{
     firstTravel: number; firstRun: number; firstClones: number; covered: boolean;
@@ -301,9 +290,7 @@ test('the credit reel loops with no seam and does not stack clones on replay', a
 });
 
 test('a static board holds still and shrinks to fit rather than losing rows', async ({ page }) => {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
-  await expect(page.locator('.topbar')).toBeVisible();
+  await toApp(page);
 
   const r = await inTemplate<{ transform: string; rows: number; short: number; longFits: boolean; longRows: number }>(
     page,

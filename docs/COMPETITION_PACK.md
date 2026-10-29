@@ -3,7 +3,7 @@
 Esports, competition, result and reveal graphics: **44 designs across 4 categories and 13
 graphic types**, all built on the existing contracts — the state machine
 (`STATE_MACHINE_SCHEMA.md`), the graphic-type registry (`GRAPHIC_TYPES.md`), the Timeline v2
-data block (`TIMELINE_V2_PLAN.md`) and measured motion (`DYNAMIC_MOTION_SCOPE.md`).
+data block (`STATE_MACHINE_SCHEMA.md`) and measured motion (`DYNAMIC_MOTION_SCOPE.md`).
 
 Code: `src/templates/competition/` (assembler, presets, motion, the four categories),
 `src/templates/types/{esports,matchups,competitionBoards,reveals}.ts` (the type declarations).

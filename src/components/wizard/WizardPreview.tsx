@@ -810,7 +810,7 @@ export default function WizardPreview({
       if (docGenRef.current !== gen) return;
       // THE REVISION LANDS ON THE STAGE, not on the frame: a rebuild REPLACES the frame, so a
       // stamp on the frame is gone exactly when a waiter needs to read the old one. Same contract
-      // as PreviewFrame's - `data-doc-rev` says a rebuild finished, `data-doc-pending` says one
+      // as the video stage's `data-player-*` - `data-doc-rev` says a rebuild finished, `data-doc-pending` says one
       // is owed, and only the two together can tell "not started" from "already done"
       // (e2e/_preview.ts).
       if (stageRef.current) {

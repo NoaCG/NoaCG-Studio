@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/ExportSurface.tsx, src/components/ExportPanel.tsx
+scope: src/components/ExportSurface.tsx
 kind: invariant
 fires: contract
 status: active

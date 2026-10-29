@@ -1,13 +1,14 @@
 // covers: src/templates/importedDesign/designTypes.ts, src/components/wizard/import/**
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx, src/components/ExportWindow.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { test, expect, type Page } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode, finishIntoEditor, startNewProject, switchToAdvancedMode } from './_create';
+import { finishIntoNewEditor, openExportWindow, startNewProject } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { chooseType, pickDesign } from './_browse';
+import { mountWorkingDocument, updateWorkingDocument } from './_frame';
 
 // Era 2a: import an existing template (.html or SPX-style .zip) to edit and convert.
 
@@ -60,24 +61,21 @@ async function dropTemplate(page: Page, name: string, buffer: Buffer) {
   await expect(page.getByTestId('import-format-detection')).toContainText('uncertain');
   await expect(page.getByRole('button', { name: /Open as code \(no AI\)/ })).toBeDisabled();
   await page.getByTestId('confirm-import-format').click();
-  // Straight into the code editor is Advanced mode's door; the default studio takes the file
-  // to the wizard's Finish instead (wizard-exits in import-svg.spec.ts).
-  await switchToAdvancedMode(page);
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  // The no-AI open takes the file to the wizard's Finish, whose doors apply it exactly as
+  // written; "Edit this graphic" lands it in the editor.
+  await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
+  await finishIntoNewEditor(page);
 }
 
 test('import .html: splits into panes, keeps the definition, validates, exports', async ({ page }) => {
   await dropTemplate(page, 'old-score-bug.html', Buffer.from(FOREIGN_HTML));
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Old Score Bug');
 
   const tpl = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
-    return { html: t.html, css: t.css, js: t.js, fields: t.fields.map((f) => f.field) };
+    return { name: t.name, html: t.html, css: t.css, js: t.js, fields: t.fields.map((f) => f.field) };
   });
+  expect(tpl.name).toBe('Old Score Bug');
   expect(tpl.css).toContain('#bug');                       // style moved to the CSS pane
   expect(tpl.js).toContain('function play()');             // script moved to the JS pane
   expect(tpl.html).toContain('SPXGCTemplateDefinition');   // definition stays in the HTML
@@ -86,43 +84,41 @@ test('import .html: splits into panes, keeps the definition, validates, exports'
   expect(tpl.js).not.toContain('export {}');               // ...never in the classic JS pane
   expect(tpl.fields).toEqual(['f0']);
 
-  // Landed on Export with the inline validation — this one is already valid.
-  await expect(page.locator('[data-testid="dock-right"] .dock-tab.active .dock-tab-label')).toHaveText('Export');
-  await expect(page.locator('.panel-body .status-ok')).toContainText('valid and ready');
+  // The export window's inline validation — this one is already valid.
+  await openExportWindow(page);
+  await expect(page.getByTestId('export-window').locator('.status-ok')).toContainText('valid and ready');
 
-  // The graphic actually works: update + play through the simulator.
-  await page.getByTestId('dock-tab-data').click();
-  await page.locator('.field-row', { hasText: 'Score' }).locator('input').first().fill('2 - 1');
-  await page.getByRole('button', { name: '▶ Play' }).click();
-  const frame = page.frameLocator('iframe.preview-frame');
-  await expect(frame.locator('#f0')).toHaveText('2 - 1');
+  // The graphic actually works: update + play, the way playout drives the document.
+  const doc = await mountWorkingDocument(page);
+  await updateWorkingDocument(doc, { f0: '2 - 1' });
+  await doc.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect(doc.locator('#f0')).toHaveText('2 - 1');
   await expect
-    .poll(async () => frame.locator('#bug').evaluate((el) => getComputedStyle(el).opacity))
+    .poll(async () => doc.locator('#bug').evaluate((el) => getComputedStyle(el).opacity))
     .toBe('1');
 });
 
 test('import round-trip: an exported Starter zip re-imports as the same code', async ({ page }) => {
-  // Create + export a wizard template (the editor create - Advanced since step 6).
-  await enableAdvancedMode(page);
+  // Create + export a wizard template.
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, 'Lower thirds');
   await pickDesign(page, 'Hairline');
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-  });
+  await finishIntoNewEditor(page);
   const before = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
     return { css: t.css, js: t.js, resolution: t.resolution, fps: t.fps };
   });
-  await page.getByTestId('dock-tab-export').click();
+  await openExportWindow(page);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: /Validate & download/ }).click(),
   ]);
   const zipBuffer = readFileSync(await download.path());
   await JSZip.loadAsync(zipBuffer); // sanity: it is a real zip
+  await page.keyboard.press('Escape'); // the export window, whose backdrop covers the topbar
+  await expect(page.getByTestId('export-window')).toBeHidden();
 
   // Re-import the zip through the wizard (inside "Create with AI", no AI involved).
   await startNewProject(page);
@@ -134,7 +130,7 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
     buffer: zipBuffer,
   });
   await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await finishIntoNewEditor(page);
   const after = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
@@ -176,14 +172,13 @@ test('import zip: a NoaCG graphic package (the agent door\'s dual package) keeps
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   expect(names.some((n) => n.endsWith('football_scoreboard.ograf.json')), `no manifest in ${names.join(', ')}`).toBe(true);
 
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
   await chooseNoacgAgent(page);
   await page.locator('.wz-drop input[type="file"]').setInputFiles({ name: 'football-scoreboard.zip', mimeType: 'application/zip', buffer: zipBuffer });
   await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await finishIntoNewEditor(page);
   const opened = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const t = useTemplateStore.getState().template;
@@ -193,7 +188,6 @@ test('import zip: a NoaCG graphic package (the agent door\'s dual package) keeps
   expect(opened.type, 'the type rides in the manifest\'s v_noacg, never forced to blank').toBe('scoreboard');
   expect(opened.fields).toEqual(['f0', 'f1', 'f2', 'f3']);
   expect(opened.hasMachine, 'the type machine travels inside js/template.js').toBe(true);
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Football scoreboard');
 
   // The same package zipped by Windows PowerShell 5.1's Compress-Archive, which writes entry
   // names with BACKSLASHES (Explorer and every other archiver write '/'). A student's zip has to

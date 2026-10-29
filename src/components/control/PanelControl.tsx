@@ -15,6 +15,7 @@ import {
   type PanelPressReport,
 } from '../../control/panelRelay';
 import { workerInterval } from '../../control/workerTicker';
+import type { PanelOffer } from '../../control/panelActions';
 import { useModalGate } from '../spaceKey';
 import './panel.css';
 
@@ -35,6 +36,8 @@ export interface PanelAnswerState {
   paired: boolean;
   /** The page that answers the panel when it is not this one, by its label; null when none does. */
   holder: string | null;
+  /** The database does not relay graphic actions yet (no 0103): known only while answering. */
+  oldRelay: boolean;
   /** Move the panel to this page, from whichever page has it ("Use here"). */
   useHere: () => void;
   /** Read who answers now rather than at the next beat (after pairing, say). */
@@ -48,6 +51,8 @@ export interface PanelAnswerState {
     run: (verb: PanelVerb, target: string) => void,
     /** Where the page writes a refused press, naming the panel and why: its activity feed. */
     note?: (text: string) => void,
+    /** The graphic actions the page offers a panel and how it runs one (control/panelActions.ts). */
+    actions?: PanelOffer,
   ) => void;
   /**
    * Publish now if what a key shows changed, for a change that does not re-render the page: the
@@ -99,6 +104,8 @@ export function usePanelAnswer(opts: {
   const snapshot = useRef<() => PanelSnapshot>(() => EMPTY);
   const run = useRef<(verb: PanelVerb, target: string) => void>(() => {});
   const note = useRef<((text: string) => void) | undefined>(undefined);
+  const actions = useRef<PanelOffer | undefined>(undefined);
+  const [oldRelay, setOldRelay] = useState(false);
   const answer = useRef<PanelAnswer | null>(null);
   const { slug, where, label, runs, auto } = opts;
 
@@ -150,6 +157,9 @@ export function usePanelAnswer(opts: {
       move: want === 'move',
       snapshot: () => snapshot.current(),
       run: (verb, target) => run.current(verb, target),
+      // A page that feeds no actions (the hosted control page) runs none.
+      actions: () => actions.current ?? null,
+      onRelay: (relays) => setOldRelay(!relays),
       onStatus: (s) => {
         setStatus(s);
         // Held elsewhere, taken by another page, or not reached: this page is not answering, and
@@ -162,9 +172,9 @@ export function usePanelAnswer(opts: {
       },
       onPress: (report) => {
         setLast(report);
-        if (report.verdict.outcome !== 'ran') {
-          note.current?.(`${report.panel}: ${verbWords(report.verb)} refused, ${report.verdict.note ?? report.verdict.outcome}`);
-        }
+        // A refusal, or a graphic action that ran and then was refused, failed or went unanswered.
+        const outcome = outcomeWords(report);
+        if (outcome !== 'done') note.current?.(`${report.panel}: ${pressWords(report)} ${outcome}`);
       },
     });
     answer.current = a;
@@ -186,18 +196,33 @@ export function usePanelAnswer(opts: {
     last,
     paired: (list?.panels.length ?? 0) > 0,
     holder: on ? null : (list?.answering?.label || (list?.answering ? 'Another page' : null)),
+    oldRelay: on && oldRelay,
     useHere: useCallback(() => {
       setStatus(null);
       setWant('move');
     }, []),
     refresh: useCallback(() => lookNow.current(), []),
-    feed: useCallback((snap: () => PanelSnapshot, dispatch: (verb: PanelVerb, target: string) => void, write?: (text: string) => void) => {
+    feed: useCallback((snap: () => PanelSnapshot, dispatch: (verb: PanelVerb, target: string) => void, write?: (text: string) => void, offered?: PanelOffer) => {
       note.current = write;
+      actions.current = offered;
       snapshot.current = snap;
       run.current = dispatch;
     }, []),
     changed: useCallback(() => answer.current?.changed(), []),
   };
+}
+
+/** What a press was, in the operator's words: a graphic action names itself. */
+function pressWords(report: PanelPressReport): string {
+  return report.action ?? verbWords(report.verb as PanelVerb);
+}
+
+/** What a press came to, in the operator's words: done, or what stopped it and why. */
+function outcomeWords(report: PanelPressReport): string {
+  const { verdict, settled } = report;
+  if (verdict.outcome !== 'ran') return `refused, ${verdict.note ?? verdict.outcome}`;
+  if (!settled || settled.outcome === 'accepted') return 'done';
+  return `${settled.outcome === 'unknown' ? 'not confirmed' : settled.outcome}, ${settled.note ?? settled.outcome}`;
 }
 
 export type PanelTone = 'ok' | 'idle' | 'held' | 'off';
@@ -354,10 +379,15 @@ export function PanelDialog({
                     </button>
                   )}
                 </p>
+                {answer.oldRelay && (
+                  <p className="hint" data-testid="panel-old-relay">
+                    Graphic actions on the panel wait for a NoaCG server update.
+                  </p>
+                )}
                 {answer.last && (
                   <p className="hint" data-testid="panel-last">
-                    Last press: {answer.last.panel}, {verbWords(answer.last.verb)}:{' '}
-                    {answer.last.verdict.outcome === 'ran' ? 'done' : `refused, ${answer.last.verdict.note ?? answer.last.verdict.outcome}`}
+                    Last press: {answer.last.panel}, {pressWords(answer.last)}:{' '}
+                    {outcomeWords(answer.last)}
                   </p>
                 )}
               </section>

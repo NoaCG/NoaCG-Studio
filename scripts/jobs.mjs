@@ -37,7 +37,9 @@ import { mainRef } from './main-ref.mjs';
 import { closedIssues, isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody } from './pr-description.mjs';
 import { reviveReviewed } from './cloud-queue.mjs';
 import { spawnRunner } from './queue-pr.mjs';
+import { dispatchRecovery } from './verification-dispatch.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
+import { recoveryCheckpointBranch } from './recovery-branch.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
@@ -323,16 +325,7 @@ function adoptOrphans(now) {
  * that ran and did nothing.
  */
 function runRecovery({ dispatchCi, command }) {
-  const res = spawnSync('gh', ['workflow', 'run', 'ci.yml', '--ref', dispatchCi], {
-    encoding: 'utf8',
-    windowsHide: true,
-  });
-  if (res.status === 0) {
-    console.log(`  ${dispatchCi}: asked for a full CI run (${command}) before re-queueing its landing`);
-    return true;
-  }
-  console.log(`  ${dispatchCi}: could NOT ask for a full CI run - run it by hand: ${command}`);
-  return false;
+  return dispatchRecovery({ dispatchCi, command });
 }
 
 /**
@@ -893,7 +886,7 @@ function refsAheadOfMain() {
   const names = new Set([...list('refs/heads/'), ...list('refs/remotes/origin/').map((n) => n.replace(/^origin\//, ''))]);
   const out = [];
   for (const branch of names) {
-    if (branch === 'main' || branch === 'HEAD') continue;
+    if (branch === 'main' || branch === 'HEAD' || recoveryCheckpointBranch(branch)) continue;
     const ref = resolveRef(branch);
     if (!ref) continue;
     const count = spawnSync('git', ['rev-list', '--count', `origin/main..${ref}`], { encoding: 'utf8', windowsHide: true });

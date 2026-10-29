@@ -1,0 +1,33 @@
+{
+  "source": "0341d86913f2c97762cb7ec216b107eac46c9d18",
+  "run": 39309819955,
+  "job": 118258078155,
+  "artifact": 12214904669,
+  "sha256": "e42c68b2cccaebd89f22a7e77289e37e2b92d642de35a0632b85ac6dc974bf94",
+  "stats": {
+    "startTime": "2026-10-19T19:24:47.147Z",
+    "duration": 18513.302,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "mutations": [
+    {
+      "at": 1792437904793,
+      "before": "syncing",
+      "after": "pending"
+    },
+    {
+      "at": 1792437904836,
+      "before": "syncing",
+      "after": "pending"
+    }
+  ],
+  "absentNavigationAtEpochMs": 1792437904754,
+  "completedPendingAtEpochMs": 1792437904812,
+  "missingAtEpochMs": 1792437904836,
+  "missingAfterNavigationMs": 82,
+  "diagnosticBytesIdenticalTo": "b5d0b18054791589e02126ed794600a3d43bd3aa",
+  "retry": 0
+}

@@ -86,10 +86,11 @@ on:
 #
 # Left as it is, deliberately. The fix would be a per-SHA group on main so no two main runs
 # ever share one, and that trades a verdict nothing reads for queue time on the branch gates
-# that everyone waits on: a full main run is 19 jobs (11 of them E2E shards) against a
-# 20-concurrent-job ceiling, and runs starting while two branches were mid-gate have been
-# measured waiting 22 to 45 minutes for a shard (see the shard-count comment below). The
-# dropped verdict costs nothing real - landings are `--ff-only`, so the superseded SHA was
+# that everyone waits on: a full main run is 25 jobs (15 of them E2E shards, which start after
+# the plan, so a run's own peak is 13 to 16 concurrent jobs) against a 20-concurrent-job
+# ceiling, and runs starting while two branches were mid-gate have been measured waiting 22 to
+# 45 minutes for a shard (see the shard-count comment below). The dropped verdict costs
+# nothing real - landings are `--ff-only`, so the superseded SHA was
 # already green on its branch, and the run that supersedes it tests a tree that CONTAINS it. A
 # cancelled run also raises no notification, so this is not an inbox problem either
 # (docs/VERIFICATION.md, "What a red run means, and what actually emails").
@@ -513,9 +514,10 @@ jobs:
       fail-fast: false
       # Sized by the plan job, not fixed here, and since 2026-08-19 sized from MEASURED MINUTES
       # (scripts/e2e-affected.mjs `shardsFor`, scripts/e2e-durations.json): about three minutes
-      # of test execution per runner, capped at thirteen (`MAX_SHARDS`, which says how that
-      # ceiling is set). The full suite is 183.3 slow-runner minutes (six runs to 39000659873); on
-      # the slowest runner measured, twelve bins reach 18.4 minutes a job and thirteen 16.7.
+      # of test execution per runner, capped at fifteen (`MAX_SHARDS`, which says how that
+      # ceiling is set). The full suite is 209.9 slow-runner minutes (six runs to 39000659873, plus
+      # the save-transaction matrix from run 39048521384's retry); on the slowest runner measured,
+      # fourteen bins reach 17.7 minutes a job and fifteen 16.6.
       #
       # What changed is the SUBSET, which used to be capped at four runners however big it was:
       # under sprint focus and the curated map a subset is routinely 70-100 of the 128 spec
@@ -587,8 +589,13 @@ jobs:
       # shard, and bound the apt call that used to hang. Shared with the two gate jobs below.
       - uses: ./.github/actions/playwright-chromium
 
+      # TMPDIR on the runner's disk, as configured-suite.yml and hosted-latency.yml have it. The
+      # runner's /tmp is a 7.9 GB tmpfs and Playwright starts Chromium with --disable-dev-shm-usage,
+      # so its shared memory lives in TMPDIR; on /tmp a long shard can die on
+      # ERR_INSUFFICIENT_RESOURCES (issue 1574, and E2E 9/15 of run 39964759151).
       - name: E2E shard
         env:
+          TMPDIR: ${{ runner.temp }}
           SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           SHARD_INDEX: ${{ matrix.shardIndex }}
           # Without `--shard` Playwright would write `report.zip` on every runner, and the report
@@ -752,6 +759,7 @@ jobs:
         if: ${{ steps.failed.outputs.filters != '' }}
         env:
           FILTERS: ${{ steps.failed.outputs.filters }}
+          TMPDIR: ${{ runner.temp }}
           NOACG_BLOB_NAME: report-retry.zip
         run: npm run test:e2e -- $FILTERS
 
@@ -764,6 +772,7 @@ jobs:
         if: ${{ steps.failed.outputs.unreported_filters != '' }}
         env:
           FILTERS: ${{ steps.failed.outputs.unreported_filters }}
+          TMPDIR: ${{ runner.temp }}
           NOACG_BLOB_NAME: report-retry-unreported.zip
           PLAYWRIGHT_BLOB_OUTPUT_DIR: blob-report-unreported
         run: npm run test:e2e -- --output=test-results-unreported $FILTERS
@@ -826,6 +835,8 @@ jobs:
         run: npm run check:catalog-emit
 
       - name: Catalog calibration tripwire
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: npm run test:e2e:catalog
 
   # The trial `noacg-guide` mod (cli/plugin-guide, docs/work-specs/guided-mod/spec.md): Claude

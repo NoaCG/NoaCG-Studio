@@ -198,7 +198,7 @@ test('invalid receipts and a replaced lease cannot write state or deliver', asyn
 
 test('bounded checkpoints preserve authorization, phase progress, and immutable registration', (t) => {
   const f = fixture(t);
-  assert.throws(() => registerRun(f.db, { ...f.manifest, authorization: { ...f.manifest.authorization, deadline: new Date(f.now + MAX_SAFE_WINDOW).toISOString() } }), /24 hours/);
+  assert.throws(() => registerRun(f.db, { ...f.manifest, authorization: { ...f.manifest.authorization, deadline: new Date(f.now + MAX_SAFE_WINDOW).toISOString() } }), /continuing project metadata/);
   assert.throws(() => registerRun(f.db, { ...f.manifest, authorization: { ...f.manifest.authorization, permissionPolicy: 'broader' } }), /immutable/);
   assert.throws(() => registerRun(f.db, { ...f.manifest, id: 'other', authorization: { ...f.manifest.authorization, startedAt: new Date(f.now - 1000).toISOString() } }), /window differs/);
   assert.throws(() => validatePacket({ ...packet(), decisions: ['x'.repeat(PACKET_BYTES)] }), /16 KiB/);

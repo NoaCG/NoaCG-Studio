@@ -26,6 +26,7 @@
 // disagree about a graphic's controls.
 
 import type { EmittedGraphic } from './controlPanelHtml';
+import type { AppliedAppearance } from './cueAdjust';
 import {
   OVERFLOW_FIELD_HINT,
   OVERFLOW_FIELD_MARK,
@@ -48,6 +49,10 @@ export interface EmittedCue {
   graphic: string;
   values: Record<string, string>;
   note: string;
+  /** Place and size (docs/work-specs/playout-adjustments/spec.md, phase 1b), resolved at export:
+   *  what this cue's Take and ✎ Update carry on the relay. Absent for a graphic nobody adjusted,
+   *  whose rows then carry none (rule 2). */
+  appearance?: AppliedAppearance;
 }
 
 export interface ControllerPayload {
@@ -55,6 +60,10 @@ export interface ControllerPayload {
   /** Each with the PLAYOUT LAYER its production assigned (docs/PLAYOUT_DASHBOARD.md §5). */
   graphics: (EmittedGraphic & { file: string; layer: number })[];
   cues: EmittedCue[];
+  /** The production's PINNED graphics (docs/work-specs/pinned-live-controls/spec.md), in pin
+   *  order, by the names in graphics: their live blocks stay above the editor whatever cue is
+   *  selected. Absent = none is pinned. */
+  pinned?: string[];
   /** Some cue of the production is timed: the rundown says that this controller takes every cue
    *  by hand (docs/RUNDOWN_AUTOMATION_PLAN.md §2.8). Absent = none is. */
   timedCues?: boolean;
@@ -289,6 +298,28 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .events-more summary { cursor:pointer; font-size:11.5px; color:var(--dim); padding:3px 0; }
   .events-more .events-row { margin-top:4px; }
 
+  /* PINNED LIVE CONTROLS: one block per pinned graphic above the editor, each acting on the cue
+     on its own layer. The selected cue's graphic, when pinned, is the block with the edge. */
+  .live-stack { display:flex; flex-direction:column; gap:8px; flex:none; }
+  .live-stack:empty { display:none; }
+  .live-block { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:8px 13px; }
+  .live-block.selected { box-shadow: inset 3px 0 0 var(--amber); }
+  .lb-head { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; min-width:0; }
+  .lb-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lb-cue { font-size:12px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .live-block .events { margin-top:0; }
+  .lb-numbers { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:8px; }
+  .lb-number { display:inline-flex; align-items:center; gap:4px; font-size:12.5px; }
+  .lb-number .step { font:inherit; font-size:14px; color:var(--text); background:var(--panel-2);
+    border:1px solid var(--line); border-radius:6px; min-width:34px; padding:4px 0; cursor:pointer; }
+  .live-block button:disabled { opacity:.4; cursor:default; }
+  /* A ONE-PRESS PICK: the control's word, then one button per option; the option the layer was
+     last sent reads active. */
+  .pick { display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .pick-label { font-size:12px; color:var(--dim); margin-right:2px; }
+  .events button.pick-option { min-width:2.6em; }
+  .events button.pick-option.active { border-color:var(--amber); color:var(--amber); }
+
   /* Activity: one collapsed line. */
   .feed { flex:none; font-size:12.5px; color:var(--dim); padding-bottom:12px; }
   .feed summary { cursor:pointer; padding:2px 0; }
@@ -343,6 +374,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
       padding:8px 14px calc(8px + env(safe-area-inset-bottom,0px)); margin:0 -14px; flex-wrap:nowrap; }
     .verbs button { flex:1 1 0; justify-content:center; min-height:52px; padding:0 10px; }
     .verbs kbd, .verbs .pvw, .verbs #v-update, .onair-line { display:none; }
+    .live-block button { min-height:40px; }
   }
 </style>
 </head>
@@ -390,6 +422,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
     <!-- THE CONTROL AREA: the one scroller on the page, the same shape the in-app dashboard
          and the hosted page carry (docs/CONTROL_PANEL_PARITY.md). -->
     <div class="controls">
+    <div class="live-stack" id="live-stack"></div>
     <div class="editor" id="editor" style="display:none">
       <div class="ed-head">
         <span class="ed-kicker" id="ed-kicker"></span>
@@ -425,8 +458,12 @@ var relayOk = false;
 var cursor = 0;
 function send(items) {
   if (!relayOk) return;
+  var noted = noteSent(items);
+  // A send that never reached the relay holds nothing: its figures stop being the base, unless a
+  // newer send has held the field since.
+  var release = function () { releaseSent(noted); };
   fetch('/relay/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items: items }) }).catch(function () {});
+    body: JSON.stringify({ items: items }) }).then(function (r) { if (!r.ok) release(); }, release);
 }
 
 ${MATCH_CLOCK_PAGE_JS}
@@ -546,6 +583,14 @@ function cueValues(cue) {
   for (var k2 in d) out[k2] = String(d[k2]);
   return out;
 }
+// The cue's whole value set, and its place and size when the production holds any: what a Take,
+// ✎ Update and a PREVIEW refresh send. The ± road and a clock row send data alone, which keeps
+// the applied appearance (rule 1).
+function cueUpdate(cue) {
+  var msg = { t: 'update', data: cueValues(cue) };
+  if (cue.appearance) msg.appearance = cue.appearance;
+  return msg;
+}
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 // A value going into a quoted ATTRIBUTE inside innerHTML needs the quote escaped as well —
 // esc() is for text nodes, and a graphic named 6" Rule would end the attribute early.
@@ -559,6 +604,328 @@ function feed(text) {
   el.insertBefore(row, el.firstChild);
   while (el.children.length > 80) el.removeChild(el.lastChild);
   document.getElementById('feed-last').textContent = ' · ' + t + '  ' + text;
+}
+
+// ── WHAT AIR WAS SENT, per graphic: the base a pinned block's press counts from. A figure this
+// page sent counts until the log shows it back; after that the log's figure does. A value typed
+// into the editor and not yet aired is never that base. ──
+var airedVals = {};  // graphic -> field -> value, from the program rows of the log
+var sentHolds = {};  // graphic -> field -> the sends this page made that the log has not shown yet, oldest first
+var SENT_HOLD_MS = 7000; // a send's whole window and an attempt's time, as graphicVerbs.ts waits
+var sentSeq = 0;
+function programData(m) { return m.t === 'update' ? m.data : m.t === 'event' ? m.payload : null; }
+function noteSent(items) {
+  var noted = [];
+  items.forEach(function (it) {
+    var data = it.stream !== 'preview' && it.msg ? programData(it.msg) : null;
+    if (!data) return;
+    var holds = sentHolds[it.graphic] || (sentHolds[it.graphic] = {});
+    for (var k in data) {
+      var hold = { value: String(data[k]), at: Date.now(), tok: ++sentSeq };
+      // A send the log never showed stops counting after its window, so it is dropped here.
+      holds[k] = (holds[k] || []).filter(function (h) { return hold.at - h.at < SENT_HOLD_MS; });
+      holds[k].push(hold);
+      noted.push({ graphic: it.graphic, key: k, tok: hold.tok });
+    }
+  });
+  return noted;
+}
+// A send that failed holds nothing: the newest send still out (if any) is the held figure again.
+function releaseSent(noted) {
+  noted.forEach(function (n) {
+    var list = (sentHolds[n.graphic] || {})[n.key];
+    if (list) sentHolds[n.graphic][n.key] = list.filter(function (h) { return h.tok !== n.tok; });
+  });
+}
+function heldOf(graphic, key) {
+  var list = (sentHolds[graphic] || {})[key] || [];
+  return list.length ? list[list.length - 1] : null;
+}
+function noteAired(row) {
+  var data = row.stream !== 'preview' && row.msg ? programData(row.msg) : null;
+  if (!data) return;
+  var aired = airedVals[row.graphic] || (airedVals[row.graphic] = {});
+  var holds = sentHolds[row.graphic] || {};
+  for (var k in data) {
+    aired[k] = String(data[k]);
+    // The log shows a held figure: that send and every older one are answered; newer ones are out.
+    var list = holds[k] || [];
+    for (var i = list.length - 1; i >= 0; i--) if (list[i].value === aired[k]) { holds[k] = list.slice(i + 1); break; }
+  }
+}
+// A cue's values as prepared, without the editor's unsent typing.
+function preparedValue(cue, key) {
+  if (Object.prototype.hasOwnProperty.call(cue.values, key)) return String(cue.values[key]);
+  var g = graphicByName(cue.graphic);
+  var found;
+  (g ? g.controls : []).forEach(function (c) { if (c.key === key) found = String(c.value || ''); });
+  return found;
+}
+function airBase(cue, key) {
+  var held = heldOf(cue.graphic, key);
+  if (held && Date.now() - held.at < SENT_HOLD_MS) return held.value;
+  var aired = airedVals[cue.graphic] || {};
+  if (Object.prototype.hasOwnProperty.call(aired, key)) return aired[key];
+  return preparedValue(cue, key);
+}
+
+// ── ONE ⚡ PRESS, from the editor or a pinned block: the event on the cue's graphic, on program.
+// The SAME rule as controlModel.ts eventPayload (this page ships without it): payload fields ride
+// at the cue's current value; adjust fields (a goal's +1) ride moved by their delta, counted from
+// baseOf (anything that does not read as an integer counts from 0); set fields (a score
+// board's "New game") ride at the figure the control declares; add fields (a puzzle's "Reveal
+// letter") ride with the source field's value appended as a line unless it is already one, and
+// remove fields with the last such line taken out - an empty source, or a line the list does not
+// hold, leaves the list off the wire. Every road is staged into the draft and repainted into the
+// box in the same breath - the press aired it, so it is what ⟳ TAKE re-sends. ──
+function fireEvent(g, cue, e, baseOf) {
+  var shown = editorCueId === cue.id;
+  var payload = null;
+  (e.payload || []).forEach(function (key) {
+    var v = cueValues(cue)[key];
+    if (v !== undefined) { payload = payload || {}; payload[key] = v; }
+  });
+  var stage = function (key, value) {
+    payload = payload || {};
+    payload[key] = value;
+    if (!drafts[cue.id]) drafts[cue.id] = {};
+    drafts[cue.id][key] = value;
+    if (shown && repaint[key]) repaint[key](value);
+  };
+  var adjust = e.adjust || {};
+  for (var ak in adjust) {
+    if (!Object.prototype.hasOwnProperty.call(adjust, ak)) continue;
+    var cur = baseOf(ak);
+    stage(ak, String((parseInt(String(cur == null ? '' : cur), 10) || 0) + adjust[ak]));
+  }
+  var setTo = e.set || {};
+  for (var sk in setTo) {
+    if (!Object.prototype.hasOwnProperty.call(setTo, sk)) continue;
+    stage(sk, setTo[sk]);
+  }
+  // The list's non-empty lines, trimmed - controlModel.ts listLines, restated.
+  var listLines = function (value) {
+    var out = [];
+    String(value == null ? '' : value).split('\\n').forEach(function (line) { var l = line.trim(); if (l) out.push(l); });
+    return out;
+  };
+  var addTo = e.add || {};
+  for (var lk in addTo) {
+    if (!Object.prototype.hasOwnProperty.call(addTo, lk)) continue;
+    var addSource = cueValues(cue)[addTo[lk]];
+    var addLine = String(addSource == null ? '' : addSource).trim();
+    if (!addLine) continue;
+    var added = listLines(baseOf(lk));
+    if (added.indexOf(addLine) === -1) added.push(addLine);
+    stage(lk, added.join('\\n'));
+  }
+  var removeFrom = e.remove || {};
+  for (var rk in removeFrom) {
+    if (!Object.prototype.hasOwnProperty.call(removeFrom, rk)) continue;
+    var removeSource = cueValues(cue)[removeFrom[rk]];
+    var removeLine = String(removeSource == null ? '' : removeSource).trim();
+    var kept = listLines(baseOf(rk));
+    var at = removeLine ? kept.lastIndexOf(removeLine) : -1;
+    if (at === -1) continue;
+    kept.splice(at, 1);
+    stage(rk, kept.join('\\n'));
+  }
+  var eventRow = { graphic: cue.graphic, stream: 'program', msg: payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event } };
+  // A CLOCK VERB writes the clock's own value around its event row, in one batch so the
+  // relay's order is the order the renderer applies. The value is also STAGED into the cue's
+  // draft, which is what puts it on every later ⟳ TAKE and ✎ Update: a stamped value is
+  // idempotent, so re-sending it a minute later still resolves to the right second, where a
+  // plain snapshot dragged a running clock back to it on every score bump.
+  var effect = clockEffectFor(g, cue, e.event, Date.now());
+  var items = [];
+  if (effect) {
+    if (!drafts[cue.id]) drafts[cue.id] = {};
+    drafts[cue.id][effect.field] = effect.value;
+    var cd = {};
+    cd[effect.field] = effect.value;
+    var clockRow = { graphic: cue.graphic, stream: 'program', msg: { t: 'update', data: cd } };
+    if (effect.when === 'before') items.push(clockRow);
+    items.push(eventRow);
+    if (effect.when === 'after') items.push(clockRow);
+    if (shown && clockBox) clockBox.value = clockPlain(effect.value);
+  } else {
+    items.push(eventRow);
+  }
+  send(items);
+  feed('⚡ ' + e.label + ': ' + cue.graphic);
+}
+
+// A pick option's press: the event with its field SET to the option (controlModel's pickButton).
+function pickedButton(e, field, value) {
+  var out = {};
+  for (var k in e) if (Object.prototype.hasOwnProperty.call(e, k) && k !== 'payload' && k !== 'set') out[k] = e[k];
+  out.set = {};
+  out.set[field] = value;
+  return out;
+}
+
+// One graphic's ⚡ controls as the baked arrangement places them: pinned above the fold, the
+// sections, and the hidden ones behind one drawer. A ONE-PRESS PICK is its word and one button
+// per option. By SCAN rather than by a map keyed on the event: an event id is the author's own
+// word, and a graphic with a control called 'constructor' would answer a function from a map.
+function arrangedInto(host, g, press) {
+  var arranged = g && g.arranged ? g.arranged : { pinned: [], sections: [], more: [] };
+  var declaredFor = function (event) {
+    var found = null;
+    (g ? g.events : []).forEach(function (e) { if (e.event === event) found = e; });
+    return found;
+  };
+  var eventRow = function (actions) {
+    var row = document.createElement('div');
+    row.className = 'events-row';
+    actions.forEach(function (a) {
+      var e = declaredFor(a.event);
+      if (!e) return;
+      if (a.options) {
+        var group = document.createElement('span');
+        group.className = 'pick';
+        group.setAttribute('role', 'group');
+        group.setAttribute('aria-label', a.label);
+        var word = document.createElement('span');
+        word.className = 'pick-label';
+        word.textContent = a.label;
+        group.appendChild(word);
+        a.options.options.forEach(function (o) {
+          var b = document.createElement('button');
+          b.className = 'pick-option';
+          b.textContent = o.label;
+          b.setAttribute('data-graphic', g.name);
+          b.setAttribute('data-field', a.options.field);
+          b.setAttribute('data-value', o.value);
+          b.onclick = function () { press(pickedButton(e, a.options.field, o.value)); };
+          group.appendChild(b);
+        });
+        row.appendChild(group);
+        return;
+      }
+      var btn = document.createElement('button');
+      btn.textContent = '⚡ ' + a.label;
+      btn.onclick = function () { press(e); };
+      row.appendChild(btn);
+    });
+    return row;
+  };
+  // PINNED, above the fold and above the section headings - the handful this show presses.
+  if (arranged.pinned.length > 0) {
+    var pinnedRow = eventRow(arranged.pinned);
+    pinnedRow.className = 'events-row events-pinned';
+    host.appendChild(pinnedRow);
+  }
+  arranged.sections.forEach(function (section) {
+    if (arranged.sections.length > 1 || section[0] !== 'Actions') {
+      var head = document.createElement('h4');
+      head.textContent = section[0];
+      host.appendChild(head);
+    }
+    host.appendChild(eventRow(section[1]));
+  });
+  // HIDDEN, behind one disclosure: the production said "not in my way", which is not "gone" -
+  // the machine still accepts these, and this page is the fallback a show drops to when the
+  // network dies, so a tucked-away control must still be one click from the operator.
+  if (arranged.more.length > 0) {
+    var more = document.createElement('details');
+    more.className = 'events-more';
+    var summary = document.createElement('summary');
+    summary.textContent = 'More (' + arranged.more.length + ')';
+    more.appendChild(summary);
+    more.appendChild(eventRow(arranged.more));
+    host.appendChild(more);
+  }
+}
+
+// ── THE PINNED BLOCKS, built once (the pins are fixed at export) and painted from the tally: each
+// presses on the cue live on its own graphic's layer, never on the selection. ──
+var PINNED = PAYLOAD.pinned || [];
+var stackBlocks = [];
+function buildStack() {
+  var host = document.getElementById('live-stack');
+  PINNED.forEach(function (name) {
+    var g = graphicByName(name);
+    if (!g) return;
+    var block = document.createElement('div');
+    block.className = 'live-block';
+    block.setAttribute('data-graphic', g.name);
+    var head = document.createElement('div');
+    head.className = 'lb-head';
+    var nm = document.createElement('span');
+    nm.className = 'lb-name';
+    nm.textContent = g.name;
+    var cueEl = document.createElement('span');
+    cueEl.className = 'lb-cue';
+    head.appendChild(nm);
+    head.appendChild(cueEl);
+    block.appendChild(head);
+    var onAir = function () { return cueById(pgmLive[g.name]); };
+    var events = document.createElement('div');
+    events.className = 'events';
+    arrangedInto(events, g, function (e) {
+      var cue = onAir();
+      if (cue) fireEvent(g, cue, e, function (key) { return airBase(cue, key); });
+    });
+    if (events.firstChild) block.appendChild(events);
+    // The ± LIVE NUMBERS: every number field no ⚡ event carries as payload.
+    var payloadKeys = {};
+    g.events.forEach(function (e) { (e.payload || []).forEach(function (k) { payloadKeys[k] = true; }); });
+    var numbers = document.createElement('div');
+    numbers.className = 'lb-numbers';
+    g.controls.forEach(function (c) {
+      if (c.kind !== 'number' || payloadKeys[c.key]) return;
+      var pair = document.createElement('span');
+      pair.className = 'lb-number';
+      pair.setAttribute('data-field', c.key);
+      var word = document.createElement('span');
+      word.textContent = c.label;
+      pair.appendChild(word);
+      [[-1, '−'], [1, '+']].forEach(function (d) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'step';
+        b.textContent = d[1];
+        b.onclick = function () {
+          var cue = onAir();
+          if (!cue) return;
+          var s = c.step != null ? c.step : 1;
+          var next = String((parseFloat(airBase(cue, c.key)) || 0) + d[0] * s);
+          if (!drafts[cue.id]) drafts[cue.id] = {};
+          drafts[cue.id][c.key] = next;
+          if (editorCueId === cue.id && repaint[c.key]) repaint[c.key](next);
+          var data = {};
+          data[c.key] = next;
+          send([{ graphic: g.name, stream: 'program', msg: { t: 'update', data: data } }]);
+          feed('± ' + c.label + ': ' + next + ' · ' + g.name);
+        };
+        pair.appendChild(b);
+      });
+      numbers.appendChild(pair);
+    });
+    if (numbers.firstChild) block.appendChild(numbers);
+    host.appendChild(block);
+    stackBlocks.push({ g: g, el: block, cueEl: cueEl });
+  });
+}
+function paintStack() {
+  var sel = cueById(selectedId);
+  stackBlocks.forEach(function (b) {
+    var cue = cueById(pgmLive[b.g.name]);
+    b.el.className = 'live-block' + (sel && sel.graphic === b.g.name ? ' selected' : '');
+    b.cueEl.textContent = cue ? cue.label : 'not on air';
+    var buttons = b.el.querySelectorAll('button');
+    for (var i = 0; i < buttons.length; i++) buttons[i].disabled = !cue;
+  });
+  // The option each layer was last sent reads active, on every pick group on the page.
+  var picks = document.querySelectorAll('.pick-option');
+  for (var j = 0; j < picks.length; j++) {
+    var p = picks[j];
+    var name = p.getAttribute('data-graphic');
+    var on = !!pgmLive[name] && (airedVals[name] || {})[p.getAttribute('data-field')] === p.getAttribute('data-value');
+    p.className = 'pick-option' + (on ? ' active' : '');
+    p.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
 }
 
 // ── The verbs: each is ONE batch of protocol rows; the 'cue' meta row is what carries the
@@ -581,7 +948,7 @@ function takeTo(stream) {
     }
   }
   items.push(
-    { graphic: cue.graphic, stream: stream, msg: { t: 'update', data: cueValues(cue) } },
+    { graphic: cue.graphic, stream: stream, msg: cueUpdate(cue) },
     { graphic: cue.graphic, stream: stream, msg: { t: 'play' } },
     { graphic: cue.graphic, stream: stream, msg: { t: 'cue', cue: cue.id } },
   );
@@ -591,7 +958,7 @@ function takeTo(stream) {
 function updateLive() {
   var cue = cueById(selectedId);
   if (!cue || pgmLive[cue.graphic] !== cue.id) return;
-  send([{ graphic: cue.graphic, stream: 'program', msg: { t: 'update', data: cueValues(cue) } }]);
+  send([{ graphic: cue.graphic, stream: 'program', msg: cueUpdate(cue) }]);
   feed('✎ Update: ' + cue.label);
 }
 function nextLive() {
@@ -700,7 +1067,11 @@ document.addEventListener('keydown', function (e) {
 // controller window agrees with this one. Boot at the head — recovery is a re-take. ──
 function applyRow(row) {
   var m = row.msg || {};
-  if (m.t !== 'cue') return;
+  noteAired(row);
+  if (m.t !== 'cue') {
+    if (m.t === 'update' || m.t === 'event') paintStack();
+    return;
+  }
   var map = row.stream === 'preview' ? pvwLive : pgmLive;
   if (m.cue) map[row.graphic] = m.cue;
   else delete map[row.graphic];
@@ -790,6 +1161,7 @@ function paint() {
   document.getElementById('v-out').disabled = !(sel && pgmLive[sel.graphic]);
 
   paintEditor();
+  paintStack();
 }
 
 // Which cue the FIELDS were built for. paint() runs on every log poll (400 ms), and rebuilding
@@ -920,7 +1292,7 @@ function paintEditor() {
       // that is on both streams (the usual case after a Take) shows the staged version on PVW
       // and the aired one on PGM — which is what makes the pair worth having.
       if (pvwLive[cue.graphic] === cue.id) {
-        send([{ graphic: cue.graphic, stream: 'preview', msg: { t: 'update', data: cueValues(cue) } }]);
+        send([{ graphic: cue.graphic, stream: 'preview', msg: cueUpdate(cue) }]);
       }
     };
     // THE ONE DATA WRITE THAT AIRS IMMEDIATELY (docs/PLAYOUT_DASHBOARD.md §7c): a −/+ press on
@@ -1070,137 +1442,11 @@ function paintEditor() {
   // template literal, and one would end the string mid-page.)
   var events = document.getElementById('editor-events');
   events.innerHTML = '';
-  var arranged = g && g.arranged ? g.arranged : { pinned: [], sections: [], more: [] };
-  // By SCAN rather than by a map keyed on the name: an event id is the author's own word, and a
-  // graphic with a control called 'constructor' would answer a function from an object map.
-  var declaredFor = function (event) {
-    var found = null;
-    (g ? g.events : []).forEach(function (e) { if (e.event === event) found = e; });
-    return found;
-  };
-  var eventRow = function (actions) {
-    var row = document.createElement('div');
-    row.className = 'events-row';
-    actions.forEach(function (a) {
-      var e = declaredFor(a.event);
-      if (e) row.appendChild(eventButton(e, a.label));
+  // A PINNED graphic's controls are its block in the stack above, so nothing is drawn twice.
+  if (PINNED.indexOf(cue.graphic) === -1) {
+    arrangedInto(events, g, function (e) {
+      fireEvent(g, cue, e, function (key) { return cueValues(cue)[key]; });
     });
-    return row;
-  };
-  // PINNED, above the fold and above the section headings - the handful this show presses.
-  if (arranged.pinned.length > 0) {
-    var pinnedRow = eventRow(arranged.pinned);
-    pinnedRow.className = 'events-row events-pinned';
-    events.appendChild(pinnedRow);
-  }
-  arranged.sections.forEach(function (section) {
-    if (arranged.sections.length > 1 || section[0] !== 'Actions') {
-      var head = document.createElement('h4');
-      head.textContent = section[0];
-      events.appendChild(head);
-    }
-    events.appendChild(eventRow(section[1]));
-  });
-  // HIDDEN, behind one disclosure: the production said "not in my way", which is not "gone" -
-  // the machine still accepts these, and this page is the fallback a show drops to when the
-  // network dies, so a tucked-away control must still be one click from the operator.
-  if (arranged.more.length > 0) {
-    var more = document.createElement('details');
-    more.className = 'events-more';
-    var summary = document.createElement('summary');
-    summary.textContent = 'More (' + arranged.more.length + ')';
-    more.appendChild(summary);
-    more.appendChild(eventRow(arranged.more));
-    events.appendChild(more);
-  }
-  function eventButton(e, label) {
-    var btn = document.createElement('button');
-    btn.textContent = '⚡ ' + label;
-    btn.onclick = function () {
-      // The SAME rule as controlModel.ts eventPayload (this page ships without it): payload
-      // fields ride at the cue's current value; adjust fields (a goal's +1) ride moved by their
-      // delta, counted from the cue's current value (anything that does not read as an integer
-      // counts from 0); set fields (a score board's "New game") ride at the figure the control
-      // declares; add fields (a puzzle's "Reveal letter") ride with the source field's value
-      // appended as a line unless it is already one, and remove fields with the last such line
-      // taken out - an empty source, or a line the list does not hold, leaves the list off the
-      // wire. Every road is staged into the draft and repainted into the box in the same breath -
-      // the press aired it, so it is what the next press counts from and what ⟳ TAKE re-sends.
-      var payload = null;
-      (e.payload || []).forEach(function (key) {
-        var v = cueValues(cue)[key];
-        if (v !== undefined) { payload = payload || {}; payload[key] = v; }
-      });
-      var stage = function (key, value) {
-        payload = payload || {};
-        payload[key] = value;
-        if (!drafts[cue.id]) drafts[cue.id] = {};
-        drafts[cue.id][key] = value;
-        if (repaint[key]) repaint[key](value);
-      };
-      var adjust = e.adjust || {};
-      for (var ak in adjust) {
-        if (!Object.prototype.hasOwnProperty.call(adjust, ak)) continue;
-        var cur = cueValues(cue)[ak];
-        stage(ak, String((parseInt(String(cur == null ? '' : cur), 10) || 0) + adjust[ak]));
-      }
-      var setTo = e.set || {};
-      for (var sk in setTo) {
-        if (!Object.prototype.hasOwnProperty.call(setTo, sk)) continue;
-        stage(sk, setTo[sk]);
-      }
-      // The list's non-empty lines, trimmed - controlModel.ts listLines, restated.
-      var listLines = function (value) {
-        var out = [];
-        String(value == null ? '' : value).split('\\n').forEach(function (line) { var l = line.trim(); if (l) out.push(l); });
-        return out;
-      };
-      var addTo = e.add || {};
-      for (var lk in addTo) {
-        if (!Object.prototype.hasOwnProperty.call(addTo, lk)) continue;
-        var addSource = cueValues(cue)[addTo[lk]];
-        var addLine = String(addSource == null ? '' : addSource).trim();
-        if (!addLine) continue;
-        var added = listLines(cueValues(cue)[lk]);
-        if (added.indexOf(addLine) === -1) added.push(addLine);
-        stage(lk, added.join('\\n'));
-      }
-      var removeFrom = e.remove || {};
-      for (var rk in removeFrom) {
-        if (!Object.prototype.hasOwnProperty.call(removeFrom, rk)) continue;
-        var removeSource = cueValues(cue)[removeFrom[rk]];
-        var removeLine = String(removeSource == null ? '' : removeSource).trim();
-        var kept = listLines(cueValues(cue)[rk]);
-        var at = removeLine ? kept.lastIndexOf(removeLine) : -1;
-        if (at === -1) continue;
-        kept.splice(at, 1);
-        stage(rk, kept.join('\\n'));
-      }
-      var eventRow = { graphic: cue.graphic, stream: 'program', msg: payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event } };
-      // A CLOCK VERB writes the clock's own value around its event row, in one batch so the
-      // relay's order is the order the renderer applies. The value is also STAGED into the cue's
-      // draft, which is what puts it on every later ⟳ TAKE and ✎ Update: a stamped value is
-      // idempotent, so re-sending it a minute later still resolves to the right second, where a
-      // plain snapshot dragged a running clock back to it on every score bump.
-      var effect = clockEffectFor(g, cue, e.event, Date.now());
-      var items = [];
-      if (effect) {
-        if (!drafts[cue.id]) drafts[cue.id] = {};
-        drafts[cue.id][effect.field] = effect.value;
-        var cd = {};
-        cd[effect.field] = effect.value;
-        var clockRow = { graphic: cue.graphic, stream: 'program', msg: { t: 'update', data: cd } };
-        if (effect.when === 'before') items.push(clockRow);
-        items.push(eventRow);
-        if (effect.when === 'after') items.push(clockRow);
-        if (clockBox) clockBox.value = clockPlain(effect.value);
-      } else {
-        items.push(eventRow);
-      }
-      send(items);
-      feed('⚡ ' + e.label + ': ' + cue.graphic);
-    };
-    return btn;
   }
 }
 
@@ -1228,6 +1474,7 @@ fetch('/relay/ping')
     document.getElementById('mode').textContent = '○ NO RELAY';
     document.getElementById('nolisten').style.display = 'block';
   });
+buildStack();
 paint();
 </script>
 </body>

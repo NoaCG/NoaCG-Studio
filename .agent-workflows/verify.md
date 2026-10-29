@@ -15,10 +15,21 @@ cannot observe is not a criterion yet.
 
 ## 2. Pick the checks the change needs, no more
 
-Ordinary implementation and verification run in cloud; device/private local work stays local.
+Local implementation, review and targeted verification are always allowed without asking.
+Use qualified cloud execution when useful; unavailable cloud execution does not block local work.
+Device/private local work stays local.
 Select resources on the executing worker with `node scripts/execution-profile.mjs`, never from
 the coordinator's profile. GitHub Actions retains authoritative full PR/merge-group checks.
 Local checks and all existing local guards remain targeted; whole suites are refused off Actions.
+
+Before supported manual Actions dispatches, inspect existing job/run evidence with
+`node scripts/verification-dispatch.mjs -- workflow run <workflow> --ref <ref> ...`.
+The active GitHub Teams CI/E2E experiment uses observation only: report would
+WAIT/REUSE/RUN or UNRESOLVED, then preserve the existing dispatch behavior, order,
+failure handling and retry restrictions. Missing identity/reports never pass;
+observation does not prevent duplicates. See
+`docs/work-specs/verification-observation/runbook.md` for exact identity, supported
+paths, evidence gaps and the separate owner-confirmed activation procedure.
 
 A cloud worker uses what its machine has and runs browser and e2e checks itself (owner,
 2026-10-17, replacing the resource defaults of issue #1301 comment 6223002051). Only the laptop
@@ -81,10 +92,11 @@ the verify leg's mode; this evidence goes in the commit or the pull request.
 Everything an agent can verify, it verifies. Something reaches the owner only when human judgment
 genuinely helps, and never as a note for him to read later. A look at the change (a quick one he
 can take on his phone, or a desktop or production check where product judgment matters) goes in
-the pull request comment: what to open, where, and what to judge.
+the pull request description as a review step anyone could take (what to open, where, and what to
+judge), and is said to him in the final message.
 
 A decision only he can make, or a step only he can take, is asked at once, never filed as a
-`needs owner` issue:
+`needs decision` issue:
 
 - **He is in the session**: ask him there, one question with your recommendation, and continue
   from his answer.

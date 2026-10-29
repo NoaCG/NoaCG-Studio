@@ -365,6 +365,33 @@ invoker and the service role's alone. So it is deny-all like `connector_grants`:
 `/api/me` writes and reads it. One index from each of 0093 and 0092 reads as unused, a class that never
 fails, and 8 unused-index entries had gone, so the file was re-recorded with
 `--update-baseline` rather than by hand.
+It holds **174** as of 2026-10-20: the 2 new entries are migration 0095's
+(`0095_audience_operator_add.sql`, messages the operator adds), which post-land run 39506808457
+reported once the landing of #1556 had applied it. `audience_operator_add`, for `anon` and
+`authenticated`, is the same control-slug door as `audience_list` and `audience_update`: it resolves
+the slug through `audience_owner_for_control` (capability and audience kill switch), inserts at most
+100 candidates a call into that production's `audience_submissions`, and writes no command log and
+no production value. 4 unused-index entries had gone. Re-recorded with `--update-baseline`.
+It holds **182** as of 2026-10-22. 6 entries came in by hand on 2026-10-21 (8d0da84a, migration
+0097's tables and slug functions), taking it to 180. The 2 new entries are migration 0098's
+(`0098_audience_imported_identity.sql`, Sheet messages keep one identity), which post-land run
+39706145334 reported once the landing of #1593 had applied it. `audience_operator_settle`, for `anon`
+and `authenticated`, is the same control-slug door as `audience_operator_add`: it resolves the slug
+through `audience_owner_for_control`, takes only a `sheet:<source id>:` prefix and at most 2,000 ids a
+call, deletes only that production's unused candidates under the prefix whose row is gone (a used one
+is only marked `withdrawn_at`), and writes no command log and no production value. Nothing had gone.
+Added by hand: re-recording reads production, which only the Post-landing workflow does.
+It holds **186** after migration 0100 (`0100_data_api_pause.sql`, Another system's Pause), added by
+hand for the same reason: `control_data_pause_by_slug`, for `anon` and `authenticated`, is the same
+control-slug door as `control_data_patch_by_slug`. Pause writes only the row's pause columns; Resume
+appends at most one update row per graphic, values the data key already sent; it cannot play, take
+or clear a graphic. `control_data_owner_patch`, for `authenticated` only, is the owner's Data view:
+the row policy's own test and the suspension check, then the apply as an operator write.
+It holds **187** after migration 0101 (`0101_production_source_snapshots.sql`, a trusted JSON
+source's snapshot, E4.2), added by hand for the same reason: `production_source_snapshots` has RLS
+on and no policy, and `anon` and `authenticated` hold no privilege on it (0101 revokes them and its
+self-check asserts the absence), so it is deny-all like `control_source_reads`. Its three functions
+are security definer and the service role's alone, so they add no anon or authenticated entry.
 The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused

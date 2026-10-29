@@ -14,13 +14,15 @@
 //                                                 prose for a person (run by `npm run build`, so a
 //                                                 version bump with no notes cannot land, and by
 //                                                 the release workflow before anything is built)
-//   node cli/scripts/release-notes.mjs --bridge   the same for NoaCG Bridge: print the whole
-//                                                 Release page, or --check its section. Run by
-//                                                 release-bridge.yml, never by the build: a
-//                                                 version that only changed the CLI has no Bridge
-//                                                 section, and is not a Bridge release.
+//   node cli/scripts/release-notes.mjs --bridge   the same for NoaCG Bridge at package.json's
+//                                                 `bridgeVersion`: print the whole Release page,
+//                                                 or --check its section, which must also be the
+//                                                 newest numbered one. Run by the build and by
+//                                                 release-bridge.yml.
 //
-// The two tools share the version number of cli/package.json and nothing else a reader sees.
+// The two tools are two products with two version lines: the CLI is package.json's `version`, the
+// Bridge its `bridgeVersion`, which moves only with a Bridge release. They share the code and
+// nothing a reader sees.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +41,21 @@ export function sectionOf(changelog, version) {
   const rest = lines.slice(start + 1);
   const end = rest.findIndex(heading);
   return (end < 0 ? rest : rest.slice(0, end)).join('\n').trim();
+}
+
+/** The newest `## X.Y.Z` heading in a changelog, or null. An `## Unreleased` section is not one. */
+export function newestVersionIn(changelog) {
+  const m = /^##\s+(\d+\.\d+\.\d+)(?=\s|$)/m.exec(changelog);
+  return m ? m[1] : null;
+}
+
+/** Pure: the Bridge's version and its newest notes are one decision. A section written without
+ *  moving `bridgeVersion`, or the other way round, would release or report the wrong Bridge. */
+export function bridgeVersionProblems(changelog, bridgeVersion) {
+  const newest = newestVersionIn(changelog);
+  return newest === bridgeVersion
+    ? []
+    : [`cli/package.json's bridgeVersion is ${bridgeVersion}, but the newest section of cli/BRIDGE_CHANGELOG.md is ${newest} - move them together`];
 }
 
 /**
@@ -74,10 +91,14 @@ function main() {
   const args = process.argv.slice(2);
   const check = args.includes('--check');
   const bridge = args.includes('--bridge');
-  const version = args.find((a) => !a.startsWith('--')) ?? JSON.parse(readFileSync(PACKAGE, 'utf8')).version;
+  const pkg = JSON.parse(readFileSync(PACKAGE, 'utf8'));
+  const named = args.find((a) => !a.startsWith('--'));
+  const version = named ?? (bridge ? pkg.bridgeVersion : pkg.version);
   const file = bridge ? 'cli/BRIDGE_CHANGELOG.md' : 'cli/CHANGELOG.md';
-  const notes = sectionOf(readFileSync(bridge ? BRIDGE_CHANGELOG : CLI_CHANGELOG, 'utf8'), version);
+  const changelog = readFileSync(bridge ? BRIDGE_CHANGELOG : CLI_CHANGELOG, 'utf8');
+  const notes = sectionOf(changelog, version);
   const problems = problemsWith(notes, version, file);
+  if (bridge && !named && notes !== null) problems.push(...bridgeVersionProblems(changelog, version));
   const name = bridge ? 'NoaCG Bridge' : '@noacg/cli';
   if (problems.length > 0) {
     console.error(`release-notes: ${name} ${version} cannot be released with these notes:`);

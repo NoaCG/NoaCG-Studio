@@ -8,6 +8,11 @@
 // table, the clash door and the list following the air. The stylesheet half reaches it through the
 // focus set, like the fixed-panes spec.
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// covers: src/components/home/CueEditor.tsx
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/{CueActions,ProductionShell}.tsx
+// covers: src/control/cueDraft.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers}.ts
 //
 // THE RUNDOWN'S WIDTH AND ITS ONE-LINE ROWS (docs/CLIP_PLAYBACK_PLAN.md phase 1). The row layout
 // and the handle live in the CORE stylesheet and the width in model/prefs.ts, also CORE.
@@ -346,7 +351,7 @@ test('the clash badge opens the layer repair, and a graphic keeps its layer unde
 
   // No clash on the quiz: its layer is under Advanced, closed, with the number in the summary.
   await rows.nth(2).getByTestId('select-cue').click();
-  await expect(page.getByTestId('cue-advanced-summary')).toHaveText('Layer 22');
+  await expect(page.getByTestId('cue-advanced-summary')).toHaveText('Selected answer · Layer 22');
   await expect(page.getByTestId('cue-advanced-toggle')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByTestId('graphic-layer')).toHaveCount(0);
   await page.getByTestId('cue-advanced-toggle').click();

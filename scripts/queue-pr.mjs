@@ -37,6 +37,7 @@
 // is created with --force, the status can be posted twice. `git` and `gh` are injected so the
 // sequence is testable without a repository; the default runners spawn the real tools.
 import { spawnSync } from 'node:child_process';
+import { observeVerification } from './verification-dispatch.mjs';
 
 /** The commit status the Reviewed check reads (ci.yml `reviewed`). */
 export const REVIEW_CONTEXT = 'noacg/reviewed';
@@ -65,14 +66,15 @@ export const botTokenIsApp = () => process.env.NOACG_BOT_TOKEN === 'app';
  */
 export function spawnRunner(tool, { token = '' } = {}) {
   const env = token ? { ...process.env, GH_TOKEN: token } : process.env;
-  return (args, { cwd = process.cwd(), allowFailure = false } = {}) => {
-    const res = spawnSync(tool, args, { cwd, encoding: 'utf8', windowsHide: true, env });
-    const out = String(res.stdout ?? '').trim();
+  return (args, { cwd = process.cwd(), allowFailure = false, timeout, binary = false } = {}) => {
+    const res = spawnSync(tool, args, { cwd, encoding: binary ? null : 'utf8', env,
+      ...(timeout === undefined ? {} : { timeout, maxBuffer: 1024 * 1024 }), windowsHide: true });
+    const out = binary ? res.stdout ?? Buffer.alloc(0) : String(res.stdout ?? '').trim();
     const err = String(res.stderr ?? '').trim();
-    if (res.status !== 0 && !allowFailure) {
-      throw new Error(`${tool} ${args.slice(0, 2).join(' ')} failed: ${err || out || `exit ${res.status}`}`);
+    if ((res.error || res.status !== 0) && !allowFailure) {
+      throw new Error(`${tool} ${args.slice(0, 2).join(' ')} failed: ${res.error?.code || err || out || `exit ${res.status}`}`);
     }
-    return { status: res.status ?? 1, out, err };
+    return { status: res.error ? 1 : res.status ?? 1, out, err };
   };
 }
 
@@ -134,7 +136,7 @@ export function mechanicalDescription(mechanism, runUrl) {
  * @param {(args: string[], opts?: object) => {status:number,out:string,err:string}} [input.git]
  * @param {(args: string[], opts?: object) => {status:number,out:string,err:string}} [input.gh]
  */
-export function queuePullRequest({ branch, title, body, mechanism, runUrl = '', diffBase = '', dispatch = !botTokenIsApp(), force = false, git = spawnRunner('git'), gh = spawnRunner('gh') }) {
+export function queuePullRequest({ branch, title, body, mechanism, runUrl = '', diffBase = '', dispatch = !botTokenIsApp(), force = false, git = spawnRunner('git'), gh = spawnRunner('gh'), observe = observeVerification }) {
   if (!branch) throw new Error('queuePullRequest: a branch is required');
   const tip = git(['rev-parse', branch]).out;
   git(['push', ...(force ? ['--force'] : []), 'origin', `refs/heads/${branch}:refs/heads/${branch}`]);
@@ -166,6 +168,8 @@ export function queuePullRequest({ branch, title, body, mechanism, runUrl = '', 
   if (dispatch) {
     const args = ['workflow', 'run', 'ci.yml', '--ref', branch, '-f', 'require_review=true'];
     if (diffBase) args.push('-f', `diff_base=${diffBase}`);
+    try { observe({ workflow: 'ci.yml', ref: branch, expectedRevision: tip, inputs: { require_review: true, ...(diffBase ? { diff_base: diffBase } : {}) }, purpose: 'mechanical PR CI', gh }); }
+    catch { /* Advisory failures do not change the experiment's dispatch. */ }
     gh(args);
   }
   // No strategy flag: the merge queue owns the strategy, and `gh` refuses one when a queue is on.

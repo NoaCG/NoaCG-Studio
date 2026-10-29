@@ -252,6 +252,9 @@ jobs:
 
       # PRODUCTION_URL is the workflow-level env above, which is what the config reads.
       - name: Open the printed link on the deployed app
+        env:
+          # TMPDIR off the /tmp tmpfs, where Chromium's shared memory would otherwise live (ci.yml).
+          TMPDIR: ${{ runner.temp }}
         run: npm run test:e2e:production
 
   drift:
@@ -268,7 +271,7 @@ jobs:
         run: |
           # "Matured" = the newest main commit older than 90 minutes, so a deploy still in
           # flight is never called drift.
-          MATURED="$(git rev-list -1 --before='90 minutes ago' origin/main || git rev-list -1 --before='90 minutes ago' HEAD)"
+          MATURED="$(node scripts/deploy-affecting-paths.mjs --matured-main origin/main)"
           if [ -z "$MATURED" ]; then echo "No matured commit yet."; exit 0; fi
           # Not every main commit gets a production build: scripts/vercel-ignore-build.mjs skips
           # the ones that cannot change the artifact (docs, contracts, tooling, tests). Production
@@ -309,7 +312,7 @@ jobs:
         run: |
           # The same commit the check above compared against - the newest deploy-affecting one, not
           # simply the newest, or the issue would name a commit that was never meant to deploy.
-          MATURED="$(git rev-list -1 --before='90 minutes ago' origin/main)"
+          MATURED="$(node scripts/deploy-affecting-paths.mjs --matured-main origin/main)"
           SHA="$(node scripts/deploy-affecting-paths.mjs --last-affecting "$MATURED" || echo "$MATURED")"
           BODY="Drift: production has not picked up main commit ${SHA} - run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"

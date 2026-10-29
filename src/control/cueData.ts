@@ -64,6 +64,19 @@ function matchDescriptors(descriptors: { key: string; label: string }[], side: s
 }
 
 /**
+ * Whether a graphic can load this dataset's rows at all: some column is named like one of its
+ * fields. On a sided board that includes both sideless forms, or a "Team"/"Score" table would be
+ * judged against "Team A" and dropped.
+ */
+export function datasetMatches(descriptors: { key: string; label: string }[], ds: Pick<ShowDataset, 'columns'>): boolean {
+  const gate = hasSideFields(descriptors)
+    ? SIDES.flatMap((s) => sideDescriptors(descriptors, s)).concat(descriptors)
+    : descriptors;
+  const labels = new Set(ds.columns.map((c) => c.label.trim().toLowerCase()));
+  return gate.some((d) => labels.has(d.label.trim().toLowerCase()));
+}
+
+/**
  * Every row this graphic can load, in dataset then row order.
  *
  * A dataset with no column matching any field title contributes nothing - offering its rows
@@ -74,17 +87,10 @@ export function cueDataRows(
   descriptors: { key: string; label: string }[],
   datasets: ShowDataset[],
 ): CueDataRow[] {
-  const sided = hasSideFields(descriptors);
-  const sides: (string | null)[] = sided ? [...SIDES] : [null];
-  // The labels that decide whether a dataset is offered AT ALL: on a sided board that includes
-  // both sideless forms, or a "Team"/"Score" table would be judged against "Team A" and dropped.
-  const gate = sided
-    ? SIDES.flatMap((s) => sideDescriptors(descriptors, s)).concat(descriptors)
-    : descriptors;
+  const sides: (string | null)[] = hasSideFields(descriptors) ? [...SIDES] : [null];
   const out: CueDataRow[] = [];
   for (const ds of datasets) {
-    const labels = new Set(ds.columns.map((c) => c.label.trim().toLowerCase()));
-    if (!gate.some((d) => labels.has(d.label.trim().toLowerCase()))) continue;
+    if (!datasetMatches(descriptors, ds)) continue;
     ds.rows.forEach((row, i) => {
       const first = ds.columns.map((c) => row.values[c.key] ?? '').find((v) => v.trim() !== '');
       const label = `${ds.name}: ${(first ?? `row ${i + 1}`).slice(0, 60)}`;

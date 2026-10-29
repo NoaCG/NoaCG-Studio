@@ -20,6 +20,9 @@ export interface SettleableStage {
   replies: ReadonlyMap<string, number>;
   whenLoaded(): Promise<void>;
   setVisible(visible: boolean): void;
+  /** An imported OGraf package's calls, which no state reply reports (E3.2b): the replay waits for
+   *  each to be answered, within the same cap. */
+  ografSettled?(): Promise<void>;
 }
 
 export interface CatchUpTiming {
@@ -85,6 +88,7 @@ export async function airWhenSettled(
   // cap starts here, and the floor is measured from the load but never crosses it.
   const deadline = now() + timing.capMs;
   await Promise.race([stage.whenLoaded(), wait(Math.max(0, deadline - now()))]);
+  if (stage.ografSettled) await Promise.race([stage.ografSettled(), wait(Math.max(0, deadline - now()))]);
   const floor = Math.min(now() + timing.floorMs, deadline);
   const read = (graphic: string) => readGraphic(stage, graphic);
   let previous = new Map(stage.graphics.map((g) => [g, read(g)]));

@@ -1,20 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
-
-/**
- * THE OLD CODE EDITOR IS CLOSED (owner, 2026-09-24). No route renders AppShell and there is no
- * Advanced mode, so a test that needs either cannot pass any more. Each helper below that used to
- * reach the old editor now SKIPS the test calling it, with this reason, instead of letting it
- * fail on a surface that never appears. The backlog file lists every spec that still calls one
- * and what each asserted; they are rewritten against the library, the control page, the export
- * or the new editor, and this reason disappears with the last of them.
- */
-export const OLD_EDITOR_SKIP =
-  'Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800';
-
-/** Skip the running test for the reason above. Call it from a test body or a beforeEach. */
-export function skipOldEditor(): void {
-  test.skip(true, OLD_EDITOR_SKIP);
-}
+import { expect, type Page } from '@playwright/test';
 
 // Fast project bootstrap for specs whose subject is NOT the creation flow itself.
 //
@@ -38,43 +22,9 @@ export interface CreateSpec {
 }
 
 /**
- * RETIRED: Advanced mode no longer exists, so a spec that opted into it reached the old editor.
- * It skips the calling test (OLD_EDITOR_SKIP above). The page parameter stays so the specs still
- * calling it compile unchanged until they are rewritten.
- */
-export async function enableAdvancedMode(_page: Page): Promise<void> {
-  skipOldEditor();
-}
-
-/** RETIRED with Advanced mode: skips the calling test (OLD_EDITOR_SKIP above). */
-export async function switchToAdvancedMode(_page: Page): Promise<void> {
-  skipOldEditor();
-}
-
-/**
- * RETIRED: Finish has no door into the old code editor any more, so a walk that ended there
- * skips the calling test (OLD_EDITOR_SKIP above). A walk that wants an editor now ends on
- * Finish's "Edit this graphic" (`wz-finish-edit-artwork`), which opens the new editor.
- */
-export async function finishIntoEditor(_page: Page): Promise<void> {
-  skipOldEditor();
-}
-
-/**
- * RETIRED with the old editor: this bootstrap landed in AppShell and every caller asserted on it,
- * so it skips the calling test (OLD_EDITOR_SKIP above). A spec rewritten off the old editor calls
- * `bootstrapGraphic` below instead, which puts the same graphic in the working slot and lands on
- * Home.
- */
-export async function createProject(_page: Page, _spec: string | CreateSpec = 'Hairline'): Promise<void> {
-  skipOldEditor();
-}
-
-/**
  * Put a created catalog graphic in the working slot and land on HOME (`#/home`). Every surface
  * that still exists starts from there and reads the working document: a production
  * (`openProductionWithCurrent`), the export window (`openExportWindow`) and the new editor.
- * It is `createProject` without the old editor, which that helper landed in until 2026-09-24.
  */
 export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = 'Hairline'): Promise<void> {
   const wanted: CreateSpec = typeof spec === 'string' ? { name: spec } : spec;

@@ -12,11 +12,10 @@ import { flushPendingProject, useTemplateStore } from './templateStore';
 import {
   createGraphic,
   graphicById,
-  loadAllGraphics,
   updateGraphic,
   type GraphicDoc,
 } from '../model/library';
-import { releaseReservation, reservedGraphicId, saveProject } from '../model/project';
+import { conflictCopyOf, endMint, isConflictCopy, isGraphicSuperseded, linkAfterLoss, mintReservedGraphicId, releaseReservation, saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
 import { captureDurableWrites, commitDurableReceipt, commitDurableWrites, unsettledWrites, type DurableWriteReceipt } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
@@ -127,7 +126,36 @@ function changedSince(before: EditingContext): boolean {
  *  link is then not the waiting save's to settle. */
 function replacedSince(before: EditingContext): boolean {
   const now = useTemplateStore.getState();
-  return now.saved.graphicId !== before.saved.graphicId || now.baseline !== before.baseline;
+  return (now.saved.graphicId !== before.saved.graphicId && !movedToCopy(before, now)) || now.baseline !== before.baseline;
+}
+
+/** A sync pass moved the draft from a record that lost a conflict to the "(conflicted copy)"
+ *  holding its work (#1466): the same document, so a save waiting on it still settles. */
+function movedToCopy(before: EditingContext, now: EditingContext): boolean {
+  return !!before.saved.graphicId && conflictCopyOf(before.saved.graphicId)?.id === now.saved.graphicId;
+}
+
+/** How long a save waits for a "(conflicted copy)" to reach this tab's library. Its write
+ *  commits and is announced in well under a second; past this, the save stops waiting. */
+const COPY_ARRIVAL_MS = 10_000;
+
+/** A "(conflicted copy)" another tab's sync pass wrote reaches this tab's library mirror only once
+ *  that write commits and is announced (model/durableStore.ts), and the draft's link to it can
+ *  arrive first (#1466). Until then a save into it finds no record and would ask for a name, and a
+ *  discard would find nothing to restore. Resolves once the copy is readable here (or the wait
+ *  runs out); null when there is nothing to wait for, so the caller stays in its own turn. */
+function conflictCopyArriving(id: string | null): Promise<void> | null {
+  if (!id || typeof window === 'undefined' || graphicById(id) || !isConflictCopy(id)) return null;
+  return new Promise((resolve) => {
+    const settle = () => {
+      window.removeEventListener('spx-data-changed', check);
+      clearTimeout(timer);
+      resolve();
+    };
+    const check = () => { if (graphicById(id)) settle(); };
+    const timer = setTimeout(settle, COPY_ARRIVAL_MS);
+    window.addEventListener('spx-data-changed', check);
+  });
 }
 
 /** A refused save leaves the link as it is NOW: an edit made during the wait stays dirty. */
@@ -191,7 +219,30 @@ export function saveCurrentGraphic(opts?: {
 }
 
 async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'failed'> {
-  if (!useTemplateStore.getState().saved.graphicId) return 'needs-name';
+  const initial = useTemplateStore.getState().saved;
+  if (!initial.graphicId) return 'needs-name';
+  const waited = new Set<string>();
+  for (;;) {
+    const { saved, setSaved } = useTemplateStore.getState();
+    if (!saved.graphicId || waited.has(saved.graphicId)) break;
+    const arriving = conflictCopyArriving(saved.graphicId);
+    if (!arriving) break;
+    // A later conflict can move the link again during this wait. Check the live id next,
+    // but never restart a timed-out wait for the same missing copy.
+    waited.add(saved.graphicId);
+    // The wait shows as saving; whatever follows sets the status it ends in.
+    setSaved({ ...saved, status: 'saving' });
+    await arriving;
+    const now = useTemplateStore.getState().saved;
+    if (now.status === 'saving') setSaved({ ...now, status: saved.status });
+  }
+  const current = useTemplateStore.getState();
+  if (!initial.dirty && current.saved.graphicId && waited.has(current.saved.graphicId) && !graphicById(current.saved.graphicId)) {
+    // This work was already saved in its own copy when Save started. Mirror lag cannot
+    // unsave it. Keep the live link and any edit made during the wait; a later Save retries.
+    current.setSaved({ ...current.saved, status: 'failed' });
+    return 'failed';
+  }
   prepareEmptyOut();
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
@@ -225,14 +276,20 @@ async function saveLinked(name?: string): Promise<'saved' | 'needs-name' | 'fail
   // openGraphicDoc below leaves it unset: opening a graphic is not a save.
   const formatIssues = validateProjectFormat(s.template.resolution, s.template.fps);
   if (replacedSince(s)) return 'saved';
-  return (await commitLink({ graphicId: doc.id, dirty: changedSince(s), formatIssues })) ? 'failed' : 'saved';
+  // A sync pass found the record taken by another device's version while it was written, and
+  // moved the draft to the "(conflicted copy)" holding its work (#1466): the save settles there.
+  const now = useTemplateStore.getState(), moved = movedToCopy(s, now);
+  const link = moved ? { graphicId: now.saved.graphicId, dirty: now.saved.dirty } : { graphicId: doc.id, dirty: changedSince(s) };
+  return (await commitLink({ ...link, formatIssues })) ? 'failed' : 'saved';
 }
 
 /** First save or Save As: mint a new library record and link the working document to it. The
  *  answer carries the record's id whenever one was minted, whether or not its link landed, so a
  *  caller that retries writes into it rather than minting again. */
 export function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
-  return transaction(() => mintGraphic(name));
+  // Failed, replaced or linked, the mint is over: this tab's later writes no longer speak for
+  // its record.
+  return transaction(() => mintGraphic(name).finally(endMint));
 }
 
 async function mintGraphic(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
@@ -247,9 +304,9 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   // slot still names the record. It is queued in the same turn as the record, and IndexedDB
   // commits transactions on one store in the order they were made, so it lands first. Its
   // refusal is claimed and fails nothing: the earlier writes and the link write name the record
-  // too. An id another record already holds (a second tab minted it) is never minted again.
-  if (loadAllGraphics().some(g => g.id === reservedGraphicId(s.baseline))) releaseReservation();
-  const id = reservedGraphicId(s.baseline);
+  // too. An id another record already holds (a second tab minted it) is never minted again, and
+  // only this tab's writes made during the mint say that the record is this draft's (#1402).
+  const id = mintReservedGraphicId(s.baseline);
   const reserved = captureDurableWrites(SLOT_KEY, persistLink).receipts.map(commitDurableReceipt);
   const { result: { doc, error }, receipts } = captureDurableWrites(LIBRARY_KEY, () => createGraphic(s.template, {
     id,
@@ -279,7 +336,12 @@ async function mintGraphic(name: string): Promise<{ ok: boolean; error: string |
   const formatIssues = validateProjectFormat(doc.template.resolution, doc.template.fps);
   // The record took the id: the link write names it, and carries the document's next one.
   releaseReservation();
-  const linkFailure = await commitLink({ graphicId: doc.id, dirty, formatIssues });
+  // A sync pass that ran while the record was written found the id taken by another device's
+  // record (#1443): the draft links to the "(conflicted copy)" that holds its work, clean when it
+  // holds exactly that (#1466). A copy this tab never heard of leaves it unlinked.
+  const copy = conflictCopyOf(doc.id);
+  const lost = copy || isGraphicSuperseded(doc.id);
+  const linkFailure = await commitLink({ ...(lost ? linkAfterLoss(useTemplateStore.getState(), copy) : { graphicId: doc.id, dirty }), formatIssues });
   // The record is minted: a retry writes into `graphicId` (SaveDialog) instead of minting again.
   return { ok: !linkFailure, error: linkFailure, graphicId: doc.id };
 }
@@ -336,6 +398,8 @@ async function discardDraft(before: EditingContext): Promise<string | null> {
   flushPendingProject();
   const pendingFailure = await commitDurableWrites();
   if (pendingFailure) return pendingFailure;
+  const arriving = conflictCopyArriving(before.saved.graphicId);
+  if (arriving) await arriving;
   const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
   const template = doc?.template ?? createDefaultTemplate();
   // Changing source or baseline clears the editor's private command history. Persist

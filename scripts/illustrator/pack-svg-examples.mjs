@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PACKS THE NOACG SVG EXAMPLES: the README as a two-page PDF, then the whole folder as a zip.
+// PACKS THE NOACG SVG EXAMPLES: the README as a four-page PDF, then the whole folder as a zip.
 //
 //   node scripts/illustrator/pack-svg-examples.mjs [--copy-to <file.zip>]...
 //
@@ -7,8 +7,8 @@
 // and again after any change to docs/tutorials/svg-examples/README.md.
 //
 // 1. README.md -> README.pdf. README.md is the source and README.pdf is what most people open.
-//    Chromium prints it on two A4 pages, headings in Oswald like the graphics: page 1 is what to
-//    do, and page 2, after the README's one `---`, is the layer names of every graphic. The
+//    Chromium prints four authored A4 pages, separated with `---`: getting started, the
+//    remaining behaviours, then two pages of layer names. The
 //    Markdown is the small subset the README uses (headings, bullets, bold, inline code, one
 //    table, code blocks, one `---` as the page break), converted here so the repo needs no
 //    Markdown package for two pages.
@@ -31,10 +31,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const PACKAGE = path.join(ROOT, 'docs', 'tutorials', 'svg-examples');
 const ZIP_NAME = 'NoaCG-SVG-examples';
 const ZIP_OUT = path.join(ROOT, 'public', 'downloads', `${ZIP_NAME}.zip`);
-/** README.pdf's page count: what to do, then the layer names. */
-const PAGES = 2;
+/** The expanded example set has four authored pages; overflow is still refused. */
+const PAGES = 4;
 /** What goes in the zip, in this order. Anything else in the folder stays out. */
-const CONTENTS = ['README.pdf', 'README.md', 'Illustrator', 'SVG', 'Previews'];
+const CONTENTS = ['README.pdf', 'README.md', 'examples.json', 'Illustrator', 'SVG', 'Previews'];
 
 // ── README.md -> HTML ────────────────────────────────────────────────────────────────────────
 
@@ -108,6 +108,7 @@ const page = (body) => `<!DOCTYPE html>
   h1, h2 { font-family: Oswald, Arial, sans-serif; font-weight: 700; margin: 0; }
   h1 { font-size: 22pt; border-bottom: 4px solid #ffcc00; padding-bottom: 2mm; margin-bottom: 2mm; }
   h2 { font-size: 13pt; margin-top: 4mm; }
+  h1, h2 { break-after: avoid; }
   p { margin: 1.5mm 0; }
   ul { margin: 1mm 0; padding-left: 5mm; }
   li { margin: 0.6mm 0; }
@@ -116,6 +117,7 @@ const page = (body) => `<!DOCTYPE html>
   table { border-collapse: collapse; width: 100%; margin: 2mm 0; font-size: 9.5pt; line-height: 1.35; }
   th, td { text-align: left; vertical-align: top; padding: 1.8mm 2mm; border-bottom: 1px solid #c9d1e0; }
   th { font-family: Oswald, Arial, sans-serif; font-weight: 700; background: #eef1f6; border-bottom: 2px solid #ffcc00; }
+  tr { break-inside: avoid; }
   code { font-family: Consolas, 'Courier New', monospace; font-size: 0.95em; white-space: nowrap; }
   pre { font-family: Consolas, 'Courier New', monospace; font-size: 9pt; line-height: 1.3;
         background: #eef1f6; border-left: 3px solid #ffcc00; padding: 2mm 4mm; margin: 2mm 0;
@@ -130,9 +132,7 @@ async function writePdf() {
     await tab.setContent(html, { waitUntil: 'load' });
     await tab.evaluate(() => document.fonts.ready);
     const pdf = await tab.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
-    // Two pages is the brief, what to do and then the layer names: count the page objects in
-    // what Chromium wrote, and keep the last good README.pdf when it is anything else. A third
-    // page means one of the two overflowed.
+    // Count page objects and keep the last good README.pdf if an authored page overflows.
     const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
     if (pages !== PAGES) throw new Error(`README.pdf would be ${pages} pages - the README is ${PAGES}, shorten the page that overflows`);
     writeFileSync(path.join(PACKAGE, 'README.pdf'), pdf);
@@ -156,7 +156,7 @@ function addTree(zip, abs, rel) {
     // writes the SVGs and the README with CRLF, so zipping the working tree as it stands made the
     // zip depend on which checkout packed it (end-credits.svg went in once with CRLF and once with
     // LF). The repository stores LF, so the zip does too.
-    const bytes = /\.(md|svg)$/i.test(abs)
+    const bytes = /\.(md|svg|json)$/i.test(abs)
       ? Buffer.from(readFileSync(abs, 'utf8').replace(/\r\n/g, '\n'))
       : readFileSync(abs);
     zip.file(rel, bytes, ENTRY);

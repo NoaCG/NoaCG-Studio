@@ -5,20 +5,26 @@
 // path (the hosted page's rows), so the production-data specs that drive the gesture have to run
 // alongside the control ones the covers line beside it selects.
 // covers: src/control/cueData.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
+// covers: src/control/contentFormats.ts
+// covers: src/control/sheetSource.ts
+// covers: src/control/feedSource.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers,cueDraft}.ts
 
 import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
 import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
+import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 
 // The production DATA workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md D3/D6): the show's own
 // tables, edited on the Data tab, loaded into CUES on the Playout tab by deliberate operator
 // action. The load fills a DRAFT — nothing reaches air except through Take.
 
-async function productionFor(page: Page, name: string): Promise<void> {
-  await openProductionWithCurrent(page, name);
+async function productionFor(page: Page, name: string): Promise<string> {
+  return openProductionWithCurrent(page, name);
 }
 
 test('a quiz bank authored on the Data tab loads into the cue, airs only on Take, and survives a reload', async ({ page }) => {
@@ -109,7 +115,6 @@ test('a quiz bank authored on the Data tab loads into the cue, airs only on Take
 });
 
 test('a table whose columns match nothing offers no load control, and columns can be added and renamed', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Plain News');
 
@@ -301,6 +306,53 @@ test('a quiz bank imported from CSV loads into a cue and airs — the Phase 2 wa
   await expect(program.locator('#f2')).toHaveText('Mars');
 });
 
+test('a guest row loads into a lower third and airs on Take; editing or deleting the row afterwards leaves PROGRAM alone (C7)', async ({ page }) => {
+  // data-sources AC-16's guest row: one table row fills one cue, never joined, and the cue keeps
+  // what it was loaded with.
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Guest Night');
+  const data = await openWorkspace(page, 'data');
+  await data.getByTestId('import-dataset').setInputFiles({
+    name: 'Guests.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('Name,Title\nAino Virtanen,Head coach\nLeo Berg,"Referee, FIFA"\n'),
+  });
+  await expect(data.getByTestId('import-note')).toContainText('Imported 2 rows');
+  await settleDurableWrites(data);
+
+  await page.getByTestId('cue-load-row').selectOption({ label: 'Guests: Leo Berg' });
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Leo Berg');
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('Referee, FIFA');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Leo Berg');
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+
+  // The source moves: the row is edited, then deleted. What is on air stays as it was taken.
+  const rows = data.locator('.pd-dataset tbody tr');
+  await rows.nth(1).locator('td input').nth(1).fill('Assistant referee');
+  await settleDurableWrites(data);
+  await expect(page.getByTestId('cue-load-row').locator('option', { hasText: 'Guests: Leo Berg' })).toHaveCount(1);
+  expect(await data.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const rows = loadShows().find((s) => s.name === 'Guest Night')?.datasets?.[0]?.rows ?? [];
+    return rows.some((r) => Object.values(r.values).includes('Assistant referee'));
+  }), 'the edit landed in the table').toBe(true);
+  // A negative needs time to be wrong in: give a send that would follow the edit a moment.
+  await page.waitForTimeout(1_500);
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+  // Removing a row is armed: the first press asks, the second removes.
+  const remove = rows.nth(1).locator('[data-testid^="row-delete-"]');
+  await remove.click();
+  await remove.click();
+  await expect(rows).toHaveCount(1);
+  await settleDurableWrites(data);
+  await page.waitForTimeout(1_500);
+  await expect(program.locator('#f0')).toHaveText('Leo Berg');
+  await expect(program.locator('#f1')).toHaveText('Referee, FIFA');
+});
+
 test('the downloaded template is a file the importer accepts, with the columns a cue can bind', async ({
   page,
 }) => {
@@ -337,7 +389,6 @@ test('the downloaded template is a file the importer accepts, with the columns a
 });
 
 test('an imported table whose columns match no field says so rather than looking successful', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Match');
   const data = await openWorkspace(page, 'data');
@@ -408,6 +459,19 @@ test('the empty workspace carries the doors and names the columns that would bin
 // ── PRODUCTION DATA: the live tree, the bindings, and the rules that make them safe on air
 // (docs/PRODUCTION_DATA_PLAN.md). Everything below is Phase 1: local, manual, no API.
 
+/** The Data view with Advanced open: the tree by its paths, the seed, Raw JSON and the per-field
+ *  table sit there, closed by default (sheet-data-flow AC-9). */
+async function openData(page: Page): Promise<Page> {
+  const data = await openWorkspace(page, 'data');
+  await openAdvanced(data);
+  return data;
+}
+
+/** Open the Data view's Advanced part, unless it is open already. */
+async function openAdvanced(data: Page): Promise<void> {
+  if (!(await data.getByTestId('data-advanced').evaluate((d) => (d as HTMLDetailsElement).open))) await data.getByTestId('data-advanced-toggle').click();
+}
+
 /** Add one value to the production's live tree from the Data tab. */
 async function addValue(page: Page, path: string, value: string): Promise<void> {
   await page.getByTestId('data-new-path').fill(path);
@@ -418,17 +482,16 @@ async function addValue(page: Page, path: string, value: string): Promise<void> 
 
 /** The pool graphic's name, as the bindings table prints it. */
 async function firstGraphicName(page: Page): Promise<string> {
-  const heading = await page.locator('.pd-bind-graphic h4').first().textContent();
+  const heading = await page.getByTestId('production-bindings').locator('.pd-bind-graphic h4').first().textContent();
   return (heading ?? '').trim();
 }
 
 test('a bound field takes the LIVE value on air, and an old cue cannot re-air a stale one', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Match Night');
 
   // ── The playground: a nested tree, typed by what was written rather than by a schema. ──
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await expect(data.getByTestId('production-live-data')).toBeVisible();
   await addValue(data, 'match.home.name', 'Finland');
   await addValue(data, 'match.home.score', '1');
@@ -486,21 +549,26 @@ test('a bound field takes the LIVE value on air, and an old cue cannot re-air a 
   // ── Reload: the live tree is runtime state and survives, and it is NOT on the show record. ──
   await data.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
+  await openAdvanced(data);
   await expect(data.getByTestId('data-value-match.home.name')).toHaveValue('Sweden');
   // The seed was never written, because saving one is a deliberate act - this is the whole
   // anti-churn rule (plan 2.1): live values must not touch the synced Show record.
-  const onRecord = await page.evaluate(() => {
-    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as { name: string; data?: unknown }[];
-    return shows.find((s) => s.name === 'Match Night')?.data ?? null;
+  // Read through the durable model: the shows key lives in IndexedDB (model/durableStore.ts),
+  // so a localStorage read answers [] whatever was written, and a missing record must fail here
+  // rather than read as "nothing on it".
+  const onRecord = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.name === 'Match Night');
+    if (!show) throw new Error('production not saved');
+    return show.data ?? null;
   });
   expect(onRecord).toBe(null);
 });
 
 test('the seed is the reset target, and unbinding hands the field back to the cue', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Seed Show');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'counter', '5');
 
   // Save as seed, move the value, reset - the seed is what Reset returns to.
@@ -535,27 +603,91 @@ test('the seed is the reset target, and unbinding hands the field back to the cu
   await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
 });
 
+test('Another system connects a whole graphic in one confirmation; the card lists its paths and generates the example and the sender file', async ({ page }) => {
+  test.setTimeout(90_000);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Count Night');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+
+  // ── Connect data…, Another system: every field offered its own path, keyed, nothing read. ──
+  await page.getByTestId('cue-connect').click();
+  let review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-api').click();
+  await expect(review.getByTestId('cue-connect-api-note')).toBeVisible();
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'key');
+  await expect(review.getByTestId('cue-connect-row-f1')).toHaveAttribute('data-status', 'key');
+  await expect(review.getByTestId('cue-connect-label')).toHaveCount(0);
+  // Cancel writes nothing.
+  await review.getByTestId('cue-connect-cancel').click();
+  expect(await storedBindings(page, showId)).toEqual({ bindings: {}, sources: [] });
+
+  // ── Repair one field (not connected), then ONE confirmation: bindings only, no source record. ──
+  await page.getByTestId('cue-connect').click();
+  review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-api').click();
+  await review.getByTestId('cue-connect-pick-f1').selectOption({ label: 'Not connected' });
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('1 connected');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const stored = await storedBindings(page, showId);
+  expect(stored.sources).toEqual([]);
+  expect(Object.keys(stored.bindings.Hairline)).toEqual(['f0']);
+  const path = stored.bindings.Hairline.f0;
+  expect(path).toMatch(/^api\.hairline\.[a-z0-9_]+$/);
+  // The connected field names its source and its path, with Disconnect beside it.
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Another system');
+  await expect(page.getByTestId('cue-bound-f0').getByTestId('cue-connected-note')).toContainText(path);
+
+  // ── The card: the connected path, the generated example (key from the environment), the file. ──
+  const data = await openData(page);
+  const card = data.getByTestId('data-api-card');
+  await expect(card.getByTestId('data-api-destinations')).toContainText(`${path} fills Hairline`);
+  const curl = card.getByTestId('data-api-curl');
+  await expect(curl).toContainText('curl -X PATCH');
+  await expect(curl).toContainText('/api/data/patch');
+  await expect(curl).toContainText('$NOACG_DATA_KEY');
+  await expect(curl).toContainText(`"${path.split('.')[2]}"`);
+  const file = await downloaded(data, () => card.getByTestId('data-api-download').click());
+  expect(file.name).toBe('another-system.json');
+  const example = JSON.parse(file.text);
+  expect(example.fields).toEqual([{ path, label: expect.any(String), graphic: 'Hairline', field: 'f0' }]);
+  expect(example.address).toMatch(/\/api\/data\/patch$/);
+  expect(file.text).not.toMatch(/data.?key/i);
+
+  // ── Disconnect hands the field back to the cue; the card has nothing to show. ──
+  await data.close();
+  await page.getByTestId('cue-bound-f0').getByTestId('cue-disconnect').click();
+  await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
+  const after = await openData(page);
+  await expect(after.getByTestId('data-api-none')).toBeVisible();
+  await after.close();
+});
+
 test('an unpublished production offers no data key, because it has none', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Key Yet');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
 
   // The key is minted at PUBLISH into the production's row (docs/DATA_API.md), so offline there
   // is nothing to reveal. A button that could never do anything is worse than no button, and
   // this is the half of that rule the offline suite can prove; the live walk
   // (e2e/configured/production-data-key.spec.ts) proves the other half, including that the
   // revealed key really authenticates.
-  await expect(data.getByTestId('data-key-toggle')).toHaveCount(0);
   await expect(data.getByTestId('data-key')).toHaveCount(0);
+  await expect(data.getByTestId('data-key-value')).toHaveCount(0);
+  // The Another system card says publishing is the step, with Publish one press away (here an
+  // offline build, so the button says why it cannot; data-sources AC-7, local half).
+  await expect(data.getByTestId('data-api-local')).toContainText('Publishing gives this production an address and a key');
+  await expect(data.getByTestId('data-api-publish')).toBeVisible();
+  await expect(data.getByTestId('data-api-pause')).toHaveCount(0);
   // The rest of the panel is untouched by its absence.
   await expect(data.getByTestId('data-raw-toggle')).toBeVisible();
 });
 
 test('nested trees, arrays and a missing path each behave as the contract says', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Shapes');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
 
   // A whole payload pasted as JSON - the same shape the future ingress API will accept, which
   // is what makes this panel the API's documentation as well as its playground.
@@ -604,7 +736,7 @@ test('nested trees, arrays and a missing path each behave as the contract says',
 test('one value moves every graphic bound to it, and only the graphics bound to it', async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Two Graphics');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'shared.title', 'First');
 
   // The one binding this pool offers, bound - then the value moves and the preview follows
@@ -624,21 +756,20 @@ test('one value moves every graphic bound to it, and only the graphics bound to 
 });
 
 test('production data is scoped to its production, never shared between two', async ({ page }) => {
-  skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Show One');
   const showOneUrl = page.url();
   // EACH PRODUCTION GETS ITS OWN WORKSPACE TAB, because the workspaces open in their own tab
   // now and a tab is opened onto ONE production. Re-using the first production's tab for the
   // second would be asking a question about that tab, not about the scoping.
-  const dataOne = await openWorkspace(page, 'data');
+  const dataOne = await openData(page);
   await addValue(dataOne, 'shared.value', 'one');
 
   // A second production, from its own project. Same path, its own tree - the store is keyed by
   // production id, so nothing about "shared.value" is global.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Show Two');
-  const dataTwo = await openWorkspace(page, 'data');
+  const dataTwo = await openData(page);
   await expect(dataTwo.getByTestId('production-live-data')).toBeVisible();
   await expect(dataTwo.getByTestId('data-row-shared.value')).toHaveCount(0);
   await addValue(dataTwo, 'shared.value', 'two');
@@ -646,6 +777,7 @@ test('production data is scoped to its production, never shared between two', as
   // The first production's own tab still holds its own value - and it is still 'one' even
   // though the second tab wrote the same PATH a moment ago.
   await dataOne.reload();
+  await openAdvanced(dataOne);
   await expect(dataOne.getByTestId('data-value-shared.value')).toHaveValue('one');
   // …and reaching it by its own URL says the same (deterministic - no card hunting).
   await page.goto(showOneUrl);
@@ -678,7 +810,7 @@ test('SPACE on the Data tab cannot put a graphic on air', async ({ page }) => {
   // them: the workspaces open in their own browser tab now (see `openWorkspace`), so this is
   // the ordinary way to be standing on Data. The guard is the same one either way - the shell
   // binds the verb keys only while playout is the surface on screen.
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
 
   // Space belongs to a focused button by design, so say where focus is rather than inherit it.
   await parkFocusOffControls(data);
@@ -712,7 +844,7 @@ test('SPACE on the Data tab cannot put a graphic on air', async ({ page }) => {
 test('the playout column stays hidden behind the Data workspace, rundown included', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
 
   // Back to Playout IN THIS TAB (the one tab control that is a button, not a link), which is
   // what builds the playout column in the workspace's tab in the first place.
@@ -733,21 +865,13 @@ test('the playout column stays hidden behind the Data workspace, rundown include
 // ── AC-7: a stepper on a BOUND field moves the shared value ──────────────────────────────────
 
 /** A second graphic into the production this page already holds, on its own layer. */
-async function addSecondGraphic(page: Page, variant: string, production: string): Promise<void> {
-  await bootstrapGraphic(page, { name: variant });
-  await page.getByTestId('dock-tab-control').click();
-  const section = page.locator('.panel-section', { hasText: 'Productions' });
-  // A fresh document remounts the panel, so the production has to be re-picked by name.
-  const value = await section.locator('select option', { hasText: production }).getAttribute('value');
-  await section.locator('select').selectOption(value!);
-  await section.getByRole('button', { name: '+ Add current' }).click();
-  await expect(section.locator('.status-ok')).toContainText('is in the production');
-  await section.getByTestId('open-production-page').click();
-  await expect(page.getByTestId('production-page')).toBeVisible();
+/** A second catalog graphic in the production the page is showing, added the way the rundown's "+ Add" adds one. */
+async function addSecondGraphic(page: Page, variant: string, showId: string): Promise<void> {
+  await addCatalogGraphic(page, showId, variant);
+  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(2);
 }
 
 test('a ± press on a bound field moves the shared value, and every graphic bound to it follows', async ({ page }) => {
-  skipOldEditor();
   // THE BUG THIS CLOSES (docs/PRODUCTION_DATA_PLAN.md §2.9): the ± stepper wrote ONE field on ONE
   // graphic, so on a production where two graphics show the same score the operator moved one of
   // them and the next write of the shared value put it back. Phase 3 makes the press move the
@@ -757,13 +881,13 @@ test('a ± press on a bound field moves the shared value, and every graphic boun
   // for on 2026-09-15: a score entered once shows everywhere. Both scoreboard families call the
   // home score `f1` (src/templates/scoreboards/shared.ts), so one path binds the same slot twice.
   await bootstrapGraphic(page, { name: 'House Score' });
-  await productionFor(page, 'Derby Data');
-  await addSecondGraphic(page, 'Club Scorebug', 'Derby Data');
+  const showId = await productionFor(page, 'Derby Data');
+  await addSecondGraphic(page, 'Club Scorebug', showId);
   const cues = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(cues).toHaveCount(2);
 
   // ── ONE value, bound on BOTH graphics ──
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'match.home.score', '0');
   await data.getByTestId('bind-House Score-f1').fill('match.home.score');
   await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
@@ -806,18 +930,80 @@ test('a ± press on a bound field moves the shared value, and every graphic boun
   await expect(data.getByTestId('data-value-match.home.score')).toHaveValue('1');
 });
 
+test('a quiz revealed beside a running clock: bound values update both, the clock keeps counting and the quiz stays revealed (C7)', async ({ page }) => {
+  // data-sources AC-16: independent behaviour stays independent. A data write changes values
+  // only: it never restarts another graphic's clock, re-takes a graphic or moves a machine.
+  test.setTimeout(90_000);
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  const showId = await productionFor(page, 'Quiz Clock Night');
+  await addSecondGraphic(page, 'Club Scorebug', showId);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  const chip = page.getByTestId('machine-state-chip');
+
+  const data = await openData(page);
+  await addValue(data, 'quiz.question', 'Which planet is largest?');
+  await addValue(data, 'match.home.score', '0');
+  await data.getByTestId('bind-Arena Quiz-f0').fill('quiz.question');
+  await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
+  await expect(data.getByTestId('bind-value-Club Scorebug-f1')).toHaveText('0');
+  await settleDurableWrites(data);
+
+  const quiz = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('cue-action-clockStart').click();
+  await expect(chip).toContainText(/running/i);
+  const clock = bug.locator('.scoreboard-clock');
+  const seconds = async (): Promise<number> => {
+    const [m, s] = ((await clock.textContent()) ?? '').trim().split(':').map(Number);
+    return m * 60 + s;
+  };
+  const start = await seconds();
+
+  await cues.nth(0).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(quiz.locator('#f0')).toHaveText('Which planet is largest?');
+  await page.getByTestId('cue-pick-select-B').click();
+  await page.getByTestId('cue-action-lock').click();
+  await page.getByTestId('cue-action-judge').click();
+  await expect(chip).toHaveText('Reveal');
+  await expect(quiz.locator('.quiz-correct')).toHaveCount(1);
+  const board = () => quiz.locator('.quiz, .quiz-option').evaluateAll((els) => els.map((el) => el.className));
+  const revealed = await board();
+
+  // The clock has run a few seconds while the quiz was played.
+  await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 15_000 }).toBeGreaterThanOrEqual(4);
+  const runBefore = Math.abs((await seconds()) - start);
+
+  // The data moves: both graphics take the new values on air, nothing else changes.
+  await data.getByTestId('data-value-quiz.question').fill('Which planet has the most moons?');
+  await data.getByTestId('data-value-match.home.score').fill('2');
+  await settleDurableWrites(data);
+  await expect(quiz.locator('#f0')).toHaveText('Which planet has the most moons?');
+  await expect(bug.locator('#f1')).toHaveText('2');
+
+  // The clock was not reset: it stands at least where it stood, and it still runs.
+  expect(Math.abs((await seconds()) - start), 'the clock was reset').toBeGreaterThanOrEqual(runBefore);
+  await expect.poll(async () => Math.abs((await seconds()) - start), { timeout: 10_000 }).toBeGreaterThanOrEqual(runBefore + 2);
+  // Two seconds on, the quiz has not advanced or gone back: still revealed, the same answer marked.
+  await expect(chip).toHaveText('Reveal');
+  expect(await board(), 'the board is exactly as revealed').toEqual(revealed);
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(chip).toContainText(/running/i);
+});
+
 test('an adjust on a bound field patches the tree, and the event still fires', async ({ page }) => {
-  skipOldEditor();
   // The second half of AC-7. A scoreboard's GOAL carries `adjust: { f1: 1 }`, so the press used to
   // ride the new figure as the event's payload and mirror it into the cue. With f1 bound, the
   // figure is not this graphic's to carry: the event fires on its own and the score arrives as the
   // tree's own update row, on every graphic bound to the path.
   await bootstrapGraphic(page, { name: 'House Score' });
-  await productionFor(page, 'Goal Data');
-  await addSecondGraphic(page, 'Club Scorebug', 'Goal Data');
+  const showId = await productionFor(page, 'Goal Data');
+  await addSecondGraphic(page, 'Club Scorebug', showId);
   const cues = page.getByTestId('cue-list').locator('.pd-cue');
 
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'match.home.score', '2');
   await data.getByTestId('bind-House Score-f1').fill('match.home.score');
   await data.getByTestId('bind-Club Scorebug-f1').fill('match.home.score');
@@ -841,13 +1027,15 @@ test('an adjust on a bound field patches the tree, and the event still fires', a
 
   // The cue did NOT take the figure: a bound field is never a cue value, so taking this cue again
   // airs the tree rather than re-airing whatever the press happened to leave behind.
-  const stored = await page.evaluate(() => {
-    const shows = JSON.parse(localStorage.getItem('spx-gfx-shows') ?? '[]') as {
-      name: string;
-      cues: { values: Record<string, string> }[];
-    }[];
-    return shows.find((s) => s.name === 'Goal Data')?.cues.map((c) => c.values.f1 ?? null) ?? [];
+  // Read through the durable model (the shows key lives in IndexedDB, so localStorage answers
+  // nothing), and from both cues, so an empty read cannot pass as "no cue took it".
+  const stored = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.name === 'Goal Data');
+    if (!show) throw new Error('production not saved');
+    return (show.cues ?? []).map((c) => c.values?.f1 ?? null);
   });
+  expect(stored).toHaveLength(2);
   expect(stored).not.toContain('3');
   await page.getByTestId('verb-take').click();
   await expect(strip.locator('#f1')).toHaveText('3');
@@ -856,15 +1044,14 @@ test('an adjust on a bound field patches the tree, and the event still fires', a
 // ── AC-8: "Bind all by title" accepts every unambiguous suggestion in one press ──────────────
 
 test('Bind all by title binds every unambiguous title in one press, and leaves the ambiguous one bound-empty with a reason', async ({ page }) => {
-  skipOldEditor();
   // Two graphics sharing a scoreboard family (both title f1 "Score A" and f0 "Team A" -
   // src/templates/scoreboards/shared.ts), so their matching titles are meant to bind in one
   // press rather than one field at a time.
   await bootstrapGraphic(page, { name: 'House Score' });
-  await productionFor(page, 'Derby Bindings');
-  await addSecondGraphic(page, 'Club Scorebug', 'Derby Bindings');
+  const showId = await productionFor(page, 'Derby Bindings');
+  await addSecondGraphic(page, 'Club Scorebug', showId);
 
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   // The tab explains itself before anything is pressed: a closed drawer for the three blocks,
   // and the button's rule on the line under the heading it sits beside. Both are copy a student
   // reads once, so the spec pins that they are there and what they claim, not their wording.
@@ -1022,7 +1209,7 @@ test('typing a value costs ONE persist for the whole edit, not one per character
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Rate Budget');
   await countPersists(page);
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'match.home.name', 'Suomi');
 
   // The gesture: select the whole value and retype it, character by character, the way an
@@ -1049,7 +1236,7 @@ test('an operator who types and walks away still has the value persisted', async
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Walk Away');
   await countPersists(page);
-  const data = await openWorkspace(page, 'data');
+  const data = await openData(page);
   await addValue(data, 'match.clock', '12:31');
 
   const box = data.getByTestId('data-value-match.clock');
@@ -1077,7 +1264,7 @@ test('a refresh arriving mid-word never overwrites the box under the cursor', as
   // be a race against this panel's own settle timer; typing THROUGH the write is not.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'Mid Word');
-  const dataOne = await openWorkspace(page, 'data');
+  const dataOne = await openData(page);
   await addValue(dataOne, 'match.home.name', 'Suomi');
 
   const box = dataOne.getByTestId('data-value-match.home.name');
@@ -1109,4 +1296,961 @@ test('a refresh arriving mid-word never overwrites the box under the cursor', as
   await expect(box).toHaveValue('Helsinki');
   // …and the edit wins its own path when it commits, over the value that arrived meanwhile.
   await expect.poll(() => persistedValue(dataOne, 'match.home.name')).toBe('Helsinki');
+});
+
+// ── Data sources C1a: "Fill from… Paste rows" and starter data (data AC-2 adapter half, AC-4, AC-13) ──
+
+/** A download's text, read the way a spreadsheet would open it. */
+async function downloaded(page: Page, click: () => Promise<void>): Promise<{ name: string; text: string }> {
+  const [download] = await Promise.all([page.waitForEvent('download'), click()]);
+  const chunks: Buffer[] = [];
+  for await (const chunk of await download.createReadStream()) chunks.push(chunk as Buffer);
+  return { name: download.suggestedFilename(), text: Buffer.concat(chunks).toString('utf8') };
+}
+
+/** The stored values of a production's cues, in rundown order. */
+async function storedCueValues(page: Page, showId: string): Promise<Record<string, string>[]> {
+  return page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows().find((s) => s.id === id)?.cues ?? []).map((c) => c.values);
+  }, showId);
+}
+
+test('Paste rows fills a ticker, a schedule, standings and credits, flags malformed rows, and the starter rows carry what it filled', async ({ page }) => {
+  test.setTimeout(120_000);
+  await bootstrapGraphic(page, { name: 'News Strip' });
+  const showId = await productionFor(page, 'Paste Night');
+  for (const name of ['Schedule Board', 'League Table', 'Classic Roll']) await addCatalogGraphic(page, showId, name);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(4);
+  const preview = page.frameLocator('iframe[title="Cue preview"]');
+  const menu = page.getByTestId('cue-rows-menu');
+
+  /** Open the cue's Fill from… menu and paste, as cells from a spreadsheet arrive: tab-separated. */
+  const paste = async (cue: number, rows: string[][]) => {
+    await cues.nth(cue).locator('.pd-cue-label').click();
+    await page.getByTestId('cue-rows-from').click();
+    await menu.getByTestId('cue-rows-paste').fill(rows.map((r) => r.join('\t')).join('\n'));
+  };
+  const starter = () => downloaded(page, async () => {
+    await page.getByTestId('cue-rows-from').click();
+    await menu.getByTestId('cue-rows-starter').click();
+  });
+
+  // ── A ticker: one cell per row, a second cell is the kicker, `|` is plain text. ──
+  await paste(0, [['SPORT', 'United win 3-0'], ['Polls close at 20:00'], ['Markets | Börsen']]);
+  await expect(menu.getByTestId('cue-rows-row')).toHaveCount(3);
+  await expect(menu.getByTestId('cue-rows-flag')).toHaveCount(0);
+  // Nothing changes before Fill: the menu previews, the cue keeps its words.
+  await expect(page.getByTestId('cue-field-f0')).not.toHaveValue(/United win/);
+  await menu.getByTestId('cue-rows-fill').click();
+  await expect(menu).toBeHidden();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('SPORT\tUnited win 3-0\nPolls close at 20:00\nMarkets | Börsen');
+  await expect(preview.locator('#ticker-track')).toContainText('United win 3-0');
+  await expect(preview.locator('#ticker-track .ticker-kicker').first()).toContainText('SPORT');
+  await expect(preview.locator('#ticker-track')).toContainText('Markets | Börsen');
+  // A fill prepares; only Take airs.
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  const tickerRows = await starter();
+  expect(tickerRows.name).toBe('news-strip-rows.csv');
+  expect(tickerRows.text).toBe('SPORT,United win 3-0\r\nPolls close at 20:00\r\nMarkets | Börsen\r\n');
+  await page.keyboard.press('Escape');
+
+  // ── A schedule: Time | Programme; its starter header is skipped, a half row is flagged. ──
+  await paste(1, [['Time', 'Programme'], ['20:00', 'News at Eight'], ['21:00', ''], ['22:00', 'Q | A live']]);
+  await expect(menu.getByTestId('cue-rows-flag')).toHaveCount(1);
+  await expect(menu.getByTestId('cue-rows-flag')).toContainText('21:00');
+  await menu.getByTestId('cue-rows-fill').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('20:00 | News at Eight\n21:00 |\n22:00 | Q | A live');
+  // The board drops the half row on air, as its own parser always has.
+  await expect(preview.locator('.infographic-row')).toHaveCount(2);
+  await expect(preview.locator('.infographic-row').nth(1)).toContainText('Q | A live');
+  expect((await starter()).text).toBe('Time,Programme\r\n20:00,News at Eight\r\n21:00,\r\n22:00,Q | A live\r\n');
+  await page.keyboard.press('Escape');
+
+  // ── Standings: the header row names the columns; both fields change in one edit. ──
+  await paste(2, [['Team', 'P', 'W', 'PTS'], ['Liquid', '5', '4', '12'], ['NAVI', '5', '3', '9', '+6']]);
+  await expect(menu.getByTestId('cue-rows-flag')).toHaveCount(1);
+  await expect(menu.getByTestId('cue-rows-flag')).toContainText('4 values for 3 columns');
+  await menu.getByTestId('cue-rows-fill').click();
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue('P | W | PTS');
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Liquid | 5 | 4 | 12\nNAVI | 5 | 3 | 9 | +6');
+  await expect(preview.locator('.results-board-col')).toHaveText(['P', 'W', 'PTS']);
+  await expect(preview.locator('.results-board-row')).toHaveCount(2);
+  expect((await starter()).text).toBe('Name,P,W,PTS\r\nLiquid,5,4,12\r\nNAVI,5,3,9,+6\r\n');
+  await page.keyboard.press('Escape');
+
+  // ── Credits: headings, a role waiting for names, a section break. ──
+  await paste(3, [['Role', 'Name'], ['# CREW', ''], ['Director', 'Ann Lee'], ['Camera', ''], ['', 'Bo Chen'], ['', ''], ['# THANKS', '']]);
+  await expect(menu.getByTestId('cue-rows-flag')).toHaveCount(0);
+  await menu.getByTestId('cue-rows-fill').click();
+  const credits = '# CREW\nDirector | Ann Lee\nCamera:\nBo Chen\n\n# THANKS';
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue(credits);
+  await expect(preview.locator('#credits-track')).toContainText('Ann Lee');
+  await expect(preview.locator('#credits-track')).toContainText('Bo Chen');
+  expect((await starter()).text).toBe('Role,Name\r\n# CREW,\r\nDirector,Ann Lee\r\nCamera,\r\n,Bo Chen\r\n,\r\n# THANKS,\r\n');
+  await page.keyboard.press('Escape');
+
+  // ── Saved into the cues, with no source and no account: a reload has them, and Take airs one. ──
+  await expect.poll(async () => (await storedCueValues(page, showId))[3]?.f0).toBe(credits);
+  const stored = await storedCueValues(page, showId);
+  expect(stored[0].f0).toContain('Markets | Börsen');
+  expect(stored[2]).toMatchObject({ f3: 'P | W | PTS' });
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('20:00 | News at Eight\n21:00 |\n22:00 | Q | A live');
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="Schedule Board"]');
+  await expect(program.locator('.infographic-row')).toHaveCount(2);
+  await expect(program.locator('.infographic-row').nth(0)).toContainText('News at Eight');
+});
+
+test('a graphic downloads its data template: one Field ID, Label and Value row per value, quoted where a spreadsheet needs it', async ({ page }) => {
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Template Night');
+  await page.getByTestId('cue-field-f0').fill('Smith, "The Rock"');
+  await page.getByTestId('cue-field-f1').fill('007');
+  await page.getByTestId('cue-advanced-toggle').click();
+  const file = await downloaded(page, () => page.getByTestId('cue-data-template').click());
+  expect(file.name).toBe('hairline-data-template.csv');
+  const rows = file.text.trimEnd().split('\r\n');
+  expect(rows[0]).toBe('Field ID,Label,Value');
+  expect(rows[1]).toMatch(/^f0,[^,]+,"Smith, ""The Rock"""$/);
+  expect(rows[2]).toMatch(/^f1,[^,]+,007$/);
+  // Every row names a field of this graphic by its id, once.
+  const ids = rows.slice(1).map((r) => r.split(',')[0]);
+  expect(new Set(ids).size).toBe(ids.length);
+  for (const id of ids) await expect(page.locator(`[data-testid="cue-field-${id}"], [data-testid^="cue-field-${id}-"]`).first()).toBeAttached();
+});
+
+// ── CONNECT DATA: a Google Sheet tab drives a graphic (data-sources C1b; sheet-data-flow AC-1,
+//    AC-2, AC-6, AC-7, AC-8) ─────────────────────────────────────────────────────────────────
+// The Sheet is a stub this spec serves itself at Google's export address: the reader builds that
+// address from the stored id and tab, so the route is exactly what a real Sheet would answer.
+
+const SHEET_LINK = 'https://docs.google.com/spreadsheets/d/1NoaCGStubSheet0000000000/edit#gid=0';
+
+/** A stub Sheet tab: the export answers with whatever `tab.csv` holds at the moment of the read. */
+async function stubSheet(page: Page, csv: string): Promise<{ csv: string; status: number; reads: number }> {
+  const tab = { csv, status: 200, reads: 0 };
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, async (route) => {
+    tab.reads += 1;
+    await route.fulfill({ status: tab.status, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: tab.csv });
+  });
+  return tab;
+}
+
+/** Open the edited cue's Connect data… and read the Sheet tab; answers the review. */
+async function readSheetTab(page: Page, link = SHEET_LINK) {
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-link').fill(link);
+  await review.getByTestId('cue-connect-read').click();
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  return review;
+}
+
+/** Reuse the production's one source on the edited cue's graphic; answers the review. */
+async function reuseSource(page: Page) {
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  const reuse = review.getByTestId('cue-connect-reuse');
+  await reuse.selectOption({ index: 1 });
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  return review;
+}
+
+async function storedBindings(page: Page, showId: string) {
+  return page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.id === id);
+    return { bindings: show?.bindings ?? {}, sources: show?.sources ?? [] };
+  }, showId);
+}
+
+test('Connect data previews the whole graphic, connects it in one confirmation and follows the Sheet; cancel, repair, rename, Pause and Disconnect', async ({ page }) => {
+  test.setTimeout(120_000);
+  const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\nRole,Chief Editor\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Sheet Night');
+  await addCatalogGraphic(page, showId, 'Underline');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+  await cues.nth(0).locator('.pd-cue-label').click();
+  const preview = page.frameLocator('iframe[title="Cue preview"]');
+
+  // ── The review: every field's proposal, the counts, the cues it affects, on the real graphic. ──
+  let review = await readSheetTab(page);
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'name');
+  await expect(review.getByTestId('cue-connect-row-f1')).toHaveAttribute('data-status', 'unmatched');
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('1 connected · 1 needs attention · Used by 1 cue');
+  await expect(preview.locator('#f0')).toHaveText('Ann Lee');
+  // Cancel writes nothing, and the preview returns to the cue.
+  await review.getByTestId('cue-connect-cancel').click();
+  await expect(review).toBeHidden();
+  await expect(preview.locator('#f0')).not.toHaveText('Ann Lee');
+  expect(await storedBindings(page, showId)).toEqual({ bindings: {}, sources: [] });
+  await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
+
+  // ── Repair the unmatched field by hand, then ONE confirmation. ──
+  review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-pick-f1').selectOption({ label: 'Role' });
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('2 connected');
+  await review.getByTestId('cue-connect-label').fill('News desk');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const stored = await storedBindings(page, showId);
+  expect(stored.sources).toHaveLength(1);
+  const sourceId = stored.sources[0].id;
+  expect(stored.bindings).toEqual({ Hairline: { f0: `sheet.${sourceId}.values.Name`, f1: `sheet.${sourceId}.values.Role` } });
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: News desk');
+  await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Ann Lee');
+  await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Chief Editor');
+  await expect(page.getByTestId(`source-line-${sourceId}`)).toContainText(/Sheet: News desk · checked \d+ s ago/);
+
+  // ── The equal title on the other graphic stays the cue's own. ──
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-bound-f0')).toHaveCount(0);
+  await expect(page.getByTestId('cue-field-f0')).not.toHaveValue('Ann Lee');
+  await cues.nth(0).locator('.pd-cue-label').click();
+
+  // ── On air, a cell edit reaches PROGRAM with no Take. ──
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="Hairline"]');
+  await expect(program.locator('#f0')).toHaveText('Ann Lee');
+  tab.csv = 'Name,Value\nName,Bo Chen\nRole,Chief Editor\n';
+  await expect(program.locator('#f0')).toHaveText('Bo Chen', { timeout: 15_000 });
+
+  // ── A display rename keeps the connection. ──
+  review = await reuseSource(page);
+  await review.getByTestId('cue-connect-label').fill('Studio guests');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: Studio guests');
+  expect((await storedBindings(page, showId)).bindings.Hairline.f0).toBe(`sheet.${sourceId}.values.Name`);
+
+  // ── Pause holds the values; Resume brings the change. ──
+  const line = page.getByTestId(`source-line-${sourceId}`);
+  await line.getByTestId('source-pause').click();
+  await expect(line).toContainText('paused');
+  tab.csv = 'Name,Value\nName,Cy Dale\nRole,Chief Editor\n';
+  const reads = tab.reads;
+  await page.waitForTimeout(7_000);
+  expect(tab.reads, 'paused: nothing is read').toBe(reads);
+  await expect(program.locator('#f0')).toHaveText('Bo Chen');
+  await line.getByTestId('source-pause').click();
+  await expect(program.locator('#f0')).toHaveText('Cy Dale', { timeout: 10_000 });
+
+  // ── A failed read keeps the values and names the fix. ──
+  tab.status = 403;
+  await expect(line).toContainText('can’t read it (not shared)', { timeout: 10_000 });
+  await expect(line.getByTestId('source-fix')).toContainText('Anyone with the link');
+  await expect(program.locator('#f0')).toHaveText('Cy Dale');
+  tab.status = 200;
+  await expect(line).toContainText('checked', { timeout: 10_000 });
+
+  // ── Disconnect returns the field to the cue holding its last value. ──
+  await page.getByTestId('cue-bound-f0').getByTestId('cue-disconnect').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Cy Dale');
+  await expect(page.getByTestId('cue-bound-f1')).toBeVisible();
+  expect((await storedBindings(page, showId)).bindings).toEqual({ Hairline: { f1: `sheet.${sourceId}.values.Role` } });
+  await page.getByTestId('cue-bound-f1').getByTestId('cue-disconnect').click();
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('Chief Editor');
+  expect(await storedBindings(page, showId), 'the last field gone, the source goes too').toEqual({ bindings: {}, sources: [] });
+  await expect(line).toHaveCount(0);
+});
+
+test('the Playout sources line stays whichever cue is selected, tells checked from changed, and pauses there', async ({ page }) => {
+  test.setTimeout(120_000);
+  const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Sheet Status');
+  await addCatalogGraphic(page, showId, 'Underline');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+  await cues.nth(0).locator('.pd-cue-label').click();
+  const review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-label').fill('Guests');
+  await review.getByTestId('cue-connect-confirm').click();
+  const { sources } = await storedBindings(page, showId);
+  const line = page.getByTestId(`source-line-${sources[0].id}`);
+  const status = line.getByTestId('source-status');
+  await expect(status).toHaveText(/^Sheet: Guests · checked \d+ s ago · changed \d+ s ago$/);
+
+  // The line is the production's: a graphic that follows no source still shows it.
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-connect')).toBeVisible();
+  await expect(line).toBeVisible();
+
+  // Unchanged reads move "checked" and leave "changed" behind, and that is healthy, not stale.
+  const ages = async () => {
+    const m = /checked (\d+) s ago · changed (\d+) s ago/.exec((await status.textContent()) ?? '');
+    return m ? Number(m[2]) - Number(m[1]) : null;
+  };
+  await expect.poll(ages, { timeout: 15_000 }).toBeGreaterThanOrEqual(5);
+  await expect(line).not.toHaveAttribute('data-stale', 'true');
+  // A changed cell brings "changed" back to the read that saw it.
+  tab.csv = 'Name,Value\nName,Bo Chen\n';
+  await expect.poll(ages, { timeout: 12_000 }).toBeLessThanOrEqual(1);
+
+  // Pause and Resume on the line itself.
+  await line.getByTestId('source-pause').click();
+  await expect(status).toHaveText('Sheet: Guests · paused');
+  await expect(line).toHaveAttribute('data-state', 'paused');
+  const reads = tab.reads;
+  await page.waitForTimeout(6_000);
+  expect(tab.reads, 'paused: nothing is read').toBe(reads);
+  // A reload keeps the source, its name and its Pause (data-sources C2: the record holds them).
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(status).toHaveText('Sheet: Guests · paused', { timeout: 20_000 });
+  await page.waitForTimeout(6_000);
+  expect(tab.reads, 'still paused after the reload: nothing is read').toBe(reads);
+  await line.getByTestId('source-pause').click();
+  await expect(status).toHaveText(/checked \d+ s ago/, { timeout: 10_000 });
+  expect(tab.reads).toBeGreaterThan(reads);
+});
+
+test('twelve Sheet rows reach a ticker on air without a new entrance, and an emptied tab clears it', async ({ page }) => {
+  test.setTimeout(120_000);
+  const twelve = Array.from({ length: 12 }, (_, i) => `Headline ${i + 1}`).join('\n');
+  const tab = await stubSheet(page, 'First line\n');
+  await bootstrapGraphic(page, { name: 'News Strip' });
+  await productionFor(page, 'Ticker Sheet');
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="News Strip"]');
+  await expect(program.locator('#ticker-track')).not.toBeEmpty();
+  const stage = page.locator('[data-testid="program-stage"] [data-plays], [data-testid="program-stage"][data-plays]').first();
+  const plays = await stage.getAttribute('data-plays');
+
+  const review = await readSheetTab(page);
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'key');
+  await expect(review.getByTestId('cue-connect-preview')).toContainText('First line');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(program.locator('#f0')).toHaveText('First line', { timeout: 10_000 });
+  // A connected list is read-only here and says where to edit it.
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Edit in the Sheet, or Disconnect to edit here');
+
+  tab.csv = `${twelve}\n`;
+  await expect.poll(async () => ((await program.locator('#f0').textContent()) ?? '').split('\n').length, { timeout: 12_000 }).toBe(12);
+  await expect(program.locator('#ticker-track')).toContainText('Headline 12');
+  await expect(program.locator('#f0')).toHaveText(twelve);
+  await expect(page.getByTestId('cue-bound-f0').locator('textarea')).toHaveValue(twelve);
+  // It updated the running strip: no new entrance was played, nothing was taken.
+  expect(await stage.getAttribute('data-plays')).toBe(plays);
+
+  tab.csv = '';
+  await expect(program.locator('#f0')).toHaveText('', { timeout: 12_000 });
+  await expect(page.getByTestId('sources-line')).toContainText('empty');
+  expect(await stage.getAttribute('data-plays')).toBe(plays);
+});
+
+test('Sheet tabs fill a schedule, standings and credits on air, and each follows its own tab without a new entrance (C7)', async ({ page }) => {
+  // data-sources AC-16: schedule, standings and credits from a Sheet, beside the ticker above.
+  test.setTimeout(120_000);
+  const tabs: Record<string, string> = {
+    '1': 'Time,Programme\n20:00,News at Eight\n22:00,Late show\n',
+    '2': 'Name,P,W,PTS\nLiquid,5,4,12\nNAVI,5,3,9\n',
+    '3': 'Role,Name\n# CREW,\nDirector,Ann Lee\n',
+  };
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/csv',
+      headers: { 'access-control-allow-origin': '*' },
+      body: tabs[new URL(route.request().url()).searchParams.get('gid') ?? ''] ?? '',
+    }),
+  );
+  await bootstrapGraphic(page, { name: 'Schedule Board' });
+  const showId = await productionFor(page, 'Sheet Boards');
+  for (const name of ['League Table', 'Classic Roll']) await addCatalogGraphic(page, showId, name);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(3);
+  for (const [i, gid] of ['1', '2', '3'].entries()) {
+    await cues.nth(i).locator('.pd-cue-label').click();
+    const review = await readSheetTab(page, SHEET_LINK.replace('gid=0', `gid=${gid}`));
+    await review.getByTestId('cue-connect-confirm').click();
+    await expect(review).toBeHidden();
+    await page.getByTestId('verb-take').click();
+  }
+  const program = (title: string) => page.frameLocator(`[data-testid="program-stage"] iframe[title="${title}"]`);
+  const schedule = program('Schedule Board');
+  const table = program('League Table');
+  const roll = program('Classic Roll');
+  await expect(schedule.locator('.infographic-row')).toHaveCount(2, { timeout: 12_000 });
+  await expect(schedule.locator('.infographic-row').nth(0)).toContainText('News at Eight');
+  await expect(table.locator('.results-board-col')).toHaveText(['P', 'W', 'PTS'], { timeout: 12_000 });
+  await expect(table.locator('.results-board-row')).toHaveCount(2);
+  await expect(roll.locator('#credits-track')).toContainText('Ann Lee', { timeout: 12_000 });
+  const stage = page.locator('[data-testid="program-stage"] [data-plays], [data-testid="program-stage"][data-plays]').first();
+  const plays = await stage.getAttribute('data-plays');
+
+  // Each tab changes; each board follows its own, and nothing is taken again.
+  tabs['1'] = 'Time,Programme\n20:00,News at Eight\n22:00,Late show\n23:00,Night film\n';
+  tabs['2'] = 'Name,P,W,PTS\nNAVI,6,4,12\nLiquid,6,4,12\nG2,6,1,3\n';
+  tabs['3'] = 'Role,Name\n# CREW,\nDirector,Ann Lee\nCamera,Bo Chen\n';
+  await expect(schedule.locator('.infographic-row')).toHaveCount(3, { timeout: 12_000 });
+  await expect(schedule.locator('.infographic-row').nth(2)).toContainText('Night film');
+  await expect(table.locator('.results-board-row')).toHaveCount(3, { timeout: 12_000 });
+  await expect(table.locator('.results-board-row').nth(0)).toContainText('NAVI');
+  await expect(roll.locator('#credits-track')).toContainText('Bo Chen', { timeout: 12_000 });
+  expect(await stage.getAttribute('data-plays')).toBe(plays);
+});
+
+test('one Sheet score on two boards updates both; a ± press moves the shared value until its cell changes', async ({ page }) => {
+  test.setTimeout(120_000);
+  const tab = await stubSheet(page, 'Field ID,Label,Value\nf1,Home score,0\n');
+  await bootstrapGraphic(page, { name: 'House Score' });
+  const showId = await productionFor(page, 'Sheet Derby');
+  await addSecondGraphic(page, 'Club Scorebug', showId);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+
+  let review = await readSheetTab(page);
+  await expect(review.getByTestId('cue-connect-row-f1')).toHaveAttribute('data-status', 'key');
+  await review.getByTestId('cue-connect-confirm').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  // Sharing is explicit: the second board reuses the source by choice, and the review counts both.
+  review = await reuseSource(page);
+  await expect(review.getByTestId('cue-connect-summary')).toContainText('Used by 2 cues');
+  await review.getByTestId('cue-connect-confirm').click();
+  const { bindings, sources } = await storedBindings(page, showId);
+  expect(sources).toHaveLength(1);
+  expect(bindings['House Score'].f1).toBe(bindings['Club Scorebug'].f1);
+
+  await cues.nth(0).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const strip = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="20"]');
+  const bug = page.frameLocator('[data-testid="program-stage"] iframe[data-layer="21"]');
+  tab.csv = 'Field ID,Label,Value\nf1,Home score,2\n';
+  await expect(strip.locator('#f1')).toHaveText('2', { timeout: 12_000 });
+  await expect(bug.locator('#f1')).toHaveText('2');
+
+  // The operator wins: one press moves the shared value on both boards, and the unchanged cell
+  // does not put it back.
+  await page.getByTestId('live-number-f1-up').click();
+  await expect(bug.locator('#f1')).toHaveText('3');
+  await expect(strip.locator('#f1')).toHaveText('3');
+  await page.waitForTimeout(7_000);
+  await expect(strip.locator('#f1')).toHaveText('3');
+  // The cell changes: the Sheet wins again.
+  tab.csv = 'Field ID,Label,Value\nf1,Home score,5\n';
+  await expect(strip.locator('#f1')).toHaveText('5', { timeout: 12_000 });
+  await expect(bug.locator('#f1')).toHaveText('5');
+});
+
+test('a connected field the graphic lacks is flagged, a removed graphic is named, and a graphic that reads a Sheet itself is refused', async ({ page }) => {
+  test.setTimeout(120_000);
+  await stubSheet(page, 'Name,Value\nName,Ann Lee\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Sheet Repairs');
+  await addCatalogGraphic(page, showId, 'Underline');
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+  await cues.nth(0).locator('.pd-cue-label').click();
+  let review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await cues.nth(1).locator('.pd-cue-label').click();
+  review = await reuseSource(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(page.getByTestId('cue-bound-f0')).toBeVisible();
+
+  // A connection to a field Hairline does not have (its template changed under it).
+  const { sources } = await storedBindings(page, showId);
+  await page.evaluate(
+    async ({ showId, path }) => {
+      const { setFieldBindings } = await import('/src/model/shows.ts');
+      setFieldBindings(showId, [{ graphic: 'Hairline', fieldId: 'f9', path }]);
+    },
+    { showId, path: `sheet.${sources[0].id}.values.Name` },
+  );
+  await cues.nth(0).locator('.pd-cue-label').click();
+  const missing = page.getByTestId('cue-source-missing');
+  await expect(missing).toContainText('F9 is connected to Sheet: Hairline, but this graphic has no F9');
+  await missing.getByTestId('cue-disconnect-f9').click();
+  await expect(missing).toHaveCount(0);
+
+  // Underline leaves the production: the review names it instead of redirecting its connection.
+  await page.evaluate(async (showId) => {
+    const { loadShows, removeShowGraphic } = await import('/src/model/shows.ts');
+    const g = loadShows().find((s) => s.id === showId)?.graphics.find((x) => x.name === 'Underline');
+    if (g) removeShowGraphic(showId, g.id);
+  }, showId);
+  await expect(cues).toHaveCount(1);
+  review = await reuseSource(page);
+  await expect(review.getByTestId('cue-connect-removed')).toContainText('Underline no longer in this production');
+  await review.getByTestId('cue-connect-cancel').click();
+
+  // A graphic whose own code reads a Sheet is refused until that code moves here.
+  await page.evaluate(async (showId) => {
+    const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const template = loadShows().find((s) => s.id === showId)!.graphics[0].template;
+    const js = `${template.js}\n${liveDataBlock({ csvUrl: 'https://docs.google.com/spreadsheets/d/e/x/pub?output=csv', pollSeconds: 5, fields: template.fields })}`;
+    addGraphicToShow(showId, { ...template, name: 'Legacy Card', js });
+  }, showId);
+  await expect(cues).toHaveCount(2);
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('cue-connect').click();
+  await expect(page.getByTestId('cue-connect-legacy')).toContainText('reads a Sheet in its own code');
+  await expect(page.getByTestId('cue-connect-link')).toHaveCount(0);
+});
+
+test('one way to connect a Sheet: a graphic with its own reader still updates on air, is listed without Pause, and moves here only through Stop its own reader (C6)', async ({ page }) => {
+  test.setTimeout(100_000);
+  // The graphic's own block reads this address every second, as a saved graphic's would.
+  const own = { csv: 'Name,Title\nLive Ada,From The Sheet\n' };
+  await page.context().route('http://sheet-test.local/legacy.csv', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: own.csv }),
+  );
+  await stubSheet(page, 'Name,Value\nName,Bo Chen\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Legacy Sheet');
+  await page.evaluate(async (showId) => {
+    const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
+    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const template = loadShows().find((s) => s.id === showId)!.graphics[0].template;
+    const js = `${template.js}\n${liveDataBlock({ csvUrl: 'http://sheet-test.local/legacy.csv', pollSeconds: 1, fields: template.fields })}`;
+    addGraphicToShow(showId, { ...template, name: 'Legacy Card', js });
+  }, showId);
+  const cues = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+
+  // ── Retained: listed beside the sources, honestly without a Pause it could not keep. ──
+  const ownLine = page.getByTestId('own-reader-line');
+  await expect(ownLine).toContainText('Sheet in Legacy Card’s own code');
+  await expect(ownLine).toContainText('Pause does not stop it');
+  await expect(ownLine.getByRole('button')).toHaveCount(0);
+  // The Data view lists it as a source too, and its Advanced bindings refuse a second writer,
+  // as the binding write itself does whatever the door.
+  const data = await openData(page);
+  await expect(data.getByTestId('own-reader-line')).toContainText('Pause does not stop it');
+  await expect(data.getByTestId('bind-own-reader-Legacy Card-f0')).toContainText('reads a Sheet in its own code');
+  await data.close();
+  const boundAnyway = await page.evaluate(async (showId) => {
+    const { setFieldBinding, loadShows } = await import('/src/model/shows.ts');
+    setFieldBinding(showId, 'Legacy Card', 'f0', 'guest.name');
+    return loadShows().find((s) => s.id === showId)!.bindings?.['Legacy Card'] ?? null;
+  }, showId);
+  expect(boundAnyway).toBeNull();
+
+  // ── Retained: its block still drives the graphic on air. ──
+  await cues.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="Legacy Card"]');
+  await expect(program.locator('#f0')).toHaveText('Live Ada', { timeout: 10_000 });
+  own.csv = 'Name,Title\nLive Grace,Second row\n';
+  await expect(program.locator('#f0')).toHaveText('Live Grace', { timeout: 10_000 });
+
+  // ── The explicit migration: Connect data… offers it first, Keep it changes nothing. ──
+  await page.getByTestId('cue-connect').click();
+  const menu = page.getByTestId('cue-connect-menu');
+  await expect(menu.getByTestId('cue-connect-legacy')).toContainText('Legacy Card reads a Sheet in its own code (http://sheet-test.local/legacy.csv)');
+  await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+  await menu.getByTestId('cue-connect-keep').click();
+  await expect(menu).toBeHidden();
+  await page.getByTestId('cue-connect').click();
+  await menu.getByTestId('cue-connect-retire').click();
+  // The reader is gone from the production's copy, the line with it, and the review is here.
+  await expect(menu.getByTestId('cue-connect-link')).toBeVisible();
+  await expect(ownLine).toHaveCount(0);
+  const legacyJs = await page.evaluate(async (showId) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === showId)!.graphics.find((g) => g.name === 'Legacy Card')!.template.js;
+  }, showId);
+  expect(legacyJs).not.toContain('== LIVE DATA');
+  await menu.getByTestId('cue-connect-link').fill(SHEET_LINK);
+  await menu.getByTestId('cue-connect-read').click();
+  await expect(menu.getByTestId('cue-connect-map')).toBeVisible();
+  await menu.getByTestId('cue-connect-confirm').click();
+  await expect(menu).toBeHidden();
+  const stored = await storedBindings(page, showId);
+  expect(stored.bindings['Legacy Card']).toEqual({ f0: `sheet.${stored.sources[0].id}.values.Name` });
+
+  // ── One writer: the production's Sheet moves the field, and the old address no longer can. ──
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('#f0')).toHaveText('Bo Chen', { timeout: 15_000 });
+  own.csv = 'Name,Title\nLive Zed,Old reader\n';
+  // Three of the old block's one-second polls, had it survived the rebuild.
+  await page.waitForTimeout(3_500);
+  await expect(program.locator('#f0')).toHaveText('Bo Chen');
+});
+
+/**
+ * A PUBLISHED PRODUCTION FOR THE OWN-READER MIGRATION (C6), with no remote project: the backend is
+ * stood in on the network (as production-controls.spec.ts does), its resolve answers `wire.fixture`,
+ * and its Realtime socket plays one output's Presence entry, `wire.output` (null: none joined), so
+ * the page's positive evidence (presence joined, the outputs' versions, what is on air) is driven
+ * here. `silent` leaves the Presence join unanswered; `resolveDelayMs` holds the resolve back so
+ * Presence answers first; `resolved` and `presenceSent` count what was answered. Every other
+ * request answers empty.
+ */
+interface LegacyWire {
+  fixture: Record<string, unknown> | null;
+  output: { ver: { n: number; h: string }; waiting?: string[] } | null;
+  silent?: boolean;
+  resolveDelayMs?: number;
+  resolved?: number;
+  presenceSent?: number;
+}
+
+async function standInBackend(page: Page, wire: LegacyWire): Promise<void> {
+  const backend = 'https://legacy.supabase.test';
+  await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: `
+    export function loadBackendConfig() { return { url: '${backend}', anonKey: 'anon-test-key' }; }
+    export function isBackendConfigured(cfg = loadBackendConfig()) { return Boolean(cfg.url && cfg.anonKey); }
+  ` }));
+  await page.route(`${backend}/**`, (route) => {
+    const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const path = new URL(route.request().url()).pathname;
+    if (!path.endsWith('/rpc/control_show_resolve')) return route.fulfill({ status: 200, headers, body: '[]' });
+    const body = JSON.stringify(wire.fixture);
+    return new Promise<void>((done) => setTimeout(done, wire.resolveDelayMs ?? 0))
+      .then(() => route.fulfill({ status: 200, headers, body }))
+      .then(() => {
+        wire.resolved = (wire.resolved ?? 0) + 1;
+      })
+      .catch(() => {});
+  });
+  // Realtime, protocol 2.0.0 (JSON arrays): every push is answered ok, and a join of a `live-`
+  // topic is answered with the output's Presence entry.
+  await page.routeWebSocket(/legacy\.supabase\.test\/realtime\/v1\/websocket/, (ws) => {
+    ws.onMessage((message) => {
+      if (typeof message !== 'string') return;
+      const [joinRef, ref, topic, event, payload] = JSON.parse(message) as [string | null, string | null, string, string, Record<string, unknown>];
+      if (ref === null) return;
+      if (event === 'phx_join' && topic.startsWith('realtime:live-') && wire.silent) return;
+      const changes = event === 'phx_join' ? ((payload.config as { postgres_changes?: object[] } | undefined)?.postgres_changes ?? []) : [];
+      const response = event === 'phx_join' ? { postgres_changes: changes.map((c, i) => ({ ...c, id: i + 1 })) } : {};
+      ws.send(JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response }]));
+      if (event !== 'phx_join' || !topic.startsWith('realtime:live-') || !wire.output) return;
+      const { ver, waiting } = wire.output;
+      const entry = {
+        kind: 'output', id: 'legacyout01', engine: 'OBS · Chromium 127', build: 'test', proto: 1, surface: 'output', log: true, cmd: true, at: Date.now(),
+        ready: { n: 1, of: 1, v: ver, is: [], ...(waiting ? { chg: { s: 'waiting', v: ver, of: 1, n: 0, air: waiting.length, w: waiting } } : {}) },
+      };
+      ws.send(JSON.stringify([joinRef, null, topic, 'presence_state', { legacyout01: { metas: [{ phx_ref: 'legacy-ref-1', ...entry }] } }]));
+      wire.presenceSent = (wire.presenceSent ?? 0) + 1;
+    });
+  });
+}
+
+/** Seed a library graphic whose code reads a Sheet, used by a published production ("Live Night")
+ *  and one other, with the resolve answering what it published. */
+async function seedPublishedLegacy(page: Page, wire: LegacyWire): Promise<{ docId: string; showId: string; cueId: string }> {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  const seeded = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { liveDataBlock } = await import('/src/control/liveData.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
+    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const template = variantsFor('lower-third')[0].create({});
+    const js = `${template.js}\n${liveDataBlock({ csvUrl: 'http://sheet-test.local/library.csv', pollSeconds: 60, fields: template.fields })}`;
+    const { doc, error } = createGraphic({ ...template, js }, { name: 'Library Card' });
+    if (error || !doc) throw new Error(error ?? 'seed failed');
+    const live = createShowNamed('Live Night');
+    addGraphicToShow(live.id, doc.template, { graphicId: doc.id });
+    setShowHostedSlug(live.id, 'legacy-slug');
+    setShowOutputSlug(live.id, 'legacy-output');
+    const other = createShowNamed('Other Night');
+    addGraphicToShow(other.id, doc.template, { graphicId: doc.id });
+    const show = loadShows().find((s) => s.id === live.id)!;
+    const output = await buildOutputPayload(show);
+    output.ver = await stampPayload(output, null);
+    const cueId = show.cues!.find((c) => c.sourceId === show.graphics[0].id)!.id;
+    return { docId: doc.id, cueId, fixture: { id: live.id, title: live.name, output, live: {}, staged: {}, last_event_id: 0 } };
+  });
+  wire.fixture = seeded.fixture;
+  await settleDurableWrites(page);
+  return { docId: seeded.docId, showId: seeded.fixture.id, cueId: seeded.cueId };
+}
+
+/** What Publish does after Stop (refresh the copy from the design through the app's own
+ *  `refreshGraphicCopies`, which records the stop, then publish a payload without the reader, a
+ *  new version), with the graphic still on air: the output keeps its old frame. */
+async function publishWithoutReader(page: Page, wire: LegacyWire, ids: { showId: string; cueId: string }): Promise<{ n: number; h: string }> {
+  const fixture = wire.fixture as { output: { ver: unknown } };
+  const published = await page.evaluate(async ({ showId, previous }) => {
+    const { loadShows, refreshGraphicCopies } = await import('/src/model/shows.ts');
+    const { loadGraphics, resolveSavedGraphicDoc } = await import('/src/model/library.ts');
+    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const library = loadGraphics();
+    refreshGraphicCopies(showId, (g) => {
+      const doc = resolveSavedGraphicDoc(g, library);
+      return doc ? { template: doc.template, updatedAt: doc.updatedAt } : undefined;
+    });
+    const output = await buildOutputPayload(loadShows().find((s) => s.id === showId)!);
+    output.ver = await stampPayload(output, previous as never);
+    return output;
+  }, { showId: ids.showId, previous: fixture.output.ver });
+  await settleDurableWrites(page);
+  wire.fixture = { ...wire.fixture, output: published, live_cue: { v: 2, layers: { 'Library Card': { cue: ids.cueId } } } };
+  const ver = (published as { ver: { n: number; h: string } }).ver;
+  return { n: ver.n, h: ver.h };
+}
+
+/** The production's record and this browser's own-reader stores, read through the app. */
+async function ownReaderState(page: Page, showId: string) {
+  return page.evaluate(async (showId) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { formerReaders, ownReaderHolds } = await import('/src/model/ownReaderHolds.ts');
+    const show = loadShows().find((s) => s.id === showId)!;
+    return {
+      stops: show.ownReaderStops ?? [],
+      copy: show.graphics[0].template.js.includes('== LIVE DATA'),
+      former: [...formerReaders(showId)],
+      holds: [...ownReaderHolds(showId)],
+    };
+  }, showId);
+}
+
+/** Try the binding write directly, as any door does; answers what it stored. */
+async function bindAnyway(page: Page, showId: string) {
+  return page.evaluate(async (showId) => {
+    const { setFieldBinding, loadShows } = await import('/src/model/shows.ts');
+    setFieldBinding(showId, 'Library Card', 'f0', 'guest.name');
+    return loadShows().find((s) => s.id === showId)!.bindings?.['Library Card'] ?? null;
+  }, showId);
+}
+
+/** Open the production, or reload it when it is open (a hash-only goto would not resolve again). */
+async function openLegacyConnect(page: Page, showId: string) {
+  if (page.url().includes(`#/production/${showId}`)) await page.reload();
+  else await page.goto(`/app#/production/${showId}`);
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('cue-connect').click();
+  return page.getByTestId('cue-connect-menu');
+}
+
+test('a library graphic with its own reader on a published production: Stop removes it from the design for every production, Connect waits for Publish, then for the clear, across a reload (C6)', async ({ page }) => {
+  test.setTimeout(110_000);
+  const wire: LegacyWire = { fixture: null, output: null };
+  await standInBackend(page, wire);
+  const ids = await seedPublishedLegacy(page, wire);
+  let menu = await openLegacyConnect(page, ids.showId);
+  // The removal reaches the shared design, and says how far.
+  await expect(menu.getByTestId('cue-connect-retire-scope')).toContainText('also in 1 other production using it');
+  await menu.getByTestId('cue-connect-retire').click();
+  // Published: the output runs the copy, which keeps the reader until Publish.
+  await expect(menu.getByTestId('cue-connect-publish-first')).toContainText('Publish changes, then connect here');
+  await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+  await expect(page.getByTestId('own-reader-line')).toContainText('Sheet in Library Card’s own code');
+  const design = await page.evaluate(async (docId) => (await import('/src/model/library.ts')).loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'), ids.docId);
+  expect(design).toBe(false);
+  // The copy keeps it (synced, so every browser refuses on it) until Publish.
+  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: [], copy: true, former: ['Library Card'], holds: ['Library Card'] });
+
+  // ── Published without the reader, still on air: the output keeps the old frame until the clear. ──
+  const ver = await publishWithoutReader(page, wire, ids);
+  // Publish recorded the stop on the production itself, for every browser.
+  expect((await ownReaderState(page, ids.showId)).stops).toEqual(['Library Card']);
+  wire.output = { ver, waiting: ['Library Card'] };
+  // A reload in the middle: the copy, the design and the payload are clean, and the hold restores.
+  menu = await openLegacyConnect(page, ids.showId);
+  await expect(menu.getByTestId('cue-connect-clear-first')).toContainText('take it out, then connect here');
+  await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+  await expect(page.getByTestId('own-reader-line')).toHaveCount(0);
+  expect(await bindAnyway(page, ids.showId)).toBeNull();
+  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: ['Library Card'], copy: false, former: ['Library Card'], holds: ['Library Card'] });
+
+  // ── Anything short of positive evidence keeps it held, whatever else is true. ──
+  const stillHeld = async (why: string, answered: () => boolean) => {
+    menu = await openLegacyConnect(page, ids.showId);
+    await expect.poll(answered, { message: `${why}: the wire answered` }).toBe(true);
+    // Settled: a release would have been written by now (it is one effect after the answer).
+    await page.waitForTimeout(1_000);
+    await expect(menu.getByTestId('cue-connect-clear-first'), why).toBeVisible();
+    expect((await ownReaderState(page, ids.showId)).stops, why).toEqual(['Library Card']);
+  };
+  const answeredAfter = (resolved: number, presence: number) => () => (wire.resolved ?? 0) > resolved && (wire.presenceSent ?? 0) > presence;
+  // Off air, but the output still holds the version before (it has not taken the Out's swap).
+  wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: {} } };
+  wire.output = { ver: { n: ver.n - 1, h: 'the-version-before' } };
+  await stillHeld('an output on another version', answeredAfter(wire.resolved ?? 0, wire.presenceSent ?? 0));
+  // Off air, but Presence never joins: no output can be judged.
+  wire.output = { ver };
+  wire.silent = true;
+  await stillHeld('Presence not joined', ((r) => () => (wire.resolved ?? 0) > r)(wire.resolved ?? 0));
+  wire.silent = false;
+  // On air with no output in Presence (one can drop out and keep its frame), and the page reopened:
+  // an on-air map is not evidence until the resolve has answered, however late.
+  wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: { 'Library Card': { cue: ids.cueId } } } };
+  wire.output = null;
+  wire.resolveDelayMs = 2_500;
+  await stillHeld('live state not yet recovered', ((r) => () => (wire.resolved ?? 0) > r)(wire.resolved ?? 0));
+  wire.resolveDelayMs = 0;
+
+  // ── Positive evidence: off air, the live state recovered, the output on the published version. ──
+  wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: {} } };
+  wire.output = { ver };
+  menu = await openLegacyConnect(page, ids.showId);
+  await expect(menu.getByTestId('cue-connect-link')).toBeVisible();
+  await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: [], copy: false, former: [], holds: [] });
+  expect(await bindAnyway(page, ids.showId)).toEqual({ f0: 'guest.name' });
+});
+
+test('a reader stopped in one browser holds the graphic in another that never saw it, until positive evidence releases it (C6)', async ({ page, browser }) => {
+  test.setTimeout(110_000);
+  const wire: LegacyWire = { fixture: null, output: null };
+  await standInBackend(page, wire);
+  const ids = await seedPublishedLegacy(page, wire);
+  // Browser A stops the reader and publishes while the graphic is on air.
+  const menuA = await openLegacyConnect(page, ids.showId);
+  await menuA.getByTestId('cue-connect-retire').click();
+  await expect(menuA.getByTestId('cue-connect-publish-first')).toBeVisible();
+  const ver = await publishWithoutReader(page, wire, ids);
+  wire.output = { ver, waiting: ['Library Card'] };
+  // What reaches another browser is the synced production record and library design, exactly as
+  // A stored them; nothing of A's own device-local history comes with it.
+  const synced = await page.evaluate(async () => {
+    const { durable } = await import('/src/model/durableStore.ts');
+    return { shows: durable.getItem('spx-gfx-shows'), graphics: durable.getItem('spx-gfx-graphics') };
+  });
+  await page.close();
+
+  const other = await browser.newContext();
+  try {
+    const b = await other.newPage();
+    await standInBackend(b, wire);
+    await b.goto('/app#/home');
+    await expect(b.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+    await awaitDurableReady(b);
+    await b.evaluate(async (synced) => {
+      const { durable } = await import('/src/model/durableStore.ts');
+      durable.setItem('spx-gfx-graphics', synced.graphics!);
+      durable.setItem('spx-gfx-shows', synced.shows!);
+      await new Promise((r) => setTimeout(r));
+    }, synced);
+    await settleDurableWrites(b);
+    // It never saw the reader: design, copy and payload are clean, and it has no history of its own.
+    expect(await ownReaderState(b, ids.showId)).toEqual({ stops: ['Library Card'], copy: false, former: [], holds: [] });
+    // Every binding door refuses, Connect included, while the output may still run the old frame.
+    expect(await bindAnyway(b, ids.showId)).toBeNull();
+    let menu = await openLegacyConnect(b, ids.showId);
+    await expect(menu.getByTestId('cue-connect-clear-first')).toBeVisible();
+    await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+    await expect.poll(() => ownReaderState(b, ids.showId)).toMatchObject({ stops: ['Library Card'], holds: ['Library Card'] });
+    const data = await openData(b);
+    await expect(data.getByTestId('bind-own-reader-Library Card-f0')).toContainText('reads a Sheet in its own code');
+    await data.close();
+
+    // Taken out and the output on the published version: released, here and on the record.
+    wire.fixture = { ...wire.fixture, live_cue: { v: 2, layers: {} } };
+    wire.output = { ver };
+    menu = await openLegacyConnect(b, ids.showId);
+    await expect(menu.getByTestId('cue-connect-link')).toBeVisible();
+    await expect.poll(() => ownReaderState(b, ids.showId)).toEqual({ stops: [], copy: false, former: [], holds: [] });
+    expect(await bindAnyway(b, ids.showId)).toEqual({ f0: 'guest.name' });
+  } finally {
+    await other.close();
+  }
+});
+
+test('a new graphic is offered no graphic-level Sheet panel (C6)', async ({ page }) => {
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
+  await expect(page.getByText(/^Operator fields ·/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Live data', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add live data' })).toHaveCount(0);
+});
+
+test('Connect closes only once the save landed, and a changed link needs a fresh read', async ({ page }) => {
+  test.setTimeout(120_000);
+  await armStorageFailure(page);
+  await stubSheet(page, 'Name,Value\nName,Ann Lee\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionFor(page, 'Sheet Saves');
+
+  // Editing the link after a read drops that read: nothing old can be connected.
+  let review = await readSheetTab(page);
+  await review.getByTestId('cue-connect-link').fill(`${SHEET_LINK}0`);
+  await expect(review.getByTestId('cue-connect-map')).toHaveCount(0);
+  await expect(review.getByTestId('cue-connect-confirm')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // Storage refuses the write: the review stays, says so, and Connect can be pressed again.
+  review = await readSheetTab(page);
+  await fillStorage(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review.getByTestId('cue-connect-save-error')).toContainText('Not saved');
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  await freeStorage(page);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: Hairline');
+});
+
+// ── A NEWS FEED drives a ticker (data-sources C4; AC-5, AC-11) ───────────────────────────────
+// The feed is a stub this spec serves at NoaCG's own feed route, which is what the page asks: the
+// page never reads a feed itself. The route's guard and cache are the Node test's
+// (scripts/feed-fetch.test.mjs) and the configured spec's (e2e/configured/feed-route.spec.ts).
+
+const FEED_ADDRESS = 'https://news.example/rss.xml';
+
+/** A stub of the feed route: it answers whatever `feed` holds at the moment of the read. */
+async function stubFeed(page: Page, items: string[]) {
+  const feed = { items, failing: false, asked: [] as string[] };
+  await page.context().route(/\/api\/data\/feed\?/, async (route) => {
+    feed.asked.push(new URL(route.request().url()).searchParams.get('url') ?? '');
+    await route.fulfill(
+      feed.failing
+        ? { status: 502, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'the feed answered 500', fix: 'Reading carries on by itself.', failingSince: null, items: feed.items }) }
+        : { status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, items: feed.items, fetchedAt: new Date().toISOString() }) },
+    );
+  });
+  return feed;
+}
+
+test('a pasted news feed fills a ticker with its headlines, and a failed fetch keeps the list and says since when', async ({ page }) => {
+  test.setTimeout(120_000);
+  const feed = await stubFeed(page, ['Storm warning for the coast', 'Markets close higher', 'Local team wins final']);
+  await bootstrapGraphic(page, { name: 'News Strip' });
+  const showId = await productionFor(page, 'Feed Ticker');
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="News Strip"]');
+  await expect(program.locator('#ticker-track')).not.toBeEmpty();
+
+  // A ticker's Connect data… takes a feed's address in the same box as a Sheet's link.
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-link').fill(FEED_ADDRESS);
+  await review.getByTestId('cue-connect-read').click();
+  await expect(review.getByTestId('cue-connect-preview')).toContainText('Storm warning for the coast');
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'key');
+  expect(feed.asked).toEqual([FEED_ADDRESS]);
+  await review.getByTestId('cue-connect-confirm').click();
+
+  const headlines = 'Storm warning for the coast\nMarkets close higher\nLocal team wins final';
+  await expect(program.locator('#f0')).toHaveText(headlines, { timeout: 10_000 });
+  await expect(page.getByTestId('cue-bound-f0')).toContainText('Connected to News feed');
+  await expect(page.getByTestId('cue-connected-mark')).toContainText('News feed: News Strip');
+  const stored = await storedBindings(page, showId);
+  expect(stored.sources).toEqual([{ id: expect.any(String), kind: 'feed', label: 'News Strip', config: { url: FEED_ADDRESS } }]);
+  expect(stored.bindings['News Strip']).toEqual({ f0: `feed.${stored.sources[0].id}.lines` });
+  const line = page.getByTestId('sources-line');
+  await expect(line).toContainText('News feed: News Strip');
+  await expect(line.locator('[data-testid^="source-line-"]')).toHaveAttribute('title', /about every 5 min/);
+
+  // The feed fails: Resume reads at once, nothing is written, the ticker keeps its list, and the
+  // line says what failed and since when.
+  feed.failing = true;
+  feed.items = ['Should not air'];
+  await line.getByTestId('source-pause').click();
+  await expect(line.getByTestId('source-pause')).toHaveText('Resume');
+  await line.getByTestId('source-pause').click();
+  await expect(line.getByTestId('source-status')).toContainText(/the feed answered 500 since \d{1,2}[:.]\d{2}/, { timeout: 10_000 });
+  await expect(line.getByTestId('source-fix')).toContainText('Reading carries on by itself');
+  await expect(program.locator('#f0')).toHaveText(headlines);
+  await expect(page.getByTestId('cue-bound-f0').locator('textarea')).toHaveValue(headlines);
 });

@@ -1,8 +1,9 @@
 // covers: src/blocks/**, src/components/{AssetsPanel.tsx,InsertTemplateDialog.tsx}
+// covers: src/components/editorFoundation/{EditorFoundation.tsx,operations.ts,session.ts,Inspector.tsx}
 
 import { test, expect, type Page } from '@playwright/test';
-import { createProject } from './_create';
-import { awaitPreviewRebuild } from './_preview';
+import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
+import { editorPreview, mountWorkingDocument } from './_frame';
 
 // "Add template graphic" (Assets panel ✚): insert a catalog graphic INTO the current
 // project — namespaced classes, renumbered fields, the donor's :root scoped onto the
@@ -10,9 +11,10 @@ import { awaitPreviewRebuild } from './_preview';
 // undo step, never replacing the project. blocks/templateInsert.ts is the merge under test.
 
 async function openInsertDialog(page: Page) {
-  await page.getByTestId('dock-tab-assets').click();
+  await page.getByRole('button', { name: /^Project [▾▸]$/ }).click();
   await page.getByTestId('assets-insert-template').click();
   await expect(page.getByTestId('insert-tpl-dialog')).toBeVisible();
+  await expect(page.getByTestId('insert-tpl-close')).toBeFocused();
 }
 
 const state = (page: Page) =>
@@ -23,6 +25,8 @@ const state = (page: Page) =>
     const t = useTemplateStore.getState().template;
     const data = parseAnimData(t.js);
     return {
+      template: t,
+      anim: data,
       html: t.html,
       css: t.css,
       fields: t.fields.map((f) => ({ field: f.field, title: f.title })),
@@ -37,12 +41,19 @@ const state = (page: Page) =>
   });
 
 test('insert an info card into a lower third — project preserved, everything namespaced, one undo', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   const before = await state(page);
 
   await openInsertDialog(page);
   await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Info cards' }).click();
-  await awaitPreviewRebuild(page, () => page.getByTestId('insert-tpl-card-card01').click());
+  await expect(page.getByTestId('insert-tpl-card-card01')).toBeVisible();
+  for (const card of (await page.locator('.insert-tpl-card').all()).slice(0, 6)) await expect(card.locator('iframe').contentFrame().locator('.info-card')).toHaveCSS('opacity', '1');
+  await page.screenshot({ path: 'test-results/lean-insert-picker.png' });
+  await page.getByTestId('insert-tpl-card-card01').click();
+  await expect(page.getByTestId('insert-tpl-dialog')).toBeHidden();
+  await expect(editorPreview(page).locator('.info-card-2-box')).toHaveCount(1);
   await expect(page.getByTestId('insert-tpl-dialog')).toBeHidden();
 
   const after = await state(page);
@@ -72,9 +83,10 @@ test('insert an info card into a lower third — project preserved, everything n
   expect(after.steps![after.steps!.length - 1].layers.some((k) => k.includes('info-card-2'))).toBe(true);
 
   // Both graphics render in the preview.
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = editorPreview(page);
   await expect(frame.locator('.lower-third-box')).toHaveCount(1);
   await expect(frame.locator('.info-card-2-box')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/lean-insert-editor.png' });
 
   // The merged document still passes the export gate.
   const validation = await page.evaluate(async () => {
@@ -85,21 +97,29 @@ test('insert an info card into a lower third — project preserved, everything n
   expect(validation).toEqual([]);
 
   // ONE undo removes the whole insertion.
-  await page.keyboard.press('Control+z');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect.poll(async () => (await state(page)).html).not.toContain('info-card-2');
   const restored = await state(page);
   expect(restored.fields.length).toBe(before.fields.length);
   expect(restored.css).not.toContain(`#${gfxId}`);
+  expect(restored.template).toEqual(before.template);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect.poll(async () => (await state(page)).template).toEqual(after.template);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(async () => (await state(page)).template).toEqual(before.template);
 });
 
 test('insert as a NEW NEXT STEP — a named step reveals the graphic, retargetable afterwards', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   const before = await state(page);
 
   await openInsertDialog(page);
   await page.getByTestId('insert-tpl-placement').selectOption('new-step');
   await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Info cards' }).click();
-  await awaitPreviewRebuild(page, () => page.getByTestId('insert-tpl-card-card01').click());
+  await page.getByTestId('insert-tpl-card-card01').click();
+  await expect(page.getByTestId('insert-tpl-dialog')).toBeHidden();
+  await expect(editorPreview(page).locator('.info-card-2-box')).toHaveCount(1);
 
   const after = await state(page);
   const gfxSel = after.selected!;
@@ -109,26 +129,66 @@ test('insert as a NEW NEXT STEP — a named step reveals the graphic, retargetab
   expect(step.reveals).toContain(gfxSel);
   expect(after.spxSteps).toBe('2');
 
-  // Participation stays a live choice: the inserted graphic is a normal part, so the
-  // canvas chip can send it back to "appears with ▶ Play".
-  const appears = page.getByTestId('canvas-appears');
+  // The selected inserted graphic keeps an appearance choice in the current Inspector.
+  const appears = page.getByRole('combobox', { name: 'Appears', exact: true });
   await expect(appears).toBeVisible();
   await expect(appears).toHaveValue('0');
+  const emitted = await mountWorkingDocument(page);
+  await emitted.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect(emitted.locator(gfxSel)).toHaveCSS('opacity', '0');
+  await emitted.locator('body').evaluate(() => (window as unknown as { next: () => void }).next());
+  await expect(emitted.locator(gfxSel)).toHaveCSS('opacity', '1');
   await appears.selectOption('-1');
   await expect
     .poll(async () => (await state(page)).steps!.every((s) => !s.reveals.includes(gfxSel)))
     .toBe(true);
+  await expect(appears).toHaveValue('-1');
+  const retargeted = await state(page);
+  expect(retargeted.anim!.steps.length).toBe(before.anim!.steps.length);
+  for (const [selector, tracks] of Object.entries(after.anim!.steps[1].layers)) {
+    if (selector !== gfxSel) expect(retargeted.anim!.steps[0].layers[selector]).toEqual(tracks);
+  }
+  const replay = await mountWorkingDocument(page);
+  await replay.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect(replay.locator(gfxSel)).toHaveCSS('opacity', '1');
+  // The emptied press went away, but Play must still be retargetable to a new named step.
+  await expect(appears.locator('option', { hasText: 'New step' })).toHaveCount(1);
+  await appears.selectOption({ label: 'New step' });
+  await expect(appears).toHaveValue('0');
+  const recreated = await state(page);
+  expect(recreated.anim!.steps.length).toBe(before.anim!.steps.length + 1);
+  expect(recreated.anim!.steps[1].reveals).toContain(gfxSel);
+  for (const selector of Object.keys(after.anim!.steps[1].layers)) {
+    if (selector !== gfxSel) expect(recreated.anim!.steps[1].layers[selector]).toEqual(retargeted.anim!.steps[0].layers[selector]);
+  }
+  const nextAgain = await mountWorkingDocument(page);
+  await nextAgain.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect(nextAgain.locator(gfxSel)).toHaveCSS('opacity', '0');
+  await nextAgain.locator('body').evaluate(() => (window as unknown as { next: () => void }).next());
+  await expect(nextAgain.locator(gfxSel)).toHaveCSS('opacity', '1');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(async () => (await state(page)).template).toEqual(retargeted.template);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect.poll(async () => (await state(page)).template).toEqual(recreated.template);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(async () => (await state(page)).template).toEqual(after.template);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect.poll(async () => (await state(page)).template).toEqual(before.template);
 });
 
-test('a STEPPED donor keeps its middle steps — the run joins the host path after the placement', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+test('a STEPPED donor keeps its middle steps — the run joins the host path after the placement', async ({ page, context }) => {
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   const before = await state(page);
   expect(before.steps!.length).toBe(2); // Enter + Out — the host has no presses of its own
 
   await openInsertDialog(page);
   await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Info cards' }).click();
   await page.getByTestId('insert-tpl-steps').selectOption('stepped');
-  await awaitPreviewRebuild(page, () => page.getByTestId('insert-tpl-card-card01').click());
+  await page.getByTestId('insert-tpl-card-card01').click();
+  await expect(page.getByTestId('insert-tpl-dialog')).toBeHidden();
+  await expect(editorPreview(page).locator('.info-card-2-box')).toHaveCount(1);
 
   const after = await state(page);
   // The card's own line-by-line reveal survived as REAL steps of this project's path —
@@ -144,23 +204,46 @@ test('a STEPPED donor keeps its middle steps — the run joins the host path aft
   expect(after.spxSteps).toBe('3');
 
   // Those steps are the timeline's, like any other: the presses exist on the strip.
-  await expect(page.getByTestId('timeline-v2').getByText('Hairline Card 2')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hairline Card 2 flag', exact: true })).toBeVisible();
 
   // And behaviorally, on air: the guest's last line is parked out of its mask until its own
   // press arrives — the merged data drives the host's runtime exactly like a native step.
-  const lastLine = page.frameLocator('iframe.preview-frame').locator(`#${newFields[2]}`);
-  const slid = () =>
-    lastLine.evaluate((el) => {
-      const m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
-      return m.m42 > el.getBoundingClientRect().height / 2;
-    });
+  // The authoring preview deliberately displays artwork at rest. Exercise the emitted
+  // graphic's play/next API separately, keeping the authoring session available for Undo.
+  const html = await page.evaluate(async () => {
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    return composeDocument(useTemplateStore.getState().template);
+  });
+  const runtime = await context.newPage();
+  await runtime.route('**/merged-template-proof.html', route => route.fulfill({ contentType: 'text/html', body: html }));
+  await runtime.goto('/merged-template-proof.html');
+  const lastLine = runtime.locator(`#${newFields[2]}`);
+  const slid = () => lastLine.evaluate(el => {
+    const m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    return m.m42 > el.getBoundingClientRect().height / 2;
+  });
+  const idle = () => runtime.evaluate(() => !(window as unknown as {
+    gsap: { globalTimeline: { getChildren: () => { isActive: () => boolean }[] } };
+  }).gsap.globalTimeline.getChildren().some(child => child.isActive()));
+  await expect(runtime.locator(after.selected!)).toHaveCSS('opacity', '0');
+  await runtime.evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect.poll(idle).toBe(true);
+  await expect(runtime.locator(after.selected!)).toHaveCSS('opacity', '1');
   await expect.poll(slid).toBe(true);
-  await page.getByRole('button', { name: '▶ Play' }).click();
-  await page.waitForTimeout(1100);
+  await runtime.evaluate(() => (window as unknown as { next: () => void }).next());
+  await expect.poll(idle).toBe(true);
   await expect.poll(slid).toBe(true);
-  await page.getByRole('button', { name: '» Next' }).click(); // press 1: the guest's line 1
-  await page.getByRole('button', { name: '» Next' }).click(); // press 2: this line
+  await runtime.evaluate(() => (window as unknown as { next: () => void }).next());
   await expect.poll(slid).toBe(false);
+  await expect(lastLine).toBeVisible();
+  await runtime.evaluate(() => (window as unknown as { stop: () => void }).stop());
+  await expect(runtime.locator(after.selected!)).toHaveCSS('opacity', '0');
+  await runtime.evaluate(() => (window as unknown as { play: () => void }).play());
+  await expect.poll(idle).toBe(true);
+  await expect(runtime.locator(after.selected!)).toHaveCSS('opacity', '1');
+  await expect.poll(slid).toBe(true); // replay re-arms the donor's later lines
+  await runtime.close();
 
   const validation = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -170,17 +253,20 @@ test('a STEPPED donor keeps its middle steps — the run joins the host path aft
   expect(validation).toEqual([]);
 
   // Still ONE undo step, steps and all.
-  await page.keyboard.press('Control+z');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect.poll(async () => (await state(page)).steps!.length).toBe(before.steps!.length);
 });
 
 test('an inserted graphic\'s own text lines are selectable parts, without inflating the host design', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
   const before = await state(page);
 
   await openInsertDialog(page);
   await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Info cards' }).click();
-  await awaitPreviewRebuild(page, () => page.getByTestId('insert-tpl-card-card01').click());
+  await page.getByTestId('insert-tpl-card-card01').click();
+  await expect(page.getByTestId('insert-tpl-dialog')).toBeHidden();
+  await expect(editorPreview(page).locator('.info-card-2-box')).toHaveCount(1);
 
   const after = await state(page);
   // The guest's masked lines joined the registry — named by their (marked) field titles,
@@ -194,55 +280,18 @@ test('an inserted graphic\'s own text lines are selectable parts, without inflat
   // …but "how many lines does THIS design have" is unchanged: a guest is not the host's shape.
   expect(after.countLines).toBe(before.countLines);
 
-  // Every consumer of the registry sees them: a timeline row whose label is a selection
-  // handle, naming the guest's field exactly as the canvas chip would.
+  // The current layer list exposes the inserted text as a named selection handle.
   const guestSel = guests[0].selector;
-  const row = page.locator(`.tlv2-labels .timeline-label[data-part="${guestSel}"]`);
+  const row = page.locator(`.ef-track[data-selector="${guestSel}"] .ef-layer`);
   await expect(row).toContainText('(Hairline Card)');
   await row.click();
   await expect.poll(async () => (await state(page)).selected).toBe(guestSel);
 });
 
-test('after an insertion the Data panel still adds a REAL line to the HOST design', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await openInsertDialog(page);
-  await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Info cards' }).click();
-  await awaitPreviewRebuild(page, () => page.getByTestId('insert-tpl-card-card01').click());
-  const after = await state(page);
-
-  // The guest's lines carry their own prefix; the add belongs to the host, and must not
-  // silently fall back to the definition-only path (a field no element answers).
-  await page.getByTestId('dock-tab-data').click();
-  await page.getByPlaceholder(/Label the operator sees/).fill('Sponsor');
-  await awaitPreviewRebuild(page, () => page.getByRole('button', { name: '+ Add' }).click());
-  const added = await state(page);
-  const newField = added.fields[added.fields.length - 1].field;
-  expect(added.html).toMatch(new RegExp(`<span id="${newField}" class="lower-third-[a-z]+">Sponsor</span>`));
-  expect(added.countLines).toBe(after.countLines + 1);
-  await expect(page.frameLocator('iframe.preview-frame').locator(`#${newField}`)).toHaveText('Sponsor');
-});
-
-test('the canvas context menu opens the same insert flow', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  const canvas = page.getByTestId('canvas-layer');
-  await canvas.click({ button: 'right', position: { x: 200, y: 120 } });
-  const menu = page.getByTestId('canvas-context-menu');
-  await expect(menu).toBeVisible();
-  await page.getByTestId('canvas-ctx-insert-template').click();
-  await expect(menu).toBeHidden();
-  await expect(page.getByTestId('insert-tpl-dialog')).toBeVisible();
-  // Insert from here works end to end.
-  await awaitPreviewRebuild(page, () => page.getByTestId('insert-tpl-card-lt02').click());
-  await expect.poll(async () => (await state(page)).selected).toMatch(/^#gfx-/);
-  // A plain left click closes an open menu without picking anything.
-  await canvas.click({ button: 'right', position: { x: 200, y: 120 } });
-  await expect(page.getByTestId('canvas-context-menu')).toBeVisible();
-  await canvas.click({ position: { x: 400, y: 300 } });
-  await expect(page.getByTestId('canvas-context-menu')).toBeHidden();
-});
-
 test('templates that need their own runtime are greyed with the reason, not hidden', async ({ page }) => {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
+  const before = await state(page);
   await openInsertDialog(page);
   await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Tickers' }).click();
   const card = page.getByTestId('insert-tpl-card-tk01');
@@ -251,5 +300,66 @@ test('templates that need their own runtime are greyed with the reason, not hidd
   await expect(page.getByTestId('insert-tpl-error')).toContainText(/runtime|measured/);
   // The project was NOT touched.
   const st = await state(page);
-  expect(st.html).not.toContain('ticker');
+  expect(st).toEqual(before);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('insert-tpl-dialog')).toHaveCount(0);
+  await expect(page.getByTestId('assets-insert-template')).toBeFocused();
+  await page.getByTestId('assets-insert-template').click();
+  await expect(page.getByTestId('insert-tpl-dialog')).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('insert-tpl-dialog')).toHaveCount(0);
+  await page.goForward();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByTestId('insert-tpl-dialog')).toHaveCount(0);
+  expect((await state(page)).template).toEqual(before.template);
+});
+
+
+test('a saved one-step graphic keeps its entrance when a template adds an Out and appearance step', async ({ page }) => {
+  for (const placement of ['start', 'new-step']) {
+    await bootstrapGraphic(page, 'Hairline');
+    // Fixture setup: an older saved data block has its In only, with no authored machine.
+    await page.evaluate(async () => {
+      const { useTemplateStore, flushPendingProject } = await import('/src/store/templateStore.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { spxSteps } = await import('/src/blocks/animMachine.ts');
+      const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const { writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
+      const store = useTemplateStore.getState(), data = parseAnimData(store.template.js)!;
+      data.steps = data.steps.slice(0, 1); delete data.machine;
+      const settings = { ...store.template.settings, steps: String(spxSteps(data)) };
+      store.applyTemplate({ ...store.template, settings, html: replaceDefinitionInHtml(store.template.html, settings, store.template.fields), js: writeAnimData(store.template.js, data)! }, { resetSampleData: true });
+      flushPendingProject();
+      const error = await commitDurableWrites(); if (error) throw new Error(error);
+      await new Promise(resolve => setTimeout(resolve));
+    });
+    await openWorkingGraphicInEditor(page);
+    const before = await state(page);
+    expect(before.anim!.steps).toHaveLength(1);
+    await openInsertDialog(page);
+    await page.getByTestId('insert-tpl-placement').selectOption(placement);
+    await page.locator('.insert-tpl-cats').getByRole('tab', { name: 'Info cards' }).click();
+    await page.getByTestId('insert-tpl-card-card01').click();
+    await expect(page.getByTestId('insert-tpl-dialog')).toBeHidden();
+    const after = await state(page);
+    expect(after.anim!.steps).toHaveLength(placement === 'start' ? 2 : 3);
+    for (const [selector, tracks] of Object.entries(before.anim!.steps[0].layers)) {
+      expect(after.anim!.steps[0].layers[selector]).toEqual(tracks);
+    }
+    const emitted = await mountWorkingDocument(page), selector = after.selected!;
+    await emitted.locator('body').evaluate(() => (window as unknown as { play: () => void }).play());
+    await expect(emitted.locator(selector)).toHaveCSS('opacity', placement === 'start' ? '1' : '0');
+    if (placement === 'new-step') {
+      await emitted.locator('body').evaluate(() => (window as unknown as { next: () => void }).next());
+      await expect(emitted.locator(selector)).toHaveCSS('opacity', '1');
+    }
+    await emitted.locator('body').evaluate(() => (window as unknown as { stop: () => void }).stop());
+    await expect(emitted.locator(selector)).toHaveCSS('opacity', '0');
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect.poll(async () => (await state(page)).template).toEqual(before.template);
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    await expect.poll(async () => (await state(page)).template).toEqual(after.template);
+  }
 });

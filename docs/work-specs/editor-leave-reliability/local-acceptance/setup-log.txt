@@ -1,0 +1,15 @@
+=== j-4653 node p2-local-acceptance.local/manual-lease.mjs
+=== cwd C:\Users\ahonemi\.codex\worktrees\0ae2\NoaCG-Studio
+Checkout:  C:/Users/ahonemi/.codex/worktrees/0ae2/NoaCG-Studio
+Dev port:  5282 (new reservation)
+Serving:   src/ - the dev server
+App:       http://localhost:5282/app
+Sweeps:    --base http://localhost:5282   (e.g. node scripts/svg-import-sweep.mjs --base http://localhost:5282)
+
+
+  VITE v8.1.4  ready in 674 ms
+
+  ➜  Local:   http://localhost:5282/
+  ➜  Network: use --host to expose
+1:51:51 PM [vite] (client) [optimizer] scanning dependencies...
+1:51:57 PM [vite] (client) [optimizer] bundling dependencies...

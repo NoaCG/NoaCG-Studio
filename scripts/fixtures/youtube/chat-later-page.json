@@ -1,0 +1,91 @@
+{
+ "$comment": "Shapes, counts and times as recorded in docs/work-specs/data-sources/evidence/youtube.md (2026-10-20); every text, name and id is invented.",
+ "kind": "youtube#liveChatMessageListResponse",
+ "etag": "p2",
+ "pollingIntervalMillis": 3145,
+ "pageInfo": {
+  "totalResults": 3,
+  "resultsPerPage": 3
+ },
+ "nextPageToken": "GOCx0Nc",
+ "items": [
+  {
+   "kind": "youtube#liveChatMessage",
+   "etag": "e68",
+   "id": "LCC.msg0068",
+   "snippet": {
+    "type": "textMessageEvent",
+    "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+    "authorChannelId": "UCchat8",
+    "publishedAt": "2026-10-20T21:10:29Z",
+    "hasDisplayContent": true,
+    "displayMessage": "Chat line 68",
+    "textMessageDetails": {
+     "messageText": "Chat line 68"
+    }
+   },
+   "authorDetails": {
+    "channelId": "UCchat8",
+    "channelUrl": "http://www.youtube.com/channel/UCchat8",
+    "displayName": "Chatter 8",
+    "profileImageUrl": "https://yt4.ggpht.com/x",
+    "isVerified": false,
+    "isChatOwner": false,
+    "isChatSponsor": false,
+    "isChatModerator": false
+   }
+  },
+  {
+   "kind": "youtube#liveChatMessage",
+   "etag": "e69",
+   "id": "LCC.msg0069",
+   "snippet": {
+    "type": "textMessageEvent",
+    "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+    "authorChannelId": "UCchat9",
+    "publishedAt": "2026-10-20T21:10:30Z",
+    "hasDisplayContent": true,
+    "displayMessage": "Chat line 69",
+    "textMessageDetails": {
+     "messageText": "Chat line 69"
+    }
+   },
+   "authorDetails": {
+    "channelId": "UCchat9",
+    "channelUrl": "http://www.youtube.com/channel/UCchat9",
+    "displayName": "Chatter 9",
+    "profileImageUrl": "https://yt4.ggpht.com/x",
+    "isVerified": false,
+    "isChatOwner": false,
+    "isChatSponsor": false,
+    "isChatModerator": false
+   }
+  },
+  {
+   "kind": "youtube#liveChatMessage",
+   "etag": "e70",
+   "id": "LCC.msg0070",
+   "snippet": {
+    "type": "textMessageEvent",
+    "liveChatId": "KicKGFVDc2xpdmVjaGF0MDAwMDAwMDAw",
+    "authorChannelId": "UCchat10",
+    "publishedAt": "2026-10-20T21:10:31Z",
+    "hasDisplayContent": true,
+    "displayMessage": "Chat line 70",
+    "textMessageDetails": {
+     "messageText": "Chat line 70"
+    }
+   },
+   "authorDetails": {
+    "channelId": "UCchat10",
+    "channelUrl": "http://www.youtube.com/channel/UCchat10",
+    "displayName": "Chatter 10",
+    "profileImageUrl": "https://yt4.ggpht.com/x",
+    "isVerified": false,
+    "isChatOwner": false,
+    "isChatSponsor": false,
+    "isChatModerator": false
+   }
+  }
+ ]
+}

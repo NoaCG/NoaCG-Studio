@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/CodeEditor.tsx, src/components/video/VideoCodeEditor.tsx
+scope: src/components/video/VideoCodeEditor.tsx
 kind: invariant
 fires: contract
 status: active

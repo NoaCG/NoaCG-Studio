@@ -82,7 +82,14 @@ const inputArg = args.includes('--input') ? args[args.indexOf('--input') + 1] : 
 const ACCEPTED_CLASSES = {
   rls_enabled_no_policy:
     'RLS on with no policies is DENY-ALL. These tables are reached only through SECURITY ' +
-    'DEFINER functions or the service role, which is the stricter posture, not a gap.',
+    'DEFINER functions or the service role, which is the stricter posture, not a gap. ' +
+    'feed_cache (0099, data-sources C4) is the news feed reader\'s shared cache: public headlines ' +
+    'and the addresses typed to read them, written and read only by the service role from the ' +
+    'feed route and the server tick, with every client privilege revoked. ' +
+    'production_source_snapshots (0101, a trusted JSON source\'s accepted revision, epoch and status, ' +
+    'docs/work-specs/playout-external-connectors/ E4.2) is read and written only by the three ' +
+    'service-role control_source_*_by_key functions behind /api/data/source, with every client ' +
+    'privilege revoked and the absence asserted by 0101\'s self-check.',
   anon_security_definer_function_executable:
     'The capability-URL model: an output/control slug is held by an unauthenticated playout ' +
     'client (CasparCG/OBS/vMix), so these RPCs must be anon-callable. docs/CLOUD_PLAYOUT.md. ' +
@@ -120,13 +127,36 @@ const ACCEPTED_CLASSES = {
     'community_pack_shelf and community_pack_file (0079, community packs) are a different door with ' +
     'the same reason to be anon-callable: approved packs are on the wizard shelf for everyone, signed ' +
     'in or not (owner, 2026-10-08). Signed out, both answer only packs in state live; the table ' +
-    'itself grants clients nothing.',
+    'itself grants clients nothing. ' +
+    'audience_operator_add (0095, operator-added messages, docs/work-specs/data-sources/ C0) is ' +
+    'the same control-slug door as audience_list and audience_update: it resolves the slug through ' +
+    'audience_owner_for_control, so the capability and the audience kill switch are checked as for ' +
+    'every operator function, and it only inserts candidates into that production\'s ' +
+    'audience_submissions, at most 100 a call, each clamped to the 0035 limits. It writes no command ' +
+    'log and no production value; a candidate airs only as a cue the operator prepares and takes. ' +
+    'audience_operator_settle (0098, Sheet messages, docs/work-specs/data-sources/ C3) is the same ' +
+    'control-slug door as audience_operator_add: it resolves the slug through ' +
+    'audience_owner_for_control, takes only a ^sheet:[A-Za-z0-9_-]{1,80}:$ prefix and at most 2000 ' +
+    'ids a call, and touches only that production\'s candidates under that prefix: it deletes the ' +
+    'unused ones whose row is gone and marks or unmarks withdrawn_at on the used ones. It adds ' +
+    'nothing and writes no command log and no production value. ' +
+    'control_data_pause_by_slug (0100, Another system\'s Pause, docs/work-specs/data-sources/ C5) is ' +
+    'the same control-slug door as control_data_patch_by_slug: it holds or releases what the data ' +
+    'key sends to that production. Pause writes only the row\'s pause columns; Resume appends at ' +
+    'most one update row per graphic, the values the key already sent (bounded by its graphics). ' +
+    'It cannot play, take or clear a graphic, and the slug holder could out-write those values anyway.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot. The community_pack_* functions (0079, ' +
     '0080, 0086) are the only door to community_packs and community_pack_reports: each checks ' +
     'auth.uid() or is_moderator() inside. ' +
-    'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller.',
+    'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller. ' +
+    'audience_operator_add (0095) and audience_operator_settle (0098) are the anon control-slug ' +
+    'doors above, reached by a signed-in operator, and so is control_data_pause_by_slug (0100). ' +
+    'control_data_owner_patch (0100, the owner\'s Data view on a published production) is granted to ' +
+    'authenticated only: it applies the control_shows row policy\'s own test (owner, or a current team ' +
+    'member) and the suspension check before the apply, labelled as an operator write, so it opens ' +
+    'nothing the owner\'s row policy and the control slug do not already allow.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +

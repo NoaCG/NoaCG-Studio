@@ -5,6 +5,7 @@
 // format marker) live in migration 0079.
 
 import { publishGate } from '../validation/publishGate';
+import { isForeignGraphic } from '../model/foreignPackage';
 import { packGraphicEntry, type GraphicsPack } from '../packs/graphicsPack';
 import type { SpxTemplate } from '../model/types';
 import { formatBytes } from '../model/storageHealth';
@@ -63,6 +64,11 @@ export function checkPackGraphics(graphics: PackCandidate['graphics']): PackFind
     if (seen.has(key)) findings.push({ graphic: g.name, message: 'Two graphics share this name. Rename one first.' });
     seen.add(key);
 
+    // Somebody else's package is theirs to share, under their licence: never inside a NoaCG pack.
+    if (isForeignGraphic(g.template)) {
+      findings.push({ graphic: g.name, message: 'It is an imported OGraf package, made by someone else, so it cannot go in a pack.' });
+      continue;
+    }
     const gate = publishGate(g.template, true);
     for (const issue of gate.errors) findings.push({ graphic: g.name, message: issue.message });
 

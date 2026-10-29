@@ -1,0 +1,24 @@
+{
+  "source": "117f08bd77a95372fe4f2cd28ab08f4748c78d9c",
+  "base": "c417eadb4ba031239007f651e6191452303902e2",
+  "wizard_editor_job": "j-0015",
+  "video_code_job": "j-0011",
+  "baseline_reproduction_job": "j-0010",
+  "sha256": {
+    "baseline-subpixel-guides.json": "35d85d9d3c4e04bba4051295ba02c955b5986603cb9ef5aa65ecb664a6b4ae32",
+    "editor-1093.png": "5c5fd61d0b46c041cbce9188f5ff0358fbdd4998bb73cb9892bbebb8ff55d38a",
+    "editor-1366.png": "e06a9443b28365d8f1da036107ebf756dcaad51522e8605312b38aef539fd471",
+    "editor-390.png": "f01cdfee87b2fbee1a39c166d27fa5327f9d3899a71cc8c1d1fec647233e678b",
+    "video-1366.json": "bbaef9f7fa86497a5475a06f1b2924478f83e4bcf5f154d5263e5b423094cdbc",
+    "video-390.json": "1b3e2b04fe31c6812ce2bbe7d617ade82e39ec6d30a65c63e3b448b6ba4bade4",
+    "video-code-1366.png": "75a8566fec7efef10f4a598867353bd183659fdc43e8b63cd737e578cfb65bdf",
+    "video-code-390.png": "1c6179f3573837bc16bbcc754f630d19d9af3b7bc2f6be8b5227561396b7a4f6",
+    "wizard-1093.png": "fb9bb56c2eca609a3393a3d008cec1efe4f88486287d62fe74da1ace3ad79a71",
+    "wizard-1366.png": "9e0551d5cbb74b2360a3523caf52e4d5e3171dcd77e3c9c0caa2bdb8fbac8460",
+    "wizard-390.png": "54f5a6a2d09a442c9001747acc26dc6fc711d07e652bf70d6c445bd90ef42610",
+    "wizard-editor-1093.json": "9d2dfb345af514cea6a66e9f6ddf3731357229f6712c577009b47d85fef1b5e9",
+    "wizard-editor-1366.json": "9d2dfb345af514cea6a66e9f6ddf3731357229f6712c577009b47d85fef1b5e9",
+    "wizard-editor-390.json": "9d2dfb345af514cea6a66e9f6ddf3731357229f6712c577009b47d85fef1b5e9"
+  },
+  "uncommitted_application_change": "src/blocks/timelineLens.ts: deletion of a stale comment only"
+}

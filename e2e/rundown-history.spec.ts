@@ -1,5 +1,10 @@
 // covers: src/components/home/{ProductionPage,useRundownHistory,CueRundown}.ts*, src/components/playoutKeys.ts
+// covers: src/components/home/CueEditor.tsx
 // covers: src/model/{rundownHistory,shows,durableStore}.ts, src/backend/teamProductions.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/cueDraft.ts
+// covers: src/control/{bridgeWatch,serverVerbs}.ts
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { parkFocusOffControls, holdKeyRepeats } from './_keys';
@@ -263,6 +268,11 @@ test('timed advancement during typing remains independent of a held team acknowl
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
+// Its first Ctrl+Z comes right after the Delete's save settles, while the rundown history's queue
+// can still be finishing that write. Such a press used to be dropped (#1649); it is now held until
+// the write lands. Verified by fault injection (a 1.5 s delay after the durable receipt in
+// useRundownHistory's write: 3 of 3 failed here before the fix, 3 of 3 passed after), not by a spec
+// for the window, which nothing a spec does can hold open.
 test('restored server sources stay off, live redo refuses removal, and inverse sends zero Bridge commands', async ({ page }) => {
   const fake = await fakeBridge(page); await seedSettings(page); const ids = await seed(page, true), before = await snapshot(page, ids.show);
   await select(page, 'GAMMA'); await key(page, 'Delete'); await expect(row(page, 'GAMMA')).toHaveCount(0);

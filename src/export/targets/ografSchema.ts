@@ -448,7 +448,7 @@ function isCustomElementName(id: string): boolean {
  * violations — empty means conformant. Every message names the offending path, so a failure
  * reads as an instruction rather than a verdict.
  */
-export function validateOgrafManifest(manifest: unknown): string[] {
+export function validateOgrafManifest(manifest: unknown, options: { elementId?: boolean } = {}): string[] {
   const errors: string[] = [];
   if (!isPlainObject(manifest)) return ['The manifest must be a JSON object.'];
 
@@ -462,7 +462,10 @@ export function validateOgrafManifest(manifest: unknown): string[] {
   }
   // The spec forbids "/" in an id: a renderer may address a Graphic by id in a path.
   if (typeof manifest.id === 'string' && manifest.id.includes('/')) errors.push('id: must not contain "/".');
-  if (typeof manifest.id === 'string' && manifest.id.length && !isCustomElementName(manifest.id)) {
+  // NoaCG's own rule, not the schema's: what we WRITE must register under its id. A stranger's
+  // package is mounted under a tag of the host's making (control/ografHost.ts `hostTagFor`), so the
+  // importer reads the schema alone (`elementId: false`), or the EBU's own scoreboard is refused.
+  if (options.elementId !== false && typeof manifest.id === 'string' && manifest.id.length && !isCustomElementName(manifest.id)) {
     errors.push(
       `id: "${manifest.id}" is not a legal custom element name, so a renderer that registers the Graphic `
       + 'by its id cannot load it. It must start with an ASCII lowercase letter, contain a hyphen, and '

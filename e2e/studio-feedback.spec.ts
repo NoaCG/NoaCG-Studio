@@ -1,8 +1,13 @@
 // covers: src/components/{AccountSaveNotice,SyncStatus,PlayoutSettingsDialog}.tsx
 // covers: src/components/playoutKeys.ts, src/components/home/{ProductionPage,CueRundown,RundownColors,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/model/{shows,outputSetup}.ts
 // covers: src/styles/wizard-and-dialogs.css
 // covers: e2e/_publish.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/useProductionPublish.ts
+// covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/cueDraft.ts
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { setCasparSwitch } from './_publish';

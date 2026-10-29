@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { outputSettled, outputChecks, stampOf, stampWords, bridgeChecks, readPrepRequest, preparedOutputs, slotHolds, requestId, commandPathsOf, PREPARE_WAIT_MS } = await import(
+const { outputSettled, outputChecks, stampOf, stampWords, bridgeChecks, readPrepRequest, preparedOutputs, slotHolds, requestId, commandPathsOf, handoverPingId, answersPing, PREPARE_WAIT_MS } = await import(
   '../src/control/prepareLive.ts'
 );
 
@@ -217,4 +217,11 @@ test('a delay is only given when the two clocks allow it, and an answer off the 
 test('a native cue without a shared file definition cannot report ready', () => {
   const lines = bridgeChecks({ configured: true, required: true, outputExpected: false, missingItems: true, status: { state: 'ok', detail: 'ok' }, outputSlug: 'x', channel: 1, layer: 20, items: [] });
   assert.equal(lines.find(l => l.key === 'bridge-files')?.tone, 'bad');
+});
+
+test("a production page's hand-over ping (#1797) is never an output's answer, so it cannot replace a press's", () => {
+  const id = handoverPingId();
+  assert.match(id, /^[a-z0-9]{8,40}$/, 'an id control_ping_seq takes');
+  assert.equal(answersPing(id), false);
+  for (let i = 0; i < 50; i += 1) assert.equal(answersPing(requestId()), true, 'every press is answered');
 });

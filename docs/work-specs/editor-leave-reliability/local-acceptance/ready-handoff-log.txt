@@ -1,0 +1,15 @@
+=== j-4663 node p2-local-acceptance.local/ready-handoff-lease.mjs ymagdmrebzurjcqrmxif
+=== cwd C:\Users\ahonemi\.codex\worktrees\0ae2\NoaCG-Studio
+{"manualReady":true,"email":"e2e-p2-ready@noacg.local","userId":"fc7cbb3a-ac8d-433b-bddf-65171c46a67f","branchProjectRef":"ymagdmrebzurjcqrmxif"}
+Checkout:  C:/Users/ahonemi/.codex/worktrees/0ae2/NoaCG-Studio
+Dev port:  5282 (reservation)
+Serving:   src/ - the dev server
+App:       http://localhost:5282/app
+Sweeps:    --base http://localhost:5282   (e.g. node scripts/svg-import-sweep.mjs --base http://localhost:5282)
+
+
+  VITE v8.1.4  ready in 428 ms
+
+  ➜  Local:   http://localhost:5282/
+  ➜  Network: use --host to expose
+{"manualReceipt":{"utc":"2026-10-21T10:38:40.376Z","exitCode":0,"result":"Owner confirmed sequential Chrome Incognito handoff: saved text, same position/tilt, Name rotation key at 1.26 seconds, no error. First authoring tab closed before second profile. Not physical-device proof."}}

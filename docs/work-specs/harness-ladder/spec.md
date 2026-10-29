@@ -339,8 +339,53 @@ next phase must allow for, decisions, traps, spend, shas and the revert.
   starts included; 324 ladder-judge readings $431.63; the one stray Fable reading $5.32).
   **Shas:** built on `905fabec1`; D6's amendment `ba0a39a0d`; round 1 `05ca783bb` and
   `8d4fa88a0`; round 2 `62753ce6a`, `7dc3d70e9`, `3634414a6`, `d6fa22b8a`; round 3 `7925a6884`
-  and `f59965f8f`; round 4 `d4993df07` (its hypothesis), `d2f11b46d` and `759061291`. **Revert:** each round's commits revert on
-  their own; the plan's L3 and L4 do not start.
+  and `f59965f8f`; round 4 `d4993df07` (its hypothesis), `d2f11b46d` and `759061291`.
+  **Revert:** each round's commits revert on their own; the plan's L3 and L4 do not start.
+
+### L1's second check (PASS on `905fabec1`, 2026-10-17)
+
+- **Verdict: PASS.** AC-4's ladder half and AC-8 hold on three readings; L2 may build, teaching
+  Sonnet 5.5 `high`.
+- **What was re-derived:**
+  - The amendment's branch was created at `850cdcff9` at 15:16:29Z (GitHub's activity log). The
+    earliest of the 42 new readings started at 15:21:07Z (its answer time minus its duration) and
+    answered at 15:22:38Z.
+  - The 21 delivered L1 graphics have three readings each, all 63 under lock `9fa9d7e3ac9b`.
+  - `--tally` on scratch copies of the five rung folders rewrote all five `tally.json` files
+    identically.
+  - By hand under the 2-of-3 rule: Sonnet `medium` is 3 of 8 (the alerts, the nominee reveal and
+    the ski tower), $10.96 / 3 = $3.65. Its screen passes (2 not usable, $2.73 / 2 = $1.36). The
+    hockey board and the quiz split 2/3, both not usable. Sonnet `high` is 2 of 4 (the alerts and
+    the nominee reveal, both 3/3), $7.50 / 2 = $3.75, so the screen ends it on cost.
+  - D6: no rung matches. D7 as written: Haiku has 1 of its first 4. The screen did not end Sonnet
+    `medium`, so it needs 4 of 8 and has 3. Sonnet `high`, ended by the screen, has 2 of its first
+    4 and so qualifies. It is the next rung in D5's order, and owner decision 3 says that order
+    runs from cheapest to dearest. Opus `low` cost less per session ($1.65 against $1.88), but D7
+    does not rank rungs by measured cost.
+  - The two readings this check was allowed went to Sonnet `high`'s alerts. If that graphic
+    flipped, Sonnet `high` would stop qualifying. Both readings passed with no mistake, so it now
+    passes 5 of 5 ($3.88 notional, in scratch, not committed).
+  - The tests: `scripts/harness-ladder.test.mjs` passes 17 of 17. With `usableMin: 1` the new test
+    fails: the 1-of-3 graphic counts as usable. The edited assertions only repeat each fixture
+    reading three times; every expected value is unchanged.
+  - The revert path works: with `SINGLE_READINGS` set to `{ count: 1, usableMin: 1 }`, `--tally`
+    gives the pre-repair figures again (Sonnet `medium` 4 of 8, $2.74).
+  - The ledger: 5,468 cents spent, L4 $30.00 and L3 $8.00 held, 0 credit cents on any L entry. It
+    is unchanged since L1's build.
+  - Privacy: the repair adds no brief, prompt or stress file. In its added lines, no prompt opening
+    and no prompt sentence of 40 characters or more appears. Eight stress values of 8 to 24
+    characters do appear, as short names and labels quoted in the judge's reasons, the kind L1's
+    decision allows.
+- **What L2 must baseline first:** Sonnet `high` ran only the screen's four. Before the first
+  round's change, run it unchanged on the other four ladder briefs (the hockey board, the
+  volleyball board, the quiz and the ski tower) and on the 16 tuning briefs, each delivered graphic
+  judged three times. The skill and CLI are unchanged since L1's base (`3f6cd2687`), so this
+  baseline matches L1's conditions. `tallyRung` still needs `order` set to the tuning ids for the
+  16 briefs. At L1's rates the baseline costs about $38 notional for its 20 sessions and up to $95
+  for the readings, all on the subscription.
+- **Minor, not blocking:** the ledger's L1 close note still says Sonnet `medium` 4 of 8 at $2.74.
+  The ledger is append-only, so L2 can add a note that points at the re-tally.
+- **Spend:** $0 credit. Subscription: two judge readings, $3.88 notional.
 
 ### L1 repair: the judge's repeatability (built 2026-10-17)
 

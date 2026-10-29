@@ -1,0 +1,56 @@
+=== j-0012 npm run test:e2e -- e2e/import-svg-behaviour.spec.ts --grep 'first option' --retries=0
+=== cwd /workspace/p2-gates-revised
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/import-svg-behaviour.spec.ts --grep first option --retries=0
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 9415 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:20226) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:20241) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:20348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick (3.3s)
+
+
+  1) [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick 
+
+    Error: expect(locator).toBeEnabled() failed
+
+    Locator: getByRole('button', { name: /Reveal correct/ })
+    Expected: enabled
+    Error: strict mode violation: getByRole('button', { name: /Reveal correct/ }) resolved to 2 elements:
+        1) <button disabled data-testid="verb-next" class="pd-verb pd-verb-named" title="Direct reveal quiz is on its last step - Out takes it off, Re-take starts it again">…</button> aka getByTestId('verb-next')
+        2) <button class="pd-action" data-testid="cue-action-judge" title="Fires Reveal correct on the live graphic, carrying this cue's Correct answer.">⚡ Reveal correct</button> aka getByTestId('cue-action-judge')
+
+    Call log:
+      - Expect "toBeEnabled" with timeout 7000ms
+      - waiting for getByRole('button', { name: /Reveal correct/ })
+
+
+      681 |   // Legal from the pick, with no lock in between - and the lock is still there for a show that
+      682 |   // wants it.
+    > 683 |   await expect(page.getByRole('button', { name: /Reveal correct/ })).toBeEnabled();
+          |                                                                      ^
+      684 |   await expect(page.getByRole('button', { name: /Lock it in/ })).toBeEnabled();
+      685 |   await page.getByRole('button', { name: /Reveal correct/ }).click();
+      686 |   const air = page.frameLocator('[data-testid="program-stage"] iframe');
+        at /workspace/p2-gates-revised/e2e/import-svg-behaviour.spec.ts:683:70
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/import-svg-behaviour-the-q-cb1ce--works-straight-from-a-pick-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/import-svg-behaviour-the-q-cb1ce--works-straight-from-a-pick-chromium/error-context.md
+
+  1 failed
+    [chromium] › e2e/import-svg-behaviour.spec.ts:665:1 › the quiz’s first option: no lock, and Reveal correct works straight from a pick 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

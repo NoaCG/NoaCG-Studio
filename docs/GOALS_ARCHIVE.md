@@ -1,5 +1,11 @@
 # Goals archive
 
+Historical timeline and first-editor plan paths below refer to their
+[pinned completed archive](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/WYSIWYG_PLAN.md). Those old paths are provenance, not current build
+instructions; maintained contracts are in [STATE_MACHINE_SCHEMA.md](STATE_MACHINE_SCHEMA.md)
+and current authoring direction in [EDITOR_REBUILD_PLAN.md](EDITOR_REBUILD_PLAN.md).
+
+
 > **HISTORY, not direction.** This is the complete milestone log as it stood on 2026-08-07, kept
 > verbatim: every shipped milestone with its date, its rationale, and the decisions that were
 > ratified along the way. Nothing here is a plan. The live roadmap - what is NOT done - is
