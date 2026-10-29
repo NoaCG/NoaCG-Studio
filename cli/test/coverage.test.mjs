@@ -138,7 +138,7 @@ test('the plan covers every value set on both grounds, every event, step, update
   assert.equal(frameFile(take, 20, 'jpg'), 'take-00020ms.jpg');
   assert.equal(frameFile(plan.renders[0], 1500, 'jpg'), 'sample-video.jpg');
   const ownState = plan.renders.slice(15).filter(settlesOwnState).map((r) => r.name);
-  assert.deepEqual(ownState, ['event-goalhome', 'event-final', 'next-2', 'next-3', 'update'], '--strips keeps these settled states as full frames: the Take settles in the sample frame, Out in nothing');
+  assert.deepEqual(ownState, ['event-goalhome', 'event-final', 'next-2', 'next-3', 'update'], 'a strip keeps these settled states as full frames: the Take settles in the sample frame, Out in nothing');
 });
 
 test('the brief logo goes into the first image field it gave no picture of, or is said not drawn', () => {

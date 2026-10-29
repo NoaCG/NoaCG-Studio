@@ -177,10 +177,20 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
     // stay the matrix's. A comparison that cannot be made (a render or a decode that failed) is no
     // finding: it must not cost the frames already on disk their review.
     const moments = [...STRIP_MS, LATER_MS];
-    const settledWithout = (prefix: FrameOp[]) => renderOne({ name: 'unpressed', values: 'sample', ground: 'video', state: '', ops: [...prefix, { kind: 'wait', ms: 0 }], offsets: moments });
+    // The clock is paused, so a timeline rendered twice is the same bytes: each start's unpressed
+    // timeline is rendered once for every button, and identical frames skip the pixel count.
+    const settled = new Map<string, Promise<SequenceShot>>();
+    const settledWithout = (prefix: FrameOp[]) => {
+      const key = JSON.stringify(prefix);
+      if (!settled.has(key)) settled.set(key, renderOne({ name: 'unpressed', values: 'sample', ground: 'video', state: '', ops: [...prefix, { kind: 'wait', ms: 0 }], offsets: moments }));
+      return settled.get(key)!;
+    };
     const shows = async (without: SequenceShot, pressed: SequenceShot) => {
       if (without.strip.length !== pressed.strip.length) return true;
-      for (let k = 0; k < pressed.strip.length; k++) if ((await changedShare(without.strip[k].image, pressed.strip[k].image)) >= NO_CHANGE_SHARE) return true;
+      for (let k = 0; k < pressed.strip.length; k++) {
+        const [a, b] = [without.strip[k].image, pressed.strip[k].image];
+        if (!Buffer.from(a).equals(Buffer.from(b)) && (await changedShare(a, b)) >= NO_CHANGE_SHARE) return true;
+      }
       return false;
     };
     const drawsNothing = async (button: (typeof inspection.buttons)[number], first: CoverageRender, shot: SequenceShot, unpressed: SequenceShot) => {
@@ -188,8 +198,10 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
       if (moves && (await shows(unpressed, shot))) return false;
       for (const other of moved.filter((b) => b.event !== button.event)) {
         const prefix: FrameOp[] = [{ kind: 'event', event: other.event }];
-        const [without, pressed] = await Promise.all([settledWithout(prefix), renderOne({ ...first, crops: undefined, ops: [...prefix, { kind: 'event', event: button.event }], offsets: moments })]).catch(() => [null, null]);
-        if (!without || !pressed || stillAfter(pressed, button.event)) continue;
+        const pressed = await renderOne({ ...first, crops: undefined, ops: [...prefix, { kind: 'event', event: button.event }], offsets: moments }).catch(() => null);
+        if (!pressed || stillAfter(pressed, button.event)) continue;
+        const without = await settledWithout(prefix).catch(() => null);
+        if (!without) continue;
         moves = true;
         if (await shows(without, pressed)) return false;
       }
@@ -197,11 +209,11 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
       return moves;
     };
     const unpressed = inspection.buttons.length ? await settledWithout([]).catch(() => null) : null;
-    for (const button of unpressed ? inspection.buttons : []) {
+    if (unpressed) for (const button of inspection.buttons) {
       const first = eventRender(button.event);
       const shot = results.get(first?.name ?? '');
       if (!first || !shot) continue;
-      if (await drawsNothing(button, first, shot, unpressed!).catch(() => false)) findings.push(`${first.name}: ${button.label || button.event} shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take${moved.length > 1 ? ' and after each other action tried' : ''}. Draw what it does, or the operator presses it and the viewer sees nothing.`);
+      if (await drawsNothing(button, first, shot, unpressed).catch(() => false)) findings.push(`${first.name}: ${button.label || button.event} shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take${moved.length > 1 ? ' and after each other action tried' : ''}. Draw what it does, or the operator presses it and the viewer sees nothing.`);
     }
 
     const manifest = {

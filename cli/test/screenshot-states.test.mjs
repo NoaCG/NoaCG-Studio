@@ -287,7 +287,7 @@ function jpegSize(bytes) {
   return null;
 }
 
-// `coverage --strips`: a timeline's moments as one picture, three across, each a third of the
+// `coverage` strips (its default): a timeline's moments as one picture, three across, each a third of the
 // frame with its time under it. Needs a browser, not a bridge.
 test("a strip draws a timeline's moments as one picture, three across with their times", async (t) => {
   const { closeBrowser, launchBrowser } = await import('../dist/browser.js');

@@ -67,7 +67,7 @@ export function reviewFor(digest: string, frames: Array<{ file: string; sha256?:
       const base = { file: f.file, ...(f.sha256 ? { sha256: f.sha256 } : {}) };
       const s = same.get(f.file);
       if (!s) return { ...base, verdict: '' };
-      return s.verdict ? { ...base, verdict: s.verdict, carried: true, sameSince: s.sameSince } : { ...base, verdict: '', sameSince: s.sameSince };
+      return { ...base, verdict: s.verdict, ...(s.verdict ? { carried: true } : {}), sameSince: s.sameSince };
     }),
   };
 }
