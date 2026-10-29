@@ -187,8 +187,11 @@ never invent one they did not give.
   page you cannot read is a gap to report, not a guess to make.
 - **The logo** is copied into `images/` (an SVG over a PNG), referenced relatively, and placed
   where the design gives it room, on a surface it reads on. When the operator may need another
-  logo (a sponsor, an opponent), it is a `filelist` field. The validator does not check that an
-  `images/` file exists, so see the logo in the frames.
+  logo (a sponsor, an opponent), it is a `filelist` field. Logos that differ (a white one, a dark
+  one, a full-colour one) share ONE treatment the design already has, the same in every slot: the
+  graphic's own surface, or a soft glow or outline it draws. Never a box of its own around each
+  logo, and never boxes of different colours: a viewer sees tiles stuck onto the graphic. The
+  validator does not check that an `images/` file exists, so see the logo in the frames.
 - **A font** is bundled into `fonts/` with `@font-face` only when its licence allows that (an open
   licence such as the OFL most Google Fonts carry, with the licence text copied beside it). A
   commercial font: ask the user for its files and their licence, or use a close free font and say so.

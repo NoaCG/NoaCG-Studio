@@ -1,0 +1,149 @@
+{
+  "costUnread": false,
+  "brief": "youth-summit-event-bug",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "e4523b14-7e7f-4bff-86ec-50ddc10bded5",
+  "costCents": 0,
+  "notionalUsd": 1.0539183,
+  "wallSeconds": 254,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type event-bug --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:605454d3dfe2206f10c21997e3bf7c5b3b4ea06d79abb8b07213f86f3fbed648"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:0c34df3430e8157b3dab5e0febd14a741bd4b801e5641c4b85caaa0b239286b6"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:82271fea08d94c66d14d0529211304eb853a30722b8a81d25b66955b37fe1ff9"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=2 --data f2=Gymnastiksalen Älvdalen Åre Östra --background video --out ./shots/sv.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:82271fea08d94c66d14d0529211304eb853a30722b8a81d25b66955b37fe1ff9"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:667a2d02ca76800680a4e631ee9b4492dbe6e242da64ae55e05886e661e214f3"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:667a2d02ca76800680a4e631ee9b4492dbe6e242da64ae55e05886e661e214f3"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\youth-summit-event-bug.claude-sonnet-5-5-high\\frames",
+    "frames": 23,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 3,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68",
+    "benchValidated": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68",
+    "reviewed": "sha256:4dd1c9c259f642dbda3650f5dcf9f31557fdf26534e231eb4b26196852005a68",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 11,
+    "opened": 11,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

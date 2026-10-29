@@ -1,0 +1,133 @@
+{
+  "costUnread": false,
+  "brief": "cross-country-race-clock",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "72861211-dc1a-4bb6-a071-708bfd839846",
+  "costCents": 0,
+  "notionalUsd": 0.8603735,
+  "wallSeconds": 249,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scorebug --design neutral --out C:/Users/ahonemi/AppData/Local/Temp/sb",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --fields Kisan nimi:text,Aika:text --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:0638d8c08abe5f9ece87d4a59e712b255474c155a7bca4c7f341e983c78ae3e9"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:7f776e58419d5485773b64dbfe3240a10c59d4a71ecb998c2680f1d24fdb909f"
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f0=Naiset 35-vuotiaat ja yli, 4 x 3 km kunto- ja ikäryhmäviesti, Pohjois-Savon Hiihtoseurojen Syysmetsäviesti 2026 --event clockStart --at 3 --background video --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:7f776e58419d5485773b64dbfe3240a10c59d4a71ecb998c2680f1d24fdb909f"
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\cross-country-race-clock.claude-sonnet-5-5-high\\frames",
+    "frames": 53,
+    "crops": 1,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 1,
+    "buttons": [
+      "clockStart",
+      "clockStop",
+      "clockReset"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc",
+    "benchValidated": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc",
+    "reviewed": "sha256:d909e5ca5ca63a3e8c2dbfaa3628611c3137438b74af76217fe131eb894fe4cc",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 21,
+    "opened": 21,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

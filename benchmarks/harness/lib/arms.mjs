@@ -518,6 +518,7 @@ export function subscriptionArm({ claude, token, model, effort = null, url, plug
         outcome,
         reason,
         reads: transcriptReads(transcriptText),
+        readsBack: transcriptReads(transcriptText, { back: true }),
         transcript,
         notionalUsd,
         ...(r.notionalUsd === null && notionalUsd !== null ? { notionalFrom: 'transcript' } : {}),

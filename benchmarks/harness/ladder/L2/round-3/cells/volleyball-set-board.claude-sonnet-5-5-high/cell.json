@@ -1,0 +1,341 @@
+{
+  "costUnread": false,
+  "brief": "volleyball-set-board",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "b39c2ad0-0800-4e11-b590-c478a6d63470",
+  "costCents": 0,
+  "notionalUsd": 2.2598942000000006,
+  "wallSeconds": 850,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type duel-score --design sb26 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --fields Team A:text,Sets A:number,Points A:number,Team B:text,Sets B:number,Points B:number,Final word:text --out ./graphic",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:5c61dca3d2eaaa6354f1b60d6a2485f01b88079d5017103856711a76fe30520e"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=Uniwersytecki Klub Sportowy Politechnika Łódzka Żółć --data f3=Międzyszkolny Ludowy Klub Siatkówki Świętokrzyskie Ząbki --data f1=2 --data f2=24 --data f4=1 --data f5=23 --event pointA --background video --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:01fcc956ddfceeeffe5141e68d97faf1844e19c87e51dacc687eb5f8392bc949"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=Uniwersytecki Klub Sportowy Politechnika Łódzka Żółć --data f3=Międzyszkolny Ludowy Klub Siatkówki Świętokrzyskie Ząbki --data f1=2 --data f2=24 --data f4=1 --data f5=23 --event pointA --background video --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:4bf88a7ae0d21505346586b08907f8dfe619ed963bf0c48c0ec7d4890e9fe87e"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=Uniwersytecki Klub Sportowy Politechnika Łódzka Żółć --data f3=Międzyszkolny Ludowy Klub Siatkówki Świętokrzyskie Ząbki --data f1=2 --data f2=24 --data f4=1 --data f5=23 --event pointA --background video --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:2668f6b1e466103862c1796b02e369925c332788647a5f9e8c86ffb7d6a250d5"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs control",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:b8c47e03b37fcf4183163697957451db00da9250aed7214003ce8560070cb694"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:2192ce4bab449570d46ec561e20b13e677c4628bdc5e680ba0d24f6c7508e51f"
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointB --event undoB --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event serveB --event pointA --event undoA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointB --event pointB --event undoB --event undoA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointB --event final --event newMatch --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f2=21 --data f5=18 --event pointA --event endSetA --data f2=0 --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f2=5 --data f5=3 --event pointA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f2=5 --data f5=7 --event pointB --event pointA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointB --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointB --event undoB --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:7201c743b0eaaabf27651c696f85046bd02762220f8df58797684bd45da5b12e"
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointB --event undoB --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointB --event pointB --event undoB --event undoA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:d7c91a98c8dfb12c9be902506ed0ab5fcacbaa3971ee6d1bed1c27d3dc2ded14"
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointB --event undoB --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointB --event pointB --event undoB --event undoA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --event pointA --event pointA --event pointB --event endSetA --event pointB --out ../shots/t.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:d7c91a98c8dfb12c9be902506ed0ab5fcacbaa3971ee6d1bed1c27d3dc2ded14"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d7c91a98c8dfb12c9be902506ed0ab5fcacbaa3971ee6d1bed1c27d3dc2ded14"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --event pointA --event pointA --event pointB --event endSetA --out shots/t2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=3 --data f4=1 --data f2=25 --data f5=21 --data f3=Międzyszkolny Ludowy Klub Siatkówki Ząbki --event final --background video --out shots/final.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=3 --data f4=1 --data f2=25 --data f5=21 --event final --background video --out shots/final.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\volleyball-set-board.claude-sonnet-5-5-high\\frames",
+    "frames": 87,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 6,
+    "buttons": [
+      "pointA",
+      "pointB",
+      "undoA",
+      "undoB",
+      "endSetA",
+      "endSetB",
+      "serveA",
+      "serveB",
+      "final",
+      "newMatch"
+    ],
+    "missing": [
+      "undoPoint"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866",
+    "benchValidated": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866",
+    "reviewed": "sha256:4bd428c4737196bd5f68653ff2cad2c421a82f2922c79ca2beca7924d7905866",
+    "problems": []
+  },
+  "functional": false,
+  "look": {
+    "reviewed": 35,
+    "opened": 2,
+    "unopened": [
+      "off.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "long-side-1-video.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-video.jpg",
+      "long-side-2-light.jpg",
+      "take-strip.jpg",
+      "event-pointa-strip.jpg",
+      "event-pointa-10000ms.jpg",
+      "event-pointb-strip.jpg",
+      "event-pointb-10000ms.jpg",
+      "event-undoa-strip.jpg",
+      "event-undoa-10000ms.jpg",
+      "event-undob-strip.jpg",
+      "event-undob-10000ms.jpg",
+      "event-endseta-strip.jpg",
+      "event-endseta-10000ms.jpg",
+      "event-endsetb-strip.jpg",
+      "event-endsetb-10000ms.jpg",
+      "event-servea-strip.jpg",
+      "event-servea-10000ms.jpg",
+      "event-serveb-strip.jpg",
+      "event-serveb-10000ms.jpg",
+      "event-final-strip.jpg",
+      "event-newmatch-strip.jpg",
+      "event-newmatch-10000ms.jpg",
+      "update-strip.jpg",
+      "update-01500ms.jpg",
+      "out-strip.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}
