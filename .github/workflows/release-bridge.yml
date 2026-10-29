@@ -1,30 +1,30 @@
 # Release NoaCG Bridge: build NoaCG-Bridge-<version>.exe and publish it as a GitHub Release.
 #
-# ONE VERSION, TWO CHANNELS. NoaCG Bridge is `noacg bridge` from the CLI package, packed into a
-# Windows exe, so the two share one version number: cli/package.json's. They ship through two
-# channels, each with its own tag and its own home:
-#   - the NoaCG CLI (@noacg/cli, for making graphics): tag cli-vX.Y.Z -> npm, by release-cli.yml;
-#   - NoaCG Bridge (connects NoaCG Playout to CasparCG): tag bridge-vX.Y.Z -> a GitHub Release on
+# TWO PRODUCTS, TWO VERSION LINES (owner, 2026-10-24). NoaCG Bridge (connects NoaCG Playout to
+# CasparCG or vMix, for the technical operator) and the NoaCG CLI (makes graphics from a coding
+# agent, for the creator) are built from one package, cli/, and each has its own version:
+#   - the NoaCG CLI: cli/package.json `version`, tag cli-vX.Y.Z -> npm, by release-cli.yml;
+#   - NoaCG Bridge: cli/package.json `bridgeVersion`, tag bridge-vX.Y.Z -> a GitHub Release on
 #     this repository carrying NoaCG-Bridge-<version>.exe, by THIS workflow.
-# A version may ship on one channel and skip the other (a CLI-only fix need not rebuild the exe).
+# The Bridge's number moves only when the Bridge changes, so a CLI-only fix leaves it alone.
 #
-# "LATEST" IS RESOLVED PER CHANNEL. The Releases page carries Bridge releases only, and every one
+# "LATEST" IS RESOLVED PER PRODUCT. The Releases page carries Bridge releases only, and every one
 # is created with `--latest`, so `releases/latest` is always the newest Bridge (the file name
-# carries the version, so there is no fixed download URL) even though older `cli-v*` Releases from before the split still sit on the page. The
-# public Downloads page (noacg.studio/downloads) goes one step further and asks the API for the
-# newest `bridge-v*` release by tag, and npm for the CLI's `latest`, so neither channel can ever be
-# offered as the other.
+# carries the version, so there is no fixed download URL) even though older `cli-v*` Releases from
+# before the split still sit on the page. The public Downloads page (noacg.studio/downloads) goes
+# one step further and asks the API for the newest `bridge-v*` release by tag, and npm for the
+# CLI's `latest`, so neither product can ever be offered as the other.
 #
 # HOW TO RELEASE THE BRIDGE (docs/BRIDGE.md §6 is the prose):
-#   1. Write the version's section in cli/BRIDGE_CHANGELOG.md, for the operator deciding whether
-#      to download again. The version is cli/package.json's, the one number both channels use; the
-#      Bridge may skip versions the CLI used, and the other way round.
+#   1. Move `bridgeVersion` in cli/package.json and write that version's section at the top of
+#      cli/BRIDGE_CHANGELOG.md, for the operator deciding whether to download again. The build
+#      refuses one without the other (cli/scripts/release-notes.mjs --bridge --check). Changes not
+#      ready to release can wait under an "## Unreleased" heading, which releases nothing.
 #      Land it on main through /queue-merge.
 #   2. That is all. Landing it releases it (owner, 2026-10-08): this workflow runs on the push to
-#      main, and when cli/BRIDGE_CHANGELOG.md has a section for a version the Releases page does
-#      not have yet, it builds the exe on a Windows runner from that commit, proves it starts and
-#      answers /health, and creates the Release (and its bridge-vX.Y.Z tag) with the exe and its
-#      checksum. A version with no Bridge section ships on npm only, as before.
+#      main, and when `bridgeVersion` is a version the Releases page does not have yet, it builds
+#      the exe on a Windows runner from that commit, proves it starts and answers /health with that
+#      version, and creates the Release (and its bridge-vX.Y.Z tag) with the exe and its checksum.
 #   Pushing a bridge-v* tag still re-drives a release by hand.
 #
 # The Actions tab's "Run workflow" button is a rehearsal by default: everything runs, and the exe
@@ -33,9 +33,9 @@
 name: Release NoaCG Bridge
 
 on:
-  # A version with Bridge notes landing on main is the release request; `decide` lets every other
-  # change pass without releasing. A `bridge-v*` tag still re-drives a release by hand (path filters
-  # do not apply to tag pushes).
+  # A new `bridgeVersion` with its notes landing on main is the release request; `decide` lets
+  # every other change pass without releasing. A `bridge-v*` tag still re-drives a release by hand
+  # (path filters do not apply to tag pushes).
   push:
     branches: [main]
     paths: ['cli/package.json', 'cli/BRIDGE_CHANGELOG.md']
@@ -56,8 +56,8 @@ permissions:
   contents: read
 
 jobs:
-  # A push to main releases the Bridge only for a version that has its own Bridge notes and is not
-  # on the Releases page yet; otherwise it says so and stays green. A tag push and a manual run
+  # A push to main releases the Bridge only for a `bridgeVersion` that is not on the Releases page
+  # yet; otherwise it says so and stays green. A tag push and a manual run
   # always go on to the release job, which keeps every refusal it had.
   decide:
     name: Does this push release the Bridge?
@@ -67,19 +67,14 @@ jobs:
       release: ${{ steps.decide.outputs.release }}
     steps:
       - uses: actions/checkout@v5
-      - name: Compare the version with the Bridge notes and the Releases page
+      - name: Compare the Bridge version with the Releases page
         id: decide
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="$(node -p 'require("./cli/package.json").version')"
+          VERSION="$(node -p 'require("./cli/package.json").bridgeVersion')"
           if [ "$GITHUB_EVENT_NAME" != "push" ] || [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "release=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if ! node cli/scripts/release-notes.mjs --bridge --check >/dev/null 2>&1; then
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=No Bridge release::cli/BRIDGE_CHANGELOG.md has no section for $VERSION, so this version ships on npm only."
             exit 0
           fi
           if gh release view "bridge-v${VERSION}" --json tagName >/dev/null 2>&1; then
@@ -88,7 +83,7 @@ jobs:
             exit 0
           fi
           echo "release=true" >> "$GITHUB_OUTPUT"
-          echo "NoaCG Bridge $VERSION has notes and is not released yet, so this push releases it."
+          echo "NoaCG Bridge $VERSION is not released yet, so this push releases it."
 
   release:
     name: Build and publish the NoaCG Bridge exe
@@ -115,22 +110,23 @@ jobs:
         with:
           node-version: 24
 
-      # The version is cli/package.json's. The tag must agree with it, so a tag naming a version
-      # it does not build is refused before anything is built.
+      # The version is cli/package.json's `bridgeVersion`. The tag must agree with it, so a tag
+      # naming a version it does not build is refused before anything is built.
       - name: Read the version being released
         id: version
         run: |
-          VERSION="$(node -p 'require("./cli/package.json").version')"
+          VERSION="$(node -p 'require("./cli/package.json").bridgeVersion')"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           TAG="${GITHUB_REF#refs/tags/}"
           if [ "$TAG" != "$GITHUB_REF" ] && [ "$TAG" != "bridge-v$VERSION" ]; then
-            echo "::error title=Tag/version mismatch::tag $TAG but cli/package.json says $VERSION (expected tag bridge-v$VERSION)."
+            echo "::error title=Tag/version mismatch::tag $TAG but cli/package.json's bridgeVersion is $VERSION (expected tag bridge-v$VERSION)."
             exit 1
           fi
           echo "Releasing NoaCG Bridge $VERSION from ${GITHUB_SHA}"
 
       # A release says what changed, to the operator deciding whether to download again. The
-      # notes are the version's section of cli/BRIDGE_CHANGELOG.md, refused here when missing.
+      # notes are the version's section of cli/BRIDGE_CHANGELOG.md, refused here when missing or
+      # when it is not the newest section.
       - name: Refuse a version with no release notes a person can read
         run: node cli/scripts/release-notes.mjs --bridge --check
 
@@ -147,7 +143,7 @@ jobs:
               echo "::notice title=Not on main::${GITHUB_SHA} is not on main yet. This dry run rehearses it; a real release of it would be refused here."
               exit 0
             fi
-            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first; landing a version with Bridge notes releases it."
+            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first; landing a new bridgeVersion releases it."
             exit 1
           fi
           echo "${GITHUB_SHA} is on main."
@@ -165,7 +161,7 @@ jobs:
               echo "::notice title=Already released::NoaCG Bridge $VERSION is already on the Releases page; this dry run rehearses the build only."
               exit 0
             fi
-            echo "::error title=Already released::NoaCG Bridge $VERSION is already on the Releases page. Bump cli/package.json."
+            echo "::error title=Already released::NoaCG Bridge $VERSION is already on the Releases page. Move bridgeVersion in cli/package.json and write its section in cli/BRIDGE_CHANGELOG.md."
             exit 1
           fi
           echo "NoaCG Bridge $VERSION is free."

@@ -1,3 +1,5 @@
+export const FRAME_READY_TYPE = 'noacg-preview-frame-ready';
+
 export function regionFromPoints(a, b) {
   return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) };
 }
@@ -20,10 +22,10 @@ export function buildChangeMessage(snapshot, { revision, selection, request }) {
     selected = { kind: 'region', bounds: b };
   } else throw new Error('Select an element or region first.');
   const context = {
-    packageId: snapshot.packageId, revision: snapshot.revision,
+    packageId: snapshot.packageId, revision: snapshot.revision, viewId: snapshot.viewId,
     sourceRoot: snapshot.sourceRoot, sourceFiles: snapshot.sourceFiles,
     size: snapshot.size, selection: selected, sampleValues: snapshot.sampleValues,
-    rehearsal: 'settled fixture', request: request.trim(),
+    rehearsal: snapshot.rehearsal ?? 'settled fixture', request: request.trim(),
   };
   return {
     role: 'user',

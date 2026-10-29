@@ -12,6 +12,7 @@
 // NoaCG Bridge and CasparCG are FAKED at the network layer (e2e/_fakeBridge.ts), because what the
 // status reads from them is one `/state` answer: what the output's slot holds.
 // covers: src/control/{playoutStatus,prepareBridge}.ts, src/model/{readyMemory,outputSetup}.ts, src/components/home/{PlayoutStatusControl,PlayoutPanel,PlayoutMonitors}.tsx
+// covers: src/components/home/useProductionPublish.ts
 
 import { publishProduction, setCasparSwitch } from '../_publish';
 import { test, expect } from '@playwright/test';

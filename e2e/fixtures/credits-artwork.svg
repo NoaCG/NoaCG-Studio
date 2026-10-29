@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <!-- Independent artwork, deliberately not the downloadable example. No parsing marks,
+       no Credits box, and no uniform row spacing. The last line is outside the artboard. -->
+  <defs><style>
+    .credit-body { font-family: Inter; font-size: 42px; fill: #fff; }
+    .credit-heading { font-size: 58px; font-weight: 700; fill: #ffcb45; letter-spacing: 3px; }
+    .credit-small { font-size: 30px; fill: #b8c9e0; }
+  </style></defs>
+  <g id="Text" transform="translate(90 30)">
+    <g transform="translate(110 15) scale(.9 1.1)">
+      <text id="Programme_text" data-name="Programme text" class="credit-body" text-anchor="middle" transform="translate(820 85)"><tspan class="credit-heading" x="0" y="0">NIGHT SKY</tspan><tspan class="credit-small" x="0" y="95">A community film</tspan><tspan x="-24" y="220">Avery Kwon</tspan><tspan font-style="italic" xml:space="preserve" x="32" y="285">Jordan
+  Hale</tspan><tspan class="credit-heading" x="0" y="470">Made together</tspan><tspan x="0" y="560">Morgan El-Sayed</tspan><tspan x="0" y="620">Alexis Rivera</tspan><tspan x="0" y="680">Remi Laurent</tspan><tspan class="credit-small" x="-18" y="850">Recorded beside the river</tspan><tspan x="0" y="1040">Casey Byrne</tspan><tspan x="0" y="1100">Noor Haddad</tspan><tspan class="credit-heading" x="0" y="1290">With thanks</tspan><tspan x="0" y="1380">The night crew</tspan><tspan class="credit-small" x="0" y="1555">Every story belongs to someone</tspan><tspan class="credit-heading" x="0" y="1810">See you next time</tspan></text>
+    </g>
+  </g>
+</svg>

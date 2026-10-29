@@ -24,8 +24,26 @@ export function describeInspection(i: BridgeInspection): string {
   lines.push('');
   lines.push(`Steps: ${i.steps.count === -1 ? 'dynamic' : i.steps.count}${i.steps.stepped ? ' (» Next advances)' : ''}`);
   if (i.stateGroups.length) lines.push(`State groups: ${i.stateGroups.map((g) => `${g.id} [${g.states.map((s) => s.name).join(', ')}]`).join('; ')}`);
+  if (i.panel) lines.push('', ...describePanel(i.descriptors, i.panel));
+  if (i.adjustable) lines.push(`Adjustable: ${i.adjustable}`);
   for (const n of i.notes) lines.push(`Note: ${n}`);
   return lines.join('\n');
+}
+
+/** The panel as the operator meets it: LIVE is pressed on air, PREP is typed before it. */
+function describePanel(descriptors: BridgeInspection['descriptors'], panel: NonNullable<BridgeInspection['panel']>): string[] {
+  const label = (key: string) => descriptors.find((d) => d.key === key)?.label || key;
+  const live = [
+    ...panel.controls.map((c) => (c.pick ? `${c.label}: ${c.pick.options.map((o) => o.label).join(' | ')}` : c.label)),
+    ...panel.steppers.map((k) => `${label(k)} -/+`),
+  ];
+  return [
+    'LIVE',
+    ...(live.length ? live.map((l) => `  ${l}`) : ['  Take / Update / Next / Out only']),
+    'PREP',
+    `  ${panel.prep.map(label).join(', ') || '(none)'}`,
+    ...(live.length ? [] : ['Advice: a value that changes on air needs a declared control (noacg docs contract).']),
+  ];
 }
 
 export async function runInspect(args: ParsedArgs, out: Out): Promise<number> {

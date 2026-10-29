@@ -46,7 +46,8 @@ migration on the branch is applied by the landing itself (`post-land.yml`).
 
 **Exactly one repair owner is required for every pull request, before the worker ends.**
 Record the owner, PR/branch, provider/session, wake or monitor receipt, and repair-attempt count in
-one PR comment. Reuse that comment on transfer; disable the old wake before the new owner writes.
+one PR comment, wholly inside a hidden `<!-- noacg:repair-owner ... -->` block so the rendered page
+shows nothing. Reuse that comment on transfer; disable the old wake before the new owner writes.
 An armed notification is not a fixer: prove that its wake can resume a coding session with the
 repository, failed-log access and push/check/queue capabilities. Environment variables, tool
 presence, or a successful scheduling call do not prove this.
@@ -62,6 +63,8 @@ presence, or a successful scheduling call do not prove this.
   A ChatGPT reminder or a local Codex CLI process is not evidence of a cloud repair owner.
 - **Wave/plan row**: the coordinator is the owner, and acknowledges the PR before the row ends.
   It needs a working cloud wake and reads GitHub directly when cloud landings have no local jobs.
+  In a plan run it is also the one that posts `noacg/reviewed` and turns auto-merge on, after it
+  reads every gate green on the reviewed head; the worker stops there (`plan-run.md`).
 - **No proven durable wake**: the current cloud session remains the owner through merge and
   post-landing results. Do not end at “queued” or claim that anything watches after the session
   ends. A restart or unavailable scheduler is an explicit qualification gap, never a silent handoff.
@@ -74,14 +77,12 @@ and gates. Stay quiet while unchanged. Stop/pause the wake after closed, or afte
 post-landing results are recorded; report a post-land failure rather than calling the PR green.
 A second monitor may wake the same owner, but must never launch a competing fixer.
 
-**Then leave the next session its prompt**, because the chat is archived when the pull request
-closes: one comment on the pull request (`gh pr comment <n>`), repeated at the end of your final
-message. It says what is not done, each with its issue; for a visible change, which preview page to
-open; and last, the line `Nothing left.` or one code block a fresh session can be given alone (the
-goal, where things stand, the issue and pull request links, what to do first, and one closing line:
-the suggested model and effort, and whether it can run beside the live sessions, with why, from
-`node scripts/worktree-activity.mjs`). Plain and short: no chat language, nothing from
-`docs/private/`, no secrets.
+**Then leave the next session its prompt, in your final message only.** What is not done each has
+its issue; for a visible change, name the preview page to open; and last, the line `Nothing left.`
+or one code block a fresh session can be given alone (the goal, where things stand, the issue and
+pull request links, what to do first, and one closing line: the suggested model and effort, and
+whether it can run beside the live sessions, with why, from `node scripts/worktree-activity.mjs`).
+The issues carry anything that must outlive the chat; the prompt never goes on GitHub.
 
 **On a CI failure, repair it yourself, within the pull request's scope.** Read the failed job's
 whole log (`gh run view <run> --log-failed`; the failing step's summary is often not where the
@@ -91,7 +92,9 @@ failed, what was tried and why it did not hold. Never disable a check, skip or w
 a limit, or re-record a baseline only to make a run green: a re-record is for a change of look or
 finding that was meant. A spec this branch does not touch that fails, then passes when the failed
 jobs re-run on the same commit (`gh run rerun <run> --failed`), is a flake: quarantine it
-(`node scripts/e2e-quarantine.mjs enter <spec> --run <url> --queue`). Ask the owner only when the
+(`node scripts/e2e-quarantine.mjs enter <spec> --run <url> --queue`; in a cloud session, whose gh
+refuses GraphQL, drop `--queue`, enter it on its own branch from `origin/main`, never this one, and
+land that branch through the cloud path below). Ask the owner only when the
 fix needs a product decision or a change well outside the pull request's scope.
 
 ## 4. When a landing is refused, reconcile and queue again
@@ -102,9 +105,28 @@ fix needs a product decision or a change well outside the pull request's scope.
   `npm run contracts:compile`). Resolve mechanical conflicts yourself; hand a conflict about
   meaning to a fresh agent session with both sides' intent. Then `/check` with targeted checks and
   queue again: the pull request's CI and the merge group both test the merge with `main`.
+- **GitHub's test merge is stuck:** the queue removes the pull request with `INVALID_MERGE_COMMIT`
+  and builds no merge group, or `mergeable` stays null for 15 minutes while `merge-tree` is clean
+  and `refs/pull/<n>/merge` does not follow the head. This is a GitHub fault and needs no person.
+  Close the pull request with a comment saying why, then queue again: queueing reuses only an open
+  pull request, so it opens a fresh one from the same branch (in the cloud, step 2 below). Link
+  the old one and move the repair-owner comment to it. A draft toggle or a new push did not clear
+  it in #1759; a fresh pull request did.
 - A landing that reached no verdict (killed at its cap, the runner gone, CI with no result) is
   retried once automatically; a verdict the queue reached is never retried behind anyone's back.
 - `npm run jobs` shows each branch's state (`QUEUED`, `LANDED`, `LANDING FAILED` with the refusal).
+
+## Finish and release the feature worktree
+
+After the exact merge commit's CI and post-land checks have completed, record their results and
+the handoff above. Resolve failures within scope before ending repair ownership. When the
+session has no remaining work or queued jobs using its feature checkout, finish with the
+cleanup-worktrees workflow for that checkout, without asking for another routine approval.
+Use supported app archiving for an attached Codex-managed worktree after verified export of
+valuable ignored output; ordinary linked worktrees use `--self` dry run then apply. A cleanup
+refusal leaves the worktree in place and is reported for later review. Never remove the primary,
+a shared/permanent checkout, another chat's environment or an active follow-up. Continuing
+research/monitoring chats stay open. Report the cleanup outcome with the landing result.
 
 ## From Codex Cloud or Claude Code Cloud
 
@@ -125,7 +147,8 @@ operation by evidence, not the provider name. No laptop daemon is needed.
    stay draft with no `land` label, auto-merge or queue entry.
 3. If status writes work, post `noacg/reviewed` on that SHA from the actual passing check and add
    `land`. Otherwise dispatch `.github/workflows/cloud-queue-merge.yml` **on main** with `branch`,
-   `sha` and the actual review verdict. With gh: `gh workflow run cloud-queue-merge.yml --ref main
+   `sha` and the actual review verdict. Observe existing verification first (verify.md);
+   use `node scripts/verification-dispatch.mjs -- workflow run cloud-queue-merge.yml --ref main
    -f branch=<branch> -f sha=<sha> -f review="<verdict>"`. Observe the dispatched run and its jobs;
    a dispatch acknowledgement is not a verdict. Main's helper refuses a moved tip and recovers
    the PR's own stale `Reviewed`; a denied read or timeout requires the repair owner's action.
@@ -143,7 +166,7 @@ operation by evidence, not the provider name. No laptop daemon is needed.
    `added_to_merge_queue` timeline event. If green but absent, inspect required checks and
    mergeability, then toggle session-owned auto-merge off/on once. Still absent: record a failed
    landing for the repair owner, not success. A moved head needs a fresh `/check` and stamp.
-6. Before ending, satisfy the repair-owner paragraph and leave the next-session prompt. Record
+6. Before ending, satisfy the repair-owner paragraph and give the next-session prompt. Record
    `merged`, the actual merge SHA and the results of that SHA's CI, post-land, configured-suite
    and deployment verification when applicable. Pending or failed is explicit, not “landed green”.
 

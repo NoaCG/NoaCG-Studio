@@ -1,0 +1,202 @@
+{
+  "costUnread": false,
+  "brief": "school-quiz-secret-pick",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "21945e8d-e861-457f-af66-03e7499880a0",
+  "costCents": 0,
+  "notionalUsd": 2.3186359,
+  "wallSeconds": 780,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:d1605f12d73e6d382f45369b391d6e6712c986497e3b42ef10fdfb9228a1a373"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:96bdbac9ee965e4f06d3eb208fd92d2b5c97decdd0df902952c21d6b51670b7d"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:696f8a044d293f8fad1afe43a056cfe1d4e2a4a04887e8c971336b32d8c9cadb"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:24e77151354d703eb8a91889d9d5c31521ed4624fd6d13cb1511c8c9de8eac48"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:3c440819fc16814cb928401ac68f25bb5e3d9a8b858516b3ae21b4031d9bd89a"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:d63f055f92a99a35fa70c61c979df77171bdafa51077f9fa9bd69d018e7a4890"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=In which year did the delegates of the thirteen colonies approve the Declaration of Independence at the Pennsylvania State House, a document drafted chiefly by Thomas Jefferson and edited by Benjamin Franklin? --data f1=Seventeen seventy-six, after a long debate in the Second Continental Congress in Philadelphia, which voted to approve the final text --data f2=B --out ../shots/long1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --data f6=C --event select --event lock --out ../shots/locked-c.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --data f6=C --event lock --event revealChoice --event judge --out ../shots/wrong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --data f6=C --event lock --out ../shots/sealed-c.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:ad9b542c93e3aa467d379e2a5b30847089118c90ddbcfed455e4447b73a68035"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:ad9b542c93e3aa467d379e2a5b30847089118c90ddbcfed455e4447b73a68035"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:ad9b542c93e3aa467d379e2a5b30847089118c90ddbcfed455e4447b73a68035"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:5a06f5605ef2344f0378824f089876fd4e3a8df2f48e93ce9e711f046eb40fd1"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:323bcf8c7d53958a0fdbb000d88f373eb207ef903e2b4df239caf891b8dd7eab"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:323bcf8c7d53958a0fdbb000d88f373eb207ef903e2b4df239caf891b8dd7eab"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:d351f3fcaaab1f508e4b460cf89f8e11f46d96d3f56dd3df865a6b7bfff7a878"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:d351f3fcaaab1f508e4b460cf89f8e11f46d96d3f56dd3df865a6b7bfff7a878"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:d351f3fcaaab1f508e4b460cf89f8e11f46d96d3f56dd3df865a6b7bfff7a878"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 1,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-1\\cells\\school-quiz-secret-pick.claude-sonnet-5-5-high\\frames",
+    "frames": 62,
+    "crops": 5,
+    "findings": [
+      "event-select: Select answer shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing.",
+      "event-revealchoice: Reveal choice shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take and after each other action tried. Draw what it does, or the operator presses it and the viewer sees nothing."
+    ],
+    "failures": [],
+    "digest": "sha256:d351f3fcaaab1f508e4b460cf89f8e11f46d96d3f56dd3df865a6b7bfff7a878"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 7,
+    "buttons": [
+      "select",
+      "lock",
+      "revealChoice",
+      "judge"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:d351f3fcaaab1f508e4b460cf89f8e11f46d96d3f56dd3df865a6b7bfff7a878",
+    "benchValidated": "sha256:d351f3fcaaab1f508e4b460cf89f8e11f46d96d3f56dd3df865a6b7bfff7a878",
+    "reviewed": "sha256:d351f3fcaaab1f508e4b460cf89f8e11f46d96d3f56dd3df865a6b7bfff7a878",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 62,
+    "opened": 62,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

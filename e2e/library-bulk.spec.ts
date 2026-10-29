@@ -1,4 +1,5 @@
 // covers: src/components/{home,save}/**
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 // focus
 
 import { test, expect, type Page } from '@playwright/test';

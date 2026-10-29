@@ -1,0 +1,201 @@
+{
+  "costUnread": false,
+  "brief": "ski-sprint-timing-tower",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "b5be9ef2-e1af-41c8-9831-afde7c8ab1a4",
+  "costCents": 0,
+  "notionalUsd": 1.090823,
+  "wallSeconds": 531,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type timing-tower --design tt01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:abc40915e616d30b7ac74603f7e66307e6c349740446f0bafd99484766128ffa"
+    },
+    {
+      "command": "noacg validate graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:b4917416f76262ef9c029f366d0d9200ae2c7fea9261367b02707468111b23a0"
+    },
+    {
+      "command": "noacg validate graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:c080ae58fe69bb96c969b9ed9815eb7c6645720c55f7bde21bc7927fad9e2bf0"
+    },
+    {
+      "command": "noacg validate graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:674e46470117f62d6839dda3c3dc4eee0c925ec43723ededbbeb7dfaef5d3f1c"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:674e46470117f62d6839dda3c3dc4eee0c925ec43723ededbbeb7dfaef5d3f1c"
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:66695dc668ae72b50ad4d4f1dcdb75824d843ff170694e6b2ccb230b4570b62b"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:66695dc668ae72b50ad4d4f1dcdb75824d843ff170694e6b2ccb230b4570b62b"
+    },
+    {
+      "command": "noacg validate graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:3d4a0be957f1abd2a2f31722139d93f09f3fbadd4dc5a0e724fccefbd281072f"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:3d4a0be957f1abd2a2f31722139d93f09f3fbadd4dc5a0e724fccefbd281072f"
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:1b100107b8a4fda3bc2bb921340f8d49bf9144f67f5319196e10c037e6181f1e"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --event focus --data f3=3 --at 1s --background video --out ./shots/f3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot graphic --event focus --at 1s --background video --out ./shots/f1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type timing-tower --design tt01 --out ./orig",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot orig --event focus --data f3=3 --at 1s --background video --out ./o.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:16ca1efbfb7a85e16b6b511fcd093ba4e3a8040e21681de15ac7113f4701e3a9"
+    },
+    {
+      "command": "noacg screenshot graphic --event focus --data f3=3 --at 1s --background video --out ./shots/f3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:3854611ba81616ba32b00943ee441f4a3506ab01d1dfe3d6d09bdf4249cce50d"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:3854611ba81616ba32b00943ee441f4a3506ab01d1dfe3d6d09bdf4249cce50d"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:3854611ba81616ba32b00943ee441f4a3506ab01d1dfe3d6d09bdf4249cce50d"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\ski-sprint-timing-tower.claude-sonnet-5-5-high\\frames",
+    "frames": 62,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:3854611ba81616ba32b00943ee441f4a3506ab01d1dfe3d6d09bdf4249cce50d"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "focus",
+      "clear",
+      "final",
+      "provisional"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:3854611ba81616ba32b00943ee441f4a3506ab01d1dfe3d6d09bdf4249cce50d",
+    "benchValidated": "sha256:3854611ba81616ba32b00943ee441f4a3506ab01d1dfe3d6d09bdf4249cce50d",
+    "reviewed": "sha256:3854611ba81616ba32b00943ee441f4a3506ab01d1dfe3d6d09bdf4249cce50d",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 17,
+    "unopened": [
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "take-strip.jpg",
+      "event-clear-strip.jpg",
+      "event-clear-10000ms.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

@@ -6,6 +6,7 @@ import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { probeAsset } from '../../../assets/assetInfo';
 import { importSvgMarkup, isSvgFile, type SvgImportResult } from '../../../assets/svgImport';
 import { isTemplateFile, type ImportedTemplateResult } from '../../../model/importTemplate';
+import { declaredFieldLabels, readForeignPackage } from '../../../model/foreignPackage';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import SectionHead from '../SectionHead';
 import { SVG_EXAMPLES_URL } from '../../../downloads/links';
@@ -139,6 +140,11 @@ export default function ImportDesignStep({
    *  piece in one line, and a wall of menu paths nobody asked for is the clutter the owner
    *  ruled against. */
   const [exportHelp, setExportHelp] = useState(false);
+
+  // A dropped stranger's OGraf package: its record, and the fields its schema declares.
+  const read = templateFile ? readForeignPackage(templateFile.template) : null;
+  const pkg = read?.status === 'ok' ? read.record : null;
+  const declared = pkg && templateFile ? declaredFieldLabels(templateFile.template) : [];
 
   const preview = art ? images.find((a) => a.path === art.path) : null;
   const fullFrame = !!art && art.width === resolution.width && art.height === resolution.height;
@@ -468,7 +474,19 @@ export default function ImportDesignStep({
           {/* The FIELDS are the whole point of importing a template rather than a picture:
               they are what an operator types into, on the control page and in playout. Naming
               them here is what turns "it opened" into "it is usable". */}
-          {templateFile.template.fields.length > 0 ? (
+          {pkg ? (
+            // A stranger's OGraf package: who it is, and the fields its schema gives the cue's form.
+            <>
+              <p className="hint mono" data-testid="import-template-package">
+                OGraf {pkg.id}{pkg.version ? ` ${pkg.version}` : ''}
+              </p>
+              {declared.length > 0 && (
+                <p className="hint" data-testid="import-template-fields">
+                  {declared.length} operator field{declared.length === 1 ? '' : 's'}: {declared.join(', ')}
+                </p>
+              )}
+            </>
+          ) : templateFile.template.fields.length > 0 ? (
             <p className="hint" data-testid="import-template-fields">
               {templateFile.template.fields.length} operator field
               {templateFile.template.fields.length === 1 ? '' : 's'}:{' '}

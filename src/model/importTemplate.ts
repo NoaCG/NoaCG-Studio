@@ -11,6 +11,7 @@ import { scriptKind } from './scriptKind';
 import { ensureExternalRefs } from './externalRefs';
 import { parseDefinition } from './spxDefinition';
 import { sourceHash } from './contentHash';
+import { DECLARED_VERSION, readOgrafDeclared, type OgrafDeclared } from './ografTyped';
 import {
   DEFAULT_SETTINGS,
   TEMPLATE_TYPE_LABELS,
@@ -25,7 +26,7 @@ import {
   type Resolution,
 } from './projectFormat';
 
-const ASSET_MIME: Record<string, string> = {
+export const ASSET_MIME: Record<string, string> = {
   wav: 'audio/wav',
   mp3: 'audio/mpeg',
   ogg: 'audio/ogg',
@@ -71,7 +72,7 @@ function positiveNumber(value: string | undefined): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function importedResolution(width: number, height: number): Resolution {
+export function importedResolution(width: number, height: number): Resolution {
   const preset = projectFormatForResolution({ width, height });
   return preset
     ? { width: preset.width, height: preset.height, label: preset.label }
@@ -172,10 +173,11 @@ export function importHtmlTemplate(
     if (/noacg-spx-text/.test(attrs)) return '';
     // And what a single-file target runs after the template's JS (export/selfContained.ts
     // TargetScript): CasparCG's data shim, H2R's on/off toggle, the overlay's relay receiver and
-    // autoplay. Kept, each came back as the graphic's code and stacked on every round trip (#901);
+    // autoplay, and a production's baked place and size (control/appearanceRuntime.ts bakeAppearance).
+    // Kept, each came back as the graphic's code and stacked on every round trip (#901);
     // the autoplay block reads SPXGCTemplateDefinition, so the test below kept it in the HTML.
     // H2R's GDD block is written again from the fields too (export/targets/h2r.ts gddScript).
-    if (/noacg-(caspar-data|h2r-toggle|h2r-gdd|local-receiver|overlay-autoplay)\b/.test(attrs)) return '';
+    if (/noacg-(caspar-data|h2r-toggle|h2r-gdd|local-receiver|overlay-autoplay|appearance)\b/.test(attrs)) return '';
     if (/SPXGCTemplateDefinition/.test(body)) return full;
     // A block that is not classic JavaScript keeps its tag. A module script: import/export only
     // parse as a module, so moving the body into the classic JS pane manufactures a syntax error
@@ -219,7 +221,7 @@ export function importHtmlTemplate(
   };
 }
 
-function toDataUrl(mime: string, bytes: Uint8Array): string {
+export function toDataUrl(mime: string, bytes: Uint8Array): string {
   let binary = '';
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -326,12 +328,15 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
   // as before.
   const noacg = await readNoacgBlock((n) => entryOf(n)?.async('string') ?? null, manifest, base);
 
-  return {
-    ...importHtmlTemplate(fileName.replace(/\.zip$/i, '') || rel(entry), html, {
-      css, js, assets, ...(noacg?.type ? { type: noacg.type } : {}),
-    }),
-    noacg,
-  };
+  const imported = importHtmlTemplate(fileName.replace(/\.zip$/i, '') || rel(entry), html, {
+    css, js, assets, ...(noacg?.type ? { type: noacg.type } : {}),
+  });
+  // A STRANGER'S OGraf manifest is kept on the graphic as it came (docs/work-specs/
+  // playout-ograf-contract/spec.md, E1.2a): its data schema is what a cue's typed data is made for.
+  // Ours is not: a NoaCG graphic stays native, its manifest generated from its own sources.
+  const declared: OgrafDeclared | null = manifest && !isRecord(manifest.json.v_noacg) ? { v: DECLARED_VERSION, manifest: manifest.json as OgrafDeclared['manifest'] } : null;
+  if (declared && readOgrafDeclared(declared).status === 'ok') imported.template.ograf = declared;
+  return { ...imported, noacg };
 }
 
 interface ZipManifest {

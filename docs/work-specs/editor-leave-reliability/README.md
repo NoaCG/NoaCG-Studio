@@ -1,5 +1,20 @@
 # Leave-editor reliability
 
+## Current disposition, 2026-10-21
+
+**ACCEPTED under the bounded single-device scope**, by explicit owner decision,
+on `12eccdd8533ba710f0917cb3bcc78101070ecca8`. The
+[dated closure](scoped-closure/README.md) combines exact-source gated repair,
+fresh independent checks and completed native/local/profile-handoff evidence.
+Further diagnosis of the original shared-lab module-load failure is now explicitly
+deferred; its three revised attempts remain spent and no auth/sync fix is claimed.
+Use one active authoring tab/device per account and sequential handoff. All
+assertions, 32 group cases, budgets, original failures and existing deferrals
+remain intact. Step 6 is COMPLETE and its approved release remains effective.
+No newer-main qualification, physical-device proof or Phase 3 is authorized.
+The [earlier owner decision](owner-deferral.md), historical scope and acceptance
+criteria below remain preserved with their original qualifications.
+
 ## Why and goal
 
 The October 6 review reported that unsaved work was questioned after reaching Home.

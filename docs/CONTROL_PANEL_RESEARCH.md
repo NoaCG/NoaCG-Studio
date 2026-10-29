@@ -1,5 +1,13 @@
 # From a drawing to a control panel - what the others let a user do, and what OGraf obliges us to keep
 
+**Evidence correction, 2026-10-19:** the owner's completed research documents generated controls
+in Erizos and current Pixotope as well as Singular. Older exclusivity/superiority claims below
+are not a current competitive conclusion. Native structural controls and portable graphics are
+potential advantages to test, not proven superiority; vendor systems were not installed or
+measured. Current scope and sources are in the
+[production-plan integration receipt](work-specs/production-page-refactor/evidence/research-integration-2026-10-19.md).
+ARRANGE is implemented; COMBINE is removed; current profile direction is CONTROL_PANEL_ROAD §3.
+
 **Source refresh, 2026-09-13:** [OGRAF_STUDIO_RESEARCH.md](OGRAF_STUDIO_RESEARCH.md) compares
 Studio's multi-target bindings/structured GDD and the current ograf-form 1.1.0 oracle with
 NoaCG's existing control adapter. Native behaviour controls remain a strength; generic nested
@@ -351,8 +359,8 @@ something real is behind them; nothing was invented to fill the table.
 | 6 | **Touch-first operator layout** | *"Custom control panels with large touch targets designed for fast-paced live production"* [quoted, MXMZ] | Unmeasured. Our panels are mouse-shaped by default. | Probably real; nobody has looked. | A measurement first, then CSS. The 2026-09-12 production is a real customer for it. Not filed - it belongs in an owner-queue walk, not the backlog. |
 | 7 | **An operator-set duration** (a vote window, a hold) | Singular: a `timecontrol` node (play/pause/reset/start). MXMZ: clock management in Match Control. | Match-clock verbs shipped, including the origin-stamped log value. A poll's window is AUTHORED data on the arrow, not an operator field - stated as a known limit in the code. [code] | Small, and honestly documented. | A field-driven timer that could disagree with the arrow's `after` is worse than the current honesty; the real fix is a timer arrow whose `after` reads a field. Not filed - it needs the third behaviour (row 1) to say what shape it should take. |
 | 8 | **Auto-advance on the rundown** | *"Pre-load templates, set auto-advance timers"* [quoted, MXMZ] | Timer transitions exist inside the machine; the cue rundown has none. | Real, small. | Already taken: `docs/private/competitors/COMPETITOR_MXMZ.md` §7 lists it under "Take". Not re-filed. |
-| 9 | **A production arranges the controls it was given** | MXMZ by building the panel; Singular by authoring the app instance; Vizrt by pages. Everyone has it. | Reserved and not built - the production control profile. | Real, deliberately deferred. | Decided already: `docs/CONTROL_PANEL_ROAD.md` §3. Not re-filed. |
-| 10 | **The panel is GENERATED at all** | Singular generates from control nodes. MXMZ does not. Nobody else in the field does. | Five renderers off one generator, no per-graphic code, a stranger's OGraf manifest treated identically. | **No gap. This is the lead**, and it is worth writing down that we checked. | Nothing. Protect it: row 9's profile must stay presentation over declared capability. |
+| 9 | **A production arranges the controls it was given** | MXMZ by building the panel; Singular by authoring the app instance; Vizrt by pages. Everyone has it. | ARRANGE/profile is present at the October 19 baseline. | Richer responsive presets remain a gated proposal. | Decided already: `docs/CONTROL_PANEL_ROAD.md` §3. Not re-filed. |
+| 10 | **The panel is GENERATED at all** | Singular, Erizos and current Pixotope document generated controls. MXMZ marketing does not settle its generation mechanics. | Generated native controls exist; foreign OGraf type/schema gaps remain (full-stack package E). | Generation alone is not a competitive lead; typed interoperability needs evidence. | Nothing. Protect it: row 9's profile must stay presentation over declared capability. |
 | 11 | **A ± stepper an operator holds** | Singular: `counter` node. MXMZ: score steppers in Match Control. | `number` → ± stepper on every surface with no per-template code, plus `adjust` riding an event. | **No gap.** Verified end to end on imported artwork. [repo] | Nothing. Recorded so the bar is honest in both directions. |
 | 12 | **Version history with rollback; locked masters with local variations; team font libraries** | MXMZ has all three [repo / quoted]. | Undo and saved documents; org boilerplate open in `docs/SVG_IMPORT_PLAN.md` P2; per-project fonts. | Real, and not this push. | Already named in `docs/private/competitors/COMPETITOR_MXMZ.md` §4. Not re-filed. |
 

@@ -41,6 +41,7 @@ test('a new branch is pushed, opened, stamped, labelled, dispatched and set to a
     `gh api repos/{owner}/{repo}/statuses/${'f'.repeat(40)}`,
     'gh label create',
     'gh pr edit',
+    'gh api repos/{owner}/{repo}', // Advisory read; the original mutations/dispatch stay in order.
     'gh workflow run',
     'gh pr merge',
   ]);
@@ -92,6 +93,14 @@ test('a runner given a token hands it to its children as GH_TOKEN, and only to t
   const echo = ['-e', 'process.stdout.write(process.env.GH_TOKEN ?? "")'];
   assert.equal(spawnRunner('node', { token: 'app-token' })(echo).out, 'app-token');
   assert.equal(spawnRunner('node')(echo).out, process.env.GH_TOKEN ?? '');
+});
+
+test('observation reads can be bounded and binary without changing ordinary runner defaults', () => {
+  const runner = spawnRunner(process.execPath);
+  const binary = runner(['-e', 'process.stdout.write(Buffer.from([0,255,42]))'], { binary: true, timeout: 1000 });
+  assert.deepEqual(binary.out, Buffer.from([0, 255, 42]));
+  const timed = runner(['-e', 'setTimeout(()=>{},10000)'], { timeout: 20, allowFailure: true });
+  assert.notEqual(timed.status, 0);
 });
 
 test('the description is bounded to what a commit status accepts and says where it came from', () => {

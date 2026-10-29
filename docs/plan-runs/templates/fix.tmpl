@@ -1,0 +1,14 @@
+You are a BUILDER for one scoped fix the owner asked for during the @PLAN@ plan run (run issue #@ISSUE@). Coordinator: @COORDINATOR@. This fix is outside the run's phases and gets the same gates.
+
+FIX     Issue #@N@: @TITLE@      BRANCH @BRANCH@
+GOAL    Fix #@N@ as the issue describes, land it on main through the merge queue, and close the issue (`Closes #@N@` on its own line in a commit message). Read the whole issue and its comments first: they hold the reproduction, the expected behaviour and the owner's decisions. @GOAL@
+SCOPE   Only what #@N@ needs, in the seam that owns the behaviour, with a regression test that goes red without the fix (name the mutation in the PR). No unrelated refactors, no new features. If the right fix needs an owner decision, finish what does not and say exactly what is left. A migration only if truly needed: additive and live-safe; say so in your receipt.
+READ    AGENTS.md; docs/GOALS.md; issue #@N@ and the receipts it names; @READ@ @PLAN_READ@ .agent-workflows/verify.md, queue-merge.md (cloud path), cloud-delegate.md "Execute and return"; and @TRAPS@ in full.
+RULES   @PLAN_RULES@
+
+Work in your own worktree from origin/main on the branch above, created before any edit. Research or reproduce first, decide the design, build, verify, land. Ask nobody.
+Then /check and the cloud path of /queue-merge, until every gate in the traps file is green on your reviewed head. The coordinator posts the review stamp, turns auto-merge on and is the PR's repair owner: stop there and report.
+Assessment A or A+ from a fresh read-only /so session on your FINAL diff, with its verdict in the PR.
+
+RECEIPT Start by replying nothing; end with one receipt block and @RETURN@: nonce @NONCE@, issue #@N@, PR URL, reviewed head SHA, the configured-suite run on that head and its result, the head the final /so assessed and its grade, any migration file, what an owner phase's physical check should look for, `git status --porcelain` of your worktree, UTC time, and the verification you ran with results.
+Source: https://github.com/NoaCG/NoaCG-Studio at @SOURCE@ (fetch origin/main again before you start). Environment @ENVIRONMENT@. Authorized window ends @DEADLINE@.

@@ -5,7 +5,7 @@
 ss01…ss24, the HOLDING SCREEN set (prefix 'starting-soon'; hold-loop preset:
 entrance + calm .starting-soon-pulse breathing + clock via shared/clock.ts). DATA BLOCKS via
 convertToDataRegion (self-assembled, calls it directly): the breath imports as a looping scale
-track (gap 6) and startClock/stopClock ride the step calls (docs/TIMELINE_V2_PLAN.md §3b); the clock runtime stays
+track (gap 6) and startClock/stopClock ride the step calls (docs/STATE_MACHINE_SCHEMA.md); the clock runtime stays
 outside the region.
 **The category is every screen shown while the show is NOT happening** - before it starts,
 between its parts, when it breaks, after it ends. A design declares three things and the

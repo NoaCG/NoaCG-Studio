@@ -1,0 +1,94 @@
+✔ entering records the date, the run and a count; a spec already in is left as it was (1.586906ms)
+✔ a released spec that comes back carries its count up by one (0.465917ms)
+✔ passes are counted newest first, a commit without the status is skipped, the first failure ends the streak (0.136604ms)
+✔ release is due at RELEASE_AFTER consecutive passes and not one earlier (0.231797ms)
+✔ the status history reads one statuses call per commit for every spec, and stops once each has enough answers (0.652076ms)
+✖ a new quarantine entry cannot release from twenty old successes and one fresh success (1.120347ms)
+✖ release needs twenty unique successes in the current cycle, and a later failure resets it (0.691826ms)
+✖ an unreadable source boundary or missing triggering run cannot earn an automatic release (0.418076ms)
+✔ the store round-trips through the serializer with sorted keys, and a newer version is refused (0.943833ms)
+✔ a store change that origin/main already holds is not committed, and a queued or refused branch is left alone (0.84816ms)
+✔ identities convert both ways and the branch slug is stable (0.501901ms)
+✔ quarantine.yml runs only the specs it can, and still releases the configured ones (0.316764ms)
+✔ an entry older than STALE_AFTER_DAYS is stale, oldest first, and nothing younger is (0.332388ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 10
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107.476525
+
+✖ failing tests:
+
+test at scripts/e2e-quarantine.test.mjs:117:1
+✖ a new quarantine entry cannot release from twenty old successes and one fresh success (1.120347ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  20 !== 1
+  
+      at TestContext.<anonymous> (file:///workspace/phase2-acceptance/scripts/e2e-quarantine.test.mjs:119:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 20,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/e2e-quarantine.test.mjs:123:1
+✖ release needs twenty unique successes in the current cycle, and a later failure resets it (0.691826ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'e2e/anim-engine.spec.ts'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///workspace/phase2-acceptance/scripts/e2e-quarantine.test.mjs:127:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'e2e/anim-engine.spec.ts' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/e2e-quarantine.test.mjs:133:1
+✖ an unreadable source boundary or missing triggering run cannot earn an automatic release (0.418076ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'e2e/anim-engine.spec.ts'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///workspace/phase2-acceptance/scripts/e2e-quarantine.test.mjs:136:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'e2e/anim-engine.spec.ts' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

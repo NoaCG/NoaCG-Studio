@@ -13,6 +13,8 @@
 // another tab's work (docs/INTERACTIVE_PLAYOUT_PLAN.md, and cross-tab.spec.ts's own header).
 // covers: {app.html,src/model/durableStore.ts,src/main.tsx,src/components/StorageHealthNotice.tsx}
 // covers: src/backend/syncController.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/LiveControls.tsx
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
@@ -91,6 +93,23 @@ test('a second tab’s work survives the first tab’s next write', async ({ pag
   // BOTH writes are in the database. Before the invalidation, `tables` came back 0.
   expect(survived.tables, 'the second tab’s table was overwritten by the first tab').toBe(1);
   expect(survived.cue).toBe('Renamed in the first tab');
+});
+
+// A PIN TRAVELS TO THE OTHER TAB (pinned live controls AC-5): the pin is the production's control
+// profile, so a second production-page tab on the same production shows it once the record syncs.
+test('a graphic pinned in one tab is pinned in the other tab of the same production', async ({ page, context }) => {
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  await productionFor(page, 'Pinned Tabs');
+  await settleDurableWrites(page);
+  const productionUrl = page.url();
+  const b = await context.newPage();
+  await b.goto(productionUrl);
+  await expect(b.getByTestId('production-page')).toBeVisible();
+  await b.getByTestId('live-pin').click();
+  await expect(b.getByTestId('live-pin')).toHaveAttribute('aria-pressed', 'true');
+  await settleDurableWrites(b);
+  await expect(page.getByTestId('live-pin')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('live-block')).toHaveAttribute('data-graphic', 'Arena Quiz');
 });
 
 // ONE LIBRARY SYNC PASS PER CHANGE (backend/syncController.ts). A tab that adopts another tab's

@@ -22,6 +22,7 @@
 // and no rule maps is `unmapped`, which escalates to the full suite. Adding a preview image here
 // would otherwise run 100+ specs to prove nothing.
 // covers: docs/svg-samples/**
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { chooseType, pickDesign } from './_browse';

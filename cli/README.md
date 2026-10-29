@@ -25,7 +25,7 @@ and the loop to get there. It is the contract, not design guidance.
 Connecting NoaCG Playout to a CasparCG server is a different tool, **NoaCG Bridge**, downloaded
 from [noacg.studio/downloads](https://noacg.studio/downloads#bridge) (the newest Bridge release
 on the repository's [Releases page](https://github.com/NoaCG/NoaCG-Studio/releases/latest)).
-It is not about authoring and needs nothing from this package.
+It is not about authoring, has its own version number, and needs nothing from this package.
 
 ## Paste this to your agent
 

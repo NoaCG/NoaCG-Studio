@@ -3,9 +3,10 @@ import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, PLAYOUT_CLIP_LAYER, playoutItemOf
 import { folderMode } from '../../model/showFolders';
 import { folderName } from '../../model/rundownRows';
 import { NEEDS, offerBlocked, effectiveEnd, type PlaybackAbility } from '../../control/cuePlayback';
-import { folderAirWords, type FolderAir } from '../../control/folderAir';
+import { folderAirWords, folderChildren, type FolderAir } from '../../control/folderAir';
 import { channelLabel, slotAddress, type PlayoutSettings } from '../../control/playoutLink';
 import { useDeferredEdits } from './useDeferredEdits';
+import { nameList } from './CueRundown';
 
 const MODES: { mode: ShowFolder['mode']; word: string }[] = [
   { mode: 'manual', word: 'One by one' },
@@ -37,7 +38,8 @@ export default function FolderEditor({
   members,
   items,
   air,
-  missed,
+  misses,
+  graphicsAir,
   ability,
   playoutSettings,
   slot,
@@ -54,7 +56,10 @@ export default function FolderEditor({
   members: readonly ShowCue[];
   items: readonly PlayoutItem[];
   air: FolderAir | undefined;
-  missed: number;
+  /** Why the folder's last Take missed each cue it missed, by cue id. */
+  misses: Readonly<Record<string, string>>;
+  /** The production is published: a graphic that is up airs, rather than playing here only. */
+  graphicsAir: boolean;
   ability: PlaybackAbility | null;
   playoutSettings: PlayoutSettings;
   /** Where a Play-through folder plays: the channel and layer, and whether either is its own. */
@@ -79,7 +84,15 @@ export default function FolderEditor({
     const next = text.trim();
     if (next && next !== folder.name) onRename(next, closing);
   });
-  const words = folderAirWords(air, missed);
+  const address = slotAddress(slot);
+  const children = folderChildren(members, {
+    mode,
+    address: (c) => (mode === 'through' && c.source === 'playout' ? address : addressOf(c)),
+    onAir: air?.onAir ?? [],
+    misses,
+    graphicsAir,
+  });
+  const words = folderAirWords(air, children.filter((c) => c.outcome === 'miss').length);
   const throughOff = offerBlocked(ability, NEEDS.through);
   // One clip that loops is a plain looping take, which any Bridge plays; only a run of several needs
   // a Bridge that can loop a sequence.
@@ -90,7 +103,6 @@ export default function FolderEditor({
   const lastItem = last ? itemOf(last) : null;
   const lastEnd = last && lastItem ? effectiveEnd(last, lastItem) : 'hold';
   const allAudio = members.length > 0 && members.every((c) => itemOf(c)?.mediaKind === 'audio');
-  const address = slotAddress(slot);
   // How each mode plays, on its own button's tooltip (playout-workflow-simplification AC-10).
   const modeHint = (m: typeof mode) =>
     m === 'manual'
@@ -237,14 +249,38 @@ export default function FolderEditor({
           </>
         )}
       </div>
+      {/* Every child's own outcome and address (C6, AC-16): a partial Take is never one green
+          group, and in All together the cues that share one address are named on both. */}
       <ol className="pd-folder-where" aria-label={`What airs where in ${name}`} data-testid="folder-where">
-        {members.map((c) => (
-          <li key={c.id}>
+        {children.map((c) => (
+          <li key={c.id} data-outcome={c.outcome} data-testid="folder-child">
             <span className="pd-folder-where-cue">{c.label}</span>
-            <span className="pd-cue-layer">{mode === 'through' && c.source === 'playout' ? address : addressOf(c)}</span>
+            {c.outcome === 'air' && <span className="pd-tag air">ON AIR</span>}
+            {c.outcome === 'up' && (
+              <span className="pd-tag up" title="Up on this page only: the production is not published.">
+                UP
+              </span>
+            )}
+            {c.outcome === 'miss' && (
+              <span className="pd-tag miss" title={c.why} data-testid="folder-child-miss">
+                NOT TAKEN
+              </span>
+            )}
+            {c.sharesWith && (
+              <span className="pd-cue-layer clash" title={`${c.address} holds one thing at a time, so All together does not take both.`} data-testid="folder-child-clash">
+                same place as {nameList(c.sharesWith)}
+              </span>
+            )}
+            <span className="pd-cue-layer">{c.address}</span>
+            {c.outcome === 'miss' && c.why && (
+              <span className="pd-folder-where-why status-warn" data-testid="folder-child-why">
+                {c.why}
+              </span>
+            )}
           </li>
         ))}
       </ol>
+
     </div>
   );
 }

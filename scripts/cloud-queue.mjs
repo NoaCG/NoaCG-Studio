@@ -38,6 +38,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LAND_LABEL, REVIEW_CONTEXT, pullRequestFor, spawnRunner } from './queue-pr.mjs';
+import { observeVerification } from './verification-dispatch.mjs';
 
 /** A full 40-hex sha - a short one could name a commit the session never saw. */
 const SHA = /^[0-9a-f]{40}$/;
@@ -127,7 +128,7 @@ export function cloudQueue({
  * With `dispatch: false` a missing pull-request run is `none` instead: the landing watcher reads a
  * red `Reviewed` off some run, and a second whole CI run is not its call to make.
  */
-export function reviveReviewed({ branch, sha, gh, sleep = sleepSync, now = Date.now, waitMs = RUN_WAIT_MS, pollMs = RUN_POLL_MS, dispatch = true }) {
+export function reviveReviewed({ branch, sha, gh, sleep = sleepSync, now = Date.now, waitMs = RUN_WAIT_MS, pollMs = RUN_POLL_MS, dispatch = true, observe = observeVerification }) {
   const until = now() + waitMs;
   for (;;) {
     // Newest first, so a re-run's newer attempt of the same run is the one read.
@@ -136,6 +137,8 @@ export function reviveReviewed({ branch, sha, gh, sleep = sleepSync, now = Date.
     const run = runs[0];
     if (!run) {
       if (!dispatch) return { outcome: 'none' };
+      try { observe({ workflow: 'ci.yml', ref: branch, expectedRevision: sha, inputs: { require_review: true }, purpose: 'missing PR CI', gh }); }
+      catch { /* Keep the existing fail-closed absence read and unchanged dispatch. */ }
       gh(['workflow', 'run', 'ci.yml', '--ref', branch, '-f', 'require_review=true']);
       return { outcome: 'dispatched' };
     }

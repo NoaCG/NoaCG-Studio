@@ -589,8 +589,13 @@ jobs:
       # shard, and bound the apt call that used to hang. Shared with the two gate jobs below.
       - uses: ./.github/actions/playwright-chromium
 
+      # TMPDIR on the runner's disk, as configured-suite.yml and hosted-latency.yml have it. The
+      # runner's /tmp is a 7.9 GB tmpfs and Playwright starts Chromium with --disable-dev-shm-usage,
+      # so its shared memory lives in TMPDIR; on /tmp a long shard can die on
+      # ERR_INSUFFICIENT_RESOURCES (issue 1574, and E2E 9/15 of run 39964759151).
       - name: E2E shard
         env:
+          TMPDIR: ${{ runner.temp }}
           SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           SHARD_INDEX: ${{ matrix.shardIndex }}
           # Without `--shard` Playwright would write `report.zip` on every runner, and the report
@@ -754,6 +759,7 @@ jobs:
         if: ${{ steps.failed.outputs.filters != '' }}
         env:
           FILTERS: ${{ steps.failed.outputs.filters }}
+          TMPDIR: ${{ runner.temp }}
           NOACG_BLOB_NAME: report-retry.zip
         run: npm run test:e2e -- $FILTERS
 
@@ -766,6 +772,7 @@ jobs:
         if: ${{ steps.failed.outputs.unreported_filters != '' }}
         env:
           FILTERS: ${{ steps.failed.outputs.unreported_filters }}
+          TMPDIR: ${{ runner.temp }}
           NOACG_BLOB_NAME: report-retry-unreported.zip
           PLAYWRIGHT_BLOB_OUTPUT_DIR: blob-report-unreported
         run: npm run test:e2e -- --output=test-results-unreported $FILTERS
@@ -828,6 +835,8 @@ jobs:
         run: npm run check:catalog-emit
 
       - name: Catalog calibration tripwire
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: npm run test:e2e:catalog
 
   # The trial `noacg-guide` mod (cli/plugin-guide, docs/work-specs/guided-mod/spec.md): Claude

@@ -4,7 +4,7 @@
 // optional position args, plus tl.call hooks and tl.add measured segments. A hand-edited region
 // that no longer parses returns null and the UI says so — the code always outranks the view.
 //
-// Phase 8 (docs/TIMELINE_V2_PLAN.md) removed the other half of this module: the ~450 lines of
+// Phase 8 (docs/STATE_MACHINE_SCHEMA.md) removed the other half of this module: the ~450 lines of
 // literal PATCHERS (splitTween, patchTweenTiming/Ease/Vars, patchStep*, insertPart*, setObj*)
 // that let the old strip rewrite a region in place. Nothing writes legacy regions any more —
 // motion is edited as DATA (blocks/animEdit.ts) — so what survives is READING, for exactly two
@@ -55,7 +55,7 @@ export interface TimelineTween {
 }
 
 /** Timeline v2 importer: one `tl.call(fnName)` lifecycle hook found in a phase, resolved to
- *  its start time on the phase's clock (docs/TIMELINE_V2_PLAN.md §3b). Zero-duration — it
+ *  its start time on the phase's clock (docs/STATE_MACHINE_SCHEMA.md). It has zero duration and
  *  never advances the phase, exactly as GSAP treats a call. */
 export interface TimelineCall {
   /** The named global function invoked (a bare identifier — `startClock`). */

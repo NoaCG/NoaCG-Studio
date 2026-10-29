@@ -154,7 +154,7 @@ export function staleSentence(e: Error): string {
 
 /** An Error for a stale refusal, carrying the plain sentence and the flag the pages word by. */
 export function staleError(graphics: readonly string[], epochChanged = false): Error {
-  return Object.assign(new Error(staleNotice(graphics, epochChanged)), { stale: true });
+  return Object.assign(new Error(staleNotice(graphics, epochChanged)), { stale: true, graphics: [...graphics] });
 }
 
 export function isStale(e: unknown): boolean {
@@ -174,9 +174,16 @@ export function settleAnswer(
   session: SeqSession,
   answer: SendAnswer | null,
   graphics: readonly string[],
+  sender: string,
 ): { outcome: 'landed' | 'superseded'; skipped: string[] } {
-  if (!answer) throw new Error('the server answered in a way this page cannot read');
-  learnHead(session, answer.epoch, answer.graphics);
+  // An answer this page cannot read came after the server may have applied the press: `unread`.
+  if (!answer) throw Object.assign(new Error('the server answered in a way this page cannot read'), { unread: true });
+  // A duplicate's or a superseded press's head is the current one, which may hold another screen's
+  // write made since: learnt, the next press would carry it as seen and pass without this page
+  // ever hearing that change. Only this page's own writes are learnt from it (an All out's off
+  // among them).
+  const own = (answer.ok && answer.duplicate) || (!answer.ok && answer.refused === 'superseded');
+  learnHead(session, answer.epoch, own ? Object.fromEntries(Object.entries(answer.graphics).filter(([, h]) => h?.by === sender)) : answer.graphics);
   if (answer.ok) return { outcome: 'landed', skipped: answer.skipped };
   if (answer.refused === 'superseded') return { outcome: 'superseded', skipped: [] };
   throw staleError(answer.stale.length > 0 ? answer.stale : graphics, answer.epochChanged);

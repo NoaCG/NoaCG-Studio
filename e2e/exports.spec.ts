@@ -10,7 +10,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
 import type { OgrafUsageLabel } from './_ografBuild';
-import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
+import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import nodePath from 'node:path';
@@ -189,12 +189,13 @@ test('export target choice is remembered as the default across reloads', async (
 });
 
 test('html overlay: self-contained, autoplays with the Data panel values, control panel bundled', async ({ page }) => {
-  skipOldEditor();
   await createHairline(page);
-  // Type a custom value in the Data panel — the export must bake it in.
-  await page.getByTestId('dock-tab-data').click();
-  const nameInput = page.locator('.panel-body input').first();
-  await nameInput.fill('Overlay Works');
+  // A custom value typed for the graphic: the store's sample data, which is what the old Data
+  // panel wrote and what every field control writes - the export must bake it in.
+  await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    useTemplateStore.getState().setSampleValue('f0', 'Overlay Works');
+  });
   const zip = await downloadTarget(page, 'HTML overlay (OBS / vMix)');
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   expect(names.sort()).toEqual([
@@ -1004,6 +1005,10 @@ test('every export target carries the fonts its own code references', async ({ p
     await lone.goto(`file://${onDisk.replace(/\\/g, '/')}`);
     const faces = await lone.evaluate(async () => {
       await document.fonts.ready;
+      // A face limited by `unicode-range` (a bundled face's latin-ext file) is fetched only when
+      // the page draws a letter in its range, so each one is loaded here on purpose: every
+      // declared face, used yet or not, must resolve from the file alone.
+      await Promise.all(Array.from(document.fonts).map((f) => f.load().catch(() => undefined)));
       return Array.from(document.fonts).map((f) => `${f.family.replace(/["']/g, '')}:${f.status}`);
     });
     await lone.close();

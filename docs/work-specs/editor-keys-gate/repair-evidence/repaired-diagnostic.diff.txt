@@ -1,0 +1,61 @@
+diff --git a/e2e/editor-keys.spec.ts b/e2e/editor-keys.spec.ts
+index 227897109..d4d1aeeae 100644
+--- a/e2e/editor-keys.spec.ts
++++ b/e2e/editor-keys.spec.ts
+@@ -7,6 +7,7 @@ import { test, expect, type Page } from '@playwright/test';
+ import { installGraphicBody } from './_graphicBody';
+ import { settleDurableWrites } from './_durable';
+ import { pickDesign } from './_browse';
++import { installKeysProbe, connectKeysProbe, assertHeldZero, probeStatus, finishKeysProbe } from './_phase2-keys-probe';
+ 
+ test('Quiz source-controlled animation is preserved and explains the base editing path', async ({ page }) => {
+   await page.goto('/app#/new'); await page.locator('[data-entry="template"]').click(); await pickDesign(page, 'House Quiz');
+@@ -33,6 +34,17 @@ async function seek(page: Page, time: number) {
+   await page.mouse.click(box.x + time / extent * box.width, box.y + 20);
+   if (Math.abs(before - time) > .00001) await expect.poll(() => page.getByTestId('foundation-canvas').getAttribute('data-request')).not.toBe(request);
+   await ready(page);
++  // A preceding pose can change data-request without acknowledging this seek.
++  // Await the correlated receipt and its rendered pose before editing at the new time.
++  await expect.poll(() => page.evaluate(async time => {
++    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
++    const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics();
++    const view = session.port.view(), canvas = document.querySelector('[data-testid="foundation-canvas"]');
++    const poseTime = canvas?.getAttribute('data-pose-time');
++    return controller?.receipt(session.version(), view).state === 'ready' && Math.abs(view.time - time) < .00001 &&
++      poseTime !== null && poseTime !== undefined && Math.abs(Number(poseTime) - time) < .00001 &&
++      canvas?.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
++  }, time)).toBe(true);
+ }
+ async function setup(page: Page, spans: boolean | 'entrance' = false) {
+   await page.goto('/app?editor=foundation#/editor-foundation');
+@@ -159,7 +171,10 @@ test('nonzero first key, diamond last removal, interpolated disable and exact un
+ });
+ 
+ test('nested SVG armed parent-coordinate drag and explicit base offset preserve motion', async ({ page }) => {
++  await installKeysProbe(page);
++  try {
+   await setup(page);
++  await connectKeysProbe(page);
+   await page.evaluate(async () => {
+     const { useTemplateStore } = await import('/src/store/templateStore.ts');
+     const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
+@@ -170,7 +185,11 @@ test('nested SVG armed parent-coordinate drag and explicit base offset preserve
+   });
+   await ready(page); await seek(page, 0);
+   await page.getByRole('button', { name: 'Enable Position X animation', exact: true }).click(); await ready(page);
++  await assertHeldZero(page);
+   await seek(page, 1);
++  // The repaired seek now waits through the identical 1500 ms hold.
++  expect(await probeStatus(page)).toMatchObject({ zeroReplayConsumed: true,
++    oneHeldBeforeController: true, oneHeldAfterMicrotask: true, latestReleased: true, problems: [] });
+   const bounds = (await page.locator('.ef-selection rect').boundingBox())!;
+   const board = (await page.locator('.ef-artboard').boundingBox())!, scale = board.width / 1920;
+   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2); await page.mouse.down();
+@@ -183,6 +202,7 @@ test('nested SVG armed parent-coordinate drag and explicit base offset preserve
+   const value = Number(await input.inputValue()); await input.fill(String(value + 40)); await input.press('Enter'); await ready(page);
+   expect((await source(page)).js).toBe(before.js);
+   expect(await (await preview(page)).locator('#nested').evaluate(el => el.getBoundingClientRect().x)).toBeCloseTo(pose + 69.282032, 1);
++  } finally { console.log('KEYS_MATCHING_PROBE ' + JSON.stringify(await finishKeysProbe(page))); }
+ });
+ 
+ test('bar movement carries disjoint spans and keys, cancel and refusal are atomic', async ({ page }) => {

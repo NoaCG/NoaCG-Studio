@@ -1,5 +1,5 @@
-// Timeline v2 (docs/TIMELINE_V2_PLAN.md) + the state-machine schema, format version 2
-// (docs/STATE_MACHINE_SCHEMA.md). The marked ANIMATION region carries
+// Animation data and state-machine format version 2 (docs/STATE_MACHINE_SCHEMA.md).
+// The marked ANIMATION region carries
 // `var NOACG_ANIM = { ... };` (strict JSON inside the braces) plus a fixed interpreter.
 // This module is the editor's side of the contract: extract the literal from template.js,
 // parse and validate it (migrating version 1 on read), and serialize it back CANONICALLY —
@@ -21,7 +21,7 @@ export type AnimLayerTracks = Record<string, AnimKeyframe[]>;
 /** One lifecycle hook on a step's local clock — a side effect, not layer motion. `call` is
  *  the NAME of a global function defined in the template's own JS (e.g. the clock engine's
  *  `startClock`); the interpreter resolves it by name at fire time. Strictly a bare
- *  identifier — never an expression, never arguments (docs/TIMELINE_V2_PLAN.md §3b). */
+ *  identifier, never an expression or arguments (docs/STATE_MACHINE_SCHEMA.md, Animation steps and runtime hooks). */
 export interface AnimCall {
   time: number;
   call: string;

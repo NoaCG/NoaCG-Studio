@@ -1,0 +1,194 @@
+{
+  "costUnread": false,
+  "brief": "youth-summit-event-bug",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "97771399-c281-434b-b522-574923b21726",
+  "costCents": 0,
+  "notionalUsd": 0.9558122,
+  "wallSeconds": 308,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type event-bug --design bug25 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:6c2bb83dd64620c3a3c5e879b0f0ee1f5790bf0ec9222ac21ebcb5afc61c76b2"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:1870c8a1d4003f8f5186dd8f4c9fbb6dffe5c64e63aadfa3e84247d064fd8386"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:2c281f81e47a5002bdf5439f7861015d9bd700815289fbcd7f5983b30c24b257"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:840dd861702b6ae8b15347bb0672576c985a8fffc25e30e458f59d540d3d81ce"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:d5cfe1edab212832c4db254fb9e32fa76e12c789a7f7904ed7bff9721db75be3"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f1=DAG 2 --data f2=HÖRSALEN ÅNGSTRÖM ÄLVSJÖ --background video --out ../shots/swe.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 1,
+      "digest": "sha256:5d4f699ff79a1ef601335ad2dcecf4884af2dacf319c6724beb1015469a80875"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f1=DAG 2 --data f2=HÖRSALEN ÅNGSTRÖM ÄLVSJÖ --background video --out ../shots/swe.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f1=DAG 2 --data f2=Aulan --background video --out ../shots/swe2.png",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 1,
+      "digest": "sha256:5d4f699ff79a1ef601335ad2dcecf4884af2dacf319c6724beb1015469a80875"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f1=DAG 2 --data f2=HÖRSALEN ÅNGSTRÖM ÄLVSJÖ --background video --out ../shots/swe.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:ccb57daaeecd563cbffa075a9681624e4d5eff4037a24e260b0499c14cd3b2e9"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f1=DAG 2 --data f2=HÖRSALEN ÅNGSTRÖM ÄLVSJÖ --background video --out ../shots/swe.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:016e9170ca769660ed6184f6616d054d9817a2afc212e035a30ff1e951130398"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f1=DAG 2 --data f2=HÖRSALEN ÅNGSTRÖM ÄLVSJÖ --background video --out ../shots/swe.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:455a555a699aeedacb1d7fc6e413533f12836205010e7692d876722cb41a940e"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage . --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:455a555a699aeedacb1d7fc6e413533f12836205010e7692d876722cb41a940e"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:4c84e5f414e36695c10b161405f94520bcb8cc915441ea962e559bf49769dd10"
+    },
+    {
+      "command": "noacg coverage . --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:4c84e5f414e36695c10b161405f94520bcb8cc915441ea962e559bf49769dd10"
+    },
+    {
+      "command": "noacg record . --out ../outputs/record.json --review ../outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:4c84e5f414e36695c10b161405f94520bcb8cc915441ea962e559bf49769dd10"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\baseline\\cells\\youth-summit-event-bug.claude-sonnet-5-5-high\\frames",
+    "frames": 23,
+    "crops": 4,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:4c84e5f414e36695c10b161405f94520bcb8cc915441ea962e559bf49769dd10"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:4c84e5f414e36695c10b161405f94520bcb8cc915441ea962e559bf49769dd10",
+    "benchValidated": "sha256:4c84e5f414e36695c10b161405f94520bcb8cc915441ea962e559bf49769dd10",
+    "reviewed": "sha256:4c84e5f414e36695c10b161405f94520bcb8cc915441ea962e559bf49769dd10",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 23,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

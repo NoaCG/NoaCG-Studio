@@ -397,7 +397,7 @@ test('the fake arm and the stubbed managed-agents arm deliver through record, sh
   assert.deepEqual(fake.look, { reviewed: 2, opened: 2, unopened: [], all: true, fixed: 0 });
   assert.equal(managed.look.reviewed, 0);
   assert.deepEqual(scaffoldArgs(BRIEF, 'g').slice(0, 5), ['scaffold', '--type', 'scoreboard', '--design', 'neutral'], 'a neutral type starts from its neutral spine');
-  assert.ok(cli.calls.some((a) => a[0] === 'coverage' && a.includes('--stress')), 'the bench captures with the brief\'s stress values');
+  assert.ok(cli.calls.some((a) => a[0] === 'coverage' && a.includes('--stress') && a.includes('--frames')), "the bench captures with the brief's stress values, a frame per moment as the judge reads it");
   assert.deepEqual(managed.cleanup, { filesDeleted: 2, sessionDeleted: true, sessionGone: true, filesLeft: 0 }, 'the session and its files answer not found after');
   assert.deepEqual(managed.progress, ['Checking the graphic', 'Handing it in']);
   const created = ma.stub.calls.find((c) => c.method === 'sessions.create').args[0];
@@ -1248,6 +1248,12 @@ test('a build runs each arm in its own lane, side by side, and a paused referenc
   assert.deepEqual(rungOrder.slice(0, 2), ['start a', 'start b'], 'two sessions of the rung at once');
   assert.ok(rungOrder.indexOf('start c') > rungOrder.indexOf('end a'), 'each lane one session at a time');
   assert.equal(rungDone.length, 4);
+  // --lanes 3: three sessions at once, the briefs still dealt in turn.
+  rungOrder.length = 0;
+  const threeLanes = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, i) => ({ id: `${id}.rung`, brief: { id }, arm: rungArm, lane: `subscription-${i % 3}` }));
+  await runCells({ cells: threeLanes, runDir: tmp(), cli: null, ledger: emptyLedger(), entry: ENTRY, api: { shape: null }, runId: 'rung3', lanes: true, cellRunner: rungRunner });
+  assert.deepEqual(rungOrder.slice(0, 3), ['start a', 'start b', 'start c'], 'three sessions of the rung at once');
+  assert.ok(rungOrder.indexOf('start d') > rungOrder.indexOf('end a'), 'each lane one session at a time');
 });
 
 test('a misplaced stress value is moved by hand, and both arms of its brief are captured again', async () => {

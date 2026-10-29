@@ -1,5 +1,7 @@
 // covers: src/components/{SettingsDialog,BridgePairPage,RecentServers,InfoLine,CopyPairingLink}.tsx
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
 //
 // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two surfaces it grows are
 // already mapped elsewhere for their own reasons - SettingsDialog to analytics/auth, ProductionPage
@@ -22,6 +24,8 @@
 // bridge-connect drives the form through a fake Bridge; playout-nav owns the header door and the
 // Back/Home pair beside it.
 // covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
+// covers: src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/useProductionPublish.ts
 //
 // CasparCG Connect is a NICE-TO-HAVE over routes that already air (docs/BRIDGE.md),
 // so it earns a place here for one reason only: it puts a control on the production page and a
@@ -1228,6 +1232,53 @@ test('with a Bridge that reads the slot, Load and Unload each show in the slot r
   await expect(slot).toContainText('Empty');
   await expect(slot.getByTestId('caspar-take-off-air')).toHaveCount(0);
   expect(bridge.actions[1]).toMatchObject({ verb: 'out', slot: { channel: 2, layer: 30 } });
+});
+
+test('after a CasparCG restart the output this page loaded goes back on its slot by itself (#1657)', async ({ page }) => {
+  await seedSettings(page, { channel: 2, layer: 30 });
+  const bridge = await slotBridge(page);
+  await publishedProduction(page);
+  const panel = page.getByTestId('production-status-panel');
+  const slot = panel.getByTestId('caspar-slot');
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(slot).toContainText('Loading…');
+  expect(bridge.actions).toHaveLength(1);
+  // Emptied while everything kept answering (another browser's Unload, a client's CLEAR): left alone.
+  // Check again reads the slot at once rather than at the next 10 s reading.
+  bridge.showPage('2-30', null);
+  const reads = bridge.stateCalls;
+  await panel.getByTestId('playout-check-now').click();
+  await expect.poll(() => bridge.stateCalls).toBeGreaterThan(reads);
+  await expect(slot).toContainText('Empty');
+  expect(bridge.actions).toHaveLength(1);
+  // A restart: the server is put back on the slot, then goes away, and answers again with every
+  // layer wiped (the Bridge stands in for it going quiet here).
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(slot).toContainText('Loading…');
+  expect(bridge.actions).toHaveLength(2);
+  bridge.missing = true;
+  await panel.getByTestId('playout-check-now').click();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'bad');
+  bridge.showPage('2-30', null);
+  bridge.missing = false;
+  await panel.getByTestId('playout-check-now').click();
+  // It is loaded again onto the same slot with no press, once.
+  await expect.poll(() => bridge.actions.length).toBe(3);
+  expect(bridge.actions[2]).toMatchObject(LOAD_2_30);
+  await expect(slot).toContainText('Loading…');
+  await expect(page.getByTestId('production-note').filter({ hasText: 'failed' })).toHaveCount(0);
+  // Unloaded on purpose, a slot emptied by a restart stays empty.
+  await slot.getByTestId('caspar-take-off-air').click();
+  await expect(slot).toContainText('Empty');
+  bridge.missing = true;
+  await panel.getByTestId('playout-check-now').click();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'bad');
+  bridge.missing = false;
+  const after = bridge.stateCalls;
+  await panel.getByTestId('playout-check-now').click();
+  await expect.poll(() => bridge.stateCalls).toBeGreaterThan(after);
+  await expect(slot).toContainText('Empty');
+  expect(bridge.actions.map((a) => a.verb)).toEqual(['take', 'take', 'take', 'out']);
 });
 
 test('Load asks before replacing another production on the slot, and Cancel sends nothing', async ({ page }) => {

@@ -99,11 +99,25 @@ export async function signOut(): Promise<void> {
   // Mark this as the USER's choice before the SIGNED_OUT event can land, so the session-expiry
   // prompt (syncController) never mistakes a deliberate sign-out for a dead session.
   deliberateSignOut = true;
-  const sb = await getSupabase();
-  await sb?.auth.signOut();
-  // Graphics are account-bound: the page returns to the signed-out workspace, and the account's
-  // library (with its own sync bookmark) waits on this device until it signs in again.
-  await releaseLibrary();
+  signingOut = true;
+  try {
+    const sb = await getSupabase();
+    await sb?.auth.signOut();
+    // Graphics are account-bound: the page returns to the signed-out workspace, and the account's
+    // library (with its own sync bookmark) waits on this device until it signs in again.
+    await releaseLibrary();
+  } catch (e) {
+    signingOut = false;
+    throw e;
+  }
+}
+
+/** Whether this page is on its way out of a Sign out the user pressed. The session is gone before
+ *  the reload onto the signed-out workspace lands, and that gap is not a paused account
+ *  (AccountSaveNotice). Unlike `consumeDeliberateSignOut`, reading it changes nothing. */
+let signingOut = false;
+export function isSigningOut(): boolean {
+  return signingOut;
 }
 
 /** Whether the most recent transition to signed-out was the user's own Sign out. Reading it

@@ -10,7 +10,7 @@
 // covers: src/control/panelRelay.ts, src/control/panelFeedback.ts, src/components/control/PanelControl.tsx
 // covers: src/components/HostedControlPage.tsx
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { haveCreds, SUPABASE_URL } from './_helpers';
 import { answerPanel, ANON_KEY, openHosted, pairPanel, publishTwoCues, type Json } from './_panel';
 
@@ -118,5 +118,109 @@ test('a hosted page pairs a panel, answers it, runs its presses and refuses repe
   await op2.close();
   await expect.poll(async () => (await deck.hello()).answering, { timeout: 30_000 }).toBe(false);
   await expect(op.getByTestId('panel-status')).toHaveText('No page answers the panel.', { timeout: 10_000 });
+  await deck.close();
+});
+
+/** The command rows the log holds for this production after `after`, as the hosted page reads them:
+ *  `staged` and `live` are traffic about a press, not the press (hosted-control-profile.spec.ts). */
+async function commands(op: Page, slug: string, after = 0): Promise<{ id: number; graphic: string; kind: string }[]> {
+  return op.evaluate(
+    async ({ slug, after }) => {
+      const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+      return (await hostedControlTail(slug, after))
+        .map((row) => ({ id: row.id, graphic: row.graphic, kind: (row.msg as { t: string }).t }))
+        .filter((row) => row.kind !== 'staged' && row.kind !== 'live');
+    },
+    { slug, after },
+  );
+}
+
+test('every transport and selection verb runs once through the relay, reaching the command log and PROGRAM', async ({ page, context }) => {
+  // H0 AC-2 (docs/work-specs/playout-companion-qualification/spec.md): each declared verb pressed
+  // through the real relay, asserted on its target, the command log and the rendered result. A
+  // Take is one dispatch; the same press id again is none. Walking and selecting write nothing.
+  test.setTimeout(300_000);
+  // Clean Steps has steps, so Next has somewhere to go.
+  const slug = await publishTwoCues(page, `Panel Verbs ${Date.now()}`, 'Clean Steps');
+  await page.goto('/app#/home');
+  const op = await context.newPage();
+  await openHosted(op, slug);
+  const deck = await pairPanel(op);
+  await answerPanel(op);
+  await op.getByTestId('panel-close').click();
+  await deck.hello();
+  const first = await deck.state((s) => Array.isArray(s.live));
+  const [anna, ben] = (await deck.rows()).map((r) => r.id);
+  expect(first.selected).toBe(anna);
+  const program = op.getByTestId('hosted-program-stage');
+  await expect(program).toHaveAttribute('data-plays', '0');
+
+  /** Wait until the log carries `kinds` after `from`, in that order, then make sure nothing more
+   *  follows; hand back the newest id. `update` and `cue` rows ride with a take and are not counted. */
+  const counted = new Set(['play', 'stop', 'next']);
+  const settle = async (from: number, kinds: string[], what: string) => {
+    const pick = async () => (await commands(op, slug, from)).filter((r) => counted.has(r.kind) || kinds.includes(r.kind));
+    await expect.poll(async () => (await pick()).map((r) => r.kind), { timeout: 20_000, message: what }).toEqual(kinds);
+    await op.waitForTimeout(1_500);
+    const rows = await pick();
+    expect(rows.map((r) => r.kind), `${what}: nothing more`).toEqual(kinds);
+    const all = await commands(op, slug, from);
+    return all.length ? all[all.length - 1].id : from;
+  };
+  let head = (await commands(op, slug)).at(-1)?.id ?? 0;
+
+  // SELECT-NEXT and SELECT-PREV walk the selection and write nothing to the log.
+  expect((await deck.press('select-next', '', first.ver as number)).outcome).toBe('ran');
+  const onBen = await deck.state((s) => s.selected === ben, 'Ben selected');
+  expect((await deck.press('select-prev', '', onBen.ver as number)).outcome).toBe('ran');
+  const onAnna = await deck.state((s) => s.selected === anna, 'Anna selected again');
+  await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
+  head = await settle(head, [], 'walking writes no command');
+
+  // TAKE airs the selected cue: one play in the log, one entrance on PROGRAM.
+  const take = await deck.press('take', anna, onAnna.ver as number);
+  expect(take.outcome).toBe('ran');
+  head = await settle(head, ['play'], 'one Take, one play');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  // The same press id again is answered duplicate and dispatches nothing.
+  expect((await deck.press('take', anna, onAnna.ver as number, take.id)).outcome).toBe('duplicate');
+  head = await settle(head, [], 'a duplicate press, no command');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  const up = await deck.state((s) => (s.live as string[]).includes(anna), 'Anna on air');
+  expect(up.allowed).toMatchObject({ retake: true, update: true, next: true, out: true });
+
+  // NEXT steps the cue on air.
+  expect((await deck.press('next', anna, up.ver as number)).outcome).toBe('ran');
+  head = await settle(head, ['next'], 'one Next');
+  // UPDATE sends the values again without a new entrance. A step moves nothing a key shows, so no
+  // new state follows a press here: the keys below are drawn from `up`, as a deck's would be.
+  expect((await deck.press('update', anna, up.ver as number)).outcome).toBe('ran');
+  head = await settle(head, ['update'], 'one Update, no play');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  // RE-TAKE plays it again: one more entrance.
+  expect((await deck.press('retake', anna, up.ver as number)).outcome).toBe('ran');
+  head = await settle(head, ['play'], 'one Re-take');
+  await expect(program).toHaveAttribute('data-plays', '2');
+  // OUT takes it off.
+  expect((await deck.press('out', anna, up.ver as number)).outcome).toBe('ran');
+  head = await settle(head, ['stop'], 'one Out');
+  const off = await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
+  await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air');
+
+  // TRIGGER plays Ben by his own row id and leaves the selection on Anna; pressed again it restarts.
+  expect((await deck.press('trigger-cue', ben, off.ver as number)).outcome).toBe('ran');
+  head = await settle(head, ['play'], 'one Trigger');
+  const benUp = await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
+  expect(benUp.selected).toBe(anna);
+  await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
+  await expect(op.getByTestId('hosted-live-chip')).toContainText('Ben');
+  expect((await deck.press('trigger-cue', ben, benUp.ver as number)).outcome).toBe('ran');
+  head = await settle(head, ['play'], 'a second Trigger restarts');
+  await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
+  await expect(program).toHaveAttribute('data-plays', '4');
+  // The clip verbs are not on this page, and say so; nothing reaches the log.
+  const pause = await deck.press('pause-toggle', ben, benUp.ver as number);
+  expect(pause).toMatchObject({ outcome: 'not-here' });
+  await settle(head, [], 'a refused press, no command');
   await deck.close();
 });

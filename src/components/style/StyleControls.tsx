@@ -22,7 +22,7 @@ import {
   type StyleTerm,
 } from '../../model/styleVocabulary';
 import { contrastRatio, looksLikeColor, parseCssColor } from '../../model/cssVars';
-import { FONTS, fontByStack, fontStack } from '../../model/fonts';
+import { FONTS, fontByStack, fontStack, tokenWeights } from '../../model/fonts';
 import { formatCssLength, parseCssLength } from '../../blocks/cssLength';
 import ColorField from './ColorField';
 
@@ -41,12 +41,14 @@ interface Props {
   /** Names another section already owns (the wizard's palette swatches). */
   exclude?: Set<string>;
   disabled?: boolean;
+  /** The families the graphic ships as imported files: their weights are unknown, so Regular only. */
+  importedFonts?: readonly string[];
 }
 
 /** The order groups are shown in. Colours first: they are what most people came to change. */
 const GROUP_ORDER: StyleTerm['group'][] = ['palette', 'ink', 'panel', 'accent', 'type'];
 
-export default function StyleControls({ vars, onSet, isOverridden, onReset, exclude, disabled }: Props) {
+export default function StyleControls({ vars, onSet, isOverridden, onReset, exclude, disabled, importedFonts }: Props) {
   const byName = new Map(vars.map((v) => [v.name, v.value]));
 
   /**
@@ -212,6 +214,17 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
 
   const renderWeight = (name: string, value: string) => {
     const term = styleTerm(name);
+    // Only the weights the faces really draw (`tokenWeights`): Bebas Neue, Anton and an imported
+    // face offer Regular alone, so no choice here is a bold the browser would synthesise.
+    const real = tokenWeights(byName.get('font-heading'), byName.get('font-numeric'), importedFonts);
+    const offered = real ? WEIGHT_CHOICES.filter((w) => real.has(w)) : WEIGHT_CHOICES;
+    // A face with one real weight leaves nothing to choose: the row is hidden, never one greyed
+    // button (the wizard's rule, a control is offered only where it can change the graphic).
+    if (offered.length <= 1) return null;
+    // The weight the design stores is shown, and shown chosen, even where the face stops short of
+    // it: the sport family's 800 on Oswald (400-700) also weights its Saira numbers, so it is a
+    // real choice the row must be able to return to.
+    const weightChoices = offered.includes(value.trim()) || !WEIGHT_CHOICES.includes(value.trim()) ? offered : [...offered, value.trim()].sort();
     return (
       <div className="field-row" key={name} data-testid={`style-var-${name}`}>
         <div className="field-meta">
@@ -219,7 +232,7 @@ export default function StyleControls({ vars, onSet, isOverridden, onReset, excl
           <span className="field-id">--{name}</span>
         </div>
         <div className="row wrap" style={{ gap: 6 }}>
-          {WEIGHT_CHOICES.map((w) => (
+          {weightChoices.map((w) => (
             <button
               key={w}
               type="button"

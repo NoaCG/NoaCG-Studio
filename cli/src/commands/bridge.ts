@@ -14,7 +14,7 @@
 // 0.0.0.0 would turn any web page the operator visits into a remote for the playout box, so
 // the command refuses to.
 
-import { cliVersion, noacgUrl } from '../config.js';
+import { bridgeVersion, noacgUrl } from '../config.js';
 import { launchUrl } from '../openUrl.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
@@ -52,7 +52,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   const pairings = new PairingCodes();
   const first = pairings.mint();
   const server = createBridgeServer(
-    { token, origins, adapters: [casparcgAdapter, ografAdapter, vmix], version: cliVersion(), pairings, keyboard },
+    { token, origins, adapters: [casparcgAdapter, ografAdapter, vmix], version: bridgeVersion(), pairings, keyboard },
     (line) => {
       if (!quiet) out.log(`[bridge] ${line}`);
     },
@@ -69,7 +69,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   // What the window says is what the pairing page says (docs/work-specs/studio-day-playout D8): one
   // line per step, and how to pair another browser, which is a link copied into it.
   out.say('');
-  out.say(`  NoaCG Bridge ${cliVersion()} is running. Leave this window open.`);
+  out.say(`  NoaCG Bridge ${bridgeVersion()} is running. Leave this window open.`);
   out.say('');
   out.say('  1. Pair your browser with this link. It works once, within two minutes.');
   out.say(`       ${pairUrl}`);

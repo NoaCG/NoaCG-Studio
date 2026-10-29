@@ -1,0 +1,468 @@
+// guards: scripts/endurance-judge.mjs, scripts/endurance-fixture.mjs, scripts/election-replay-server.mjs
+//
+// The endurance verdict (phase E8.1b) can fail. A healthy record of a 40-minute run passes every
+// check, and each defect the envelope names turns its own check red: a wrong-person frame, a mixed
+// record, a stale-owner write, a duplicate action, an unbounded queue, a leaked subscription, memory
+// growth, an unhandled error, a Pause that leaks, a revision over the ingress limit. The fixture's
+// shape and limits are pinned here too, so a change to them is a reviewed change.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createHash, randomBytes } from 'node:crypto';
+import { ACTION_MS, BODY_CAP_BYTES, MIN_MINUTES, CANDIDATES, CUE_SWITCH_MS, STEP_MS, candidates, countedAt, enduranceTimeline, measureFixture, partyVotes, revisionAt, schedule, stepKind, votesAt } from './endurance-fixture.mjs';
+import { judge } from './endurance-judge.mjs';
+import { startReplayServer } from './election-replay-server.mjs';
+
+const MIN = 40;
+const T0 = 1_800_000_000_000;
+const people = candidates();
+const key = (d, c) => people.find((p) => p.district === d && p.candidate === c);
+const CUES = [key('02', 101), key('01', 101), key('02', 103)];
+const fmt = (n) => n.toLocaleString('en-GB');
+const MIB = 1024 * 1024;
+
+/** A healthy record of a run, built as the driver writes one. */
+function healthy(minutes = MIN) {
+  const plan = schedule(minutes);
+  const iso = (t) => new Date(t).toISOString();
+  const r = { minutes, schedule: plan, t0: T0, end: T0 + plan.totalMs + 2_000, errors: [], takes: [], actions: [], faults: [], samples: [], frames: [], snapshots: [], provider: [], reads: [], agents: [], rows: [], credentialLeaked: false };
+  r.fixture = { candidates: CANDIDATES, bodyBytes: 150_710, jsonbBytes: 164_408, capBytes: BODY_CAP_BYTES };
+  const paused = [];
+  let epoch = 1;
+  for (const e of plan.events) {
+    const at = T0 + e.at;
+    if (e.kind === 'pause') {
+      const f = { kind: 'pause', at, paused: at + 200, resuming: at + 200 + e.ms, end: at + 400 + e.ms, answer: { paused: true, writes: 0 }, resume: { paused: false, writes: 2 } };
+      // Resume's own rows, written in the same call.
+      r.rows.push({ graphic: 'Party totals', t: 'update', src: 'api', data: {}, at: f.resuming + 30 }, { graphic: 'Count bug', t: 'update', src: 'api', data: {}, at: f.resuming + 31 });
+      paused.push(f);
+      r.faults.push(f);
+    } else if (e.kind === 'handover') {
+      const crash = e.mode === 'crash';
+      r.faults.push({ kind: 'handover', mode: e.mode, at, claimed: at + (crash ? 33_000 : 1_000), ...(crash ? { woke: at + 36_000 } : {}), end: at + (crash ? 45_000 : 2_000), from: `agent-${epoch}`, epochBefore: epoch, epochAfter: epoch + 1 });
+      if (crash) r.reads.push({ agent: `agent-${epoch}`, at: at + 36_500, line: 'election renewal failed: fetch failed' }, { agent: `agent-${epoch}`, at: at + 36_600, line: 'election changed revision 9 not taken (409 moved)' }, { agent: `agent-${epoch}`, at: at + 38_600, line: 'election not claimed (409 held by another agent)' });
+      epoch++;
+    } else r.faults.push({ kind: e.kind, at, end: at + (e.ms ?? 4_000) });
+  }
+  const isPaused = (t) => paused.some((f) => t > f.paused && t < f.resuming);
+  const epochAt = (t) => 1 + r.faults.filter((f) => f.kind === 'handover' && f.claimed <= t).length;
+  for (const g of ['Party totals', 'Count bug', 'Ticker', 'Scoreboard', 'Club Scorebug', 'House Scorebug', 'Arena Quiz', 'Board']) r.rows.push({ id: r.rows.length + 1, graphic: g, t: 'play', at: T0 - 5_000 });
+  let n = 0;
+  for (let at = 0; at < plan.totalMs; at += CUE_SWITCH_MS) {
+    const p = CUES[n++ % CUES.length];
+    r.takes.push({ label: p.name, key: [p.district, p.candidate], clickAt: T0 + at, at: T0 + at + 300 });
+  }
+  const aired = (t) => r.takes.findLast((x) => x.at <= t);
+  const person = (x) => key(x.key[0], x.key[1]);
+  const events = [];
+  // A Take writes its values and its play in one moment; the output reports what it shows.
+  const applied = [];
+  for (let i = 0; T0 + i * STEP_MS < r.end; i++) {
+    if (stepKind(i) !== 'count') {
+      r.provider.push({ name: `${stepKind(i)}-${revisionAt(i)}`, at: T0 + i * STEP_MS + 100 });
+      continue;
+    }
+    const rev = revisionAt(i);
+    const t = T0 + i * STEP_MS;
+    r.provider.push({ name: `count-${rev}`, at: t + 100 });
+    r.reads.push({ agent: 'agent-1', at: t + 500, line: `${iso(t + 500)} election changed accepted=${rev} next=2000ms` });
+    if (!isPaused(t + 1_000)) {
+      applied.push({ t: t + 1_000, rev });
+      events.push({ t: t + 1_000, row: { graphic: 'Party totals', t: 'update', src: 'api', data: { f8: fmt(partyVotes('KOK', rev)) } } });
+      const a = aired(t + 1_500);
+      if (a) events.push({ t: t + 1_500, row: { graphic: 'Candidate card', t: 'update', data: { f0: person(a).name, f2: fmt(votesAt(person(a), rev)) } } });
+    }
+  }
+  // A Take sends the values of the tree the page holds at that moment.
+  for (const x of r.takes) {
+    const held = applied.findLast((a) => a.t <= x.clickAt)?.rev ?? 1;
+    events.push({ t: x.clickAt + 100, row: { graphic: 'Candidate card', t: 'update', data: { f0: person(x).name, f2: fmt(votesAt(person(x), held)) } } });
+    events.push({ t: x.clickAt + 100, row: { graphic: 'Candidate card', t: 'play' } });
+    events.push({ t: x.clickAt + 900, row: { graphic: 'Candidate card', t: 'live', data: { f0: person(x).name } } });
+  }
+  events.sort((a, b) => a.t - b.t);
+  for (const e of events) r.rows.push({ id: r.rows.length + 1, ...e.row, at: e.t });
+  r.reads.push({ agent: 'agent-1', at: T0 + 9_000, line: `${iso(T0 + 9_000)} election unchanged accepted=1 next=2000ms` });
+  r.reads.push({ agent: 'agent-1', at: T0 + 9_500, line: `${iso(T0 + 9_500)} election stale accepted=1 next=2000ms` });
+  r.reads.push({ agent: 'agent-1', at: T0 + 9_800, line: `${iso(T0 + 9_800)} election invalid accepted=1 the provider's answer is not JSON next=2000ms` });
+  r.reads.push({ agent: 'agent-1', at: T0 + 9_900, line: 'election changed revision 2 not taken (409 too_soon)' });
+  // The output, read at 4 Hz: what the card and the board show as each row lands.
+  // Offline, the output hears nothing until it reconnects.
+  const dark = r.faults.filter((f) => f.kind === 'disconnect');
+  let rev = 0;
+  let shown = null;
+  for (let t = T0; t < r.end; t += 250) {
+    rev = applied.findLast((x) => x.t <= t - 250)?.rev ?? 0;
+    const a = aired(t - 400);
+    const now = { name: a ? person(a).name : '', votes: a && rev ? fmt(votesAt(person(a), rev)) : '', kok: rev ? fmt(partyVotes('KOK', rev)) : '', counted: rev ? `${countedAt(rev)} of 100 areas counted` : '' };
+    if (!shown || !dark.some((f) => t > f.at + 1_000 && t < f.end + 500)) shown = now;
+    const clock = `${String(Math.floor((t - T0 + 120_000) / 60_000)).padStart(2, '0')}:${String(Math.floor(((t - T0 + 120_000) % 60_000) / 1_000)).padStart(2, '0')}`;
+    r.frames.push({ at: t, ...shown, clock, frames: 6 });
+  }
+  r.frames = r.frames.filter((f, i, all) => i === 0 || JSON.stringify({ ...f, at: 0 }) !== JSON.stringify({ ...all[i - 1], at: 0 }));
+  for (let t = T0; t < r.end; t += 10_000) {
+    const gc = (t - T0) % Math.min(60_000, plan.cycleMs / 2) === 0;
+    const side = (heap, channels = 3) => ({ heap, nodes: 3_000, listeners: 600, documents: 4, frames: 6, channels, gc });
+    r.samples.push({ at: t, controller: side(30 * MIB), output: side(20 * MIB, 2), stateReadsInFlight: 0, stateReadsMax: 1, agent: { reading: (t / 10_000) % 2, undelivered: 0, posting: 0, rss: 60 * MIB }, agentsAlive: 1, snapshots: 1, driver: { rss: 200 * MIB, heap: 50 * MIB, handles: 30 } });
+    r.snapshots.push({ at: t, epoch: epochAt(t), revision: Math.max(1, Math.floor((t - T0) / STEP_MS)), state: 'changed', bytes: 164_000 });
+  }
+  let marks = 0;
+  for (let at = 30_000; at < plan.totalMs; at += ACTION_MS) {
+    const a = { at: T0 + at, n: r.actions.length + 1, outcome: 'ran', settled: 'accepted', marksBefore: marks, marksAfter: ++marks, end: T0 + at + 1_000 };
+    if (a.n % 5 === 0) Object.assign(a, { duplicate: { outcome: 'duplicate', marks }, elsewhere: { outcome: 'stale', note: 'the cue on Board changed', marks } });
+    r.actions.push(a);
+  }
+  r.finalSnapshot = { accepted_revision: rev, owner_epoch: epoch };
+  return r;
+}
+
+const failed = (record) => judge(record).checks.filter((c) => !c.ok).map((c) => c.name);
+/** A defect turns exactly the check that names it red (and maybe its neighbours), never nothing. */
+function red(name, mutate, expected) {
+  test(`red: ${name}`, () => {
+    const r = healthy();
+    mutate(r);
+    const names = failed(r);
+    assert.ok(names.some((n) => expected.test(n)), `expected a check matching ${expected}, got ${JSON.stringify(names)}`);
+  });
+}
+
+test('a healthy record passes every check', () => {
+  const v = judge(healthy());
+  assert.deepEqual(v.checks.filter((c) => !c.ok), []);
+  for (const road of ['dispatch', 'dispatchToAir', 'fetchToApply', 'providerToApply', 'applyToRenderBound', 'providerToRenderBound', 'applyToRenderCandidates']) assert.ok(v.timings[road].n > 0, road);
+  assert.equal(v.memory['controller.heap'].length, 3);
+});
+
+
+test('a healthy record of the shortest run the entry accepts, and of a half hour, passes every check', () => {
+  for (const m of [MIN_MINUTES, 25, 30]) assert.deepEqual(failed(healthy(m)), [], `${m} min`);
+});
+
+test('every run length has two steady windows after its warmup, and an hour keeps ten-minute cycles', () => {
+  for (const m of [1, 2, 3, 3.75, 4, 10, 19, 20, 25, 29, 30, 45, 60]) {
+    const plan = schedule(m);
+    assert.equal(plan.windows.length, Math.floor(plan.totalMs / plan.cycleMs), `${m} min`);
+    assert.ok(plan.windows.length >= 3 && plan.windows.filter((w) => !w.warmup).length >= 2, `${m} min`);
+    if (m >= 3.75) for (const e of plan.events) assert.equal((e.at - 3_000) % CUE_SWITCH_MS, 0, `${m} min: a fault 3 s after a cue switch`);
+  }
+  assert.equal(schedule(60).cycleMs, 10 * 60_000);
+  assert.equal(schedule(60).windows.length, 6);
+});
+
+red('a wrong-person frame', (r) => {
+  const late = r.takes[20].at + 8_000;
+  r.frames.push({ at: late, name: 'Example 0500', votes: '', kok: '', frames: 6 });
+  r.frames.sort((a, b) => a.at - b.at);
+}, /wrong-person/);
+red('the previous person still on air after the Take settled', (r) => {
+  const t = r.takes[20];
+  const before = r.takes[19];
+  r.frames = r.frames.map((f) => (f.at > t.at + 6_000 && f.at < t.at + 12_000 ? { ...f, name: key(before.key[0], before.key[1]).name } : f));
+}, /wrong-person/);
+red('a figure of no revision of the person on air', (r) => {
+  const f = r.frames.find((x) => x.votes);
+  f.votes = fmt(Number(f.votes.replace(/,/g, '')) + 1_000_003);
+}, /one person's at one revision/);
+red('a card update row carrying another person', (r) => {
+  const row = r.rows.find((x) => x.graphic === 'Candidate card' && x.t === 'update' && x.id > 200);
+  row.data = { ...row.data, f0: 'Example 0007' };
+}, /aired person/);
+red('a stale-owner write: the epoch went back after a crash', (r) => {
+  const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
+  r.snapshots.push({ at: crash.woke + 2_000, epoch: crash.epochBefore, revision: 9_999, state: 'changed', bytes: 1 });
+  r.snapshots.sort((a, b) => a.at - b.at);
+}, /never went back|old owner/);
+red('an old owner that never tried to write proves nothing', (r) => {
+  const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
+  r.reads = r.reads.filter((x) => !(x.agent === crash.from && x.at >= crash.woke));
+}, /old owner/);
+red('a duplicate Take', (r) => {
+  const play = r.rows.find((x) => x.graphic === 'Candidate card' && x.t === 'play');
+  r.rows.splice(r.rows.indexOf(play) + 1, 0, { ...play, id: play.id + 0.5 });
+}, /one play row per candidate Take/);
+red('a foreign action that ran twice', (r) => {
+  const a = r.actions.find((x) => x.duplicate);
+  a.duplicate = { outcome: 'ran', marks: a.marksAfter + 1 };
+}, /sent twice with one id/);
+red('a foreign action on an instance not on air that ran', (r) => {
+  const a = r.actions.find((x) => x.elsewhere);
+  a.elsewhere = { outcome: 'ran', marks: a.marksAfter + 1 };
+}, /not on air was refused/);
+red('a foreign action that did not run', (r) => {
+  r.actions[3] = { ...r.actions[3], outcome: 'stale', settled: null, marksAfter: r.actions[3].marksBefore };
+}, /every foreign action/);
+red('a data change that took the card', (r) => r.rows.push({ id: 1e9, graphic: 'Party totals', t: 'play', at: r.t0 + 60_000 }), /after their one Take/);
+red('two provider reads in flight', (r) => (r.samples[40].agent.reading = 2), /pending provider reads/);
+red('a second buffered revision', (r) => (r.samples[40].agent.undelivered = 2), /buffered updates/);
+red('a second snapshot row for the source', (r) => (r.samples[40].snapshots = 2), /buffered updates/);
+red('the controller\'s tree reads piling up', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) Object.assign(s, { stateReadsMax: 6, stateReadsInFlight: 3 });
+}, /tree reads in flight/);
+red('a subscription leaked by a reload', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 25 * 60_000) s.controller.channels = 4;
+}, /subscriptions are back to baseline/);
+red('an output instance left behind by a replacement', (r) => r.frames.push({ ...r.frames.at(-1), at: r.end, frames: 7 }), /graphic instances/);
+red('two agents alive after a handover', (r) => (r.samples[100].agentsAlive = 2), /one agent alive/);
+red('controller memory growing window on window', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.controller.heap = 45 * MIB;
+}, /memory and instance counts/);
+red('the agent\'s memory growing', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.agent.rss = 120 * MIB;
+}, /memory and instance counts/);
+red('listeners growing on the output', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.output.listeners = 900;
+}, /memory and instance counts/);
+red('an unhandled error', (r) => r.errors.push({ where: 'output', message: 'TypeError: x is undefined', at: r.t0 }), /unhandled error/);
+red('an update row while paused', (r) => {
+  const f = r.faults.find((x) => x.kind === 'pause');
+  r.rows.push({ id: 1e9, graphic: 'Count bug', t: 'update', src: 'api', data: { f2: '9 of 100' }, at: f.paused + 5_000 });
+}, /Pause held/);
+red('a Resume that sent nothing', (r) => (r.faults.find((x) => x.kind === 'pause').resume.writes = 0), /Resume sent/);
+red('a Resume that sent one graphic twice', (r) => {
+  const f = r.faults.find((x) => x.kind === 'pause');
+  r.rows.push({ graphic: 'Party totals', t: 'update', src: 'api', data: {}, at: f.resuming + 40 });
+}, /Resume sent/);
+red('a subscription leaked by an output reconnect', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 25 * 60_000) s.output.channels = 3;
+}, /output's subscriptions/);
+red('the count bug stuck while the board moves', (r) => {
+  for (const f of r.frames) if (f.counted) f.counted = '0 of 100 areas counted';
+}, /count bug followed/);
+red('a data change that stopped the foreign Board', (r) => r.rows.push({ id: 1e9, graphic: 'Board', t: 'stop', at: r.t0 + 60_000 }), /foreign Board/);
+red('a steady graphic that was never taken', (r) => (r.rows = r.rows.filter((x) => !(x.graphic === 'House Scorebug' && x.t === 'play'))), /after their one Take/);
+red('a data change that took the quiz', (r) => r.rows.push({ id: 1e9, graphic: 'Arena Quiz', t: 'next', at: r.t0 + 60_000 }), /after their one Take/);
+red('a revision over the ingress limit', (r) => (r.snapshots[30].bytes = BODY_CAP_BYTES + 1), /ingress limit/);
+test('the old owner\'s report in flight when frozen fails as it wakes: expected of that agent, after that moment', () => {
+  const r = healthy();
+  const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
+  r.reads.push({ agent: crash.from, at: crash.woke + 200, line: 'election the sender failed: fetch failed' });
+  assert.deepEqual(failed(r), []);
+});
+red('a failed report from a woken old owner after its end', (r) => {
+  const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
+  r.reads.push({ agent: crash.from, at: crash.end + 5_000, line: 'election the sender failed: fetch failed' });
+}, /did not cause/);
+red('a failed report from an agent that was never frozen', (r) => r.reads.push({ agent: 'agent-1', at: r.t0 + 60_000, line: 'election the sender failed: fetch failed' }), /did not cause/);
+red('a refusal the run did not cause', (r) => r.reads.push({ agent: 'agent-1', at: r.t0, line: 'election changed revision 9 not taken (409 budget)' }), /did not cause/);
+red('the credential in an agent log', (r) => (r.credentialLeaked = true), /credential/);
+red('an output that never caught up after a disconnect', (r) => {
+  const f = r.faults.find((x) => x.kind === 'disconnect');
+  const frozen = r.frames.filter((x) => x.at <= f.at).at(-1);
+  r.frames = r.frames.map((x) => (x.at > f.at && x.at < f.end + 25_000 ? { ...x, kok: frozen.kok } : x));
+}, /caught up/);
+test('a correction landing between a Take\'s click and its answer is owed by the person taken, not the one leaving', () => {
+  // A Take answered slowly: every data row lands after the click and before the Take returns.
+  const r = healthy();
+  for (const t of r.takes) t.at = t.clickAt + 1_500;
+  assert.deepEqual(failed(r), []);
+});
+
+test('a value applied just before the output goes offline is held by the disconnect, not missed', () => {
+  // The last board row before a disconnect, and the card's correction for it, never render: the
+  // output is dark from 200 ms after the row until it reconnects (the judge before this rule failed it).
+  const r = healthy();
+  const f = r.faults.find((x) => x.kind === 'disconnect' && x.at > r.t0 + 15 * 60_000);
+  const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at);
+  assert.ok(row && f.at - row.at < 5_000, 'a board row lands shortly before the disconnect');
+  const card = r.rows.find((x) => x.graphic === 'Candidate card' && x.t === 'update' && x.at > row.at && x.at < f.at + 1_000);
+  r.frames = r.frames.map((x) => (x.at > row.at - 50 && x.at < f.end + 300 ? { ...x, kok: row.data.f8 === x.kok ? '' : x.kok, votes: card && x.votes === card.data.f2 ? '' : x.votes } : x));
+  r.frames = r.frames.filter((x) => !(x.at > row.at - 50 && x.at < f.end + 300 && x.kok === ''));
+  f.at = row.at + 200;
+  assert.deepEqual(failed(r), []);
+});
+
+red('a bound value missed 11 s before a disconnect: the bound road looks ahead its own 10 s, not the card\'s 13', (r) => {
+  const f = r.faults.find((x) => x.kind === 'disconnect' && x.at > r.t0 + 15 * 60_000);
+  const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at - 11_000);
+  f.at = row.at + 11_000;
+  // Nothing at or above its figure reaches the board before the disconnect.
+  r.frames = r.frames.map((x) => (x.at > row.at - 50 && x.at < f.at ? { ...x, kok: '' } : x));
+}, /failed to reach the output in time/);
+red('a value missed well before a disconnect began: its deadline passed before the fault', (r) => {
+  const f = r.faults.find((x) => x.kind === 'disconnect' && x.at > r.t0 + 15 * 60_000);
+  const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at - 4_000);
+  r.frames = r.frames.filter((x) => !(x.at > row.at - 50 && x.at < f.at && x.kok === row.data.f8));
+  r.frames = r.frames.map((x) => (x.at > row.at - 50 && x.at < f.at && x.kok && Number(x.kok.replace(/,/g, '')) > Number(row.data.f8.replace(/,/g, '')) ? { ...x, kok: '' } : x));
+}, /failed to reach the output in time/);
+red('a stall around a reload: a reload stops nothing the source applies', (r) => {
+  const f = r.faults.find((x) => x.kind === 'reload' && x.at > r.t0 + 15 * 60_000);
+  r.rows = r.rows.filter((x) => !(x.at > f.at - 1_000 && x.at < f.at + 25_000 && x.graphic === 'Party totals' && x.t === 'update'));
+  r.frames = r.frames.map((x) => (x.at > f.at - 1_000 && x.at < f.at + 25_000 ? { ...x, kok: '', counted: '' } : x));
+}, /applied within 15 s/);
+red('a value missed just before a Pause: a Pause stops nothing already applied', (r) => {
+  const f = r.faults.find((x) => x.kind === 'pause' && x.at > r.t0 + 15 * 60_000);
+  const row = r.rows.findLast((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at < f.at);
+  r.frames = r.frames.filter((x) => !(x.at > row.at - 50 && x.at < row.at + 12_000 && x.kok === row.data.f8));
+}, /failed to reach the output in time|bound field/);
+
+red('corrections that never reach the card', (r) => {
+  for (const f of r.frames) {
+    if (f.at < r.t0 + 60_000 || !f.name) continue;
+    const p = people.find((x) => x.name === f.name);
+    f.votes = fmt(votesAt(p, 1));
+  }
+}, /failed to reach the output in time/);
+red('a bound value that never renders', (r) => {
+  const from = r.t0 + 15 * 60_000 + 20_000;
+  const held = r.frames.findLast((f) => f.at < from).kok;
+  for (const f of r.frames) if (f.at >= from && f.at < from + 30_000) f.kok = held;
+}, /failed to reach the output in time/);
+red('memory never measured on the output', (r) => {
+  for (const s of r.samples) s.output = { failed: 'CDP session unavailable' };
+}, /memory and instance counts/);
+red('an older revision reaching air', (r) => {
+  const row = r.rows.find((x) => x.graphic === 'Party totals' && x.t === 'update' && x.at > r.t0 + 20 * 60_000);
+  row.data = { f8: fmt(partyVotes('KOK', 5)) };
+  const f = r.frames.find((x) => x.at > r.t0 + 20 * 60_000 && x.kok);
+  r.frames.splice(r.frames.indexOf(f) + 1, 0, { ...f, at: f.at + 100, kok: fmt(partyVotes('KOK', 5)) });
+}, /no older revision reached air/);
+red('an older candidate figure on the card', (r) => {
+  const i = r.frames.findIndex((x) => x.at > r.t0 + 20 * 60_000 && x.votes);
+  const p = people.find((x) => x.name === r.frames[i].name);
+  r.frames.splice(i + 1, 0, { ...r.frames[i], at: r.frames[i].at + 100, votes: fmt(votesAt(p, 2)) });
+}, /no older revision reached air/);
+red('controller memory rising in every window, inside the allowance', (r) => {
+  for (const s of r.samples) {
+    const w = Math.floor((s.at - r.t0) / (10 * 60_000));
+    s.controller.heap = (30 + w * 1) * MIB;
+  }
+}, /memory and instance counts/);
+red('the provider\'s revisions no longer applied', (r) => {
+  const from = r.t0 + 37 * 60_000;
+  r.rows = r.rows.filter((x) => !(x.at > from && x.t === 'update'));
+  const held = r.frames.findLast((f) => f.at < from);
+  r.frames = r.frames.map((f) => (f.at > from ? { ...f, kok: held.kok, votes: f.name === held.name ? held.votes : f.votes } : f));
+}, /applied within 15 s/);
+red('the agent stops reading while alive', (r) => {
+  const from = r.t0 + 39.2 * 60_000;
+  r.provider = r.provider.filter((x) => x.at <= from);
+  r.rows = r.rows.filter((x) => !(x.at > from && x.t === 'update'));
+  const held = r.frames.findLast((f) => f.at < from);
+  r.frames = r.frames.map((f) => (f.at > from ? { ...f, kok: held.kok, votes: f.name === held.name ? held.votes : f.votes } : f));
+}, /applied within 15 s/);
+red('the scorebug clock unreadable after the first minute', (r) => {
+  for (const f of r.frames) if (f.at > r.t0 + 60_000) f.clock = null;
+}, /clock kept running/);
+red('memory measured in one steady window only', (r) => {
+  for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.output = { failed: 'gone' };
+}, /memory and instance counts/);
+red('controller memory growing within each lifetime', (r) => {
+  const reloads = r.faults.filter((f) => f.kind === 'reload').map((f) => f.at);
+  for (const s of r.samples) {
+    const since = s.at - (reloads.findLast((at) => at <= s.at) ?? r.t0);
+    s.controller.heap = 30 * MIB + since * 30;
+  }
+}, /memory and instance counts/);
+red('a KOK figure from a revision never served', (r) => {
+  const f = r.frames.findLast((x) => x.kok);
+  r.frames.push({ ...f, at: f.at + 100, kok: fmt(partyVotes('KOK', 99_999)) });
+}, /one person's at one revision|no older revision/);
+red('no frames of the card at all', (r) => (r.frames = r.frames.map((f) => ({ ...f, name: '', votes: '' }))), /frames of the card throughout/);
+red('a handover that left the old owner', (r) => {
+  const h = r.faults.find((f) => f.kind === 'handover');
+  h.epochAfter = h.epochBefore;
+}, /newer owner/);
+red('a data change that cleared the card', (r) => r.rows.push({ id: 1e9, graphic: 'Candidate card', t: 'stop', at: r.t0 + 60_000 }), /nothing but the Takes moved the card/);
+red('a collection sent to the renderer', (r) => r.rows.push({ id: 1e9, graphic: 'Count bug', t: 'update', data: { f9: '{"schemaRevision":1}' }, at: r.t0 + 61_000 }), /carried the collection/);
+red('a Take slow to air', (r) => {
+  for (const t of r.takes) t.at += 0;
+  const t = r.takes.find((x) => x.clickAt > r.t0 + 15 * 60_000 && x.clickAt < r.t0 + 16 * 60_000);
+  r.frames = r.frames.map((f) => (f.at >= t.clickAt && f.at < t.clickAt + 11_000 && f.name === key(t.key[0], t.key[1]).name ? { ...f, at: f.at + 11_000 } : f)).sort((a, b) => a.at - b.at);
+}, /on air within 10 s|wrong-person/);
+red('a bound field slow to air', (r) => {
+  for (const f of r.frames) f.at += f.at > r.t0 + 15 * 60_000 && f.at < r.t0 + 16 * 60_000 ? 12_000 : 0;
+  r.frames.sort((a, b) => a.at - b.at);
+}, /bound field|failed to reach the output in time/);
+red('a run cut short', (r) => (r.end = r.t0 + 60_000), /minutes asked/);
+red('a fault that never ended', (r) => delete r.faults[1].end, /fault ran to its end/);
+red('a provider step never read as held', (r) => (r.reads = r.reads.filter((x) => !/ invalid /.test(x.line))), /each served and held/);
+red('a provider step never served', (r) => (r.provider = r.provider.filter((x) => !x.name.startsWith('duplicate-'))), /each served and held/);
+red('an output that still heard while offline: the disconnect proved nothing', (r) => {
+  const f = r.faults.find((x) => x.kind === 'disconnect');
+  const later = r.frames.find((x) => x.at > f.end + 3_000 && x.kok);
+  r.frames.push({ ...later, at: f.at + 10_000 });
+  r.frames.sort((a, b) => a.at - b.at);
+}, /went dark offline/);
+red('the scorebug clock reset by a data write', (r) => {
+  const f = r.frames.find((x) => x.at > r.t0 + 10 * 60_000);
+  f.clock = '00:00';
+}, /clock kept running/);
+red('the scorebug clock stopped', (r) => {
+  for (const f of r.frames) if (f.at > r.t0 + 10 * 60_000) f.clock = '12:00';
+}, /clock kept running/);
+red('the agent\'s requests to the production piling up', (r) => (r.samples[50].agent.posting = 4), /requests to the production stay bounded/);
+red('an instance refusal for another reason than the instance', (r) => (r.actions.find((x) => x.elsewhere).elsewhere.note = 'the key was drawn too long ago'), /not on air was refused/);
+
+test('the fixture: 1,000 candidates, the package\'s people at their keys, inside the ingress limit with headroom', () => {
+  assert.equal(people.length, 1000);
+  assert.equal(new Set(people.map((p) => `${p.district}/${p.candidate}`)).size, 1000);
+  assert.equal(new Set(people.map((p) => p.name)).size, 1000);
+  assert.equal(key('02', 101).name, 'Aino Example');
+  assert.equal(key('01', 101).name, 'Leo Example');
+  assert.equal(key('02', 103).name, 'Sara Example');
+  const size = measureFixture(60);
+  assert.equal(size.candidates, 1000);
+  assert.ok(size.bodyBytes < BODY_CAP_BYTES * 0.7, `${size.bodyBytes} bytes leaves less than 30% headroom`);
+  assert.equal(STEP_MS, 5_000);
+  assert.equal(CUE_SWITCH_MS, 15_000);
+  assert.equal(BODY_CAP_BYTES, 262_144);
+});
+
+test('the timeline: one revision per step, the misbehaving steps on their pattern, deterministic', () => {
+  const t = enduranceTimeline(60);
+  assert.equal(t.length, 722);
+  const kinds = Array.from({ length: t.length }, (_, i) => stepKind(i));
+  for (const k of ['duplicate', 'older', 'malformed']) assert.ok(kinds.filter((x) => x === k).length >= 18, k);
+  assert.equal(t.at(7).text, t.at(6).text, 'a duplicate is the step before, byte for byte');
+  assert.equal(t.at(13).revision, revisionAt(13) - 3, 'an older revision arrives late');
+  assert.throws(() => JSON.parse(t.at(18).text), 'malformed is not JSON');
+  assert.equal(JSON.parse(t.at(20).text).revision, revisionAt(20));
+  assert.equal(JSON.parse(t.at(20).text).candidates.items.length, 1000);
+  const digest = (s) => createHash('sha256').update(s).digest('hex');
+  assert.equal(digest(enduranceTimeline(60).at(300).text), digest(t.at(300).text));
+});
+
+test('the schedule: a cycle of every fault, the warmup cycle apart, handovers alternating', () => {
+  const plan = schedule(60);
+  assert.equal(plan.cycleMs, 600_000);
+  assert.equal(plan.windows.length, 6);
+  assert.deepEqual(plan.windows.filter((w) => w.warmup).map((w) => w.index), [0]);
+  for (const k of ['pause', 'reload', 'disconnect', 'handover']) assert.equal(plan.events.filter((e) => e.kind === k).length, 6, k);
+  assert.deepEqual(plan.events.filter((e) => e.kind === 'handover').map((e) => e.mode), ['release', 'crash', 'release', 'crash', 'release', 'crash']);
+  assert.ok(plan.events.every((e) => e.at % CUE_SWITCH_MS === 3_000), 'each fault three seconds after a cue switch');
+});
+
+test('the replay server serves a timeline of its own, step by step', async () => {
+  let now = 0;
+  const token = randomBytes(8).toString('hex');
+  const { makeTestCertificate } = await import('./election-replay-server.mjs');
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'endurance-judge-'));
+  const tls = makeTestCertificate(dir);
+  const server = await startReplayServer({ token, cert: tls.cert, key: tls.key, clock: () => now, timeline: enduranceTimeline(1) });
+  try {
+    const { request } = await import('node:https');
+    const get = () =>
+      new Promise((resolve, reject) => {
+        const req = request(server.url, { ca: tls.cert, headers: { authorization: `Bearer ${token}` } }, (res) => {
+          let body = '';
+          res.on('data', (d) => (body += d));
+          res.on('end', () => resolve({ step: res.headers['x-replay-step'], body }));
+        });
+        req.on('error', reject);
+        req.end();
+      });
+    assert.equal((await get()).step, 'count-1');
+    now = 7 * STEP_MS;
+    const dup = await get();
+    assert.equal(dup.step, 'duplicate-7');
+    assert.equal(server.steps, null);
+    await assert.rejects(startReplayServer({ token, cert: tls.cert, key: tls.key, timeline: { length: 0, at: () => null } }), /length/);
+  } finally {
+    await server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

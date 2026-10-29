@@ -27,6 +27,7 @@ const sources = [
   'api/_lib/rateLimit.test.ts',
   'api/_lib/statusProbe.test.ts',
   'api/_lib/outputAudio.test.ts',
+  'api/_lib/outputOgraf.test.ts',
   'api/_lib/feedbackStore.test.ts',
   'api/_lib/entitlements.test.ts',
   'api/_lib/templateVisibility.test.ts',

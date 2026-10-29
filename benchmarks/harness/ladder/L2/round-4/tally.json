@@ -1,0 +1,562 @@
+{
+  "verdict": "screened out",
+  "screen": {
+    "briefs": 4,
+    "ran": 4,
+    "delivered": 4,
+    "usable": 2,
+    "notionalUsd": 4.66,
+    "usdPerUsable": 2.33,
+    "medianWallSeconds": 291.5,
+    "lookAll": 3,
+    "framesReviewed": 96,
+    "framesOpened": 91,
+    "rubberStamps": [
+      "boxing-night-matchup",
+      "collegiate-cs2-scorebug"
+    ],
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 4,
+      "judged": 4
+    },
+    "notUsable": 2,
+    "endsAt": "cost",
+    "done": true
+  },
+  "all": {
+    "briefs": 8,
+    "ran": 8,
+    "delivered": 8,
+    "usable": 5,
+    "notionalUsd": 10.76,
+    "usdPerUsable": 2.15,
+    "medianWallSeconds": 565,
+    "lookAll": 4,
+    "framesReviewed": 210,
+    "framesOpened": 194,
+    "rubberStamps": [
+      "boxing-night-matchup",
+      "collegiate-cs2-scorebug",
+      "ski-sprint-timing-tower"
+    ],
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 6,
+      "judged": 8
+    }
+  },
+  "lines": [
+    {
+      "rule": "at least 7 of 8 delivered and usable",
+      "holds": false,
+      "figure": "5 of 8"
+    },
+    {
+      "rule": "at most $1.35 notional per usable graphic",
+      "holds": false,
+      "figure": "$2.15"
+    },
+    {
+      "rule": "median wall at most 10 minutes",
+      "holds": true,
+      "figure": "565 s"
+    },
+    {
+      "rule": "every reviewed frame opened in at least 7 sessions",
+      "holds": false,
+      "figure": "4 of 8"
+    }
+  ],
+  "rows": [
+    {
+      "brief": "boxing-night-matchup",
+      "ran": true,
+      "id": "boxing-night-matchup.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "high",
+      "defects": [
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-2.jpg",
+          "where": "Whole card: neither gym logo appears in any frame, though the brief asks for both (one white, one dark green and black)."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-4.jpg",
+          "where": "Blue side: the boxer's name is missing, and the logo descriptions show up as text instead, one as the quoted nickname and one inside the RECORD box."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-10.jpg",
+          "where": "Blue side under 'BLUE CORNER': no name, a stray 'A LONG VALUE THAT FILLS THE LINE' line, and the logo description printed as the nickname and the record."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-4.jpg",
+          "where": "Red record box shows '9-2-0 9-2-0', and the bottom weight bar shows '75 KG · MIDDLEWEIGHT 75 KG · MIDDLEWEIGHT'. Both values are doubled."
+        }
+      ],
+      "missing": [
+        "select"
+      ],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": false,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.9164895000000006,
+      "wallSeconds": 611,
+      "overBudget": false,
+      "look": {
+        "reviewed": 25,
+        "opened": 20,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [
+        "select"
+      ],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T10:15:10.891Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T10:16:00.552Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T10:16:17.919Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "collegiate-cs2-scorebug",
+      "ran": true,
+      "id": "collegiate-cs2-scorebug.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [
+        "event-nextmap: nextMap did not move the machine (still main=enter, phase=pre, pause=running). If it should have, the machine does not answer nextMap from there. It did not move it after any other event either."
+      ],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 0.9889603,
+      "wallSeconds": 281,
+      "overBudget": false,
+      "look": {
+        "reviewed": 29,
+        "opened": 29,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T08:30:53.189Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T08:30:54.801Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T08:31:39.823Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "charity-stream-alerts",
+      "ran": true,
+      "id": "charity-stream-alerts.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 0.8625742,
+      "wallSeconds": 302,
+      "overBudget": false,
+      "look": {
+        "reviewed": 25,
+        "opened": 25,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T10:22:04.504Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T10:22:49.400Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T10:23:38.526Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "film-fest-nominee-reveal",
+      "ran": true,
+      "id": "film-fest-nominee-reveal.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "high",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 0.8923010999999997,
+      "wallSeconds": 222,
+      "overBudget": false,
+      "look": {
+        "reviewed": 17,
+        "opened": 17,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T08:34:30.249Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T08:34:31.125Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T10:16:49.717Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "hockey-club-match-board",
+      "ran": true,
+      "id": "hockey-club-match-board.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.7420546000000008,
+      "wallSeconds": 614,
+      "overBudget": false,
+      "look": {
+        "reviewed": 33,
+        "opened": 29,
+        "unopened": [
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-side-1-video.jpg",
+          "long-side-2-light.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T10:26:33.619Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T10:27:09.568Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T10:27:35.980Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "2/3"
+    },
+    {
+      "brief": "volleyball-set-board",
+      "ran": true,
+      "id": "volleyball-set-board.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [
+        "undoPoint"
+      ],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.8246285,
+      "wallSeconds": 947,
+      "overBudget": false,
+      "look": {
+        "reviewed": 29,
+        "opened": 29,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-29T13:11:47.210Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T13:11:51.030Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-29T13:13:18.242Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "school-quiz-secret-pick",
+      "ran": true,
+      "id": "school-quiz-secret-pick.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.4447705999999998,
+      "wallSeconds": 599,
+      "overBudget": false,
+      "look": {
+        "reviewed": 29,
+        "opened": 28,
+        "unopened": [
+          "off.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T10:33:02.315Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T10:33:22.797Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T10:34:11.926Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "ski-sprint-timing-tower",
+      "ran": true,
+      "id": "ski-sprint-timing-tower.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.090823,
+      "wallSeconds": 531,
+      "overBudget": false,
+      "look": {
+        "reviewed": 23,
+        "opened": 17,
+        "unopened": [
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "take-strip.jpg",
+          "event-clear-strip.jpg",
+          "event-clear-10000ms.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T10:39:49.586Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T10:40:12.772Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T10:41:02.290Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "2/3"
+    }
+  ]
+}

@@ -76,8 +76,10 @@ import { existsSync, mkdirSync, mkdtempSync, rmdirSync, statSync, writeFileSync 
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closeAbandonedProcesses, worktreeCloser } from './agent-processes.mjs';
+import { cleanupStaging } from './cleanup-staging.mjs';
 import { primaryCheckout } from './reattach-main.mjs';
 import { pruneStalePorts } from './dev-port.mjs';
+import { RECOVERY_BRANCH_PREFIX } from './recovery-branch.mjs';
 import { jobsDir, pending, readJobs, readLandings } from './jobs-store.mjs';
 import { syncLandings } from './landings.mjs';
 import {
@@ -273,7 +275,7 @@ export const UNATTENDED_IDLE_MINUTES = Object.freeze({ agent: 2 * 60, session: 2
  * on origin/main" is given: what is decided here is whether removing it needs nobody at all.
  *
  * Only worktrees under `<primary>/.claude/worktrees/` - the Codex app's own worktrees live in
- * ~/.codex/worktrees and the Codex app caps them itself - and only managed branches. LANDED means
+ * ~/.codex/worktrees and the Codex app caps them itself - and managed branches or branches named by the landing ledger. LANDED means
  * the landing ledger (`landed.jsonl`, kept in step with GitHub's merged `land` pull requests)
  * names the branch; a contained branch it does not name has no commits of its own.
  */
@@ -285,7 +287,7 @@ export function unattendedRule({ path, branch, primaryRoot, landed }) {
   if (!samePath(dirname(normalize(path)), home)) {
     return { rule: null, why: 'it is not under .claude/worktrees, so it is left to whatever made it' };
   }
-  if (!branch || !managedBranch(branch)) return { rule: null, why: 'its branch is not in a managed namespace' };
+  if (!branch || (!managedBranch(branch) && !landed.has(branch))) return { rule: null, why: 'its branch is not in a managed namespace or the landing ledger' };
   if (landed.has(branch)) {
     return /^agent-/.test(worktreeFolder(path))
       ? { rule: 'landed agent worktree', idleMinutes: UNATTENDED_IDLE_MINUTES.agent }
@@ -1533,7 +1535,7 @@ function report(plan, done) {
     L.push('');
     L.push(
       '## Also contained in main and origin/main, NOT deleted ' +
-        `(branches outside ${MANAGED_BRANCH_PREFIXES.map((p) => `${p}*`).join(', ')} - remove manually if unwanted)`,
+        `(branches outside ${MANAGED_BRANCH_PREFIXES.map((p) => `${p}*`).join(', ')} - remove manually if unwanted; ${RECOVERY_BRANCH_PREFIX}* holds plan-run state and is never removed)`,
     );
     for (const n of plan.otherMerged) L.push(`  - ${n}`);
   }
@@ -1544,6 +1546,13 @@ function report(plan, done) {
       '## Possible squash merges, NOT deleted (tree matches main but history is not an ancestor - verify then remove manually)',
     );
     for (const n of plan.possibleSquashMerges) L.push(`  - ${n}`);
+  }
+
+  if (done?.staging) {
+    L.push('', '## Marketplace staging');
+    for (const item of done.staging.removed) L.push(`  - ${item.path}: removed ${formatBytes(item.bytes)}`);
+    for (const item of done.staging.kept) L.push(`  - ${item.path}: kept (${item.why})`);
+    if (!done.staging.removed.length && !done.staging.kept.length) L.push('  (none)');
   }
 
   const manual = [
@@ -1597,6 +1606,7 @@ export function runUnattended(
     },
     liveness = {},
     applyOptions = {},
+    staging = () => cleanupStaging({ apply: true }),
     // What agents abandoned, across every checkout (agent-processes.mjs). Injectable like the rest.
     abandoned = (root) => closeAbandonedProcesses({ primaryRoot: root, liveness }),
     now = () => new Date(),
@@ -1624,6 +1634,7 @@ export function runUnattended(
             processesNotClosed: closedAbandoned?.ok === false ? closedAbandoned.why : null,
             held: done?.held ?? [],
             archived: done?.archived ?? [],
+            staging: done?.staging ?? null,
             deletedBranches: done?.deletedBranches ?? [],
             deletedRemoteBranches: done?.deletedRemoteBranches ?? [],
             releasedPorts: done?.releasedPorts ?? [],
@@ -1660,6 +1671,10 @@ export function runUnattended(
     // The fetch above is seconds old and well inside the freshness window, so apply reuses it
     // rather than fetching again.
     const done = applyPlan(narrowed, cwd, { liveness, refreshRemote: () => fetched, ...applyOptions });
+    try {
+      done.staging = staging();
+      done.errors.push(...(done.staging?.errors ?? []).map((why) => `marketplace staging: ${why}`));
+    } catch (error) { done.errors.push(`marketplace staging: ${error.message}`); }
     return record({ ran: true, plan: narrowed, done, risks: assessmentRisks(narrowed) });
   } finally {
     lock.release();

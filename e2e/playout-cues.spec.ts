@@ -1,6 +1,9 @@
 // covers: src/components/HostedControlPage.tsx, src/{model/shows,control/hostedControl}.ts
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
 // focus
 //
 // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two surfaces it grows are
@@ -26,6 +29,11 @@
 // it goes out with the Take, the loop rule of the record, audio on its own layer, and a cue a Bridge
 // or server cannot honour kept off air with the reason.
 // covers: src/control/cuePlayback.ts
+// covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/storePart.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/ProductionShell.tsx
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';

@@ -1,39 +1,56 @@
 // covers: src/blocks/**
 
 import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, skipOldEditor } from './_create';
+import { bootstrapGraphic } from './_create';
 
 // The old Inspector column (src/components/timeline/Inspector.tsx, the retired code editor's
 // panel) was deleted on 2026-10-17 with the seven cases that drove it; the new editor's own
 // Inspector is pinned by e2e/editor-*.spec.ts. Left here: the filter-track runtime check, and
-// the redo-branch case, which skips itself (its speed knob was the old Inspector's) until it is
-// rewritten as a store test (issue #800).
+// the redo-branch case, now a test of the store's history (its speed knob was the old
+// Inspector's; the write it made is made on the store).
 
 async function createHairline(page: Page) {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 }
 
-test('redo: Ctrl+Shift+Z restores an undone edit; a new edit clears the redo branch', async ({ page }) => {
-  skipOldEditor();
+test('redo restores an undone edit; a new edit clears the redo branch', async ({ page }) => {
   await createHairline(page);
-  // The speed knob writes the data block's speed field (one undoable apply per pick).
+  // The retired Inspector's speed knob wrote the data block's speed field, one undoable apply
+  // per pick; the same write is made on the store here, and the store's own undo() and redo()
+  // are what the editor's keys call (Ctrl+Z, Ctrl+Shift+Z, bound by the shell).
   const speed = async () =>
     page.evaluate(async () => {
       const { useTemplateStore } = await import('/src/store/templateStore.ts');
       const { parseAnimData } = await import('/src/blocks/animData.ts');
       return parseAnimData(useTemplateStore.getState().template.js)?.speed;
     });
-  await page.getByTestId('tlv2-speed').selectOption('1.5');
+  const setSpeed = (value: number) =>
+    page.evaluate(async (v) => {
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+      const s = useTemplateStore.getState();
+      const data = parseAnimData(s.template.js);
+      if (!data) throw new Error('no data block');
+      const js = spliceAnimData(s.template.js, { ...data, speed: v });
+      if (js === null) throw new Error('the data block did not splice');
+      s.applyTemplate({ ...s.template, js });
+    }, value);
+  const history = (verb: 'undo' | 'redo') =>
+    page.evaluate(async (v) => {
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      useTemplateStore.getState()[v]();
+    }, verb);
+  await setSpeed(1.5);
   expect(await speed()).toBe(1.5);
-  await page.keyboard.press('Control+z');
+  await history('undo');
   expect(await speed()).toBe(1);
-  await page.keyboard.press('Control+Shift+z');
+  await history('redo');
   expect(await speed()).toBe(1.5);
   // Undo again, make a DIFFERENT edit — the redo branch is gone (the classic cut).
-  await page.keyboard.press('Control+z');
-  await page.getByTestId('tlv2-speed').selectOption('0.75');
+  await history('undo');
+  await setSpeed(0.75);
   expect(await speed()).toBe(0.75);
-  await page.keyboard.press('Control+Shift+z');
+  await history('redo');
   expect(await speed()).toBe(0.75); // no stale redo applied
 });
 

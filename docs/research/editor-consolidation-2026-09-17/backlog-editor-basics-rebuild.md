@@ -57,4 +57,4 @@ No Studio source is selected for copying; direct reuse requires an exact-file li
 
 [Primary source research](OGRAF_STUDIO_RESEARCH.md),
 [new implementation plan](EDITOR_REBUILD_PLAN.md),
-[previous failure analysis](WYSIWYG_PLAN.md).
+[previous failure analysis](https://github.com/NoaCG/NoaCG-Studio/blob/2c36ba0be224d464938538428d02b8b77c56b5b9/docs/research/editor-consolidation-2026-09-17/WYSIWYG_PLAN.md).

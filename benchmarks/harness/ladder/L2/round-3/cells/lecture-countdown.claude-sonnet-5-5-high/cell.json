@@ -1,0 +1,127 @@
+{
+  "costUnread": false,
+  "brief": "lecture-countdown",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "cbcdbab3-ca4c-48e6-b829-1fa57d811c3a",
+  "costCents": 0,
+  "notionalUsd": 0.8717092,
+  "wallSeconds": 255,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type countdown --design neutral --out ./graphic",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type countdown --design gt01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:31462d1ea204848e6951add7228bcb46c570ef338b9f848229ef73c404707207"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 1,
+      "digest": "sha256:e01bf73eb524772b5efa00e078a19e6a9cdd0c2ca3f4ebfab46eddb873392065"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:faa10c48d31ee328c13844b251bb3ecd93910c6e91cd9d6ebbc59e7612bc0a6d"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:d285b726fb5e44fb4635a47f23e853cdb2cc94c87bec0e7f35292bb3b1e29b25"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d285b726fb5e44fb4635a47f23e853cdb2cc94c87bec0e7f35292bb3b1e29b25"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\lecture-countdown.claude-sonnet-5-5-high\\frames",
+    "frames": 41,
+    "crops": 1,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [
+      "pause",
+      "resume"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06",
+    "benchValidated": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06",
+    "reviewed": "sha256:1913bb26881b5d0f05c5086062af0d0aa77c7cf052c854b1b851edeb3c59dc06",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 17,
+    "opened": 17,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

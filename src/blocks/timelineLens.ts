@@ -9,10 +9,6 @@
 // PROJECT: reading a branch target hands the surfaces an AnimData whose single step IS that
 // state's timeline, so animEdit, animEval, the keyframe drags and the Inspector all keep
 // working unchanged; writing folds the edited step back into the state it came from.
-//
-// The target lives in templateStore, not in the dock's local state, because the Inspector
-// resolves values and stamps keyframes against the SAME projection — a component-local target
-// would have it editing the entrance while the timeline showed a branch.
 
 import type { AnimData, AnimStep } from './animData';
 
@@ -92,8 +88,8 @@ export function lensWrite(data: AnimData, target: TimelineTarget, edited: AnimDa
  * compute a phase from a step INDEX would each have called the branch's only step 'in' and
  * jumped the preview to the graphic's entrance.
  *
- * One rule, every caller: a branch answers `state:<groupId>:<stateId>`, which PlayoutSimulator
- * resolves through the runtime's own `noacgEnterTimeline`. `pathPhase` is what the caller
+ * One rule, every caller: a branch answers `state:<groupId>:<stateId>`, which the preview simulator runtime
+ * resolves through the graphic's own `noacgEnterTimeline`. `pathPhase` is what the caller
  * would have sent on the default path (phaseIdOf).
  */
 export function scrubPhase(target: TimelineTarget, pathPhase: string): string {

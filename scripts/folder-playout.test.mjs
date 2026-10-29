@@ -1,4 +1,4 @@
-// guards: src/control/serverPlayout.ts, src/control/folderAir.ts, src/control/folderStep.ts, src/control/cuePlayback.ts, src/control/serverState.ts
+// guards: src/control/serverPlayout.ts, src/control/folderAir.ts, src/control/folderStep.ts, src/control/cuePlayback.ts, src/control/serverState.ts, src/control/folderPlayout.ts, src/control/playoutSession.ts
 //
 // A FOLDER'S TAKE, run in Node with the Bridge faked (docs/CLIP_PLAYBACK_PLAN.md §6.4 to §6.6, phase
 // 4): what a Play-through folder sends and when it cannot go, Loop the folder on the page's side, Play
@@ -259,6 +259,12 @@ test('the run sends each server cue alone, then the graphics; a refusal stops no
   assert.deepEqual(results.map((r) => [r.cueId, r.ok, r.sent]), [['vt', true, true], ['bed', false, true], ['strap', true, true]]);
   assert.equal(togetherNote('Opening', results), 'Take: Opening, 2 of 3 on air. Take of BED did not reach the playout server: refused (server).');
   assert.equal(togetherNote('Opening', results.map((r) => ({ ...r, ok: true, note: '✓ fine' }))), '✓ Take: Opening, 3 of 3 on air');
+  // E3.2a: a member only its output confirms (an imported OGraf package) is sent, never on air.
+  const foreign = results.map((r, i) => ({ ...r, ok: true, note: '✓ fine', ...(i === 0 ? { unconfirmed: true } : {}) }));
+  assert.equal(togetherNote('Opening', foreign), 'Take: Opening, 2 of 3 on air, 1 sent to the outputs', 'no ✓ while a member awaits its output');
+  // A sent member's own sentence is not repeated; a member that failed still says why.
+  const mixed = foreign.map((r, i) => (i === 0 ? { ...r, note: 'Take: VT sent to the outputs' } : i === 1 ? { ...r, ok: false, note: 'BED refused' } : r));
+  assert.equal(togetherNote('Opening', mixed), 'Take: Opening, 1 of 3 on air, 1 sent to the outputs. BED refused.');
   void items;
 });
 
@@ -435,4 +441,492 @@ test('the TAKE button says what a step does and names the cues in its tooltip', 
   assert.equal(stepFace({ kind: 'top', off: ['g2'] }, 'Straps', label, true).text, '■ TAKE OFF');
   assert.equal(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).text, '↺ FROM THE TOP');
   assert.match(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).title, /its clips play on/);
+});
+
+test('a folder lists every child\'s own outcome, and All together names the cues that share one place (data-sources C6, AC-16)', async () => {
+  const { folderChildren } = await import('../src/control/folderAir.ts');
+  const members = [
+    { id: 'a', label: 'Score', source: 'graphic', sourceId: 'g1', values: {} },
+    { id: 'b', label: 'Clip', source: 'playout', sourceId: 'p1', values: {} },
+    { id: 'c', label: 'Lower third', source: 'graphic', sourceId: 'g2', values: {} },
+    { id: 'd', label: 'Credits', source: 'graphic', sourceId: 'g3', values: {} },
+    { id: 'e', label: 'Clip 2', source: 'playout', sourceId: 'p2', values: {} },
+  ];
+  const address = { a: 'L20', b: '1-10', c: 'L30', d: 'L20', e: '1-10' };
+  const children = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'd'], misses: { b: 'NoaCG Bridge refused it: file not found', a: 'stale miss' }, graphicsAir: true });
+  assert.deepEqual(children.map((c) => c.outcome), ['air', 'miss', 'off', 'air', 'off'], 'partial success is never one state');
+  assert.equal(children[1].why, 'NoaCG Bridge refused it: file not found');
+  assert.equal(children[0].why, undefined, 'a cue on air carries no old miss');
+  // Both sides of each collision are named, graphics and server cues alike.
+  assert.deepEqual(children.map((c) => c.sharesWith ?? []), [['Credits'], ['Clip 2'], [], ['Score'], ['Clip']]);
+  // Before the first publish a graphic that is up plays on this page only, as its row says; a
+  // server cue airs either way.
+  const unpublished = folderChildren(members, { mode: 'together', address: (c) => address[c.id], onAir: ['a', 'b'], misses: {}, graphicsAir: false });
+  assert.deepEqual(unpublished.slice(0, 2).map((c) => c.outcome), ['up', 'air']);
+  // One by one and Play through use one place in turn by design: no collision.
+  for (const mode of ['manual', 'through']) {
+    assert.ok(folderChildren(members, { mode, address: (c) => address[c.id], onAir: [], misses: {}, graphicsAir: true }).every((c) => c.sharesWith === undefined), mode);
+  }
+});
+
+// ── THE FOLDER VERBS AND THEIR CANCELLATION (control/folderPlayout.ts; production-page refactor §4.2,
+// AC-4) ─────────────────────────────────────────────────────────────────────────────────────────
+//
+// The module on a real session, with the page faked: every server verb, graphic Take, send and save
+// wait is recorded in one ordered log and answered only when the test says so, so an answer can come
+// late, out of order, after Out or All out, or after the session's end.
+
+const { createFolderPlayout } = await import('../src/control/folderPlayout.ts');
+const { createPlayoutSession } = await import('../src/control/playoutSession.ts');
+
+const SENT = { ok: true, skipped: [], superseded: [], pressedAgain: [] };
+const tick = () => new Promise((r) => setTimeout(r, 0));
+const settle = async () => {
+  for (let i = 0; i < 10; i++) await tick();
+};
+
+/** A folder rig: `held` calls wait for `answer(i, result)`; otherwise each answers at once with
+ *  `auto(call)`. The server's ownership and the page's liveCue move as the page's own verbs move
+ *  them: a server take puts its cue up on its item, an Out takes it off. */
+function folderRig({ folders, cues, items = rundown().items, graphicOf = (c) => ({ 'g-strap': 'Hairline', 'g-bug': 'Bug', 'g-g1': 'One', 'g-g2': 'Two' })[c.sourceId] ?? null } = {}) {
+  const session = createPlayoutSession('prod-1');
+  const log = [];
+  const calls = [];
+  const notes = [];
+  let held = false;
+  let liveCue = {};
+  let ownership = NO_OWNERSHIP;
+  let clock = 5000;
+  const itemOf = (c) => (c.source === 'playout' ? (items.find((i) => i.id === c.sourceId) ?? null) : null);
+  const call = (kind, detail, auto) =>
+    new Promise((resolve) => {
+      log.push(`${kind} ${detail}`);
+      const entry = { kind, detail, resolve: (r) => (log.push(`answer ${kind} ${detail}`), resolve(r === undefined ? auto() : r)) };
+      calls.push(entry);
+      if (!held) entry.resolve();
+    });
+  const page = {
+    cues,
+    folders: new Map(folders.map((f) => [f.id, f])),
+    members: new Map(folders.map((f) => [f.id, cues.filter((c) => c.folderId === f.id)])),
+    items,
+    itemOf,
+    graphicOf,
+    get folderSteps() {
+      return session.folders.get().folderSteps;
+    },
+    stepMembers: (folderId) => cues.filter((c) => c.folderId === folderId).map((c) => (itemOf(c) ? { id: c.id, graphic: itemOf(c).kind === 'template', replaces: `item:${c.sourceId}` } : { id: c.id, graphic: true, replaces: `pool:${c.sourceId}` })),
+    folderName: (f) => f.name,
+    takeBlocker: () => null,
+    stepBlocker: () => null,
+    together: rundown({ items, graphicOf: (c) => (graphicOf(c) ? { name: graphicOf(c), layer: { 'g-strap': 20, 'g-bug': 22 }[c.sourceId] ?? 30 } : null) }),
+    ownership: () => ownership,
+    liveCueOf: () => liveCue,
+    setLiveCue: (fold) => {
+      log.push('fold liveCue');
+      liveCue = fold(liveCue);
+    },
+    serverVerb: (c, verb, label, options = {}) => {
+      const item = itemOf(c);
+      if (!item) return Promise.resolve(null);
+      return call('server', `${verb} ${c.id} "${label}"${options.cut ? ' cut' : ''}${options.takenAt !== undefined ? ` at ${options.takenAt}` : ''}`, () => {
+        const onAir = { ...ownership.onAir };
+        if (verb === 'take') onAir[item.id] = { cueId: c.id, slot: slot(item.channel, item.layer) };
+        if (verb === 'out') delete onAir[item.id];
+        ownership = { ...ownership, onAir };
+        return { ok: true, note: `✓ ${label}: ${c.label}`, accepted: [] };
+      });
+    },
+    takeGraphic: (c, label) =>
+      call('graphic', `${c.id} "${label}"`, () => {
+        liveCue = { ...liveCue, [graphicOf(c)]: c.id };
+        return { ok: true, note: `✓ ${label}: ${c.label}` };
+      }),
+    takeCue: async (c) => {
+      if (c.source === 'playout') {
+        const o = await page.serverVerb(c, 'take', 'Take');
+        if (o?.ok) fp.noteStep(c);
+        return;
+      }
+      const t = await page.takeGraphic(c, 'Take');
+      if (t?.ok) fp.noteStep(c);
+    },
+    send: (batches, label) =>
+      call('send', `${label} ${batches.map((b) => b[0].graphic).join(',')}`, () => SENT),
+    flush: () => call('flush', '', () => undefined),
+    note: (text) => notes.push(text),
+  };
+  const fp = createFolderPlayout(session, { now: () => clock }, () => page);
+  return {
+    session, fp, page, log, calls, notes,
+    hold: () => (held = true),
+    /** Answer the oldest call still waiting of this kind (or the call at `i`). */
+    answer: (match, result) => {
+      const entry = calls.find((c) => !c.done && `${c.kind} ${c.detail}`.includes(match));
+      assert.ok(entry, `a call waits that matches ${match}`);
+      entry.done = true;
+      entry.resolve(result);
+    },
+    up: (cueId, itemId) => (ownership = { ...ownership, onAir: { ...ownership.onAir, [itemId]: { cueId, slot: slot(2, 10) } } }),
+    live: (map) => (liveCue = { ...liveCue, ...map }),
+    liveCue: () => liveCue,
+    folders: () => session.folders.get(),
+    setClock: (t) => (clock = t),
+  };
+}
+
+const TOGETHER = { id: 'A', name: 'Opening', mode: 'together' };
+const togetherCues = [cue('vt', 'vt', 'A'), cue('bed', 'bed', 'A'), { ...graphic('strap', 'A') }, { ...graphic('bug', 'A') }];
+
+test('All together: the save wait first, the run registered after it, each server cue alone, then the graphics at once; misses and the note from every answer', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  r.hold();
+  r.session.apply((p) => ({ ...p, folders: { ...p.folders, takeMisses: { vt: 'old miss', other: 'kept' } } }));
+  const done = r.fp.take(TOGETHER);
+  await settle();
+  // Nothing is sent, and the folder is not yet being sent, while the draft saves (S3 kept, phase 1).
+  assert.deepEqual(r.log, ['flush ']);
+  assert.equal(r.fp.running('A'), false);
+  assert.equal(r.folders().sending.has('A'), false);
+  r.answer('flush');
+  await settle();
+  assert.equal(r.fp.running('A'), true);
+  assert.deepEqual([...r.folders().sending], ['A']);
+  assert.deepEqual(r.folders().takeMisses, { other: 'kept' }, 'the folder\'s own misses clear when its run starts');
+  // The longest file that ends is ranked last; each take is stamped with the press time plus its rank.
+  assert.deepEqual(r.log.slice(1), ['answer flush ', 'server take vt "Take of VT" at 5001']);
+  r.answer('take vt');
+  await settle();
+  assert.equal(r.log.at(-1), 'server take bed "Take of BED" at 5000', 'the second server cue goes only after the first answered');
+  // The bed is refused; the graphics then go together and answer in reverse.
+  r.answer('take bed', { ok: false, note: 'Take of BED did not reach the playout server: refused (server)', accepted: [] });
+  await settle();
+  assert.deepEqual(r.log.slice(-2), ['graphic strap "Take of STRAP"', 'graphic bug "Take of BUG"']);
+  r.answer('bug', { ok: false, note: 'BUG was refused' });
+  r.answer('strap');
+  await done;
+  assert.deepEqual(r.folders().takeMisses, { other: 'kept', bed: 'Take of BED did not reach the playout server: refused (server)', bug: 'BUG was refused' });
+  assert.deepEqual(r.notes, ['Take: Opening, 2 of 4 on air. Take of BED did not reach the playout server: refused (server). BUG was refused.']);
+  assert.equal(r.fp.running('A'), false);
+  assert.equal(r.folders().sending.size, 0);
+});
+
+test('a second Take of a folder still being sent sends nothing; a refused plan sends nothing and says why', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  r.hold();
+  const first = r.fp.take(TOGETHER);
+  r.answer('flush');
+  await settle();
+  const before = r.log.length;
+  await r.fp.take(TOGETHER);
+  assert.equal(r.log.length, before, 'the second press neither waits for the save nor sends');
+  r.answer('take vt');
+  await settle();
+  r.answer('take bed');
+  await settle();
+  r.answer('strap');
+  r.answer('bug');
+  await first;
+  const clash = folderRig({ folders: [TOGETHER], cues: [cue('vt', 'vt', 'A'), cue('vt2', 'vt', 'A')] });
+  await clash.fp.take(TOGETHER);
+  assert.deepEqual(clash.log, ['flush ', 'answer flush ']);
+  assert.deepEqual(clash.notes, ['Take was not sent: VT and VT2 both play on 2-10, which holds one thing at a time. Move one of them to another layer to take this folder.']);
+  const blocked = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  blocked.page.takeBlocker = () => 'Asking NoaCG Bridge what it can play…';
+  await blocked.fp.take(TOGETHER);
+  assert.deepEqual(blocked.log, [], 'a blocked folder does not even wait for the save');
+  assert.deepEqual(blocked.notes, ['Take was not sent: Asking NoaCG Bridge what it can play…']);
+});
+
+test('Out during an All-together Take: the held member is taken back off when it lands, nothing more is sent, and the run writes no misses or note', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  r.hold();
+  const done = r.fp.take(TOGETHER);
+  r.answer('flush');
+  await settle();
+  const out = r.fp.out(TOGETHER);
+  await settle();
+  // Nothing of it is up yet, so Out itself sends nothing; it says so once.
+  r.answer('take vt');
+  await settle();
+  // VT landed after the stop: taken back off with its own fade (no cut).
+  assert.equal(r.log.at(-1), 'server out vt "Out"');
+  r.answer('out vt');
+  await done;
+  await out;
+  assert.ok(!r.log.some((l) => l.includes('bed') || l.includes('strap') || l.includes('bug')), 'no other member is sent');
+  assert.deepEqual(r.folders().takeMisses, {});
+  assert.deepEqual(r.notes, ['✓ Out: Opening']);
+  assert.equal(r.fp.running('A'), false);
+});
+
+test('All out during a Take cuts what lands after it, and sends every One-by-one folder to the top', async () => {
+  const r = folderRig({ folders: [TOGETHER, { id: 'M', name: 'Steps', mode: 'manual' }], cues: togetherCues });
+  r.session.apply((p) => ({ ...p, folders: { ...p.folders, folderSteps: { M: 'g1', N: null } } }));
+  r.hold();
+  const done = r.fp.take(TOGETHER);
+  r.answer('flush');
+  await settle();
+  r.fp.stopAll('all-out');
+  assert.deepEqual(r.folders().folderSteps, { M: null, N: null }, 'synchronously, at the press');
+  r.answer('take vt');
+  await settle();
+  assert.equal(r.log.at(-1), 'server out vt "All out" cut');
+  r.answer('out vt');
+  await done;
+  assert.ok(!r.log.some((l) => l.includes('bed') || l.includes('strap')));
+  assert.deepEqual(r.notes, []);
+});
+
+test('the session ends during a Take: a send held past it changes nothing when it lands, and nothing more is sent', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  r.hold();
+  const done = r.fp.take(TOGETHER);
+  r.answer('flush');
+  await settle();
+  const parts = r.folders();
+  r.session.dispose();
+  assert.equal(r.fp.running('A'), false, 'the runs are cleared at the end');
+  const sentBefore = r.log.length;
+  r.answer('take vt');
+  await done;
+  // Only the answer itself: no Out, no further member, no note, no state.
+  assert.deepEqual(r.log.slice(sentBefore), ['answer server take vt "Take of VT" at 5001']);
+  assert.deepEqual(r.notes, []);
+  assert.equal(r.folders(), parts, 'the folders part is the object it was at the end');
+  // A press after the end waits for the save and sends nothing.
+  const late = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  late.session.dispose();
+  await late.fp.take(TOGETHER);
+  assert.deepEqual(late.log, ['flush ', 'answer flush ']);
+  assert.deepEqual(late.notes, []);
+});
+
+test('the session ends during the save wait: the Take never starts', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  r.hold();
+  const done = r.fp.take(TOGETHER);
+  r.session.dispose();
+  r.answer('flush');
+  await done;
+  assert.deepEqual(r.log, ['flush ', 'answer flush ']);
+});
+
+const THROUGH = { id: 'T', name: 'Clips', mode: 'through' };
+const throughCues = [cue('vt', 'vt', 'T'), cue('bed', 'bed', 'T')];
+
+test('Play through: one server Take of its first cue says its note; Out while it is on its way takes back off every member that landed', async () => {
+  const r = folderRig({ folders: [THROUGH], cues: throughCues });
+  await r.fp.take(THROUGH);
+  assert.deepEqual(r.log, ['flush ', 'answer flush ', 'server take vt "Take of Clips"', 'answer server take vt "Take of Clips"']);
+  assert.deepEqual(r.notes, ['✓ Take of Clips: VT']);
+  const late = folderRig({ folders: [THROUGH], cues: throughCues });
+  late.hold();
+  const done = late.fp.take(THROUGH);
+  late.answer('flush');
+  await settle();
+  void late.fp.out(THROUGH);
+  late.answer('take vt');
+  await settle();
+  assert.equal(late.log.at(-1), 'server out vt "Out"');
+  late.answer('out vt');
+  await done;
+  assert.deepEqual(late.notes, ['✓ Out: Clips'], 'the Take says nothing once stopped');
+  // A refused Take after Out sends nothing back off.
+  const refused = folderRig({ folders: [THROUGH], cues: throughCues });
+  refused.hold();
+  const d2 = refused.fp.take(THROUGH);
+  refused.answer('flush');
+  await settle();
+  refused.fp.stopAll('all-out');
+  refused.answer('take vt', { ok: false, note: 'no', accepted: [] });
+  await d2;
+  assert.equal(refused.log.at(-1), 'answer server take vt "Take of Clips"');
+  assert.deepEqual(refused.notes, []);
+});
+
+test('Out takes every server cue of the folder off, one after another, then its graphics in one send, and moves liveCue only after the answer', async () => {
+  const r = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  r.up('vt', 'vt');
+  r.up('bed', 'bed');
+  r.live({ Hairline: 'strap', Bug: 'other-cue' });
+  r.session.apply((p) => ({ ...p, folders: { ...p.folders, takeMisses: { strap: 'x', elsewhere: 'y' }, folderSteps: { A: 'vt' } } }));
+  r.hold();
+  const done = r.fp.out(TOGETHER);
+  assert.deepEqual(r.folders().folderSteps, { A: null });
+  assert.deepEqual(r.folders().takeMisses, { elsewhere: 'y' });
+  await settle();
+  assert.deepEqual(r.log, ['server out vt "Out of VT"']);
+  r.answer('out vt', { ok: false, note: 'VT did not go off.', accepted: [] });
+  await settle();
+  r.answer('out bed');
+  await settle();
+  // Only STRAP is this folder's graphic on air (BUG's layer holds another cue).
+  assert.equal(r.log.at(-1), 'send Out Hairline');
+  assert.ok(!r.log.includes('fold liveCue'), 'liveCue does not move before the answer');
+  r.answer('send Out', { ...SENT, pressedAgain: ['Hairline'] });
+  await done;
+  assert.deepEqual(r.liveCue(), { Hairline: 'strap', Bug: 'other-cue' }, 'a graphic pressed again since stands');
+  assert.deepEqual(r.notes, ['Out: Opening did not take all of it off. VT did not go off.']);
+  const ok = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  ok.live({ Hairline: 'strap', Bug: 'bug' });
+  await ok.fp.out(TOGETHER);
+  assert.deepEqual(ok.liveCue(), {});
+  assert.deepEqual(ok.log.slice(-2), ['answer send Out Hairline', 'fold liveCue']);
+  assert.deepEqual(ok.notes, ['✓ Out: Opening']);
+  const failed = folderRig({ folders: [TOGETHER], cues: togetherCues });
+  failed.live({ Bug: 'bug' });
+  failed.page.send = async () => ({ ok: false, note: 'Not sent: offline.' });
+  await failed.fp.out(TOGETHER);
+  assert.deepEqual(failed.liveCue(), { Bug: 'bug' });
+  assert.deepEqual(failed.notes, ['Out: Opening did not take all of it off. Not sent: offline.']);
+});
+
+const MANUAL = { id: 'M', name: 'Steps', mode: 'manual' };
+const manualCues = [graphic('g1', 'M'), graphic('g2', 'M'), cue('vt', 'vt', 'M')];
+
+test('a step: the graphic up goes off first, its answer moves liveCue, then the next cue\'s own Take; the step follows the take', async () => {
+  const r = folderRig({ folders: [MANUAL], cues: manualCues });
+  r.live({ One: 'g1' });
+  r.hold();
+  const done = r.fp.step(MANUAL);
+  await settle();
+  assert.deepEqual(r.log, ['flush ']);
+  assert.equal(r.fp.running('M'), false, 'registered only after the save wait');
+  r.answer('flush');
+  await settle();
+  assert.equal(r.log.at(-1), 'send Out One');
+  r.answer('send Out');
+  await settle();
+  assert.deepEqual(r.log.slice(-3), ['answer send Out One', 'fold liveCue', 'graphic g2 "Take"']);
+  r.answer('g2');
+  await done;
+  assert.deepEqual(r.folders().folderSteps, { M: 'g2' });
+  assert.deepEqual(r.liveCue(), { Two: 'g2' });
+  // A press while one is being sent does nothing.
+  r.hold();
+  const next = r.fp.step(MANUAL);
+  r.answer('flush');
+  await settle();
+  const before = r.log.length;
+  await r.fp.step(MANUAL);
+  assert.equal(r.log.length, before);
+  r.answer('send Out');
+  await settle();
+  r.answer('take vt');
+  await next;
+  assert.deepEqual(r.folders().folderSteps, { M: 'vt' });
+});
+
+test('a folder\'s Out is a press on each live candidate layer it clears, settled by its answer (E7.1)', async () => {
+  const r = folderRig({ folders: [MANUAL], cues: manualCues });
+  const presses = [];
+  r.page.selectionAired = (graphic, cueId, take, moves) => {
+    presses.push(['press', graphic, cueId, take.status, moves]);
+    return { landed: () => presses.push(['landed', graphic]), undo: () => presses.push(['undo', graphic]) };
+  };
+  r.live({ One: 'g1' });
+  r.hold();
+  const done = r.fp.step(MANUAL);
+  r.answer('flush');
+  await settle();
+  assert.deepEqual(presses, [['press', 'One', '', 'none', true]], 'registered before the Out goes');
+  r.answer('send Out');
+  await settle();
+  r.answer('g2');
+  await done;
+  assert.deepEqual(presses, [['press', 'One', '', 'none', true], ['landed', 'One']]);
+});
+
+test('a step whose graphic does not go off goes no further; the end goes back to the top; nothing left to take says so', async () => {
+  const r = folderRig({ folders: [MANUAL], cues: manualCues });
+  r.live({ One: 'g1' });
+  r.page.send = async () => ({ ok: false, note: 'Not sent: offline.' });
+  await r.fp.step(MANUAL);
+  assert.ok(!r.log.some((l) => l.startsWith('graphic')), 'the next cue is never taken');
+  assert.deepEqual(r.notes, ['Not sent: offline.']);
+  const end = folderRig({ folders: [MANUAL], cues: manualCues });
+  end.session.apply((p) => ({ ...p, folders: { ...p.folders, folderSteps: { M: 'vt' } } }));
+  end.live({ Two: 'g2' });
+  await end.fp.step(MANUAL);
+  assert.deepEqual(end.folders().folderSteps, { M: null });
+  assert.deepEqual(end.notes, ['✓ Steps: back to its first cue']);
+  assert.deepEqual(end.liveCue(), {});
+  const all = folderRig({ folders: [{ id: 'C', name: 'Clips', mode: 'manual' }], cues: [cue('vt', 'vt', 'C')] });
+  all.up('vt', 'vt');
+  all.session.apply((p) => ({ ...p, folders: { ...p.folders, folderSteps: { C: null } } }));
+  await all.fp.step({ id: 'C', name: 'Clips', mode: 'manual' });
+  assert.deepEqual(all.log, []);
+  assert.deepEqual(all.notes, ['Everything in Clips is on air. 0 takes it off.']);
+  const blocked = folderRig({ folders: [MANUAL], cues: manualCues });
+  blocked.page.stepBlocker = (c) => `${c.label} waits`;
+  await blocked.fp.step(MANUAL);
+  assert.deepEqual(blocked.log, []);
+  assert.deepEqual(blocked.notes, ['Take was not sent: G1 waits']);
+});
+
+test('Out or All out while a step\'s take is on its way: what it put up goes back off and the folder stays at the top', async () => {
+  for (const [stop, label] of [['out', '"Out"'], ['all-out', '"All out" cut']]) {
+    const r = folderRig({ folders: [MANUAL], cues: manualCues });
+    r.session.apply((p) => ({ ...p, folders: { ...p.folders, folderSteps: { M: 'g2' } } }));
+    r.hold();
+    const done = r.fp.step(MANUAL);
+    r.answer('flush');
+    await settle();
+    assert.equal(r.log.at(-1), 'server take vt "Take"');
+    if (stop === 'out') void r.fp.out(MANUAL);
+    else r.fp.stopAll('all-out');
+    r.answer('take vt');
+    await settle();
+    assert.equal(r.log.at(-1), `server out vt ${label}`, stop);
+    r.answer('out vt');
+    await done;
+    assert.deepEqual(r.folders().folderSteps, { M: null }, `${stop}: the take's own step is undone`);
+  }
+  // A graphic step taken back off: its graphic is cleared whatever liveCue says, unless pressed again.
+  const g = folderRig({ folders: [MANUAL], cues: manualCues });
+  g.hold();
+  const done = g.fp.step(MANUAL);
+  g.answer('flush');
+  await settle();
+  g.fp.stopAll('all-out');
+  g.answer('g1');
+  await settle();
+  assert.equal(g.log.at(-1), 'send Out One');
+  g.answer('send Out');
+  await done;
+  assert.deepEqual(g.liveCue(), {});
+  assert.deepEqual(g.folders().folderSteps, { M: null });
+  // The session's end while a step's take is on its way: nothing is taken back off.
+  const e = folderRig({ folders: [MANUAL], cues: manualCues });
+  e.hold();
+  const d = e.fp.step(MANUAL);
+  e.answer('flush');
+  await settle();
+  e.session.dispose();
+  e.answer('g1');
+  await d;
+  assert.equal(e.log.at(-1), 'answer graphic g1 "Take"');
+});
+
+test('the misses and the step bookkeeping: cleared, noted and settled only when they move', () => {
+  const r = folderRig({ folders: [MANUAL, TOGETHER], cues: [...manualCues, ...togetherCues] });
+  r.session.apply((p) => ({ ...p, folders: { ...p.folders, takeMisses: { a: 'Take of A did not go', b: 'B refused' } } }));
+  const before = r.folders();
+  r.fp.clearMisses(['zz']);
+  assert.equal(r.folders(), before, 'clearing a cue with no miss writes nothing');
+  r.fp.clearMisses(['a']);
+  assert.deepEqual(r.folders().takeMisses, { b: 'B refused' });
+  r.fp.settleMisses((shown) => (shown === 'B refused' ? null : shown));
+  assert.deepEqual(r.folders().takeMisses, {});
+  const settled = r.folders();
+  r.fp.settleMisses(() => null);
+  assert.equal(r.folders(), settled);
+  r.fp.noteStep(manualCues[1]);
+  assert.deepEqual(r.folders().folderSteps, { M: 'g2' });
+  const noted = r.folders();
+  r.fp.noteStep(manualCues[1]);
+  assert.equal(r.folders(), noted, 'the same cue again writes nothing');
+  r.fp.noteStep(togetherCues[0]);
+  assert.equal(r.folders(), noted, 'only a One-by-one folder has a step');
 });

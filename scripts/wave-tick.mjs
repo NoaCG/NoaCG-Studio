@@ -39,6 +39,7 @@ import { ensureJobsDir, findRunner, jobsDir, pending, readJobs, readLandings, la
 import { syncLandings } from './landings.mjs';
 import { nodeProcesses } from './e2e-runs.mjs';
 import { git, worktreeEntries } from './worktree-cleanup-lib.mjs';
+import { recoveryCheckpointBranch } from './recovery-branch.mjs';
 import { wavePlansDir } from './wave-plan-store.mjs';
 import { readProgress, readLaunches, currentProgress } from './wave-launch.mjs';
 import { planAcceptance } from './work-spec.mjs';
@@ -76,7 +77,7 @@ const QUEUE_REF_PREFIX = 'gh-readonly-queue/';
  */
 export function watchedBranch(name) {
   if (!name || name === 'main' || name === 'HEAD') return false;
-  return !name.startsWith(QUEUE_REF_PREFIX);
+  return !name.startsWith(QUEUE_REF_PREFIX) && !recoveryCheckpointBranch(name);
 }
 
 export function parseArgs(argv) {

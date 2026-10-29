@@ -1,55 +1,33 @@
 // covers: src/preview/composeDocument.ts
 
-import { test, expect, type Page } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
-import { createProject } from './_create';
-import { elementPoint } from './_canvas';
+import { test, expect } from '@playwright/test';
+import { bootstrapGraphic } from './_create';
 
 // The off-canvas pasteboard (the retired code editor's working margin) was deleted on 2026-10-17
 // with the four cases that drove it. What is left is the invariant that outlived it: no pad ever
 // enters persisted state, and an exported document stays clipped to the canvas while only the
-// composer's authoring option opens a margin. It still boots through the retired helper and
-// skips until it is rewritten onto the composer (issue #800).
-
-async function createHairline(page: Page) {
-  await createProject(page, { category: 'Lower thirds', name: 'Hairline' });
-  await expect(page.getByTestId('timeline-v2')).toBeVisible();
-}
-
-/** Select the Name line (#f0) and park the playhead mid-entrance so a canvas drag keys x/y. */
-async function selectAndPark(page: Page, t = 0.35) {
-  await page.locator('.tlv2-labels .timeline-label[data-part="#f0"]').click();
-  await expect(page.getByTestId('inspector')).toBeVisible({ timeout: 3000 });
-  await page.evaluate((time) => {
-    void (async () => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const s = useTemplateStore.getState();
-      s.setPlayhead({ step: 0, t: time });
-      s.sendScrub('in', time);
-    })();
-  }, t);
-  await page.waitForTimeout(200);
-}
+// composer's authoring option opens a margin.
 
 test('the pasteboard pad never enters persisted state; export stays clipped to the canvas', async ({ page }) => {
-  await createHairline(page);
-  await selectAndPark(page);
-  const start = await elementPoint(page, '#f0');
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.mouse.move(start.x - 300 * start.scale, start.y, { steps: 8 });
-  await page.mouse.up();
-  await awaitPreviewRebuild(page);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
 
   const probe = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
     const tpl = useTemplateStore.getState().template;
+    // The composer's own style tags, read apart from the template CSS: Hairline clips in its own
+    // CSS too, so only these tags show what the composer adds.
+    const styleOf = (doc: string, id: string) =>
+      new DOMParser().parseFromString(doc, 'text/html').getElementById(id)?.textContent ?? null;
+    // The preview/export composition WITHOUT authoring keeps the canvas clip and no pasteboard;
+    // an authoring margin is the composer's option, so any non-zero pad shows the difference.
+    const exportDoc = composeDocument(tpl);
+    const authoringDoc = composeDocument(tpl, { authoring: { padX: 200, padY: 0 } });
     return {
-      // The preview/export composition WITHOUT authoring keeps the canvas clip and no pasteboard;
-      // an authoring margin is the composer's option, so any non-zero pad shows the difference.
-      exportDoc: composeDocument(tpl),
-      authoringDoc: composeDocument(tpl, { authoring: { padX: 200, padY: 0 } }),
+      resolution: tpl.resolution,
+      exportBase: styleOf(exportDoc, 'spx-base-style'),
+      exportAuthoring: styleOf(exportDoc, 'spx-authoring-style'),
+      authoring: styleOf(authoringDoc, 'spx-authoring-style'),
       // Everything persisted lives in the template — serialize it whole and search for the pad.
       serialized: JSON.stringify(tpl),
     };
@@ -60,7 +38,8 @@ test('the pasteboard pad never enters persisted state; export stays clipped to t
   expect(probe.serialized).not.toContain('padX');
   expect(probe.serialized).not.toContain('spx-authoring-style');
   // The exported/on-air document clips to the true canvas; only the authoring preview opts in.
-  expect(probe.exportDoc).toContain('overflow: hidden');
-  expect(probe.exportDoc).not.toContain('spx-authoring-style');
-  expect(probe.authoringDoc).toContain('spx-authoring-style');
+  const { width, height } = probe.resolution;
+  expect(probe.exportBase).toContain(`html, body { width: ${width}px; height: ${height}px; overflow: hidden; }`);
+  expect(probe.exportAuthoring).toBeNull();
+  expect(probe.authoring).toMatch(/body \{[^}]*overflow: visible !important;[^}]*margin: 0px 200px !important;/);
 });

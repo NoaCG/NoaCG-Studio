@@ -25,8 +25,9 @@ import JSZip from 'jszip';
 import { SVG_EXAMPLES_URL, SVG_EXAMPLES_ZIP_URL } from '../src/downloads/links';
 import { AGENT_PROMPT } from '../scripts/agent-prompt.mjs';
 
-/** The seven graphics the SVG examples package ships, by file name. */
-const EXAMPLES = ['title', 'lower-third', 'quiz', 'scoreboard', 'countdown', 'ticker', 'end-credits'];
+/** The inventory is also checked against the live behavior registry and real source assets. */
+const EXAMPLE_INVENTORY = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-examples/examples.json', import.meta.url), 'utf8')) as { slug: string; preview: string }[];
+const EXAMPLES = EXAMPLE_INVENTORY.map((entry) => entry.slug);
 
 // THE DOWNLOADS PAGE (/downloads, downloads.html + src/downloads/). NoaCG ships two things you
 // install - NoaCG Bridge and the NoaCG CLI - and a visitor has to be able to find both from the
@@ -119,6 +120,9 @@ test('each card resolves its own channel: the newest bridge-v* exe, and npm late
   // What each tool is FOR, before anything about installing it.
   await expect(bridge).toContainText('CasparCG');
   await expect(bridge.getByTestId('bridge-not-needed')).toContainText('OBS, vMix');
+  // One Bridge: the download. A command line here would run the Bridge inside the newest CLI,
+  // which can be newer than the release the button offers.
+  await expect(bridge.locator('pre')).toHaveCount(0);
   await expect(cli).toContainText('Claude Code');
   // The install lines are the distribution table's (docs/AGENT_CLI.md), each its own block.
   // Claude Code's is the one-command form a session accepts since 2.1.275 (Codex has none).
@@ -206,18 +210,27 @@ test('the SVG examples sit under the two tools and their zip is served from /dow
   // The zip is committed, so it can go stale: every SVG and the README in it are the repo's own,
   // and it holds an Illustrator file for each.
   const zipped = await JSZip.loadAsync(bytes);
-  for (const file of ['README.md', ...EXAMPLES.map((name) => `SVG/${name}.svg`)]) {
+  for (const file of ['README.md', 'examples.json', ...EXAMPLES.map((name) => `SVG/${name}.svg`)]) {
     const inZip = await zipped.file(`NoaCG-SVG-examples/${file}`)?.async('string');
     const inRepo = readFileSync(fileURLToPath(new URL(`../docs/tutorials/svg-examples/${file}`, import.meta.url)), 'utf8');
     expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip - repack with scripts/illustrator/pack-svg-examples.mjs`).toBe(inRepo.replace(/\r\n/g, '\n'));
   }
-  for (const name of EXAMPLES) {
-    expect(zipped.file(`NoaCG-SVG-examples/Illustrator/${name}.ai`), `${name}.ai in the zip`).not.toBeNull();
+  for (const file of ['README.pdf', ...EXAMPLE_INVENTORY.flatMap((entry) => [`Illustrator/${entry.slug}.ai`, `Previews/${entry.preview}.png`])]) {
+    const native = zipped.file(`NoaCG-SVG-examples/${file}`);
+    expect(native, `${file} in the zip`).not.toBeNull();
+    expect(await native!.async('nodebuffer'), `${file} is the verified source artifact`).toEqual(readFileSync(new URL(`../docs/tutorials/svg-examples/${file}`, import.meta.url)));
   }
 
   // The same zip is linked from the docs, beside the layer names it teaches.
   await page.goto('/docs#svg-layers');
   await expect(page.getByTestId('docs-svg-examples')).toHaveAttribute('href', SVG_EXAMPLES_ZIP_URL);
+  const gallery = page.locator('#svg-example-files + p + ul');
+  await expect(gallery.locator('a[download]')).toHaveCount(EXAMPLES.length);
+  for (const name of EXAMPLES) {
+    await expect(gallery.locator(`a[href="/docs/examples/svg-examples/${name}.svg"]`)).toHaveCount(1);
+    const response = await request.get(`/docs/examples/svg-examples/${name}.svg`);
+    expect(response.status(), `${name} public SVG`).toBe(200);
+  }
 });
 
 test('the top bar is the landing top bar, with Downloads as the current page', async ({ page }) => {

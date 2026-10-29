@@ -1,9 +1,8 @@
 // The Downloads page's one enhancement: say WHICH version each download is, and point the Bridge
 // button at the exact file.
 //
-// One version number, two channels (downloads.html says why). A version may reach npm without a
-// new Bridge exe, or the other way round, so each card asks ITS OWN channel and shows what that
-// channel really serves:
+// Two products, each with its own version and channel (downloads.html says why), so each card
+// asks ITS OWN channel and shows what that channel really serves:
 //
 //   NoaCG Bridge  the newest non-prerelease GitHub Release tagged `bridge-v*`, and its
 //                 NoaCG-Bridge exe asset. Filtering by tag rather than trusting "latest" means an

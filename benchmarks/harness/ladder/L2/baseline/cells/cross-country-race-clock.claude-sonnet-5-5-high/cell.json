@@ -1,0 +1,108 @@
+{
+  "costUnread": false,
+  "brief": "cross-country-race-clock",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "94378d18-78c8-4fc1-bf00-92835a47128d",
+  "costCents": 0,
+  "notionalUsd": 1.2584654000000002,
+  "wallSeconds": 263,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --fields Kilpailu:text --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:f005dc42b8309e23ada45ba5dd344468c744caa41a8018003cab836fa245df31"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Tytöt 12-vuotiaat, 4 x 1,5 km maastoviesti, Syyskierroksen Pohjois-Suomen mestaruusviesti --event clockStart --at 2s --background video --out ./shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:c3c37483e3f4404a2d4ed51bafb71d29e83a7f96eb440dd05d5311c9fa09ac26"
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:c3c37483e3f4404a2d4ed51bafb71d29e83a7f96eb440dd05d5311c9fa09ac26"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:c3c37483e3f4404a2d4ed51bafb71d29e83a7f96eb440dd05d5311c9fa09ac26"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\baseline\\cells\\cross-country-race-clock.claude-sonnet-5-5-high\\frames",
+    "frames": 53,
+    "crops": 1,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:c3c37483e3f4404a2d4ed51bafb71d29e83a7f96eb440dd05d5311c9fa09ac26"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 1,
+    "buttons": [
+      "clockStart",
+      "clockStop",
+      "clockReset"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:c3c37483e3f4404a2d4ed51bafb71d29e83a7f96eb440dd05d5311c9fa09ac26",
+    "benchValidated": "sha256:c3c37483e3f4404a2d4ed51bafb71d29e83a7f96eb440dd05d5311c9fa09ac26",
+    "reviewed": "sha256:c3c37483e3f4404a2d4ed51bafb71d29e83a7f96eb440dd05d5311c9fa09ac26",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 53,
+    "opened": 53,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

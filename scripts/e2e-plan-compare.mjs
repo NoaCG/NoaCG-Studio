@@ -21,6 +21,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { recoveryCheckpointBranch } from './recovery-branch.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28, windowsHide: true }).trim();
@@ -74,7 +75,7 @@ async function plannerAt(ref) {
 /** Every remote branch not merged into the old ref - the open work a landing would carry. */
 function openBranches(old) {
   return lines(git('branch', '-r', '--no-merged', old, '--format=%(refname:short)'))
-    .filter((ref) => ref.startsWith('origin/') && ref !== 'origin/HEAD')
+    .filter((ref) => ref.startsWith('origin/') && ref !== 'origin/HEAD' && !recoveryCheckpointBranch(ref))
     .map((ref) => ref.slice('origin/'.length));
 }
 

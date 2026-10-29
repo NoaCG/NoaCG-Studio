@@ -1132,6 +1132,7 @@ test('a stale local main plans only the changed specs, whichever main ref is fre
 // change itself edits stays blocking, because that edit is the fix and must not land untested.
 import { effectivePlan, splitQuarantined } from './e2e-affected.mjs';
 import { quarantinedSpecs, readStore as readQuarantine } from './e2e-quarantine.mjs';
+import { planIdentity } from './e2e-spec-names.mjs';
 
 test('quarantined specs leave the blocking list and are reported as e2e/ paths', () => {
   const split = splitQuarantined(['a.spec.ts', 'b.spec.ts', 'c.spec.ts'], ['e2e/b.spec.ts', 'e2e/zzz.spec.ts']);
@@ -1334,7 +1335,7 @@ test('every spec header in the repository passes the refusals', () => {
 // THE SAFE DIRECTION, pinned: a source file no spec covers still escalates to the full suite
 // (the shared-change set, the planner's default escalation), and says which file did it.
 test('a source file no spec covers escalates to the full suite, exactly as before headers', () => {
-  for (const file of ['src/components/spaceKey.ts', 'src/brand-new-area/thing.ts']) {
+  for (const file of ['src/components/useIsMobile.ts', 'src/brand-new-area/thing.ts']) {
     const plan = planFor([file]);
     assert.equal(plan.mode, 'full', `${file} is covered by no header and must escalate`);
     assert.deepEqual(plan.unmapped, [file]);
@@ -1347,6 +1348,13 @@ test('a source file no spec covers escalates to the full suite, exactly as befor
   // A path a CENTRAL rule knows plans nothing, rather than escalating.
   assert.equal(planFor(['cli/src/index.ts']).mode, 'none');
   assert.deepEqual(planFor(['cli/src/index.ts']).unmapped, []);
+});
+
+test('shortcut guard changes select the current focused-button workflow', () => {
+  const plan = planFor(['src/components/spaceKey.ts']);
+  assert.equal(plan.mode, 'subset');
+  assert.ok(plan.specs.includes('editor-usability.spec.ts'));
+  assert.deepEqual(plan.unmapped, []);
 });
 
 // THE POINT OF THE CHANGE, pinned: a new spec with a covers header is planned for a change to the
@@ -1813,6 +1821,45 @@ test('a shared model, rendering or storage change runs the shared-change set, an
     assert.ok(shared.specs.includes('playout-folders.spec.ts') && shared.specs.includes('wizard-kit.spec.ts'), `${file} runs the journeys`);
     assert.equal(planFor([file], { sprintFocus: false }).mode, 'full', `${file} runs everything only when asked`);
   }
+});
+
+// #1349: importTemplate is CORE, so its covers header is bypassed before the shared set is
+// applied. Pin the journey through the default CLI too; a full-suite plan would hide this miss.
+for (const [shape, changed] of [
+  ['package import', ['src/model/importTemplate.ts']],
+  ['shared model', ['src/model/structure.ts']],
+  ['shared storage', ['src/store/templateStore.ts']],
+  ['integration union', ['src/model/importTemplate.ts', 'src/legal.css', 'src/templates/lowerThirds/lt01.ts', 'e2e/configured/pro-wizard.spec.ts']],
+]) {
+  test(`${shape} selects the CLI round-trip journey before landing`, () => {
+    const plan = planFor(changed, { sprintFocus: true });
+    assert.equal(plan.mode, 'subset');
+    assert.equal(plan.focusApplied, true);
+    assert.ok(plan.specs.includes('editor-cli-round-trip.spec.ts'), '#1349 must not escape to main');
+
+    const parts = changed.map((file) => planFor([file], { sprintFocus: true }));
+    assert.deepEqual(plan.specs, [...new Set(parts.flatMap((part) => part.specs))].sort(), 'keep every constituent selection');
+    assert.equal(plan.catalog, parts.some((part) => part.catalog));
+    assert.equal(plan.configured, parts.some((part) => part.configured));
+
+    const cli = JSON.parse(execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', ...changed], {
+      cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV, windowsHide: true,
+    }));
+    assert.equal(cli.mode, 'subset');
+    assert.ok(cli.specs.includes('editor-cli-round-trip.spec.ts'), 'the journey must reach the blocking CLI plan');
+    assert.equal(cli.catalog, plan.catalog);
+    // `quarantined` holds e2e/ paths (the store's identity), `specs` bare planner names.
+    assert.deepEqual([...cli.specs, ...cli.quarantined.map(planIdentity)].sort(), plan.specs);
+  });
+}
+
+test('docs-only CLI plans no browser tests after adding the round-trip journey', () => {
+  const cli = JSON.parse(execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', 'docs/ARCHITECTURE.md'], {
+    cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV, windowsHide: true,
+  }));
+  assert.equal(cli.mode, 'none');
+  assert.deepEqual(cli.specs, []);
+  assert.equal(cli.catalog, false);
 });
 
 test('an uncertain change (a new file no header names) escalates to the shared-change set and is named as unmapped', () => {

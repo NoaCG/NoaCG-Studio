@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <link rel="self" href="http://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw"/>
+ <id>yt:channel:_x5XG1OV2P6uZZ5FSM9Ttw</id>
+ <yt:channelId>_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+ <title>Google for Developers</title>
+ <link rel="alternate" href="https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw"/>
+ <author>
+  <name>Google for Developers</name>
+  <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+ </author>
+ <published>2007-08-23T00:34:43+00:00</published>
+ <entry>
+  <id>yt:video:LJ2v4-FvPcA</id>
+  <yt:videoId>LJ2v4-FvPcA</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>🧰 Builders building with Gemini Audio</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/LJ2v4-FvPcA"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-16T21:00:00+00:00</published>
+  <updated>2026-10-19T16:31:28+00:00</updated>
+  <media:group>
+   <media:title>🧰 Builders building with Gemini Audio</media:title>
+   <media:content url="https://www.youtube.com/v/LJ2v4-FvPcA?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i1.ytimg.com/vi/LJ2v4-FvPcA/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Google DeepMind's Paige Bailey catches up with builders experimenting with our latest models. Watch as they dive deep into Gemma's open-weight capabilities to build powerful local applications, use Lyria for cutting-edge music creation, and create real-time voice accessibility tools with the latest Gemini Audio models.
+
+🔗Resources:
+Gemini Audio → https://goo.gle/3UtAPew
+Gemma → https://goo.gle/4zxlVCL
+
+
+Subscribe to Google for Developers → https://goo.gle/developers    
+
+
+Speakers: Paige Bailey, Lejun Min, Samuel Sharaf, Daisy Mayorga, Manuel Castro, Faraz Siddiqi
+Products Mentioned: Gemini</media:description>
+   <media:community>
+    <media:starRating count="111" average="5.00" min="1" max="5"/>
+    <media:statistics views="3166"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:-nmcYcO-EE8</id>
+  <yt:videoId>-nmcYcO-EE8</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>🎵 Turning motion into music with Gemini</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/-nmcYcO-EE8"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-16T16:00:00+00:00</published>
+  <updated>2026-10-16T20:23:20+00:00</updated>
+  <media:group>
+   <media:title>🎵 Turning motion into music with Gemini</media:title>
+   <media:content url="https://www.youtube.com/v/-nmcYcO-EE8?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/-nmcYcO-EE8/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Turning laptop movement into browser-based music: Creator utilized Google AI Studio, Google Antigravity, and Gemini to shift raw accelerometer data into audio responding to every tilt and gesture.
+
+🔗 Explore the build → https://goo.gle/4zzWjVN 
+
+
+Subscribe to Google for Developers → https://goo.gle/developers   
+
+Products Mentioned: Gemini, Google AI Studio, Google Antigravity
+Speaker: Matias Piña Aguilera</media:description>
+   <media:community>
+    <media:starRating count="138" average="5.00" min="1" max="5"/>
+    <media:statistics views="7840"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:qJplHFjyv2A</id>
+  <yt:videoId>qJplHFjyv2A</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>📖 Explore custom voice narration with Gemini 3.8 Flash TTS</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/qJplHFjyv2A"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-15T23:00:26+00:00</published>
+  <updated>2026-10-18T21:53:04+00:00</updated>
+  <media:group>
+   <media:title>📖 Explore custom voice narration with Gemini 3.8 Flash TTS</media:title>
+   <media:content url="https://www.youtube.com/v/qJplHFjyv2A?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/qJplHFjyv2A/hqdefault.jpg" width="480" height="360"/>
+   <media:description>See how this interactive demo, Once Upon a Tone, uses Gemini 3.8 Flash TTS to bring text to life with custom voice narrators and vocal affectations. 
+
+Try Gemini 3.8 Flash TTS via the Gemini API in Google AI Studio. Have questions? Drop them in the comments.
+
+
+🔗Resources:
+Gemini 3.8 Flash TTS Developer Guide → https://goo.gle/3VOyV8C
+
+
+
+Subscribe to Google for Developers → https://goo.gle/developers    
+
+
+
+
+Speakers: Sam Goldstein 
+Products Mentioned: Gemini</media:description>
+   <media:community>
+    <media:starRating count="139" average="5.00" min="1" max="5"/>
+    <media:statistics views="6359"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:i3X7Fv0Z3Uc</id>
+  <yt:videoId>i3X7Fv0Z3Uc</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Turning raw hardware sensor data into music with Gemini</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=i3X7Fv0Z3Uc"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-15T19:00:22+00:00</published>
+  <updated>2026-10-18T21:49:41+00:00</updated>
+  <media:group>
+   <media:title>Turning raw hardware sensor data into music with Gemini</media:title>
+   <media:content url="https://www.youtube.com/v/i3X7Fv0Z3Uc?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/i3X7Fv0Z3Uc/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Using Google AI Studio, Google Antigravity, and Gemini, this creator tapped into raw accelerometer hardware APIs to convert physical motion into browser-based audio.
+
+Watch how every tilt, shake, and gesture translates into live musical output without any extra equipment.
+
+Try building today → https://goo.gle/4joG4GA 
+
+
+
+Subscribe to Google for Developers → https://goo.gle/developers   
+
+Products Mentioned: Gemini, Google AI Studio, Google Antigravity
+Speaker: Matias Piña Aguilera</media:description>
+   <media:community>
+    <media:starRating count="119" average="5.00" min="1" max="5"/>
+    <media:statistics views="13410"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:nSwmcs37Jd4</id>
+  <yt:videoId>nSwmcs37Jd4</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Gemini 4 Argon in Antigravity</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=nSwmcs37Jd4"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-15T16:00:02+00:00</published>
+  <updated>2026-10-19T17:04:12+00:00</updated>
+  <media:group>
+   <media:title>Gemini 4 Argon in Antigravity</media:title>
+   <media:content url="https://www.youtube.com/v/nSwmcs37Jd4?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/nSwmcs37Jd4/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Gemini 4 Argon is live in Google Antigravity, our agent-first software development platform. You may have tried Antigravity before, but with our frontier model it’s more fun to build in than ever. Watch as we build a 3D pagoda model, a racing game, a handheld game-console, and a 3D world running on a phone, all using Argon in Antigravity.
+
+Argon is rolling out in the Google Antigravity desktop app and CLI for Google AI Ultra and Pro subscribers, eligible Gemini Enterprise subscriptions, and in the API in Gemini platform.
+
+What will YOU build with Argon in Antigravity? 
+
+
+🔗 Learn more in our blog → https://goo.gle/4zUgxKr
+
+
+Subscribe to Google for Developers → https://goo.gle/developers    
+
+
+Speaker: Jason Poon
+Products Mentioned: Gemini 4 Argon, Antigravity, Nano Banana</media:description>
+   <media:community>
+    <media:starRating count="254" average="5.00" min="1" max="5"/>
+    <media:statistics views="30919"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:Jh6mgf9M06M</id>
+  <yt:videoId>Jh6mgf9M06M</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Gemini 4 Argon: What’s new and what’s next</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=Jh6mgf9M06M"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-14T17:01:36+00:00</published>
+  <updated>2026-10-18T00:31:36+00:00</updated>
+  <media:group>
+   <media:title>Gemini 4 Argon: What’s new and what’s next</media:title>
+   <media:content url="https://www.youtube.com/v/Jh6mgf9M06M?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/Jh6mgf9M06M/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Josh Woodward, Melvin Johnson, Sergey Brin, and Tulsee Doshi from Google DeepMind join host Logan Kilpatrick to introduce Gemini 4 Argon. Their conversation covers what made this release possible and how 100,000 Googlers tested the model before launch. They also discuss industry-leading one million output tokens, improvements to writing quality and model behavior, and the real-world breakthroughs teams are already seeing across coding, cybersecurity, and knowledge work.
+
+Chapters: 
+0:45 — Welcome and Gemini 4 Argon launch 
+1:05 — Where Argon is available 
+1:43 — Early testing with cyber defenders and enterprises 
+2:50 — Internal testing at scale 
+3:28 — Building models with models 
+5:43 — Writing quality improvements and AI slop 
+8:08 — Agents in the model building process 
+8:58 — Real world use cases from Googlers 
+12:50 — How to validate model output 
+17:36 — What made Gemini 4 Argon possible 
+18:45 — Aha moments with Argon 
+23:02 — One million output tokens explained 
+26:46 — Model behavior, persistence, and transparency 
+29:00 — Closing thoughts and feedback 
+
+
+🔗Resources:
+Gemini 4 Argon Blog → https://goo.gle/4B5pphz
+
+
+Subscribe to Google for Developers → https://goo.gle/developers 
+   
+
+Speakers: Josh Woodward, Melvin Johnson, Sergey Brin, Tulsee Doshi 
+Products Mentioned: Gemini 4 Argon</media:description>
+   <media:community>
+    <media:starRating count="1164" average="5.00" min="1" max="5"/>
+    <media:statistics views="76067"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:OYp5j2RihPE</id>
+  <yt:videoId>OYp5j2RihPE</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Gemini 4 Argon and Google Antigravity: From 2D concept to 3D cathedral</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=OYp5j2RihPE"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-13T19:00:11+00:00</published>
+  <updated>2026-10-18T01:07:15+00:00</updated>
+  <media:group>
+   <media:title>Gemini 4 Argon and Google Antigravity: From 2D concept to 3D cathedral</media:title>
+   <media:content url="https://www.youtube.com/v/OYp5j2RihPE?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/OYp5j2RihPE/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Watch how an autonomous AI agent takes a flat 2D concept image and reconstructs a photorealistic 3D cathedral in Blender from scratch. Tiago Aragona demonstrates how to connect Antigravity directly to Blender via the Model Context Protocol (MCP), leveraging Gemini 4 Argon across 45 iterative agentic loops to deduce complex architectural geometry, detail column fluting, and set up volumetric lighting.
+
+
+🔗Resources:
+Gemini 4 Argon Blog → https://goo.gle/4zze7Rg
+Antigravity Website → https://goo.gle/4B3IxMW
+
+
+
+Subscribe to Google for Developers → https://goo.gle/developers    
+
+
+
+Speakers: Tiago Aragona
+Products Mentioned: Gemini 4 Argon, Antigravity, Blender, Model Context Protocol (MCP), Flow</media:description>
+   <media:community>
+    <media:starRating count="1532" average="5.00" min="1" max="5"/>
+    <media:statistics views="154211"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:IBVmenOroPs</id>
+  <yt:videoId>IBVmenOroPs</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Order in any language with Gemini 3.5 Live Translate</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/IBVmenOroPs"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-09T23:00:24+00:00</published>
+  <updated>2026-10-13T02:51:28+00:00</updated>
+  <media:group>
+   <media:title>Order in any language with Gemini 3.5 Live Translate</media:title>
+   <media:content url="https://www.youtube.com/v/IBVmenOroPs?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/IBVmenOroPs/hqdefault.jpg" width="480" height="360"/>
+   <media:description>See how Gemini 3.5 Live Translate and Gemini 3.5 Transcribe work together to help an English speaker place a sushi order with a Japanese-speaking host, translating the conversation in real time.
+
+Try it now at Google AI Studio. Have questions? Drop them in the comments.
+
+
+🔗Resources:
+Blog  → https://goo.gle/4jbKjoM
+Developer documentation → https://goo.gle/3TPrgWR
+
+
+Subscribe to Google for Developers → https://goo.gle/developers    
+
+
+
+Speakers: Sam Goldstein 
+Products Mentioned: Gemini</media:description>
+   <media:community>
+    <media:starRating count="176" average="5.00" min="1" max="5"/>
+    <media:statistics views="8861"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:fMgcm9aXZyY</id>
+  <yt:videoId>fMgcm9aXZyY</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>🤖 Operating real hardware with Gemini AI</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/fMgcm9aXZyY"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-09T19:00:36+00:00</published>
+  <updated>2026-10-13T02:47:00+00:00</updated>
+  <media:group>
+   <media:title>🤖 Operating real hardware with Gemini AI</media:title>
+   <media:content url="https://www.youtube.com/v/fMgcm9aXZyY?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/fMgcm9aXZyY/hqdefault.jpg" width="480" height="360"/>
+   <media:description>When your friend has a robot arm in another state, you find a way to use it. Watch how Matías and David used Gemini to bridge 1,700 miles, building custom 3D web controllers that operate physical hardware in real time. 
+
+🔗 Explore the build → https://goo.gle/3U909Gu
+
+
+Subscribe to Google for Developers → https://goo.gle/developers   
+
+
+Products Mentioned: Gemini, Google Antigravity, Google AI Studio
+Speakers: Matías Piña Aguilera, David Maliglowka</media:description>
+   <media:community>
+    <media:starRating count="124" average="5.00" min="1" max="5"/>
+    <media:statistics views="8732"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:7sKHiuE7J-Y</id>
+  <yt:videoId>7sKHiuE7J-Y</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Building low-latency remote robotics with Gemini</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=7sKHiuE7J-Y"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-09T16:00:10+00:00</published>
+  <updated>2026-10-13T02:49:28+00:00</updated>
+  <media:group>
+   <media:title>Building low-latency remote robotics with Gemini</media:title>
+   <media:content url="https://www.youtube.com/v/7sKHiuE7J-Y?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/7sKHiuE7J-Y/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Working 1,700 miles apart, Matías and David used Google Antigravity, Google AI Studio, and Gemini to construct a remote robotics framework powered by custom 3D web controllers.
+
+Watch to discover how they implemented low-latency hardware controls to operate physical machinery across thousands of miles.
+
+Try building today → https://goo.gle/4ya3rr3
+
+
+Subscribe to Google for Developers → https://goo.gle/developers   
+
+
+Products Mentioned: Gemini, Google Antigravity, Google AI Studio
+Speakers: Matías Piña Aguilera, David Maliglowka</media:description>
+   <media:community>
+    <media:starRating count="272" average="5.00" min="1" max="5"/>
+    <media:statistics views="31433"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:fL9OBJO3Gu8</id>
+  <yt:videoId>fL9OBJO3Gu8</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Building with Gemma 4</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=fL9OBJO3Gu8"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-08T23:00:09+00:00</published>
+  <updated>2026-10-12T03:37:08+00:00</updated>
+  <media:group>
+   <media:title>Building with Gemma 4</media:title>
+   <media:content url="https://www.youtube.com/v/fL9OBJO3Gu8?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/fL9OBJO3Gu8/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Gemma 4 is the most capable model family you can run on your hardware. They complement our Gemini models, giving our developer community the industry's most powerful combination of both open and proprietary tools. Watch for inspiration for your next Gemma build, or even just to get to know Reachy the offline robot (running LFG-3 on a Reachy Mini and NVIDIA DGX Spark). 
+
+Learn more about Gemma here: https://goo.gle/4dxj30m, and share what you’ll build with an AI model that runs directly on-device in the comments below! 
+
+
+🔗Resources:
+
+Community Builds Featured in this Video 
+*Wearable Robotic Arm →  https://goo.gle/4rVOib9
+*PenguinAgent → https://goo.gle/3VVfTNO
+*CodeBuddy (Offline Coding) → https://goo.gle/4y9tRsM
+
+Models &amp; Open Source Attributions
+*Custom Model: LFG-3 → https://goo.gle/3UbydBQ
+*Speech Recognition: LFG-3 fuses NVIDIA Parakeet → https://goo.gle/3TTzn4T, licensed under CC BY 4.0 → https://goo.gle/4ic5Tby 
+*Text-to-Speech: This project uses Kyutai TTS 1.6B → https://goo.gle/4hBVrtR, licensed under CC BY 4.0 → https://goo.gle/4ic5Tby
+
+
+Subscribe to Google for Developers → https://goo.gle/developers    
+
+
+
+Speakers: Glenn Cameron
+Products Mentioned: Gemma</media:description>
+   <media:community>
+    <media:starRating count="455" average="5.00" min="1" max="5"/>
+    <media:statistics views="45509"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:XnIXupxiRo4</id>
+  <yt:videoId>XnIXupxiRo4</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>📷 Searching for images from text with EmbeddingGemma 2</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/XnIXupxiRo4"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-08T16:00:00+00:00</published>
+  <updated>2026-10-12T03:33:03+00:00</updated>
+  <media:group>
+   <media:title>📷 Searching for images from text with EmbeddingGemma 2</media:title>
+   <media:content url="https://www.youtube.com/v/XnIXupxiRo4?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i1.ytimg.com/vi/XnIXupxiRo4/hqdefault.jpg" width="480" height="360"/>
+   <media:description>See how EmbeddingGemma 2, Google's lightweight, open multimodal embedding model, lets you search your photos and videos using natural language queries in a system that can run completely offline on your phone.
+
+Download the Google AI Edge Gallery app from the Play Store or App Store to try it yourself. Have questions? Drop them in the comments.
+
+🔗Resources:
+Build cross-platform apps with Google AI Edge → https://goo.gle/47pNa6x
+
+
+Subscribe to Google for Developers → https://goo.gle/developers    
+
+
+
+Speakers: Ivan Llanos
+Products Mentioned: Gemma</media:description>
+   <media:community>
+    <media:starRating count="186" average="5.00" min="1" max="5"/>
+    <media:statistics views="4475"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:7Ol-0Iq0JMA</id>
+  <yt:videoId>7Ol-0Iq0JMA</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Real-time golf swing coaching with Gemini 3.8 Live</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/7Ol-0Iq0JMA"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-07T23:00:12+00:00</published>
+  <updated>2026-10-12T03:34:57+00:00</updated>
+  <media:group>
+   <media:title>Real-time golf swing coaching with Gemini 3.8 Live</media:title>
+   <media:content url="https://www.youtube.com/v/7Ol-0Iq0JMA?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/7Ol-0Iq0JMA/hqdefault.jpg" width="480" height="360"/>
+   <media:description>See Gemini 3.8 Live in action as it turns high-speed motion capture data into real-time, conversational coaching cues and interactive slow-motion replays to help improve a golf swing, powered by Google DeepMind’s latest live model.
+
+Try Gemini 3.8 Live today!
+
+🔗Resources:
+Blog → https://goo.gle/4ziuJMW 
+Developer documentation → https://goo.gle/4y7z7NL
+
+
+Have questions? Drop them in the comments.
+
+
+Subscribe to Google for Developers → https://goo.gle/developers    
+
+
+
+Speakers: Sam Goldstein 
+Products Mentioned: Gemini</media:description>
+   <media:community>
+    <media:starRating count="41" average="5.00" min="1" max="5"/>
+    <media:statistics views="1893"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:gsjPR_qW618</id>
+  <yt:videoId>gsjPR_qW618</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>🧶 From Gemini code to textile art</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/gsjPR_qW618"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-07T19:00:26+00:00</published>
+  <updated>2026-10-12T03:34:41+00:00</updated>
+  <media:group>
+   <media:title>🧶 From Gemini code to textile art</media:title>
+   <media:content url="https://www.youtube.com/v/gsjPR_qW618?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/gsjPR_qW618/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Carrie transforms code into textile art using Google AI Studio and Gemini, bringing custom yarn designs to life inspired by binary algorithms. 
+
+🔗 Explore the build → https://goo.gle/4iN1AEx
+
+
+Subscribe to Google for Developers → https://goo.gle/developers   
+
+Products Mentioned: Gemini, Google AI Studio
+Speaker: Carrie Sun</media:description>
+   <media:community>
+    <media:starRating count="51" average="5.00" min="1" max="5"/>
+    <media:statistics views="2738"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:pijSNA-hWkg</id>
+  <yt:videoId>pijSNA-hWkg</yt:videoId>
+  <yt:channelId>UC_x5XG1OV2P6uZZ5FSM9Ttw</yt:channelId>
+  <title>Turning code into fabric with Gemini</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=pijSNA-hWkg"/>
+  <author>
+   <name>Google for Developers</name>
+   <uri>https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw</uri>
+  </author>
+  <published>2026-10-07T16:00:07+00:00</published>
+  <updated>2026-10-07T16:00:07+00:00</updated>
+  <media:group>
+   <media:title>Turning code into fabric with Gemini</media:title>
+   <media:content url="https://www.youtube.com/v/pijSNA-hWkg?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i1.ytimg.com/vi/pijSNA-hWkg/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Look what you can do! Explore the intersection of binary coding and fabric-making with Computational Knitting. Built with Gemini, Carrie's project transforms algorithmic processes into unique textile designs knit on a computerized knitting machine.
+
+Watch as she brings these digital designs to life stitch by stitch on a computerized knitting machine.
+
+Try building today → https://goo.gle/4djpF2k
+
+
+Subscribe to Google for Developers → https://goo.gle/developers   
+
+Products Mentioned: Gemini, Google AI Studio
+Speaker: Carrie Sun</media:description>
+   <media:community>
+    <media:starRating count="208" average="5.00" min="1" max="5"/>
+    <media:statistics views="18827"/>
+   </media:community>
+  </media:group>
+ </entry>
+</feed>

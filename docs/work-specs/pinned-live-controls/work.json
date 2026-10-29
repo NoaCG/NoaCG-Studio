@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "cea254d7165b25b44dd8358998214cc64641fe34a5b916261c4f1d2f59d2b79f",
+  "authority": {
+    "status": "agreed",
+    "source": "Owner, 2026-10-24: the brief (research and a draft spec for running several graphics from one screen, to agree before it joins the production-page run), the eleven design answers of the same day recorded in the spec under Owner decisions, and the agreement of the whole the same day (\"Yes, land it\"). Agreement authorizes the design and its proposed placement; implementation waits for the coordinator to admit the row, and nothing here edits the run ledger. Revised 2026-10-24 after an independent second opinion (adopt with changes): the owner asked for the problems it found to be fixed; the spec records each finding and the change."
+  },
+  "review": null
+}

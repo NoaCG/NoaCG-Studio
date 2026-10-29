@@ -2,37 +2,94 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/configured/deep-link-boot.spec.ts": {
-      "since": "2026-10-16",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38874823120"
+    "e2e/configured/late-send-abandoned.spec.ts": {
+      "since": "2026-10-28",
+      "count": 16,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40763025050"
     },
     "e2e/publish-output-setup.spec.ts": {
-      "since": "2026-10-17",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39066173428"
+      "since": "2026-10-28",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40765654275"
+    },
+    "e2e/rundown-history.spec.ts": {
+      "since": "2026-10-28",
+      "count": 3,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40663901817"
     }
   },
   "released": {
     "e2e/configured/account.spec.ts": {
-      "count": 4,
-      "last": "2026-10-18"
+      "count": 5,
+      "last": "2026-10-19"
+    },
+    "e2e/configured/agent-access.spec.ts": {
+      "count": 2,
+      "last": "2026-10-25"
+    },
+    "e2e/configured/audience-live.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/command-sequence.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/community-pack-review.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
     },
     "e2e/configured/connector-grants.spec.ts": {
       "count": 1,
       "last": "2026-10-13"
     },
     "e2e/configured/dashboard-hosted-walk.spec.ts": {
-      "count": 5,
-      "last": "2026-10-12"
+      "count": 6,
+      "last": "2026-10-22"
     },
-    "e2e/configured/late-send-abandoned.spec.ts": {
-      "count": 9,
-      "last": "2026-10-18"
+    "e2e/configured/deep-link-boot.spec.ts": {
+      "count": 1,
+      "last": "2026-10-19"
+    },
+    "e2e/configured/homebase.spec.ts": {
+      "count": 1,
+      "last": "2026-10-25"
+    },
+    "e2e/configured/hosted-reveal-after-reload.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/operator-outage-not-unpublished.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/playout-both-roads.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/playout-switch-mid-flight.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
     },
     "e2e/configured/production-data-key.spec.ts": {
-      "count": 3,
-      "last": "2026-10-17"
+      "count": 5,
+      "last": "2026-10-25"
+    },
+    "e2e/configured/publish-output-default.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/shared-lab-computer.spec.ts": {
+      "count": 2,
+      "last": "2026-10-25"
+    },
+    "e2e/configured/sync-one-pass-per-edit.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
+    },
+    "e2e/configured/take-behind-out.spec.ts": {
+      "count": 1,
+      "last": "2026-10-22"
     },
     "e2e/cross-tab.spec.ts": {
       "count": 1,
@@ -51,8 +108,8 @@
       "last": "2026-10-11"
     },
     "e2e/editor-canvas-transforms.spec.ts": {
-      "count": 1,
-      "last": "2026-10-04"
+      "count": 2,
+      "last": "2026-10-28"
     },
     "e2e/editor-foundation.spec.ts": {
       "count": 3,
@@ -67,8 +124,8 @@
       "last": "2026-10-11"
     },
     "e2e/editor-keys.spec.ts": {
-      "count": 2,
-      "last": "2026-10-01"
+      "count": 3,
+      "last": "2026-10-19"
     },
     "e2e/editor-pen.spec.ts": {
       "count": 1,
@@ -78,13 +135,17 @@
       "count": 1,
       "last": "2026-10-08"
     },
+    "e2e/import-svg-behaviour.spec.ts": {
+      "count": 1,
+      "last": "2026-10-21"
+    },
     "e2e/import-svg-corpus.spec.ts": {
       "count": 1,
       "last": "2026-10-18"
     },
     "e2e/import-svg.spec.ts": {
-      "count": 2,
-      "last": "2026-09-29"
+      "count": 4,
+      "last": "2026-10-29"
     },
     "e2e/layout.spec.ts": {
       "count": 1,
@@ -98,13 +159,13 @@
       "count": 1,
       "last": "2026-10-04"
     },
-    "e2e/rundown-history.spec.ts": {
-      "count": 1,
-      "last": "2026-10-14"
+    "e2e/production-chat-intake.spec.ts": {
+      "count": 2,
+      "last": "2026-10-25"
     },
     "e2e/wizard-shell.spec.ts": {
-      "count": 3,
-      "last": "2026-10-03"
+      "count": 5,
+      "last": "2026-10-25"
     }
   }
 }

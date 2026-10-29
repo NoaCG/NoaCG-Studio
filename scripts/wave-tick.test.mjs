@@ -35,6 +35,8 @@ test('the merge queue\'s own temporary refs are not branches this wave watches',
   assert.equal(watchedBranch('claude/tm-one-edit-one-write'), true);
   assert.equal(watchedBranch('claude/d-queue-walks-itself'), true);
   assert.equal(watchedBranch('main'), false);
+  // A plan run's recovery checkpoints are state, not work waiting to land.
+  assert.equal(watchedBranch('claude/noacg-recovery/plan-editor-2026-10-20'), false);
   assert.equal(watchedBranch('HEAD'), false);
   assert.equal(watchedBranch(''), false);
 });

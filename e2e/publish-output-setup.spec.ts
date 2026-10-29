@@ -1,8 +1,18 @@
 // covers: src/model/{outputSetup,shows,cueClipboard}.ts, src/backend/auth.ts
 // covers: src/components/{DefaultOutputPreference,SettingsDialog,HostedControlPage,PlayoutSettingsDialog}.tsx, src/components/control/PrepareForLive.tsx
 // covers: src/components/home/{RundownColors,ProductionPage,ProductionLinks,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu,ServerCueEditor,CueRundown,sections/ProductionsSection}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/control/{playoutStatus,livePath,hostedControl,prepareBridge,prepareLive}.ts, src/output/main.ts, src/packs/graphicsPack.ts
 // covers: e2e/_publish.ts
+// covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/{CueActions,ProductionShell}.tsx
+// covers: src/components/home/useProductionPublish.ts
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
+// covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // PUBLISH ONCE, ONE SWITCH (docs/work-specs/playout-workflow-simplification AC-1, AC-3, AC-4, AC-5,
 // AC-8): no output chooser; the account's "Use CasparCG in new productions" starts a new

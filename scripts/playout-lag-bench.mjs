@@ -681,7 +681,9 @@ async function gesture(name, act, settleMs = 1200) {
   // the verb's door alone: the production-data dispatch effect sends through the identical RPC
   // whenever the server data key resolves to null (ProductionPage.tsx, `runVerb(..., 'Data')`),
   // so a data update in flight would otherwise be filed as the Take's round trip.
-  const send = host.rpc.find((r) => r.sent >= verbClick && (r.name === 'control_send_many' || r.name === 'control_send')) ?? null;
+  // `control_send_seq` is the page's verb door since migration 0070's log numbering (2026-09-30);
+  // matching only the older names left both wire columns empty on every published run since.
+  const send = host.rpc.find((r) => r.sent >= verbClick && ['control_send_seq', 'control_send_many', 'control_send'].includes(r.name)) ?? null;
   // WHICH COMMAND THIS VERB SENT - `play` for a take, `stop` for an out. Both the socket frame
   // and the graphic's own mark are picked by it, and both from the verb's click onwards, so the
   // two are measuring the same command and their agreement means something. A frame whose
@@ -871,7 +873,12 @@ for (let r = 0; r < ROUNDS; r++) {
 // SAME production and pressing the SAME two verbs again is: one fixture, one browser, one
 // build, one stretch of the machine's day, and the only thing that changed is which road
 // `runVerb` takes. It is also the cleanup - unpublish DELETES the `control_shows` row.
-if (fixture.hostedSlug) {
+// It reaches the unpublish call through the app's own module graph, which only the dev server
+// serves; on the built app the import fails and the run used to die before writing its record.
+// There the published rows stand alone and `--cleanup` against the dev server unpublishes.
+if (fixture.hostedSlug && buildLabel.startsWith('dist')) {
+  console.log('# built app: no local control round - run --cleanup against the dev server to unpublish');
+} else if (fixture.hostedSlug) {
   // The page has no Unpublish (playout-workflow-simplification AC-8): the API does it, then the
   // local record forgets its published addresses, as the old button's handler did.
   await page.evaluate(async () => {

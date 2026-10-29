@@ -35,7 +35,7 @@ export function statusSourcesHtml(ids: StatusIds, indent = '    '): string {
  *
  * A CSS CLASS, deliberately not an inline `style="display: none"`: the editor returns a
  * graphic to its resting state by clearing GSAP's inline properties on the whole root subtree
- * (components/PlayoutSimulator.tsx resetGraphic), which wipes the style attribute — and an
+ * (historically the retired simulator's resetGraphic), which wipes the style attribute, and an
  * inline-hidden data holder then comes back VISIBLE on the canvas. A stylesheet rule cannot be
  * cleared that way, so the holders stay hidden in the editor, in SPX, and in every export.
  */

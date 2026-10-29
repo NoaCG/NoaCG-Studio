@@ -8,96 +8,24 @@ import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { DATA_FTYPES } from '../model/types';
 import type { ValidationResult } from '../validation/validateTemplate';
-import { loadProject, resumeReservation, saveProject } from '../model/project';
+import { isOwnReservation, linkAfterLoss, loadProject, onGraphicSuperseded, resumeReservation, saveProject } from '../model/project';
 import { graphicById } from '../model/library';
 import type { GenerationSpec } from '../model/generationSpec';
 import { normalizeThread, type AiThread } from '../model/aiThread';
 import { normalizeLegibility, type ProjectLegibility } from '../model/designRules';
 import { hasCurrentVideoProject } from '../model/videoProject';
-import { PATH_TARGET, type TimelineTarget } from '../blocks/timelineLens';
 import { prepareOutRuntime } from '../blocks/animMigration';
-import type { EditorTab } from '../blocks/registry';
 
-export type { EditorTab } from '../blocks/registry';
 export type PreviewBg = 'checkerboard' | 'black' | 'video';
-/** The panels the MOBILE tab strip switches between (SidePanel.tsx), and the ids the
- *  desktop docks accept as a "reveal this panel" signal. A subset of model/layout.ts's
- *  PanelId — `code` is not a tab (mobile mounts it on demand under the panels). */
-export type SidePanel = 'inspector' | 'data' | 'control' | 'style' | 'assets' | 'ai' | 'export';
-
-/** A live playout action the Control panel asks the simulator to run on the preview.
- *  'event' dispatches a state-machine operator event (noacgDispatch) and 'snap' jumps
- *  the machine to states instantly (noacgSnap) — both no-ops on templates without the
- *  machine runtime. */
-export type PlayoutAction = 'update' | 'play' | 'stop' | 'next' | 'event' | 'snap';
-
-/** The armed canvas tool (the stage toolbar's tool switch): 'select' is the always-on
- *  gesture layer; 'text' places point text on click; 'area-text' drags out a bounded,
- *  wrapping text box. Both text tools create REAL SPX data fields (placed lines). */
-export type CanvasTool = 'select' | 'text' | 'area-text';
-
-/** What the cursor is currently on in the code editor (drives the hover explanations). */
-export interface EditorContext {
-  tab: EditorTab;
-  token: string;
-  line: string;
-}
-
-/** The lines the last panel/AI apply changed, per tab — the editor highlights them. */
-export interface LastChange {
-  ranges: Partial<Record<EditorTab, { start: number; end: number }>>;
-  /** Bumped per apply so an identical follow-up change still re-triggers the highlight. */
-  nonce: number;
-}
-
-/**
- * Cheap per-tab line diff: trim the common prefix and suffix lines, report the changed
- * span in the NEW text. Good enough for the targeted patches panels and AI produce.
- */
-function changedRange(before: string, after: string): { start: number; end: number } | null {
-  if (before === after) return null;
-  const a = before.split('\n');
-  const b = after.split('\n');
-  let start = 0;
-  while (start < a.length && start < b.length && a[start] === b[start]) start++;
-  let endA = a.length - 1;
-  let endB = b.length - 1;
-  while (endA >= start && endB >= start && a[endA] === b[endB]) {
-    endA--;
-    endB--;
-  }
-  // Monaco lines are 1-based; a pure deletion still highlights the seam line.
-  return { start: start + 1, end: Math.max(endB + 1, start + 1) };
-}
-
-/** Diff all three files of a template apply into a LastChange (null when nothing changed). */
-function diffTemplates(before: SpxTemplate, after: SpxTemplate, nonce: number): LastChange | null {
-  const ranges: LastChange['ranges'] = {};
-  const html = changedRange(before.html, after.html);
-  const css = changedRange(before.css, after.css);
-  const js = changedRange(before.js, after.js);
-  if (html) ranges.html = html;
-  if (css) ranges.css = css;
-  if (js) ranges.js = js;
-  return Object.keys(ranges).length ? { ranges, nonce } : null;
-}
 
 interface TemplateState {
   template: SpxTemplate;
-  activeTab: EditorTab;
   previewBg: PreviewBg;
-  activePanel: SidePanel;
-  /** Bumped on EVERY setActivePanel call, so a reveal request fires even when the requested
-   *  panel is already the stored value (e.g. revealing the default 'data' tab). The docks
-   *  key their reveal effect on this, not on the panel id changing. */
-  panelRevealNonce: number;
   /** Runtime test values keyed by field id (f0, f1...). Fed to update(). */
   sampleData: Record<string, string>;
   validation: ValidationResult | null;
   /** Latest runtime error reported by the live preview iframe, if any. */
   previewError: string | null;
-  /** What the code-editor cursor is currently on (drives the Learn panel). */
-  editorContext: EditorContext | null;
   /** Preview canvas guides: broadcast safe areas and a rule-of-thirds grid. */
   guides: { safeAreas: boolean; grid: boolean };
   /** Whether the template gallery / new-project screen is open. */
@@ -125,65 +53,21 @@ interface TemplateState {
   /** The pristine template as this project was first created / imported / opened — the
    *  target of resetToBaseline(). Captured on every whole-project swap (resetSampleData). */
   baseline: SpxTemplate;
-  /** The lines the last apply changed (drives the editor's change highlight). */
-  lastChange: LastChange | null;
-  /** Bumped by panels after an apply to make the playout simulator replay the graphic. */
-  replayNonce: number;
-  /** The Control panel's latest live command (executed immediately by the simulator).
-   *  `event`/`payload` ride an 'event' action; `snap` rides a 'snap' action ({group: state}
-   *  assignments; null = every group to its initial — the visual reset). */
-  controlCommand: {
-    action: PlayoutAction;
-    nonce: number;
-    event?: string;
-    payload?: Record<string, string>;
-    snap?: Record<string, string> | null;
-  } | null;
-  /** The timeline view's scrub position (Era 6) — the simulator seeks the live preview.
-   *  Phase: 'in' | 'out' | 'step-N' (a Continue segment, N is the 2-based step number). */
-  scrubCommand: { phase: string; time: number; nonce: number } | null;
-  /** The selected element (Era 6 shared selection): a TemplatePart selector, or null.
-   *  Canvas and timeline highlight the SAME element through this. Editor UI state only —
+  /** The primary editor selection: a TemplatePart selector, or null.
+   *  The current editor shares the ordered selection with its tools. UI state only —
    *  it is never written into the template and takes no history snapshot.
    *  With multi-selection this is the PRIMARY (first) of selectedParts — every selection
    *  setter keeps the two in sync so single-selection consumers just work. */
   selectedPart: string | null;
   /** The FULL selection, ordered; selectedPart === selectedParts[0] ?? null. The
-   *  interaction-model contract (docs/TIMELINE_INTERACTION_MODEL.md): plain click
+   *  interaction-model contract (docs/EDITOR_REBUILD_PLAN.md): plain click
    *  replaces, shift-click toggles, empty-canvas drag lassos. UI state only. */
   selectedParts: string[];
-  /** EXPLICIT canvas locks, by TemplatePart selector. A locked part takes no direct-
-   *  manipulation gesture — it can't be dragged, resized, or lassoed — but stays selectable
-   *  by click, from the timeline, and fully editable everywhere else. Only entries the user
-   *  toggled live here; a part with no entry follows the canvas's own default (an imported
-   *  design's artwork starts locked, so dragging the text on top of it moves the TEXT).
-   *  Editor UI state only — no history, never written into the template. */
-  partLocks: Record<string, boolean>;
-  /** The step timeline's parked playhead (step index + local time in effective seconds).
-   *  The Inspector stamps keyframes here. UI state only — no history, never in code. */
-  playhead: { step: number; t: number } | null;
-  /** Which of the two KEY-CLAIMING surfaces the user is working in. Set by a pointerdown on
-   *  the stage or on the timeline strip; panels and dialogs deliberately leave it alone, so
-   *  clicking the Inspector keeps whichever of the two you were last in. It decides who owns
-   *  Space (see components/spaceKey.ts) — pan on the canvas, play on the timeline. Defaults
-   *  to 'canvas': the stage is the subject of a fresh editor. UI state only — no history. */
-  activeSurface: 'canvas' | 'timeline';
-  /** Whether the pointer is over the preview stage. Half of the Space predicate, so it lives
-   *  here rather than in a PreviewFrame ref — the timeline has to read it too. Written on
-   *  enter/leave; read through getState(), never subscribed, so it costs no renders. */
-  pointerOverStage: boolean;
   /** How many modal surfaces are mounted (see spaceKey.ts useModalGate). Counted rather than
    *  flagged so nested/stacked modals close correctly, and so a modal that unmounts can never
    *  leave the gate stuck open. Every global editor shortcut stands down while it is > 0 — a
    *  keystroke aimed at a dialog must never edit the document behind it. UI state only. */
   modalCount: number;
-  /** True while a canvas gesture is in flight (inline edit, root/layer/scale drag). The
-   *  Inspector's deferred auto-open skips while this is set — a workspace resize would move
-   *  the canvas under the pointer mid-gesture. UI state only — no history. */
-  canvasGestureActive: boolean;
-  /** The armed canvas tool (see CanvasTool). UI state only — no history; creating a text
-   *  field with a tool commits through applyTemplate like every other edit. */
-  canvasTool: CanvasTool;
   /** The SAVE LINK (docs/SAVED_CONTENT_MODEL.md): which library graphic this working document
    *  IS (null = never saved), whether it changed since the last Save, and the Save button's
    *  live status. `dirty` flips on in the template subscription below and off in
@@ -198,16 +82,11 @@ interface TemplateState {
      *  In-memory only; it is never persisted, so it is not a format version bump. */
     formatIssues?: string[];
   };
-
-  setActiveTab: (tab: EditorTab) => void;
   setPreviewBg: (bg: PreviewBg) => void;
-  setActivePanel: (panel: SidePanel) => void;
 
   setHtml: (html: string) => void;
   setCss: (css: string) => void;
   setJs: (js: string) => void;
-  /** A deterministic panel patch to the CSS: updates + highlights, no history snapshot. */
-  patchCss: (css: string) => void;
 
   /** Replace the whole template (used by the panels, AI, and the wizard). */
   applyTemplate: (template: SpxTemplate, opts?: { resetSampleData?: boolean; keepGalleryOpen?: boolean }) => void;
@@ -216,31 +95,6 @@ interface TemplateState {
   /** Re-apply the last undone snapshot. No-op when nothing was undone (or a new edit
    *  happened since — new edits clear the redo stack). */
   redo: () => void;
-  /** Ask the playout simulator to replay the graphic (used after Motion applies). */
-  requestReplay: () => void;
-  /** Drive the live preview from the Control panel (update/play/stop/next), immediately. */
-  sendControl: (action: PlayoutAction) => void;
-  /** Dispatch a state-machine operator event on the preview, with an optional flat
-   *  {field: value} payload applied only if the machine accepts the event. */
-  sendEvent: (event: string, payload?: Record<string, string>) => void;
-  /** Snap the preview's machine to states instantly ({group: state}; null = all initial). */
-  sendSnap: (assignments: Record<string, string> | null) => void;
-  /** The preview's live machine pointers ({group: state}), or null before the graphic has
-   *  reported. The simulator owns the iframe and polls it ONCE; every surface that shows
-   *  operator event buttons reads this to grey what the machine would drop, so the editor's
-   *  strip, the Control panel and a hosted control page all mirror the same structural guard.
-   *  Editor UI state - never persisted, never written into the template. */
-  machineGroups: Record<string, string> | null;
-  setMachineGroups: (groups: Record<string, string> | null) => void;
-  /** WHICH timeline the step surface is editing (blocks/timelineLens.ts): the default path,
-   *  or one branch state's own inline timeline. It lives here rather than in the dock because
-   *  the INSPECTOR resolves values and stamps keyframes against the same projection - a
-   *  component-local target would have it editing the entrance while the timeline showed a
-   *  branch. UI state, no history; reset to the path on a whole-project swap. */
-  timelineTarget: TimelineTarget;
-  setTimelineTarget: (target: TimelineTarget) => void;
-  /** Seek the live preview's in/out/step timeline to a time (the timeline view's scrubber). */
-  sendScrub: (phase: string, time: number) => void;
   /** Select ONE element by its TemplatePart selector (null deselects) — replaces the
    *  whole selection; see selectedPart/selectedParts. */
   setSelectedPart: (selector: string | null) => void;
@@ -248,15 +102,9 @@ interface TemplateState {
   setSelectedParts: (selectors: string[]) => void;
   /** Shift-click: add the selector to the selection, or remove it when present. */
   toggleSelectedPart: (selector: string) => void;
-  /** Lock or unlock a part for canvas gestures (see partLocks). */
-  setPartLock: (selector: string, locked: boolean) => void;
-  /** Park the step timeline's playhead (see playhead). */
-  setActiveSurface: (surface: 'canvas' | 'timeline') => void;
-  setPointerOverStage: (over: boolean) => void;
   /** Balanced pair — always through useModalGate, never called by hand. */
   pushModal: () => void;
   popModal: () => void;
-  setPlayhead: (playhead: { step: number; t: number } | null) => void;
   /** Set the save link/status wholesale (store/saveActions.ts owns the semantics). */
   setSaved: (saved: TemplateState['saved']) => void;
   /** The AI generation spec this project was created from (null = not an AI creation).
@@ -276,10 +124,6 @@ interface TemplateState {
    *  brings its own. */
   legibility: ProjectLegibility | null;
   setLegibility: (legibility: ProjectLegibility | null) => void;
-  /** Mark a canvas gesture as started/ended (see canvasGestureActive). */
-  setCanvasGestureActive: (active: boolean) => void;
-  /** Arm a canvas tool (see canvasTool). */
-  setCanvasTool: (tool: CanvasTool) => void;
   resetToDefault: () => void;
   /** Restore this project to its pristine baseline (see baseline) as ONE undoable apply,
    *  and reset sample data to the baseline's field defaults. */
@@ -298,7 +142,6 @@ interface TemplateState {
 
   setValidation: (result: ValidationResult | null) => void;
   setPreviewError: (error: string | null) => void;
-  setEditorContext: (ctx: EditorContext | null) => void;
   setGuide: (key: 'safeAreas' | 'grid', value: boolean) => void;
 
   /** Open the wizard. `designId` (a `#/new/<id>` deep link) is preselected by CreationWizard's
@@ -347,7 +190,11 @@ const initialProject = loadProject();
 // (`mintingReserved`), or it holds exactly the source that record was minted with. Any other
 // draft naming it (another tab's, an older build's) asks for a name, so its Save cannot
 // overwrite a graphic it never saved (#1402).
-const reservedId = initialProject?.reservedGraphicId;
+// Only THIS device's reservation counts at all. The slot syncs, so it can name a reservation
+// another device made, whose record this device has not learnt of yet; resumed, this device's
+// Save minted that record's id too (#1443). Not resumed, the first write takes a fresh one.
+const slotReservation = initialProject?.reservedGraphicId;
+const reservedId = isOwnReservation(slotReservation) ? slotReservation : undefined;
 const reservedRecord = reservedId && reservedId !== initialProject?.graphicId ? graphicById(reservedId) : null;
 const relinked = !!reservedRecord && (initialProject?.mintingReserved === true || sameSource(initialProject!.template, reservedRecord.template));
 const initialGraphicId = relinked ? reservedId! : initialProject?.graphicId ?? null;
@@ -368,14 +215,10 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   return {
   template: initialTemplate,
   baseline: initialBaseline,
-  activeTab: 'html',
   previewBg: 'checkerboard',
-  activePanel: 'data',
-  panelRevealNonce: 0,
   sampleData: syncSampleData(initialTemplate, {}),
   validation: null,
   previewError: null,
-  editorContext: null,
   guides: { safeAreas: false, grid: false },
   // Show the template chooser only when there is no work to return to: a first-ever visit
   // starts at the wizard; a returning user's reload (or a bookmarked #/graphic link) lands
@@ -387,21 +230,9 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   pendingProductionExport: null,
   history: [],
   future: [],
-  lastChange: null,
-  replayNonce: 0,
-  controlCommand: null,
-  scrubCommand: null,
   selectedPart: null,
   selectedParts: [],
-  partLocks: {},
-  activeSurface: 'canvas',
-  pointerOverStage: false,
   modalCount: 0,
-  playhead: null,
-  machineGroups: null,
-  timelineTarget: PATH_TARGET,
-  canvasGestureActive: false,
-  canvasTool: 'select',
   saved: {
     graphicId: initialGraphicId,
     dirty: relinked || (initialProject?.dirty ?? false),
@@ -410,33 +241,16 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   aiSpec: initialProject?.aiSpec ?? null,
   aiThread: normalizeThread(initialProject?.aiThread),
   legibility: normalizeLegibility(initialProject?.legibility) ?? null,
-
-  setActiveTab: (tab) => set({ activeTab: tab }),
   setPreviewBg: (bg) => set({ previewBg: bg }),
-  setActivePanel: (panel) =>
-    set((s) => ({ activePanel: panel, panelRevealNonce: s.panelRevealNonce + 1 })),
 
-  // A deterministic CSS patch from the Style panel: highlight what changed (no history
-  // snapshot — color drags fire dozens of these per second).
-  patchCss: (css) =>
-    set((s) => {
-      const next = { ...s.template, css };
-      return {
-        template: next,
-        validation: null,
-        future: [],
-        lastChange: diffTemplates(s.template, next, (s.lastChange?.nonce ?? 0) + 1),
-      };
-    }),
-
-  // Manual typing clears the change highlight — the user is editing, not reviewing.
+  // Source edits preserve sample values and clear the redo branch.
   setHtml: (html) =>
     set((s) => {
       const template = withParsedFields({ ...s.template, html });
-      return { template, sampleData: syncSampleData(template, s.sampleData), validation: null, future: [], lastChange: null };
+      return { template, sampleData: syncSampleData(template, s.sampleData), validation: null, future: [] };
     }),
-  setCss: (css) => set((s) => ({ template: { ...s.template, css }, validation: null, future: [], lastChange: null })),
-  setJs: (js) => set((s) => ({ template: { ...s.template, js }, validation: null, future: [], lastChange: null })),
+  setCss: (css) => set((s) => ({ template: { ...s.template, css }, validation: null, future: [] })),
+  setJs: (js) => set((s) => ({ template: { ...s.template, js }, validation: null, future: [] })),
 
   applyTemplate: (template, opts) =>
     set((s) => {
@@ -449,15 +263,6 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
         // In-place edits (panels, AI) keep typed sample values; creating a NEW project
         // must not leak the previous template's values into matching field ids.
         sampleData: syncSampleData(synced, opts?.resetSampleData ? {} : s.sampleData),
-        // Canvas locks belong to the project being edited: part selectors repeat across
-        // projects (every imported design has an `.imported-design-art`), so a whole-project
-        // swap must not carry the last graphic's unlocked artwork into the new one.
-        partLocks: opts?.resetSampleData ? {} : s.partLocks,
-        // Same reason: the previous graphic's machine pointers would grey the new graphic's
-        // event buttons against a state it was never in, until the next poll corrected it.
-        machineGroups: opts?.resetSampleData ? null : s.machineGroups,
-        // The branch a previous graphic had open cannot exist in the new one.
-        timelineTarget: opts?.resetSampleData ? PATH_TARGET : s.timelineTarget,
         // A whole-project swap severs the save link — a freshly created project must never
         // inherit the previous document's library id (Save would overwrite that graphic).
         // Opening a SAVED graphic re-links right after (store/saveActions.ts openGraphicDoc).
@@ -476,11 +281,6 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
         // discards whatever was undone before it (the redo branch is gone).
         history: [...s.history, s.template].slice(-30),
         future: [],
-        // Highlight what changed in the editor — but not for whole-project swaps
-        // (a new project changes everything; a highlight would just be noise).
-        lastChange: opts?.resetSampleData
-          ? null
-          : diffTemplates(s.template, synced, (s.lastChange?.nonce ?? 0) + 1),
       };
     }),
 
@@ -494,7 +294,6 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
         validation: null,
         history: s.history.slice(0, -1),
         future: [...s.future, s.template].slice(-30),
-        lastChange: null,
       };
     }),
 
@@ -508,28 +307,8 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
         validation: null,
         history: [...s.history, s.template].slice(-30),
         future: s.future.slice(0, -1),
-        lastChange: null,
       };
     }),
-
-  requestReplay: () => set((s) => ({ replayNonce: s.replayNonce + 1 })),
-
-  sendControl: (action) => set((s) => ({ controlCommand: { action, nonce: (s.controlCommand?.nonce ?? 0) + 1 } })),
-
-  sendEvent: (event, payload) =>
-    set((s) => ({ controlCommand: { action: 'event', event, payload, nonce: (s.controlCommand?.nonce ?? 0) + 1 } })),
-
-  sendSnap: (assignments) =>
-    set((s) => ({ controlCommand: { action: 'snap', snap: assignments, nonce: (s.controlCommand?.nonce ?? 0) + 1 } })),
-
-  // The poll runs every 500 ms; keep the previous object when nothing moved so subscribers
-  // re-render on a real state change, not on the tick.
-  setMachineGroups: (groups) =>
-    set((s) => (JSON.stringify(s.machineGroups) === JSON.stringify(groups) ? {} : { machineGroups: groups })),
-
-  setTimelineTarget: (timelineTarget) => set({ timelineTarget, playhead: null }),
-
-  sendScrub: (phase, time) => set((s) => ({ scrubCommand: { phase, time, nonce: (s.scrubCommand?.nonce ?? 0) + 1 } })),
 
   setSelectedPart: (selectedPart) =>
     set({ selectedPart, selectedParts: selectedPart ? [selectedPart] : [] }),
@@ -545,27 +324,14 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
       return { selectedParts, selectedPart: selectedParts[0] ?? null };
     }),
 
-  setPartLock: (selector, locked) =>
-    set((s) => ({ partLocks: { ...s.partLocks, [selector]: locked } })),
-
-  setActiveSurface: (activeSurface) => set({ activeSurface }),
-
-  setPointerOverStage: (pointerOverStage) => set({ pointerOverStage }),
-
   pushModal: () => set((s) => ({ modalCount: s.modalCount + 1 })),
   popModal: () => set((s) => ({ modalCount: Math.max(0, s.modalCount - 1) })),
-
-  setPlayhead: (playhead) => set({ playhead }),
 
   setSaved: (saved) => set({ saved }),
 
   setAiSpec: (aiSpec) => set({ aiSpec }),
   setAiThread: (aiThread) => set({ aiThread }),
   setLegibility: (legibility) => set({ legibility: normalizeLegibility(legibility) ?? null }),
-
-  setCanvasGestureActive: (canvasGestureActive) => set({ canvasGestureActive }),
-
-  setCanvasTool: (canvasTool) => set({ canvasTool }),
 
   resetToDefault: () =>
     set(() => {
@@ -583,8 +349,8 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
   resetSampleData: () => set((s) => ({ sampleData: syncSampleData(s.template, {}) })),
 
   // Asset edits snapshot history in place rather than routing through applyTemplate —
-  // an asset add must not re-parse the definition, close the gallery, or repaint the
-  // change highlight. Undo/redo restore whole-template snapshots, so assets travel free.
+  // an asset add must not re-parse the definition or close the gallery.
+  // Undo/redo restore whole-template snapshots, so assets travel free.
   addAsset: (asset) => get().addAssets([asset]),
   addAssets: (assets) =>
     set((s) => {
@@ -608,7 +374,6 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
 
   setValidation: (validation) => set({ validation }),
   setPreviewError: (previewError) => set({ previewError }),
-  setEditorContext: (editorContext) => set({ editorContext }),
   setGuide: (key, value) => set((s) => ({ guides: { ...s.guides, [key]: value } })),
 
   openGallery: (designId) => set({ galleryOpen: true, pendingDesignId: designId ?? null }),
@@ -618,8 +383,8 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
 
 // Autosave the working project (debounced) whenever the template actually changes, so a reload
 // restores it instead of a blank default. Covers every mutation that touches the template — panels,
-// AI, wizard, and manual edits — in one place. Local only for now; cloud sync of this single
-// 'project' record lands with the singleton work.
+// AI, wizard, and manual edits — in one place. The durable project slot also participates
+// in account sync through model/project.ts.
 //
 // The same subscription flips the save link DIRTY: any template change means the working
 // document has drifted from its library record. saveActions' open/save paths set the link
@@ -636,6 +401,13 @@ if (typeof window !== 'undefined') {
   window.addEventListener('noacg-account-authoring-pausing', flushPendingProject);
   window.addEventListener('noacg-account-authoring-flush', flushPendingProject);
 }
+// A record this draft is linked to lost a sync conflict: another device's version holds its id
+// now (model/project.ts `graphicSuperseded`). The draft links to the "(conflicted copy)" that
+// holds its saved work, clean when it holds exactly that (#1466), never to the winner (#1443).
+onGraphicSuperseded((lost, copy) => {
+  const s = useTemplateStore.getState();
+  if (s.saved.graphicId && lost.includes(s.saved.graphicId)) useTemplateStore.setState({ saved: { ...s.saved, ...linkAfterLoss(s, copy) } });
+});
 useTemplateStore.subscribe((state, prev) => {
   // The legibility settings are part of the SAVED document (GraphicDoc.legibility), not a
   // view preference, so a change to them drifts the working document exactly as a template

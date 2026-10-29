@@ -1,7 +1,7 @@
 // THE SUPABASE AUDIENCE PROVIDER — the second implementation of `AudienceBackend`
 // (docs/INTERACTIVE_PLAYOUT_PLAN.md, "Audience backend design"; migration 0035).
 //
-// It is a thin client over eleven slug-keyed SECURITY DEFINER RPCs. There are no table reads
+// It is a thin client over twelve slug-keyed SECURITY DEFINER RPCs. There are no table reads
 // and no table writes here, because there are no table policies to reach: authorization is
 // "you hold this capability", which is what lets a viewer's phone and an account-free hosted
 // operator page both work.
@@ -23,6 +23,10 @@
 import { getSupabase } from '../backend/supabase';
 import {
   AUDIENCE_LIMITS,
+  OPERATOR_ADD_MAX,
+  OPERATOR_SETTLE_MAX,
+  clampProvenance,
+  clampSubmission,
   type AudienceBrand,
   type AudienceRound,
   type AudienceState,
@@ -87,6 +91,12 @@ interface SubmissionRow {
   shortlisted: boolean;
   used_at: string | null;
   skipped_at: string | null;
+  /** 0095's provenance columns; absent from a server that has not run it. */
+  external_id?: string | null;
+  source?: string | null;
+  reference?: string | null;
+  /** 0098's mark on a used candidate whose row left its source. */
+  withdrawn_at?: string | null;
 }
 
 interface RoundRow {
@@ -123,6 +133,10 @@ function readSubmission(row: SubmissionRow): AudienceSubmission {
     status: row.status,
     shortlisted: row.shortlisted,
     usedAt: row.used_at,
+    externalId: row.external_id ?? null,
+    source: row.source ?? null,
+    reference: row.reference ?? null,
+    withdrawnAt: row.withdrawn_at ?? null,
   };
 }
 
@@ -290,6 +304,42 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
         sb.rpc('audience_list', { p_slug: control() }),
       );
       return (rows ?? []).map(readSubmission);
+    },
+
+    async addCandidates(items): Promise<AudienceSubmission[]> {
+      if (items.length > OPERATOR_ADD_MAX) throw new Error(`At most ${OPERATOR_ADD_MAX} messages at a time.`);
+      const wire = items
+        .filter((i) => i.body.trim())
+        .map((i) => {
+          const p = clampProvenance(i);
+          return {
+            ...clampSubmission(i.author ?? '', i.body),
+            external_id: p.externalId,
+            source: p.source,
+            reference: p.reference,
+          };
+        });
+      if (wire.length === 0) return [];
+      const sb = await client();
+      // The OPERATOR door (0095), keyed on the control slug like every operator call: not the
+      // viewer's `audience_submit`, whose join slug, open round and per-device caps are a viewer's.
+      const rows = await operator<SubmissionRow[] | null>(() =>
+        sb.rpc('audience_operator_add', { p_slug: control(), p_items: wire }),
+      );
+      changed();
+      return (rows ?? []).map(readSubmission);
+    },
+
+    async settleImported(prefix, present): Promise<void> {
+      if (present.length > OPERATOR_SETTLE_MAX) throw new Error(`At most ${OPERATOR_SETTLE_MAX} rows at a time.`);
+      if (!prefix) return;
+      const sb = await client();
+      // 0098: the same rule as the local provider, under one lock on the server, so a second
+      // operator's page sees what the reading page settled.
+      const settled = await operator<number | null>(() =>
+        sb.rpc('audience_operator_settle', { p_slug: control(), p_prefix: prefix, p_present: present }),
+      );
+      if (settled) changed();
     },
 
     async update(id, patch): Promise<void> {

@@ -1,5 +1,5 @@
 /**
- * The editor's PlayoutSimulator lifecycle (play/stop/next/settle/scrub/snap), moved inside the
+ * The legacy preview simulator lifecycle (play/stop/next/settle/scrub/snap), running inside the
  * preview document. PlayoutSimulator.tsx used to own `window.__activeTl`/`__scrubTl` directly
  * through `contentWindow` — those are live GSAP timeline objects, which cannot cross
  * `postMessage`, so the composition itself has to run where the timelines live. See
@@ -123,7 +123,7 @@ export function resetGraphicInline(w: SimWindow): void {
   });
 }
 
-/** A single simulator command, as sent by PlayoutSimulator.tsx over previewProtocol.ts's
+/** A single legacy simulator command carried by previewProtocol.ts's
  *  `PreviewCmd` union (the 'sim-play'/'sim-stop'/'sim-next'/'sim-settle'/'scrub'/'snap' variants;
  *  composeDocument.ts's `simulate` script maps each straight onto this shape). */
 export interface SimCommand {

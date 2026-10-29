@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
-  createGraphic,
+  createGraphicInEditor,
   dismissWizard,
   E2E_PASSWORD,
   haveCreds,
@@ -11,7 +11,7 @@ import {
 
 // Account essentials (docs/GOALS_ARCHIVE.md "Student release" step 9), against the real backend:
 // the Settings Account section (email + password change + sign out), the forgot-password
-// door, and the session-expiry prompt — expired sessions must SAY so and never cost local
+// door, and explicit session recovery: lost sessions must SAY so and never cost local
 // work. The offline halves (zero auth UI) are pinned in e2e/auth.spec.ts.
 
 test.describe('account essentials', () => {
@@ -55,7 +55,9 @@ test.describe('account essentials', () => {
     // Sign out from the same section closes Settings and drops the session.
     await page.getByTestId('account-sign-out').click();
     await expect(page.getByTestId('settings')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 15_000 });
+    // Home and the paused account notice can both offer Sign in during library release.
+    // The assertion is about Home; the two-second release fault is recorded in the repair receipt.
+    await expect(page.getByTestId('home-page').getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({ timeout: 15_000 });
     // A deliberate sign-out is NOT an expired session — no prompt with the expiry reason.
     await expect(page.locator('.auth-card')).toHaveCount(0);
   });
@@ -81,15 +83,16 @@ test.describe('account essentials', () => {
     await expect(page.locator('.auth-note')).toContainText('Check your email', { timeout: 15_000 });
   });
 
-  test('an expired session prompts to sign back in; local work survives and sync resumes', async ({ page }) => {
+  test('a lost session offers explicit recovery; local work survives and sync resumes', async ({ page }) => {
     await signIn(page);
     await settleSync(page);
     await wipeMyGraphics(page);
-    await createGraphic(page, 'Lower thirds', 'Hairline');
+    await createGraphicInEditor(page, 'Lower thirds', 'Hairline');
     await page.getByTestId('save-graphic').click();
     await page.getByTestId('save-name').fill('Survives expiry');
     await page.getByTestId('save-confirm').click();
     await expect(page.getByTestId('save-dialog')).toBeHidden();
+    await expect(page.getByTestId('save-status')).toHaveText('Saved');
 
     // Simulate the session DYING (not the user's Sign out): drop it through the Supabase
     // client directly, bypassing backend/auth.signOut and its deliberate-sign-out flag —
@@ -100,9 +103,12 @@ test.describe('account essentials', () => {
       await sb!.auth.signOut({ scope: 'local' });
     });
 
-    // The prompt appears and SAYS WHY — never a silent stop, never a wall.
-    await expect(page.locator('.auth-card')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('.auth-tag')).toContainText('session expired');
+    // Account loss raises an actionable notice, never an unsolicited modal.
+    const notice = page.getByTestId('account-save-notice');
+    await expect(notice).toContainText('Account editing paused', { timeout: 15_000 });
+    await expect(notice).toContainText('Sign in again');
+    await expect(notice).toContainText('Pending work is preserved');
+    await expect(page.locator('.auth-card')).toHaveCount(0);
 
     // Local work is untouched while signed out.
     const names = await page.evaluate(async () => {
@@ -111,12 +117,20 @@ test.describe('account essentials', () => {
     });
     expect(names).toContain('Survives expiry');
 
-    // Re-signing in from that prompt resumes sync without losing anything.
+    // The user's explicit recovery choice resumes sync without losing anything.
+    await notice.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.locator('.auth-card')).toBeVisible();
+    await expect(page.getByTestId('auth-reason')).toContainText('resume account editing');
     await page.locator('#auth-email').fill(process.env.E2E_EMAIL ?? '');
     await page.locator('#auth-pass').fill(E2E_PASSWORD);
     await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(page.locator('.auth-card')).toBeHidden({ timeout: 20_000 });
+    await expect(notice).toHaveCount(0);
+    await page.getByTestId('open-home').click();
+    await expect(page.getByTestId('home-page')).toBeVisible();
     await settleSync(page);
+    await page.getByTestId('home-nav-graphics').click();
+    await expect(page.locator('.lib-row', { hasText: 'Survives expiry' })).toBeVisible();
     const after = await page.evaluate(async () => {
       const { loadGraphics } = await import('/src/model/library.ts');
       return loadGraphics().map((g) => g.name);

@@ -8,6 +8,7 @@
 // playout-both-roads.spec.ts). The offline spec that covers it can judge the RULE and not
 // the road.
 // covers: src/control/matchClockWire.ts
+// covers: src/components/home/CueActions.tsx
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
@@ -91,7 +92,9 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question', { timeout: 20_000 });
   await shotBoth('quiz-live-1-question');
 
-  // The hidden pick: B as data (segmented + live Update), sealed without showing it.
+  // The hidden pick: B as data (segmented under the editor's Advanced + live Update), sealed
+  // without showing it.
+  await page.getByTestId('cue-advanced-toggle').click();
   await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-update').click();
   await expect(graphic.locator('#f6')).toHaveText('B', { timeout: 20_000 });

@@ -101,7 +101,6 @@ async function createProject(page, spec) {
     const template = await formatTemplate(buildDraftTemplate(variant, draft));
     const store = useTemplateStore.getState();
     store.applyTemplate(template, { resetSampleData: true });
-    store.setActiveTab('html');
     useDocKindStore.getState().setKind('spx');
     const made = createLook(`${variant.name} look`, {
       styleTag: variant.styleTag, palette: variant.defaultPalette,
@@ -965,7 +964,9 @@ const SECTIONS = [
 ];
 
 function buildIndex(manifest) {
-  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  // Manifest files are local paths, even when a filename contains a colon or URL punctuation.
+  const frameUrl = (file) => `./${String(file).split(/[\\/]/).map(encodeURIComponent).join('/')}`;
   const measuredRow = (m) =>
     !m
       ? ''
@@ -991,7 +992,7 @@ function buildIndex(manifest) {
       ${own
         .map(
           (f) => `<figure>
-        <a href="${esc(f.file)}"><img src="${esc(f.file)}" alt="${esc(f.title)}"></a>
+        <a href="${esc(frameUrl(f.file))}"><img src="${esc(frameUrl(f.file))}" alt="${esc(f.title)}"></a>
         <figcaption>
           <h3>${esc(f.title)}</h3>
           <p class="q">${esc(f.question)}</p>

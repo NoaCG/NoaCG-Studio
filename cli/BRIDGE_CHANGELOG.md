@@ -5,12 +5,26 @@ the new one. The release workflow puts a version's section on its GitHub Release
 "What changed", inside the page `cli/BRIDGE_RELEASE.md` describes, and refuses a version that has
 no section here (`cli/scripts/release-notes.mjs --bridge`).
 
-The version is `cli/package.json`'s. The Bridge and the NoaCG CLI are built from that one
-package, so they share the number; a Bridge release may skip versions that only changed the CLI.
+NoaCG Bridge and the NoaCG CLI are two products for two audiences, built from one package. The
+Bridge has its own version, `bridgeVersion` in `cli/package.json`, and it moves only when the
+Bridge changes; the CLI's number is its own business. Moving `bridgeVersion` and writing its
+section here at the top is the release: the build refuses one without the other. Changes not
+ready to release wait under an `## Unreleased` heading, which releases nothing.
 
 Write a section the way you would tell an operator what they get by downloading again: what was
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
+
+## 0.10.0 - 2026-10-24
+
+**Ready for vMix.** NoaCG Bridge can now drive vMix on the same computer as well as a CasparCG
+server: it puts the NoaCG output on a vMix overlay channel and reads back what each overlay
+channel holds. The studio page will offer vMix as a playout system in a later update; until then
+nothing changes for you, and CasparCG works exactly as before. If your studio moved vMix's TCP
+API away from its usual port 8099, start the Bridge with `--vmix-port` and that port.
+
+**Its own version number.** NoaCG Bridge's number no longer follows the NoaCG CLI's, so it moves
+only when the Bridge changes, and the Downloads page offers one Bridge: this download.
 
 ## 0.9.0 - 2026-10-06
 

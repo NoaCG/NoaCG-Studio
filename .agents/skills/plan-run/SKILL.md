@@ -5,9 +5,7 @@ description: Run a long plan phase by phase until a time limit - each phase buil
 
 Read `.agent-workflows/plan-run.md` (relative to the repo root) now and follow it in full;
 it is the canonical procedure, shared with the Claude Code command of the same name. Text after
-`$plan-run` names the plan and the time limit.
-
-Builders and checkers are native subagents started without your context. A subagent shares your
-directory, so give each one its own `git worktree add` worktree and make that absolute path every
-command's working directory. Arm a thread heartbeat as the fallback wake before the first launch;
-never promise a wake-up you did not arm.
+`$plan-run` names the plan and the finite owner-authorized project deadline.
+The canonical procedure derives operational setup from the authorization and plan, selects
+available native coordination through cloud-delegate, and preserves supervisor authority
+and fresh independent checkers across session changes. Restart grants no scope/deadline renewal.

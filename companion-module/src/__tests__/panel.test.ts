@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { PanelClient, RESULT_MS, SILENCE_MS } from '../panel.js'
+import { PENDING_SENTENCE, PanelClient, RESULT_MS, SILENCE_MS } from '../panel.js'
+import { isAllowed, isOnAir, isSelected } from '../view.js'
 import { FakeClock, FakeRelay, rows, settle, state } from './fakes.js'
 
 async function connected(over: { answering?: boolean } = {}) {
@@ -134,6 +135,50 @@ test('a stale or not-allowed answer from the page is a refusal, and the key flas
 	assert.equal(out.ok, false)
 	assert.match(out.sentence, /changed/)
 	assert.equal(panel.flash?.verb, 'out')
+})
+
+test('selected, on air, allowed, pending and stale stay apart', async () => {
+	const { panel, relay, clock } = await answering()
+	// Ben on air while Anna is selected, and Out not allowed: each key reads only its own fact.
+	relay.emit('state', state({ ver: 6, selected: 'cue_a', live: ['cue_b'], allowed: { take: true, out: false } }))
+	const s = panel.state!
+	assert.deepEqual(
+		[isSelected(s, 'cue_a'), isOnAir(s, 'cue_a'), isSelected(s, 'cue_b'), isOnAir(s, 'cue_b')],
+		[true, false, false, true],
+	)
+	assert.deepEqual([isAllowed(s, panel.rows, 'take'), isAllowed(s, panel.rows, 'out')], [true, false])
+	// Pending: sent, no answer yet. Nothing flashes and the variable says it is waiting.
+	relay.autoResult = null
+	const waiting = panel.press('take')
+	await settle()
+	assert.equal(panel.lastPress, PENDING_SENTENCE)
+	assert.equal(panel.flash, null)
+	await clock.advance(RESULT_MS)
+	await waiting
+	// Stale: refused by the page; the flash names that one key, so only it turns amber.
+	relay.autoResult = 'stale'
+	const out = await panel.press('take-cue', 'cue_b')
+	assert.equal(out.ok, false)
+	// Read afresh: the assertion above narrowed `panel.flash` to null.
+	const flash = panel.flash as { verb: string; row: string } | null
+	assert.deepEqual(flash && { verb: flash.verb, row: flash.row }, { verb: 'take-cue', row: 'cue_b' })
+	assert.notEqual(panel.lastPress, PENDING_SENTENCE)
+})
+
+test('an older press answered after a newer one leaves the newer one pending', async () => {
+	const { panel, relay } = await answering()
+	relay.autoResult = null
+	const first = panel.press('take')
+	await settle()
+	const second = panel.press('select-next')
+	await settle()
+	const [a, b] = relay.presses()
+	relay.emit('result', { v: 1, id: a.id, panel: 'k1', outcome: 'ran' })
+	assert.equal((await first).ok, true)
+	assert.equal(panel.lastPress, PENDING_SENTENCE)
+	relay.emit('result', { v: 1, id: b.id, panel: 'k1', outcome: 'ran' })
+	assert.equal((await second).ok, true)
+	assert.notEqual(panel.lastPress, PENDING_SENTENCE)
 })
 
 test('no answer from the page in 1.5 s says so; nothing is retried or queued', async () => {

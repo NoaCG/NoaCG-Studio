@@ -1,0 +1,139 @@
+{
+  "costUnread": false,
+  "brief": "ski-sprint-timing-tower",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "29e6276f-8e5f-4384-a653-b21fe1c8e6ce",
+  "costCents": 0,
+  "notionalUsd": 0.8997830999999998,
+  "wallSeconds": 342,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type timing-tower --design tt01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:77123239a02f908c4fe4f74dc28a088f2b5d446b0b75dd3def21ec7bdc083ff1"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:482e73482f48fafc222251b92b48203e2ba23f4ec3d8747237ea6b68920aead7"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:f52c9ee874f1c05a631937c6ca91254540717e85224b9e14751e819690b954b4"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:f52c9ee874f1c05a631937c6ca91254540717e85224b9e14751e819690b954b4"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:c78e23107da6877e4e75f6d1b72b41349f0da47c2f3f4983ac17c9f1fae7c79e"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:c78e23107da6877e4e75f6d1b72b41349f0da47c2f3f4983ac17c9f1fae7c79e"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event focus --at 1s --data f3=3 --background video --out ./shots/f3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event focus --at 1s --background video --out ./shots/f1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788"
+    },
+    {
+      "command": "noacg screenshot ./graphic --event focus --at 1s --data f3=5 --background video --out ./shots/f5.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\ski-sprint-timing-tower.claude-sonnet-5-5-high\\frames",
+    "frames": 62,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "focus",
+      "clear",
+      "final",
+      "provisional"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788",
+    "benchValidated": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788",
+    "reviewed": "sha256:1de2d5464e7e72a3ca9a8fea3d863b510b27081e665b3fe66e43982d7f9c0788",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 23,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "id": "election",
+  "kind": "external",
+  "label": "Election results (replay)",
+  "config": {
+    "v": 1,
+    "configRevision": 1,
+    "endpoint": "https://127.0.0.1:8443/results",
+    "mapping": {
+      "v": 1,
+      "sourceId": "election",
+      "configRevision": 1,
+      "outputs": {
+        "summary.updated": {
+          "from": "observed_at",
+          "format": {
+            "kind": "date",
+            "locale": "en-GB",
+            "timeZone": "Europe/Helsinki",
+            "show": "time"
+          }
+        },
+        "parties.KOK.votes": {
+          "from": "parties.KOK.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.SDP.votes": {
+          "from": "parties.SDP.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.PS.votes": {
+          "from": "parties.PS.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.KESK.votes": {
+          "from": "parties.KESK.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.VAS.votes": {
+          "from": "parties.VAS.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.VIHR.votes": {
+          "from": "parties.VIHR.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.RKP.votes": {
+          "from": "parties.RKP.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.KD.votes": {
+          "from": "parties.KD.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.LIIK.votes": {
+          "from": "parties.LIIK.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        },
+        "parties.MUUT.votes": {
+          "from": "parties.MUUT.votes",
+          "format": {
+            "kind": "number",
+            "locale": "en-GB",
+            "decimals": 0
+          }
+        }
+      }
+    }
+  }
+}

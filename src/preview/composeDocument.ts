@@ -6,13 +6,14 @@
 // package keeps the external references (the files are written to disk by the exporter).
 
 import { prepareOutRuntime } from '../blocks/animMigration';
+import { upgradeFontCss } from '../model/fonts';
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
 import { flexGapShimTag } from '../assets/flexGapSupport';
 import { soundBridgeJs } from '../assets/soundBridge';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
-import { settleGraphic, reportGraphicBox } from './settleGraphic';
+import { settleGraphic, reportGraphicBox, measureGraphic } from './settleGraphic';
 import {
   PREVIEW_CMD_TYPE,
   PREVIEW_STATE_TYPE,
@@ -20,6 +21,7 @@ import {
   PREVIEW_CMD_ERROR_TYPE,
   PREVIEW_HELD_TYPE,
   PREVIEW_READY_TYPE,
+  PREVIEW_RESTYLED_TYPE,
   FRAME_HOLD_CAP_MS,
 } from './previewProtocol';
 import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
@@ -94,7 +96,7 @@ export interface ComposeOptions {
    */
   liveControl?: boolean;
   /**
-   * The EDITOR's own live simulator (PlayoutSimulator.tsx): play/stop/next/settle/scrub/snap,
+   * The legacy simulator channel: play/stop/next/settle/scrub/snap,
    * distinct from `liveControl`'s plain commands because these prefer the house builder contract
    * (`buildInTimeline`/`buildOutTimeline`/`revealNextStep`) when the template has one, own
    * `window.__activeTl`/`__scrubTl` for a pushed playhead (`PreviewPlayheadMessage`, read by
@@ -109,7 +111,7 @@ export interface ComposeOptions {
    */
   simulate?: boolean;
   /**
-   * The EDITOR canvas's direct-manipulation channel (CanvasInteraction.tsx): hit-testing, live
+   * The legacy canvas direct-manipulation channel: hit-testing, live
    * drag/scale/rotate previews, and inline text editing, none of which fit `liveControl`'s
    * discrete commands — see preview/canvasControlProtocol.ts for the full design (a continuous
    * rect-push stream in place of per-pointermove hit-test queries, plus a small correlated
@@ -149,7 +151,7 @@ function serializeHelper(fn: { name: string; toString(): string }, alias: string
 
 /** Inject inline <style>, GSAP, and the template JS into the document <head>/<body>. */
 export function composeDocument(template: SpxTemplate, options: ComposeOptions = {}): string {
-  template = { ...template, js: prepareOutRuntime(template.js) };
+  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
   // Inline uploaded assets (assets/foo.png -> data URL) so the preview renders media
   // without a server. The exported package keeps the relative paths + real files.
   // `inset` rewritten into longhands for CasparCG 2.3's Chromium 71, which drops it (assets/cssCompat.ts).
@@ -165,7 +167,7 @@ export function composeDocument(template: SpxTemplate, options: ComposeOptions =
   const styleTag = `<style id="spx-base-style">\n${baseStyle}\n</style>\n<style id="spx-inline-css">\n${css}\n</style>`;
 
   // Authoring/pasteboard mode (editor preview only, never exported): the iframe VIEWPORT is
-  // grown to canvas + pad on every side (by PreviewFrame), so painting off-canvas content
+  // grown to canvas + pad on every side by its host, so painting off-canvas content
   // requires a viewport larger than the canvas. This style — injected AFTER the template CSS
   // so it wins the cascade — insets the canvas by `pad` and stops the body from clipping.
   // `position: relative` is the least-invasive containing block: it keeps the root and every
@@ -279,6 +281,7 @@ window.addEventListener('unhandledrejection', function (ev) {
 (function () {
   ${serializeHelper(settleGraphic, 'settle')}
   ${serializeHelper(reportGraphicBox, 'report')}
+  ${serializeHelper(measureGraphic, 'measureBox')}
   function waitFonts(cb) {
     if (document.fonts && document.fonts.ready) {
       var done = false;
@@ -381,6 +384,147 @@ window.addEventListener('unhandledrejection', function (ev) {
       }
     });
   }
+  /* TYPE AND COLOUR (previewProtocol.ts 'style'). The variables go on documentElement, which no
+     reset under the graphic's root wipes, and REPLACE the ones set before; the faces they name are
+     declared in one stylesheet of this command's own. The queue waits while those faces load,
+     capped as a Take's font wait is, then the graphic is refitted (below), but only when
+     something that moves the text changed (the faces, the heading or numeric face, the heading
+     weight): a colour moves nothing, and a fit replayed for it is work, or a credits roll
+     re-rendered mid-air. THE LATEST-REQUEST GUARD: a load that completes after a newer style was
+     applied does nothing, so a slow face never refits the graphic over the selection that
+     replaced it. */
+  var styleSeq = 0;
+  var styleSet = [];
+  var styleMetric = '|||'; /* the design's own: no faces, no type variables */
+  var styleOwed = false;
+  /* The values the graphic was last given: a design that fits in update() rather than on
+     fonts.ready measured the fallback when its face came in after the 400 ms hold, so a late
+     refit gives it the same values again. */
+  var lastData = null;
+  /* update() writes only the fields it is given and leaves the rest as they were, so the values
+     the graphic holds are every update merged, oldest first: a one-field bump must not make a
+     later replay forget the others. */
+  function keepValues(values) {
+    if (lastData == null) { lastData = JSON.stringify(values); return; }
+    try {
+      var cur = JSON.parse(lastData) || {};
+      for (var k in values) if (Object.prototype.hasOwnProperty.call(values, k)) cur[k] = values[k];
+      lastData = JSON.stringify(cur);
+    } catch (e) {}
+  }
+  function keepData(json) {
+    var values;
+    try { values = JSON.parse(json); } catch (e) { lastData = json; return; }
+    if (values && typeof values === 'object' && !Array.isArray(values)) keepValues(values);
+    else lastData = json;
+  }
+  /* THE GRAPHIC AT REST: every element's inline style attribute (and an SVG element's transform
+     attribute, where GSAP writes an SVG transform) as it stood just before the last Take, or the
+     first command that animated it, once its values were in. Put back verbatim, never with GSAP's
+     clearProps, which also wipes layout a design's own code wrote inline and will not write again
+     for unchanged values (the Minute Rule's tick positions). The render runtime's probe reset is
+     the same move (src/render/runtimeScript.ts). Null until something first animates the
+     graphic: a freshly loaded document has nothing to clean. */
+  var restStyles = null;
+  function keepRest() {
+    var all = document.body ? document.body.querySelectorAll('*') : [];
+    restStyles = [];
+    for (var i = 0; i < all.length; i++) {
+      var svg = typeof SVGElement !== 'undefined' && all[i] instanceof SVGElement;
+      restStyles.push([all[i], all[i].getAttribute('style'), svg ? all[i].getAttribute('transform') : undefined]);
+    }
+  }
+  function putAttr(el, name, value) {
+    if (value === null) el.removeAttribute(name);
+    else el.setAttribute(name, value);
+  }
+  function backToRest() {
+    for (var i = 0; i < restStyles.length; i++) {
+      var el = restStyles[i][0];
+      putAttr(el, 'style', restStyles[i][1]);
+      if (restStyles[i][2] !== undefined) putAttr(el, 'transform', restStyles[i][2]);
+      /* GSAP keeps its own copy of a transform; have it read the restored one. */
+      if (el._gsap) el._gsap.uncache = 1;
+    }
+  }
+  /* An event the template accepts writes its payload into the fields (animRuntime.ts
+     noacgApplyPayload) after the update that set lastData, so a late refit would put the old
+     values back: the values replayed take each applied payload in. A refused event applies none. */
+  var payloadsKept = false;
+  function keepPayloads() {
+    if (payloadsKept || typeof window.noacgApplyPayload !== 'function') return;
+    payloadsKept = true;
+    var apply = window.noacgApplyPayload;
+    window.noacgApplyPayload = function (payload) {
+      if (lastData != null && payload && typeof payload === 'object') keepValues(payload);
+      return apply.apply(this, arguments);
+    };
+  }
+  function applyStyle(msg) {
+    keepPayloads();
+    var seq = ++styleSeq;
+    var given = msg.vars || {};
+    var metric = [msg.faces || '', given['font-heading'] || '', given['font-numeric'] || '', given['display-weight'] || ''].join('|');
+    /* A refit a newer style overtook is still owed: its face may be the one now loading. */
+    var refit = styleOwed || metric !== styleMetric;
+    styleMetric = metric;
+    styleOwed = refit;
+    var root = document.documentElement;
+    for (var i = 0; i < styleSet.length; i++) root.style.removeProperty('--' + styleSet[i]);
+    styleSet = [];
+    var vars = msg.vars || {};
+    for (var k in vars) {
+      if (!Object.prototype.hasOwnProperty.call(vars, k) || typeof vars[k] !== 'string') continue;
+      root.style.setProperty('--' + k, vars[k]);
+      styleSet.push(k);
+    }
+    var sheet = document.getElementById('noacg-appearance-faces');
+    if (msg.faces) {
+      if (!sheet) {
+        sheet = document.createElement('style');
+        sheet.id = 'noacg-appearance-faces';
+        (document.head || root).appendChild(sheet);
+      }
+      /* The same faces are not declared again: a fresh declaration is a fresh face, and an
+         Update that only changes a colour would draw the fallback until it loaded. */
+      if (sheet.textContent !== msg.faces) sheet.textContent = msg.faces;
+    } else if (sheet) {
+      sheet.parentNode.removeChild(sheet);
+    }
+    var loads = [];
+    if (document.fonts && document.fonts.forEach) {
+      document.fonts.forEach(function (face) {
+        /* A face an earlier style started is waited for too: the faces are kept, not re-declared. */
+        if (face.status === 'unloaded') { try { loads.push(face.load().then(null, function () {})); } catch (e) {} }
+        else if (face.status === 'loading' && face.loaded) loads.push(face.loaded.then(null, function () {}));
+      });
+    }
+    waiting = true;
+    var released = false;
+    function release() {
+      if (released) return;
+      released = true;
+      waiting = false;
+      drain();
+    }
+    setTimeout(release, 400);
+    Promise.all(loads).then(function () {
+      if (seq !== styleSeq) return release();
+      styleOwed = false;
+      var late = released;
+      /* THE REFIT is the template's own update(), never its font-ready callbacks: a staged
+         design's (templates/shared/stageFit.ts, 312 of the 325 that have one) is a one-time
+         calibration that, run again, keeps one row of each reserve, and a credits roll's
+         re-renders the roll. A face in by the time the hold lets go is fitted by the Update the
+         style rides (or PREVIEW's settle on this answer); one that came later gets the last
+         values again. A data update never starts a transition. */
+      /* An appearance-only update (msg.alone, phase 3) has no Update riding with it: its refit runs
+         now, with the values the graphic last took, never with an empty object. */
+      if (refit && (late || msg.alone) && lastData != null) { try { window.update && window.update(lastData); } catch (e) {} }
+      try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_RESTYLED_TYPE)}, seq: seq, refit: refit }, '*'); } catch (e) {}
+      release();
+    });
+  }
   window.addEventListener('message', function (ev) {
     if (ev.source !== window.parent) return;
     var msg = ev.data;
@@ -389,20 +533,47 @@ window.addEventListener('unhandledrejection', function (ev) {
     drain();
   });
   function run(msg) {
+    /* The rest a later Take returns to is the graphic before ANYTHING animated it, not only before
+       a Take: an output that reloads mid-show snaps a graphic straight back on air, and the Out and
+       Take after that must still come back to rest. */
+    if (!restStyles && (msg.cmd === 'snap' || msg.cmd === 'dispatch' || msg.cmd === 'next' || msg.cmd === 'stop') &&
+        typeof window.buildInTimeline === 'function') keepRest();
     if (msg.cmd === 'update') {
+      /* An update with no values (an appearance-only one, phase 3) merges nothing, so it leaves
+         the values a refit gives the graphic as they were. */
+      if (msg.data != null) keepData(msg.data);
       try { window.update && window.update(msg.data); } catch (e) {}
     } else if (msg.cmd === 'play') {
       afterFonts(function () {
         try {
-          if (msg.data != null) window.update && window.update(msg.data);
+          if (msg.data != null) keepData(msg.data);
+          /* A TAKE AGAIN starts from the graphic at rest (#1618). This document stays loaded
+             between cues, and an exit (an Out, or an event into an off state) can leave inline
+             props the entrance never resets: a results board's Out fades the rows' container, its
+             cascade entrance animates only the rows, and the second Take aired the header over an
+             empty board. So the styles kept before the last Take go back, and the values the
+             graphic holds are restated over them, as the editor's monitor does before every play
+             (simulatorRuntime.ts sim-play). Only under the house builder contract, as there. */
+          var builder = typeof window.buildInTimeline === 'function';
+          if (builder && restStyles) {
+            backToRest();
+            /* A restatement that throws must not keep the Take off air. */
+            try { window.update && window.update(lastData != null ? lastData : '{}'); } catch (e) {}
+          } else if (msg.data != null) {
+            window.update && window.update(msg.data);
+          }
+          if (builder) keepRest();
           window.play && window.play();
         } catch (e) {}
         report(window);
       });
     } else if (msg.cmd === 'settle') {
       afterFonts(function () {
+        if (msg.data != null) keepData(msg.data);
         settle(window, msg.data);
-        report(window);
+        /* An identified settle answers with the whole measurement (settleGraphic.ts measureGraphic). */
+        if (typeof msg.id === 'number') measureBox(window, msg.id);
+        else report(window);
       });
     } else if (msg.cmd === 'stop') {
       var priorQuiet = window.noacgSoundQuiet === true;
@@ -417,15 +588,18 @@ window.addEventListener('unhandledrejection', function (ev) {
          before the clock that needed it reads it. Every event rewrites it (to null when there
          is no instant), so it always reads as the most recent event's. */
       window.noacgEventAt = (typeof msg.at === 'number' && msg.at > 0) ? msg.at : null;
+      keepPayloads();
       try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
     } else if (msg.cmd === 'measure') {
-      report(window);
+      if (typeof msg.id === 'number') measureBox(window, msg.id);
+      else report(window);
     } else if (msg.cmd === 'warm') {
       /* THE WARM PASS (previewProtocol.ts 'warm'): the update runs HERE, in the queue, so a Take
          sent after it lands after it and airs its own values; what it threw is part of the answer,
          which a plain 'update' swallows. */
       var warmError = null;
       if (msg.data != null) {
+        keepData(msg.data);
         try { window.update && window.update(msg.data); } catch (e) { warmError = String((e && e.message) || e); }
       }
       checkReady(warmError);
@@ -439,6 +613,8 @@ window.addEventListener('unhandledrejection', function (ev) {
          leaves any opacity the template itself set exactly as it was. */
       if (msg.on) document.documentElement.style.setProperty('opacity', '0', 'important');
       else document.documentElement.style.removeProperty('opacity');
+    } else if (msg.cmd === 'style') {
+      applyStyle(msg);
     } else if (msg.cmd === 'snap') {
       // Recovery semantics (docs/CLOUD_PLAYOUT.md §3): the output renderer restores a live
       // graphic's pose instantly — timers arm unless the sender says otherwise, exactly like

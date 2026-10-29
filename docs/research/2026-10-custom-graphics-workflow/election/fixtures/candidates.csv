@@ -1,0 +1,7 @@
+candidate_id,district_id,ballot_number,name,party_id,portrait_asset
+FI2027_02_101,02,101,Aino Example,KOK,portrait_demo
+FI2027_02_102,02,102,Mika Example,SDP,portrait_demo
+FI2027_02_103,02,103,Sara Example,VIHR,portrait_demo
+FI2027_01_101,01,101,Leo Example,PS,portrait_demo
+FI2027_01_102,01,102,Ella Example,VAS,portrait_demo
+FI2027_02_104,02,104,Niko Example,KESK,portrait_demo

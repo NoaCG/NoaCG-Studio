@@ -1,0 +1,57 @@
+=== j-0001 npm run test:e2e -- e2e/wizard-shell.spec.ts --grep 'a cold open on a step only another walk has lands on Entry' --retries=0
+=== cwd /workspace/phase2-acceptance
+
+> noacg-studio@0.1.0 test:e2e
+> playwright test e2e/wizard-shell.spec.ts --grep a cold open on a step only another walk has lands on Entry --retries=0
+
+[e2e] 2 workers - codex cloud, 4 CPUs, 16.0 GiB memory, 15071 MB free (machine totals stand in for cgroup limits it could not read)
+[WebServer] (node:1926) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:1939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:2064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › e2e/wizard-shell.spec.ts:558:1 › a cold open on a step only another walk has lands on Entry (13.2s)
+
+
+  1) [chromium] › e2e/wizard-shell.spec.ts:558:1 › a cold open on a step only another walk has lands on Entry 
+
+    Error: video
+
+    expect(locator).toBeVisible() failed
+
+    Locator: locator('[data-entry="template"]')
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - video with timeout 7000ms
+      - waiting for locator('[data-entry="template"]')
+
+
+      563 |     await page.goto('about:blank');
+      564 |     await page.goto(`/app#/new/step/${slug}`);
+    > 565 |     await expect(page.locator('[data-entry="template"]'), slug).toBeVisible();
+          |                                                                 ^
+      566 |     await expect(counter(page), slug).toHaveCount(0);
+      567 |   }
+      568 | });
+        at /workspace/phase2-acceptance/e2e/wizard-shell.spec.ts:565:65
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/wizard-shell-a-cold-open-o-3626e-her-walk-has-lands-on-Entry-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/wizard-shell-a-cold-open-o-3626e-her-walk-has-lands-on-Entry-chromium/error-context.md
+
+  1 failed
+    [chromium] › e2e/wizard-shell.spec.ts:558:1 › a cold open on a step only another walk has lands on Entry 
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

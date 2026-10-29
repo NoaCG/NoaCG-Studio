@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1920 1080">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0, .st1, .st2 {
+        fill: #fc0;
+      }
+
+      .st3 {
+        fill: #1d2b53;
+      }
+
+      .st4 {
+        fill: none;
+        stroke: #fc0;
+        stroke-miterlimit: 10;
+        stroke-width: 5px;
+      }
+
+      .st5 {
+        fill: #2e4272;
+      }
+
+      .st6 {
+        display: none;
+      }
+
+      .st7 {
+        fill: #fff;
+      }
+
+      .st7, .st2 {
+        font-family: Oswald-Medium, Oswald;
+        font-size: 44px;
+        font-weight: 500;
+      }
+
+      .st1 {
+        font-family: Oswald-Bold, Oswald;
+        font-size: 64px;
+        font-weight: 700;
+      }
+    </style>
+  </defs>
+  <g id="Board">
+    <rect id="Panel" class="st3" x="300" y="150" width="1320" height="780"/>
+    <rect id="Accent" class="st0" x="300" y="150" width="1320" height="8"/>
+    <text id="static:Heading" class="st1" transform="translate(380 270.92)"><tspan x="0" y="0">YOUR CHOICE</tspan></text>
+    <rect id="Track_1" class="st5" x="770" y="452" width="540" height="24"/>
+    <rect id="Track_2" class="st5" x="770" y="572" width="540" height="24"/>
+    <rect id="Track_3" class="st5" x="770" y="692" width="540" height="24"/>
+  </g>
+  <g id="Moments">
+    <rect id="Bar_1" class="st0" x="770" y="452" width="540" height="24"/>
+    <g id="Winner_1" class="st6">
+      <rect class="st4" x="372.5" y="417.5" width="1155" height="87"/>
+    </g>
+    <rect id="Bar_2" class="st0" x="770" y="572" width="540" height="24"/>
+    <g id="Winner_2" class="st6">
+      <rect class="st4" x="372.5" y="537.5" width="1155" height="87"/>
+    </g>
+    <rect id="Bar_3" class="st0" x="770" y="692" width="540" height="24"/>
+    <g id="Winner_3" class="st6">
+      <rect class="st4" x="372.5" y="657.5" width="1155" height="87"/>
+    </g>
+  </g>
+  <g id="Text">
+    <text id="Question" class="st7" transform="translate(404 352.82)"><tspan x="0" y="0">Where should we go next?</tspan></text>
+    <text id="Option_1" class="st7" transform="translate(404 477.82)"><tspan x="0" y="0">Coast</tspan></text>
+    <text id="Percent_1" class="st2" transform="translate(1407.35 477.82)"><tspan x="0" y="0">0%</tspan></text>
+    <text id="Option_2" class="st7" transform="translate(404 597.82)"><tspan x="0" y="0">Forest</tspan></text>
+    <text id="Percent_2" class="st2" transform="translate(1407.35 597.82)"><tspan x="0" y="0">0%</tspan></text>
+    <text id="Option_3" class="st7" transform="translate(404 717.82)"><tspan x="0" y="0">City</tspan></text>
+    <text id="Percent_3" class="st2" transform="translate(1407.35 717.82)"><tspan x="0" y="0">0%</tspan></text>
+    <text id="Total_votes" class="st7" transform="translate(404 852.82)"><tspan x="0" y="0">0 votes</tspan></text>
+  </g>
+</svg>

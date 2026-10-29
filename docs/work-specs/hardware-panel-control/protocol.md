@@ -145,8 +145,8 @@ In this order, on each `press`:
 1. `claim` is not this page's: ignore. If it is higher, this page has been replaced: switch off.
 2. `press_id` handled in the last 10 minutes (memory of the last 256 ids): publish the remembered
    `result` again with `outcome: duplicate`. Runs nothing.
-3. A verb this surface does not run (the hosted control page has no server clips, folders or All
-   out): `not-here`.
+3. A verb this surface does not run (the hosted control page has no server clips, so no
+   `pause`, `resume` or `pause-toggle`): `not-here`.
 4. Target and direction, against the page's last 64 published states (a ring keyed by `ver`):
 
    | Verb | Refused `stale` when |
@@ -155,12 +155,14 @@ In this order, on each `press`:
    | `take` | also: what `take` does now (`space`) differs from what it did at `seen`, or `seen` is no longer in the ring |
    | `take-cue` | `target` is not a row now, or whether it is on air differs from at `seen` |
    | `select-cue` | `target` is not a row now |
+   | `trigger-cue` | `target` is not a cue row now, or was not one at `seen`, or `seen` is no longer in the ring |
    | `pause-toggle` | the clip the clock follows, or whether it is paused, differs from at `seen` |
    | `select-prev`, `select-next`, `all-out` | never: walking airs nothing, and All out is always meant |
 
 5. Not allowed now, by the page's own enabled state (`allowed` in the state, `blocked` for
-   `take-cue`): `not-allowed`, with the page's own sentence when it has one.
-6. Run `onVerb(verb, {repeat: false, cue: target})`: `ran`. "Ran" means dispatched; what aired
+   `take-cue` and `trigger-cue`): `not-allowed`, with the page's own sentence when it has one.
+6. Run `onVerb(verb, {repeat: false, cue: target})`: `ran`. `trigger-cue` plays or restarts that
+   cue and leaves the selection and PREVIEW where they are. "Ran" means dispatched; what aired
    shows in the next `state`. A Take the dispatcher sends carries the page's own Step 2 sender
    protocol, so the server's duplicate and stale refusals still apply after this.
 
@@ -216,7 +218,7 @@ again. `moved` or a `beat` whose `ver` or `rowsVer` it has not seen also calls `
 ### 7.3 A press
 
 Build `{verb, target, seen: the current ver, id}`; `target` is the selected row for the selected-row
-verbs, the action's own row for `select-cue` and `take-cue`, the clock's cue for `pause-toggle`.
+verbs, the action's own row for `select-cue`, `take-cue` and `trigger-cue`, the clock's cue for `pause-toggle`.
 Refuse locally when not `ok`. Call `panel_press`; on a network error (not a refusal) retry once
 within 1 s with the same `id`. Wait up to 1.5 s for the `result` with that `id`; with none, flash
 the key and set the status line to "No answer from the operator page". Never queue a press.
@@ -267,8 +269,8 @@ per-second message is needed. The variables tick every 250 ms while a clip runs.
 | `selected` | the row id PREVIEW and the verbs act on, or null |
 | `space` | what `take` does now: `take`, `take-off` or `preview`; null with nothing selected |
 | `live` | the cue ids on air now, graphics and server cues |
-| `allowed` | each panel verb's enabled state as the page draws it; `select-cue` and `take-cue` are per row |
-| `blocked` | row ids whose `take-cue` would be refused now |
+| `allowed` | each panel verb's enabled state as the page draws it; `select-cue`, `take-cue` and `trigger-cue` are per row |
+| `blocked` | row ids whose `take-cue` or `trigger-cue` would be refused now |
 | `clip` | null, or the clip the clock follows: `phase` is `counting`, `holding`, `paused` or `looping`; `start` and `end` in the page's clock (ms) or null when unknown; `remaining` in seconds at `at` |
 | `bridge` | `ok`, `down`, or `off` when this page has no Bridge configured |
 
@@ -281,3 +283,98 @@ Research §6.4 measured 192 ms p50 through Companion's Generic HTTP and a local 
 page dispatching a synthetic key event. This build removes the forwarder, calls `onVerb` directly
 on receipt, and keeps the RPC to one indexed key lookup, one update and one `realtime.send`. The
 module keeps its HTTPS connection alive between presses. Nothing on the path waits on feedback.
+
+## 10. Graphic actions (actions protocol 2)
+
+Added by `docs/work-specs/playout-companion-actions/spec.md` (E6.1) and migration
+`0103_panel_graphic_actions.sql`; E6.2 makes foreign OGraf actions pressable within the same
+protocol (no second bump). Every message and verb above is unchanged and stays `v` 1.
+
+### 10.1 Compatibility
+
+A module reads `v` on every feedback payload and stops at a number it does not know (§8), so the
+two new feedback events carry `av` (the actions protocol, 2) and no `v`: a module that predates
+them ignores them. A module presses a graphic action only after a page advertised it, so an older
+page is never sent one. A module meeting an `av` it does not speak refuses graphic actions with
+"update the module" and keeps every transport key. A database without 0103 refuses the verb
+`not-a-panel-verb`; the page learns that from `panel_relay` (absent there), says so in its Panel
+dialog and advertises `relay: false`, and the module says the server needs an update. A page from
+before E6.2 offers foreign actions with `invocable: false`, so a newer module refuses them locally
+with the page's note; a module from before E6.2 never presses a foreign action whatever the page
+says, and keeps every native key.
+
+### 10.2 The offer (`actions`, page to panels)
+
+Published like `state`: on each change, on `want`, after joining. At most 32 graphics of 48
+capabilities each, and at most 64 KiB of UTF-8 of graphics (cut at a whole graphic, `more`). The page's `beat` also carries `actionsVer`; a module holding an older offer
+calls `panel_hello`, so a missed `actions` event is sent again (§7.1).
+
+```json
+{
+  "av": 2, "actionsVer": 12000003, "page": "k3j9x0q2m4n8b1c5", "claim": 12, "relay": true, "more": false,
+  "graphics": [{
+    "graphic": "House Score", "pinned": false, "live": "cue_8f2a", "cue": "Final",
+    "caps": [
+      { "id": "event:goalA", "kind": "event", "label": "Goal HOME", "place": "section", "section": "Goal",
+        "args": null, "allowed": true, "invocable": true },
+      { "id": "event:choose", "kind": "event", "label": "Answer", "place": "pinned",
+        "args": { "path": "", "type": "object", "closed": true, "properties": [
+          { "key": "option", "required": true, "node": { "path": "option", "type": "string", "enum": ["A", "B"] } }] },
+        "options": [{ "value": "A", "label": "Answer A" }, { "value": "B", "label": "Answer B" }], "active": "B",
+        "allowed": true, "invocable": true },
+      { "id": "step:f1", "kind": "step", "label": "Home", "place": "section", "args": { "...": "delta -1 or 1" },
+        "allowed": true, "invocable": true }
+    ]
+  }]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `actionsVer` | counts like `ver`, from the claim's million; a press names the one its key was drawn from |
+| `graphics[]` | every pool graphic with live controls; the target kind is the pool graphic, implied by the nesting, and `pinned` is presentation only |
+| `live` | the cue live on the graphic's layer (the instance a press names), or null off air |
+| `caps[].id` | `event:<event>`, `step:<field>` or `foreign:<action id>`; the only key a saved button is matched by |
+| `caps[].args` | the argument object's schema in E1's typed model (`src/model/ografTyped.ts` `TypedNode`), or null |
+| `allowed`, `note` | the page's own greying of that control, and why not |
+| `invocable` | false for a control a panel cannot press (a foreign action whose arguments this version does not carry, or any foreign action from a page before E6.2): shown, refused `not-here` |
+
+A foreign OGraf action (`foreign:<action id>`, E6.2) is offered for each typed ⚡ button its
+graphic's block draws, under the block's label and place, with the manifest's argument schema. Its
+target is the PROGRAM instance, named explicitly by `instance`: the package's cue on air on the
+outputs. A package has no preview instance (PREVIEW says it plays on the outputs only), so a key
+never names one. Its legality is unknown (the Graphic decides), so it is never greyed by a machine:
+`allowed` is false only off air, or while the layer airs a cue this page does not hold.
+
+### 10.3 The press
+
+`panel_press(p_key, {v: 2, verb: "graphic-action", target, seen, id, cap, instance, args})`:
+`target` is the pool graphic (1 to 128 characters, no control characters), `seen` the offer's
+`actionsVer`, `cap` the capability id (its kind and up to 96 characters), `instance` the cue the
+key showed live (up to 128, empty off air), `args` an object of at most 4096 characters of JSON
+nested at most 8 deep. Anything else is `bad-press` with a `note` naming the bound. Forwarded on
+`pnp-` as `{v: 2, verb, target, seen, press_id, claim, panel, cap, instance, args}`.
+
+### 10.4 The page
+
+The claim and the press id as §6.2 steps 1 and 2 (a duplicate runs nothing). Then, against the
+offer now and the one at `seen` (a ring of 64): `stale` when `seen` is gone, the graphic or the
+capability id is no longer offered, its declaration changed since `seen`, or `instance` is not the
+cue live now; `not-here` for a capability that is not `invocable` or a page that runs none (the
+hosted control page); `not-allowed` off air or greyed; `invalid` when `args` fail the schema. A
+foreign press with empty `args` sends the live cue's own kept arguments, as its ⚡ button does,
+validated whole when it is sent; with arguments of its own they are validated here and sent in
+their place (`model/ografTyped.ts` `typedActionFor`). Otherwise it runs
+through the page's own verbs (`control/graphicVerbs.ts` `event`, or `bump` for a step) with the
+selection `liveSelection` builds for that graphic, never the page's selection, so the dispatcher's
+per-graphic queue, sent-figure base, write-on-acceptance and instance check after every wait all
+apply. `result` (protocol 1) says it ran; `settled` follows:
+
+| Event | Payload |
+|---|---|
+| `settled` | `{av: 2, id, panel, outcome: 'accepted' or 'refused' or 'failed' or 'unknown', note?}` |
+
+`unknown` is a send the server did not answer: it may still commit, and the press is never sent
+again. The dispatcher holds the press to `instance` after every wait, as it holds a button's press
+to the cue its selection drew, and refuses it when the two disagree. A module shows a press that ran as running until its `settled`, and
+as not confirmed when none comes in 15 s.

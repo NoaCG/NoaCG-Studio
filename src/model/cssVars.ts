@@ -95,7 +95,7 @@ export function formatCssColor(c: CssColor): string {
 }
 
 /** WCAG relative luminance, on the sRGB channels alone (alpha is a compositing question). */
-function relativeLuminance(c: CssColor): number {
+export function relativeLuminance(c: CssColor): number {
   const ch = (v: number) => {
     const s = v / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;

@@ -1,20 +1,93 @@
 # cloud-delegate — provider-native work and bounded recovery
 
-Route ordinary implementation, review, verification and unattended phases to cloud.
+Local implementation, review and targeted verification are always allowed without asking.
+Use qualified cloud workers when useful for implementation, review, verification or unattended phases;
+cloud availability is not a prerequisite for local work. Keep existing local resource and check limits.
 Keep device, installed-program, private-local-file and local-browser-state tasks local.
 Use the existing wave/plan/job and landing records; this procedure creates no new scheduler.
-Native subagents share one VM; they are useful reviewers, not separate cloud resources.
+Native subagents share one VM; they are not separate cloud resources.
 Each provider launches its own workers in its existing environment/subscription.
+
+## Use native coordination
+
+At startup inspect the exposed tools/current CLI help and existing sessions. Record the
+chosen launch, status, message/resume and wake capabilities in the existing ledger; reuse
+them until the context changes. A release/version or old measurement is not availability.
+Preserve configured models, effort, permissions and feature choices; do not upgrade,
+enable optional modes or broaden access just to obtain a newer orchestration path.
+
+- **Claude Code:** prefer available native background sessions, Agent completion events
+  and session inventory/attach/logs/resume (`claude agents`, `claude --bg` where supported).
+  `claude --bg` and attaching through `claude agents` require a trusted folder.
+  If refused, use the Agent tool with `run_in_background`; resume by agent ID with `SendMessage` and check the reply.
+  Use Workflow for bounded parallel work only when it preserves each row/phase admission,
+  owned worktree, resource limits, worker identity and retrievable results. Otherwise use
+  the named Agent/session route with `run_in_background` when exposed, or its supported
+  background equivalent. Never let a workflow launch a later plan phase.
+- **Codex:** prefer exposed native session/subagent lifecycle and managed-worktree tools.
+  Verify the actual branch, source SHA and absolute worker directory; every command
+  stays in that owned worktree. Without native worktree support, use
+  `git worktree add` with the existing `spawn_agent`/`wait_agent` route where available.
+- Use native completion notifications and bounded waits; steer or resume the original
+  worker by ID. A message to an idle worker is not proof it resumed. Retain task/agent IDs
+  through compaction/reconnect; inspect status and results before retrying a launch.
+- Before the first unattended launch, arm and record one qualified native wake or the
+  existing bounded heartbeat/Claude background timer for missed completions/late CI, timed by
+  what is waited on (a plan run: `node scripts/plan-kit.mjs checkin <wave>`).
+  Re-arm only while needed within the authorized window; do not add a parallel scheduler.
+  Native retries/continuations obey the workflow's existing end policy and attempt limits.
+
+Context-sharing forks can help builders; an acceptance checker starts fresh without the
+build/repair conversation, using the explicit checker brief and current main. Native
+"completed"/Workflow success is not acceptance PASS, a merged PR or green exact-merge checks.
+Background services, scheduled wakeups and self-hosted runner orchestration do not by
+themselves prove cloud placement, restart survival or cross-machine ownership.
+
+## Codex cloud startup and network access
+
+At startup, run `node scripts/cloud-network-preflight.mjs` from the feature worktree.
+For this preflight and commands needing remote access (including fetch, push, gh,
+dependency downloads and checks using remote services), select the shell tool's
+supported network permission. When its schema exposes additional permissions, use:
+
+```json
+{
+  "sandbox_permissions": "with_additional_permissions",
+  "additional_permissions": { "network": { "enabled": true } }
+}
+```
+
+Use the current tool schema; a repository script cannot grant itself shell access.
+Keep the configured proxy and TLS verification. Destination allowlisting and shell
+network permission are separate requirements. Do not change the allowlist or
+credentials merely because default shell execution could not connect to the proxy.
+
+The preflight independently reads origin/main through Git and this repository's
+Actions API through gh. Each subprocess has a short timeout with prompts disabled;
+output contains fixed diagnoses, never raw responses or credentials. A nonzero exit
+means at least one path is unqualified. Permission or proxy transport failures need
+the supported shell permission checked before diagnosing GitHub authentication.
+An API denial does not by itself establish a disconnected account. GitHub connector
+access is separate: test its repository read if the CLI path fails. Passing reads
+do not qualify push, dispatch, status writes, whole logs or auto-merge; follow
+queue-merge's separate probes when those operations are needed.
+
+Tool approval can remain pending before the subprocess starts, outside its timeout.
+Yield long tool calls promptly and report pending approval separately from an
+executed command's failure. A pending call is no evidence that GitHub is unavailable.
 
 ## Before submission
 
 Read `AGENTS.md`, the relevant spec and the current owner receipts in issue #1301.
 Use the original Codex binding in the canonical root rule unchanged; runtime IDs and
 `source_config_id` lineage do not prove that the CLI accepts that binding. Read
-`docs/work-specs/cloud-execution/evidence/capabilities.md` and the current native
-interface/help. Missing or denied launch/auth/mapping support stops that launch;
+`docs/work-specs/cloud-execution/evidence/capabilities.md` as prior measurements, then
+inspect the current interface. Missing or denied launch/auth/mapping stops that launch;
 continue independent work. Never transplant credentials, bypass the proxy, retry a
 known denial or substitute an API model, another provider or same-VM subagent.
+Requalify after a relevant access/interface change; old inventory is not a permanent ban.
+These requirements qualify the cloud launch only. If it is unavailable, continue locally without
+asking for an exception, and report that execution as local rather than a qualified cloud launch.
 
 Inspect existing native task IDs, status, nonce and wave/plan state before submitting.
 If delivery is uncertain, reconcile the same nonce/task; do not create another worker.
@@ -38,15 +111,13 @@ execution spec; local worker paths alone are not transport. Reuse #1305's click-
 landing receipt. For the already-qualified local Claude CLI launch, omit
 `CLAUDE_CODE_OAUTH_TOKEN` only from the child process, preserving parent configuration.
 
-**Codex current cloud**: this coordinator's supported UI launch, app read/follow-up
-and GitHub artifact return are observed. `wait_threads` failed with and without host.
-No task-create connector is exposed here; do not invent one. The installed cloud CLI
-has exec/list/status/diff/apply but no follow-up command. Local CLI discovery returned
-zero environments before create_task; this managed CLI's injected credential returned
-401 at the environment endpoint. No native child has been qualified. Use the supported
-Work in > Cloud > published-environment UI for a current task when the owner directs
-that surface; it does not turn the failed CLI submission into success. Stop/reconcile
-unsupported child launch until authenticated access AND environment mapping are proven.
+**Codex cloud prior measurements**: UI launch, app read/follow-up and GitHub artifact
+return were observed; native child launch was not qualified (CLI environment discovery
+was empty or denied, and app waiting failed). Inspect today's exposed tools instead of
+assuming those limits or inventing a task-create API. A new launch path still needs
+authenticated access, the intended environment mapping and an actual native receipt.
+Use Work in > Cloud > published-environment UI when the owner directs that surface;
+local subagent/worktree improvements alone do not qualify a remote child.
 
 ## Execute and return
 
@@ -67,6 +138,15 @@ native status plus wave/plan/job/PR state before continuing. Reuse existing
 cloud-landing-recovery qualification and #1307's local helpers only within their
 proved scope. Inert-process controls do not prove native restart or filesystem recovery.
 
+For durable supervisor runs, opt into the existing repository's recovery ref and use
+`run-supervisor.mjs record` for phase events. `resume` restores a missing local store,
+pinned source and ledger, then requires exact native/GitHub reconciliation before
+dispatch. Keep the run ID/repository locator in the existing bootstrap or wake prompt.
+See `docs/work-specs/native-recovery/evidence/restoration.md` for the packet and adapter
+contract. Technical errors and state discrepancies are diagnosed and repaired by the
+active owner without asking the user; unknown delivery still requires reconciliation,
+and missing provider support never authorizes duplicate work or broader permissions.
+
 Follow `.agent-workflows/queue-merge.md` for exactly one acknowledged repair owner,
 including no-webhook base-conflict checks and at most three repairs per failure.
 A scheduled check-in while active is not durable recovery. Before claiming unattended
@@ -76,3 +156,12 @@ Without that proof, the active owner stays through merge and exact-SHA post-land
 results; report restart, reclaimed-container reconstruction or missing wake support
 as open. Stop wakes at terminal state/window expiry. Never claim archived revival or
 indefinite monitoring without separate evidence; never extend the authorized window.
+On plan pause/block/expiry, stop native auto-continuations, retries and new-session
+launches too; checkpoint/reconcile in-flight work and preserve queued-PR repair ownership.
+
+Continuing plan projects use the immutable project deadline and bounded work blocks in
+`plan-run.md`; their run kit (`state.json`, brief templates, briefs sent) rides in the recovery
+checkpoint. Any session, cloud or laptop, continues a project with the same `/plan-run` line;
+the older coordinator is then refused as superseded and stops. A coordinator waiting on workers
+or CI waits in a running background job or monitor, never idle, so its machine is not reclaimed.
+A project pause/block end stops local keep-awake and block-specific wakes.

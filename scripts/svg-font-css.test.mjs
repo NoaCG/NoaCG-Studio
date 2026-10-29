@@ -28,7 +28,7 @@ async function load(entry) {
 }
 
 const { svgFontCss } = await load(path.join(projectRoot, 'src/templates/importedDesign/svgFonts.ts'));
-const { FONTS, fontFaceCss, customFontFaceCss } = await load(path.join(projectRoot, 'src/model/fonts.ts'));
+const { FONTS, fontFaceCss, customFontFaceCss, LATIN_EXT_RANGE } = await load(path.join(projectRoot, 'src/model/fonts.ts'));
 
 const css = (fonts) => svgFontCss({ markup: '<svg/>', width: 960, height: 270, fields: [], images: [], outlines: [], fonts });
 const archivo = FONTS.find((f) => f.id === 'archivo');
@@ -58,6 +58,13 @@ test('a bundled face under the artwork\'s own name is an alias pinned to the wei
   src: url("fonts/archivo.woff2") format("woff2");
   font-weight: 900;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */
   font-display: swap;          /* show fallback text until the font loads */
+}
+@font-face {
+  font-family: "Archivo-Black";
+  src: url("fonts/archivo-latin-ext.woff2") format("woff2");
+  font-weight: 900;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */
+  font-display: swap;
+  unicode-range: ${LATIN_EXT_RANGE};  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */
 }`,
   );
   // A stated weight outside the file's range is clamped into it.
@@ -65,6 +72,10 @@ test('a bundled face under the artwork\'s own name is an alias pinned to the wei
   assert.equal(weightOf(css([{ family: 'Archivo-Heavy', fontId: 'archivo', weight: 950 }]), 'Archivo-Heavy'), '900');
   // A name that states no weight keeps the whole range, as the bundled declaration does.
   assert.equal(weightOf(css([{ family: 'Archivo-Narrow', fontId: 'archivo' }]), 'Archivo-Narrow'), '400 900');
+  // A STATIC file (one weight) is never pinned: it declares 100-900, so a bold the artwork asks
+  // for draws the file as it is rather than a synthesised smear.
+  assert.equal(weightOf(css([{ family: 'BebasNeue-Bold', fontId: 'bebas-neue', weight: 700 }]), 'BebasNeue-Bold'), '100 900');
+  assert.equal(weightOf(css([{ family: 'Anton-Regular', fontId: 'anton' }]), 'Anton-Regular'), '100 900');
 });
 
 test('an embedded face is the custom declaration; a bundled id wins over it', () => {

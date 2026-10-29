@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-20",
+  "source": "12eccdd8533ba710f0917cb3bcc78101070ecca8",
+  "verdict": "SETUP FAILED / BRANCH DELETED / ACCEPTANCE INCOMPLETE",
+  "ownerAuthorization": "Use NoaCG organization and a temporary branch; delete the branch when done.",
+  "quotedCompute": {
+    "amount": 0.01344,
+    "currency": "USD",
+    "recurrence": "hourly",
+    "actualInvoiceAmountVerified": false
+  },
+  "branch": {
+    "id": "29bc962b-0b7c-4827-ae9d-e7bc12194ab0",
+    "name": "codex-p2-local-12ecc-20261020",
+    "project_ref": "swupnfbjibaigqttxyvm",
+    "is_default": false,
+    "persistent": false,
+    "status": "CREATING_PROJECT",
+    "created_at": "2026-10-20T18:41:03.416762+00:00",
+    "updated_at": "2026-10-20T18:41:03.416762+00:00",
+    "parent_project_ref": "kprolrchuldgfrzspthy",
+    "with_data": false
+  },
+  "observedStatus": "MIGRATIONS_FAILED",
+  "ledger": {
+    "firstApplied": "0001_documents",
+    "lastApplied": "0073_panel_relay",
+    "lastAppliedVersion": "0073",
+    "nextRepositoryMigration": "0074_seq_log_index.sql"
+  },
+  "diagnosis": {
+    "branchErrorLogEstablished": false,
+    "boundedPostgresErrorQueryRows": 0,
+    "nextMigrationUsesCreateIndexConcurrently": true,
+    "documentedBranchRunnerBehavior": "Each migration file executes within a single transaction; non-transactional statements such as CREATE INDEX CONCURRENTLY fail.",
+    "documentation": "https://supabase.com/docs/guides/deployment/branching/github-integration",
+    "qualification": "Documented compatibility mismatch consistent with the observed stopping point; the branch deployment error itself was not captured."
+  },
+  "cleanup": {
+    "deleteBranchSucceeded": true,
+    "deletionVerifiedAt": "2026-10-20T18:42:51Z",
+    "branchAbsentFromFreshListing": true,
+    "remainingBranches": [
+      "main"
+    ],
+    "ongoingTemporaryBranchCompute": false,
+    "smallPriorUsageChargeStillPossible": true
+  },
+  "execution": {
+    "setupAttempts": 1,
+    "setupRetried": false,
+    "publicOrSecretKeysRetrieved": false,
+    "accountsCreated": false,
+    "localServerStarted": false,
+    "acceptanceChecksStarted": false,
+    "migrationsModified": false,
+    "productionDataCopied": false,
+    "productionChanged": false,
+    "originalSharedLabDiagnosisResumed": false,
+    "wholePhase2Accepted": false
+  }
+}

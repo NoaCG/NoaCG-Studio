@@ -117,14 +117,43 @@ export function videoFontFaceCss(
   resolve: (file: string) => string,
   fonts: VideoFont[] = VIDEO_FONTS,
 ): string {
-  return fonts.map(
-    (f) => `@font-face {
+  return fonts.map((f) => {
+    // A static file (Bebas Neue: one weight) declares every weight, as model/fonts.ts
+    // `faceWeightLine` does, so a heavier request draws the file as it is, never a synthesised bold.
+    const weight = f.weights[0] === f.weights[1] ? '100 900' : `${f.weights[0]} ${f.weights[1]}`;
+    const latin = `@font-face {
   font-family: "${f.family}";
   src: url("${resolve(f.file)}") format("woff2");
-  font-weight: ${f.weights[0]} ${f.weights[1]};
+  font-weight: ${weight};
   font-display: block;
-}`,
-  ).join('\n');
+}`;
+    // A latin-ext file the resolver could not supply (an empty URL) is left out, not left dead.
+    const ext = resolve(videoLatinExtFile(f.file));
+    return ext ? `${latin}
+@font-face {
+  font-family: "${f.family}";
+  src: url("${ext}") format("woff2");
+  font-weight: ${weight};
+  font-display: block;
+  unicode-range: ${LATIN_EXT_RANGE};
+}` : latin;
+  }).join('\n');
+}
+
+/**
+ * Each file is Google's `latin` subset; Š Ž Ł ő ğ live in its `latin-ext` twin beside it, declared
+ * second and limited to this range so a name like "Šimon Žáková" sets in the face. The same
+ * range and file name as model/fonts.ts (`LATIN_EXT_RANGE`, `latinExtFile`), copied rather than
+ * imported because model/fonts.ts imports `../assets/OFL.txt?raw`, which Node's native loader
+ * (scripts/gen-video-font-css.mjs, build-player-host.mjs) cannot resolve. Pinned equal by
+ * scripts/font-upgrade.test.mjs.
+ */
+export const LATIN_EXT_RANGE =
+  'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF';
+
+/** The latin-ext file beside a face's latin `file` under public/fonts. */
+export function videoLatinExtFile(file: string): string {
+  return file.replace(/\.woff2$/, '-latin-ext.woff2');
 }
 
 /**

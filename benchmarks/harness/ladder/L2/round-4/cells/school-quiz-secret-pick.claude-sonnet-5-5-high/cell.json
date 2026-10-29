@@ -1,0 +1,172 @@
+{
+  "costUnread": false,
+  "brief": "school-quiz-secret-pick",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "1c923389-12b2-42b4-8283-12670e821196",
+  "costCents": 0,
+  "notionalUsd": 1.4447705999999998,
+  "wallSeconds": 599,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:d443d4344fe5da6df7cbf2da26c41ea23088927fc93e582280c072254f3d2722"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=Which treaty, signed in 1648 at the end of the Thirty Years' War in the Holy Roman Empire, is widely credited with establishing the principle of state sovereignty in Europe? --data f1=The Peace of Westphalia, concluded in the cities of Osnabrück and Münster --data f2=The Treaty of Versailles, signed in the Hall of Mirrors near Paris --data f3=The Congress of Vienna settlement, agreed after the defeat of Napoleon --data f4=The Treaty of Utrecht, which ended the War of the Spanish Succession --data f5=A --data f6=C --event select --event lock --background video --out ../shots/long-locked.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=Which treaty, signed in 1648 at the end of the Thirty Years' War in the Holy Roman Empire, is widely credited with establishing the principle of state sovereignty in Europe? --data f1=The Peace of Westphalia, concluded in the cities of Osnabrück and Münster --data f2=The Treaty of Versailles, signed in the Hall of Mirrors near Paris --data f3=The Congress of Vienna settlement, agreed after the defeat of Napoleon --data f4=The Treaty of Utrecht, which ended the War of the Spanish Succession --data f5=A --data f6=C --event select --event judge --background video --out ../shots/long-judge.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=Which treaty, signed in 1648 at the end of the Thirty Years' War in the Holy Roman Empire, is widely credited with establishing the principle of state sovereignty in Europe? --data f1=The Peace of Westphalia, concluded in the cities of Osnabrück and Münster --data f2=The Treaty of Versailles, signed in the Hall of Mirrors near Paris --data f3=The Congress of Vienna settlement, agreed after the defeat of Napoleon --data f4=The Treaty of Utrecht, which ended the War of the Spanish Succession --data f5=A --data f6=C --event select --event lock --event judge --background video --out ../shots/long-judge.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:4d2420c39c8988e567c77441b407e4fe7c6527149e0978e980f3b1d1c0863abc"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=Which treaty, signed in 1648 at the end of the Thirty Years' War in the Holy Roman Empire and negotiated across two cities in Westphalia by delegates from nearly every European power, is widely credited with establishing the modern principle of state sovereignty in Europe? --data f1=The Peace of Westphalia, negotiated in the cities of Osnabrück and Münster by envoys of most European powers --background video --out ../shots/long2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:bf0b911eef5e6130ce00cf28866a76ff82054986403a6fd19aea8d4bc713ad2e"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f0=Which treaty, signed in 1648 at the end of the Thirty Years' War in the Holy Roman Empire and negotiated across two cities in Westphalia by delegates from nearly every European power, is widely credited with establishing the modern principle of state sovereignty in Europe? --data f1=The Peace of Westphalia, negotiated in the cities of Osnabrück and Münster by envoys of most European powers --background video --out ../shots/long2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:bf0b911eef5e6130ce00cf28866a76ff82054986403a6fd19aea8d4bc713ad2e"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 1,
+      "digest": "sha256:8f7f2188fea6d8ad64d0c933a86aa97ff7986bf7ab29d4612955af7cc5317ee8"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:8f7f2188fea6d8ad64d0c933a86aa97ff7986bf7ab29d4612955af7cc5317ee8"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:d690b971e539000e2d7e8efc8958b7710a1197f600382221ff3cb1600503a7cf"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d690b971e539000e2d7e8efc8958b7710a1197f600382221ff3cb1600503a7cf"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:ff17d1f7dd757ccda17b33b3f556667691aa5bcc48a51ed46f35133c63abd458"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:ff17d1f7dd757ccda17b33b3f556667691aa5bcc48a51ed46f35133c63abd458"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:ff17d1f7dd757ccda17b33b3f556667691aa5bcc48a51ed46f35133c63abd458"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\school-quiz-secret-pick.claude-sonnet-5-5-high\\frames",
+    "frames": 68,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:ff17d1f7dd757ccda17b33b3f556667691aa5bcc48a51ed46f35133c63abd458"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "select",
+      "lock",
+      "revealChoice",
+      "judge",
+      "audience"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:ff17d1f7dd757ccda17b33b3f556667691aa5bcc48a51ed46f35133c63abd458",
+    "benchValidated": "sha256:ff17d1f7dd757ccda17b33b3f556667691aa5bcc48a51ed46f35133c63abd458",
+    "reviewed": "sha256:ff17d1f7dd757ccda17b33b3f556667691aa5bcc48a51ed46f35133c63abd458",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 29,
+    "opened": 28,
+    "unopened": [
+      "off.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

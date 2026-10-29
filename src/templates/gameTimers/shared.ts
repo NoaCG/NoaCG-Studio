@@ -281,7 +281,7 @@ ${dataSourceCss}
   };
 
   // Timeline v2: convert the marked region into the NOACG_ANIM data block + interpreter.
-  // The step-calls model (docs/TIMELINE_V2_PLAN.md §3b) carries the preset's
+  // The step-calls model (docs/STATE_MACHINE_SCHEMA.md) carries the preset's
   // startClock()/stopClock() hooks, so the countdown survives the flip; the clock runtime
   // itself lives OUTSIDE the region and is untouched. A conversion failure keeps the legacy
   // emit — never a broken template.

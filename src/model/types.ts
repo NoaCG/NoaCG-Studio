@@ -251,6 +251,17 @@ export interface SpxTemplate {
   assets: AssetFile[];
   /** Structured element descriptions — metadata for building blocks and future visual tools. */
   layers: TemplateLayer[];
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-contract/spec.md, E1.2a): the
+   *  OGraf manifest of a stranger's package this graphic was imported from, kept whole as its JSON. Its
+   *  data schema is what a cue's typed data is made for; read only through ./ografTyped.ts
+   *  `readOgrafDeclared` (shaped here only, so the api typecheck stays out of that module). Absent
+   *  on every NoaCG graphic, which stays native. */
+  ograf?: { v?: unknown; manifest?: unknown };
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-rundown/spec.md, E3.1): this
+   *  graphic IS a stranger's OGraf package, its files kept untouched in `assets` under their package
+   *  paths. Read only through ./foreignPackage.ts `readForeignPackage` (shaped here for the same
+   *  reason as `ograf`). Its `html`, `css` and `js` stay empty: no native scene is made from it. */
+  foreign?: { v?: unknown; [key: string]: unknown };
 }
 
 /** A proposed change to the template (from AI or building blocks). */

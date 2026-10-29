@@ -1,5 +1,12 @@
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutItemPicker,LibMenu}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/styles/playout-dashboard.css
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/CueActions.tsx
+// covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/cueDraft.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers}.ts
+// covers: src/control/{bridgeWatch,serverVerbs}.ts
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
@@ -68,6 +75,8 @@ for (const width of [1600, 390]) {
       await page.setViewportSize({ width, height: 900 });
       const { id, js } = await savedProduction(page, 'qz01', legacy);
       const chip = page.getByTestId('machine-state-chip');
+      // The hidden pick is data set before air, under the editor's Advanced.
+      await page.getByTestId('cue-advanced-toggle').click();
       await page.getByTestId('cue-field-f6-opt-B').click();
       await expect(page.getByTestId('cue-field-f6-opt-B')).toHaveAttribute('aria-pressed', 'true');
       await page.getByTestId('verb-take').click();

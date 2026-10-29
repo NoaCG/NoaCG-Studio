@@ -1,15 +1,18 @@
 // covers: src/store/saveActions.ts, src/model/durableStore.ts, src/model/project.ts, src/store/templateStore.ts
 // covers: src/components/save/SaveDialogs.tsx, src/components/save/SaveControls.tsx, src/components/save/StorageAlertDialog.tsx, src/app/router.ts
 // covers: src/components/wizard/shell/walkState.ts
+// covers: src/backend/storage.ts, src/backend/sync.ts
 //
 // THE SAVE TRANSACTION, AS A MATRIX (Phase 2, repair 6): a write REFUSED once, then the door pressed
 // again or the page reloaded, and the reservation and link both refused (#1383, sixth check S6);
-// then whose the reservation is, across two tabs, a duplicated tab and a new tab (#1402, repair 8).
+// then whose the reservation is, across two tabs, a duplicated tab and a new tab (#1402, repair 8),
+// and across devices: a pulled reservation, a pull over this device's own, a sync conflict (#1443, repair 9);
+// then a Save that loses a sync conflict, which moves the draft to its conflicted copy (#1466, repair 10).
 // Row map and shared helpers: e2e/_saveMatrix.ts.
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { draw, open, source } from './_layerProperty';
-import { type Door, type Write, acted, arm, body, editFor, errors, flush, install, landed, library, link, newAsks, prepare, press, refusedHere, retry, saved, settledClean, writesOf } from './_saveMatrix';
+import { type Door, type Write, acted, arm, body, editFor, errors, flush, install, landed, leave, left, library, link, newAsks, nothingAsks, prepare, press, refusedHere, retry, saved, settledClean, writesOf } from './_saveMatrix';
 
 // ── Refuse once, then retry ──────────────────────────────────────────────────────────────────
 
@@ -269,5 +272,419 @@ for (const holds of ['other work', 'its own source'] as const) {
     expect(all, 'Alpha and Beta').toHaveLength(2);
     expect(JSON.stringify(all.find(g => g.id === alpha.id)), 'Alpha byte-equal to what was saved').toBe(JSON.stringify(alpha));
     expect(body(all.find(g => g.id !== alpha.id)!.template)).toEqual(body(draft));
+  });
+}
+
+// ── Whose device the reservation is (#1443, repair 9) ──────────────────────────────────────────
+//
+// The working slot syncs to the account's other devices, reservation included, and a device learns
+// of another's record only on its next sync pass. So a reservation is honoured only on the device
+// that made it: a pulled one is never resumed or relinked, and a pull never replaces the device's
+// own. A pull is replayed through the sync engine's own local write (LocalStorageProvider.put), and
+// a sync conflict through runSync against a cloud that holds another device's record.
+
+/** This browser as a device with no draft of its own, as a device signing in fresh is. */
+const noDraft = (page: Page) => page.evaluate(async () => {
+  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  await new LocalStorageProvider().remove('project', '');
+});
+/** A sync pull of one record, written as the sync engine writes it. */
+const pull = (page: Page, kind: 'project' | 'graphic', body: { id: string; updatedAt?: string }) => page.evaluate(async ({ kind, body }) => {
+  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  await new LocalStorageProvider().put({ kind, id: body.id, updatedAt: body.updatedAt ?? new Date().toISOString(), body });
+}, { kind, body });
+/** Another device's first Save of `template` under `id`, as it arrives here by a pull. */
+const otherDevicesRecord = (page: Page, id: string, name: string, template: unknown) => page.evaluate(async ({ id, name, template }) => {
+  const { newGraphicDoc } = await import('/src/model/graphicDoc.ts');
+  const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
+  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  const t = template as { js: string };
+  const doc = newGraphicDoc({ ...t, js: prepareOutRuntime(t.js) } as never, { id, name });
+  await new LocalStorageProvider().put({ kind: 'graphic', id, updatedAt: doc.updatedAt, body: doc });
+}, { id, name, template });
+const record = async (page: Page, id: string) => JSON.stringify((await library(page)).find(g => g.id === id));
+
+test('matrix device reservation: a pulled draft names another device\'s reservation; this device saves before it learns of that record', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+  const url = page.url();
+  const elsewhere = crypto.randomUUID();
+  const slot = await slotOf(page);
+  // Device A's never-saved draft arrives, naming A's reservation, on a device with no draft.
+  await noDraft(page);
+  await pull(page, 'project', { ...slot, updatedAt: new Date().toISOString(), reservedGraphicId: elsewhere });
+  await settleDurableWrites(page); await page.reload();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  expect(await link(page)).toMatchObject({ graphicId: null });
+  // B leaves and saves the draft, before A's record reaches B's library.
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  await page.getByTestId('save-name').fill('Beta'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('home-page')).toBeVisible(); await settleDurableWrites(page);
+  const beta = (await library(page)).find(g => g.name === 'Beta')!;
+  expect(beta.id, 'this device minted the id another device reserved').not.toBe(elsewhere);
+  // A's first Save of that draft arrives.
+  await otherDevicesRecord(page, elsewhere, 'Alpha', slot.template);
+  const alpha = await record(page, elsewhere);
+  await page.goto(url); await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  expect(await link(page), 'B is its own graphic').toMatchObject({ graphicId: beta.id });
+  await draw(page, .40); await flush(page);
+  await page.getByTestId('save-graphic').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(page);
+  const all = await library(page);
+  expect(all, 'Alpha and Beta').toHaveLength(2);
+  expect(await record(page, elsewhere), 'Alpha byte-equal to what A saved').toBe(alpha);
+  expect(body(all.find(g => g.id === beta.id)!.template), 'Beta holds B\'s source').toEqual(body(await source(page)));
+});
+
+test('matrix device reservation: an older build\'s synced draft carries its reservation and mint mark, and that record holds exactly its source', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+  const elsewhere = crypto.randomUUID();
+  const slot = await slotOf(page);
+  await otherDevicesRecord(page, elsewhere, 'Alpha', slot.template);
+  const alpha = await record(page, elsewhere);
+  await noDraft(page);
+  await pull(page, 'project', { ...slot, updatedAt: new Date().toISOString(), graphicId: null, reservedGraphicId: elsewhere, mintingReserved: true });
+  await settleDurableWrites(page); await page.reload();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  expect(await link(page), 'a draft is linked to a record another device minted').toMatchObject({ graphicId: null });
+  await firstSaveNamed(page, 'Beta');
+  const all = await library(page);
+  expect(all, 'Alpha and Beta').toHaveLength(2);
+  expect(all.find(g => g.name === 'Beta')!.id).not.toBe(elsewhere);
+  expect(await record(page, elsewhere), 'Alpha byte-equal to what A saved').toBe(alpha);
+});
+
+test('matrix device reservation: this device\'s own reservation survives a pull of another device\'s draft and a reload', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+  const slot = await slotOf(page);
+  const own = slot.reservedGraphicId as string;
+  await pull(page, 'project', { ...slot, template: { ...slot.template, name: 'Elsewhere' }, updatedAt: new Date().toISOString(), reservedGraphicId: crypto.randomUUID(), mintingReserved: true });
+  await settleDurableWrites(page);
+  const pulled = await slotOf(page);
+  expect(pulled.template.name, 'the pull wrote the other device\'s draft').toBe('Elsewhere');
+  expect(pulled.reservedGraphicId, 'the pull replaced this device\'s reservation').toBe(own);
+  await page.reload(); await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  expect(await link(page)).toMatchObject({ graphicId: null });
+  await firstSaveNamed(page, 'Mine');
+  expect((await library(page))[0].id, 'the first Save minted this device\'s own reservation').toBe(own);
+});
+
+test('matrix device reservation: R and K refused, then a pull brings this draft back as an older build pushed it; reload relinks, Save writes into the record', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { before } = await prepare(page, 'first-kept');
+  await arm(page, 'R', 'refuse');
+  await arm(page, 'K', 'refuse');
+  await press(page, 'first-kept');
+  await expect.poll(() => acted(page)).toEqual(['refuse R', 'refuse K']);
+  await refusedHere(page, 'first-kept');
+  const minted = (await library(page)).find(g => !before.some(old => old.id === g.id))!;
+  const requested = await source(page);
+  await page.evaluate(() => new Promise(r => setTimeout(r, 1000)));
+  await settleDurableWrites(page);
+  const { reservedGraphicId: _, mintingReserved: __, ...withoutFields } = await slotOf(page);
+  await pull(page, 'project', { ...withoutFields, updatedAt: new Date().toISOString() });
+  await settleDurableWrites(page); await page.reload();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  expect(await link(page), 'this device\'s reservation did not survive the pull').toMatchObject({ graphicId: minted.id, dirty: true });
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click(); await expect(page.getByTestId('home-page')).toBeVisible();
+  const all = await library(page);
+  expect(all, 'a second record was minted for the same work').toHaveLength(before.length + 1);
+  expect(body(all.find(g => g.id === minted.id)!.template)).toEqual(body(requested));
+  await settledClean(page, 'first-kept', minted.id);
+});
+
+// ── A Save that loses a sync conflict (#1466, repair 10) ───────────────────────────────────────
+//
+// The engine keeps the cloud's version under the record's id and writes this device's as a
+// "(conflicted copy)". The draft moves to that copy, the record holding its saved work: clean when
+// it holds exactly that, so nothing asks at Home, New, Open or after a reload, and never linked to
+// the record that won. Every tab of the browser moves, also when the device-local list of
+// superseded records cannot be written.
+
+/** This device last synced a minute ago, so a record changed on both sides is a true conflict. */
+const syncedAMinuteAgo = (page: Page) => page.evaluate(() => localStorage.setItem('spx-gfx-sync', JSON.stringify({ lastSyncedAt: new Date(Date.now() - 60_000).toISOString(), pendingPush: [], pendingConflict: [] })));
+/** One sync pass (the engine's own runSync) against a cloud holding another device's "Alpha"
+ *  under `mine`'s id, a moment newer. Answers the conflicts and what the cloud holds after. */
+const losingPass = (page: Page, mine: { id: string }) => page.evaluate(async mine => {
+  const { runSync } = await import('/src/backend/sync.ts');
+  const { LocalStorageProvider } = await import('/src/backend/storage.ts');
+  const doc = mine as { id: string; template: { css: string } };
+  const at = new Date(Date.now() + 1000).toISOString();
+  const alpha = { ...doc, name: 'Alpha', template: { ...doc.template, name: 'Alpha', css: `${doc.template.css}\n/* another device */` }, createdAt: at, updatedAt: at };
+  type Row = { kind: string; id: string; updatedAt: string; body: unknown };
+  const rows = new Map<string, Row>([[`graphic:${doc.id}`, { kind: 'graphic', id: doc.id, updatedAt: at, body: alpha }]]);
+  const cloud = {
+    list: async (kind: string) => [...rows.values()].filter(r => r.kind === kind),
+    get: async (kind: string, id: string) => rows.get(`${kind}:${id}`) ?? null,
+    put: async (r: Row) => { rows.set(`${r.kind}:${r.id}`, r); },
+    remove: async (kind: string, id: string) => { rows.delete(`${kind}:${id}`); },
+  };
+  const result = await runSync(new LocalStorageProvider(), cloud as never);
+  await new Promise(r => setTimeout(r));
+  return { conflicts: result.conflicts, cloud: [...rows.values()] as Row[] };
+}, mine);
+/** After the pass: the cloud's version holds the id, this device's save is the conflicted copy. */
+async function afterLoss(page: Page, id: string, name: string, mine: unknown) {
+  await settleDurableWrites(page);
+  const all = await library(page);
+  expect(all.find(g => g.id === id)!.name, 'the cloud\'s record won the id').toBe('Alpha');
+  const copy = all.find(g => g.name === `${name} (conflicted copy)`)!;
+  expect(body(copy.template), 'this device\'s save lives on as the conflicted copy').toEqual(body(mine as { name?: string }));
+  return { copy, alpha: await record(page, id) };
+}
+/** A saved graphic "Gamma", edited and saved again from the topbar: the Save that will lose. */
+async function savedTwice(page: Page) {
+  await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+  await firstSaveNamed(page, 'Gamma');
+  await syncedAMinuteAgo(page);
+  await draw(page, .40); await flush(page);
+  await page.getByTestId('save-graphic').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(page);
+  return { gamma: (await library(page))[0], saved: await source(page) };
+}
+
+test('matrix device reservation: the id a first Save minted turns out to be taken (a sync conflict); the draft moves to its conflicted copy, clean, in every tab', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+  await syncedAMinuteAgo(page);
+  await firstSaveNamed(page, 'Beta');
+  const beta = (await library(page))[0];
+  const bSource = await source(page);
+  // A second tab has the same draft open, linked to Beta.
+  const other = await secondTab(page, 'tab');
+  expect(await link(other)).toMatchObject({ graphicId: beta.id });
+  // The next pass finds another device's "Alpha" under that id in the cloud.
+  expect((await losingPass(page, beta)).conflicts).toBe(1);
+  const { copy, alpha } = await afterLoss(page, beta.id, 'Beta', bSource);
+  expect(await link(page), 'the draft is not linked to the record holding its saved work').toMatchObject({ graphicId: copy.id, dirty: false });
+  expect((await slotOf(page)).graphicId, 'the slot is not linked to the conflicted copy').toBe(copy.id);
+  await expect.poll(async () => link(other), { message: 'the other tab did not move to the conflicted copy' }).toMatchObject({ graphicId: copy.id, dirty: false });
+  await other.close();
+  // An edit after that is saved into the conflicted copy; each device's work keeps a record of its own.
+  await draw(page, .40); await flush(page);
+  await page.getByTestId('save-graphic').click(); await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(page);
+  const all = await library(page);
+  expect(all, 'Alpha and the conflicted copy').toHaveLength(2);
+  expect(await record(page, beta.id), 'Alpha byte-equal to the other device\'s').toBe(alpha);
+  expect(body(all.find(g => g.id === copy.id)!.template)).toEqual(body(await source(page)));
+  await nothingAsks(page, copy.id);
+});
+
+test('matrix lost conflict: a saved graphic\'s Save loses a sync conflict; the draft moves to the conflicted copy, clean, and nothing asks at Home, New, Open or after a reload', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { gamma, saved: mine } = await savedTwice(page);
+  const url = page.url();
+  const pass = await losingPass(page, gamma);
+  expect(pass.conflicts).toBe(1);
+  const { copy, alpha } = await afterLoss(page, gamma.id, 'Gamma', mine);
+  expect(await link(page), 'the draft is not linked, clean, to the record holding its saved work').toMatchObject({ graphicId: copy.id, dirty: false });
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  // The pass shares the rewritten draft, never the one it listed, linked to the record that won.
+  expect((pass.cloud.find(r => r.kind === 'project')?.body as { graphicId?: string } | undefined)?.graphicId, 'the pass shared a draft linked to the record that won').toBe(copy.id);
+  await leave(page, 'home'); await left(page, 'home');
+  expect(await newAsks(page), 'New asked about the graphic just saved').toBe(0);
+  await page.goto(url); await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  await leave(page, 'open'); await left(page, 'open');
+  await nothingAsks(page, copy.id);
+  expect(await library(page), 'Gamma and the conflicted copy').toHaveLength(2);
+  expect(await record(page, gamma.id), 'the other device\'s Gamma byte-equal').toBe(alpha);
+});
+
+test('matrix lost conflict: an edit made between the Save and the pass stays unsaved; Home asks and Save & continue writes it into the conflicted copy', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { gamma, saved: mine } = await savedTwice(page);
+  await draw(page, .55); await flush(page); await settleDurableWrites(page);
+  expect((await losingPass(page, gamma)).conflicts).toBe(1);
+  const { copy, alpha } = await afterLoss(page, gamma.id, 'Gamma', mine);
+  expect(await link(page), 'the edit made after the Save reads saved').toMatchObject({ graphicId: copy.id, dirty: true });
+  await page.getByTestId('open-home').click();
+  await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.getByTestId('switch-save').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(await page.getByTestId('save-name').count(), 'the Save asked for a name').toBe(0);
+  await settleDurableWrites(page);
+  const all = await library(page);
+  expect(all, 'Gamma and the conflicted copy').toHaveLength(2);
+  expect(await record(page, gamma.id), 'the other device\'s Gamma byte-equal').toBe(alpha);
+  const edited = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  expect(body(all.find(g => g.id === copy.id)!.template), 'the edit is not in the conflicted copy').toEqual(body(edited));
+  await nothingAsks(page, copy.id);
+});
+
+test('matrix lost conflict: a second tab of the losing device moves to the conflicted copy when the superseded list cannot be written, and its Save writes there', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+  await syncedAMinuteAgo(page);
+  await firstSaveNamed(page, 'Beta');
+  const beta = (await library(page))[0];
+  const bSource = await source(page);
+  const other = await secondTab(page, 'tab');
+  expect(await link(other)).toMatchObject({ graphicId: beta.id });
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key: string, value: string) {
+      if (key === 'spx-gfx-superseded') throw new DOMException('Quota', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+  });
+  expect((await losingPass(page, beta)).conflicts).toBe(1);
+  const { copy, alpha } = await afterLoss(page, beta.id, 'Beta', bSource);
+  await expect.poll(async () => link(other), { message: 'the other tab stayed linked to the record that won' }).toMatchObject({ graphicId: copy.id, dirty: false });
+  await draw(other, .40); await flush(other);
+  await other.getByTestId('save-graphic').click(); await expect(other.getByTestId('save-status')).toHaveText('Saved');
+  await expect(other.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(other);
+  const all = await library(other);
+  expect(all, 'Alpha and the conflicted copy').toHaveLength(2);
+  expect(await record(other, beta.id), 'the other tab\'s Save wrote over the other device\'s record').toBe(alpha);
+  expect(body(all.find(g => g.id === copy.id)!.template)).toEqual(body(await source(other)));
+});
+
+/** A second tab whose library mirror adopts another tab's writes only when released: the durable
+ *  store's announcements (`noacg-durable-writes`) are held while `window.adoptHeld` is set. */
+async function heldAdoptionTab(page: Page) {
+  const other = await page.context().newPage();
+  await other.addInitScript(() => {
+    if (window.top !== window) return;
+    const w = window as unknown as { adoptHeld: boolean; adoptQueue: (() => void)[] };
+    w.adoptHeld = false; w.adoptQueue = [];
+    const Native = window.BroadcastChannel;
+    const desc = Object.getOwnPropertyDescriptor(Native.prototype, 'onmessage')!;
+    window.BroadcastChannel = class extends Native {
+      set onmessage(fn: ((event: MessageEvent) => void) | null) {
+        const held = fn && this.name === 'noacg-durable-writes'
+          ? (event: MessageEvent) => { if (w.adoptHeld) w.adoptQueue.push(() => fn.call(this, event)); else fn.call(this, event); }
+          : fn;
+        desc.set!.call(this, held);
+      }
+      get onmessage() { return desc.get!.call(this); }
+    };
+  });
+  await other.goto(page.url()); await expect(other.getByTestId('editor-foundation')).toBeVisible({ timeout: 30_000 });
+  return other;
+}
+
+test('matrix lost conflict: a second tab saves before its library holds the conflicted copy; the Save waits for it and writes there, asking no name', async ({ page }) => {
+  test.setTimeout(120_000);
+  await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+  await syncedAMinuteAgo(page);
+  await firstSaveNamed(page, 'Beta');
+  const beta = (await library(page))[0];
+  const bSource = await source(page);
+  const other = await heldAdoptionTab(page);
+  expect(await link(other)).toMatchObject({ graphicId: beta.id });
+  await other.evaluate(() => { (window as unknown as { adoptHeld: boolean }).adoptHeld = true; });
+  expect((await losingPass(page, beta)).conflicts).toBe(1);
+  const { copy, alpha } = await afterLoss(page, beta.id, 'Beta', bSource);
+  // The other tab has moved to the copy, which its library does not hold yet.
+  await expect.poll(async () => (await link(other)).graphicId, { message: 'the other tab did not move to the conflicted copy' }).toBe(copy.id);
+  expect((await library(other)).some(g => g.id === copy.id), 'the window is not open: the other tab already holds the copy').toBe(false);
+  await draw(other, .40); await flush(other);
+  await other.getByTestId('save-graphic').click();
+  await expect(other.getByTestId('save-status')).toHaveText('Saving…');
+  await other.evaluate(() => new Promise(r => setTimeout(r, 500)));
+  await expect(other.getByTestId('save-name'), 'the Save asked for a name').toHaveCount(0);
+  await other.evaluate(() => {
+    const w = window as unknown as { adoptHeld: boolean; adoptQueue: (() => void)[] };
+    w.adoptHeld = false; for (const adopt of w.adoptQueue.splice(0)) adopt();
+  });
+  await expect(other.getByTestId('save-status')).toHaveText('Saved');
+  await expect(other.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(other);
+  const all = await library(other);
+  expect(all, 'Alpha and the conflicted copy').toHaveLength(2);
+  expect(await record(other, beta.id), 'the other tab\'s Save wrote over the other device\'s record').toBe(alpha);
+  expect(body(all.find(g => g.id === copy.id)!.template), 'the other tab\'s Save is not in the conflicted copy').toEqual(body(await source(other)));
+  expect(await link(other)).toMatchObject({ graphicId: copy.id, dirty: false });
+});
+
+// Hold adoption through the first copy's timeout, including a second loss of the original id:
+// lostLinks moves A's link to B even though this tab can read neither copy yet.
+for (const answer of ['save-chain', 'discard-chain', 'save-timeout'] as const) {
+  test(`matrix copy wait: ${answer}`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await open(page); await draw(page, .24); await flush(page); await settleDurableWrites(page);
+    await syncedAMinuteAgo(page); await firstSaveNamed(page, 'Beta');
+    const beta = (await library(page))[0], bSource = await source(page);
+    const other = await heldAdoptionTab(page);
+    await other.evaluate(() => { (window as unknown as { adoptHeld: boolean }).adoptHeld = true; });
+    expect((await losingPass(page, beta)).conflicts).toBe(1);
+    const { copy, alpha } = await afterLoss(page, beta.id, 'Beta', bSource);
+    await expect.poll(async () => (await link(other)).graphicId).toBe(copy.id);
+    expect((await library(other)).some(g => g.id === copy.id)).toBe(false);
+    await draw(other, .40); await flush(other); await settleDurableWrites(other);
+    const edited = await source(other);
+    await other.clock.install();
+    if (answer === 'discard-chain') {
+      await other.getByTestId('open-home').click();
+      await other.getByTestId('switch-discard').click();
+    } else {
+      await other.getByTestId('save-graphic').click();
+      await expect(other.getByTestId('save-status')).toHaveText('Saving…');
+    }
+    let next = copy;
+    if (answer !== 'save-timeout') {
+      next = await page.evaluate(async beta => {
+        const { createGraphic } = await import('/src/model/library.ts');
+        const { graphicSuperseded } = await import('/src/model/project.ts');
+        const { doc } = createGraphic(beta.template, { name: 'Beta second (conflicted copy)', baseline: beta.baseline, aiSpec: beta.aiSpec, aiThread: beta.aiThread, legibility: beta.legibility });
+        graphicSuperseded(beta.id, doc);
+        await new Promise(r => setTimeout(r));
+        return doc;
+      }, beta);
+      await settleDurableWrites(page);
+      await expect.poll(async () => (await link(other)).graphicId).toBe(next.id);
+      expect((await library(other)).some(g => g.id === next.id)).toBe(false);
+    }
+    await other.clock.fastForward(10_001);
+    if (answer === 'save-timeout') {
+      await expect(other.getByTestId('save-name'), 'the same missing id must time out rather than wait forever').toBeVisible();
+      expect(await link(other)).toMatchObject({ graphicId: null, dirty: true });
+      expect(body(await source(other))).toEqual(body(edited));
+      expect(await library(page)).toHaveLength(2);
+      return;
+    }
+    if (answer === 'save-chain') {
+      await expect(other.getByTestId('save-status'), 'Save resumed before the newly linked copy B arrived').toHaveText('Saving…');
+      await expect(other.getByTestId('save-name')).toHaveCount(0);
+    } else {
+      await expect(other.getByTestId('confirm-switch')).toContainText('changed while discarding');
+      await expect(other.getByTestId('editor-foundation')).toBeVisible();
+      expect(await link(other)).toMatchObject({ graphicId: next.id, dirty: true });
+      expect(body(await source(other))).toEqual(body(edited));
+    }
+    await other.evaluate(() => {
+      const w = window as unknown as { adoptHeld: boolean; adoptQueue: (() => void)[] };
+      w.adoptHeld = false; for (const adopt of w.adoptQueue.splice(0)) adopt();
+    });
+    if (answer === 'save-chain') {
+      await expect(other.getByTestId('save-status')).toHaveText('Saved');
+      await expect(other.getByTestId('save-dialog')).toHaveCount(0);
+      await settleDurableWrites(other);
+      expect(await link(other)).toMatchObject({ graphicId: next.id, dirty: false });
+      expect(body(await source(other))).toEqual(body(edited));
+      // The writer's committed announcement must reach the other tab too; a reload then
+      // proves B's saved source, rather than only this tab's optimistic library mirror.
+      await expect.poll(async () => body((await library(page)).find(g => g.id === next.id)!.template)).toEqual(body(edited));
+      await other.reload();
+      await expect(other.getByTestId('editor-foundation')).toBeVisible();
+      expect(await link(other)).toMatchObject({ graphicId: next.id, dirty: false });
+      expect(body(await source(other))).toEqual(body(edited));
+      expect(body((await library(other)).find(g => g.id === next.id)!.template)).toEqual(body(edited));
+    } else {
+      await settleDurableWrites(other); await other.reload();
+      await expect(other.getByTestId('editor-foundation')).toBeVisible();
+      expect(await link(other)).toMatchObject({ graphicId: next.id, dirty: true });
+      expect(body(await source(other))).toEqual(body(edited));
+    }
+    expect(await record(other, beta.id), 'the other device\'s record changed').toBe(alpha);
+    expect((await library(other)).find(g => g.id === copy.id), 'the first copy changed').toEqual(copy);
+    expect(await library(other), 'the winner and two copies; no extra mint').toHaveLength(3);
   });
 }

@@ -24,37 +24,12 @@
 // long as the state it replaced.
 
 import { NO_OWNERSHIP, type ServerOwnership, type ServerParts, type ServerTiming } from './serverState.ts';
+import { storePart, type StorePart } from './storePart.ts';
 
 export type { ServerOwnership, ServerTiming };
 
-/** One independently subscribed value. `get` and `subscribe` keep their identity for the part's
- *  whole life, which `useSyncExternalStore` needs. */
-export interface StorePart<T> {
-  get: () => T;
-  /** Replace the value, or move it with an updater. Listeners hear only an actual change. */
-  set: (next: T | ((prev: T) => T)) => void;
-  subscribe: (listener: () => void) => () => void;
-}
-
-function storePart<T>(initial: T): StorePart<T> {
-  let value = initial;
-  const listeners = new Set<() => void>();
-  return {
-    get: () => value,
-    set: (next) => {
-      const moved = typeof next === 'function' ? (next as (prev: T) => T)(value) : next;
-      if (Object.is(moved, value)) return;
-      value = moved;
-      for (const listener of [...listeners]) listener();
-    },
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-  };
-}
+// The part primitive lives in ./storePart.ts, shared with the playout session; re-exported here.
+export type { StorePart };
 
 export interface ServerPlayoutStore {
   ownership: StorePart<ServerOwnership>;

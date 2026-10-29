@@ -1,6 +1,15 @@
 // A fake relay and a hand-driven clock: the module's tests never reach a backend.
 import type { Clock } from '../panel.js'
-import type { Answer, HelloAnswer, PairAnswer, PanelRows, PanelState, Press, PressAnswer } from '../protocol.js'
+import type {
+	ActionPress,
+	Answer,
+	HelloAnswer,
+	PairAnswer,
+	PanelRows,
+	PanelState,
+	Press,
+	PressAnswer,
+} from '../protocol.js'
 import type { ListenStatus, Relay } from '../relay.js'
 
 export class FakeClock implements Clock {
@@ -78,7 +87,7 @@ export class FakeRelay implements Relay {
 		this.calls.push({ name: 'hello', args: [key] })
 		return this.helloAnswer
 	}
-	async press(key: string, press: Press): Promise<Answer<PressAnswer>> {
+	async press(key: string, press: Press | ActionPress): Promise<Answer<PressAnswer>> {
 		this.calls.push({ name: 'press', args: [key, press] })
 		const next = this.pressAnswers.shift() ?? { ok: true, claim: 1 }
 		if (next instanceof Error) throw next
@@ -145,4 +154,99 @@ export function rows(): PanelRows {
 			{ id: 'cue_vt', label: 'Opening VT', kind: 'cue', source: 'server' },
 		],
 	}
+}
+
+const optionArgs = (values: string[]) => ({
+	path: '',
+	type: 'object',
+	closed: true,
+	properties: [{ key: 'option', required: true, node: { path: 'option', type: 'string', enum: values } }],
+})
+const STEP = {
+	path: '',
+	type: 'object',
+	closed: true,
+	properties: [{ key: 'delta', required: true, node: { path: 'delta', type: 'integer', enum: [-1, 1] } }],
+}
+
+/**
+ * An `actions` event of three pool graphics, as the production page offers them (E6.1, E6.2): a
+ * pinned sports scorebug (a goal, a clock and the ± score), a pinned quiz (a reveal and a pick) and
+ * an unpinned stranger's OGraf package (two foreign actions, one with typed arguments).
+ */
+export function offer(over: Record<string, unknown> = {}): Record<string, unknown> & { graphics: OfferGraphic[] } {
+	const cap = (id: string, label: string, more: Record<string, unknown> = {}) => ({
+		id,
+		kind: id.slice(0, id.indexOf(':')),
+		label,
+		place: 'section',
+		args: null,
+		allowed: true,
+		invocable: true,
+		...more,
+	})
+	return {
+		av: 2,
+		actionsVer: 3_000_010,
+		page: 'page0000page0000',
+		claim: 3,
+		relay: true,
+		more: false,
+		graphics: [
+			{
+				graphic: 'Scorebug',
+				pinned: true,
+				live: 'cue_sb',
+				cue: 'Final',
+				caps: [
+					cap('event:goal-home', '+1 HOME', { place: 'pinned' }),
+					cap('event:clock-start', 'Start clock', { section: 'Clock' }),
+					cap('event:clock-pause', 'Pause clock', { section: 'Clock' }),
+					cap('step:home', 'Home', { args: STEP }),
+				],
+			},
+			{
+				graphic: 'Quiz',
+				pinned: true,
+				live: 'cue_q1',
+				cue: 'Question 1',
+				caps: [
+					cap('event:reveal', 'Reveal'),
+					cap('event:choose', 'Answer', {
+						args: optionArgs(['A', 'B']),
+						options: [
+							{ value: 'A', label: 'Answer A' },
+							{ value: 'B', label: 'Answer B' },
+						],
+						active: 'B',
+					}),
+				],
+			},
+			{
+				graphic: 'Results',
+				pinned: false,
+				live: 'cue_r1',
+				cue: 'Results 1',
+				caps: [
+					cap('foreign:highlight', 'Highlight a team', {
+						args: {
+							path: '',
+							type: 'object',
+							properties: [{ key: 'team', required: true, node: { path: 'team', type: 'integer' } }],
+						},
+					}),
+					cap('foreign:reset', 'Reset', { place: 'pinned' }),
+				],
+			},
+		],
+		...over,
+	}
+}
+
+export type OfferGraphic = {
+	graphic: string
+	pinned: boolean
+	live: string | null
+	cue: string
+	caps: Record<string, unknown>[]
 }

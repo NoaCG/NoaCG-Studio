@@ -10,8 +10,8 @@ import { panelTone, panelToneWords, type PanelAnswerState } from '../control/Pan
  * menu, not a tab, so the monitors never leave the screen to reach it.
  *
  * It holds the doors an operator opens before a show and not during one: Share, the Stream Deck
- * panel, Playout settings, Export, and the two views a production may not use yet (Data and
- * Audience, offered here only while the header's switcher does not show them). What is pressed
+ * panel, Playout settings, Export, and the two views, Data and Messages, listed here always so
+ * their door never moves (the switcher lists them only once the production uses them). What is pressed
  * live stays in the header: ■ All out and the playout status. What must be SEEN live without
  * opening anything (a panel answering, a team production's save state) is a small status beside
  * this button, drawn by the page.
@@ -26,10 +26,9 @@ export function ProductionSetupMenu({
   panel,
   onPanel,
   onLinks,
+  onLook,
   onPlayoutSettings,
   onExport,
-  offerData,
-  offerAudience,
 }: {
   showId: string;
   /** The team door for a personal production, signed in; absent offline and on a team's. */
@@ -40,11 +39,10 @@ export function ProductionSetupMenu({
   /** The control page, presenter and audience links (home/ProductionLinks.tsx). Absent in a build
    *  that cannot publish, where there are no links to show. */
   onLinks?: () => void;
+  /** The production look (home/ProductionLook.tsx), a panel beside the rundown. */
+  onLook?: () => void;
   onPlayoutSettings: () => void;
   onExport: () => void;
-  /** The Data view is not in the switcher, so the menu is its way in. */
-  offerData: boolean;
-  offerAudience: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -110,6 +108,11 @@ export function ProductionSetupMenu({
           Stream Deck panel…
           <span className="pd-setup-note">{words}</span>
         </button>
+        {onLook && (
+          <button role="menuitem" onClick={pick(onLook)} data-testid="setup-look">
+            <IconSliders /> Look…
+          </button>
+        )}
         <button
           role="menuitem"
           onClick={pick(onPlayoutSettings)}
@@ -125,11 +128,9 @@ export function ProductionSetupMenu({
         >
           <IconDownload /> Export…
         </button>
-        {(offerData || offerAudience) && <div className="pd-setup-sep" role="separator" />}
-        {offerData &&
-          view('data', 'Add data source…', 'setup-data', 'Tables and live values your graphics can read')}
-        {offerAudience &&
-          view('audience', 'Turn on audience…', 'setup-audience', 'Questions, votes and the join page')}
+        <div className="pd-setup-sep" role="separator" />
+        {view('data', 'Data…', 'setup-data', 'Tables and live values your graphics can read')}
+        {view('audience', 'Messages…', 'setup-audience', 'Pasted and audience messages, votes and the join page')}
       </LibMenu>
     </span>
   );

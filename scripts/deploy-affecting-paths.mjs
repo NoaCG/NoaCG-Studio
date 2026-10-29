@@ -142,8 +142,19 @@ export function lastAffectingCommit(ref, cwd = process.cwd(), limit = 400) {
   return null;
 }
 
+/** A production maturity window applies to landed main history, not branch-side commits. */
+export function maturedMainCommit(ref = 'origin/main', cwd = process.cwd(), before = '90 minutes ago') {
+  return execFileSync('git', ['rev-list', '--first-parent', '-1', `--before=${before}`, ref], {
+    cwd, encoding: 'utf8', windowsHide: true,
+  }).trim() || null;
+}
+
 function main(argv) {
   const [mode, ...rest] = argv;
+  if (mode === '--matured-main') {
+    console.log(maturedMainCommit(rest[0] ?? 'origin/main', process.cwd(), rest[1] ?? '90 minutes ago') ?? '');
+    return 0;
+  }
   if (mode === '--last-affecting') {
     const sha = lastAffectingCommit(rest[0] ?? 'HEAD');
     if (!sha) return 1;
@@ -167,7 +178,7 @@ function main(argv) {
     );
     return affecting.length > 0 ? 0 : 1;
   }
-  console.error('usage: deploy-affecting-paths.mjs --range <from> [<to>] | --last-affecting <ref>');
+  console.error('usage: deploy-affecting-paths.mjs --range <from> [<to>] | --last-affecting <ref> | --matured-main [ref] [before]');
   return 2;
 }
 

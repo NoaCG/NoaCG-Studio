@@ -80,6 +80,49 @@ export function unansweredStatus(status: number, code?: string): boolean {
   return status === 0 || status >= 502 || code === '57014';
 }
 
+/** Who asks a protocol-2 resolve: a page that SENDS (an operator's), or one that only follows (a
+ *  renderer's), which gives up on the new road after `timeoutsBeforeAbsent` statement timeouts. */
+export type SeqRoadAsker = { sends: true } | { sends: false; timeoutsBeforeAbsent: number };
+
+/** Refusals in a row (`isRefusal`) before a page that sends gives up on the new road: several of
+ *  the resolve's backoffs, so a blip passes and a lasting fault still leaves the page working. */
+export const REFUSALS_BEFORE_ABSENT = 5;
+
+/** An answered error that counts toward giving up on the new road: not one nobody answered, and not
+ *  a sign-in that lapsed (401: the client refreshes it), which says nothing about the server. */
+export function isRefusal(status: number, code?: string): boolean {
+  return !unansweredStatus(status, code) && status !== 401;
+}
+
+/**
+ * WHAT ONE FAILED PROTOCOL-2 RESOLVE DECIDES (hostedControl.ts `askSeqRoad`): `absent` puts the
+ * page on today's road, by row id, for the rest of its life; `ask-again` decides nothing.
+ *
+ * Today's road has no per-graphic order: a press abandoned on its way that commits late airs over
+ * a later Take, so a page there shows it (`UnorderedSends`) and sends nothing on its own, and no
+ * press goes that way before this verdict (hostedControl.ts `roadDecided`). A page
+ * that sends goes there at once only on PostgREST's "no such function", and otherwise only after
+ * REFUSALS_BEFORE_ABSENT refusals in a row; one transient 500 used to cost it its order for good,
+ * without a word (#1697). Never once the road has answered: a page that sends does not change
+ * protocol mid-session. A page that only follows loses no order on today's road, so any answer
+ * decides there, as do its timeouts (its rule from before #1697, unchanged).
+ */
+export function seqRoadVerdict(
+  status: number,
+  code: string | undefined,
+  inRow: { timeouts: number; refusals: number },
+  asker: SeqRoadAsker,
+  answeredBefore: boolean,
+): 'absent' | 'ask-again' {
+  if (asker.sends) {
+    if (answeredBefore) return 'ask-again';
+    if (code === 'PGRST202') return 'absent';
+    return isRefusal(status, code) && inRow.refusals >= REFUSALS_BEFORE_ABSENT ? 'absent' : 'ask-again';
+  }
+  if (code === '57014') return inRow.timeouts >= asker.timeoutsBeforeAbsent ? 'absent' : 'ask-again';
+  return unansweredStatus(status, code) ? 'ask-again' : 'absent';
+}
+
 /**
  * The Error a control RPC's failure is thrown as. A server that did not answer says so in its own
  * words - a gateway's HTML page, PostgREST's schema-cache notice - none of which an operator can
@@ -177,6 +220,8 @@ interface SendDebts {
    *  send's own, its graphic is settled: the notice line's next state as `landed` returns it, or
    *  null when nothing changed. */
   heard(items: readonly { graphic: string; msg?: unknown }[]): ((shown: string | null) => string | null) | null;
+  /** How many graphics are still owed: a failed send of theirs that nothing has settled yet. */
+  owed(): number;
 }
 
 /** commandRoads.ts `oidOf`, restated because this file imports nothing. */
@@ -223,5 +268,6 @@ export function createSendDebts(): SendDebts {
       }
       return any ? settle() : null;
     },
+    owed: () => owed.size,
   };
 }

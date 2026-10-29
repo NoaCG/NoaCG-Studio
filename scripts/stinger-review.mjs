@@ -22,7 +22,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CORPUS = path.join(ROOT, 'src/ai/video/corpus/stingers');
@@ -75,25 +75,10 @@ const MARKS = [
   },
 ];
 
-/** The bundled video faces, read out of the ONE source that declares them. */
-function videoFontFaceCss() {
-  const src = fs.readFileSync(path.join(ROOT, 'src/video/videoFonts.ts'), 'utf8');
-  const re = /family:\s*'([^']+)',[\s\S]*?file:\s*'([^']+)',[\s\S]*?weights:\s*\[(\d+),\s*(\d+)\]/g;
-  const rules = [];
-  for (const m of src.matchAll(re)) {
-    const [, family, file, lo, hi] = m;
-    const bytes = fs.readFileSync(path.join(ROOT, 'public/fonts', file));
-    rules.push(
-      `@font-face {\n` +
-        `  font-family: "${family}";\n` +
-        `  src: url("data:font/woff2;base64,${bytes.toString('base64')}") format("woff2");\n` +
-        `  font-weight: ${lo} ${hi};\n` +
-        `  font-display: block;\n` +
-        `}`,
-    );
-  }
-  if (rules.length === 0) throw new Error('no video fonts parsed out of src/video/videoFonts.ts');
-  return rules.join('\n');
+/** The bundled video faces, from the ONE source that declares them (both files of each face). */
+async function videoFontFaceCss() {
+  const { videoFontFaceCss: faces } = await import(pathToFileURL(path.join(ROOT, 'src/video/videoFonts.ts')).href);
+  return faces((file) => `data:font/woff2;base64,${fs.readFileSync(path.join(ROOT, 'public/fonts', file)).toString('base64')}`);
 }
 
 const markPayload = () =>
@@ -476,14 +461,14 @@ cut-window coverage are machine gates and are not measured here.</p>
 `;
 }
 
-function main() {
+async function main() {
   const files = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.html')).sort();
   if (files.length === 0) throw new Error(`no compositions in ${CORPUS}`);
 
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
   const assets = {
-    fontCss: videoFontFaceCss(),
+    fontCss: await videoFontFaceCss(),
     gsap: fs.readFileSync(path.join(ROOT, 'src/assets/gsap.min.js'), 'utf8'),
   };
   const marks = markPayload();
@@ -504,4 +489,4 @@ function main() {
   console.log(`open ${path.join(OUT, 'index.html')}`);
 }
 
-main();
+await main();

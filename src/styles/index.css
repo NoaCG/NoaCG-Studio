@@ -6,8 +6,7 @@
    was rewritten, renamed or reordered.
 
    THE ORDER IS THE CASCADE. Later rules override earlier ones by position alone, and some
-   pairs here rely on it (.topbar in app-shell.css vs machine-graph.css, .lib-list in
-   selection.css vs video-editor.css, .pd-stagehead in home.css vs playout-dashboard.css).
+   pairs here rely on it (.pd-stagehead in home.css vs playout-dashboard.css).
    Adding a part means appending it in the place its rules already sat - never re-sorting the
    list to taste, and never alphabetically.
 
@@ -29,26 +28,20 @@
 @import './field-controls.css';     /* the shared field control (Data, Rehearse, video Content) */
 @import './control-page.css';       /* the hosted control page (?control=<slug>) */
 @import './wizard-describe.css';    /* category grouping, the video engine picker, Describe-it, borrower sheets */
-@import './panels.css';             /* the panel dock, and the editor change highlight */
+@import './panels.css';             /* shared field, style and viewing controls */
 @import './wizard-and-dialogs.css'; /* the SHARED DIALOG ANATOMY (every dialog in the app), Settings, and the whole creation wizard */
 @import './template-gallery.css';   /* the template gallery */
 @import './assets.css';             /* brand assets and the assets panel */
-@import './learn.css';              /* Learn / teaching */
+@import './learn.css';              /* wizard footer controls */
 @import './auth.css';               /* on-demand sign-in */
-@import './canvas.css';             /* canvas direct manipulation */
-@import './timeline-legacy.css';    /* the legacy timeline (read-only) */
-@import './timeline.css';           /* Timeline v2 - the step timeline */
-@import './machine-graph.css';      /* the machine graph (the node editor) */
-@import './inspector.css';          /* the Inspector */
+@import './inspector.css';          /* sync, account notice and send-in */
 @import './mobile.css';             /* the <=768px single-column layout */
-@import './selection.css';          /* canvas selection and the shared canvas/timeline selection */
 @import './video-editor.css';       /* the video editor shell */
 @import './save-controls.css';      /* the topbar save controls */
 @import './home.css';               /* home (the routed dashboard) + the per-graphic control panel page */
 @import './playout-dashboard.css';  /* the playout dashboard (#/production/<id>) */
 @import './wizard-entry.css';       /* wizard entry: Continue working + the video strip */
 @import './import-graphic.css';     /* Import Graphic: the placement canvas + the font picker */
-@import './timeline-switch.css';    /* the Timeline/States switch, kind badges, graph add-menu */
 @import './create-with-ai.css';     /* Create with AI: the "More control" setup */
 @import './feedback.css';           /* beta notes + generation ratings */
 @import './agent-access.css';       /* the agent consent page + the Settings key list */

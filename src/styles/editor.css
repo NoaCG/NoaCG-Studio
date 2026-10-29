@@ -2,9 +2,7 @@
 .editor-host { flex: 1; min-height: 0; }
 
 /* ---------- Preview ---------- */
-/* The preview sits ABOVE the tool panels: its height comes from the template's aspect
-   ratio (inline style set by PreviewFrame), clamped so portrait templates don't swallow
-   the column. The panels below take the remaining height. */
+/* The video preview sits above its panels; the stage height is constrained by its shell. */
 .preview-wrap { flex: 0 0 auto; display: flex; flex-direction: column; min-height: 0; }
 .preview-stage {
   width: 100%;
@@ -27,16 +25,7 @@
   background-position: 0 0, 0 12px, 12px -12px, -12px 0;
 }
 .preview-stage.black { background: #000; }
-.preview-stage.video {
-  background: linear-gradient(120deg, #1a2a3a, #3a1a2a, #1a3a2a);
-  background-size: 300% 300%;
-  animation: videoPan 12s ease infinite;
-}
-@keyframes videoPan {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+
 .preview-frame {
   position: absolute;
   top: 50%;
@@ -51,26 +40,6 @@
 /* The zoom/pan viewport: fills the stage and is translated by `pan`; its absolutely
    positioned children (iframe + overlays) centre within it, then scale by fit × zoom. */
 .canvas-world { position: absolute; inset: 0; }
-
-/* A template runtime error, worn on the stage itself. Non-interactive on purpose: it names
-   the failure without taking any gesture from the canvas under it. */
-.preview-runtime-error {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 6;
-  max-width: min(560px, calc(100% - 16px));
-  padding: 4px 10px;
-  font-size: 12px;
-  color: var(--danger);
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  pointer-events: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* Preview toolbar (guides + background switches), top-right of the stage. */
 .preview-toolbar {
@@ -93,59 +62,8 @@
   display: flex;
   gap: 4px;
 }
-.preview-project-format {
-  align-self: center;
-  padding: 3px 7px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: rgba(10, 12, 16, 0.76);
-  color: var(--text-dim);
-  font: 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.preview-project-format[data-format-unsupported='true'] {
-  border-color: rgba(246, 166, 35, 0.55);
-  color: var(--amber);
-}
-/* The area-type button's glyph: a T in a dashed box — the tool draws a bounded text area. */
-.tool-area-glyph {
-  display: inline-block;
-  border: 1px dashed currentColor;
-  border-radius: 2px;
-  padding: 0 3px;
-  font-size: 10px;
-  line-height: 1.3;
-}
+
 .preview-toolbar button {
   font-size: 11px;
   padding: 3px 9px;
 }
-.preview-toolbar .zoom-switch .zoom-level {
-  min-width: 44px;
-  font-variant-numeric: tabular-nums;
-}
-
-.simulator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--bg-2);
-  border-top: 1px solid var(--border);
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-}
-.simulator .bg-switch { margin-left: auto; display: flex; gap: 4px; }
-/* The state-machine event strip (explicit-machine templates only): authored operator events
-   as buttons + the current-state chip, sitting after the four playout cues. */
-.simulator-events { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.simulator-state {
-  font-size: 11px;
-  color: var(--text-dim);
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 3px 8px;
-}
-

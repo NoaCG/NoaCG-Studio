@@ -1,0 +1,1121 @@
+{
+  "verdict": "measured",
+  "screen": {
+    "briefs": 4,
+    "ran": 4,
+    "delivered": 4,
+    "usable": 3,
+    "notionalUsd": 4.04,
+    "usdPerUsable": 1.35,
+    "medianWallSeconds": 201,
+    "lookAll": 4,
+    "framesReviewed": 144,
+    "framesOpened": 144,
+    "rubberStamps": [
+      "live-vote"
+    ],
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 4,
+      "judged": 4
+    },
+    "notUsable": 1,
+    "endsAt": null,
+    "done": true
+  },
+  "all": {
+    "briefs": 15,
+    "ran": 15,
+    "delivered": 15,
+    "usable": 8,
+    "notionalUsd": 20.93,
+    "usdPerUsable": 2.62,
+    "medianWallSeconds": 261,
+    "lookAll": 11,
+    "framesReviewed": 683,
+    "framesOpened": 564,
+    "rubberStamps": [
+      "live-vote",
+      "market-reporter-lower-third",
+      "pub-darts-duel",
+      "brass-band-sponsor-strip",
+      "youth-summit-event-bug",
+      "futsal-cup-winner-card",
+      "cross-country-race-clock"
+    ],
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 14,
+      "judged": 15
+    }
+  },
+  "lines": [
+    {
+      "rule": "at least 7 of 15 delivered and usable",
+      "holds": true,
+      "figure": "8 of 15"
+    },
+    {
+      "rule": "at most $1.35 notional per usable graphic",
+      "holds": false,
+      "figure": "$2.62"
+    },
+    {
+      "rule": "median wall at most 10 minutes",
+      "holds": true,
+      "figure": "261 s"
+    },
+    {
+      "rule": "every reviewed frame opened in at least 7 sessions",
+      "holds": true,
+      "figure": "11 of 15"
+    }
+  ],
+  "rows": [
+    {
+      "brief": "news-lower-third",
+      "ran": true,
+      "id": "news-lower-third.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 0.7152371999999999,
+      "wallSeconds": 143,
+      "overBudget": false,
+      "look": {
+        "reviewed": 23,
+        "opened": 23,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:26:45.346Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:26:48.575Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:27:21.077Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "school-scoreboard",
+      "ran": true,
+      "id": "school-scoreboard.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.2570244000000002,
+      "wallSeconds": 214,
+      "overBudget": false,
+      "look": {
+        "reviewed": 57,
+        "opened": 57,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:28:10.642Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:28:52.510Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:29:06.785Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "lecture-countdown",
+      "ran": true,
+      "id": "lecture-countdown.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.0675844,
+      "wallSeconds": 188,
+      "overBudget": false,
+      "look": {
+        "reviewed": 41,
+        "opened": 41,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:23:21.612Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:24:09.675Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:24:15.090Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "live-vote",
+      "ran": true,
+      "id": "live-vote.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "high",
+      "defects": [
+        {
+          "kind": "text-over-text",
+          "frame": "G-14.jpg",
+          "where": "Left column of the options: the fourth wrapped line of the leading long label, \"full\", is drawn on top of \"A second long option that competes\" in the row below"
+        },
+        {
+          "kind": "text-over-text",
+          "frame": "G-18.jpg",
+          "where": "Same collision once the Update has settled: \"full\" overprints \"A second\" at about x=145–390, y=870–885"
+        },
+        {
+          "kind": "text-over-text",
+          "frame": "G-16.jpg",
+          "where": "The leading label's overflow line still overprints the second option's label while the Update animates (also in G-15 and G-17)"
+        }
+      ],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 0.9989607999999999,
+      "wallSeconds": 225,
+      "overBudget": false,
+      "look": {
+        "reviewed": 23,
+        "opened": 23,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:24:47.063Z",
+          "airable": false,
+          "mistakes": [
+            "text-over-text",
+            "text-over-text",
+            "text-over-text"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:24:55.921Z",
+          "airable": false,
+          "mistakes": [
+            "text-over-text",
+            "text-over-text"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:25:19.452Z",
+          "airable": false,
+          "mistakes": [
+            "text-over-text",
+            "text-over-text",
+            "text-over-text"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "debate-clock",
+      "ran": true,
+      "id": "debate-clock.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.5450496999999999,
+      "wallSeconds": 346,
+      "overBudget": false,
+      "look": {
+        "reviewed": 51,
+        "opened": 17,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "long-side-1-video.jpg",
+          "long-side-1-light.jpg",
+          "long-side-2-video.jpg",
+          "long-side-2-light.jpg",
+          "take-00020ms.jpg",
+          "take-00120ms.jpg",
+          "take-00300ms.jpg",
+          "take-00600ms.jpg",
+          "take-01500ms.jpg",
+          "take-10000ms.jpg",
+          "event-switch-00020ms.jpg",
+          "event-switch-00120ms.jpg",
+          "event-switch-00300ms.jpg",
+          "event-switch-00600ms.jpg",
+          "event-switch-01500ms.jpg",
+          "event-switch-10000ms.jpg",
+          "event-penalty-00020ms.jpg",
+          "event-penalty-00120ms.jpg",
+          "event-penalty-00600ms.jpg",
+          "event-penalty-01500ms.jpg",
+          "event-penalty-10000ms.jpg",
+          "event-reset-00020ms.jpg",
+          "event-reset-00120ms.jpg",
+          "event-reset-00300ms.jpg",
+          "event-reset-00600ms.jpg",
+          "event-reset-01500ms.jpg",
+          "event-reset-10000ms.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:21:59.552Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:22:29.922Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:23:10.048Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "market-reporter-lower-third",
+      "ran": true,
+      "id": "market-reporter-lower-third.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 0.6199283000000001,
+      "wallSeconds": 117,
+      "overBudget": false,
+      "look": {
+        "reviewed": 23,
+        "opened": 23,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:25:34.282Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:26:01.427Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:26:12.146Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "basketball-club-scorebug",
+      "ran": true,
+      "id": "basketball-club-scorebug.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [
+        "event-clockstop: clockStop did not move the machine (still main=enter, clock=armed, play=inPlay, result=live, score=idle). If it should have, the machine does not answer clockStop from there. It did not move it after any other event either.",
+        "event-clockreset: clockReset did not move the machine (still main=enter, clock=armed, play=inPlay, result=live, score=idle). If it should have, the machine does not answer clockReset from there. It did not move it after any other event either.",
+        "event-resumeplay: resumePlay did not move the machine (still main=enter, clock=armed, play=inPlay, result=live, score=idle). If it should have, the machine does not answer resumePlay from there. It did not move it after any other event either."
+      ],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 3.9077526000000002,
+      "wallSeconds": 951,
+      "overBudget": false,
+      "look": {
+        "reviewed": 111,
+        "opened": 111,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:39:44.228Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:40:39.806Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:40:58.415Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "pub-darts-duel",
+      "ran": true,
+      "id": "pub-darts-duel.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-35.jpg",
+          "where": "Player 1 score cell, top right: undo at 0 leaves an impossible \"-1\" legs score on air"
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-41.jpg",
+          "where": "Player 2 score cell, bottom right: undo at 0 leaves \"-1\" legs on air"
+        }
+      ],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.6559833,
+      "wallSeconds": 300,
+      "overBudget": false,
+      "look": {
+        "reviewed": 63,
+        "opened": 63,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:34:35.027Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:34:42.900Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:35:46.043Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "brass-band-sponsor-strip",
+      "ran": true,
+      "id": "brass-band-sponsor-strip.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.2917820000000002,
+      "wallSeconds": 343,
+      "overBudget": false,
+      "look": {
+        "reviewed": 23,
+        "opened": 23,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:47:26.623Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:47:40.362Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:48:05.741Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "youth-summit-event-bug",
+      "ran": true,
+      "id": "youth-summit-event-bug.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "high",
+      "defects": [
+        {
+          "kind": "clipped-or-escaping-text",
+          "frame": "G-4.jpg",
+          "where": "The day/room line's long value ('DARK: A DARK GREEN LEAF EMBLEM ON A TRANSPARENT BACKGROUND') runs out of the right edge of the panel at about x=856 and carries on across the open picture to about x=1700."
+        },
+        {
+          "kind": "clipped-or-escaping-text",
+          "frame": "G-5.jpg",
+          "where": "The same long room text runs out of the panel over the light ground. Past the panel edge it is white on pale sky."
+        },
+        {
+          "kind": "unreadable-contrast",
+          "frame": "G-5.jpg",
+          "where": "The part of the spilled line outside the panel ('GREEN LEAF EMBLEM ON A TRANSPARENT BACKGROUND', top centre-right) is white text on a near-white sky and can hardly be read."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-4.jpg",
+          "where": "The panel grows from a small top-left ident into a box about 760x990 px that is almost empty, running from the top to near the bottom of the frame. The logo floats alone halfway down the left edge, and a stray green vertical rule stands on its own near x=1714."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-5.jpg",
+          "where": "The same huge, mostly empty panel, the logo stranded halfway down, and the detached green vertical line at the right of the frame, this time on the light ground."
+        }
+      ],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 0.9299529999999999,
+      "wallSeconds": 226,
+      "overBudget": false,
+      "look": {
+        "reviewed": 23,
+        "opened": 23,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:35:14.382Z",
+          "airable": false,
+          "mistakes": [
+            "clipped-or-escaping-text",
+            "clipped-or-escaping-text",
+            "unreadable-contrast",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:35:49.960Z",
+          "airable": false,
+          "mistakes": [
+            "clipped-or-escaping-text",
+            "clipped-or-escaping-text",
+            "unreadable-contrast",
+            "empty-or-broken",
+            "empty-or-broken",
+            "clipped-or-escaping-text"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:36:19.406Z",
+          "airable": false,
+          "mistakes": [
+            "clipped-or-escaping-text",
+            "clipped-or-escaping-text",
+            "unreadable-contrast",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "choir-final-audience-vote",
+      "ran": true,
+      "id": "choir-final-audience-vote.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.8597740999999999,
+      "wallSeconds": 419,
+      "overBudget": false,
+      "look": {
+        "reviewed": 52,
+        "opened": 15,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "take-01500ms.jpg",
+          "take-10000ms.jpg",
+          "event-close-00020ms.jpg",
+          "event-close-00120ms.jpg",
+          "event-close-00600ms.jpg",
+          "event-close-01500ms.jpg",
+          "event-close-10000ms.jpg",
+          "event-result-00020ms.jpg",
+          "event-result-00300ms.jpg",
+          "event-result-01500ms.jpg",
+          "event-result-10000ms.jpg",
+          "event-call-00120ms.jpg",
+          "event-call-00300ms.jpg",
+          "event-call-00600ms.jpg",
+          "event-call-01500ms.jpg",
+          "event-call-10000ms.jpg",
+          "next-2-00020ms.jpg",
+          "next-2-00120ms.jpg",
+          "next-2-00300ms.jpg",
+          "next-2-00600ms.jpg",
+          "next-2-01500ms.jpg",
+          "update-00020ms.jpg",
+          "update-00120ms.jpg",
+          "update-00300ms.jpg",
+          "update-00600ms.jpg",
+          "update-01500ms.jpg",
+          "out-00020ms.jpg",
+          "out-00120ms.jpg",
+          "out-00600ms.jpg",
+          "out-01500ms.jpg"
+        ],
+        "all": false,
+        "fixed": 6
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:53:18.305Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:53:29.220Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:54:30.259Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "2/3"
+    },
+    {
+      "brief": "campus-news-ticker",
+      "ran": true,
+      "id": "campus-news-ticker.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.5960877,
+      "wallSeconds": 489,
+      "overBudget": false,
+      "look": {
+        "reviewed": 47,
+        "opened": 47,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:43:55.973Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:44:21.404Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:44:50.181Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "christmas-mass-holding",
+      "ran": true,
+      "id": "christmas-mass-holding.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.0806326,
+      "wallSeconds": 261,
+      "overBudget": false,
+      "look": {
+        "reviewed": 41,
+        "opened": 36,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:59:26.228Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T04:59:49.773Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:00:53.615Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "futsal-cup-winner-card",
+      "ran": true,
+      "id": "futsal-cup-winner-card.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "high",
+      "defects": [
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-2.jpg",
+          "where": "Settled card with the brief's own values shows only the 'FINAL' kicker and a generic 'CHAMPIONS' headline. There is no champion name, no crest, no competition name and no runner-up."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-18.jpg",
+          "where": "After Reveal result, the score area in the centre shows a placeholder '0 — 0' rather than the final's score. No champion or runner-up names appear."
+        },
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-4.jpg",
+          "where": "Even with long values, the runner-up never appears anywhere on the card. No frame in the whole set shows the runner-up."
+        }
+      ],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [
+        "event-settle: settle did not move the machine (still main=enter). If it should have, the machine does not answer settle from there. It did not move it after any other event either."
+      ],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.0790635000000002,
+      "wallSeconds": 317,
+      "overBudget": false,
+      "look": {
+        "reviewed": 52,
+        "opened": 9,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "take-00020ms.jpg",
+          "take-00120ms.jpg",
+          "take-00300ms.jpg",
+          "take-00600ms.jpg",
+          "take-01500ms.jpg",
+          "take-10000ms.jpg",
+          "event-result-00020ms.jpg",
+          "event-result-00120ms.jpg",
+          "event-result-00300ms.jpg",
+          "event-result-00600ms.jpg",
+          "event-result-01500ms.jpg",
+          "event-result-10000ms.jpg",
+          "event-celebrate-00020ms.jpg",
+          "event-celebrate-00120ms.jpg",
+          "event-celebrate-00300ms.jpg",
+          "event-celebrate-00600ms.jpg",
+          "event-celebrate-01500ms.jpg",
+          "event-celebrate-10000ms.jpg",
+          "event-settle-00020ms.jpg",
+          "event-settle-00120ms.jpg",
+          "event-settle-00300ms.jpg",
+          "event-settle-00600ms.jpg",
+          "event-settle-10000ms.jpg",
+          "next-2-00120ms.jpg",
+          "next-2-00600ms.jpg",
+          "update-00020ms.jpg",
+          "update-00120ms.jpg",
+          "update-00600ms.jpg",
+          "out-00020ms.jpg",
+          "out-00300ms.jpg",
+          "out-00600ms.jpg",
+          "event-celebrate-after-result-00020ms.jpg",
+          "event-celebrate-after-result-00120ms.jpg",
+          "event-celebrate-after-result-00600ms.jpg",
+          "event-celebrate-after-result-01500ms.jpg",
+          "event-celebrate-after-result-10000ms.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T04:49:10.996Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:49:14.225Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T04:49:51.545Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "cross-country-race-clock",
+      "ran": true,
+      "id": "cross-country-race-clock.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [
+        {
+          "kind": "empty-or-broken",
+          "frame": "G-2.jpg",
+          "where": "Top-right clock plate at sample values: only the 0:00 digits show and the race name never appears. The same happens in every sample-value frame (G-3, G-8 to G-31, G-37 to G-53), which look identical to the empty-value frames G-6 and G-7."
+        }
+      ],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.3229637,
+      "wallSeconds": 228,
+      "overBudget": false,
+      "look": {
+        "reviewed": 53,
+        "opened": 53,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T05:03:55.545Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T05:04:23.670Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken"
+          ],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T05:04:53.423Z",
+          "airable": false,
+          "mistakes": [
+            "empty-or-broken",
+            "empty-or-broken"
+          ],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    }
+  ]
+}

@@ -136,6 +136,19 @@
   border-radius: 6px;
 }
 
+/* The Another system card's example: a command to copy, so it keeps its lines and scrolls inside. */
+.pd-datakey-row > .hint:first-child { min-width: 56px; }
+.pd-api-example {
+  margin: 8px 0;
+  padding: 10px 12px;
+  max-height: 240px;
+  overflow: auto;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel-2);
+}
 .pd-raw { margin: 10px 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .pd-raw textarea {
   width: 100%;

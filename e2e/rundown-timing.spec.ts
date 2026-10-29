@@ -1,5 +1,14 @@
 // covers: src/control/cueAuto.ts, src/components/home/{CueTiming,CueRundown,ProductionPage,PlayoutMonitors}.tsx
+// covers: src/components/home/CueEditor.tsx
 // covers: src/components/playoutKeys.ts
+// covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/control/liveCue.ts, src/control/cueItems.ts
+// covers: src/components/home/CueActions.tsx
+// covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/cueArmEngine.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';

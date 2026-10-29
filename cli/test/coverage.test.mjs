@@ -26,9 +26,9 @@ import { promisify } from 'node:util';
 import { test } from 'node:test';
 
 import { canonicalJson, sourceDigest } from '../dist/digest.js';
-import { coveragePlan, fixtureLogo, frameFile, LATER_MS, LONG_LABEL_MIN, longer, mapStress, sidesOf, STRIP_MS } from '../dist/coverage.js';
+import { coveragePlan, fixtureLogo, frameFile, LATER_MS, LONG_LABEL_MIN, longer, mapStress, settlesOwnState, sidesOf, STRIP_MS } from '../dist/coverage.js';
 import { zipPathFor } from '../dist/commands/record.js';
-import { REVIEW_FORMAT, reviewFor, reviewProblems, reviewSummary, verdictState } from '../dist/review.js';
+import { earlierFrames, REVIEW_FORMAT, reviewFor, reviewProblems, reviewSummary, verdictState } from '../dist/review.js';
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -137,6 +137,8 @@ test('the plan covers every value set on both grounds, every event, step, update
   assert.deepEqual(plan.renders.find((r) => r.name === 'long-video').crops, ['f0', 'f2', 'f4'], 'every text and image field is cropped once');
   assert.equal(frameFile(take, 20, 'jpg'), 'take-00020ms.jpg');
   assert.equal(frameFile(plan.renders[0], 1500, 'jpg'), 'sample-video.jpg');
+  const ownState = plan.renders.slice(15).filter(settlesOwnState).map((r) => r.name);
+  assert.deepEqual(ownState, ['event-goalhome', 'event-final', 'next-2', 'next-3', 'update'], 'a strip keeps these settled states as full frames: the Take settles in the sample frame, Out in nothing');
 });
 
 test('the brief logo goes into the first image field it gave no picture of, or is said not drawn', () => {
@@ -185,6 +187,27 @@ test('coverage\'s review lists every frame with an empty verdict, and only ok or
   assert.equal(verdictState(' OK. '), 'ok');
   assert.equal(verdictState('fixed: the title no longer clips'), 'fixed');
   for (const open of ['', '   ', 'fixed:', 'fixed later', 'title clips', 'okay but tight', null, undefined, 3]) assert.equal(verdictState(open), 'open', JSON.stringify(open));
+});
+
+// Coverage run again after a fix: a frame drawn byte for byte as the one the last review closed
+// keeps its verdict, so the look after a fix is the frames that changed.
+test('a frame the last review closed and that looks the same keeps its verdict, marked carried', () => {
+  const [a, b, c] = COVERAGE.frames.map((f) => f.file);
+  const [ha, hb] = ['a', 'b'].map((x) => x.repeat(64));
+  const fix = 'fixed: the score no longer overlaps the crest';
+  const last = { ...reviewed([]), frames: [{ file: a, verdict: 'ok', sha256: ha }, { file: b, verdict: ` ${fix} `, sha256: hb, sameSince: 2 }, { file: c, verdict: 'the title clips', sha256: 'not a hash' }] };
+  assert.deepEqual(earlierFrames(last), [{ file: a, sha256: ha, verdict: 'ok', sameSince: 0 }, { file: b, sha256: hb, verdict: fix, sameSince: 2 }, { file: c, sha256: null, verdict: '', sameSince: 0 }], 'an open verdict closes nothing, and only a real hash is a picture');
+  assert.deepEqual(earlierFrames({ format: 'other', frames: [] }), []);
+  assert.deepEqual(earlierFrames(null), []);
+  // b is drawn as before and was closed then: carried, with the verdict that closed it, so a fix
+  // stays a fix. c is drawn as before but was left open: empty, still said to be the same picture.
+  const next = reviewFor(DIGEST, COVERAGE.frames.map((f) => (f.file === a ? { ...f, sha256: ha } : f)), new Map([[b, { verdict: fix, sameSince: 3 }], [c, { verdict: '', sameSince: 1 }]]));
+  assert.deepEqual(next.frames, [{ file: a, sha256: ha, verdict: '' }, { file: b, verdict: fix, carried: true, sameSince: 3 }, { file: c, verdict: '', sameSince: 1 }], 'each frame keeps the hash it was drawn with, for the next run');
+  assert.match(next.how, /carried/);
+  const handed = { ...next, frames: next.frames.map((f) => (f.carried ? f : { ...f, verdict: 'ok' })) };
+  assert.deepEqual(reviewProblems({ review: handed, coverage: COVERAGE, digest: DIGEST }), [], 'a carried verdict closes its frame');
+  assert.equal(reviewSummary(handed).fixed, 1, 'a carried fix is still counted as a fix');
+  assert.deepEqual(reviewSummary(handed).verdicts.map((v) => [v.carried ?? false, v.sameSince ?? 0]), [[false, 0], [true, 3], [false, 1]], 'the record says which verdicts were carried and how long each picture had been the same');
 });
 
 test('record --review accepts a complete review of the current digest and refuses a missing, open, stale or foreign one', () => {
