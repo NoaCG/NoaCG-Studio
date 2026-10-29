@@ -1,0 +1,1402 @@
+[
+  {
+    "id": "1",
+    "title": "Reconcile prerequisites and qualify the execution route",
+    "acceptance": [
+      "AC-1: Sanitizer remediation and production row 45 are landed/checked; exact main and fresh Claude/cloud/browser/Actions qualification are recorded; no ownership overlap.",
+      "Read the landed sanitizer-fix receipt and production row-45 PASS; pin current main, qualify coordinator/worker/browser/Actions routes and record file ownership. No product edit."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Reconcile prerequisites and qualify the execution route",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [],
+      "checks": [
+        "Read the landed sanitizer-fix receipt and production row-45 PASS; pin current main, qualify coordinator/worker/browser/Actions routes and record file ownership. No product edit."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "2",
+    "title": "Freeze the independent corpus and labels",
+    "acceptance": [
+      "AC-2: Independent, labeled, hashed corpus covers all five families and combined score-clock, with provenance and holdout separation established before tuning.",
+      "Verify the separately authored Codex packet: 18 development SVGs plus 18 held-out SVGs in a frozen evaluation artifact, six strata, SHA-256 hashes, provenance and labels. Keep holdout content/answers out of tuning inputs until row 9; repository stores its manifest, not a tuning copy. Add independently authored ticker, multiline and notice-zone qualification fixtures outside the 36-design recognition score. Freeze a separate expectation record for supported outcomes and the optional composition challenge."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "1"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Freeze the independent corpus and labels",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "e2e/fixtures/jev-svg/manifest.json",
+        "e2e/fixtures/jev-svg/dev.expect.json",
+        "e2e/fixtures/jev-svg/dev/lower-third-1.svg",
+        "e2e/fixtures/jev-svg/dev/lower-third-2.svg",
+        "e2e/fixtures/jev-svg/dev/lower-third-3.svg",
+        "e2e/fixtures/jev-svg/dev/scoreboard-1.svg",
+        "e2e/fixtures/jev-svg/dev/scoreboard-2.svg",
+        "e2e/fixtures/jev-svg/dev/scoreboard-3.svg",
+        "e2e/fixtures/jev-svg/dev/clock-1.svg",
+        "e2e/fixtures/jev-svg/dev/clock-2.svg",
+        "e2e/fixtures/jev-svg/dev/clock-3.svg",
+        "e2e/fixtures/jev-svg/dev/quiz-1.svg",
+        "e2e/fixtures/jev-svg/dev/quiz-2.svg",
+        "e2e/fixtures/jev-svg/dev/quiz-3.svg",
+        "e2e/fixtures/jev-svg/dev/credits-1.svg",
+        "e2e/fixtures/jev-svg/dev/credits-2.svg",
+        "e2e/fixtures/jev-svg/dev/credits-3.svg",
+        "e2e/fixtures/jev-svg/dev/score-clock-1.svg",
+        "e2e/fixtures/jev-svg/dev/score-clock-2.svg",
+        "e2e/fixtures/jev-svg/dev/score-clock-3.svg",
+        "e2e/fixtures/jev-svg/qualification/ticker.svg",
+        "e2e/fixtures/jev-svg/qualification/multiline.svg",
+        "e2e/fixtures/jev-svg/qualification/notice-zones.svg",
+        "e2e/fixtures/jev-svg/qualification/expect.json"
+      ],
+      "checks": [
+        "Verify the separately authored Codex packet: 18 development SVGs plus 18 held-out SVGs in a frozen evaluation artifact, six strata, SHA-256 hashes, provenance and labels. Keep holdout content/answers out of tuning inputs until row 9; repository stores its manifest, not a tuning copy. Add independently authored ticker, multiline and notice-zone qualification fixtures outside the 36-design recognition score. Freeze a separate expectation record for supported outcomes and the optional composition challenge."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "3",
+    "title": "Record the existing import baseline",
+    "acceptance": [
+      "AC-3: Existing importer/appearance/field/control baselines are recorded; regressions cannot be hidden by regenerated snapshots.",
+      "Run all five families and combined score+clock through current inventory, bindings, preview and existing generated controls. Record appearance and layer IDs; do not regenerate golden output to conceal a difference."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "2"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Record the existing import baseline",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "scripts/svg-import-passes.test.mjs",
+        "scripts/jev-svg-baseline.test.mjs"
+      ],
+      "checks": [
+        "Run all five families and combined score+clock through current inventory, bindings, preview and existing generated controls. Record appearance and layer IDs; do not regenerate golden output to conceal a difference."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "4",
+    "title": "Define and validate the SVG proposal contract",
+    "acceptance": [
+      "AC-4: Proposals reference real layers, retain unknown intent, reject stale/invalid/conflicting decisions, preserve user edits and apply atomically/idempotently. SVG text remains data.",
+      "Reject unknown element IDs, conflicting field ownership, unsupported capabilities, stale revisions and injected instructions; unresolved behavior intent stays explicit."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "3"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Define and validate the SVG proposal contract",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/ai/svgInterpretation/contract.ts",
+        "src/ai/svgInterpretation/validate.ts",
+        "scripts/jev-svg-contract.test.mjs"
+      ],
+      "checks": [
+        "Reject unknown element IDs, conflicting field ownership, unsupported capabilities, stale revisions and injected instructions; unresolved behavior intent stays explicit."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "5",
+    "title": "Apply the contract through the existing draft",
+    "acceptance": [
+      "AC-4: Proposals reference real layers, retain unknown intent, reject stale/invalid/conflicting decisions, preserve user edits and apply atomically/idempotently. SVG text remains data.",
+      "AC-5: Automatic working preview, existing control renderer and ordinary Finish/save; no routine layer-by-layer acceptance. Material ambiguity alone causes a compact decision.",
+      "Round-trip existing deterministic mappings, preserve corrections and source layers, and prove idempotence and rollback on invalid proposals."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "4"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Apply the contract through the existing draft",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/components/wizard/import/draft.ts",
+        "src/components/wizard/import/fieldAutoMap.ts",
+        "src/ai/svgInterpretation/apply.ts",
+        "scripts/jev-svg-apply.test.mjs"
+      ],
+      "checks": [
+        "Round-trip existing deterministic mappings, preserve corrections and source layers, and prove idempotence and rollback on invalid proposals."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "6",
+    "title": "Add the server decision adapter and task policy",
+    "acceptance": [
+      "AC-6: Correct decision adapter and explicit consent boundary; server-only credentials; request/token/attempt/cost bounds; validated provider policy; deterministic fallback.",
+      "Use mocked provider calls to verify decision payloads, audited prices/routes, size limits, reservations, cancellation, bounded retry and fail-closed privacy policy. No paid call or database migration."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "5"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Add the server decision adapter and task policy",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "api/_lib/aiSvgInterpretationProfile.ts",
+        "api/_lib/aiDecisionGateway.ts",
+        "api/_lib/aiTaskRegistry.ts",
+        "api/_lib/aiModelCatalog.ts",
+        "api/_lib/aiDecisionGateway.test.ts",
+        "api/_lib/aiConsentStore.ts",
+        "src/ai/consentNotice.ts"
+      ],
+      "checks": [
+        "Use mocked provider calls to verify decision payloads, audited prices/routes, size limits, reservations, cancellation, bounded retry and fail-closed privacy policy. No paid call or database migration."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "7",
+    "title": "Build the comparison and metering harness",
+    "acceptance": [
+      "AC-6: Correct decision adapter and explicit consent boundary; server-only credentials; request/token/attempt/cost bounds; validated provider policy; deterministic fallback.",
+      "AC-7: Fair deterministic/Jev/eligible-challenger and relevant-vision comparison, frozen scoring/configuration, untouched holdout results, cumulative paid spend and an explicit go/partial-go/stop verdict.",
+      "Dry-run the bounded comparison defined in the model refresh: deterministic baseline, structured Jev, image-assisted Jev where qualified, and eligible comparators. Verify model/route/privacy qualification, request size and image accounting, persistent billed-attempt reservations, redaction and total cap. Freeze scoring before paid evaluation."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "6"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Build the comparison and metering harness",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "scripts/jev-svg-eval.mjs",
+        "scripts/jev-svg-eval.test.mjs",
+        "src/ai/svgInterpretation/evidence.ts",
+        "src/ai/svgInterpretation/questions.ts",
+        ".github/workflows/jev-svg-eval.yml"
+      ],
+      "checks": [
+        "Dry-run the bounded comparison defined in the model refresh: deterministic baseline, structured Jev, image-assisted Jev where qualified, and eligible comparators. Verify model/route/privacy qualification, request size and image accounting, persistent billed-attempt reservations, redaction and total cap. Freeze scoring before paid evaluation."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "8",
+    "title": "Run bounded development evaluation",
+    "acceptance": [
+      "AC-7: Fair deterministic/Jev/eligible-challenger and relevant-vision comparison, frozen scoring/configuration, untouched holdout results, cumulative paid spend and an explicit go/partial-go/stop verdict.",
+      "Use only development designs through the protected Actions job. Compare the declared configurations within the cumulative cap; record useful mappings, corrections, unsupported inputs, privacy eligibility, latency and actual billed costs. Make bounded evidence corrections, then freeze at most three candidate configurations plus established baselines and all model/route/question/adapter/scoring hashes."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker; paid inference only in protected GitHub Actions",
+    "dependsOn": [
+      "7"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Run bounded development evaluation",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/ai/svgInterpretation/evidence.ts",
+        "src/ai/svgInterpretation/questions.ts"
+      ],
+      "checks": [
+        "Use only development designs through the protected Actions job. Compare the declared configurations within the cumulative cap; record useful mappings, corrections, unsupported inputs, privacy eligibility, latency and actual billed costs. Make bounded evidence corrections, then freeze at most three candidate configurations plus established baselines and all model/route/question/adapter/scoring hashes."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "9",
+    "title": "Evaluate the holdout and decide go or stop",
+    "acceptance": [
+      "AC-7: Fair deterministic/Jev/eligible-challenger and relevant-vision comparison, frozen scoring/configuration, untouched holdout results, cumulative paid spend and an explicit go/partial-go/stop verdict.",
+      "Independently evaluate the sealed holdout with frozen configurations. Report file-level correctness, setup effort, languages, latency and total spend; name the recommended model and whether images justify their cost. Apply go/partial-go/stop without tuning against holdout failures or silently switching production providers."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker; paid inference only in protected GitHub Actions",
+    "dependsOn": [
+      "8"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Evaluate the holdout and decide go or stop",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [],
+      "checks": [
+        "Independently evaluate the sealed holdout with frozen configurations. Report file-level correctness, setup effort, languages, latency and total spend; name the recommended model and whether images justify their cost. Apply go/partial-go/stop without tuning against holdout failures or silently switching production providers."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "10",
+    "title": "Connect qualified model proposals to the existing import flow",
+    "acceptance": [
+      "AC-5: Automatic working preview, existing control renderer and ordinary Finish/save; no routine layer-by-layer acceptance. Material ambiguity alone causes a compact decision.",
+      "AC-6: Correct decision adapter and explicit consent boundary; server-only credentials; request/token/attempt/cost bounds; validated provider policy; deterministic fallback.",
+      "Exercise an opt-in preparation request through the task route into a reversible draft; verify timeout, cancellation, stale response and saved-edit protection using a stubbed model. Existing vision flow remains intact."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "9"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Connect qualified model proposals to the existing import flow",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "api/_lib/svgInterpretation/analyze.ts",
+        "api/ai/tasks/[...path].ts",
+        "src/ai/svgInterpretation/client.ts",
+        "src/components/wizard/import/ImportDesignStep.tsx",
+        "e2e/jev-svg-preparation.spec.ts"
+      ],
+      "checks": [
+        "Exercise an opt-in preparation request through the task route into a reversible draft; verify timeout, cancellation, stale response and saved-edit protection using a stubbed model. Existing vision flow remains intact."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "11",
+    "title": "Show minimal decisions and working controls",
+    "acceptance": [
+      "AC-5: Automatic working preview, existing control renderer and ordinary Finish/save; no routine layer-by-layer acceptance. Material ambiguity alone causes a compact decision.",
+      "Walk all five families with generated controls. Simple lower thirds need no new mapping checklist; missing intent gets one compact decision. Use design-consult plus an executable task rubric; give the owner a trial list."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "10"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Show minimal decisions and working controls",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/components/wizard/import/AnalyzeProposalPanel.tsx",
+        "src/components/wizard/import/BehaviourSection.tsx",
+        "e2e/jev-svg-preparation.spec.ts"
+      ],
+      "checks": [
+        "Walk all five families with generated controls. Simple lower thirds need no new mapping checklist; missing intent gets one compact decision. Use design-consult plus an executable task rubric; give the owner a trial list."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "12",
+    "title": "Make inferred fields inspectable and easy to correct",
+    "acceptance": [
+      "AC-20: Selecting a prepared field highlights its actual SVG source; the existing mapping surface shows its editable label, type, sample and binding. A deliberate correction survives reanalysis and save/reopen, including two similar text layers. Routine reliable imports still need no mapping checklist. No new inspector framework or expression editor.",
+      "Selecting a prepared field highlights its actual SVG source; the existing mapping surface shows its editable label, type, sample and binding. A deliberate correction survives reanalysis and save/reopen, including two similar text layers. Routine reliable imports still need no mapping checklist. No new inspector framework or expression editor."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "11"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Make inferred fields inspectable and easy to correct",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/components/wizard/import/MapSvgFieldsStep.tsx",
+        "src/components/wizard/import/AnalyzeProposalPanel.tsx",
+        "src/components/wizard/import/draft.ts",
+        "src/components/wizard/import/fieldAutoMap.ts",
+        "e2e/jev-svg-preparation.spec.ts"
+      ],
+      "checks": [
+        "Selecting a prepared field highlights its actual SVG source; the existing mapping surface shows its editable label, type, sample and binding. A deliberate correction survives reanalysis and save/reopen, including two similar text layers. Routine reliable imports still need no mapping checklist. No new inspector framework or expression editor."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "13",
+    "title": "Persist the clock instance and profile",
+    "acceptance": [
+      "AC-8: One imported clock reuses match-clock runtime/wire; up/down/start/pause/reset/correction, field identity and recovery work without native regressions. Duration starts on Take.",
+      "Save/reopen one clock with a full recipe; reject duplicate/unsupported clock instances and namespace collisions. Retain the one-full-recipe guard and old documents."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "12"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Persist the clock instance and profile",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/designTypes.ts",
+        "src/templates/behaviours/registry.ts",
+        "src/templates/behaviours/clock.ts",
+        "src/templates/importedDesign/behaviour.ts",
+        "scripts/jev-svg-contract.test.mjs"
+      ],
+      "checks": [
+        "Save/reopen one clock with a full recipe; reject duplicate/unsupported clock instances and namespace collisions. Retain the one-full-recipe guard and old documents."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "14",
+    "title": "Bind the existing match clock to SVG artwork",
+    "acceptance": [
+      "AC-8: One imported clock reuses match-clock runtime/wire; up/down/start/pause/reset/correction, field identity and recovery work without native regressions. Duration starts on Take.",
+      "Drive existing count-up/down runtime through the imported field; preserve the artwork/font/transform and avoid also emitting the old countdown engine for that field."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "13"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Bind the existing match clock to SVG artwork",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/artworkFields.ts",
+        "src/templates/importedDesign/svgBind.ts",
+        "src/templates/importedDesign/svg.ts",
+        "src/templates/behaviours/clock.ts",
+        "scripts/imported-match-clock.test.mjs"
+      ],
+      "checks": [
+        "Drive existing count-up/down runtime through the imported field; preserve the artwork/font/transform and avoid also emitting the old countdown engine for that field."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "15",
+    "title": "Adapt clock events and recovery",
+    "acceptance": [
+      "AC-8: One imported clock reuses match-clock runtime/wire; up/down/start/pause/reset/correction, field identity and recovery work without native regressions. Duration starts on Take.",
+      "AC-10: Score changes preserve clock origin; clock changes preserve scores/effects. Existing +1/−1/flash semantics, reset scope and lifecycle are tested.",
+      "Prove namespaced start/hold/reset effects and server-time anchoring on two outputs, reload and reconnect. Unrelated updates must retain the origin; existing native clocks remain compatible."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "14"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Adapt clock events and recovery",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/control/matchClockWire.ts",
+        "src/templates/behaviours/clock.ts",
+        "e2e/configured/scorebug-output.spec.ts",
+        "scripts/imported-clock-wire.test.mjs"
+      ],
+      "checks": [
+        "Prove namespaced start/hold/reset effects and server-time anchoring on two outputs, reload and reconnect. Unrelated updates must retain the origin; existing native clocks remain compatible."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "16",
+    "title": "Resolve absolute target times",
+    "acceptance": [
+      "AC-9: A fixed target instant resolves input/date/zone, handles midnight/DST/past targets and survives updates/replay/recovery. Correct hours display and minimal mode-specific controls.",
+      "Inject now/timezone: 7 pm, explicit date, past time, midnight, DST gap/fold and expired target. A resolved target survives resend/replay and uses the existing stamped-countdown contract."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "15"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Resolve absolute target times",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/control/clockTarget.ts",
+        "scripts/clock-target.test.mjs",
+        "src/templates/behaviours/clock.ts"
+      ],
+      "checks": [
+        "Inject now/timezone: 7 pm, explicit date, past time, midnight, DST gap/fold and expired target. A resolved target survives resend/replay and uses the existing stamped-countdown contract."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "17",
+    "title": "Expose only the selected clock controls",
+    "acceptance": [
+      "AC-8: One imported clock reuses match-clock runtime/wire; up/down/start/pause/reset/correction, field identity and recovery work without native regressions. Duration starts on Take.",
+      "AC-9: A fixed target instant resolves input/date/zone, handles midnight/DST/past targets and survives updates/replay/recovery. Correct hours display and minimal mode-specific controls.",
+      "Test count-up manual start, duration start-on-Take and target-time display/edits. Preserve native defaults; hours formatting must not break minute/second wire parsing. No live mode selector, or Pause/Reset for an absolute target."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "16"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Expose only the selected clock controls",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/components/wizard/import/BehaviourSection.tsx",
+        "src/templates/behaviours/clock.ts",
+        "src/templates/shared/matchClock.ts",
+        "e2e/playout-clock.spec.ts"
+      ],
+      "checks": [
+        "Test count-up manual start, duration start-on-Take and target-time display/edits. Preserve native defaults; hours formatting must not break minute/second wire parsing. No live mode selector, or Pause/Reset for an absolute target."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "18",
+    "title": "Qualify independent score and clock behavior",
+    "acceptance": [
+      "AC-10: Score changes preserve clock origin; clock changes preserve scores/effects. Existing +1/−1/flash semantics, reset scope and lifecycle are tested.",
+      "Rehearse score +1/−1/effects, clock correction, Full time, Out/Take and New game. Verify score reset does not implicitly reset clock, and clock updates do not change scores or flashes. Repair belongs to the owning earlier row if a contract fails."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "17"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify independent score and clock behavior",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "e2e/import-svg-behaviour.spec.ts",
+        "e2e/configured/scorebug-output.spec.ts",
+        "scripts/imported-clock-wire.test.mjs"
+      ],
+      "checks": [
+        "Rehearse score +1/−1/effects, clock correction, Full time, Out/Take and New game. Verify score reset does not implicitly reset clock, and clock updates do not change scores or flashes. Repair belongs to the owning earlier row if a contract fails."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "19",
+    "title": "Prove score events and corrections have different effects",
+    "acceptance": [
+      "AC-21: On unfamiliar imported artwork, +1 awards exactly one point with the correct team's flash, including repeated presses during a flash; -1 and direct numeric correction do not award or retrigger celebration. An illegal event is refused before payload mutation; a failed send does not commit local live values. Report accepted-event/shared-data-write failure distinctly. Reconnect agrees with rendered state. No new delivery/exactly-once protocol is promised.",
+      "On unfamiliar imported artwork, +1 awards exactly one point with the correct team's flash, including repeated presses during a flash; -1 and direct numeric correction do not award or retrigger celebration. An illegal event is refused before payload mutation; a failed send does not commit local live values. Report accepted-event/shared-data-write failure distinctly. Reconnect agrees with rendered state. No new delivery/exactly-once protocol is promised."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "18"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Prove score events and corrections have different effects",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/behaviours/score.ts",
+        "src/control/graphicVerbs.ts",
+        "src/templates/shared/animRuntime.ts",
+        "e2e/configured/scorebug-output.spec.ts",
+        "scripts/imported-score-event.test.mjs"
+      ],
+      "checks": [
+        "On unfamiliar imported artwork, +1 awards exactly one point with the correct team's flash, including repeated presses during a flash; -1 and direct numeric correction do not award or retrigger celebration. An illegal event is refused before payload mutation; a failed send does not commit local live values. Report accepted-event/shared-data-write failure distinctly. Reconnect agrees with rendered state. No new delivery/exactly-once protocol is promised."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "20",
+    "title": "Review midpoint evidence and remaining scope",
+    "acceptance": [
+      "AC-11: Midpoint evidence, elapsed time, spend, unresolved defects and remaining scope are reconciled without weakening gates.",
+      "Independent cumulative rehearsal of rows 1–19; five-line midpoint retro with defects, costs, durations and remaining risks. Keep scope and checks intact; record proposed admissions rather than silently widening files."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "19"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Review midpoint evidence and remaining scope",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [],
+      "checks": [
+        "Independent cumulative rehearsal of rows 1–19; five-line midpoint retro with defects, costs, durations and remaining risks. Keep scope and checks intact; record proposed admissions rather than silently widening files."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "21",
+    "title": "Implement the true no-Lock quiz variant",
+    "acceptance": [
+      "AC-12: True no-Lock variant removes obsolete controls/paths, handles sealed selection/timers and preserves saved quiz behavior.",
+      "Remove unused Lock state/actions/transitions only for the new variant. Preserve the existing optional-Lock behavior for saved graphics and operator-supplied correct answers."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "20"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Implement the true no-Lock quiz variant",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/behaviours/quiz.ts",
+        "src/components/wizard/import/BehaviourSection.tsx",
+        "e2e/import-svg-behaviour.spec.ts"
+      ],
+      "checks": [
+        "Remove unused Lock state/actions/transitions only for the new variant. Preserve the existing optional-Lock behavior for saved graphics and operator-supplied correct answers."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "22",
+    "title": "Qualify quiz timing and hidden-selection behavior",
+    "acceptance": [
+      "AC-12: True no-Lock variant removes obsolete controls/paths, handles sealed selection/timers and preserves saved quiz behavior.",
+      "Exercise sealed selection, reselection, reveal, five-second timer origin, correct/incorrect, replay and reset. Resolve unsupported no-Lock/auto-reveal combinations explicitly instead of moving timers silently."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "21"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify quiz timing and hidden-selection behavior",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/behaviours/quiz.ts",
+        "e2e/configured/imported-quiz-output.spec.ts",
+        "scripts/quiz-no-lock.test.mjs"
+      ],
+      "checks": [
+        "Exercise sealed selection, reselection, reveal, five-second timer origin, correct/incorrect, replay and reset. Resolve unsupported no-Lock/auto-reveal combinations explicitly instead of moving timers silently."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "23",
+    "title": "Let a second author revise quiz behavior without rebuilding artwork",
+    "acceptance": [
+      "AC-22: In a fresh browser context reopen a saved imported quiz, select the true no-Lock profile, save, and operate Select→Reveal→Reset through the normal UI without code. Keep question/answer fields, source styling and matching animation targets; remove obsolete Lock control/state/timer paths only in that variant. Standard saved quizzes keep their behavior. Test reset from every reachable state and invalid Reveal. A fresh context is a task rehearsal, not a measured novice-user study.",
+      "In a fresh browser context reopen a saved imported quiz, select the true no-Lock profile, save, and operate Select→Reveal→Reset through the normal UI without code. Keep question/answer fields, source styling and matching animation targets; remove obsolete Lock control/state/timer paths only in that variant. Standard saved quizzes keep their behavior. Test reset from every reachable state and invalid Reveal. A fresh context is a task rehearsal, not a measured novice-user study."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "22"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Let a second author revise quiz behavior without rebuilding artwork",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/components/wizard/import/BehaviourSection.tsx",
+        "src/components/wizard/import/draft.ts",
+        "src/templates/behaviours/quiz.ts",
+        "e2e/import-svg-behaviour.spec.ts",
+        "e2e/configured/imported-quiz-output.spec.ts"
+      ],
+      "checks": [
+        "In a fresh browser context reopen a saved imported quiz, select the true no-Lock profile, save, and operate Select→Reveal→Reset through the normal UI without code. Keep question/answer fields, source styling and matching animation targets; remove obsolete Lock control/state/timer paths only in that variant. Standard saved quizzes keep their behavior. Test reset from every reachable state and invalid Reveal. A fresh context is a task rehearsal, not a measured novice-user study."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "24",
+    "title": "Define imported credits content and style bindings",
+    "acceptance": [
+      "AC-13: Imported credits styling supports roles above/beside, multiple names and static/roll/cards, with defined overflow and source/animation identity. Fixed artwork remains compatible.",
+      "Keep fixed artwork and legacy imports compatible. Identify repeatable role/name styling and stable source anchors; declare unsupported patterns without converting to a native preset."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "23"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Define imported credits content and style bindings",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/designTypes.ts",
+        "src/templates/behaviours/credits.ts",
+        "src/templates/importedDesign/creditsRoll.ts",
+        "scripts/imported-credits-model.test.mjs"
+      ],
+      "checks": [
+        "Keep fixed artwork and legacy imports compatible. Identify repeatable role/name styling and stable source anchors; declare unsupported patterns without converting to a native preset."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "25",
+    "title": "Connect imported content fields to the existing Sheet adapters",
+    "acceptance": [
+      "AC-14: Sheet changes update declared imported credits, ticker and editable multiline-text fields through existing source/data bindings; adapter mapping, failure, empty data, pause/reconnect, closed-page delivery and each existing/selected playback update policy are proven. No AI per refresh.",
+      "Bind declared imported fields without assuming f0. Credits preserve role/name columns, headings/order/multiple names; existing ticker consumers preserve ordered message rows through the existing lines adapter; ordinary text preserves keyed values and multiline content. Save/reopen each binding, distinguish empty from missing values, and retain imported styling. No new connector, poller or arbitrary-text layout engine."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "24"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Connect imported content fields to the existing Sheet adapters",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/control/contentFormats.ts",
+        "src/control/sheetSource.ts",
+        "src/templates/behaviours/credits.ts",
+        "scripts/source-mapping.test.mjs",
+        "scripts/imported-credits-source.test.mjs",
+        "scripts/imported-text-source.test.mjs"
+      ],
+      "checks": [
+        "Bind declared imported fields without assuming f0. Credits preserve role/name columns, headings/order/multiple names; existing ticker consumers preserve ordered message rows through the existing lines adapter; ordinary text preserves keyed values and multiline content. Save/reopen each binding, distinguish empty from missing values, and retain imported styling. No new connector, poller or arbitrary-text layout engine."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "26",
+    "title": "Preview linked credits structure using the existing data format",
+    "acceptance": [
+      "AC-23: Show a readable preview of headings, roles and associated names from the declared source/list binding. Preserve zero, one and multiple names per role, row order and one shared source through role-above/role-beside and static/roll/cards. Ambiguous columns get one mapping choice. Do not expose JSON/JSONata, create a field per person, or replace the native list grammar with another collection store. Later rendering rows prove each layout.",
+      "Show a readable preview of headings, roles and associated names from the declared source/list binding. Preserve zero, one and multiple names per role, row order and one shared source through role-above/role-beside and static/roll/cards. Ambiguous columns get one mapping choice. Do not expose JSON/JSONata, create a field per person, or replace the native list grammar with another collection store. Later rendering rows prove each layout."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "25"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Preview linked credits structure using the existing data format",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/control/contentFormats.ts",
+        "src/components/wizard/import/BehaviourSection.tsx",
+        "src/templates/importedDesign/designTypes.ts",
+        "src/templates/importedDesign/creditsRoll.ts",
+        "scripts/imported-credits-source.test.mjs",
+        "e2e/import-svg-credits.spec.ts"
+      ],
+      "checks": [
+        "Show a readable preview of headings, roles and associated names from the declared source/list binding. Preserve zero, one and multiple names per role, row order and one shared source through role-above/role-beside and static/roll/cards. Ambiguous columns get one mapping choice. Do not expose JSON/JSONata, create a field per person, or replace the native list grammar with another collection store. Later rendering rows prove each layout."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "27",
+    "title": "Render role-above credits using imported styling",
+    "acceptance": [
+      "AC-13: Imported credits styling supports roles above/beside, multiple names and static/roll/cards, with defined overflow and source/animation identity. Fixed artwork remains compatible.",
+      "Test repeated roles/names, bold roles, long names and spacing from the sample. Use measured overflow expectations; retain original source text and animation anchors."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "26"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Render role-above credits using imported styling",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/creditsRoll.ts",
+        "scripts/imported-credits-model.test.mjs",
+        "e2e/import-svg-credits.spec.ts"
+      ],
+      "checks": [
+        "Test repeated roles/names, bold roles, long names and spacing from the sample. Use measured overflow expectations; retain original source text and animation anchors."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "28",
+    "title": "Render role-beside credits using imported styling",
+    "acceptance": [
+      "AC-13: Imported credits styling supports roles above/beside, multiple names and static/roll/cards, with defined overflow and source/animation identity. Fixed artwork remains compatible.",
+      "Test columns, multiple names per role, alignment and overflow using imported samples. Do not substitute cr02 and call it preservation."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "27"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Render role-beside credits using imported styling",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/creditsRoll.ts",
+        "scripts/imported-credits-model.test.mjs",
+        "e2e/import-svg-credits.spec.ts"
+      ],
+      "checks": [
+        "Test columns, multiple names per role, alignment and overflow using imported samples. Do not substitute cr02 and call it preservation."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "29",
+    "title": "Qualify continuous roll playback",
+    "acceptance": [
+      "AC-13: Imported credits styling supports roles above/beside, multiple names and static/roll/cards, with defined overflow and source/animation identity. Fixed artwork remains compatible.",
+      "Both editable layouts enter/exit fully, measure after fonts settle and replay consistently. The separate exact-artwork roll retains its existing bounds and motion assertions."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "28"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify continuous roll playback",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/creditsRoll.ts",
+        "src/templates/importedDesign/creditsArtwork.ts",
+        "e2e/import-svg-credits.spec.ts"
+      ],
+      "checks": [
+        "Both editable layouts enter/exit fully, measure after fonts settle and replay consistently. The separate exact-artwork roll retains its existing bounds and motion assertions."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "30",
+    "title": "Qualify static credits playback",
+    "acceptance": [
+      "AC-13: Imported credits styling supports roles above/beside, multiple names and static/roll/cards, with defined overflow and source/animation identity. Fixed artwork remains compatible.",
+      "Both imported layouts hold without unintended travel; excessive content uses an explicit fit/refusal policy rather than clipping or silently switching layout."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "29"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify static credits playback",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/creditsRoll.ts",
+        "src/templates/behaviours/credits.ts",
+        "e2e/import-svg-credits.spec.ts"
+      ],
+      "checks": [
+        "Both imported layouts hold without unintended travel; excessive content uses an explicit fit/refusal policy rather than clipping or silently switching layout."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "31",
+    "title": "Qualify successive credits cards",
+    "acceptance": [
+      "AC-13: Imported credits styling supports roles above/beside, multiple names and static/roll/cards, with defined overflow and source/animation identity. Fixed artwork remains compatible.",
+      "Reuse applicable paging primitives; qualify page boundaries, role/name association, long cards, ordering, replay and the selected automatic/manual advance policy. Existing native presets alone do not prove SVG compatibility."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "30"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify successive credits cards",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/creditsRoll.ts",
+        "src/templates/behaviours/credits.ts",
+        "e2e/import-svg-credits.spec.ts"
+      ],
+      "checks": [
+        "Reuse applicable paging primitives; qualify page boundaries, role/name association, long cards, ordering, replay and the selected automatic/manual advance policy. Existing native presets alone do not prove SVG compatibility."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "32",
+    "title": "Stage sheet changes without disrupting playback",
+    "acceptance": [
+      "AC-14: Sheet changes update declared imported credits, ticker and editable multiline-text fields through existing source/data bindings; adapter mapping, failure, empty data, pause/reconnect, closed-page delivery and each existing/selected playback update policy are proven. No AI per refresh.",
+      "Automatic refresh updates prepared content. Under the proposed default an active roll/cards keep their snapshot, newer data is indicated off air and next Play/Take uses it. Do not restart movement or overwrite animation because rows changed. Ticker continuity is qualified separately in row 34; this row changes credits snapshot application only."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "31"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Stage sheet changes without disrupting playback",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/importedDesign/creditsRoll.ts",
+        "src/templates/importedDesign/svg.ts",
+        "src/control/contentFormats.ts",
+        "e2e/imported-credits-live-data.spec.ts",
+        "src/components/home/SourcesLine.tsx"
+      ],
+      "checks": [
+        "Automatic refresh updates prepared content. Under the proposed default an active roll/cards keep their snapshot, newer data is indicated off air and next Play/Take uses it. Do not restart movement or overwrite animation because rows changed. Ticker continuity is qualified separately in row 34; this row changes credits snapshot application only."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "33",
+    "title": "Qualify Sheet failure and closed-page delivery",
+    "acceptance": [
+      "AC-14: Sheet changes update declared imported credits, ticker and editable multiline-text fields through existing source/data bindings; adapter mapping, failure, empty data, pause/reconnect, closed-page delivery and each existing/selected playback update policy are proven. No AI per refresh.",
+      "Use a local fake CSV endpoint for denial, timeout, malformed/empty rows and reconnect; exercise server takeover with every operator page closed in Actions. Add one controlled public-sheet probe and record actual cadence. Keep last-good data on failure. Cover imported credits, ticker rows and multiline text; verify content refresh preserves animation state and needs no model request."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker and GitHub Actions; controlled synthetic Google Sheet probe",
+    "dependsOn": [
+      "32"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify Sheet failure and closed-page delivery",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "e2e/fixtures/jev-sheet-server.mjs",
+        "scripts/sheet-source.test.mjs",
+        "scripts/data-tick.test.mjs",
+        "e2e/configured/production-data-key-sheet.spec.ts",
+        "e2e/configured/production-data-key-tick.spec.ts",
+        "e2e/imported-credits-live-data.spec.ts",
+        "e2e/imported-text-live-data.spec.ts"
+      ],
+      "checks": [
+        "Use a local fake CSV endpoint for denial, timeout, malformed/empty rows and reconnect; exercise server takeover with every operator page closed in Actions. Add one controlled public-sheet probe and record actual cadence. Keep last-good data on failure. Cover imported credits, ticker rows and multiline text; verify content refresh preserves animation state and needs no model request."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "34",
+    "title": "Qualify ticker and multiline updates without replaying motion",
+    "acceptance": [
+      "AC-24: Use the existing ticker renderer and shared source bindings: replace/reorder/delete messages while moving, change speed only, empty then repopulate, and reopen/reconnect. Assert no unintended blank interval or entrance replay for nonempty updates; empty content intentionally clears. Qualify marquee continuity and flip handover at its existing item boundary using frame/time observations. A linked multiline SVG field updates without resetting unrelated motion. This row does not add a general imported-SVG ticker motion compiler; unsupported moving artwork remains an explicit limit.",
+      "Use the existing ticker renderer and shared source bindings: replace/reorder/delete messages while moving, change speed only, empty then repopulate, and reopen/reconnect. Assert no unintended blank interval or entrance replay for nonempty updates; empty content intentionally clears. Qualify marquee continuity and flip handover at its existing item boundary using frame/time observations. A linked multiline SVG field updates without resetting unrelated motion. This row does not add a general imported-SVG ticker motion compiler; unsupported moving artwork remains an explicit limit."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "33"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify ticker and multiline updates without replaying motion",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/tickers/shared.ts",
+        "src/templates/tickers/tickerMotion.ts",
+        "src/control/contentFormats.ts",
+        "e2e/imported-text-live-data.spec.ts",
+        "scripts/ticker-speed.test.mjs",
+        "e2e/ticker-linked-update.spec.ts"
+      ],
+      "checks": [
+        "Use the existing ticker renderer and shared source bindings: replace/reorder/delete messages while moving, change speed only, empty then repopulate, and reopen/reconnect. Assert no unintended blank interval or entrance replay for nonempty updates; empty content intentionally clears. Qualify marquee continuity and flip handover at its existing item boundary using frame/time observations. A linked multiline SVG field updates without resetting unrelated motion. This row does not add a general imported-SVG ticker motion compiler; unsupported moving artwork remains an explicit limit."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "35",
+    "title": "Preserve editor layers and field animation",
+    "acceptance": [
+      "AC-15: Layers remain editable fields and animation targets; verified-match IDs, keyframes, source bindings and controls survive save/reopen/reimport; unresolved work is protected.",
+      "A nested imported layer remains an editable field and animation target through prepare/save/reopen. Verify timing/easing and behavior paint ownership; no new animation feature or editor default switch."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "34"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Preserve editor layers and field animation",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/blocks/svgIdentity.ts",
+        "src/blocks/artworkLayers.ts",
+        "src/templates/importedDesign/svgBind.ts",
+        "e2e/editor-fidelity-trim.spec.ts"
+      ],
+      "checks": [
+        "A nested imported layer remains an editable field and animation target through prepare/save/reopen. Verify timing/easing and behavior paint ownership; no new animation feature or editor default switch."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "36",
+    "title": "Protect source bindings and keys on reimport",
+    "acceptance": [
+      "AC-15: Layers remain editable fields and animation targets; verified-match IDs, keyframes, source bindings and controls survive save/reopen/reimport; unresolved work is protected.",
+      "Keep verified-match IDs, keys, data-source bindings and action identities. Removed/ambiguous layers retain authored work and trigger a reviewed resolution or separate import; no fuzzy matching engine."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "35"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Protect source bindings and keys on reimport",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/components/wizard/import/draft.ts",
+        "src/blocks/svgIdentity.ts",
+        "src/templates/importedDesign/reimport.ts",
+        "e2e/import-svg-reimport.spec.ts"
+      ],
+      "checks": [
+        "Keep verified-match IDs, keys, data-source bindings and action identities. Removed/ambiguous layers retain authored work and trigger a reviewed resolution or separate import; no fuzzy matching engine."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "37",
+    "title": "Preserve action identity across arrangements and control surfaces",
+    "acceptance": [
+      "AC-25: Pin/hide/rename existing controls, save/reopen and reimport matching artwork. Normal UI and the existing configured software-panel harness address the same field/event and correct live cue with consistent labels and known-state availability. Same-label actions with different targets remain distinct; intentional mirrors share canonical identity without double dispatch. Unknown state is not fabricated as confirmed readiness; foreign OGraf actions retain their separate runtime-validation boundary. No new dashboard/layout or physical hardware requirement.",
+      "Pin/hide/rename existing controls, save/reopen and reimport matching artwork. Normal UI and the existing configured software-panel harness address the same field/event and correct live cue with consistent labels and known-state availability. Same-label actions with different targets remain distinct; intentional mirrors share canonical identity without double dispatch. Unknown state is not fabricated as confirmed readiness; foreign OGraf actions retain their separate runtime-validation boundary. No new dashboard/layout or physical hardware requirement."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "36"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Preserve action identity across arrangements and control surfaces",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/control/controlModel.ts",
+        "src/control/panelActions.ts",
+        "src/components/home/ActionArranger.tsx",
+        "e2e/configured/panel-graphic-actions.spec.ts",
+        "e2e/configured/panel-production-page.spec.ts",
+        "e2e/import-svg-reimport.spec.ts"
+      ],
+      "checks": [
+        "Pin/hide/rename existing controls, save/reopen and reimport matching artwork. Normal UI and the existing configured software-panel harness address the same field/event and correct live cue with consistent labels and known-state availability. Same-label actions with different targets remain distinct; intentional mirrors share canonical identity without double dispatch. Unknown state is not fabricated as confirmed readiness; foreign OGraf actions retain their separate runtime-validation boundary. No new dashboard/layout or physical hardware requirement."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "38",
+    "title": "Qualify exports and isolated receiving hosts",
+    "acceptance": [
+      "AC-16: Generated packages pass existing isolated receiving-host tests; hosted clock recovery is distinguished from standalone capability and physical studio acceptance.",
+      "Run the existing isolated player/host paths on generated packages. Distinguish hosted synchronized recovery from standalone-host capability; test clock and credits commands without claiming physical studio acceptance."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "37"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify exports and isolated receiving hosts",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "e2e/ograf-parity.spec.ts",
+        "e2e/ograf-lifecycle.spec.ts",
+        "e2e/spx-operator.spec.ts",
+        "e2e/configured/imported-quiz-output.spec.ts",
+        "e2e/configured/scorebug-output.spec.ts"
+      ],
+      "checks": [
+        "Run the existing isolated player/host paths on generated packages. Distinguish hosted synchronized recovery from standalone-host capability; test clock and credits commands without claiming physical studio acceptance."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "39",
+    "title": "Qualify privacy and service-failure behavior",
+    "acceptance": [
+      "AC-6: Correct decision adapter and explicit consent boundary; server-only credentials; request/token/attempt/cost bounds; validated provider policy; deterministic fallback.",
+      "AC-17: Model/network/quota failure and disabled Jev leave useful import and saved playout; prompt injection cannot alter allowed behavior or expose data.",
+      "Verify consent scope, no browser secrets, prompt-injection refusal, quota/budget exhaustion, retries, cancellation, unsupported inputs and stale responses. Model-disabled import and compiled playout keep working."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "38"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Qualify privacy and service-failure behavior",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "api/_lib/aiDecisionGateway.test.ts",
+        "api/_lib/aiTaskRegistry.test.ts",
+        "e2e/jev-svg-preparation.spec.ts"
+      ],
+      "checks": [
+        "Verify consent scope, no browser secrets, prompt-injection refusal, quota/budget exhaustion, retries, cancellation, unsupported inputs and stale responses. Model-disabled import and compiled playout keep working."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "40",
+    "title": "Update optional naming conventions and examples",
+    "acceptance": [
+      "AC-18: Existing generated naming docs/examples remain logical and correct, without making their names mandatory.",
+      "Regenerate existing guidance and verify examples against behavior. Keep names optional; do not hand-maintain duplicate catalogs or redesign templates."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "39"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Update optional naming conventions and examples",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/behaviours/words.json",
+        "src/templates/behaviours/layer-names.json",
+        "docs/SVG_AUTHORING.md",
+        "docs.html",
+        "scripts/check-example-layers.test.mjs",
+        "scripts/behaviour-docs.mjs"
+      ],
+      "checks": [
+        "Regenerate existing guidance and verify examples against behavior. Keep names optional; do not hand-maintain duplicate catalogs or redesign templates."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "41",
+    "title": "Rehearse the complete unfamiliar-artwork workflow",
+    "acceptance": [
+      "AC-26: A fresh independent checker imports unfamiliar labeled fixtures, corrects only a material ambiguity, previews, saves, prepares, takes, updates, takes out, reopens, and replaces artwork through existing UI. Verify off-air draft changes do not alter on-air state before existing explicit apply/Take. Disconnect and recover the isolated software output; distinguish command acceptance, observed renderer state, visual fidelity and package conformance. Exercise three independently operated notice zones with existing primitives as a bounded diagnostic; report unsupported composition without inventing a new engine or claiming that optional challenge passed. No competitor or licensed host access is needed.",
+      "A fresh independent checker imports unfamiliar labeled fixtures, corrects only a material ambiguity, previews, saves, prepares, takes, updates, takes out, reopens, and replaces artwork through existing UI. Verify off-air draft changes do not alter on-air state before existing explicit apply/Take. Disconnect and recover the isolated software output; distinguish command acceptance, observed renderer state, visual fidelity and package conformance. Exercise three independently operated notice zones with existing primitives as a bounded diagnostic; report unsupported composition without inventing a new engine or claiming that optional challenge passed. No competitor or licensed host access is needed."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "40"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Rehearse the complete unfamiliar-artwork workflow",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "e2e/jev-svg-preparation.spec.ts",
+        "e2e/import-svg-reimport.spec.ts",
+        "e2e/configured/panel-graphic-actions.spec.ts",
+        "e2e/configured/svg-import-journey.spec.ts"
+      ],
+      "checks": [
+        "A fresh independent checker imports unfamiliar labeled fixtures, corrects only a material ambiguity, previews, saves, prepares, takes, updates, takes out, reopens, and replaces artwork through existing UI. Verify off-air draft changes do not alter on-air state before existing explicit apply/Take. Disconnect and recover the isolated software output; distinguish command acceptance, observed renderer state, visual fidelity and package conformance. Exercise three independently operated notice zones with existing primitives as a bounded diagnostic; report unsupported composition without inventing a new engine or claiming that optional challenge passed. No competitor or licensed host access is needed."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "42",
+    "title": "Run the complete qualification matrix",
+    "acceptance": [
+      "AC-3: Existing importer/appearance/field/control baselines are recorded; regressions cannot be hidden by regenerated snapshots.",
+      "AC-5: Automatic working preview, existing control renderer and ordinary Finish/save; no routine layer-by-layer acceptance. Material ambiguity alone causes a compact decision.",
+      "AC-8: One imported clock reuses match-clock runtime/wire; up/down/start/pause/reset/correction, field identity and recovery work without native regressions. Duration starts on Take.",
+      "AC-9: A fixed target instant resolves input/date/zone, handles midnight/DST/past targets and survives updates/replay/recovery. Correct hours display and minimal mode-specific controls.",
+      "AC-10: Score changes preserve clock origin; clock changes preserve scores/effects. Existing +1/−1/flash semantics, reset scope and lifecycle are tested.",
+      "AC-12: True no-Lock variant removes obsolete controls/paths, handles sealed selection/timers and preserves saved quiz behavior.",
+      "AC-13: Imported credits styling supports roles above/beside, multiple names and static/roll/cards, with defined overflow and source/animation identity. Fixed artwork remains compatible.",
+      "AC-14: Sheet changes update declared imported credits, ticker and editable multiline-text fields through existing source/data bindings; adapter mapping, failure, empty data, pause/reconnect, closed-page delivery and each existing/selected playback update policy are proven. No AI per refresh.",
+      "AC-15: Layers remain editable fields and animation targets; verified-match IDs, keyframes, source bindings and controls survive save/reopen/reimport; unresolved work is protected.",
+      "AC-16: Generated packages pass existing isolated receiving-host tests; hosted clock recovery is distinguished from standalone capability and physical studio acceptance.",
+      "AC-17: Model/network/quota failure and disabled Jev leave useful import and saved playout; prompt injection cannot alter allowed behavior or expose data.",
+      "On the immutable landing, run affected/full Actions gates and cumulative all-family journeys, all six credits combinations and held-out regressions. Record intentional snapshot changes. Reusing exposed holdout is regression evidence, not a fresh blind benchmark."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "41"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Run the complete qualification matrix",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "scripts/jev-svg-baseline.test.mjs",
+        "scripts/svg-import-passes.test.mjs",
+        "scripts/fixtures/svg-corpus-passes.json",
+        "e2e/jev-svg-preparation.spec.ts",
+        "e2e/imported-credits-live-data.spec.ts"
+      ],
+      "checks": [
+        "On the immutable landing, run affected/full Actions gates and cumulative all-family journeys, all six credits combinations and held-out regressions. Record intentional snapshot changes. Reusing exposed holdout is regression evidence, not a fresh blind benchmark."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  },
+  {
+    "id": "43",
+    "title": "Close evidence and prepare the release kit",
+    "acceptance": [
+      "AC-19: Full support matrix, exact-merge evidence, limits, spend, rollback/kill switch and owner trial kit accurately describe the delivered scope.",
+      "Produce support matrix, rollout/rollback instructions, total spend, exact-merge receipts and an owner trial list. Demonstrate the kill switch and no-AI fallback; mark any unqualified capability honestly. A planning gate is not product acceptance; conclude implementation only after all required evidence passes. Physical studio acceptance remains separately labeled."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "42"
+    ],
+    "spec": "docs/work-specs/jev-svg-import/spec.md",
+    "brief": {
+      "goal": "Close evidence and prepare the release kit",
+      "read": [
+        "docs/work-specs/jev-svg-import/spec.md",
+        "docs/work-specs/jev-svg-import/runbook.md",
+        "docs/work-specs/jev-svg-import/readiness.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [],
+      "checks": [
+        "Produce support matrix, rollout/rollback instructions, total spend, exact-merge receipts and an owner trial list. Demonstrate the kill switch and no-AI fallback; mark any unqualified capability honestly. A planning gate is not product acceptance; conclude implementation only after all required evidence passes. Physical studio acceptance remains separately labeled."
+      ],
+      "notes": "Only this row's AC subset is accepted. New-file markers in spec govern creation. No blanket AC completion, altered assertions, credential disclosure or source expansion."
+    }
+  }
+]
