@@ -3,6 +3,7 @@
 // guards: src/assets/svgImport.ts, src/templates/importedDesign/svgBind.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { withBundledPage } from './catalog-emit.mjs';
 
@@ -17,6 +18,10 @@ const cases = [
   ['aliased executable URL', `<a xmlns:link="${XLINK}" link:href="jav&#x09;ascript:window.svgSentinel++"><text x="2" y="20">Click</text></a>`],
   ['encoded URL whitespace', '<a href="java&#x0a;script:window.svgSentinel++"><text x="2" y="20">Click</text></a>'],
   ['CDATA at an HTML integration point', '<title><style><![CDATA[</style><img src="data:," onerror="window.svgSentinel++">]]></style></title>'],
+  ['description integration point', '<desc><style>&lt;/style&gt;&lt;img src="data:," onerror="window.svgSentinel++"&gt;</style></desc>'],
+  ['HTML font breakout', '<font COLOR="red"><form action="javascript:window.svgSentinel++"><input type="submit"/></form></font>'],
+  ['aliased event handler', '<path xmlns:events="urn:events" events:onload="window.svgSentinel++"/>'],
+  ['XML short comment reparsing', '<!---><img src="data:," onerror="window.svgSentinel++">-->'],
   ['XML comment reparsing', '<!--><img src="data:," onerror="window.svgSentinel++">-->'],
   ['XML processing instruction reparsing', '<?probe ><img src="data:," onerror="window.svgSentinel++">?>'],
 ];
@@ -29,7 +34,7 @@ const observations = await withBundledPage([{ entry: fileURLToPath(new URL('../s
       const observed = [];
       const append = document.body.append;
       const inspect = root => Array.from(root.querySelectorAll('*')).filter(node =>
-        ['script', 'iframe', 'foreignobject', 'animate', 'set'].includes(node.localName.toLowerCase()) ||
+        ['script', 'iframe', 'foreignobject', 'animate', 'set', 'form', 'input'].includes(node.localName.toLowerCase()) ||
         Array.from(node.attributes).some(attr => /^on/i.test(attr.localName) || (attr.localName.toLowerCase() === 'href' && /^javascript:/i.test(attr.value.replace(/[\t\r\n]/g, '').trim())))
       ).map(node => node.outerHTML);
       document.body.append = function (...nodes) {
@@ -55,7 +60,19 @@ const observations = await withBundledPage([{ entry: fileURLToPath(new URL('../s
     const doc = new DOMParser().parseFromString(result.markup, 'image/svg+xml');
     return { notices: result.notices, sample: result.candidates.map(row => row.sample), gradient: doc.querySelector('rect').getAttribute('fill'), use: doc.querySelector('use').getAttributeNS(XLINK, 'href'), textPath: doc.querySelector('textPath').getAttribute('href'), images: result.images.length, style: doc.querySelector('style').textContent, size: [result.width, result.height] };
   }, { SVG, XLINK });
-  return { rows, control };
+  const aliases = await page.evaluate(({ SVG, XLINK }) => {
+    const source = `<svg xmlns="${SVG}" xmlns:link="${XLINK}" width="100" height="40" xml:base="https://example.invalid/"><defs><path id="curve" d="M0 20H80"/></defs><use link:href="#curve"/><text><textPath link:href="#curve">Local text</textPath></text><image link:href="data:image/png;base64,AA==" width="1" height="1"/><a href="#primary" link:href="#fallback"/></svg>`;
+    const result = window.SVG_IMPORT.importSvgMarkup(source);
+    const doc = new DOMParser().parseFromString(result.markup, 'image/svg+xml');
+    return { use: doc.querySelector('use').getAttribute('href'), textPath: doc.querySelector('textPath').getAttribute('href'), images: result.images.length, primary: doc.querySelector('a').getAttribute('href'), fallback: doc.querySelector('a').getAttributeNS(XLINK, 'href'), base: doc.documentElement.getAttribute('xml:base') };
+  }, { SVG, XLINK });
+  const envelope = await page.evaluate(source => {
+    const result = window.SVG_IMPORT.importSvgMarkup(source);
+    const doc = new DOMParser().parseFromString(result.markup, 'image/svg+xml');
+    const rect = doc.querySelector('rect');
+    return { text: result.candidates.map(row => row.sample), panel: ['x', 'y', 'width', 'height', 'fill'].map(name => rect.getAttribute(name)), privatePayloads: doc.getElementsByTagNameNS('*', 'pgf').length };
+  }, readFileSync(new URL('../e2e/fixtures/svg-corpus/illustrator-save-as-foreignobject.svg', import.meta.url), 'utf8'));
+  return { rows, control, aliases, envelope };
 });
 
 for (const row of observations.rows) test(`SVG import removes ${row.name} before live insertion and HTML reparse`, () => {
@@ -64,4 +81,12 @@ for (const row of observations.rows) test(`SVG import removes ${row.name} before
 });
 test('ordinary SVG artwork and internal image/definition references survive sanitization', () => {
   assert.deepEqual(observations.control, { notices: [], sample: ['Ordinary artwork'], gradient: 'url(#paint)', use: '#curve', textPath: '#curve', images: 1, style: '.label{fill:green}', size: [200, 100] });
+});
+
+test('aliased local references and image inventory survive, without a remote XML base', () => {
+  assert.deepEqual(observations.aliases, { use: '#curve', textPath: '#curve', images: 1, primary: '#primary', fallback: null, base: null });
+});
+
+test('removing the Illustrator private editing payload preserves its text and panel geometry', () => {
+  assert.deepEqual(observations.envelope, { text: ['Aino Virtanen', 'Student editor'], panel: ['190', '760', '880', '180', '#0D1017'], privatePayloads: 0 });
 });
