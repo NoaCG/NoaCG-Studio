@@ -34,9 +34,8 @@ reach NoaCG Bridge.
    allow it.
 3. The same page connects to CasparCG. It remembers the servers you used.
 4. Publish the production. The slot row in the Playout panel should read **Loaded**; if it does
-   not, press **Load**. Publishing also runs Prepare for Live, which readies each output and checks
-   the Bridge, CasparCG and the command path; its result shows in the panel's **Outputs** rows,
-   where **Check now** runs it again.
+   not, press **Load**. Publishing also runs Prepare for Live, the check that each output and
+   CasparCG are ready; **Check now** in the panel's **Outputs** rows runs it again.
 
 On another computer, or a browser that forgot its data: download and pair again (step 1 and 2).
 The Bridge keeps the server list, so you do not retype the server. Updates are never automatic:

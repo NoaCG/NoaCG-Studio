@@ -361,13 +361,14 @@ end).
   reload missed the output until the next update (once in 18 reloads over three hours; the next
   value reached air 6.6 s later, inside the 10 s ceiling). #1798: the output page's heap rises
   about 10 KB a minute, repeatably, cause not found (inside the hour's thresholds; row 44's
-  checker called it a judgement call). Neither fails E8 AC-2 as written; both are on-air limits in
-  the matrix and the runbook. A run longer than an hour is not measured. #1802 (filed during row
+  checker called it a judgement call). Neither fails E8 AC-2 as written; at row 45 both were
+  on-air limits in the matrix and the runbook. A run longer than an hour is not measured. #1802 (filed during row
   45 as #1797's follow-up): a frame lost at any other moment, with no later row, waits for the
   output's 30 s poll; open, in the matrix and the runbook. #1797 and #1798 were both fixed after
-  row 45 and landed through the merge queue, each with its own tests and its physical check owed to S:
-  #1797 (the production page pings the command log at its first join, so an output that lost a
-  frame during the reload reads it at once; `78e7bc8`, PR #1801) and #1798 (a Presence bug in the
+  row 45 and landed through the merge queue, each with its own tests and its physical check owed
+  to S: #1797 (the production page pings the command log at its first join, so an output that
+  lost a frame during the reload reads it without waiting for the next update; `78e7bc8`, PR
+  #1801) and #1798 (a Presence bug in the
   Supabase client kept a copy per re-track; fixed by its 2.110.9 patch; `18828b7`, PR #1804).
 - **O-10, the owner's on-air fixes (2026-10-28).** Three defects outside the phase rows were fixed
   and landed through the merge queue: #1618 (a results board taken again draws no rows;
