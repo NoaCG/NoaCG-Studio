@@ -37,5 +37,6 @@
   },
   "git_copy_path": "dev-tree/e2e/fixtures/jev-svg/",
   "legacy_copy_policy": "51 legacy SVGs and sidecars remain local; copy only manifest references to existing repository sibling svg-corpus.",
-  "storage_status": "Private owner Drive backup uploaded, owner-only/unshared permissions and fresh downloaded ZIP hash verified. Runtime protected Actions secret remains unprovisioned (administration403)."
+  "storage_status": "Private owner Drive backup uploaded, owner-only/unshared permissions and fresh downloaded ZIP hash verified. Runtime protected Actions secret remains unprovisioned (administration403).",
+  "frozen_manifest_status": "manifest.json storage_status is the immutable authoring-time local snapshot; this receipt records subsequent verified storage. Preserve original manifest/archive hashes."
 }

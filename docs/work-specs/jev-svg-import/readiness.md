@@ -33,6 +33,9 @@ this is expected pending final check/queue, not a passing complete CI receipt. T
 contract-freshness hang did not reproduce in Actions. Per owner instruction, do not diagnose it
 locally unless CI reproduces it. Final corrected-head results must be recorded separately.
 
+The frozen corpus manifest records storage at authoring time; preparation/corpus-receipt.json
+records later backup verification without changing that frozen manifest or archive hash.
+
 No paid inference occurred. No product acceptance criterion is closed by plan/corpus preparation.
 Existing scripts may run pure validation on draft data with synthetic timestamps in memory; this
 never calls project open/register or writes a live kit. Product review remains null.
