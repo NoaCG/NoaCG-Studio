@@ -20,9 +20,9 @@ AC-4) are this row's merge and its checker's entry; they cannot cite themselves 
   actually installed, H0 AC-4, E6 AC-4 and the deck's end of L1 AC-8. S: parent AC-14's real
   outputs, data AC-16's actual outputs, E3 AC-2 and E7 AC-4 on the real studio, E8 AC-2's and
   AC-3's physical part (the 30-minute dress rehearsal with L1 AC-11's quiz-and-score case and L2
-  AC-11's adjustment case), the physical checks of #1618, #1657 and #1746, and E8 AC-1's final
-  reconciliation with H0.2's and S's receipts. Provider qualification: the official election
-  feed, a separate verdict, never simulated.
+  AC-11's adjustment case), the physical checks of #1618, #1657, #1746, #1797 and #1798, and E8
+  AC-1's final reconciliation with H0.2's and S's receipts. Provider qualification: the official
+  election feed, a separate verdict, never simulated.
 - **The classes stay apart** (table below): software rehearsal (SW), Q's dated provider records,
   laptop scratch walks (LW, non-gating, each bound to its SHA, none on the final candidate), trial
   kits (KT: four landed, none run; a trial's result is reported, never required), real-studio
@@ -41,8 +41,8 @@ AC-4) are this row's merge and its checker's entry; they cannot cite themselves 
   must still build, hash and record the archive it installs from the final candidate.
 - **Open findings** that no criterion's text fails but an operator must know are in the
   [capability matrix](../capability-matrix.md) with what to do meanwhile; the runbook repeats the
-  ones that change what is on air. The three the owner named (#1795, #1797, #1798) are open on
-  `c6fc146` and listed there.
+  ones that change what is on air. Of the three the owner named, #1795 is open on `18828b7` and
+  listed there; #1797 and #1798 were fixed after row 45 (O-9) and are listed as fixed in software.
 - **AC-3's kit** is [`trial-kit.md`](trial-kit.md), with L1 AC-11's two-graphic task (task 6)
   and L2 AC-11's adjustment task (task 7), on the owner list (#1553). **AC-4** is the
   [runbook](../runbook.md) and the [matrix](../capability-matrix.md), checked against the build in
@@ -268,7 +268,7 @@ end).
 | AC | Evidence | Status |
 | --- | --- | --- |
 | AC-1 | 43 (software reconciliation), 45 (the verdict above) | agent part: row 45's merge and checker; part owed: S (final reconciliation with H0.2's and S's receipts) |
-| AC-2 | 43 cross-feature cases (below), 44 endurance (`e8-1b-endurance.md`, run 40728515115) | passed (SW); open findings #1797, #1798 (O-9); part owed: S (the dress rehearsal's failures) |
+| AC-2 | 43 cross-feature cases (below), 44 endurance (`e8-1b-endurance.md`, run 40728515115) | passed (SW); findings #1797, #1798 (O-9), fixed in software since; part owed: S (the dress rehearsal's failures) |
 | AC-3 | 45 (`trial-kit.md`) | kit: row 45's merge and checker (KT); owed: S (physical part) |
 | AC-4 | 45 (`../runbook.md`, `../capability-matrix.md`, `e8-2-guide-check.md`) | row 45's merge and checker |
 
@@ -301,7 +301,7 @@ end).
 | E8.1b (row 44) | delivered: passed on `f0adf9b` (run 40728515115) |
 | E8.2 (row 45) | delivered by this update: the verdict, the kit, the runbook and the matrix |
 | H0.2 (row 46) | H0 AC-1's guide walk on the archive actually shipped (built and hashed from the final candidate), H0 AC-4, E6 AC-4, the operator's buttons on the deck (L1 AC-8's physical end) |
-| S (row 47) | parent AC-14's real outputs and `final-acceptance.md`; data AC-16's actual outputs; E3 AC-2, E7 AC-4 and E8 AC-3's physical part (the 30-minute dress rehearsal, with L1 AC-11's quiz-and-score case and L2 AC-11's adjustment case); the physical checks of #1618, #1657 and #1746; E8 AC-1's final reconciliation including H0.2's and S's receipts |
+| S (row 47) | parent AC-14's real outputs and `final-acceptance.md`; data AC-16's actual outputs; E3 AC-2, E7 AC-4 and E8 AC-3's physical part (the 30-minute dress rehearsal, with L1 AC-11's quiz-and-score case and L2 AC-11's adjustment case); the physical checks of #1618, #1657, #1746, #1797 and #1798; E8 AC-1's final reconciliation including H0.2's and S's receipts |
 | PQ | the official Finnish/Yle election feed (access, licence, schema, rate): a separate qualification verdict; the programme can finish with it stated as unqualified |
 
 ## Open findings
@@ -361,10 +361,15 @@ end).
   reload missed the output until the next update (once in 18 reloads over three hours; the next
   value reached air 6.6 s later, inside the 10 s ceiling). #1798: the output page's heap rises
   about 10 KB a minute, repeatably, cause not found (inside the hour's thresholds; row 44's
-  checker called it a judgement call). Neither fails E8 AC-2 as written; both are on-air limits in
-  the matrix and the runbook. A run longer than an hour is not measured. #1802 (filed during row
+  checker called it a judgement call). Neither fails E8 AC-2 as written; at row 45 both were
+  on-air limits in the matrix and the runbook. A run longer than an hour is not measured. #1802 (filed during row
   45 as #1797's follow-up): a frame lost at any other moment, with no later row, waits for the
-  output's 30 s poll; open, in the matrix and the runbook.
+  output's 30 s poll; open, in the matrix and the runbook. #1797 and #1798 were both fixed after
+  row 45 and landed through the merge queue, each with its own tests and its physical check owed
+  to S: #1797 (the production page pings the command log at its first join, so an output that
+  lost a frame during the reload reads it without waiting for the next update; `78e7bc8`, PR
+  #1801) and #1798 (a Presence bug in the
+  Supabase client kept a copy per re-track; fixed by its 2.110.9 patch; `18828b7`, PR #1804).
 - **O-10, the owner's on-air fixes (2026-10-28).** Three defects outside the phase rows were fixed
   and landed through the merge queue: #1618 (a results board taken again draws no rows;
   `55f98f9`, PR #1793), #1657 (the CasparCG output comes back by itself after a server restart;
@@ -401,9 +406,9 @@ end).
 | #1778 | e2e seed settling | test hygiene; no criterion |
 | #1784 | E3 AC-3, L2 AC-10 | item 1 closed by this row (below); item 2 open, display only, in the matrix's on-air list (an operator reads that line) |
 | #1795 | no criterion; on air for exported boards | O-10, open; matrix and runbook |
-| #1797 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
+| #1797 | E8 AC-2 (passes as written) | O-9, fixed in software (`78e7bc8`, PR #1801); physical check owed to S |
 | #1802 | no criterion; on air, #1797's follow-up | O-9, open; matrix and runbook |
-| #1798 | E8 AC-2 (passes as written) | O-9, open; matrix and runbook |
+| #1798 | E8 AC-2 (passes as written) | O-9, fixed in software (`18828b7`, PR #1804); physical check owed to S |
 | #1618, #1657, #1746 | parent AC-14, data AC-16 on real outputs | O-10, fixed in software; physical check owed to S |
 | #1567, #1572, #885, #1671, #1347, #1048, #1063, #775, #758, #779, #1171, #1144, #1259, #778, #792 | older open on-air defects, filed before the extension rows | no gated criterion's text; listed in the matrix with what to do meanwhile |
 

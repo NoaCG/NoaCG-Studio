@@ -5,9 +5,10 @@ part has been measured, and what it cannot do yet. Every line cites its receipt.
 steps are in the [runbook](runbook.md); the criterion-by-criterion record is the
 [reconciliation](evidence/e8-1a-reconciliation.md).
 
-**Build.** `main` at `c6fc146b8807f629645c980d75fa53735dd0453d` (product code identical to
-`f0adf9b`, row 44's merge: the commit between changed only `docs/work-specs/cicd-improvement/`
-and `.agent-workflows/plan-run.md`), plus this row's merge. Checked on 2026-10-28.
+**Build.** `main` at `18828b7bf52b4946cec54b141a78c035154a969e`: row 45's merge `05baf75`, then
+the fixes for #1797 (`78e7bc8`, PR #1801) and #1798 (`18828b7`, PR #1804) and a quarantine-list
+PR (#1808). Row 45 checked `c6fc146` on 2026-10-28; this list was brought up to date on
+2026-10-29.
 
 ## How to read the status
 
@@ -58,7 +59,7 @@ Nothing below is passed by H0.2 or S yet: both are the owner's, after this row.
 | **SPX** | Existing regressions kept (the SPX export and operator specs run on every merge); no expanded qualification in this programme. | [`docs/SPX_ON_A_REAL_SERVER.md`](../../SPX_ON_A_REAL_SERVER.md); `e2e/spx-operator.spec.ts`; [`docs/ACCEPTANCE_SPX_CASPARCG.md`](../../ACCEPTANCE_SPX_CASPARCG.md) is a manual checklist with no result recorded |
 | **Unattended cloud reading** | Not claimed. The server tick that reads a published Sheet while every page is closed is switched off in production. The trusted agent is a process on a machine you keep running; it is not a cloud service. | `tick-cost-estimate.md` (why it stays off); row 9's ledger entry (C2: the tick runs only when its switch is on, which stays OFF, as the reconciliation's Sheet AC-4 row records); the sources line reads closed-page reading as off (`src/components/home/SourcesLine.tsx`); [`docs/DATA_API.md`](../../DATA_API.md) |
 | **SDI key and fill through a CasparCG DeckLink card** | Not qualified. Never checked; every CasparCG walk above used a channel with no consumers. | [#976](https://github.com/NoaCG/NoaCG-Studio/issues/976) |
-| **Running for more than an hour** | Not measured. The output page's memory rises about 10 KB a minute (#1798). | [`evidence/e8-1b-endurance.md`](evidence/e8-1b-endurance.md) |
+| **Running for more than an hour** | Not measured. The output page's memory growth (#1798) is fixed in software; after the fix its last 20 minutes in the hour still rose about 3.7 KB a minute, which may level off. In 2 of 4 endurance runs on that fix the agent's memory climbed about 60 MB after a crash handover, cause not found ([#1809](https://github.com/NoaCG/NoaCG-Studio/issues/1809)). | [`evidence/e8-1b-endurance.md`](evidence/e8-1b-endurance.md); [PR #1804](https://github.com/NoaCG/NoaCG-Studio/pull/1804) (before and after) |
 
 This matrix makes no claim of parity with any vendor's product, no claim that NoaCG runs
 unattended in the cloud, and no claim of readiness for an election day.
@@ -66,13 +67,11 @@ unattended in the cloud, and no claim of readiness for an election day.
 ## Known on-air defects not fixed
 
 Each can change what is on air or what the operator believes is on air. All are open on
-`c6fc146` (#1802 was opened during this row, at 2026-10-28T19:16Z).
+`18828b7` (#1802 was opened during row 45, at 2026-10-28T19:16Z).
 
 | Issue | What happens | What to do meanwhile |
 | --- | --- | --- |
 | [#1795](https://github.com/NoaCG/NoaCG-Studio/issues/1795) | An **exported** results board (a CasparCG `.html`, SPX or OGraf package) played again after a stop, outside the `/output` page, may show its header and no rows. Read from the code, not yet reproduced. The `/output` page itself is fixed (#1618). | Play results boards through the `/output` page. If you use an exported board, check the picture after a second play. |
-| [#1797](https://github.com/NoaCG/NoaCG-Studio/issues/1797) | A value that arrives while the production page is reloading can miss the output until the next update. Seen once in 18 reloads; the next value fixed it 6.6 s later. | After reloading the production page, press **✎ Update** on bound boards if the source may have gone quiet. |
-| [#1798](https://github.com/NoaCG/NoaCG-Studio/issues/1798) | The output page's memory grows about 10 KB a minute (about 14 MB a day). Cause not found. Inside the hour measured. | Reload the output page (or the CasparCG/OBS source) between shows; do not leave one running for days. |
 | [#1802](https://github.com/NoaCG/NoaCG-Studio/issues/1802) | A value the output never received (a lost update, with no newer one after it) stays missing until the output's 30-second check: up to 30 s with nothing marking it stale, past the 10 s ceiling for a bound field. Cause of the loss not yet known. | If a bound board looks behind the source, press **✎ Update**. |
 | [#1760](https://github.com/NoaCG/NoaCG-Studio/issues/1760) | A typed (imported OGraf) value bound to a source reaches air at the next **✎ Update**, not by itself. Native graphics follow within seconds. | Press **✎ Update** after the source moves. |
 | [#1769](https://github.com/NoaCG/NoaCG-Studio/issues/1769) | PROGRAM on the page can miss the typed values of an imported graphic; the output is right. | Trust the output, not PROGRAM, for typed values. |
@@ -90,7 +89,7 @@ Each can change what is on air or what the operator believes is on air. All are 
 
 ### Older on-air defects still open
 
-Filed before this programme's extension rows; open on `c6fc146`. This list and the one above
+Filed before this programme's extension rows; open on `18828b7`. This list and the one above
 hold every open issue whose defect changes what airs or what the operator believes airs,
 including how a graphic is drawn on air. Not listed: issues only in the editor, the agent tools or
 the tests; feature requests; and test flakes that name no reproduced on-air failure (for example
@@ -105,7 +104,7 @@ on hosted staging and passed on retry).
 | [#1671](https://github.com/NoaCG/NoaCG-Studio/issues/1671) | A connector without a recipe keeps a tab inside a cell, which splits a ticker or schedule line on air. | Give the connector a recipe (Connect data), which holds such a cell instead. |
 | [#1347](https://github.com/NoaCG/NoaCG-Studio/issues/1347) | An exported HTML overlay (OBS, vMix) of a graphic timed to leave by itself, with a looping entrance, leaves straight away. Read from the code. | Do not set a leave time on a graphic with a looping entrance in an HTML-overlay export. |
 | [#1048](https://github.com/NoaCG/NoaCG-Studio/issues/1048) | On SPX 1.4, every dual NoaCG package plays on layer 5, so two of them replace each other. (The SPX export itself is fixed.) | Use the SPX export, not the dual package, on SPX 1.4. |
-| [#1063](https://github.com/NoaCG/NoaCG-Studio/issues/1063) | Prepare for Live can wait without end on the output's first read if the server never answers. | If READY shows nothing new for a minute, reload the output. |
+| [#1063](https://github.com/NoaCG/NoaCG-Studio/issues/1063) | Prepare for Live (the readiness check that Publish and **Check now** run) can wait without end on the output's first read if the server never answers. | If the **Outputs** rows in the Playout panel show nothing new for a minute, reload the output. |
 | [#775](https://github.com/NoaCG/NoaCG-Studio/issues/775) | On Linux playout machines a long name that should shrink can run about 5% past its box. | Check long names on the target machine before the show. |
 | [#1171](https://github.com/NoaCG/NoaCG-Studio/issues/1171) | In an imported SVG, a centred bound line grows left over a logo or crest beside it, with no warning. | For imported SVG graphics, try the longest value on PREVIEW before the show. |
 | [#1144](https://github.com/NoaCG/NoaCG-Studio/issues/1144) | In an imported SVG, a turned line on an upright strip wraps across the strip's edges, with no warning. | Same: try the longest value on PREVIEW before the show. |
@@ -130,7 +129,9 @@ on hosted staging and passed on retry).
 | [#1758](https://github.com/NoaCG/NoaCG-Studio/issues/1758) | The Companion module's own tests run in no GitHub workflow, so a module change is not checked by CI. |
 
 Not affecting any criterion: [#1771](https://github.com/NoaCG/NoaCG-Studio/issues/1771) and
-[#1778](https://github.com/NoaCG/NoaCG-Studio/issues/1778) are test gaps or test hygiene.
+[#1778](https://github.com/NoaCG/NoaCG-Studio/issues/1778) are test gaps or test hygiene;
+[#1803](https://github.com/NoaCG/NoaCG-Studio/issues/1803) is the endurance judge counting an
+agent's send that its own scheduled handover cut off as a refusal.
 [#1784](https://github.com/NoaCG/NoaCG-Studio/issues/1784)'s item 2 is in the on-air list above.
 
 ## Fixed in software, physical check owed to S
@@ -140,3 +141,5 @@ Not affecting any criterion: [#1771](https://github.com/NoaCG/NoaCG-Studio/issue
 | [#1618](https://github.com/NoaCG/NoaCG-Studio/issues/1618) | `55f98f9` (PR #1793) | A results board taken again after Out draws its rows on the `/output` page. | Take a League Table, Out, Take again on CasparCG and OBS (also with a ticker on air, and after reloading the output). |
 | [#1657](https://github.com/NoaCG/NoaCG-Studio/issues/1657) | `e5d28ef` (PR #1792) | After a CasparCG restart the slot row reads **Reloading…** in amber while the page loads its output again by itself. If three tries fail, the row reads **Empty** in red with the reason under it ("Loading it again did not bring it back."), the status reads **Not on 1-20** (your slot), and **Load** is yours. After the browser page itself was reloaded, a server restart still needs **Load**. | Restart CasparCG during a published production. |
 | [#1746](https://github.com/NoaCG/NoaCG-Studio/issues/1746) | `e375917` (PR #1794) | A graphic saved before 2026-10-26 sets Š and Ž in its own typeface and draws no smeared bold. | A saved Bebas Neue or Anton heading with "Šimon Žáková" on CasparCG and OBS. |
+| [#1797](https://github.com/NoaCG/NoaCG-Studio/issues/1797) | `78e7bc8` (PR #1801) | A value that arrives while the production page reloads reaches the output once the page has joined again, without waiting for the next update. A value lost at any other moment is still #1802. | Reload the production page while a bound source moves, on CasparCG and OBS. |
+| [#1798](https://github.com/NoaCG/NoaCG-Studio/issues/1798) | `18828b7` (PR #1804) | The output page's memory no longer grows with every live update of who is connected. | Watch the output's memory over a long session. |
