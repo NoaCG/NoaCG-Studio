@@ -201,6 +201,7 @@ sweep-*.json
 !.agents/skills/o/
 !.agents/skills/ograf-expert/
 !.agents/skills/orchestrator/
+!.agents/skills/plan-create/
 !.agents/skills/plan-run/
 !.agents/skills/queue-merge/
 !.agents/skills/so/

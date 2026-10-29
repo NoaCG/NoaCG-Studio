@@ -183,6 +183,7 @@ export function wakeVerdict({ text, inventory, now = Date.now(), stopped = usage
   // A plan run stopped on a question to the owner is woken by his answer, not by the limit's reset.
   const owed = nextStep(text, now);
   if (owed.action === 'stopped') return { verdict: 'alive', why: `session ${live.join(', ')} is waiting on the owner's answer for phase ${owed.phase}` };
+  if (owed.action === 'owner') return { verdict: 'alive', why: `session ${live.join(', ')} is waiting on the owner's phase ${owed.phase}` };
   const resets = stops.map((stop) => stop.resetsAt);
   const until = resets.includes(null) ? null : Math.max(...resets);
   const basis = stops.find((stop) => stop.resetsAt === until)?.basis;

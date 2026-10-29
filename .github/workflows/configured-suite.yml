@@ -108,9 +108,14 @@ on:
 # GitHub keeps only ONE pending run per group - so on a day with twenty landings most of them
 # would be cancelled while pending and a verdict would cover an unknown handful of commits.
 # Attribution is the entire reason this runs on push, so a push gets its own group and its own
-# verdict. The cron and any dispatch keep the shared one, where serialising is right.
+# verdict. The cron and a dispatch on main keep the shared one, where serialising is right.
+#
+# A DISPATCH ON A BRANCH GETS ITS BRANCH'S GROUP (2026-10-29, the production-page retro on #1553).
+# Plan-run builders dispatch this suite on their reviewed heads, several at once, and in the shared
+# group each new dispatch cancelled the one pending before it: hours lost and hand-made dispatch
+# orders. Per branch, a dispatch replaces only its own branch's pending run, the newer head.
 concurrency:
-  group: configured-suite-${{ github.event_name == 'push' && github.sha || 'shared' }}
+  group: configured-suite-${{ github.event_name == 'push' && github.sha || github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.ref || 'shared' }}
   cancel-in-progress: false
 
 permissions:

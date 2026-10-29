@@ -15,6 +15,9 @@ export function instant(value) {
 export function validateAuthorization(auth, { now = Date.now(), open = true, kind = 'plan' } = {}) {
   if (!['plan', 'wave'].includes(kind)) throw Error('Authorization kind must be plan or wave');
   if (!auth || !['source', 'scope', 'permissionPolicy'].every((key) => nonempty(auth[key]))) throw Error('Explicit owner authorization, scope and permission policy required');
+  // Standing permissions (block renewal, migrations, auto-merge) are the owner's words, kept verbatim.
+  if (auth.standing !== undefined && (!auth.standing || typeof auth.standing !== 'object' || Array.isArray(auth.standing)
+      || !Object.keys(auth.standing).length || Object.values(auth.standing).some((words) => !nonempty(words)))) throw Error('Standing permissions are the owner\'s words, one line each');
   const start = instant(auth.startedAt), end = instant(auth.deadline);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || start > now
       || (open && now >= end)) throw Error('Original finite authorization is invalid or expired');
@@ -60,6 +63,17 @@ export function readProject(text, now = Date.now()) {
   const titles = [...section.matchAll(/^\d+\.\s+(.+)$/gm)].map((m) => m[1].trim());
   if (JSON.stringify(titles) !== JSON.stringify(project.phases.map((p) => p.title))) throw Error('Authorized phase set or order changed');
   return project;
+}
+
+/** The 1-based row of a phase named by its project id or its row. A number that is one phase's id
+ * and another phase's row is refused, never guessed: that mix-up is what one id everywhere ends. */
+export function phaseRow(phases, name) {
+  const byId = phases.findIndex((phase) => phase.id === name) + 1;
+  const row = /^\d+$/.test(name ?? '') ? Number(name) : 0;
+  if (byId && row && byId !== row) throw Error(`Ambiguous phase "${name}": it is the id of row ${byId} and also row ${row}; name the first by row ${byId}, the second by its id`);
+  if (byId) return byId;
+  if (row >= 1 && row <= phases.length) return row;
+  throw Error(`No phase "${name}": name its project id or its row number`);
 }
 
 export function writeProject(text, project) {

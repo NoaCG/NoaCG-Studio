@@ -23,7 +23,8 @@ IDs, dates, phases and environments below are placeholders, not reusable authori
     "scope": "exact accepted scope",
     "permissionPolicy": "actual effective policy and its evidence",
     "startedAt": "2030-01-01T09:00:00+02:00",
-    "deadline": "2030-01-04T18:00:00+02:00"
+    "deadline": "2030-01-04T18:00:00+02:00",
+    "standing": { "blockRenewal": "the owner's own words, only when he gave them" }
   },
   "status": "paused",
   "phases": [
@@ -37,6 +38,11 @@ IDs, dates, phases and environments below are placeholders, not reusable authori
   ]
 }
 ```
+
+`standing` is optional: each entry is a permission the owner gave for the whole run, in
+his words. An environment that starts `OW:` marks an owner phase: `next` answers
+`owner` (hand it over, wait on him) instead of launching its build. `/plan-create`
+writes this file.
 
 Preserve every phase object and its additional plan data. Dependencies reference
 earlier phase IDs; sequential admission preserves the authorized phase order.
@@ -60,12 +66,16 @@ JSON contains `owner`, `deadline` and `evidence` of reconciliation. A block last
 at most 24 hours and ends no later than the project deadline. Save the returned
 block's `id`, `owner` and `epoch` as the authority receipt for phase recording.
 On one host an active block cannot be replaced by a competing caller. An old
-receipt becomes invalid after resume.
+receipt becomes invalid after resume. With a standing `blockRenewal`,
+`run-supervisor.mjs renew <db> <id> <block.json>` opens the next block once the last
+one ended (a check-in calls it every time; while a block is open it changes nothing),
+records the owner's words as its evidence and writes the new receipt. It never resumes
+an owner pause, a wait, a cancellation or an expired project.
 
 Use `run-supervisor.mjs record <db> <id> <phase> <event> <detail> --authority <block.json>`
-for every project phase event; `<phase>` is the 1-based row number of the project's
-`## Phases` list. A continuing project is driven by `continue`, `start-block`,
-`record` and `next` only, never `tick`: a continued store's adapter answers every
+for every project phase event; `<phase>` is the phase's project id or its 1-based
+row number of the `## Phases` list, and `next` names both. A continuing project is
+driven by `continue`, `start-block`, `renew`, `record` and `next` only, never `tick`: a continued store's adapter answers every
 native request with unknown. A build/repair/check detail is a one-line JSON receipt
 with `actor` and useful branch/worktree/native-action references. A checker cannot
 be any builder/repairer of that phase, replacements included.
@@ -156,7 +166,9 @@ The recovery branch, `claude/noacg-recovery/<id>`, is the project's shared state
 a branch because that is the namespace a Claude cloud session can push (pushes to
 `refs/noacg-recovery/*` were dropped, `cloud-recovery-probe-2026-10-20.md`). Each
 checkpoint commit holds only `checkpoint.json`, the wave ledger as its own blob
-`ledger.md`, and a `vercel.json` that turns Vercel deployments off, so no preview is
+`ledger.md`, the run kit beside the wave file (`<wave>.kit/`: `state.json`, brief
+templates, briefs sent; text only, 8 MiB) as the `kit/` folder when there is one,
+and a `vercel.json` that turns Vercel deployments off, so no preview is
 built and no workflow runs. `checkpoint.json` (at most 256 KiB) names the ledger's
 sha256, and a reader refuses a ledger that differs; the ledger may grow to 8 MiB.
 Older checkpoints with the ledger inline are still read, but code from before this
@@ -173,8 +185,8 @@ It finds the plan's active project (`plan-<plan>-*`), restores its latest checkp
 into a fresh directory under `<state-root>` (on Windows keep it short, e.g.
 `C:\noacg-state`: it holds a full checkout), opens a new block (at most 24 hours,
 never past the original deadline) and prints `db`, `wave`, `block` and `next`. Save
-`block` as the authority receipt and carry on from `next`; failures, repair counts
-and in-flight steps carry over. `open` means no project is active: open one.
+`block` as the authority receipt and carry on from `next`; the run kit, failures, repair counts
+and in-flight steps carry over. `open` means no project is active: set one up with `/plan-create`.
 `blocked` means this session now owns the project but its recorded wait must be
 resolved (`clear-wait`) before `start-block`.
 
