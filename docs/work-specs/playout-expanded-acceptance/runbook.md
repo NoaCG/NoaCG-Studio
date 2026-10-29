@@ -34,7 +34,9 @@ reach NoaCG Bridge.
    allow it.
 3. The same page connects to CasparCG. It remembers the servers you used.
 4. Publish the production. The slot row in the Playout panel should read **Loaded**; if it does
-   not, press **Load**.
+   not, press **Load**. Publishing also runs Prepare for Live: it asks each output to get the new
+   version ready and checks the Bridge, CasparCG and the command path. Its result shows in the
+   panel's **Outputs** rows, and **Check now** there runs it again without publishing.
 
 On another computer, or a browser that forgot its data: download and pair again (step 1 and 2).
 The Bridge keeps the server list, so you do not retype the server. Updates are never automatic:
@@ -138,7 +140,7 @@ taken (413 …)".
 | What restarted | What you see | What to do |
 | --- | --- | --- |
 | **The agent** (stopped, crashed, or moved to another computer) | Its window says `claimed: epoch N, continuing after revision M`. If the old one died without stopping cleanly, the new one waits about 30 seconds and says so. A second agent started beside a running one says "not claimed (409 held by another agent)" and writes nothing. | Start it again with the same command. Stop it with Ctrl+C, which lets its claim go. |
-| **The production page** (reloaded, or reopened after closing) | The page reads what is on air from the server. A live candidate card it took before is held, with the reason shown, until you press. | Look at the output first. Press **✎ Update** on a live candidate cue to make it follow again, and on bound boards if the source may have gone quiet during the reload ([#1797](https://github.com/NoaCG/NoaCG-Studio/issues/1797)). |
+| **The production page** (reloaded, or reopened after closing) | The page reads what is on air from the server. A live candidate card it took before is held, with the reason shown, until you press. | Look at the output first. Press **✎ Update** on a live candidate cue to make it follow again. |
 | **NoaCG Bridge** | The Playout panel says which part is not answering, for example "Start NoaCG Bridge on this machine". With a server cue up, PROGRAM can dim with "BRIDGE NOT ANSWERING · NOT LIVE". | Start the Bridge again (double-click it). The slot comes back by itself within about 10 seconds. |
 | **The CasparCG server** | The slot row reads **Reloading…** in amber: the page loads its own output again by itself, onto the same channel and layer. What then airs follows the command log. | Nothing, if it comes back. If three tries fail (at once, then about 10 and 60 seconds later), the row reads **Empty** in red with the reason under it ("Loading it again did not bring it back."), the status reads "Not on 1-20" (your slot), and you press **Load**. **Also press Load** after a CasparCG restart if you reloaded the production page since you last pressed Load: the page only remembers its own Load while it stays open. A restart so quick that the page never saw the server gone also needs **Load**. |
 | **The output page** (CasparCG or OBS reloaded it) | It reads what is on air from the server and draws it again. | Nothing. If an imported OGraf graphic's line under PROGRAM says it was not confirmed, press **Re-cue**. |
@@ -214,11 +216,6 @@ The ones to keep in front of you:
 
 - [#1795](https://github.com/NoaCG/NoaCG-Studio/issues/1795): an exported results board played
   again outside the `/output` page may show no rows. Play results boards through `/output`.
-- [#1797](https://github.com/NoaCG/NoaCG-Studio/issues/1797): a value that arrives while the
-  production page reloads can miss the output until the next update. Press **✎ Update** after a
-  reload.
-- [#1798](https://github.com/NoaCG/NoaCG-Studio/issues/1798): the output page's memory grows
-  slowly. Reload outputs between shows.
 - [#1802](https://github.com/NoaCG/NoaCG-Studio/issues/1802): a value that does not reach the
   output can stay missing for up to 30 seconds, with nothing marking it stale, if no newer value
   follows. If a bound board looks behind the source, press **✎ Update**.
@@ -227,5 +224,6 @@ The ones to keep in front of you:
   name, and check the rundown for duplicates before the show.
 
 Fixed in software and still to be seen on the real studio in S: a results board taken twice
-(#1618), the output coming back after a CasparCG restart (#1657, section 5) and saved graphics'
-letters Š and Ž (#1746).
+(#1618), the output coming back after a CasparCG restart (#1657, section 5), saved graphics'
+letters Š and Ž (#1746), a value that arrives while the production page reloads (#1797) and the
+output page's memory growth (#1798).
