@@ -1,6 +1,6 @@
 # Faster delivery with credible site and graphics protection
 
-Status: prepared registration revised after full-run opinion, 2026-10-29; execution not authorized.
+Status: prepared registration revised for lasting growth controls and PR #1816, 2026-10-29; execution not authorized.
 The owner authorized preparation and registration only. Implementation,
 experiments, workflow activation and changes to the production-page run are not. This is the
 master proposal for the work after production-page completion, integrating the
@@ -11,6 +11,8 @@ Initial research is pinned to `d8dd1304910736437486d6f9f9cd9e401ac65589`; see
 reported owner decisions are incorporated below; see the research receipt for disposition and limits.
 The [full-run opinion](evidence/full-run-opus-review-2026-10-29.txt) and
 [reconciliation](evidence/full-run-reconciliation.md) refine order, gating and continuation.
+The [PR #1816 reconciliation and growth-control receipt](evidence/pr-1816-and-growth-controls.md)
+records the landed runner changes, remaining procedure hazards and this revision.
 The registered run name is `cicd-improvement`; its [runbook](runbook.md) defines admission, row
 scopes, environments and recovery. Registration is not authorization to open a runtime project.
 
@@ -22,7 +24,7 @@ unnecessary app startup and duplicate executions. Preserve named behavior, failu
 integration boundaries. Keeping every existing execution is not itself proof of protection.
 
 The supplied research reports 2.70 hours median and 3.50 hours mean from first build to final PASS
-over 30 production-page rows. Six first checks failed. Row 30 took 10.63 hours and exposed missing
+over 30 production-page rows. Six first checks failed. Production-page row 30 took 10.63 hours and exposed missing
 ordering assumptions through repeated repairs. These elapsed times include tests and waiting;
 they do not measure active coding. Configured-suite sharding changed during the sample. Faster
 queue checks alone cannot remove the larger review-and-repair interval.
@@ -51,6 +53,8 @@ are each insufficient to call a feature complete.
   verbatim in their section below.
 - Carry forward the supplied constraints: public GitHub Team, standard runners, 60 concurrent
   jobs, no additional paid services or infrastructure, and only the merge queue writes main.
+- Owner direction, 2026-10-29: apply growth controls to backend tests, graphics checks and total PR
+  landing time as well as offline E2E. Update preparation only; do not launch implementation.
 - Three plans are the immediate parallelism target. Ten contributors are a later capacity question.
 
 The following design is recommended, not a claim that these capabilities are already implemented.
@@ -76,8 +80,8 @@ mandatory design-review ceremony.
 Keep `/check` and fresh independent acceptance after landing. Give reviewers a compact map from
 acceptance criteria to changed behavior and evidence, with the exact base and head. The checker
 gets the contract and artifacts, not the builder's repair conversation as its starting context.
-It chooses its own boundary probes and judges whether evidence proves the contract. Land this
-guidance once in the plan-run builder brief and check procedure, and mark parallel-plans D3 as
+It chooses its own boundary probes and judges whether evidence proves the contract. Use the
+PR #1816 canonical kit templates and known-traps reference. Land this guidance once in those builder/check procedures, and mark parallel-plans D3 as
 fulfilled by those canonical changes. Tests may
 share setup; an independent oracle must not simply repeat the production algorithm.
 
@@ -192,6 +196,12 @@ configured helpers, live configuration, shared setup, workflow/verdict changes a
 dependencies select the full configured set. Missing declarations or reports cannot select nothing.
 Expected cases/skips derive from the selected manifest. The gate accepts a skipped backend job only
 when the flag is off or the event is merge_group. Missing/failing triggered PR evidence cannot pass.
+Reconcile the plan-run build/repair/fix templates, known-traps guidance and coordinator receipt
+requirements in the same implementation phase: they currently demand a manually dispatched full
+configured suite for every phase PR. Until the selected required gate and its manifest/verdict
+checks are proved, keep that obligation. Afterwards require the selected gate on triggered PRs,
+an explicit planner-proven exemption on untriggered PRs, and full coverage on broad/unknown changes;
+do not keep a duplicate unconditional full pre-merge dispatch hidden in worker instructions.
 Keep the full configured suite per landing. This intentionally leaves a gap between PR-base
 backend validation and validation of the combined landed tree: merge groups skip this backend job.
 Do not claim backend integration is checked before merge. P0 must establish whether deployment
@@ -237,9 +247,10 @@ Every new feature extends an existing journey where possible and adds pure logic
 
 ## D5. Preserve exact attribution while removing repeated work
 
-First isolate manual configured-suite dispatches by ref, give the schedule its own group and keep
-per-SHA landing groups with cancel-in-progress false. Add an immutable requested SHA and fail if
-checkout differs. Grouping by ref controls scheduling, not proof of source identity. Genuine
+PR #1816 already isolates non-main manual configured-suite dispatches by branch, with
+per-SHA landing groups and cancel-in-progress false. Verify that behavior rather than rebuild it.
+Schedules and main dispatches still share a group; isolate those remaining collisions. Add an
+immutable requested SHA and fail if checkout differs. Grouping by ref controls scheduling, not proof of source identity. Genuine
 same-branch pending supersession remains possible; recover any cancelled verdict still required
 by a checker. Preserve obsolete ordinary PR cancellation and the owned exact-SHA recovery path.
 The full reuse identity tuple is not a prerequisite for this first scheduling slice.
@@ -266,6 +277,79 @@ not all jobs are eligible simultaneously. P0 reads current settings and actual j
 than inferring capacity from average occupancy. Reviewer/checker capacity remains unknown.
 Keep current merge settings initially; measure before changing concurrency.
 
+## D7. Control growth across the whole delivery process
+
+Test admission follows the cheapest faithful layer: pure logic in Node; real DOM/canvas/font/layout
+in an isolated browser where possible; one maintained public journey for each critical flow; real
+backend integration where persistence, permissions or concurrency require it. Before adding a case,
+identify the uncovered contract and failure it catches, existing overlap, intended layer/cadence,
+owner and incremental cost. Extend a maintained fixture or journey when it proves that contract;
+do not add another full app walkthrough for each feature. Keep distinct necessary boundary tests.
+There is no fixed test-count cap or one-in/one-out rule that forces coverage loss.
+
+Extend the existing capacity/reporting and protection-maintenance machinery, not a new service.
+Use separate fixed, reviewed budgets for offline checks, configured backend checks (selected PR and
+full landing), graphics batteries (affected, broad and scheduled), and total runner cost per accepted
+change. Measure setup, migration/seeding, execution, reports, retries, cancellations and recovery;
+include every job in a graphics battery, not just calibration. Count a job once in the aggregate,
+and preserve its tier attribution. Cheap selection today must not conceal growing full-run debt.
+Keep the current resource envelope and job/test caps. More shards or concurrency cannot raise it.
+
+P0 freezes a versioned budget table from comparable existing runs on standard resources: source,
+runner/configuration, measurement window, each absolute ceiling, units, sample coverage, named owner,
+warning and refusal action. Preserve the existing offline ceiling. For newly controlled tiers,
+choose absolute ceilings within the shared resource envelope and retain at least 5% headroom;
+if the current workload cannot fit, expose a maintenance blocker rather than normalize the overrun.
+Controls may pass ci18 while correctly refusing growth against a measured overrun: faithful
+cost-reducing maintenance can proceed. An unmeasured ceiling or nonfunctional gate cannot pass.
+Freeze category-specific absolute delivery-time ceilings from the AC-1 cohort and the existing
+improvement targets. No rolling baseline, weekly duration refresh or larger runner pool raises a
+ceiling automatically. Insufficient samples are provisional and prevent claiming AC-9 achieved.
+Initial calibration is independently reviewed before its gate activates; subsequent increases need
+an explicit reviewed rationale and authority, never an automatic repair or a changed denominator.
+
+Apply the existing 85% warning / 95% growth-refusal policy to each resource tier and the aggregate.
+At/above 95%, refuse additive projected cost unless faithful cost reduction restores headroom or a
+separately reviewed, owned, expiring exception (at most 30 days) records scope and repayment. A
+passing cheaper tier cannot offset another tier's refusal. Exceptions cannot excuse failed or
+missing checks, erase evidence or weaken coverage. Repairs may neither create exceptions nor edit
+maintenance entries/budgets simply to pass. Safety fixes still run their full required protection;
+if they need capacity above the ceiling, use the explicit exception route, not a silent bypass.
+
+Check growth on every relevant PR, including production/helper changes that slow unchanged tests.
+Use current complete measurements plus conservative estimates for new/unmeasured cases. Refresh
+estimates from routine runs, but keep ceilings fixed. Where PR evidence cannot measure a full tier,
+state the estimate and uncertainty; missing/stale/partial evidence never means zero cost or a measured
+PASS. An unresolved estimate cannot approve added work. Paired available measurements detect
+slowdowns; post-landing full results cover costs that cannot be observed before merge. Reuse those
+runs, not extra full suites for measurement. Include required factory/build/tooling in total cost.
+
+Track two clocks separately: PR-ready-to-merge (from its first ready checkpoint, never reset by a
+repair push/requeue) and phase builder-start-to-independent-PASS. Report review and repair rounds,
+review service, coordinator approval, CI setup/execution, queue, post-landing validation and checker
+wait separately; do not sum overlapping wall time. Preserve owner/infrastructure waits in gross
+time, while also showing attributed controllable time. Retain unsuccessful/unfinished work and its
+age, and include superseded runs. Queue-to-landing stays p50 <=10 / p90 <=20 minutes; matched phase
+latency still targets the existing improvement, not a five-hour tolerance disguised as a new budget.
+
+Use the fixed AC-1 cohort definitions and minimum 12 comparable completed phases for timing claims;
+report smaller windows and censored/unfinished observations as provisional, never green. Each weekly
+window reports p50/p90/max, ages and sample counts against fixed ceilings. A single known required
+validation/detection deadline breach is actionable immediately. Sustained latency/cost breaches
+create an owned, dated repair item and stop further affected capacity expansion after the existing
+one correction/remeasurement allowance. Freeze the lookback and breach rule at ci01: report a
+rolling 28-day window weekly; two consecutive adequately sampled weekly reports above a ceiling
+are sustained. An individual unfinished item older than its category ceiling is actionable even
+with too few completions for percentiles. Missing weekly evidence is an owned reporting failure.
+Expiring exceptions alert before expiry and restore refusal at expiry; the report also identifies
+slow/duplicate checks and quarantine gaps. Retirement requires a behavior/replacement receipt.
+
+Do not make a PR wait for its own future merge-time measurement: pre-merge gates enforce observable
+cost/coverage regressions; completed-flow timing governs subsequent growth/admission. External
+service/owner waits trigger attribution and recovery, not disabled tests or a blanket freeze of
+unrelated fixes. Baseline changes and reclassification remain visible for independent review.
+A weekly report with no owner, deadline or enforceable response does not satisfy this design.
+
 ## One implementation sequence
 
 The owner authorized registering the prepared plan on 2026-10-28, without implementation launch.
@@ -276,7 +360,7 @@ deadline, and production-page completion. No start-after-software-only exception
 | Phase | Deliverable and prerequisite | Reversal |
 | --- | --- | --- |
 | P0: reconcile and baseline | Pin current main, rules and production-page completion receipt. Read existing main/configured/merge-group durations and queue waits. Triage the reported nightly failures before relying on them. Freeze cohorts. | Documents only |
-| P1: safety and feedback | Separate reversible rows: (a) dispatch isolation; (b) selector hardening; (c) selected configured PR job after (a); (d) D1 guidance. Measure added safety cost separately. | Revert each scheduling/guidance change independently; a safety repair needs retained protection before reversal |
+| P1: safety and feedback | Separate reversible rows: (a) remaining dispatch/source-identity protection; (b) selector hardening; (c) selected configured PR job and worker-guidance reconciliation after (a); (d) D1 guidance; (e) D7 whole-pipeline growth controls before the audit. Measure added safety cost separately. | Revert each scheduling/guidance change independently; a safety repair needs retained protection before reversal |
 | P2: contracts and miss audit | Distinguish critical/shared sets, fill demonstrated gaps and replay historical full-main failures against culprit selections. Continue the audit for two weeks after the last selection correction, starting after P1(b). Use existing full-main evidence; no duplicate shadow executions. | Retain existing full protection and corrected mappings |
 | P3: scoped catalog and maintenance | Fix scoped-report integrity first; reuse catalog-gates path in ci.yml. Prove the 24-hour coverage/completion bound, failed/missed-pass alarm, culprit and rollback drills before narrowing. Pair existing scoped/full evidence where identities match. Land three remeasured maintenance candidates. Optional worker backend feedback measured separately. | Restore full catalog/previous faithful placements; disable worker caller |
 | P4: three-plan cohort | Two-plan smoke then three plans with four rows each. Requires P1 safety/dispatch rows and compatibility, but not P2/P3 completion. Hold configuration stable for each measured cohort and retain exact obligations. | Pause additional admissions; retain repair owners |
@@ -291,32 +375,34 @@ assessment, not invented work, success or an automatic reorder.
 
 ## Phases
 
-The numbered list is the sole executable order. Exact acceptance arrays, environments and stable
-IDs ci01-ci17 are in the [runbook](runbook.md); each phase depends on its predecessor PASS. No runtime
-has opened, so this replaces the prepared 15-row ordering before authorization.
+The numbered list is the sole executable order. The bracketed ci IDs are canonical identities,
+not row numbers. Exact acceptance arrays and environments are in the [runbook](runbook.md).
+Every phase depends on its predecessor PASS. New ci18 sits before ci07 so growth controls precede
+the audit and maintenance trial; existing IDs stay stable. No runtime has opened.
 
-1. Baseline and launch-readiness evidence (P0; AC-1 baseline).
-2. Establish coherent review checkpoints (P1d; AC-2 measurement start).
-3. Isolate candidate dispatches and source identity (P1a; AC-6 scheduling).
-4. Harden broad/shared and catalog selection (P1b; AC-4).
-5. Harden path selection and execution integrity (P1b; AC-4).
-6. Require complete selected configured PR checks (P1c; AC-6).
-7. Define critical/shared sets and start the miss audit (P2; AC-3/AC-4 inventory).
-8. Complete measured test-maintenance candidate one (P3; AC-5).
-9. Complete measured test-maintenance candidate two (P3; AC-5).
-10. Complete measured test-maintenance candidate three (P3; AC-5).
-11. Prove critical contract fault detection (P2; AC-3).
-12. Prove scoped-catalog report integrity (P3; AC-5).
-13. Assess scheduled detection and recovery readiness (P3; AC-5).
-14. Measure the authorized three-plan cohort or record its absence (P4; AC-6).
-15. Independently accept audit and qualification evidence (P2/P3; activation gate).
-16. Activate qualified catalog scope or retain full protection (P3; AC-4/AC-5).
-17. Independently report initial outcomes and hand off (P0-P4).
+1. [ci01] Baseline and launch-readiness evidence (P0; AC-1 baseline).
+2. [ci02] Establish coherent review checkpoints (P1d; AC-2 measurement start).
+3. [ci03] Isolate candidate dispatches and source identity (P1a; AC-6 scheduling).
+4. [ci04] Harden broad/shared and catalog selection (P1b; AC-4).
+5. [ci05] Harden path selection and execution integrity (P1b; AC-4).
+6. [ci06] Require complete selected configured PR checks (P1c; AC-6).
+7. [ci18] Enforce resource and delivery-time growth controls (P1; AC-9).
+8. [ci07] Define critical/shared sets and start the miss audit (P2; AC-3/AC-4 inventory).
+9. [ci08] Complete measured test-maintenance candidate one (P3; AC-5).
+10. [ci09] Complete measured test-maintenance candidate two (P3; AC-5).
+11. [ci10] Complete measured test-maintenance candidate three (P3; AC-5).
+12. [ci11] Prove critical contract fault detection (P2; AC-3).
+13. [ci12] Prove scoped-catalog report integrity (P3; AC-5).
+14. [ci13] Assess scheduled detection and recovery readiness (P3; AC-5).
+15. [ci14] Measure the authorized three-plan cohort or record its absence (P4; AC-6).
+16. [ci15] Independently accept audit and qualification evidence (P2/P3; activation gate).
+17. [ci16] Activate qualified catalog scope or retain full protection (P3; AC-4/AC-5).
+18. [ci17] Independently report initial outcomes and hand off (P0-P4).
 
 Rows with explicit assessment/no-activation outcomes can PASS only for an accurate, safe disposition.
-That does not pass unmet improvement criteria. In particular, row 15 is evidence-only independent
-qualification, and row 16 can narrow only after its qualified PASS on still-current receipts.
-Row 17 reports every AC as met, not met or pending. Initial success requires current independent
+That does not pass unmet improvement criteria. In particular, ci15 is evidence-only independent
+qualification, and ci16 can narrow only after its qualified PASS on still-current receipts.
+Phase ci17 reports every AC as met, not met or pending. Initial success requires current independent
 acceptance and `work-spec converge` returning evidence-complete; otherwise report the run concluded
 with unmet/pending goals. Implementation failures retain the usual bounded repair rules.
 
@@ -391,7 +477,7 @@ or reverts the demonstrated culprit through the merge queue. Missing reports nev
 ## Observable acceptance criteria
 
 All criteria below are future implementation criteria. None is passed by this planning document.
-Initial acceptance comprises exactly AC-1 through AC-6 and AC-8. Historical optional AC-7 is
+Initial acceptance comprises exactly AC-1 through AC-6, AC-8 and AC-9. Historical optional AC-7 is
 preserved as ordinary text above, so the existing convergence tool can close this initial record
 without falsely passing an optional criterion.
 
@@ -483,12 +569,35 @@ Judge initial success on P0-P4 only; optional cadence/reuse follow-ups are not c
 Report before/after per-change latency, completed work/hour and runner-minutes per accepted change,
 including failures, cancellation and unfinished work. Retain the suite-budget 85% warning / 95%
 exception policy against a reviewed fixed envelope based on current resources; extra shards do not
-silently buy extra budget. Weekly maintenance reports identify growth and owners. Any selected-out
+silently buy extra budget. D7 and AC-9 make per-tier cost and whole-delivery growth controls
+enforceable; weekly reports identify growth, owners and dated corrective actions. Any selected-out
 critical defect, missing required verdict or unsafe admission immediately stops the affected rollout.
 Investigate any increase in first-check failures or escapes before expansion. Timing misses permit
 one bounded correction and remeasurement, then pause expansion if still outside bounds. No test
 weakening, additional paid resources or removal of slow rows from the statistics. Report the
 intentional safety cost of P1(b/c) separately from optimization savings. Layer: existing reports and receipts.
+
+### AC-9: Growth is controlled for every expensive tier and total delivery time
+
+A reviewed, fixed budget table covers offline, selected/full backend, affected/broad/scheduled
+graphics and aggregate runner cost, plus category-specific PR-ready-to-merge and builder-to-PASS
+ceilings. Existing offline ceilings and current resources remain fixed. D7 test-admission examples
+show an uncovered contract, cheapest faithful layer, overlap review, cost and owner. Missing
+measurements or insufficient cohort samples are explicit and cannot establish success.
+
+Executable gates demonstrate each tier's 85% warning and 95% growth refusal, aggregate refusal,
+indirect slowdown of unedited tests, missing/stale/partial evidence, new-case estimates, setup and
+migration cost, and exception expiry. No cross-tier offset, automatic ceiling increase or omitted
+required check can turn refusal green. Reference full-run cost remains visible after selection.
+
+Existing reports measure both delivery clocks without resetting on revisions or dropping slow,
+failed, cancelled or unfinished work. Replay a review delay, coordinator stamp wait, CI slowdown,
+queue delay and post-merge validation delay; prove attributable action without a circular merge
+gate. Preserve AC-1 sample definitions/minima and AC-6 queue targets. Demonstrate an actual weekly
+report after control activation, with real available tier measurements, owners and dated actions;
+missing samples stay pending. Exercise missing-report, breach and expiring-exception paths in
+fixtures. Independently verify the one-correction/remeasurement and affected-growth-stop behavior.
+Layer: existing capacity/report fixtures, complete Actions artifacts and independent live evidence.
 
 ## Reconciliation with previous proposals
 
@@ -509,7 +618,7 @@ intentional safety cost of P1(b/c) separately from optimization savings. Layer: 
 ## Phase notes
 
 Planning only. The original registration landed in PR #1799. The full-run opinion is reconciled
-on 2026-10-29 in the linked receipt. This revised preparation has 17 phases and seven active
+on 2026-10-29 in the linked receipt. This revised preparation has 18 phases and eight active
 criteria. All implementation criteria remain open. No runtime project/block or worker is opened.
 Owner acceptance of revised intent, full production-page completion, finite execution authority
 and live continuation qualification are still required. Preparation tests never prove speedups.
