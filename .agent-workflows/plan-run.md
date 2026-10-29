@@ -9,6 +9,8 @@
 - `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; `agent-delivery`, `codex-graphic-preview`, `harness-ladder`: `docs/work-specs/<plan>/spec.md`; phases, acceptance and notes are in each. The preview's phase 1 is local.
 - `cicd-improvement`: `docs/work-specs/cicd-improvement/spec.md`, with execution details in its `runbook.md`. Registered for preparation only: do not open a project or launch until the owner explicitly authorizes execution with a finite deadline and the runbook's production-page completion and review prerequisites are met. Only its numbered `## Phases` are executable; optional P5/P6 are excluded.
 
+- `jev-svg-import`: `docs/work-specs/jev-svg-import/spec.md`, with exact phase metadata and preparation/start contract in its `runbook.md`. **Preparation-only registration:** do not open a project, start a block, create the run issue or arm triggers until the owner says start and the runbook's pre-start prerequisites pass. The approved $5 ceiling, 14-day window and standing block renewal do not start the run.
+
 ## Boundaries
 
 - **A wave runs alone; plan runs of different plans may run side by side** (never two on one file).
