@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="430" viewBox="0 0 940 430" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="940" height="430" fill="#122036" />
+  <text x="55" y="55" font-size="24">ROUND ROBIN</text>
+  <text x="810" y="55" font-size="22" id="Score">2026</text>
+  <rect x="45" y="85" width="850" height="60" fill="#253a4c" />
+  <text x="75" y="126" font-size="28" id="layer0">Marsh</text>
+  <text x="825" y="126" font-size="32" id="layer1">7</text>
+  <rect x="45" y="160" width="850" height="60" fill="#253a4c" />
+  <text x="75" y="201" font-size="28" id="layer2">Dune</text>
+  <text x="825" y="201" font-size="32" id="layer3">3</text>
+  <rect x="45" y="235" width="850" height="60" fill="#253a4c" />
+  <text x="75" y="276" font-size="28" id="layer4">Reef</text>
+  <text x="825" y="276" font-size="32" id="layer5">8</text>
+  <rect x="45" y="310" width="850" height="60" fill="#253a4c" />
+  <text x="75" y="351" font-size="28" id="layer6">Grove</text>
+  <text x="825" y="351" font-size="32" id="layer7">5</text>
+</svg>

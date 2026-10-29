@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "84a890bdea4ef2265f27e90c0098fe65f9f7cada9b275ebff0fc8acdc416acf2",
+  "specSha256": "a51bb70381884a9db08f9ea2cd6e5d483368d8824a767cffafc1bf2de3e155bf",
   "authority": {
-    "status": "draft",
-    "source": "Owner, 29 October 2026: investigate the supplied design/graphics workflow research, select useful improvements, add rows to the SVG spec, try plan-create to prepare the actual plan, and obtain a whole-plan second opinion before implementation. Earlier owner approvals: 5 dollars ok; 14 days is ok; SVG names may go to Jev. These authorize planning and set future limits, not a start, deadline, overnight block renewal, product implementation or paid call."
+    "status": "agreed",
+    "source": "Owner second opinion supplied 29 October 2026: apply corrections, accept reorder, prepare and land planning/registration via queue-merge; do not open project, start a block, create run issue or arm triggers until owner says start. Approved $5 ceiling and 14 days. Standing blockRenewal: \"Each block can't wait for me, so the coordinator needs to renew the blocks. This hasn't been a problem in the production page run. It should continue without my intervening for the full run.\" Reorder: \"I accept the reorder.\" Start resolves on future owner start in Europe/Helsinki."
   },
   "review": null
 }

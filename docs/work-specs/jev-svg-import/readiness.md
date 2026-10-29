@@ -1,67 +1,59 @@
 # SVG plan readiness
 
-Planning snapshot, 29 October 2026; source `96bb45612f2a183b3d3e18f4287552c1f3e41802`.
-**Not launch-ready.** This file is a preparation checklist, not a live execution ledger.
-Close the pre-start items before consuming the approved 14-day window. Record future receipts in
-the existing run ledger/kit, with exact revision and observation time.
+Preparation snapshot, 29 October 2026, source main `e7e09d04baa6b24f0ef13d98e807b32a07c72124`.
+**Not launch-ready.** Owner authorizes preparation and landing, but explicitly withholds project,
+block, run issue and triggers until start. This checklist is not a live execution ledger.
 
-| Item | Evidence now | Required pre-start or early gate |
+| Item | Current evidence | Remaining admission |
 |---|---|---|
-| Final scope | 43-row spec and exact phase metadata prepared; second opinion pending | Reconcile independent whole-plan opinion and accepted spec/hash before launch |
-| Production software prerequisite | Existing heartbeat reports row 45 PASS on 05baf75 / PR 1800 | Read exact PASS/evidence, repin main and overlapping owners; do not disturb owner studio phases |
-| SVG sanitization | PR 1452 still open, draft, test-only head be69e6a | Existing repair owner lands remediation and independent acceptance; do not treat reproduction as fix |
-| Cloud API key | 28 October non-billable Gateway credits request returned 200 and approximately $6.94 | Recheck the actual evaluation identity and balance; that amount was shared, not $5 reserved |
-| Vercel auth | 28 October metadata showed Gateway key in preview and production | Qualify deployed route separately; do not assume this is the Actions or Claude identity |
-| Actions credential access | Repo/Preview secret inventories returned 403 on 28 October | An authorized environment administrator or qualified owning workflow must prove the required credential available without revealing it |
-| Protected evaluation route | Workflow is a planned row-7 artifact; no dedicated evaluation environment was observed | Select/provision exact environment, credential owner, allowed immutable workflow/ref and no-human-click policy before start; validate harness in row 7 before any paid call |
-| Spend durability | Designed, not implemented | Row 7 proves reservations, retry/unknown-bill reconciliation, job-restart persistence and cumulative $5 cap with mocks; reject unpriced routes |
-| Native Claude execution | Historical receipts only; this session's Codex Git/Actions read preflight passed | Fresh actual Claude coordinator and fresh worker qualify launch/status/results, whole failed logs, branch push, checks/queue and qualified wake |
-| Browser and configured backend | Prior environment/browser mismatch and database-start failure recorded | Fresh worker browser fixture and configured local-backend job pass; do not change product dependencies for worker image drift |
-| Source fixtures | Current environment reports service-account and test Sheet IDs configured; end-to-end use not certified | Validate synthetic Sheet read/write access and cleanup identity in chosen test environment before opening; do not expose or change private production Sheets |
-| Independent corpus | Paths and ownership specified, packet not authored here | Separate preparation produces hashed 36-design packet and supplemental fixtures before tuning/start; holdout inaccessible to tuning inputs |
-| Paid model/image route | Catalog/documentation only | Minimum bounded synthetic request in early evaluation establishes response/usage/route semantics; an image failure disables that arm without new provider or policy relaxation |
-| Day/night continuity | 14-day duration approved; blockRenewal words absent | Record explicit scope/start/deadline and standing block-renewal permission before opening; duration alone does not authorize renewal |
-| Readiness/recovery | Existing supervisor and plan-kit, no project or wake created | One current owner; durable checkpoint/bootstrap and observed wake/restore; pending sends reconciled before any retry |
+| Scope and decisions | Accepted second opinion reconciled into40 rows; $5/14 days/standing renewal recorded verbatim | Recheck final merged spec/hash and current source; no repeat policy questions |
+| Production prerequisite | Row45 PASS on05baf75 / PR1800 confirmed by29October heartbeat | Repin current main and respect owner studio phases |
+| Sanitizer | PR1452 was stalled/test-only atbe69e6a; existing owner comment explicitly transferred to preparation coordinator | Land verified remediation through its own PR and independent exact-merge acceptance before run start |
+| Ownership | Check named plans: svg-import-engine (svg.ts, draft.ts, svg-import-passes), cicd-improvement (CI budgets/workflows), production-page (still active) | Re-read claims/PRs before each overlapping phase; no competing edits |
+| Current Codex network | Fresh Git origin/main and Actions API reads pass | This is Codex preparation evidence, not native Claude qualification |
+| Gateway credential | Fresh29October non-billable GET credits200; balance6.942249654, lifetime used48.057750346 | Qualify protected Actions identity separately; shared balance is not reserved |
+| Evaluation environment | Environment list succeeds; only Preview/Production observed. Create jev-svg-evaluation and secret inventory both403 | Administrator performs exact environment/secret steps in preparation/evaluation-environment.md |
+| Auto top-up | Not exposed by current team metadata; no dashboard confirmation | Owner confirms Off for evaluation and no replenishment during it; balance endpoint alone cannot prove setting |
+| Budget design | Original balance minus current, serialized main-only harness, cost-bounded batches, row receipts; no new reservation service | Implement/mock in row32; do not claim existing metering or run paid calls now |
+| Branch tuning boundary | Configuration JSON only, resolved immutable branch SHA; workflow/harness main-only | Row32 negative tests prove branch code cannot access key |
+| Independent packet | Separate author produced18dev/18holdout,3supplements,51existing non-blind fixtures; XML/labels/hashes structurally verified | Independent admission at row2; protected-secret placement before start; no runtime/model accuracy claim |
+| Holdout storage | ZIP31702bytes / base6442272bytes; exact digest in corpus-receipt.json. Private owner Drive backup uploaded and downloaded digest verified, unshared owner-only permissions | Upload exact archive to specified Actions environment secret; independent label/render admission remains row2 |
+| Synthetic Sheets | Six distinct configured IDs; service-account sign-in fails at transport. oauth2.googleapis.com absent from enforced allowlist | Add OAuth token host to selected environment; requalify actual service-account read/write/cleanup, not connector identity |
+| Native Claude | No claude CLI or native Claude launch/status/message/wake tools exposed here | Qualify actual native Claude coordinator + fresh worker, two separate preflight calls each, supported wake/recovery and whole-log access |
+| Workflow-file landing | Ordinary planning git push/Actions reads work; no fresh Claude workflow-file push or session-owned auto-merge receipt | Must be proven before start. If native token cannot do it, row32 workflow landing is an explicit owner-operated prerequisite, not an overnight surprise |
+| Browser/backend | Scoped security browser verification belongs to sanitizer PR; does not certify complete run backend | Fresh actual Claude worker browser and configured backend pass; do not alter dependencies to hide image drift |
+| Day/night continuity | Standing blockRenewal explicitly granted for full14days; exact words in start-contract.md | Bind future owner start/deadline in Europe/Helsinki; no renewal question and no automatic extension |
+| Static run handoff | project.draft.json, state.draft.json, run-issue draft and start contract prepared | Bind real native/session/issue/block receipts only at authorized start; never invent IDs |
 
-No individual Jev/Haiku/Luna provider key is required if all selected inference uses the qualified
-Gateway route. Claude Code cloud subscription/session authorization is separate from model API keys.
-Listing a variable proves setup metadata, not billing, provider authorization or test success.
+## Preparation verification
 
-## Preparation validation
+Draft4's planning PR1820 initial head cf2dc869d passed GitHub Actions Factory gates, Build and
+CI gate in run40956193476. Reviewed failed because no review stamp was posted for that draft;
+this is expected pending final check/queue, not a passing complete CI receipt. The local
+contract-freshness hang did not reproduce in Actions. Per owner instruction, do not diagnose it
+locally unless CI reproduces it. Final corrected-head results must be recorded separately.
 
-The 43 phase IDs, titles, dependencies, verbatim acceptance text and declared paths match the
-spec; work metadata passes structural inspection. All 26 product acceptance criteria remain
-open, and draft authority/review status is intentional. Whitespace validation passed.
+No paid inference occurred. No product acceptance criterion is closed by plan/corpus preparation.
+Existing scripts may run pure validation on draft data with synthetic timestamps in memory; this
+never calls project open/register or writes a live kit. Product review remains null.
 
-The repository command `npm run gates -- run --changed origin/main` did not complete in this
-workspace: contract-freshness reported 874 contract files, then its `git check-ignore --stdin`
-child remained pending for more than seven minutes. The check process was terminated; this is
-not a passing gate receipt. Diagnose or rerun this check in the qualified worker before accepting
-the planning branch. No product build or behavior tests were run for this documentation change.
+## Exact owner-only configuration steps
 
-## Fixed defaults that should not become overnight owner questions
+1. GitHub repository Settings → Environments: create `jev-svg-evaluation`, restrict deployment
+   branch to main, no required human reviewer for this dedicated synthetic evaluation environment.
+   Add AI_GATEWAY_API_KEY and exact JEV_SVG_HOLDOUT_ZIP_BASE64; permit90-day artifact retention.
+   Detailed boundaries and stdin command are in preparation/evaluation-environment.md. This session
+   received403 for administration; do not paste secrets into chat.
+2. Vercel NoaCG → AI Gateway → Credits: confirm automatic top-up Off and no manual top-up during
+   evaluation. A live balance read cannot confirm this policy.
+3. Selected cloud environment networking: allow oauth2.googleapis.com so the configured Google
+   service account can obtain its token. Keep all existing proxy/TLS protections. Then the agent
+   reruns the synthetic Sheet read/write/cleanup probe; metadata alone does not close this item.
+4. Open the prepared repository in the intended native Claude Code Cloud environment for
+   preparation qualification only. It must prove fresh coordinator/worker/preflight, browser and
+   backend, workflow-file push, coordinator auto-merge and native wake/recovery. No triggers for this
+   run are armed before start; if a wake test conflicts with that boundary, keep it unqualified
+   until the owner explicitly permits that qualification or authorizes start in the proven route.
 
-The spec fixes count-up/manual, duration/Take, target-time resolution, no-Lock/manual Reveal,
-credits/next-Play snapshot, cards/operator Next, native ticker handover, canonical control identity
-and consented optional previews. Unsupported profile combinations are disclosed and left disabled.
-Ordinary implementation and small fixes within row boundaries use engineering judgment and existing
-bounded repair. No database migration, new provider privacy policy, paid-cap increase or new editor
-is preauthorized. Infra outages wait/reconcile; they are not product failures or permission to retry
-unknown paid calls.
-
-## Credential and fixture placement
-
-Use protected Actions for inference; keep keys in the environment, not corpus artifacts, briefs,
-chat, logs or git. The environment policy must allow the reviewed harness to run without a fresh
-human approval for every row; select that policy before launch, never bypass a configured reviewer.
-Tests using disposable backend identities do not need production credentials. The controlled live
-Sheet probe uses synthetic data and the existing source reader; its cadence is measured separately
-from local fake-CSV tests. No AI call is needed for sheet updates.
-
-## Start contract to resolve after review
-
-The owner already approved $5 and 14 days. Do not ask those again. At final launch record the
-actual start/deadline, accepted scope and whether the same coordinator may renew bounded 24-hour
-blocks unattended within that immutable window. Without the latter, report that block-end
-continuation requires the owner; do not advertise independent multi-day execution. Resolve
-Europe/Kiev dates with the correct offset. No start time is inferred from document creation.
+These steps do not ask again about budget, duration or renewal. Once evidence is green, send:
+**Start the prepared jev-svg-import run.**
