@@ -7,8 +7,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { devNull, tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { admitRun, continueProject, main, openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
-import { publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
+import { admitRun, continueProject, main, openStore, publishCheckpoint, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
+import { kitDir, publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
 import { admitPhases } from './project-control.mjs';
 import { nextStep, readPhases, readSteps, recordStep } from './plan-run.mjs';
@@ -163,6 +163,37 @@ test('a stopped coordinator\'s project continues in a new session after full fil
   assert.throws(() => recordRun(db, f.manifest.id, 1, 'build', '{"actor":"second-builder"}', { now: f.now + 1000, authority: continued.block }), /already launched/);
   recordRun(db, f.manifest.id, 1, 'landed', JSON.stringify({ mergeSha: 'a'.repeat(40) }), { now: f.now + 1000, authority: continued.block });
   assert.match(ledgerAt(f), /phase 1 build[\s\S]*phase 1 landed \{"mergeSha":"a{40}"\}/);
+});
+
+test('the run kit rides in the checkpoint and a continued session gets it back', (t) => {
+  const f = projectFixture(t, { inFlight: true }), kit = kitDir(f.manifest.wave);
+  const state = JSON.stringify({ version: 1, project: f.manifest.id, waitingOn: null });
+  mkdirSync(path.join(kit, 'templates'), { recursive: true });
+  writeFileSync(path.join(kit, 'state.json'), state);
+  writeFileSync(path.join(kit, 'templates', 'build.tmpl'), 'PHASE @PHASE@');
+  const before = git(f.remote, 'rev-parse', refOf(f));
+  const { checkpoint } = publishCheckpoint(f.db, f.manifest.id);
+  assert.notEqual(checkpoint, before);
+  assert.equal(gitRaw(f.remote, ['show', checkpoint + ':kit/state.json']), state);
+  // Nothing changed: nothing new is pushed.
+  assert.equal(publishCheckpoint(f.db, f.manifest.id).checkpoint, checkpoint);
+  f.db.close(); rmSync(f.source, { recursive: true, force: true }); rmSync(f.manifest.wave); rmSync(kit, { recursive: true });
+  rmSync(path.join(f.root, 'control.sqlite'));
+  const continued = f.continueAs('session-b');
+  assert.equal(continued.verdict, 'continued');
+  assert.equal(readFileSync(path.join(kitDir(continued.wave), 'state.json'), 'utf8'), state);
+  assert.equal(readFileSync(path.join(kitDir(continued.wave), 'templates', 'build.tmpl'), 'utf8'), 'PHASE @PHASE@');
+});
+
+test('a run kit with a deep folder or more than 1 MiB is refused before anything is pushed', (t) => {
+  const f = projectFixture(t), kit = kitDir(f.manifest.wave), head = git(f.remote, 'rev-parse', refOf(f));
+  mkdirSync(path.join(kit, 'a', 'b', 'c'), { recursive: true });
+  writeFileSync(path.join(kit, 'a', 'b', 'c', 'deep.txt'), 'too deep');
+  assert.throws(() => publishCheckpoint(f.db, f.manifest.id), /two levels|2 levels/);
+  rmSync(path.join(kit, 'a'), { recursive: true });
+  writeFileSync(path.join(kit, 'big.txt'), 'x'.repeat(1024 * 1024 + 1));
+  assert.throws(() => publishCheckpoint(f.db, f.manifest.id), /1 MiB/);
+  assert.equal(git(f.remote, 'rev-parse', refOf(f)), head);
 });
 
 test('a cloud checkout whose remote spells the repository in another case still continues the project', (t) => {

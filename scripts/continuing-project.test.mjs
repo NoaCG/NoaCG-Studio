@@ -10,7 +10,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { openWave } from './wave-plan-store.mjs';
 import { nextStep, recordStep, readSteps } from './plan-run.mjs';
-import { openStore, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
+import { openStore, phaseNumber, recordRun, registerRun, renewBlock, tickRun, updateRun } from './run-supervisor.mjs';
 import { digest, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { preflight } from './plan-run-preflight.mjs';
 import { holdable, wakeVerdict, writeWake } from './run-wake.mjs';
@@ -26,9 +26,9 @@ const project = () => ({ version: 1, id: 'fixture-project', ownership: 'local-si
     { id: 'prepare', title: 'Prepare generic input', dependsOn: [], acceptance: ['input accepted'], environment: 'qualified-cloud' },
     { id: 'accept', title: 'Check generic output', dependsOn: ['prepare'], acceptance: ['output accepted'], environment: 'specified-device' },
   ] });
-function fixture(t) {
+function fixture(t, edit = (p) => p) {
   const dir = mkdtempSync(path.join(tmpdir(), 'continuing-project-'));
-  const p = project();
+  const p = edit(project());
   const opened = openWave({ date: '2026-10-19', kind: 'plan-fixture', until: p.authorization.deadline, project: p, dir, now: NOW });
   assert.equal(opened.refusal, undefined);
   const dbPath = path.join(dir, 'control.sqlite'), db = openStore(dbPath);
@@ -141,7 +141,7 @@ test('a replacement worker takes over its in-flight step through a fenced handof
   assert.throws(() => f.record(1, 'resume', 'not a receipt'), /JSON actor/);
   assert.throws(() => f.record(1, 'resume', { actor: 'builder-b' }, NOW, { ...authority, epoch: authority.epoch - 1 }), /Stale/);
   f.record(1, 'resume', { actor: 'builder-b', branch: 'claude/p1-build' });
-  assert.deepEqual(nextStep(f.text(), NOW), { action: 'wait', phase: 1, step: 'build', launched: '{"actor":"builder-b","branch":"claude/p1-build"}' });
+  assert.deepEqual(nextStep(f.text(), NOW), { action: 'wait', phase: 1, step: 'build', launched: '{"actor":"builder-b","branch":"claude/p1-build"}', id: 'prepare', title: 'Prepare generic input' });
   assert.throws(() => f.record(1, 'landed', 'merge observed'), /mergeSha/);
   assert.throws(() => f.record(1, 'landed', { mergeSha: 'abc123' }), /mergeSha/);
   f.record(1, 'landed', MERGE);
@@ -175,7 +175,7 @@ test('a second failure is diagnosed by an agent independent of everyone who work
   assert.throws(() => f.record(1, 'diagnose', { actor: 'decider', decision: 'check', reason: 'rerun' }), /repair or stop/);
   assert.throws(() => f.record(1, 'diagnose', { actor: 'decider', decision: 'repair' }), /decision and its reason/);
   f.record(1, 'diagnose', { actor: 'decider', decision: 'repair', reason: 'the fixture input is parsed twice; fix only the parser' });
-  assert.deepEqual(nextStep(f.text(), NOW), { action: 'launch', phase: 1, step: 'repair', carry: 'product: second (diagnosis: the fixture input is parsed twice; fix only the parser)' });
+  assert.deepEqual(nextStep(f.text(), NOW), { action: 'launch', phase: 1, step: 'repair', carry: 'product: second (diagnosis: the fixture input is parsed twice; fix only the parser)', id: 'prepare', title: 'Prepare generic input' });
   f.record(1, 'repair', { actor: 'repairer-2' }); f.record(1, 'landed', MERGE); f.record(1, 'check', { actor: 'checker-3' });
   f.record(1, 'fail', 'product: third');
   assert.equal(nextStep(f.text(), NOW).action, 'stop');
@@ -276,4 +276,49 @@ test('competing processes admit exactly one phase through the existing SQLite au
   const results = await Promise.all([cli('caller-a'), cli('caller-b')]);
   assert.deepEqual(results.map((r) => r.code).sort(), [0, 1], JSON.stringify(results));
   assert.equal(readSteps(f.text()).filter((s) => s.event === 'build').length, 1);
+});
+
+test('an owner phase is handed over, never launched, and its build is recorded when he starts', (t) => {
+  const f = fixture(t, (p) => { p.phases[1].environment = "OW: the owner's laptop and the real studio"; return p; });
+  f.start(); finishPhase(f, 1);
+  const owed = nextStep(f.text(), NOW);
+  assert.deepEqual([owed.action, owed.phase, owed.step, owed.id, owed.launched], ['owner', 2, 'build', 'accept', undefined]);
+  assert.match(owed.why, /hand-over/);
+  f.record(2, 'build', { actor: 'owner', handover: 'issue comment' });
+  assert.deepEqual([nextStep(f.text(), NOW).action, nextStep(f.text(), NOW).launched], ['owner', '{"actor":"owner","handover":"issue comment"}']);
+  assert.throws(() => f.record(2, 'build', { actor: 'owner' }), /already launched/);
+  f.record(2, 'landed', MERGE);
+  assert.equal(nextStep(f.text(), NOW).action, 'launch');
+  f.record(2, 'check', { actor: 'checker-2' });
+  f.record(2, 'pass', passReceipt(f, 2, 'checker-2'));
+  assert.equal(nextStep(f.text(), NOW).action, 'done');
+});
+
+test('a phase is named by its row or its project id, never by a guess', (t) => {
+  const f = fixture(t);
+  assert.equal(phaseNumber(f.db, f.p.id, '2'), 2);
+  assert.equal(phaseNumber(f.db, f.p.id, 'accept'), 2);
+  assert.throws(() => phaseNumber(f.db, f.p.id, 'E9'), /No phase "E9"/);
+});
+
+test("a block renews only under the owner's standing permission, only after it ended, never after his pause", (t) => {
+  const plain = fixture(t);
+  plain.start();
+  assert.throws(() => renewBlock(plain.db, plain.p.id, NOW + 2 * HOUR), /no standing permission/);
+  const words = 'open the next block yourself every day until the deadline';
+  const f = fixture(t, (p) => { p.authorization.standing = { blockRenewal: words }; return p; });
+  const first = f.start();
+  assert.deepEqual(renewBlock(f.db, f.p.id, NOW + 30 * 60_000), { renewed: false, block: first });
+  const renewed = renewBlock(f.db, f.p.id, NOW + 2 * HOUR);
+  assert.equal(renewed.renewed, true);
+  assert.equal(renewed.block.epoch, first.epoch + 1);
+  assert.equal(renewed.block.owner, first.owner);
+  assert.equal(Date.parse(renewed.block.deadline), NOW + 26 * HOUR);
+  assert.match(f.current().reason, /standing permission: open the next block yourself/);
+  // The last block ends with the project, never past it.
+  const late = renewBlock(f.db, f.p.id, NOW + 60 * HOUR);
+  assert.equal(Date.parse(late.block.deadline), Date.parse(f.p.authorization.deadline));
+  updateRun(f.db, f.p.id, 'pause', 'owner paused the run', NOW + 61 * HOUR);
+  assert.throws(() => renewBlock(f.db, f.p.id, NOW + 62 * HOUR), /only the owner resumes it/);
+  assert.throws(() => validateAuthorization({ ...authorization(), standing: { blockRenewal: '' } }, { now: NOW }), /owner's words/);
 });

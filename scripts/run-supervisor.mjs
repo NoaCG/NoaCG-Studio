@@ -222,6 +222,44 @@ export function admitRun(db, id, admission, { now = Date.now(), authority } = {}
   });
 }
 
+/** Open the next block once the last one ended, under the owner's standing permission to renew
+ * blocks (`authorization.standing.blockRenewal`, his words). A check-in calls it every time: while
+ * a block is open it changes nothing, and it never resumes an owner pause, a wait or a cancel. */
+export function renewBlock(db, id, now = Date.now()) {
+  adoptAccepted(db, id);
+  const { doc } = rowFor(db, id);
+  const project = readProject(readFileSync(doc.manifest.wave, 'utf8'), now);
+  if (!project) throw Error('Only a continuing project renews blocks');
+  const words = project.authorization.standing?.blockRenewal;
+  if (!required(words)) throw Error('The owner gave no standing permission to renew blocks; ask him, then start-block with his answer as evidence');
+  if (!project.block) throw Error('No block was ever started; start-block opens the first one');
+  const boundary = projectBoundary(project, now);
+  if (!boundary) return { renewed: false, block: project.block };
+  if (project.status !== 'active' || boundary.action !== 'paused') throw Error(`Project is ${boundary.action} (${boundary.why}); only the owner resumes it`);
+  const deadline = new Date(Math.min(now + DAY_MS, Date.parse(project.authorization.deadline))).toISOString();
+  updateRun(db, id, 'start-block', { owner: project.block.owner, deadline, evidence: `renewed under the owner's standing permission: ${words}` }, now);
+  return { renewed: true, block: readProject(readFileSync(doc.manifest.wave, 'utf8'), now).block };
+}
+
+/** Publish the checkpoint again, so a changed run kit (state.json, templates, briefs) is durable
+ * before the next recorded event. A superseded coordinator is refused and publishes nothing. */
+export function publishCheckpoint(db, id) {
+  adoptAccepted(db, id);
+  return transaction(db, () => {
+    assertCurrent(db, id, rowFor(db, id).doc);
+    return { checkpoint: publishRun(db, id) ?? null };
+  });
+}
+
+/** A phase named by its 1-based `## Phases` row or by its project id (`p45-E8.2`, the id briefs use). */
+export function phaseNumber(db, id, phase) {
+  if (/^\d+$/.test(phase ?? '')) return Number(phase);
+  const project = readProject(readFileSync(rowFor(db, id).doc.manifest.wave, 'utf8'));
+  const index = project?.phases.findIndex((p) => p.id === phase) ?? -1;
+  if (index < 0) throw Error(`No phase "${phase}": name its row number or its project phase id`);
+  return index + 1;
+}
+
 function acquire(db, id, now) {
   return transaction(db, () => {
     const row = rowFor(db, id);
@@ -475,8 +513,8 @@ function localRecovery() {
 
 export async function main(args = process.argv.slice(2), options = {}) {
   const [command, file, id, value] = args;
-  if (!file || !['register', 'restore', 'resume', 'continue', 'next', 'record', 'admit', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'pause', 'finish', 'cancel'].includes(command)) {
-    process.stderr.write('Usage: run-supervisor.mjs continue <state-root> <plan> <owner> | register <db> <manifest.json> | restore|resume <db> <config.json> | next <db> <id> | record <db> <id> <phase> <event> [detail] [--authority <block.json>] | admit <db> <id> <admission.json> --authority <block.json> | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
+  if (!file || !['register', 'restore', 'resume', 'continue', 'next', 'record', 'admit', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'renew', 'publish', 'pause', 'finish', 'cancel'].includes(command)) {
+    process.stderr.write('Usage: run-supervisor.mjs continue <state-root> <plan> <owner> | register <db> <manifest.json> | restore|resume <db> <config.json> | next <db> <id> | record <db> <id> <phase row or id> <event> [detail] [--authority <block.json>] | admit <db> <id> <admission.json> --authority <block.json> | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | renew <db> <id> <block.json to write> | publish <db> <id> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
   }
   let db;
   try {
@@ -505,8 +543,15 @@ export async function main(args = process.argv.slice(2), options = {}) {
       const at = args.indexOf('--authority');
       const authority = at < 0 ? undefined : JSON.parse(readFileSync(args[at + 1], 'utf8'));
       output = command === 'admit' ? admitRun(db, id, JSON.parse(readFileSync(value, 'utf8')), { authority })
-        : recordRun(db, id, Number(value), args[4], args.slice(5, at < 0 ? undefined : at).join(' '), { authority });
+        : recordRun(db, id, phaseNumber(db, id, value), args[4], args.slice(5, at < 0 ? undefined : at).join(' '), { authority });
     }
+    else if (command === 'renew') {
+      if (!value) throw Error('renew needs the path to write the block receipt to');
+      output = renewBlock(db, id);
+      const { id: blockId, owner, epoch, startedAt, deadline } = output.block;
+      writeFileSync(value, `${JSON.stringify({ id: blockId, owner, epoch, startedAt, deadline })}\n`);
+    }
+    else if (command === 'publish') output = publishCheckpoint(db, id);
     else if (command === 'tick' || command === 'status') {
       const ids = id ? [id] : db.prepare('SELECT id FROM runs ORDER BY id').all().map((row) => row.id);
       output = [];

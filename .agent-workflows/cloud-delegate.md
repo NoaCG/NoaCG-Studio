@@ -32,7 +32,8 @@ enable optional modes or broaden access just to obtain a newer orchestration pat
   worker by ID. A message to an idle worker is not proof it resumed. Retain task/agent IDs
   through compaction/reconnect; inspect status and results before retrying a launch.
 - Before the first unattended launch, arm and record one qualified native wake or the
-  existing bounded 30-minute heartbeat/Claude background timer for missed completions/late CI.
+  existing bounded heartbeat/Claude background timer for missed completions/late CI, timed by
+  what is waited on (a plan run: `node scripts/plan-kit.mjs checkin <wave>`).
   Re-arm only while needed within the authorized window; do not add a parallel scheduler.
   Native retries/continuations obey the workflow's existing end policy and attempt limits.
 
@@ -159,7 +160,8 @@ On plan pause/block/expiry, stop native auto-continuations, retries and new-sess
 launches too; checkpoint/reconcile in-flight work and preserve queued-PR repair ownership.
 
 Continuing plan projects use the immutable project deadline and bounded work blocks in
-`plan-run.md`. Any session, cloud or laptop, continues a project with the same `/plan-run` line;
+`plan-run.md`; their run kit (`state.json`, brief templates, briefs sent) rides in the recovery
+checkpoint. Any session, cloud or laptop, continues a project with the same `/plan-run` line;
 the older coordinator is then refused as superseded and stops. A coordinator waiting on workers
 or CI waits in a running background job or monitor, never idle, so its machine is not reclaimed.
 A project pause/block end stops local keep-awake and block-specific wakes.

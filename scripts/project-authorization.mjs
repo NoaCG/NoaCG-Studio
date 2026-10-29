@@ -15,6 +15,9 @@ export function instant(value) {
 export function validateAuthorization(auth, { now = Date.now(), open = true, kind = 'plan' } = {}) {
   if (!['plan', 'wave'].includes(kind)) throw Error('Authorization kind must be plan or wave');
   if (!auth || !['source', 'scope', 'permissionPolicy'].every((key) => nonempty(auth[key]))) throw Error('Explicit owner authorization, scope and permission policy required');
+  // Standing permissions (block renewal, migrations, auto-merge) are the owner's words, kept verbatim.
+  if (auth.standing !== undefined && (!auth.standing || typeof auth.standing !== 'object' || Array.isArray(auth.standing)
+      || !Object.keys(auth.standing).length || Object.values(auth.standing).some((words) => !nonempty(words)))) throw Error('Standing permissions are the owner\'s words, one line each');
   const start = instant(auth.startedAt), end = instant(auth.deadline);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || start > now
       || (open && now >= end)) throw Error('Original finite authorization is invalid or expired');
