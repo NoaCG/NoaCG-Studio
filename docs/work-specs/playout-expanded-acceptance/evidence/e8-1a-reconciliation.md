@@ -21,8 +21,8 @@ AC-4) are this row's merge and its checker's entry; they cannot cite themselves 
   outputs, data AC-16's actual outputs, E3 AC-2 and E7 AC-4 on the real studio, E8 AC-2's and
   AC-3's physical part (the 30-minute dress rehearsal with L1 AC-11's quiz-and-score case and L2
   AC-11's adjustment case), the physical checks of #1618, #1657, #1746, #1797 and #1798, and E8
-  AC-1's final reconciliation with H0.2's and S's receipts. Provider qualification: the official election
-  feed, a separate verdict, never simulated.
+  AC-1's final reconciliation with H0.2's and S's receipts. Provider qualification: the official
+  election feed, a separate verdict, never simulated.
 - **The classes stay apart** (table below): software rehearsal (SW), Q's dated provider records,
   laptop scratch walks (LW, non-gating, each bound to its SHA, none on the final candidate), trial
   kits (KT: four landed, none run; a trial's result is reported, never required), real-studio
@@ -364,8 +364,8 @@ end).
   checker called it a judgement call). Neither fails E8 AC-2 as written; both are on-air limits in
   the matrix and the runbook. A run longer than an hour is not measured. #1802 (filed during row
   45 as #1797's follow-up): a frame lost at any other moment, with no later row, waits for the
-  output's 30 s poll; open, in the matrix and the runbook. Both findings were fixed after row 45
-  and landed through the merge queue, each with its own tests and its physical check owed to S:
+  output's 30 s poll; open, in the matrix and the runbook. #1797 and #1798 were both fixed after
+  row 45 and landed through the merge queue, each with its own tests and its physical check owed to S:
   #1797 (the production page pings the command log at its first join, so an output that lost a
   frame during the reload reads it at once; `78e7bc8`, PR #1801) and #1798 (a Presence bug in the
   Supabase client kept a copy per re-track; fixed by its 2.110.9 patch; `18828b7`, PR #1804).
