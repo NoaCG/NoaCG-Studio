@@ -193,17 +193,20 @@ test('coverage\'s review lists every frame with an empty verdict, and only ok or
 // keeps its verdict, so the look after a fix is the frames that changed.
 test('a frame the last review closed and that looks the same keeps its verdict, marked carried', () => {
   const [a, b, c] = COVERAGE.frames.map((f) => f.file);
-  const last = { ...reviewed([]), frames: [{ file: a, verdict: 'ok' }, { file: b, verdict: 'fixed: the score no longer overlaps the crest', sameSince: 2 }, { file: c, verdict: 'the title clips' }] };
-  assert.deepEqual(earlierFrames(last), [{ file: a, closed: true, sameSince: 0 }, { file: b, closed: true, sameSince: 2 }, { file: c, closed: false, sameSince: 0 }], 'an open verdict closes nothing');
+  const [ha, hb] = ['a', 'b'].map((x) => x.repeat(64));
+  const fix = 'fixed: the score no longer overlaps the crest';
+  const last = { ...reviewed([]), frames: [{ file: a, verdict: 'ok', sha256: ha }, { file: b, verdict: ` ${fix} `, sha256: hb, sameSince: 2 }, { file: c, verdict: 'the title clips', sha256: 'not a hash' }] };
+  assert.deepEqual(earlierFrames(last), [{ file: a, sha256: ha, verdict: 'ok', sameSince: 0 }, { file: b, sha256: hb, verdict: fix, sameSince: 2 }, { file: c, sha256: null, verdict: '', sameSince: 0 }], 'an open verdict closes nothing, and only a real hash is a picture');
   assert.deepEqual(earlierFrames({ format: 'other', frames: [] }), []);
   assert.deepEqual(earlierFrames(null), []);
-  // b is drawn as before and was closed then: carried. c is drawn as before but was left open:
-  // empty, and still said to be the same picture.
-  const next = reviewFor(DIGEST, COVERAGE.frames, new Map([[b, { closed: true, sameSince: 3 }], [c, { closed: false, sameSince: 1 }]]));
-  assert.deepEqual(next.frames, [{ file: a, verdict: '' }, { file: b, verdict: 'ok', carried: true, sameSince: 3 }, { file: c, verdict: '', sameSince: 1 }]);
+  // b is drawn as before and was closed then: carried, with the verdict that closed it, so a fix
+  // stays a fix. c is drawn as before but was left open: empty, still said to be the same picture.
+  const next = reviewFor(DIGEST, COVERAGE.frames.map((f) => (f.file === a ? { ...f, sha256: ha } : f)), new Map([[b, { verdict: fix, sameSince: 3 }], [c, { verdict: '', sameSince: 1 }]]));
+  assert.deepEqual(next.frames, [{ file: a, sha256: ha, verdict: '' }, { file: b, verdict: fix, carried: true, sameSince: 3 }, { file: c, verdict: '', sameSince: 1 }], 'each frame keeps the hash it was drawn with, for the next run');
   assert.match(next.how, /carried/);
   const handed = { ...next, frames: next.frames.map((f) => (f.carried ? f : { ...f, verdict: 'ok' })) };
   assert.deepEqual(reviewProblems({ review: handed, coverage: COVERAGE, digest: DIGEST }), [], 'a carried verdict closes its frame');
+  assert.equal(reviewSummary(handed).fixed, 1, 'a carried fix is still counted as a fix');
   assert.deepEqual(reviewSummary(handed).verdicts.map((v) => [v.carried ?? false, v.sameSince ?? 0]), [[false, 0], [true, 3], [false, 1]], 'the record says which verdicts were carried and how long each picture had been the same');
 });
 

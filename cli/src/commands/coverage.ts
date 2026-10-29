@@ -172,8 +172,10 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
     // An action that moves the machine but draws nothing: at every moment of its strip (20 ms to
     // 10 s after the press) the frame is the one with no press at all, so a flash that fades
     // still counts as drawn. It is tried from the settled Take and then after each action that
-    // moved the machine (Reveal may need a Pick first); a finding only when no start shows a
-    // change. The renders that decide it are compared, not kept: the frames stay the matrix's.
+    // moved the machine (Reveal may need a Pick first, a team's -1 its own +1); a finding only
+    // when no start shows a change. The renders that decide it are compared, not kept: the frames
+    // stay the matrix's. A comparison that cannot be made (a render or a decode that failed) is no
+    // finding: it must not cost the frames already on disk their review.
     const moments = [...STRIP_MS, LATER_MS];
     const settledWithout = (prefix: FrameOp[]) => renderOne({ name: 'unpressed', values: 'sample', ground: 'video', state: '', ops: [...prefix, { kind: 'wait', ms: 0 }], offsets: moments });
     const shows = async (without: SequenceShot, pressed: SequenceShot) => {
@@ -181,26 +183,25 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
       for (let k = 0; k < pressed.strip.length; k++) if ((await changedShare(without.strip[k].image, pressed.strip[k].image)) >= NO_CHANGE_SHARE) return true;
       return false;
     };
+    const drawsNothing = async (button: (typeof inspection.buttons)[number], first: CoverageRender, shot: SequenceShot, unpressed: SequenceShot) => {
+      let moves = !stillAfter(shot, button.event);
+      if (moves && (await shows(unpressed, shot))) return false;
+      for (const other of moved.filter((b) => b.event !== button.event)) {
+        const prefix: FrameOp[] = [{ kind: 'event', event: other.event }];
+        const [without, pressed] = await Promise.all([settledWithout(prefix), renderOne({ ...first, crops: undefined, ops: [...prefix, { kind: 'event', event: button.event }], offsets: moments })]).catch(() => [null, null]);
+        if (!without || !pressed || stillAfter(pressed, button.event)) continue;
+        moves = true;
+        if (await shows(without, pressed)) return false;
+      }
+      // An action that never moves the machine has its own finding above.
+      return moves;
+    };
     const unpressed = inspection.buttons.length ? await settledWithout([]).catch(() => null) : null;
     for (const button of unpressed ? inspection.buttons : []) {
       const first = eventRender(button.event);
       const shot = results.get(first?.name ?? '');
       if (!first || !shot) continue;
-      let moves = !stillAfter(shot, button.event);
-      if (moves && (await shows(unpressed!, shot))) continue;
-      let drawn = false;
-      for (const other of moved.filter((b) => b.event !== button.event).slice(0, PARALLEL)) {
-        const prefix: FrameOp[] = [{ kind: 'event', event: other.event }];
-        const [without, pressed] = await Promise.all([settledWithout(prefix), renderOne({ ...first, crops: undefined, ops: [...prefix, { kind: 'event', event: button.event }], offsets: moments })]).catch(() => [null, null]);
-        if (!without || !pressed || stillAfter(pressed, button.event)) continue;
-        moves = true;
-        if (await shows(without, pressed)) {
-          drawn = true;
-          break;
-        }
-      }
-      // An action that never moves the machine has its own finding above.
-      if (moves && !drawn) findings.push(`${first.name}: ${button.label || button.event} shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take${moved.length > 1 ? ' and after each other action tried' : ''}. Draw what it does, or the operator presses it and the viewer sees nothing.`);
+      if (await drawsNothing(button, first, shot, unpressed!).catch(() => false)) findings.push(`${first.name}: ${button.label || button.event} shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take${moved.length > 1 ? ' and after each other action tried' : ''}. Draw what it does, or the operator presses it and the viewer sees nothing.`);
     }
 
     const manifest = {
@@ -219,13 +220,16 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
     await fs.writeFile(path.join(dir, 'coverage.json'), `${JSON.stringify(manifest, null, 2)}\n`);
     // A fresh review every time: verdicts belong to the frames of this digest. Only a frame whose
     // picture is the very one an earlier verdict closed keeps it.
+    // The earlier picture is the hash that review recorded, not the file now on disk: a run that
+    // stopped after drawing frames but before writing its review left pictures nobody reviewed.
     const same = new Map<string, SameFrame>();
-    for (const f of frames) {
-      const earlier = before.get(f.file);
-      if (earlier && earlier.hash === (await pictureHash(path.join(dir, f.file)))) same.set(f.file, { closed: earlier.closed, sameSince: earlier.sameSince + 1 });
+    const pictures = await Promise.all(frames.map(async (f) => ({ file: f.file, sha256: await pictureHash(path.join(dir, f.file)) })));
+    for (const p of pictures) {
+      const earlier = before.get(p.file);
+      if (earlier?.sha256 && earlier.sha256 === p.sha256) same.set(p.file, { verdict: earlier.verdict, sameSince: earlier.sameSince + 1 });
     }
-    const carried = [...same.values()].filter((s) => s.closed).length;
-    await fs.writeFile(path.join(dir, REVIEW_FILE), `${JSON.stringify(reviewFor(digest, frames, same), null, 2)}\n`);
+    const carried = [...same.values()].filter((s) => s.verdict).length;
+    await fs.writeFile(path.join(dir, REVIEW_FILE), `${JSON.stringify(reviewFor(digest, pictures.map((p) => ({ file: p.file, ...(p.sha256 ? { sha256: p.sha256 } : {}) })), same), null, 2)}\n`);
     out.result({ ok: findings.length === 0 && failures.length === 0, dir, digest, frames: frames.length, carried, crops: crops.length, findings, failures, notes: plan.notes });
     out.say(`Coverage of "${template.name}": ${frames.length} frame(s) and ${crops.length} crop(s) in ${dir} (${plan.renders.length + 1} renders, grounds ${plan.grounds.join(', ')}).`);
     out.say(`Digest: ${digest}`);
@@ -248,14 +252,9 @@ async function pictureHash(file: string): Promise<string | null> {
   return bytes ? createHash('sha256').update(bytes).digest('hex') : null;
 }
 
-/** The frames the review already in `dir` lists, by file: their pictures' hashes, whether a
- *  verdict closed them, and for how many runs they had been the same. */
-async function earlierPictures(dir: string): Promise<Map<string, { hash: string; closed: boolean; sameSince: number }>> {
+/** The frames the review already in `dir` lists, by file: the picture hash it recorded, the
+ *  verdict that closed each (empty when open), and for how many runs each had been the same. */
+async function earlierPictures(dir: string) {
   const review: unknown = await fs.readFile(path.join(dir, REVIEW_FILE), 'utf8').then(JSON.parse, () => null);
-  const earlier = new Map<string, { hash: string; closed: boolean; sameSince: number }>();
-  for (const f of earlierFrames(review)) {
-    const hash = await pictureHash(path.join(dir, path.basename(f.file)));
-    if (hash) earlier.set(f.file, { hash, closed: f.closed, sameSince: f.sameSince });
-  }
-  return earlier;
+  return new Map(earlierFrames(review).map((f) => [f.file, f]));
 }

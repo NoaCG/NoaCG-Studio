@@ -871,7 +871,7 @@ if (isMain) {
     if (ranAs && phase !== ranAs) fail(`${runDir} is a ${ranAs} run, not ${phase}`);
     // A run still going has no summary.json yet; guessing its phase would hand a ladder run to the
     // exam's judge, whose weekly cap is kept for the exam (D8).
-    if (!phase) fail(`${runDir} has no summary.json yet (is its run still going?): name its phase with --phase`);
+    if (!phase) fail(`${runDir} ${existsSync(summaryFile) ? 'has a summary.json that names no phase' : 'has no summary.json yet (is its run still going?)'}: name its phase with --phase`);
     const concurrency = Number(value('concurrency', '1'));
     if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) fail('--concurrency takes 1 to 4 judgements at once');
     // The ladder and its teaching rounds are judged in singles by the ladder's judge (D8); the exam

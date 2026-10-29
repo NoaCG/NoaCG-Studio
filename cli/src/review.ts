@@ -17,6 +17,9 @@ export const REVIEW_HOW = 'Open each frame and set its verdict: "ok", or "fixed:
 export interface ReviewFrame {
   file: string;
   verdict: string;
+  /** The sha256 of the frame's picture when coverage wrote this review: the next coverage keeps a
+   *  closed verdict only for a picture drawn again byte for byte as this one. */
+  sha256?: string;
   /** The frame's picture is byte for byte the one the last review in this folder closed. */
   carried?: boolean;
   /** How many coverage runs in a row before this one drew this same picture. */
@@ -37,40 +40,50 @@ export interface CoverageManifest {
   failures?: string[];
 }
 
-/** A frame drawn again exactly as the coverage before drew it: whether the review then closed it,
- *  and how many coverage runs in a row have now drawn this same picture before this one. */
+/** A frame drawn again exactly as the coverage before drew it: the verdict that closed it then
+ *  (empty when it was left open), and how many coverage runs in a row have now drawn this same
+ *  picture before this one. */
 export interface SameFrame {
-  closed: boolean;
+  verdict: string;
   sameSince: number;
 }
 
 /**
  * A fresh review of `frames`: every verdict empty, except a frame in `same` that the last review
  * closed, whose picture is the very one it closed (coverage run again after a fix: the frames the
- * fix did not touch). Those keep `ok`, marked carried, so the look after a fix is the frames that
- * changed. Every frame in `same` says for how many runs its picture has not changed, so a host
- * that keeps the agent's trace can count a look at that same picture after an earlier run.
+ * fix did not touch). Those keep the verdict that closed them (`ok` or `fixed: <what>`), marked
+ * carried, so the look after a fix is the frames that changed. Every frame in `same` says for how
+ * many runs its picture has not changed, so a host that keeps the agent's trace can count a look
+ * at that same picture after an earlier run. Each frame keeps its picture's sha256, when given,
+ * for the next run to compare against.
  */
-export function reviewFor(digest: string, frames: Array<{ file: string }>, same: ReadonlyMap<string, SameFrame> = new Map()): Review {
+export function reviewFor(digest: string, frames: Array<{ file: string; sha256?: string }>, same: ReadonlyMap<string, SameFrame> = new Map()): Review {
   return {
     format: REVIEW_FORMAT,
     digest,
     coverage: 'coverage.json',
     how: REVIEW_HOW,
     frames: frames.map((f) => {
+      const base = { file: f.file, ...(f.sha256 ? { sha256: f.sha256 } : {}) };
       const s = same.get(f.file);
-      if (!s) return { file: f.file, verdict: '' };
-      return s.closed ? { file: f.file, verdict: 'ok', carried: true, sameSince: s.sameSince } : { file: f.file, verdict: '', sameSince: s.sameSince };
+      if (!s) return { ...base, verdict: '' };
+      return s.verdict ? { ...base, verdict: s.verdict, carried: true, sameSince: s.sameSince } : { ...base, verdict: '', sameSince: s.sameSince };
     }),
   };
 }
 
-/** Each frame a review lists, whether it closed it (`ok` or `fixed:`), and for how many coverage
- *  runs its picture had been the same; none for anything that is not a review. */
-export function earlierFrames(review: unknown): Array<{ file: string; closed: boolean; sameSince: number }> {
+/** Each frame a review lists, with the sha256 of the picture it recorded, the verdict that closed
+ *  it (`ok` or `fixed: <what>`; empty when open), and for how many coverage runs its picture had
+ *  been the same; none for anything that is not a review. */
+export function earlierFrames(review: unknown): Array<{ file: string; sha256: string | null; verdict: string; sameSince: number }> {
   const r = review as Partial<Review> | null;
   if (!r || typeof r !== 'object' || r.format !== REVIEW_FORMAT || !Array.isArray(r.frames)) return [];
-  return r.frames.filter((f) => typeof f?.file === 'string').map((f) => ({ file: f.file, closed: verdictState(f.verdict) !== 'open', sameSince: Number.isInteger(f.sameSince) ? Number(f.sameSince) : 0 }));
+  return r.frames.filter((f) => typeof f?.file === 'string').map((f) => ({
+    file: f.file,
+    sha256: typeof f.sha256 === 'string' && /^[a-f0-9]{64}$/.test(f.sha256) ? f.sha256 : null,
+    verdict: verdictState(f.verdict) === 'open' ? '' : String(f.verdict).trim(),
+    sameSince: Number.isInteger(f.sameSince) ? Number(f.sameSince) : 0,
+  }));
 }
 
 /** `ok`, `fixed: <what>`, or open (empty, or anything else: a note of a problem still there). */
