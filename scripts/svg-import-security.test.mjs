@@ -99,7 +99,14 @@ const observations = await withBundledPage([
       return { mode, title: template.fields[0].title, markerCount: document.querySelectorAll('[data-svg-label-marker]').length, holder: document.getElementById('f0')?.tagName };
     });
   }, { SVG });
-  return { rows, control, aliases, envelope, precedence, labels };
+  const attributeText = await page.evaluate(({ SVG, XLINK }) => {
+    const read = window.SVG_IMPORT.importSvgMarkup(`<svg xmlns="${SVG}" xmlns:link="${XLINK}" width="100" height="40"><a link:href="#&quot;&gt;&lt;b data-svg-link-marker&gt;"><text x="0" y="20">Local link</text></a></svg>`);
+    const xml = new DOMParser().parseFromString(read.markup, 'image/svg+xml');
+    const html = document.createElement('div');
+    html.innerHTML = read.markup;
+    return { xml: xml.querySelector('a').getAttribute('href'), html: html.querySelector('a').getAttribute('href'), markerCount: html.querySelectorAll('[data-svg-link-marker]').length };
+  }, { SVG, XLINK });
+  return { rows, control, aliases, envelope, precedence, labels, attributeText };
 });
 
 for (const row of observations.rows) test(`SVG import removes ${row.name} before live insertion and HTML reparse`, () => {
@@ -124,6 +131,11 @@ test('uploaded layer titles stay text in exported clock and credits comments', (
     { mode: 'clock', title: `${label} (minutes)`, markerCount: 0, holder: 'DIV' },
     { mode: 'credits', title: label, markerCount: 0, holder: 'DIV' },
   ]);
+});
+
+test('aliased fragment meta-characters stay attribute text across XML serialization and HTML parsing', () => {
+  const value = '#"><b data-svg-link-marker>';
+  assert.deepEqual(observations.attributeText, { xml: value, html: value, markerCount: 0 });
 });
 
 test('removing the Illustrator private editing payload preserves its text and panel geometry', () => {
