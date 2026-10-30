@@ -1,7 +1,7 @@
 // Native adapters can use these guards before dispatch; this module calls no provider.
 // A validated receipt is evidence, not a distributed lock or permission implementation.
 import { createHash } from 'node:crypto';
-import { validateAuthorization } from './project-authorization.mjs';
+import { authorizationEnd, untilComplete, validateAuthorization } from './project-authorization.mjs';
 
 const nonempty = (value) => typeof value === 'string' && value.trim().length > 0;
 const timestamp = (value) => typeof value === 'string' ? Date.parse(value) : NaN;
@@ -66,13 +66,17 @@ export function rearmNative({ authorization, target, previous, next, kind = 'wav
   }
   try { validateAuthorization(authorization, { now, kind, open: false }); }
   catch { return unknown('invalid original authorization or overlong wave'); }
-  if (terminal || now >= end) return { state: 'stop' };
+  const authorizedEnd = authorizationEnd(authorization);
+  if (terminal || now >= authorizedEnd) return { state: 'stop' };
   if (kind === 'plan' && (!block || !Number.isFinite(timestamp(block.startedAt))
       || timestamp(block.startedAt) < start || timestamp(block.startedAt) > now
-      || !Number.isFinite(timestamp(block.deadline)) || timestamp(block.deadline) > end
+      || !Number.isFinite(timestamp(block.deadline)) || timestamp(block.deadline) > authorizedEnd
       || timestamp(block.deadline) <= timestamp(block.startedAt)
       || timestamp(block.deadline) - timestamp(block.startedAt) > 86_400_000)) return unknown('plan wake requires its original bounded work block');
   if (paused || (block && (now >= timestamp(block.deadline) || timestamp(next?.dueAt) >= timestamp(block.deadline)))) return { state: 'stop' };
+  // A completion plan's target is immutable metadata; the provider and wakeHealth need a
+  // finite execution bound. Fixed-date callers retain their original receipt contract.
+  const deadline = untilComplete(authorization) ? block.deadline : authorization.deadline;
   if (wait) return { state: 'waiting', reason: 'resolve the explicit wait before re-arming' };
   if (!target || ['provider', 'sessionId', 'environmentId', 'policySha256'].some((key) => !nonempty(target[key]))) return unknown('native target required');
   if (authorization.policySha256 !== target.policySha256) return unknown('effective policy differs from original authorization');
@@ -81,9 +85,9 @@ export function rearmNative({ authorization, target, previous, next, kind = 'wav
       || !nonempty(previous.evidence) || !Number.isFinite(timestamp(previous.firedAt))
       || timestamp(previous.firedAt) > now || timestamp(previous.firedAt) < start) return unknown('previous wake delivery is unproved');
   if (!next || !nonempty(next.actionId) || next.actionId === previous.actionId
-      || next.previousNativeId !== previous.nativeId || next.deadline !== authorization.deadline
-      || !Number.isFinite(timestamp(next.dueAt)) || timestamp(next.dueAt) <= now || timestamp(next.dueAt) >= end) {
-    return unknown('next wake must retain the original deadline and follow the delivered wake');
+      || next.previousNativeId !== previous.nativeId || next.deadline !== deadline
+      || !Number.isFinite(timestamp(next.dueAt)) || timestamp(next.dueAt) <= now || timestamp(next.dueAt) >= timestamp(deadline)) {
+    return unknown('next wake must retain its authorized deadline and follow the delivered wake');
   }
   for (const key of ['provider', 'sessionId', 'environmentId', 'policySha256']) {
     if (previous[key] !== target[key] || next[key] !== target[key]) return unknown('wake target or effective policy changed');
@@ -101,7 +105,7 @@ export function rearmNative({ authorization, target, previous, next, kind = 'wav
       return unknown('canonical millisecond due must equal executor arrival plus the exact authorized cadence');
     }
   }
-  return { state: 'eligible', actionId: next.actionId, dueAt: next.dueAt, deadline: authorization.deadline };
+  return { state: 'eligible', actionId: next.actionId, dueAt: next.dueAt, deadline };
 }
 
 /** A missing re-arm is an observation to surface, never authority to launch another owner. */
