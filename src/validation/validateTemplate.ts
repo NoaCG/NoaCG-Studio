@@ -1,3 +1,4 @@
+import { parse, type DefaultTreeAdapterMap } from 'parse5';
 // Template validation. Runs before export and on AI output so the platform — not the model —
 // owns SPX compatibility. Returns errors (block export) and warnings (allow but flag).
 
@@ -57,18 +58,42 @@ export function isAllowedExternal(url: string): boolean {
   }
 }
 
-/** Imported SPX files can keep runtime beside their definition. Inventory executable inline
- * scripts without moving source or mistaking JSON data for code. */
+/** Browser JavaScript MIME types, compared after HTML whitespace trimming only. */
+const JAVASCRIPT_TYPES = new Set([
+  'application/ecmascript', 'application/javascript', 'application/x-ecmascript', 'application/x-javascript',
+  'text/ecmascript', 'text/javascript', 'text/javascript1.0', 'text/javascript1.1', 'text/javascript1.2',
+  'text/javascript1.3', 'text/javascript1.4', 'text/javascript1.5', 'text/jscript', 'text/livescript',
+  'text/x-ecmascript', 'text/x-javascript',
+]);
+function htmlTrim(value: string): string {
+  let start = 0, end = value.length;
+  while (start < end && '\t\n\f\r '.includes(value[start])) start++;
+  while (end > start && '\t\n\f\r '.includes(value[end - 1])) end--;
+  return value.slice(start, end);
+}
+
+/** Inventory executable inline scripts using the browser's HTML parsing rules. Read the
+ * parsed tree only: imported source and its physical size remain unchanged. */
 export function inlineScripts(html: string): { code: string; classic: boolean }[] {
   const scripts: { code: string; classic: boolean }[] = [];
-  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
-    const attrs = new Map<string, string>();
-    for (const attr of match[1].matchAll(/([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)) {
-      const name = attr[1].toLowerCase();
-      if (!attrs.has(name)) attrs.set(name, attr[2] ?? attr[3] ?? attr[4] ?? '');
+  const pending: DefaultTreeAdapterMap['node'][] = [parse(html, { scriptingEnabled: true })];
+  while (pending.length) {
+    const node = pending.pop()!;
+    if ('tagName' in node && node.tagName === 'script') {
+      const attrs = new Map(node.attrs.filter(attr => !attr.namespace).map(attr => [attr.name, attr.value]));
+      const htmlScript = node.namespaceURI === 'http://www.w3.org/1999/xhtml';
+      const type = htmlTrim(attrs.has('type') ? attrs.get('type')! : htmlScript && attrs.get('language') ? 'text/' + attrs.get('language') : '').toLowerCase();
+      // SVG script ignores an HTML src attribute; it must not hide inline code.
+      const externalHtml = htmlScript && attrs.has('src');
+      if (!externalHtml && (!type || JAVASCRIPT_TYPES.has(type) || type === 'module')) {
+        const code = node.childNodes.map(child => 'value' in child ? child.value : '').join('');
+        scripts.push({ code, classic: type !== 'module' });
+      }
     }
-    const type = (attrs.get('type') ?? '').trim().toLowerCase();
-    if (!attrs.has('src') && (!type || /^(?:text|application)\/(?:java|ecma)script$/.test(type) || type === 'module')) scripts.push({ code: match[2], classic: type !== 'module' });
+    // A template's .content is inert, and is deliberately not walked.
+    if ('childNodes' in node) {
+      for (let index = node.childNodes.length - 1; index >= 0; index--) pending.push(node.childNodes[index]);
+    }
   }
   return scripts;
 }
