@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/assets/svgImport.ts, src/templates/importedDesign/svgBind.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/shared.ts
+// guards: src/assets/svgImport.ts, src/templates/importedDesign/svgBind.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/shared.ts, src/model/spxDefinition.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -30,6 +30,7 @@ const cases = [
 const observations = await withBundledPage([
   { entry: fileURLToPath(new URL('../src/assets/svgImport.ts', import.meta.url)), globalName: 'SVG_IMPORT' },
   { entry: fileURLToPath(new URL('../src/templates/importedDesign/svg.ts', import.meta.url)), globalName: 'SVG_TEMPLATE' },
+  { entry: fileURLToPath(new URL('../src/model/spxDefinition.ts', import.meta.url)), globalName: 'SPX_DEFINITION' },
 ], async page => {
   await page.route('**/*', route => route.abort());
   const rows = [];
@@ -89,14 +90,15 @@ const observations = await withBundledPage([
     });
   }, { SVG, XLINK });
   const labels = await page.evaluate(({ SVG }) => {
-    const label = 'Guest --><b data-svg-label-marker>Example</b>';
+    const label = 'Guest --><b data-svg-label-marker>Example</b></script><b data-svg-definition-marker>Text</b>';
     const attribute = label.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const read = window.SVG_IMPORT.importSvgMarkup(`<svg xmlns="${SVG}" width="100" height="40"><text data-name="${attribute}" x="0" y="30">5:00</text></svg>`);
     return ['clock', 'credits'].map(mode => {
       const designSvg = { ...read, fields: read.candidates.map(candidate => ({ candidateId: candidate.id, title: candidate.label, sample: candidate.sample, numeric: candidate.numeric, countdown: mode === 'clock' })), images: [], outlines: [], fonts: [], behaviour: mode === 'credits' ? { kind: 'recipe', recipe: 'credits', fields: { credits: 0 }, layers: {} } : undefined };
       const template = window.SVG_TEMPLATE.IMPORTED_SVG.create({ designSvg });
       const document = new DOMParser().parseFromString(template.html, 'text/html');
-      return { mode, title: template.fields[0].title, markerCount: document.querySelectorAll('[data-svg-label-marker]').length, holder: document.getElementById('f0')?.tagName };
+      const definition = window.SPX_DEFINITION.parseDefinition(document.documentElement.outerHTML);
+      return { mode, title: definition?.fields[0]?.title, markerCount: document.querySelectorAll('[data-svg-label-marker], [data-svg-definition-marker]').length, holder: document.getElementById('f0')?.tagName };
     });
   }, { SVG });
   const attributeText = await page.evaluate(({ SVG, XLINK }) => {
@@ -126,7 +128,7 @@ test('a safe SVG2 reference survives an unsafe XLink fallback in either attribut
 });
 
 test('uploaded layer titles stay text in exported clock and credits comments', () => {
-  const label = 'Guest --><b data-svg-label-marker>Example</b>';
+  const label = 'Guest --><b data-svg-label-marker>Example</b></script><b data-svg-definition-marker>Text</b>';
   assert.deepEqual(observations.labels, [
     { mode: 'clock', title: `${label} (minutes)`, markerCount: 0, holder: 'DIV' },
     { mode: 'credits', title: label, markerCount: 0, holder: 'DIV' },

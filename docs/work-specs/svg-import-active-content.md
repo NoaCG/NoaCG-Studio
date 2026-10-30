@@ -15,6 +15,8 @@ Acceptance criteria:
 - References are limited to local fragments and embedded images; a safe primary SVG2 reference
   survives removal of an unsafe fallback.
 - Uploaded layer titles remain text when clock and credits holders are generated for export.
+- Imported field metadata cannot terminate its generated SPX definition script; values still
+  round-trip through the definition reader unchanged.
 - Ordinary text, paths, definitions, use/textPath references and data images still import.
 - Existing SVG corpus and affected browser checks pass without weakening their expectations.
 
