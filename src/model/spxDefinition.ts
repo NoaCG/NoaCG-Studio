@@ -148,7 +148,8 @@ export function serializeDefinition(settings: SpxSettings, fields: SpxField[]): 
 export function definitionScriptBlock(settings: SpxSettings, fields: SpxField[]): string {
   return (
     `<script id="${DEFINITION_SCRIPT_ID}" type="text/javascript">\n` +
-    serializeDefinition(settings, fields) +
+    // HTML parses the script boundary before JavaScript parses these JSON strings.
+    serializeDefinition(settings, fields).replace(/</g, '\\u003c') +
     `\n</script>`
   );
 }

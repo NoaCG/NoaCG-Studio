@@ -12712,7 +12712,7 @@
      "Removed 1 KB of non-rendering design metadata. Artwork was retained.",
      "A foreignObject block was removed — embedded HTML cannot ride into playout."
     ],
-    "markupSha256": "274fc747195b5fb160b0dea1fa094ffb4f763fd6445099059f6b8dbad1913f1e"
+    "markupSha256": "935fee4c70ac3419326b287a96a7dc237bd6e1545190bac77b2d54fa7f65b354"
    },
    "proposal": {
     "behaviour": null,
@@ -12796,7 +12796,7 @@
     },
     "fillGap": null
    },
-   "bind": "<svg xmlns:x=\"http://ns.adobe.com/Extensibility/1.0/\" xmlns:i=\"http://ns.adobe.com/AdobeIllustrator/10.0/\" xmlns:graph=\"http://ns.adobe.com/Graphs/1.0/\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"Layer_1\" x=\"0px\" y=\"0px\" width=\"1920px\" height=\"1080px\" viewBox=\"0 0 1920 1080\" enable-background=\"new 0 0 1920 1080\" class=\"imported-design-art\">\n\n<switch>\n\t\n\t<g i:extraneous=\"self\">\n\t\t<g id=\"Name_x20_plate\" data-name=\"Name plate\">\n\t\t\t<rect x=\"190\" y=\"760\" fill=\"#0D1017\" fill-opacity=\"0.94\" width=\"880\" height=\"180\" data-noacg-el=\"g0 g1\"/>\n\t\t\t<rect x=\"190\" y=\"760\" fill=\"#F6A623\" width=\"10\" height=\"180\"/>\n\t\t\t<text id=\"f0\" transform=\"matrix(1 0 0 1 240 840)\" fill=\"#FFFFFF\" font-family=\"'Archivo-Bold'\" font-size=\"56px\" letter-spacing=\"1px\">Aino Virtanen</text>\n\t\t\t<text id=\"f1\" transform=\"matrix(1 0 0 1 240 900)\" fill=\"#B7BCC4\" font-family=\"'Inter-Medium'\" font-size=\"30px\" letter-spacing=\"2px\">Student editor</text>\n\t\t</g>\n\t</g>\n</switch>\n<i:pgf id=\"adobe_illustrator_pgf\">\n\t<![CDATA[\n\tH4sIAAAAAAAAA+xdW2/bOBZ+z68gsA+7C7SWKMmyM2gLNGkySZukSZO2M9jFPMgSbauRJUOSc9lf\n\tv4eUKMuOnbSJnaQNCyS2eDkkD8/lIw+p3v7rYhihM5pmYRK/2sIttIVo7CdBGA9ebX3+tPuis4Wy\n\t3IsDL0pi+mrrkmZbb1/vvIySwYtRHkQvfC/3yasttIWJExAQIIQwbmHitIkNiRVBEDBBEATBEATB\n\t]]>\n</i:pgf>\n</svg>",
+   "bind": "<svg xmlns:x=\"http://ns.adobe.com/Extensibility/1.0/\" xmlns:i=\"http://ns.adobe.com/AdobeIllustrator/10.0/\" xmlns:graph=\"http://ns.adobe.com/Graphs/1.0/\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" version=\"1.1\" id=\"Layer_1\" x=\"0px\" y=\"0px\" width=\"1920px\" height=\"1080px\" viewBox=\"0 0 1920 1080\" enable-background=\"new 0 0 1920 1080\" class=\"imported-design-art\">\n\n<switch>\n\t\n\t<g i:extraneous=\"self\">\n\t\t<g id=\"Name_x20_plate\" data-name=\"Name plate\">\n\t\t\t<rect x=\"190\" y=\"760\" fill=\"#0D1017\" fill-opacity=\"0.94\" width=\"880\" height=\"180\" data-noacg-el=\"g0 g1\"/>\n\t\t\t<rect x=\"190\" y=\"760\" fill=\"#F6A623\" width=\"10\" height=\"180\"/>\n\t\t\t<text id=\"f0\" transform=\"matrix(1 0 0 1 240 840)\" fill=\"#FFFFFF\" font-family=\"'Archivo-Bold'\" font-size=\"56px\" letter-spacing=\"1px\">Aino Virtanen</text>\n\t\t\t<text id=\"f1\" transform=\"matrix(1 0 0 1 240 900)\" fill=\"#B7BCC4\" font-family=\"'Inter-Medium'\" font-size=\"30px\" letter-spacing=\"2px\">Student editor</text>\n\t\t</g>\n\t</g>\n</switch>\n\n</svg>",
    "layout": {
     "version": 1,
     "rules": [
@@ -12834,7 +12834,7 @@
     "@font-face {\n  font-family: \"Inter-Medium\";\n  src: url(\"fonts/inter-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 500;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
    ],
    "emit": {
-    "html": "2bce94f8bee1f6673007b80d58d14cecec251d3c2a7947838242639b74fc402e",
+    "html": "e14fabff9d6a17deec54bcd21e48c677f29c11efe8c9b0cf09a642f7ddb62c3f",
     "css": "6d7bbde5d2361e73f6fb7c5901fe62d354d7d7ea327df6437f0b58903d00f475",
     "js": "3931a1d05782f6637d45f80749a3b8d295e60ed459abbc78979112da257ef7c3"
    },

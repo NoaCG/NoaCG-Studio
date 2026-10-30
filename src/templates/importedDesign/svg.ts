@@ -48,7 +48,7 @@ import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJ
 import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
-import { PREFIX } from './shared';
+import { escapeHtml, PREFIX } from './shared';
 import { bindSvgMarkup, candidateLabel } from './svgBind';
 import { svgFontCss } from './svgFonts';
 import { LAYOUT_EL_ATTR, layoutDataJs, layoutRules, saidLines } from './svgLayout';
@@ -225,7 +225,7 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const clockField = clock === -1 ? null : artworkFields[clock];
   const clockHolder = clockField
     ? `
-    <!-- ${clockField.title} (${clockField.field}) - the countdown's length in minutes, written by SPX
+    <!-- ${escapeHtml(clockField.title)} (${clockField.field}) - the countdown's length in minutes, written by SPX
          and read by the clock runtime in template.js; the drawn clock layer shows the count. -->
     <div id="${clockField.field}" class="${DATA_SOURCE_CLASS}">${clockField.value}</div>`
     : '';
@@ -240,9 +240,9 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
     ? artworkFields.filter((_, i) => artworkCredits.has(i)).map((field) => `\n    <div id="${field.field}" class="${DATA_SOURCE_CLASS}"></div>`).join('')
     : creditsField
     ? `
-    <!-- ${creditsField.title} (${creditsField.field}) - the whole credit list, one line per name, written
+    <!-- ${escapeHtml(creditsField.title)} (${creditsField.field}) - the whole credit list, one line per name, written
          by SPX and rolled by the credits engine in template.js; the drawn Credits text is its sample. -->
-    <div id="${creditsField.field}" class="${DATA_SOURCE_CLASS}">${creditsField.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
+    <div id="${creditsField.field}" class="${DATA_SOURCE_CLASS}">${escapeHtml(creditsField.value)}</div>`
     : '';
 
   const html = documentHtml({

@@ -52,7 +52,7 @@ export const PREFIX = 'imported-design';
 /** Stand-in size used only when a preview renders the variant before artwork exists. */
 const NO_ART: DesignArt = { path: '', width: 960, height: 270 };
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
