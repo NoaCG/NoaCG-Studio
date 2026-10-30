@@ -56,7 +56,7 @@ export async function createServer({ fixtureRoot, packageRoot = fixtureRoot, ent
   registerAppTool(server, 'noacg_preview_rehearse', {
     title: 'Rehearse this local graphic',
     description: 'Apply sample values or a lifecycle/operator action only in the isolated local preview. Never writes source or operates an output.',
-    inputSchema: { revision: z.string(), viewId: z.string().optional(), cmd: z.enum(['update', 'play', 'next', 'stop', 'event', 'reset']), values: z.record(z.string().max(4000)).optional(), event: z.string().max(120).optional() },
+    inputSchema: { revision: z.string(), viewId: z.string().optional(), cmd: z.enum(['update', 'play', 'next', 'stop', 'event', 'reset']), values: z.record(z.string(), z.string().max(4000)).optional(), event: z.string().max(120).optional() },
     annotations: { readOnlyHint: true, openWorldHint: false },
     _meta: { ui: { visibility: ['app'] } },
   }, (args) => serial(async () => {

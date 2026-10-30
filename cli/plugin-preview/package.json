@@ -19,5 +19,10 @@
     "esbuild": "0.28.2",
     "playwright-core": "1.61.1",
     "zod": "4.6.6"
+  },
+  "overrides": {
+    "@openai/mcp-extensions": {
+      "zod": "4.6.6"
+    }
   }
 }

@@ -26,5 +26,14 @@ test('MCP registers the actual thread app resource and keeps request tool app-on
     const refused = await client.callTool({ name: 'noacg_preview_request', arguments: { revision: 'unknown', selection: { kind: 'element', id: 'f0' }, request: 'Change name' } });
     assert.equal(refused.isError, true);
     assert.match(refused.content[0].text, /Refresh/);
+    const validValues = await client.callTool({ name: 'noacg_preview_rehearse', arguments: { revision: 'unknown', cmd: 'update', values: { f0: 'A valid sample' } } });
+    assert.equal(validValues.isError, true);
+    assert.match(validValues.content[0].text, /Refresh/);
+    for (const values of [{ f0: 12 }, { f0: 'x'.repeat(4001) }]) {
+      const invalidValues = await client.callTool({ name: 'noacg_preview_rehearse', arguments: { revision: 'unknown', cmd: 'update', values } });
+      assert.equal(invalidValues.isError, true);
+      assert.match(invalidValues.content[0].text, /[Ii]nvalid/);
+    }
+
   } finally { await client.close(); await server.close(); }
 });
