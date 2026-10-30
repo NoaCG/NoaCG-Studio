@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/assets/svgImport.ts, src/templates/importedDesign/svgBind.ts
+// guards: src/assets/svgImport.ts, src/templates/importedDesign/svgBind.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/shared.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
