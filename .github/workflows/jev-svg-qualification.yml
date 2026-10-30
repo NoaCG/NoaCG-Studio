@@ -38,7 +38,7 @@ jobs:
           if not key or not sealed:
               sys.exit('FAIL: required evaluation secret is unavailable')
           try:
-              archive = base64.b64decode(sealed, validate=True)
+              archive = base64.b64decode(''.join(sealed.split()), validate=True)
           except (ValueError, UnicodeError):
               sys.exit('FAIL: sealed secret is not valid base64')
           if hashlib.sha256(archive).hexdigest() != expected:
