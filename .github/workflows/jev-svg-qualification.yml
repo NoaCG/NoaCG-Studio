@@ -1,0 +1,66 @@
+name: Jev SVG sealed-secret qualification
+
+on:
+  workflow_dispatch:
+
+# This is a preparation probe, never an evaluation or a run trigger.
+# It executes no repository/branch code and never opens the sealed archive.
+permissions: {}
+
+concurrency:
+  group: jev-svg-evaluation
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    if: github.repository == 'NoaCG/NoaCG-Studio' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: jev-svg-evaluation
+    steps:
+      - name: Verify sealed digest and non-billable Gateway authentication
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          JEV_SVG_HOLDOUT_ZIP_BASE64: ${{ secrets.JEV_SVG_HOLDOUT_ZIP_BASE64 }}
+        shell: python
+        run: |
+          import base64
+          import hashlib
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          expected = '93d8531dc89187a244a070208762648f6a6808213433079344bd05fe2e53eaf3'
+          key = os.environ.get('AI_GATEWAY_API_KEY', '')
+          sealed = os.environ.get('JEV_SVG_HOLDOUT_ZIP_BASE64', '')
+          if not key or not sealed:
+              sys.exit('FAIL: required evaluation secret is unavailable')
+          try:
+              archive = base64.b64decode(''.join(sealed.split()), validate=True)
+          except (ValueError, UnicodeError):
+              sys.exit('FAIL: sealed secret is not valid base64')
+          if hashlib.sha256(archive).hexdigest() != expected:
+              sys.exit('FAIL: sealed archive digest mismatch')
+          del archive, sealed
+          print('PASS: sealed archive SHA256 matches; contents remain unopened')
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          request = urllib.request.Request(
+              'https://ai-gateway.vercel.sh/v1/credits',
+              headers={'Authorization': 'Bearer ' + key},
+          )
+          try:
+              with urllib.request.build_opener(NoRedirect()).open(request, timeout=20) as response:
+                  credits = json.load(response)
+              if not isinstance(credits, dict) or not {'balance', 'total_used'} <= credits.keys():
+                  sys.exit('FAIL: Gateway credits response has an unexpected schema')
+          except urllib.error.HTTPError as error:
+              sys.exit('FAIL: Gateway credits HTTP ' + str(error.code))
+          except (urllib.error.URLError, TimeoutError, ValueError):
+              sys.exit('FAIL: Gateway credits request failed')
+          print('PASS: evaluation Gateway key authenticated via GET /v1/credits; no inference')
