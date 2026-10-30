@@ -65,11 +65,13 @@ export function preflight({ context, until, wave, cwd = ROOT, now,
     catch { return block('wave unreadable: reconcile the existing run before launching'); }
     until = WINDOW_END.exec(text)?.[2];
   }
-  const end = ISO_OFFSET.test(until ?? '') ? Date.parse(until) : NaN;
   const start = text ? Date.parse(/^Window starts: (\S+)/m.exec(text)?.[1] ?? '') : started;
   let project;
   try { project = text && readProject(text, started); }
   catch (error) { return block(error.message); }
+  // Qualification is bounded by the actual work block, even when the plan's target is past.
+  if (project?.block) until = project.block.deadline;
+  const end = ISO_OFFSET.test(until ?? '') ? Date.parse(until) : NaN;
   if (!Number.isFinite(end) || !Number.isFinite(start)) {
     return block('invalid window: require an explicit finite deadline with offset');
   }

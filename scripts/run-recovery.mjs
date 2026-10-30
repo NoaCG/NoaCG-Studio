@@ -5,7 +5,7 @@ import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readdirSync,
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
-import { digest, immutableProject, readProject, validateAuthorization } from './project-authorization.mjs';
+import { authorizationEnd, digest, immutableProject, readProject, untilComplete, validateAuthorization } from './project-authorization.mjs';
 import { PLAN_RUN_KIND } from './wave-plan-store.mjs';
 import { RECOVERY_BRANCH_PREFIX, recoveryCheckpointBranch } from './recovery-branch.mjs';
 
@@ -112,7 +112,7 @@ function validateState(doc, ledger) {
   if (!project && (doc.projectState || doc.projectAuthorization)) throw Error('Recovery project metadata missing');
   if (project && (immutableProject(project) !== doc.projectAuthorization || digest(project) !== doc.projectState
       || project.id !== m.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Restored project authorization or state differs');
-  if (!project && Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000) throw Error('Multi-day recovery requires explicit continuing project metadata');
+  if (!project && (Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000 || untilComplete(auth))) throw Error('Multi-day or until-complete recovery requires explicit continuing project metadata');
   if (/^Window starts: (\S+)/m.exec(ledger)?.[1] !== auth.startedAt
       || /^Window ends: (\S+)/m.exec(ledger)?.[1] !== auth.deadline) throw new Error('Recovery ledger authorization differs');
   if (doc.pending && (doc.pending.id !== `${m.id}:${doc.sequence}` || !Number.isSafeInteger(doc.pending.attempts)
@@ -361,7 +361,7 @@ export function activeProject(db, config, plan, now = Date.now()) {
     git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
     // Both versions carry the document inline; only the ledger moved to its own blob.
     const { doc } = JSON.parse(git(config.repository, ['show', `${sha}:checkpoint.json`]));
-    return doc?.manifest?.kind === 'plan' && doc.status === 'active' && now < Date.parse(doc.manifest.authorization.deadline);
+    return doc?.manifest?.kind === 'plan' && doc.status === 'active' && now < authorizationEnd(doc.manifest.authorization);
   }).map(([, ref]) => ref.slice(RECOVERY_REFS.length));
   if (active.length > 1) throw new Error(`Several active ${plan} projects (${active.join(', ')}); finish or cancel all but one`);
   return active[0] ?? null;
@@ -416,7 +416,7 @@ export function restoreRun(db, config, now = Date.now()) {
   // The block this store takes over: its first start-block may replace it while it is active.
   const supersedes = readProject(ledger, now)?.block?.id;
   doc.restoration = { checkpoint, generation: randomUUID(), reconciled: false, ...(supersedes ? { supersedes } : {}) };
-  if (doc.status === 'active' && now >= Date.parse(doc.manifest.authorization.deadline)) doc.status = 'expired';
+  if (doc.status === 'active' && now >= authorizationEnd(doc.manifest.authorization)) doc.status = 'expired';
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('INSERT INTO runs(id,wave,doc) VALUES(?,?,?)').run(config.id, config.wave, JSON.stringify(doc));

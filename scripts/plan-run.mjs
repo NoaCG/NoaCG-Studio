@@ -39,7 +39,7 @@
 import { appendFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { projectBoundary, readProject } from './project-authorization.mjs';
+import { authorizationEnd, projectBoundary, readProject } from './project-authorization.mjs';
 
 export const EVENTS = Object.freeze(['build', 'landed', 'check', 'pass', 'fail', 'repair', 'resume', 'paused', 'stop', 'answered', 'diagnose']);
 
@@ -168,7 +168,9 @@ function lastDetail(steps, phase, event) {
   return steps.filter((step) => step.phase === phase && step.event === event).at(-1)?.detail || undefined;
 }
 
-function windowEnd(text) {
+function windowEnd(text, now = Date.now()) {
+  const project = readProject(text, now);
+  if (project) return authorizationEnd(project.authorization);
   return Date.parse(/^Window ends: (\S+)\s*$/m.exec(text)?.[1] ?? '');
 }
 
@@ -206,7 +208,7 @@ export function nextStep(text, now = Date.now()) {
   if (own && OWNER_ENVIRONMENT.test(own.environment) && next.step === 'build' && ['launch', 'wait'].includes(next.action)) {
     next = { ...next, action: 'owner', why: OWNER_WHY };
   }
-  const left = (project?.block ? Date.parse(project.block.deadline) : windowEnd(text)) - now;
+  const left = (project?.block ? Date.parse(project.block.deadline) : windowEnd(text, now)) - now;
   const closing = ['launch', 'wait', 'retro', 'diagnose'].includes(next.action) && left > 0 && left <= CLOSING_MS;
   return closing ? { ...next, closingMinutes: Math.ceil(left / 60_000) } : next;
 }
@@ -231,7 +233,7 @@ function stepFor(text, now) {
     if (expect.includes('landed') || expect.includes('pass')) {
       return { action: 'wait', phase, step: waiting?.event ?? expect[0], launched: waiting?.detail ?? '' };
     }
-    const end = windowEnd(text);
+    const end = windowEnd(text, now);
     if (!Number.isNaN(end) && now >= end) return { action: 'time-limit', phase, why: `the window ended at ${new Date(end).toISOString()}` };
     // The deciding agent is a launch too: only inside the window.
     if (expect.includes('diagnose')) {

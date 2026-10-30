@@ -22,7 +22,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nextStep, phasePosition, readPhases } from './plan-run.mjs';
-import { instant, phaseRow, readProject } from './project-authorization.mjs';
+import { authorizationEnd, instant, phaseRow, readProject, untilComplete } from './project-authorization.mjs';
 import { kitDir } from './run-recovery.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -88,9 +88,13 @@ function parentOf(merge) {
 export function renderBrief(wave, kind, target, values = {}, { nonce = randomBytes(2).toString('hex') } = {}) {
   if (!KINDS.includes(kind)) throw Error(`A brief is one of ${KINDS.join(', ')}, not "${kind}"`);
   const state = readState(wave), text = readFileSync(wave, 'utf8');
+  const project = readProject(text);
+  // The ledger owns authority. A stale kit may describe it, never extend a worker's work block.
+  const end = untilComplete(project?.authorization) ? project.block?.deadline : project?.authorization.deadline ?? state.authorization.deadline;
+  if (untilComplete(project?.authorization) && !end) throw Error('An until-complete worker brief needs an actual bounded work block');
   const fields = {
     PLAN: state.plan, PROJECT: state.project, ISSUE: String(state.issue), COORDINATOR: state.coordinator.session,
-    RETURN: state.coordinator.return, ENVIRONMENT: state.coordinator.environment, DEADLINE: state.authorization.deadline,
+    RETURN: state.coordinator.return, ENVIRONMENT: state.coordinator.environment, DEADLINE: end,
     TRAPS, PLAN_READ: state.brief?.read || EMPTY, PLAN_RULES: state.brief?.rules || 'none beyond the traps file',
     GOAL: EMPTY, READ: EMPTY, NOTES: 'none', CARRY: 'none',
   };
@@ -99,7 +103,7 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
     if (!/^\d+$/.test(target)) throw Error('A fix brief names its issue number');
     Object.assign(fields, { N: target, SLUG: `fix-${target}`, BRANCH: `${prefix}-fix-${target}` });
   } else {
-    const phase = phaseOf(readProject(text), target), brief = phase.brief ?? {};
+    const phase = phaseOf(project, target), brief = phase.brief ?? {};
     Object.assign(fields, {
       PHASE: phase.id, TITLE: phase.title, PHASE_ENV: phase.environment, SPEC: phase.spec ?? state.spec ?? 'the plan\'s spec',
       SLUG: slug(phase.id), BRANCH: `${prefix}-${slug(phase.id)}-${kind}`,
@@ -117,6 +121,7 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
     }
   }
   fields.NONCE = `${fields.SLUG}-${kind[0]}-${nonce}`;
+  if (project && values.DEADLINE !== undefined && values.DEADLINE !== end) throw Error('A brief cannot override the authorized work window');
   Object.assign(fields, values);
   const required = { build: ['SOURCE'], repair: ['SOURCE', 'CARRY'], fix: ['SOURCE', 'TITLE'], check: ['MERGE', 'PARENT', 'PR'] }[kind];
   const wrong = required.filter((key) => !nonempty(fields[key]) || fields[key] === 'none' || (['SOURCE', 'MERGE', 'PARENT'].includes(key) && !sha(fields[key])));
@@ -143,7 +148,7 @@ export function checkin(next, state, project, now = Date.now()) {
     let at = now + Math.max(0, ms), reason = why;
     const block = project?.block && project.status === 'active' ? instant(project.block.deadline) : NaN;
     if (Number.isFinite(block) && at > block) { at = block; reason = `the block ends then: renew it (${why})`; }
-    const end = instant(project?.authorization?.deadline ?? state?.authorization?.deadline);
+    const end = project ? authorizationEnd(project.authorization) : instant(state?.authorization?.deadline);
     if (Number.isFinite(end) && at > end) at = end;
     return { at: new Date(at).toISOString(), minutes: Math.round((at - now) / MINUTE), why: reason };
   };
@@ -182,7 +187,7 @@ export function heartbeat(wave, now = Date.now()) {
     '',
     `- **Next:** ${step}${next.why ? `: ${next.why}` : ''}`,
     `- **Phases passed:** ${passed} of ${total}`,
-    `- **Window:** ${block}; the run ends ${state.authorization.deadline}`,
+    `- **Window:** ${block}; ${untilComplete(project?.authorization) ? `planning target ${project.authorization.deadline}; continue until complete` : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline}`}`,
     `- **Waiting on:** ${state.waitingOn?.what ? `${state.waitingOn.what}${state.waitingOn.eta ? `, due ${state.waitingOn.eta}` : ''}` : 'nothing outside the ledger'}`,
     `- **Next check-in:** ${due.at ? `${due.at} (${due.why})` : `none (${due.why})`}`,
     '',

@@ -120,10 +120,11 @@ const asVersion1 = (f, db) => {
 
 /** A 72-hour project named as `continue` finds it; `open` starts a block on the original host,
  * `inFlight` also records a build there. */
-function projectFixture(t, { open = true, inFlight = false, id = 'plan-fixture-2030-01-01' } = {}) {
+function projectFixture(t, { open = true, inFlight = false, id = 'plan-fixture-2030-01-01', completion = false } = {}) {
   const f = fixture(t, ['-e', ''], ({ manifest, wave, now }) => {
     manifest.id = id;
     manifest.authorization.deadline = new Date(now + 72 * HOUR).toISOString();
+    if (completion) manifest.authorization.standing = { untilComplete: 'Continue this fixture scope until complete.', blockRenewal: 'Renew fixture blocks automatically.' };
     const project = { version: 1, id: manifest.id, ownership: 'local-single-owner', authorization: manifest.authorization,
       status: 'paused', reason: 'restore fixture only', phases: [{ id: 'restore', title: 'Restore and check', dependsOn: [], acceptance: ['restore verified'], environment: 'controlled-fixture' }] };
     writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline}`), project));
@@ -147,6 +148,26 @@ test('multi-day project restoration preserves authorization and continues under 
   updateRun(restored.db, f.manifest.id, 'start-block', { owner: 'session-b', deadline: new Date(clock + HOUR).toISOString(), evidence: 'restored' }, clock);
   recordRun(restored.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: clock, authority: blockOf(restored.config.wave) });
   assert.match(ledgerAt(f), /phase 1 build/);
+});
+
+test('completion-authorized recovery after the target retains its worker and fences the old owner', (t) => {
+  const f = projectFixture(t, { inFlight: true, completion: true }), old = blockOf(f.manifest.wave);
+  const later = f.now + 80 * HOUR;
+  const continued = f.continueAs('later-owner', later);
+  assert.equal(continued.verdict, 'continued');
+  assert.equal(continued.id, f.manifest.id);
+  assert.equal(continued.next.action, 'wait');
+  assert.equal(continued.next.launched, '{"actor":"builder"}');
+  assert.equal(Date.parse(continued.block.deadline), later + 24 * HOUR);
+  const restored = readProject(readFileSync(continued.wave, 'utf8'), later);
+  assert.deepEqual(restored.authorization, f.manifest.authorization);
+  assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'landed', '{"mergeSha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}', { now: later, authority: old }), /superseded/);
+  const db = f.open(path.relative(f.root, continued.db));
+  updateRun(db, f.manifest.id, 'pause', 'owner pause', later);
+  const paused = f.continueAs('pause-observer', later + HOUR);
+  assert.equal(paused.verdict, 'blocked');
+  assert.equal(readProject(readFileSync(paused.wave, 'utf8'), later + HOUR).status, 'paused');
+  assert.equal(paused.next.action, 'paused');
 });
 
 test('a stopped coordinator\'s project continues in a new session after full filesystem loss, waiting on its in-flight step', (t) => {
@@ -303,9 +324,15 @@ test('a push accepted after the network failed is adopted as this store\'s own t
   f.inject(null);
   assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /refuses work: paused/);
   assert.equal(readFileSync(f.manifest.wave, 'utf8'), remoteLedger(f).ledger);
-  // Another session's continuation is still superseding.
-  assert.equal(f.continueAs('session-b').verdict, 'continued');
+  // Another session takes ownership but cannot automatically undo the accepted pause.
+  const continued = f.continueAs('session-b');
+  assert.equal(continued.verdict, 'blocked');
+  assert.equal(continued.next.action, 'paused');
+  assert.equal(blockOf(continued.wave).id, block.id);
   assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'check', '{"actor":"checker"}', { now: f.now, authority: block }), /superseded/);
+  const resumed = f.open(path.relative(f.root, continued.db));
+  updateRun(resumed, f.manifest.id, 'start-block', { owner: 'session-b', deadline: new Date(f.now + HOUR).toISOString(), evidence: 'owner explicitly resumes after accepted pause was reconciled' }, f.now);
+  assert.equal(nextStep(readFileSync(continued.wave, 'utf8'), f.now).step, 'check');
 });
 
 test('adopting an accepted record merges in what the coordinator wrote to the wave file since', (t) => {
