@@ -365,6 +365,17 @@ test('the origin allowlist takes the deployment and loopback, and nothing else',
   assert.equal(originAllowed('https://noacg.studio.evil.example', ORIGINS), false);
 });
 
+test('origin normalization preserves long rejection, suffix, whitespace and configuration semantics', () => {
+  const slashes = '/'.repeat(16000);
+  assert.equal(originAllowed('https://evil.example/' + slashes + '!', ORIGINS), false);
+  assert.equal(originAllowed('https://noacg.studio' + slashes, ORIGINS), true);
+  assert.equal(originAllowed('https://evil.example' + slashes, ORIGINS), false);
+  assert.equal(originAllowed(' https://noacg.studio', ORIGINS), false);
+  assert.equal(originAllowed('https://noacg.studio/\n', ORIGINS), false);
+  assert.equal(originAllowed('', ORIGINS), true);
+  assert.deepEqual(allowedOrigins([' ', '/', ' https://staging.example/// ', 'https://staging.example/']).slice(-1), ['https://staging.example']);
+});
+
 async function withBridge(fn, extra = {}) {
   const server = createBridgeServer(
     { token: 'secret-token', origins: ORIGINS, adapters: [casparcgAdapter], version: '0.0.0-test', ...extra },
