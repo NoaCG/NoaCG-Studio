@@ -447,3 +447,23 @@ test('a refusal names the argument the caller used, not the terminal flag', { sk
   assert.match(textOf(colour), /^"background": "notacolour" is not a CSS colour/);
   for (const r of [event, colour]) assert.ok(!/--event|--background/.test(textOf(r)), textOf(r));
 });
+
+
+test('record arguments reach verb validation and retain string value constraints', async () => {
+  await withServer(async client => {
+    for (const [args, missing] of [
+      [{ command: 'scaffold', values: { f0: 'Name' } }, 'out'],
+      [{ command: 'screenshot', data: { f0: 'Name' } }, 'path'],
+      [{ command: 'save', rundown: [{ graphic: 'demo', values: { f0: 'Name' } }] }, 'path'],
+    ]) {
+      const result = await call(client, args);
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, new RegExp('needs .*' + missing));
+    }
+    for (const [command, key] of [['scaffold', 'values'], ['screenshot', 'data']]) {
+      const result = await call(client, { command, [key]: { f0: 12 } });
+      assert.equal(result.isError, true);
+      assert.match(result.content[0].text, /[Ii]nvalid/);
+    }
+  });
+});
