@@ -12,6 +12,9 @@ Acceptance criteria:
 - Prefixed scripts, embedded HTML and native animation cannot enter the live measurement DOM.
 - Serialized SVG remains inert when inserted through the mapping view's HTML parser boundary.
 - Executable URL references cannot survive namespace aliases or encoded URL whitespace.
+- References are limited to local fragments and embedded images; a safe primary SVG2 reference
+  survives removal of an unsafe fallback.
+- Uploaded layer titles remain text when clock and credits holders are generated for export.
 - Ordinary text, paths, definitions, use/textPath references and data images still import.
 - Existing SVG corpus and affected browser checks pass without weakening their expectations.
 

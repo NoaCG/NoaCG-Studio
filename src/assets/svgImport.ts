@@ -371,12 +371,11 @@ export function clockSampleMinutes(sample: string): number | null {
 /** Attribute names that run script — removed wholesale. */
 const isEventAttr = (name: string) => /^on/i.test(name);
 
-/** External reference: an absolute URL or protocol-relative — anything that would make the
- *  emitted graphic reach the network (`root/keep-generated-template-self-contained-runtime`).
- *  A local `#id` ref
- *  and a `data:` URL are fine. */
-function isExternalRef(value: string): boolean {
-  return /^(?:https?:)?\/\//i.test(value.trim());
+/** A graphic may reference its own definitions and embed image data. Other URI schemes,
+ *  relative files and navigation to data documents do not belong in a self-contained SVG. */
+function isAllowedSvgRef(tag: string, value: string): boolean {
+  return value.startsWith('#')
+    || ((tag === 'image' || tag === 'feimage') && /^data:image\//i.test(value));
 }
 
 /** SMIL animation elements — stripped with a note: deterministic playout owns time, and a
@@ -469,16 +468,19 @@ function sanitize(svg: Element): string[] {
         if (/^javascript:/i.test(value)) {
           handlers++;
           el.removeAttribute(attr.name);
-        } else if (isExternalRef(value)) {
+        } else if (!isAllowedSvgRef(tag, value)) {
           // An element whose content IS the external file (<image>, <use>) cannot survive
           // losing it; anything else just loses the attribute.
           external++;
-          if (tag === 'image' || tag === 'use') doomed.push(el);
-          else el.removeAttribute(attr.name);
+          // SVG2 href takes precedence over XLink, regardless of attribute order. An
+          // unsafe fallback must not delete artwork whose primary reference is safe.
+          if ((tag === 'image' || tag === 'use')
+            && !(attr.namespaceURI === XLINK_NS && el.hasAttribute('href'))) doomed.push(el);
+          el.removeAttributeNode(attr);
         } else if (attr.namespaceURI === XLINK_NS && attr.name !== 'xlink:href') {
           // Use SVG2 href: XMLSerializer can otherwise restore the original alias.
           // An existing href wins over XLink, as it does in the SVG renderer.
-          if (!el.hasAttribute('href')) el.setAttribute('href', attr.value);
+          if (!el.hasAttribute('href')) el.setAttribute('href', value);
           el.removeAttributeNode(attr);
         }
       }
