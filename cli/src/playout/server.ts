@@ -75,9 +75,16 @@ function hostHeaderOk(header: string | undefined): boolean {
   return isLoopbackHost(host);
 }
 
+/** Scan once: a rejected Origin may contain a long slash run before a non-slash. */
+function withoutTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end--;
+  return value.slice(0, end);
+}
+
 /** Origins allowed to talk to the Bridge: the deployment it was started for, plus local dev. */
 export function allowedOrigins(extra: string[]): string[] {
-  const list = [noacgUrl(), ...extra].map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean);
+  const list = [noacgUrl(), ...extra].map((o) => withoutTrailingSlashes(o.trim())).filter(Boolean);
   return [...new Set(list)];
 }
 
@@ -85,7 +92,7 @@ export function originAllowed(origin: string | undefined, allowed: string[]): bo
   // No Origin header at all is a non-browser caller (curl, `noacg caspar status`), which the
   // token already gates. A browser always sends one on a cross-origin request.
   if (!origin) return true;
-  const normalized = origin.replace(/\/+$/, '');
+  const normalized = withoutTrailingSlashes(origin);
   if (allowed.includes(normalized)) return true;
   // Any localhost/127.0.0.1 port: a NoaCG dev server or a self-host on the operator's own box.
   try {
