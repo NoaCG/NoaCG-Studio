@@ -198,7 +198,7 @@
     "check:toolkit": "node scripts/check-toolkit-distribution.mjs"
   },
   "overrides": {
-    "dompurify": "3.4.16",
+    "dompurify": "3.4.17",
     "path-to-regexp": "6.3.0"
   },
   "dependencies": {
