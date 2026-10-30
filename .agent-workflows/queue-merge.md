@@ -64,7 +64,11 @@ presence, or a successful scheduling call do not prove this.
 - **Wave/plan row**: the coordinator is the owner, and acknowledges the PR before the row ends.
   It needs a working cloud wake and reads GitHub directly when cloud landings have no local jobs.
   In a plan run it is also the one that posts `noacg/reviewed` and turns auto-merge on, after it
-  reads every gate green on the reviewed head; the worker stops there (`plan-run.md`).
+  reads every worker gate green on the reviewed head except Reviewed, which reads the stamp;
+  confirm the configured run's `head_sha` matches that head. The worker stops with its evidence
+  (`plan-run.md`). Enable auto-merge after the pinned stamp, checking the head before and after
+  as cloud step 5 requires; do not add a wait for Reviewed. GitHub enforces the required checks,
+  while the coordinator handles a stale Reviewed through the existing recovery procedure.
 - **No proven durable wake**: the current cloud session remains the owner through merge and
   post-landing results. Do not end at “queued” or claim that anything watches after the session
   ends. A restart or unavailable scheduler is an explicit qualification gap, never a silent handoff.

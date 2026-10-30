@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { devNull, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { admitRun, continueProject, main, openStore, publishCheckpoint, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
@@ -543,9 +543,16 @@ test('durable checkpoints omit adapter configuration while preserving local cred
 });
 
 test('recovery commits have a machine identity even when the host has none', (t) => {
+  const configRoot = mkdtempSync(path.join(tmpdir(), 'noacg-empty-git-config-'));
+  const emptyConfig = path.join(configRoot, 'config');
+  writeFileSync(emptyConfig, '');
   const previousGlobal = process.env.GIT_CONFIG_GLOBAL;
-  process.env.GIT_CONFIG_GLOBAL = devNull;
-  t.after(() => { if (previousGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL; else process.env.GIT_CONFIG_GLOBAL = previousGlobal; });
+  // Git for Windows rejects Node's null-device path as a configuration file.
+  process.env.GIT_CONFIG_GLOBAL = emptyConfig;
+  t.after(() => {
+    if (previousGlobal === undefined) delete process.env.GIT_CONFIG_GLOBAL; else process.env.GIT_CONFIG_GLOBAL = previousGlobal;
+    rmSync(configRoot, { recursive: true, force: true });
+  });
   const f = fixture(t);
   git(f.source, 'config', '--unset', 'user.name'); git(f.source, 'config', '--unset', 'user.email');
   updateRun(f.db, f.manifest.id, 'wait', { kind: 'dependency', reason: 'persist without host identity', until: null });

@@ -10,14 +10,18 @@ that plan's brief, not here.
 
 - **The coordinator stamps, you do not.** In a plan run the coordinator posts the `noacg/reviewed`
   stamp and turns auto-merge on, after checking your gates. Run `/check` and the cloud path of
-  `/queue-merge` up to an open PR with every gate green on your reviewed head, then stop and put
+  `/queue-merge` up to an open PR with the worker gates below green on your reviewed head, then stop and put
   the PR and the reviewed SHA in your receipt. Never dispatch `cloud-queue-merge.yml` with a
   verdict or enable auto-merge yourself: the harness refuses that as self-approval for some
   sessions and not others, and one path for every PR is what keeps the run predictable.
-- **Gates on your reviewed head:** CI, the Reviewed check, the Codex review finished and its
+- **Worker gates on your reviewed head:** CI gate, the Codex review finished and its
   findings handled (ask `@codex review` again after each fix push; Codex reviews only on open or
   on that request), and the configured-suite run you dispatched on that head finished green, not
-  merely started.
+  merely started. The coordinator verifies its `head_sha` equals your reviewed head. Reviewed
+  itself is not a worker prerequisite: it may be pending or red until the coordinator stamps.
+  After posting the pinned stamp the coordinator enables auto-merge with head checks before and
+  after; GitHub still requires Reviewed and all required checks before admitting the PR. Recover
+  an earlier Reviewed timeout through queue-merge, without delaying the auto-merge request.
 - **Cloud GitHub access:** `gh`'s GraphQL commands (`gh pr view`, `gh pr merge`) are refused in
   cloud sessions. Use REST (`gh api`) or the GitHub tools, as the cloud path of `/queue-merge` says.
 - Other plan-run PRs land meanwhile. If yours conflicts, merge `origin/main` into your branch;
