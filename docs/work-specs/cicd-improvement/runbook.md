@@ -1,7 +1,7 @@
 # CI/CD improvement planned run
 
-Revised 2026-10-29 after the full-run opinion, owner growth-control direction and
-[PR #1816 reconciliation](evidence/pr-1816-and-growth-controls.md).
+Revised 2026-10-30 after [Opus corrections](evidence/opus-growth-reconciliation.md), retaining
+the prior full-run opinion and PR #1816 reconciliation.
 Registered name: `cicd-improvement` in [plan-run](../../../.agent-workflows/plan-run.md).
 Preparation and registration are authorized; implementation is not. This is a prepared plan,
 not a live supervisor project. The [spec](spec.md) owns intent and numbered phase order.
@@ -30,16 +30,17 @@ The phase array below fixes exact acceptance and environments without inventing 
 - A generic orchestrator wave cannot overlap under current policy. Surface this multi-week scheduling
   constraint in the execution brief. A dated observation pause is not permission to evade it.
   No deadline, workload or wave-scheduling decision is invented during preparation.
-- Resolve the PR #1816 approval-order contradiction before admitting the first phase. The required
-  sequence is worker verification/review receipts on an exact head, coordinator verification of
-  those receipts and all independent gates, coordinator posting noacg/reviewed, the PR's Reviewed
-  job passing (recover its earlier timeout through the existing procedure), then auto-merge.
-  Reviewed consumes the stamp and cannot be its prerequisite. Qualify that ordering without
-  worker self-approval or bypassing any required merge check. Put this clarification in the kit's
-  rules and rendered briefs; reconcile the shared procedure before claiming generic run readiness.
-  ci02 measures the improved flow, but cannot serve as a fix for a deadlock that prevents ci01.
-- Recheck the numeric-ID limitation reported in the receipt when preparing any successor. This
-  plan uses ci IDs and does not hit it; never silently rename IDs in an already-running project.
+- Require the shared #1817 correction to have landed before opening this run. No kit-local override:
+  the shared procedures and build/fix/repair templates must agree. Worker evidence excludes Reviewed;
+  the coordinator checks that the configured run's head_sha equals the reviewed head, posts its
+  pinned stamp and enables auto-merge immediately with head checks before and after. GitHub requires
+  Reviewed and CI gate for admission; the coordinator recovers any earlier Reviewed timeout through
+  the existing procedure. The legitimate ci01 PR can supply live evidence, with no dummy landing.
+- Keep stable ci IDs and preserve existing project identities. The narrow #1818 fix allows numeric
+  IDs beyond the row count; real conflicts still refuse and row-number fallback is unchanged.
+- Before selecting a local Windows coordinator home, qualify live checkpoint restoration and bounded
+  recovery there. The full fixture run completed in about nine minutes and exposed a now-fixed
+  Windows Git-config fixture defect; that result is not live coordinator qualification.
 
 At authorized launch use [plan-create](../../../.agent-workflows/plan-create.md) and the existing
 [preparation procedure](../continuing-plan-preparation/runbook.md). Do not invoke plan-create now: it
@@ -97,7 +98,8 @@ Copy these strings, not weaker summaries derived by the launcher.
     "acceptance": [
       "Pin source, workflow configuration, baseline cohorts and missing samples; distinguish queue, execution, review and repair time without adding overlapping intervals.",
       "Classify nightly failures and actual deployment ordering relative to configured verdicts; name unresolved blockers without authorizing narrower coverage.",
-      "Freeze independently reviewable per-tier and aggregate resource ceilings, category-specific absolute delivery-time ceilings, sample definitions and owners under D7; record insufficient evidence as provisional, never silently enlarge an envelope."
+      "Freeze independently reviewed tier ceilings including fixed overhead, their summed common-basis envelope, actual account concurrency, per-item age and pooled timing ceilings, observable clock starts, and a durations-table freshness bound of at most eight days. Preserve the existing offline cost ceiling; record the table date and pending refresh PRs, including #1503 if still open.",
+      "Use this legitimate phase PR to record worker evidence, exact configured-run head_sha, coordinator stamp and immediate head-checked auto-merge request, with GitHub required-check admission. No dummy landing; qualify bounded live restoration first if choosing a local Windows coordinator."
     ],
     "environment": "CA: qualified cloud worker plus GitHub Actions; Repository and cached GitHub run/job records; read-only baseline analysis.",
     "spec": "docs/work-specs/cicd-improvement/spec.md"
@@ -111,7 +113,7 @@ Copy these strings, not weaker summaries derived by the launcher.
     "acceptance": [
       "One guidance source exercises ordinary, risky, repeated-family and stalled-review scenarios with a fresh reviewer; one outstanding review per revision/scope and unchanged repair limits.",
       "Start the two-row feasibility and ten-risky-row sample using separately authorized work; preserve failures, tails and missing samples.",
-      "Reuse the landed plan kit and canonical templates; prove coordinator stamp then Reviewed then auto-merge ordering on the exact head, independent reviewer boundaries and no added review ceremony for routine work."
+      "Reuse the fixed shared kit templates; preserve coordinator-only head-bound stamping and immediate auto-merge request, required GitHub admission checks, independent reviewer boundaries and no new review ceremony for routine work."
     ],
     "environment": "CA: qualified cloud worker plus GitHub Actions; Documentation gates and independent procedure review; existing review records.",
     "spec": "docs/work-specs/cicd-improvement/spec.md"
@@ -123,7 +125,7 @@ Copy these strings, not weaker summaries derived by the launcher.
       "ci02"
     ],
     "acceptance": [
-      "Three unrelated immutable candidates cannot replace each other across refs; schedules are separate; requested/actual SHA mismatch fails and required superseded verdicts have recovery.",
+      "Three unrelated intended candidates have attributable run IDs and matching head_sha verdicts; schedules are isolated from main dispatches and required pending same-branch supersession has recovery. Preserve github.sha checkout, already immutable when dispatched; refuse ambiguous or mismatched request-to-run evidence.",
       "Reconcile uncertain dispatches by recorded intent, ref, requested commit and run identity; preserve per-landing full backend validation and observation-only lookup.",
       "Reuse PR #1816 branch-specific configured dispatch groups; verify same-branch replacement, schedule/main-dispatch interaction and actual source identity. Change only remaining demonstrated gaps, not already-landed isolation."
     ],
@@ -178,11 +180,11 @@ Copy these strings, not weaker summaries derived by the launcher.
       "ci06"
     ],
     "acceptance": [
-      "Implement D7 in existing reporting/capacity/protection machinery using independently reviewed ci01 ceilings: offline, selected/full backend, affected/broad/scheduled graphics and aggregate cost. No automatic baseline increase, extra infrastructure or protection weakening.",
-      "Prove 85% warnings and 95% additive-growth refusal independently for each tier and aggregate, including setup cost, indirect shared-code slowdown, conservative new-test estimates, stale/missing/partial measurements, exception expiry and no cross-tier offset or shard-budget inflation.",
-      "Prove fixed PR-ready-to-merge and builder-to-PASS clocks preserve repair/requeue, failed/cancelled and unfinished work; p50/p90/max, category sample minima and attributed waits cannot reset or hide slow work. Future merge-time measurements never gate their own PR.",
-      "Exercise weekly reporting, missing-report and cost/latency-breach ownership, dated corrective action, bounded correction and affected growth-stop decisions with replayed records. Retain all checks for safety repairs and require explicit reviewed exceptions for over-budget growth; no repair-authored bypass.",
-      "Record budget calibration, the executable gate and report evidence, and a repeatable admission example for a backend test, graphics fixture and critical journey. Unproved budgets or controls block this phase; later live outcome samples remain for ci17."
+      "Implement D7 in existing capacity/report/protection machinery using reviewed ci01 ceilings: offline, selected/full backend, affected/broad/scheduled graphics and fixed overhead. Calibrate the sum within the measured envelope and report aggregate cost weekly; do not add a separate aggregate PR gate or increase the offline budget.",
+      "Prove independent tier 85% warnings/95% additive-growth refusal, setup cost, conservative new-test estimates, stale/missing/partial evidence, duration-table age alarms including unmerged refreshes, exception expiry and no same-scope renewal without measured repayment. No cross-tier offset or shard-budget inflation.",
+      "Replay indirect slowdown of unchanged tests through complete post-landing/weekly evidence and landing-range attribution, then updated estimates refusing subsequent additive growth. Single-run timing noise must not refuse its own PR; ceilings remain fixed.",
+      "Prove observable PR-ready and phase-start clocks retain repairs/requeues and failed/cancelled/unfinished work. One overdue item triggers action without a sample minimum; sustained reporting pools categories, with categories retained in reports. Future merge-time data never gates its own PR.",
+      "Exercise weekly/missing-report and age/cost/latency-breach ownership, dated action, one bounded correction and affected growth-stop behavior. Demonstrate admission for a backend test, graphics fixture and critical journey. Unproved controls block this phase; working controls may pass with a reported baseline overrun, and live outcomes remain for ci17."
     ],
     "environment": "CA: qualified cloud worker plus GitHub Actions; Existing capacity/report/maintenance fixtures and bounded Actions evidence; independent budget and test-admission review.",
     "spec": "docs/work-specs/cicd-improvement/spec.md"
@@ -398,7 +400,8 @@ attempts. Renew only under explicit standing blockRenewal after a block ends, ne
 pause. A scheduled acknowledgement is not continuation evidence. No kit, issue, wake or project is
 created during this preparation.
 
-Qualify exact Git/API reads, complete failed-job logs, push/check/queue and corrected stamp ordering,
+Qualify exact Git/API reads, complete failed-job logs and push/check/queue capabilities; the first
+legitimate ci01 PR supplies live evidence of the shared corrected stamp/auto-merge ordering. Prove
 native builder/checker launch/result retrieval, checkpoint/restore, stale-owner refusal and a real
 wake resuming this home. Qualify local backend or existing Actions routing where required. Reuse
 legitimate existing work for operational proof; no dummy landing or unapproved product work.
@@ -466,5 +469,5 @@ Parse 18 spec titles and this array with existing helpers; validate IDs, predece
 acceptance and environments in memory. Exercise paused/expired/unfinished-phase refusals without
 opening state. Verify eight initial acceptance headings and matching hash; an in-memory fully
 evidenced review can converge while pending/failed criteria cannot. Record actual results in
-[the current reconciliation receipt](evidence/pr-1816-and-growth-controls.md). These probes do not qualify live
+[the current reconciliation receipt](evidence/opus-growth-reconciliation.md). These probes do not qualify live
 permissions, capacity, wake persistence, dispatch or speedups. No implementation is launched.

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "project": "plan-jev-svg-import-prepared",
+  "plan": "jev-svg-import",
+  "spec": "docs/work-specs/jev-svg-import/spec.md",
+  "issue": null,
+  "coordinator": {
+    "session": null,
+    "environment": null,
+    "return": "Return native completion/receipt to the owning coordinator session through the qualified native message transport; reconcile original task before retry."
+  },
+  "authorization": {
+    "line": "Execution not yet authorized: record future owner start verbatim. Preparation/start-contract.md records existing approvals.",
+    "deadline": null,
+    "standing": {
+      "blockRenewal": "Each block can't wait for me, so the coordinator needs to renew the blocks. This hasn't been a problem in the production page run. It should continue without my intervening for the full run."
+    }
+  },
+  "brief": {
+    "read": [
+      "docs/work-specs/jev-svg-import/spec.md",
+      "docs/work-specs/jev-svg-import/runbook.md",
+      "docs/work-specs/jev-svg-import/readiness.md",
+      "docs/plan-runs/known-traps.md"
+    ],
+    "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary."
+  },
+  "branchPrefix": "claude",
+  "waitingOn": null,
+  "inFlight": null,
+  "owner": [],
+  "fixes": [],
+  "triggers": []
+}

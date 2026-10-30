@@ -9,12 +9,14 @@
 - `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; `agent-delivery`, `codex-graphic-preview`, `harness-ladder`: `docs/work-specs/<plan>/spec.md`; phases, acceptance and notes are in each. The preview's phase 1 is local.
 - `cicd-improvement`: `docs/work-specs/cicd-improvement/spec.md`, with execution details in its `runbook.md`. Registered for preparation only: do not open a project or launch until the owner explicitly authorizes execution with a finite deadline and the runbook's production-page completion and review prerequisites are met. Only its numbered `## Phases` are executable; optional P5/P6 are excluded.
 
+- `jev-svg-import`: `docs/work-specs/jev-svg-import/spec.md`, with exact phase metadata and preparation/start contract in its `runbook.md`. **Preparation-only registration:** do not open a project, start a block, create the run issue or arm triggers until the owner says start and the runbook's pre-start prerequisites pass. The approved $5 ceiling, 14-day window and standing block renewal do not start the run.
+
 ## Boundaries
 
 - **A wave runs alone; plan runs of different plans may run side by side** (never two on one file).
 - **Finite owner-authorized project deadline**: no 24-hour project ceiling. Ordinary day/night waves keep theirs.
 - **Only phases written in the plan.** Preserve phase set, order, dependencies, acceptance and required environments; refuse missing acceptance.
-- **Only the merge queue writes `main`.** Workers land with `/queue-merge`'s cloud path. One approval path for every PR: the worker stops with every gate green on its reviewed head (CI, Reviewed, the Codex review handled, the configured-suite run it dispatched finished green, `/so` A or A+), and the coordinator reads those gates itself, posts `noacg/reviewed` and turns auto-merge on. Workers never self-approve.
+- **Only the merge queue writes `main`.** Workers land with `/queue-merge`'s cloud path. One approval path for every PR: the worker stops with its gates green on the reviewed head (CI gate, the Codex review handled, the configured-suite run finished green, `/so` A or A+). Reviewed is not a worker prerequisite: it consumes the coordinator's stamp. The coordinator reads these gates and confirms the configured run's `head_sha` equals the reviewed head, then posts `noacg/reviewed` on that head and enables auto-merge immediately, checking the PR head before and after as queue-merge requires. GitHub waits for Reviewed and every required check before queue admission; recover an earlier Reviewed timeout through the existing queue procedure. A moved head requires fresh evidence and disables auto-merge. Workers never self-approve.
 - The wave file is the continuing project/phase ledger; use the existing supervisor for ownership and recovery, never a second ledger.
 - **Never touch another session's worktree**, and `docs/private/` stays private. Keep this coordinator thin; fresh builders and independent checkers do real work.
 

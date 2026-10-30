@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="240" viewBox="0 0 1280 240" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="1280" height="240" fill="#122036" />
+  <rect x="40" y="60" width="930" height="140" fill="#243b5a" rx="12" />
+  <rect x="40" y="60" width="12" height="140" fill="#edb05e" />
+  <text x="80" y="118" font-size="38" id="presenter">Mira Sol</text>
+  <text x="80" y="168" font-size="24" id="role">Coastal observer</text>
+  <text x="1040" y="75" font-size="18" id="score">CHANNEL 08</text>
+</svg>

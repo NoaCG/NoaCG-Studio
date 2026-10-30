@@ -1,0 +1,35 @@
+{
+  "preparationOnly": true,
+  "plan": "jev-svg-import",
+  "timezone": "Europe/Helsinki",
+  "durationCalendarDays": 14,
+  "startSentence": "Start the prepared jev-svg-import run.",
+  "bindings": {
+    "project.id": "Use plan-jev-svg-import- plus the Europe/Helsinki date of actual owner start; same ID forever on resume.",
+    "authorization.startedAt": "Exact timestamp of future owner start, rendered with Europe/Helsinki offset.",
+    "authorization.deadline": "Same Europe/Helsinki wall time 14 calendar days after start; resolve end offset separately.",
+    "authorization.source": "Future owner start message plus preparation/start-contract.md; no inferred start.",
+    "authorization.permissionPolicy": "Replace qualification-pending text with actual native Claude effective policy receipt after fresh preflight.",
+    "coordinator.session": "Actual qualified native Claude coordinator receipt; never this Codex task or invented ID.",
+    "coordinator.environment": "Actual intended native Claude cloud environment and qualification receipt.",
+    "issue": "Number returned by the sole run-issue creation after start; planning PR1820 is not run issue.",
+    "wave": "Absolute path returned by existing wave-plan-store --open after explicit start.",
+    "block": "Actual supervisor start-block receipt, deadline at most24hours and no later than project end.",
+    "heartbeat": "Actual comment ID returned after plan-kit heartbeat is posted after start.",
+    "triggers": "Only actual qualified native check-in receipt after start; empty until then."
+  },
+  "unavailableNow": [
+    "native Claude coordinator/worker/wake qualification",
+    "protected evaluation environment secret administration",
+    "Google OAuth token endpoint access"
+  ],
+  "prohibitedNow": [
+    "wave open",
+    "supervisor register/start-block/continue",
+    "run issue creation",
+    "heartbeat publication",
+    "trigger arming",
+    "paid inference",
+    "product phase launch"
+  ]
+}

@@ -1,6 +1,6 @@
 # Faster delivery with credible site and graphics protection
 
-Status: prepared registration revised for lasting growth controls and PR #1816, 2026-10-29; execution not authorized.
+Status: prepared registration reconciled with Opus on 2026-10-30; CI improvement execution not authorized.
 The owner authorized preparation and registration only. Implementation,
 experiments, workflow activation and changes to the production-page run are not. This is the
 master proposal for the work after production-page completion, integrating the
@@ -12,7 +12,9 @@ reported owner decisions are incorporated below; see the research receipt for di
 The [full-run opinion](evidence/full-run-opus-review-2026-10-29.txt) and
 [reconciliation](evidence/full-run-reconciliation.md) refine order, gating and continuation.
 The [PR #1816 reconciliation and growth-control receipt](evidence/pr-1816-and-growth-controls.md)
-records the landed runner changes, remaining procedure hazards and this revision.
+records the landed runner changes and initial procedure hazards. The
+[2026-10-30 reconciliation](evidence/opus-growth-reconciliation.md) applies the subsequent
+[Opus corrections](evidence/opus-growth-review-2026-10-30.txt); it supersedes conflicting earlier proposals.
 The registered run name is `cicd-improvement`; its [runbook](runbook.md) defines admission, row
 scopes, environments and recovery. Registration is not authorization to open a runtime project.
 
@@ -51,8 +53,10 @@ are each insufficient to call a feature complete.
   post-landing, once per landing. This adds pre-merge protection that does not exist in the baseline.
 - Owner decision: P0-P4 are the initial implementation; P5/P6 are optional follow-ups as recorded
   verbatim in their section below.
-- Carry forward the supplied constraints: public GitHub Team, standard runners, 60 concurrent
-  jobs, no additional paid services or infrastructure, and only the merge queue writes main.
+- Retain public GitHub Team, standard runners, no additional paid services or infrastructure,
+  and only the merge queue writing main. The reported 60-job limit conflicts with the current
+  capacity code's 13-runner allocation against a historical 20-job account limit. ci01 must verify
+  the actual limit; neither number authorizes increasing the existing cost ceiling.
 - Owner direction, 2026-10-29: apply growth controls to backend tests, graphics checks and total PR
   landing time as well as offline E2E. Update preparation only; do not launch implementation.
 - Three plans are the immediate parallelism target. Ten contributors are a later capacity question.
@@ -249,8 +253,11 @@ Every new feature extends an existing journey where possible and adds pure logic
 
 PR #1816 already isolates non-main manual configured-suite dispatches by branch, with
 per-SHA landing groups and cancel-in-progress false. Verify that behavior rather than rebuild it.
-Schedules and main dispatches still share a group; isolate those remaining collisions. Add an
-immutable requested SHA and fail if checkout differs. Grouping by ref controls scheduling, not proof of source identity. Genuine
+Checkout already uses github.sha, fixed when the dispatch event is created; do not repair an
+assumed moving checkout. Record the intended commit and dispatch intent, reconcile the returned
+or discovered run ID and its head_sha, and refuse mismatched or ambiguous evidence. The dispatch
+call currently returns no run ID. Schedules and main dispatches still share a group; isolate
+those remaining collisions. Grouping by ref does not establish request-to-run identity. Genuine
 same-branch pending supersession remains possible; recover any cancelled verdict still required
 by a checker. Preserve obsolete ordinary PR cancellation and the owned exact-SHA recovery path.
 The full reuse identity tuple is not a prerequisite for this first scheduling slice.
@@ -272,7 +279,8 @@ subagents on one VM do not establish three cloud resources. Within each chain, d
 for PASS; final integration checks the combined product. Keep one acknowledged repair owner per PR.
 
 Three plans can each fan out many Actions jobs. Opus reports a five-build merge-queue limit;
-five groups of about 16 jobs plus a main run of about 25 can exceed 60 jobs in a burst, although
+five groups of about 16 jobs plus a main run of about 25 can exceed even the reported 60 jobs
+in a burst; that reported ceiling is unverified, and the capacity code cites 20. In either case,
 not all jobs are eligible simultaneously. P0 reads current settings and actual job waiting rather
 than inferring capacity from average occupancy. Reviewer/checker capacity remains unknown.
 Keep current merge settings initially; measure before changing concurrency.
@@ -287,68 +295,65 @@ owner and incremental cost. Extend a maintained fixture or journey when it prove
 do not add another full app walkthrough for each feature. Keep distinct necessary boundary tests.
 There is no fixed test-count cap or one-in/one-out rule that forces coverage loss.
 
-Extend the existing capacity/reporting and protection-maintenance machinery, not a new service.
-Use separate fixed, reviewed budgets for offline checks, configured backend checks (selected PR and
-full landing), graphics batteries (affected, broad and scheduled), and total runner cost per accepted
-change. Measure setup, migration/seeding, execution, reports, retries, cancellations and recovery;
-include every job in a graphics battery, not just calibration. Count a job once in the aggregate,
-and preserve its tier attribution. Cheap selection today must not conceal growing full-run debt.
-Keep the current resource envelope and job/test caps. More shards or concurrency cannot raise it.
+Extend existing capacity/reporting and protection-maintenance machinery, not a new service.
+Set fixed budgets for offline checks, selected/full backend checks, affected/broad/scheduled graphics,
+and a fixed-overhead tier for build, factory and tooling. Include setup, migrations/seeding, reports,
+retries, cancellations and recovery, not just execution or catalog calibration. Count each job once.
+ci01 verifies the actual account concurrency limit and freezes a versioned table of ceilings, units,
+measurement windows, freshness bounds and named owners. Preserve the existing offline cost ceiling;
+a different account limit or more shards cannot silently enlarge it.
 
-P0 freezes a versioned budget table from comparable existing runs on standard resources: source,
-runner/configuration, measurement window, each absolute ceiling, units, sample coverage, named owner,
-warning and refusal action. Preserve the existing offline ceiling. For newly controlled tiers,
-choose absolute ceilings within the shared resource envelope and retain at least 5% headroom;
-if the current workload cannot fit, expose a maintenance blocker rather than normalize the overrun.
-Controls may pass ci18 while correctly refusing growth against a measured overrun: faithful
-cost-reducing maintenance can proceed. An unmeasured ceiling or nonfunctional gate cannot pass.
-Freeze category-specific absolute delivery-time ceilings from the AC-1 cohort and the existing
-improvement targets. No rolling baseline, weekly duration refresh or larger runner pool raises a
-ceiling automatically. Insufficient samples are provisional and prevent claiming AC-9 achieved.
-Initial calibration is independently reviewed before its gate activates; subsequent increases need
-an explicit reviewed rationale and authority, never an automatic repair or a changed denominator.
+Calibrate tier costs to a common workload/time basis, including scheduled work and failed attempts,
+and require their allocated ceilings to sum within the fixed envelope. Reference full-suite costs
+remain visible after selection. Aggregate cost is a calibration check and weekly report line, not
+another per-PR refusal gate. Keep concurrent job slots distinct from runner-minutes; neither alone
+proves the other fits. Unmeasured calibration remains provisional. Measured baseline overruns can
+pass ci18 only when the controls correctly refuse growth and allow faithful cost-reducing maintenance.
 
-Apply the existing 85% warning / 95% growth-refusal policy to each resource tier and the aggregate.
-At/above 95%, refuse additive projected cost unless faithful cost reduction restores headroom or a
-separately reviewed, owned, expiring exception (at most 30 days) records scope and repayment. A
-passing cheaper tier cannot offset another tier's refusal. Exceptions cannot excuse failed or
-missing checks, erase evidence or weaken coverage. Repairs may neither create exceptions nor edit
-maintenance entries/budgets simply to pass. Safety fixes still run their full required protection;
-if they need capacity above the ceiling, use the explicit exception route, not a silent bypass.
+Apply the existing 85% warning / 95% additive-growth refusal policy independently to each tier.
+Use conservative estimates for new/unmeasured cases. No cheaper tier offsets a refused tier.
+An exception must be separately reviewed, owned, scoped and expire within 30 days. Do not renew or
+replace an exception for the same scope without a measured repayment receipt; changing its name or
+file does not create new scope. Expiry restores refusal. Exceptions cannot excuse failed/missing
+checks or lost protection; automatic repairs cannot write them or raise ceilings to obtain green.
+Safety fixes retain full protection and use the explicit exception route if added cost needs it.
 
-Check growth on every relevant PR, including production/helper changes that slow unchanged tests.
-Use current complete measurements plus conservative estimates for new/unmeasured cases. Refresh
-estimates from routine runs, but keep ceilings fixed. Where PR evidence cannot measure a full tier,
-state the estimate and uncertainty; missing/stale/partial evidence never means zero cost or a measured
-PASS. An unresolved estimate cannot approve added work. Paired available measurements detect
-slowdowns; post-landing full results cover costs that cannot be observed before merge. Reuse those
-runs, not extra full suites for measurement. Include required factory/build/tooling in total cost.
+Do not refuse a PR because one run made unchanged tests slower near the capacity line. Detect
+indirect production/helper slowdowns in complete post-landing and weekly evidence, attribute them
+to a landing range, then apply the updated conservative cost estimate to subsequent additive growth.
+Keep ceilings fixed. Reuse routine runs; do not add full-suite timing runs to every PR. Missing,
+stale or partial evidence is never zero cost. ci01 records the durations table's source date and
+pending refresh PRs (including #1503 if still open); ci18 alarms when the accepted table exceeds
+its frozen freshness bound. For the weekly table, use at most eight days from its measurement date,
+including merge delay. A bot PR being open is not a fresh accepted table. Until refreshed, retain
+conservative estimates and refuse added cost whose headroom cannot be established.
 
-Track two clocks separately: PR-ready-to-merge (from its first ready checkpoint, never reset by a
-repair push/requeue) and phase builder-start-to-independent-PASS. Report review and repair rounds,
-review service, coordinator approval, CI setup/execution, queue, post-landing validation and checker
-wait separately; do not sum overlapping wall time. Preserve owner/infrastructure waits in gross
-time, while also showing attributed controllable time. Retain unsuccessful/unfinished work and its
-age, and include superseded runs. Queue-to-landing stays p50 <=10 / p90 <=20 minutes; matched phase
-latency still targets the existing improvement, not a five-hour tolerance disguised as a new budget.
+Track PR-ready-to-merge from the first timestamped worker receipt reporting all worker gates green
+on a named head, excluding Reviewed which consumes the coordinator stamp. If no such receipt exists,
+use the first noacg/reviewed stamp; if neither exists, report unknown, never zero. Never reset the
+start on a fix, requeue or changed head. Track phase builder-start-to-independent-PASS separately.
+Report review, repairs, coordinator approval, setup/execution, queue, validation and checker waits
+without adding overlapping wall time. Keep owner/infrastructure waits in gross time and show their
+attribution. Include failed/cancelled/superseded and unfinished work and its age.
 
-Use the fixed AC-1 cohort definitions and minimum 12 comparable completed phases for timing claims;
-report smaller windows and censored/unfinished observations as provisional, never green. Each weekly
-window reports p50/p90/max, ages and sample counts against fixed ceilings. A single known required
-validation/detection deadline breach is actionable immediately. Sustained latency/cost breaches
-create an owned, dated repair item and stop further affected capacity expansion after the existing
-one correction/remeasurement allowance. Freeze the lookback and breach rule at ci01: report a
-rolling 28-day window weekly; two consecutive adequately sampled weekly reports above a ceiling
-are sustained. An individual unfinished item older than its category ceiling is actionable even
-with too few completions for percentiles. Missing weekly evidence is an owned reporting failure.
-Expiring exceptions alert before expiry and restore refusal at expiry; the report also identifies
-slow/duplicate checks and quarantine gaps. Retirement requires a behavior/replacement receipt.
+The primary enforced timing control is per-item age: ci01 freezes absolute PR and phase age ceilings;
+any unfinished item exceeding its ceiling immediately gets an owned, dated corrective action,
+regardless of sample count. Pool categories for the sustained-breach signal, reporting a rolling
+28-day window weekly with p50/p90/max and counts; require 12 completed samples across categories,
+not 12 in each category. Compare against frozen pooled ceilings. Two adequately sampled consecutive
+weekly reports above a ceiling are sustained; low-volume windows remain descriptive and do not
+disable age alarms or block proving that the controls work. Categories remain in reports; separate
+AC-1/AC-2/AC-6 matched cohorts are still needed for claims of improvement. Retain queue-to-landing
+p50 <=10 / p90 <=20 minute targets and every existing validation/detection deadline.
 
-Do not make a PR wait for its own future merge-time measurement: pre-merge gates enforce observable
-cost/coverage regressions; completed-flow timing governs subsequent growth/admission. External
-service/owner waits trigger attribution and recovery, not disabled tests or a blanket freeze of
-unrelated fixes. Baseline changes and reclassification remain visible for independent review.
-A weekly report with no owner, deadline or enforceable response does not satisfy this design.
+Breach handling gets one bounded correction and remeasurement, then stops further affected capacity
+expansion if still outside bounds. Missing weekly reports and overdue refreshes are owned failures.
+Exception expiry alerts, slow/duplicate checks and quarantine gaps share that report; retirement
+requires a behavior/replacement receipt. Initial calibration is independently reviewed. Later
+ceiling increases need explicit reviewed rationale and authority, never automatic rebaselining.
+Do not make a PR wait for its own future landing-time result. External waits require attribution and
+recovery, not disabled tests or a blanket freeze of unrelated fixes. A report without an owner,
+deadline and enforceable response does not satisfy this design.
 
 ## One implementation sequence
 
@@ -579,24 +584,26 @@ intentional safety cost of P1(b/c) separately from optimization savings. Layer: 
 
 ### AC-9: Growth is controlled for every expensive tier and total delivery time
 
-A reviewed, fixed budget table covers offline, selected/full backend, affected/broad/scheduled
-graphics and aggregate runner cost, plus category-specific PR-ready-to-merge and builder-to-PASS
-ceilings. Existing offline ceilings and current resources remain fixed. D7 test-admission examples
-show an uncovered contract, cheapest faithful layer, overlap review, cost and owner. Missing
-measurements or insufficient cohort samples are explicit and cannot establish success.
+A reviewed fixed budget table covers offline, selected/full backend, affected/broad/scheduled
+graphics and fixed-overhead build/factory/tooling. Tier allocations sum within a common measured
+resource envelope; aggregate cost is reported weekly, not separately gated per PR. Verify actual
+account concurrency without raising the existing offline ceiling. D7 admission examples name the
+uncovered contract, cheapest faithful layer, overlap, incremental cost and owner.
 
-Executable gates demonstrate each tier's 85% warning and 95% growth refusal, aggregate refusal,
-indirect slowdown of unedited tests, missing/stale/partial evidence, new-case estimates, setup and
-migration cost, and exception expiry. No cross-tier offset, automatic ceiling increase or omitted
-required check can turn refusal green. Reference full-run cost remains visible after selection.
+Executable tier gates demonstrate 85% warnings and 95% additive-growth refusal, conservative
+new-case estimates, setup/migration cost, missing/stale/partial evidence, exception expiry and
+refusal to renew the same scope without repayment. Replay indirect slowdown through post-landing
+attribution and refusal of subsequent additive growth, not a noisy per-PR timing threshold.
+Prove the accepted duration table's freshness alarm, including an unmerged refresh PR.
 
-Existing reports measure both delivery clocks without resetting on revisions or dropping slow,
-failed, cancelled or unfinished work. Replay a review delay, coordinator stamp wait, CI slowdown,
-queue delay and post-merge validation delay; prove attributable action without a circular merge
-gate. Preserve AC-1 sample definitions/minima and AC-6 queue targets. Demonstrate an actual weekly
-report after control activation, with real available tier measurements, owners and dated actions;
-missing samples stay pending. Exercise missing-report, breach and expiring-exception paths in
-fixtures. Independently verify the one-correction/remeasurement and affected-growth-stop behavior.
+Verify observable clock starts and no reset after repairs/requeues. Replay review, stamp, CI,
+queue and post-landing delays, retaining unfinished/failed/cancelled work and attributed waits.
+Per-item age alarms work immediately with one overdue item. Pooled sustained reporting uses the
+D7 minimum across categories; small category samples cannot disable alarms or prevent acceptance
+of working controls. Separate improvement claims still require their specified matched cohorts.
+Demonstrate an actual weekly report after activation with available tier measurements, ages,
+owners and dated actions. Missing evidence stays pending; insufficient percentile samples are
+reported, not invented. Exercise the bounded correction and affected-growth-stop paths.
 Layer: existing capacity/report fixtures, complete Actions artifacts and independent live evidence.
 
 ## Reconciliation with previous proposals
@@ -605,8 +612,9 @@ Layer: existing capacity/report fixtures, complete Actions artifacts and indepen
   brings review convergence into P1 because shorter individual delivery is now the primary goal;
   the three-plan trial still needs no portable backend stack. Its exact attribution, ownership,
   compatibility and cohort constraints are retained.
-- The older suite-budget baseline used 20 runners. That is historical, not today's 60-job envelope.
-  Do not copy its timing/capacity constants or treat unlimited billed minutes as unlimited capacity.
+- The suite-budget code allocates 13 runners against its historical 20-job account ceiling. The
+  reported 60-job ceiling has not been independently established here. ci01 verifies the actual
+  limit and preserves the existing cost budget; unlimited billed minutes are not unlimited capacity.
 - Suite-budget already permits affected checks plus critical journeys and staged batched full
   validation. This proposal retains its two-week safety qualification and adds explicit graphics
   boundary coverage and the exact-merge policy reconciliation. It does not defer all full tests to night.
@@ -620,5 +628,6 @@ Layer: existing capacity/report fixtures, complete Actions artifacts and indepen
 Planning only. The original registration landed in PR #1799. The full-run opinion is reconciled
 on 2026-10-29 in the linked receipt. This revised preparation has 18 phases and eight active
 criteria. All implementation criteria remain open. No runtime project/block or worker is opened.
-Owner acceptance of revised intent, full production-page completion, finite execution authority
+The 2026-10-30 Opus corrections are incorporated; narrow shared runner fixes are authorized
+separately and do not pass these future CI criteria. Full production-page completion, finite execution authority
 and live continuation qualification are still required. Preparation tests never prove speedups.

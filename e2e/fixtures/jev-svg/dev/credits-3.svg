@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="1000" height="700" fill="#122036" />
+  <text x="500" y="75" font-size="32" text-anchor="middle">CREDITS</text>
+  <g transform="translate(80 155) rotate(-5)">
+    <text x="0" y="0" font-size="24" id="Layer1">Design</text>
+    <text x="40" y="65" font-size="42" id="Layer2">Jun Harbor</text>
+  </g>
+  <g transform="translate(520 390) rotate(12)">
+    <text x="0" y="0" font-size="24" id="Layer3">Music</text>
+    <text x="20" y="75" font-size="42" id="Layer4">Sol Reed</text>
+  </g>
+</svg>
