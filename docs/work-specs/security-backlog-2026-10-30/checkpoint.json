@@ -104,7 +104,12 @@
         "total": 0
       }
     },
-    "remainingRoot": "@vercel/sandbox1.6.0 pinsZod3.24.4. No1.x natural remediation. SDK2.2+ replaces sandboxId with name and auto-resumes sessions; @remotion/vercel4.0.488 compiled code still uses sandboxId. docs/STACK_FRESHNESS.md explicitly requires compatible Remotion parent first. Do not force override or hide viazod/v3. CurrentSDKcollections unbounded exceptVercel team-list min1, endpointlimit1; no adversarial max-constrained sink demonstrated. Weekly audit issue1752 remains relevant; no gate changed."
+    "remainingRoot": "@vercel/sandbox1.6.0 pinsZod3.24.4. No1.x natural remediation. SDK2.2+ replaces sandboxId with name and auto-resumes sessions; @remotion/vercel4.0.488 compiled code still uses sandboxId. docs/STACK_FRESHNESS.md explicitly requires compatible Remotion parent first. Do not force override or hide viazod/v3. CurrentSDKcollections unbounded exceptVercel team-list min1, endpointlimit1; no adversarial max-constrained sink demonstrated. Weekly audit issue1752 remains relevant; no gate changed.",
+    "upstreamLatestCheck": {
+      "package": "@remotion/vercel",
+      "latest": "4.0.539",
+      "evidence": "Publicregistry tarball stillcalls Sandbox.get({sandboxId}) at dist/esm/index.mjs5816 andreads sandbox.sandboxId5983. Broad parent upgrade does not remove SDKv2 incompatibility. No paid sandbox call."
+    }
   },
   "deferred": [
     {
@@ -299,5 +304,11 @@
       "finding": 28,
       "local": "6Node regressions; Chromium source/bypass matrix; freshreview2namespacebugs reproduced/fixed;3finalpublication journeys;types/lint;localbuild j0032 preserves3knownproxy-loopbackfailures,4584pass26skip"
     }
+  },
+  "independentVerification": {
+    "file": "verification.json",
+    "verifier": "/root/security_fix_verifier (fresh-context, read-only)",
+    "scope": "Five pinned source boundaries, residual copy explicitly retained",
+    "result": "Current reported boundaries fixed; no source-system dismissal implied"
   }
 }

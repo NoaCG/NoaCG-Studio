@@ -1,0 +1,31 @@
+{
+  "verifier": "/root/security_fix_verifier (fresh-context, read-only)",
+  "results": [
+    {
+      "id": "PR1452",
+      "status": "fixed",
+      "evidence": "e21722a: sanitizer before live measurement; comment title escaping and < escaping in SPX definition JSON embedding. Independent in-memory hostile metadata round-trip and no additional script closer. Existing immutable browser logs44security/corpus,5app,18export pass; corpus expectations unchanged from47a. Browser evidence inspected, not rerun in read-only verification."
+    },
+    {
+      "id": "CodeQL103-old/104-main-svg-alias",
+      "status": "fixed",
+      "evidence": "Both uploaded-file callers traced to shared parser/sanitizer. Positive normalized URI allowlist precedes alias copy; native attribute text/XMLSerializer escaping, primary href precedence and metacharacter round-trip controls close current boundary. This verifies current source, not alert disposition or unrelated sinks; current scanner warning remains an exact-claim false positive."
+    },
+    {
+      "id": "CodeQL1",
+      "status": "fixed",
+      "evidence": "dbfaea1d: backward scan replaces both slash regexes. Independent near-miss16000-slash rejection with ordinary configured/loopback/missing-Origin controls retained;10existing targeted tests pass. RawlocalHTTP boundary, no remotewebsite exploit claimed."
+    },
+    {
+      "id": "CodeQL28",
+      "status": "fixed",
+      "evidence": "2fec8a: standards HTML parsing, scripting-enabled context, HTML/SVG attributes and MIME classification. Independent in-memory gate challenges block quoted-source decoys, malformed endtags, entity MIME, SVGsource/xlinktype and doubleescaped content. Legitimate clean/data/template controls pass. Downstream JS screen remains heuristic."
+    },
+    {
+      "id": "GHSA-mrhx-c7xc-m3w5-four-reported-copies",
+      "status": "fixed",
+      "evidence": "CLI/preview actualresolution4.6.6 and cli-config/renderer4.6.7. Independent valid bounded arrays pass, oversize max2 rejects withzero itemvisits; record/type/4000charlimit controls retained. Residual rootSandboxZod3.24.4 remains in audit and stillvisits oversizeditems before reject; this verdict does not clear that separatecopy or prove it unreachable."
+    }
+  ],
+  "workflowAccessLimit": "Shared static-finding-assessment resource unavailable; primary verify-fix instructions and repositorypolicy/directsource used. No source changes, artifact writes or issue mutations by verifier."
+}
