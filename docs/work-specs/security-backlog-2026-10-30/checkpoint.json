@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-30T21:37:13.673665+00:00",
+  "updatedAt": "2026-10-30T22:04:43.823799+00:00",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "dependabot": {
@@ -41,7 +41,7 @@
   "svg1452": {
     "branch": "codex/security-svg-import",
     "head": "e21722a786e8e8fefef4a087c867826490949957",
-    "merged": false,
+    "merged": true,
     "validation": "44/44 security+corpus with601 records;33 affected gates;5 app journeys;18 export journeys;lint/types pass",
     "fixes": [
       "Strict fragment/image-context href validation and normalized alias writes",
@@ -51,7 +51,10 @@
     ],
     "codeqlAssessment": "Current guarded attribute-write warning assessed false positive with pinned source/context/serialization evidence; alert-103-current-verdict.json. Security API current-instance/state read denied; no alert was dismissed or source suppression added.",
     "status": "Check stampPASS; normal cloud queue helper dispatched; mandatory CI still in progress. Do not enable auto-merge until required CI is green.",
-    "queueHelper": 41131968341
+    "queueHelper": 41131968341,
+    "mergeSha": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+    "mergeGroupCI": 41132934526,
+    "postlanding": "Post-landing41134174577 PASS; mainCI41134174507,configured41134174470 andmainCodeQL41134173062 still observed by active owner."
   },
   "residualDependencies": {
     "npmAffectedPackageEntries": {
@@ -62,7 +65,7 @@
       "playerHost": 0
     },
     "sharedCause": "GHSA-mrhx-c7xc-m3w5; pinned/direct Zod3/4 copies remain. No forced incompatible major update was made.",
-    "additionalLimit": "Monaco vendors a separate DOMPurify copy; the installed npm override does not update that copy. Its wrapper does not enable the three inspected vulnerable modes; version alone is not demonstrated impact.",
+    "additionalLimit": "Monaco0.56.0 vendors DOMPurify3.4.8; the npm override does not update it. An isolated public-package audit yields8 conditional advisories. The inspected wrapper never enables the required setConfig/clearConfig,CUSTOM_ELEMENT_HANDLING,IN_PLACE,SAFE_FOR_TEMPLATES orXHTML-parser conditions; scoped verdicts are not_actionable for this wrapper, not a claim that the entire library is safe. Latest Monaco0.57.0 still declares3.4.15 and is not a complete version-only remedy.",
     "companionAudit": "Blocked: Corepack requires repo.yarnpkg.com, denied by enforced network policy."
   },
   "deferred": [
@@ -71,11 +74,11 @@
         1641,
         1642
       ],
-      "reason": "Optional Vercel analytics; untouched"
+      "reason": "Draft optional runtime analytics/SpeedInsights additions; not security remediation."
     },
     {
       "pr": 1503,
-      "reason": "Old E2E duration re-record; no security need established; untouched"
+      "reason": "CI timing snapshot maintenance. It drops current source.observations/source.why provenance and adds six timing records; no security requirement to merge it. Kept for separate timing review."
     }
   ],
   "capabilityGaps": [
@@ -98,7 +101,66 @@
       "Keep canonical root owner binding unchanged; selected runtime/source_config and native launch config are distinct identifiers",
       "Bind real session/wake/run-issue/project/block identifiers only after explicit future start and readiness; leave start/deadline null now",
       "Recompute existing spec hash/derived phase metadata when references are changed, preserving all product acceptance criteria"
-    ]
+    ],
+    "qualificationEvidence": {
+      "protected_secrets": {
+        "run": 41125379127,
+        "job": 124302404225,
+        "result": "PASS sealed archive hash without opening entries; Gateway authentication via credits GET; no inference"
+      },
+      "synthetic_sheets": "Separate preparation receipt in PR1825: OAuth200,six metadata reads200,temporary-tab create/write/read/finally-delete and absence recheck pass. Fresh worker preflight remains required.",
+      "active_wake": "PR1825 records bounded one-shot delivery to the same active chat and disabled afterward; this is not restart/reclaimed-container recovery.",
+      "native_worker_transport": "Fresh-context shared-VM workers and follow-up/completed-to-resumed receipts exist; do not treat them as separate native cloud child launches."
+    },
+    "metadataChanges": [
+      {
+        "files": [
+          "spec.md",
+          "phases.json"
+        ],
+        "change": "Replace Claude-only actor/environment labels with the actually qualified Codex topology and receipts. Preserve all40 phases,26 criteria,dependencies,acceptance and product behavior. Explicitly distinguish shared-VM native agents from remote cloud children."
+      },
+      {
+        "files": [
+          "preparation/project.draft.json",
+          "preparation/state.draft.json"
+        ],
+        "change": "Regenerate matching actor/phase copies and record the real permission/coordinator/environment/recovery receipts. Keep start/deadline/project/block/heartbeat IDs unbound before explicit future start."
+      },
+      {
+        "files": [
+          "runbook.md",
+          "readiness.md",
+          "preparation/start-contract.md",
+          "preparation/launch-bindings.json"
+        ],
+        "change": "Update provider wording, qualification gates and actual identity mapping after proof. Preserve exact start sentence,standing renewal,$5 ceiling and14-calendar-day window; preserve canonical root owner binding unchanged."
+      },
+      {
+        "files": [
+          "work.json"
+        ],
+        "change": "Recompute the existing spec hash and reconcile derived metadata after the provider-only edits; do not invoke live plan registration/validators or start phases now."
+      }
+    ],
+    "executionAssessment": {
+      "codingAndVerification": "Selected CodexCloud can implement,test and land scoped phases using fresh-context native same-VM agents,owned worktrees,bounded browser queue and normalGitHub merge process.",
+      "workerTopology": "Shared-VM agent coordination is proven; separate remote cloud children are a different unqualified topology. Do not substitute one proof for the other.",
+      "unattendedRunReady": false,
+      "unqualified": [
+        "Durable wake into the same coding owner after idle/restart",
+        "Reclaimed-container/full-filesystem reconstruction and coordinator fencing",
+        "Bounded wake re-arming and base-conflict repair over the authorized window",
+        "Separate child launch/mapping if the selected topology requires it; CLIcloud list401"
+      ],
+      "providerOnlyMetadata": "Codex execution actors and actual receipts only; do not change product AI providers/models,40phases,26criteria,$5 split or14-day window. Standing renewal and future explicit start remain unchanged."
+    }
   },
-  "resume": "Reconcile this exact source head, original cloud helper and current PR/check/queue/merge state before retrying any operation. Preserve one repair owner. Do not start the Jev run or a competing fixer."
+  "resume": "Reconcile this exact source head, original cloud helper and current PR/check/queue/merge state before retrying any operation. Preserve one repair owner. Do not start the Jev run or a competing fixer.",
+  "qualificationReceipts": {
+    "preparationPR": 1825,
+    "sealedSecretProbe": 41125379127,
+    "secretProbeOutcome": "Both fixed PASS lines verified from whole job124302404225: sealed ZIP digest matches with contents unopened; Gateway credits authentication succeeds without inference.",
+    "sheetsAndWorkerWake": "PR1825 records six synthetic-sheet reads and temporary write/read/finally-delete pass, native worker follow-up/resume and one disabled active one-shot wake. This does not prove unattended restart or reclaimed-container recovery."
+  }
 }
