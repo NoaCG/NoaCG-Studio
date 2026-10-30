@@ -98,6 +98,14 @@ configuration; a miss reports the cost and quality of each rung tried, which is 
   graphic, median wall at most 10 minutes, and the agent opened every frame it gave a verdict for
   in at least 7 sessions. The first matching rung is the winner. Revert: a different rule,
   committed before the rung's first session.
+  **Amended 2026-10-17 by the owner, for a taught rung (L2) only; L1's ladder stays as counted:**
+  the cost line is an estimated $1.35 or less per usable graphic ("if a taught setup meets the
+  quality bar and its subscription estimate is at most $1.35 per usable, confirm it on Managed
+  Agents from the $8; the real-host check still needs at most $1.00 per usable"). The other three
+  lines are unchanged, and AC-5's line (at most $1.00 per usable, measured on Managed Agents)
+  stays the real test. Why: H8 measured Claude Code's notional at about 1.35 times Managed Agents'
+  real cost ($2.26 against $1.67 a session). Revert: the cost line back to $1.00 estimated
+  (`TAUGHT_RULE` in `lib/ladder.mjs`).
 - **D7. Teaching.** Taught is the cheapest rung below the winner (or of all rungs, when none
   matched) with at least 4 of 8 usable, or 2 of its first 4 when the screen ended it: up to five
   rounds, each with its hypothesis (which failure, which skill or CLI change, what
@@ -242,6 +250,97 @@ The owner starts it with `/plan-run harness-ladder until <time>`.
 
 Each phase's pull request adds its notes here, newest first: the last check's findings, what the
 next phase must allow for, decisions, traps, spend, shas and the revert.
+
+### L2. Teaching (built 2026-10-29: no match)
+
+- **Check's findings (L1's second check, PASS on `905fabec1`):** three Opus readings a graphic
+  (usable at 2 of 3), repeatability 19 of 21 at 3/3; no rung matched D6; D7 as written teaches
+  Sonnet 5.5 `high` (2 of its first 4 usable, $3.75 per usable notional; Opus `low` was cheaper per
+  session, $1.65 against $1.88, but D7 ranks by D5's order). Sonnet `medium` is 3 of 8 under 2 of
+  3 and does not qualify. L1's failure patterns: empty defaults, so on-air frames show nothing;
+  actions that pass the gate but change nothing on screen; design defects missed after opening
+  every frame (a faint crest, an ogonek collision); rubber stamps (a script sets every verdict `ok`
+  after opening 3 of 57 or 8 of 40 frames); NOT READY at the review. Whether a verdict is honest
+  is the judge's call, not the review's: an `ok` proves only that a verdict was written. Minor: the
+  ledger's L1 close note still said Sonnet `medium` 4 of 8 at $2.74; a correcting entry now follows
+  it (the note itself stays, the ledger being append-only).
+- **Outcome: no match.** Four rounds ran (1, 3 and 4 kept, 2 reverted); none met D6 on the eight.
+  The best round, round 4, has 5 of 8 usable at $2.15 a usable and $1.35 a session; the look line
+  never passed 6 of 8 and was 4 of 8 in the last three rounds. The cost per session on the eight
+  fell from $2.04 to $1.35, and the cost per usable from $8.15 to $2.15. Every figure, hypothesis
+  and decision is in `benchmarks/harness/ladder/evidence/phase-L2.md`; every tally reproduces with
+  `--tally benchmarks/harness/ladder/L2/<round>` (and `--order tuning`). The curve, Sonnet 5.5
+  `high`, three Opus readings a graphic, notional cost on the subscription:
+
+  | round | change | the eight: usable, per session, per usable, median wall, all frames opened | 15 tuning briefs: usable, per session, per usable | decision |
+  |---|---|---|---|---|
+  | baseline | the skill and CLI as L1 ran them | 2, $2.04, $8.15, 527 s, 6 | 8, $1.25, $2.35 | - |
+  | 1 | an action that draws nothing is a coverage finding | 4, $2.04, $4.08, 600.5 s, 5 | 8, $1.40, $2.62 | kept |
+  | 2 | each timeline one picture (strips) | 5, $1.26, $2.02, 463 s, 4 | 5, $0.98, $2.94 | reverted (tuning fell by 3) |
+  | 3 | strips again, with carried verdicts | 4, $1.45, $2.90, 511 s, 4 | 7, $0.91, $1.95 | kept (refuted: no verdict was ever carried) |
+  | 4 | a look at the same picture counts; logos without tiles | 5, $1.35, $2.15, 565 s, 4 | 10, $0.93, $1.40 | kept (refuted on the look line; the logo change held on two of four) |
+
+  D6 on the eight needs 7 usable, at most $1.35 a usable, a median wall of 10 minutes and every
+  frame opened in 7 sessions. No round came near the usable line or the look line; the strips
+  brought the cost per session to $1.26 to $1.45, so 7 usable at that cost would have met the
+  cost line. Only the tuning briefs came close on cost ($1.40 a usable in round 4), and they have
+  no match line of their own.
+- **What the next phase must allow for:**
+  - D7: five rounds were allowed; four ran, the usage limit cutting the window twice, and round 4
+    was finished on 2026-10-29 with no round 5. Without an L1 winner and without a match, the plan
+    stops with this curve (D7, phase 3); L3 and L4 do not run unless the owner decides otherwise.
+    The check confirms that. L2 is closed in the ledger (`--close L2`).
+  - A round 5 would take the design failures the judge names on the eight in every round: logos
+    that air as empty placeholders or as text at the brief's own values (the collegiate scorebug,
+    the matchup), text that moves or shrinks with long values (the timing tower, the live vote),
+    and the youth summit bug's doubled "DAY" (#1435). The look line will not move by counting:
+    agents set every verdict at the end with a script; a gate that cannot see reads cannot force
+    them.
+  - The noise between two measurements of the same configuration (rounds 2 and 3) is 1 usable on
+    the eight and 2 on the tuning briefs; a round's change smaller than that cannot be read. Round
+    4's gain on the eight (4 to 5) is within it; its gain on the tuning briefs (7 to 10) is not.
+- **Decisions** (each revertible):
+  - DECIDED: the baseline on the eight reuses L1's four Sonnet `high` screen cells and their three
+    readings, since `cli/skill` and `cli/src` had not changed since; only the other four ran.
+    Revert: run the four again under the stage.
+  - DECIDED: the tuning set is the bank's 15 library briefs; the bench refuses the OGraf one.
+  - DECIDED: round 1 is the action that draws nothing, not the cost. Revert: run strips as round 1.
+  - DECIDED: a press counts as drawn when any moment from 20 ms to 10 s differs by about 40 pixels
+    or more. Revert: `NO_CHANGE_SHARE` in `cli/src/commands/coverage.ts`.
+  - DECIDED: strips are coverage's default, `--frames` keeps a frame per moment and the bench's
+    capture passes it (the session's hand-in line spells the command out without flags, so a flag
+    only the skill names reaches some agents and not others). Revert: `strips` back to
+    `flagBool(args, 'strips', false)` and the capture without `--frames`.
+  - DECIDED: rounds 3 and 4 each changed two things, said in their hypotheses, because the window
+    had room for one more round each time. Revert: none needed; the evidence names each change's
+    own failure.
+  - DECIDED: `--lanes` takes up to 3; the rounds ran at 2 because free memory never reached 3 GB at
+    a start, and round 4's last three sessions at 1 (about 1.2 GB free).
+  - DECIDED: round 4's `summary.json` is rebuilt over all 23 cells, since each `--build` writes
+    only its own cells (the last one, the volleyball rerun, held one). Revert: none needed; the
+    tallies read the cells, not the summary.
+  - OWNER, 2026-10-17: D6's cost line for a taught rung is $1.35 estimated (D6 above); AC-5's
+    real-host line stays $1.00.
+- **Traps:**
+  - The usage limit cut a session without printing a result (round 4's volleyball board): the
+    bench recorded it `failed` and would not rerun it under the stage; it reran as
+    `round-4-rerun` (#1469). A session the bench must run again after a discarded start needs
+    another stage name too: the ledger is append-only (round 2's `round-2-rerun`).
+  - The youth summit event bug's positional stress keys put the logo's description into a text
+    field when the agent splits day and room; it fails every round for it (#1435).
+  - Pass `--phase L2` to `--judge` and `--tally` while a run is going (no `summary.json` yet); the
+    bench refuses to judge a run whose phase it cannot tell rather than guess the exam's judge.
+  - CI checks out a shallow history, so a test that reads git history (the seal's commit time)
+    must accept the recorded time when the oldest commit has no parent (`sealCommittedAt`).
+  - The browser-work guard counts a running bench, so judging beside a session needs
+    `NOACG_ALLOW_PARALLEL_E2E=1`; the judge drives no browser.
+- **Spend:** $0 credit; the ledger at 5,468 cents spent with $30.00 held for L4 and $8.00 for L3.
+  Subscription, notional: $580.23 (117 ledger sessions $143.28, discarded, paused and failed
+  starts included; 324 ladder-judge readings $431.63; the one stray Fable reading $5.32).
+  **Shas:** built on `905fabec1`; D6's amendment `ba0a39a0d`; round 1 `05ca783bb` and
+  `8d4fa88a0`; round 2 `62753ce6a`, `7dc3d70e9`, `3634414a6`, `d6fa22b8a`; round 3 `7925a6884`
+  and `f59965f8f`; round 4 `d4993df07` (its hypothesis), `d2f11b46d` and `759061291`.
+  **Revert:** each round's commits revert on their own; the plan's L3 and L4 do not start.
 
 ### L1's second check (PASS on `905fabec1`, 2026-10-17)
 

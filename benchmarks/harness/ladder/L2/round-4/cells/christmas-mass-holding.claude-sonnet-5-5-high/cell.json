@@ -1,0 +1,122 @@
+{
+  "costUnread": false,
+  "brief": "christmas-mass-holding",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "0281afbd-fbd8-4d28-adf1-51c3ad24e9be",
+  "costCents": 0,
+  "notionalUsd": 0.8011162000000002,
+  "wallSeconds": 241,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type holding-screen --design ss04 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:7412258664d0bc285ed78aba88a3e804a31cdbd532424324b42f1c9c11f249d1"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:422723db9e4fd795a74925222d190df87941de02028634f2e7c30349d5a3714a"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:422723db9e4fd795a74925222d190df87941de02028634f2e7c30349d5a3714a"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:d9d3c8b468b4aaee146738268ae0a14c14f53e0ba8f62d2b91f1d2b131d78b51"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d9d3c8b468b4aaee146738268ae0a14c14f53e0ba8f62d2b91f1d2b131d78b51"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:d9d3c8b468b4aaee146738268ae0a14c14f53e0ba8f62d2b91f1d2b131d78b51"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\christmas-mass-holding.claude-sonnet-5-5-high\\frames",
+    "frames": 41,
+    "crops": 4,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:d9d3c8b468b4aaee146738268ae0a14c14f53e0ba8f62d2b91f1d2b131d78b51"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [
+      "pause",
+      "resume"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:d9d3c8b468b4aaee146738268ae0a14c14f53e0ba8f62d2b91f1d2b131d78b51",
+    "benchValidated": "sha256:d9d3c8b468b4aaee146738268ae0a14c14f53e0ba8f62d2b91f1d2b131d78b51",
+    "reviewed": "sha256:d9d3c8b468b4aaee146738268ae0a14c14f53e0ba8f62d2b91f1d2b131d78b51",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 17,
+    "opened": 17,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

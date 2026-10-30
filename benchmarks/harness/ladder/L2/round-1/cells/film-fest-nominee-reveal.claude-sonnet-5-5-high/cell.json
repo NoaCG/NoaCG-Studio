@@ -1,0 +1,127 @@
+{
+  "costUnread": false,
+  "brief": "film-fest-nominee-reveal",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "45b3dabc-5dec-402c-8b6f-1045cc927bfc",
+  "costCents": 0,
+  "notionalUsd": 1.0254285,
+  "wallSeconds": 231,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type nominee-reveal --design nm01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:34289ca752739db77adb55df016e198cd92e949e785e3be7e2c588becedbc87e"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:34289ca752739db77adb55df016e198cd92e949e785e3be7e2c588becedbc87e"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:0257606d5e1fc36d6801405d965cfc6ae69e70876bd06f31b12c506152eb0afa"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f2=The Extraordinarily Long Adventures of Captain Bartholomew Featherstonehaugh-Wigglesworth in the Land Beyond the Sea | Directed by Maximilian Alexandrovich Konstantinopolsky-Rautavaara\nShort | Dir. Ann\nWhat the River Remembers When the Water Goes Quiet at Midnight | Directed by Mikael Jääskeläinen\nPaper Moons | Directed by Elias Nieminen --event suspense --background video --out ../shots/long-suspense.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f2=The Extraordinarily Long Adventures of Captain Bartholomew Featherstonehaugh-Wigglesworth in the Land Beyond the Sea | Directed by Maximilian Alexandrovich Konstantinopolsky-Rautavaara\nShort | Dir. Ann\nWhat the River Remembers When the Water Goes Quiet at Midnight | Directed by Mikael Jääskeläinen\nPaper Moons | Directed by Elias Nieminen --data f3=1 --event suspense --event reveal --background video --out ../shots/long-reveal.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:55c0f4ac82eded45757bb8785607c6065ddae56b60a482376360ece021ec4f1f"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:55c0f4ac82eded45757bb8785607c6065ddae56b60a482376360ece021ec4f1f"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:55c0f4ac82eded45757bb8785607c6065ddae56b60a482376360ece021ec4f1f"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-1\\cells\\film-fest-nominee-reveal.claude-sonnet-5-5-high\\frames",
+    "frames": 43,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:55c0f4ac82eded45757bb8785607c6065ddae56b60a482376360ece021ec4f1f"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "suspense",
+      "reveal"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:55c0f4ac82eded45757bb8785607c6065ddae56b60a482376360ece021ec4f1f",
+    "benchValidated": "sha256:55c0f4ac82eded45757bb8785607c6065ddae56b60a482376360ece021ec4f1f",
+    "reviewed": "sha256:55c0f4ac82eded45757bb8785607c6065ddae56b60a482376360ece021ec4f1f",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 40,
+    "opened": 40,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

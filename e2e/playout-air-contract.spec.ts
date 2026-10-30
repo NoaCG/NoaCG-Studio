@@ -2,7 +2,7 @@
 // covers: src/components/home/CueEditor.tsx
 // covers: src/components/playoutKeys.ts, src/model/durableStore.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
-// covers: src/components/home/CueActions.tsx
+// covers: src/components/home/CueActions.tsx, src/components/home/LiveControls.tsx, src/control/liveControls.ts
 // covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
 // covers: src/control/bridgeWatch.ts
 // covers: src/control/folderPlayout.ts
@@ -344,4 +344,44 @@ test('typing into the on-air cue redraws the editor and not the page, and everyt
   // The row's label follows the label being typed too.
   await page.getByTestId('cue-label').fill('Renamed while live');
   await expect(list(page).locator('.pd-cue', { hasText: 'Renamed while live' })).toHaveCount(1);
+});
+
+test('typing in PREP does not render the LIVE stack of pinned graphics: it follows air, never the draft', async ({ page }) => {
+  // Pinned live controls (docs/work-specs/pinned-live-controls/spec.md, "Maintainability plan"): the
+  // stack reads the `air` and `aired` parts, never the draft, so with a quiz pinned and the cue on
+  // air being typed into, the stack renders as the page does: at most once, for "not sent yet".
+  // Mutation-tested: the stack reading the draft (a block per keystroke) fails the second count.
+  await page.clock.install();
+  const showId = await production(page, 'Pinned render counts', { quiz: true });
+  await evaluateInPage(page, async ({ showId }) => {
+    const { setShowProfile } = await import('/src/model/shows.ts');
+    setShowProfile(showId, { v: 1, arrange: {}, pinnedGraphics: ['House Quiz'] });
+  }, { showId });
+  await settleDurableWrites(page);
+  await page.reload();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Hairline');
+  const stack = page.getByTestId('live-stack');
+  await expect(stack.getByTestId('live-block')).toHaveCount(1);
+  await expect(stack.getByTestId('live-block')).toHaveAttribute('data-graphic', 'House Quiz');
+  const field = page.getByTestId('cue-field-f0');
+  await field.click();
+  await field.press('End');
+  const stackRenders = () => stack.evaluate((el) => Number(el.getAttribute('data-renders')));
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await expect.poll(async () => {
+    const before = await stackRenders();
+    await page.waitForTimeout(300);
+    return (await stackRenders()) - before;
+  }).toBe(0);
+  const RENDER = 2;
+  const s0 = await stackRenders();
+  await field.press('0');
+  const s1 = await stackRenders();
+  await field.pressSequentially('123456789');
+  const s10 = await stackRenders();
+  expect(s1 - s0, 'the first keystroke renders the stack at most once, with the page').toBeLessThanOrEqual(RENDER);
+  expect(s10 - s1, 'the nine keystrokes after it do not render the stack').toBe(0);
+  await page.clock.resume();
 });

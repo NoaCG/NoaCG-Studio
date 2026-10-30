@@ -387,6 +387,11 @@ control-slug door as `control_data_patch_by_slug`. Pause writes only the row's p
 appends at most one update row per graphic, values the data key already sent; it cannot play, take
 or clear a graphic. `control_data_owner_patch`, for `authenticated` only, is the owner's Data view:
 the row policy's own test and the suspension check, then the apply as an operator write.
+It holds **187** after migration 0101 (`0101_production_source_snapshots.sql`, a trusted JSON
+source's snapshot, E4.2), added by hand for the same reason: `production_source_snapshots` has RLS
+on and no policy, and `anon` and `authenticated` hold no privilege on it (0101 revokes them and its
+self-check asserts the absence), so it is deny-all like `control_source_reads`. Its three functions
+are security definer and the service role's alone, so they add no anon or authenticated entry.
 The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused

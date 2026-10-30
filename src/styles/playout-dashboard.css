@@ -913,6 +913,13 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-air-unknown,
 .pd-air-stale { color: var(--amber); }
 .pd-server-badge[data-stale] { color: var(--amber); }
+/* What the outputs say an imported OGraf package did, under PROGRAM's picture (E3.2a). */
+.pd-confirmed { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 12px; color: var(--text-dim); }
+.pd-confirmed li { overflow-wrap: anywhere; }
+.pd-confirmed li[data-tone='ok'] { color: #4ade80; }
+.pd-confirmed li[data-tone='bad'] { color: #f87171; }
+.pd-confirmed li[data-tone='unknown'] { color: var(--amber); }
+.pd-confirmed .pd-recue { margin-left: 8px; padding: 0 8px; font-size: 12px; line-height: 18px; }
 .pd-pvw h2 { color: var(--amber); }
 .pd-pvw .pd-dot { background: var(--amber); }
 .pd-pgm h2 { color: #ef4444; }
@@ -929,6 +936,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   background: #0a0a0c;
 }
 .pd-pvw .pd-frame { box-shadow: inset 0 0 0 2px rgba(246, 166, 35, 0.7); }
+/* PREVIEW in stage coordinates (playout adjustments): the production's stage fitted to the
+   monitor, the graphic's frame at its origin as on the output; the safe area while Adjust is open. */
+.pd-pvw-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.pd-pvw-guides { position: absolute; pointer-events: none; outline: 2px dashed rgba(246, 166, 35, 0.55); }
 .pd-pgm .pd-frame { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.8); }
 /* NOT LIVE (docs/work-specs/studio-day-playout AC-9): a production that is not started keeps its
    Takes on this page, so the monitor gives up the on-air red - grey heading, hollow dot, a dashed
@@ -944,6 +955,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    gap under the pointer (docs/CONTROL_PANEL_PARITY.md §4). */
 .pd-frame iframe { pointer-events: none; }
 .pd-frame-empty { display: flex; align-items: center; justify-content: center; }
+.pd-frame-note { padding: 0 12px; text-align: center; }
 .prod-monitor-stage { position: absolute; inset: 0; overflow: hidden; }
 .prod-monitor-note { position: absolute; left: 12px; top: 12px; margin: 0; }
 .prod-monitor-empty {
@@ -1030,6 +1042,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   gap: 4px;
 }
 .pd-onair-line { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.pd-unordered { color: var(--danger); }
 /* THE SPACE-MODE CHECKBOX, beside the key it changes. Quiet on purpose: it is read once when
    an operator sets up their habit and then never looked at again, so it takes the on-air
    chip's size and colour and none of the buttons' weight. */
@@ -1091,6 +1104,46 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-cue-title:hover { border-color: var(--border); }
 .pd-cue-title:focus { border-color: var(--accent); background: var(--bg); outline: none; }
 .pd-editor-fate { font-size: 12px; }
+/* Which person a candidate cue shows (E7.2a): the cue title's quiet box, so the head stays one
+   row of facts about the cue rather than a form. */
+.pd-candidate-pick {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  max-width: 280px;
+}
+.pd-candidate-pick:focus { border-color: var(--accent); background: var(--bg); outline: none; }
+/* A foreign OGraf cue's typed data switch (E1.2a): a box and two words in the editor's head row,
+   never a band of its own. */
+.pd-typed-switch { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; margin: 0; }
+/* THE TYPED FORM (E2.1, home/TypedForm): the schema's own shape. Scalars flow in the band's grid
+   of capped tracks; a group or a list takes the whole row, so nesting reads as nesting at any width. */
+.pd-typed-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--pd-field-min, 250px), var(--pd-field-max, 340px)));
+  gap: 8px 14px;
+  min-width: 0;
+}
+.pd-typed-form > *, .pd-typed-group > * { min-width: 0; }
+.pd-typed-group { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 6px 10px 8px; border: 1px solid var(--border); border-radius: 6px; min-width: 0; }
+.pd-typed-group > legend { padding: 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-dim); }
+.pd-typed-group .pd-typed-form, .pd-typed-group:not(.pd-typed-list) { max-width: 100%; }
+.pd-typed-absent { border-style: dashed; padding: 4px 8px; }
+.pd-typed-item { display: flex; align-items: flex-start; gap: 6px; }
+.pd-typed-item-body { flex: 1 1 auto; min-width: 0; }
+.pd-typed-item-body > .pd-typed-group { margin-top: 0; }
+.pd-typed-remove { flex: 0 0 auto; margin-top: 18px; padding: 2px 8px; }
+.pd-typed-add { align-self: flex-start; padding: 3px 10px; }
+.pd-typed-unset { margin-left: 6px; padding: 0 6px; font-size: 11px; line-height: 16px; }
+.pd-typed-action { margin-top: 10px; }
+/* A value that does not fit is marked where it is: its box and the reason under it. */
+.pd-typed-invalid input, .pd-typed-invalid select, .pd-typed-invalid textarea { border-color: var(--danger); }
+.pd-typed-error { display: block; margin-top: 2px; font-size: 12px; color: var(--danger); font-weight: 600; }
+.pd-typed-kept input { opacity: 0.7; }
 
 /* UNSENT CHANGES. Nothing on this surface airs by itself, which is deliberate - so the only way
    an operator learns that the values in front of them are not the values on air is if the
@@ -1183,6 +1236,44 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    open. A shared layer turns the line amber and holds it open, because the repair must never sit
    behind a closed disclosure. */
 .pd-advanced { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+/* ADJUST (playout adjustments, phase 1): place and size, a settings disclosure like Advanced. Its
+   rows wrap to the editor's width as the field grid does. */
+.pd-adjust { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.pd-adjust-body { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.pd-adjust-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pd-adjust-label { width: 44px; font-size: 12px; color: var(--text-dim); }
+.pd-adjust-grid { display: grid; grid-template-columns: repeat(3, 18px); grid-template-rows: repeat(3, 14px); gap: 2px; }
+.pd-adjust-cell { padding: 0; min-width: 0; min-height: 0; width: 18px; height: 14px; border-radius: 3px; position: relative; }
+.pd-adjust-cell.on { background: var(--amber); border-color: var(--amber); }
+.pd-adjust-cell.pivot::after { content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: currentColor; }
+.pd-adjust-arrows { display: inline-flex; gap: 2px; }
+.pd-adjust-arrows button { min-width: 28px; }
+.pd-adjust-num { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); }
+.pd-adjust-num input { width: 56px; }
+.pd-adjust-floor, .pd-adjust-why { font-size: 12px; }
+.pd-adjust button.on { border-color: var(--amber); }
+.pd-adjust-weights { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+.pd-adjust-swatch { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); margin-right: 4px; }
+.pd-adjust-swatch input { width: 32px; height: 24px; padding: 0 2px; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; }
+.pd-adjust select { max-width: 180px; }
+/* A phone (and the hosted page in one scrolling column, phase 3): the arrows and the place grid
+   are touch targets, 40 px. */
+.hosted-dashboard .pd-adjust-arrows button { min-width: 40px; min-height: 40px; }
+@media (max-width: 640px) {
+  .pd-adjust-arrows button { min-width: 40px; min-height: 40px; }
+  .pd-adjust-grid { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 32px); gap: 4px; }
+  .pd-adjust-cell { width: 40px; height: 32px; }
+}
+/* SETUP › LOOK (phase 3): a panel at the top of the control area, never a modal, so the monitors
+   stay on screen. Its rows are the Adjust block's. */
+.pd-look { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; }
+.pd-look-head { display: flex; align-items: center; gap: 8px; }
+.pd-look-onoff { display: inline-flex; gap: 2px; margin-left: auto; }
+.pd-look-onoff button.on { border-color: var(--amber); background: var(--amber); color: #111; }
+.pd-look-close { background: none; border: none; color: var(--text-dim); }
+.pd-look-line { margin: 0; font-size: 12px; }
+.pd-look .pd-adjust-label { width: 52px; }
+.pd-look select { width: auto; max-width: 240px; }
 .pd-advanced-toggle {
   display: inline-flex;
   align-items: baseline;
@@ -1364,6 +1455,41 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   padding: 3px 0;
 }
 .pd-action { font-size: 12.5px; padding: 6px 11px; }
+/* Whose arguments a ⚡ press sends (CueEditor, E2.2): the on-air cue's; another cue's are staged. */
+.pd-typed-target { margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim, #9aa1ad); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
+.pd-typed-target.air { color: var(--danger); border-color: var(--danger); }
+/* WHAT A PRESS CAME TO (control/pressFeedback.ts), on its button: an icon after the label, coloured
+   by state, its words in the title. Sent is the last confirmed press, never "on air". The icon's
+   alternative text is empty, so it never joins the button's accessible name. */
+[data-press]::after { content: attr(data-press-icon) / ''; margin-left: 6px; font-weight: 700; color: var(--text-dim, #9aa1ad); }
+[data-press='sent']::after { color: var(--accent); }
+[data-press='unheard']::after,
+[data-press='unknown']::after { color: var(--amber); }
+[data-press='refused']::after,
+[data-press='failed']::after { color: var(--danger); }
+/* A ONE-PRESS PICK (control/liveControls.ts): the control's label, then one button per option. The
+   option the layer was last sent reads active, so the block answers "which did they choose". */
+.pd-pick { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+.pd-pick-label { font-size: 12px; color: var(--text-dim, #9aa1ad); margin-right: 2px; white-space: nowrap; }
+.pd-pick-option { min-width: 2.6em; }
+.pd-pick-option.active { border-color: var(--accent); color: var(--accent); }
+
+/* PINNED LIVE CONTROLS (home/LiveControls.tsx): one block per pinned graphic, then the selected
+   cue's graphic. Each block names its graphic and the cue on its layer; the selected one carries
+   the accent edge, so the block that changes with the selection is the one marked. */
+.pd-live-stack { display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto; }
+.pd-live-block { display: flex; flex-direction: column; gap: 6px; }
+.pd-live-block.selected > .pd-actions { box-shadow: inset 3px 0 0 var(--accent); }
+.pd-live-name { font-size: 12.5px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-live-cue { font-weight: 400; color: var(--text-dim, #9aa1ad); }
+.pd-pin-toggle { font-size: 12px; padding: 3px 8px; color: var(--text-dim, #9aa1ad); line-height: 1; }
+.pd-pin-toggle:hover:not(:disabled) { color: var(--text); }
+.pd-pin-toggle.on { color: var(--accent); border-color: var(--accent); }
+.pd-live-numbers .pd-pin-toggle { margin-left: auto; }
+@media (max-width: 900px) {
+  /* A finger's height on a phone (AC-10). */
+  .pd-live-stack button { min-height: 40px; }
+}
 
 /* RECOVERY - the snap picker, folded closed in the ⚡ block's head beside Arrange: the summary
    alone at rest, the picker inline once open. It wears the drawer look of "More" because it is

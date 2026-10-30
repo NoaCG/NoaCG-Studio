@@ -40,7 +40,7 @@ const KNOWN_OGRAF_FAILURES: Record<string, string> = {};
 /** Fewer differing pixels than this, a frame matches (the conformance spec's bound). */
 export const PARITY_BOUND = 1_000;
 /** Per colour channel, the difference two pixels may have and still match (the conformance spec's). */
-const CHANNEL_TOLERANCE = 24;
+export const CHANNEL_TOLERANCE = 24;
 /**
  * Milliseconds after Play: two frames during the entrance and one once it has landed. The clock
  * runs frame by frame to the first, then jumps (every due timer and animation frame fired once on
@@ -415,7 +415,7 @@ async function unmountAll(page: Page): Promise<void> {
 }
 
 /** How many pixels of two same-sized frames differ by more than the tolerance in a colour channel. */
-function differing(a: Buffer, b: Buffer): number {
+export function differing(a: Buffer, b: Buffer): number {
   const pa = decodePng(a);
   const pb = decodePng(b);
   if (pa.channels !== pb.channels || pa.samples.length !== pb.samples.length) throw new Error('parity: two frames of different shapes');

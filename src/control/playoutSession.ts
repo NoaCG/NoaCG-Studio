@@ -17,6 +17,7 @@
 // Every write is one synchronous `apply(fold)`, parts set in a fixed order (D4). No React and only
 // `.ts` runtime imports, so a Node test drives it as it is.
 
+import type { TypedValues } from '../model/ografTyped.ts';
 import type { AppliedOnce } from './commandRoads';
 import type { CueArms } from './cueAuto';
 import type { LogEntry } from './eventLog';
@@ -28,6 +29,9 @@ import type { PlayoutResult } from './playoutLink';
 import type { SlotReading, StatusCheck } from './playoutStatus';
 import { createAppliedOnce } from './commandRoads.ts';
 import { storePart, type StorePart } from './storePart.ts';
+import type { SelectionAir } from './selectionAir';
+import type { AppliedLooks } from './cueAdjust';
+import { NO_GEOMETRY, type GeometryPart } from './adjustGeometry.ts';
 
 /** The production's live tree as this page holds it (./productionDataSession.ts says the rules). */
 export interface DataPart {
@@ -55,9 +59,12 @@ export interface BridgePart {
   slotSeenOurs: boolean;
   /** The production and settings rev whose older clips last asked the server what they are. */
   learntFacts: string | null;
+  /** This page loading its lost output again by itself (./bridgeWatch.ts, #1657), or out of tries
+   *  with the reason the last one gave ('' when it went through and the slot stayed empty). */
+  slotReload: { state: 'reloading' } | { state: 'failed'; detail: string } | null;
 }
 
-export const NO_BRIDGE: BridgePart = { status: null, outputSlot: undefined, serverFiles: null, slotSeenOurs: false, learntFacts: null };
+export const NO_BRIDGE: BridgePart = { status: null, outputSlot: undefined, serverFiles: null, slotSeenOurs: false, learntFacts: null, slotReload: null };
 
 /** What the folders remember on this page (./folderPlayout.ts says the rules). Page memory: never saved, never shared. */
 export interface FoldersPart {
@@ -101,6 +108,16 @@ export interface AirPart {
   /** What the wire said was live when it resolved, null until it seeded: the boot recovery's key,
    *  never written by anything this operator does. */
   bootLive: LiveCueMap | null;
+  /** What each graphic holds applied of its place and size (./cueAdjust.ts `lookAfter`), as the
+   *  renderer holds it: kept while the graphic is off air. ADDITIVE OPTIONAL: absent is none. */
+  looks?: AppliedLooks;
+  /** The typed OGraf envelope each graphic airs (E1.2a), as sent: what rebuilds PROGRAM in place
+   *  of its empty native data. ADDITIVE OPTIONAL: absent is none. */
+  typedAired?: Readonly<Record<string, TypedValues>>;
+  /** The commands each of those graphics took since its envelope (its play, every step): a typed
+   *  graphic reports no pose, so PROGRAM is rebuilt at its step by replaying them. ADDITIVE
+   *  OPTIONAL: absent is none. */
+  typedSteps?: Readonly<Record<string, readonly ReplayItem['msg'][]>>;
 }
 
 export const NO_AIR: AirPart = { liveCue: {}, moves: 0, aired: {}, clocks: {}, speaking: {}, commands: 0, reports: null, bootReplay: null, bootLive: null };
@@ -141,6 +158,12 @@ export interface PlayoutSession {
   log: StorePart<LogPart>;
   /** The cue being typed, null when nothing is. */
   draft: StorePart<DraftPart | null>;
+  /** The live candidates this page aired, per layer: written only by ./selectionAir.ts's folds,
+   *  outside `apply` since no other fold reads them. */
+  selections: StorePart<SelectionAir>;
+  /** What this page measured of each cue for place and size (./adjustGeometry.ts): written only by
+   *  its folds, outside `apply` since no other fold reads it. */
+  geometry: StorePart<GeometryPart>;
   /** The commands applied here, by the id their press minted, on whichever road came first. */
   readonly applied: AppliedOnce;
   /** Move the session's parts with one fold, in a fixed order. A no-op once disposed. */
@@ -172,6 +195,8 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
   const air = storePart<AirPart>(NO_AIR);
   const log = storePart<LogPart>(NO_LOG);
   const draft = storePart<DraftPart | null>(null);
+  const selections = storePart<SelectionAir>({});
+  const geometry = storePart<GeometryPart>(NO_GEOMETRY);
   return {
     key: productionId,
     alive: () => alive,
@@ -182,6 +207,8 @@ export function createPlayoutSession(productionId: string): PlayoutSession {
     air,
     log,
     draft,
+    selections,
+    geometry,
     applied: createAppliedOnce(),
     apply: (fold) => {
       if (!alive) return;

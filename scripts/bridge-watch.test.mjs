@@ -58,9 +58,10 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     },
     readState: (s, channel) => {
       calls.push(`state ${channel}`);
-      const reply = { result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', observedAt: 0, slots: channel === s.channel ? [slotLayer] : [] } };
-      if (!hold) return Promise.resolve(reply);
-      return new Promise((resolve) => held.push(() => resolve(reply)));
+      // A held reading answers with the slot as it is when the test lets it go.
+      const reply = () => ({ result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', observedAt: 0, slots: channel === s.channel ? [slotLayer] : [] } });
+      if (!hold) return Promise.resolve(reply());
+      return new Promise((resolve) => held.push(() => resolve(reply())));
     },
     listLibrary: (s, kind) => {
       calls.push(`list ${kind}`);
@@ -90,7 +91,10 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
   const serverPlayout = createServerPlayoutStore();
   const rundown = { cues: [cue('c1', items[0]?.id)], playoutItems: items, folders: [] };
   const learnt = [];
-  const watch = startBridgeWatch(session, io, {
+  /** What a reload answers; set by a test. By default, as the page's: the slot holds ours again. */
+  const reloading = { answer: () => ({ state: 'ok', detail: '' }), refill: true };
+  let watch;
+  watch = startBridgeWatch(session, io, {
     rundown: () => rundown,
     slots: {
       itemSlot: (s, item) => ({ adapter: 'casparcg', channel: item.channel ?? s.channel, layer: item.layer }),
@@ -99,6 +103,24 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     serverPlayout,
     settingsChanged: () => calls.push('settings changed'),
     learnt: (showId, facts) => learnt.push([showId, facts]),
+    // The page's half (useProductionPublish.ts `reloadOnSlot`), the load alone: a sent load reaches the watch
+    // through `onAirChanged`, which drops reads already out, owns the slot and reads it again.
+    reload: async () => {
+      calls.push('reload');
+      const result = await reloading.answer();
+      if (!result) return null;
+      watch.slotActed();
+      if (result.state === 'ok') {
+        if (reloading.refill) slotLayer = ourPage;
+        watch.slotOwned(true, inputs.casparTarget);
+      }
+      // setSlotRev: the page reads the slot again at its next render, after the load returned.
+      setImmediate(() => {
+        inputs.slotRev += 1;
+        watch.update({ ...inputs });
+      });
+      return result;
+    },
   });
   started.push(watch);
   const inputs = {
@@ -115,7 +137,12 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     slotRev: 0,
   };
   return {
-    watch, session, io, calls, subs, everys, visibles, held, learnt, inputs, state, rundown,
+    watch, session, io, calls, subs, everys, visibles, held, learnt, inputs, state, rundown, reloading,
+    /** The slot poll's 10 s tick, on the poll running now. */
+    readSlot: async () => {
+      everys.filter((e) => e.live && e.ms === SLOT_READ_MS).at(-1).run();
+      await settle();
+    },
     /** The live status subscription answers. */
     answer: (result) => subs.filter((s) => s.live).at(-1).onStatus(result),
     update: (change = {}) => {
@@ -140,7 +167,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
 test('a new session holds the bridge part at "nothing said yet"', () => {
   const session = createPlayoutSession('prod-1');
   assert.equal(session.bridge.get(), NO_BRIDGE);
-  assert.deepEqual(NO_BRIDGE, { status: null, outputSlot: undefined, serverFiles: null, slotSeenOurs: false, learntFacts: null });
+  assert.deepEqual(NO_BRIDGE, { status: null, outputSlot: undefined, serverFiles: null, slotSeenOurs: false, learntFacts: null, slotReload: null });
 });
 
 test('the first update asks the status and the studio setup, and nothing else until the Bridge answers', async () => {
@@ -432,4 +459,219 @@ test('a disposed session takes no write from a watch still running', async () =>
   t.answer(OK);
   await settle();
   assert.equal(t.session.bridge.get(), NO_BRIDGE);
+});
+
+// ── A LOST OUTPUT COMES BACK BY ITSELF (issue #1657) ────────────────────────────────────────────
+
+/** A published page that loaded its output and saw it on the slot. */
+async function loadedRig() {
+  const t = rig({ items: [] });
+  t.watch.slotOwned(true, t.inputs.casparTarget);
+  t.update();
+  t.answer(OK);
+  await settle();
+  assert.equal(t.session.bridge.get().slotSeenOurs, true);
+  t.take();
+  return t;
+}
+
+/** CasparCG restarts: the Bridge says the server is gone, every layer is wiped, then it answers. */
+async function restartServer(t) {
+  t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  t.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+  t.answer(OK);
+  await settle();
+}
+
+test('after a server restart the output this page loaded goes back on its slot by itself, once', async () => {
+  const t = await loadedRig();
+  await restartServer(t);
+  assert.deepEqual(t.take().filter((c) => c === 'reload' || c.startsWith('state')), ['state 1', 'state 1', 'reload', 'state 1'], 'read empty, read once more, loaded once, read again');
+  assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
+  assert.equal(t.session.bridge.get().slotReload, null, 'back on its slot: nothing left to say');
+  await t.readSlot();
+  await t.readSlot();
+  assert.ok(!t.take().includes('reload'), 'ours again: no more loads');
+});
+
+test('an output this page only saw, another production, an Unload here or elsewhere, or an unpublish is never loaded again', async () => {
+  // Seen on the slot but loaded by another browser: that browser brings it back.
+  const seen = rig({ items: [] });
+  seen.update();
+  seen.answer(OK);
+  await settle();
+  await restartServer(seen);
+  assert.ok(!seen.calls.includes('reload'), 'not loaded here');
+
+  // Another production took the slot: it asks before replacing, and the slot is no longer ours to take back.
+  const other = await loadedRig();
+  other.setSlot({ ...ourPage, file: 'https://noacg.studio/output?production=xyz' });
+  await other.readSlot();
+  other.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+  await other.readSlot();
+  assert.ok(!other.calls.includes('reload'), 'another production');
+
+  // Emptied with no outage: another browser's Unload or unpublish, or a client's CLEAR. This page
+  // hears of it only through the slot, and leaves it alone.
+  const cleared = await loadedRig();
+  cleared.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+  await cleared.readSlot();
+  await cleared.readSlot();
+  assert.ok(!cleared.calls.includes('reload'), 'emptied while the server kept answering');
+  assert.equal(cleared.session.bridge.get().slotReload, null);
+  // ...and a later outage does not bring back what someone took off.
+  await restartServer(cleared);
+  assert.ok(!cleared.calls.includes('reload'), 'a later outage');
+
+  // During the outage another client put a clip on the layer: the slot is theirs, never covered.
+  const clip = await loadedRig();
+  clip.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  clip.setSlot({ layer: 20, producer: 'video', file: 'AMB', paused: false, loop: true });
+  clip.answer(OK);
+  await settle();
+  clip.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+  await restartServer(clip);
+  assert.ok(!clip.calls.includes('reload'), 'another client\'s clip, and the slot after it');
+
+  // Unloaded on purpose (onAirChanged('stop') clears what was seen and gives the slot up).
+  const unloaded = await loadedRig();
+  unloaded.watch.slotOwned(false, unloaded.inputs.casparTarget);
+  await restartServer(unloaded);
+  assert.ok(!unloaded.calls.includes('reload'), 'unloaded');
+
+  // Unpublished and published again without a Load: nothing comes back by itself.
+  const unpublished = await loadedRig();
+  unpublished.update({ hostedSlug: null });
+  unpublished.update({ hostedSlug: 'abc' });
+  await settle();
+  await restartServer(unpublished);
+  assert.ok(!unpublished.calls.includes('reload'), 'unpublished');
+});
+
+test('Publish\'s own load, landing before the page renders it published, is still brought back', async () => {
+  const t = rig({ items: [] });
+  t.update({ hostedSlug: null });
+  t.answer(OK);
+  await settle();
+  // Publish loads the output and then the page renders with the production published.
+  t.watch.slotOwned(true, t.inputs.casparTarget);
+  t.update({ hostedSlug: 'abc', slotRev: 1 });
+  await settle();
+  assert.equal(t.session.bridge.get().slotSeenOurs, true);
+  await restartServer(t);
+  assert.ok(t.calls.includes('reload'));
+});
+
+test('an Unload during a reload leaves nothing saying it reloads', async () => {
+  const t = await loadedRig();
+  let release;
+  t.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve({ state: 'ok', detail: '' });
+  });
+  await restartServer(t);
+  assert.deepEqual(t.session.bridge.get().slotReload, { state: 'reloading' });
+  t.watch.slotOwned(false, t.inputs.casparTarget);
+  assert.equal(t.session.bridge.get().slotReload, null);
+  release();
+  await settle();
+  assert.equal(t.session.bridge.get().slotReload, null, 'the late answer writes nothing');
+});
+
+test('a server that keeps failing is tried three times, spaced out, then left to Load', async () => {
+  const t = await loadedRig();
+  t.reloading.answer = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  await restartServer(t);
+  const loads = () => t.calls.filter((c) => c === 'reload').length;
+  assert.equal(loads(), 1, 'the first try at once');
+  assert.deepEqual(t.session.bridge.get().slotReload, { state: 'reloading' });
+  await t.readSlot();
+  assert.equal(loads(), 2, 'the second after the reading straight after the first and one 10 s on');
+  // The reading straight after the second try is the first of six.
+  for (let n = 0; n < 4; n += 1) await t.readSlot();
+  assert.equal(loads(), 2, 'the third waits six readings');
+  await t.readSlot();
+  assert.equal(loads(), 3);
+  assert.deepEqual(t.session.bridge.get().slotReload, { state: 'failed', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  for (let n = 0; n < 20; n += 1) await t.readSlot();
+  assert.equal(loads(), 3, 'no loop: the rest is the operator\'s');
+  // The operator's own Load starts afresh.
+  t.watch.slotOwned(true, t.inputs.casparTarget);
+  assert.equal(t.session.bridge.get().slotReload, null);
+});
+
+test('a load that went through and left the slot empty is out of tries too, and says so', async () => {
+  const t = await loadedRig();
+  t.reloading.refill = false;
+  await restartServer(t);
+  for (let n = 0; n < 10; n += 1) await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 3);
+  assert.deepEqual(t.session.bridge.get().slotReload, { state: 'failed', detail: '' });
+});
+
+test('no double load: a reload that found the operator\'s Load already out is not a try', async () => {
+  const t = await loadedRig();
+  let skip = true;
+  t.reloading.answer = () => (skip ? null : { state: 'ok', detail: '' });
+  t.setHold(true);
+  await restartServer(t);
+  // A reading still out when the next tick comes is never stacked, so nothing loads twice at once.
+  t.held.shift()();
+  await settle();
+  // The reload reads the slot once more before it sends.
+  t.held.shift()();
+  await settle();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1);
+  t.setHold(false);
+  skip = false;
+  await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 2, 'the next empty reading tries for real');
+  assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
+});
+
+test('a reload is for the slot it was loaded on, and for a page still open', async () => {
+  // The settings move the output to an empty 2-30: this page never loaded anything there.
+  const moved = await loadedRig();
+  moved.state.settings = { ...moved.state.settings, channel: 2, layer: 30 };
+  moved.update({ casparTarget: '["caspar",5250,2,30]' });
+  await settle();
+  await restartServer(moved);
+  assert.ok(!moved.calls.includes('reload'), 'another slot');
+
+  // The page goes, the settings move the slot, the operator's own Load lands, another client plays
+  // a clip there or another browser already put it back, while the reload reads the slot once
+  // more: nothing is sent.
+  for (const cut of ['stop', 'moved', 'acted', 'clip', 'back']) {
+    const t = await loadedRig();
+    await restartServer(t);
+    t.take();
+    t.setHold(true);
+    // The first try already went (the rig answers ok and fills the slot); empty it again after an
+    // outage and catch the next try in its read.
+    t.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+    t.answer({ state: 'server', detail: 'gone' });
+    await settle();
+    t.answer(OK);
+    await settle();
+    for (const answer of t.held.splice(0)) answer();
+    await settle();
+    assert.equal(t.session.bridge.get().slotReload?.state, 'reloading', `${cut}: a try is out`);
+    if (cut === 'stop') t.watch.stop();
+    if (cut === 'moved') t.state.settings = { ...t.state.settings, channel: 2, layer: 30 };
+    if (cut === 'acted') t.watch.slotActed();
+    if (cut === 'clip') t.setSlot({ layer: 20, producer: 'video', file: 'AMB', paused: false, loop: true });
+    if (cut === 'back') t.setSlot(ourPage);
+    for (const answer of t.held.splice(0)) answer();
+    await settle();
+    assert.ok(!t.take().includes('reload'), `${cut}: nothing sent`);
+    if (cut === 'clip' || cut === 'back') {
+      // Another client's slot now, or back (another browser reloaded it): cleared again with
+      // everything answering, it is not this page's to fill.
+      t.setHold(false);
+      t.setSlot({ layer: 20, producer: 'empty', paused: false, loop: false });
+      await t.readSlot();
+      assert.ok(!t.take().includes('reload'), `${cut}: cleared on purpose afterwards`);
+    }
+  }
 });

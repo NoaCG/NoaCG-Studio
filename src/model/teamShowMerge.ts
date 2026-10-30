@@ -49,6 +49,7 @@ const FIELD_LABEL: Record<string, string> = {
   profile: 'the control panel layout',
   look: 'the look',
   brandId: 'the brand',
+  lookApplied: 'the look being on',
   ownReaderStops: 'the stopped Sheet readers',
 };
 
@@ -224,6 +225,7 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     }
     lost.push(FIELD_LABEL[key] ?? key); // Theirs stands; `doc` already holds it.
   }
+  keepCueExceptions(doc, b, o);
   // Whichever side the cues and the folders came from, and however they merged, each folder's cues
   // end up together where its first cue stands, and no folder is left empty or named by nobody.
   const settled = settleFolders((doc.cues ?? []) as NonNullable<Show['cues']>, doc.folders as Show['folders']);
@@ -238,6 +240,37 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
   }
   doc.updatedAt = at;
   return { doc: doc as unknown as Show, lost, gathered: settled.changed };
+}
+
+/**
+ * A CUE'S PLACE AND SIZE EXCEPTION IS NEVER DELETED BY A MERGE (playout adjustments, "Promotion is
+ * one saved operation"). A promotion writes the graphic's default and clears the cue's exception in
+ * one write, but this merge is per whole item: a teammate's concurrent edit of the same pool entry
+ * keeps their entry (the old default) while our cue (its exception cleared) goes in. Where our side
+ * cleared a cue's exception and the default it moved onto did not survive, the exception comes back
+ * as it was: left equal to the default at worst, counted on the page, and cleared by one press.
+ */
+function keepCueExceptions(doc: Record<string, unknown>, base: Record<string, unknown>, ours: Record<string, unknown>): void {
+  type Entry = { id: string; sourceId?: string; adjust?: unknown };
+  const list = (v: unknown): Entry[] => (Array.isArray(v) ? (v as Entry[]) : []);
+  const cues = list(doc.cues);
+  if (!cues.length) return;
+  const baseCues = new Map(list(base.cues).map((c) => [c.id, c] as const));
+  const ourCues = new Map(list(ours.cues).map((c) => [c.id, c] as const));
+  const graphicIn = (v: unknown, id: string | undefined) => list(v).find((g) => g.id === id);
+  let changed = false;
+  const next = cues.map((cue) => {
+    const was = baseCues.get(cue.id)?.adjust;
+    const mine = ourCues.get(cue.id);
+    if (cue.adjust !== undefined || was === undefined || !mine || mine.adjust !== undefined) return cue;
+    const defaultBase = graphicIn(base.graphics, cue.sourceId)?.adjust;
+    const defaultOurs = graphicIn(ours.graphics, cue.sourceId)?.adjust;
+    const defaultKept = graphicIn(doc.graphics, cue.sourceId)?.adjust;
+    if (same(defaultOurs, defaultBase) || same(defaultKept, defaultOurs)) return cue;
+    changed = true;
+    return { ...cue, adjust: structuredClone(was) };
+  });
+  if (changed) doc.cues = next;
 }
 
 /** Stopped readers by name: kept when either side has it, unless one side cleared it from `base`

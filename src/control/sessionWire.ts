@@ -14,6 +14,8 @@
 //   follow    the timed cues' arm wire (numbered log only), the log's history into the `log`
 //             part, then `followControlLog` on both roads: commands to the page's `hear`, rows to
 //             the log, the arm wire, the machine states and the data tree
+//   hand-over numbered log only: at the follow's first join, one ping through the command path,
+//             so an output that missed a frame while this page loaded reads it now (#1797)
 //   seen      every 30 s, the output's last heartbeat and the header clock
 //   stop      unsubscribe (also when the follow answers after the stop), the 30 s timer, the arm
 //             wire. Every answer that lands after the stop changes nothing: no write, no call into
@@ -32,6 +34,7 @@ import type {
   ResolvedControlShow,
   bootMonitorReplay,
   controlOutputSeenAt,
+  controlPingSeq,
   controlShowBySlug,
   followControlLog,
   untilAnswered,
@@ -39,10 +42,17 @@ import type {
 import type { PlayoutSession } from './playoutSession';
 import { airAtRequest, forgetBootReplay, logged, seedFromResolve, withReports, type AirAtRequest, type AppendLog, type ClockSpecs } from './airState.ts';
 import { writeArms } from './cueArmEngine.ts';
+import { handoverPingId } from './prepareLive.ts';
 
 /** How far behind the log head the action log seeds its history. Global ids mean this is a ceiling
  *  on rows READ, not on rows shown: a busy instance yields fewer of this show's. */
 export const LOG_HISTORY_SPAN = 400;
+/** A hand-over ping refused for a moment is sent again this much later (#1797)… */
+export const HANDOVER_RETRY_MS = 1_000;
+/** …and one whose row has not come back live in this long: a frame arrives in well under a second. */
+export const HANDOVER_CONFIRM_MS = 3_000;
+/** How many more hand-over pings a start may send, for either reason. */
+export const HANDOVER_RETRIES = 2;
 /** How often the output's last heartbeat is asked, and the header clock moved. */
 export const SEEN_EVERY_MS = 30_000;
 
@@ -54,12 +64,14 @@ export interface SessionWireIo {
   hostedControlTail: (slug: string, after: number) => Promise<ControlEventRow[]>;
   followControlLog: typeof followControlLog;
   controlOutputSeenAt: typeof controlOutputSeenAt;
+  controlPingSeq: typeof controlPingSeq;
   createCueArmWire: typeof createCueArmWire;
   /** How the action log takes new lines (./eventLog.ts `appendLogEntries`). */
   appendLog: AppendLog;
   armRpc: CueArmWireOptions['rpc'];
   setInterval: (run: () => void, ms: number) => unknown;
   clearInterval: (timer: unknown) => void;
+  setTimeout: (run: () => void, ms: number) => unknown;
 }
 
 /** What the wire asks of the page and tells it, read at each call. */
@@ -166,6 +178,57 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     }
     const history = await io.hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
     if (!live()) return;
+    // THE HAND-OVER (#1797). A frame on `seq-<show>` can be lost, and an output finds out only when
+    // the next frame arrives with a gap in front of it, or at the 30 s poll. The endurance run lost
+    // one while this page reloaded: a value applied mid-reload stayed off air until the next one.
+    // So once this page's road to the log is up, it sends a ping through the numbered path
+    // (migration 0072): it airs nothing and moves only the head's seq, so an output with a gap in
+    // front of it reads the tail and applies what it missed, once and in seq order. Nothing is
+    // resent and no older value can air. Outputs do not answer it, so it cannot take the place of a
+    // Prepare for Live press's answer.
+    //
+    // The ping's frame takes the road that lost the first one, so it is CONFIRMED: this page follows
+    // the same topic, and a frame the database could not send reaches nobody. A ping whose row has
+    // not come back live within HANDOVER_CONFIRM_MS of its send (absent, only through a tail read, or
+    // its call never answered) is sent again, and so is one refused for a moment (the head lock, the
+    // burst cap, a call that threw): HANDOVER_RETRIES more at most. A lasting refusal ends it. Once
+    // per start, never on a timer, as 0072 asks.
+    let handedOver = false;
+    /** The ping waiting to come back live, and whether this follow is replaying a tail read. */
+    let awaiting: string | null = null;
+    let replaying = false;
+    const ping = (retries: number) => {
+      const id = handoverPingId();
+      awaiting = id;
+      const again = (ms: number) => {
+        if (retries === 0) return;
+        io.setTimeout(() => {
+          if (live() && awaiting === id) ping(retries - 1);
+        }, ms);
+      };
+      // The wait runs from the send: a call that never answers must not hold the hand-over.
+      again(HANDOVER_CONFIRM_MS);
+      void io.controlPingSeq(slug, id).then(
+        (answer) => {
+          if (!live() || answer.ok) return;
+          if (answer.passing) again(HANDOVER_RETRY_MS);
+          else if (awaiting === id) awaiting = null;
+        },
+        // A call that threw (the client's chunk failed to load) is a moment's refusal too.
+        () => {
+          if (live()) again(HANDOVER_RETRY_MS);
+        },
+      );
+    };
+    // Sent once the join's own tail read is done: a ping that read brought back would be taken
+    // for lost, and its live frame, behind the cursor by then, never seen.
+    let joined = false;
+    let busy = false;
+    const handOver = () => {
+      if (handedOver || !resolved.seq || !joined || busy || !live()) return;
+      handedOver = true;
+      ping(HANDOVER_RETRIES);
+    };
     const described = history.map((row) => page().describe(row)).filter((e): e is LogEntry => !!e);
     session.apply((parts) => ({ ...parts, log: logged(parts.log, described, io.appendLog) }));
     const off = await io.followControlLog({
@@ -174,8 +237,16 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
       tail,
       seq: resolved.seq,
       onEpochReset: () => arm?.reset(),
+      onReplay: (now) => (replaying = now),
       onStatus: (s) => {
-        if (live()) page().follow(s);
+        if (!live()) return;
+        page().follow(s);
+        if (s.status === 'SUBSCRIBED') joined = true;
+        handOver();
+      },
+      onBusy: (now) => {
+        busy = now;
+        handOver();
       },
       onCommandStatus: (s) => {
         if (live()) page().commandStatus(s);
@@ -187,6 +258,7 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
       onRow: (row) => {
         if (!live()) return;
         const msg = row.msg;
+        if (msg.t === 'ping' && msg.id === awaiting && !replaying) awaiting = null;
         // The same door the broadcast comes through; the second copy is dropped there.
         page().hear([{ graphic: row.graphic, msg }]);
         arm?.row(row);

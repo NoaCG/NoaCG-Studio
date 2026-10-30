@@ -8,9 +8,27 @@
 import type { SpxTemplate, ProductionSounds } from './types';
 import { firstIndexById, type SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
-import { sourcePaths, withBindings, type BindingEntry, type JsonObject, type ProductionBindings } from './productionData';
+import {
+  collectionFields,
+  externalReadOnly,
+  selectedFields,
+  selectionFrozen,
+  selectionKeep,
+  selectionReadOnly,
+  type SelectionWrite,
+  sourcePaths,
+  withBindings,
+  type BindingEntry,
+  type CollectionRecipe,
+  type CueSelection,
+  type JsonObject,
+  type ProductionBindings,
+  type SourceRecipe,
+} from './productionData';
 import type { ShowProfile } from './profile';
-import { readShowProfile, serializeShowProfile } from './profile';
+import { put, readShowProfile, serializeShowProfile } from './profile';
+import { actionArgsOf, actionSchemaOf, migrateToTyped, nativeOf, readJson, readOgrafDeclared, readTypedArgs, TYPED_ARGS_VERSION, TYPED_MAX_DEPTH, typedFrozen, typedKeep, typedReadOnly, typedValuesOf, type TypedAction, type TypedArgs, type TypedReceipt, type TypedValues } from './ografTyped';
+import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
@@ -39,6 +57,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
+import { patchAdjust, promotedMembers, readAdjust, stepPatch, ADJUST_READ_ONLY, type AdjustPatch, type AdjustRecord } from './adjust.ts';
 import { cueShortcutHolders, normalizeCueShortcut } from './cueShortcuts.ts';
 
 /**
@@ -86,6 +105,28 @@ export interface ShowCue {
    *  values stay the cue's own; this is the receipt, and the reason no binding may be added to
    *  those fields later (`preparedMessageField`). */
   stagedFrom?: MessageReceipt;
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-election-package/spec.md, E7.1). The
+   *  live candidate this cue shows: a collection recipe of `Show.collections` and the entity's key,
+   *  resolved by control/sourceMapping.ts `selectionGate` and `resolveSelection`. Absent on every
+   *  cue before it, which behaves exactly as it did. Written only by `setCueSelection` and a pack's
+   *  `setShowSelections` (E7.2a); every other write keeps it byte for byte (`selectionFrozen`), and
+   *  a later version makes the whole cue read-only. */
+  selection?: CueSelection | { v: number; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-adjustments/spec.md, phase 1). This
+   *  cue's own exception to its graphic's place and size (`SavedGraphic.adjust`), member by member;
+   *  absent inherits all of it. Read only through ./adjust.ts `readAdjust`. */
+  adjust?: AdjustRecord | { v: number; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-contract/spec.md, E1.1 and
+   *  E1.2a). A foreign OGraf Graphic's typed values, beside `values` and never inside them, read
+   *  only through ./ografTyped.ts `readTypedEnvelope`. Written only by `setCueTyped` (and carried by
+   *  a copy or an undo); every other write keeps it byte for byte (`typedFrozen`). While it is on,
+   *  Take and ✎ Update send it (`typedForSend`) and the native `values` wait unused for Off; one this
+   *  build cannot read makes the whole cue read-only. */
+  typed?: TypedValues | { v?: unknown; [later: string]: unknown };
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-ograf-controls/spec.md, E2.1). What
+   *  each of the graphic's custom actions carries when pressed, as typed JSON, read only through
+   *  ./ografTyped.ts `readTypedArgs`. Written only by `setCueTypedArgs`; a draft, valid or not. */
+  typedArgs?: TypedArgs | { v?: unknown; [later: string]: unknown };
 }
 
 /** Where a prepared message came from, kept on its cue. */
@@ -280,14 +321,48 @@ export interface FeedShowSource {
   inbox?: undefined;
 }
 
-export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource;
+/**
+ * A CONNECTOR source (docs/work-specs/playout-external-connectors/spec.md, E4.2): typed JSON a
+ * trusted agent outside the browser reads from a provider and hands to `/api/data/source` with the
+ * production's data key. This record is its REGISTRATION: non-secret, read by the route through
+ * `control_shows.sources` (src/control/externalSource.ts `readExternalRegistration`, which refuses
+ * everything it cannot use). Its paths
+ * are `external.<id>.<leaf>`. No browser reads it. A `config.v` above 1 is a later build's: held
+ * read-only here (productionData `externalReadOnly`), never applied or edited.
+ */
+export interface ExternalShowSource {
+  id: string;
+  kind: 'external';
+  label: string;
+  /** src/control/externalSource.ts `ExternalRegistration`: the endpoint it was approved for, the
+   *  config revision its agent must present, and the list adapter each collection leaf goes through.
+   *  A later version's config is kept whatever it holds, and never read. */
+  config:
+    | {
+        v: 1;
+        configRevision: number;
+        endpoint: string;
+        lists?: Record<string, 'lines' | 'schedule' | 'credits'>;
+        /** E5.1's recipe (productionData `SourceRecipe`); a later recipe `v` is kept, never evaluated. */
+        mapping?: SourceRecipe | { v: number; [later: string]: unknown };
+      }
+    | { v: number; [later: string]: unknown };
+  /** Paused: the route applies nothing; the agent keeps its latest revision for Resume. */
+  paused?: boolean;
+  inbox?: undefined;
+}
+
+export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource | ExternalShowSource;
+
+
 
 /** A source that fills fields (a Sheet tab or a feed); a YouTube source feeds Messages alone. */
 export type FieldShowSource = SheetShowSource | FeedShowSource;
 export const fillsFields = (s: ShowSource): s is FieldShowSource => s.kind === 'sheet' || s.kind === 'feed';
 
 /** What a source is called on the surface. */
-export const sourceKindWord = (s: ShowSource): string => (s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : 'YouTube');
+export const sourceKindWord = (s: ShowSource): string =>
+  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'external' ? 'Connector' : 'YouTube';
 
 /**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question
@@ -333,6 +408,14 @@ export interface Show {
    *  (`root/version-every-persisted-format-ship-breaking`): absent = no brand chosen, an older build reads and rewrites the record
    *  untouched. */
   brandId?: string;
+  /** THE PRODUCTION LOOK IS ON (docs/work-specs/playout-adjustments/spec.md phase 3, "Scope and
+   *  precedence"): `look` then reaches this production's graphics as the widest scope of their
+   *  style, under each graphic's and cue's own (control/productionLook.ts). `look` is captured
+   *  automatically, so without this it styles nothing on air: a production nobody turned on looks
+   *  as it always did. Activation copies the saved brand `brandId` names into `look`, so a
+   *  signed-out hosted page or an offline export never needs a library lookup. ADDITIVE
+   *  OPTIONAL: absent = off; an older build reads and rewrites the record untouched. */
+  lookApplied?: true;
   /** The graphic POOL — which templates the production can air, each once. The order here is
    *  authoring order, NOT the layer stack: a graphic airs on the layer NUMBER its own entry
    *  carries (`graphicLayer`), which is what every z-order consumer reads. */
@@ -437,6 +520,10 @@ export interface Show {
   updatedAt: string;
   /** Soft-delete tombstone (hidden from the UI, kept so the delete syncs). See Packet.deleted. */
   deleted?: boolean;
+  /** ADDITIVE OPTIONAL, each with its own `v` (E7.1): the shared collection recipes cues select
+   *  live candidates from (productionData `CollectionRecipe`). Written only by a pack's install
+   *  (`setShowSelections`); every other write keeps them byte for byte (`selectionFrozen`). */
+  collections?: (CollectionRecipe | { v: number; [later: string]: unknown })[];
   /**
    * The TEAM that holds this production (docs/TEAMS_PLAN.md §4), present only on a record read
    * from the server's `team_productions` - the column there is the authority, and this is a copy
@@ -694,6 +781,8 @@ export function addGraphicToShow(
     savedAt: nowIso(),
     template,
     ...(existing >= 0 && show.graphics[existing].soundConfig ? { soundConfig: show.graphics[existing].soundConfig } : {}),
+    // Its place and size in this production stay with it, as its layer does (playout adjustments).
+    ...(existing >= 0 && show.graphics[existing].adjust ? { adjust: show.graphics[existing].adjust } : {}),
     // Which LIBRARY record this copy came from, when the document was a saved graphic - the
     // link the hosted control page follows to publish that graphic's entries.
     ...(opts?.graphicId ? { graphicId: opts.graphicId } : {}),
@@ -775,6 +864,82 @@ export function setGraphicSounds(showId: string, graphicId: string, sounds: Prod
   });
 }
 
+// ── Place and size (docs/work-specs/playout-adjustments/spec.md, phase 1) ─────────────────────
+// Every write of an `adjust` record goes through these three doors and `readAdjust`, so a record a
+// later build wrote is refused here with one wording. None of them touches air: the next Take or
+// Update carries the result (control/cueAdjust.ts).
+
+/** Write the graphic's default place and size: `patch` over its record, or remove it (null). */
+export function setGraphicAdjust(showId: string, graphicId: string, patch: AdjustPatch | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const graphic = show.graphics.find((g) => g.id === graphicId);
+    if (!graphic) return 'This graphic is no longer in the production.';
+    return writeAdjust(graphic, patch);
+  });
+}
+
+/** Write a cue's own exception: `patch` over its record, or remove it (null), which reveals the
+ *  graphic's default. */
+export function setCueAdjust(showId: string, cueId: string, patch: AdjustPatch | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue || cue.source === 'playout') return 'This cue is no longer in the production.';
+    return writeAdjust(cue, patch);
+  });
+}
+
+/** Make a cue's exception its graphic's default, in ONE write: the members the cue sets move onto
+ *  the graphic's record and leave the cue's. The other cues' own exceptions stay. */
+export function promoteCueAdjust(showId: string, cueId: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    const graphic = cue && show.graphics.find((g) => g.id === cue.sourceId);
+    if (!cue || !graphic) return 'This cue is no longer in the production.';
+    const members = promotedMembers(graphic.adjust, cue.adjust);
+    if (typeof members === 'string') return members;
+    if (!members) return false;
+    const moved = writeAdjust(graphic, members);
+    if (typeof moved === 'string') return moved;
+    delete cue.adjust;
+    return true;
+  });
+}
+
+/**
+ * A STEP from the record as it stands when the write runs, never from a render's copy: three quick
+ * presses of ← are 3 px, however the renders keep up. `step` adds to the folded value (the cue's,
+ * else the graphic's, else identity) and the sum is written at `scope`; `patch` rides along.
+ */
+export function stepAdjust(
+  showId: string,
+  cueId: string,
+  scope: 'cue' | 'graphic',
+  step: { x?: number; y?: number; scale?: number },
+  patch: AdjustPatch = {},
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    const graphic = cue && show.graphics.find((g) => g.id === cue.sourceId);
+    if (!cue || !graphic) return 'This cue is no longer in the production.';
+    return writeAdjust(scope === 'cue' ? cue : graphic, stepPatch(graphic.adjust, cue.adjust, step, patch));
+  });
+}
+
+function writeAdjust(target: { adjust?: unknown }, patch: AdjustPatch | null): boolean | string {
+  if (patch === null) {
+    if (readAdjust(target.adjust).status === 'read-only') return ADJUST_READ_ONLY;
+    if (target.adjust === undefined) return false;
+    delete target.adjust;
+    return true;
+  }
+  const next = patchAdjust(target.adjust, patch);
+  if (typeof next === 'string') return next;
+  if (JSON.stringify(next ?? null) === JSON.stringify(target.adjust ?? null)) return false;
+  if (next) target.adjust = next as unknown as AdjustRecord;
+  else delete target.adjust;
+  return true;
+}
+
 /**
  * PUBLISH REFRESHES THE PRODUCTION'S COPIES (docs/work-specs/publish-guard/spec.md G1). A pool
  * graphic whose library record this browser holds a NEWER edit of than the copy embedded here
@@ -850,6 +1015,10 @@ function patchShowChecked(
   showId: string,
   mutate: (show: Show, at: string) => boolean | string,
   rebased = false,
+  /** The selection writer's allowance (productionData `SelectionWrite`); every other write has none. */
+  write?: SelectionWrite,
+  /** The typed writer's allowance (`setCueTyped`): cue id to the envelope bytes it writes. */
+  typedWrite?: ReadonlyMap<string, string | null>,
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
   const visible = () => all.filter((s) => !s.deleted);
@@ -857,9 +1026,14 @@ function patchShowChecked(
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: visible(), error: null };
   const at = nowIso();
+  const kept = selectionKeep(show);
+  const typed = typedKeep(show);
   const result = mutate(show, at);
   if (typeof result === 'string') return { shows: visible(), error: result };
   if (!result) return { shows: visible(), error: null };
+  // The mutation ran on this read only: refused, the stored productions are read again.
+  const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
+  if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
   if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
   const personal = loadAllShows().map((s) => (s.id === showId ? show : s));
@@ -869,8 +1043,12 @@ function patchShowChecked(
     const list = readShape(raw);
     const fresh = list.find((s) => s.id === showId && !s.deleted);
     if (!fresh) return { refused: 'This production was removed in another tab.' };
+    const keptFresh = selectionKeep(fresh);
+    const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
+    const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite)) : null;
+    if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
     return { value: JSON.stringify(list) };
   });
@@ -1200,6 +1378,10 @@ export function updateShowCueChecked(
     const source = show.graphics.find((g) => g.id === cue.sourceId);
     const refused = source && boundMessageField(show, source, patch.stagedFrom);
     if (refused) return refused;
+    // A live candidate's fields come from its source, never from typing (E7.1): a correction
+    // comes from the source, and Fill makes a detached copy.
+    const live = patch.values ? selectedFields(cue, show.collections).filter((f) => patch.values![f] !== undefined && patch.values![f] !== cue.values[f]) : [];
+    if (live.length) return 'This cue shows a live candidate, so its connected fields cannot be typed into.';
     if (patch.label !== undefined) cue.label = patch.label;
     if (patch.values) cue.values = { ...cue.values, ...patch.values };
     if (patch.stagedFrom) cue.stagedFrom = { ...patch.stagedFrom, fields: [...patch.stagedFrom.fields] };
@@ -1207,6 +1389,213 @@ export function updateShowCueChecked(
     else if (patch.note !== undefined) cue.note = patch.note;
     return true;
   }, Boolean(patch.stagedFrom));
+}
+
+/** Asked inside the selection writer's write, on the record that door is writing: why this cue may
+ *  not be saved with the selection it now carries (control/sourceMapping.ts `selectionWriteError`
+ *  on the cue, its graphic's name, the recipes and the shared bindings), or null. */
+export type SelectionCheck = (show: Show, cue: ShowCue) => string | null;
+
+/**
+ * THE SELECTION WRITER (docs/work-specs/playout-election-package/spec.md, E7.2a): the one write
+ * that gives a cue its live candidate, moves it to another, or detaches it. `selection` is the
+ * cue-owned record (`{v: 1, recipe, key}`, outside the cue's values); `null` detaches the cue, and
+ * `snapshot` then becomes its prepared values for those fields in the same write (Fill: what the
+ * candidate showed, held as ordinary values; reconnecting is another explicit pick). Rebased, so
+ * `check` judges the record each door writes, and allowed by `selectionFrozen` for this cue's
+ * selection only and only to these bytes. A cue of a later version (`selectionReadOnly`) is never
+ * rewritten. Air is the page's: a cue on air keeps its captured candidate until ✎ Update.
+ */
+export function setCueSelection(
+  showId: string,
+  cueId: string,
+  selection: CueSelection | null,
+  check: SelectionCheck,
+  snapshot?: Record<string, string>,
+): { shows: Show[]; error: string | null } {
+  const bytes = JSON.stringify(selection);
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return 'This cue was removed.';
+    if (selectionReadOnly(cue, show.collections)) return 'This cue’s live candidate was set up by a later version of NoaCG, so it is read-only here.';
+    if (JSON.stringify(cue.selection ?? null) === bytes && !snapshot) return false;
+    if (selection) {
+      // Judged on a copy first: a refusal leaves this read untouched, since the page is handed it.
+      const refused = check(show, { ...cue, selection });
+      if (refused) return refused;
+      cue.selection = structuredClone(selection);
+    } else {
+      delete cue.selection;
+      if (snapshot) cue.values = { ...cue.values, ...snapshot };
+    }
+    return true;
+  }, true, { cues: new Map([[cueId, bytes]]) });
+}
+
+/**
+ * THE TYPED WRITER (docs/work-specs/playout-ograf-contract/spec.md, E1.2a): the one write that turns
+ * a cue's typed data on or off. On, the cue's native strings are read through its graphic's declared
+ * schema (./ografTyped.ts `migrateToTyped`): losslessly or not at all, and the receipt says which
+ * fields converted, which were kept as text and why nothing was written. Off, the envelope's values
+ * go back to the cue's native strings (`nativeOf`) and the envelope goes, so nothing it held is
+ * lost and the graphic's package is untouched. Rebased, and allowed by `typedFrozen` for this cue
+ * and these bytes only; a read-only cue, or one whose graphic declares no schema, is never written.
+ */
+export function setCueTyped(
+  showId: string,
+  cueId: string,
+  on: boolean,
+  /** The graphic's declaration as the page reads it (its library version, as its fields are);
+   *  absent, the production's own copy of the graphic. */
+  ograf?: unknown,
+): { shows: Show[]; error: string | null; receipt: TypedReceipt | null } {
+  const plan = (show: Show): { error: string } | { typed: TypedValues | null; values: Record<string, string>; receipt: TypedReceipt | null } | null => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return { error: 'This cue was removed.' };
+    if (typedReadOnly(cue)) return { error: 'This cue’s typed data was saved by another version of NoaCG, so it is read-only here.' };
+    if (!on) {
+      if (cue.typed === undefined) return null;
+      const envelope = typedValuesOf(cue.typed);
+      if (!envelope) return { error: 'This cue’s typed data cannot be read.' };
+      // A declared value the typed form removed stays removed (E2.1): its old string is not brought
+      // back from before On, so Off then On never resurrects it.
+      const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+      const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
+      const removed = new Set(declared.status === 'ok' && declared.fields ? (declared.fields.properties ?? []).map((p) => p.key).filter((k) => !Object.prototype.hasOwnProperty.call(envelope.values, k)) : []);
+      const kept = Object.fromEntries(Object.entries(cue.values).filter(([k]) => !removed.has(k)));
+      return { typed: null, values: { ...kept, ...nativeOf(envelope) }, receipt: null };
+    }
+    if (cue.typed !== undefined) return null;
+    const graphic = cue.source === 'playout' ? undefined : show.graphics.find((g) => g.id === cue.sourceId);
+    const declared = readOgrafDeclared(ograf ?? graphic?.template.ograf);
+    if (declared.status !== 'ok' || !declared.fields) return { error: 'This cue’s graphic declares no typed data.' };
+    // The schema's declared defaults fill what the strings did not say, once, here (E2.1): never
+    // again when the form reopens, so a value the operator removes stays removed. What still does
+    // not fit is the form's to mark and Take's to refuse; only a lossy string refuses On.
+    const { envelope, receipt } = migrateToTyped(declared.description, cue.values, { defaults: true, draft: true });
+    if (!envelope) return { error: `Typed data was not turned on: ${receipt.refused.map((r) => (r.at ? `${r.at} ${r.reason}` : r.reason)).join('; ')}.` };
+    return { typed: envelope, values: cue.values, receipt };
+  };
+  const first = readEditable().find((s) => s.id === showId && !s.deleted);
+  const planned = first ? plan(first) : null;
+  if (planned && 'error' in planned) return { shows: loadShows(), error: planned.error, receipt: null };
+  if (!planned) return { shows: loadShows(), error: null, receipt: null };
+  const bytes = planned.typed ? JSON.stringify(planned.typed) : null;
+  const done = patchShowChecked(showId, (show) => {
+    const again = plan(show);
+    if (!again) return false;
+    if ('error' in again) return again.error;
+    // The rebased record must give the very bytes the allowance names: another tab's edit since is
+    // a reason to look again, never to write something else.
+    if ((again.typed ? JSON.stringify(again.typed) : null) !== bytes) return 'This cue changed elsewhere. Try again.';
+    const cue = show.cues!.find((c) => c.id === cueId)!;
+    cue.values = again.values;
+    if (again.typed) cue.typed = again.typed;
+    else delete cue.typed;
+    return true;
+  }, true, undefined, new Map([[cueId, bytes]]));
+  return { ...done, receipt: planned.receipt };
+}
+
+/**
+ * THE TYPED FORM'S WRITE (docs/work-specs/playout-ograf-controls/spec.md, E2.1): a cue's typed values
+ * as its form left them, in the envelope it already has (same version, standard and schema). A draft
+ * is kept as it is, valid or not: Take and ✎ Update validate it whole (`typedForSend`) and refuse
+ * with its path, so an invalid value blocks only those and is never erased. Bounded like any
+ * envelope; allowed by `typedFrozen` for this cue and these bytes only, and never on a read-only cue.
+ */
+export function setCueTypedValues(
+  showId: string,
+  cueId: string,
+  /** The values, or the form's edit as a change to the values stored when it lands: an edit then
+   *  touches only its own path, never rewriting what another edit since has changed. */
+  values: TypedValues['values'] | ((current: TypedValues['values']) => JsonValue | undefined),
+): { shows: Show[]; error: string | null } {
+  const plan = (show: Show): { error: string } | { typed: TypedValues } => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return { error: 'This cue was removed.' };
+    const envelope = typedValuesOf(cue.typed);
+    if (!envelope) return { error: cue.typed === undefined ? 'This cue’s typed data is off.' : 'This cue’s typed data cannot be changed here.' };
+    const next = typeof values === 'function' ? values(envelope.values) : values;
+    if (next === undefined || readJson(next) || typeof next !== 'object' || next === null || Array.isArray(next)) return { error: 'These values cannot be kept.' };
+    return { typed: { ...envelope, values: next } };
+  };
+  const first = readEditable().find((s) => s.id === showId && !s.deleted);
+  const planned = first ? plan(first) : null;
+  if (!planned) return { shows: loadShows(), error: null };
+  if ('error' in planned) return { shows: loadShows(), error: planned.error };
+  const bytes = JSON.stringify(planned.typed);
+  return patchShowChecked(showId, (show) => {
+    const again = plan(show);
+    if ('error' in again) return again.error;
+    if (JSON.stringify(again.typed) !== bytes) return 'This cue changed elsewhere. Try again.';
+    const cue = show.cues!.find((c) => c.id === cueId)!;
+    if (JSON.stringify(cue.typed) === bytes) return false;
+    cue.typed = again.typed;
+    return true;
+  }, true, undefined, new Map([[cueId, bytes]]));
+}
+
+/**
+ * A CUE'S ACTION ARGUMENTS as the action's form left them (E2.1): kept against the action's argument
+ * descriptor (`actionSchemaOf`), valid or not, since a press validates them whole. `args` undefined
+ * removes the action's entry. Refused on a cue whose kept arguments this build cannot read.
+ */
+export function setCueTypedArgs(
+  showId: string,
+  cueId: string,
+  action: TypedAction,
+  /** The arguments (undefined removes them), or the form's edit as a change to the ones stored. */
+  update: JsonValue | undefined | ((current: JsonValue | undefined) => JsonValue | undefined),
+): { shows: Show[]; error: string | null } {
+  const schema = actionSchemaOf(action);
+  return patchShowChecked(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue) return 'This cue was removed.';
+    if (typedReadOnly(cue)) return 'This cue’s typed data was saved by another version of NoaCG, so it is read-only here.';
+    const read = readTypedArgs(cue.typedArgs);
+    if (read.status === 'read-only') return 'This cue’s action arguments were saved by another version of NoaCG.';
+    const args = typeof update === 'function' ? update(actionArgsOf(action, cue.typedArgs)) : update;
+    if (args !== undefined && readJson(args, TYPED_MAX_DEPTH)) return 'These arguments cannot be kept.';
+    const actions: TypedArgs['actions'] = {};
+    for (const [id, entry] of Object.entries(read.status === 'ok' ? read.args.actions : {})) if (id !== action.id) put(actions, id, entry);
+    if (args !== undefined) put(actions, action.id, { schema, args });
+    const next: TypedArgs | undefined = Object.keys(actions).length ? { v: TYPED_ARGS_VERSION, actions } : undefined;
+    // The whole record must read back: arguments that fit one by one may not fit together.
+    if (next && readTypedArgs(next).status !== 'ok') return 'These arguments cannot be kept.';
+    if (JSON.stringify(next) === JSON.stringify(cue.typedArgs)) return false;
+    if (next) cue.typedArgs = next;
+    else delete cue.typedArgs;
+    return true;
+  }, true);
+}
+
+/**
+ * A pack's install (packs/graphicsPack.ts `installPack`): the production's collection recipes and
+ * its cues' selections in ONE write, each selection judged by `check` with the recipes it lands
+ * with. Refused whole, so an install never leaves half its candidates connected.
+ */
+export function setShowSelections(
+  showId: string,
+  collections: CollectionRecipe[],
+  selections: ReadonlyMap<string, CueSelection>,
+  check: SelectionCheck,
+): { shows: Show[]; error: string | null } {
+  const cues = new Map([...selections].map(([id, s]) => [id, JSON.stringify(s)] as const));
+  return patchShowChecked(showId, (show) => {
+    if (show.collections !== undefined || show.cues?.some((c) => c.selection !== undefined)) return 'This production already has live candidates.';
+    // Judged whole on a copy first: a refusal leaves this read untouched.
+    const trial = { ...show, collections };
+    for (const [id, selection] of selections) {
+      const cue = show.cues?.find((c) => c.id === id);
+      if (!cue) return 'A cue of the pack was removed.';
+      const refused = check(trial, { ...cue, selection });
+      if (refused) return `“${cue.label}”: ${refused}`;
+    }
+    show.collections = structuredClone(collections);
+    for (const [id, selection] of selections) show.cues!.find((c) => c.id === id)!.selection = structuredClone(selection);
+    return true;
+  }, true, { cues, collections: JSON.stringify(collections) });
 }
 
 /** Set or clear a cue's shortcut (model/cueShortcuts.ts). A key another cue holds is refused,
@@ -1780,8 +2169,9 @@ function boundMessageField(show: Pick<Show, 'bindings'>, graphic: Pick<SavedGrap
   return `“${graphic.name}” follows live data on its message or name, so a prepared message could change on air. Add a separate card for messages.`;
 }
 
-/** The one binding write (`withBindings`), with this record's refusal: a path on a field prepared
- *  messages use. Shared by every setter below, so the Advanced rows, Bind all by title and
+/** The one binding write (`withBindings`), with this record's refusals: a path on a field prepared
+ *  messages use, or on a field a collection recipe maps (a shared value would overwrite a cue's
+ *  own live candidate, E7.1). Shared by every setter below, so the Advanced rows, Bind all by title and
  *  Connect data cannot differ. A source no field follows any more, and that feeds no inbox, goes
  *  with its last field whichever door unbound it, so no reader keeps reading for nothing. */
 function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean; refused: BindingEntry[] } {
@@ -1789,7 +2179,7 @@ function applyBindings(show: Show, entries: BindingEntry[]): { changed: boolean;
   let ownReaders: Set<string> | null = null;
   const readsOwn = (graphic: string) =>
     (ownReaders ??= new Set([...ownSheetGraphics(show, loadGraphics()), ...ownReaderHolds(show.id)])).has(graphic);
-  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || readsOwn(graphic));
+  const { bindings, refused } = withBindings(before, entries, (graphic, fieldId) => preparedMessageField(show, graphic, fieldId) || collectionFields(show.collections, graphic).has(fieldId) || readsOwn(graphic));
   if (bindings === before) return { changed: false, refused };
   if (Object.keys(bindings).length > 0) show.bindings = bindings;
   else delete show.bindings;
@@ -1838,7 +2228,9 @@ export function setOwnReaderStops(showId: string, edit: { add?: readonly string[
 /** Drop the sources no field follows and no inbox reads. */
 function pruneSources(show: Show): void {
   if (!show.sources) return;
-  const sources = show.sources.filter((s) => s.inbox || sourcePaths(show.bindings, s.id).length > 0);
+  // A source a collection recipe reads (E7.2b) is in use though no field binds it.
+  const collected = new Set((show.collections ?? []).map((c) => (c && typeof c === 'object' && typeof c.sourceId === 'string' ? c.sourceId : null)));
+  const sources = show.sources.filter((s) => s.inbox || collected.has(s.id) || sourcePaths(show.bindings, s.id).length > 0);
   if (sources.length > 0) show.sources = sources;
   else delete show.sources;
 }
@@ -1890,6 +2282,38 @@ export function connectShowSource(
 }
 
 /**
+ * CONNECT DATA's one confirmation for a CONNECTOR (docs/work-specs/playout-api-mapping/spec.md,
+ * E5.2): the registration, new or reused with its new configuration (the recipe), and the reviewed
+ * mapping, in one write. Called by control/connectorReview.ts `connectConnector` only, which builds
+ * the configuration and lets through only a recipe `readSourceRecipe` reads (no other key can sit
+ * in a show or an export). REVISION-FENCED: `fence` is the reused source's configuration as the
+ * review read it (JSON), and a source whose configuration moved since, or one held read-only (a
+ * later version), refuses the whole write. A refused field is reported, never bound.
+ */
+export function connectConnectorSource(
+  showId: string,
+  source: Extract<ShowSource, { kind: 'external' }>,
+  entries: BindingEntry[],
+  fence: string | null,
+): { shows: Show[]; error: string | null; refused: BindingEntry[] } {
+  let refused: BindingEntry[] = [];
+  const result = patchShowChecked(showId, (show) => {
+    const at = show.sources?.findIndex((s) => s.id === source.id) ?? -1;
+    const existing = at < 0 ? null : show.sources![at];
+    if (existing && (existing.kind !== 'external' || externalReadOnly(existing))) return 'This connector was set up by a later version, so it is read-only here.';
+    if ((existing ? JSON.stringify(existing.config) : null) !== fence) return 'This connector changed while the review was open. Read it again.';
+    const before = JSON.stringify([show.bindings, show.sources]);
+    // A reused source keeps its Pause and id; its name and configuration are the review's.
+    const next = existing ? { ...existing, label: source.label.trim() || existing.label, config: source.config } : source;
+    show.sources = existing ? show.sources!.map((s, i) => (i === at ? next : s)) : [...(show.sources ?? []), next];
+    refused = applyBindings(show, entries).refused;
+    pruneSources(show);
+    return JSON.stringify([show.bindings, show.sources]) !== before;
+  }, true);
+  return { ...result, refused };
+}
+
+/**
  * CONNECT DATA's one confirmation for Another system (data-sources C5): the reviewed mapping of
  * `api.` paths, with no source record (the data key is the production's one API source). A
  * refused field is reported, never bound.
@@ -1908,7 +2332,7 @@ export function connectApiFields(showId: string, entries: BindingEntry[]): { sho
 function patchShowSource(showId: string, sourceId: string, edit: (source: ShowSource) => ShowSource | null): Show[] {
   return patchShowChecked(showId, (show) => {
     const at = show.sources?.findIndex((s) => s.id === sourceId) ?? -1;
-    const next = at < 0 ? null : edit(show.sources![at]);
+    const next = at < 0 || externalReadOnly(show.sources![at]) ? null : edit(show.sources![at]);
     if (!next) return false;
     show.sources = show.sources!.map((s, i) => (i === at ? next : s));
     return true;
@@ -2076,6 +2500,59 @@ export function setShowLook(showId: string, look: ProjectBrand | undefined): Sho
     else delete show.look;
     return true;
   });
+}
+
+/** TURN THE PRODUCTION LOOK ON OR OFF (phase 3). On writes `lookApplied` and, when given, the look
+ *  it applies (the saved brand `brandId` names, copied here at activation); Off removes the
+ *  activation only, keeping the look, so the join page and the wizard keep it. Nothing reaches air:
+ *  the next Take or Update of each graphic, or "Send to on-air graphics", carries the result. */
+export function setShowLookApplied(showId: string, on: boolean, look?: ProjectBrand): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    if (!on) {
+      if (!show.lookApplied) return false;
+      delete show.lookApplied;
+      return true;
+    }
+    if (look) show.look = look;
+    if (!show.look) return 'Choose a typeface or a brand first.';
+    show.lookApplied = true;
+    return true;
+  });
+}
+
+/** THE LOOK PANEL'S EDIT (phase 3): the production's look replaced by `look`, and the brand it was
+ *  taken from named (`brandId`: a saved brand's id, null for a look edited by hand, which no
+ *  longer is that brand, undefined to leave it). Whether it reaches air is `lookApplied`'s. */
+export function editShowLook(showId: string, look: ProjectBrand, brandId?: string | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const same = JSON.stringify(show.look ?? null) === JSON.stringify(look) && (brandId === undefined || (show.brandId ?? null) === brandId);
+    if (same) return false;
+    show.look = look;
+    if (brandId) show.brandId = brandId;
+    else if (brandId === null) delete show.brandId;
+    return true;
+  });
+}
+
+/** "CLEAR EXCEPTIONS" (phase 3): every `keepStyle` in the production goes, at graphic and cue
+ *  scope, and nothing else of any record: the look then reaches every graphic that paints with it.
+ *  A record a later build wrote is kept as it is (counted in `unread`), as every door refuses it. */
+export function clearStyleExceptions(showId: string): { shows: Show[]; error: string | null; cleared: number; unread: number } {
+  let cleared = 0;
+  let unread = 0;
+  const result = patchShowChecked(showId, (show) => {
+    for (const target of [...show.graphics, ...(show.cues ?? [])]) {
+      const read = readAdjust(target.adjust);
+      if (read.status === 'read-only') {
+        unread += 1;
+        continue;
+      }
+      if (read.status !== 'ok' || !read.record.keepStyle) continue;
+      if (writeAdjust(target, { keepStyle: null }) === true) cleared += 1;
+    }
+    return cleared > 0;
+  });
+  return { ...result, cleared, unread };
 }
 
 /** Point the production at a saved BRAND (or clear it, with undefined). The reference the

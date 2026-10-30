@@ -48,6 +48,10 @@ export interface CueRecord {
   label: string;
   note?: string | null;
   values: Record<string, string>;
+  /** A live candidate's selector (model/shows.ts `ShowCue.selection`), when it has one. */
+  selection?: unknown;
+  /** Its typed OGraf data (model/shows.ts `ShowCue.typed`, E1.2a), when it has some. */
+  typed?: unknown;
 }
 
 /** An edit: a new label, a new note, or some fields' values. */
@@ -135,11 +139,12 @@ export function unsentNow(
   editing: { cue: CueRecord; graphic: string } | null,
   onAir: readonly { cue: CueRecord; graphic: string }[],
   aired: Readonly<Record<string, Readonly<Record<string, string>>>>,
-  boundOf: (graphic: string) => Readonly<Record<string, string>>,
+  /** A graphic's fields that are never unsent for this cue: bound to the tree, or its live candidate's. */
+  boundOf: (graphic: string, cue: CueRecord) => Readonly<Record<string, string>>,
 ): { fields: string[]; cues: string[] } {
   return {
-    fields: editing ? draft.unsent(editing.cue, aired[editing.graphic], boundOf(editing.graphic)) : [],
-    cues: onAir.filter(({ cue, graphic }) => draft.unsent(cue, aired[graphic], boundOf(graphic)).length > 0).map(({ cue }) => cue.id),
+    fields: editing ? draft.unsent(editing.cue, aired[editing.graphic], boundOf(editing.graphic, editing.cue)) : [],
+    cues: onAir.filter(({ cue, graphic }) => draft.unsent(cue, aired[graphic], boundOf(graphic, cue)).length > 0).map(({ cue }) => cue.id),
   };
 }
 

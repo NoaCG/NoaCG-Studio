@@ -1,0 +1,218 @@
+{
+  "costUnread": false,
+  "brief": "hockey-club-match-board",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "d93965ad-04d3-42ba-8264-72bfd6572c5f",
+  "costCents": 0,
+  "notionalUsd": 1.8294450000000002,
+  "wallSeconds": 607,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type match-board --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:9d042b00bf34cb45d87a30019eb8d60f5531e3aa9c01d8074a26e38cd4b6e28e"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type match-board --design sb09 --out ../tmp_sb09",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type match-board --design sb10 --out ../tmp_sb10",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type match-board --design sb11 --out ../tmp_sb11",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type match-board --design sb12 --out ../tmp_sb12",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type match-board --design sb25 --out ../tmp_sb25",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:e7cb89ccc723c237ee92c646112a924ae254ec223b9f6fcf608aee811eb6485e"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 1,
+      "digest": "sha256:653c350e0e107cdfe7326185037a942d83ece9b3a685ddf964132843d89a94aa"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --background video --data f0=Hokejový klub Šumavští Žraloci Říčany --data f2=Slavoj Ústí nad Orlicí Úderníci ř --data f9=images/test-crest-a.svg --data f10=images/test-crest-b.svg --data f1=3 --data f3=12 --data f6=1 | 1 | 0\n2 | 2 | 0\n3 | 0 | 12\nOT | 0 | 0 --out shots/t1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:270af1a7a07903bbd593b1309de4bca6b1114f4c4ff1a771eb24b765b235d3da"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --background video --data f0=Hokejový klub Šumavští Žraloci Říčany --data f2=Slavoj Ústí nad Orlicí Úderníci --data f9=images/test-crest-a.svg --data f10=images/test-crest-b.svg --data f1=3 --data f3=12 --data f6=1 | 1 | 0|2 | 2 | 0 --out shots/t1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type match-board --design neutral --out ./tmp_inter",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --background video --data f0=Hokejový klub Šumavští Žraloci Říčany --data f2=Slavoj Ústí nad Orlicí Úderníci --data f9=images/test-crest-a.svg --data f10=images/test-crest-b.svg --data f4=Přestávka ŘŽČĚŮŇŤĎ --out shots/t2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:7581fdf6f5006f1d4a39fd0f24ea9a4664db8dea525254a61795a0d8c59c7e8e"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:ef1f02afd08aaa1d80f3ad239c915bfc581a5da796a916106fce40e4054da571"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:48a2ef3cd264cf8856d27a3a628300bbf34c8d2398cf9f33c66644965fa59fec"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:48a2ef3cd264cf8856d27a3a628300bbf34c8d2398cf9f33c66644965fa59fec"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:d0367b1c5f0c3bfcfaf4df0ee6393cf1ebdf3d538f3fafd63d1237ff755da703"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:d0367b1c5f0c3bfcfaf4df0ee6393cf1ebdf3d538f3fafd63d1237ff755da703"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:f2ca8305ebeb7aad0768289e11e8eb4203e7a08f90e77d639c4a65c9cd1896de"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:f2ca8305ebeb7aad0768289e11e8eb4203e7a08f90e77d639c4a65c9cd1896de"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:f2ca8305ebeb7aad0768289e11e8eb4203e7a08f90e77d639c4a65c9cd1896de"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-2\\cells\\hockey-club-match-board.claude-sonnet-5-5-high\\frames",
+    "frames": 81,
+    "crops": 6,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:f2ca8305ebeb7aad0768289e11e8eb4203e7a08f90e77d639c4a65c9cd1896de"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 11,
+    "buttons": [
+      "clockStart",
+      "clockStop",
+      "clockReset",
+      "interval",
+      "resumePlay",
+      "final"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:f2ca8305ebeb7aad0768289e11e8eb4203e7a08f90e77d639c4a65c9cd1896de",
+    "benchValidated": "sha256:f2ca8305ebeb7aad0768289e11e8eb4203e7a08f90e77d639c4a65c9cd1896de",
+    "reviewed": "sha256:f2ca8305ebeb7aad0768289e11e8eb4203e7a08f90e77d639c4a65c9cd1896de",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 33,
+    "opened": 22,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "long-side-1-video.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-video.jpg",
+      "long-side-2-light.jpg",
+      "take-strip.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

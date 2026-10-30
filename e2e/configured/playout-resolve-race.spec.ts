@@ -16,9 +16,14 @@
 // `setLiveCue` comment). The guard (control/airState.ts `seedFromResolve`) skips the seed when the
 // live map moved while the read was out.
 // The hold is in the browser, on the answer: the read reaches the server before the Take.
+//
+// Since #1697 a press made before that first resolve has decided the road waits for it, within the
+// press's own resend window (control/hostedControl.ts `roadDecided`), so the Take goes, and moves
+// the marker here, only once the answer is in. A press whose wait runs out is never sent, and its
+// marker goes back (#1696): so the answer is released while the Take waits.
 
 import { publishProduction } from '../_publish';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
@@ -31,8 +36,9 @@ test.afterEach(async ({ page }) => {
   await wipeMyGraphics(page).catch(() => {});
 });
 
-test('a Take pressed while the first resolve is out stays on air here, as one entrance', async ({ page }) => {
-  test.setTimeout(240_000);
+/** A published production reloaded with its first resolve held in the browser: the server answers
+ *  at once, and the page hears the answer only on `release`. */
+async function holdFirstResolve(page: Page) {
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
@@ -63,19 +69,45 @@ test('a Take pressed while the first resolve is out stays on air here, as one en
 
   const chip = page.getByTestId('live-cue-chip');
   const stage = page.getByTestId('program-stage');
+  return { chip, stage, release, held: () => held, fulfilled: () => fulfilled };
+}
+
+test('a Take pressed while the first resolve is out stays on air here, as one entrance', async ({ page }) => {
+  test.setTimeout(240_000);
+  const { chip, stage, release, fulfilled } = await holdFirstResolve(page);
   await expect(stage).toHaveAttribute('data-plays', '0');
   await page.getByTestId('verb-take').click();
-  await expect(chip).toContainText('on air:');
-  const taken = (await chip.textContent()) ?? '';
-  expect(fulfilled, 'the resolve is still out when the Take is pressed').toBe(0);
+  expect(fulfilled(), 'the resolve is still out when the Take is pressed').toBe(0);
+  // The Take waits for the road: nothing has gone, so nothing is marked on air yet.
+  await expect(chip).not.toContainText('on air:');
 
-  // The answer arrives, older than the Take: nothing on air, as far as it knows.
+  // The answer arrives, read before the Take: nothing on air, as far as it knows. The Take then goes.
   const answered = page.waitForResponse(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/);
   release();
   await answered;
+  await expect(chip).toContainText('on air:');
+  const taken = (await chip.textContent()) ?? '';
   await page.waitForTimeout(1_500);
   await expect(chip).toHaveText(taken);
   await expect(page.getByTestId('verb-out')).toBeEnabled();
   await expect(stage, 'one entrance, and no replay over it').toHaveAttribute('data-plays', '1');
 
+});
+
+test('a Take whose wait for the first resolve runs out is never sent, and nothing is marked on air', async ({ page }) => {
+  test.setTimeout(240_000);
+  const { chip, stage, release, fulfilled } = await holdFirstResolve(page);
+  await expect(stage).toHaveAttribute('data-plays', '0');
+  await page.getByTestId('verb-take').click();
+  // Held past the Take's resend window: the Take counts as unanswered and never leaves (#1697),
+  // and the marker its fast road moved here goes back (#1696).
+  await page.waitForTimeout(6_000);
+  expect(fulfilled(), 'the resolve is still out when the Take gives up').toBe(0);
+  await expect(chip).toContainText('nothing on air');
+  // The answer, when it comes, agrees: nothing went.
+  const answered = page.waitForResponse(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/);
+  release();
+  await answered;
+  await page.waitForTimeout(1_500);
+  await expect(chip).toContainText('nothing on air');
 });

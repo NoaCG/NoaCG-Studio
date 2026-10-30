@@ -1,0 +1,194 @@
+/* Election - party totals. A deep ink panel with one hairline of light along its top edge; each
+   party reads left to right as code, name, bar, share, votes. The share is the headline figure,
+   so it carries the weight; votes sit beside it in the dimmer tone. */
+
+@font-face {
+  font-family: 'Manrope';
+  src: url("fonts/manrope.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+:root {
+  --scale: 1;
+  --accent: #3dd6c6;
+  --panel-bg: #0c1828;
+  --panel-bg-top: #14263b;
+  --ink: #f3f6fa;
+  --ink-dim: #93a6bd;
+  --edge: rgba(255, 255, 255, 0.07);
+  --track: rgba(255, 255, 255, 0.06);
+  --prelim: #f2b84b;
+  --font: 'Manrope', 'Segoe UI', Arial, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.pb-root {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  visibility: hidden;
+  font-family: var(--font);
+  color: var(--ink);
+}
+
+.pb-panel {
+  position: relative;
+  width: 1280px;
+  padding: 44px 56px 30px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, var(--panel-bg-top) 0%, var(--panel-bg) 46%);
+  border-radius: 6px;
+  box-shadow: 0 30px 80px rgba(0, 6, 16, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+.pb-panel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent), rgba(61, 214, 198, 0) 70%);
+}
+
+.pb-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-bottom: 26px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--edge);
+}
+.pb-kicker {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pb-title {
+  margin-top: 8px;
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+.pb-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.pb-status {
+  padding: 6px 14px 7px;
+  border-radius: 3px;
+  background: rgba(242, 184, 75, 0.14);
+  color: var(--prelim);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.pb-counted {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.pb-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pb-row {
+  display: grid;
+  grid-template-columns: 112px 300px 1fr 128px 150px;
+  align-items: center;
+  height: 55px;
+  border-bottom: 1px solid var(--edge);
+}
+.pb-row:last-child { border-bottom: 0; }
+
+.pb-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding-left: 16px;
+}
+.pb-swatch {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 6px;
+  height: 28px;
+  border-radius: 2px;
+  font-size: 0;
+  background: var(--row-color, var(--accent));
+}
+.pb-code {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.pb-name {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 20px;
+}
+.pb-track {
+  position: relative;
+  height: 20px;
+  margin-right: 28px;
+  border-radius: 2px;
+  background: var(--track);
+  overflow: hidden;
+}
+.pb-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-radius: 2px;
+  background: var(--row-color, var(--accent));
+}
+.pb-share {
+  text-align: right;
+  font-size: 30px;
+  font-weight: 800;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.pb-votes {
+  text-align: right;
+  font-size: 21px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.pb-foot {
+  margin-top: 18px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(147, 166, 189, 0.75);
+}

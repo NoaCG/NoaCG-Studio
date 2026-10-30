@@ -32,7 +32,7 @@ import { readAgentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harn
 import { findTranscript, handInLine, ladderPrompt, subscriptionArm } from '../benchmarks/harness/lib/arms.mjs';
 import { examBriefs } from '../benchmarks/harness/lib/exam.mjs';
 import { loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, rungMarkdown, sealCommittedAt, SINGLE_READINGS, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
+import { earlierBriefIds, LADDER_EXAM_DIR, LADDER_HOLDS, LADDER_JUDGE_LOCK, LADDER_SET, ladderBriefs, ladderHeld, ladderJudge, RUNG_ORDER, RUNG_RULE, rungMarkdown, rungRule, sealCommittedAt, SINGLE_READINGS, tallyRung, tuningOrder } from '../benchmarks/harness/lib/ladder.mjs';
 import { admit, appendEntry, emptyLedger, heldCents, LEDGER_FILE, readLedger, remainingCents, setHold, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readHash, readSealed, sealedShape, sha256 } from '../benchmarks/harness/lib/sealed.mjs';
@@ -215,6 +215,33 @@ test('the look line counts the reviewed frames a trace opened, from Managed Agen
     [{ type: 'tool_use', id: 't4', name: 'Read', input: { file_path: 'outputs/coverage/event-goal-1500ms.png' } }],
   ]);
   assert.deepEqual(transcriptReads(recovered), ['outputs/coverage/event-goal-1500ms.png'], 'before the coverage, and the failed read, do not count');
+
+  // A frame coverage drew again byte for byte for `sameSince` runs counts as opened when it was
+  // read after the run that many back: it was that same picture then. A redrawn frame still needs
+  // a read after the last run.
+  const thrice = [
+    { kind: 'tool', tool: 'bash', command: 'noacg coverage /workspace/graphic --out /o/coverage' },
+    { kind: 'tool', tool: 'read', path: '/o/coverage/off.png', ok: true },
+    { kind: 'tool', tool: 'read', path: '/o/coverage/take-sample-video-600ms.png', ok: true },
+    { kind: 'tool', tool: 'bash', command: 'noacg coverage /workspace/graphic --out /o/coverage' },
+    { kind: 'tool', tool: 'read', path: '/o/coverage/out-strip.jpg', ok: true },
+    { kind: 'tool', tool: 'bash', command: 'noacg coverage /workspace/graphic --out /o/coverage' },
+    { kind: 'tool', tool: 'read', path: '/o/coverage/event-goal-1500ms.png', ok: true },
+  ];
+  assert.deepEqual(readsOf(thrice, { back: true }), [['/o/coverage/event-goal-1500ms.png'], ['/o/coverage/out-strip.jpg', '/o/coverage/event-goal-1500ms.png'], ['/o/coverage/off.png', '/o/coverage/take-sample-video-600ms.png', '/o/coverage/out-strip.jpg', '/o/coverage/event-goal-1500ms.png']]);
+  const sameReview = {
+    fixed: 0,
+    verdicts: [
+      { file: 'off.png', verdict: 'ok', carried: true, sameSince: 2 },
+      { file: 'take-sample-video-600ms.png', verdict: 'ok', sameSince: 1 },
+      { file: 'out-strip.jpg', verdict: 'ok', sameSince: 1 },
+      { file: 'event-goal-1500ms.png', verdict: 'ok' },
+    ],
+  };
+  assert.deepEqual(framesOpened(sameReview, readsOf(thrice), readsOf(thrice, { back: true })), { reviewed: 4, opened: 3, unopened: ['take-sample-video-600ms.png'], all: false, fixed: 0 }, 'the take changed at the second run and was not read after it');
+  assert.deepEqual(framesOpened(sameReview, readsOf(thrice)).unopened, ['off.png', 'take-sample-video-600ms.png', 'out-strip.jpg'], 'without the reads by run only a read after the last counts');
+  assert.deepEqual(framesOpened({ fixed: 0, verdicts: [{ file: 'off.png', verdict: 'ok', carried: true }] }, [], readsOf(thrice, { back: true })).opened, 1, 'a carried verdict without its count: a read after any run');
+  assert.deepEqual(transcriptReads(recovered, { back: true }), [['outputs/coverage/event-goal-1500ms.png']], 'a read before the first coverage is no look at its frames');
 });
 
 // ── the subscription arm (D2) ───────────────────────────────────────────────────────────────
@@ -465,6 +492,17 @@ test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches onl
   assert.equal(costly.screen.endsAt, 'cost');
   assert.equal(costly.screen.usdPerUsable, 2.2);
 
+  // D6's cost line as the owner amended it for a taught rung (L2): $1.20 a usable misses L1's
+  // $1.00 and meets L2's $1.35; $1.40 meets neither. L1's ladder keeps its committed rule.
+  assert.equal(rungRule('L1'), RUNG_RULE);
+  assert.equal(rungRule('L2').usdPerUsableMax, 1.35);
+  const at = (usd) => eight.map((c) => ({ ...c, notionalUsd: usd }));
+  assert.equal(tallyRung({ cells: at(1.2), judgements: goodSingles, fingerprint: 'fp', rule: rungRule('L1') }).verdict, 'no match');
+  const taught = tallyRung({ cells: at(1.2), judgements: goodSingles, fingerprint: 'fp', rule: rungRule('L2') });
+  assert.equal(taught.verdict, 'MATCH');
+  assert.equal(taught.lines[1].rule, 'at most $1.35 notional per usable graphic');
+  assert.equal(tallyRung({ cells: at(1.4), judgements: goodSingles, fingerprint: 'fp', rule: rungRule('L2') }).verdict, 'no match');
+
   // All eight run but one line fails: no match. A missing action read as offered counts as offered.
   const slow = tallyRung({ cells: eight.map((c) => ({ ...c, wallSeconds: 700 })), judgements: goodSingles, fingerprint: 'fp' });
   assert.equal(slow.verdict, 'no match');
@@ -476,6 +514,22 @@ test("a rung is counted as H8 counted: D5's screen ends it early, D6 matches onl
   const read = tallyRung({ cells: flagged, judgements: goodSingles, fingerprint: 'fp', readings: { [`${RUNG_ORDER[5]}.${arm}`]: { undoPoint: 'undoA/undoB' } } });
   assert.equal(read.all.usable, 8);
   assert.deepEqual([...RUNG_ORDER].sort(), [...LADDER_SET].sort(), 'the rung order is the ladder set');
+});
+
+test("a teaching round's tuning briefs are counted the same way, with no screen and no match (D7)", () => {
+  const bank = JSON.parse(readFileSync(path.join(ROOT, 'benchmarks', 'harness', 'tuning', 'briefs.json'), 'utf8')).briefs;
+  const order = tuningOrder(bank);
+  assert.equal(order.length, 15, 'the bank\'s 16 less the OGraf brief, which no library graphic answers');
+  assert.ok(!order.includes('third-party-ograf'));
+  const cell = (brief) => ({ brief, arm: 'subscription', outcome: 'delivered', validation: { ok: true, errors: [] }, shape: { ok: true }, operator: { missing: [] }, notionalUsd: 0.5, wallSeconds: 400, look: { reviewed: 10, opened: 10, unopened: [], all: true, fixed: 0 } });
+  const single = (brief, answer = {}) => ({ judge: 'fp', task: 'single', brief, answer: { airable: true, basicMistakes: [], missingActions: [], ...answer } });
+  // The first four not usable would end a rung's screen; here they are only counted.
+  const judgements = order.flatMap((b, i) => [0, 1, 2].map(() => single(b, { airable: i >= 4 })));
+  const t = tallyRung({ cells: order.map(cell), judgements, fingerprint: 'fp', order, match: false });
+  assert.deepEqual([t.verdict, t.screen.endsAt, t.all.usable, t.all.usdPerUsable], ['measured', null, 11, 0.68]);
+  // The ladder cells of the same run are not among them.
+  assert.equal(tallyRung({ cells: [...order.map(cell), cell(RUNG_ORDER[0])], judgements, fingerprint: 'fp', order, match: false }).all.ran, 15);
+  assert.equal(tallyRung({ cells: order.slice(1).map(cell), judgements, fingerprint: 'fp', order, match: false }).verdict, 'incomplete');
 });
 
 test('the ladder judge reads each graphic three times: usable on two passing readings, and the tally says how often it agreed (D8 as amended)', () => {

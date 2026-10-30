@@ -1181,7 +1181,11 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       layers: { ...picked(behaviour.layers), ...perRow((row) => picked(row.layers)) },
       ...(Object.keys(fields).length > 0 ? { fields } : {}),
       ...(keys.length > 0 ? { rows: keys } : {}),
-      ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
+      // New Credits imports preserve the complete text artwork. An old saved DesignSvg without
+      // this additive marker still assembles its editable roll; no second import option is shown.
+      ...(behaviour.recipe === 'credits'
+        ? { options: { ...behaviour.options, artwork: true } }
+        : Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
     };
   }
   if (behaviour.kind === 'score') {

@@ -19,6 +19,7 @@
 import { validateTemplate, type ValidationIssue, type ValidationResult } from './validateTemplate';
 import { runBench } from './templateBench';
 import type { SpxTemplate } from '../model/types';
+import { foreignRefusal, isForeignGraphic, readForeignPackage } from '../model/foreignPackage';
 
 // A shared template must be fully self-contained: no external dependency (the offline-first
 // pillar) and no reference to an asset the package doesn't carry. validateTemplate treats these
@@ -28,6 +29,14 @@ const PROMOTE_TO_ERROR = new Set(['external-dependency', 'missing-asset']);
 
 /** Run the full automated gate over a template. `ok` is true only when nothing blocks. */
 export function publishGate(template: SpxTemplate, production = false, runtimeError?: string | null): ValidationResult {
+  // A stranger's OGraf package has no NoaCG code to check: its gate is its own record, read, and
+  // its bytes, verified wherever they are used (model/foreignPackage.ts).
+  if (isForeignGraphic(template)) {
+    const read = readForeignPackage(template);
+    return read.status === 'ok'
+      ? { ok: true, errors: [], warnings: [] }
+      : { ok: false, errors: [{ rule: 'foreign-package', message: foreignRefusal(template.name, read.status === 'read-only' ? read.reason : 'is not an OGraf package') }], warnings: [] };
+  }
   const base = validateTemplate(template, { runtimeError });
   const bench = runBench(template,production);
 

@@ -13,6 +13,7 @@ import { loadBackendConfig } from '../backend/config';
 // supposed to behave like.
 import { CONTROL_POLL_MS } from './hostedControl';
 import { RECEIVER_FOLLOW_FROM_JS } from './outputRecovery';
+import { APPEARANCE_REFIT_JS, APPEARANCE_RUNTIME_JS } from './appearanceRuntime';
 import { refFromSupabaseUrl } from './realtimeControl';
 
 const OPEN = '/* == HOSTED CONTROL (Supabase log) — edit or delete this whole block == */';
@@ -48,6 +49,9 @@ export function hostedReceiverConfig(slug: string, graphic: string): HostedRecei
   return { ref, key: cfg.anonKey, slug, graphic };
 }
 
+/** What the receiver says when it refuses a row carrying typed data (see `held` in the block). */
+export const RECEIVER_TYPED_REFUSAL = 'this graphic cannot read typed data, so it holds until a cue without typed data is taken';
+
 export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   return `${OPEN}
 // Drive this graphic from its HOSTED control page (?control=<slug> on the NoaCG site). The
@@ -69,6 +73,22 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   var joined = false;  // has the realtime channel ever answered our join?
 
   ${RECEIVER_FOLLOW_FROM_JS}
+
+  // PLACE AND SIZE (docs/work-specs/playout-adjustments/spec.md, phase 1b): an update that carries
+  // an 'appearance' puts it on this document's root (./appearanceRuntime.ts); one without keeps
+  // what is applied. LOOK is the last one applied, reported with the machine state as the /output
+  // renderer reports its own, so a boot from a report with no event id still restores it.
+  ${APPEARANCE_RUNTIME_JS}
+  var look = null;
+  function applyLook(a) {
+    if (!noacgApplyAppearance(a)) return;
+    // Any appearance that sets something is reported, a style alone included (a production look
+    // sent to the graphics on air), so a reload brings it back; the identity reports none.
+    look = a.frame || a.vars || a.fonts ? a : null;
+  }
+  // An appearance-only update (phase 3's send to on-air graphics, empty data) has no values of its
+  // own to fit with: the refit gives the values this document shows (./appearanceRuntime.ts).
+  ${APPEARANCE_REFIT_JS}
 
   // AN RPC EITHER ANSWERED OR FAILED, and this block must never confuse the two. A dropped
   // request says nothing about the show, so it is reported AS a failure (the ok flag) and the
@@ -106,6 +126,34 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   // Row ids differ; command ids do not. Mirror commandRoads.ts createAppliedOnce: remember the
   // last 400 ids, and always apply commands from older clients that carry no id.
   var appliedIds = [];
+  // TYPED DATA (docs/work-specs/playout-ograf-contract/spec.md AC-3, issue #1761): this block cannot
+  // read an OGraf typed envelope, and the row that carries one has empty native data, so applying
+  // it would air the previous cue's values. It is refused, said on the console and on the root's
+  // data-noacg-refused, and the graphic HELD as the /output renderer holds it (model/ografTyped.ts
+  // typedOutputGate): nothing but a stop reaches it until an update without typed data does.
+  var refused = '';
+  function refuse(why) {
+    if (refused === why) return;
+    refused = why;
+    if (why) {
+      // A report scheduled before the refusal would bank the previous cue's values past it.
+      clearTimeout(reportTimer);
+      document.documentElement.setAttribute('data-noacg-refused', why);
+      if (window.console) console.warn('NoaCG hosted control: ' + why);
+    } else document.documentElement.removeAttribute('data-noacg-refused');
+  }
+  function held(m) {
+    if (Object.prototype.hasOwnProperty.call(m, 'typed')) {
+      // A typed action (E2.1) moves no data: this block cannot run it, so it is left out and the
+      // graphic is not held, as a press elsewhere never freezes it.
+      if (m.t === 'event') return true;
+      refuse(${JSON.stringify(RECEIVER_TYPED_REFUSAL)});
+      return true;
+    }
+    if (!refused) return false;
+    if (m.t === 'update') { refuse(''); return false; }
+    return m.t !== 'stop';
+  }
   // Apply one command through the graphic's own globals — the same mapping as every receiver.
   function apply(m) {
     if (!m) return;
@@ -114,6 +162,7 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
       appliedIds.push(m.oid);
       if (appliedIds.length > 400) appliedIds.shift();
     }
+    if (held(m)) return;
     if (m.t === 'play' && typeof play === 'function') play();
     else if (m.t === 'stop' && typeof stop === 'function') {
       var priorQuiet = typeof noacgSoundQuiet !== 'undefined' && noacgSoundQuiet;
@@ -122,11 +171,19 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
       if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(priorQuiet);
     }
     else if (m.t === 'next' && typeof next === 'function') next();
-    else if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
-    else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
+    else if (m.t === 'update' && typeof update === 'function') {
+      var typeBefore = typeHere();
+      applyLook(m.appearance);
+      given(m.data);
+      update(JSON.stringify(m.data || {}));
+      if (typeHere() !== typeBefore) refit();
+    }
+    else if (m.t === 'event' && typeof noacgDispatch === 'function') { keepPayloads(); noacgDispatch(m.event, m.payload); }
     else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
     else return; // 'staged' / 'live' meta rows are for control pages, not for us
-    scheduleReport();
+    // A held graphic never reports, as on the /output renderer: its report would bank the previous
+    // cue's values with no hold, and a reload of this graphic would air them.
+    if (!refused) scheduleReport();
   }
 
   // Report what is actually on air (the definition's fields, read back from the DOM, plus the
@@ -155,6 +212,12 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     clearTimeout(reportTimer);
     reportTimer = setTimeout(function () {
       var state = (typeof noacgMachineState === 'function') ? noacgMachineState() : null;
+      if (look) {
+        var withLook = {}, key;
+        for (key in (state || {})) withLook[key] = state[key];
+        withLook.appearance = look;
+        state = withLook;
+      }
       rpc('control_report', { p_slug: SLUG, p_graphic: GRAPHIC, p_data: harvest(), p_state: state });
     }, 800);
   }
@@ -298,9 +361,20 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     lastId = followFrom(GRAPHIC, row.live, row.last_event_id);
     if (typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
     var mine = (row.live || {})[GRAPHIC];
+    // A report banking TYPED data (an /output renderer's, E1.2b) is refused and held like a row
+    // carrying it: its data is empty by design, so restoring it would air the defaults.
+    if (mine && mine.state && Object.prototype.hasOwnProperty.call(mine.state, 'typed')) {
+      refuse(${JSON.stringify(RECEIVER_TYPED_REFUSAL)});
+      mine = null;
+    }
     if (mine) {
+      // The place and size it last reported, before anything paints: a report with no event id
+      // resumes from the log head, so no row after it would bring this back.
+      var bootType = typeHere();
+      if (mine.state && mine.state.appearance) applyLook(mine.state.appearance);
       // Reset is two operations, and recovery is both: the data half, then the visual half
       // (snap arms timers — recovery semantics).
+      given(mine.data);
       if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
       if (mine.state && mine.state.groups && typeof noacgSnap === 'function') {
         noacgSnap(mine.state.groups);
@@ -308,6 +382,8 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
         // DATA layer owns (an image field with no picture is hidden inline). Restate the data.
         if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
       }
+      // A restored look in another face than the file loaded with: refit once it is in.
+      if (typeHere() !== bootType) refit();
     }
     // THE BOOT CATCH-UP, before the socket rather than through it: everything commanded since
     // that baseline, in log order. It used to happen only inside ws.onopen, so a graphic whose

@@ -3,8 +3,8 @@
 What changed in each published version, written for someone who uses the CLI, the MCP server or
 the plugin. This file ships in the package, so a version's section is what the npm page shows,
 and the build refuses a version that has no section here (`cli/scripts/release-notes.mjs`).
-NoaCG Bridge, the other program built from this package, has its own `BRIDGE_CHANGELOG.md`
-and its own release page on GitHub.
+NoaCG Bridge, the other program built from this package, is a separate product with its own
+version number, its own `BRIDGE_CHANGELOG.md` and its own release page on GitHub.
 
 Write a section the way you would tell a colleague what they get by updating: what was wrong or
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no

@@ -1,0 +1,86 @@
+/* Election - ticker. A full-width band at the foot of the frame: the label block in the accent,
+   headlines crawling in the ink with a small mark between them. */
+
+@font-face {
+  font-family: 'Manrope';
+  src: url("fonts/manrope.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+:root {
+  --scale: 1;
+  --accent: #3dd6c6;
+  --panel-bg: #0c1828;
+  --ink: #f3f6fa;
+  --ink-dim: #93a6bd;
+  --font: 'Manrope', 'Segoe UI', Arial, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.tk-root {
+  position: absolute;
+  left: 0;
+  bottom: 40px;
+  width: 1920px;
+  visibility: hidden;
+  font-family: var(--font);
+}
+
+.tk-bar {
+  display: flex;
+  align-items: stretch;
+  height: 64px;
+  margin: 0 96px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(12, 24, 40, 0.94);
+  box-shadow: 0 16px 40px rgba(0, 6, 16, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+.tk-label {
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 30px;
+  background: var(--accent);
+  color: #06212a;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.tk-window {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+.tk-crawl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  color: var(--ink);
+  font-size: 27px;
+  font-weight: 600;
+}
+.tk-item { padding: 0 34px; }
+.tk-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+.tk-source { display: none; }

@@ -1,0 +1,132 @@
+{
+  "costUnread": false,
+  "brief": "collegiate-cs2-scorebug",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "98b38dae-6af5-4f13-907a-cd71037c8dbe",
+  "costCents": 0,
+  "notionalUsd": 0.9889603,
+  "wallSeconds": 281,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type esports-score --design es01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scorebug --design neutral --out C:/Users/ahonemi/AppData/Local/Temp/sb",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:bc148da549cc7d74cb4fb51280f93624a9d68a558267d5cab5021231f9820265"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:74ec1a371741c7e37a3e0cddd0f47ee900c66a11f3a85bec91fe9a898952f99d"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f6=images/test-a.svg --data f7=images/test-b.svg --event goLive --at 1.5 --background video --out ../shots/logos-live.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:b5bed879b85464fb93e108aa67c4ec533d6ed8679b136a479f46dcdbdc0e6bd0"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:b5bed879b85464fb93e108aa67c4ec533d6ed8679b136a479f46dcdbdc0e6bd0"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:b5bed879b85464fb93e108aa67c4ec533d6ed8679b136a479f46dcdbdc0e6bd0"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 1,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\collegiate-cs2-scorebug.claude-sonnet-5-5-high\\frames",
+    "frames": 74,
+    "crops": 5,
+    "findings": [
+      "event-nextmap: nextMap did not move the machine (still main=enter, phase=pre, pause=running). If it should have, the machine does not answer nextMap from there. It did not move it after any other event either."
+    ],
+    "failures": [],
+    "digest": "sha256:b5bed879b85464fb93e108aa67c4ec533d6ed8679b136a479f46dcdbdc0e6bd0"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 14,
+    "buttons": [
+      "goLive",
+      "final",
+      "nextMap",
+      "pause",
+      "resume"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:b5bed879b85464fb93e108aa67c4ec533d6ed8679b136a479f46dcdbdc0e6bd0",
+    "benchValidated": "sha256:b5bed879b85464fb93e108aa67c4ec533d6ed8679b136a479f46dcdbdc0e6bd0",
+    "reviewed": "sha256:b5bed879b85464fb93e108aa67c4ec533d6ed8679b136a479f46dcdbdc0e6bd0",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 29,
+    "opened": 29,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

@@ -304,6 +304,30 @@ test('Out and next cue: the Out, then the next cue\'s Take with its bound values
   r.engine.stop();
 });
 
+test('the next cue\'s Take carries its place and size, as every Take does (playout adjustments rule 2)', async () => {
+  const r = rig({ cues: [timed('a', 2, 'out-next'), manual('b')] });
+  const look = { v: 1, frame: { dx: 1200, dy: 0, s: 0.8, ox: 530, oy: 961 } };
+  r.page.appearanceOf = (cue, graphic) => (cue.id === 'b' && graphic === 'B' ? look : undefined);
+  r.engine.onMarker(take('a'));
+  r.setLive({ A: 'a' });
+  r.engine.onProgramState('A');
+  await r.advance(2000);
+  assert.deepEqual(r.sent[0].batches[1][0], { graphic: 'B', msg: { t: 'update', data: { name: 'b', bound: '1' }, appearance: look } });
+  r.engine.stop();
+});
+
+test('a timed end that takes the next cue onto an imported OGraf package\'s layer takes what is up there off with it (E3.2a)', async () => {
+  const r = rig({ cues: [timed('a', 2, 'out-next'), manual('b')] });
+  // B shares its layer with a package P that is up, and with A, which this end takes off anyway.
+  r.page.layerPeers = (graphic) => (graphic === 'B' ? ['A', 'P'] : []);
+  r.engine.onMarker(take('a'));
+  r.setLive({ A: 'a', P: 'p' });
+  r.engine.onProgramState('A');
+  await r.advance(2000);
+  assert.deepEqual(r.sent[0].batches.map((b) => b.map((i) => `${i.graphic}:${i.msg.t}`).join('+')), ['A:stop+A:cue', 'P:stop+P:cue+B:update+B:play+B:cue']);
+  r.engine.stop();
+});
+
 test('an Out whose layer no longer holds the cue sends nothing and says so', async () => {
   const r = rig();
   r.engine.onMarker(take('a'));
@@ -460,4 +484,71 @@ test('the arms part is set after data and bridge, and heard only when it moves',
   assert.deepEqual(heard, ['data', 'bridge', 'arms']);
   session.apply((parts) => parts);
   assert.deepEqual(heard, ['data', 'bridge', 'arms']);
+});
+
+test('a next cue that shows a live candidate is never taken by a timed end, whatever an older arm named (E7.1)', async () => {
+  const r = rig({ cues: [timed('a', 2, 'next'), manual('b')] });
+  r.engine.onMarker(take('a'));
+  assert.equal(r.arms().A.next, 'b', 'armed before the cue had a selection');
+  r.page.cues = [timed('a', 2, 'next'), { ...manual('b'), selection: { v: 1, recipe: 'cands', key: ['D1', 7] } }];
+  r.engine.onProgramState('A');
+  await r.advance(2000);
+  assert.equal(r.sent.length, 0);
+  assert.deepEqual(r.notes, ['b shows a live candidate, so a timed end does not take it.']);
+  r.engine.stop();
+});
+
+test('nor one that carries typed OGraf data: its native strings are not its data (E1.2a)', async () => {
+  const r = rig({ cues: [timed('a', 2, 'next'), manual('b')] });
+  r.engine.onMarker(take('a'));
+  assert.equal(r.arms().A.next, 'b', 'armed before the cue had typed data');
+  r.page.cues = [timed('a', 2, 'next'), { ...manual('b'), typed: { v: 1, kind: 'values', standard: 'x', schema: 'y', values: {} } }];
+  r.engine.onProgramState('A');
+  await r.advance(2000);
+  assert.equal(r.sent.length, 0);
+  assert.deepEqual(r.notes, ['b has typed data, so a timed end does not take it.']);
+  r.engine.stop();
+});
+
+test('a timed end\'s Out is a press on its layer too, settled by its answer, so no correction overtakes it (E7.1)', async () => {
+  for (const [answer, outcome] of [
+    [OK, ['landed']],
+    [{ ok: false, note: 'no route', uncertain: true }, ['undo', true]],
+  ]) {
+    const r = rig({ cues: [timed('a', 2, 'out')] });
+    const presses = [];
+    r.page.selectionAired = (graphic, cueId, take, moves) => {
+      presses.push(['press', graphic, cueId, take.status, moves]);
+      return { landed: () => presses.push(['landed']), undo: (failed) => presses.push(['undo', failed?.uncertain === true]) };
+    };
+    r.page.answer = answer;
+    r.engine.onMarker(take('a'));
+    r.setLive({ A: 'a' });
+    r.engine.onProgramState('A');
+    await r.advance(2000);
+    assert.deepEqual(presses, [['press', 'A', '', 'none', true], outcome], JSON.stringify(answer));
+    r.engine.stop();
+  }
+});
+
+test('a timed end\'s Take of the next cue is a press on that layer: a live candidate it follows waits for its answer (E7.1)', async () => {
+  for (const [answer, outcome] of [
+    [OK, 'landed'],
+    [{ ok: false, note: 'no route' }, 'undo'],
+    [{ ...OK, skipped: ['B'] }, 'undo'],
+  ]) {
+    const r = rig({ cues: [timed('a', 2, 'next'), manual('b')] });
+    const presses = [];
+    r.page.selectionAired = (graphic, cueId, take, moves) => {
+      presses.push(['press', graphic, cueId, take.status, moves]);
+      return { landed: () => presses.push(['landed']), undo: () => presses.push(['undo']) };
+    };
+    r.page.answer = answer;
+    r.engine.onMarker(take('a'));
+    r.setLive({ A: 'a' });
+    r.engine.onProgramState('A');
+    await r.advance(2000);
+    assert.deepEqual(presses, [['press', 'B', 'b', 'none', true], [outcome]], JSON.stringify(answer));
+    r.engine.stop();
+  }
 });

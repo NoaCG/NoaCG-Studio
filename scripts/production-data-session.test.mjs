@@ -435,3 +435,54 @@ test('a published lease write: the page holds only the server tree its own slug 
   assert.equal(t.session.data.get().liveData.other, undefined);
   assert.equal(t.session.data.get().liveData.late, undefined);
 });
+
+test('published: a read that started earlier and answers later never puts the older tree back (E7.1)', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  void t.data.refresh();
+  assert.equal(t.answers.fetches.length, 2, 'the key\'s own read, then the refresh');
+  t.answers.fetches[1].resolve({ data: { revision: 2 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 2 });
+  t.answers.fetches[0].resolve({ data: { revision: 1 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 2 }, 'the slow read is older than the tree held');
+  void t.data.refresh();
+  t.answers.fetches[2].resolve({ data: { revision: 3 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 3 }, 'a later read still lands');
+});
+
+test('published, a poll reads the tree on its cadence until stopped; unpublished it reads nothing (E7.1)', async () => {
+  const t = setup();
+  const timers = [];
+  t.io.every = (ms, run) => {
+    const timer = { ms, run, live: true };
+    timers.push(timer);
+    return () => (timer.live = false);
+  };
+  const stopLocal = t.data.poll(5000);
+  t.data.published(null);
+  timers[0].run();
+  assert.equal(t.calls.fetched.length, 0, 'an unpublished production has no tree to read');
+  stopLocal();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  const before = t.calls.fetched.length;
+  const stop = t.data.poll(5000);
+  assert.equal(timers[1].ms, 5000);
+  timers[1].run();
+  assert.equal(t.calls.fetched.length, before + 1);
+  stop();
+  assert.equal(timers[1].live, false);
+  let wanted = false;
+  t.data.poll(5000, () => wanted);
+  timers[2].run();
+  assert.equal(t.calls.fetched.length, before + 1, 'nothing to follow: no read');
+  wanted = true;
+  timers[2].run();
+  assert.equal(t.calls.fetched.length, before + 2);
+});

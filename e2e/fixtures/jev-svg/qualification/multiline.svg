@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="500" viewBox="0 0 1100 500" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="1100" height="500" fill="#122036" />
+  <rect x="45" y="45" width="1010" height="410" fill="#243b5a" />
+  <text x="85" y="110" font-size="28">COMMUNITY NOTICE</text>
+  <text x="85" y="195" font-size="34" id="body">
+    <tspan x="85" dy="0">Doors open at 18:00</tspan>
+    <tspan x="85" dy="70">Entry from the courtyard</tspan>
+    <tspan x="85" dy="70">Step-free access on the east side</tspan>
+  </text>
+  <g id="unrelated-decoration">
+    <circle cx="1000" cy="95" r="15" fill="#e8bb60" />
+  </g>
+</svg>

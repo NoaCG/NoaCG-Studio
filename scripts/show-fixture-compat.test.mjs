@@ -1,4 +1,4 @@
-// guards: src/model/shows.ts, src/model/productionData.ts, src/control/liveData.ts, src/control/contentFormats.ts, src/control/anotherSystem.ts
+// guards: src/model/shows.ts, src/model/productionData.ts, src/control/liveData.ts, src/control/contentFormats.ts, src/control/anotherSystem.ts, src/control/sourceMapping.ts, src/control/externalSource.ts
 //
 // A PRODUCTION SAVED BY AN EARLIER BUILD STILL LOADS AND PLAYS (docs/work-specs/data-sources/spec.md
 // AC-12: "a record saved by today's build loads and plays unchanged after every phase that adds a
@@ -24,7 +24,10 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import './lib/tsResolve.mjs';
 
-const { resolveBindings } = await import('../src/model/productionData.ts');
+const data = await import('../src/model/productionData.ts');
+const { externalReadOnly, resolveBindings, sourceIdOf, sourcePaths } = data;
+const { projectSource, selectionGate } = await import('../src/control/sourceMapping.ts');
+const { readExternalRegistration } = await import('../src/control/externalSource.ts');
 const { hasLiveData } = await import('../src/control/liveData.ts');
 const { fillList, listFormatFor, starterRows } = await import('../src/control/contentFormats.ts');
 const { apiDestinations, apiOffers } = await import('../src/control/anotherSystem.ts');
@@ -169,4 +172,131 @@ test('the format adapters leave its saved list exactly as it is (C1a)', () => {
     }
   }
   assert.ok(listFormatFor(show.graphics.find((g) => g.name === 'News Strip'), 'f0'), 'the ticker field is recognised');
+});
+
+// E4.2 adds connector sources (`kind: 'external'`, paths `external.<id>.<leaf>`, a `config.v`).
+// A production as the pre-E4 build saved it, with every C0-C7 kind at once (the record above, a
+// connected Sheet, a message Sheet, both YouTube modes, a feed on the ticker and a graphic on
+// Another system; composed from the shapes those phases pinned above), loads and plays unchanged:
+// no source of it is a connector, nothing of it is read-only, and the evaluator moves none of its
+// paths. A record carrying a connector of a LATER version (v 2, with fields this build does not
+// know) still loads, keeps its last values on air, and is held read-only.
+const preE4 = () => {
+  const api = withApi();
+  return {
+    ...api,
+    sources: [
+      { id: 's1', kind: 'sheet', label: 'Guests', config: { sheetId: '1NoaCGStubSheet0000000001', gid: '0', shape: 'values' } },
+      ...withMessageSources.sources,
+      ...withFeed.sources,
+    ],
+    bindings: { ...api.bindings, 'News Strip': { f0: 'feed.f1.lines' }, Hairline: { f0: 'sheet.s1.values.name' } },
+  };
+};
+
+test('a production saved by the pre-E4 build, every C0-C7 kind at once, loads and plays unchanged (E4.2)', () => {
+  const record = preE4();
+  assert.deepEqual(showTypeErrors(record), []);
+  assert.deepEqual(record.sources.map((s) => externalReadOnly(s)), record.sources.map(() => false));
+  const live = { ...liveData, sheet: { s1: { values: { name: 'Bo Chen' } } }, feed: { f1: { lines: 'First' } } };
+  const before = resolveBindings(live, record.bindings);
+  // The evaluator writes only `external.` paths: an older production has none for it to move.
+  for (const source of record.sources) {
+    const projected = projectSource({ sourceId: source.id, payload: { name: 'X', lines: ['Y'] }, bindings: record.bindings, fieldsOf: () => null, lists: { lines: 'lines' } });
+    assert.deepEqual(projected.writes, {}, source.id);
+  }
+  assert.deepEqual(resolveBindings(live, record.bindings), before);
+  assert.equal(before.Hairline.f0, 'Bo Chen');
+  // Every connected path still names its own source, so Disconnect and pruning keep working.
+  assert.deepEqual(sourcePaths(record.bindings, 'f1').map((p) => p.path), ['feed.f1.lines']);
+  assert.equal(sourceIdOf('sheet.s1.values.name'), 's1');
+});
+
+const withConnector = (config) => ({
+  ...show,
+  sources: [{ id: 'e1', kind: 'external', label: 'Results', config }],
+  bindings: { ...show.bindings, 'News Strip': { f0: 'external.e1.parties' } },
+});
+
+test('a v 1 connector source reads as a Show and is usable; its fields follow `external.<id>.` paths (E4.2)', () => {
+  const record = withConnector({ v: 1, configRevision: 1, endpoint: 'https://results.example/r', lists: { parties: 'lines' } });
+  assert.deepEqual(showTypeErrors(record), []);
+  assert.equal(externalReadOnly(record.sources[0]), false);
+  assert.equal(readExternalRegistration(record.sources[0]).ok, true);
+  assert.deepEqual(sourcePaths(record.bindings, 'e1').map((p) => p.path), ['external.e1.parties']);
+});
+
+test('a connector source of a later version (v 2) loads, keeps its last values on air and is held read-only (E4.2)', () => {
+  const record = withConnector({ v: 2, configRevision: 4, endpoint: 'https://results.example/r', recipe: { keyed: 'candidate_id' } });
+  assert.deepEqual(showTypeErrors(record), [], 'a later version must still load');
+  assert.equal(externalReadOnly(record.sources[0]), true);
+  // A malformed record (no version) is not a later version: it stays editable, and the route refuses it.
+  assert.equal(externalReadOnly({ kind: 'external', config: { configRevision: 1 } }), false);
+  const read = readExternalRegistration(record.sources[0]);
+  assert.deepEqual([read.ok, read.readOnly], [false, true]);
+  const live = { ...liveData, external: { e1: { parties: 'KOK\t225000' } } };
+  assert.equal(resolveBindings(live, record.bindings)['News Strip'].f0, 'KOK\t225000', 'the last value stays on air');
+  assert.deepEqual(resolveBindings(live, record.bindings).Hairline, resolveBindings(liveData, show.bindings).Hairline);
+});
+
+// E5.1 adds a recipe to a connector's registration (`config.mapping`, additive optional, no
+// migration). A production saved before it (a v 1 connector with no mapping) projects exactly as
+// it did; a v 1 recipe is read; a recipe of a LATER version (v 2) still loads, keeps the last
+// values on air, makes the source read-only and evaluates nothing.
+test('a production saved before recipes projects as before; a v 1 recipe is read (E5.1)', () => {
+  const config = { v: 1, configRevision: 1, endpoint: 'https://results.example/r', lists: { parties: 'lines' } };
+  const preE5 = withConnector(config);
+  assert.deepEqual(showTypeErrors(preE5), []);
+  const payload = { parties: [{ id: 'KOK', votes: 225000 }, { id: 'SDP', votes: 215000 }] };
+  const project = (record) => {
+    const { registration } = readExternalRegistration(record.sources[0]);
+    return projectSource({ sourceId: 'e1', payload, bindings: record.bindings, fieldsOf: () => null, lists: registration.lists, mapping: registration.mapping, configRevision: registration.configRevision });
+  };
+  assert.deepEqual(project(preE5).writes, { 'external.e1.parties': 'KOK\t225000\nSDP\t215000' });
+  const mapped = withConnector({ ...config, mapping: { v: 1, sourceId: 'e1', configRevision: 1, outputs: { parties: { from: 'parties', id: 'id', sort: { by: 'votes', order: 'asc' }, columns: [{ from: 'id' }] } } } });
+  assert.deepEqual(showTypeErrors(mapped), []);
+  assert.equal(externalReadOnly(mapped.sources[0]), false);
+  assert.deepEqual(project(mapped).writes, { 'external.e1.parties': 'SDP\nKOK' });
+});
+
+test('a recipe of a later version (v 2) loads, keeps its last values on air, and evaluates nothing (E5.1)', () => {
+  const later = { v: 2, sourceId: 'e1', configRevision: 1, outputs: { parties: { from: 'parties', keyed: 'candidate_id' } } };
+  const record = withConnector({ v: 1, configRevision: 1, endpoint: 'https://results.example/r', lists: { parties: 'lines' }, mapping: later });
+  assert.deepEqual(showTypeErrors(record), [], 'a later recipe must still load');
+  assert.equal(externalReadOnly(record.sources[0]), true, 'its source is not edited, so the recipe is kept as it is');
+  const { registration } = readExternalRegistration(record.sources[0]);
+  assert.deepEqual(registration.mapping, later, 'kept byte for byte');
+  const projected = projectSource({ sourceId: 'e1', payload: { parties: ['x'] }, bindings: record.bindings, fieldsOf: () => null, lists: registration.lists, mapping: registration.mapping, configRevision: 1 });
+  assert.deepEqual([projected.writes, projected.held.readOnly], [{}, true]);
+  const live = { ...liveData, external: { e1: { parties: 'KOK\t225000' } } };
+  assert.equal(resolveBindings(live, record.bindings)['News Strip'].f0, 'KOK\t225000', 'the last value stays on air');
+});
+
+// E7.1 adds a live candidate selection (`Show.collections`, `ShowCue.selection`, additive
+// optional, each with its own `v`). A production saved before it has neither, so the read gate
+// keeps nothing and refuses nothing and it plays exactly as it did; one carrying a selection or a
+// recipe of a LATER version still loads, its cue is read-only and every byte is kept.
+test('a production saved before live candidates has none, refuses nothing and plays the same (E7.1)', () => {
+  const { selectionKeep, selectionFrozen } = data;
+  assert.deepEqual(showTypeErrors(show), []);
+  assert.equal(selectionKeep(show), null);
+  const edited = { ...show, cues: show.cues.map((c) => ({ ...c, label: `${c.label} (edited)` })) };
+  assert.equal(selectionFrozen(selectionKeep(show), edited), null);
+  for (const cue of show.cues) assert.equal(selectionGate(cue, show.collections, 'any', show.bindings).status, 'none');
+});
+
+test('a selection of a later version loads, its cue is read-only, and the write doors keep it byte for byte (E7.1)', () => {
+  const { selectionKeep, selectionFrozen, selectionReadOnly } = data;
+  const later = { v: 2, recipe: 'cands', pick: { rank: 1 } };
+  const recipe = { v: 1, id: 'cands', sourceId: 'e1', schemaRevision: 1, graphic: show.graphics[0].name, from: 'candidates', key: ['district', 'id'], fields: { f0: { from: 'name' } } };
+  const record = { ...show, collections: [recipe], cues: [{ ...show.cues[0], selection: later }, ...show.cues.slice(1)] };
+  assert.deepEqual(showTypeErrors(record), [], 'a later selection must still load');
+  assert.equal(selectionReadOnly(record.cues[0], record.collections), true);
+  assert.equal(selectionGate(record.cues[0], record.collections, show.graphics[0].name, record.bindings).status, 'read-only');
+  const kept = selectionKeep(record);
+  assert.match(selectionFrozen(kept, { ...record, cues: [{ ...record.cues[0], values: {} }, ...record.cues.slice(1)] }), /cannot change/);
+  assert.equal(selectionFrozen(kept, structuredClone(record)), null);
+  const laterRecipe = { ...record, collections: [{ v: 2, id: 'cands', anything: [1] }], cues: [{ ...show.cues[0], selection: { v: 1, recipe: 'cands', key: ['D1', 1] } }] };
+  assert.deepEqual(showTypeErrors(laterRecipe), [], 'a later recipe must still load');
+  assert.equal(selectionReadOnly(laterRecipe.cues[0], laterRecipe.collections), true);
 });

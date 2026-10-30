@@ -105,3 +105,17 @@ test('the dispatch table is closed - an unknown data verb is a 404, not a crash'
   expect(response.status()).toBe(404);
   expect((await response.json())?.error?.code).toBe('not_found');
 });
+
+// ── The trusted JSON agent's door (E4.2, `/api/data/source`): the same claim. The fenced write
+// needs a real Supabase and is e2e/configured/external-data-connector.spec.ts.
+
+test('source is POST-only, answers 401 without a key and 503 offline once a key is presented', async ({ request }) => {
+  expect((await request.get('/api/data/source')).status()).toBe(405);
+  const envelope = { v: 1, op: 'claim', sourceId: 'e1', configRevision: 1 };
+  const bare = await request.post('/api/data/source', { data: envelope });
+  expect(bare.status()).toBe(401);
+  expect((await bare.json())?.error?.code).toBe('unauthorized');
+  const offline = await request.post('/api/data/source', { headers: { authorization: 'Bearer not-a-real-key' }, data: envelope });
+  expect(offline.status()).toBe(503);
+  expect((await offline.json())?.error?.code).toBe('unavailable');
+});

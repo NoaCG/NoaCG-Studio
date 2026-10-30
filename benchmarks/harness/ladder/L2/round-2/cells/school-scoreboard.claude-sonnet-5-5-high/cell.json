@@ -1,0 +1,179 @@
+{
+  "costUnread": false,
+  "brief": "school-scoreboard",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "1ca3afa3-3f9b-4690-9b23-8853e2e6d30c",
+  "costCents": 0,
+  "notionalUsd": 1.1535841,
+  "wallSeconds": 310,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scoreboard --design sb01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scoreboard --design sb01 --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:013cf1863058ef6963e10e0d3fccd566ad23d621709897939b25610e000ea981"
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:b1cce3beb233c6dc0347a1ba0385183379a4520b808edf48fde094ed209a7670"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:0af230dd4f95eefbc7449c8bb8de8d48a15717004733d109588d17f16183bec3"
+    },
+    {
+      "command": "noacg screenshot . --event goalA --at 0.6 --background video --out ../shots/goalA-video.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --event goalA --at 1s --background video --out ../shots/goalA-video.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --event final --at 1s --background video --out ../shots/final-video.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:0af230dd4f95eefbc7449c8bb8de8d48a15717004733d109588d17f16183bec3"
+    },
+    {
+      "command": "noacg validate .",
+      "code": 0,
+      "digest": "sha256:cb5f4200451e01493f77437e6b42971f0ce021eb2f9a8897852bd065c0301bbb"
+    },
+    {
+      "command": "noacg coverage . --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:cb5f4200451e01493f77437e6b42971f0ce021eb2f9a8897852bd065c0301bbb"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:cb5f4200451e01493f77437e6b42971f0ce021eb2f9a8897852bd065c0301bbb"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-2\\cells\\school-scoreboard.claude-sonnet-5-5-high\\frames",
+    "frames": 57,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:cb5f4200451e01493f77437e6b42971f0ce021eb2f9a8897852bd065c0301bbb"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "goalA",
+      "goalB",
+      "clearFlag",
+      "final"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:cb5f4200451e01493f77437e6b42971f0ce021eb2f9a8897852bd065c0301bbb",
+    "benchValidated": "sha256:cb5f4200451e01493f77437e6b42971f0ce021eb2f9a8897852bd065c0301bbb",
+    "reviewed": "sha256:cb5f4200451e01493f77437e6b42971f0ce021eb2f9a8897852bd065c0301bbb",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 25,
+    "opened": 1,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "long-side-1-video.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-video.jpg",
+      "long-side-2-light.jpg",
+      "take-strip.jpg",
+      "event-goala-strip.jpg",
+      "event-goala-10000ms.jpg",
+      "event-goalb-strip.jpg",
+      "event-goalb-10000ms.jpg",
+      "event-clearflag-strip.jpg",
+      "event-clearflag-10000ms.jpg",
+      "event-final-strip.jpg",
+      "event-final-10000ms.jpg",
+      "update-strip.jpg",
+      "update-01500ms.jpg",
+      "out-strip.jpg",
+      "event-clearflag-after-goala-10000ms.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

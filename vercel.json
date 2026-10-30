@@ -18,6 +18,7 @@
   ],
   "rewrites": [
     { "source": "/join/:name", "destination": "/join" },
+    { "source": "/ograf/:sealed/:path*", "destination": "/api/output/assets?ograf=:sealed&path=:path*" },
     { "source": "/mcp", "destination": "/api/me/mcp" },
     { "source": "/.well-known/oauth-protected-resource/mcp", "destination": "/api/me/oauth-protected-resource" }
   ],

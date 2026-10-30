@@ -8,10 +8,15 @@ Main reconciliation: `4e067b65674a9bf0a7632430b5dd0772c03a0331`; revised for the
 
 This document is part of the [parent specification](spec.md). It owns integration of H0 and
 E1–E8. Each linked child owns its detailed contract and ACs. The baseline steps and Q's records
-retain their requirements and refactor fences. There are **31 named work packages** (22 baseline
-+ nine extensions; C1's split makes the baseline 24 phases), expanded below into **47 execution
-phases** so each fits one builder session
-and contract, implementation and real-device acceptance have explicit boundaries. The extra
+retain their requirements and refactor fences. There are **33 named work packages** (22 baseline
++ nine extensions + L1, admitted by the owner on 2026-10-24, + L2, whose first row was admitted
+on 2026-10-25 and whose three further rows the same day after the owner agreed its design as a
+whole; C1's split makes the baseline 24 phases), expanded below into **52 execution phases** (rows
+32a, 32b, 32c, 32d and 38a are the ones added on those dates; every other row keeps the number
+the project record and the parent's counts of 47 already use) so each fits one builder session
+and contract, implementation and real-device acceptance have explicit boundaries. Row IDs are
+stable labels; the table order is the admission order, so 32a and 32b run between rows 31 and 32
+(reordered 2026-10-25, `evidence/owner-decisions-2026-10-25-order.md`). The extra
 phases are not extra product scope. Friday 23 October is a progress checkpoint, never a
 completion deadline.
 
@@ -68,22 +73,27 @@ is the phase's gate; the child's full AC text is the eventual whole, met across 
 | 29 | E5.2 | [Sample-based API mapping](../playout-api-mapping/spec.md) | E5 AC-1, AC-3, AC-4 | CA | - |
 | 30 | E7.1 | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-2, AC-3 (read-only gate and resolver) | CA | - |
 | 31 | E7.2a | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-1; the selection writer | CA | - |
+| 32a | L1 | [Pinned live controls](../pinned-live-controls/spec.md) | L1 AC-1 to AC-7, AC-9, AC-10; the press-safety contract of its "What a press does" settled here, never deferred to E6 | CA | kit: the two-graphic task (AC-11) joins E8.2's kit |
+| 32b | L2.1 | [Playout adjustments](../playout-adjustments/spec.md) | L2 AC-1 to AC-4, AC-8, AC-9's renderer half (the `/output` renderer's and both PROGRAM stages' restart and reconnect), AC-10's unchanged-production part, and the export dialog's disclosure that adjustments are not carried; phase 1 only: place and size on the surfaces NoaCG owns outright, no style, no ghost view, no tween, and no receiver, overlay or bake (those are phase 1b, proposed as row 32c and not admitted) | CA | kit: the adjustment task (AC-11) joins E8.2's kit |
 | 32 | E7.2b | [Election graphics and live candidates](../playout-election-package/spec.md) | E7 AC-4 software/replay grade | CA | laptop: scratch CasparCG/Bridge + OBS |
-| 33 | E1.1 | [Typed OGraf contracts](../playout-ograf-contract/spec.md) | E1 AC-1; AC-3 and AC-4 model and read-gate parts | CA | - |
-| 34 | E6.1 | [Declared actions through Companion](../playout-companion-actions/spec.md) | E6 AC-1, AC-2, AC-3 for native actions and typed foreign descriptors | CA | - |
+| 32c | L2.1b | [Playout adjustments](../playout-adjustments/spec.md) | first the catalog sweep over `100vw`, `100vh`, `vw` and `vh` designs that decides the transform's host in a document that is the page; then L2 AC-9's receiver and export half (the hosted and relay receivers' apply and boot restoration, the exported controller's emitted records and relay rows, the html-overlay, CasparCG, SPX and OGraf bakes with a rendered parity check per target) and AC-10's unchanged-behaviour part for those targets; place and size only | CA | laptop: scratch CasparCG/Bridge + OBS walk of one exported overlay |
+| 32d | L2.2 | [Playout adjustments](../playout-adjustments/spec.md) | L2 AC-5, AC-6's per-graphic and per-cue half (the Type and Colour rows, "As designed", fonts by identity and the asset road, the composed document's handler with refit and the latest-request guard, `bakeAppearance` for style), AC-10's imported-SVG and agent-made lines; depends on phase 0 items 1 and 2 (latin-ext faces, real weights) landed through the ordinary merge flow | CA | - |
+| 33 | E1.1 | [Typed OGraf contracts](../playout-ograf-contract/spec.md) | E1 AC-1; AC-3 and AC-4 model and read-gate parts; a pinned native block never carries a typed envelope (L1); the `update` message's optional `appearance` field is a native wire member outside E1's typed envelope and the read gate preserves it (L2.1) | CA | - |
+| 34 | E6.1 | [Declared actions through Companion](../playout-companion-actions/spec.md) | E6 AC-1, AC-2, AC-3 for native actions and typed foreign descriptors; a native action's target kind is the pool graphic resolved by L1's `liveSelection`, with E6's snapshot, lease and capability checks retained (L1 AC-8) | CA | - |
 | 35 | E1.2a | [Typed OGraf contracts](../playout-ograf-contract/spec.md) | E1 AC-2 persistence/binding/command-log part; AC-3 wire; AC-4 runtime | CA | - |
-| 36 | E1.2b | [Typed OGraf contracts](../playout-ograf-contract/spec.md) | E1 AC-2 output replay/baseline/renderer part; AC-3 mixed-version outputs | CA | - |
+| 36 | E1.2b | [Typed OGraf contracts](../playout-ograf-contract/spec.md) | E1 AC-2 output replay/baseline/renderer part, keeping the renderer's last applied appearance through replay (L2.1 rule 4); AC-3 mixed-version outputs | CA | - |
 | 37 | E2.1 | [Typed OGraf controls](../playout-ograf-controls/spec.md) | E2 AC-1, AC-4 | CA | - |
-| 38 | E2.2 | [Typed OGraf controls](../playout-ograf-controls/spec.md) | E2 AC-2, AC-3, AC-4 | CA | - |
+| 38 | E2.2 | [Typed OGraf controls](../playout-ograf-controls/spec.md) | E2 AC-2, AC-3, AC-4; pinned program-instance controls, their argument forms and instance replacement tested explicitly (L1) | CA | - |
+| 38a | L2.3 | [Playout adjustments](../playout-adjustments/spec.md) | L2 AC-6's production-look half (On/Off, per-property reach, exceptions and "Clear exceptions", "Send to on-air graphics" with press-time capture and partial completion), AC-7, the Adjust block on the hosted page and phone; AC-10's foreign case is taken after E3.2b | CA | kit: AC-11's look and wrong-scope tasks join E8.2's kit |
 | 39 | E3.1 | [Foreign OGraf in the rundown](../playout-ograf-rundown/spec.md) | E3 AC-1 | CA | - |
 | 40 | E3.2a | [Foreign OGraf in the rundown](../playout-ograf-rundown/spec.md) | E3 AC-2 in configured output tests | CA | laptop: scratch CasparCG/Bridge + OBS |
-| 41 | E3.2b | [Foreign OGraf in the rundown](../playout-ograf-rundown/spec.md) | E3 AC-3 | CA | - |
-| 42 | E6.2 | [Declared actions through Companion](../playout-companion-actions/spec.md) | E6 AC-1 to AC-3 through the module, native and foreign | CA | kit: custom and foreign buttons |
-| 43 | E8.1a | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-1 software reconciliation; AC-2 cross-feature cases | CA | - |
+| 41 | E3.2b | [Foreign OGraf in the rundown](../playout-ograf-rundown/spec.md) | E3 AC-3; a foreign frame takes the frame adjust and nothing else, L2 AC-10's foreign case | CA | - |
+| 42 | E6.2 | [Declared actions through Companion](../playout-companion-actions/spec.md) | E6 AC-1 to AC-3 through the module, native and foreign; presets for the pinned graphics' live controls, pins as preset material only (L1 AC-8) | CA | kit: custom and foreign buttons |
+| 43 | E8.1a | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-1 software reconciliation; AC-2 cross-feature cases, including a pinned foreign graphic (E3), a pinned graphic bound to a source (C1), an adjusted cue bound to a source and a pinned adjusted graphic (L2.1), an activated look over a pinned graphic and a bound cue with a cue-level typeface (L2.2, L2.3) | CA | - |
 | 44 | E8.1b | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-2 60-minute endurance in `endurance.yml` | CA | - |
-| 45 | E8.2 | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-1 agent evidence complete, AC-3 kit, AC-4 runbook and capability matrix | CA | the owner runs the kit |
+| 45 | E8.2 | [Final expanded acceptance](../playout-expanded-acceptance/spec.md) | E8 AC-1 agent evidence complete, AC-3 kit (with L1 AC-11's two-graphic task and L2 AC-11's adjustment task), AC-4 runbook and capability matrix | CA | the owner runs the kit |
 | 46 | H0.2 | [Companion qualification](../playout-companion-qualification/spec.md) | H0 AC-1 owner's guide walk, AC-4; E6 AC-4; the operator's buttons on the deck | OW | - |
-| 47 | S | [parent](spec.md) | parent AC-14 real outputs; data AC-16 actual outputs; E3 AC-2, E7 AC-4 and E8 AC-3's physical part (the 30-minute dress rehearsal) on the real studio; E8 AC-1's final reconciliation including H0.2's and S's receipts | OW | - |
+| 47 | S | [parent](spec.md) | parent AC-14 real outputs; data AC-16 actual outputs; E3 AC-2, E7 AC-4 and E8 AC-3's physical part (the 30-minute dress rehearsal, with L1 AC-11's quiz-and-score case and L2 AC-11's adjustment case) on the real studio; E8 AC-1's final reconciliation including H0.2's and S's receipts | OW | - |
 
 A child phase can satisfy only its stated subset; passing H0.1 or E1.1 is not a pass for the
 whole child. Baseline 14 closes the baseline in software, E8.2 the expanded programme, and the
@@ -119,6 +129,50 @@ never authorizes substituting simulated evidence there.
   every new graphic action, native and foreign, through the shared dispatcher, so the module's
   protocol is bumped once and the deck requalified once (H0.2). E6.1 runs after E1.1 and types its argument descriptors with E1's model; E6.2 runs after
   E3.2 so foreign actions are invoked on real foreign rundown cues. There is no dependency cycle.
+- **Pinned live controls (L1, admitted 2026-10-24):** a production pins pool graphics in its
+  control profile and every operator surface draws a LIVE region of one live block per pinned
+  graphic, each pressing through the one dispatcher with a selection built for its own graphic
+  (`docs/work-specs/pinned-live-controls/spec.md`). L1 runs after E7.2a and before E7.2b (reordered 2026-10-25) and
+  settles native press safety itself: the on-air cue captured at the press and checked after
+  every wait, increments serialized per graphic from the last sent figure, the cue written on
+  acceptance. E1 keeps the native/typed boundary; E2 tests pinned program-instance controls and
+  instance replacement; E6 resolves a native action's target through L1's `liveSelection`, keeps
+  its own snapshot, lease and capability checks and treats pins as preset material only. The
+  one-press pick group is a rendering of an existing arranged control; ARRANGE, More and the
+  hidden-choice quiz flow are preserved. Rows after 32a keep their numbers.
+- **Playout adjustments, place and size (L2.1, admitted 2026-10-25):** a cue carries an optional
+  adjust record (place preset, nudge, scale, anchor, measured box) inheriting a pool graphic's
+  default; the production page resolves it against the box PREVIEW measured into an applied
+  appearance, Take and Update carry it as an optional versioned `appearance` field on the
+  existing `update` message, the output applies it as a transform on the NoaCG-owned per-graphic
+  frame, and every receiver restores the last applied appearance
+  (`docs/work-specs/playout-adjustments/spec.md`). L2.1 runs after L1 and before E7.2b (reordered 2026-10-25) and owns
+  that one phase on the surfaces NoaCG owns outright (the `/output` stage, PROGRAM on both
+  pages, hosted staging and the hosted page applying): no style variables, no production look,
+  no ghost view, no tween, and no change to a document that is the page (the hosted and relay
+  receivers, the exported controller's overlays, the html-overlay, CasparCG, SPX and OGraf
+  bakes), whose transform host a catalog sweep over `vw`/`vh` designs decides first; those are
+  later phases with their own admission (gate narrowed 2026-10-25,
+  `evidence/owner-decisions-2026-10-25-l2-gate.md`). Its four rules bind the wire: a partial update without
+  the field retains the applied appearance; Take and a full Update carry the complete effective
+  appearance including an explicit identity; applying replaces, never multiplies; recovery
+  restores the last applied, never newer preparation. File ownership is sequential: L1 owns the
+  cue editor, verbs and exported controller before it; E1 the show record's typed envelope, wire
+  and recovery after it; E3 the stage's foreign frames and recovery; E7 cue metadata; L2.1's
+  receipt records its exact touched-file fence against the main of its day. Rows after 32b keep
+  their numbers.
+- **Playout adjustments, the remaining phases (L2.1b, L2.2, L2.3; admitted 2026-10-25 after the
+  owner agreed the design as a whole):** row 32c (L2.1b) carries the frame adjust into documents
+  that are the page once a catalog sweep has decided the transform's host, so every receiver,
+  the exported controller and every bake restore and reproduce the same applied appearance; row
+  32d (L2.2) adds type and colour as `:root` variable overrides in the brand vocabulary, fonts
+  by identity with a declared asset road, and the same bake for style, adding no wire member
+  since the appearance field exists from L2.1; row 38a (L2.3) adds the explicitly activated
+  production look, "Send to on-air graphics" as appearance-only updates with press-time capture,
+  and the Adjust block on the hosted page and phone, after E2.2 because the bulk send and the
+  hosted controls sit on the dispatch and control seams E2 settles. E3 takes the foreign-frame
+  case after E3.2b; E8.1a takes the look and typeface cross-feature cases; the ledger
+  `docs/work-specs/playout-adjustments/work.json` is agreed. Rows after 38a keep their numbers.
 - **Type boundary:** E1 adds explicit foreign typed envelopes while retaining existing native
   wires and source-backed editor authority. Old-client refusal and saved-show compatibility
   tests precede broad foreign support. E3 owns library/package identity and actual rundown use.
@@ -219,4 +273,4 @@ options.
 
 The final report compares real task capability, not vendor feature counts: where values originate,
 what each action affects, and what output is actually confirmed. An accepted baseline is useful
-while extensions remain open; only all 47 phases, through S, complete the expanded run.
+while extensions remain open; only all 52 phases, through S, complete the expanded run.

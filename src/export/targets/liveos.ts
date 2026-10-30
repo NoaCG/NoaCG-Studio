@@ -62,10 +62,10 @@ export const liveosTarget: ExportTarget = {
   description:
     'An OGraf package for the LiveOS HTML5 graphics engine (OGraf-compliant) — fields become LiveOS operator inputs, play/continue/out drive the template.',
   successMessage: '✓ Exported. Import the unzipped folder into LiveOS (see README.md).',
-  async build(template) {
+  async build(template, ctx) {
     const zip = new JSZip();
     const root = zip.folder(slug(template.name))!;
-    await addOgrafPackage(root, template, 'live');
+    await addOgrafPackage(root, template, 'live', { appearance: ctx?.appearance });
     root.file('README.md', liveosReadme(template));
     return zip;
   },

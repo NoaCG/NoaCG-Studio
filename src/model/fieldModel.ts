@@ -63,6 +63,10 @@ export interface FieldDescriptor {
   min?: number;
   max?: number;
   step?: number;
+  /** A field a foreign OGraf manifest declares (E1.2a): a source's value reaches it as the JSON it
+   *  is (control/sourceMapping.ts `projectSource`), never as text. Only the source route's
+   *  descriptors carry it, read from the published panel (api/_lib/dataTick.ts `descriptorsOf`). */
+  typed?: true;
 }
 
 /** Clamp a number to a descriptor's advisory bounds. */

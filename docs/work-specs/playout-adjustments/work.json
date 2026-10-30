@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "77440d3ac3b74bfd5d26c871e871ca92a53ea7a32ab7242c1ea0ccde791c05f1",
+  "authority": {
+    "status": "agreed",
+    "source": "Owner, 2026-10-25: \"I agree the playout-adjustments design as a whole as revised. Once PR #1709 and the two-rectangle follow-up have landed, move the ledger to agreed and prepare the admission of row 32c (phase 1b), row 32d (phase 2) and row 38a (phase 3) as one docs-only change, the way L2.1 was admitted.\" Preceded by the three decisions of 2026-10-24 recorded in the spec under Owner decisions, the research brief, and three independent second opinions (2026-10-24 and 2026-10-25) whose corrections are folded into the spec. Agreement authorizes the design and its proposed placement; implementation waits for the coordinator to admit each row (32b is admitted), and nothing here edits the run ledger."
+  },
+  "review": null
+}

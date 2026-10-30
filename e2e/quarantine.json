@@ -2,46 +2,30 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/configured/agent-access.spec.ts": {
-      "since": "2026-10-24",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40060302767"
-    },
     "e2e/configured/late-send-abandoned.spec.ts": {
-      "since": "2026-10-23",
-      "count": 14,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39913149457"
+      "since": "2026-10-28",
+      "count": 16,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40763025050"
     },
-    "e2e/configured/shared-lab-computer.spec.ts": {
-      "since": "2026-10-23",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40017992325"
-    },
-    "e2e/import-svg.spec.ts": {
-      "since": "2026-10-23",
-      "count": 3,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39949920559"
-    },
-    "e2e/production-chat-intake.spec.ts": {
-      "since": "2026-10-22",
+    "e2e/editor-transform-qualification.spec.ts": {
+      "since": "2026-10-30",
       "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39763463821"
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41027970852"
     },
-    "e2e/rundown-history.spec.ts": {
-      "since": "2026-10-21",
+    "e2e/publish-output-setup.spec.ts": {
+      "since": "2026-10-28",
       "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39549063877"
-    },
-    "e2e/wizard-shell.spec.ts": {
-      "since": "2026-10-23",
-      "count": 5,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/39964759151"
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40765654275"
     }
   },
   "released": {
     "e2e/configured/account.spec.ts": {
       "count": 5,
       "last": "2026-10-19"
+    },
+    "e2e/configured/agent-access.spec.ts": {
+      "count": 2,
+      "last": "2026-10-25"
     },
     "e2e/configured/audience-live.spec.ts": {
       "count": 1,
@@ -67,6 +51,10 @@
       "count": 1,
       "last": "2026-10-19"
     },
+    "e2e/configured/homebase.spec.ts": {
+      "count": 1,
+      "last": "2026-10-25"
+    },
     "e2e/configured/hosted-reveal-after-reload.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
@@ -84,12 +72,16 @@
       "last": "2026-10-22"
     },
     "e2e/configured/production-data-key.spec.ts": {
-      "count": 4,
-      "last": "2026-10-23"
+      "count": 5,
+      "last": "2026-10-25"
     },
     "e2e/configured/publish-output-default.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
+    },
+    "e2e/configured/shared-lab-computer.spec.ts": {
+      "count": 2,
+      "last": "2026-10-25"
     },
     "e2e/configured/sync-one-pass-per-edit.spec.ts": {
       "count": 1,
@@ -116,8 +108,8 @@
       "last": "2026-10-11"
     },
     "e2e/editor-canvas-transforms.spec.ts": {
-      "count": 1,
-      "last": "2026-10-04"
+      "count": 2,
+      "last": "2026-10-28"
     },
     "e2e/editor-foundation.spec.ts": {
       "count": 3,
@@ -151,6 +143,10 @@
       "count": 1,
       "last": "2026-10-18"
     },
+    "e2e/import-svg.spec.ts": {
+      "count": 4,
+      "last": "2026-10-29"
+    },
     "e2e/layout.spec.ts": {
       "count": 1,
       "last": "2026-10-03"
@@ -163,9 +159,17 @@
       "count": 1,
       "last": "2026-10-04"
     },
-    "e2e/publish-output-setup.spec.ts": {
-      "count": 1,
-      "last": "2026-10-18"
+    "e2e/production-chat-intake.spec.ts": {
+      "count": 2,
+      "last": "2026-10-25"
+    },
+    "e2e/rundown-history.spec.ts": {
+      "count": 3,
+      "last": "2026-10-30"
+    },
+    "e2e/wizard-shell.spec.ts": {
+      "count": 5,
+      "last": "2026-10-25"
     }
   }
 }

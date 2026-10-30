@@ -13,9 +13,11 @@
 // imports their SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out.
 // downloads.spec.ts rides along because it checks the committed zip still holds these files.
 // covers: docs/tutorials/svg-examples/**
+// covers: public/docs/examples/svg-examples/**
 // covers: src/components/home/CueActions.tsx
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoExistingProduction, intoProduction } from './_svg-import';
 import { settleDurableWrites } from './_durable';
@@ -153,11 +155,10 @@ test('the seven SVG examples import with their fields and moments and run from o
   // ── Quiz: key B, take, the contestant picks B, lock, reveal. ──
   await selectCue(page, 'Quiz');
   await page.getByTestId('cue-field-f5-opt-B').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
   const quiz = air(page, 'Quiz');
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await expect(quiz.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await shot(page, 'quiz-selected');
   await page.getByRole('button', { name: /Lock it in/ }).click();
@@ -224,52 +225,225 @@ test('the seven SVG examples import with their fields and moments and run from o
   await shot(page, 'ticker-updated', 1_000);
   await page.getByTestId('verb-out').click();
 
-  // ── End credits: the Heading, ONE Credits field and the Scroll speed, never a field per name. ──
+  // The new credits sample scrolls its Illustrator artwork, with only speed exposed on air.
   await selectCue(page, 'End credits');
-  const credits = page.getByTestId('cue-field-f1');
-  // The default is the list drawn in the .ai, line for line, the director and the producer last,
-  // and the gap before the closing line arrives as an empty line.
-  await expect(page.getByTestId('cue-field-f0')).toHaveValue('CREDITS');
-  await expect(credits).toHaveValue(/^Host:\nMaija Meikäläinen\nGuests:\nVille Virtanen\nAino Aalto\nCamera:\n/);
-  await expect(credits).toHaveValue(/Director:\nAnna Anttila\nProducer:\nMika Mäkelä\n\nThe Weekly Show 2026$/);
-  await expect(page.getByTestId('cue-field-f2')).toHaveValue('100');
-  await expect(page.getByTestId('cue-field-f3')).toHaveCount(0);
+  await expect(page.getByTestId('cue-field-f0')).toHaveCount(0);
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('100');
+  await expect(page.getByTestId('cue-field-f2')).toHaveCount(0);
   await shot(page, 'credits-cue');
 
   await page.getByTestId('verb-take').click();
   const roll = air(page, 'End credits');
-  const titles = roll.locator('.imported-design-credits-rows tspan[data-noacg-credits="title"]');
-  const names = roll.locator('.imported-design-credits-rows tspan[data-noacg-credits="name"]');
-  // Fourteen titles, each in the sample's title look; seventeen names and the closing line.
-  await expect(titles).toHaveCount(14);
-  await expect(titles.first()).toHaveText('Host:');
-  await expect(titles.last()).toHaveText('Producer:');
-  await expect(names).toHaveCount(18);
-  await expect(names.first()).toHaveText('Maija Meikäläinen');
-  await expect(names.last()).toHaveText('The Weekly Show 2026');
-  const titleClass = await titles.first().getAttribute('class');
-  expect(titleClass, 'a title row wears the sample title line look').toBeTruthy();
-  expect(await names.first().getAttribute('class')).not.toBe(titleClass);
-
-  // The roll: inside the Credits box, bottom to top, in about thirty seconds at Scroll speed 100.
-  const last = await roll
-    .locator('.imported-design-credits-rows')
-    .evaluate(() => (window as unknown as { noacgCreditsLast: { duration: number; boxed: boolean; rows: number } }).noacgCreditsLast);
-  console.log(`svg examples credits roll: ${last.rows} rows, ${last.duration.toFixed(1)} s`);
-  expect(last.boxed).toBe(true);
-  expect(last.rows).toBe(32);
-  expect(last.duration).toBeGreaterThan(26);
-  expect(last.duration).toBeLessThan(34);
+  const artwork = roll.locator('.imported-design-credits');
+  await expect(artwork).toContainText('THE WEEKLY SHOW');
+  await expect(artwork).toContainText('Maija Meikäläinen');
+  await expect(artwork).toContainText('The Weekly Show 2026');
+  await expect(roll.locator('.imported-design-credits-rows')).toHaveCount(0);
+  expect(await artwork.evaluate((el) => (el as unknown as SVGGraphicsElement).getBBox().height)).toBeGreaterThan(1080);
+  await expect.poll(() => artwork.evaluate(() => !!(window as unknown as { noacgCreditsLast: unknown }).noacgCreditsLast)).toBe(true);
+  const last = await artwork.evaluate(() => (window as unknown as { noacgCreditsLast: { artwork: boolean; startY: number; endY: number; duration: number; boxed: boolean } }).noacgCreditsLast);
+  expect(last.artwork).toBe(true);
+  expect(last.boxed).toBe(false);
+  expect(last.startY).toBeGreaterThan(last.endY);
+  expect(last.duration).toBeGreaterThan(10);
+  expect(last.duration).toBeLessThan(60);
   const progress = () =>
-    roll
-      .locator('.imported-design-credits-rows')
-      .evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
+    artwork.evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
   await shot(page, 'credits-rolling-early', 4_000);
   await shot(page, 'credits-rolling-mid', 10_000);
-  // Rolled to the end: the tween finishes and the box is empty again.
-  await expect.poll(progress, { timeout: 40_000 }).toBe(1);
+  // The entire original text has left the top, including the paragraphs below the artboard.
+  await expect.poll(progress, { timeout: 65_000 }).toBe(1);
+  expect(await artwork.evaluate((el) => {
+    const frame = el.closest('svg')!.getBoundingClientRect();
+    return el.getBoundingClientRect().bottom - frame.top;
+  })).toBeLessThanOrEqual(1);
   await shot(page, 'credits-rolled-out');
   await page.getByTestId('verb-out').click();
 
   expect(errors).toEqual([]);
 });
+
+// Every advertised behavior also runs through its own imported Illustrator export.
+interface Example { slug: string; name: string; recipe: string | null }
+const examples = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-examples/examples.json', import.meta.url), 'utf8')) as Example[];
+const selection: Record<string, string> = { vote: 'poll', countdown: 'timer' };
+const role = (air: FrameLocator, name: string) => air.locator(`[data-noacg-role~="${name}"]`);
+async function fieldLayer(air: FrameLocator, name: string, row: string) {
+  const id = await air.locator('svg').first().evaluate((_, pick) =>
+    (window as unknown as { noacgFieldFor(role: string, key: string): string | null }).noacgFieldFor(pick.name, pick.row), { name, row });
+  expect(id, `${name}/${row} binds an artwork field`).toMatch(/^f\d+$/);
+  return air.locator(`[id="${id}"]`);
+}
+
+async function fill(page: Page, air: FrameLocator, title: string, value: string) {
+  const field = await air.locator('svg').first().evaluate((_, name) => {
+    const definition = (window as unknown as { SPXGCTemplateDefinition: { DataFields: { field: string; title: string }[] } }).SPXGCTemplateDefinition;
+    return definition.DataFields.find((entry) => entry.title === name)?.field;
+  }, title);
+  expect(field, `the operator has a ${title} field`).toBeTruthy();
+  await page.getByTestId(`cue-field-${field}`).fill(value);
+}
+
+test('the advertised behavior inventory equals the live import registry', async ({ page, request }) => {
+  await page.goto('/app');
+  const registered = await page.evaluate(async () => (await import('/src/templates/behaviours/registry.ts')).BEHAVIOUR_RECIPES.map((entry) => entry.id));
+  expect(examples.flatMap((entry) => entry.recipe ? [entry.recipe] : []).sort()).toEqual(registered.sort());
+  for (const entry of examples) {
+    const response = await request.get(`/docs/examples/svg-examples/${entry.slug}.svg`);
+    expect(response.status(), entry.slug).toBe(200);
+    expect((await response.text()).replace(/\r\n/g, '\n')).toBe(readFileSync(new URL(`../docs/tutorials/svg-examples/SVG/${entry.slug}.svg`, import.meta.url), 'utf8').replace(/\r\n/g, '\n'));
+  }
+});
+
+for (const example of examples.filter((entry) => entry.recipe)) {
+  test(`${example.name}: its Illustrator export imports and its controls change the output`, async ({ page }, testInfo) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto('/app');
+    await dropSvg(page, fileURLToPath(new URL(`../docs/tutorials/svg-examples/SVG/${example.slug}.svg`, import.meta.url)));
+    if (example.recipe === 'alert') await page.getByTestId('map-svg-behaviour-kind').selectOption('alert');
+    if (example.recipe === 'switch' || example.recipe === 'choice') {
+      const extras = page.getByTestId('map-svg-extras');
+      await expect(extras).toBeVisible();
+      await expect(extras.locator(example.recipe === 'switch' ? 'input[value="Sponsor"]' : 'input[value="Status"]')).toHaveCount(example.recipe === 'switch' ? 1 : 3);
+    } else {
+      await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(selection[example.recipe!] ?? example.recipe!);
+      await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+    }
+    if (example.recipe === 'credits') {
+      await expect(page.locator('.wz-stage').first()).not.toHaveAttribute('data-doc-pending', '1');
+      await expect(page.locator('.wz-stage').first()).toHaveAttribute('data-doc-rev', /\d/);
+      await expect(page.getByTestId('map-svg-why-fields').locator('..')).toContainText('0 editable, 1 artwork');
+      const previewText = page.frameLocator('.wz-stage iframe').locator('.imported-design-credits');
+      await expect.poll(() => previewText.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+      // Document an actual frame within the roll. At its initial boundary the text's bounds
+      // can intersect by a subpixel while every glyph remains below the visible output.
+      await previewText.evaluate(() => {
+        const tween = (window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void } }).noacgCreditsTween;
+        tween.pause();
+        tween.progress(0.25);
+      });
+      await expect.poll(() => previewText.locator('tspan').first().evaluate((el) => {
+        const bounds = el.getBoundingClientRect();
+        const frame = document.body.getBoundingClientRect();
+        const root = document.querySelector('.imported-design')!;
+        return getComputedStyle(el).visibility === 'visible' && Number(getComputedStyle(root).opacity) > 0.5 && bounds.top >= frame.top && bounds.bottom <= frame.bottom;
+      })).toBe(true);
+      await testInfo.attach('Credits import fields', { body: await page.screenshot(), contentType: 'image/png' });
+    }
+    await intoProduction(page, example.name, `${example.name} qualification`);
+    await settleDurableWrites(page);
+    await page.getByTestId('verb-take').click();
+    const air = page.frameLocator('[data-testid="program-stage"] iframe');
+    await expect(air.locator('svg').first()).toBeVisible();
+
+    switch (example.recipe) {
+      case 'quiz':
+        await page.getByTestId('cue-pick-select-B').click();
+        await expect(role(air, 'answer.selected/B')).toHaveClass(/imported-design-on/);
+        await page.getByTestId('cue-action-lock').click();
+        await expect(role(air, 'locked')).toHaveClass(/imported-design-on/);
+        break;
+      case 'score':
+        await page.getByTestId('cue-action-score1').click();
+        await expect(await fieldLayer(air, 'score', '1')).toHaveText('1');
+        break;
+      case 'countdown':
+        await page.getByTestId('cue-action-pause').click();
+        await expect(role(air, 'paused')).toHaveClass(/imported-design-on/);
+        await page.getByTestId('cue-action-start').click();
+        await expect(role(air, 'paused')).not.toHaveClass(/imported-design-on/);
+        break;
+      case 'ranking': {
+        const competitor = await fieldLayer(air, 'competitor', '3');
+        const leader = await fieldLayer(air, 'competitor', '1');
+        const before = await competitor.evaluate((el) => el.getBoundingClientRect().top);
+        const firstPlace = await leader.evaluate((el) => el.getBoundingClientRect().top);
+        expect(before).toBeGreaterThan(firstPlace + 1);
+        await fill(page, air, 'Points 3', '99');
+        await page.getByTestId('verb-update').click();
+        await expect.poll(() => competitor.evaluate((el) => el.getBoundingClientRect().top)).toBeCloseTo(firstPlace, 0);
+        break;
+      }
+      case 'vote':
+        await fill(page, air, 'Options', 'Coast | 3\nForest | 1\nCity | 0');
+        await page.getByTestId('verb-update').click();
+        await page.getByTestId('cue-action-result').click();
+        await expect(role(air, 'percent/1')).toHaveText('75%');
+        break;
+      case 'meter':
+        await fill(page, air, 'Current', '25');
+        await fill(page, air, 'Target', '100');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'percent')).toHaveText('25%');
+        break;
+      case 'alert':
+        await expect(air.locator('.imported-design')).not.toHaveCSS('opacity', '0');
+        await expect(air.locator('.imported-design')).toHaveCSS('opacity', '0', { timeout: 20_000 });
+        break;
+      case 'survey':
+        await fill(page, air, 'Answers', 'Clothes | 40\nToothbrush | 30\nCamera | 20');
+        await page.getByTestId('verb-update').click();
+        await page.getByTestId('cue-action-reveal1').click();
+        await expect(role(air, 'answer/1')).toHaveText('Clothes');
+        await expect(role(air, 'answer/1')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'total')).toHaveText('40');
+        break;
+      case 'list':
+        await fill(page, air, 'Entries', 'Coast\nForest\nCity');
+        await page.getByTestId('verb-update').click();
+        await page.getByTestId('verb-next').click();
+        await expect(role(air, 'item/3')).toHaveText('City');
+        await expect(role(air, 'item/3')).toHaveClass(/imported-design-on/);
+        break;
+      case 'lineup':
+        await page.getByTestId('cue-action-nextGuest').click();
+        await expect(role(air, 'guest.now/1')).toHaveClass(/imported-design-on/);
+        await page.getByTestId('cue-action-nextGuest').click();
+        await expect(role(air, 'guest.done/1')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'guest.now/2')).toHaveClass(/imported-design-on/);
+        break;
+      case 'puzzle':
+        await fill(page, air, 'Puzzle', 'BROADCAST');
+        await fill(page, air, 'Guess', 'B');
+        await page.getByTestId('verb-update').click();
+        await page.getByTestId('cue-action-revealLetter').click();
+        await expect(role(air, 'tile/1')).toHaveText('B');
+        await expect(role(air, 'tile/1')).toHaveClass(/imported-design-on/);
+        await page.getByTestId('cue-action-solve').click();
+        await expect(role(air, 'tile/2')).toHaveClass(/imported-design-on/);
+        break;
+      case 'reveal':
+        await fill(page, air, 'The reveal', '2400');
+        await page.getByTestId('verb-update').click();
+        await expect(role(air, 'secret')).not.toHaveClass(/imported-design-on/);
+        await page.getByTestId('cue-action-reveal').click();
+        await expect(role(air, 'secret')).toHaveText('2400');
+        await expect(role(air, 'secret')).toHaveClass(/imported-design-on/);
+        break;
+      case 'bingo':
+        await fill(page, air, 'Number to call', '7');
+        await page.getByTestId('verb-update').click();
+        await page.getByTestId('cue-action-call').click();
+        await expect(role(air, 'called/7')).toHaveClass(/imported-design-on/);
+        await expect(role(air, 'latest')).toHaveText('7');
+        break;
+      case 'credits':
+        await expect(air.locator('.imported-design-credits')).toContainText('The Weekly Show 2026');
+        await expect.poll(() => air.locator('.imported-design-credits').evaluate(() => (window as unknown as { noacgCreditsTween?: { progress(): number } }).noacgCreditsTween?.progress() ?? 0)).toBeGreaterThan(0);
+        break;
+      case 'switch':
+        await page.getByRole('button', { name: /Show Sponsor/ }).click();
+        await expect(air.locator('[data-noacg-role*="switch.sponsor"]')).toHaveClass(/imported-design-on/);
+        await page.getByRole('button', { name: /Hide Sponsor/ }).click();
+        await expect(air.locator('[data-noacg-role*="switch.sponsor"]')).not.toHaveClass(/imported-design-on/);
+        break;
+      case 'choice':
+        await page.getByRole('button', { name: /Replay/ }).click();
+        await expect(role(air, 'choice.status.option/REPLAY')).toHaveClass(/imported-design-on/);
+        break;
+    }
+    if (example.recipe !== 'alert') await page.getByTestId('verb-out').click();
+    expect(errors).toEqual([]);
+  });
+}

@@ -7,3 +7,5 @@ Owner ruling 2026-10-09 (docs/work-specs/agent-lifecycle/spec.md, points 7 to 9,
 Why a rule rather than a fix, a mechanism or a check: No script can observe whether a session asks a decision or files it for later, and every session verifies, so the always-loaded verify rule is replaced rather than a second rule added; the procedure itself lives in .agent-workflows/verify.md step 5.
 
 Owner approval 2026-10-16: issue #1301 comment 6223002051 approves measured cloud depth selected at the executing worker, preserving local restrictions and authoritative CI. Canonical verify/cloud-delegate procedures hold numerical budgets and provider limitations; root instructions route both tools there.
+
+Owner ruling 2026-10-26, during the SVG credits replacement: "It's always okay to work locally, so we need to update the rule." Local implementation, review and targeted verification therefore need no cloud availability or separate exception. Cloud delegation remains available when useful. Existing local resource limits, targeted-check guards, authoritative full Actions checks and the merge queue remain binding.

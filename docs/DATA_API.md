@@ -47,11 +47,10 @@ Authorization: Bearer <data key>
   VERBS, and it prejudged the read-back an integrator legitimately needs after a restart -
   `docs/PRODUCTION_DATA_PLAN.md` §7. The invariant above is the one that actually matters, and a
   read endpoint is compatible with it.)
-- **Rotation / revocation** (owner-side): unpublishing and re-publishing the production mints
-  a fresh key (the four viewer/operator URLs deliberately survive that; the data key
-  deliberately does not). The owner can also overwrite or clear the key directly on the row -
-  a cleared key (`NULL`) switches ingest off for that production while everything else keeps
-  running.
+- **Rotation / revocation** (owner-side): overwrite or clear the key directly on the row - a
+  cleared key (`NULL`) switches ingest off for that production while everything else keeps
+  running. The production page has no unpublish control; its published row goes, key included,
+  only when the production is deleted.
 
 ## Write production data: `PATCH /api/data/patch`
 
@@ -194,6 +193,114 @@ node scripts/data-sample-sender.mjs --example another-system.json --input script
   show rather than being replaced by half a report.
 - `--dry-run` prints the body and sends nothing. The key is read from `NOACG_DATA_KEY` and never
   printed. Point `--address` elsewhere for a local stack.
+
+## A trusted JSON agent: `POST /api/data/source`
+
+For a provider NoaCG should READ rather than be pushed by: an HTTPS address that answers JSON,
+optionally behind a bearer credential. The agent (`scripts/external-data-connector.mjs`) runs on a
+machine you trust, never in the browser and never as a NoaCG function: it reads the provider,
+judges each answer (newer, unchanged, older, malformed) and hands it to this route with the data
+key. The production evaluates it with the same rules as a Sheet (`src/control/sourceMapping.ts`)
+and applies it through the same writer as `/patch`, so Pause, the budget and operator precedence
+are the ones above. It never takes, continues, resets or clears a graphic.
+
+**Registering the source.** The production lists it in its sources (`Show.sources`) as
+`{id, kind: "external", label, config: {v: 1, configRevision, endpoint, lists}}` and binds its
+fields to `external.<id>.<leaf>`: `external.e1.status` reads `status` from the answer, and a list
+(`external.e1.candidates`) goes through the list adapter its leaf names in `lists` (`lines`,
+`schedule` or `credits`). A record is one row of its values in order; an empty list clears the
+field; anything else (an object, null, a list with no adapter) keeps the field as it is. A live
+candidates' collection (a recipe in the production's `collections`, `docs/work-specs/
+playout-election-package/spec.md`) is the exception no field binds: the route writes its leaf,
+`external.<id>.<from>`, as the JSON text of the object the answer holds there (`{schemaRevision,
+revision, items}`, one revision whole; migration 0102). It appends no update row. The
+election rehearsal's files are `docs/work-specs/playout-election-package/replay-source.json` and
+`replay-agent.json`. The production's record is non-secret: never a credential, and never a local destination (`mode`,
+`caFile`), which only the agent's own file may name.
+
+**Install and run** (the steps the configured walk and the phase receipt follow):
+
+1. On the machine: Node 22 or later and a clone of this repository (`git clone`). The agent uses
+   only Node's own modules, so it needs no `npm ci`.
+2. Write the agent's configuration, for example `agent.json`:
+
+   ```json
+   {
+     "v": 1, "sourceId": "e1", "productionId": "results-night",
+     "endpoint": "https://results.example/results", "configRevision": 1,
+     "credentialRef": "NOACG_SOURCE_RESULTS", "credentialBound": true,
+     "revisionPath": "revision", "eventTimePath": "observed_at",
+     "sendPaths": ["revision", "status", "candidates"]
+   }
+   ```
+
+   `sourceId` and `configRevision` must match the production's record. `sendPaths` is what the
+   agent sends of each answer: it reads up to 2 MiB, and the route takes at most 256 KiB. A
+   provider on this machine or a private network is `"mode": "local"` with `"caFile"`, the
+   certificate authority it is checked against; a hosted endpoint is checked like a news feed
+   (public addresses only, every redirect checked).
+3. Put the two credentials in the environment, never in the file: the provider's bearer in the
+   variable `credentialRef` names (`NOACG_SOURCE_...`), the production's data key in
+   `NOACG_DATA_KEY`.
+4. Start it:
+
+   ```bash
+   node scripts/external-data-connector.mjs --config agent.json \
+     --send https://<your NoaCG>/api/data/source
+   ```
+
+   Its log goes to stderr, without either credential. Without `--send` it prints each report as
+   a JSON line instead, which is how to try a configuration before a production exists. Run it
+   under whatever keeps a process up on that machine (systemd, a Windows service, `pm2`); stop
+   it with SIGTERM or Ctrl+C, which lets its claim go.
+
+**Restart.** A restarted agent claims the source again and gets a newer owner epoch; it continues
+after the revision the production last accepted and never re-uses a number, and an older provider
+revision stays refused. If the old process died without letting go, the new one waits until the
+old claim lapses (30 seconds after its last report) and says so; a second agent started beside a
+running one gets nothing and writes nothing.
+
+**Rotating a credential.** The provider's: put the new value in its variable and restart the
+agent; until then it reports the reads as denied and the fields keep their values. The data key:
+change it on the production (see "For the production owner"), then restart the agent with the new
+`NOACG_DATA_KEY`; the old key is refused at once, so the old process can write nothing.
+
+**The envelope.** Every request is `{v: 1, op, sourceId, ...}` with the data key as the Bearer:
+`claim` (with `configRevision`) answers `{ok, claim, ownerEpoch, acceptedRevision,
+providerSequence, paused}`; `report` (with `claim` and the agent's acquisition: `ownerEpoch`,
+`acceptedRevision`, `checkedAt`, `status`, and `payload` when changed) answers `{ok, writes}`;
+`release` lets the claim go. A higher `v` is refused (422) rather than guessed at.
+
+**Limits and refusals.** Every refusal happens before anything is written, and the last good
+values stay on air. The body is at most 256 KiB (413). One revision per source every 5 seconds
+(429, `too_soon`). Every update row a revision would append is at most 64 KiB (413,
+`row_too_large`). The revision's rows come out of the same 25-in-5-seconds budget as `/patch` and
+`/update`; one that needs more than is left is refused whole (429, `budget`). An unchanged read is
+a payload-free receipt at most every 15 seconds: it moves "checked", never "changed", and writes
+no row. 409 answers name the fence: `moved` or `epoch` (claim again), `config` (the production
+holds another configuration revision), `old_revision` (it already has this one or newer),
+`paused`. A source paused in the production applies nothing and the agent offers its latest
+revision again; Another system's Pause holds it like any `/patch`, and Resume sends the final
+values once. A source registered by a later version (`v: 2`) is held read-only: nothing is
+applied and this build does not edit it (422, `unsupported`); a registration it cannot read
+otherwise (a bad `lists`, a local destination) is 422 too, and applies nothing.
+
+**A sample for Connect data.** The page's Connect review asks for one with `{v: 1, op: "sample",
+sourceId}`; while an agent holds the source the production keeps the ask and answers
+`{waiting: true, asked}`, and tells the agent `sample: true` beside its next claim or report. The
+agent then reads the provider once with its own credential and posts what it would send (its
+`sendPaths`, redacted) as `{v: 1, op: "sample", sourceId, claim, sample}`, under
+its live claim and only to an ask (409 `not_asked` otherwise); the page reads it with `asked`. A
+sample is kept for the review only and never evaluated or applied; an ask waits at most a minute.
+With no agent holding the source (`agent: false`), the page reads a public endpoint through the
+feed reader's guard instead (`GET /api/data/feed?as=json&url=...`, 256 KiB, no credential).
+Once Connect saves the mapping, a newly connected field fills at the agent's next read (a receipt
+comes at least every 15 s); a changed mapping of a field already written reaches air with the
+provider's next changed revision, which the review says beside that field.
+
+The registered `endpoint` is non-secret: it is stored in the production, synced, and sent to
+NoaCG's feed reader for a sample. A provider that takes its key in the address (a query string)
+is not supported: put the key in the agent's bearer credential (`credentialRef`).
 
 ## The graphic-addressed door: `POST /api/data/update`
 
@@ -394,6 +501,8 @@ host answers with a `308`, and clients commonly drop POST bodies on redirect.
 
 ## What this API deliberately is not
 
+- **Not a fetcher for you.** NoaCG reads no provider itself: the trusted agent above runs on your
+  machine, with your provider's credential, and only hands over what it read.
 - **Not an operator.** No play, stop, next, take, or state jumps - airing is a human decision
   on an operator surface. A feed that could clear the frame would be a second operator with
   no face.
@@ -410,6 +519,5 @@ The key is on the production's `control_shows` row (`data_key`), minted at publi
 the production's **Data** tab (the Another system card, then Reveal or Copy); an owner session can also read
 the column directly, since the row is RLS-guarded and only you and the server can see it.
 
-Hand it to the integrator out of band. Rotate by unpublishing and re-publishing (viewer and
-operator URLs survive that by design), or by updating the column; clear it to `NULL` to turn
-ingest off entirely.
+Hand it to the integrator out of band. Rotate by updating the column (the page has no unpublish
+control); clear it to `NULL` to turn ingest off entirely.

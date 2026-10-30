@@ -2,12 +2,12 @@ import { InstanceBase, InstanceStatus, type SomeCompanionConfigField } from '@co
 import { DEFAULT_ADDRESS, GetConfigFields, type ModuleConfig, type ModuleSecrets } from './config.js'
 import { UpdateVariableDefinitions, variableValues, type VariablesSchema } from './variables.js'
 import { UpgradeScripts } from './upgrades.js'
-import { UpdateActions, type ActionsSchema } from './actions.js'
+import { UpdateActions, pressGraphicKey, type ActionsSchema, type GraphicKeyOptions } from './actions.js'
 import { UpdateFeedbacks, type FeedbacksSchema } from './feedbacks.js'
 import { UpdatePresets } from './presets.js'
 import { PanelClient, type PressOutcome, type Status } from './panel.js'
 import { SupabaseRelay, discoverBackend, type Relay } from './relay.js'
-import type { PanelVerb } from './protocol.js'
+import { offerShape, type PanelVerb } from './protocol.js'
 
 export type ModuleSchema = {
 	config: ModuleConfig
@@ -39,6 +39,7 @@ export default class ModuleInstance extends InstanceBase<ModuleSchema> {
 	#relay: Relay | null = null
 	#tick: ReturnType<typeof setInterval> | null = null
 	#shownRows = -1
+	#shownOffer = ''
 	#shownValues: VariablesSchema = {}
 	/** What the running panel was started with, so saving the key after pairing does not restart it. */
 	#running = ''
@@ -114,6 +115,13 @@ export default class ModuleInstance extends InstanceBase<ModuleSchema> {
 		return outcome
 	}
 
+	/** A graphic key's callback: its capability by id with the arguments its options carry. */
+	async pressAction(o: Partial<GraphicKeyOptions>): Promise<PressOutcome> {
+		const outcome = await pressGraphicKey(this.panel, o)
+		if (!outcome.ok) this.log('info', `${o.cap} on ${o.graphic}: ${outcome.sentence}`)
+		return outcome
+	}
+
 	#defineAll(): void {
 		UpdateActions(this)
 		UpdateFeedbacks(this)
@@ -124,8 +132,11 @@ export default class ModuleInstance extends InstanceBase<ModuleSchema> {
 	/** Push what changed to Companion. The tick only redraws what time moves: the clock, blinks and flashes. */
 	#redraw(tick: boolean): void {
 		const rowsVer = this.panel.rows?.rowsVer ?? -1
-		if (rowsVer !== this.#shownRows) {
+		// The graphics and their controls, not what moves live, decide the choices and the presets.
+		const offer = offerShape(this.panel.actions)
+		if (rowsVer !== this.#shownRows || offer !== this.#shownOffer) {
 			this.#shownRows = rowsVer
+			this.#shownOffer = offer
 			this.#defineAll()
 		}
 		const values = variableValues(this.panel, Date.now())
@@ -134,7 +145,7 @@ export default class ModuleInstance extends InstanceBase<ModuleSchema> {
 		if (Object.keys(changed).length) this.setVariableValues(changed)
 		this.#shownValues = values
 		if (tick) {
-			this.checkFeedbacks('clip_warning', 'clip_final', 'refused')
+			this.checkFeedbacks('clip_warning', 'clip_final', 'refused', 'action_outcome')
 			return
 		}
 		this.updateStatus(COMPANION_STATUS[this.panel.status], this.panel.note)

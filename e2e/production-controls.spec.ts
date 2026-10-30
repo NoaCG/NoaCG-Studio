@@ -6,12 +6,15 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/control/liveControls.ts, src/components/home/LiveControls.tsx, src/model/profile.ts
+// covers: src/components/home/CueAdjust.tsx, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/model/adjust.ts
+// covers: src/components/home/ProductionLook.tsx, src/control/productionLook.ts
 // focus
 
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { bootstrapGraphic, openProductionWithCurrent, openExportWindow, openWorkingGraphicInEditor } from './_create';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent, openExportWindow, openWorkingGraphicInEditor } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
 
@@ -82,7 +85,7 @@ test('a Take pressed a moment after the page opens still airs - and stays aired'
   // disappears is the same defect wearing a delay.
   await page.waitForTimeout(3_000);
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
-  await expect(page.getByTestId('cue-action-select')).toBeEnabled();
+  await expect(page.getByTestId('cue-pick-select-B')).toBeEnabled();
 });
 
 // ── WHAT IS KNOWN OF A COMMAND (data-sources C6, AC-16) ───────────────────────────────────────
@@ -102,15 +105,41 @@ test('before Publish, TAKE says it reaches this page only and PROGRAM stays labe
   await expect(page.getByTestId('program-air')).toHaveCount(0);
 });
 
-test('published, a Take is pending until the command log answers, then logged, never "on air confirmed"; a lost connection dims PROGRAM (C6)', async ({ page }) => {
-  test.setTimeout(90_000);
-  // Stand in the backend on the network, as playout-feedback-health.spec.ts does: no remote
-  // project and no credentials are involved.
+/** Stand in the backend on the network, as playout-feedback-health.spec.ts does: no remote
+ *  project and no credentials are involved. Answers its origin; the spec routes it. */
+async function standInBackend(page: Page): Promise<string> {
   const backend = 'https://status.supabase.test';
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: `
     export function loadBackendConfig() { return { url: '${backend}', anonKey: 'anon-test-key' }; }
     export function isBackendConfigured(cfg = loadBackendConfig()) { return Boolean(cfg.url && cfg.anonKey); }
   ` }));
+  return backend;
+}
+
+/** A published production of one lower third, saved here, and the resolve's answer for it. */
+async function seedPublishedProduction(page: Page) {
+  return page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
+    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { stampPayload } = await import('/src/control/payloadVersion.ts');
+    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
+    if (error || !doc) throw new Error(error ?? 'seed failed');
+    const show = createShowNamed('Evening News');
+    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
+    setShowHostedSlug(show.id, 'status-slug');
+    setShowOutputSlug(show.id, 'status-output');
+    const current = loadShows().find((s) => s.id === show.id)!;
+    const output = await buildOutputPayload(current);
+    output.ver = await stampPayload(output, null);
+    return { id: show.id, title: show.name, output, live: {}, staged: {}, last_event_id: 0 };
+  });
+}
+
+test('published, a Take is pending until the command log answers, then logged, never "on air confirmed"; a lost connection dims PROGRAM (C6)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const backend = await standInBackend(page);
   let resolveFixture: unknown = null;
   let release: () => void = () => {};
   const held = new Promise<void>((r) => (release = r));
@@ -133,23 +162,7 @@ test('published, a Take is pending until the command log answers, then logged, n
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   await awaitDurableReady(page);
-  const fixture = await page.evaluate(async () => {
-    const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows } = await import('/src/model/shows.ts');
-    const { buildOutputPayload } = await import('/src/control/hostedControl.ts');
-    const { stampPayload } = await import('/src/control/payloadVersion.ts');
-    const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
-    if (error || !doc) throw new Error(error ?? 'seed failed');
-    const show = createShowNamed('Evening News');
-    addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
-    setShowHostedSlug(show.id, 'status-slug');
-    setShowOutputSlug(show.id, 'status-output');
-    const current = loadShows().find((s) => s.id === show.id)!;
-    const output = await buildOutputPayload(current);
-    output.ver = await stampPayload(output, null);
-    return { id: show.id, title: show.name, output, live: {}, staged: {}, last_event_id: 0 };
-  });
+  const fixture = await seedPublishedProduction(page);
   resolveFixture = fixture;
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${fixture.id}`);
@@ -181,6 +194,258 @@ test('published, a Take is pending until the command log answers, then logged, n
   await page.context().setOffline(false);
   await expect(air).toHaveAttribute('data-state', 'logged');
   await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true');
+});
+
+
+// ONE REFUSED RESOLVE NO LONGER COSTS THE PAGE ITS ORDER (#1697). A page on today's road sends by
+// row id, where a send that commits late can air over a later Take. It used to go there for good
+// on any refused resolve, silently. Now a refusal is asked again, and a page that does end up
+// there (a server with no sequence road) says so under the on-air chip.
+async function publishedPage(page: Page, answer: (rpc: string, fixture: unknown) => { status: number; body: unknown } | { delay: number } | null): Promise<{ sendsSeq: () => number; sendsById: () => number; numbered: { t: string; press: number }[] }> {
+  const backend = await standInBackend(page);
+  let fixture: unknown = null;
+  let seq = 0;
+  let byId = 0;
+  const numbered: { t: string; press: number }[] = [];
+  await page.route(`${backend}/**`, async (route) => {
+    const req = route.request();
+    const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS', 'content-type': 'application/json' };
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const rpc = new URL(req.url()).pathname.split('/').pop() ?? '';
+    const special = answer(rpc, fixture);
+    if (special && 'delay' in special) await new Promise((r) => setTimeout(r, special.delay));
+    else if (special) return route.fulfill({ status: special.status, headers, body: JSON.stringify(special.body) });
+    if (rpc === 'control_show_resolve') return route.fulfill({ status: 200, headers, body: JSON.stringify(fixture) });
+    if (rpc === 'control_send_seq') {
+      seq += 1;
+      const body = req.postDataJSON() as { p_items: { msg: { t: string } }[]; p_sender: { press: number } };
+      numbered.push({ t: body.p_items[0].msg.t, press: body.p_sender.press });
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ ok: true, epoch: null, head: { graphics: {} }, skipped: [] }) });
+    }
+    if (rpc === 'control_send_many') byId += 1;
+    return route.fulfill({ status: 200, headers, body: '[]' });
+  });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  const seeded = await seedPublishedProduction(page);
+  fixture = seeded;
+  await settleDurableWrites(page);
+  await page.goto(`/app#/production/${seeded.id}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('verb-target')).toHaveText('To: 0 outputs');
+  return { sendsSeq: () => seq, sendsById: () => byId, numbered };
+}
+
+test('a refused resolve is asked again, so the page keeps its order: no mark, and a Take goes numbered (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  // The first TWO: a dev build mounts the page's wire twice, so two resolves leave at once, and an
+  // unrefused second one would rescue a page that gave up on the first.
+  let asked = 0;
+  const { sendsSeq } = await publishedPage(page, (rpc) =>
+    rpc === 'control_show_resolve' && asked++ < 2 ? { status: 500, body: { code: 'XX000', message: 'internal error', details: null, hint: null } } : null,
+  );
+  await expect.poll(() => asked, { message: 'the refused resolves were asked again' }).toBeGreaterThan(2);
+  await expect(page.getByTestId('unordered-sends')).toHaveCount(0);
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'logged');
+  expect(sendsSeq(), 'the Take went on the numbered road').toBeGreaterThan(0);
+});
+
+test('a press made before the resolve answers is not sent by row id (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const outage = { status: 503, body: { code: 'PGRST002', message: 'Could not query the database for the schema cache. Retrying.', details: null, hint: null } };
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? outage : null));
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toBeVisible({ timeout: 15_000 });
+  expect(sendsById(), 'nothing left with no per-graphic order').toBe(0);
+  expect(sendsSeq()).toBe(0);
+});
+
+test('a press made while the resolve is on its way waits for it and goes numbered (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  // Each resolve is held 3 s on its way; the reload's is in flight when the operator presses Take.
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('program-air')).toHaveAttribute('data-state', 'logged', { timeout: 15_000 });
+  expect(sendsSeq(), 'it went numbered once the resolve answered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+});
+
+// Driven through the page's own send module, so the numbers are the page's: the Out leaves 50 ms
+// after the Take, both while the resolve is held. Fault-injected: with one wait per press and the
+// Out's waking first, the Out took the lower number and the Take then stood over it.
+test('two presses made while the resolve is on its way keep their order (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] });
+    const take = press('play');
+    await new Promise((r) => setTimeout(r, 50));
+    await Promise.all([take, press('stop')]);
+  }, showId);
+  const take = numbered.find((n) => n.t === 'play');
+  const out = numbered.find((n) => n.t === 'stop');
+  expect(take && out, 'both went numbered').toBeTruthy();
+  expect(take!.press, 'the Take is numbered before the Out it was pressed before').toBeLessThan(out!.press);
+});
+
+// All out, a verb of several batches, numbers them all at its press. Pressed the moment the resolve
+// lands, while an older Take still waits for it, it must still come after that Take.
+test('All out pressed as the resolve lands is numbered after an older waiting Take (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { numbered } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 3_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb, sendControlVerbs, sendsInOrder } = await import('/src/control/hostedControl.ts');
+    const take = sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
+    while (!sendsInOrder('status-slug')) await new Promise((r) => setTimeout(r, 2));
+    const allOut = sendControlVerbs({ slug: 'status-slug', showId, batches: [[{ graphic: 'Guest Strap', msg: { t: 'stop' } }]], allOut: true });
+    await Promise.all([take, allOut]);
+  }, showId);
+  const take = numbered.find((n) => n.t === 'play');
+  const out = numbered.find((n) => n.t === 'stop');
+  expect(take && out, 'both went numbered').toBeTruthy();
+  expect(take!.press, 'the Take is numbered before the All out pressed after it').toBeLessThan(out!.press);
+});
+
+test('a press on a production the resolve called missing asks again, and goes numbered once it exists (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let exists = false;
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' && !exists ? { status: 200, body: null } : null));
+  exists = true;
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] });
+  }, showId);
+  expect(sendsSeq(), 'it went numbered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+});
+
+test('a Take whose resolve answers after its resend window is not sent late (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' ? { delay: 6_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('production-note')).toBeVisible({ timeout: 15_000 });
+  // Past the resolve's answer: nothing left, numbered or not.
+  await page.waitForTimeout(4_000);
+  expect(sendsSeq(), 'the press did not air seconds after its window').toBe(0);
+  expect(sendsById()).toBe(0);
+});
+
+test('a stalled re-ask of a production called missing does not hold the press past its window (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let stall = false;
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) =>
+    rpc === 'control_show_resolve' ? (stall ? { delay: 30_000 } : { status: 200, body: null }) : null,
+  );
+  stall = true;
+  const showId = page.url().split('/production/')[1];
+  const settledIn = await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const started = Date.now();
+    await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t: 'play' } }] }).catch(() => null);
+    return Date.now() - started;
+  }, showId);
+  expect(settledIn, 'the press ended within its resend window').toBeLessThan(6_000);
+  expect(sendsSeq()).toBe(0);
+  expect(sendsById(), 'nothing went by row id').toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+// Two presses share the wait; it ends at the first one's deadline, and the resolve answers on the
+// ordered road while the second one still has time left. It must not then go by row id.
+test('a press left without a road when its wait ends never retries by row id (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let slow = true;
+  const { sendsById } = await publishedPage(page, (rpc) => (rpc === 'control_show_resolve' && slow ? { delay: 60_000 } : null));
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const showId = page.url().split('/production/')[1];
+  await page.evaluate(async (showId) => {
+    const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+    const press = (t: 'play' | 'stop') => sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] }).catch(() => null);
+    const w = window as unknown as { presses: Promise<unknown>[] };
+    w.presses = [press('play')];
+    await new Promise((r) => setTimeout(r, 3_400));
+    w.presses.push(press('stop'));
+  }, showId);
+  // The wait ends near 3.75 s; the ordered road then answers, with the second press's window open.
+  await page.waitForTimeout(800);
+  slow = false;
+  await page.evaluate(async () => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    await controlShowBySlug('status-slug');
+    await Promise.all((window as unknown as { presses: Promise<unknown>[] }).presses);
+  });
+  expect(sendsById(), 'nothing went by row id').toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a re-ask nobody answered leaves the production to be asked again (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  let answer: 'none' | 'stall' | 'exists' = 'none';
+  let stalled = 0;
+  const { sendsSeq, sendsById } = await publishedPage(page, (rpc) => {
+    if (rpc !== 'control_show_resolve' || answer === 'exists') return null;
+    if (answer === 'stall') {
+      stalled += 1;
+      return { delay: 30_000 };
+    }
+    return { status: 200, body: null };
+  });
+  const showId = page.url().split('/production/')[1];
+  // Only a production the page was told is missing gets asked again by a press, so the page must
+  // have taken a "no such production" answer before the press. Its own first resolve is no proof
+  // of that: the stand-in can have answered while the page has not yet read it (merge-group run
+  // 40294074273, #1742). Ask once here and await the answer inside the page.
+  await page.evaluate(async () => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    await controlShowBySlug('status-slug');
+  });
+  const press = (t: 'play' | 'stop') =>
+    page.evaluate(
+      async ({ showId, t }) => {
+        const { sendControlVerb } = await import('/src/control/hostedControl.ts');
+        await sendControlVerb({ slug: 'status-slug', showId, items: [{ graphic: 'Guest Strap', msg: { t } }] }).catch(() => null);
+      },
+      { showId, t },
+    );
+  answer = 'stall';
+  await press('play');
+  expect(stalled, 'the press asked again and nobody answered').toBeGreaterThan(0);
+  answer = 'exists';
+  await press('stop');
+  expect(sendsSeq(), 'the next press asked again and went numbered').toBeGreaterThan(0);
+  expect(sendsById()).toBe(0);
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+test('a page on a server with no sequence road says its order is not guaranteed (#1697)', async ({ page }) => {
+  test.setTimeout(90_000);
+  await publishedPage(page, (rpc, fixture) =>
+    rpc === 'control_show_resolve'
+      ? { status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.control_show_resolve', details: null, hint: null } }
+      : rpc === 'control_show_by_slug'
+        ? { status: 200, body: [fixture] }
+        : null,
+  );
+  await expect(page.getByTestId('unordered-sends')).toHaveText('⚠ order not guaranteed');
 });
 
 test('the selected cue is still identifiable once it is on air, and the editor names which one', async ({
@@ -233,7 +498,8 @@ test('quiz actions on the production page: greying, select/lock, live update kee
 
   const actions = page.getByTestId('cue-actions');
   const chip = page.getByTestId('machine-state-chip');
-  const select = page.getByTestId('cue-action-select');
+  // Select answer is a one-press pick (pinned live controls AC-4): its letters grey together.
+  const select = page.getByTestId('cue-pick-select-B');
   const lock = page.getByTestId('cue-action-lock');
   const judge = page.getByTestId('cue-action-judge');
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
@@ -259,9 +525,7 @@ test('quiz actions on the production page: greying, select/lock, live update kee
   await expect(lock).toBeEnabled();
   await expect(page.getByTestId('cue-action-revealChoice')).toBeDisabled();
 
-  // The Selected-answer dropdown renders as SEGMENTED buttons (short constrained choice).
-  // Pick B in the cue editor, then fire Select — the value rides as the event's payload.
-  await page.getByTestId('cue-field-f6-opt-B').click();
+  // Pick B: one press sets Selected answer and fires Select in one send.
   await select.click();
   await expect(chip).toHaveText('Answer selected');
   await expect(lock).toBeEnabled();
@@ -982,6 +1246,9 @@ test.describe('the control area is the one scroller', () => {
       await productionFor(page, 'Quiz Night');
       const editor = page.getByTestId('cue-editor');
       await expect(editor).toBeVisible();
+      // Selected answer is the LIVE block's pick now, its box under Advanced (pinned live controls
+      // D8): opened, all eight fields are in the editor again.
+      await page.getByTestId('cue-advanced-toggle').click();
       expect(await editor.locator('.field-row').count()).toBeGreaterThanOrEqual(8);
 
       // The editor shows all of itself — the reported defect, gone.
@@ -1837,4 +2104,697 @@ test('the EXPORTED controller carries both SPACE modes, read off the relay: prev
   expect(tallies().slice(-2)).toEqual(['preview:off', 'preview:on']);
   await ben.click();
   await expect(take).toHaveText(/→ PREVIEW/);
+});
+
+// ── PINNED LIVE CONTROLS ON THE EXPORTED CONTROLLER (docs/work-specs/pinned-live-controls/spec.md
+// AC-5) ─────────────────────────────────────────────────────────────────────────────────────────
+// The pin is baked at export like ARRANGE. The controller draws the pinned graphic's block above
+// the editor whatever cue is selected, and a press there acts on THAT graphic's on-air cue with the
+// payload shape an editor press has always sent, counted from what air was sent rather than from a
+// value staged in the editor and not aired.
+
+test('the EXPORTED controller draws a pinned graphic above the editor and presses its on-air cue', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const exported = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { withPinnedGraphic } = await import('/src/model/profile.ts');
+    const show = shows.createShowNamed('Pinned Night');
+    shows.addGraphicToShow(show.id, { ...variantById('sb03')!.create({}), name: 'House Score' });
+    shows.addGraphicToShow(show.id, { ...variantById('sb22')!.create({}), name: 'Podiums' });
+    const added = shows.loadShows().find((s) => s.id === show.id)!;
+    shows.setShowGraphicLayer(show.id, added.graphics[0].id, 20);
+    shows.setShowGraphicLayer(show.id, added.graphics[1].id, 21);
+    const [scoreCue, podiumCue] = added.cues!;
+    shows.updateShowCue(show.id, scoreCue.id, { label: 'Score up' });
+    shows.updateShowCue(show.id, podiumCue.id, { label: 'Podiums up' });
+    const pool = added.graphics.map((g) => g.name);
+    shows.setShowProfile(show.id, withPinnedGraphic(undefined, 'House Score', true, pool));
+    const zip = await buildShowZipFor(shows.loadShows().find((s) => s.id === show.id)!, 'html-overlay');
+    const files: Record<string, string> = {};
+    for (const n of Object.keys(zip.files)) {
+      if (!zip.files[n].dir && /\.(html|json)$/.test(n)) files[n.replace(/^[^/]+\//, '')] = await zip.file(n)!.async('string');
+    }
+    return files;
+  });
+
+  const { serve, rows } = relayServe(new Map(Object.entries(exported)));
+  const origin = 'http://pinned-host.local';
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await expect(ctl.locator('#mode')).toContainText('SHOW');
+
+  // THE STACK: one pinned block, above the editor, greyed until its graphic is on air.
+  const block = ctl.locator('#live-stack .live-block');
+  await expect(block).toHaveCount(1);
+  await expect(block.locator('.lb-name')).toHaveText('House Score');
+  await expect(block.locator('.lb-cue')).toHaveText('not on air');
+  const goalA = block.getByRole('button', { name: '⚡ Goal A' });
+  await expect(goalA).toBeDisabled();
+  expect(
+    await ctl.evaluate(() => !!(document.getElementById('live-stack')!.compareDocumentPosition(document.getElementById('editor')!) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    'the LIVE stack sits above the editor',
+  ).toBe(true);
+
+  // Both graphics on air. The pinned graphic's own cue draws its controls once, in the stack.
+  await ctl.locator('.cue', { hasText: 'Score up' }).click();
+  await expect(ctl.locator('#editor-events button', { hasText: 'Goal A' })).toHaveCount(0);
+  await ctl.locator('#v-take').click();
+  await expect(block.locator('.lb-cue')).toHaveText('Score up', { timeout: 10_000 });
+  await expect(goalA).toBeEnabled();
+
+  // A correction typed into the score's cue and NOT aired: never the base of a pinned press.
+  await ctl.locator('.field', { hasText: /^F1 · / }).locator('input[type="number"]').fill('20');
+
+  await ctl.locator('.cue', { hasText: 'Podiums up' }).click();
+  await ctl.locator('#v-take').click();
+  await expect(ctl.locator('.cue', { hasText: 'Podiums up' })).toHaveClass(/on-air/, { timeout: 10_000 });
+  // The selected graphic's own controls stay in its editor.
+  await expect(ctl.locator('#editor-events').getByRole('button', { name: '⚡ Spotlight' })).toBeVisible();
+
+  const program = () => rows.filter((r) => r.stream === 'program');
+  const before = program().length;
+  await goalA.click();
+  await expect.poll(() => program().length).toBe(before + 1);
+  // The payload shape an editor press sends, on the PINNED graphic, counted from air (0), not 20.
+  expect(program()[before]).toMatchObject({ graphic: 'House Score', msg: { t: 'event', event: 'goalA', payload: { f1: '1' } } });
+  await goalA.click();
+  await expect.poll(() => program().length).toBe(before + 2);
+  expect((program()[before + 1].msg as { payload: Record<string, string> }).payload).toEqual({ f1: '2' });
+
+  // The ± pair on the pinned block is the editor's partial update, on the pinned graphic.
+  await block.locator('.lb-number[data-field="f3"] button', { hasText: '+' }).click();
+  await expect.poll(() => program().length).toBe(before + 3);
+  expect(program()[before + 2]).toMatchObject({ graphic: 'House Score', msg: { t: 'update', data: { f3: '1' } } });
+  // Presses whose sends never reach the relay hold nothing: two held open together and then both
+  // failing, oldest first, leave the next press counting from air (1).
+  const plus = block.locator('.lb-number[data-field="f3"] button', { hasText: '+' });
+  const held: Route[] = [];
+  await ctl.route(`${origin}/relay/send`, (route) => void held.push(route), { times: 2 });
+  await plus.click();
+  await plus.click();
+  await expect.poll(() => held.length).toBe(2);
+  let failures = 0;
+  ctl.on('requestfailed', (r) => void (r.url().endsWith('/relay/send') && failures++));
+  await held[0].abort();
+  await held[1].abort();
+  await expect.poll(() => failures).toBe(2);
+  await plus.click();
+  await expect.poll(() => program().length).toBe(before + 4);
+  expect(program()[before + 3]).toMatchObject({ graphic: 'House Score', msg: { t: 'update', data: { f3: '2' } } });
+  // …and the selection never moved.
+  await expect(ctl.locator('#ed-name')).toHaveText('Podiums up');
+  await ctl.close();
+});
+
+// ── PINNED LIVE CONTROLS (docs/work-specs/pinned-live-controls/spec.md) ───────────────────────────
+// A quiz board and a score in one production, as the 2026-10-23 game show ran them: the score's
+// block is pinned, so its controls stay on screen and act on ITS on-air cue whatever is selected.
+
+/** Every PROGRAM layer's text at `selector`. */
+async function programTexts(page: Page, selector: string): Promise<string[]> {
+  const frames = page.locator('[data-testid="program-stage"] iframe');
+  const texts: string[] = [];
+  for (let i = 0; i < (await frames.count()); i++) {
+    const node = frames.nth(i).contentFrame().locator(selector);
+    if ((await node.count()) > 0) texts.push(((await node.first().textContent()) ?? '').trim());
+  }
+  return texts;
+}
+
+test('pinned live controls: the pinned score stays on screen, presses its own on-air cue, travels with a reload, and leaves with its graphic (AC-1, AC-2, AC-6, AC-10)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  const showId = await openProductionWithCurrent(page, 'Game Show');
+  await addCatalogGraphic(page, showId, 'House Podiums');
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(rows).toHaveCount(2);
+  const blocks = page.getByTestId('live-block');
+  const podium = page.locator('[data-testid="live-block"][data-graphic="House Podiums"]');
+  const quiz = page.locator('[data-testid="live-block"][data-graphic="Arena Quiz"]');
+
+  // Pin the score from its block head. Off air it stays, greyed, and says so.
+  await rows.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('live-stack')).toHaveCount(0);
+  await page.getByTestId('live-pin').click();
+  await expect(podium.getByTestId('live-pin')).toHaveAttribute('aria-pressed', 'true');
+  await rows.nth(0).locator('.pd-cue-label').click();
+  // Pinned first, then the selected quiz, never twice.
+  await expect(blocks).toHaveCount(2);
+  await expect(blocks.nth(0)).toHaveAttribute('data-graphic', 'House Podiums');
+  await expect(blocks.nth(1)).toHaveAttribute('data-graphic', 'Arena Quiz');
+  await expect(quiz).toHaveAttribute('data-selected', 'true');
+  await expect(podium.getByTestId('machine-state-chip')).toHaveText('not on air');
+  await expect(podium.getByTestId('live-number-f2-up')).toBeDisabled();
+
+  // Both on air, the quiz selected.
+  await rows.nth(1).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await rows.nth(0).locator('.pd-cue-label').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue(/Red Planet/);
+  await expect(podium.getByTestId('live-number-f2-up')).toBeEnabled();
+  await expect.poll(() => programTexts(page, '#f2')).toContain('0');
+  const plays = Number(await page.getByTestId('program-stage').getAttribute('data-plays'));
+
+  // +1 twice on the PINNED score: two partial updates to the score's layer, counted 1 then 2, no
+  // entrance replayed, and the selected quiz cue untouched.
+  await podium.getByTestId('live-number-f2-up').click();
+  await podium.getByTestId('live-number-f2-up').click();
+  await expect.poll(() => programTexts(page, '#f2')).toContain('2');
+  expect(Number(await page.getByTestId('program-stage').getAttribute('data-plays'))).toBe(plays);
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Mars');
+  // The quiz's one-press pick on its own block.
+  await quiz.getByTestId('cue-pick-select-B').click();
+  await expect(quiz.getByTestId('cue-pick-select-B')).toHaveAttribute('aria-pressed', 'true');
+  // The score's cue kept the figure it aired.
+  await rows.nth(1).locator('.pd-cue-label').click();
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('2');
+  await rows.nth(0).locator('.pd-cue-label').click();
+
+  // The row's menu is the second gesture: it unpins, and pins again.
+  const menuOf = async (i: number) => {
+    await rows.nth(i).getByTestId('cue-menu').click();
+    return page.getByTestId('cue-pin-live');
+  };
+  await expect(await menuOf(1)).toHaveText('Unpin live controls');
+  await page.getByTestId('cue-pin-live').click();
+  await expect(page.getByTestId('live-stack')).toHaveCount(0);
+  await expect(await menuOf(1)).toHaveText('Pin live controls');
+  await page.getByTestId('cue-pin-live').click();
+  await expect(blocks).toHaveCount(2);
+
+  // The pin is the production's: a reload keeps it.
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(podium).toHaveCount(1);
+
+  // On a phone the stack scrolls in the one column: every live button a finger's height, no
+  // sideways scroll, and the verb bar stays.
+  await page.setViewportSize({ width: 375, height: 812 });
+  const heights = await page.getByTestId('live-stack').locator('button:visible').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+  expect(heights.length).toBeGreaterThan(5);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(40);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect(page.getByTestId('verb-take')).toBeInViewport();
+  await page.setViewportSize({ width: 1600, height: 900 });
+
+  // Removing the pinned graphic draws no block and raises nothing; the selected block is today's.
+  await rows.nth(1).getByTestId('cue-menu').click();
+  await page.getByTestId('delete-cue').click();
+  await expect(rows).toHaveCount(1);
+  await expect(podium).toHaveCount(0);
+  await expect(page.getByTestId('live-stack')).toHaveCount(0);
+  await expect(page.getByTestId('cue-actions')).toBeVisible();
+});
+
+/**
+ * PLACE AND SIZE FROM THE PRODUCTION PAGE (docs/work-specs/playout-adjustments/spec.md, phase 1;
+ * AC-1, AC-4 and AC-8 as the operator meets them). A monitor at 1600x900 draws the stage at about
+ * 0.3, so this reads the appearance each stage wrote (`data-appearance`) and the direction of the
+ * move; the px claims are e2e/playout-adjust.spec.ts and scripts/cue-adjust.test.mjs.
+ */
+test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; only Take and Update reach PROGRAM, with no replay', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'Adjust Night');
+  // A second cue of the same lower third, for the cue exception.
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
+    shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await page.locator('.pd-cue').first().click();
+  const look = (where: 'preview' | 'program') =>
+    page.locator(where === 'preview' ? '[data-testid="production-preview"] iframe' : '[data-testid="program-stage"] iframe').first().getAttribute('data-appearance');
+  const frameOf = async (where: 'preview' | 'program') => JSON.parse((await look(where)) ?? '{"frame":null}').frame as { dx: number; s: number } | null;
+  const summary = page.getByTestId('cue-adjust-summary');
+
+  // Closed, it says what the graphic is: as designed, and nothing is measured or moved.
+  await expect(summary).toHaveText(/as designed/);
+  expect(await look('preview')).toBeNull();
+
+  // A MEASUREMENT NEVER RENDERS THE PAGE (src/components/home/AGENTS.md, "typing a value never
+  // renders the page"): it redraws the block and PREVIEW, which subscribe to it themselves. Opening
+  // the block starts the graphic's first measurement, with nothing saved: on a paused clock, PREVIEW
+  // settles (150 ms) and answers, and the second answer, due 250 ms after the first, qualifies and
+  // is kept. A render the measurement caused commits WITH the block's own redraw, so it is asserted
+  // as cause, not as a count: no batch of DOM mutations holds both the measurement's redraw and a
+  // page render. (A count over a window also caught renders from elsewhere on a loaded runner.)
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('preview-guides')).toBeVisible();
+  await page.clock.runFor(160);
+  await page.waitForTimeout(500);
+  await page.clock.runFor(249);
+  await expect(page.getByTestId('adjust-why')).toHaveText('measuring');
+  await page.evaluate(() => {
+    const root = document.querySelector('[data-testid="production-page"]')!;
+    const batches: { renders: boolean; measured: boolean }[] = [];
+    (window as unknown as { __adjustBatches: typeof batches }).__adjustBatches = batches;
+    new MutationObserver((records) =>
+      batches.push({
+        renders: records.some((r) => r.type === 'attributes' && r.target === root),
+        measured: records.some((r) => [...r.removedNodes].some((n) => n instanceof Element && (n.matches('[data-testid="adjust-why"]') || !!n.querySelector('[data-testid="adjust-why"]')))),
+      }),
+    ).observe(root, { attributes: true, attributeFilter: ['data-renders'], childList: true, subtree: true });
+  });
+  await page.clock.runFor(2);
+  await expect(page.getByTestId('adjust-why')).toHaveCount(0);
+  const batches = await page.evaluate(() => (window as unknown as { __adjustBatches: { renders: boolean; measured: boolean }[] }).__adjustBatches);
+  const measuredIn = batches.filter((b) => b.measured);
+  expect(measuredIn.length, 'the measurement redrew the block').toBe(1);
+  expect(measuredIn[0].renders, 'the measurement rendered the page').toBe(false);
+  await page.clock.resume();
+  // Measured: the pivot shows on the grid and the readability line appears.
+  await expect(page.getByTestId('adjust-floor')).toHaveText(/smallest text \d/);
+  await page.getByTestId('adjust-place-tl').focus();
+
+  // AC-1: bottom-right, then three 1 px and one 10 px nudge with the keys inside the block.
+  await page.getByTestId('adjust-place-br').click();
+  await expect(summary).toHaveText(/all 2 Hairline cues · bottom-right/);
+  await expect.poll(async () => (await frameOf('preview'))?.dx ?? 0).toBeGreaterThan(800);
+  const placed = (await frameOf('preview'))!.dx;
+  for (const key of ['ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'Shift+ArrowLeft']) await page.keyboard.press(key);
+  await expect(page.getByTestId('adjust-x')).toHaveValue('-13');
+  await expect.poll(async () => (await frameOf('preview'))!.dx).toBeCloseTo(placed - 13, 1);
+  // AC-2's flow: about five percent smaller.
+  await page.getByTestId('adjust-smaller').click();
+  await expect(page.getByTestId('adjust-size')).toHaveValue('95');
+  // Nothing reaches PROGRAM by being prepared.
+  expect(await look('program')).toBeNull();
+
+  // Take: PROGRAM takes exactly what PREVIEW shows.
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => look('program')).toBe(await look('preview'));
+  const program = page.getByTestId('program-stage');
+  await expect(program).toHaveAttribute('data-plays', '1');
+
+  // AC-8: a change prepared on the on-air cue waits, and says so; ✎ Update applies it, no replay.
+  const aired = await look('program');
+  await page.getByTestId('adjust-nudge-up').click();
+  await expect(page.locator('.pd-editor-fate')).toContainText('1 change not');
+  expect(await look('program')).toBe(aired);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => look('program')).not.toBe(aired);
+  await expect(program).toHaveAttribute('data-plays', '1');
+  // Ctrl+Z reverts the press, which then waits again.
+  await page.locator('[data-testid="adjust-nudge-up"]').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('adjust-y')).toHaveValue('0');
+  // A nudge and ✎ Update pressed at once: the Update waits for the nudge's write and airs it.
+  await page.getByTestId('adjust-nudge-left').click();
+  await page.getByTestId('verb-update').click();
+  await expect(page.getByTestId('adjust-x')).toHaveValue('-14');
+  await expect.poll(async () => (await look('program')) === (await look('preview'))).toBe(true);
+  await expect(page.locator('.pd-editor-fate')).not.toContainText('not on PROGRAM');
+  // A BOX BEING TYPED INTO KEEPS ITS TEXT when another operator moves the same record
+  // (home/useDeferredEdits.ts); the box commits when the edit is over, never on a pause.
+  await page.getByTestId('adjust-y').fill('5');
+  await expect(page.getByTestId('adjust-y')).toHaveAttribute('data-dirty', 'true');
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    const cue = shows.loadShows().find((s) => s.id === id)!.cues![0];
+    shows.stepAdjust(id, cue.id, 'graphic', { y: 3 });
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await expect(page.getByTestId('adjust-y')).toHaveValue('5');
+  await page.getByTestId('adjust-y').press('Enter');
+  await expect(page.getByTestId('adjust-y')).not.toHaveAttribute('data-dirty');
+  await expect(page.getByTestId('adjust-y')).toHaveValue('5');
+  await page.getByTestId('adjust-y').fill('0');
+  await page.getByTestId('adjust-y').press('Enter');
+  await expect(page.getByTestId('adjust-y')).toHaveValue('0');
+
+  // AC-4's visible half: the second cue, only this cue, bottom-left; the first keeps bottom-right.
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-place-bl').click();
+  await expect(summary).toHaveText(/only this cue · bottom-left/);
+  await page.locator('.pd-cue').first().click();
+  await expect(summary).toHaveText(/all 2 Hairline cues · bottom-right.*1 cue keeps its own/);
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-stop-exception').click();
+  await expect(summary).toHaveText(/all 2 Hairline cues · bottom-right/);
+
+  // Reset to as designed, on the cue on air: Update sends the identity and PROGRAM goes back.
+  await page.locator('.pd-cue').first().click();
+  await page.getByTestId('adjust-reset').click();
+  await expect(summary).toHaveText(/as designed/);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => look('program')).toBeNull();
+  await expect(program).toHaveAttribute('data-plays', '1');
+
+  // Every package carries each graphic's place and size (phase 1b); a cue's own exception travels
+  // only with the overlay package's controller, so the dialog says so for the other targets, and
+  // only while a cue has one.
+  const exportDialog = async () => {
+    await page.getByTestId('production-setup').click();
+    await page.getByTestId('export-production').click();
+    await expect(page.getByTestId('production-export-dialog')).toBeVisible();
+    await page.getByTestId('prod-target-casparcg').check();
+  };
+  await page.getByTestId('adjust-smaller').click();
+  await expect(page.getByTestId('adjust-size')).toHaveValue('95');
+  await exportDialog();
+  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
+  await page.getByTestId('production-export-dialog').locator('.gallery-close').click();
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-place-bl').click();
+  await expect(summary).toHaveText(/only this cue · bottom-left/);
+  await exportDialog();
+  await expect(page.getByTestId('prod-export-adjust')).toContainText('only in the HTML overlay package');
+  await page.getByTestId('prod-target-html-overlay').check();
+  await expect(page.getByTestId('prod-export-adjust')).toHaveCount(0);
+});
+
+/**
+ * TYPE AND COLOUR FROM THE PRODUCTION PAGE (docs/work-specs/playout-adjustments/spec.md, phase 2;
+ * AC-6's per-graphic and per-cue half as the operator meets it). The style goes into each graphic's
+ * document as `:root` variables on its root element, so this reads them there, on PREVIEW and on
+ * PROGRAM, and counts entrances (`data-plays`) to show Update applies them with no replay. The
+ * rendered-face claims are e2e/playout-adjust.spec.ts and scripts/cue-adjust.test.mjs.
+ */
+test('Adjust retypes and recolours a lower third: a cue colour overrides the graphic colour, As designed returns, Update airs it with no replay', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'Type Night');
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
+    shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  const rootVar = (where: 'preview' | 'program', name: string) =>
+    page
+      .frameLocator(where === 'preview' ? '[data-testid="production-preview"] iframe' : '[data-testid="program-stage"] iframe')
+      .locator('html')
+      .evaluate((el, n) => el.style.getPropertyValue(n), name)
+      .catch(() => null);
+  const designAccent = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { templateForSavedGraphic, loadGraphics } = await import('/src/model/library.ts');
+    const { getCssVariable } = await import('/src/model/cssVars.ts');
+    return getCssVariable(templateForSavedGraphic(loadShows().find((s) => s.id === id)!.graphics[0], loadGraphics()).css, 'accent');
+  }, showId);
+  const summary = page.getByTestId('cue-adjust-summary');
+
+  await page.locator('.pd-cue').first().click();
+  await page.getByTestId('cue-adjust-toggle').click();
+  // The rows the design paints with, and nothing it does not.
+  await expect(page.getByTestId('adjust-type')).toBeVisible();
+  await expect(page.getByTestId('adjust-colour-accent')).toBeVisible();
+  await expect(page.getByTestId('adjust-style-none')).toHaveCount(0);
+  // As designed on a row that already is writes nothing: an empty record would make the graphic
+  // count as adjusted (measured, an appearance on every Take) with nothing on screen to show it.
+  await page.getByTestId('adjust-type-designed').click();
+  await page.getByTestId('adjust-colour-designed').click();
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.id === id)!;
+    return [s.graphics[0].adjust ?? null, ...(s.cues ?? []).map((c) => c.adjust ?? null)];
+  }, showId)).toEqual([null, null, null]);
+
+  // The graphic's default: Archivo, Bold, an orange accent. PREVIEW takes each at once.
+  await page.getByTestId('adjust-typeface').selectOption({ label: 'Archivo' });
+  await expect.poll(() => rootVar('preview', '--font-heading')).toContain('Archivo');
+  // The select's arrows choose a face; they never nudge the graphic as the block's arrows do.
+  await page.getByTestId('adjust-typeface').press('ArrowDown');
+  await page.getByTestId('adjust-typeface').press('ArrowUp');
+  await expect(page.getByTestId('adjust-typeface')).toHaveValue('b:archivo');
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const a = (loadShows().find((x) => x.id === id)!.graphics[0].adjust ?? {}) as Record<string, unknown>;
+    return { x: a.x ?? null, y: a.y ?? null };
+  }, showId), 'no nudge from the select').toEqual({ x: null, y: null });
+  await page.getByTestId('adjust-weight').getByRole('button', { name: 'Bold', exact: true }).click();
+  await expect.poll(() => rootVar('preview', '--display-weight')).toBe('700');
+  // A face with one weight takes the Bold with the old face, so nothing names a bold it never draws.
+  await page.getByTestId('adjust-typeface').selectOption({ label: 'Bebas Neue' });
+  await expect.poll(() => rootVar('preview', '--display-weight')).toBe('');
+  await expect(page.getByTestId('adjust-weight')).toHaveCount(0);
+  await expect(summary).toHaveText(/Bebas Neue$/);
+  await page.getByTestId('adjust-typeface').selectOption({ label: 'Archivo' });
+  await page.getByTestId('adjust-weight').getByRole('button', { name: 'Bold', exact: true }).click();
+  await expect.poll(() => rootVar('preview', '--display-weight')).toBe('700');
+  await page.getByTestId('adjust-colour-accent').fill('#ff7a00');
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
+  await expect(summary).toHaveText(/all 2 Hairline cues · Archivo Bold accent/);
+  // Nothing reaches PROGRAM by being prepared.
+  await page.getByTestId('verb-take').click();
+  const program = page.getByTestId('program-stage');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  await expect.poll(() => rootVar('program', '--accent')).toBe('#ff7a00');
+  await expect.poll(() => rootVar('program', '--font-heading')).toContain('Archivo');
+
+  // The second cue's own accent overrides the graphic's and keeps its face.
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-colour-accent').fill('#00aaff');
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#00aaff');
+  await expect.poll(() => rootVar('preview', '--font-heading')).toContain('Archivo');
+  await expect(summary).toHaveText(/only this cue · Archivo Bold accent/);
+  // As designed on its Colour row: the design's own accent, while the graphic's stays orange.
+  await page.getByTestId('adjust-colour-designed').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('');
+  await expect(page.getByTestId('adjust-colour-designed')).toHaveAttribute('aria-pressed', 'true');
+  expect(designAccent).toBeTruthy();
+  // Stop the exception: the graphic's orange is back.
+  await page.getByTestId('adjust-stop-exception').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
+
+  // AC-8 for style: a change to the cue on air waits; ✎ Update airs it with no replay.
+  await page.locator('.pd-cue').first().click();
+  await page.getByTestId('adjust-colour-accent').fill('#22cc66');
+  await expect(page.locator('.pd-editor-fate')).toContainText('1 change not');
+  expect(await rootVar('program', '--accent')).toBe('#ff7a00');
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => rootVar('program', '--accent')).toBe('#22cc66');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  // Type as designed, then Reset: Update takes every variable off PROGRAM.
+  await page.getByTestId('adjust-type-designed').click();
+  await expect.poll(() => rootVar('preview', '--font-heading')).toBe('');
+  await page.getByTestId('adjust-reset').click();
+  await expect(summary).toHaveText(/as designed/);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => rootVar('program', '--accent')).toBe('');
+  await expect(program).toHaveAttribute('data-plays', '1');
+});
+
+/**
+ * AC-6 AND AC-7, THE PRODUCTION LOOK AS THE OPERATOR USES IT (playout adjustments, phase 3): a
+ * captured look styles nothing until it is turned on in Setup ▾ Look; then PREVIEW takes it at once
+ * where a graphic paints it, an imported SVG keeps its "as designed" line, a cue set "As designed"
+ * is an exception "Clear exceptions" clears, and only "Send to on-air graphics" (or a Take or an
+ * Update) reaches PROGRAM, with no replay and never a half-typed name. A duplicate turns another
+ * brand on and the original keeps its own. The fold, the reach and the bulk send's capture and
+ * recheck are scripts/production-look.test.mjs and scripts/graphic-verbs.test.mjs.
+ */
+// A production made from library graphics captures no look, and nobody may have saved a brand:
+// the panel then starts from a look captured off its first graphic, so the feature still works.
+test('Setup ▾ Look works on a production with no captured look and no saved brand', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'No Look');
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    shows.setShowLook(id, undefined);
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-look').click();
+  await expect(page.getByTestId('look-typeface')).toBeEnabled();
+  await expect(page.getByTestId('look-on')).toBeEnabled();
+  await page.getByTestId('look-typeface').selectOption({ label: 'Oswald' });
+  await page.getByTestId('look-on').click();
+  await expect(page.getByTestId('look-on')).toHaveAttribute('aria-pressed', 'true');
+  const look = await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.look?.fontId, showId);
+  expect(look).toBe('oswald');
+});
+
+// The Type row reads the look's imported face while it is the face in effect, though it never
+// offers that face to pick (control/productionLook.ts `pickableFaces`).
+test('the Type row reads a look\'s imported face in effect, and offers no other copy of it', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'Look Face');
+  await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    shows.setShowLookApplied(id, true, {
+      styleTag: 'clean',
+      palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' },
+      fontId: null,
+      customFont: { family: 'Brand Sans', format: 'woff2', asset: { path: 'fonts/brand-sans.woff2', data: 'data:font/woff2;base64,AAAA' } },
+    } as never);
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.locator('.pd-cue').first().click();
+  await page.getByTestId('cue-adjust-toggle').click();
+  const select = page.getByTestId('adjust-typeface');
+  await expect(select).toHaveValue(/^i:Brand Sans\|fonts\/look\//);
+  await expect(select.locator('option:checked')).toHaveText('Brand Sans');
+  await expect(select.locator('option', { hasText: 'Brand Sans' })).toHaveCount(1);
+  // Another face picked: the look's own is no longer offered.
+  await select.selectOption({ label: 'Archivo' });
+  await expect(select).toHaveValue('b:archivo');
+  await expect(select.locator('option', { hasText: 'Brand Sans' })).toHaveCount(0);
+});
+
+test('Setup ▾ Look turns a production look on and off, counts its reach, keeps exceptions, and sends it to air without what is typed', async ({ page }) => {
+  test.setTimeout(110_000);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Hairline');
+  const showId = await openProductionWithCurrent(page, 'Look Night');
+  await addCatalogGraphic(page, showId, 'Imported SVG design');
+  const look = { styleTag: 'clean', palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' }, fontId: 'archivo', customFont: null };
+  await page.evaluate(async ([id, captured]) => {
+    const shows = await import('/src/model/shows.ts');
+    const g = shows.loadShows().find((s) => s.id === id)!.graphics[0];
+    shows.addShowCue(id, g.id, { label: 'Second guest', values: { f0: 'Ben', f1: 'Guest' } });
+    // An old production's captured look, never turned on.
+    shows.setShowLook(id, captured as never);
+    const { addLook } = await import('/src/model/packets.ts');
+    addLook('Autumn Quiz', { ...(captured as object), palette: { ...(captured as { palette: object }).palette, accent: '#00a3ff' }, fontId: 'oswald' } as never);
+    await new Promise((r) => setTimeout(r));
+  }, [showId, look] as const);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  // PROGRAM holds a frame per pool graphic; the strap's is the first, in pool order.
+  const strapFrame = () => page.frameLocator('[data-testid="program-stage"] iframe').first();
+  const rootVar = (where: 'preview' | 'program', name: string) =>
+    (where === 'preview' ? page.frameLocator('[data-testid="production-preview"] iframe') : strapFrame())
+      .locator('html')
+      .evaluate((el, n) => el.style.getPropertyValue(n), name)
+      .catch(() => null);
+  const program = page.getByTestId('program-stage');
+  const strap = page.locator('.pd-cue', { hasNotText: 'Second guest' }).filter({ hasText: 'Hairline' }).first();
+
+  // Captured, not on: the graphics change nothing.
+  await strap.click();
+  await page.getByTestId('verb-take').click();
+  await expect(program).toHaveAttribute('data-plays', '1');
+  expect(await rootVar('preview', '--accent')).toBe('');
+
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-look').click();
+  const panel = page.getByTestId('production-look');
+  await expect(panel).toBeVisible();
+  await expect(page.getByTestId('look-off')).toHaveAttribute('aria-pressed', 'true');
+  // Per property over the pool of two: the strap takes both, the imported artwork neither.
+  await expect(page.getByTestId('look-reach')).toHaveText(/Type reaches 1 of 2 · Accent reaches 1 of 2 · Imported SVG design: as designed/);
+  await expect(page.getByTestId('look-on-air')).toHaveText('(1 on air)');
+
+  // On: PREVIEW takes it at once; PROGRAM does not until it is sent.
+  await page.getByTestId('look-on').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
+  await expect.poll(() => rootVar('preview', '--font-heading')).toContain('Archivo');
+  expect(await rootVar('program', '--accent')).toBe('');
+  await expect(page.locator('.pd-editor-fate')).toContainText('1 change not');
+
+  // A half-typed name on the cue on air never airs with the look.
+  await page.getByTestId('cue-field-f0').fill('Half typ');
+  await page.getByTestId('look-send').click();
+  await expect(page.getByTestId('look-sent')).toHaveText('Look sent to the graphic on air.');
+  await expect.poll(() => rootVar('program', '--accent')).toBe('#ff7a00');
+  await expect.poll(() => rootVar('program', '--font-heading')).toContain('Archivo');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  await expect(strapFrame().locator('body')).not.toContainText('Half typ');
+
+  // The imported artwork says so in one line.
+  await page.locator('.pd-cue', { hasText: 'Imported SVG design' }).first().click();
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('adjust-style-none')).toHaveText('Type and colour: as designed (imported artwork)');
+
+  // One cue set "As designed": an exception, kept out of the look; "Clear exceptions" clears it.
+  await page.locator('.pd-cue', { hasText: 'Second guest' }).first().click();
+  await page.getByTestId('adjust-only-this-cue').click();
+  await page.getByTestId('adjust-colour-designed').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('');
+  await expect(page.getByTestId('look-exceptions')).toContainText('Exceptions (1): Hairline · Second guest');
+  await page.getByTestId('look-clear-exceptions').click();
+  await expect(page.getByTestId('look-exceptions')).toHaveCount(0);
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('#ff7a00');
+
+  // Off restores PREVIEW at once; air keeps the look until it is sent again.
+  await page.getByTestId('look-off').click();
+  await expect.poll(() => rootVar('preview', '--accent')).toBe('');
+  expect(await rootVar('program', '--accent')).toBe('#ff7a00');
+  await page.getByTestId('look-send').click();
+  await expect.poll(() => rootVar('program', '--accent')).toBe('');
+  await expect(program).toHaveAttribute('data-plays', '1');
+  await settleDurableWrites(page);
+
+  // AC-7: duplicate, turn another brand on in the copy; the original keeps its own.
+  const copyId = await page.evaluate(async (id) => {
+    const shows = await import('/src/model/shows.ts');
+    const { routeHash } = await import('/src/app/router.ts');
+    const copy = shows.duplicateShowChecked(id).show!;
+    location.hash = routeHash({ view: 'production', id: copy.id });
+    await new Promise((r) => setTimeout(r));
+    return copy.id;
+  }, showId);
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-look').click();
+  await page.getByTestId('look-brand').selectOption({ label: 'Autumn Quiz' });
+  await page.getByTestId('look-on').click();
+  for (const label of ['Hairline', 'Second guest']) {
+    await page.locator('.pd-cue', { hasText: label }).first().click();
+    await expect.poll(() => rootVar('preview', '--accent')).toBe('#00a3ff');
+  }
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async ([a, b]) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { audienceBrandFor } = await import('/src/audience/audienceBrand.ts');
+    const of = (id: string) => loadShows().find((s) => s.id === id)!;
+    return [of(a).lookApplied ?? null, audienceBrandFor(of(a).look)?.accent, of(b).lookApplied ?? null, audienceBrandFor(of(b).look)?.accent];
+  }, [showId, copyId] as const)).toEqual([null, '#ff7a00', true, '#00a3ff']);
+});
+
+/**
+ * AC-3 AS THE OPERATOR READS IT: the readability line under Size, from the board's own measured
+ * smallest text, on the two catalog boards the receipt measured (qz01 Arena Quiz, qz05 Arena Split).
+ */
+test('Adjust reads a quiz board\'s smallest text and warns when a smaller size would break the floor', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, 'Arena Quiz');
+  const showId = await openProductionWithCurrent(page, 'Quiz Adjust');
+  await addCatalogGraphic(page, showId, 'Arena Split');
+  const floor = page.getByTestId('adjust-floor');
+  const px = async () => Number(/smallest text ([\d.]+) px/.exec((await floor.textContent()) ?? '')?.[1]);
+
+  await page.locator('.pd-cue', { hasText: 'Arena Quiz' }).first().click();
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(floor).toHaveAttribute('data-tone', 'ok');
+  expect(Math.abs((await px()) - 22)).toBeLessThanOrEqual(1);
+  // The receipt's fit for a 240 px band, 84 %: under the 20 px floor, amber, no remedy yet.
+  await page.getByTestId('adjust-size').fill('84');
+  await page.getByTestId('adjust-size').press('Enter');
+  await expect(floor).toHaveAttribute('data-tone', 'amber');
+  await expect(floor).not.toContainText('lower-third');
+  // Half size: red, and the remedy is named.
+  await page.getByTestId('adjust-size').fill('47');
+  await page.getByTestId('adjust-size').press('Enter');
+  await expect(floor).toHaveAttribute('data-tone', 'red');
+  await expect(floor).toContainText('use a lower-third graphic');
+
+  await page.locator('.pd-cue', { hasText: 'Arena Split' }).first().click();
+  await expect(floor).toHaveAttribute('data-tone', 'ok');
+  expect(Math.abs((await px()) - 26)).toBeLessThanOrEqual(1);
 });

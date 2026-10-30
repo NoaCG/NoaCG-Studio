@@ -29,7 +29,7 @@ const graphic = (id, extra = {}) => ({ id, sourceId: `g-${id}`, label: id.toUppe
 const BRIDGE = { state: 'ok', features: ['state', 'playback', 'sequence', 'sequence-loop'], capabilities: ['state', 'end', 'fade', 'trim', 'level', 'sequence'], version: '2.5.0' };
 
 /** One render's facts, the way the page builds them. */
-function context({ cues = [], items = [], folders = [], ownership = NO_OWNERSHIP, settings = SETTINGS, ability = BRIDGE, casparOn = true, bridgeDown = false, graphics = {} } = {}) {
+function context({ cues = [], items = [], folders = [], ownership = NO_OWNERSHIP, settings = SETTINGS, ability = BRIDGE, casparOn = true, bridgeDown = false, graphics = {}, foreign = {} } = {}) {
   const { members } = rundownView({ cues, folders });
   return {
     cues,
@@ -43,7 +43,7 @@ function context({ cues = [], items = [], folders = [], ownership = NO_OWNERSHIP
     casparOn,
     bridgeDown,
     itemOf: (c) => (c.source === 'playout' ? (items.find((i) => i.id === c.sourceId) ?? null) : null),
-    graphicOf: (c) => (graphics[c.sourceId] ? { name: graphics[c.sourceId], layer: 1 } : null),
+    graphicOf: (c) => (graphics[c.sourceId] ? { name: graphics[c.sourceId], layer: 1, ...(foreign[c.sourceId] !== undefined ? { foreignRefusal: foreign[c.sourceId] } : {}) } : null),
     slots: SLOTS,
   };
 }
@@ -189,4 +189,18 @@ test('a step judges its server cue by the Take check, on the folder\'s slot', ()
   const T = { id: 'T', name: 'Opening', mode: 'through', slot: { channel: 1, layer: 20 } };
   const ctx = context({ cues: [cue('a', 'a', { folderId: 'T' })], items: [vt('a')], folders: [T] });
   assert.equal(stepBlocker(ctx.cues[0], ctx), OUTPUT);
+});
+
+test('a cue over a stranger\'s OGraf package takes (E3.2a), unless its record is one this build cannot act on', () => {
+  const LATER = 'Scoreboard was imported by a later version of NoaCG, so it is kept as it is and does not load here.';
+  const readable = context({ cues: [graphic('p'), graphic('s')], graphics: { 'g-p': 'Scoreboard', 'g-s': 'Strap' }, foreign: { 'g-p': null } });
+  assert.equal(takeBlockerFor(readable.cues[0], readable), null, 'a package this build reads takes like any graphic');
+  assert.equal(directBlocker(readable.cues[0], readable, SETTINGS), null);
+  const ctx = context({ cues: [graphic('p'), graphic('s')], graphics: { 'g-p': 'Scoreboard', 'g-s': 'Strap' }, foreign: { 'g-p': LATER } });
+  assert.equal(takeBlockerFor(ctx.cues[0], ctx), LATER);
+  assert.equal(takeBlockerFor(ctx.cues[1], ctx), null, 'a native graphic beside it still takes');
+  assert.equal(directBlocker(ctx.cues[0], ctx, SETTINGS), LATER);
+  const folder = { id: 'f', name: 'Both', mode: 'together' };
+  const inFolder = context({ cues: [graphic('p', { folderId: 'f' }), graphic('s', { folderId: 'f' })], folders: [folder], graphics: { 'g-p': 'Scoreboard', 'g-s': 'Strap' }, foreign: { 'g-p': LATER } });
+  assert.equal(takeBlockerFor(folder, inFolder), `P: ${LATER}`);
 });

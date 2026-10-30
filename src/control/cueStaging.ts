@@ -16,6 +16,12 @@ import type { ResolvedValues } from '../model/productionData';
 import type { OutputCue } from './hostedControl';
 
 const CUE_FIELD = '\u001f';
+/** The field-shaped name a staged Adjust record goes under in its graphic's buffer
+ *  (control/hostedAdjust.ts): no field id starts with '@', so it is never read as a value. */
+export const STAGED_ADJUST = '@adjust';
+
+/** A key of the shared buffer that is a staged Adjust record, never a field value. */
+export const isStagedAdjustKey = (key: string) => key.endsWith(CUE_FIELD + STAGED_ADJUST);
 
 /** The keys `data`, typed for one cue, is staged under in its graphic's shared buffer. */
 export function cueStageData(cueId: string, data: Record<string, string>): Record<string, string> {
@@ -51,6 +57,7 @@ export function hostedCueValues(
   const graphicWide: Record<string, string> = {};
   const mine: Record<string, string> = {};
   for (const [key, value] of Object.entries(buffer)) {
+    if (isStagedAdjustKey(key)) continue;
     if (key.startsWith(prefix)) mine[key.slice(prefix.length)] = value;
     else if (alone && !key.includes(CUE_FIELD)) graphicWide[key] = value;
   }

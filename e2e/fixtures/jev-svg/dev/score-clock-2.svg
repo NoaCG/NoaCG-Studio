@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="700" viewBox="0 0 700 700" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="700" height="700" fill="#122036" />
+  <circle cx="350" cy="175" r="130" fill="#5a405b" />
+  <text x="350" y="195" font-size="65" text-anchor="middle" data-name="Zegar">00:00</text>
+  <rect x="35" y="365" width="290" height="280" fill="#335961" />
+  <rect x="375" y="365" width="290" height="280" fill="#6d5139" />
+  <text x="65" y="435" font-size="31" data-name="Nazwa">Wrzos</text>
+  <text x="410" y="435" font-size="31" data-name="Nazwa">Mech</text>
+  <text x="180" y="570" font-size="90" text-anchor="middle" data-name="Wynik">0</text>
+  <text x="520" y="570" font-size="90" text-anchor="middle" data-name="Wynik">0</text>
+</svg>

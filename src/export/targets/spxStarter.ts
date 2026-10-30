@@ -1,4 +1,5 @@
 import { prepareOutRuntime } from '../../blocks/animMigration';
+import { upgradeFontCss } from '../../model/fonts';
 // SPX export: the canonical package. The exported files mirror exactly what you see in the
 // editor (<slug>.html + css/ + js/ + assets), wrapped in one project folder that drops straight
 // into an SPX/CasparCG templates directory. Plug-and-play: relative paths, bundled GSAP.
@@ -22,6 +23,8 @@ import { onAirGuideMd } from '../onAirGuide';
 import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget } from '../registry';
 import type { ControlEntry } from '../../model/library';
+import type { AppliedAppearance } from '../../control/cueAdjust';
+import { bakeAppearance } from '../../control/appearanceRuntime';
 import { replaceDefinitionInHtml } from '../../model/spxDefinition';
 import type { SpxTemplate, TemplateType } from '../../model/types';
 import { expandInset } from '../../assets/cssCompat';
@@ -180,9 +183,11 @@ export async function buildStarterInto(
     /** An SPX package: the operator page is SPX_PANEL_FILE. The dual graphic package keeps
      *  `controlpanel.html`, the name its CLI and skill document. */
     forSpx?: boolean;
+    /** The production's place and size for this graphic, baked (control/appearanceRuntime.ts `bakeAppearance`). */
+    appearance?: AppliedAppearance;
   },
 ): Promise<void> {
-  template = { ...template, js: prepareOutRuntime(template.js) };
+  template = { ...template, js: prepareOutRuntime(template.js), css: upgradeFontCss(template.css) };
   const fileName = opts?.fileName ?? `${slug(template.name)}.html`;
   const panelFile = opts?.forSpx ? SPX_PANEL_FILE : 'controlpanel.html';
   // The flex-gap shim's reference goes in at export, like the receiver: SPX hands this file to
@@ -198,6 +203,7 @@ export async function buildStarterInto(
   const steps = Number(template.settings.steps);
   if (steps >= 2) html = appendToBody(html, spxStepGuardScript(steps));
   html = appendToBody(html, spxTextScript(template));
+  for (const { id, js } of bakeAppearance(opts?.appearance)) html = appendToBody(html, `<script id="${id}">\n${js}\n</script>`);
   root.file(fileName, html);
   // SPX plays it on CasparCG, which on 2.3 is Chromium 71: no `inset` (assets/cssCompat.ts).
   root.file('css/template.css', cssForSubfolder(expandInset(template.css)));
@@ -232,6 +238,7 @@ export const spxTarget: ExportTarget = {
     await buildStarterInto(root, withPlayoutLayer(template, spxLayerFor(template)), {
       entries: ctx?.entries,
       forSpx: true,
+      appearance: ctx?.appearance,
     });
     root.file('GETTING-ON-AIR.md', onAirGuideMd({ controlPanel: SPX_PANEL_FILE }));
     return zip;

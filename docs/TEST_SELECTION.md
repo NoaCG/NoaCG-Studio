@@ -198,6 +198,12 @@ minutes in the morning's run (33841739638) of which `npm ci` alone was 7.7; the 
 through `./.github/actions/node-modules` like every other job here, so the landing verdict costs
 about seven minutes. It adds no latency to any gate, because it gates nothing.
 
+**Four shards since 2026-10-24 (issue #1668).** By then it was 130 tests and 33.5 minutes of
+Playwright on one worker, and a run met the 40-minute cap with no verdict. The suite now runs on
+four runners, each with its own local stack and accounts, packed by the minutes earlier runs
+measured (`scripts/configured-shards.mjs`, the packer ci.yml and the nightly use), and one verdict
+job merges their reports before the floor, skip and quarantine checks.
+
 Each landing gets its own concurrency group, so the runs do not queue behind one another and a
 verdict is about exactly one commit. A shared group would have made GitHub hold one pending run and
 cancel the rest, which on a twenty-landing day is the attribution thrown away again.

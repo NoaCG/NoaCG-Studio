@@ -522,17 +522,75 @@ export function parseDataTree(text: string): { data: JsonObject | null; error: s
 // mapping for every field of one graphic, the operator reviews it, and one confirmation writes
 // it. Nothing here applies anything by itself: a source's arrival never binds a field.
 
-/** A data source's paths: everything under `sheet.<id>`, or `feed.<id>` for a news feed
- *  (control/sheetSource.ts and control/feedSource.ts write them). */
-export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed'): string => `${kind}.${sourceId}`;
+/** A data source's paths: everything under `sheet.<id>`, `feed.<id>` for a news feed, or
+ *  `external.<id>` for a connector (control/sheetSource.ts, control/feedSource.ts and the
+ *  `/api/data/source` route through control/sourceMapping.ts write them). */
+export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed' | 'external'): string => `${kind}.${sourceId}`;
+
+const SOURCE_KINDS = ['sheet', 'feed', 'external'] as const;
 
 /** Whether a connected path is one this source writes. Source ids are unique, so the id decides. */
-export const isSourcePath = (sourceId: string, path: string): boolean =>
-  path.startsWith(`${sourcePrefix(sourceId, 'sheet')}.`) || path.startsWith(`${sourcePrefix(sourceId, 'feed')}.`);
+export const isSourcePath = (sourceId: string, path: string): boolean => SOURCE_KINDS.some((kind) => path.startsWith(`${sourcePrefix(sourceId, kind)}.`));
 
 /** The source a connected path follows, or null for a path no source writes. */
-export const sourceIdOf = (path: string | undefined): string | null =>
-  path?.startsWith('sheet.') || path?.startsWith('feed.') ? path.split('.')[1] || null : null;
+export const sourceIdOf = (path: string | undefined): string | null => {
+  const [kind, id] = path?.split('.') ?? [];
+  return (SOURCE_KINDS as readonly string[]).includes(kind) ? id || null : null;
+};
+
+/** A connector source registered by a later build (`config.v` above 1), or carrying a recipe of a
+ *  later version (`config.mapping.v` above 1): kept as it is, held read-only, never applied or
+ *  edited (src/model/shows.ts `patchShowSource`; the route refuses the first as unsupported and
+ *  the evaluator writes nothing from the second). */
+export const externalReadOnly = (source: { kind: string; config?: unknown }): boolean => {
+  const config = source.config as { v?: unknown; mapping?: { v?: unknown } | null } | undefined;
+  const later = (v: unknown, current: number) => typeof v === 'number' && v > current;
+  // Only a later version: a malformed record stays editable (the route refuses it either way).
+  return source.kind === 'external' && (later(config?.v, 1) || later(config?.mapping?.v, RECIPE_VERSION));
+};
+
+// A connector's MAPPING RECIPE (docs/work-specs/playout-api-mapping/spec.md, E5.1): the declarative
+// shape persisted in `Show.sources[].config.mapping`, additive optional (no migration). It names
+// which payload value each bound leaf `external.<id>.<leaf>` reads and the few bounded steps it
+// goes through. It holds paths, literals and locales only: no credential, no expression. Read and
+// judged by control/sourceMapping.ts `readSourceRecipe`; a later `v` is kept and never evaluated.
+
+/** A finite number with a fixed count of decimals, or a time, in an explicit locale and zone. */
+export type RecipeFormat =
+  | { kind: 'number'; locale: string; decimals: number }
+  | { kind: 'date'; locale: string; timeZone: string; show: 'date' | 'time' | 'datetime' };
+
+/** One value: the dotted path it reads, an optional format, and the text a missing or null value
+ *  writes instead (zero, false and "" are values). */
+export interface RecipeValue {
+  from: string;
+  format?: RecipeFormat;
+  fallback?: string;
+}
+
+/** A collection: its items' identity, one equality filter, one sort (ties broken by `id`), a row
+ *  limit, then each row's cells in order, written through the leaf's registered list adapter. */
+export interface RecipeList {
+  from: string;
+  id?: string;
+  where?: { path: string; equals: string | number | boolean };
+  sort?: { by: string; order: 'asc' | 'desc' };
+  limit?: number;
+  columns: RecipeValue[];
+}
+
+/** The recipe format this build reads; a later one is kept and never evaluated. */
+export const RECIPE_VERSION = 1;
+
+export interface SourceRecipe {
+  v: typeof RECIPE_VERSION;
+  /** The source and config revision it was made for: a recipe copied onto another source, or one
+   *  older than its source's configuration, evaluates nothing until it is rebound. */
+  sourceId: string;
+  configRevision: number;
+  /** Bound leaf -> what it reads. A bound leaf with no output reads its own path (identity). */
+  outputs: Record<string, RecipeValue | RecipeList>;
+}
 
 /** Every connected path that follows this source, across the production's graphics. */
 export function sourcePaths(bindings: ProductionBindings | undefined, sourceId: string): { graphic: string; fieldId: string; path: string }[] {
@@ -663,4 +721,150 @@ export function mappingEntries(graphic: string, rows: MappingRow[], choices: Rec
     out.push({ graphic, fieldId: row.fieldId, path: chosen ?? null });
   }
   return out;
+}
+
+// A LIVE CANDIDATE SELECTION (docs/work-specs/playout-election-package/spec.md, E7.1): one cue of a
+// shared card shows one entity of a source's collection, picked by its stable key, never by its
+// row. Two additive optional records, each with its own `v`, so adding them never bumps
+// `Show.version`:
+//   - `Show.collections[]`, the SHARED collection recipe: the source, its schema revision, the
+//     collection leaf, the key paths that together name one entity (district plus candidate), and
+//     which record value each field of the graphic shows;
+//   - `ShowCue.selection`, the CUE-OWNED selector: the recipe and the entity's key.
+// Read and judged by control/sourceMapping.ts (`selectionGate`, `resolveSelection`). E7.1 lands the
+// reader and the refusal; E7.2a the one writer (model/shows.ts `setCueSelection`, and a pack's
+// install, `setShowSelections`), which writes only a record the reader reads. Every other write of
+// either door keeps both byte for byte (`selectionFrozen`).
+
+/** The collection recipe and the cue selector format this build reads. */
+export const SELECTION_VERSION = 1;
+
+export interface CollectionRecipe {
+  v: typeof SELECTION_VERSION;
+  id: string;
+  /** The connector source whose tree namespace holds the collection. */
+  sourceId: string;
+  /** The schema revision the field map was made for: a collection of another one holds. */
+  schemaRevision: number;
+  /** The pool graphic (its name, the wire key) whose cues select from it. */
+  graphic: string;
+  /** The leaf under `external.<sourceId>.` holding `{schemaRevision, revision, items}`. */
+  from: string;
+  /** The dotted paths that together name one entity, in order: ["district", "candidate"]. */
+  key: string[];
+  /** Field id -> the record value it shows. A field with no fallback is required. */
+  fields: Record<string, RecipeValue>;
+}
+
+export interface CueSelection {
+  v: typeof SELECTION_VERSION;
+  /** The collection recipe's id. */
+  recipe: string;
+  /** The entity's key, one part per recipe key path. */
+  key: (string | number)[];
+}
+
+const laterThan = (v: unknown, current: number) => typeof v === 'number' && v > current;
+
+/** The recipe a cue's selection names, as stored (unread), or undefined. */
+function recipeOf(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): { v?: unknown; graphic?: unknown; fields?: unknown } | undefined {
+  const name = (cue.selection as { recipe?: unknown } | null | undefined)?.recipe;
+  return (collections ?? []).find((r) => (r as { id?: unknown } | null)?.id === name) as { v?: unknown } | undefined;
+}
+
+/** A stored recipe's mapped field ids, whatever its state. */
+const fieldKeys = (recipe: { fields?: unknown } | null | undefined): string[] =>
+  recipe && typeof recipe.fields === 'object' && recipe.fields !== null ? Object.keys(recipe.fields) : [];
+
+/**
+ * Whether a cue's selection is one this build cannot read: the selector or the recipe it names is
+ * of a later version. Such a cue is read-only: no Take, Update or edit, and every byte kept. Only
+ * a later version: a malformed one is refused by the reader instead, its bytes kept all the same.
+ */
+export function selectionReadOnly(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): boolean {
+  if (cue.selection === undefined) return false;
+  return laterThan((cue.selection as { v?: unknown } | null)?.v, SELECTION_VERSION) || laterThan(recipeOf(cue, collections)?.v, SELECTION_VERSION);
+}
+
+/** Whether a cue's own prepared values are what it airs: not a cue showing a live candidate, nor
+ *  one carrying typed OGraf data (model/ografTyped.ts, E1.1). Every road that sends a cue's values
+ *  without resolving it (the hosted page, the exported controller and SPX rundown, a timed end)
+ *  leaves such a cue out, read-only or not (E7.1). */
+export const preparedCue = (cue: { selection?: unknown; typed?: unknown }): boolean => cue.selection === undefined && cue.typed === undefined;
+
+/** The fields a cue's selection shows (its recipe's field map), whatever their state. */
+export function selectedFields(cue: { selection?: unknown }, collections: readonly unknown[] | undefined): string[] {
+  return cue.selection === undefined ? [] : fieldKeys(recipeOf(cue, collections));
+}
+
+/** Every field some collection recipe maps, per graphic: none of them may also follow a shared
+ *  binding, or a shared value would overwrite the cue's own candidate. */
+export function collectionFields(collections: readonly unknown[] | undefined, graphic: string): Set<string> {
+  const mine = (collections ?? []).filter((r) => (r as { graphic?: unknown } | null)?.graphic === graphic);
+  return new Set(mine.flatMap((r) => fieldKeys(r as { fields?: unknown })));
+}
+
+/** The parts of a production record the selection gate reads. */
+export interface SelectionRecord {
+  cues?: { id: string; selection?: unknown }[];
+  collections?: readonly unknown[];
+}
+
+/**
+ * THE SELECTION READ GATE AT THE WRITE DOORS (E7.1, precedent model/shows.ts `setShowProfile`):
+ * model/shows.ts `patchShowChecked` (both of its writes) and ./rundownHistory.ts `replaceRundown`
+ * (a personal or a team undo) ask it. Outside the one writer (`SelectionWrite`), a write that
+ * would change a live candidate selection is refused whole:
+ * the collection recipes stay byte for byte, every surviving cue keeps its selection as it was, a
+ * cue of a later version (`selectionReadOnly`) keeps every byte and is not removed, and no cue
+ * gains a selection except one an undo brings back
+ * from the history (`restored`), whose bytes are the record's own from before. `before` is `selectionKeep`'s
+ * answer for the record before the write. Left to a surface, the first older page to save the
+ * production would flatten a selection into the cue's prepared values.
+ */
+export function selectionKeep(show: SelectionRecord): { collections: string; cues: Map<string, { bytes: string; whole: boolean }> } | null {
+  const cues = new Map<string, { bytes: string; whole: boolean }>();
+  for (const cue of show.cues ?? []) {
+    if (cue.selection === undefined) continue;
+    const whole = selectionReadOnly(cue, show.collections);
+    cues.set(cue.id, { bytes: JSON.stringify(whole ? cue : cue.selection), whole });
+  }
+  if (cues.size === 0 && show.collections === undefined) return null;
+  return { collections: JSON.stringify(show.collections ?? null), cues };
+}
+
+const SELECTION_KEPT = 'This production has live candidate cues this version cannot change, so the edit was not saved.';
+
+/**
+ * What THE SELECTION WRITER (E7.2a: model/shows.ts `setCueSelection` and `setShowSelections`) may
+ * change in its one write, and to what: each named cue's selection to exactly these bytes
+ * (`JSON.stringify` of the record, "null" for one removed), and, when `collections` is given, the
+ * recipes to exactly those bytes. Everything else stays frozen as before. The writer checks the
+ * record with the reader (control/sourceMapping.ts `selectionWriteError`) before it asks.
+ */
+export interface SelectionWrite {
+  cues: ReadonlyMap<string, string>;
+  collections?: string;
+}
+
+export function selectionFrozen(before: ReturnType<typeof selectionKeep>, after: SelectionRecord, restored: ReadonlySet<string> = new Set(), write?: SelectionWrite): string | null {
+  if (JSON.stringify(after.collections ?? null) !== (write?.collections ?? before?.collections ?? 'null')) return SELECTION_KEPT;
+  const now = new Map((after.cues ?? []).map((c) => [c.id, c] as const));
+  // A write names cues that are there, each to its own bytes; a cue of a later version is never
+  // rewritten, since this build cannot read what it would replace.
+  for (const [id, bytes] of write?.cues ?? []) {
+    const cue = now.get(id);
+    if (!cue || before?.cues.get(id)?.whole || JSON.stringify(cue.selection ?? null) !== bytes) return SELECTION_KEPT;
+  }
+  for (const [id, kept] of before?.cues ?? []) {
+    if (write?.cues.has(id)) continue;
+    const cue = now.get(id);
+    if (!cue) {
+      if (kept.whole) return SELECTION_KEPT;
+      continue;
+    }
+    if (JSON.stringify(kept.whole ? cue : cue.selection) !== kept.bytes) return SELECTION_KEPT;
+  }
+  for (const cue of after.cues ?? []) if (cue.selection !== undefined && !before?.cues.has(cue.id) && !restored.has(cue.id) && !write?.cues.has(cue.id)) return SELECTION_KEPT;
+  return null;
 }

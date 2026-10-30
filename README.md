@@ -75,9 +75,11 @@ Codex and the optional MCP plugin: [`cli/plugin/README.md`](cli/plugin/README.md
 [`cli/plugin-mcp/README.md`](cli/plugin-mcp/README.md). The full account:
 [`docs/AGENT_CLI.md`](docs/AGENT_CLI.md).
 
-NoaCG Bridge is the same CLI's `noacg bridge` command. The Windows download on
-[noacg.studio/downloads](https://noacg.studio/downloads#bridge) packs it with Node, so the playout
-machine needs nothing installed. How it works: [`docs/BRIDGE.md`](docs/BRIDGE.md).
+NoaCG Bridge is a separate product for a different person: the operator who connects NoaCG
+Playout to CasparCG or vMix. It has its own version number and its own Windows download on
+[noacg.studio/downloads](https://noacg.studio/downloads#bridge), with Node inside, so the playout
+machine needs nothing installed. Its code lives in the CLI package as `noacg bridge`. How it
+works: [`docs/BRIDGE.md`](docs/BRIDGE.md).
 
 ## Run it yourself
 

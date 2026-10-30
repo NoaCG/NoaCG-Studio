@@ -1,0 +1,119 @@
+{
+  "costUnread": false,
+  "brief": "choir-final-audience-vote",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "64b605c2-f429-4297-b576-a724c5411e1a",
+  "costCents": 0,
+  "notionalUsd": 1.4646418999999997,
+  "wallSeconds": 341,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type live-poll --design pl01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:19652856429e97de8f2e0d2a007da095ea9f07231294cafdd3f9ba320aee4a2c"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:19652856429e97de8f2e0d2a007da095ea9f07231294cafdd3f9ba320aee4a2c"
+    },
+    {
+      "command": "noacg validate graphic --screenshots shots",
+      "code": 0,
+      "digest": "sha256:c992ab6652ea8c524ae8a8a4f7ca78a0e91b8869427927e455144a140e181afe"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:c992ab6652ea8c524ae8a8a4f7ca78a0e91b8869427927e455144a140e181afe"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:c992ab6652ea8c524ae8a8a4f7ca78a0e91b8869427927e455144a140e181afe"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\baseline\\cells\\choir-final-audience-vote.claude-sonnet-5-5-high\\frames",
+    "frames": 52,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:c992ab6652ea8c524ae8a8a4f7ca78a0e91b8869427927e455144a140e181afe"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 3,
+    "buttons": [
+      "close",
+      "result",
+      "call"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:c992ab6652ea8c524ae8a8a4f7ca78a0e91b8869427927e455144a140e181afe",
+    "benchValidated": "sha256:c992ab6652ea8c524ae8a8a4f7ca78a0e91b8869427927e455144a140e181afe",
+    "reviewed": "sha256:c992ab6652ea8c524ae8a8a4f7ca78a0e91b8869427927e455144a140e181afe",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 52,
+    "opened": 47,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

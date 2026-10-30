@@ -44,10 +44,26 @@ export interface TakeContext {
   /** The Bridge has answered, and not with ok. */
   bridgeDown: boolean;
   itemOf: (cue: ShowCue) => PlayoutItem | null;
-  /** A graphic cue's pool graphic, null when the production no longer has it. */
-  graphicOf: (cue: ShowCue) => { name: string; layer: number } | null;
+  /** A graphic cue's pool graphic, null when the production no longer has it. `foreignRefusal`:
+   *  why its stranger's OGraf package is not taken here (model/foreignPackage.ts
+   *  `foreignTakeRefusal`), absent when it is. */
+  graphicOf: (cue: ShowCue) => { name: string; layer: number; foreignRefusal?: string | null } | null;
   slots: SlotRules;
+  /** Why a graphic cue's live candidate is not ready to Take, or null (control/selectionAir.ts
+   *  `selectionTake`): read-only, unknown or not resolving now. Absent: no cue has one. */
+  selectionBlocker?: (cue: ShowCue) => string | null;
 }
+
+/** The first graphic cue of this cue, or of this folder's cues, that is not ready to Take: over a
+ *  stranger's OGraf package this build cannot act on, or with a live candidate that is not ready. */
+const selectionRefusal = (target: ShowCue | ShowFolder, ctx: TakeContext): string | null => {
+  const cues = 'sourceId' in target ? [target] : (ctx.members.get(target.id) ?? []);
+  for (const cue of cues) {
+    const why = cue.source === 'playout' ? null : ctx.graphicOf(cue)?.foreignRefusal || (ctx.selectionBlocker?.(cue) ?? null);
+    if (why) return 'sourceId' in target ? why : `${cue.label}: ${why}`;
+  }
+  return null;
+};
 
 /** Where a server item plays on its own by the render's settings, `2-10`. */
 const addressOf = (ctx: TakeContext) => (i: PlayoutItem) => slotAddress(ctx.slots.itemSlot(ctx.settings, i));
@@ -113,6 +129,8 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
   if (!target) return null;
   const off = 'source' in target ? casparOffRefusal(target, ctx.casparOn) : null;
   if (off) return off;
+  const candidate = selectionRefusal(target, ctx);
+  if (candidate) return candidate;
   const plans = takePlans(target, ctx);
   for (const plan of plans) {
     const onOutput = outputSlotRefusal(plan.slot, ctx.settings);
@@ -132,7 +150,7 @@ export const takeBlockerFor = (target: ShowCue | ShowFolder | null, ctx: TakeCon
 /** Direct cues use their own route and end action, independently of their folder or neighbours.
  *  The output slot is judged by `settings` as they stand at the press, which the page reads then. */
 export const directBlocker = (cue: ShowCue, ctx: TakeContext, settings: PlayoutSettings): string | null => {
-  if (cue.source !== 'playout') return !ctx.graphicOf(cue)?.name ? `${cue.label} has no graphic.` : null;
+  if (cue.source !== 'playout') return !ctx.graphicOf(cue)?.name ? `${cue.label} has no graphic.` : selectionRefusal(cue, ctx);
   const off = casparOffRefusal(cue, ctx.casparOn);
   if (off) return off;
   const item = ctx.itemOf(cue);

@@ -52,16 +52,31 @@ import {
   type LiveRoad,
 } from '../control/livePath';
 import { outputReadiness, outputStateWords, type ChangePrep, type GraphicCheck, type HeldVersion } from '../control/readiness';
-import { alreadyInSnapshot, planOutputRecovery, seqBaselines } from '../control/outputRecovery';
-import { supersededAnimations } from '../control/seqFollow';
+import {
+  alreadyInSnapshot,
+  mayAirTyped,
+  planOutputRecovery,
+  reportedTyped,
+  seqBaselines,
+  stepsAfter,
+  unreportedPages,
+  unreportedTypedRows,
+} from '../control/outputRecovery';
+import { SEQ_TAIL_PAGE, supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
-import { pingDelay, type PingAck } from '../control/prepareLive';
+import { answersPing, pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
 import { PROBE_MS, reloadWhenClear, within } from './reload';
 import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
+import { reportedLook } from '../control/cueAdjust';
 import { createSwapper } from './swap';
+import { TYPED_READER, typedOutputGate, type TypedValues } from '../model/ografTyped';
+import type { ControlMessage } from '../control/controlModel';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
+import { publishedOgrafBase } from '../backend/productionOgraf';
+import { isOgrafInstance, ografCheck } from '../control/ografOutcome';
+import { bootGap, heldActions, heldSteps, ografRestore, readPastGate, UNKNOWN_ACTED } from '../control/ografRecovery';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -206,7 +221,29 @@ async function boot(): Promise<void> {
   const soundBudget = createSoundBudget();
   let programAudioVersion = resolved.output.ver?.h ?? '';
   const audio = (payload: typeof resolved.output) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
-  const stage = createOutputStage(document.body, resolved.output, { sound: 'program', soundBudget, loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset) });
+  // THE INSTANCES THIS TAB'S PREVIOUS DOCUMENT HAD MOUNTED (E3.2b, AC-3): a package mounted again
+  // here names the one it replaced, so a report that old instance still had on its way when the
+  // output reloaded is refused by the pages (control/ografOutcome.ts `acceptOutcome`).
+  const instancesKey = `noacg-ograf-instances:${outputSlug}`;
+  const ografReplaced: Record<string, string> = {};
+  try {
+    const held: unknown = JSON.parse(sessionStorage.getItem(instancesKey) ?? '{}');
+    if (held && typeof held === 'object' && !Array.isArray(held)) {
+      for (const [key, i] of Object.entries(held)) if (isOgrafInstance(i)) ografReplaced[key] = i;
+    }
+  } catch {
+    // No session storage (a locked-down browser source): nothing is named, and nothing breaks.
+  }
+  const stage = createOutputStage(document.body, resolved.output, {
+    ografReplaced,
+    sound: 'program',
+    soundBudget,
+    loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset),
+    // An imported OGraf package is served by the server under a sealed base (E3.2a), asked for with
+    // this output's capability and the version that holds it.
+    // A package added by a later publication is asked for with that publication's version (`add`).
+    ografBase: (spec, version) => (spec.ograf ? publishedOgrafBase(outputSlug, version ?? programAudioVersion)(spec.ograf.revision) : Promise.resolve(null)),
+  });
   dbg('graphics', stage.graphics.join(', '));
 
   // ── READY (control/readiness.ts; docs/work-specs/playout-ready/spec.md R1, R6, R7): this output
@@ -238,7 +275,38 @@ async function boot(): Promise<void> {
   const recovered = new Promise<void>((resolve) => {
     markRecovered = resolve;
   });
-  const readiness = () => outputReadiness({ graphics: stage.graphics, checks, held: stage.held, version: heldVersion, catchingUp, chg });
+  /** Typed data, graphic by graphic (model/ografTyped.ts `typedOutputGate`). `held`: graphics a
+   *  command carrying an envelope this build cannot read reached (E1.1), with the reason, shown in
+   *  the graphic's READY line; until a native `update` gives the graphic its data again, nothing but
+   *  a `stop` reaches it, since a Take's `play` after its refused `update` would air the previous
+   *  cue's values. `airing`: graphics whose data on air is an envelope's (E1.2a). */
+  const typed = { held: new Map<string, string>(), airing: new Set<string>() };
+  const typedRefused = typed.held;
+  /** The values each graphic airing typed data holds, as they were sent: what a frame that replaces
+   *  it (the swapper below) is given in place of the native values a report banks. */
+  const typedData = new Map<string, Record<string, unknown>>();
+  /** …and the envelope that carried them, as it came: what a report banks as the graphic's typed
+   *  baseline (E1.2b, control/outputRecovery.ts `reportedTyped`). */
+  const typedEnvelope = new Map<string, unknown>();
+  /** Per graphic, the steps since its entrance (`stepsAfter`): what a typed graphic with no pose is
+   *  stepped back to on a reboot. */
+  const stepsSince = new Map<string, number>();
+  /** What a graphic holds now: its typed values while it airs them, else its native ones. The
+   *  frame's update is JSON either way. */
+  const heldData = (graphic: string): Record<string, string> | null =>
+    (typed.airing.has(graphic) ? (typedData.get(graphic) as Record<string, string> | undefined) : mergedData.get(graphic)) ?? null;
+  const withRefusals = (): ReadonlyMap<string, GraphicCheck> => {
+    if (typedRefused.size === 0) return checks;
+    const merged = new Map(checks);
+    for (const [graphic, error] of typedRefused) {
+      merged.set(graphic, { ...(checks.get(graphic) ?? { silent: false, fontsFailed: [], fontsLoading: [], imagesBroken: [] }), done: true, error });
+    }
+    return merged;
+  };
+  /** The imported OGraf packages this output holds (E3.2a): READY counts them beside the composed
+   *  graphics, each prepared once its `load()` answered, or failed in its own words. */
+  const packages = new Set(payload.graphics.filter((g) => g.ograf).map((g) => g.key));
+  const readiness = () => outputReadiness({ graphics: [...stage.graphics, ...packages], checks: withRefusals(), held: stage.held, version: heldVersion, catchingUp, chg });
   // `presence` is joined below; nothing here runs before it exists.
   const readyChanged = () => {
     // Worded only where it is shown: a playout box's main thread is the one that must not miss frames.
@@ -326,6 +394,8 @@ async function boot(): Promise<void> {
       ready: readiness(),
       ack,
       proto: identity.protocol,
+      // E1.2a: this output reads typed envelopes, so a page may send it one.
+      typed: TYPED_READER,
     });
   const presence = joinLivePresence({
     showId: resolved.id,
@@ -371,10 +441,15 @@ async function boot(): Promise<void> {
   const headOn = new Map<string, boolean>();
   /** A head has been heard in this epoch: until then headOn says nothing, not "nothing on air". */
   let headHeard = false;
-  const noteHead = (graphics: Record<string, { on?: boolean }> | undefined) => {
+  /** …and the cue the head says each graphic last took (a cue id, or null). */
+  const headCue = new Map<string, unknown>();
+  const noteHead = (graphics: Record<string, { on?: boolean; cue?: string | null }> | undefined) => {
     if (!graphics) return;
     headHeard = true;
-    for (const graphic of Object.keys(graphics)) headOn.set(graphic, graphics[graphic].on === true);
+    for (const graphic of Object.keys(graphics)) {
+      headOn.set(graphic, graphics[graphic].on === true);
+      headCue.set(graphic, graphics[graphic].cue);
+    }
   };
   /** Graphics a play, snap or stop has reached since boot: for them `liveGraphics` is this
    *  renderer's own truth about what it shows. */
@@ -387,6 +462,8 @@ async function boot(): Promise<void> {
   const airCount = () => {
     let n = 0;
     for (const graphic of stage.graphics) if (onAirHere(graphic)) n += 1;
+    // An imported OGraf package on air holds a reload as any graphic does (E3.2a).
+    for (const graphic of stage.ografOutcomes.keys()) if (onAirHere(graphic)) n += 1;
     return n;
   };
   /** Each graphic's first cue values in `cues`, or null. */
@@ -395,6 +472,9 @@ async function boot(): Promise<void> {
   // itself: after its graphics take newer bodies, its bodies and assets are dead weight.
   const bootDigests: Record<string, string> = {};
   for (const key of stage.graphics) bootDigests[key] = payload.ver?.g[key] ?? '';
+  // An imported OGraf package is held too, though it has no composed frame (E3.2a): a publish that
+  // changes it is then a change READY reports ("when the output reloads"), not a new graphic.
+  for (const spec of payload.graphics) if (spec.ograf) bootDigests[spec.key] = payload.ver?.g[spec.key] ?? '';
   // ── PER-GRAPHIC REPLACEMENT (./swap.ts; docs/work-specs/per-graphic-replacement/spec.md): a
   // publish's changes are built beside the running graphics and each takes over its graphic as
   // soon as that graphic is off air here, without a reload and without touching any other. ──
@@ -402,8 +482,8 @@ async function boot(): Promise<void> {
     stage,
     held: bootDigests,
     onAir: onAirHere,
-    data: (graphic) => mergedData.get(graphic) ?? null,
-    warmData: (graphic, next) => (touched.has(graphic) ? (mergedData.get(graphic) ?? null) : firstCueOf(next.cues, graphic)),
+    data: (graphic) => heldData(graphic),
+    warmData: (graphic, next) => (touched.has(graphic) ? heldData(graphic) : firstCueOf(next.cues, graphic)),
     loadSound: (next) => audio(next).loadSound,
     onSwapped: (graphic, spec, check) => {
       bodies.set(graphic, (bodies.get(graphic) ?? 0) + 1);
@@ -416,12 +496,15 @@ async function boot(): Promise<void> {
       // Warmed, once its document loads, with its own first cue (the onLoaded pass above).
       const cue = firstCueOf(next.cues, spec.key);
       if (cue) firstCue.set(spec.key, cue);
+      // A package counts as preparing from here, not from its first word.
+      if (spec.ograf) packages.add(spec.key);
       learnClocks(spec);
       giveUpOnLoad([spec.key]);
       readyChanged();
     },
     onRemoved: (graphic) => {
-      for (const map of [checks, mergedData, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
+      packages.delete(graphic);
+      for (const map of [checks, mergedData, typedData, typedEnvelope, stepsSince, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
       for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
       clearTimeout(reportTimers.get(graphic));
       reportTimers.delete(graphic);
@@ -516,8 +599,13 @@ async function boot(): Promise<void> {
   // applied either way: it is the baseline an older renderer or page reads from a report.
   let followEpoch = seqMode?.epoch ?? null;
   dbg('protocol', seqMode ? 'numbered log (proto 2)' : resolved.seq ? 'row id (proto 1: older rows need it)' : 'row id (proto 1)');
-  const byId = planOutputRecovery(stage.graphics, resolved.live);
-  const { followFrom, snapshotAt } = seqMode ? planOutputRecovery(stage.graphics, seqBaselines(resolved.live)) : byId;
+  // An imported OGraf package is recovered from its report and the log after it as every graphic is
+  // (E3.2b; Codex P1 on #1780): its bank counts, so a newer NoaCG graphic's bank cannot carry the
+  // catch-up past the package's own rows.
+  const bootPackages = [...packages];
+  const recoverable = [...stage.graphics, ...bootPackages];
+  const byId = planOutputRecovery(recoverable, resolved.live);
+  const { followFrom, snapshotAt } = seqMode ? planOutputRecovery(recoverable, seqBaselines(resolved.live)) : byId;
   let lastAppliedId = byId.followFrom;
   let lastAppliedSeq = seqMode ? followFrom : 0;
   /** Where a row sits in the log this renderer follows. */
@@ -561,8 +649,30 @@ async function boot(): Promise<void> {
         () => {
           reportTimers.delete(graphic);
           changedReports.delete(graphic);
-          const data = mergedData.get(graphic) ?? {};
-          const state = stage.states.get(graphic) ?? null;
+          // A HELD GRAPHIC NEVER REPORTS (E1.1, `typedRefused`): its bank stays before the refused
+          // command, so a reboot replays that command and is held again, rather than recovering
+          // the previous cue's values from a baseline past it. Asked at the moment of writing, so
+          // a report scheduled before the hold banks nothing either.
+          if (typedRefused.has(graphic)) {
+            forcedReports.delete(graphic);
+            return;
+          }
+          // A graphic AIRING TYPED DATA banks the envelope it last applied and its steps in `state`,
+          // with no native data (E1.2b, control/outputRecovery.ts `reportedTyped`): a reboot rebuilds
+          // it from them, and its bank moves on like any other graphic's.
+          const airingTyped = typed.airing.has(graphic);
+          const data = airingTyped ? {} : (mergedData.get(graphic) ?? {});
+          // The place and size held applied ride the report's `state` (playout adjustments: stored
+          // as sent, so no migration): what a boot restores, never newer preparation (rule 4).
+          const machine = stage.states.get(graphic) ?? null;
+          const look = stage.appearances.get(graphic);
+          const withLook = look ? { ...(machine ?? {}), appearance: look } : machine;
+          const typedState = airingTyped ? { ...(withLook ?? {}), typed: typedEnvelope.get(graphic), steps: stepsSince.get(graphic) ?? 0, on: liveGraphics.has(graphic) } : withLook;
+          // AN IMPORTED OGRAF PACKAGE reports what its Graphic answered (E3.2a, control/ografOutcome.ts):
+          // the instance, its last call and where it is. This is the output's word, the only one the
+          // production page shows as confirmed.
+          const ograf = stage.ografOutcomes.get(graphic);
+          const state = ograf ? { ...(typedState ?? {}), ograf } : typedState;
           // Byte-identical truth needs no second write (the 1 s state poll answers every second),
           // unless the write is due for its baseline.
           const key = JSON.stringify([data, state]);
@@ -598,6 +708,37 @@ async function boot(): Promise<void> {
     sinceBank.set(graphic, 0);
   };
   stage.onState((graphic) => scheduleReport(graphic));
+  /** The instance each package's READY check was taken from. */
+  const checkedInstance = new Map<string, string | null>();
+  stage.onOgraf((graphic) => {
+    scheduleReport(graphic);
+    const outcome = stage.ografOutcomes.get(graphic);
+    try {
+      // A package not mounted again yet keeps the instance it had, for its own mount to name.
+      const mounted: Record<string, string> = {};
+      for (const key of packages) if (ografReplaced[key] && !stage.ografOutcomes.has(key)) mounted[key] = ografReplaced[key];
+      for (const [key, o] of stage.ografOutcomes) if (o.i !== null) mounted[key] = o.i;
+      sessionStorage.setItem(instancesKey, JSON.stringify(mounted));
+    } catch {
+      // As above: nothing is named next time.
+    }
+    if (!outcome) {
+      // Removed: it leaves READY with its instance.
+      if (packages.delete(graphic)) checks.delete(graphic);
+      readyChanged();
+      return;
+    }
+    packages.add(graphic);
+    // The first word decides its check (its load), and a later call never changes it. A new
+    // instance (a re-cue's mount) is checked again by its own load (E3.2b).
+    if (outcome.i !== checkedInstance.get(graphic) && checks.delete(graphic)) readyChanged();
+    const check = checks.has(graphic) ? null : ografCheck(outcome);
+    if (check) {
+      checks.set(graphic, check);
+      checkedInstance.set(graphic, outcome.i);
+      readyChanged();
+    }
+  });
 
   // ── Which graphics are LIVE (played/snapped and not yet stopped): only those can change
   // state on a timer, so only those need the 1 s machine-state poll — an idle stacked
@@ -672,9 +813,40 @@ async function boot(): Promise<void> {
       if (road) live.duplicate(incoming);
       return;
     }
+    // THE TYPED GATE (E1.1, E1.2a): a command carrying an envelope this build cannot read is refused
+    // whole, never applied as its native members; the row itself stays in the log as it came. The
+    // graphic is held from then until a native update replaces its data (see `typed`).
+    const gate = typedOutputGate(typed, graphic, incoming);
+    if (gate.changed) readyChanged();
+    if (!gate.apply) {
+      if (gate.changed) console.warn(`output: typed data refused for "${graphic}": ${typedRefused.get(graphic)}`);
+      touched.add(graphic);
+      return;
+    }
+    // TYPED DATA (E1.2a): the envelope's values go to the stage as they are, never as strings and
+    // never into `mergedData` (the native values a report banks): a typed graphic does not report
+    // (`scheduleReport`), so a reboot replays its rows from the log. A data road's native update
+    // on it moves only its appearance.
+    if (gate.values || gate.dropData) {
+      touched.add(graphic);
+      if (gate.values) {
+        typedData.set(graphic, gate.values);
+        typedEnvelope.set(graphic, (incoming as { typed?: unknown }).typed);
+      }
+      const msg = incoming as Extract<ControlMessage, { t: 'update' }>;
+      const look = msg.appearance ? { appearance: msg.appearance } : {};
+      // A data road's update with no look moves nothing here: an empty update would reach a
+      // foreign Graphic as `updateAction({})`.
+      if (animate && (gate.values || msg.appearance)) stage.apply(graphic, gate.values ? { t: 'update', data: {}, typed: msg.typed, ...look } : { t: 'update', data: {}, ...look });
+      if (road) live.applied(road, incoming, receivedAt);
+      return;
+    }
     // A graphic a command has reached is never warmed (READY above): it holds the operator's values.
     const verb = incoming.t;
     if (verb === 'update' || verb === 'play' || verb === 'stop' || verb === 'next' || verb === 'event' || verb === 'snap') touched.add(graphic);
+    const steps = stepsAfter(stepsSince.get(graphic), incoming);
+    if (steps === undefined) stepsSince.delete(graphic);
+    else stepsSince.set(graphic, steps);
     const row = { graphic, msg: incoming, created_at: createdAt };
     // `let`, because an update row's CLOCK fields are forwarded as this renderer HOLDS them
     // rather than as the row carried them — see the rewrite in the update branch below.
@@ -755,7 +927,9 @@ async function boot(): Promise<void> {
     if (pairEffect?.when === 'after') applyClock(row.graphic, pairEffect.values);
   };
 
-  const apply = (row: ControlEventRow, road?: LiveRoad, animate = true) => {
+  /** `deliver` false: the row is read past and counted applied, but never reaches the stage (a
+   *  custom action on a package in the boot catch-up, which a restart never repeats). */
+  const apply = (row: ControlEventRow, road?: LiveRoad, animate = true, deliver = true) => {
     // The id baseline is the highest id applied on either road: that is what an older reader of
     // the report (an old renderer, a page's id-road boot replay) takes as "already in the snapshot".
     lastAppliedId = Math.max(lastAppliedId, row.id);
@@ -774,7 +948,8 @@ async function boot(): Promise<void> {
       } else if (row.msg.t !== 'ping') {
         for (const [graphic, at] of bankedAt) {
           // A catch-up replays rows from the oldest bank; rows before this graphic's do not count.
-          if (seq <= at) continue;
+          // A held graphic keeps its bank where it is (see the report above).
+          if (seq <= at || typedRefused.has(graphic)) continue;
           const since = (sinceBank.get(graphic) ?? 0) + 1;
           sinceBank.set(graphic, since);
           if (since < REBANK_AFTER) continue;
@@ -787,6 +962,8 @@ async function boot(): Promise<void> {
     // long the row took from the server's commit, and never handed to the stage. Its graphic is
     // empty, so it names nothing here to air or to report.
     if (row.msg.t === 'ping') {
+      // A production page's hand-over ping (#1797) has done its work by moving the number.
+      if (!answersPing(row.msg.id)) return;
       ack = { id: row.msg.id, ms: pingDelay(row.msg.at, Date.now()) };
       dbg('ping', ack.ms === null ? ack.id : ack.id + ' in ' + ack.ms + ' ms');
       presence.touch();
@@ -796,6 +973,11 @@ async function boot(): Promise<void> {
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
     if (alreadyInSnapshot(snapshotAt, row.graphic, position(row))) return;
+    if (!deliver) {
+      applied.claim(row.msg);
+      if (readPastGate(typed, row)) readyChanged();
+      return;
+    }
     applyCommand(row.graphic, row.msg, row.created_at, road, animate);
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
@@ -844,7 +1026,11 @@ async function boot(): Promise<void> {
     noteHead(answer.value.head?.graphics);
     return { ok: true, value: answer.value.rows };
   };
-  const missed: ControlEventRow[] = [];
+  let missed: ControlEventRow[] = [];
+  /** The catch-up stopped short of the log's end (a read that failed, or the page ceiling): the
+   *  follow's first refill then brings history, and a package's action in it is read past as the
+   *  catch-up would have (E3.2b, control/ografRecovery.ts `bootGap`). */
+  let bootGapOpen = true;
   for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
     const tail = await untilAnswered(
       () => readTail(missed.length > 0 ? position(missed[missed.length - 1]) : followFrom),
@@ -855,7 +1041,51 @@ async function boot(): Promise<void> {
       break;
     }
     missed.push(...tail.value);
-    if (tail.value.length < CONTROL_TAIL_PAGE) break;
+    if (tail.value.length < CONTROL_TAIL_PAGE) {
+      bootGapOpen = false;
+      break;
+    }
+  }
+  // A GRAPHIC ON AIR THAT NO REPORT BANKS, AIRING TYPED DATA (issue #1762; control/outputRecovery.ts
+  // `unreportedTypedRows`): its typed Take can be older than `followFrom`, so the log below it is
+  // read for that graphic alone, every page up to `followFrom` within the catch-up's ceiling
+  // (`unreportedPages`; past it, none: dbg says so), and its commands
+  // there replay before the rows above. Only the numbered log's head says what is on air, and a
+  // graphic every report banks, one that is not on air, or one whose live cue is a published native
+  // cue (`mayAirTyped`: a typed cue is never published) reads nothing more. A page that cannot be
+  // read leaves the whole read out: half a history could replay an envelope a later Take replaced.
+  const publishedCues = new Set(payload.cues.map((cue) => cue.id));
+  const unreported = stage.graphics.filter(
+    (key) => !resolved.live[key] && headOn.get(key) === true && mayAirTyped(headCue.get(key), publishedCues),
+  );
+  const unreportedSet = new Set(unreported);
+  let below: ControlEventRow[] = [];
+  if (unreported.length > 0) {
+    let cursor = 0;
+    const pages = unreportedPages(followFrom, !!seqMode, CONTROL_TAIL_PAGE, MAX_CATCH_UP_PAGES);
+    if (pages === 0 && seqMode && followFrom > 0) dbg('catch-up', `log below the reports too long to read: ${unreported.join(', ')} keep what their next Take sends`);
+    for (let page = 0; page < pages; page += 1) {
+      // Only the numbered log reaches here (`unreportedPages`). A republish (`reset`) is an unread
+      // log too: the epoch this boot follows is gone, and half of it must not replay.
+      const tail = await untilAnswered(() => controlOutputTailSeq(outputSlug, cursor, followEpoch), {
+        limit: 6,
+        onRetry: (attempts, error) => dbg('catch-up', `log read below the reports failed (${attempts}): ${error}`),
+      });
+      if (!tail.ok || tail.value.reset) {
+        below = [];
+        dbg('catch-up', 'log below the reports unread: typed data no report banks waits for its next Take');
+        break;
+      }
+      const rows = tail.value.rows.filter((row) => position(row) <= followFrom);
+      below.push(...rows.filter((row) => unreportedSet.has(row.graphic)));
+      if (rows.length < CONTROL_TAIL_PAGE) break;
+      cursor = position(rows[rows.length - 1]);
+    }
+  }
+  const unreportedTyped = unreportedTypedRows(unreported, below);
+  if (unreportedTyped.length > 0) {
+    dbg('catch-up', `typed data no report banks: ${[...new Set(unreportedTyped.map((row) => row.graphic))].join(', ')}`);
+    missed = unreportedTyped.concat(missed);
   }
   const replayed = missed.filter((row) => !alreadyInSnapshot(snapshotAt, row.graphic, position(row)));
   // ON AIR WITH NO POSE TO PUT BACK. A graphic with no state machine (a picture, a hand-written
@@ -866,14 +1096,30 @@ async function boot(): Promise<void> {
   // below, unless a play of it is among the rows replayed anyway.
   // The reports alone, not `resolved`: a closure over `resolved` would keep the boot payload alive.
   const reports = resolved.live;
+  // By row id (protocol 1) there is no head: a typed report says itself whether its graphic was on
+  // air (E1.2b), since its entrance is older than its baseline and no row brings it back.
   const onWithoutPose = stage.graphics.filter(
     (key) =>
-      headOn.get(key) === true &&
+      (headOn.get(key) === true || (!seqMode && reportedTyped(reports[key])?.on === true)) &&
       !reports[key]?.state?.groups &&
       !replayed.some((row) => row.graphic === key && (row.msg.t === 'play' || row.msg.t === 'snap')),
   );
+  // AN IMPORTED OGRAF PACKAGE is put back only as far as its Graphic's answers prove (E3.2b, AC-3,
+  // control/ografRecovery.ts): a Take it accepted, at its step; never a custom action, whose row is
+  // read past here; and otherwise it is said to be not known until the operator's next Take or Out.
+  const packageSet = new Set(bootPackages);
+  const unsentActions = heldActions(replayed, packageSet);
+  const ografPlans = bootPackages.map((key) => ({
+    key,
+    plan: ografRestore(reports[key], seqMode ? headOn.get(key) : undefined, replayed.filter((row) => row.graphic === key)),
+  }));
+  // A package not taken again is not stepped either (`heldSteps`).
+  const steps = heldSteps(replayed, new Set(ografPlans.flatMap(({ key, plan }) => (!plan.play || typedRefused.has(key) ? [key] : []))));
+  for (const row of steps.held) unsentActions.add(row);
+  const ografUnknown = new Map(ografPlans.flatMap(({ key, plan }) => (plan.unknown ? [[key, plan.unknown] as const] : [])));
   const animates =
     onWithoutPose.length > 0 ||
+    ografPlans.some(({ plan }) => plan.play) ||
     replayed.some((row) => row.msg.t === 'play' || row.msg.t === 'stop' || row.msg.t === 'next' || row.msg.t === 'event');
   if (animates) {
     stage.setVisible(false);
@@ -881,15 +1127,43 @@ async function boot(): Promise<void> {
   }
 
   // ── Boot recovery, per graphic: the data half, then the visual half (snap arms timers). ──
-  for (const key of stage.graphics) {
+  for (const key of recoverable) {
     const mine = resolved.live[key];
     if (!mine) continue;
     if (mine.data || mine.state?.groups) touched.add(key);
-    if (mine.data) {
-      mergedData.set(key, { ...mine.data });
-      stage.apply(key, { t: 'update', data: mine.data });
+    // Its place and size first, with the data half: the frame takes them before anything shows.
+    const look = reportedLook(mine);
+    // TYPED DATA'S BASELINE (E1.2b): the envelope the report banks goes through the same gate as a
+    // command carrying it, with its place and size, so one this build cannot read is refused and
+    // held with its reason, never aired as anything else. Its native data is empty by design.
+    const typedBase = reportedTyped(mine);
+    let restate: ControlMessage | null = null;
+    if (typedBase) {
+      // Read by the gate below before anything airs it: a cast, never a promise.
+      const msg = { t: 'update' as const, data: {}, typed: typedBase.typed as TypedValues };
+      const gate = typedOutputGate(typed, key, msg);
+      if (gate.changed) readyChanged();
+      if (gate.apply && gate.values) {
+        touched.add(key);
+        typedData.set(key, gate.values);
+        typedEnvelope.set(key, typedBase.typed);
+        stepsSince.set(key, typedBase.steps);
+        stage.apply(key, look ? { ...msg, appearance: look } : msg);
+        restate = msg;
+      } else {
+        console.warn(`output: typed data refused for "${key}": ${typedRefused.get(key)}`);
+        if (look) stage.apply(key, { t: 'update', data: {}, appearance: look });
+      }
+    } else {
+      if (look) stage.apply(key, { t: 'update', data: {}, appearance: look });
+      if (mine.data) {
+        mergedData.set(key, { ...mine.data });
+        stage.apply(key, { t: 'update', data: mine.data });
+        restate = { t: 'update', data: mine.data };
+      }
     }
-    if (mine.state?.groups) {
+    // A held graphic's pose is not put back: nothing but a stop reaches it until its data does.
+    if (mine.state?.groups && !typedRefused.has(key)) {
       stage.apply(key, { t: 'snap', snap: mine.state.groups });
       liveGraphics.add(key);
       // …and the data half AGAIN. Snap resets the graphic before composing the pose, which
@@ -897,16 +1171,33 @@ async function boot(): Promise<void> {
       // that hides an image field with no picture (that one recovers as an empty broken-image
       // box otherwise). Restating the data costs one message and repairs graphics whose code
       // was published before the runtime learned to preserve it.
-      if (mine.data) stage.apply(key, { t: 'update', data: mine.data });
+      if (restate) stage.apply(key, restate);
     }
   }
   for (const key of onWithoutPose) {
+    // A held graphic is not played again: its entrance would air the previous cue's values.
+    if (typedRefused.has(key)) continue;
     stage.apply(key, { t: 'play' });
+    // A typed graphic with no pose steps back to where its report says it stood (E1.2b).
+    const steps = stepsSince.get(key) ?? 0;
+    for (let step = 0; step < steps; step += 1) stage.apply(key, { t: 'next' });
+    stepsSince.set(key, steps);
     liveGraphics.add(key);
     commanded.add(key);
     touched.add(key);
   }
   if (onWithoutPose.length > 0) dbg('catch-up', `on air with no pose, played again: ${onWithoutPose.join(', ')}`);
+  for (const { key, plan } of ografPlans) {
+    // A held package is not played again either: its entrance would air the previous cue's values.
+    if (!plan.play || typedRefused.has(key)) continue;
+    stage.apply(key, { t: 'play' });
+    for (let step = 0; step < plan.steps; step += 1) stage.apply(key, { t: 'next' });
+    if (stepsSince.has(key)) stepsSince.set(key, plan.steps);
+    liveGraphics.add(key);
+    commanded.add(key);
+    touched.add(key);
+  }
+  if (ografUnknown.size > 0) dbg('catch-up', `not known after the restart: ${[...ografUnknown.keys()].join(', ')}`);
 
   // ── Replay what was missed, then come back on air once the replay has stood still. ──
   //
@@ -918,7 +1209,20 @@ async function boot(): Promise<void> {
   // it was catching up on ON AIR: the whole output flashed a second after a CasparCG browser
   // source loaded it. Both halves are fixed - the documents go off air from the inside and keep
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
-  missed.forEach((row) => apply(row));
+  missed.forEach((row) => apply(row, undefined, true, !unsentActions.has(row)));
+  const gap = bootGap<ControlEventRow>(
+    bootGapOpen,
+    packageSet,
+    [...ografUnknown].flatMap(([key, why]) => (why === UNKNOWN_ACTED ? [key] : [])),
+    seqMode ? SEQ_TAIL_PAGE : CONTROL_TAIL_PAGE,
+    (row) => alreadyInSnapshot(snapshotAt, row.graphic, position(row)),
+    steps.untaken,
+  );
+  const markHeld = (keys: readonly string[]) => {
+    for (const key of keys) stage.markUnknown(key, UNKNOWN_ACTED);
+  };
+  // Said once everything the boot sends has gone, so a Take among the replayed rows cannot clear it.
+  for (const [key, why] of ografUnknown) stage.markUnknown(key, why);
   // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
   markRecovered();
   if (animates) {
@@ -983,6 +1287,8 @@ async function boot(): Promise<void> {
       epoch: followEpoch,
       tail: async (after, epoch) => {
         const tail = await untilAnswered(() => controlOutputTailSeq(outputSlug, after, epoch), { limit: 5 });
+        // An empty read reached the log's end, and the follow hands an empty refill to no one.
+        if (tail.ok && !tail.value.reset && tail.value.rows.length === 0) markHeld(gap.emptyRead());
         return tail.ok ? tail.value : null;
       },
       onRows: (rows, replayed) => {
@@ -990,7 +1296,13 @@ async function boot(): Promise<void> {
         if (replayed) live.refilled();
         const quiet = replayed ? supersededAnimations(rows) : null;
         if (replayed && rows.length) stage.setSoundQuiet(true);
-        for (const row of rows) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
+        // History the boot catch-up left unread (control/ografRecovery.ts `bootGap`).
+        const { readPast, mark } = gap.batch(rows, replayed);
+        for (const row of rows) {
+          if (readPast.has(row)) apply(row, 'tail', true, false);
+          else apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
+        }
+        markHeld(mark);
         if (replayed && rows.length) stage.setSoundQuiet(false);
       },
       onHole: () => live.hole(),
@@ -1030,8 +1342,10 @@ async function boot(): Promise<void> {
         bankedAt.clear();
         sinceBank.clear();
         for (const graphic of stage.graphics) {
-          if (liveGraphics.has(graphic) || mergedData.has(graphic)) scheduleReport(graphic, true);
+          if (liveGraphics.has(graphic) || mergedData.has(graphic) || typed.airing.has(graphic)) scheduleReport(graphic, true);
         }
+        // A package's word goes into the new log too, so a later restart restores it (E3.2b).
+        for (const [graphic, outcome] of stage.ografOutcomes) if (outcome.i !== null) scheduleReport(graphic, true);
         dbg('protocol', 'numbered log (proto 2), republished: following the new log from its start');
       },
       onStatus,
@@ -1051,6 +1365,8 @@ async function boot(): Promise<void> {
         const rows = tail.ok ? tail.value : [];
         const read = { counted: false };
         rows.forEach((row) => fromTail.set(row, read));
+        // A read shorter than a page names where the boot's unread history ends (`bootGap`).
+        if (tail.ok) markHeld(gap.tailRead(rows, lastAppliedId));
         return rows;
       },
       onRow: (row) => {
@@ -1059,7 +1375,10 @@ async function boot(): Promise<void> {
           read.counted = true;
           live.refilled();
         }
-        apply(row, read ? 'tail' : 'log');
+        const { readPast, mark } = gap.row(row, !!read);
+        if (readPast) apply(row, 'tail', true, false);
+        else apply(row, read ? 'tail' : 'log');
+        markHeld(mark);
       },
       onHole: () => live.hole(),
       // THE FAST ROAD, on the surface it matters most for: the audience's picture. Every command

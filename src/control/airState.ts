@@ -34,7 +34,9 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from './matchClockWire.ts';
-import { airedAfter, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
+import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
 /** The clocks each graphic's published markup carries, by the name the wire uses. A graphic
  *  carries one kind or the other, never both. */
@@ -55,7 +57,63 @@ export function moveLiveCue(air: AirPart, next: LiveCueMap | ((map: LiveCueMap) 
  *  graphic. The same part when nothing changed. */
 export function rememberAired(air: AirPart, items: readonly ControlSendItem[]): AirPart {
   const aired = items.reduce<AiredMap>((next, item) => airedAfter(next, item.graphic, item.msg), air.aired);
-  return aired === air.aired ? air : { ...air, aired };
+  // The place and size each graphic holds applied, by the same commands (./cueAdjust.ts rules 1, 3).
+  const was = air.looks ?? {};
+  const looks = items.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), was);
+  const typedWas = air.typedAired ?? {};
+  const stepsWas = air.typedSteps ?? {};
+  const { typedAired, typedSteps } = items.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), { typedAired: typedWas, typedSteps: stepsWas });
+  if (aired === air.aired && looks === was && typedAired === typedWas && typedSteps === stepsWas) return air;
+  return {
+    ...air,
+    aired,
+    ...(looks === was ? {} : { looks }),
+    ...(typedAired === typedWas ? {} : { typedAired }),
+    ...(typedSteps === stepsWas ? {} : { typedSteps }),
+  };
+}
+
+type TypedAir = { typedAired: Record<string, TypedValues>; typedSteps: Record<string, readonly ControlSendItem['msg'][]> };
+
+/** One command's mark on a graphic's typed air: its envelope (`typedAfter`), and the commands it
+ *  took since its entrance, which a play starts again and the envelope's end drops. An update,
+ *  typed or a data road's, moves no step: Update changes the values, never the step. */
+function typedStepAfter(prev: TypedAir, graphic: string, msg: ControlSendItem['msg']): TypedAir {
+  const typedAired = typedAfter(prev.typedAired, graphic, msg);
+  const steps = prev.typedSteps;
+  if (!(graphic in typedAired)) {
+    if (!(graphic in steps)) return typedAired === prev.typedAired ? prev : { typedAired, typedSteps: steps };
+    const { [graphic]: _ended, ...rest } = steps;
+    return { typedAired, typedSteps: rest };
+  }
+  if (msg.t === 'update') return graphic in steps ? (typedAired === prev.typedAired ? prev : { typedAired, typedSteps: steps }) : { typedAired, typedSteps: { ...steps, [graphic]: [] } };
+  return { typedAired, typedSteps: { ...steps, [graphic]: msg.t === 'play' ? [msg] : [...(steps[graphic] ?? []), msg] } };
+}
+
+/** The resolved bound values the page's own dispatch sends (./productionDataSession.ts), without
+ *  the graphics airing typed data (E1.2a): what they air was last applied to them, and their bound
+ *  values go with ✎ Update in their envelope, never as this text. */
+export function withoutTypedAir<T extends Record<string, unknown>>(resolved: T, typedAired: Readonly<Record<string, unknown>>): T {
+  const typed = Object.keys(typedAired);
+  return typed.length ? (Object.fromEntries(Object.entries(resolved).filter(([g]) => !typed.includes(g))) as T) : resolved;
+}
+
+/**
+ * The typed envelope a graphic airs after one command (E1.2a), by the output's own rule
+ * (model/ografTyped.ts `typedOutputGate`): a values update airs its envelope; a data road's native
+ * update (`src`) leaves it; an operator's native update replaces it. An Out ends it here, where it
+ * only rebuilds PROGRAM and holds back the page's dispatch, and nothing is on air to need either;
+ * the output's gate keeps the mark through an Out until the next native operator update.
+ */
+export function typedAfter(prev: Record<string, TypedValues>, graphic: string, msg: ControlSendItem['msg']): Record<string, TypedValues> {
+  if (msg.t === 'update') {
+    const envelope = 'typed' in msg ? typedValuesOf(msg.typed) : null;
+    if (envelope) return { ...prev, [graphic]: envelope };
+    if ((msg as { src?: unknown }).src !== undefined || !(graphic in prev)) return prev;
+  } else if (msg.t !== 'stop' || !(graphic in prev)) return prev;
+  const next = { ...prev };
+  delete next[graphic];
+  return next;
 }
 
 /**
@@ -229,11 +287,45 @@ export function seedFromResolve(
     }
     if (Object.keys(values).length > 0) seed[graphic] = values;
   }
+  // What each renderer reports it holds applied of place and size, then the rows after the reports.
+  // A command applied here while the read was out is newer than every report: the looks stay.
+  let looks: AppliedLooks = { ...(air.looks ?? {}) };
+  // A report is the renderer's word for its graphic: no appearance in it clears an older entry.
+  if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
+    const look = reportedLook(report);
+    if (look) looks = { ...looks, [graphic]: look };
+    else if (graphic in looks) {
+      const { [graphic]: _cleared, ...rest } = looks;
+      looks = rest;
+    }
+  }
+  looks = replay.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), looks);
+  // The envelopes the reports bank (E1.2b, ./outputRecovery.ts `reportedTyped`), with the steps since
+  // each entrance, then what the rows after them leave on air. A graphic no report banks has its
+  // rows as its only word. Only a live layer keeps one.
+  const fromReports: TypedAir = { typedAired: { ...(air.typedAired ?? {}) }, typedSteps: { ...(air.typedSteps ?? {}) } };
+  // A report is the renderer's word for its graphic: one without typed data ends an older entry.
+  if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
+    const base = reportedTypedAir(report);
+    if (!base?.envelope) {
+      delete fromReports.typedAired[graphic];
+      delete fromReports.typedSteps[graphic];
+      continue;
+    }
+    fromReports.typedAired[graphic] = base.envelope;
+    fromReports.typedSteps[graphic] = base.steps;
+  }
+  const folded = replay.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), fromReports);
+  const typedAired = Object.fromEntries(Object.entries(folded.typedAired).filter(([graphic]) => resolved.liveCue[graphic]));
+  const typedSteps = Object.fromEntries(Object.entries(folded.typedSteps).filter(([graphic]) => graphic in typedAired));
   return {
     ...moveLiveCue(air, resolved.liveCue),
     aired: { ...air.aired, ...seed },
+    looks,
     clocks,
     speaking,
+    typedAired,
+    typedSteps,
     bootReplay: replay,
     bootLive: resolved.liveCue,
   };
@@ -272,8 +364,45 @@ export function restoreItems(
     const held = pair ? speaking[graphic] : undefined;
     if (base && pair && held) data = { ...base, ...held };
     const groups = replaying ? report?.state?.groups : machineStates[graphic]?.groups;
+    // Its place and size go with the first data write (rule 4: what was applied, never what is
+    // prepared): the report's while its rows replay, else what this page aired.
+    // (`looks` was seeded from the reports, so an entry cleared since is cleared, not the report's.)
+    const look = replaying ? reportedLook(report) : air.looks?.[graphic];
     const items: ReplayItem[] = [];
-    if (data) items.push({ graphic, msg: { t: 'update', data } });
+    // A graphic this page aired typed data on is rebuilt with that envelope, never its empty native
+    // data (E1.2a). While its rows replay, its report's envelope and steps are the base (E1.2b):
+    // the rows after the report carry the rest.
+    // At boot, a report whose envelope this build cannot read is a graphic the output holds: PROGRAM
+    // rebuilds nothing from it, never its empty native data, and replays the rows after it as the
+    // output does (`rowsPastHold`): held until an update it can air, so a native Take airs it again.
+    // Its place and size still go back first, as the output puts them back on the graphic it holds.
+    if (air.bootReplay !== null && reportedTypedAir(report)?.envelope === null) {
+      const held = reportedLook(report);
+      if (held) all.push({ graphic, msg: { t: 'update', data: {}, appearance: held } });
+      all.push(...rowsPastHold(rows));
+      continue;
+    }
+    const reported = replaying ? reportedTypedAir(report) : null;
+    const typed = replaying ? reported?.envelope : air.typedAired?.[graphic];
+    if (typed) {
+      items.push({ graphic, msg: { t: 'update', data: {}, typed, ...(look ? { appearance: look } : {}) } });
+      // The data again after the pose, as the native rebuild restates it (a snap clears inline styles).
+      if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } }, { graphic, msg: { t: 'update', data: {}, typed } });
+      else {
+        // No pose to snap to: the commands it took since its entrance (the report's steps, or what
+        // this page aired since its envelope) carry its entrance and every step, so PROGRAM stands
+        // where air does.
+        // A replayed entrance starts it again, so nothing before it is needed.
+        const steps: readonly ControlSendItem['msg'][] = reported ? reported.steps : (air.typedSteps?.[graphic] ?? []);
+        if (!rows.some((item) => item.msg.t === 'play')) {
+          if (!steps.some((msg) => msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });
+          items.push(...steps.map((msg) => ({ graphic, msg })));
+        }
+      }
+      all.push(...items, ...(replaying ? rows : []));
+      continue;
+    }
+    if (data || look) items.push({ graphic, msg: { t: 'update', data: data ?? {}, ...(look ? { appearance: look } : {}) } });
     if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
     // Without a state the graphic plays in, unless the replayed rows carry its entrance.
     else if (!rows.some((item) => item.msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });

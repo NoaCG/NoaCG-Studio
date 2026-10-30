@@ -309,6 +309,11 @@ test('YouTube comments: a refusal says what to do next', async ({ page }) => {
   await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
 });
 
+// Connect used to start a new chat twice: the page's source loop starts it once the record is in
+// the production, and Connect replaced that reader after its save landed. Under load the first
+// reader's "not live" was on screen and the second, started after `live = true`, connected, so
+// Reconnect never came (issues 1595, 1681). Verified by fault injection (300 ms and 1.5 s after
+// the save's setShows: 5 of 5 failed before the fix, 4 of 4 passed after).
 test('YouTube live chat: the first page arrives as earlier, the quota line counts down, and a reconnect adds nothing twice', async ({ page }) => {
   test.setTimeout(100_000);
   await bootstrapGraphic(page, { name: 'House Q&A' });

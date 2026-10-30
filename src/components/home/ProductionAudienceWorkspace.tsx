@@ -567,7 +567,11 @@ function MessageSources({
     setVideo('');
     setKey('');
     if (mode === 'chat') {
+      // A NEW source is already being read: `useMessageSources` starts it with this key as soon as
+      // its record is in the production, while the save above is still landing. Replacing that
+      // reader here read the chat twice (issue 1595). The same source connected again is read again.
       const running = intake.forSource(source.id);
+      if (running && !same) return;
       if (running) intake.remove(running.id);
       intake.add({ platform: 'youtube', videoId, apiKey, sourceId: source.id });
     } else void fetchNewest(source.id, videoId, apiKey);

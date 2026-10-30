@@ -1,0 +1,174 @@
+{
+  "costUnread": false,
+  "brief": "charity-stream-alerts",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "39abc094-aa04-4fd5-95c3-2fb9adcbbd55",
+  "costCents": 0,
+  "notionalUsd": 1.8168808000000003,
+  "wallSeconds": 445,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type event-notification --design sn01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots --background video",
+      "code": 0,
+      "digest": "sha256:6d1ae67359965ebbe49018127e2fcac131c7db85acaa7464ac1df5d9f9e6b391"
+    },
+    {
+      "command": "noacg screenshot . --state onair --background video --data f0=NEW DONATION --data f1=Maximilian-Götz Überschwänglich-Äußerlich von Hohenzollern-Sigmaringen --data f2=€1.250,00 --data f3=Für die gute Sache – viel Erfolg beim 24-Stunden-Stream, Jungs und Mädels! Übermorgen wieder. --data f4=images/testwhite.svg --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --background video --data f0=NEW DONATION --data f1=Maximilian-Götz Überschwänglich-Äußerlich von Hohenzollern-Sigmaringen --data f2=€1.250,00 --data f3=Für die gute Sache – viel Erfolg beim 24-Stunden-Stream, Jungs und Mädels! Übermorgen wieder. --data f4=images/testwhite.svg --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --background video --data f1=Maximilian-Götz Überschwänglich-Äußerlich von Hohenzollern-Sigmaringen --data f2=€1.250,00 --data f4=images/testwhite.svg --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --background #202830 --data f1=Maximilian-Götz Überschwänglich-Äußerlich von Hohenzollern-Sigmaringen --data f2=€1.250,00 --data f4=images/testwhite.svg --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --background #202830 --data f1=Maximilian-Götz Überschwänglich-Äußerlich von Hohenzollern-Sigmaringen --data f2=€1.250,00 --data f4=images/testwhite.svg --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:0d4ae4de21dff312feb68a7077239ee682ea2320b91bc74e2ceb2dc6e3a07a7d"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:0d4ae4de21dff312feb68a7077239ee682ea2320b91bc74e2ceb2dc6e3a07a7d"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:fb3e74731245d423c89582cb9c1c1f5082a59d1399a8433f4687f5473b363cfd"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state stress --background video --out shots/stress2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:fb3e74731245d423c89582cb9c1c1f5082a59d1399a8433f4687f5473b363cfd"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:fb3e74731245d423c89582cb9c1c1f5082a59d1399a8433f4687f5473b363cfd"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-1\\cells\\charity-stream-alerts.claude-sonnet-5-5-high\\frames",
+    "frames": 67,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:fb3e74731245d423c89582cb9c1c1f5082a59d1399a8433f4687f5473b363cfd"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [
+      "hold",
+      "resume",
+      "replay",
+      "skip"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:fb3e74731245d423c89582cb9c1c1f5082a59d1399a8433f4687f5473b363cfd",
+    "benchValidated": "sha256:fb3e74731245d423c89582cb9c1c1f5082a59d1399a8433f4687f5473b363cfd",
+    "reviewed": "sha256:fb3e74731245d423c89582cb9c1c1f5082a59d1399a8433f4687f5473b363cfd",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 64,
+    "opened": 64,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

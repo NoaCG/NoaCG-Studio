@@ -2,8 +2,8 @@
 
 Shared procedure: `/orchestrator` (alias `/o`) in Claude Code, `$orchestrator` (alias `$o`) in
 Codex; translate `/check` and `/queue-merge` the same way. It drives day and night waves alike.
-Input: the owner's prompt/window. Route ordinary rows through `.agent-workflows/cloud-delegate.md`;
-keep device/private local tasks local. Each executing worker selects its own resources via verify.md.
+Input: the owner's prompt/window. Local work needs no exception; qualified cloud workers are optional.
+Follow `.agent-workflows/cloud-delegate.md`; keep device/private tasks local. Select resources via verify.md.
 
 ## Boundaries
 
@@ -50,8 +50,8 @@ Most important first, written in the wave file before the first launch:
 1. Everything the prompt asks for, in its order. Answers it carries from the owner's weekly session
    are recorded where they belong first.
 2. Then the backlog, which is GitHub Issues: `P1`, then `P2`, then `P3`, and within a priority by
-   `docs/GOALS.md` rank with `owner ask` first (`gh issue list --label P1 --limit 200 --json number,title,labels`).
-   Skip an issue that waits on the owner (`needs owner`, a decision, money, an account, his own
+   `docs/GOALS.md` rank with `requested` first (`gh issue list --label P1 --limit 200 --json number,title,labels`).
+   Skip an issue that waits on the owner (`needs decision`, a decision, money, an account, his own
    check), one labelled `later` or speculative, and one whose files a live worktree holds.
 
 **Solve at least as many problems as the wave creates**, so the open list does not grow. A few
@@ -114,8 +114,8 @@ A row that fixes an issue puts `Closes #<n>` on its own line in a commit message
 what it checked. Left over: fix a follow-up yourself only when it is small and in the area you are
 already changing; anything else becomes a GitHub issue (`gh issue create`, with a priority, an area
 label and why it matters). Nothing speculative. No handoff file, no new doc unless it is the goal.
-Then /check and /queue-merge. End your report with the link to its next-session comment, not the
-comment's text. Do not wait for the landing after the coordinator acknowledges repair ownership (queue-merge.md).
+Then /check and /queue-merge. End your report with what is left, each
+with its issue. Do not wait for the landing after the coordinator acknowledges repair ownership (queue-merge.md).
 Never merge or push main, never touch another worktree, and leave nothing running.
 ```
 
@@ -151,7 +151,7 @@ running at the window's end keeps running; the report says so.
 1. **Needs you**, first, each with the exact step, or "nothing".
 2. **Issues**: opened and closed in the wave, and open at its start and end; why each new one waits.
 3. **Shipped**: one line per pull request, what changed for a user and how it was verified.
-4. **Not done or not checked**: one line each, with its issue and its row's next-session link.
+4. **Not done or not checked**: one line each, with its issue.
 5. **Retro**: at most three findings and what was done about each.
 6. **The prompt**, last: one code block a fresh session uses to walk him through 1 and 4, linked.
 

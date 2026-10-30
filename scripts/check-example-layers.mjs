@@ -532,10 +532,27 @@ export function auditSvg(src, { system, words }) {
   // moments
   const drawnRoles = roles.filter((r) => r.pool === 'drawn' && r.head);
   const textRows = new Set(texts.map(({ name }) => rowOf(name)).filter(Boolean));
+  const choices = new Map();
+  const extras = new Set();
   for (const child of moments) {
     const name = layerName(child);
     if (!name) {
       fail('moments', `a <${child.tag}> in ${MOMENTS} has no name - name it for its moment: "Selected A", "Full time"`);
+      continue;
+    }
+    // Explicit switch/choice names are the other two supported moment forms (the importer's
+    // extraPrefixOf). They are not roles in words.json because each name defines an instance.
+    const show = /^show:([^:/]+)$/.exec(name);
+    const choice = /^choice:([^:/]+)\/([^:/]+)$/.exec(name);
+    if (show || choice) {
+      for (const part of (show ?? choice).slice(1)) {
+        const problem = shapeProblem(part);
+        if (problem) fail('english', problem);
+      }
+      if (child.tag !== 'g' || !isHidden(child, hiddenClasses)) fail('moments', `"${name}" must be a hidden group - a moment starts switched off`);
+      if (extras.has(name)) fail('moments', `the moment "${name}" is duplicated`);
+      extras.add(name);
+      if (choice) choices.set(choice[1], (choices.get(choice[1]) ?? 0) + 1);
       continue;
     }
     const shape = shapeProblem(name);
@@ -551,6 +568,9 @@ export function auditSvg(src, { system, words }) {
     if (!drawnVisible && (child.tag !== 'g' || !isHidden(child, hiddenClasses))) fail('moments', `"${name}" must be a hidden group - a moment starts switched off`);
     if (drawnVisible && isHidden(child, hiddenClasses)) fail('moments', `"${name}" is drawn as it stands - draw a bar at full length and leave it visible`);
     if (role.perRow && !textRows.has(rowOf(name))) fail('moments', `"${name}" belongs to row ${rowOf(name)}, and no text in ${TEXT} has that row`);
+  }
+  for (const [name, count] of choices) {
+    if (count < 2 || count > 12) fail('moments', `choice "${name}" has ${count} options - draw two to twelve`);
   }
 
   // board

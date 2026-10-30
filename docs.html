@@ -261,16 +261,39 @@
 </ul>
 </div>
 <!-- layer-cheat-sheet:end -->
-            <p>Every graphic type uses the same three layers and the same naming.</p>
-            <!-- The SVG examples: seven Illustrator files drawn to this system, their SVGs, previews
+            <p>Layer names are shared across graphic types. Use the layers your graphic needs.</p>
+            <!-- The SVG examples: nineteen Illustrator files drawn to this system, their SVGs, previews
                  and a short README (docs/tutorials/svg-examples, packed by
                  scripts/illustrator/pack-svg-examples.mjs). The same zip is on /downloads#svg-examples. -->
             <p id="svg-layers-package">
               To start from a working file, download the
               <a href="/downloads/NoaCG-SVG-examples.zip" data-testid="docs-svg-examples">SVG examples</a>:
-              a title, a lower third, a quiz, a scoreboard, a countdown, a ticker and rolling end
-              credits, each as an Illustrator file and as the SVG it saves, with a short README.
+              nineteen Illustrator files and their original SVG exports, covering every SVG import
+              behaviour, with previews and an illustrated layer-name guide.
             </p>
+            <h4 id="svg-example-files">SVG example files</h4>
+            <p>Download an SVG to try it, or get the complete package above to edit its Illustrator source.</p>
+            <ul>
+              <li><a href="/docs/examples/svg-examples/title.svg" download>Title</a>,
+                <a href="/docs/examples/svg-examples/lower-third.svg" download>Lower third</a>,
+                <a href="/docs/examples/svg-examples/ticker.svg" download>Ticker</a></li>
+              <li><a href="/docs/examples/svg-examples/quiz.svg" download>Quiz</a>,
+                <a href="/docs/examples/svg-examples/scoreboard.svg" download>Score tracker</a>,
+                <a href="/docs/examples/svg-examples/countdown.svg" download>Countdown</a>,
+                <a href="/docs/examples/svg-examples/standings.svg" download>Standings</a></li>
+              <li><a href="/docs/examples/svg-examples/live-vote.svg" download>Live vote</a>,
+                <a href="/docs/examples/svg-examples/meter.svg" download>Meter</a>,
+                <a href="/docs/examples/svg-examples/alert.svg" download>Alert</a>,
+                <a href="/docs/examples/svg-examples/survey.svg" download>Survey board</a></li>
+              <li><a href="/docs/examples/svg-examples/stepped-list.svg" download>Stepped list</a>,
+                <a href="/docs/examples/svg-examples/lineup.svg" download>Lineup</a>,
+                <a href="/docs/examples/svg-examples/puzzle.svg" download>Puzzle board</a>,
+                <a href="/docs/examples/svg-examples/reveal.svg" download>Reveal</a></li>
+              <li><a href="/docs/examples/svg-examples/bingo.svg" download>Bingo caller</a>,
+                <a href="/docs/examples/svg-examples/end-credits.svg" download>Credits roll</a>,
+                <a href="/docs/examples/svg-examples/switch.svg" download>Switch</a>,
+                <a href="/docs/examples/svg-examples/choice.svg" download>Choice</a></li>
+            </ul>
             <h4 id="svg-layers-system">The three layers</h4>
             <ul>
               <li><code>Text</code> holds what the operator types. One text object per field,
@@ -473,8 +496,8 @@
 <tr><td>Count</td><td><code>Count</code></td><td><code>Calls</code>, <code>So far</code></td><td>how many numbers have been called, written by the board</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Five to ninety numbers, one Called layer each. Name the numeral on each tile Number 1, Number 2 and so on, and it stays your drawing instead of arriving as a field.</td></tr>
 <tr class="doc-words-type"><th colspan="4">Credits roll</th></tr>
-<tr><td>Credits</td><td><code>Credits</code></td><td><code>Credit list</code>, <code>End credits</code>, <code>Lopputekstit</code>, <code>Eftertexter</code></td><td>the whole list, pasted into one box - a line ending in ":" is a title, the names go under it</td></tr>
-<tr><td>Credits box</td><td><code>Credits box</code></td><td><code>Credits panel</code>, <code>Credits window</code>, <code>Lopputekstit laatikko</code></td><td>a plate the roll runs inside; without one it runs through the whole frame</td></tr>
+<tr><td>Credits</td><td><code>Credits</code></td><td><code>Credit list</code>, <code>End credits</code>, <code>Lopputekstit</code>, <code>Eftertexter</code></td><td>the complete text artwork, with its fonts, alignment and spacing preserved; edit it in the design app and import its SVG again</td></tr>
+<tr><td>Credits box</td><td><code>Credits box</code></td><td><code>Credits panel</code>, <code>Credits window</code>, <code>Lopputekstit laatikko</code></td><td>a window used by older editable credits; new artwork rolls use the whole frame and need no box</td></tr>
 </table></div>
 <!-- behaviour-words:end -->
 
@@ -498,10 +521,11 @@
               the text, then wraps it onto a new line, then makes it smaller. Nothing is cut off.
             </p>
 
-            <h4 id="svg-layers-credits">Credits: one pasted list</h4>
+            <h4 id="svg-layers-credits">Credits: scroll your artwork</h4>
             <p>
-              End credits are one text layer named <code>Credits</code>, never a layer per name.
-              The operator pastes the whole list into one box. See
+              Draw the complete list in one text object named <code>Credits</code>.
+              It scrolls upwards with its original layout. Edit names in Illustrator and import
+              the SVG again. See
               <a href="#end-credits">End credits</a>.
             </p>
           </section>
@@ -860,10 +884,11 @@
           <!-- ── END CREDITS ── -->
           <section id="end-credits" class="doc-type">
             <h3 class="doc-kind">End credits</h3>
-            <p>A heading and the whole list of credits. The operator pastes the list into one field.</p>
-            <figure class="doc-shot tall">
-              <img src="/docs/type-end-credits.png" width="1560" height="1596" loading="lazy"
-                alt="The example credits card: Production team, then Camera, Sound, Producer and Director, each title over its names." />
+            <p>Draw the complete credits in Illustrator, import the SVG and choose Credits roll.
+              Take scrolls the original layout from below the frame until its last line leaves the top.</p>
+            <figure class="doc-shot">
+              <img src="/docs/type-end-credits.png" width="960" height="540" loading="lazy"
+                alt="The Illustrator credits artwork: a centred show title and production team. The complete text continues below the artboard." />
               <figcaption>
                 <strong>The example file.</strong>
                 <a href="/docs/examples/end-credits.svg" download>Download end-credits.svg</a>
@@ -876,13 +901,6 @@
                   <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Text</b></span>
                     <ul>
                       <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Credits</b></span></li>
-                      <li><span class="lyr"><i class="eye"></i><i class="ico">T</i><b class="nm hit">Heading</b></span></li>
-                    </ul>
-                  </li>
-                  <li><span class="lyr"><i class="eye"></i><i class="ico">&#9662;</i><b class="nm">Board</b></span>
-                    <ul>
-                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Rule</b></span></li>
-                      <li><span class="lyr"><i class="eye"></i><i class="ico">&#9645;</i><b class="nm">Panel</b></span></li>
                     </ul>
                   </li>
                 </ul>
@@ -890,33 +908,27 @@
               <div>
                 <h4>Layer names</h4>
                 <ul>
-                  <li><code>Credits</code>: one text object holding the whole list, one line per
-                    credit. A line ending in a colon is a title, and the names go under it. Never
-                    one text per name.</li>
-                  <li><code>Heading</code>: text. Optional.</li>
-                  <li>Style the first title line and the first name line the way every title and
-                    every name should look.</li>
+                  <li><code>Credits</code>: one long text object containing the complete layout.</li>
+                  <li>Keep its fonts, alignment, line breaks and spacing as you want them on air.</li>
+                  <li>Keep the artboard at the output size. Text below it is included in the roll.</li>
                 </ul>
                 <p>
-                  There is no <code>Moments</code> layer because nothing shows or hides.
-                  <code>Panel</code> is the background and <code>Rule</code> is decoration.
+                  No <code>Credits box</code>, background or special punctuation is needed.
+                  To change a name or add one, edit the Illustrator source and import its SVG again.
                 </p>
               </div>
             </div>
             <figure class="doc-shot">
-              <img src="/docs/type-end-credits-fields.png" width="1680" height="1290" loading="lazy"
-                alt="The Fields step for end-credits.svg: Heading and Credits ticked as the two operator fields." />
-              <figcaption>
-                <strong>After the drop.</strong> Heading and Credits are the two fields.
-              </figcaption>
+              <img src="/docs/type-end-credits-fields.png" width="1280" height="720" loading="lazy"
+                alt="The SVG import step with the Credits text assigned to the credits roll." />
+              <figcaption>The text keeps its layout. Scroll speed is the playout control.</figcaption>
             </figure>
             <h4 id="credits-colon">A scrolling roll</h4>
             <p>
-              On Take the list rolls from the bottom of the frame to the top, at the Scroll speed
-              the operator sets. At 100 that is about thirty lines in thirty seconds. Draw a plate
-              named <code>Credits box</code> and the roll runs inside it.
+              Scroll speed controls the pace. Each Take restarts the complete roll, and Out clears it.
+              The imported artwork stays as drawn; it does not become an editable playout text list.
             </p>
-            <p>The catalog credits designs read the same box, written like this:</p>
+            <p>The built-in catalog credits designs have an editable list instead, written like this:</p>
             <pre><code>Director: Alex Rivera
 
 Camera Operators:

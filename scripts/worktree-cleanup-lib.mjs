@@ -131,20 +131,20 @@ function ownGitDir(worktreePath) {
 
 /**
  * Fast-forward the primary checkout's `main` to `origin/main`, exactly as the handoff workflow
- * does by hand (`git pull --ff-only`) and under the same conditions: on `main`, clean, nothing in
+ * does by hand (`git pull --ff-only`): on `main`, no tracked changes, nothing in
  * progress, and strictly behind. Landings reach origin only, so without this the local ref lags
  * every landing and the branch rule ("contained in local main AND origin/main") never passes for
  * the branches this sweep exists to delete. Anything else and it does nothing; returns whether it
- * moved.
+ * moved. Unrelated untracked files stay put; --no-overwrite-ignore also protects ignored collisions.
  */
 export function advanceLocalMain(primaryRoot) {
   if (git(['symbolic-ref', '-q', '--short', 'HEAD'], primaryRoot).stdout !== 'main') return false;
-  const status = git(['status', '--porcelain'], primaryRoot);
+  const status = git(['status', '--porcelain', '--untracked-files=no'], primaryRoot);
   if (!status.ok || status.stdout !== '' || operationInProgress(primaryRoot)) return false;
   const behind = git(['rev-list', '--count', `main..origin/main`], primaryRoot);
   if (!behind.ok || behind.stdout === '0') return false;
   if (!git(['merge-base', '--is-ancestor', 'main', 'origin/main'], primaryRoot).ok) return false;
-  return git(['merge', '--ff-only', '--quiet', 'origin/main'], primaryRoot).ok;
+  return git(['merge', '--ff-only', '--no-overwrite-ignore', '--quiet', 'origin/main'], primaryRoot).ok;
 }
 
 /**
