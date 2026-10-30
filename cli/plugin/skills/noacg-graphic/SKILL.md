@@ -158,7 +158,7 @@ user gave a brand, the report ends with its lines ("The user's brand" below): wh
 from where, what you could not use or that you used all of it, and the logo's rights.
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli@0.12.3 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.3` once makes every
+(`npx -y @noacg/cli@0.12.4 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.4` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the
