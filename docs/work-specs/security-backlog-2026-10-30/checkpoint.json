@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-30T22:47:34.188026+00:00",
+  "updatedAt": "2026-10-30T23:25:00.064607+00:00",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -109,6 +109,71 @@
       "package": "@remotion/vercel",
       "latest": "4.0.539",
       "evidence": "Publicregistry tarball stillcalls Sandbox.get({sandboxId}) at dist/esm/index.mjs5816 andreads sandbox.sandboxId5983. Broad parent upgrade does not remove SDKv2 incompatibility. No paid sandbox call."
+    },
+    "landedAudit": {
+      "sha": "020d2dbc9460e143f2b6911409e87776e3def921",
+      "counts": {
+        "root": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 2,
+          "critical": 0,
+          "total": 2
+        },
+        "cli": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "preview": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "renderer": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "player": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        }
+      },
+      "units": "npm affected-package entries, not distinct GitHub alert counts; root2entries share1GHSA"
+    },
+    "overrideAssessment": {
+      "result": "blocked: dependency-only override breaks SDKpublictypes",
+      "agent": "/root/sandbox_zod_boundary_assessment",
+      "source": "Sandbox1.6.0 declarations embed Zod3-only generics/types. Pure in-memory module resolution comparison to Zod4.6.7, no files orconfigs changed.",
+      "lostTypes": [
+        "Sandbox.status union->any",
+        "Sandbox.routes typedobjects->any[]",
+        "CommandData.id string->any",
+        "getCommand.json.command.exitCode number|null->any"
+      ],
+      "counterexamples": "Impossible status, stringrouteport, numericcommandID and stringexitcode rejected underZod3 becomeaccepted underZod4.",
+      "diagnosticsWithDeclarationCheck": {
+        "baseline": 7,
+        "override": 378
+      },
+      "currentApiCheck": "125files tsconfig.api passesboth with existing skipLibCheck; this hides the type loss, so green existingchecks are insufficientcompatibilityproof.",
+      "runtimeComparison": "33schemas/459boundedcases;32ordinaryvalidgeneratedcontrols match. Infinityacceptance anderrorobjectcontracts differ. No SDKservice orcredentials used.",
+      "next": "CompatibleSDK1.x validator backport with regenerateddeclarations, or supported Remotion/SandboxAPI migration preservingpersistedID/recovery/stop semantics. No forcedoverride/alert suppression."
     }
   },
   "deferred": [
@@ -219,7 +284,7 @@
       "reattachment": "Two transient shell transport disconnects and selected environment starting->ready reconciled without duplicate PRs/jobs; files/process evidence retained. This is not a proven VM restart/filesystem reconstruction."
     }
   },
-  "resume": "Active session remains sole repair owner of1835,1828,1836,1837,1838 until exact-merge/main/post-landing results terminal. Reconcile actual PR/check/job states before any retry. Do not startJev, change40phases/$5/14days, create indefinite scheduling or transplantcredentials.",
+  "resume": "Ten implementation PRs merged and all relevant terminalresults recorded. Active delivery owner for1839 remains through normal queue, main/postlanding and both registry/Windows release results. Reconcile currentPR/check/release states before retry. Do not startJev, change40phases/$5/14days ortransplantcredentials. #1752/#56 retain SDK incompatibility; currentGitHubalert state writes unavailable.",
   "qualificationReceipts": {
     "preparationPR": 1825,
     "sealedSecretProbe": 41125379127,
@@ -274,35 +339,229 @@
       "branch": "security/bridge-origin-normalization",
       "head": "dbfaea1d791a7195018ef4a768c919f7ff8c2419",
       "merge": "a7fe94e6dfc5ec78d5a394d2b04ee032da6f7aaf",
-      "state": "merged; main/post-landing under active observation",
+      "state": "terminal merged; exact-merge CI, post-landing, configured and CodeQL results observed; no wake armed",
       "groupCI": 41139486932,
       "finding": 1,
-      "local": "CLI types/build,10 origin/auth/CORS tests and gates pass; independent134447-input comparison equivalent."
+      "local": "CLI types/build,10 origin/auth/CORS tests and gates pass; independent134447-input comparison equivalent.",
+      "implementationMainResults": [
+        {
+          "conclusion": "cancelled",
+          "databaseId": 41140131700,
+          "name": "CI",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140131791,
+          "name": "Post-landing",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140132020,
+          "name": "Quarantine",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140131817,
+          "name": "Push on main",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140131752,
+          "name": "configured-suite",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41139486932,
+          "name": "CI",
+          "status": "completed"
+        }
+      ]
     },
     "1828": {
       "branch": "dependabot/npm_and_yarn/cli/plugin-preview/zod-4.6.6",
       "head": "f9e0e3b4940d4b4697a9a5b66f4d7cd322a8f4f7",
-      "state": "exact-head checks green; auto-merge enabled with pre/post SHA check",
-      "local": "16unit/protocol,2browser/package,5gates; audit0"
+      "state": "terminal merged; exact-merge CI, post-landing, configured and CodeQL results observed; no wake armed",
+      "local": "16unit/protocol,2browser/package,5gates; audit0",
+      "merge": "390d6f714a954e6317d266b7a5611e43ce0f8a26",
+      "implementationMainResults": [
+        {
+          "conclusion": "success",
+          "databaseId": 41140964934,
+          "name": "Quarantine",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140964889,
+          "name": "Post-landing",
+          "status": "completed"
+        },
+        {
+          "conclusion": "cancelled",
+          "databaseId": 41140965009,
+          "name": "CI",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140964922,
+          "name": "configured-suite",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140963670,
+          "name": "Push on main",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140285496,
+          "name": "CI",
+          "status": "completed"
+        }
+      ]
     },
     "1836": {
       "branch": "security/cli-zod4",
       "head": "26404f7ff87fbd73e008854acdf96252a20f1878",
-      "state": "exact-head checks green; auto-merge enabled with pre/post SHA check",
-      "local": "19offlineMCP pass,4livebridge explicitly skipped;28gates;types/build;audit0; published3400schema ceiling unchanged"
+      "state": "terminal merged; exact-merge CI, post-landing, configured and CodeQL results observed; no wake armed",
+      "local": "19offlineMCP pass,4livebridge explicitly skipped;28gates;types/build;audit0; published3400schema ceiling unchanged",
+      "merge": "f442080d6d8d60f159a0f7080696c852739fbf5f",
+      "implementationMainResults": [
+        {
+          "conclusion": "success",
+          "databaseId": 41140964934,
+          "name": "Quarantine",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140964889,
+          "name": "Post-landing",
+          "status": "completed"
+        },
+        {
+          "conclusion": "cancelled",
+          "databaseId": 41140965009,
+          "name": "CI",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140964922,
+          "name": "configured-suite",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140963670,
+          "name": "Push on main",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140285496,
+          "name": "CI",
+          "status": "completed"
+        }
+      ]
     },
     "1837": {
       "branch": "security/zod4-pins",
       "head": "23fae8c18f499178b5ae123ebdcde96abd02207c",
-      "state": "implementation CI running, no queue yet",
-      "local": "types app/API/renderer and actualRemotion bundle;37gates pass; localbuild j0031 preserves3knownproxy-loopbackfailures,4582pass26skip"
+      "state": "terminal merged; exact-merge CI, post-landing, configured and CodeQL results observed; no wake armed",
+      "local": "types app/API/renderer and actualRemotion bundle;37gates pass; localbuild j0031 preserves3knownproxy-loopbackfailures,4582pass26skip",
+      "merge": "76656407ad93607e87a5f9ac32bf3a48b36ee522",
+      "implementationMainResults": [
+        {
+          "conclusion": "cancelled",
+          "databaseId": 41141521299,
+          "name": "CI",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41141521306,
+          "name": "Quarantine",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41141521446,
+          "name": "Post-landing",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41141521495,
+          "name": "configured-suite",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41141520926,
+          "name": "Push on main",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140877709,
+          "name": "CI",
+          "status": "completed"
+        }
+      ]
     },
     "1838": {
       "branch": "security/inline-script-inventory",
       "head": "2fec8a7688f1a3ea0af0d912bc0ab69026a795b2",
-      "state": "implementation CI running, no queue yet",
+      "state": "terminal merged; exact-merge CI, post-landing, configured and CodeQL results observed; no wake armed",
       "finding": 28,
-      "local": "6Node regressions; Chromium source/bypass matrix; freshreview2namespacebugs reproduced/fixed;3finalpublication journeys;types/lint;localbuild j0032 preserves3knownproxy-loopbackfailures,4584pass26skip"
+      "local": "6Node regressions; Chromium source/bypass matrix; freshreview2namespacebugs reproduced/fixed;3finalpublication journeys;types/lint;localbuild j0032 preserves3knownproxy-loopbackfailures,4584pass26skip",
+      "merge": "020d2dbc9460e143f2b6911409e87776e3def921",
+      "implementationMainResults": [
+        {
+          "conclusion": "success",
+          "databaseId": 41141605717,
+          "name": "Post-landing",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41141605738,
+          "name": "Quarantine",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41141605857,
+          "name": "configured-suite",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41141605832,
+          "name": "CI",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41141605094,
+          "name": "Push on main",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 41140878411,
+          "name": "CI",
+          "status": "completed"
+        }
+      ]
     }
   },
   "independentVerification": {
@@ -310,5 +569,40 @@
     "verifier": "/root/security_fix_verifier (fresh-context, read-only)",
     "scope": "Five pinned source boundaries, residual copy explicitly retained",
     "result": "Current reported boundaries fixed; no source-system dismissal implied"
+  },
+  "finalImplementationMain": {
+    "sha": "020d2dbc9460e143f2b6911409e87776e3def921",
+    "fullCI": 41141605832,
+    "configuredSuite": 41141605857,
+    "codeQLAnalysis": 41141605094,
+    "postLanding": 41141605717,
+    "quarantine": 41141605738,
+    "result": "All PASS"
+  },
+  "implementationRepairOwnersEnded": [
+    1835,
+    1828,
+    1836,
+    1837,
+    1838
+  ],
+  "activeDelivery": {
+    "pr": 1839,
+    "branch": "security/release-cli-bridge-patches",
+    "head": "a894c83e4d4765a40d5c6b6ca3ecb6efd847c275",
+    "worktree": "/workspace/security-release",
+    "owner": "current active coordinator through exact merge/main/post and CLI/Bridge release verification",
+    "versions": {
+      "cli": "0.12.4",
+      "bridge": "0.10.1"
+    },
+    "reason": "Registry still serves0.12.3 with old SDK/Zod and Bridge download0.10.0; reviewed version bump triggers existing trusted publishing and Windows build/release workflows. Runtime source unchanged.",
+    "local": "CLI build;28focused tests pass4livebridge skips;95gate tests selected,2platform skips;actualCLI package dryrun63files includesbuiltMCP/changelog;16file diff onlyversion substitutions and2changelog sections"
+  },
+  "defaultBranchDependabotBanner": {
+    "total": 1,
+    "high": 1,
+    "alert": 56,
+    "source": "Actual git push banner for releasebranch, after implementation merges. Individual alert API remains403; no administrative dismissal."
   }
 }
