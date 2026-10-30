@@ -1,6 +1,7 @@
 // covers: src/export/**, src/control/**
 // covers: src/components/{fields/**,HostedControlPage.tsx}
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// covers: src/components/home/ProductionShell.tsx
 // focus
 
 import { test, expect, type Route } from '@playwright/test';

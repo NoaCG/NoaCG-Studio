@@ -2,6 +2,11 @@
 // covers: src/components/home/CueEditor.tsx
 // covers: src/control/{controlModel,hostedControl}.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/CueActions.tsx
+// covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // It presses Take, Update, Next and Out on the production page, so a change there runs it
 // (production-page refactor phase 1, AC-1).
@@ -92,7 +97,6 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   // ── The quiz: key C, take, the contestant picks B, lock, reveal. ──
   await selectCue(page, 'Quiz board');
   await page.getByTestId('cue-field-f5-opt-C').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   const chip = page.getByTestId('machine-state-chip');
   await expect(chip).toHaveText('Question');
@@ -102,7 +106,7 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await expect(revealChoice).toBeDisabled();
   await expect(revealChoice).toHaveAttribute('title', 'Reveal choice does nothing from where the graphic is now, so it is greyed out');
 
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await expect(quiz(page).locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await expect(quiz(page).locator('[data-noacg-role~="locked"]')).toHaveClass(/imported-design-on/);
@@ -163,7 +167,7 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await expect(page.getByTestId('cue-field-f5-opt-C')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('verb-take').click();
   await expect(chip).toHaveText('Question');
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await page.getByRole('button', { name: /Reveal correct/ }).click();
   await expect(chip).toHaveText(/Reveal/);
@@ -186,8 +190,7 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   // A fresh question: no verdict, no lock, no pick carried over from the last one.
   await expect(chip).toHaveText('Question');
   await expect(quiz(page).locator('.imported-design-look.imported-design-on')).toHaveCount(0);
-  await page.getByTestId('cue-field-f6-opt-D').click();
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-D').click();
   await expect(quiz(page).locator('[data-noacg-role~="answer.selected/D"]')).toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await page.getByRole('button', { name: /Reveal correct/ }).click();

@@ -24,6 +24,7 @@ import { getSupabase } from '../backend/supabase';
 import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
+  OPERATOR_SETTLE_MAX,
   clampProvenance,
   clampSubmission,
   type AudienceBrand,
@@ -94,6 +95,8 @@ interface SubmissionRow {
   external_id?: string | null;
   source?: string | null;
   reference?: string | null;
+  /** 0098's mark on a used candidate whose row left its source. */
+  withdrawn_at?: string | null;
 }
 
 interface RoundRow {
@@ -133,6 +136,7 @@ function readSubmission(row: SubmissionRow): AudienceSubmission {
     externalId: row.external_id ?? null,
     source: row.source ?? null,
     reference: row.reference ?? null,
+    withdrawnAt: row.withdrawn_at ?? null,
   };
 }
 
@@ -324,6 +328,18 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       );
       changed();
       return (rows ?? []).map(readSubmission);
+    },
+
+    async settleImported(prefix, present): Promise<void> {
+      if (present.length > OPERATOR_SETTLE_MAX) throw new Error(`At most ${OPERATOR_SETTLE_MAX} rows at a time.`);
+      if (!prefix) return;
+      const sb = await client();
+      // 0098: the same rule as the local provider, under one lock on the server, so a second
+      // operator's page sees what the reading page settled.
+      const settled = await operator<number | null>(() =>
+        sb.rpc('audience_operator_settle', { p_slug: control(), p_prefix: prefix, p_present: present }),
+      );
+      if (settled) changed();
     },
 
     async update(id, patch): Promise<void> {

@@ -44,7 +44,8 @@ import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
 import { countdownIndex, svgFields } from './artworkFields';
-import { creditsIndex, creditsRollCss, creditsRollRuntimeJs } from './creditsRoll';
+import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, isArtworkCredits } from './creditsRoll';
+import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
 import { PREFIX } from './shared';
@@ -189,6 +190,7 @@ function designPreset(id: string): AnimPreset {
 /** Build the complete SpxTemplate for an imported SVG design. */
 export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const svg = o.designSvg ?? NO_SVG;
+  const artworkRoll = isArtworkCredits(svg);
   const name = 'Imported SVG design';
   const artworkFields = svgFields(svg);
   // The behaviour's own fields sit AFTER the artwork's, and that order is load-bearing: the
@@ -212,10 +214,9 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
 
   // The SVG rides inline, indented to sit inside the box - no asset path, no fetch, so every
   // single-file export target stays single-file.
-  const inlineSvg = bindSvgMarkup(svg, o.previewMarkers)
-    .split('\n')
-    .map((line) => `    ${line}`)
-    .join('\n');
+  const boundSvg = bindSvgMarkup(svg, o.previewMarkers);
+  // Indenting every source line would also indent meaningful newlines inside SVG text runs.
+  const inlineSvg = artworkRoll ? boundSvg : boundSvg.split('\n').map((line) => `    ${line}`).join('\n');
 
   // The countdown (plan P2 "clock ftype"): the chosen layer is the clock DISPLAY
   // (`.{prefix}-clock`, painted by the shared runtime), and the operator's minutes live in a
@@ -233,8 +234,11 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   // this holder for the roll engine to render (creditsRoll.ts). Escaped, because a sample may
   // carry an ampersand and the holder is markup.
   const credits = creditsIndex(svg);
+  const artworkCredits = creditsArtworkFields(svg);
   const creditsField = credits === -1 ? null : artworkFields[credits];
-  const creditsHolder = creditsField
+  const creditsHolder = artworkRoll
+    ? artworkFields.filter((_, i) => artworkCredits.has(i)).map((field) => `\n    <div id="${field.field}" class="${DATA_SOURCE_CLASS}"></div>`).join('')
+    : creditsField
     ? `
     <!-- ${creditsField.title} (${creditsField.field}) - the whole credit list, one line per name, written
          by SPX and rolled by the credits engine in template.js; the drawn Credits text is its sample. -->
@@ -249,7 +253,7 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
        them; everything else is untouched. -->
   <div class="${PREFIX}">
     <div class="${PREFIX}-box">
-${inlineSvg}${clockHolder}${creditsHolder}${behaviour ? behaviour.html(artworkFields.length) : ''}
+${artworkRoll ? '    <!-- prettier-ignore -->\n' : ''}${inlineSvg}${clockHolder}${creditsHolder}${behaviour ? behaviour.html(artworkFields.length) : ''}
     </div>
   </div>`,
   });
@@ -296,7 +300,7 @@ ${dataSourceCss}
 ` : ''}${behaviour?.css ? `
 ${behaviour.css}
 ` : ''}${creditsField ? `
-${creditsRollCss(PREFIX)}
+${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
 ` : ''}`;
 
   const preset = designPreset(o.animation.presetId);
@@ -358,19 +362,24 @@ ${creditsRollCss(PREFIX)}
     (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +
     // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
     // moment it first renders, and in a document whose markup is already parsed that is now.
-    (creditsField ? `\n${creditsRollRuntimeJs(PREFIX)}` : '') +
+    (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height) : creditsRollRuntimeJs(PREFIX)}` : '') +
     SVG_FIT_BOOT;
 
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA
   // (the step-calls model, docs/STATE_MACHINE_SCHEMA.md): startClock as the entrance lands,
   // stopClock the moment the exit begins - exactly what the catalog's countdown presets emit.
-  const withClockCalls = clockField
+  const withLifecycleCalls = clockField || artworkRoll
     ? (data: AnimData): AnimData => {
         const steps = data.steps.map((s) => ({ ...s }));
         const enter = steps[0];
         const out = steps[steps.length - 1];
-        enter.calls = [...(enter.calls ?? []), { time: enter.duration, call: 'startClock' }];
-        out.calls = [...(out.calls ?? []), { time: 0, call: 'stopClock' }];
+        if (clockField) {
+          enter.calls = [...(enter.calls ?? []), { time: enter.duration, call: 'startClock' }];
+          out.calls = [...(out.calls ?? []), { time: 0, call: 'stopClock' }];
+        }
+        if (artworkRoll) {
+          out.calls = [...(out.calls ?? []), { time: 0, call: 'stopCreditsRoll' }];
+        }
         return { ...data, steps };
       }
     : undefined;
@@ -390,7 +399,7 @@ ${creditsRollCss(PREFIX)}
     // The countdown's layer is the clock display and the credits layer is the roll's sample,
     // not text fields - both left out here.
     layers: svg.fields.flatMap((f, i) =>
-      i === clock || i === credits
+      i === clock || i === credits || artworkCredits.has(i)
         ? []
         : [{ id: `f${i}`, type: 'text' as const, label: f.title, fieldId: `f${i}`, text: f.sample, styles: {} }],
     ),
@@ -401,10 +410,10 @@ ${creditsRollCss(PREFIX)}
   // `stopClock` must stay on the LAST step, and the extra step is spliced in front of it - so
   // the behaviour's refinement runs second.
   const refine =
-    withClockCalls || behaviour
+    withLifecycleCalls || behaviour
       ? (data: AnimData): AnimData => {
-          const withClock = withClockCalls ? withClockCalls(data) : data;
-          return behaviour ? behaviour.steps(withClock) : withClock;
+          const withCalls = withLifecycleCalls ? withLifecycleCalls(data) : data;
+          return behaviour ? behaviour.steps(withCalls) : withCalls;
         }
       : undefined;
   const built = convertToDataRegion(template, refine);

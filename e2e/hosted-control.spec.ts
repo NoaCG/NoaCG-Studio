@@ -8,6 +8,7 @@ import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';
 import { appliedIn, receiverHost } from './_receiverHost';
+import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 
 // Hosted control ENTRIES (docs/CONTROL_LAYER.md + docs/SAVED_CONTENT_MODEL.md §4): a show's
 // published `panel` spec carries every graphic's saved entries, so the hosted ?control= page
@@ -305,8 +306,12 @@ test('a hosted graphic that has never reported airs what was commanded before it
   const html = receiverHost(await receiverBlock(page));
 
   const log = [
-    { id: 1, graphic: 'Board', msg: { t: 'update', data: { f0: 'AIRED' } } },
-    { id: 2, graphic: 'Board', msg: { t: 'play' } },
+    { id: 1, graphic: 'Board', msg: { t: 'update', oid: 'take-data', data: { f0: 'AIRED' } } },
+    { id: 2, graphic: 'Board', msg: { t: 'play', oid: 'take-play' } },
+    // The send committed but lost its answer. Its resend appends new rows with the SAME command
+    // ids: the row cursor alone cannot distinguish that echo from another entrance (#1574).
+    { id: 3, graphic: 'Board', msg: { t: 'update', oid: 'take-data', data: { f0: 'AIRED' } } },
+    { id: 4, graphic: 'Board', msg: { t: 'play', oid: 'take-play' } },
   ];
 
   const graphic = await context.newPage();
@@ -316,8 +321,8 @@ test('a hosted graphic that has never reported airs what was commanded before it
   await graphic.route('https://bootref.supabase.co/**', (route) => {
     const name = new URL(route.request().url()).pathname.split('/').pop();
     if (name === 'control_show_by_slug') {
-      // The head is 2 and `live` is empty: the take is IN the log, and nobody has rendered it.
-      return route.fulfill({ json: [{ id: 'show-1', last_event_id: 2, live: {} }] });
+      // The take and its resend are in the log, and nobody has rendered either.
+      return route.fulfill({ json: [{ id: 'show-1', last_event_id: 4, live: {} }] });
     }
     if (name === 'control_tail') {
       const after = Number((route.request().postDataJSON() as { p_after?: number }).p_after ?? 0);
@@ -331,12 +336,111 @@ test('a hosted graphic that has never reported airs what was commanded before it
 
   await graphic.goto('http://hosted-cold.local/board.html', { waitUntil: 'load' });
 
-  // Both rows run, in log order. Seeded from the head this read [] for the whole airing.
+  // Both commands run once, in log order. Seeded from the head this read [] for the whole airing.
   await expect
     .poll(() => appliedIn(graphic), { timeout: 30_000 })
     .toEqual(['update:AIRED', 'play']);
   await expect(graphic.locator('#f0')).toHaveText('AIRED');
 
+  await graphic.close();
+});
+
+test('a hosted graphic refuses a row carrying typed data, says so, and holds until a native update (#1761)', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // A typed Take writes `{t: 'update', data: {}, typed: <envelope>}` then a play. This block cannot
+  // read the envelope, and applying its empty data then playing would air the PREVIOUS cue's values
+  // (issue #1761). So the row is refused, said on the console and the root's data-noacg-refused,
+  // and nothing but a stop reaches the graphic until an update without typed data does.
+  const html = receiverHost(await receiverBlock(page));
+  const typed = { v: 1, kind: 'values', standard: 'x', schema: 'y', values: { f0: 'TYPED' } };
+  const log = [
+    { id: 1, graphic: 'Board', msg: { t: 'update', data: { f0: 'NATIVE' } } },
+    { id: 2, graphic: 'Board', msg: { t: 'play' } },
+    { id: 3, graphic: 'Board', msg: { t: 'update', data: {}, typed } },
+    { id: 4, graphic: 'Board', msg: { t: 'play' } },
+    { id: 5, graphic: 'Board', msg: { t: 'next' } },
+    { id: 6, graphic: 'Board', msg: { t: 'stop' } },
+  ];
+  const later = [
+    { id: 7, graphic: 'Board', msg: { t: 'update', data: { f0: 'BACK' } } },
+    { id: 8, graphic: 'Board', msg: { t: 'play' } },
+  ];
+  const visible = [...log];
+  let socket: import('@playwright/test').WebSocketRoute | null = null;
+  let reports = 0;
+  const graphic = await context.newPage();
+  const warned: string[] = [];
+  graphic.on('console', (msg) => {
+    if (msg.type() === 'warning') warned.push(msg.text());
+  });
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => {
+    socket = ws;
+  });
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 6, live: {} }] });
+    if (name === 'control_report') reports += 1;
+    if (name === 'control_tail') {
+      const after = Number((route.request().postDataJSON() as { p_after?: number }).p_after ?? 0);
+      return route.fulfill({ json: visible.filter((r) => r.id > after) });
+    }
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-typed.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-typed.local/board.html', { waitUntil: 'load' });
+
+  // The typed Take and the step after it never ran; the stop did.
+  await expect.poll(() => appliedIn(graphic), { timeout: 30_000 }).toEqual(['update:NATIVE', 'play', 'stop']);
+  await expect(graphic.locator('html')).toHaveAttribute('data-noacg-refused', /cannot read typed data/);
+  expect(warned.join('\n')).toContain('cannot read typed data');
+  // A held graphic reports nothing, the stop included: a report would bank the native cue's values
+  // with no hold, and this graphic's next reload would air them.
+  await graphic.waitForTimeout(1500);
+  expect(reports).toBe(0);
+
+  // A native Take ends the hold.
+  visible.push(...later);
+  socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: later[1] } } }));
+  await expect.poll(() => appliedIn(graphic), { timeout: 30_000 }).toEqual(['update:NATIVE', 'play', 'stop', 'update:BACK', 'play']);
+  await expect(graphic.locator('html')).not.toHaveAttribute('data-noacg-refused', /.*/);
+  await expect(graphic.locator('#f0')).toHaveText('BACK');
+  // Released, it reports again.
+  await expect.poll(() => reports, { timeout: 10_000 }).toBeGreaterThan(0);
+
+  await graphic.close();
+});
+
+test('a hosted graphic booting from a report that banks typed data refuses it and holds, never airing its empty data', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // An /output renderer banks a typed graphic's envelope in its report, with empty native data
+  // (E1.2b). The receiver's boot reads the same report: restoring its data and pose would put the
+  // graphic on air with its defaults, and the rows after it (a step) would follow.
+  const html = receiverHost(await receiverBlock(page));
+  const typed = { v: 1, kind: 'values', standard: 'x', schema: 'y', values: { f0: 'TYPED' } };
+  const log = [{ id: 3, graphic: 'Board', msg: { t: 'next' } }];
+  let tailReads = 0;
+  const graphic = await context.newPage();
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', () => {});
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') {
+      return route.fulfill({ json: [{ id: 'show-1', last_event_id: 3, live: { Board: { data: {}, state: { groups: { main: 'in' }, typed, steps: 0 }, event: 2 } } }] });
+    }
+    if (name === 'control_tail') {
+      tailReads += 1;
+      const after = Number((route.request().postDataJSON() as { p_after?: number }).p_after ?? 0);
+      return route.fulfill({ json: log.filter((r) => r.id > after) });
+    }
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-typed-boot.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-typed-boot.local/board.html', { waitUntil: 'load' });
+
+  await expect(graphic.locator('html')).toHaveAttribute('data-noacg-refused', /cannot read typed data/, { timeout: 30_000 });
+  // The tail was read, and its step held with the rest: nothing ran.
+  await expect.poll(() => tailReads, { timeout: 30_000 }).toBeGreaterThan(0);
+  await graphic.waitForTimeout(500);
+  expect(await appliedIn(graphic)).toEqual([]);
   await graphic.close();
 });
 
@@ -395,6 +499,75 @@ test('a hosted graphic whose channel never delivers a row still catches up from 
 
   await graphic.close();
 });
+
+// PLACE AND SIZE on the hosted plane (docs/work-specs/playout-adjustments/spec.md, phase 1b, AC-9's
+// receiver half): an update that carries an appearance puts it on the page's root; a data row keeps
+// it (rule 1); the receiver REPORTS the last one beside its machine state, as the /output renderer
+// does, and a boot restores it from that report, which is the only place an undated report's
+// appearance survives (its boot resumes from the log head). A dated report then replays the rows
+// after it, so the last one applied wins (rule 4). A version this build does not know is ignored.
+const LOOK_A: AppliedAppearance = { v: 1, frame: { dx: -40, dy: 0, s: 1, ox: 120, oy: 961 } };
+const LOOK_B: AppliedAppearance = { v: 1, frame: { dx: 20, dy: -30, s: 0.9, ox: 120, oy: 961 } };
+const lookCss = (a: AppliedAppearance) => frameCss(a).transform;
+
+for (const dated of [false, true]) {
+  test(`a hosted graphic restores its place and size from ${dated ? 'a dated' : 'an undated'} report, applies a row's, and reports it`, async ({ page, context }) => {
+    test.setTimeout(120_000);
+    const html = receiverHost(await receiverBlock(page));
+    // Undated: the report is all there is (the boot resumes at the head, 5). Dated: row 4, after the
+    // report's event 3, carries B, which is newer than the report's A and must win.
+    const log = dated ? [{ id: 4, graphic: 'Board', msg: { t: 'update', data: { f0: 'AFTER' }, appearance: LOOK_B } }] : [];
+    const later: { id: number; graphic: string; msg: unknown }[] = [];
+    const reports: { p_state?: { appearance?: unknown } }[] = [];
+    const graphic = await context.newPage();
+    let socket: import('@playwright/test').WebSocketRoute | null = null;
+    await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => { socket = ws; });
+    await graphic.route('https://bootref.supabase.co/**', (route) => {
+      const name = new URL(route.request().url()).pathname.split('/').pop();
+      const body = route.request().postDataJSON() as { p_after?: number };
+      if (name === 'control_show_by_slug') {
+        const mine = { data: { f0: 'REPORTED' }, state: { appearance: LOOK_A }, ...(dated ? { event: 3 } : {}) };
+        return route.fulfill({ json: [{ id: 'show-1', last_event_id: dated ? 4 : 5, live: { Board: mine } }] });
+      }
+      if (name === 'control_tail') return route.fulfill({ json: [...log, ...later].filter((r) => r.id > Number(body.p_after ?? 0)) });
+      if (name === 'control_report') reports.push(body as never);
+      return route.fulfill({ json: [] });
+    });
+    await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+    await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+    const transform = () => graphic.evaluate(() => document.documentElement.style.transform);
+    // A live row: in the log for any tail read, and delivered on the socket.
+    let next = dated ? 5 : 6;
+    const deliver = (msg: unknown) => {
+      const row = { id: next++, graphic: 'Board', msg };
+      later.push(row);
+      socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: row } } }));
+    };
+
+    await expect(graphic.locator('#f0')).toHaveText(dated ? 'AFTER' : 'REPORTED', { timeout: 30_000 });
+    await expect.poll(transform).toBe(lookCss(dated ? LOOK_B : LOOK_A));
+
+    // A row's appearance replaces it; a data row keeps it; a later version is ignored.
+    await expect.poll(() => socket !== null).toBe(true);
+    deliver({ t: 'update', data: { f0: 'B' }, appearance: LOOK_B });
+    await expect(graphic.locator('#f0')).toHaveText('B', { timeout: 10_000 });
+    expect(await transform()).toBe(lookCss(LOOK_B));
+    deliver({ t: 'update', data: { f0: 'C' } });
+    deliver({ t: 'update', data: { f0: 'D' }, appearance: { v: 2, frame: { dx: 1, dy: 1, s: 3, ox: 0, oy: 0 } } });
+    await expect(graphic.locator('#f0')).toHaveText('D', { timeout: 10_000 });
+    expect(await transform()).toBe(lookCss(LOOK_B));
+    // …and reports it, so the next boot finds it.
+    await expect.poll(() => reports.at(-1)?.p_state?.appearance, { timeout: 10_000 }).toEqual(LOOK_B);
+
+    // An identity takes it off, and the report then carries none.
+    deliver({ t: 'update', data: { f0: 'E' }, appearance: { v: 1 } });
+    await expect(graphic.locator('#f0')).toHaveText('E', { timeout: 10_000 });
+    expect(await transform()).toBe('');
+    await expect.poll(() => reports.at(-1)?.p_state ?? null, { timeout: 10_000 }).toBeNull();
+
+    await graphic.close();
+  });
+}
 
 test('the receiver block emits the SAME baseline rule the app renderer applies', async () => {
   // ONE RULE, TWO FORMS. `control/outputRecovery.ts` decides where a boot starts reading the
@@ -895,3 +1068,85 @@ test('the hosted page lists server cues by their address, apart from the graphic
   expect(block).toContain('slotAddress(');
   expect(block).not.toMatch(/<button|role="button"|onClick|onPointer|onKey/);
 });
+
+// THE PRODUCTION LOOK SENT TO A HOSTED GRAPHIC (playout adjustments, phase 3): "Send to on-air
+// graphics" is an update with an appearance and EMPTY data, so the graphic is given no values of its
+// own; when the face changes, the receiver refits with the values it shows, as the relay receiver
+// does, and never leaves the fit measured in the old face.
+test('a hosted graphic refits with the values it shows when an appearance-only update changes its face', async ({ page, context }) => {
+  const html = receiverHost(await receiverBlock(page));
+  const graphic = await context.newPage();
+  let socket: import('@playwright/test').WebSocketRoute | null = null;
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => { socket = ws; });
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 5, live: { Board: { data: { f0: 'ON AIR' }, state: null } } }] });
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR', { timeout: 30_000 });
+  await expect.poll(() => socket !== null).toBe(true);
+  let id = 6;
+  const deliver = (msg: unknown) => socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: { id: id++, graphic: 'Board', msg } } } }));
+  // A colour alone moves no text: nothing is refitted.
+  deliver({ t: 'update', data: {}, appearance: { v: 1, vars: { accent: '#ff7a00' } } });
+  await expect.poll(() => graphic.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#ff7a00');
+  // A face: the values shown go to update() again once it is in.
+  deliver({ t: 'update', data: {}, appearance: { v: 1, vars: { accent: '#ff7a00', 'font-heading': '"Archivo", Arial, sans-serif' } } });
+  await expect.poll(() => appliedIn(graphic), { timeout: 10_000 }).toEqual(['update:ON AIR', 'update:', 'update:', 'update:ON AIR']);
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR');
+  await graphic.close();
+});
+
+// A LOOK SENT TO A HOSTED GRAPHIC SURVIVES ITS RELOAD (playout adjustments, phase 3, rule 4): a style
+// with no place and size is reported beside the machine state like any appearance, so the boot
+// restores it from the report before any row arrives.
+test('a hosted graphic reports a style-only appearance and restores it from its report on boot', async ({ page, context }) => {
+  const html = receiverHost(await receiverBlock(page));
+  const style: AppliedAppearance = { v: 1, vars: { accent: '#ff7a00' } };
+  for (const boot of ['row', 'report'] as const) {
+    const reports: { p_state?: { appearance?: unknown } }[] = [];
+    const graphic = await context.newPage();
+    let socket: import('@playwright/test').WebSocketRoute | null = null;
+    await graphic.routeWebSocket('wss://bootref.supabase.co/**', (ws) => { socket = ws; });
+    await graphic.route('https://bootref.supabase.co/**', (route) => {
+      const name = new URL(route.request().url()).pathname.split('/').pop();
+      if (name === 'control_show_by_slug') {
+        const mine = { data: { f0: 'ON AIR' }, state: boot === 'report' ? { appearance: style } : null };
+        return route.fulfill({ json: [{ id: 'show-1', last_event_id: 5, live: { Board: mine } }] });
+      }
+      if (name === 'control_report') reports.push(route.request().postDataJSON() as never);
+      return route.fulfill({ json: [] });
+    });
+    await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+    await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+    await expect(graphic.locator('#f0')).toHaveText('ON AIR', { timeout: 30_000 });
+    const accent = () => graphic.evaluate(() => document.documentElement.style.getPropertyValue('--accent'));
+    if (boot === 'report') {
+      expect(await accent(), 'restored from the report before any row').toBe('#ff7a00');
+    } else {
+      await expect.poll(() => socket !== null).toBe(true);
+      socket!.send(JSON.stringify({ event: 'postgres_changes', payload: { data: { record: { id: 6, graphic: 'Board', msg: { t: 'update', data: {}, appearance: style } } } } }));
+      await expect.poll(accent).toBe('#ff7a00');
+      await expect.poll(() => reports.at(-1)?.p_state?.appearance, { timeout: 10_000 }).toEqual(style);
+    }
+    await graphic.close();
+  }
+  // A restored look in another face than the file loaded with refits once it is in, as the relay
+  // receiver's boot does: the values shown go to update() a second time.
+  const face: AppliedAppearance = { v: 1, vars: { accent: '#ff7a00', 'font-heading': '"Archivo", Arial, sans-serif' } };
+  const graphic = await context.newPage();
+  await graphic.routeWebSocket('wss://bootref.supabase.co/**', () => {});
+  await graphic.route('https://bootref.supabase.co/**', (route) => {
+    const name = new URL(route.request().url()).pathname.split('/').pop();
+    if (name === 'control_show_by_slug') return route.fulfill({ json: [{ id: 'show-1', last_event_id: 5, live: { Board: { data: { f0: 'ON AIR' }, state: { appearance: face } } } }] });
+    return route.fulfill({ json: [] });
+  });
+  await graphic.route('http://hosted-look.local/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await graphic.goto('http://hosted-look.local/board.html', { waitUntil: 'load' });
+  await expect(graphic.locator('#f0')).toHaveText('ON AIR', { timeout: 30_000 });
+  await expect.poll(() => appliedIn(graphic), { timeout: 10_000 }).toEqual(['update:ON AIR', 'update:ON AIR']);
+  await graphic.close();
+});
+

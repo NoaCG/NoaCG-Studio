@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="760" viewBox="0 0 720 760" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="720" height="760" fill="#28283b" />
+  <text x="45" y="70" font-size="32" data-name="Питання">Оберіть вигаданий острів</text>
+  <circle cx="70" cy="170" r="30" fill="#8a6d95" />
+  <text x="70" y="180" font-size="24" text-anchor="middle">1</text>
+  <text x="135" y="180" font-size="37" data-name="Текст">Ліора</text>
+  <circle cx="70" cy="315" r="30" fill="#8a6d95" />
+  <text x="70" y="325" font-size="24" text-anchor="middle">2</text>
+  <text x="135" y="325" font-size="37" data-name="Текст">Немба</text>
+  <circle cx="70" cy="460" r="30" fill="#8a6d95" />
+  <text x="70" y="470" font-size="24" text-anchor="middle">3</text>
+  <text x="135" y="470" font-size="37" data-name="Текст">Саві</text>
+  <circle cx="70" cy="605" r="30" fill="#8a6d95" />
+  <text x="70" y="615" font-size="24" text-anchor="middle">4</text>
+  <text x="135" y="615" font-size="37" data-name="Текст">Теро</text>
+  <g display="none">
+    <text x="45" y="730" font-size="30">Правильно</text>
+  </g>
+</svg>

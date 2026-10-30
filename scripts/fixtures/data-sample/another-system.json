@@ -1,0 +1,19 @@
+{
+  "address": "http://localhost:5174/api/data/patch",
+  "patch": {
+    "api": {
+      "riverside_count": {
+        "counted": "0 %",
+        "leading": "",
+        "margin": "",
+        "turnout": "0 %"
+      }
+    }
+  },
+  "fields": [
+    { "path": "api.riverside_count.counted", "label": "Counted", "graphic": "Riverside count", "field": "f2" },
+    { "path": "api.riverside_count.leading", "label": "Leading", "graphic": "Riverside count", "field": "f0" },
+    { "path": "api.riverside_count.margin", "label": "Margin", "graphic": "Riverside count", "field": "f1" },
+    { "path": "api.riverside_count.turnout", "label": "Turnout", "graphic": "Riverside count", "field": "f3" }
+  ]
+}

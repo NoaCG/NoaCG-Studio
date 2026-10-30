@@ -1,0 +1,99 @@
+{
+  "costUnread": false,
+  "brief": "live-vote",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "48572fc4-d334-4d4a-943d-268ee97e7c76",
+  "costCents": 0,
+  "notionalUsd": 0.7169806000000001,
+  "wallSeconds": 194,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type poll --design ig02 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type poll --design ig02 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 1,
+      "digest": "sha256:31081be2585f0548e34c00d4450c093d981f9b3da028e85600d7b2856ecdae21"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:34618535dc57e008a876ee43e6be9fed9f4646695025a888b2f3a91769bdc210"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:34618535dc57e008a876ee43e6be9fed9f4646695025a888b2f3a91769bdc210"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:34618535dc57e008a876ee43e6be9fed9f4646695025a888b2f3a91769bdc210"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-2\\cells\\live-vote.claude-sonnet-5-5-high\\frames",
+    "frames": 23,
+    "crops": 1,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:34618535dc57e008a876ee43e6be9fed9f4646695025a888b2f3a91769bdc210"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 3,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:34618535dc57e008a876ee43e6be9fed9f4646695025a888b2f3a91769bdc210",
+    "benchValidated": "sha256:34618535dc57e008a876ee43e6be9fed9f4646695025a888b2f3a91769bdc210",
+    "reviewed": "sha256:34618535dc57e008a876ee43e6be9fed9f4646695025a888b2f3a91769bdc210",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 11,
+    "opened": 11,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

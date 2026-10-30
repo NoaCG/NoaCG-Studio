@@ -3,23 +3,27 @@
 // and step, an update and Out as timed strips, and native-pixel crops of every field. It writes
 // the frames and `coverage.json` (what each frame shows, and the sources' digest) to --out, and
 // `review.json`, every frame with an empty verdict, which `noacg record --review` hands in only
-// once each is set (review.ts). An event that did not move the machine, or a graphic call that
-// threw, is a finding (exit 1).
+// once each is set (review.ts). An event that did not move the machine, one that moved it but
+// draws nothing on screen, or a graphic call that threw, is a finding (exit 1).
 
+import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient } from '../bridgeClient.js';
 import { cliVersion } from '../config.js';
-import { coveragePlan, frameFile, type CoverageRender, type Ground } from '../coverage.js';
+import { coveragePlan, frameFile, LATER_MS, settlesOwnState, STRIP_MS, stripFile, type CoverageRender, type Ground } from '../coverage.js';
 import { sourceDigest } from '../digest.js';
-import { REVIEW_FILE, reviewFor } from '../review.js';
-import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { BUSY_PLATE, LIGHT_PLATE, mimeTypeOf, safe, shoot, shootSequence, VIDEO_PLATE, type SequenceShot } from '../screenshot.js';
+import { earlierFrames, REVIEW_FILE, reviewFor, type SameFrame } from '../review.js';
+import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagBool, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { BUSY_PLATE, changedShare, composeStrip, LIGHT_PLATE, mimeTypeOf, momentLabel, safe, shoot, shootSequence, VIDEO_PLATE, type FrameOp, type SequenceShot } from '../screenshot.js';
 import { markFramesDir, readPackageInput } from '../workspace.js';
 
 const PLATES: Record<Ground, string> = { video: VIDEO_PLATE, light: LIGHT_PLATE, busy: BUSY_PLATE };
 /** Renders at once: each is a page of its own, and four is what `validate --screenshots` runs. */
 const PARALLEL = 4;
+/** Below this share of changed pixels, a press drew nothing: about 40 pixels of a full-HD frame.
+ *  The same moment rendered twice differs by none; a stopped clock's last digit by about 300. */
+const NO_CHANGE_SHARE = 0.00002;
 
 const extOf = (bytes: Uint8Array) => (mimeTypeOf(bytes) === 'image/jpeg' ? 'jpg' : 'png');
 
@@ -47,9 +51,16 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
   const outDir = flagString(args, 'out');
   if (!outDir) throw new UsageError('coverage needs --out <dir> for its frames.');
   const stress = await readStress(flagString(args, 'stress'));
+  // Each timeline (the Take, an event, a step, the update, Out) is ONE picture of its moments, so
+  // the look costs a reader far fewer pictures. --frames writes a frame per moment instead, as a
+  // judge that compares frames needs.
+  const strips = !flagBool(args, 'frames', false);
   const dir = path.resolve(outDir);
   if ((await fs.stat(path.resolve(input)).catch(() => null))?.isDirectory()) await markFramesDir(dir, input);
   await fs.mkdir(dir, { recursive: true });
+  // The pictures the last coverage in this folder drew, before this run draws over them: a frame
+  // drawn again byte for byte keeps the verdict that closed it (review.ts `reviewFor`).
+  const before = await earlierPictures(dir);
 
   const { bytes, fileName } = await readPackageInput(input);
   const bridge = await BridgeClient.connect();
@@ -69,7 +80,7 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
     const size = { width: template.resolution.width, height: template.resolution.height };
     const offHtml = await bridge.compose(template, 'off');
 
-    const frames: Array<{ file: string; render: string; values: string; ground: Ground; state: string; atMs: number; ops: string[]; machine: SequenceShot['machine'] }> = [];
+    const frames: Array<{ file: string; render: string; values: string; ground: Ground; state: string; atMs: number; moments?: number[]; ops: string[]; machine: SequenceShot['machine'] }> = [];
     const crops: Array<{ file: string; key: string; values: string; ground: Ground }> = [];
     const findings: string[] = [];
     const failures: string[] = [];
@@ -81,7 +92,17 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
     frames.push({ file: offFile, render: 'off', values: 'none', ground: 'video', state: 'off, before the Take', atMs: 0, ops: [], machine: null });
 
     const keep = async (r: CoverageRender, shot: SequenceShot) => {
-      for (const f of shot.strip) {
+      const asStrip = strips && shot.strip.length > 1;
+      if (asStrip) {
+        const moments = shot.strip.map((f) => f.atMs);
+        const file = stripFile(r, 'jpg');
+        await fs.writeFile(path.join(dir, file), await composeStrip(shot.strip, size));
+        frames.push({ file, render: r.name, values: r.values, ground: r.ground, state: `${r.state}, as a strip: ${moments.map(momentLabel).join(', ')}, left to right and down`, atMs: moments[moments.length - 1], moments, ops: shot.ran, machine: shot.machine });
+      }
+      // A strip's thirds show the motion, not the small print. The state an action, a step or the
+      // update settles in is shown by no other frame, so its last moment stays a frame of its own;
+      // the Take settles in the sample frame and Out in nothing.
+      for (const f of asStrip ? (settlesOwnState(r) ? shot.strip.slice(-1) : []) : shot.strip) {
         const file = frameFile(r, f.atMs, extOf(f.image));
         await fs.writeFile(path.join(dir, file), f.image);
         frames.push({ file, render: r.name, values: r.values, ground: r.ground, state: r.state, atMs: f.atMs, ops: shot.ran, machine: shot.machine });
@@ -148,6 +169,53 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
       for (const note of shot.notes) if (!shot.unmoved.some((u) => u.note === note)) findings.push(`${name}: ${note}`);
     }
 
+    // An action that moves the machine but draws nothing: at every moment of its strip (20 ms to
+    // 10 s after the press) the frame is the one with no press at all, so a flash that fades
+    // still counts as drawn. It is tried from the settled Take and then after each action that
+    // moved the machine (Reveal may need a Pick first, a team's -1 its own +1); a finding only
+    // when no start shows a change. The renders that decide it are compared, not kept: the frames
+    // stay the matrix's. A comparison that cannot be made (a render or a decode that failed) is no
+    // finding: it must not cost the frames already on disk their review.
+    const moments = [...STRIP_MS, LATER_MS];
+    // The clock is paused, so a timeline rendered twice is the same bytes: each start's unpressed
+    // timeline is rendered once for every button, and identical frames skip the pixel count.
+    const settled = new Map<string, Promise<SequenceShot>>();
+    const settledWithout = (prefix: FrameOp[]) => {
+      const key = JSON.stringify(prefix);
+      if (!settled.has(key)) settled.set(key, renderOne({ name: 'unpressed', values: 'sample', ground: 'video', state: '', ops: [...prefix, { kind: 'wait', ms: 0 }], offsets: moments }));
+      return settled.get(key)!;
+    };
+    const shows = async (without: SequenceShot, pressed: SequenceShot) => {
+      if (without.strip.length !== pressed.strip.length) return true;
+      for (let k = 0; k < pressed.strip.length; k++) {
+        const [a, b] = [without.strip[k].image, pressed.strip[k].image];
+        if (!Buffer.from(a).equals(Buffer.from(b)) && (await changedShare(a, b)) >= NO_CHANGE_SHARE) return true;
+      }
+      return false;
+    };
+    const drawsNothing = async (button: (typeof inspection.buttons)[number], first: CoverageRender, shot: SequenceShot, unpressed: SequenceShot) => {
+      let moves = !stillAfter(shot, button.event);
+      if (moves && (await shows(unpressed, shot))) return false;
+      for (const other of moved.filter((b) => b.event !== button.event)) {
+        const prefix: FrameOp[] = [{ kind: 'event', event: other.event }];
+        const pressed = await renderOne({ ...first, crops: undefined, ops: [...prefix, { kind: 'event', event: button.event }], offsets: moments }).catch(() => null);
+        if (!pressed || stillAfter(pressed, button.event)) continue;
+        const without = await settledWithout(prefix).catch(() => null);
+        if (!without) continue;
+        moves = true;
+        if (await shows(without, pressed)) return false;
+      }
+      // An action that never moves the machine has its own finding above.
+      return moves;
+    };
+    const unpressed = inspection.buttons.length ? await settledWithout([]).catch(() => null) : null;
+    if (unpressed) for (const button of inspection.buttons) {
+      const first = eventRender(button.event);
+      const shot = results.get(first?.name ?? '');
+      if (!first || !shot) continue;
+      if (await drawsNothing(button, first, shot, unpressed).catch(() => false)) findings.push(`${first.name}: ${button.label || button.event} shows no change on screen. It moves the machine, but from 20 ms to 10 s after the press every frame is the same as with no press, after the Take${moved.length > 1 ? ' and after each other action tried' : ''}. Draw what it does, or the operator presses it and the viewer sees nothing.`);
+    }
+
     const manifest = {
       format: 'noacg-coverage-v1',
       cli: cliVersion(),
@@ -162,13 +230,23 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
       notes: plan.notes,
     };
     await fs.writeFile(path.join(dir, 'coverage.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-    // A fresh review every time: verdicts belong to the frames of this digest, never an earlier one.
-    await fs.writeFile(path.join(dir, REVIEW_FILE), `${JSON.stringify(reviewFor(digest, frames), null, 2)}\n`);
-    out.result({ ok: findings.length === 0 && failures.length === 0, dir, digest, frames: frames.length, crops: crops.length, findings, failures, notes: plan.notes });
+    // A fresh review every time: verdicts belong to the frames of this digest. Only a frame whose
+    // picture is the very one an earlier verdict closed keeps it.
+    // The earlier picture is the hash that review recorded, not the file now on disk: a run that
+    // stopped after drawing frames but before writing its review left pictures nobody reviewed.
+    const same = new Map<string, SameFrame>();
+    const pictures = await Promise.all(frames.map(async (f) => ({ file: f.file, sha256: await pictureHash(path.join(dir, f.file)) })));
+    for (const p of pictures) {
+      const earlier = before.get(p.file);
+      if (earlier?.sha256 && earlier.sha256 === p.sha256) same.set(p.file, { verdict: earlier.verdict, sameSince: earlier.sameSince + 1 });
+    }
+    const carried = [...same.values()].filter((s) => s.verdict).length;
+    await fs.writeFile(path.join(dir, REVIEW_FILE), `${JSON.stringify(reviewFor(digest, pictures.map((p) => ({ file: p.file, ...(p.sha256 ? { sha256: p.sha256 } : {}) })), same), null, 2)}\n`);
+    out.result({ ok: findings.length === 0 && failures.length === 0, dir, digest, frames: frames.length, carried, crops: crops.length, findings, failures, notes: plan.notes });
     out.say(`Coverage of "${template.name}": ${frames.length} frame(s) and ${crops.length} crop(s) in ${dir} (${plan.renders.length + 1} renders, grounds ${plan.grounds.join(', ')}).`);
     out.say(`Digest: ${digest}`);
     out.say(`What each frame shows: ${path.join(dir, 'coverage.json')}`);
-    out.say(`Verdicts, one per frame: ${path.join(dir, REVIEW_FILE)}`);
+    out.say(`Verdicts, one per frame: ${path.join(dir, REVIEW_FILE)}${carried ? ` (${carried} frame(s) look exactly as when you closed them and keep their verdict, marked carried; open the other ${frames.length - carried})` : ''}`);
     for (const n of plan.notes) out.say(`Note: ${n}`);
     for (const f of findings) out.say(`Finding: ${f}`);
     for (const f of failures) out.say(`Not shot: ${f}`);
@@ -178,4 +256,17 @@ export async function runCoverage(args: ParsedArgs, out: Out): Promise<number> {
   } finally {
     await bridge.close();
   }
+}
+
+/** The sha256 of a frame file, or null when there is none. */
+async function pictureHash(file: string): Promise<string | null> {
+  const bytes = await fs.readFile(file).catch(() => null);
+  return bytes ? createHash('sha256').update(bytes).digest('hex') : null;
+}
+
+/** The frames the review already in `dir` lists, by file: the picture hash it recorded, the
+ *  verdict that closed each (empty when open), and for how many runs each had been the same. */
+async function earlierPictures(dir: string) {
+  const review: unknown = await fs.readFile(path.join(dir, REVIEW_FILE), 'utf8').then(JSON.parse, () => null);
+  return new Map(earlierFrames(review).map((f) => [f.file, f]));
 }

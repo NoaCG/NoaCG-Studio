@@ -309,6 +309,14 @@ module.exports = {
       to: { path: '^src/templates/types/recipeTemplate' },
     },
     {
+      comment:
+        '§3: packs -> control/sourceMapping only. A v3 pack carries collection recipes and live ' +
+        'candidate selections (docs/work-specs/playout-election-package/spec.md, E7.2a), and the ' +
+        'importer judges them with the one reader and the writer\'s own check, never a copy.',
+      from: { path: '^src/packs/' },
+      to: { path: '^src/control/sourceMapping\\.ts$' },
+    },
+    {
       comment: '§3: showchat -> backend, control',
       from: { path: '^src/showchat/' },
       to: { path: '^src/(backend|control)/' },

@@ -4,7 +4,7 @@ import {
 	type RealtimeChannel,
 	type SupabaseClient,
 } from '@supabase/supabase-js'
-import type { Answer, HelloAnswer, PairAnswer, Press, PressAnswer } from './protocol.js'
+import type { ActionPress, Answer, HelloAnswer, PairAnswer, Press, PressAnswer } from './protocol.js'
 
 /** The channel's own state, as the panel needs it. */
 export type ListenStatus = 'joined' | 'closed' | 'error'
@@ -19,7 +19,7 @@ export type ListenStatus = 'joined' | 'closed' | 'error'
 export interface Relay {
 	pairFinish(code: string, label: string): Promise<Answer<PairAnswer>>
 	hello(key: string): Promise<Answer<HelloAnswer>>
-	press(key: string, press: Press): Promise<Answer<PressAnswer>>
+	press(key: string, press: Press | ActionPress): Promise<Answer<PressAnswer>>
 	/** Join a feedback topic; returns the leave function. */
 	listen(
 		topic: string,
@@ -94,7 +94,7 @@ export class SupabaseRelay implements Relay {
 		return this.#rpc('panel_hello', { p_key: key })
 	}
 
-	async press(key: string, press: Press): Promise<Answer<PressAnswer>> {
+	async press(key: string, press: Press | ActionPress): Promise<Answer<PressAnswer>> {
 		return this.#rpc('panel_press', { p_key: key, p_press: press })
 	}
 

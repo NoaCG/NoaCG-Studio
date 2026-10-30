@@ -9,10 +9,12 @@ import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownC
 // library at publish time (docs/SAVED_CONTENT_MODEL.md §4) — the hosted page renders them as
 // a read-only switcher, so picking one stages its data and airing it stays a deliberate take.
 
+import type { AppliedAppearance } from './cueAdjust';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
+import { isBackendConfigured, loadBackendConfig } from '../backend/config';
 import { publishAudio } from '../backend/productionAudio';
-import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/shows';
+import { graphicLayer, type CueAuto, type CueEnd, type Show, type ShowCue } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
@@ -24,13 +26,16 @@ import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
 // audience): publish is the courier, not the author.
 import { audienceBrandFor } from '../audience/audienceBrand';
+import type { PublishedAdjust } from './hostedAdjust';
+import { lookImportedFace, withLookFaceIn } from './productionLook';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
 // boundary where a library draft becomes something a renderer trusts.
-import { assertProductionGate } from '../validation/productionGate';
+import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
+import { isForeignGraphic, verifyForeignPackage } from '../model/foreignPackage';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
+import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
-import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
+import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
 import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
@@ -50,6 +55,9 @@ import {
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
+import { SHEET_LEASE_MS, initialStatus, type SheetLeaseDoor, type SheetReadState, type SheetStatus } from './sheetSource';
+import { preparedCue, type JsonObject } from '../model/productionData';
+import { typedPublishedFields } from '../model/ografTyped';
 import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 import { readLiveCue, type LiveCueMap, type VerbSent } from './liveCue';
 
@@ -128,6 +136,19 @@ export interface OutputGraphicSpec {
    *  (higher = in front). ADDITIVE OPTIONAL: a payload published before the field falls back
    *  to its position in the array, which is exactly what the stage used to do. */
   layer?: number;
+  /** ADDITIVE OPTIONAL (E3.2a, docs/work-specs/playout-ograf-rundown/spec.md): this graphic is a
+   *  stranger's OGraf package. `assets` are its files under their package paths, html/css/js are
+   *  empty, and the output mounts it behind the isolation boundary (output/foreignOgraf.ts) from a
+   *  base the server serves those files under (api/_lib/outputOgraf.ts), never composing it. An
+   *  older output does not know the member and builds an empty document, which shows nothing. */
+  ograf?: OutputOgraf;
+}
+
+/** What an output needs of a published package: which bytes (`revision`, what the server serves
+ *  them by) and the manifest it mounts (`main`, `stepCount`, the declared actions). */
+export interface OutputOgraf {
+  revision: string;
+  manifest: unknown;
 }
 
 /** One cue as published — ShowCue re-keyed by graphic name (the wire key). */
@@ -146,7 +167,19 @@ export interface OutputCue {
    *  before timed cues, and the hosted page then takes it as one. */
   auto?: CueAuto;
   next?: string;
+  /** ADDITIVE OPTIONAL (playout adjustments, phase 1): the place and size this cue's Take and
+   *  Update carry, resolved at Publish against the box the production page measured. The hosted
+   *  page applies it and does not edit it. Absent: the cue's graphic was never adjusted. */
+  appearance?: AppliedAppearance;
+  /** ADDITIVE OPTIONAL (playout adjustments, phase 3): the records, the production look and the
+   *  measured box the hosted page's Adjust block folds and stages over (control/hostedAdjust.ts).
+   *  Absent: nobody adjusted its graphic and no look reaches it. */
+  adjust?: PublishedAdjust;
 }
+
+/** What Publish carries beside one cue for the hosted page: its applied appearance and the
+ *  records its Adjust block edits. */
+export type CuePublished = (cue: ShowCue) => { appearance?: AppliedAppearance; adjust?: PublishedAdjust } | undefined;
 
 /** What the hosted page airs for one cue, scoped to its own staged edits (cueStaging.ts). */
 export { cueStageData, hostedCueValues } from './cueStaging';
@@ -193,11 +226,18 @@ export interface OutputPayload {
  *  renderer rebuilds from `data`/`state` and replays only rows after it. Absent on a pre-0033
  *  server or from a pre-0033 renderer, and then the entry is REPLAYED rather than trusted
  *  (control/outputRecovery.ts owns that rule). */
+/** What a report's `state` holds: the machine's pose, and (playout adjustments) the place and size
+ *  applied, kept here because the report's RPC stores `state` as sent, so no migration. A graphic
+ *  airing typed data adds `typed`, `steps` and `on`, its typed baseline (E1.2b, ./outputRecovery.ts
+ *  `reportedTyped`). */
+export type ReportState = { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number; on?: boolean } | null;
+
 export type LiveReportMap = Record<
   string,
   {
     data?: Record<string, string>;
-    state?: { groups?: Record<string, string> } | null;
+    /** The machine state and what rides with it (`ReportState`). */
+    state?: ReportState;
     at?: string;
     event?: number;
     /** Protocol 2 only: the same baseline in the per-production sequence (0071). */
@@ -318,7 +358,7 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
     const template = templateForSavedGraphic(g, library);
     return {
       name: g.name,
-      fields: template.fields,
+      fields: typedPublishedFields(template.fields, template.ograf),
       js: template.js,
       images: template.assets
         .filter((a) => isImageAsset(a.path))
@@ -378,6 +418,7 @@ async function serializeAssets(template: SpxTemplate): Promise<OutputGraphicSpec
 
 /** One graphic as the output renders it: the payload's entry, and what its version digest covers. */
 async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
+  if (isForeignGraphic(template)) return foreignSpec(g, template);
   return {
     key: g.name,
     html: template.html,
@@ -390,12 +431,42 @@ async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): 
   };
 }
 
+/** A stranger's package as published: its bytes checked against its record first (a changed or
+ *  missing file refuses the publish by name, as the export does), then sent as they are. */
+async function foreignSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
+  const check = await verifyForeignPackage(template);
+  if (!check.ok) throw new ProductionGateError([{ name: g.name, errors: [{ rule: 'foreign-package', message: `${g.name} cannot go on air: ${check.reason}.` }] }]);
+  const manifest = template.ograf?.manifest ?? JSON.parse(new TextDecoder().decode(check.files.get(check.record.manifest)));
+  return {
+    key: g.name,
+    html: '',
+    css: '',
+    js: '',
+    assets: await serializeAssets({ ...template, assets: template.assets.filter((a) => check.files.has(a.path)) }),
+    resolution: template.resolution,
+    fps: template.fps,
+    layer: graphicLayer(g),
+    ograf: { revision: check.record.revision, manifest },
+  };
+}
+
 /** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
  *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
  *  graphic name. Async because Blob assets serialize to data URLs. */
-export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<OutputPayload> {
+export async function buildOutputPayload(
+  show: Show,
+  library: GraphicDoc[] = loadGraphics(),
+  /** Each cue's appearance as the production page resolved it and the records behind it (playout
+   *  adjustments): what the hosted page's Take and Update carry and its Adjust block edits.
+   *  Absent, no cue carries either. */
+  publishedOf?: CuePublished,
+): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
   const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
+  // The production look's imported face rides once, with the first graphic, on or off: a look sent
+  // and then turned off stays on air until the next Take, and a reload restores it (productionLook.ts).
+  const lookFace = lookImportedFace(show);
+  if (lookFace) graphics.splice(0, graphics.length, ...withLookFaceIn(graphics, lookFace.asset));
   // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
   const resolution = graphics.reduce<Resolution>(
     (r, g) => ({
@@ -405,8 +476,10 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
     }),
     DEFAULT_GRAPHICS_RESOLUTION,
   );
+  // A cue showing a live candidate is left out: the hosted page and an exported controller would
+  // take it with its prepared values, and the output receives resolved values only (E7.1).
   const cues: OutputCue[] = (show.cues ?? [])
-    .filter((c) => byId.has(c.sourceId))
+    .filter((c) => byId.has(c.sourceId) && preparedCue(c))
     .map((c) => {
       const auto = readAuto(c);
       const next = auto && takesNext(auto.then) ? nextGraphicCue(show.cues ?? [], c.id) : null;
@@ -421,6 +494,10 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         ...(c.note ? { note: c.note } : {}),
         ...(auto ? { auto } : {}),
         ...(next ? { next } : {}),
+        ...((() => {
+          const published = publishedOf?.(c);
+          return { ...(published?.appearance ? { appearance: published.appearance } : {}), ...(published?.adjust ? { adjust: published.adjust } : {}) };
+        })()),
       };
     });
   const itemById = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
@@ -481,9 +558,17 @@ const libraryDigestMemo = new Map<string, string>();
  */
 export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};
-  for (const g of show.graphics) {
+  // The first graphic carries the look's imported face when Publish does (buildOutputPayload), so
+  // its digest is read as Publish would write it, never memoised: the face is not the graphic's.
+  const lookFace = lookImportedFace(show);
+  for (const [i, g] of show.graphics.entries()) {
     const doc = resolveSavedGraphicDoc(g, library);
     if (!doc && g.graphicId) continue;
+    if (i === 0 && lookFace) {
+      const [carrier] = withLookFaceIn([await graphicSpec(g, templateForSavedGraphic(g, library))], lookFace.asset);
+      digests[g.name] = await graphicDigest(carrier);
+      continue;
+    }
     const memoKey = doc
       ? `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}|${JSON.stringify(g.soundConfig)}`
       : JSON.stringify(g);
@@ -503,16 +588,18 @@ export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = 
  *  the two surfaces must agree on the cue list). Prunes log rows older than 7 days (the 0029
  *  owner DELETE policy) so a 24/7 output URL never grows the log without bound.
  *  Returns every capability slug, or null offline. */
-export async function publishControlShow(show: Show): Promise<PublishedCapabilities | null> {
+export async function publishControlShow(show: Show, publishedOf?: CuePublished): Promise<PublishedCapabilities | null> {
   // THE LIBRARY->AIR GATE, before anything else - including the backend check: an invalid
   // graphic cannot publish, and that is true of this function whoever calls it and wherever it
   // runs (validation/productionGate.ts - the same publishGate the community door runs). A
   // library record may be a broken draft; what is pinned to an output URL may not.
   const library = loadGraphics();
-  assertProductionGate(show.graphics, library);
+  // `publish`: a stranger's OGraf package would reach the outputs as an empty document until its
+  // isolated mount does (E3.2a), so the gate refuses a production holding one.
+  assertProductionGate(show.graphics, library, 'publish');
   const sb = await getSupabase();
   if (!sb) return null;
-  const raw = await buildOutputPayload(show, library);
+  const raw = await buildOutputPayload(show, library, publishedOf);
   const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
   // THE VERSION STAMP (payloadVersion.ts): the previous stamp, read as ONE field so the
   // multi-megabyte payload is not downloaded to learn it. A production published for the first
@@ -548,6 +635,15 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     // and moves no graphic. The live TREE is deliberately not sent: it is runtime state and
     // the server's own column is its authority once published.
     bindings: show.bindings ?? {},
+    // The DATA SOURCES travel with them (migration 0097), so the server tick knows what to read
+    // with every page closed. Connect, Disconnect and Pause write both again at once
+    // (`writePublishedSources`), so neither waits for the next publish. Only the operators' row
+    // policy reads the column: a Sheet link grants reading, and no output or audience function
+    // selects it.
+    sources: show.sources ?? [],
+    // The COLLECTION RECIPES too (migration 0102, E7.2b): a source's agent writes each one's leaf
+    // through the source route only while the row names it. Read by the route alone.
+    collections: show.collections ?? [],
     // The control PROFILE travels at publish for the same reason the bindings do: how this
     // production arranges its controls is AUTHORED state, like the panel and the
     // payload, and the hosted surfaces must not have to guess it (migration 0058,
@@ -570,7 +666,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // it for the whole multi-megabyte write. An update that leaves `id` out of the SET takes FOR NO
   // KEY UPDATE, which a Take passes (migration 0071, review finding ordering:F1).
   const error = await writeControlShow(sb, published, expected);
-  // AN INSTANCE THAT HAS NOT RUN 0058 MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
+  // AN INSTANCE THAT HAS NOT RUN 0058 (or 0097, for `sources`) MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
   // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
   // would take the panel, the payload and the bindings down with it — every publish failing for
   // the window between this bundle going out and `db:push` applying the migration, and forever on
@@ -580,8 +676,14 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // extra round trip, only on the instances that need it, and only until they are migrated.
   if (error === 'moved') throw new PublishBehind(RACED);
   if (error) {
-    const { profile: _dropped, ...withoutProfile } = published;
-    const retry = await writeControlShow(sb, withoutProfile, expected);
+    // An instance behind only on 0102 (PGRST204 naming `collections`) keeps its sources and
+    // profile; any other error retries as before, without the three.
+    const { collections: _new, ...withoutCollections } = published;
+    let retry = error.code === 'PGRST204' && error.message.includes("'collections'") ? await writeControlShow(sb, withoutCollections, expected) : error;
+    if (retry && retry !== 'moved') {
+      const { profile: _dropped, sources: _unknown, ...withoutProfile } = withoutCollections;
+      retry = await writeControlShow(sb, withoutProfile, expected);
+    }
     if (retry === 'moved') throw new PublishBehind(RACED);
     // The retry failing means the error was never about this column — report the ORIGINAL, which
     // is the one that describes what is actually wrong.
@@ -616,6 +718,8 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   };
   // The brand travels at publish, merged into the state rather than replacing it — `open`,
   // `mode` and the round pointer are the operator's, not the publisher's.
+  // The activated look when it is on, the captured one otherwise: activation copies the look it
+  // turns on into `look` (model/shows.ts `setShowLookApplied`), so one member answers both.
   const brand = audienceBrandFor(show.look);
   if (row.audience_state) {
     await sb
@@ -638,6 +742,189 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     presenterSlug: row.presenterSlug,
     version,
     record: publishedRecordDigest(show),
+  };
+}
+
+/**
+ * CONNECT, DISCONNECT AND PAUSE ON A PUBLISHED PRODUCTION (data-sources C2, AC-3): the row's
+ * `bindings`, `sources` and `collections` written at once, so a field connected after publishing
+ * moves the output with no new publish, the server's operator door accepts its path, and the tick
+ * honours a Pause with the page closed. Only these columns: the panel and the payload stay as last
+ * published. Throws on a refusal, or when it matched no row, so the page can say the change has not
+ * reached the server and try again.
+ */
+export async function writePublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Promise<void> {
+  const sb = await getSupabase();
+  if (!sb) return;
+  const { data, error } = await writeNewestColumns(publishedColumns(show), (columns) => sb.from('control_shows').update(columns).eq('id', showId).select('id'));
+  if (error) throw new Error(error.message);
+  // Signed out, or no longer this account's row: the write matches nothing and says nothing.
+  if ((data ?? []).length === 0) throw new Error('this account cannot change the published production');
+}
+
+/**
+ * A row published before migration 0097 has never had its sources written (NULL), or before 0102
+ * its collections: give it this page's, and only while it is still NULL, so it can never replace
+ * what another page wrote in the meantime. Answers whether this write set the sources; false when
+ * the row had them already (or has no such column). Throws when the write itself failed, so the
+ * caller can try the same again.
+ */
+export async function firstPublishedSources(showId: string, show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Promise<boolean> {
+  const sb = await getSupabase();
+  if (!sb) return false;
+  const first = (column: string) => (columns: Record<string, unknown>) => sb.from('control_shows').update(columns).eq('id', showId).is(column, null).select('id');
+  const { data, error } = await writeNewestColumns(publishedColumns(show).slice(0, 2), first('sources'));
+  if (missingColumn(error)) return false;
+  if (error) throw new Error(error.message);
+  const wrote = (data ?? []).length > 0;
+  if (!wrote && (show.collections ?? []).length > 0) {
+    const late = await first('collections')({ collections: show.collections });
+    if (late.error && !missingColumn(late.error)) throw new Error(late.error.message);
+  }
+  return wrote;
+}
+
+/** What a published production's sources write sends, newest columns first: an instance that has
+ *  not run 0102 has no `collections`, one before 0097 no `sources` either; what it has still goes. */
+const publishedColumns = (show: Pick<Show, 'bindings' | 'sources' | 'collections'>): Record<string, unknown>[] => [
+  { bindings: show.bindings ?? {}, sources: show.sources ?? [], collections: show.collections ?? [] },
+  { bindings: show.bindings ?? {}, sources: show.sources ?? [] },
+  { bindings: show.bindings ?? {} },
+];
+const missingColumn = (error: { code?: string } | null | undefined): boolean => error?.code === 'PGRST204' || error?.code === '42703';
+
+/** Write the first of `tiers` the instance has every column of (PostgREST answers PGRST204 for a
+ *  column it does not know), and answer that write. */
+async function writeNewestColumns<T extends { error: { code?: string; message: string } | null }>(tiers: Record<string, unknown>[], write: (columns: Record<string, unknown>) => PromiseLike<T>): Promise<T> {
+  let answer = await write(tiers[0]);
+  for (const columns of tiers.slice(1)) {
+    if (answer.error?.code !== 'PGRST204') break;
+    answer = await write(columns);
+  }
+  return answer;
+}
+
+/** What `control_source_lease` and `control_source_commit` answer (migration 0097). */
+interface LeaseRow {
+  ok: boolean;
+  claim?: string;
+  owner?: string | null;
+  gone?: boolean;
+  paused?: boolean;
+  snapshot?: Record<string, string>;
+  content?: string | null;
+  status?: Partial<SheetStatus> | null;
+  tick?: boolean;
+}
+interface CommitRow {
+  ok: boolean;
+  moved?: boolean;
+  paused?: boolean;
+  data?: JsonObject | null;
+  skipped?: string[];
+}
+
+/** A status the row holds, as this page shows it: an empty one (never read) is waiting. */
+function rowStatus(status: Partial<SheetStatus> | null | undefined, reader: SheetStatus['reader'], tick: boolean): SheetStatus {
+  const known = status && typeof status === 'object' && typeof status.state === 'string';
+  return { ...initialStatus(reader), ...(known ? status : {}), reader, closedPage: tick };
+}
+
+/**
+ * A PUBLISHED SOURCE'S LEASE, on the row (control/sheetSource.ts `SheetLeaseDoor`): the one lease
+ * the browser readers, the server tick and later E4's agent share (migration 0097). Claim takes or
+ * renews it on the control slug; settle writes a read through the operator's door and keeps the
+ * snapshot and status, in one step the database refuses once the claim has moved, the source is
+ * paused, or a path is no longer connected (that path alone is left out, and kept for later).
+ * `hold` takes the tree the write answered with (productionDataSession.holdServerTree). A read that
+ * changed nothing is kept on the row at most once a lease (its "checked" time), not every 5 s.
+ * Letting go is a keepalive request, so it still leaves when the page is going away.
+ */
+export function publishedLeaseDoor(o: {
+  slug: string;
+  sourceId: string;
+  owner: string;
+  hold: (slug: string, tree: JsonObject) => void;
+  note: (text: string) => void;
+  /** The reader's lease (sheetSource `leaseOf`); the row holds any lease at most a minute. */
+  leaseMs?: number;
+}): SheetLeaseDoor {
+  const leaseMs = o.leaseMs ?? SHEET_LEASE_MS;
+  let tick = false;
+  /** The claim this page last held, which letting go names. */
+  let held: string | null = null;
+  /** What the row last kept from this page, without its checked time, and when. */
+  let kept: { claim: string; state: string; at: number } | null = null;
+  const unchecked = (next: SheetReadState) => JSON.stringify({ ...next, status: { ...next.status, checkedAt: null } });
+  const args = (claim: string | null, ttl: number) => ({ p_slug: o.slug, p_source: o.sourceId, p_owner: o.owner, p_claim: claim, p_ttl_ms: ttl });
+  const said = new Set<string>();
+  const sayOnce = (text: string) => {
+    if (said.has(text)) return;
+    said.add(text);
+    o.note(text);
+  };
+  const lease = async (claim: string | null, ttl: number): Promise<LeaseRow> => {
+    const sb = await getSupabase();
+    if (!sb) throw new Error('offline');
+    const { data, error } = await sb.rpc('control_source_lease', args(claim, ttl));
+    // PGRST202: the function is not there (an instance behind on migrations). The reader then
+    // falls back to this browser's own lease (control/sheetSource.ts).
+    if (error) throw Object.assign(new Error(error.message), error.code === 'PGRST202' ? { code: 'no_lease' } : {});
+    return data as LeaseRow;
+  };
+  return {
+    claim: async (claim) => {
+      const row = await lease(claim, leaseMs);
+      tick = row.tick === true;
+      held = row.ok && row.claim ? row.claim : null;
+      if (!row.ok || !row.claim) {
+        // A source the row does not list yet (its connection is on its way) waits.
+        const reader = row.owner === 'tick' ? 'server' : 'other';
+        return { held: false, status: row.gone ? null : rowStatus(row.status, reader, tick), reader };
+      }
+      const state: SheetReadState = {
+        snapshot: row.snapshot && typeof row.snapshot === 'object' ? row.snapshot : {},
+        content: typeof row.content === 'string' ? row.content : null,
+        status: rowStatus(row.status, 'this', tick),
+      };
+      return { held: true, claim: row.claim, state, paused: row.paused === true };
+    },
+    settle: async (claim, writes, next) => {
+      const state = unchecked(next);
+      if (Object.keys(writes).length === 0 && kept?.claim === claim && kept.state === state && Date.now() - kept.at < leaseMs) return true;
+      const sb = await getSupabase();
+      if (!sb) return false;
+      const { data, error } = await sb.rpc('control_source_commit', {
+        p_slug: o.slug,
+        p_source: o.sourceId,
+        p_claim: claim,
+        p_writes: writes,
+        p_state: { ...next, status: { ...next.status, closedPage: tick } },
+      });
+      if (error) {
+        sayOnce(`The Sheet’s change was not written: ${error.message}`);
+        return false;
+      }
+      const row = data as CommitRow;
+      if (!row.ok) return false;
+      kept = { claim, state, at: Date.now() };
+      if (row.data) o.hold(o.slug, row.data);
+      for (const path of row.skipped ?? []) sayOnce(`A connected field has not reached the published production yet (${path}); it follows the Sheet once it has.`);
+      return true;
+    },
+    release: () => {
+      const claim = held;
+      held = null;
+      const cfg = loadBackendConfig();
+      if (!claim || !isBackendConfigured(cfg)) return;
+      // Not through the client: a reload or a closed tab cancels an ordinary request.
+      void fetch(`${cfg.url}/rest/v1/rpc/control_source_lease`, {
+        method: 'POST',
+        keepalive: true,
+        headers: { apikey: cfg.anonKey, authorization: `Bearer ${cfg.anonKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify(args(claim, 0)),
+      }).catch(() => {});
+    },
   };
 }
 
@@ -776,47 +1063,100 @@ export async function unpublishControlShow(id: string): Promise<void> {
 
 /**
  * DOES THIS SERVER HAVE THE SEQUENCE ROAD (migration 0071)? Asked once per page load, by the first
- * resolve: the new resolve answers, or PostgREST says it has no such function (PGRST202) - or any
- * other answer that is not "unanswered" - and then this page runs today's protocol for the rest of
- * its life. A page is not switched mid-session: a live-path migration can land while it is open
- * (D7), and a page that changed protocol under an operator would have two cursors for one log.
- * "Unanswered" (the network, a 5xx gateway, 57014) decides nothing: the caller asks again.
+ * resolve: the new resolve answers, or the server proves it has none (`seqRoadVerdict` says what
+ * proves it, for a page that sends and for one that only follows), and then this page runs today's
+ * protocol for the rest of its life. A page is not switched mid-session: a live-path migration can
+ * land while it is open (D7), and a page that changed protocol under an operator would have two
+ * cursors for one log. Anything else decides nothing: the caller asks again.
  */
+// One per document: the renderer's resolve (its own rule, `controlOutputResolve`) runs only in
+// src/output/main.ts, never in a document that sends.
 let seqRoad: 'unknown' | 'present' | 'absent' = 'unknown';
-/** Statement timeouts (57014) the protocol-2 resolve has answered in a row. */
-let seqTimeouts = 0;
+/** Read fresh, never narrowed: another resolve may have decided while this one was asked. */
+const givenUp = () => seqRoad === 'absent';
+/** Statement timeouts (57014), and refusals (`isRefusal`), the protocol-2 resolve has answered in
+ *  a row. Overlapping resolves (a dev build mounts the wire twice) each count. */
+const seqInRow = { timeouts: 0, refusals: 0 };
 
 /** Ask a protocol-2 resolve. `undefined` means use today's RPC (this server has no sequence road,
- *  learned now or before); a failure means the server did not answer and nothing was decided.
- *  `timeoutsBeforeAbsent`: after that many statement timeouts in a row, give up on the new road
- *  for this page's life, as if the server had none. */
+ *  learned now or before); a failure means nothing was decided and the caller asks again. */
 async function askSeqRoad(
   sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
   rpc: string,
   args: Record<string, unknown>,
-  timeoutsBeforeAbsent = Infinity,
+  asker: SeqRoadAsker,
 ): Promise<RpcAnswer<Record<string, unknown> | null> | undefined> {
   if (seqRoad === 'absent') return undefined;
   const { data, error, status } = await sb.rpc(rpc, args);
-  seqTimeouts = error?.code === '57014' ? seqTimeouts + 1 : 0;
+  seqInRow.timeouts = error?.code === '57014' ? seqInRow.timeouts + 1 : 0;
+  seqInRow.refusals = error && isRefusal(status, error.code) ? seqInRow.refusals + 1 : 0;
   if (!error) {
+    // A resolve that answers after another one, overlapping it, gave up stays given up: the page
+    // already follows by row id.
+    if (givenUp()) return undefined;
     seqRoad = 'present';
     return { ok: true, value: data && typeof data === 'object' ? (data as Record<string, unknown>) : null };
   }
-  if (unansweredStatus(status, error.code) && seqTimeouts < timeoutsBeforeAbsent) return { ok: false, error: error.message };
+  if (seqRoadVerdict(status, error.code, seqInRow, asker, seqRoad === 'present') === 'ask-again') {
+    return { ok: false, error: error.message };
+  }
   seqRoad = 'absent';
   console.info(
     `[control] ${rpc}: ${error.code ?? ''} ${error.message.slice(0, 160)} - ` +
-      (error.code === '57014' ? `${seqTimeouts} statement timeouts in a row` : 'this server has no sequence road') +
-      ', so this page follows and sends by row id, as before.',
+      (error.code === '57014'
+        ? `${seqInRow.timeouts} statement timeouts in a row`
+        : error.code === 'PGRST202'
+          ? 'this server has no sequence road'
+          : `${seqInRow.refusals} refusals in a row`) +
+      ', so this page follows and sends by row id, without per-graphic order.',
   );
   return undefined;
+}
+
+/** Control slugs the ordered resolve last answered as no production. A press there asks the
+ *  resolve again (the production may exist by now). */
+const unknownSlugs = new Set<string>();
+/** This slug's sends are numbered, or never can be: nothing to wait for. */
+const roadKnown = (slug: string) => seqSessions.has(slug) || givenUp();
+
+/** Per control slug, the one wait for its road in progress. Shared, so the presses waiting on it
+ *  resume in the order they were made and take their numbers in that order. */
+const roadWaits = new Map<string, Promise<boolean>>();
+
+/**
+ * Until this production's road is known - its resolve answered on protocol 2, or the server has
+ * none - or the first waiting press's `deadline` passes. At once with no backend. Answers true when
+ * this wait's re-ask found no such production: a send there is the server's to refuse, by row id
+ * as before. A re-ask nobody answered by the deadline decides nothing, and the next press asks again.
+ */
+function roadDecided(slug: string, deadline: number): Promise<boolean> {
+  let wait = roadWaits.get(slug);
+  if (!wait) {
+    wait = (async () => {
+      if (!(await getSupabase().catch(() => null))) return false;
+      if (unknownSlugs.has(slug)) {
+        const late = new Promise<null>((resolve) => setTimeout(() => resolve(null), Math.max(0, deadline - Date.now())));
+        const answer = await Promise.race([controlShowBySlug(slug).catch(() => null), late]);
+        if (answer?.ok && !answer.value) return true;
+      }
+      while (!roadKnown(slug) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+      return false;
+    })().finally(() => roadWaits.delete(slug));
+    roadWaits.set(slug, wait);
+  }
+  return wait;
 }
 
 /** Per control slug, what this page knows of the head (seqSend.ts). Set by the resolve, kept
  *  current by the follow's frames and by every answer; `sendControlVerb` sends proto 2 when one
  *  exists for its slug. */
 const seqSessions = new Map<string, SeqSession>();
+
+/** Whether this page's sends for `slug` go in order per graphic (protocol 2: each press numbered,
+ *  an older one skipped once a later one applied). Not before the first resolve, and never on a
+ *  page on protocol 1 (`seqRoadVerdict`): there a send that commits late can air over a later one,
+ *  so the page shows it (`UnorderedSends`) and nothing may send on its own (selectionAir.ts holds). */
+export const sendsInOrder = (slug: string): boolean => seqSessions.has(slug);
 
 function seqPlanFor(slug: string, row: Record<string, unknown>): SeqPlan {
   const epoch = typeof row.epoch === 'string' ? row.epoch : null;
@@ -842,9 +1182,11 @@ export async function controlShowBySlug(slug: string): Promise<RpcAnswer<Resolve
   if (!sb) return { ok: false, error: 'no backend client' };
   // PROTOCOL 2 FIRST, today's resolve when the server has no sequence road (`seqRoad`). A resolve
   // nobody answered is a failure on either road, and the caller asks again.
-  const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug });
+  const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug }, { sends: true });
   if (next) {
     if (!next.ok) return next;
+    if (next.value) unknownSlugs.delete(slug);
+    else unknownSlugs.add(slug);
     return { ok: true, value: next.value ? readResolvedShow(next.value, seqPlanFor(slug, next.value)) : null };
   }
   seqSessions.delete(slug);
@@ -956,7 +1298,7 @@ export async function controlOutputResolve(outputSlug: string): Promise<RpcAnswe
   // reports' seq baselines, the legacy check), and if that keeps running out of statement time
   // the renderer boots on today's resolve and follows by row id for this session (review
   // oldclients:F2). An operator page has a person to tell and keeps asking.
-  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug }, OUTPUT_RESOLVE_TIMEOUTS);
+  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug }, { sends: false, timeoutsBeforeAbsent: OUTPUT_RESOLVE_TIMEOUTS });
   if (next) return next.ok ? { ok: true, value: next.value ? readResolvedOutput(next.value, true) : null } : next;
   return controlOutputBySlug(outputSlug);
 }
@@ -1039,7 +1381,7 @@ export async function controlOutputReportSeq(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string> } | null,
+  state: ReportState,
   baseline: {
     /** The last seq applied, and the epoch it belongs to: the server banks the seq only in that
      *  epoch (a republish the renderer has not seen yet must not get a baseline from a gone log). */
@@ -1078,7 +1420,7 @@ export async function controlOutputReport(
   outputSlug: string,
   graphic: string,
   data: Record<string, string>,
-  state: { groups?: Record<string, string> } | null,
+  state: ReportState,
   /** The last log row applied when this truth was captured — the graphic's recovery baseline. */
   lastEventId: number | null = null,
 ): Promise<void> {
@@ -1212,15 +1554,27 @@ export async function sendControlVerb(opts: {
   /** Protocol 2: this batch's number and base, taken at the press of a verb that leaves as several
    *  batches (`sendControlVerbs`). Absent, they are taken now. */
   sender?: SenderBody | null;
+  /** When the press was made, if before this call (`sendControlVerbs` may have waited for the road):
+   *  its resend window and its stamp run from the press. Absent, now. */
+  pressedAt?: number;
 }): Promise<VerbSent> {
-  const now = Date.now();
+  const now = opts.pressedAt ?? Date.now();
   const { showId } = opts;
+  // A press made before this production's resolve has decided the road waits for it, within its own
+  // resend window: sent by row id instead, it would have no per-graphic order (#1697). One made
+  // while others still wait joins them, so it cannot be numbered ahead of them.
+  const missing =
+    (!roadKnown(opts.slug) || roadWaits.has(opts.slug)) && (await roadDecided(opts.slug, now + RESEND_WINDOW_MS - MIN_ATTEMPT_MS));
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
   const fastRoad = !!showId && !recovering.has(showId);
+  // The hold-back runs on the clock as the send leaves, after any wait for the road; the press's own
+  // time still stamps it and bounds its resends.
+  const sentAt = Date.now();
   // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
-  // the operator had seen, read NOW, at the press - not when the send leaves (seqSend.ts).
+  // the operator had seen, read NOW, at the press (or as its road is decided) - not when the send
+  // leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
   const sender = session ? (opts.sender ?? pressSender(opts.slug, session, opts.items, !!opts.allOut)) : null;
   // A batch numbered at an earlier press leaves this page's monitor alone on every graphic the page
@@ -1235,21 +1589,23 @@ export async function sendControlVerb(opts: {
   for (const item of opts.items) {
     // Who pressed, and when, ride beside the id (livePath.ts `withSender`), so an output can time
     // the command from the press to its screen.
-    const stamped: ControlSendItem = { graphic: item.graphic, msg: withSender(withOid(item.msg), now) };
+    // A command its sender gave an id keeps it (graphicVerbs.ts books its markers by it).
+    const stamped: ControlSendItem = { graphic: item.graphic, msg: withSender(oidOf(item.msg) ? item.msg : withOid(item.msg), now) };
+    rememberSent(stamped.msg);
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
     // A clock-free graphic's event is an ordinary command and rides by the same rule as a Take.
     const isEvent = item.msg.t === 'event';
     const mayBeFast = !isEvent || !!opts.fastEvents?.(item.graphic);
-    const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= now;
+    const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= sentAt;
     // AN EVENT THAT DID NOT RIDE STILL HOLDS ITS GRAPHIC BACK, whichever reason kept it off: a
     // clock, a follower mid-catch-up, an unknown show, or an earlier hold. Otherwise the Take
     // behind it would ride the broadcast at about 90 ms while its own row was still in the
     // fan-out's 650 ms slow mode, and a renderer would apply the two in the wrong order.
     if (isEvent && !rides) {
       held.push(key);
-      slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
+      slowUntil.set(key, sentAt + SLOW_AFTER_EVENT_MS);
     }
     if (rides && !overtaken(item.graphic)) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
@@ -1274,7 +1630,10 @@ export async function sendControlVerb(opts: {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
-      // commit after a later press.
+      // commit after a later press. By row id only when decided so before the send: the server has
+      // no sequence road, or no such production. A press whose wait ran out without either counts as
+      // unanswered, like the resolve, and never turns into a send by row id on a retry (#1697).
+      if (!missing && !givenUp() && (await getSupabase().catch(() => null))) throw unansweredError();
       await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
     }
     noteSend(true);
@@ -1312,6 +1671,22 @@ export async function sendControlVerb(opts: {
   return sent;
 }
 
+/** The ids of the commands this page load sent, in memory only: a duplicated tab copies the
+ *  instance id in sessionStorage (livePath.ts), never these, so its commands read as another
+ *  screen's. Bounded; the oldest goes first. */
+const sentIds = new Set<string>();
+function rememberSent(msg: unknown): void {
+  const oid = (msg as { oid?: unknown }).oid;
+  if (typeof oid !== 'string') return;
+  sentIds.add(oid);
+  if (sentIds.size > 2048) sentIds.delete(sentIds.values().next().value as string);
+}
+/** Whether this page load sent this command (its echo on either road). */
+export const sentHere = (msg: unknown): boolean => {
+  const oid = (msg as { oid?: unknown } | null)?.oid;
+  return typeof oid === 'string' && sentIds.has(oid);
+};
+
 /** Per control slug and graphic, the newest press this page has numbered. */
 const presses = createPressBook();
 
@@ -1332,9 +1707,13 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
  * batches landed before it. Protocol 1 numbers nothing and sends exactly as one call per batch.
  */
 export async function sendControlVerbs(
-  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender'> & { batches: ControlSendItem[][] },
+  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender' | 'pressedAt'> & { batches: ControlSendItem[][] },
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
+  // Every batch is numbered here, so the wait for the road comes first, as for one batch. The first
+  // batch's resend window still runs from the press; a later one's from when it leaves, as before.
+  const pressedAt = Date.now();
+  if (!roadKnown(one.slug) || roadWaits.has(one.slug)) await roadDecided(one.slug, pressedAt + RESEND_WINDOW_MS - MIN_ATTEMPT_MS);
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
   const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
@@ -1357,18 +1736,28 @@ export async function sendControlVerbs(
         if (session && base) items = batch.filter((item) => (session.revs.get(item.graphic) ?? 0) <= (base[item.graphic] ?? 0));
         sent.skipped.push(...new Set(batch.filter((item) => !items.includes(item)).map((item) => item.graphic)));
       }
-      const each = items.length ? await sendControlVerb({ ...one, items, sender: senders[index] }) : { skipped: [], superseded: [], pressedAgain: [] };
+      const each = items.length
+        ? await sendControlVerb({ ...one, items, sender: senders[index], ...(index === 0 ? { pressedAt } : {}) })
+        : { skipped: [], superseded: [], pressedAgain: [] };
       waveLanded = Date.now();
       sent.skipped.push(...each.skipped);
       sent.superseded.push(...each.superseded);
       landed += 1;
     }
   } catch (e) {
-    throw Object.assign(e as Error, { landed });
+    // What the batches before it came to rides along: a graphic one of them skipped did not get it.
+    throw Object.assign(e as Error, { landed, skipped: [...sent.skipped, ...sent.superseded] });
   }
   // Over the whole press, not per batch: a batch is not pressed again by this press's own next one.
   sent.pressedAgain = presses.since(one.slug, ...senders.filter((s): s is SenderBody => !!s));
   return sent;
+}
+
+/** The graphics the batches that landed before a failed `sendControlVerbs` batch left alone
+ *  (skipped or superseded): they did not get the press. */
+export function verbsSkipped(e: unknown): string[] {
+  const skipped = (e as { skipped?: unknown } | null)?.skipped;
+  return Array.isArray(skipped) ? skipped.filter((g): g is string => typeof g === 'string') : [];
 }
 
 /** How many batches of a `sendControlVerbs` press landed before the one that failed. */
@@ -1425,7 +1814,7 @@ async function sendSeqVerb(
     resend.deadline - Date.now() < MIN_ATTEMPT_MS
       ? Promise.reject(unansweredError())
       : sendWithResend(async (signal) => {
-          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics);
+          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics, sender.id);
         }, resend);
   await (allOut ? send() : seqQueue.run(graphics, send));
   return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };
@@ -1453,8 +1842,14 @@ async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody,
   return readSendAnswer(data);
 }
 
-/** What `control_ping_seq` answered: the server's clock at the commit, or why there was no ping. */
-export type PingAnswer = { ok: true; at: number } | { ok: false; unavailable: boolean; detail: string };
+/** What `control_ping_seq` answered: the server's clock at the commit, or why there was no ping.
+ *  `passing`: a refusal that may not hold a second later (the head lock, the burst cap, a timeout,
+ *  the network), as opposed to one that will (hosted control off, a bad id). */
+export type PingAnswer = { ok: true; at: number } | { ok: false; unavailable: boolean; detail: string; passing?: boolean };
+
+/** SQLSTATEs a ping can meet and pass a moment later: lock_not_available, check_violation (the
+ *  burst cap), query_canceled (a statement timeout). */
+const PASSING_PING_REFUSALS = new Set(['55P03', '23514', '57014']);
 
 /**
  * `control_ping_seq` (migration 0072, docs/work-specs/playout-ready/spec.md R9): one row through
@@ -1465,7 +1860,9 @@ export async function controlPingSeq(slug: string, id: string): Promise<PingAnsw
   const sb = await getSupabase();
   if (!sb) return { ok: false, unavailable: true, detail: 'no backend' };
   const { data, error } = await sb.rpc('control_ping_seq', { p_slug: slug, p_id: id });
-  if (error) return { ok: false, unavailable: error.code === 'PGRST202', detail: error.message.slice(0, 160) };
+  if (error) {
+    return { ok: false, unavailable: error.code === 'PGRST202', detail: error.message.slice(0, 160), passing: !error.code || PASSING_PING_REFUSALS.has(error.code) };
+  }
   const at = (data as { at?: unknown } | null)?.at;
   return typeof at === 'number' ? { ok: true, at } : { ok: false, unavailable: false, detail: 'no answer' };
 }
@@ -1615,6 +2012,8 @@ export async function followControlLog(opts: {
   /** Protocol 2: the production was published again, so every seq this page holds is from a log
    *  that is gone (a timed cue's arm rows are ordered by them, control/cueArmWire.ts). */
   onEpochReset?: () => void;
+  /** Protocol 2: the follower holds rows behind a gap or reads the tail (true), or is level (false). */
+  onBusy?: (busy: boolean) => void;
 }): Promise<() => void> {
   if (opts.seq) {
     const plan = opts.seq;
@@ -1625,12 +2024,17 @@ export async function followControlLog(opts: {
       epoch: plan.epoch,
       tail: plan.tail,
       onRows: (rows, replayed) => {
-        if (replayed && rows.length) opts.onReplay?.(true);
-        rows.forEach((row) => {
-          heard.claim(row.msg);
-          opts.onRow(row);
-        });
-        if (replayed && rows.length) opts.onReplay?.(false);
+        const bracket = replayed && rows.length > 0;
+        if (bracket) opts.onReplay?.(true);
+        try {
+          rows.forEach((row) => {
+            heard.claim(row.msg);
+            opts.onRow(row);
+          });
+        } finally {
+          // A row that threw must not leave the surface believing it is still replaying.
+          if (bracket) opts.onReplay?.(false);
+        }
       },
       onHead: (head, epoch) => learnHead(plan.session, epoch, head.graphics),
       onEpoch: (epoch, reset) => {
@@ -1640,7 +2044,11 @@ export async function followControlLog(opts: {
       // WHILE THE FOLLOWER HOLDS ROWS OR READS THE TAIL this page's own presses take the durable
       // road (see `recovering` above): applied to its monitor now, they would land ahead of older
       // rows still on their way, and their echo, dropped by the oid claim, could not put it right.
-      onBusy: (busy) => (busy ? recovering.add(showId) : recovering.delete(showId)),
+      onBusy: (busy) => {
+        if (busy) recovering.add(showId);
+        else recovering.delete(showId);
+        opts.onBusy?.(busy);
+      },
       onHole: opts.onHole,
       onStatus: opts.onStatus,
     });

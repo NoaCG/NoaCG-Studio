@@ -412,6 +412,10 @@ export interface LiveEntry {
   prep?: PrepRequest;
   /** An output's answer to the last command path ping it received (migration 0072, R9). */
   ack?: PingAck;
+  /** What typed data an output reads (model/ografTyped.ts `TYPED_READER`): 1 values (E1.2a), 2
+   *  values and actions (E2.1). Absent from an output built before it: a page sends such an output
+   *  no envelope. */
+  typed?: number;
 }
 
 /** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
@@ -422,7 +426,7 @@ export function liveEntry(
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack'>,
+  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack' | 'typed'>,
 ): LiveEntry {
   return {
     kind,
@@ -484,6 +488,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     ...(stamp ? { stamp } : {}),
     ...(prep ? { prep } : {}),
     ...(ack ? { ack } : {}),
+    ...(typeof m.typed === 'number' && Number.isInteger(m.typed) && m.typed > 0 ? { typed: m.typed } : {}),
   };
 }
 
@@ -588,13 +593,15 @@ export function joinLivePresence(opts: {
     const { onPeers } = opts;
     if (onPeers) {
       // THE PEERS ARE KEPT HERE, from the join and leave events, and NOT read off presenceState().
-      // supabase-js's presence adapter (2.110) rewrites the metas it holds when it builds its event
-      // payloads - it deletes their `phx_ref` in place - so once an entry has been re-tracked (an
-      // update is a join and a leave on the same key), the leave that should remove the old meta
-      // matches nothing, and presenceState() keeps a ghost of every page that ever updated. Seen on
+      // supabase-js's presence adapter up to 2.110.2 rewrote the metas it held when it built its
+      // event payloads - it deleted their `phx_ref` in place - so once an entry had been re-tracked
+      // (an update is a join and a leave on the same key), the leave that should remove the old meta
+      // matched nothing, and presenceState() kept a ghost of every page that ever updated. Seen on
       // the preview branch: a dashboard went on listing an output for good after it was closed. The
-      // events themselves carry intact refs, so a map of ref to entry stays right; a key that
-      // presenceState() no longer has at all is dropped too, which is how a rejoin reconciles.
+      // ghosts also grew every page's heap for as long as it stayed on air (#1798); 2.110.9 copies
+      // the metas instead (scripts/realtime-presence-retrack.test.mjs). The events carry intact
+      // refs, so a map of ref to entry stays right either way; a key that presenceState() no longer
+      // has at all is dropped too, which is how a rejoin reconciles.
       const byRef = new Map<string, { key: string; entry: LiveEntry }>();
       const emit = () => {
         const keys = new Set(Object.keys(ch.presenceState()));

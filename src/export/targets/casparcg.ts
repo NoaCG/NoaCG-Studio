@@ -17,7 +17,9 @@
 import JSZip from 'jszip';
 import type { SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
+import type { AppliedAppearance } from '../../control/cueAdjust';
 import { addControlPanel, appendToBody, withControlReceiver } from '../common';
+import { bakeAppearance } from '../../control/appearanceRuntime';
 import { spxTextScript } from '../spxText';
 import { slug } from '../../model/slug';
 import { onAirGuideMd } from '../onAirGuide';
@@ -56,9 +58,10 @@ const CASPAR_DATA_SHIM = `// ── CasparCG data shim ────────�
  *  The data shim follows in its own tag, which the import door strips by its id (issue #901).
  *  The SPX text script comes last, in its own tag (spxText.ts): GETTING-ON-AIR.md says how to
  *  play this file from SPX. A CasparCG client's XML passes it untouched to the shim under it. */
-export async function composeCasparHtml(template: SpxTemplate): Promise<string> {
+export async function composeCasparHtml(template: SpxTemplate, appearance?: AppliedAppearance): Promise<string> {
   const html = await composeSelfContainedHtml(withControlReceiver(template), [
     { id: 'noacg-caspar-data', js: CASPAR_DATA_SHIM },
+    ...bakeAppearance(appearance),
   ]);
   return appendToBody(html, spxTextScript(template));
 }
@@ -77,7 +80,7 @@ export const casparTarget: ExportTarget = {
     // graphics a distinct layer, and a copy-paste line naming the wrong one puts two templates
     // on top of each other — the exact eviction the per-graphic layers were introduced to stop.
     const layer = Number(template.settings.playlayer) || 1;
-    root.file(`${name}.html`, await composeCasparHtml(template));
+    root.file(`${name}.html`, await composeCasparHtml(template, ctx?.appearance));
     const rules = casparReportedFieldRulesMd([template]);
     root.file(
       'README.md',

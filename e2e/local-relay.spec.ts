@@ -8,6 +8,8 @@ import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
 import { relayServe, routeOrigin } from './_relay';
+import { awaitDurableReady } from './_durable';
+import { frameCss, type AppliedAppearance } from '../src/control/cueAdjust';
 
 // The LOCAL-CONTROL door (offline local control, no command line): the overlay package
 // bundles a localhost relay (two stdlib implementations of protocol v1) + double-click
@@ -225,6 +227,197 @@ test('the production controller: preview shows the cue without airing it, Take a
   await expect(ctl.locator('#live-line')).toContainText('nothing on air');
 
   await ctl.close();
+  await air.close();
+});
+
+// ── PLACE AND SIZE over the relay (docs/work-specs/playout-adjustments/spec.md, phase 1b) ──
+// The overlay a package ships for an adjusted graphic shows its default from load (the bake); the
+// controller's Take and ✎ Update carry the cue's own place and size on the row, which REPLACES the
+// bake (rule 3); a data-only row keeps it (rule 1); a reload puts back the last one applied, an
+// identity included, never the bake under it (rule 4); a graphic nobody adjusted ignores an
+// appearance a row carries (the rollback rule). Read as the transform on the page's root, which is
+// where the runtime puts it (control/appearanceRuntime.ts); what it paints is
+// playout-adjust-documents.spec.ts.
+test('an adjusted production over the relay: the bake, the Take\'s place and size, a reload, an identity, and a graphic that ignores it', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  // The seed below writes through the model's mutators: the store must have hydrated first.
+  await awaitDurableReady(page);
+  const built = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const shows = await import('/src/model/shows.ts');
+    const { buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { measureExportAppearances } = await import('/src/components/home/exportAppearances.ts');
+    const [first, second] = variantsFor('lower-third');
+    const placed = { ...first.create({}), name: 'Placed Strap' };
+    const plain = { ...second.create({}), name: 'Plain Strap' };
+    const show = shows.createShowNamed('Placed Relay');
+    for (const tpl of [placed, plain]) {
+      const { doc } = createGraphic(tpl, { name: tpl.name });
+      shows.addGraphicToShow(show.id, tpl, { graphicId: doc!.id });
+    }
+    const pool = shows.loadShows().find((s) => s.id === show.id)!;
+    const strap = pool.graphics[0];
+    const anna = pool.cues!.find((c) => c.sourceId === strap.id)!;
+    shows.updateShowCue(show.id, anna.id, { label: 'Anna', values: { f0: 'Anna Andersson' } });
+    shows.addShowCue(show.id, strap.id, { label: 'Ben', values: { f0: 'Ben Bergman' } });
+    // The graphic's default: 40 px left. Ben's own: up 30 and 90 % (a size, so it is measured).
+    shows.setGraphicAdjust(show.id, strap.id, { x: -40 });
+    const ben = shows.loadShows().find((s) => s.id === show.id)!.cues!.find((c) => c.label === 'Ben')!;
+    shows.setCueAdjust(show.id, ben.id, { y: -30, scale: 0.9 });
+    const fresh = shows.loadShows().find((s) => s.id === show.id)!;
+    const appearances = await measureExportAppearances(fresh, 'html-overlay');
+    const zip = await buildShowZipFor(fresh, 'html-overlay', { appearances });
+    return { b64: await zip.generateAsync({ type: 'base64' }), graphic: appearances!.graphics[strap.id], anna: appearances!.cues[anna.id], ben: appearances!.cues[ben.id] };
+  });
+  // The default bakes; Anna inherits it; Ben's exception is his own.
+  expect(built.graphic.frame).toMatchObject({ dx: -40, dy: 0, s: 1 });
+  expect(built.anna).toEqual(built.graphic);
+  expect(built.ben.frame).toMatchObject({ dx: -40, dy: -30, s: 0.9 });
+
+  const zip = await JSZip.loadAsync(built.b64, { base64: true });
+  const files = new Map<string, string>();
+  for (const n of Object.keys(zip.files)) {
+    if (!zip.files[n].dir && /\.(html|json)$/.test(n)) files.set(n.replace(/^[^/]+\//, ''), await zip.file(n)!.async('string'));
+  }
+  const manifest = JSON.parse(files.get('payload.json')!) as { graphics: { name: string; file: string }[] };
+  const fileOf = (name: string) => manifest.graphics.find((g) => g.name === name)!.file;
+  expect(files.get(fileOf('Plain Strap'))).not.toContain('noacgApplyAppearance');
+  const { serve, rows } = relayServe(files);
+  const origin = 'http://relay-placed.local';
+  const transformOf = (p: Page) => p.evaluate(() => document.documentElement.style.transform);
+  const css = (a: AppliedAppearance) => frameCss(a).transform;
+
+  const air = await context.newPage();
+  await routeOrigin(air, origin, serve);
+  await air.goto(`${origin}/${fileOf('Placed Strap')}?stream=program`, { waitUntil: 'load' });
+  // Before any Take, the file shows its default.
+  expect(await transformOf(air)).toBe(css(built.graphic));
+  const plainAir = await context.newPage();
+  await routeOrigin(plainAir, origin, serve);
+  await plainAir.goto(`${origin}/${fileOf('Plain Strap')}?stream=program`, { waitUntil: 'load' });
+
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, origin, serve);
+  await ctl.goto(`${origin}/controller.html`, { waitUntil: 'load' });
+  await expect(ctl.locator('#mode')).toContainText('SHOW');
+
+  // Take Ben: his row carries his place and size, which replaces the bake.
+  await ctl.locator('.cue', { hasText: 'Ben' }).click();
+  await ctl.locator('#v-take').click();
+  await expect(air.locator('#f0')).toHaveText('Ben Bergman', { timeout: 6000 });
+  await expect.poll(() => transformOf(air)).toBe(css(built.ben));
+  const update = rows.filter((r) => r.stream === 'program' && (r.msg as { t: string }).t === 'update').pop()!;
+  expect((update.msg as { appearance?: unknown }).appearance).toEqual(built.ben);
+  // The Plain Strap's cue carries none (rule 2: a graphic nobody adjusted sends no field).
+  await ctl.locator('.cue', { hasText: 'Plain Strap' }).click();
+  await ctl.locator('#v-take').click();
+  await expect.poll(() => rows.filter((r) => r.graphic === 'Plain Strap' && (r.msg as { t: string }).t === 'update').length).toBeGreaterThan(0);
+  expect(rows.filter((r) => r.graphic === 'Plain Strap').every((r) => !('appearance' in (r.msg as object)))).toBe(true);
+
+  // Rule 1: a data-only row (the ± road's shape) keeps what is applied.
+  const send = (graphic: string, msg: unknown) =>
+    ctl.evaluate(async ({ graphic, msg }) => { await fetch('/relay/send', { method: 'POST', body: JSON.stringify({ graphic, stream: 'program', msg }) }); }, { graphic, msg });
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' } });
+  await expect(air.locator('#f1')).toHaveText('Guest', { timeout: 6000 });
+  expect(await transformOf(air)).toBe(css(built.ben));
+
+  // A row that changes the face refits once the face is in: the template's fits measured the old
+  // one, so the same values go to update() a second time. A colour alone moves no text: once.
+  await air.evaluate(() => {
+    const w = window as unknown as { update: (d: string) => void; __updates: number };
+    const own = w.update;
+    w.__updates = 0;
+    w.update = (d: string) => { w.__updates += 1; own(d); };
+  });
+  const updates = () => air.evaluate(() => (window as unknown as { __updates: number }).__updates);
+  const heading = '"Bebas Neue", "Arial Narrow", sans-serif';
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: { ...built.ben, vars: { accent: '#ff7a00' } } });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#ff7a00');
+  await air.waitForTimeout(800);
+  expect(await updates(), 'a colour: one update').toBe(1);
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: { ...built.ben, vars: { accent: '#ff7a00', 'font-heading': heading } } });
+  await expect.poll(updates, { timeout: 6000, message: 'a face: the update, then the refit once it loaded' }).toBe(3);
+  await air.waitForTimeout(800);
+  expect(await updates(), 'and no more').toBe(3);
+  // The refit sends the values on air, never the row that asked: a value that arrives in the same
+  // poll as a face change is still on air once the face is in.
+  await ctl.evaluate(async ({ heading, ben }) => {
+    const post = (msg: unknown) => fetch('/relay/send', { method: 'POST', body: JSON.stringify({ graphic: 'Placed Strap', stream: 'program', msg }) });
+    await post({ t: 'update', data: { f1: 'Guest' }, appearance: { ...ben, vars: { 'font-heading': heading.replace('Bebas Neue', 'Oswald') } } });
+    await post({ t: 'update', data: { f1: 'Later' } });
+  }, { heading, ben: built.ben });
+  await expect(air.locator('#f1')).toHaveText('Later', { timeout: 6000 });
+  await air.waitForTimeout(1200);
+  await expect(air.locator('#f1'), 'the refit did not put the older value back').toHaveText('Later');
+  // Nor an event's payload the template refused: the refit sends what the template took. The
+  // template's own dispatch is stood in for here, taking 'ok' and refusing 'no' as a transition
+  // or sound guard does.
+  const f0 = await air.locator('#f0').textContent();
+  await air.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w.__dispatch = w.noacgDispatch;
+    w.noacgDispatch = (event: string, payload: Record<string, string>) => {
+      if (event === 'ok') (w.noacgApplyPayload as (p: Record<string, string>) => void)(payload);
+    };
+  });
+  await ctl.evaluate(async ({ heading, ben }) => {
+    const post = (msg: unknown) => fetch('/relay/send', { method: 'POST', body: JSON.stringify({ graphic: 'Placed Strap', stream: 'program', msg }) });
+    await post({ t: 'update', data: { f1: 'Later' }, appearance: { ...ben, vars: { 'font-heading': heading.replace('Bebas Neue', 'Anton') } } });
+    await post({ t: 'event', event: 'no', payload: { f1: 'Refused' } });
+    await post({ t: 'event', event: 'ok', payload: { f0: 'Accepted' } });
+  }, { heading, ben: built.ben });
+  await expect(air.locator('#f0')).toHaveText('Accepted', { timeout: 6000 });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toContain('Anton');
+  await air.waitForTimeout(1200);
+  await expect(air.locator('#f1'), 'a refused payload never airs through the refit').toHaveText('Later');
+  await expect(air.locator('#f0'), 'an accepted one stays').toHaveText('Accepted');
+  await air.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w.noacgDispatch = w.__dispatch;
+  });
+  await send('Placed Strap', { t: 'update', data: { f0: f0 ?? '' } });
+  await expect(air.locator('#f0')).toHaveText(f0 ?? '', { timeout: 6000 });
+  // Back to the design's face for the steps below.
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
+  await expect.poll(() => air.evaluate(() => document.documentElement.style.getPropertyValue('--font-heading'))).toBe('');
+  // The comparison is with the face APPLIED, a bake's included, never only the rows seen: a face
+  // the file put on itself, then a row back to the design's own, refits too.
+  await air.evaluate((heading) => {
+    (window as unknown as { noacgApplyAppearance: (a: unknown) => boolean }).noacgApplyAppearance({ v: 1, vars: { 'font-heading': heading } });
+  }, heading);
+  const beforeDesigned = await updates();
+  await send('Placed Strap', { t: 'update', data: { f1: 'Guest' }, appearance: built.ben });
+  await expect.poll(updates, { timeout: 6000, message: 'back to the design: the update, then the refit' }).toBe(beforeDesigned + 2);
+
+  // Rule 4: a reload puts back the last one applied, read off the log, then off the baseline.
+  for (let i = 0; i < 2; i++) {
+    await air.reload({ waitUntil: 'load' });
+    await expect(air.locator('#f0')).toHaveText('Ben Bergman', { timeout: 15_000 });
+    await expect.poll(() => transformOf(air), { timeout: 15_000 }).toBe(css(built.ben));
+  }
+
+  // An identity takes the bake off too, and a reload keeps it off rather than restoring the bake.
+  await send('Placed Strap', { t: 'update', data: {}, appearance: { v: 1 } });
+  await expect.poll(() => transformOf(air)).toBe('');
+  await air.reload({ waitUntil: 'load' });
+  await expect(air.locator('#f0')).toHaveText('Ben Bergman', { timeout: 15_000 });
+  await expect.poll(() => air.evaluate(() => getComputedStyle(document.documentElement).opacity), { timeout: 15_000 }).toBe('1');
+  expect(await transformOf(air)).toBe('');
+  // A version this build does not know is ignored; the data beside it still lands.
+  await send('Placed Strap', { t: 'update', data: { f1: 'Later' }, appearance: { v: 2, frame: { dx: 5, dy: 5, s: 2, ox: 0, oy: 0 } } });
+  await expect(air.locator('#f1')).toHaveText('Later', { timeout: 6000 });
+  expect(await transformOf(air)).toBe('');
+
+  // The rollback rule: a graphic exported without place and size takes the data and ignores the rest.
+  await send('Plain Strap', { t: 'update', data: { f0: 'Still plain' }, appearance: built.ben });
+  await expect(plainAir.locator('#f0')).toHaveText('Still plain', { timeout: 6000 });
+  expect(await transformOf(plainAir)).toBe('');
+
+  await ctl.close();
+  await plainAir.close();
   await air.close();
 });
 

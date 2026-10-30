@@ -2,6 +2,13 @@
 // covers: src/components/home/CueEditor.tsx
 // covers: src/components/playoutKeys.ts, src/model/durableStore.ts
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/CueActions.tsx, src/components/home/LiveControls.tsx, src/control/liveControls.ts
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
+// covers: src/control/folderPlayout.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // THE PRODUCTION PAGE'S AIR CONTRACT, pinned before the page is split (production-page refactor,
 // phase 1; docs/work-specs/production-page-refactor/spec.md §5.3 and §1.3). Each test presses
@@ -276,4 +283,105 @@ test('a row selected while the edit is still saving does not lose it: the first 
   await holdWrites(page, false);
   await onProgram(page, '#f0', 'Typed before moving on');
   await expect(page.getByTestId('live-cue-chip')).toContainText('Hairline');
+});
+
+test('typing into the on-air cue redraws the editor and not the page, and everything showing the text keeps up', async ({ page }) => {
+  // spec §7 "Render counts and freshness" (phase 13b, D12): the draft lives in the session and the
+  // editor, the rundown rows and PREVIEW subscribe to it themselves; the page draws only whether
+  // anything is unsent. As in playout-clock's render count, every timer on the page is FROZEN
+  // (Playwright's clock) while the keys go in, so nothing but typing can render anything - the
+  // draft's idle save waits too. Ten keystrokes may render the page once, for the "not sent yet"
+  // the first one turns on, and the editor once each. A surface that stopped following the draft
+  // cannot pass on the counts alone: the editor's box, the unsent line, the rundown row, Update
+  // and PREVIEW must all show what was typed before it is saved. Mutation-tested: the page
+  // subscribed to the draft part renders with every keystroke, and a row or PREVIEW reading the
+  // record instead of the draft shows the old text; each fails this.
+  await page.clock.install();
+  await production(page, 'Render counts');
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Hairline');
+  await expect.poll(() => plays(page)).toBeGreaterThan(0);
+  const field = page.getByTestId('cue-field-f0');
+  await field.click();
+  await field.press('End');
+  const typed = `${await field.inputValue()}0123456789`;
+  const pageRenders = () => page.getByTestId('production-page').evaluate((el) => Number(el.getAttribute('data-renders')));
+  const editorRenders = () => page.getByTestId('cue-editor').evaluate((el) => Number(el.getAttribute('data-renders')));
+
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await expect.poll(async () => {
+    const before = await pageRenders();
+    await page.waitForTimeout(300);
+    return (await pageRenders()) - before;
+  }).toBe(0);
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  // The suite's dev server renders under React.StrictMode (src/main.tsx), which calls a component
+  // twice for each render, so one render moves a count by 2.
+  const RENDER = 2;
+  const [p0, e0] = [await pageRenders(), await editorRenders()];
+  await field.press('0');
+  const [p1, e1] = [await pageRenders(), await editorRenders()];
+  await field.pressSequentially('123456789');
+  await expect(field).toHaveValue(typed);
+  const [p10, e10] = [await pageRenders(), await editorRenders()];
+  expect(p1 - p0, 'the first keystroke renders the page at most once: "not sent yet" turns on').toBeLessThanOrEqual(RENDER);
+  expect(p10 - p1, 'the nine keystrokes after it do not render the page').toBe(0);
+  expect(e1 - e0, 'a keystroke renders the editor').toBeGreaterThan(0);
+  expect(e10 - e0, `the editor moved ${e10 - e0} over ten keystrokes`).toBeLessThanOrEqual(10 * RENDER);
+  await expect(page.getByTestId('cue-unsent')).toContainText('1 change not on PROGRAM yet');
+  await expect(cue(page, 'Hairline')).toContainText(typed);
+  await expect(page.getByTestId('verb-update')).toBeEnabled();
+
+  // PREVIEW settles 150 ms after the last change and the draft is saved only at 300 ms, so after
+  // 200 ms what PREVIEW shows came from the draft and not from a saved record.
+  await page.clock.runFor(200);
+  await expect(page.frameLocator('iframe[title="Cue preview"]').locator('#f0')).toHaveText(typed);
+  await page.clock.resume();
+  await page.getByTestId('verb-update').click();
+  await onProgram(page, '#f0', typed);
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
+  // The row's label follows the label being typed too.
+  await page.getByTestId('cue-label').fill('Renamed while live');
+  await expect(list(page).locator('.pd-cue', { hasText: 'Renamed while live' })).toHaveCount(1);
+});
+
+test('typing in PREP does not render the LIVE stack of pinned graphics: it follows air, never the draft', async ({ page }) => {
+  // Pinned live controls (docs/work-specs/pinned-live-controls/spec.md, "Maintainability plan"): the
+  // stack reads the `air` and `aired` parts, never the draft, so with a quiz pinned and the cue on
+  // air being typed into, the stack renders as the page does: at most once, for "not sent yet".
+  // Mutation-tested: the stack reading the draft (a block per keystroke) fails the second count.
+  await page.clock.install();
+  const showId = await production(page, 'Pinned render counts', { quiz: true });
+  await evaluateInPage(page, async ({ showId }) => {
+    const { setShowProfile } = await import('/src/model/shows.ts');
+    setShowProfile(showId, { v: 1, arrange: {}, pinnedGraphics: ['House Quiz'] });
+  }, { showId });
+  await settleDurableWrites(page);
+  await page.reload();
+  await cue(page, 'Hairline').getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Hairline');
+  const stack = page.getByTestId('live-stack');
+  await expect(stack.getByTestId('live-block')).toHaveCount(1);
+  await expect(stack.getByTestId('live-block')).toHaveAttribute('data-graphic', 'House Quiz');
+  const field = page.getByTestId('cue-field-f0');
+  await field.click();
+  await field.press('End');
+  const stackRenders = () => stack.evaluate((el) => Number(el.getAttribute('data-renders')));
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await expect.poll(async () => {
+    const before = await stackRenders();
+    await page.waitForTimeout(300);
+    return (await stackRenders()) - before;
+  }).toBe(0);
+  const RENDER = 2;
+  const s0 = await stackRenders();
+  await field.press('0');
+  const s1 = await stackRenders();
+  await field.pressSequentially('123456789');
+  const s10 = await stackRenders();
+  expect(s1 - s0, 'the first keystroke renders the stack at most once, with the page').toBeLessThanOrEqual(RENDER);
+  expect(s10 - s1, 'the nine keystrokes after it do not render the stack').toBe(0);
+  await page.clock.resume();
 });

@@ -5,7 +5,7 @@
 // migration 0075). Offline there is one surface and no database, so "exactly once across pages and
 // a reload" is a question with no second page to ask it of: the rules are scripts/cue-auto.test.mjs,
 // the server's compare-and-set is 0075's self-check, and this walks both pages against a real one.
-// covers: src/control/cueArmWire.ts, src/control/cueArmRpc.ts
+// covers: src/control/cueArmWire.ts, src/control/cueArmRpc.ts, src/control/cueArmEngine.ts
 // covers: supabase/migrations/0075_cue_arms.sql
 
 import { publishProduction } from '../_publish';

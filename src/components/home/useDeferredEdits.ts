@@ -54,7 +54,9 @@ export type DeferredEdits = {
 };
 
 /** Closing commits must capture text synchronously before account pause or teardown. */
-export function useDeferredEdits(commit: (key: string, text: string, closing: boolean) => void): DeferredEdits {
+/** `settle: false`: no commit after a pause, only when the edit is over (blur, Enter, leaving), for a
+ *  box whose half-typed value would act (a size of 8 % on the way to 84 %). */
+export function useDeferredEdits(commit: (key: string, text: string, closing: boolean) => void, { settle = true }: { settle?: boolean } = {}): DeferredEdits {
   const [edit, setEdit] = useState<PendingEdit | null>(null);
   // The ref, not the state, is what the timer and the unload listeners read: they are registered
   // once and would otherwise hold the first render's `edit` for ever. `type` and `flush` are the
@@ -100,9 +102,9 @@ export function useDeferredEdits(commit: (key: string, text: string, closing: bo
       editRef.current = next;
       setEdit(next);
       stopTimer();
-      timer.current = setTimeout(() => flush(), EDIT_SETTLE_MS);
+      if (settle) timer.current = setTimeout(() => flush(), EDIT_SETTLE_MS);
     },
-    [flush],
+    [flush, settle],
   );
 
   useEffect(() => {

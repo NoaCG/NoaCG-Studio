@@ -1,6 +1,8 @@
 # cloud-delegate — provider-native work and bounded recovery
 
-Route ordinary implementation, review, verification and unattended phases to cloud.
+Local implementation, review and targeted verification are always allowed without asking.
+Use qualified cloud workers when useful for implementation, review, verification or unattended phases;
+cloud availability is not a prerequisite for local work. Keep existing local resource and check limits.
 Keep device, installed-program, private-local-file and local-browser-state tasks local.
 Use the existing wave/plan/job and landing records; this procedure creates no new scheduler.
 Native subagents share one VM; they are not separate cloud resources.
@@ -30,7 +32,8 @@ enable optional modes or broaden access just to obtain a newer orchestration pat
   worker by ID. A message to an idle worker is not proof it resumed. Retain task/agent IDs
   through compaction/reconnect; inspect status and results before retrying a launch.
 - Before the first unattended launch, arm and record one qualified native wake or the
-  existing bounded 30-minute heartbeat/Claude background timer for missed completions/late CI.
+  existing bounded heartbeat/Claude background timer for missed completions/late CI, timed by
+  what is waited on (a plan run: `node scripts/plan-kit.mjs checkin <wave>`).
   Re-arm only while needed within the authorized window; do not add a parallel scheduler.
   Native retries/continuations obey the workflow's existing end policy and attempt limits.
 
@@ -83,6 +86,8 @@ inspect the current interface. Missing or denied launch/auth/mapping stops that 
 continue independent work. Never transplant credentials, bypass the proxy, retry a
 known denial or substitute an API model, another provider or same-VM subagent.
 Requalify after a relevant access/interface change; old inventory is not a permanent ban.
+These requirements qualify the cloud launch only. If it is unavailable, continue locally without
+asking for an exception, and report that execution as local rather than a qualified cloud launch.
 
 Inspect existing native task IDs, status, nonce and wave/plan state before submitting.
 If delivery is uncertain, reconcile the same nonce/task; do not create another worker.
@@ -155,7 +160,8 @@ On plan pause/block/expiry, stop native auto-continuations, retries and new-sess
 launches too; checkpoint/reconcile in-flight work and preserve queued-PR repair ownership.
 
 Continuing plan projects use the immutable project deadline and bounded work blocks in
-`plan-run.md`. Any session, cloud or laptop, continues a project with the same `/plan-run` line;
+`plan-run.md`; their run kit (`state.json`, brief templates, briefs sent) rides in the recovery
+checkpoint. Any session, cloud or laptop, continues a project with the same `/plan-run` line;
 the older coordinator is then refused as superseded and stops. A coordinator waiting on workers
 or CI waits in a running background job or monitor, never idle, so its machine is not reclaimed.
 A project pause/block end stops local keep-awake and block-specific wakes.

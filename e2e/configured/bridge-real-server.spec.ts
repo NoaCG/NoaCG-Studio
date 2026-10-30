@@ -134,16 +134,15 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
   await page.waitForTimeout(6000);
   const empty = await frame(page, token, '01-output-url-loaded-nothing-on-air');
 
-  // ── The quiz: key C, pick B, Take; then Select, Lock, Reveal - every one over the LOG, inside
-  //    CasparCG's browser, with the Bridge sending nothing. ──
+  // ── The quiz: key C, Take; then pick B (one press selects it), Lock, Reveal - every one over
+  //    the LOG, inside CasparCG's browser, with the Bridge sending nothing. ──
   await page.getByTestId('cue-field-f5-opt-C').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('Quiz board', WIRE);
   await page.waitForTimeout(2500);
   const question = await frame(page, token, '02-quiz-on-air');
   expect(question).toBeGreaterThan(empty);
-  await page.getByRole('button', { name: /Select answer/ }).click();
+  await page.getByTestId('cue-pick-select-B').click();
   await page.getByRole('button', { name: /Lock it in/ }).click();
   await expect(page.getByTestId('machine-state-chip')).toContainText('Locked', WIRE);
   await frame(page, token, '03-quiz-locked-on-B');

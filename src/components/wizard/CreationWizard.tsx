@@ -44,7 +44,7 @@ import FinishStep, {
   importedSummaryRows,
   type SummaryStepKey,
 } from './steps/FinishStep';
-import { importTemplateFile } from '../../model/importTemplate';
+import { foreignFormatStated, importDroppedTemplate, isForeignGraphic } from './templateFile';
 import { useExportUi } from '../ExportWindow';
 import { useMarkLegibility } from './useMarkLegibility';
 import type { SpxTemplate } from '../../model/types';
@@ -694,7 +694,7 @@ export default function CreationWizard() {
   // The graphic the preview shows: the AI's result, a dropped template as itself (it is the
   // graphic, already finished), or the draft built as real template code.
   const previewGraphic =
-    mode === 'ai' ? aiResult?.template ?? null : mode === 'file' ? importedFile?.template ?? null : previewTemplate;
+    mode === 'ai' ? aiResult?.template ?? null : mode === 'file' ? (isForeignGraphic(importedFile?.template) ? null : importedFile?.template ?? null) : previewTemplate;
   // FINISH ON A PHONE IS THE ONE EXCEPTION. Stacked, the preview claims a fixed 38vh and the
   // step scrolls in what is left — which put BOTH doors below the fold on arrival, on the one
   // step that exists to offer a choice. Every earlier step had already shown the graphic, and
@@ -1062,7 +1062,7 @@ export default function CreationWizard() {
                       type: 'file',
                       file: {
                         template: imported,
-                        detection: { resolution: imported.resolution, fps: imported.fps, certain: true, messages: [] },
+                        detection: { resolution: imported.resolution, fps: imported.fps, certain: !isForeignGraphic(imported) || foreignFormatStated(imported), messages: [] },
                       },
                       error: null,
                     });
@@ -1097,7 +1097,7 @@ export default function CreationWizard() {
                 templateFile={importedFile}
                 onTemplateFile={(file) => {
                   dispatch({ type: 'file', error: null });
-                  void templateFileDropped(file, { importTemplateFile }).then((read) => {
+                  void templateFileDropped(file, { importTemplateFile: importDroppedTemplate }).then((read) => {
                     if (!read.ok) {
                       dispatch({ type: 'file', error: read.error });
                       return;
@@ -1267,11 +1267,11 @@ export default function CreationWizard() {
                 summary={importedSummaryRows(importedFile)}
                 productions={finishProductions}
                 libraryIndex={finishLibrary}
-                fields={importedFile.template.fields.map((f) => f.field)}
+                fields={importedFile.template.fields.map((f) => f.field)} packageOnly={isForeignGraphic(importedFile.template)}
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={(dest) => void doors.addToProduction(applyImportedFile, dest, importedName)}
-                onEditArtwork={() => void doors.editArtwork(applyImportedFile)}
+                onEditArtwork={isForeignGraphic(importedFile.template) ? undefined : () => void doors.editArtwork(applyImportedFile)}
                 onExport={() => void doors.export(applyImportedFile, importedName)}
                 busy={false}
               />

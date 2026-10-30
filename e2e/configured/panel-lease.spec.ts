@@ -13,6 +13,7 @@
 // (removing the worker, so the beat falls back to a page interval, fails it). It then cuts the answering page's network (H0 AC-3 in
 // docs/work-specs/playout-companion-qualification/spec.md): only the current owner ever acts.
 // covers: src/components/control/PanelControl.tsx, src/control/panelRelay.ts, src/control/workerTicker.ts
+// covers: src/components/home/ProductionShell.tsx
 
 import { test, expect, type WebSocketRoute } from '@playwright/test';
 import { haveCreds, SUPABASE_URL } from './_helpers';
@@ -107,7 +108,7 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
     sockets.push(ws);
     ws.connectToServer();
   });
-  await publishTwoCues(page, `Panel Offline ${Date.now()}`);
+  const slug = await publishTwoCues(page, `Panel Offline ${Date.now()}`);
   const op = page;
   await shutStatusPanel(op);
   const deck = await pairPanel(op);
@@ -143,10 +144,6 @@ test('a hidden page keeps the panel; a page cut off lets go and, back online, ne
   expect((await deck.press('select-prev', '', onBen.ver as number)).outcome).toBe('ran');
   const shown = await deck.state((s) => s.selected === anna, 'Anna selected again');
   expect(shown.claim).toBe(before.claim);
-  const slug = await op.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    return loadShows().find((x) => x.hostedSlug)?.hostedSlug ?? '';
-  });
 
   // The phone, in a browser of its own, sees who has the panel and takes nothing.
   const phoneContext = await browser.newContext();

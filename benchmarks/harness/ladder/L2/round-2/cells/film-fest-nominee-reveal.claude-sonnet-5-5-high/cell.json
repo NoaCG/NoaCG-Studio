@@ -1,0 +1,107 @@
+{
+  "costUnread": false,
+  "brief": "film-fest-nominee-reveal",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "93e7b97c-731b-4457-9520-483d24f8a54b",
+  "costCents": 0,
+  "notionalUsd": 0.9017922000000002,
+  "wallSeconds": 244,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type nominee-reveal --design nm01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:e46fb8e9d58af1b84d5982e31afd9950d16b87d93458f1923bc0409e72eeabcc"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:35f83545c92496c1f60ddc71f931e0d7a2e6890fc50417f2abebce79867dcafd"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:f9bf52d0be95b3a6bfd5cceadfeefa31733d5b2e2bd6942e426e1267afc3865d"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:2c378064e3e5c9974e71bed2cce0b8617263badeab031498e9727cd54ec2a08a"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:2c378064e3e5c9974e71bed2cce0b8617263badeab031498e9727cd54ec2a08a"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:2c378064e3e5c9974e71bed2cce0b8617263badeab031498e9727cd54ec2a08a"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-2\\cells\\film-fest-nominee-reveal.claude-sonnet-5-5-high\\frames",
+    "frames": 43,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:2c378064e3e5c9974e71bed2cce0b8617263badeab031498e9727cd54ec2a08a"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "suspense",
+      "reveal"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:2c378064e3e5c9974e71bed2cce0b8617263badeab031498e9727cd54ec2a08a",
+    "benchValidated": "sha256:2c378064e3e5c9974e71bed2cce0b8617263badeab031498e9727cd54ec2a08a",
+    "reviewed": "sha256:2c378064e3e5c9974e71bed2cce0b8617263badeab031498e9727cd54ec2a08a",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 17,
+    "opened": 17,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

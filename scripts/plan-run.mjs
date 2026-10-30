@@ -74,6 +74,10 @@ function phaseActors(steps) {
   return { builders, checkers, checker };
 }
 
+/** A phase whose required environment starts `OW:` is the owner's: hardware, a studio, a trial. */
+export const OWNER_ENVIRONMENT = /^OW\b/;
+const OWNER_WHY = 'an owner phase: post the hand-over on the run issue (the kit, what to bring, how to report), keep no check-in, and record build with the owner\'s receipt when he starts';
+
 /** `next` says closing this long before the window ends. */
 const CLOSING_MS = 45 * 60_000;
 
@@ -179,7 +183,10 @@ function windowEnd(text) {
  *   { action: 'diagnose', phase, why } a second failed or blocked check: one fresh deciding agent records `diagnose`
  *   { action: 'stop', phase, why }     a failure after the diagnosed repair or check: record `stop`, ask the owner, report
  *   { action: 'stopped', phase, why }  stopped and waiting for the owner's answer
+ *   { action: 'owner', phase, step: 'build', why, launched? }   a project's owner phase (an `OW:` environment):
+ *                                      hand it over and wait on him; `launched` once its build is recorded
  *   { action: 'done' | 'time-limit' | 'no-phases', why }
+ * A project's answers about a phase also carry the phase's `id` and `title`.
  * In the window's last 45 minutes a launch, wait, retro or diagnose also carries `closingMinutes`, the whole minutes left.
  */
 export function nextStep(text, now = Date.now()) {
@@ -191,7 +198,14 @@ export function nextStep(text, now = Date.now()) {
   } catch (error) { return { action: 'blocked', why: error.message }; }
   const control = readSteps(text).filter((step) => ['paused', 'resume'].includes(step.event)).at(-1);
   if (control?.event === 'paused') return { action: 'paused', phase: control.phase, why: control.detail || 'explicit resume and reconciliation required' };
-  const next = stepFor(text, now);
+  let next = stepFor(text, now);
+  // A project names the phase by its own id, the one briefs, branches and receipts use.
+  const own = project && next.phase ? project.phases[next.phase - 1] : null;
+  if (own) next = { ...next, id: own.id, title: own.title };
+  // An owner phase is built by the owner, not launched: its build waits on him from the hand-over.
+  if (own && OWNER_ENVIRONMENT.test(own.environment) && next.step === 'build' && ['launch', 'wait'].includes(next.action)) {
+    next = { ...next, action: 'owner', why: OWNER_WHY };
+  }
   const left = (project?.block ? Date.parse(project.block.deadline) : windowEnd(text)) - now;
   const closing = ['launch', 'wait', 'retro', 'diagnose'].includes(next.action) && left > 0 && left <= CLOSING_MS;
   return closing ? { ...next, closingMinutes: Math.ceil(left / 60_000) } : next;
@@ -309,7 +323,8 @@ function recordLocked(file, phase, event, detail, now, supervised) {
   // A launch, and a diagnosis (whose deciding agent is a launch too), only when next asks for it.
   if (['build', 'check', 'repair', 'diagnose'].includes(event)) {
     const next = nextStep(text, now), diagnose = event === 'diagnose';
-    if (next.action !== (diagnose ? 'diagnose' : 'launch') || next.phase !== phase || (!diagnose && next.step !== event)) {
+    const launchable = next.action === 'launch' || (next.action === 'owner' && next.launched === undefined);
+    if ((diagnose ? next.action !== 'diagnose' : !launchable) || next.phase !== phase || (!diagnose && next.step !== event)) {
       return { refusal: `Ledger refuses ${diagnose ? 'diagnosis' : 'launch'}: ${next.action}` };
     }
   }
@@ -347,10 +362,10 @@ const USAGE = `Usage: node scripts/plan-run.mjs next <wave file>
 function describe(next) {
   const lines = [];
   if (next.action === 'launch') {
-    lines.push(`launch ${next.step} phase ${next.phase}${next.notes ? ` (land notes: ${next.notes})` : ''}`);
+    lines.push(`launch ${next.step} phase ${next.phase}${next.id ? ` (${next.id})` : ''}${next.notes ? ` (land notes: ${next.notes})` : ''}`);
     if (next.carry) lines.push(`  carry: ${next.carry}`);
   } else if (next.action === 'wait') lines.push(`wait ${next.step} phase ${next.phase}${next.launched ? ` (${next.launched})` : ''}`);
-  else if (['retro', 'diagnose', 'stop', 'stopped'].includes(next.action)) lines.push(`${next.action} phase ${next.phase}: ${next.why}`);
+  else if (['retro', 'diagnose', 'stop', 'stopped', 'owner'].includes(next.action)) lines.push(`${next.action} phase ${next.phase}${next.id ? ` (${next.id})` : ''}: ${next.why}`);
   else lines.push(`${next.action}: ${next.why}`);
   if (next.closingMinutes !== undefined) {
     lines.push(`window ends in ${next.closingMinutes} min: launch only a step that lands before then, else checkpoint and record paused`);

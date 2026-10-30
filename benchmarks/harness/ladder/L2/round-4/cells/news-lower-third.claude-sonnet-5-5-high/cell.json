@@ -1,0 +1,99 @@
+{
+  "costUnread": false,
+  "brief": "news-lower-third",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "9b27b797-47bc-4bfe-a0db-ba90c461a289",
+  "costCents": 0,
+  "notionalUsd": 0.34215350000000005,
+  "wallSeconds": 77,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type lower-third --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:5bde118d7f3760a55a9b1e7765f022fd0d5e910d535e141753f5c765c1dd0b12"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:af50559d3da54d7fb8c57ae7a40c2ef8807764d20ab6eaccc001831b066bac95"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:af50559d3da54d7fb8c57ae7a40c2ef8807764d20ab6eaccc001831b066bac95"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:af50559d3da54d7fb8c57ae7a40c2ef8807764d20ab6eaccc001831b066bac95"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\news-lower-third.claude-sonnet-5-5-high\\frames",
+    "frames": 23,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:af50559d3da54d7fb8c57ae7a40c2ef8807764d20ab6eaccc001831b066bac95"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:af50559d3da54d7fb8c57ae7a40c2ef8807764d20ab6eaccc001831b066bac95",
+    "benchValidated": "sha256:af50559d3da54d7fb8c57ae7a40c2ef8807764d20ab6eaccc001831b066bac95",
+    "reviewed": "sha256:af50559d3da54d7fb8c57ae7a40c2ef8807764d20ab6eaccc001831b066bac95",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 11,
+    "opened": 11,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

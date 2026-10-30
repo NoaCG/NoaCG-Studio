@@ -1,3 +1,4 @@
+// covers: src/components/control/HostedCueAdjust.tsx, src/control/hostedAdjust.ts
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -148,6 +149,151 @@ test('a fresh operator page boots, takes its first cue, and holds it on air', as
   await expect(chip).toContainText('on air:');
   await expect(programEmpty).toHaveCount(0);
 
+  await op.close();
+  await clearPublishedShows(page);
+});
+
+// PLACE AND SIZE SURVIVE A RECONNECT (docs/work-specs/playout-adjustments/spec.md AC-9, the renderer
+// half). The production page adjusts the graphic and publishes; the hosted page takes the cue with
+// the published appearance; then the /output renderer and the hosted page's PROGRAM are reloaded and
+// both come back with the appearance from the renderer's report, with no new Take. Node pins the
+// rules (scripts/cue-adjust.test.mjs); e2e/playout-adjust.spec.ts boots /output from a stood-in report.
+test('an adjusted cue comes back placed after the output and the hosted PROGRAM reload', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await bootstrapGraphic(page);
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
+  const showName = `Adjust Recovery ${Date.now()}`;
+  await openProductionWithCurrent(page, showName);
+  // The graphic's default: bottom-right at 95 %, written as the Adjust block writes it.
+  await page.evaluate(async (name) => {
+    const shows = await import('/src/model/shows.ts');
+    const s = shows.loadShows().find((x) => x.name === name)!;
+    shows.setGraphicAdjust(s.id, s.graphics[0].id, { place: 'br', scale: 0.95, anchor: 'bl' });
+    await new Promise((r) => setTimeout(r));
+  }, showName);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  await page.keyboard.press('Escape');
+  const slugs = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.name === name);
+    return { hosted: s?.hostedSlug ?? '', output: s?.outputSlug ?? '' };
+  }, showName);
+  expect(slugs.hosted && slugs.output).toBeTruthy();
+
+  const air = await context.newPage();
+  await air.goto(`/output?production=${encodeURIComponent(slugs.output)}&debug=1`);
+  await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
+  const op = await context.newPage();
+  await op.goto(`/app?control=${encodeURIComponent(slugs.hosted)}`);
+  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  await op.getByTestId('hosted-take-cue').click();
+  await expect(op.getByTestId('hosted-action-log-row')).toHaveCount(3, { timeout: 30_000 });
+
+  // The published appearance reached air and the hosted PROGRAM: placed right, at 95 %.
+  const outputFrame = air.locator('iframe[data-layer]').first();
+  const programFrame = op.getByTestId('hosted-program-stage').locator('iframe').first();
+  await expect(outputFrame).toHaveAttribute('data-appearance', /"s":0.95/, { timeout: 30_000 });
+  const look = await outputFrame.getAttribute('data-appearance');
+  expect(JSON.parse(look!).frame.dx).toBeGreaterThan(600);
+  await expect(programFrame).toHaveAttribute('data-appearance', look!);
+
+  // Reconnect: the renderer reports it beside its state (800 ms debounce), then both pages reload.
+  await air.waitForTimeout(2_000);
+  await air.reload();
+  await expect(air.locator('iframe[data-layer]').first()).toHaveAttribute('data-appearance', look!, { timeout: 60_000 });
+  await op.reload();
+  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  await expect(op.getByTestId('hosted-program-stage').locator('iframe').first()).toHaveAttribute('data-appearance', look!, { timeout: 30_000 });
+  // No new Take: the log still holds the one take's three rows.
+  await expect(op.getByTestId('hosted-action-log-row')).toHaveCount(3);
+
+  await air.close();
+  await op.close();
+  await clearPublishedShows(page);
+});
+
+// THE ADJUST BLOCK ON THE HOSTED PAGE AND PHONE (docs/work-specs/playout-adjustments/spec.md
+// phase 3): with the production page's rules and the hosted page's authority. A press stages the
+// record in the shared buffer and PREVIEW shows it; only Take airs it; the production look Publish
+// carried rides with it; the arrows are 40 px touch targets at 390 px. Node pins the fold, the
+// doors and the stale-publish rule (scripts/hosted-adjust.test.mjs).
+test('the hosted page adjusts a cue nobody adjusted, on a phone: staged, shown on PREVIEW, aired only by Take, with the production look', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await bootstrapGraphic(page);
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
+  const showName = `Hosted Adjust ${Date.now()}`;
+  await openProductionWithCurrent(page, showName);
+  // A graphic nobody adjusted on the production page, and a production look turned on.
+  await page.evaluate(async (name) => {
+    const shows = await import('/src/model/shows.ts');
+    const s = shows.loadShows().find((x) => x.name === name)!;
+    shows.setShowLookApplied(s.id, true, {
+      styleTag: 'clean',
+      palette: { id: 'custom', name: 'Custom', styleTags: [], accent: '#ff7a00', text: '#ffffff', textDim: '#cccccc', panel: '#101820' },
+      fontId: 'archivo',
+      customFont: null,
+    } as never);
+    await new Promise((r) => setTimeout(r));
+  }, showName);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  await page.keyboard.press('Escape');
+  const slug = await page.evaluate(async (name) => (await import('/src/model/shows.ts')).loadShows().find((x) => x.name === name)?.hostedSlug ?? '', showName);
+  expect(slug).toBeTruthy();
+
+  const op = await context.newPage();
+  await op.setViewportSize({ width: 390, height: 844 });
+  await op.goto(`/app?control=${encodeURIComponent(slug)}`);
+  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  await op.getByTestId('cue-adjust-toggle').click();
+  await expect(op.getByTestId('cue-adjust-summary')).toContainText('Archivo');
+  for (const dir of ['left', 'right', 'up', 'down']) {
+    const box = await op.getByTestId(`adjust-nudge-${dir}`).boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(40);
+    expect(box!.height).toBeGreaterThanOrEqual(40);
+  }
+  expect(await op.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no sideways scroll at 390 px').toBe(true);
+  // Publish measured one cue of the graphic nobody adjusted, so the Place presets resolve here.
+  await expect(op.getByTestId('adjust-place-tr')).toBeEnabled();
+
+  // Staged, shown on PREVIEW, not on air.
+  const preview = op.getByTestId('hosted-preview-stage').locator('iframe').first();
+  const program = op.getByTestId('hosted-program-stage').locator('iframe').first();
+  // A nudge needs no measured box, so it works on a graphic the production page never adjusted.
+  await op.getByTestId('adjust-nudge-right').click({ modifiers: ['Shift'] });
+  await expect(op.getByTestId('cue-adjust-summary')).toContainText('x 10');
+  await expect.poll(async () => JSON.parse((await preview.getAttribute('data-appearance')) ?? '{}').frame?.dx ?? 0, { timeout: 30_000 }).toBe(10);
+  expect(await program.getAttribute('data-appearance')).toBeNull();
+
+  // Take airs the fold, with the look Publish carried.
+  await op.getByTestId('hosted-take-cue').click();
+  await expect.poll(async () => JSON.parse((await program.getAttribute('data-appearance')) ?? '{}').frame?.dx ?? 0, { timeout: 30_000 }).toBe(10);
+  expect(JSON.parse((await program.getAttribute('data-appearance'))!).vars?.accent).toBe('#ff7a00');
+
+  // Another operator's page sees the staged record; a nudge there airs only on its Update.
+  const second = await context.newPage();
+  await second.goto(`/app?control=${encodeURIComponent(slug)}`);
+  await expect(second.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  await second.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  await second.getByTestId('cue-adjust-toggle').click();
+  await expect(second.getByTestId('cue-adjust-summary')).toContainText('x 10', { timeout: 30_000 });
+  const aired = await program.getAttribute('data-appearance');
+  await second.getByTestId('adjust-nudge-up').click();
+  await expect(second.getByTestId('cue-adjust-summary')).toContainText('y −1');
+  expect(await program.getAttribute('data-appearance')).toBe(aired);
+
+  await second.close();
   await op.close();
   await clearPublishedShows(page);
 });

@@ -1,0 +1,272 @@
+{
+  "costUnread": false,
+  "brief": "school-quiz-secret-pick",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "16cad82d-0ee9-49db-91b6-a7d0317953a5",
+  "costCents": 0,
+  "notionalUsd": 1.5142491999999999,
+  "wallSeconds": 635,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design neutral --out ./graphic",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz01 --out ./try-qz01",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./try-qz01 --out ./shots-qz01.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz02 --out ./try-qz02",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./try-qz02 --out ./shots-qz02.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz03 --out ./try-qz03",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./try-qz03 --out ./shots-qz03.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz04 --out ./try-qz04",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./try-qz04 --out ./shots-qz04.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:29558d8c30c622e56f3f4dc2026e3798dfb1b4813386853b7ed7a389e4b240ac"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Which treaty, signed in 1648, brought an end to the Thirty Years' War in the Holy Roman Empire and is often cited as the origin of the modern system of sovereign states? --data f1=The Treaty of Westphalia, signed in the cities of Osnabrück and Münster --data f2=The Treaty of Versailles, signed in the Hall of Mirrors in 1919 --data f3=The Congress of Vienna's Final Act, concluded after the Napoleonic wars --data f4=The Peace of Augsburg, which established the principle of cuius regio, eius religio --data f5=A --data f6=C --event select --event lock --out shots/long-locked.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Which treaty, signed in 1648, brought an end to the Thirty Years' War in the Holy Roman Empire and is often cited as the origin of the modern system of sovereign states? --data f1=The Treaty of Westphalia, signed in the cities of Osnabrück and Münster --data f2=The Treaty of Versailles, signed in the Hall of Mirrors in 1919 --data f3=The Congress of Vienna's Final Act, concluded after the Napoleonic wars --data f4=The Peace of Augsburg, which established the principle of cuius regio, eius religio --data f5=A --data f6=C --event select --event lock --event judge --out shots/long-reveal.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:4ac926d88d737c680832dde6ca68b9cd825d6d1af0e19021481e5636c815b7ae"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Which treaty, signed in 1648, brought an end to the Thirty Years' War in the Holy Roman Empire and is often cited as the origin of the modern system of sovereign states between European powers? --data f5=B --data f6=C --event select --event lock --out shots/long-locked.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Which treaty, signed in 1648, ended the Thirty Years' War and is often cited as the origin of the modern system of sovereign states? Which treaty, signed in 1648, ended the Thirty Years' War and is often cited as the origin of the modern system of sovereign states? --data f1=The Treaty of Versailles, signed in the Hall of Mirrors in 1919 The Treaty of Versailles, signed in the Hall of Mirrors in 1919 --data f2=The Treaty of Versailles, signed in the Hall of Mirrors in 1919 The Treaty of Versailles, signed in the Hall of Mirrors in 1919 --data f3=short --data f4=The Treaty of Versailles, signed in the Hall of Mirrors in 1919 The Treaty of Versailles, signed in the Hall of Mirrors in 1919 --out shots/dbl.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=The Treaty of Versailles, signed in the Hall of Mirrors in 1919 The Treaty of Versailles, signed in the Hall of Mirrors in 1919 --data f2=Short --data f3=short --data f4=The Treaty of Versailles, signed in the Hall of Mirrors in 1919 The Treaty of Versailles, signed in the Hall of Mirrors in 1919 --out shots/dbl.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:f2b985c4e43fe6c06b7dae599264121e015e73e9a6262b43168b7a67c66a6eef"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:f2b985c4e43fe6c06b7dae599264121e015e73e9a6262b43168b7a67c66a6eef"
+    },
+    {
+      "command": "noacg coverage --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 1,
+      "digest": "sha256:913c339d3d03109566b4313048bd76cc386ccdf203fc2c87dfba5e15819260bf"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:913c339d3d03109566b4313048bd76cc386ccdf203fc2c87dfba5e15819260bf"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 1,
+      "digest": "sha256:913c339d3d03109566b4313048bd76cc386ccdf203fc2c87dfba5e15819260bf"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:f00b90cf64bdc8fd174b30cc13c464ea06d88deffad3e7c53e8cfb8dac873239"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:f00b90cf64bdc8fd174b30cc13c464ea06d88deffad3e7c53e8cfb8dac873239"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --event judge --event audience --out shots/aud.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:37b7e924f415e160477ba4c401c94ecb81f52b0518c6da9e72af8b37b984943b"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --event judge --event audience --out shots/aud.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:7948477b2207a1f31288b215f08cfc621f69bfdcedcdcc732671a885c5e39f63"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:7948477b2207a1f31288b215f08cfc621f69bfdcedcdcc732671a885c5e39f63"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:7948477b2207a1f31288b215f08cfc621f69bfdcedcdcc732671a885c5e39f63"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-2\\cells\\school-quiz-secret-pick.claude-sonnet-5-5-high\\frames",
+    "frames": 68,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:7948477b2207a1f31288b215f08cfc621f69bfdcedcdcc732671a885c5e39f63"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "select",
+      "lock",
+      "revealChoice",
+      "judge",
+      "audience"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:7948477b2207a1f31288b215f08cfc621f69bfdcedcdcc732671a885c5e39f63",
+    "benchValidated": "sha256:7948477b2207a1f31288b215f08cfc621f69bfdcedcdcc732671a885c5e39f63",
+    "reviewed": "sha256:7948477b2207a1f31288b215f08cfc621f69bfdcedcdcc732671a885c5e39f63",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 29,
+    "opened": 13,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-video.jpg",
+      "long-side-2-light.jpg",
+      "event-lock-10000ms.jpg",
+      "event-revealchoice-strip.jpg",
+      "event-revealchoice-10000ms.jpg",
+      "event-audience-strip.jpg",
+      "next-2-01500ms.jpg",
+      "update-01500ms.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

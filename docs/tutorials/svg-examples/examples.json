@@ -1,0 +1,21 @@
+[
+  { "slug": "title", "name": "Title", "recipe": null, "preview": "title" },
+  { "slug": "lower-third", "name": "Lower third", "recipe": null, "preview": "lower-third" },
+  { "slug": "ticker", "name": "Ticker", "recipe": null, "preview": "ticker" },
+  { "slug": "quiz", "name": "Quiz", "recipe": "quiz", "preview": "quiz-1-question" },
+  { "slug": "scoreboard", "name": "Score tracker", "recipe": "score", "preview": "scoreboard-1-scores" },
+  { "slug": "countdown", "name": "Countdown", "recipe": "countdown", "preview": "countdown-1-running" },
+  { "slug": "standings", "name": "Standings", "recipe": "ranking", "preview": "standings" },
+  { "slug": "live-vote", "name": "Live vote", "recipe": "vote", "preview": "live-vote" },
+  { "slug": "meter", "name": "Meter", "recipe": "meter", "preview": "meter" },
+  { "slug": "alert", "name": "Alert", "recipe": "alert", "preview": "alert" },
+  { "slug": "survey", "name": "Survey board", "recipe": "survey", "preview": "survey" },
+  { "slug": "stepped-list", "name": "Stepped list", "recipe": "list", "preview": "stepped-list" },
+  { "slug": "lineup", "name": "Lineup", "recipe": "lineup", "preview": "lineup" },
+  { "slug": "puzzle", "name": "Puzzle board", "recipe": "puzzle", "preview": "puzzle" },
+  { "slug": "reveal", "name": "Reveal", "recipe": "reveal", "preview": "reveal" },
+  { "slug": "bingo", "name": "Bingo caller", "recipe": "bingo", "preview": "bingo" },
+  { "slug": "end-credits", "name": "Credits roll", "recipe": "credits", "preview": "end-credits" },
+  { "slug": "switch", "name": "Switch", "recipe": "switch", "preview": "switch" },
+  { "slug": "choice", "name": "Choice", "recipe": "choice", "preview": "choice" }
+]

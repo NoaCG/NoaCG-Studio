@@ -1,0 +1,178 @@
+{
+  "costUnread": false,
+  "brief": "ski-sprint-timing-tower",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "97cc929e-83c1-4aee-b24c-1a34845e116e",
+  "costCents": 0,
+  "notionalUsd": 1.0283870000000002,
+  "wallSeconds": 475,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type timing-tower --design tt01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:094f4273e4b044edc190618e3d69794d7cb02a657c1506811ce42c1389964369"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:bbfdd5321b3a1fd6e33afc082e92f27366eddaae45e6cd53b6bd268f45eba42a"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 1,
+      "digest": "sha256:bbfdd5321b3a1fd6e33afc082e92f27366eddaae45e6cd53b6bd268f45eba42a"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:8cd1067780e7b1aca4eea62bc7fb59373cd2fcd1886fcc9e2c91217aeda551dc"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:8cd1067780e7b1aca4eea62bc7fb59373cd2fcd1886fcc9e2c91217aeda551dc"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:c7d6af70c9a8a0d08de51b10538dbfce95edafb8953709355323649a96b79a0d"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:c7d6af70c9a8a0d08de51b10538dbfce95edafb8953709355323649a96b79a0d"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:19b3ab9b054c703c0f7d8ff5a4425a141764e4191eee2ddddc9dd335628cfacb"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:19b3ab9b054c703c0f7d8ff5a4425a141764e4191eee2ddddc9dd335628cfacb"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:22ddb65904073f1da31b9ba5e79d705273fd6b1e5b7550e29bc1e9aaa8fedaa6"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:22ddb65904073f1da31b9ba5e79d705273fd6b1e5b7550e29bc1e9aaa8fedaa6"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-2\\cells\\ski-sprint-timing-tower.claude-sonnet-5-5-high\\frames",
+    "frames": 62,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "focus",
+      "clear",
+      "final",
+      "provisional"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb",
+    "benchValidated": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb",
+    "reviewed": "sha256:b5838d13f15c9fa794770ac6005d593f9ce23f848ad86f2d2207baab3b62a8bb",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 0,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "take-strip.jpg",
+      "event-focus-strip.jpg",
+      "event-focus-10000ms.jpg",
+      "event-clear-strip.jpg",
+      "event-clear-10000ms.jpg",
+      "event-final-strip.jpg",
+      "event-final-10000ms.jpg",
+      "event-provisional-strip.jpg",
+      "event-provisional-10000ms.jpg",
+      "update-strip.jpg",
+      "update-01500ms.jpg",
+      "out-strip.jpg",
+      "event-clear-after-focus-strip.jpg",
+      "event-clear-after-focus-10000ms.jpg",
+      "event-provisional-after-final-strip.jpg",
+      "event-provisional-after-final-10000ms.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

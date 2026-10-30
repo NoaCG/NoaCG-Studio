@@ -29,13 +29,13 @@ export const CREDITS_ROLL_CALL = 'noacgCreditsRoll';
 export const creditsRecipe: BehaviourRecipe = {
   id: CREDITS_RECIPE_ID,
   name: 'Credits roll',
-  description: 'One pasted list rolls from the bottom of the frame to the top on Take, in the looks you drew.',
+  description: 'Your original text scrolls from below the frame until it clears the top on Take.',
   category: 'end-credits',
   defaultZone: 'mid-center',
   roles: rolesOf(CREDITS_RECIPE_ID),
   fields: () => [{ key: CREDITS_SPEED_KEY, label: SPEED_FIELD_TITLES.scroll, kind: 'number', value: CREDITS_SPEED_DEFAULT }],
-  // The entrance IS the roll: its call starts the travel the moment the graphic is taken. No
-  // extra step and no machine of its own - Out is the only other verb a credit roll has.
+  // The artwork engine waits for the current entrance to settle before measuring the roll.
+  // The recipe only names the call; old editable rolls keep their original immediate take.
   path: () => ({ entrance: 'Rolling', entranceCalls: [CREDITS_ROLL_CALL] }),
   machine: () => ({}),
   controls: () => [],

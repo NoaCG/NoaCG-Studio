@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { saveAs } from 'file-saver';
 import {
   addDatasetColumn,
@@ -19,6 +19,12 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { parseTableFile, serializeCsv } from '../../model/csv';
 import type { JsonObject, ResolvedValues } from '../../model/productionData';
 import ProductionDataPanel from './ProductionDataPanel';
+import { datasetMatches } from '../../control/cueData';
+import { fieldDescriptors } from '../../control/controlModel';
+import type { SourceStatusStore } from '../../control/sheetSource';
+import { apiDestinations, exampleCurl, examplePatch, receivedWords, senderExample } from '../../control/anotherSystem';
+import { readAnotherSystem, setAnotherSystemPaused, type AnotherSystemState } from '../../control/productionDataApi';
+import { copyLink } from './copyLink';
 
 /** A file name a spreadsheet will not argue with, from the table type's own name. */
 function templateFileName(label: string): string {
@@ -61,15 +67,20 @@ export default function ProductionDataWorkspace({
   setLiveData,
   resolved,
   dataKey,
+  sourceStatus,
+  publish,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
   liveData: JsonObject;
   setLiveData: (data: JsonObject) => void;
   resolved: ResolvedValues;
-  /** The production's own data key, passed straight through to the live panel - the page owns
-   *  it because the page is the one that reads it (control/productionDataApi.ts). */
+  /** The production's own data key, for the Another system card - the page owns it because the
+   *  page is the one that reads it (control/productionDataApi.ts). */
   dataKey?: string | null;
+  sourceStatus: SourceStatusStore;
+  /** The page's Publish, offered on the Another system card while the production is local. */
+  publish: { run: () => void; unavailable: string | null } | null;
 }) {
   const [newKind, setNewKind] = useState<ShowDataset['kind']>('quiz');
   const [importNote, setImportNote] = useState<string | null>(null);
@@ -195,14 +206,15 @@ export default function ProductionDataWorkspace({
         liveData={liveData}
         setLiveData={setLiveData}
         resolved={resolved}
-        dataKey={dataKey}
+        sourceStatus={sourceStatus}
       />
+      <AnotherSystemCard show={show} dataKey={dataKey} publish={publish} />
       <div className="pd-data-head">
         <h2>Tables</h2>
         <p className="hint">
-          Tables this production owns — a question bank, a line-up, a roster. Column names bind
-          to graphic fields: on the Playout tab, a cue whose field titles match a table's columns
-          can load any row — into PREVIEW, never straight to air.
+          Tables this production owns — a question bank, a line-up, a roster. On the Playout tab,
+          a cue whose field titles match a table's column names can load any row — into PREVIEW,
+          never straight to air.
         </p>
         {datasets.length > 0 && actions}
       </div>
@@ -221,6 +233,193 @@ export default function ProductionDataWorkspace({
       {datasets.map((ds) => (
         <DatasetCard key={ds.id} show={show} dataset={ds} setShows={setShows} />
       ))}
+    </section>
+  );
+}
+
+/** The values a graphic's cue shows now, for the example: its first cue's, else the defaults. */
+function cueSamples(show: Show, graphic: Show['graphics'][number]): Record<string, string> {
+  const cue = (show.cues ?? []).find((c) => c.sourceId === graphic.id);
+  const out: Record<string, string> = {};
+  for (const d of fieldDescriptors(graphic.template.fields ?? [], { includeHidden: true })) {
+    const value = cue?.values?.[d.key] ?? d.defaultValue;
+    out[d.key] = value === undefined || value === null ? '' : String(value);
+  }
+  return out;
+}
+
+/**
+ * THE "ANOTHER SYSTEM" CARD (data-sources C5, AC-7): the data key as a source. Published, it shows
+ * the address, the key behind Reveal, the last receipt, Pause, and an example generated from the
+ * fields connected to Another system (the cue editor's Connect data…). Local, it says publishing
+ * gives the address and the key, with Publish one press away.
+ *
+ * Pause holds what the key sends, in the database (0100): `/patch` still merges into the tree and
+ * `/update` is kept per graphic, nothing airs, operator presses still do, and Resume sends exactly
+ * the final values once.
+ */
+function AnotherSystemCard({ show, dataKey, publish }: { show: Show; dataKey?: string | null; publish: { run: () => void; unavailable: string | null } | null }) {
+  const slug = show.hostedSlug ?? null;
+  const [keyShown, setKeyShown] = useState(false);
+  const [state, setState] = useState<AnotherSystemState | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
+  const live = Boolean(slug && dataKey);
+
+  // The receipt and the Pause are the row's: read every 2 s while the card is open, so a push
+  // shows within the 5 s AC-7 names, and a Pause pressed on another device shows here too.
+  useEffect(() => {
+    if (!live) return;
+    let gone = false;
+    const read = () => void readAnotherSystem(show.id).then((next) => !gone && setState(next));
+    read();
+    const poll = setInterval(read, 2000);
+    const clock = setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      gone = true;
+      clearInterval(poll);
+      clearInterval(clock);
+    };
+  }, [live, show.id]);
+
+  const address = `${window.location.origin}/api/data/patch`;
+  const pool = new Set(show.graphics.map((g) => g.name));
+  const destinations = apiDestinations(
+    show.bindings,
+    show.graphics
+      .filter((g) => pool.has(g.name))
+      .map((g) => ({ name: g.name, fields: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }), values: cueSamples(show, g) })),
+  );
+  const curl = exampleCurl(address, examplePatch(destinations));
+
+  const togglePause = async () => {
+    if (!slug || !state || busy) return;
+    setBusy(true);
+    try {
+      const answer = await setAnotherSystemPaused(slug, !state.paused);
+      setState({ ...state, paused: answer.paused });
+      setNote(
+        answer.paused
+          ? { text: 'Paused. What it sends is held; your presses still air.', ok: true }
+          : { text: answer.writes > 0 ? `Resumed. Sent the latest values to ${answer.writes} graphic${answer.writes === 1 ? '' : 's'}.` : 'Resumed. Nothing had changed.', ok: true },
+      );
+    } catch (error) {
+      setNote({ text: `${state.paused ? 'Resume' : 'Pause'} failed: ${error instanceof Error ? error.message : String(error)}`, ok: false });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="pd-live pd-api" data-testid="data-api-card">
+      <div className="pd-live-head">
+        <h2>Another system</h2>
+        <p className="hint">
+          A results service, a timing system or your own script can fill this production’s connected fields over HTTPS.
+        </p>
+        {live && state && (
+          <div className="pd-live-actions">
+            <span className={state.paused ? 'status-warn' : 'hint'} data-testid="data-api-received">
+              {state.paused ? 'Paused · ' : ''}
+              {receivedWords(state.receivedAt, now)}
+            </span>
+            <button type="button" disabled={busy} onClick={() => void togglePause()} data-testid="data-api-pause">
+              {state.paused ? 'Resume' : 'Pause'}
+            </button>
+          </div>
+        )}
+      </div>
+      {note && (
+        <p className={`${note.ok ? 'status-ok' : 'status-bad'} pd-data-note`} data-testid="data-api-note">
+          {note.text}
+        </p>
+      )}
+      {!slug && (
+        <div className="pd-datakey" data-testid="data-api-local">
+          <p className="hint">Publishing gives this production an address and a key that another system writes to.</p>
+          {publish && (
+            <button
+              type="button"
+              className="primary"
+              onClick={publish.run}
+              disabled={publish.unavailable !== null}
+              title={publish.unavailable ?? undefined}
+              data-testid="data-api-publish"
+            >
+              Publish
+            </button>
+          )}
+        </div>
+      )}
+      {slug && !dataKey && (
+        <p className="hint" data-testid="data-api-owner">
+          The address and the key are on the production owner’s Data view.
+        </p>
+      )}
+      {live && dataKey && (
+        <div className="pd-datakey" data-testid="data-key">
+          <div className="pd-datakey-row">
+            <span className="hint">Address</span>
+            <code data-testid="data-api-address">{address}</code>
+          </div>
+          <div className="pd-datakey-row">
+            <span className="hint">Key</span>
+            {/* Hidden until asked for: this screen is often in front of other people, and a key
+                nobody saw is never handed out by mistake. */}
+            <code data-testid="data-key-value">{keyShown ? dataKey : '•'.repeat(24)}</code>
+            <button type="button" onClick={() => setKeyShown((shown) => !shown)} data-testid="data-key-reveal">
+              {keyShown ? 'Hide' : 'Reveal'}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                void copyLink(dataKey).then((ok) =>
+                  setNote(ok ? { text: '✓ Data key copied', ok: true } : { text: 'The key could not be copied. Reveal it and copy by hand.', ok: false }),
+                )
+              }
+              data-testid="data-key-copy"
+            >
+              Copy
+            </button>
+          </div>
+          <p className="hint">
+            It writes data only: it cannot take, continue or clear a graphic. Keep it in server-side config. Publishing again makes
+            a new key.
+          </p>
+        </div>
+      )}
+      {destinations.length === 0 ? (
+        <p className="hint" data-testid="data-api-none">
+          No field is connected yet. On Playout, a graphic’s Connect data…, Another system connects it.
+        </p>
+      ) : (
+        <div data-testid="data-api-example">
+          <ul className="hint" data-testid="data-api-destinations">
+            {destinations.map((d) => (
+              <li key={d.path}>
+                <code>{d.path}</code> fills {d.graphic} · {d.label}
+              </li>
+            ))}
+          </ul>
+          <pre className="pd-api-example" data-testid="data-api-curl">{curl}</pre>
+          <div className="pd-live-actions">
+            <button type="button" onClick={() => void copyLink(curl)} data-testid="data-api-copy-example">
+              Copy example
+            </button>
+            <button
+              type="button"
+              onClick={() => saveAs(new Blob([senderExample(address, destinations)], { type: 'application/json' }), 'another-system.json')}
+              data-testid="data-api-download"
+            >
+              ⬇ For the sample sender
+            </button>
+            <a className="hint" href="/docs#data-api" target="_blank" rel="noreferrer">
+              Live data guide
+            </a>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -279,7 +478,7 @@ function EmptyState({ show, actions }: { show: Show; actions: ReactNode }) {
           </>
         ) : (
           <p className="hint" data-testid="bindable-columns-none">
-            This production has no graphics yet, so no column name binds to anything. Add one on
+            This production has no graphics yet, so no column name matches a field. Add one on
             the Playout tab and its field names appear here.
           </p>
         )}
@@ -301,6 +500,8 @@ function DatasetCard({
    *  any of them disarms the rest and the card can never show two pending confirms at once. */
   const [armed, setArmed] = useState<string | null>(null);
   const [newColumn, setNewColumn] = useState('');
+  // The cue's own test (control/cueData.ts), so the card and the cue's loader never disagree.
+  const users = show.graphics.filter((g) => datasetMatches(fieldDescriptors(g.template.fields ?? []), ds)).map((g) => g.name);
 
   return (
     <div className="pd-dataset" data-testid={`dataset-${ds.id}`}>
@@ -313,6 +514,10 @@ function DatasetCard({
           data-testid="dataset-name"
         />
         <span className="muted">{ds.rows.length} row{ds.rows.length === 1 ? '' : 's'}</span>
+        {/* The graphics using it (data-sources AC-9): the ones a cue of which can load its rows. */}
+        <span className="muted" data-testid="dataset-users">
+          {users.length > 0 ? `Loads into ${users.join(', ')}` : 'No graphic loads it yet'}
+        </span>
         <div className="spacer" />
         {/* Two-step delete: a table of typed-in questions has no undo behind it. */}
         <button

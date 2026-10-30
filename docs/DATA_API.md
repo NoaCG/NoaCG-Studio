@@ -10,8 +10,15 @@ implements is `docs/CLOUD_PLAYOUT.md` §7; the operator workflow around it is th
 every operator action is a row, the on-air renderer applies rows in order, and this API makes
 your system one more writer of `update` rows in that same log. You never talk to the renderer,
 you never hold provider credentials in a browser, and the operator always wins a race with
-your feed simply because later rows apply later - "freeze the feed" is you not writing, and
-"manual override" is the operator writing after you.
+your feed simply because later rows apply later - "manual override" is the operator writing
+after you, and "freeze the feed" is the operator pressing **Pause** (or you not writing).
+
+**Start with `/patch`.** You write values at data PATHS (`api.results.leading`,
+`match.home.score`), and every field connected to a path follows, on whichever graphic is on air.
+In the studio this source is called **Another system**: the operator connects a graphic's fields
+to it with Connect data…, and the Data tab's Another system card shows the address, the key, an
+example made from those fields, the last receipt and Pause. `/update`, which addresses one graphic
+by name, is the older door and still works.
 
 ## Authentication
 
@@ -24,11 +31,11 @@ Authorization: Bearer <data key>
 - The key is **per production**, minted automatically when the production is published
   (`control_shows.data_key`, migration 0047). The production owner hands it to you; treat it
   like any API credential (server-side config, never a web page).
-- **Where the owner finds it:** the production's **Data** tab, `▾ Data key` in the Production
-  data panel, then Reveal or Copy (`ProductionDataPanel.tsx`; the key is read over RLS by
+- **Where the owner finds it:** the production's **Data** tab, the **Another system** card, then
+  Reveal or Copy (`ProductionDataWorkspace.tsx`; the key is read over RLS by
   `productionDataKey()`). It is hidden until asked for, because that screen is regularly in
-  front of a room. Until 2026-08-27 there was no such screen and this page told a hosted owner
-  to read the database row, which they cannot do.
+  front of a room. The card also shows the address and an example built from the connected
+  fields; the example reads the key from `$NOACG_DATA_KEY`, so it can be shared without it.
 - It carries **one invariant**, and this is the useful phrasing of it:
 
   > External integrations manipulate production data, never individual graphic instances.
@@ -40,13 +47,266 @@ Authorization: Bearer <data key>
   VERBS, and it prejudged the read-back an integrator legitimately needs after a restart -
   `docs/PRODUCTION_DATA_PLAN.md` §7. The invariant above is the one that actually matters, and a
   read endpoint is compatible with it.)
-- **Rotation / revocation** (owner-side): unpublishing and re-publishing the production mints
-  a fresh key (the four viewer/operator URLs deliberately survive that; the data key
-  deliberately does not). The owner can also overwrite or clear the key directly on the row -
-  a cleared key (`NULL`) switches ingest off for that production while everything else keeps
-  running.
+- **Rotation / revocation** (owner-side): overwrite or clear the key directly on the row - a
+  cleared key (`NULL`) switches ingest off for that production while everything else keeps
+  running. The production page has no unpublish control; its published row goes, key included,
+  only when the production is deleted.
 
-## The endpoint
+## Write production data: `PATCH /api/data/patch`
+
+**`PATCH /api/data/patch` addresses the DATA**: you write `match.home.score`, and every field
+any graphic has connected to that path follows - on whichever graphics exist, live or not. A
+scoreboard never learns that "sb03" is on air. Design: `docs/PRODUCTION_DATA_PLAN.md`.
+
+```bash
+curl -X PATCH https://noacg.studio/api/data/patch \
+  -H "Authorization: Bearer $NOACG_DATA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"match":{"home":{"score":4}}}'
+```
+
+```jsonc
+{
+  "ok": true,
+  "data": { "match": { "home": { "score": 4 } } },   // the whole tree AFTER the merge
+  "writes": [                                        // only what actually moved
+    { "graphic": "House Scorebug", "event": 18251, "applied": { "f1": "4" } }
+  ]
+}
+```
+
+While the operator has paused Another system the same request answers `200` with
+`"writes": []`, `"paused": true` and a `"message"` saying so (see Pause below).
+
+**The operator writes this tree too, and not through this door.** A ± press or an ⚡ `+1` on a field
+the production has bound moves the same value, from the dashboard, on the control slug the operator
+already holds (`control_data_patch_by_slug`, migration 0060). Two things about that matter to you:
+those rows are marked `src:'operator'` and spend NONE of the ingest budget in the table above, which
+is yours alone; and the operator out-writes you by simply pressing later, which is the same
+"manual override" rule every other verb has. Nothing about your door changed.
+
+- **The body is any JSON object.** There is no schema: nest as deep as you like. `POST` is
+  accepted as well as `PATCH`, for proxies that drop the latter.
+- **Merge semantics are RFC 7386 JSON Merge Patch**: objects merge, a `null` VALUE deletes its
+  key, arrays replace wholesale. So a patch names only what changed.
+- **Writes are absolute state, never intent.** There is no "+1" - send the value. That makes a
+  retry safe: sending `4` three times leaves 4.
+- **Only what changed is sent on.** The bindings are resolved against the tree before your patch
+  and after it, and only fields whose value actually differs become log rows. Re-sending the
+  same score writes nothing and **spends none of your rate budget** - which is what makes a
+  polling connector cheap.
+- **A path nothing is bound to still updates the tree**, it just moves no graphic. Connections are
+  the operator's business (Connect data…, Another system); your feed does not need to know them.
+- **A missing or unwritable value writes nothing** rather than blanking a field, so a feed that
+  drops a key leaves the last good value on air. Deleting a key with `null` behaves the same
+  way: the tree loses it, the graphic keeps what it had.
+- Values become field strings: numbers and booleans stringify, and an array of scalars joins
+  with newlines (which is what a ticker's line-list field wants).
+
+### Reading the current state
+
+```bash
+curl https://noacg.studio/api/data/state -H "Authorization: Bearer $NOACG_DATA_KEY"
+```
+
+Answers `{ "ok": true, "data": {...}, "bindings": {...} }` - what NoaCG currently believes,
+so a connector reconciles after a restart or a partition instead of blindly pushing a whole
+snapshot. It is idempotent and spends no ingest budget. It returns no capability: the data key
+never widens into an operator one.
+
+**Connections reach the server at once.** A field connected or disconnected on a published
+production is written to the production's row immediately (data-sources C2), so your next patch
+moves it with no new publish.
+
+## Another system: which fields follow
+
+The operator decides which fields your system fills, in the studio:
+
+1. On the Playout tab, select a cue of the graphic and press **Connect data…**, then **Another
+   system**. Every field of the graphic is offered its own path, named after the graphic and the
+   field's label: a custom "Riverside count" board with Leading, Margin, Counted and Turnout
+   gets `api.riverside_count.leading`, `api.riverside_count.margin` and so on. A field already
+   connected keeps its path; two graphics with the same name get different groups.
+2. The review shows every field with its proposed path and the value it would show, on the
+   PREVIEW monitor too. Pick another path or "Not connected" for any field, then press
+   **Connect** once. Fields prepared messages use are refused, as for every source.
+3. The connected field says "Another system" and names its path; **Disconnect** returns it to
+   the cue with the value it last showed.
+4. The Data tab's **Another system** card lists the connected paths, a `curl` example that
+   writes all of them, and **⬇ For the sample sender**, a file with the address, the example
+   body and which field each path fills (never the key).
+
+Sharing is explicit: a path fills only the fields connected to it, and a second graphic follows
+the same value only when the operator connects it to that path. The data key is ONE source:
+there is no per-sender attribution and no per-sender Pause. `/patch` can still write any other
+path (`match.home.score`); `api.` is only where Connect data… puts this source's values.
+
+## Pause
+
+The operator can pause Another system from the card (**Pause**, then **Resume**). This is the
+tested behaviour (`supabase/migrations/0100_data_api_pause.sql`; its self-check runs the cases in
+`scripts/data-pause-conformance.mjs`):
+
+- **`/patch` while paused** is merged into a tree of your own, kept beside the production's, and
+  nothing goes on air: no log row, no budget spent. The answer is `200` with `"writes": []`,
+  `"paused": true`, a `"message"`, and that tree as `data`.
+- **`/update` while paused** is held: a per-graphic map keeps the newest value per field. The
+  answer is `200` with `"event": null`, `"paused": true` and `"message"`.
+- **What is on air does not move.** The production's own tree stays the one on air, so a Take or
+  an Update by the operator shows what was there before Pause, never a held value. `GET
+  /api/data/state` answers that tree too, so while paused it does not show your held values.
+- **The operator still airs.** A press, a value typed on the Data tab and the server's Sheet reader
+  go on air at once while you are paused. The last write wins at Resume: a press after your value
+  wins, and a value you send after a press wins. A held `/update` field is dropped when a later
+  press or `/patch` moves that field.
+- **Resume sends exactly the final values once**: one update row per graphic, marked
+  `src: "api"`, with what changed since Pause and the held `/update` values laid over it, and your
+  tree becomes the production's. Nothing that ended where it started is sent. Resume is never
+  refused, so it cannot leave the source held; its rows count toward the production's 50 commands
+  per 5 s, so a Resume that moves many graphics at once can make the operator's next presses wait
+  a few seconds.
+- **A `null` while paused** deletes the path, so Resume sends nothing for it and the field keeps
+  what it showed, exactly as an unpaused `null` does; it also drops a held `/update` for that
+  field. A value sent after the `null` is the final
+  value.
+- Your system does not have to do anything about Pause. Keep sending; read `paused` if you want
+  to show it.
+
+## A sample sender
+
+`scripts/data-sample-sender.mjs` is a prepared collector, to copy from. It shows the boundary
+the API keeps: an outside source -> a collector you run -> `/patch` -> the connected fields.
+NoaCG receives normalized values; it never scrapes a site or polls an address for you.
+
+```bash
+export NOACG_DATA_KEY=<the key from the card>
+node scripts/data-sample-sender.mjs --example another-system.json --input scripts/fixtures/data-sample/results-first.json
+```
+
+- `--example` is the card's downloaded file. `--input` is what your collector acquired; the
+  fixtures in `scripts/fixtures/data-sample/` are SYNTHETIC, invented numbers labelled as such.
+- It names each input value after a connected field's label (case, accents and punctuation
+  aside) and sends one patch. It prints what matched, what it did not send, and the receipt:
+  which graphics moved, or that the values were held.
+- A correction is the same command with the corrected file (`results-correction.json`).
+- **A failed acquisition sends nothing** (`results-cut-off.json`): the fields keep what they
+  show rather than being replaced by half a report.
+- `--dry-run` prints the body and sends nothing. The key is read from `NOACG_DATA_KEY` and never
+  printed. Point `--address` elsewhere for a local stack.
+
+## A trusted JSON agent: `POST /api/data/source`
+
+For a provider NoaCG should READ rather than be pushed by: an HTTPS address that answers JSON,
+optionally behind a bearer credential. The agent (`scripts/external-data-connector.mjs`) runs on a
+machine you trust, never in the browser and never as a NoaCG function: it reads the provider,
+judges each answer (newer, unchanged, older, malformed) and hands it to this route with the data
+key. The production evaluates it with the same rules as a Sheet (`src/control/sourceMapping.ts`)
+and applies it through the same writer as `/patch`, so Pause, the budget and operator precedence
+are the ones above. It never takes, continues, resets or clears a graphic.
+
+**Registering the source.** The production lists it in its sources (`Show.sources`) as
+`{id, kind: "external", label, config: {v: 1, configRevision, endpoint, lists}}` and binds its
+fields to `external.<id>.<leaf>`: `external.e1.status` reads `status` from the answer, and a list
+(`external.e1.candidates`) goes through the list adapter its leaf names in `lists` (`lines`,
+`schedule` or `credits`). A record is one row of its values in order; an empty list clears the
+field; anything else (an object, null, a list with no adapter) keeps the field as it is. A live
+candidates' collection (a recipe in the production's `collections`, `docs/work-specs/
+playout-election-package/spec.md`) is the exception no field binds: the route writes its leaf,
+`external.<id>.<from>`, as the JSON text of the object the answer holds there (`{schemaRevision,
+revision, items}`, one revision whole; migration 0102). It appends no update row. The
+election rehearsal's files are `docs/work-specs/playout-election-package/replay-source.json` and
+`replay-agent.json`. The production's record is non-secret: never a credential, and never a local destination (`mode`,
+`caFile`), which only the agent's own file may name.
+
+**Install and run** (the steps the configured walk and the phase receipt follow):
+
+1. On the machine: Node 22 or later and a clone of this repository (`git clone`). The agent uses
+   only Node's own modules, so it needs no `npm ci`.
+2. Write the agent's configuration, for example `agent.json`:
+
+   ```json
+   {
+     "v": 1, "sourceId": "e1", "productionId": "results-night",
+     "endpoint": "https://results.example/results", "configRevision": 1,
+     "credentialRef": "NOACG_SOURCE_RESULTS", "credentialBound": true,
+     "revisionPath": "revision", "eventTimePath": "observed_at",
+     "sendPaths": ["revision", "status", "candidates"]
+   }
+   ```
+
+   `sourceId` and `configRevision` must match the production's record. `sendPaths` is what the
+   agent sends of each answer: it reads up to 2 MiB, and the route takes at most 256 KiB. A
+   provider on this machine or a private network is `"mode": "local"` with `"caFile"`, the
+   certificate authority it is checked against; a hosted endpoint is checked like a news feed
+   (public addresses only, every redirect checked).
+3. Put the two credentials in the environment, never in the file: the provider's bearer in the
+   variable `credentialRef` names (`NOACG_SOURCE_...`), the production's data key in
+   `NOACG_DATA_KEY`.
+4. Start it:
+
+   ```bash
+   node scripts/external-data-connector.mjs --config agent.json \
+     --send https://<your NoaCG>/api/data/source
+   ```
+
+   Its log goes to stderr, without either credential. Without `--send` it prints each report as
+   a JSON line instead, which is how to try a configuration before a production exists. Run it
+   under whatever keeps a process up on that machine (systemd, a Windows service, `pm2`); stop
+   it with SIGTERM or Ctrl+C, which lets its claim go.
+
+**Restart.** A restarted agent claims the source again and gets a newer owner epoch; it continues
+after the revision the production last accepted and never re-uses a number, and an older provider
+revision stays refused. If the old process died without letting go, the new one waits until the
+old claim lapses (30 seconds after its last report) and says so; a second agent started beside a
+running one gets nothing and writes nothing.
+
+**Rotating a credential.** The provider's: put the new value in its variable and restart the
+agent; until then it reports the reads as denied and the fields keep their values. The data key:
+change it on the production (see "For the production owner"), then restart the agent with the new
+`NOACG_DATA_KEY`; the old key is refused at once, so the old process can write nothing.
+
+**The envelope.** Every request is `{v: 1, op, sourceId, ...}` with the data key as the Bearer:
+`claim` (with `configRevision`) answers `{ok, claim, ownerEpoch, acceptedRevision,
+providerSequence, paused}`; `report` (with `claim` and the agent's acquisition: `ownerEpoch`,
+`acceptedRevision`, `checkedAt`, `status`, and `payload` when changed) answers `{ok, writes}`;
+`release` lets the claim go. A higher `v` is refused (422) rather than guessed at.
+
+**Limits and refusals.** Every refusal happens before anything is written, and the last good
+values stay on air. The body is at most 256 KiB (413). One revision per source every 5 seconds
+(429, `too_soon`). Every update row a revision would append is at most 64 KiB (413,
+`row_too_large`). The revision's rows come out of the same 25-in-5-seconds budget as `/patch` and
+`/update`; one that needs more than is left is refused whole (429, `budget`). An unchanged read is
+a payload-free receipt at most every 15 seconds: it moves "checked", never "changed", and writes
+no row. 409 answers name the fence: `moved` or `epoch` (claim again), `config` (the production
+holds another configuration revision), `old_revision` (it already has this one or newer),
+`paused`. A source paused in the production applies nothing and the agent offers its latest
+revision again; Another system's Pause holds it like any `/patch`, and Resume sends the final
+values once. A source registered by a later version (`v: 2`) is held read-only: nothing is
+applied and this build does not edit it (422, `unsupported`); a registration it cannot read
+otherwise (a bad `lists`, a local destination) is 422 too, and applies nothing.
+
+**A sample for Connect data.** The page's Connect review asks for one with `{v: 1, op: "sample",
+sourceId}`; while an agent holds the source the production keeps the ask and answers
+`{waiting: true, asked}`, and tells the agent `sample: true` beside its next claim or report. The
+agent then reads the provider once with its own credential and posts what it would send (its
+`sendPaths`, redacted) as `{v: 1, op: "sample", sourceId, claim, sample}`, under
+its live claim and only to an ask (409 `not_asked` otherwise); the page reads it with `asked`. A
+sample is kept for the review only and never evaluated or applied; an ask waits at most a minute.
+With no agent holding the source (`agent: false`), the page reads a public endpoint through the
+feed reader's guard instead (`GET /api/data/feed?as=json&url=...`, 256 KiB, no credential).
+Once Connect saves the mapping, a newly connected field fills at the agent's next read (a receipt
+comes at least every 15 s); a changed mapping of a field already written reaches air with the
+provider's next changed revision, which the review says beside that field.
+
+The registered `endpoint` is non-secret: it is stored in the production, synced, and sent to
+NoaCG's feed reader for a sample. A provider that takes its key in the address (a query string)
+is not supported: put the key in the agent's bearer credential (`credentialRef`).
+
+## The graphic-addressed door: `POST /api/data/update`
+
+`/update` addresses one GRAPHIC by name and its fields by the labels its operator sees, so your
+system has to know the production's rundown. Prefer `/patch` above; this door keeps working with
+today's semantics, and Pause holds it too.
 
 ```
 POST https://<host>/api/data/update
@@ -81,7 +341,7 @@ A `200` answers with what actually happened:
 }
 ```
 
-## Field-label mapping
+### Field-label mapping
 
 Fields are addressed by the **labels the graphic itself shows its operator** - the same
 binding the production's dataset workspace uses, so a feed and a spreadsheet speak the same
@@ -152,7 +412,16 @@ Every error is JSON in one shape:
 
 ## curl examples
 
-Goal for the home side (single-graphic production - no target needed):
+Write two connected values with `/patch` (the card's own example has your paths):
+
+```bash
+curl -X PATCH https://noacg.studio/api/data/patch \
+  -H "Authorization: Bearer $NOACG_DATA_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"api": {"riverside_count": {"leading": "Harbour List", "margin": "412"}}}'
+```
+
+The same with `/update`. Goal for the home side (single-graphic production - no target needed):
 
 ```bash
 curl -s https://noacg.studio/api/data/update \
@@ -230,72 +499,10 @@ tick; a `429` delays the next tick by its `Retry-After`; a `401` stops the feed.
 `--url` at the canonical host (`https://noacg.studio`, the default) - the `*.vercel.app`
 host answers with a `308`, and clients commonly drop POST bodies on redirect.
 
-## Production data - the verb to reach for first
-
-`POST /api/data/update` above addresses a GRAPHIC, so your system has to know the production's
-rundown. **`PATCH /api/data/patch` addresses the DATA instead**: you write `match.home.score`,
-and every field any graphic has BOUND to that path follows - on whichever graphics exist, live
-or not. A scoreboard never learns that "sb03" is on air. Design: `docs/PRODUCTION_DATA_PLAN.md`.
-
-```bash
-curl -X PATCH https://noacg.studio/api/data/patch \
-  -H "Authorization: Bearer $NOACG_DATA_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"match":{"home":{"score":4}}}'
-```
-
-```jsonc
-{
-  "ok": true,
-  "data": { "match": { "home": { "score": 4 } } },   // the whole tree AFTER the merge
-  "writes": [                                        // only what actually moved
-    { "graphic": "House Scorebug", "event": 18251, "applied": { "f1": "4" } }
-  ]
-}
-```
-
-**The operator writes this tree too, and not through this door.** A ± press or an ⚡ `+1` on a field
-the production has bound moves the same value, from the dashboard, on the control slug the operator
-already holds (`control_data_patch_by_slug`, migration 0060). Two things about that matter to you:
-those rows are marked `src:'operator'` and spend NONE of the ingest budget in the table above, which
-is yours alone; and the operator out-writes you by simply pressing later, which is the same
-"manual override" rule every other verb has. Nothing about your door changed.
-
-- **The body is any JSON object.** There is no schema: nest as deep as you like. `POST` is
-  accepted as well as `PATCH`, for proxies that drop the latter.
-- **Merge semantics are RFC 7386 JSON Merge Patch**: objects merge, a `null` VALUE deletes its
-  key, arrays replace wholesale. So a patch names only what changed.
-- **Writes are absolute state, never intent.** There is no "+1" - send the value. That makes a
-  retry safe: sending `4` three times leaves 4.
-- **Only what changed is sent on.** The bindings are resolved against the tree before your patch
-  and after it, and only fields whose value actually differs become log rows. Re-sending the
-  same score writes nothing and **spends none of your rate budget** - which is what makes a
-  polling connector cheap.
-- **A path nothing is bound to still updates the tree**, it just moves no graphic. Bindings are
-  the operator's business, on the production's Data tab; your feed does not need to know them.
-- **A missing or unwritable value writes nothing** rather than blanking a field, so a feed that
-  drops a key leaves the last good value on air. Deleting a key with `null` behaves the same
-  way: the tree loses it, the graphic keeps what it had.
-- Values become field strings: numbers and booleans stringify, and an array of scalars joins
-  with newlines (which is what a ticker's line-list field wants).
-
-### Reading the current state
-
-```bash
-curl https://noacg.studio/api/data/state -H "Authorization: Bearer $NOACG_DATA_KEY"
-```
-
-Answers `{ "ok": true, "data": {...}, "bindings": {...} }` - what NoaCG currently believes,
-so a connector reconciles after a restart or a partition instead of blindly pushing a whole
-snapshot. It is idempotent and spends no ingest budget. It returns no capability: the data key
-never widens into an operator one.
-
-**Bindings must be published.** The RPC resolves against the bindings pinned on the production
-at publish time, so a production whose bindings were authored after its last publish accepts
-data and moves nothing until it is published again.
-
 ## What this API deliberately is not
 
+- **Not a fetcher for you.** NoaCG reads no provider itself: the trusted agent above runs on your
+  machine, with your provider's credential, and only hands over what it read.
 - **Not an operator.** No play, stop, next, take, or state jumps - airing is a human decision
   on an operator surface. A feed that could clear the frame would be a second operator with
   no face.
@@ -309,9 +516,8 @@ data and moves nothing until it is published again.
 ## For the production owner
 
 The key is on the production's `control_shows` row (`data_key`), minted at publish. Read it on
-the production's **Data** tab (`▾ Data key`, then Reveal or Copy); an owner session can also read
+the production's **Data** tab (the Another system card, then Reveal or Copy); an owner session can also read
 the column directly, since the row is RLS-guarded and only you and the server can see it.
 
-Hand it to the integrator out of band. Rotate by unpublishing and re-publishing (viewer and
-operator URLs survive that by design), or by updating the column; clear it to `NULL` to turn
-ingest off entirely.
+Hand it to the integrator out of band. Rotate by updating the column (the page has no unpublish
+control); clear it to `NULL` to turn ingest off entirely.

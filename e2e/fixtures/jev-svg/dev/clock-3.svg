@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="650" height="360" viewBox="0 0 650 360" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="650" height="360" fill="#122036" />
+  <text x="325" y="90" font-size="32" text-anchor="middle">Doors open</text>
+  <text x="325" y="205" font-size="88" id="Text_04" text-anchor="middle">18:00</text>
+  <text x="325" y="285" font-size="24" text-anchor="middle">UTC?</text>
+</svg>

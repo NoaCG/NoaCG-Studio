@@ -4,6 +4,14 @@
 // covers: src/components/playoutKeys.ts, src/styles/playout-dashboard.css
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
+// covers: src/components/home/ProductionShell.tsx
+// covers: src/control/takeBlockers.ts, src/control/serverVerbs.ts
+// covers: src/control/bridgeWatch.ts
+// covers: src/components/home/useRundownAuthoring.ts
+// covers: src/control/folderPlayout.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 // focus
 //
 // A RUNDOWN'S FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §6.2, §6.5, §6.6 and §7, phase 4). The rundown half:
@@ -843,6 +851,43 @@ test('All together: one Take starts every cue in it, a refused one is NOT TAKEN 
   await expect(cue(page, 'STING').getByTestId('cue-take-miss')).toHaveText('NOT TAKEN');
   await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveText('2 OF 3 ON AIR');
   await expect(page.getByTestId('production-note')).toContainText('STING');
+  // The folder's panel lists each child's own outcome: partial success is never one green group
+  // (data-sources C6, AC-16).
+  const child = (label: string) => page.getByTestId('folder-child').filter({ hasText: label });
+  await expect(child('OPENER')).toHaveAttribute('data-outcome', 'air');
+  // Not published: the graphic is up on this page only, as its row says.
+  await expect(child('Hairline')).toHaveAttribute('data-outcome', 'up');
+  await expect(child('STING')).toHaveAttribute('data-outcome', 'miss');
+  await expect(child('STING').getByTestId('folder-child-why')).toContainText('File not found');
+
+  // NoaCG Bridge stops answering: what PROGRAM names on the server is the last it knew, and the
+  // picture is marked so, never left looking live.
+  fake.missing = true;
+  await expect(page.getByTestId('playout-on-air')).toHaveAttribute('data-stale', 'true', { timeout: 15_000 });
+  await expect(page.getByTestId('playout-on-air')).toHaveAttribute('title', /what the server last reported/);
+  await expect(page.getByTestId('program-frame')).toHaveAttribute('data-stale', 'true');
+  await expect(page.getByTestId('program-stale')).toHaveText('BRIDGE NOT ANSWERING · NOT LIVE');
+  fake.missing = false;
+  await expect(page.getByTestId('program-frame')).not.toHaveAttribute('data-stale', 'true', { timeout: 15_000 });
+  await expect(page.getByTestId('playout-on-air')).not.toHaveAttribute('data-stale', 'true');
+  await expect(page.getByTestId('playout-on-air')).toContainText('server: OPENER');
+});
+
+test('All together names the children that collide on one layer, beside the refusal that keeps the Take from going (C6)', async ({ page }) => {
+  await production(page, [], {
+    graphics: [{ name: 'Strap', layer: 20 }],
+    folders: [{ labels: ['Hairline', 'Strap'], name: 'Pair', mode: 'together' }],
+  });
+  await holdFolder(page, 'Pair');
+  const child = (label: string) => page.getByTestId('folder-child').filter({ has: page.locator('.pd-folder-where-cue', { hasText: new RegExp(`^${label}$`) }) });
+  await expect(child('Hairline')).toContainText('L20');
+  await expect(child('Strap').getByTestId('folder-child-clash')).toHaveText('same place as Hairline');
+  await expect(child('Hairline').getByTestId('folder-child-clash')).toHaveText('same place as Strap');
+  // The policy: All together never takes two cues to one place, so the Take waits and says why.
+  await expect(page.getByTestId('folder-take-blocked')).toContainText('both air on layer 20');
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  // Where TAKE sends it, before the first publish: this page and nowhere else.
+  await expect(page.getByTestId('verb-target')).toHaveText('To: this page only');
 });
 
 // ── The rundown, seeded ───────────────────────────────────────────────────────────────────────

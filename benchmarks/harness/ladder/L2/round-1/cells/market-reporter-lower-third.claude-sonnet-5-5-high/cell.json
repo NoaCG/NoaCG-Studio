@@ -1,0 +1,94 @@
+{
+  "costUnread": false,
+  "brief": "market-reporter-lower-third",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "7d0ad232-6a9b-4aec-a546-f0712132bea0",
+  "costCents": 0,
+  "notionalUsd": 0.6199283000000001,
+  "wallSeconds": 117,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type lower-third --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 1,
+      "digest": "sha256:f14c2b1bf69f9c5ec59f4deea3540dad97dc50be34c573ce1a9c50ce040c8357"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 0,
+      "digest": "sha256:ffef7b9f4009f0df68e6d2f549421308bab205e7ff923796f8e0d4e8b4d6b3b8"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:ffef7b9f4009f0df68e6d2f549421308bab205e7ff923796f8e0d4e8b4d6b3b8"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:ffef7b9f4009f0df68e6d2f549421308bab205e7ff923796f8e0d4e8b4d6b3b8"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-1\\cells\\market-reporter-lower-third.claude-sonnet-5-5-high\\frames",
+    "frames": 26,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:ffef7b9f4009f0df68e6d2f549421308bab205e7ff923796f8e0d4e8b4d6b3b8"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:ffef7b9f4009f0df68e6d2f549421308bab205e7ff923796f8e0d4e8b4d6b3b8",
+    "benchValidated": "sha256:ffef7b9f4009f0df68e6d2f549421308bab205e7ff923796f8e0d4e8b4d6b3b8",
+    "reviewed": "sha256:ffef7b9f4009f0df68e6d2f549421308bab205e7ff923796f8e0d4e8b4d6b3b8",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 23,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

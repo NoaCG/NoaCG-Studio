@@ -19,6 +19,8 @@ import { CueAccentControl } from './RundownColors';
 import { folderMode, placeRefusal, type Movable, type Place } from '../../model/showFolders';
 import { bandAt, folderName, headerBandAt, planDrop, rowCueIds, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
 import { fieldDescriptors } from '../../control/controlModel';
+import { viewOf, type CueDraft } from '../../control/cueDraft';
+import { useStorePart } from './useStorePart';
 import {
   channelLabel,
   channelOf,
@@ -120,6 +122,10 @@ interface Aim {
  * where; a drop a Play-through folder refuses says why while it hovers.
  */
 export default function CueRundown({
+  pinnedGraphics,
+  onPin,
+  candidateValues,
+  typedSummaryOf,
   accentPreview,
   onAccentPreview,
   show,
@@ -151,7 +157,7 @@ export default function CueRundown({
   feedbackTarget,
   clashes,
   offstage,
-  cueView,
+  draft,
   cueGraphicName,
   playoutItemFor,
   folderSlotOf,
@@ -175,6 +181,11 @@ export default function CueRundown({
   refreshRundown,
   refreshing,
 }: {
+  /** A live candidate cue's resolved values (E7.1), which its row reads instead of its prepared ones. */
+  candidateValues?: (cue: ShowCue) => Record<string, string> | null;
+  /** A cue with typed OGraf data names itself from those values (E2.1, control/ografForm.ts
+   *  `typedSummary`, which leaves out what the schema marks `hidden`); null for any other cue. */
+  typedSummaryOf?: (cue: ShowCue) => string | null;
   accentPreview?: { cueId: string; color: string } | null;
   onAccentPreview: (cueId: string, color: string | null) => void;
   show: Show;
@@ -234,8 +245,14 @@ export default function CueRundown({
   clashes: ReadonlyMap<number, SavedGraphic[]>;
   /** A workspace is in front: the rail stays mounted, out of sight. */
   offstage: boolean;
-  cueView: (cue: ShowCue) => { label: string; note: string; values: Record<string, string> };
+  /** The cue being typed: a row reads its label, note and words from it, so the row redraws as the
+   *  operator types without the page (control/cueDraft.ts; production-page refactor D12). */
+  draft: Pick<CueDraft, 'part'>;
   cueGraphicName: (cue: ShowCue) => string | null;
+  /** The graphics whose live controls stay on screen (pinned live controls), and the one write
+   *  that pins or unpins a graphic, shared with the block head's pin. */
+  pinnedGraphics: readonly string[];
+  onPin: (graphic: string, pinned: boolean) => void;
   playoutItemFor: (cue: ShowCue) => PlayoutItem | null;
   /** Where a Play-through folder plays, `2-10`. */
   folderSlotOf: (folder: ShowFolder) => string;
@@ -266,6 +283,7 @@ export default function CueRundown({
   refreshRundown: () => Promise<void>;
   refreshing: boolean;
 }) {
+  const typed = useStorePart(draft.part);
   const [addPick, setAddPick] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const libraryPick = useRef<HTMLSelectElement>(null);
@@ -631,7 +649,7 @@ export default function CueRundown({
             );
           }
           const { cue } = row;
-          const view = cueView(cue);
+          const view = viewOf(typed, cue);
           const cueGraphic = cueGraphicName(cue);
           const poolEntry = graphicByPoolId.get(cue.sourceId);
           const playoutItem = playoutItemFor(cue);
@@ -674,9 +692,13 @@ export default function CueRundown({
           // THE DIM SUMMARY after the name: what tells two cues of one graphic apart at a glance -
           // a graphic's first words ("Alexandra Riva"), a server item's own name. A graphic with
           // no words (a logo, a picture) falls back to its name, as the old second line did.
+          const shown = { ...view.values, ...candidateValues?.(cue) };
+          const typedWords = poolEntry ? typedSummaryOf?.(cue) : null;
           const summary = poolEntry
-            ? (wordFields.get(poolEntry.id) ?? [])
-                .map((d) => (view.values[d.key] ?? d.defaultValue).split('\n')[0].replace(/\s+/g, ' ').trim())
+            ? typedWords != null
+              ? typedWords || cueGraphic || ''
+              : (wordFields.get(poolEntry.id) ?? [])
+                .map((d) => (shown[d.key] ?? d.defaultValue).split('\n')[0].replace(/\s+/g, ' ').trim())
                 .filter(Boolean)
                 .slice(0, 2)
                 .join(' · ') || cueGraphic || ''
@@ -931,6 +953,17 @@ export default function CueRundown({
                   testid="cue-actions-menu"
                 >
                   <CueAccentControl show={show} cue={cue} setShows={setShows} fallback={routeTone} onPreview={color => onAccentPreview(cue.id, color)} />
+                  {(() => {
+                    // The row pins its GRAPHIC, never the cue: a quiz with twenty questions has one Reveal.
+                    const graphic = cue.source === 'playout' ? null : cueGraphicName(cue);
+                    if (!graphic) return null;
+                    const isPinned = pinnedGraphics.includes(graphic);
+                    return (
+                      <button role="menuitem" data-testid="cue-pin-live" onClick={() => { setMenuRowId(null); onPin(graphic, !isPinned); }}>
+                        {isPinned ? 'Unpin live controls' : 'Pin live controls'}
+                      </button>
+                    );
+                  })()}
                   <button role="menuitem" data-testid="cue-shortcut" onClick={() => { setMenuRowId(null); setShortcutCue(cue.id); }}>Keyboard shortcut…</button>
                   <button
                     role="menuitem"

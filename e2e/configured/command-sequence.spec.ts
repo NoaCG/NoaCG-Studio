@@ -11,6 +11,9 @@
 // covers: supabase/migrations/0069_control_heads.sql, supabase/migrations/0070_seq_topic.sql
 // covers: supabase/migrations/0071_command_sequence.sql
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // Measured before this existed (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.6): a Take held 6 s on its
 // way to the database, with the Out pressed 1.5 s behind it, aired AFTER the Out, and air ended
@@ -92,8 +95,9 @@ async function openAir(page: Page, output: string): Promise<Page> {
 
 /** An operator page, level with the log: a press made while it still reads the tail would leave its
  *  monitor alone, and Out would stay disabled behind a held Take (`watchLogReads`). */
-async function openOperator(page: Page, hosted: string): Promise<Page> {
+async function openOperator(page: Page, hosted: string, prepare?: (op: Page) => Promise<void>): Promise<Page> {
   const op = await page.context().newPage();
+  await prepare?.(op);
   const level = watchLogReads(op);
   await op.goto(`/app?control=${encodeURIComponent(hosted)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
@@ -220,6 +224,64 @@ test('a Take held on its way arrives after the Out, is left out, and never airs'
   await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air');
   expect((await op.getByTestId('hosted-error').allInnerTexts()).join(' ')).not.toContain('changed from another screen');
 
+  await Promise.all([op.close(), air.close()]);
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+});
+
+// ONE REFUSED RESOLVE NO LONGER COSTS A PAGE ITS ORDER (#1697). Any answered error on the first
+// resolve used to put the operator page on today's road, by row id, for the rest of its life, where
+// nothing orders a graphic's sends: the held Take below then committed after the Out and aired. The
+// page now asks again (failedSends.ts `seqRoadVerdict`) and stays on the numbered road.
+// On the old rule the page sends by row id, and the sendsInOrder check below fails.
+test('an operator page whose first resolves are refused stays on the numbered road, and a held Take never airs over the later Out', async ({ page }) => {
+  test.setTimeout(360_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
+  await clearPublishedShows(page);
+  const { hosted, output } = await publishScorebug(page, `Refused Resolve ${Date.now()}`);
+  const air = await openAir(page, output);
+  const resolves = { refused: 0, through: 0 };
+  const op = await openOperator(page, hosted, (op) =>
+    op.route('**/rest/v1/rpc/control_show_resolve', (route) => {
+      // The first TWO: a dev build mounts the page twice, so two resolves can leave at once, and an
+      // unrefused second one would rescue a page that gave up on the first.
+      if (resolves.refused >= 2) {
+        resolves.through += 1;
+        return route.continue();
+      }
+      resolves.refused += 1;
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'XX000', details: null, hint: null, message: 'internal error' }),
+      });
+    }),
+  );
+  expect(resolves.refused, 'the first resolves were refused').toBe(2);
+  expect(resolves.through, 'and the page asked again').toBeGreaterThan(0);
+  expect(await op.evaluate(async (slug) => (await import('/src/control/hostedControl.ts')).sendsInOrder(slug), hosted), 'on the numbered road').toBe(true);
+  await expect(op.getByTestId('hosted-unordered')).toHaveCount(0);
+  await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('0');
+
+  // The Take is held 6 s on its way, every attempt of it; the operator presses Out 1.5 s later.
+  const answered = holdNextPress(op, new Promise((r) => setTimeout(r, 6_000)));
+  await op.getByTestId('hosted-take-cue').click();
+  await op.waitForTimeout(1_500);
+  await op.getByTestId('hosted-out-cue').click();
+  await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air', { timeout: 30_000 });
+  const afterOut = await head(page, hosted);
+
+  // The held Take arrives after the Out: the graphic is left as the Out left it, and nothing airs.
+  const answer = (await answered) as { ok?: boolean; skipped?: string[] } | null;
+  expect(answer?.skipped).toEqual([GRAPHIC]);
+  expect(await rowsAfter(page, hosted, afterOut.seq)).toEqual(expect.not.arrayContaining([expect.objectContaining({ t: 'play' })]));
+  await op.waitForTimeout(3_000);
+  expect(await airPlays(air)).toBe('0');
+  await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air');
+
+  await op.unrouteAll({ behavior: 'ignoreErrors' });
   await Promise.all([op.close(), air.close()]);
   await clearPublishedShows(page);
   await wipeMyGraphics(page);

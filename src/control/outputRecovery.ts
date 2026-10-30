@@ -41,6 +41,7 @@
 // re-animation is recoverable, a lost take is not.
 
 import type { ControlEventRow, ControlSendItem, LiveReportMap } from './hostedControl';
+import { typedOutputGate, typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
 export interface OutputRecoveryPlan {
   /** The row to follow the log FROM — rows after it are fetched and replayed at boot. */
@@ -184,3 +185,94 @@ export const RECEIVER_FOLLOW_FROM_JS = `// Where this boot starts reading the lo
     if (!mine) return 0;                                            // never reported: the log START
     return typeof logHead === 'number' ? logHead : 0;               // reported, undatable: the head
   }`;
+
+// ── TYPED DATA'S OWN BASELINE (E1.2b, docs/work-specs/playout-ograf-contract/spec.md AC-2) ───────
+//
+// A graphic airing typed OGraf data reports like any other, and its report's `state` (stored as
+// sent, so no migration) also carries the envelope it last applied, exactly as it came (`typed`),
+// the steps it took since its entrance (`steps`), and whether it was on air (`on`: by row id there
+// is no log head to say so). Its `data` is empty: its data is the
+// envelope's, never strings. A boot rebuilds it from those through the output's own typed gate,
+// so an envelope that does not read there is refused and held, never aired as something else.
+// The pose (`groups`) still carries the step of a graphic with a state machine; `steps` is what a
+// graphic with no pose is stepped back to after its entrance.
+
+/** Steps since an entrance a report carries. More are kept as this many: a reboot then lands on
+ *  step 64 of a longer sequence, which no OGraf graphic declares. */
+export const TYPED_STEPS_MAX = 64;
+
+/** What a report says of a graphic's typed data, or null when it says nothing (a native report).
+ *  `typed` is the envelope as it came, read by the output's gate; `steps` anything but a whole
+ *  number from 0 to TYPED_STEPS_MAX reads as 0. */
+export function reportedTyped(report: { state?: unknown } | null | undefined): { typed: unknown; steps: number; on: boolean } | null {
+  const state = report?.state;
+  if (typeof state !== 'object' || state === null || !Object.prototype.hasOwnProperty.call(state, 'typed')) return null;
+  const { typed, steps, on } = state as { typed: unknown; steps?: unknown; on?: unknown };
+  return { typed, steps: typeof steps === 'number' && Number.isInteger(steps) && steps >= 0 && steps <= TYPED_STEPS_MAX ? steps : 0, on: on === true };
+}
+
+/** A report's typed baseline as a PROGRAM monitor rebuilds it: the envelope read (null when this
+ *  build cannot read it, so the output holds that graphic) and its steps as the `next`s that replay
+ *  them. Null for a native report. */
+export function reportedTypedAir(report: { state?: unknown } | null | undefined): { envelope: TypedValues | null; steps: { t: 'next' }[] } | null {
+  const base = reportedTyped(report);
+  return base ? { envelope: typedValuesOf(base.typed), steps: Array.from({ length: base.steps }, () => ({ t: 'next' as const })) } : null;
+}
+
+/** The rows after a report whose envelope does not read, as the output applies them to the graphic
+ *  it holds (model/ografTyped.ts `typedOutputGate`, the same gate): nothing but a stop until an
+ *  update it can air releases it, then everything. What a PROGRAM monitor replays for it. */
+export function rowsPastHold<R extends { msg: ControlSendItem['msg'] }>(rows: readonly R[]): R[] {
+  const state = { held: new Map([['g', 'held']]), airing: new Set<string>() };
+  return rows.filter((row) => typedOutputGate(state, 'g', row.msg).apply);
+}
+
+/** The steps a graphic has taken since its entrance, after one command: an entrance (or a pose)
+ *  starts again at 0, an exit forgets them, a `next` adds one up to TYPED_STEPS_MAX. */
+export function stepsAfter(prev: number | undefined, msg: { t: string }): number | undefined {
+  if (msg.t === 'play' || msg.t === 'snap') return 0;
+  if (msg.t === 'stop') return undefined;
+  if (msg.t === 'next' && prev !== undefined) return Math.min(prev + 1, TYPED_STEPS_MAX);
+  return prev;
+}
+
+const COMMAND_VERBS = new Set(['update', 'play', 'stop', 'next', 'event', 'snap']);
+
+/**
+ * A GRAPHIC ON AIR THAT NO REPORT BANKS, AIRING TYPED DATA (issue #1762). A boot follows the log
+ * from the oldest report, so a graphic with none, whose typed Take is older than that, would come
+ * back with its entrance (the log's head says it is on) but not its values. Such a graphic was
+ * aired by an output that never reported typed data (E1.2a), or its report had not been written
+ * yet. `rows` are the log up to the boot's `followFrom`; `graphics` the ones on air with no
+ * report. Each whose last operator update there carries an envelope gets every command it took
+ * there, oldest first, as the log start would have replayed it; any other graphic gets none, so
+ * native recovery is unchanged.
+ */
+export function unreportedTypedRows<R extends { graphic: string; msg: { t: string } }>(graphics: readonly string[], rows: readonly R[]): R[] {
+  const wanted = new Set(graphics);
+  const typedNow = new Set<string>();
+  for (const row of rows) {
+    if (!wanted.has(row.graphic) || row.msg.t !== 'update' || Object.prototype.hasOwnProperty.call(row.msg, 'src')) continue;
+    if (Object.prototype.hasOwnProperty.call(row.msg, 'typed')) typedNow.add(row.graphic);
+    else typedNow.delete(row.graphic);
+  }
+  return typedNow.size ? rows.filter((row) => typedNow.has(row.graphic) && COMMAND_VERBS.has(row.msg.t)) : [];
+}
+
+/** Whether a graphic on air with no report may be airing typed data, by the cue the log's head says
+ *  it last took: not when that is a cue the output's payload publishes, since a cue with typed data
+ *  never is (model/productionData.ts `preparedCue`); a direct trigger or a cue not published may. */
+export function mayAirTyped(headCue: unknown, published: ReadonlySet<string>): boolean {
+  return !(typeof headCue === 'string' && published.has(headCue));
+}
+
+/** How many tail pages that read takes: on the numbered log, the pages up to `followFrom` (seqs
+ *  count from 1, so no more rows lie below it); none by row id (protocol 1, which has no head to say
+ *  what is on air), and none when that is more than `ceiling`, the catch-up's own page ceiling, so a
+ *  boot never waits longer for this read than for its catch-up, and never reads half of it. That
+ *  bridge is only for graphics no report banks: since E1.2b every output reports typed data and
+ *  re-banks it every 500 rows. */
+export function unreportedPages(followFrom: number, seqMode: boolean, pageSize: number, ceiling: number): number {
+  const pages = seqMode && followFrom > 0 ? Math.floor(followFrom / pageSize) + 1 : 0;
+  return pages <= ceiling ? pages : 0;
+}

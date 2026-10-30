@@ -1,6 +1,10 @@
 // covers: src/components/home/ProductionPage.tsx, src/control/productionDataApi.ts
 // covers: src/components/home/CueEditor.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/useProductionPublish.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // A PUBLISHED PRODUCTION OPENED COLD DOES NOT PUSH ITS LOCAL TREE WHILE ITS DATA KEY IS UNREAD
 // (production-page refactor, phase 1; docs/work-specs/production-page-refactor/spec.md §5.3,
@@ -104,6 +108,7 @@ test('while the data key is unread, the page appends no update of its own; the f
   // bindings resolve to a value, and only the dispatch guard keeps it off the log.
   const data = await openWorkspace(page, 'data');
   await expect.poll(() => keyReads, { message: 'the Data tab asked for its data key' }).toBeGreaterThan(1);
+  await data.getByTestId('data-advanced-toggle').click();
   await data.getByTestId('data-new-path').fill(PATH);
   await data.getByTestId('data-new-value').fill('5');
   await data.getByTestId('data-add').click();

@@ -1,25 +1,35 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   deletePath,
   flattenLeaves,
   formatValue,
   getPath,
+  isSourcePath,
   matchTitle,
   parseDataTree,
   parseLiteral,
   reparseLeaf,
   setPath,
+  sourceIdOf,
+  sourcePaths,
+  sourcePrefix,
   suggestPath,
   type DataLeaf,
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
-import { addGraphicToShow, preparedMessageField, setFieldBinding, setFieldBindings, setShowSeedData, type Show } from '../../model/shows';
+import { addGraphicToShow, fillsFields, ownSheetGraphics, preparedMessageField, sourceKindWord, setFieldBinding, setFieldBindings, setShowSeedData, type FieldShowSource, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
 import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
-import { copyLink } from './copyLink';
+import type { SourceStatusStore } from '../../control/sheetSource';
+import { OwnReaderLine, ownSheetReaders, readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
+import { loadGraphics } from '../../model/library';
+import { ownReaderHolds, subscribeOwnReaderHolds } from '../../model/ownReaderHolds';
+import { stripLiveData } from '../../control/liveData';
+import { nameList } from './CueRundown';
 import { useDeferredEdits } from './useDeferredEdits';
+import { isApiPath } from '../../control/anotherSystem';
 
 /**
  * THE MANUAL DATA PLAYGROUND (docs/PRODUCTION_DATA_PLAN.md §3) — the production's live data
@@ -40,16 +50,15 @@ export default function ProductionDataPanel({
   liveData,
   setLiveData,
   resolved,
-  dataKey,
+  sourceStatus,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
   liveData: JsonObject;
   setLiveData: (data: JsonObject) => void;
   resolved: ResolvedValues;
-  /** The production's own data key, or null when there is nothing to show (unpublished,
-   *  offline, or not the owner). See the Data key block below for why it belongs on screen. */
-  dataKey?: string | null;
+  /** What each source's reader last found (control/sheetSource.ts), for the overview. */
+  sourceStatus: SourceStatusStore;
 }) {
   const [newPath, setNewPath] = useState('');
   const [newValue, setNewValue] = useState('');
@@ -60,10 +69,6 @@ export default function ProductionDataPanel({
    *  so a red line and a green one can never be on screen together - which they were, the moment
    *  any note was set outside `write()`. */
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
-  /** The data key is hidden until asked for: it is a credential, and this page is often on a
-   *  screen somebody else is looking at. */
-  const [keyOpen, setKeyOpen] = useState(false);
-  const [keyShown, setKeyShown] = useState(false);
   /** The one ✕ whose second click deletes, or null. One slot, so arming a row disarms any other. */
   const [armed, setArmed] = useState<string | null>(null);
 
@@ -103,6 +108,12 @@ export default function ProductionDataPanel({
     if (stored === text) return;
     write(setPath(liveData, path, reparseLeaf(previous, text)));
   });
+
+  /** A − or + press on a number: one write, counted from the tree as it stands. */
+  const step = (path: string, by: number) => {
+    const value = getPath(liveData, path);
+    if (typeof value === 'number') write(setPath(liveData, path, value + by));
+  };
 
   const addField = () => {
     const path = newPath.trim();
@@ -150,82 +161,10 @@ export default function ProductionDataPanel({
       <div className="pd-live-head">
         <h2>Production data</h2>
         <p className="hint">
-          The values this production knows right now. Change one here and every graphic bound to
-          it follows, on air too. Nothing here plays or stops a graphic.
+          The values, lists and Sheets this production uses, and the graphics that show them.
+          Change a value here and every graphic showing it follows, on air too.
         </p>
-        <div className="pd-live-actions">
-          <button
-            onClick={() => write({ ...(seed ?? {}) }, '✓ Reset to seed')}
-            disabled={!hasSeed}
-            title={hasSeed ? 'Return every value to the saved seed' : 'No seed saved yet'}
-            data-testid="data-reset"
-          >
-            ⟲ Reset to seed
-          </button>
-          <button onClick={() => write({}, '✓ Cleared')} data-testid="data-clear">
-            ✕ Clear
-          </button>
-          <button
-            onClick={() => {
-              setShows(setShowSeedData(show.id, liveData));
-              setNote({ text: '✓ Saved as this production’s seed', ok: true });
-            }}
-            data-testid="data-save-seed"
-          >
-            ⬇ Save as seed
-          </button>
-          <button onClick={randomise} data-testid="data-randomise">
-            ⚄ Move numbers
-          </button>
-          <button onClick={rawOpen ? () => setRawOpen(false) : openRaw} data-testid="data-raw-toggle">
-            {rawOpen ? '▴ Hide JSON' : '▾ Raw JSON'}
-          </button>
-          {/* Only when there IS a key: unpublished productions and offline builds have no API to
-              point anybody at, and a permanently dead button is worse than no button. */}
-          {dataKey && (
-            <button
-              onClick={() => {
-                setKeyOpen((open) => !open);
-                setKeyShown(false);
-              }}
-              data-testid="data-key-toggle"
-            >
-              {keyOpen ? '▴ Hide data key' : '▾ Data key'}
-            </button>
-          )}
-        </div>
       </div>
-
-      {/* WHAT THIS TAB IS FOR, in three short paragraphs, closed by default. The owner opened this
-          tab on 2026-09-15 and could not tell what the button did or how the boxes worked, and he
-          built the product; a first-time operator gets one look. A drawer costs nothing once
-          learned, and a paragraph that is always open is one more thing to scroll past on air. */}
-      <details className="pd-explain" data-testid="data-explain">
-        <summary>How this tab works</summary>
-        <div className="pd-explain-body">
-          <p>
-            <strong>Production data</strong> is a list of values with a path and a value, like{' '}
-            <code>show.title</code> and <code>Helsinki</code>. Type a new value and every graphic
-            bound to that path shows it, also while it is on air. An outside system can write the
-            same list over the data key.
-          </p>
-          <p>
-            <strong>Bindings</strong> link one field of one graphic to one path. Click a field's
-            box to pick a path from the list, or type one. A bound field shows the value from here,
-            in the preview and on air, and its box in the cue is locked.
-          </p>
-          <p>
-            <strong>Tables</strong> are banks of rows, like a quiz bank or a line-up. They change
-            nothing by themselves: on the Playout tab you load one row into a cue's preview, then
-            take it.
-          </p>
-          <p className="hint">
-            <a href="/docs#data-example" target="_blank" rel="noreferrer">
-              More about this, with a worked example
-            </a>
-          </p>
-        </div>
-      </details>
 
       {/* ONE line, in the colour its own news deserves: a value that went nowhere must not arrive
           wearing the style this panel uses for "done". */}
@@ -235,199 +174,411 @@ export default function ProductionDataPanel({
         </p>
       )}
 
-      {/* THE DATA KEY (docs/DATA_API.md). The API was documented and then unreachable: the key is
-          minted at publish and lived only in `control_shows.data_key`, so the whole guide told a
-          hosted operator to go and read a database row they have no way to open. It is the
-          OWNER'S OWN key, read over RLS in their own authenticated session
-          (control/productionDataApi.ts says why that is not the "never a web page" case the
-          integrator doc warns about), and it is strictly weaker than the control-page URL this
-          same production already hands out.
+      <DataOverview
+        show={show}
+        setShows={setShows}
+        leaves={leaves}
+        store={sourceStatus}
+        edits={{ ...edits, step }}
+      />
 
-          Hidden until asked for, because this screen is often in front of other people, and
-          revealed rather than masked-and-copyable so nobody hands out a key they never saw. */}
-      {dataKey && keyOpen && (
-        <div className="pd-datakey" data-testid="data-key">
-          <p className="hint">
-            An outside system - a timing service, a results feed, your own script - writes this
-            tree over HTTPS with this key. It writes data only: it cannot play, stop, take or
-            clear a graphic. Keep it in server-side config, never in a web page.
-          </p>
-          <div className="pd-datakey-row">
-            <code data-testid="data-key-value">{keyShown ? dataKey : '•'.repeat(24)}</code>
-            <button onClick={() => setKeyShown((shown) => !shown)} data-testid="data-key-reveal">
-              {keyShown ? 'Hide' : 'Reveal'}
+      {/* ADVANCED (sheet spec AC-9): the tree by its paths, the seed, Raw JSON and the per-field
+          table, closed by default. They all keep working; the default surface above speaks the
+          one vocabulary instead. */}
+      <details className="pd-advanced" data-testid="data-advanced">
+        <summary data-testid="data-advanced-toggle">Advanced</summary>
+        <div className="pd-live-actions">
+            <button
+              onClick={() => write({ ...(seed ?? {}) }, '✓ Reset to seed')}
+              disabled={!hasSeed}
+              title={hasSeed ? 'Return every value to the saved seed' : 'No seed saved yet'}
+              data-testid="data-reset"
+            >
+              ⟲ Reset to seed
+            </button>
+            <button onClick={() => write({}, '✓ Cleared')} data-testid="data-clear">
+              ✕ Clear
             </button>
             <button
               onClick={() => {
-                void copyLink(dataKey).then((ok) => {
-                  setNote(
-                    ok
-                      ? { text: '✓ Data key copied', ok: true }
-                      : { text: 'The key could not be copied. Reveal it and copy by hand.', ok: false },
-                  );
-                });
+                setShows(setShowSeedData(show.id, liveData));
+                setNote({ text: '✓ Saved as this production’s seed', ok: true });
               }}
-              data-testid="data-key-copy"
+              data-testid="data-save-seed"
             >
-              Copy
+              ⬇ Save as seed
+            </button>
+            <button onClick={randomise} data-testid="data-randomise">
+              ⚄ Move numbers
+            </button>
+            <button onClick={rawOpen ? () => setRawOpen(false) : openRaw} data-testid="data-raw-toggle">
+              {rawOpen ? '▴ Hide JSON' : '▾ Raw JSON'}
+            </button>
+        </div>
+        {/* WHAT THIS TAB IS FOR, in three short paragraphs, closed by default. The owner opened this
+            tab on 2026-09-15 and could not tell what the button did or how the boxes worked, and he
+            built the product; a first-time operator gets one look. A drawer costs nothing once
+            learned, and a paragraph that is always open is one more thing to scroll past on air. */}
+        <details className="pd-explain" data-testid="data-explain">
+          <summary>How this tab works</summary>
+          <div className="pd-explain-body">
+            <p>
+              <strong>Production data</strong> is a list of values with a path and a value, like{' '}
+              <code>show.title</code> and <code>Helsinki</code>. Type a new value and every graphic
+              bound to that path shows it, also while it is on air. An outside system can write the
+              same list over the data key.
+            </p>
+            <p>
+              <strong>Bindings</strong> link one field of one graphic to one path. Click a field's
+              box to pick a path from the list, or type one. A bound field shows the value from here,
+              in the preview and on air, and its box in the cue is locked.
+            </p>
+            <p>
+              <strong>Tables</strong> are banks of rows, like a quiz bank or a line-up. They change
+              nothing by themselves: on the Playout tab you load one row into a cue's preview, then
+              take it.
+            </p>
+            <p className="hint">
+              <a href="/docs#data-example" target="_blank" rel="noreferrer">
+                More about this, with a worked example
+              </a>
+            </p>
+          </div>
+        </details>
+
+        {rawOpen && (
+          <div className="pd-raw" data-testid="data-raw">
+            {/* The honest view of a nested tree, and the paste target for a sample payload — the
+                same JSON the future ingress API will accept, which is what makes this panel the
+                API's documentation as well as its playground. */}
+            <textarea
+              value={rawText}
+              spellCheck={false}
+              onChange={(e) => {
+                setRawText(e.target.value);
+                setRawError(null);
+              }}
+              data-testid="data-raw-text"
+            />
+            {rawError && (
+              <p className="status-bad" data-testid="data-raw-error">
+                {rawError}
+              </p>
+            )}
+            <button onClick={applyRaw} data-testid="data-raw-apply">
+              Apply JSON
             </button>
           </div>
-          <p className="hint">
-            Publishing again mints a new key and the old one stops working. The endpoints, the
-            payload shapes and a worked example are in the{' '}
-            <a href="/docs#data-api" target="_blank" rel="noreferrer">
-              Live data guide
-            </a>
-            .
-          </p>
-        </div>
-      )}
+        )}
 
-      {rawOpen && (
-        <div className="pd-raw" data-testid="data-raw">
-          {/* The honest view of a nested tree, and the paste target for a sample payload — the
-              same JSON the future ingress API will accept, which is what makes this panel the
-              API's documentation as well as its playground. */}
-          <textarea
-            value={rawText}
-            spellCheck={false}
-            onChange={(e) => {
-              setRawText(e.target.value);
-              setRawError(null);
-            }}
-            data-testid="data-raw-text"
-          />
-          {rawError && (
-            <p className="status-bad" data-testid="data-raw-error">
-              {rawError}
+        <div className="pd-live-rows">
+          {leaves.length === 0 && (
+            <p className="hint" data-testid="data-empty-live">
+              No values yet. Add one below, or open Raw JSON and paste a whole payload, nested as
+              deep as you like.
             </p>
           )}
-          <button onClick={applyRaw} data-testid="data-raw-apply">
-            Apply JSON
+          {leaves.map((leaf) => {
+            // What the box shows, and whether it is holding an edit nobody has been told about.
+            const text = edits.text(leaf.path, leaf.text);
+            const dirty = edits.dirty(leaf.path);
+            return (
+              <div className="pd-live-row" key={leaf.path} data-testid={`data-row-${leaf.path}`}>
+                <code className="pd-live-path">{leaf.path}</code>
+                {/* A LIST needs a textarea, not an input: `<input>` sanitises newlines out of its
+                    own value, so a list rendered there would come back joined into one line and the
+                    array would quietly become a string. `reparseLeaf` puts the list back together.
+
+                    IT IS THE VALUE'S TYPE THAT DECIDES, not how many lines the text happens to have.
+                    A list stays a list through `reparseLeaf` however few lines are left in it, so a
+                    textarea stays a textarea - whereas the line count changes as somebody types, and
+                    on a two-line list edited down to one the settle timer would swap the element
+                    under an idle caret, unmounting the box mid-edit and sending focus to the body.
+                    A multi-line STRING still reads its line count, because nothing about a string
+                    says it wants more than one line; it can still swap, and only when a person has
+                    deleted every newline in it. */}
+                {Array.isArray(leaf.value) || leaf.text.includes('\n') ? (
+                  <textarea
+                    className="pd-live-lines"
+                    rows={Math.min(text.split('\n').length, 6)}
+                    value={text}
+                    data-dirty={dirty || undefined}
+                    onChange={(e) => edits.type(leaf.path, e.target.value)}
+                    onBlur={edits.flush}
+                    data-testid={`data-value-${leaf.path}`}
+                  />
+                ) : (
+                  <input
+                    value={text}
+                    data-dirty={dirty || undefined}
+                    onChange={(e) => edits.type(leaf.path, e.target.value)}
+                    onBlur={edits.flush}
+                    // Enter ends the edit here. Not on the textarea above, where Enter is a line of
+                    // the list and ending the edit with it would make a list impossible to type.
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') edits.flush();
+                    }}
+                    data-testid={`data-value-${leaf.path}`}
+                  />
+                )}
+                <span className="pd-live-type">{Array.isArray(leaf.value) ? 'list' : typeof leaf.value}</span>
+                {typeof leaf.value === 'number' && (
+                  <span className="pd-live-step">
+                    <button
+                      onClick={() => step(leaf.path, -1)}
+                      data-testid={`data-down-${leaf.path}`}
+                    >
+                      −
+                    </button>
+                    <button
+                      onClick={() => step(leaf.path, 1)}
+                      data-testid={`data-up-${leaf.path}`}
+                    >
+                      +
+                    </button>
+                  </span>
+                )}
+                {/* ARMED, like the entry delete on the graphic control page. This is typed-in data
+                    with no undo behind it, on a row someone drives live, and a stray click took it
+                    with no way back - "if I close one of those, how can I reopen it?" (owner,
+                    2026-08-21). The answer used to be: retype the path and the value from memory. */}
+                <button
+                  className={`pd-live-del${armed === `leaf:${leaf.path}` ? ' reset-armed' : ''}`}
+                  title={armed === `leaf:${leaf.path}` ? `Click again to delete ${leaf.path}` : 'Delete this value'}
+                  onClick={() => {
+                    if (armed === `leaf:${leaf.path}`) {
+                      setArmed(null);
+                      write(deletePath(liveData, leaf.path));
+                    } else setArmed(`leaf:${leaf.path}`);
+                  }}
+                  data-testid={`data-delete-${leaf.path}`}
+                >
+                  {/* A GLYPH, not the word the other armed buttons use: this row's last grid column
+                      is a fixed 28px, so "Delete?" would overflow its own track - the defect §2d of
+                      docs/PLAYOUT_DASHBOARD.md is about, one panel over. The amber and the tooltip
+                      carry the meaning instead. */}
+                  {armed === `leaf:${leaf.path}` ? '✓' : '✕'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="pd-live-add">
+          <input
+            value={newPath}
+            placeholder="show.title"
+            onChange={(e) => setNewPath(e.target.value)}
+            data-testid="data-new-path"
+          />
+          <input
+            value={newValue}
+            placeholder="value"
+            onChange={(e) => setNewValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addField();
+            }}
+            data-testid="data-new-value"
+          />
+          <button onClick={addField} data-testid="data-add">
+            + Add field
           </button>
+          <span className="hint">
+            <code>4</code> is a number, <code>true</code> a boolean, <code>[1,2]</code> a list;
+            anything else is text.
+          </span>
+        </div>
+
+        <BindingTable show={show} setShows={setShows} liveData={liveData} resolved={resolved} />
+      </details>
+    </section>
+  );
+}
+
+/** The graphics showing a value, by name, from the production's connections. */
+function usersOf(show: Show, pool: ReadonlySet<string>, path: string): { graphic: string; fieldId: string }[] {
+  return Object.entries(show.bindings ?? {})
+    .filter(([graphic]) => pool.has(graphic))
+    .flatMap(([graphic, fields]) => Object.entries(fields).filter(([, p]) => p === path).map(([fieldId]) => ({ graphic, fieldId })));
+}
+
+/** A value's name on the overview: a data template's Field ID reads as the field's own title. */
+function nameOf(show: Show, key: string, users: { graphic: string; fieldId: string }[]): string {
+  const user = users.find((u) => u.fieldId === key);
+  const field = user && show.graphics.find((g) => g.name === user.graphic)?.template.fields?.find((f) => f.field === key);
+  return field?.title || key;
+}
+
+/** What the overview's value rows need from the panel: its deferred boxes and its one write. */
+interface ValueEdits {
+  text: (key: string, stored: string) => string;
+  dirty: (key: string) => boolean;
+  type: (key: string, text: string) => void;
+  flush: () => void;
+  step: (path: string, by: number) => void;
+}
+
+/**
+ * One value on the overview: its name, what it holds and who shows it. A scalar is typed into
+ * here (the operator wins, D4: a Sheet value holds until its cell changes); a list is read here
+ * and edited where it comes from, the Sheet or Advanced.
+ */
+function OverviewValue({ leaf, name, users, list, connected, edits }: { leaf: DataLeaf; name: string; users: string[]; list: boolean; connected: boolean; edits: ValueEdits }) {
+  const lines = leaf.text.split('\n');
+  return (
+    <div className="pd-live-row" data-testid={`data-item-${leaf.path}`}>
+      <span className="pd-live-path">{name}</span>
+      {list ? (
+        <span className="hint" data-testid="data-item-value">
+          {lines.length} line{lines.length === 1 ? '' : 's'}: {lines[0]}
+          {lines.length > 1 ? ' …' : ''}
+          {connected ? ' · edit it in the Sheet' : ' · edit it under Advanced'}
+        </span>
+      ) : (
+        <input
+          value={edits.text(leaf.path, leaf.text)}
+          data-dirty={edits.dirty(leaf.path) || undefined}
+          onChange={(e) => edits.type(leaf.path, e.target.value)}
+          onBlur={edits.flush}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') edits.flush();
+          }}
+          aria-label={name}
+          data-testid="data-item-value"
+        />
+      )}
+      {typeof leaf.value === 'number' ? (
+        <span className="pd-live-step">
+          <button onClick={() => edits.step(leaf.path, -1)} aria-label={`${name} down`} data-testid="data-item-down">
+            −
+          </button>
+          <button onClick={() => edits.step(leaf.path, 1)} aria-label={`${name} up`} data-testid="data-item-up">
+            +
+          </button>
+        </span>
+      ) : (
+        <span />
+      )}
+      <span className="hint" data-testid="data-item-users">
+        {users.length > 0 ? `Shown by ${users.join(', ')}` : 'Not shown by any graphic'}
+      </span>
+    </div>
+  );
+}
+
+/** A source on the overview: what it is, who reads it and how often, checked versus changed,
+ *  Pause, and the graphics that follow it (data-sources AC-9's source details). */
+function OverviewSource({ show, setShows, source, store, pool }: { show: Show; setShows: (shows: Show[]) => void; source: FieldShowSource; store: SourceStatusStore; pool: ReadonlySet<string> }) {
+  const { status, now } = useSourceStatus(store, source.id);
+  const graphics = [...new Set(sourcePaths(show.bindings, source.id).map((p) => p.graphic))].filter((g) => pool.has(g));
+  return (
+    <div className="pd-bind-graphic-head" data-testid={`data-source-${source.id}`}>
+      <h4>{sourceKindWord(source)}: {source.label}</h4>
+      <span className="hint" data-testid="data-source-status">
+        {statusWords(source.paused, status, now, false)}
+        {status?.stale && !source.paused && <strong className="status-warn"> · stale</strong>}
+        {status?.state === 'failing' && status.fix && !source.paused && <span className="status-warn"> · {status.fix}</span>}
+        {!source.paused && status?.problems.map((p) => (
+          <span key={p} className="status-warn" data-testid="data-source-problem"> · {p}.</span>
+        ))}
+      </span>
+      <span className="hint" data-testid="data-source-reader">
+        {readerWords(source.paused, status, source.kind)}
+      </span>
+      <span className="hint" data-testid="data-source-users">
+        {graphics.length > 0 ? `Followed by ${graphics.join(', ')}` : 'No graphic follows it'}
+      </span>
+      <button type="button" onClick={() => toggleSourcePause(show, setShows, store, source)} data-testid="data-source-pause">
+        {source.paused ? 'Resume' : 'Pause'}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * THE DATA OVERVIEW (data-sources C1c, AC-9; sheet AC-9): every source with its reader, cadence,
+ * last checked and last changed, and Pause; every value under the source it comes from or as
+ * local content, with the graphics showing it. Local content carries no freshness: nothing reads
+ * it, so nothing about it can be late.
+ */
+function DataOverview({
+  show,
+  setShows,
+  leaves,
+  store,
+  edits,
+}: {
+  show: Show;
+  setShows: (shows: Show[]) => void;
+  leaves: DataLeaf[];
+  store: SourceStatusStore;
+  edits: ValueEdits;
+}) {
+  // Only a Sheet tab or a feed holds values; a YouTube source feeds Messages alone.
+  const sources = (show.sources ?? []).filter(fillsFields);
+  // A Sheet's values outlive its disconnection in the tree, following nothing: they are not local
+  // content, and they stay reachable under Advanced. Another system's are its own group (C5).
+  const local = leaves.filter((leaf) => !sourceIdOf(leaf.path) && !isApiPath(leaf.path));
+  const pushed = leaves.filter((leaf) => isApiPath(leaf.path));
+  // Bindings outlive a graphic removed from the pool; only graphics still in it show anything.
+  const pool = new Set(show.graphics.map((g) => g.name));
+  // A graphic reading a Sheet in its own code is a source too, one Pause cannot reach (C6).
+  const ownReaders = useMemo(() => ownSheetReaders(show.graphics, loadGraphics(), !!show.hostedSlug), [show.graphics, show.hostedSlug]);
+  const row = (leaf: DataLeaf, key: string | null) => {
+    const users = usersOf(show, pool, leaf.path);
+    return (
+      <OverviewValue
+        key={leaf.path}
+        leaf={leaf}
+        name={key === null ? leaf.path : nameOf(show, key.replace(/^values\./, ''), users)}
+        users={[...new Set(users.map((u) => u.graphic))]}
+        // A Sheet's lines and rows are lists by shape, even emptied; a local value by its type. Text
+        // with line breaks is read here, never typed: a one-line box would flatten it on air.
+        list={leaf.text.includes('\n') || (key === null ? Array.isArray(leaf.value) : !key.startsWith('values.'))}
+        connected={key !== null}
+        edits={edits}
+      />
+    );
+  };
+  return (
+    <div className="pd-bindings" data-testid="data-overview">
+      {sources.map((source) => (
+        <div className="pd-bind-graphic" key={source.id}>
+          <OverviewSource show={show} setShows={setShows} source={source} store={store} pool={pool} />
+          {leaves
+            .filter((leaf) => isSourcePath(source.id, leaf.path))
+            .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id, source.kind).length + 1)))}
+        </div>
+      ))}
+      {ownReaders.map((reader) => (
+        <div className="pd-bind-graphic" key={`own:${reader.graphic}`}>
+          <OwnReaderLine reader={reader} />
+        </div>
+      ))}
+      {pushed.length > 0 && (
+        <div className="pd-bind-graphic" data-testid="data-api-values">
+          <div className="pd-bind-graphic-head">
+            <h4>Another system</h4>
+            <span className="hint">Written with the data key: see Another system below.</span>
+          </div>
+          {pushed.map((leaf) => row(leaf, null))}
         </div>
       )}
-
-      <div className="pd-live-rows">
-        {leaves.length === 0 && (
-          <p className="hint" data-testid="data-empty-live">
-            No values yet. Add one below, or open Raw JSON and paste a whole payload, nested as
-            deep as you like.
-          </p>
-        )}
-        {leaves.map((leaf) => {
-          // What the box shows, and whether it is holding an edit nobody has been told about.
-          const text = edits.text(leaf.path, leaf.text);
-          const dirty = edits.dirty(leaf.path);
-          return (
-            <div className="pd-live-row" key={leaf.path} data-testid={`data-row-${leaf.path}`}>
-              <code className="pd-live-path">{leaf.path}</code>
-              {/* A LIST needs a textarea, not an input: `<input>` sanitises newlines out of its
-                  own value, so a list rendered there would come back joined into one line and the
-                  array would quietly become a string. `reparseLeaf` puts the list back together.
-
-                  IT IS THE VALUE'S TYPE THAT DECIDES, not how many lines the text happens to have.
-                  A list stays a list through `reparseLeaf` however few lines are left in it, so a
-                  textarea stays a textarea - whereas the line count changes as somebody types, and
-                  on a two-line list edited down to one the settle timer would swap the element
-                  under an idle caret, unmounting the box mid-edit and sending focus to the body.
-                  A multi-line STRING still reads its line count, because nothing about a string
-                  says it wants more than one line; it can still swap, and only when a person has
-                  deleted every newline in it. */}
-              {Array.isArray(leaf.value) || leaf.text.includes('\n') ? (
-                <textarea
-                  className="pd-live-lines"
-                  rows={Math.min(text.split('\n').length, 6)}
-                  value={text}
-                  data-dirty={dirty || undefined}
-                  onChange={(e) => edits.type(leaf.path, e.target.value)}
-                  onBlur={edits.flush}
-                  data-testid={`data-value-${leaf.path}`}
-                />
-              ) : (
-                <input
-                  value={text}
-                  data-dirty={dirty || undefined}
-                  onChange={(e) => edits.type(leaf.path, e.target.value)}
-                  onBlur={edits.flush}
-                  // Enter ends the edit here. Not on the textarea above, where Enter is a line of
-                  // the list and ending the edit with it would make a list impossible to type.
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') edits.flush();
-                  }}
-                  data-testid={`data-value-${leaf.path}`}
-                />
-              )}
-              <span className="pd-live-type">{Array.isArray(leaf.value) ? 'list' : typeof leaf.value}</span>
-              {typeof leaf.value === 'number' && (
-                <span className="pd-live-step">
-                  <button
-                    onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) - 1))}
-                    data-testid={`data-down-${leaf.path}`}
-                  >
-                    −
-                  </button>
-                  <button
-                    onClick={() => write(setPath(liveData, leaf.path, (leaf.value as number) + 1))}
-                    data-testid={`data-up-${leaf.path}`}
-                  >
-                    +
-                  </button>
-                </span>
-              )}
-              {/* ARMED, like the entry delete on the graphic control page. This is typed-in data
-                  with no undo behind it, on a row someone drives live, and a stray click took it
-                  with no way back - "if I close one of those, how can I reopen it?" (owner,
-                  2026-08-21). The answer used to be: retype the path and the value from memory. */}
-              <button
-                className={`pd-live-del${armed === `leaf:${leaf.path}` ? ' reset-armed' : ''}`}
-                title={armed === `leaf:${leaf.path}` ? `Click again to delete ${leaf.path}` : 'Delete this value'}
-                onClick={() => {
-                  if (armed === `leaf:${leaf.path}`) {
-                    setArmed(null);
-                    write(deletePath(liveData, leaf.path));
-                  } else setArmed(`leaf:${leaf.path}`);
-                }}
-                data-testid={`data-delete-${leaf.path}`}
-              >
-                {/* A GLYPH, not the word the other armed buttons use: this row's last grid column
-                    is a fixed 28px, so "Delete?" would overflow its own track - the defect §2d of
-                    docs/PLAYOUT_DASHBOARD.md is about, one panel over. The amber and the tooltip
-                    carry the meaning instead. */}
-                {armed === `leaf:${leaf.path}` ? '✓' : '✕'}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="pd-live-add">
-        <input
-          value={newPath}
-          placeholder="show.title"
-          onChange={(e) => setNewPath(e.target.value)}
-          data-testid="data-new-path"
-        />
-        <input
-          value={newValue}
-          placeholder="value"
-          onChange={(e) => setNewValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') addField();
-          }}
-          data-testid="data-new-value"
-        />
-        <button onClick={addField} data-testid="data-add">
-          + Add field
-        </button>
-        <span className="hint">
-          <code>4</code> is a number, <code>true</code> a boolean, <code>[1,2]</code> a list;
-          anything else is text.
-        </span>
-      </div>
-
-      <BindingTable show={show} setShows={setShows} liveData={liveData} resolved={resolved} />
-    </section>
+      {(local.length > 0 || (sources.length === 0 && pushed.length === 0)) && (
+        <div className="pd-bind-graphic" data-testid="data-local">
+          <div className="pd-bind-graphic-head">
+            <h4>Local content</h4>
+            <span className="hint">Kept with this production. Nothing reads it from elsewhere.</span>
+          </div>
+          {local.length === 0 && (
+            <p className="hint" data-testid="data-local-empty">
+              No values yet. Connect a Sheet with Connect data… on a graphic in Playout, or add values under Advanced.
+            </p>
+          )}
+          {local.map((leaf) => row(leaf, null))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -480,6 +631,15 @@ function BindingTable({
   const [armed, setArmed] = useState<string | null>(null);
   /** The last "Bind all by title" outcome, per button. Cleared by the next press of any. */
   const [bindAllNote, setBindAllNote] = useState<{ scope: BindAllScope; text: string } | null>(null);
+  /** Graphics still reading a Sheet in their own code: their fields take no binding (C6). */
+  const holdsRev = useSyncExternalStore(
+    useCallback((onChange: () => void) => subscribeOwnReaderHolds(show.id, onChange), [show.id]),
+    () => [...ownReaderHolds(show.id)].join('\n'),
+  );
+  const ownGraphics = useMemo(
+    () => new Set([...ownSheetGraphics(show, loadGraphics()), ...(holdsRev ? holdsRev.split('\n') : [])]),
+    [show, holdsRev],
+  );
 
   const graphicsWithFields = show.graphics
     .map((g) => ({ g, descriptors: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }) }))
@@ -515,7 +675,13 @@ function BindingTable({
     targets: { g: Show['graphics'][number]; descriptors: FieldDescriptor[] }[],
   ) => {
     const entries: { graphic: string; fieldId: string; path: string }[] = [];
+    const skipped: string[] = [];
     for (const { g, descriptors } of targets) {
+      // Its own code reads a Sheet: the binding would be refused (shows.ts `ownSheetGraphics`).
+      if (ownGraphics.has(g.name)) {
+        skipped.push(g.name);
+        continue;
+      }
       const suggestions = unambiguousSuggestions(descriptors, bindings[g.name], leaves);
       for (const fieldId of Object.keys(suggestions)) entries.push({ graphic: g.name, fieldId, path: suggestions[fieldId] });
     }
@@ -525,9 +691,12 @@ function BindingTable({
     setBindAllNote({
       scope,
       text:
-        entries.length > 0
+        (entries.length > 0
           ? `✓ ${entries.length} field${entries.length === 1 ? '' : 's'} bound`
-          : 'Nothing left to bind. No empty field has exactly one matching path.',
+          : skipped.length > 0
+            ? 'Nothing bound.'
+            : 'Nothing left to bind. No empty field has exactly one matching path.') +
+        (skipped.length > 0 ? ` ${nameList(skipped)} ${skipped.length === 1 ? 'reads' : 'read'} a Sheet in its own code: Connect data… moves it here first.` : ''),
     });
   };
   const hasFields = graphicsWithFields.length > 0;
@@ -594,6 +763,9 @@ function BindingTable({
               // the operator approved. setFieldBinding refuses it whatever the door; this says why
               // here, and offers the way that works - a separate card for the live data.
               const refused = !path && preparedMessageField(show, g.name, d.key);
+              // Its own code reads a Sheet: no new path, until Connect data… moves it here (C6). A
+              // binding saved before that stays, and can still be unbound.
+              const ownReader = !refused && ownGraphics.has(g.name);
               return (
                 <div className="pd-bind-row" key={d.key}>
                   <span className="pd-bind-field">
@@ -601,7 +773,7 @@ function BindingTable({
                   </span>
                   <input
                     value={bindEdits.text(key, path)}
-                    readOnly={refused}
+                    readOnly={refused || ownReader}
                     data-dirty={bindEdits.dirty(key) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
@@ -617,14 +789,20 @@ function BindingTable({
                       Prepared messages use this field, so it cannot follow data.{' '}
                       <button
                         className="pd-bind-suggest"
-                        onClick={() => setShows(addGraphicToShow(show.id, { ...g.template, name: separateName(g.name) }, {}).shows)}
+                        // The separate card never brings the graphic's own Sheet reader with it.
+                        onClick={() => setShows(addGraphicToShow(show.id, { ...g.template, js: stripLiveData(g.template.js ?? ''), name: separateName(g.name) }, {}).shows)}
                         data-testid={`bind-separate-${g.name}-${d.key}`}
                       >
                         Add a separate card for live data
                       </button>
                     </span>
                   )}
-                  {suggestion && !refused && (
+                  {ownReader && (
+                    <span className="pd-bind-miss" data-testid={`bind-own-reader-${g.name}-${d.key}`}>
+                      {g.name} reads a Sheet in its own code. Connect data… on its cue moves it here first.
+                    </span>
+                  )}
+                  {suggestion && !refused && !ownReader && (
                     <button
                       className="pd-bind-suggest"
                       onClick={() => setShows(setFieldBinding(show.id, g.name, d.key, suggestion))}

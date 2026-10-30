@@ -101,10 +101,14 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     ],
   ],
   [
-    // Sessions are archived when their pull request closes, so the next session's prompt has to be
-    // on the pull request before that (owner, 2026-10-09). The heading and the empty case are pinned.
+    // Every landing ends with the next session's prompt, in the final message and never on GitHub
+    // (the repository is public). The heading, the empty case and the boundary are pinned.
     'queue-merge',
-    ['**Then leave the next session its prompt**', 'the line `Nothing left.`'],
+    [
+      '**Then leave the next session its prompt, in your final message only.**',
+      'the line `Nothing left.`',
+      'the prompt never goes on GitHub',
+    ],
   ],
   [
     'handoff',

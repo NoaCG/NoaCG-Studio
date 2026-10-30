@@ -107,3 +107,19 @@ test('a selection holding a whole folder is never moved into a folder', () => {
   assert.equal(placeRefusal(rec, { cueIds: ['a', 'b', 'x'] }, { end: true }), null);
   assert.equal(placeRefusal(rec, { cueIds: ['a', 'x'] }, { into: 'G' }), null);
 });
+
+test('a copy carries the cue\'s typed OGraf data and action arguments, byte for byte and apart', () => {
+  n = 0;
+  const typed = { v: 1, standard: 'c821671195a077be13bbb96989d4220eea157b99', values: { homeShort: 'HJK', homeScore: 2, teams: [{ name: 'Home' }] } };
+  const typedArgs = { v: 1, actions: { 'goal-home': { args: { by: 1 } } } };
+  const rec = record([cue('A', undefined, { typed, typedArgs }), cue('B')]);
+  const copied = copyClip(rec, ['A'], (label) => `${label} copy`);
+  const out = pasteCopies(rec, copied, { after: 'A' }, newId);
+  const copy = out.cues.find((c) => c.id === 'n1');
+  assert.deepEqual([copy.label, copy.typed, copy.typedArgs], ['A copy', typed, typedArgs]);
+  assert.notEqual(copy.typed, typed, 'its own copy, not a shared object');
+  assert.notEqual(copy.typed.values.teams, typed.values.teams);
+  // A cue with none gains none.
+  const plain = pasteCopies(rec, copyClip(rec, ['B']), { after: 'B' }, newId).cues.find((c) => c.id === 'n2');
+  assert.equal('typed' in plain || 'typedArgs' in plain, false);
+});

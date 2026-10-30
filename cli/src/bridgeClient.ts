@@ -86,6 +86,14 @@ export interface BridgeInspection {
   buttons: ControlButton[];
   stateGroups: Array<{ id: string; states: Array<{ id: string; name: string }> }>;
   steps: { count: number; stepped: boolean };
+  /** The panel as PREP and LIVE (src/control/livePanel.ts). Absent from an older bridge. */
+  panel?: {
+    controls: Array<{ event: string; label: string; pick?: { field: string; options: Array<{ label: string; value: string }> } }>;
+    steppers: string[];
+    prep: string[];
+  };
+  /** What a production's Adjust can change on it, in one line. Absent from an older bridge. */
+  adjustable?: string;
   notes: string[];
 }
 

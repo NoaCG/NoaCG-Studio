@@ -73,3 +73,120 @@ export interface VerbSent {
 export function leftAlone(sent: VerbSent): string[] {
   return [...sent.skipped, ...sent.superseded, ...sent.pressedAgain];
 }
+
+/** Whether a send's values reached `graphic`'s output: not failed (null), and not skipped or
+ *  superseded, which leave the output as a later press set it. A graphic pressed again after the
+ *  send did get it; the later press then replaces it. */
+export function reachedOutput(sent: { readonly skipped: readonly string[]; readonly superseded: readonly string[] } | null, graphic: string): boolean {
+  return !!sent && !sent.skipped.includes(graphic) && !sent.superseded.includes(graphic);
+}
+
+/** How a send failed (control/selectionAir.ts `SendFailure`). */
+interface OutFailure {
+  uncertain?: true;
+  stale?: true;
+}
+
+/** Outs on these graphics, as presses on their live candidates' layers (control/selectionAir.ts
+ *  `pressSelection`): no correction follows them out or overtakes them. Settle with what the
+ *  send came to. */
+export function pressOuts(
+  aired: (graphic: string, cueId: string, take: { status: 'none' }, moves: boolean) => { landed: () => void; undo: (failed?: OutFailure) => void },
+  graphics: readonly string[],
+): (sent: { ok: true; skipped: readonly string[]; superseded: readonly string[] } | ({ ok: false } & OutFailure)) => void {
+  const presses = graphics.map((graphic) => [graphic, aired(graphic, '', { status: 'none' }, true)] as const);
+  return (sent) => {
+    for (const [graphic, press] of presses) {
+      if (!sent.ok) press.undo(sent);
+      else if (reachedOutput(sent, graphic)) press.landed();
+      else press.undo();
+    }
+  };
+}
+
+/** One press of this page that writes a graphic's marker (a Take's cue, or null for an Out), by
+ *  its number in press order. */
+interface MarkerPress {
+  n: number;
+  cue: string | null;
+}
+
+/**
+ * THIS PAGE'S MARKER PRESSES ON ONE GRAPHIC, from the first one pressed while none was out (#1696).
+ * The fast road moves the marker at the press (./airState.ts `claimAndApply`), so the answers must
+ * leave it where this page's presses left the output: on the newest that landed, never under a
+ * newer one still out, and back when one fails.
+ */
+export interface MarkerTrack {
+  /** The marker when the first of them was pressed: what stands when none of them lands. */
+  before: string | null;
+  /** Not answered yet, in press order. */
+  out: MarkerPress[];
+  /** The newest that landed. */
+  landed: MarkerPress | null;
+  /** Every cue they and `before` named: a marker naming another was moved by another screen. */
+  named: (string | null)[];
+}
+
+/** Per graphic, while a marker press of this page is out on it. */
+export type MarkerBook = Readonly<Record<string, MarkerTrack>>;
+
+/** A press of number `n` sent a marker naming `cue` on `graphic`; `live` is the marker as it stood. */
+export function pressMarker(book: MarkerBook, live: LiveCueMap, graphic: string, n: number, cue: string | null): MarkerBook {
+  const t = book[graphic];
+  const before = live[graphic] ?? null;
+  const track: MarkerTrack = t ?? { before, out: [], landed: null, named: [before] };
+  return { ...book, [graphic]: { ...track, out: [...track.out, { n, cue }], named: [...track.named, cue] } };
+}
+
+/**
+ * Press `n`'s answer on `graphic`: `landed` when its values reached the output. Returns the book and
+ * what the marker must now name (undefined: leave it). A press that landed names its cue, unless a
+ * newer press of this page landed (a late older answer) or is still out (its own answer decides).
+ * One that did not land puts the marker back on the newest that landed, or on what stood before
+ * them, unless a newer press stands, or the marker names a cue none of them did (another screen moved
+ * it since). Another screen's cue marker heard meanwhile is what stood before them from then on
+ * (`foreignMarker`). An older press still out does not count: the marker names it once it lands.
+ */
+export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string, n: number, landed: boolean): { book: MarkerBook; write?: string | null } {
+  const t = book[graphic];
+  const press = t?.out.find((p) => p.n === n);
+  if (!t || !press) return { book };
+  const out = t.out.filter((p) => p.n !== n);
+  const newerLanded = t.landed !== null && t.landed.n > n;
+  const kept = landed && !newerLanded ? press : t.landed;
+  let next: MarkerBook;
+  if (out.length > 0) next = { ...book, [graphic]: { ...t, out, landed: kept } };
+  else {
+    const { [graphic]: _done, ...rest } = book;
+    next = rest;
+  }
+  if (newerLanded || out.some((p) => p.n > n)) return { book: next };
+  if (landed) return { book: next, write: press.cue };
+  const now = live[graphic] ?? null;
+  if (!t.named.includes(now)) return { book: next };
+  const write = t.landed ? t.landed.cue : t.before;
+  return write === now ? { book: next } : { book: next, write };
+}
+
+/** Press `n`, which got no answer, was heard landing after all: an older press still out no longer
+ *  marks over it when it lands, and a newer one that fails puts it back. */
+export function landedLate(book: MarkerBook, graphic: string, n: number, cue: string | null): MarkerBook {
+  const t = book[graphic];
+  if (!t || (t.landed !== null && t.landed.n > n)) return book;
+  return { ...book, [graphic]: { ...t, landed: { n, cue }, named: [...t.named, cue] } };
+}
+
+/** Another screen's cue marker naming `cue` was heard on `graphic` while a press of this page is out
+ *  there: it is what stands over the presses out until one of them lands, so a failure gives it back,
+ *  whichever press of this page moved the marker since. */
+export function foreignMarker(book: MarkerBook, graphic: string, cue: string | null): MarkerBook {
+  const t = book[graphic];
+  return t ? { ...book, [graphic]: { ...t, before: cue, landed: null, named: [cue] } } : book;
+}
+
+/** Commands heard back from the server, without the cue markers `own` claims: the sender writes
+ *  those from its answers and from the rows of presses that got none (graphicVerbs.ts `heard`). */
+export function withoutOwnMarkers<T extends { graphic: string; msg: { t: string } }>(items: readonly T[], own: (item: T) => boolean): T[] {
+  return items.filter((item) => item.msg.t !== 'cue' || !own(item));
+}

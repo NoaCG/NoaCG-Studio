@@ -825,12 +825,13 @@ no `--provenance` flag).
    where the repository moved and the owner has already re-created the connection.
 
 The run creates **no GitHub Release**: the CLI's home is npm, and the repository's Releases page
-belongs to NoaCG Bridge, the other tool built from this package (`release-bridge.yml`, on a
-`bridge-v*` tag; `docs/BRIDGE.md` §6). To the people who use them the two are separate products
-with separate homes, and the release pages never explain that they share code. **One version, two
-channels:** both read `cli/package.json`'s version, which is never split, and each channel ships a
-version only when its own tool changed - a CLI-only fix is a `cli-v*` tag with no new exe. "Latest"
-is resolved per channel: npm's `latest` for the CLI, the newest `bridge-v*` Release (created with
+belongs to NoaCG Bridge, the other product built from this package (`release-bridge.yml`, on a
+`bridge-v*` tag; `docs/BRIDGE.md` §6). **Two products for two audiences, two version lines (owner,
+2026-10-24):** the CLI is for a creator making graphics with an agent, the Bridge for the operator
+connecting NoaCG to a playout system. The CLI's version is `cli/package.json` `version`; the
+Bridge's is `bridgeVersion` in the same file, which moves only with a Bridge release, so a CLI
+release never touches the Bridge's number or the other way round. "Latest" is resolved per
+product: npm's `latest` for the CLI, the newest `bridge-v*` Release (created with
 `--latest`) for the Bridge. The public Downloads page (`/downloads`) reads each one separately and
 shows the version of what it links. The Actions tab's
 "Run workflow" button is the manual door when a tagged run needs re-driving (untick `dry_run`),

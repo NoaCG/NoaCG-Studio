@@ -26,6 +26,7 @@ export function ProductionSetupMenu({
   panel,
   onPanel,
   onLinks,
+  onLook,
   onPlayoutSettings,
   onExport,
 }: {
@@ -38,6 +39,8 @@ export function ProductionSetupMenu({
   /** The control page, presenter and audience links (home/ProductionLinks.tsx). Absent in a build
    *  that cannot publish, where there are no links to show. */
   onLinks?: () => void;
+  /** The production look (home/ProductionLook.tsx), a panel beside the rundown. */
+  onLook?: () => void;
   onPlayoutSettings: () => void;
   onExport: () => void;
 }) {
@@ -105,6 +108,11 @@ export function ProductionSetupMenu({
           Stream Deck panel…
           <span className="pd-setup-note">{words}</span>
         </button>
+        {onLook && (
+          <button role="menuitem" onClick={pick(onLook)} data-testid="setup-look">
+            <IconSliders /> Look…
+          </button>
+        )}
         <button
           role="menuitem"
           onClick={pick(onPlayoutSettings)}

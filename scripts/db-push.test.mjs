@@ -40,6 +40,7 @@ import {
   lockTimeoutFailure,
   normalize,
   readQuietWindow,
+  QUIET_WINDOW_SQL,
   splitStatements,
   stagedWorkdir,
   timeoutMs,
@@ -645,17 +646,30 @@ const versions = (list) => list.map((m) => m.version);
 const answering = (rows) => async () => rows;
 const failing = (message) => async () => { throw new Error(message); };
 
-test('the quiet window reads recent heartbeats, and any failure to read it is NOT quiet', async () => {
+test('the quiet window reads productions on air, and any failure to read it is NOT quiet', async () => {
   let asked = '';
   const quiet = await readQuietWindow(async (sql) => { asked = sql; return []; });
-  assert.deepEqual(quiet, { ok: true, shows: [] });
-  assert.match(asked, /output_seen_at > now\(\) - interval '10 minutes'/);
+  assert.deepEqual(quiet, { ok: true, shows: [], why: {} });
+  assert.equal(asked, QUIET_WINDOW_SQL);
   assert.doesNotMatch(asked, /title|name/, 'a CI log gets production ids, never titles');
 
-  assert.deepEqual(await readQuietWindow(answering([{ id: 'a1' }, { id: 'b2' }])), { ok: true, shows: ['a1', 'b2'] });
+  const why = { a1: 'graphic on air', b2: 'recent command' };
+  assert.deepEqual(await readQuietWindow(answering([{ id: 'a1', why: why.a1 }, { id: 'b2', why: why.b2 }])), { ok: true, shows: ['a1', 'b2'], why });
   assert.equal((await readQuietWindow(failing('management API answered 503'))).ok, false);
   assert.equal((await readQuietWindow(answering({ message: 'nope' }))).ok, false, 'an answer of the wrong shape');
   assert.equal((await readQuietWindow(answering([{ n: 1 }]))).ok, false, 'rows without an id');
+});
+
+// The query runs only on a real database, so this pins its parts; the cases it answers were run
+// against Postgres when it was written (the pull request that introduced QUIET_WINDOW_SQL).
+test('a renderer heartbeat alone is not on air: something must be airing or recently pressed', () => {
+  const sql = QUIET_WINDOW_SQL;
+  assert.match(sql, /where s\.output_seen_at > now\(\) - interval '10 minutes'/, 'every answer still needs a fresh heartbeat');
+  assert.match(sql, /where no_head or graphic_on or cue_on or commanded\n/, 'and one sign that something airs');
+  assert.match(sql, /h\.show_id is null as no_head/, 'no head to read counts as on air');
+  assert.match(sql, /g\.value->'on' = 'true'::jsonb\) as graphic_on/);
+  assert.match(sql, /public\.control_live_cue_view\(s\.live_cue, h\.graphics\)/, 'cues read by the pages\' own rule');
+  assert.match(sql, /e\.created_at > now\(\) - interval '10 minutes'\s+and not \(e\.msg \? 'src'\)\) as commanded/, 'a data feed is not an operator');
 });
 
 test('quiet: every pending migration applies, live-path included', async () => {

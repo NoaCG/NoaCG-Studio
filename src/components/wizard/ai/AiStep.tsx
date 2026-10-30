@@ -54,11 +54,8 @@ import AiProviderSettings from '../../AiProviderSettings';
 import AgentRouteCard from './AgentRouteCard';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../../assets/paletteExtract';
-import {
-  importTemplateFile,
-  isTemplateFile,
-  type AuthoredFormatDetection,
-} from '../../../model/importTemplate';
+import { isTemplateFile, type AuthoredFormatDetection } from '../../../model/importTemplate';
+import { importDroppedTemplate, isForeignGraphic } from '../templateFile';
 import { loadLooks } from '../../../model/packets';
 import {
   guessPurpose,
@@ -527,7 +524,8 @@ export default function AiStep({
     const templateFile = list.find(isTemplateFile);
     if (templateFile) {
       try {
-        const parsed = await importTemplateFile(templateFile);
+        const parsed = await importDroppedTemplate(templateFile);
+        if (isForeignGraphic(parsed.template)) return onOpenImported(parsed.template);
         setImported({
           fileName: templateFile.name,
           template: parsed.template,

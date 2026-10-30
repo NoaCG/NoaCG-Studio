@@ -11,6 +11,8 @@
  * matching shapes a listener reads back off `window.addEventListener('message', …)`.
  */
 
+import type { JsonValue } from '../model/productionData';
+
 export const PREVIEW_CMD_TYPE = 'spx-preview-cmd';
 export const PREVIEW_BOX_TYPE = 'spx-preview-box';
 export const PREVIEW_STATE_TYPE = 'spx-preview-state';
@@ -58,6 +60,11 @@ export interface PreviewErrorMessage {
  * have had their chance, capped at `FRAME_HOLD_CAP_MS`. Sent only by a `liveControl` document.
  */
 export const PREVIEW_READY_TYPE = 'spx-preview-ready';
+
+/** A document answered a `style` command: its faces loaded (or failed). `refit` says something
+ *  that moves the text changed, so what was measured before no longer stands; a colour alone
+ *  answers false. `seq` counts the styles it applied. */
+export const PREVIEW_RESTYLED_TYPE = 'spx-preview-restyled';
 export interface PreviewReadyMessage {
   scriptError?: string | null;
   sounds?: { n: number; of: number; bytes: number; error: string | null };
@@ -77,12 +84,15 @@ export type PreviewCmd =
   | { cmd: 'stop'; sound?: false }
   | { cmd: 'next' }
   | { cmd: 'update'; data: string }
-  | { cmd: 'settle'; data: string }
-  | { cmd: 'measure' }
+  // `id` (playout adjustments): an identified settle or measure answers with the whole measurement
+  // under that id (preview/settleGraphic.ts `measureGraphic`); without it, the plain box as before.
+  | { cmd: 'settle'; data: string; id?: number }
+  | { cmd: 'measure'; id?: number }
   // `at` carries the ControlMessage's own instant (see control/controlModel.ts): a graphic that
   // runs a clock anchors it to that rather than to its local Date.now(), so two renderers given
   // the same log row agree. Absent for an editor-driven dispatch, which has neither.
-  | { cmd: 'dispatch'; event: string; payload?: Record<string, string>; at?: number }
+  // `payload` is a typed action's arguments as they are (E2.1), or a native event's strings.
+  | { cmd: 'dispatch'; event: string; payload?: Record<string, string> | JsonValue; at?: number }
   | { cmd: 'state' }
   /**
    * THE WARM PASS (READY's guarantee 5): run `update` with `data` off air, in the command queue like
@@ -119,6 +129,18 @@ export type PreviewCmd =
    *  composeDocument.ts) — so a sender should always state `timers` explicitly: `false` for a
    *  design-view park, `true` for renderer recovery (the output stage does). */
   | { cmd: 'snap'; assignments: Record<string, string> | null; timers?: boolean }
+  /**
+   * TYPE AND COLOUR (playout adjustments, phase 2): replace the style this document holds with
+   * `vars` (`:root` variables by name without dashes, set on `document.documentElement`, which no
+   * reset under the graphic's root touches) and `faces` (the `@font-face` rules the variables name,
+   * control/cueStyle.ts `facesCss`). Null `vars` and '' `faces` put the design back. The command
+   * holds the queue while the named faces load (capped like a Take's font wait), refits the graphic
+   * through its own update() when its face came after the cap, and answers `PREVIEW_RESTYLED_TYPE`; a
+   * load that completes after a newer `style` does nothing (the latest-request guard).
+   */
+  /** `alone`: the update it rides carries no values (an appearance-only update, phase 3), so a
+   *  refit the style needs runs at once with the values the graphic last took. */
+  | { cmd: 'style'; vars: Record<string, string> | null; faces: string; alone?: boolean }
   /**
    * The legacy simulator lifecycle, distinct from the plain
    * 'play'/'stop'/'next' above: these prefer the house builder contract (`buildInTimeline`/

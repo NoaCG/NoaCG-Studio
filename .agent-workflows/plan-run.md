@@ -1,63 +1,63 @@
 # plan-run - run a long plan phase by phase
 
-`/plan-run <plan> until <time>` (Codex: `$plan-run`). Fresh builders and independent checkers alternate; the next phase waits for PASS. Use `.agent-workflows/cloud-delegate.md` for cloud routing and executing-worker resources.
+`/plan-run <plan> until <time>` (Codex: `$plan-run`). Fresh builders and independent checkers alternate; the next phase waits for PASS. `/plan-create` sets a run up (project, wave file, kit, run issue, triggers); this procedure executes it. Use `.agent-workflows/cloud-delegate.md` for cloud routing and executing-worker resources.
 
 **Runnable plans** (a name here and nothing else):
 
 - `editor`: `docs/EDITOR_REBUILD_PLAN.md`; its order and acceptance are in `docs/EDITOR_PLAN.md`.
-- `guided-mod`, `production-page`, `ci-plan`, `svg-import-engine`, `wizard-shell`, `wizard-ai`, `noacg-harness`, `vmix`, `codebase-health`: `docs/work-specs/<spec>/spec.md`, where `<spec>` is `guided-mod`, `production-page-refactor`, `ci-plan-reliability`,
-  `svg-import-engine`, `wizard-structure`, `wizard-ai`, `noacg-harness`, `bridge-vmix-adapter`, `codebase-health`; phases, acceptance and notes are in it.
+- `guided-mod`, `production-page`, `ci-plan`, `svg-import-engine`, `wizard-shell`, `wizard-ai`, `noacg-harness`, `vmix`, `codebase-health`: `docs/work-specs/<spec>/spec.md`, where `<spec>` is `guided-mod`, `production-page-refactor`, `ci-plan-reliability`, `svg-import-engine`, `wizard-structure`, `wizard-ai`, `noacg-harness`, `bridge-vmix-adapter`, `codebase-health`; phases, acceptance and notes are in it.
 - `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; `agent-delivery`, `codex-graphic-preview`, `harness-ladder`: `docs/work-specs/<plan>/spec.md`; phases, acceptance and notes are in each. The preview's phase 1 is local.
+- `cicd-improvement`: `docs/work-specs/cicd-improvement/spec.md`, with execution details in its `runbook.md`. Registered for preparation only: do not open a project or launch until the owner explicitly authorizes execution with a finite deadline and the runbook's production-page completion and review prerequisites are met. Only its numbered `## Phases` are executable; optional P5/P6 are excluded.
+
+- `jev-svg-import`: `docs/work-specs/jev-svg-import/spec.md`, with exact phase metadata and preparation/start contract in its `runbook.md`. **Preparation-only registration:** do not open a project, start a block, create the run issue or arm triggers until the owner says start and the runbook's pre-start prerequisites pass. The approved $5 ceiling, 14-day window and standing block renewal do not start the run.
 
 ## Boundaries
 
 - **A wave runs alone; plan runs of different plans may run side by side** (never two on one file).
 - **Finite owner-authorized project deadline**: no 24-hour project ceiling. Ordinary day/night waves keep theirs.
 - **Only phases written in the plan.** Preserve phase set, order, dependencies, acceptance and required environments; refuse missing acceptance.
-- **Only the merge queue writes `main`.** Sessions land themselves with `/queue-merge`.
+- **Only the merge queue writes `main`.** Workers land with `/queue-merge`'s cloud path. One approval path for every PR: the worker stops with its gates green on the reviewed head (CI gate, the Codex review handled, the configured-suite run finished green, `/so` A or A+). Reviewed is not a worker prerequisite: it consumes the coordinator's stamp. The coordinator reads these gates and confirms the configured run's `head_sha` equals the reviewed head, then posts `noacg/reviewed` on that head and enables auto-merge immediately, checking the PR head before and after as queue-merge requires. GitHub waits for Reviewed and every required check before queue admission; recover an earlier Reviewed timeout through the existing queue procedure. A moved head requires fresh evidence and disables auto-merge. Workers never self-approve.
 - The wave file is the continuing project/phase ledger; use the existing supervisor for ownership and recovery, never a second ledger.
 - **Never touch another session's worktree**, and `docs/private/` stays private. Keep this coordinator thin; fresh builders and independent checkers do real work.
 
-## 1. Prepare, qualify and open
+## 1. Start, continue and qualify
 
-- Default timezone-free owner dates/times (including today/tomorrow and `until 18:00`) to Finnish time, `Europe/Helsinki`, unless the owner supplies another timezone/offset.
-  Resolve its calendar date and daylight-saving offset independently of the machine/client timezone; report the resolved local date, time, zone and offset before launch.
-  Pass explicit-offset ISO timestamps to authorization, block and wake tools; preserve recorded instants on resume. Ask only when the intended date/time is unclear or repeated/nonexistent at a daylight-saving transition.
-- Take scope, permission policy, start and finite deadline from current explicit owner authorization; earlier sessions grant no renewal.
-  Derive the stable project ID, project JSON, block setup and worker briefs from that authorization and the actual plan
-  (`docs/work-specs/continuing-plan-preparation/runbook.md`). Copy its exact phases/acceptance; ask only for missing owner decisions, not operational metadata.
+- Default timezone-free owner dates/times (including today/tomorrow and `until 18:00`) to Finnish time, `Europe/Helsinki`, unless the owner supplies another timezone/offset. Resolve the date's daylight-saving offset independently of the machine, report the resolved local date, time, zone and offset, pass explicit-offset ISO timestamps to every tool and preserve recorded instants on resume. Ask only when the date/time is unclear or repeated/nonexistent at a transition.
+- Scope, permission policy, standing permissions, start and finite deadline come from current explicit owner authorization, recorded verbatim by `/plan-create`; earlier sessions grant no renewal.
+- First run `node scripts/run-supervisor.mjs continue <state-root> <plan> <owner>`: it continues the plan's active project in this session with a new block and restores its kit, or answers `open`. On `open`, set the run up with `/plan-create` (it opens with `node scripts/wave-plan-store.mjs --open`, registers and starts the first block); never open a second project to escape an unfinished one. Same ID, deadline, scope and ledger on every restart; legacy short-window records keep their compatibility path, and migrating one needs explicit review.
 - Qualify the coordinator and each fresh worker in their own worktrees before substantive work. Inspect effective terminal/subprocess/network/approval policy.
   Run `node scripts/plan-run-preflight.mjs --context coordinator --until <short qualification end>` in two separate shell calls;
   repeat with `--context worker` in a fresh delegated context. On a project resume use `--wave <file>` after its authorized block opens.
   Use supported shell network permission. Record non-secret receipts in the existing ledger, separating sandboxed, approved-network and escalated evidence.
   One pass is not reusable permission. Tool approval waits are pending, not executed failures. Requalify after policy/context changes.
   An unavailable owner prerequisite produces one concrete configuration request; checkpoint and stop dependent work without approval loops or provider substitution.
-- First run `node scripts/run-supervisor.mjs continue <state-root> <plan> <owner>`: it continues the plan's active project in this session with a new block, or answers `open`.
-  Open only when execution is actually authorized: `node scripts/wave-plan-store.mjs --open <first-date> plan-<plan> --until <original-deadline> --project <json>`.
-  The file starts paused. Register its manifest, id `plan-<plan>-<first-date>` with the recovery ref, via `run-supervisor.mjs register <db> <manifest.json>`.
-  `run-supervisor.mjs start-block <db> <id> <block.json>` opens one bounded block with owner, deadline and reconciliation evidence.
-  Same ID, deadline, scope and ledger on every restart; legacy short-window records keep their compatibility path, migration needs explicit review.
-- Prefer qualified cloud implementation and software verification via `.agent-workflows/cloud-delegate.md`. Route device/OS/performance/human acceptance to the plan's required environment.
+- Prefer qualified cloud implementation and software verification via cloud-delegate; route device/OS/performance/human acceptance to the phase's required environment.
   Use its capability-aware native session/workflow, worktree, completion and wake selection; the supervisor is the sole phase-admission authority. Same-VM qualification is not a native cloud-child receipt.
-- Arm only qualified, authorized block-specific wakes. `node scripts/run-wake.mjs awake <file>` holds locally only through the active block. A scheduling acknowledgement or heartbeat is a check-in, not continuation.
+- **The kit** (`<wave>.kit/`, `scripts/plan-kit.mjs`) holds the run's state: `state.json` (in flight, waiting on with its ETA, owner items, fixes, trigger ids), the brief templates and every brief sent. Change `state.json`, never a trigger prompt, then `node scripts/run-supervisor.mjs publish <db> <id>`; every `record` publishes it too, and `continue` restores it.
+- **Heartbeat:** render it with `node scripts/plan-kit.mjs heartbeat <wave>` and post it whole to the run issue's heartbeat comment after each recorded event; never edit it by line.
+- **Check-in:** arm only qualified, authorized block-specific wakes: one trigger per coordinator session, `plan-run check-in <project id>`, whose message only names the wave file and says to read the kit's `state.json` and follow this procedure. At the end of every turn set it to `node scripts/plan-kit.mjs checkin <wave>`'s time (move the one you have, delete extras, keep none when it says none). It follows what is waited on: a run's ETA, a worker's idle threshold, a long fallback while the owner's answer is owed, nothing once he holds a hand-over.
+  On a check-in, first `node scripts/run-supervisor.mjs renew <db> <id> <block.json>` when the owner gave standing block renewal (it opens the next block only after the last ended, never after his pause); without it a block end asks him. `node scripts/run-wake.mjs awake <file>` holds locally only through the active block. A scheduling acknowledgement or heartbeat is a check-in, not continuation.
 
 ## 2. Continuing loop and ownership
 
-`node scripts/plan-run.mjs next <wave file>` names the next step (a project: `run-supervisor.mjs next <db> <id>`). For projects the only phase admission is
-`node scripts/run-supervisor.mjs record <db> <id> <phase> <event> <detail> --authority <current-block.json>`; `<phase>` is the 1-based row of `## Phases`.
-The supervisor's local transaction and ledger admission lock serialize claims; direct project `plan-run record` is refused.
+`node scripts/plan-run.mjs next <wave file>` names the next step (a project: `run-supervisor.mjs next <db> <id>`, which also names the phase's id). For projects the only phase admission is
+`node scripts/run-supervisor.mjs record <db> <id> <phase> <event> <detail> --authority <current-block.json>`; `<phase>` is the phase id (the one briefs, branches and receipts use) or its 1-based row of `## Phases`.
+The supervisor's local transaction and ledger admission lock serialize claims; direct project `plan-run record` is refused. Phases the owner admits later enter only by `run-supervisor.mjs admit <db> <id> <admission.json> --authority <current-block.json>`, `{receipts: [paths on main], commit, insert: [{after: <phase id>, phases: [...]}]}`: inserts only after the last phase with a ledger event, renumbers the rest and logs `admitted`.
 Launch/verdict detail is a JSON actor/evidence receipt (runbook). Record the intent before any external launch; reconcile uncertain acceptance before replay.
-Projects use `continue`, `start-block`, `record` and `next`; never `tick` (a continued store's adapter answers unknown).
+Projects use `continue`, `start-block`, `renew`, `record` and `next`; never `tick` (a continued store's adapter answers unknown).
 
-- **launch build/repair**: use the brief below in the phase's owned worktree. Record `landed {"mergeSha"}` once the merge is observed.
+- **launch build/repair**: `node scripts/plan-kit.mjs brief <wave> build|repair <phase id> SOURCE=<origin/main SHA>` (a repair adds `CARRY=<the check's findings>`) renders the brief, saved in the kit; launch it in the phase's owned worktree. Record `landed {"mergeSha"}` once the merge is observed.
   Preserve carry findings, failure history and existing per-command/test bounds. A recorded intent alone proves no worker was launched.
-- **launch check**: fresh independent checker on that immutable merge SHA at once, without inherited build/repair conversation or a context-sharing builder fork.
+- **launch check**: `plan-kit.mjs brief <wave> check <phase id> MERGE=<sha> PR=<n>` (add `NOTES=` with the plan notes to land when `next` says so); a fresh independent checker on that immutable merge SHA at once, without inherited build/repair conversation or a context-sharing builder fork. Its brief opens: You did not build it.
   PASS requires evidence for every authorized criterion in its specified environment, and `mergeChecks` once every exact-merge check is green or, where its plan allows, red only on specs the phase did not cause, each named with its issue (it waits for them; when main cancelled a merge's run as superseded, it dispatches `ci.yml` on a `claude/check-<sha7>` branch at that SHA).
   `fail product:` gets one repair; `fail blocked:` one more check. An infrastructure/capacity outage spends no budget: the step stays in flight, `wait`, `clear-wait`, resume.
+- **owner**: a phase whose environment starts `OW:`. Post the hand-over on the run issue (the kit to use, what to bring, how to report), add it to `state.json`'s owner items and keep no check-in. Record `build` with the owner's receipt when he starts; his receipts land through a PR and are checked like any phase.
+- **A gate red outside the change** (see `docs/plan-runs/known-traps.md`): the worker runs a control on main without the change. Failing there too, or outside the diff's reach, it is its own issue, and the coordinator may approve the PR with a written reason in the PR and the next ledger receipt. Never change the judge.
+- **Owner-requested fixes** outside the phases use `plan-kit.mjs brief <wave> fix <issue> SOURCE=<sha> TITLE=<title>` and the same gates; track them in `state.json`. Land them before a docs or reconciliation phase that must describe them, or launch that phase after they land.
 - **diagnose** (a second failure): one fresh agent, independent of every builder, repairer and checker of the phase, records `diagnose`
   `{"actor","decision":"repair"|"check"|"stop","reason"}`: one last scoped repair (after product fails), one re-check after a blocked prerequisite recovered, or stop for the owner. Any failure after it stops; counts never go down, and the owner's `answered` to a phase out of attempts grants exactly one more.
 - **wait**: reconcile the original native worker, PR, jobs and exact tested revision first. Record observed `landed`, or wait for its queue; never start another branch/phase.
-  Unknown status or lost acknowledgement is unresolved, never absence. Never sit idle: wait in a running background job or monitor so a cloud machine is not reclaimed.
+  Unknown status or lost acknowledgement is unresolved, never absence. Never sit idle: wait in a running background job or monitor so a cloud machine is not reclaimed; put what you wait on and its ETA in `state.json`.
   From it run `node scripts/worker-progress.mjs --branch <branch> --wave <file> --event-at <ISO time of the worker's newest assistant or tool event in list_events, never a user or system event>` (only work since the launch counts, merge-queue runs included). On `idle` (30 minutes) nudge; if still idle, stop it, record
   `resume` with the replacement's JSON actor receipt (a checker's is independent of every builder) and launch it on the pushed branch. `queued` (a run waiting over an hour for a runner) is an infrastructure wait, told to the owner after two hours; `unknown`: reconcile; neither replaces.
 - **retro**: write the requested `## Midpoint retro` (orchestrator step 6, five lines), then ask `next` again.
@@ -70,20 +70,5 @@ Projects use `continue`, `start-block`, `record` and `next`; never `tick` (a con
 - **cancel/expired**: owner cancellation or original deadline ends launch authority. Preserve unfinished work, findings, pending evidence and queued PR ownership.
 - **done**: `finish` needs every phase/acceptance PASS (block end leaves them resumable). Write the final report/retro, exact-merge results and limitations; stop wakes.
 
-Use `<tool>/plan-<plan>-p<phase>-<build|check|repair>` worktrees. Native routing, bounded waits and one acknowledged PR repair owner follow cloud-delegate and queue-merge.
+Briefs come from the kit's templates (`docs/plan-runs/templates/`, linking `docs/plan-runs/known-traps.md` rather than copying it) and name the worktree's branch `<tool>/plan-<plan>-<phase id>-<build|check|repair>` (`state.json`'s `branchPrefix`, default `claude`). Native routing, bounded waits and one acknowledged PR repair owner follow cloud-delegate and queue-merge.
 Before relevant manual Actions dispatches follow verification lookup's observation procedure in verify.md; measurement behavior and failure/retry restrictions stay unchanged.
-
-**Builder brief** (after orchestrator step 3's row brief):
-```text
-PHASE    <n> of <plan>: <name>. Read its decisions; build only its authorized acceptance.
-NOTES    Same PR, under ## Phase notes or in the file it names: previous findings, constraints, decisions and traps.
-FINDINGS <carry from next, or none>. Checkpoint on pause/block/deadline; never broaden scope.
-```
-**Checker brief**:
-```text
-CHECK   Phase <n> of <plan>. You did not build it. On the landed merge SHA do the user's task
-        and check EVERY criterion/outcome in its required environment. Change no product code.
-        PASS needs your own evidence for all criteria and every exact-merge check green, or red only where the plan allows. Infrastructure down is no FAIL:
-        report it unavailable (a wait). Else FAIL product or blocked (a prerequisite), named; keep findings and exact tested revisions, weaken no test or retry limit.
-NOTES   <land the required plan notes through /check and /queue-merge | open no PR>.
-```

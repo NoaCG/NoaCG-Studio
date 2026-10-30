@@ -25,9 +25,9 @@
 // reported and skipped, a missing row keeps the field's value, an empty Value clears.
 //
 // Pure and Node-importable (production-page spec §5.2): scripts/content-formats.test.mjs runs it.
-import type { SavedGraphic } from '../model/packets';
+import type { TemplateType } from '../model/types';
 import type { FieldDescriptor } from '../model/fieldModel';
-import { detectSeparator, parseDelimited, serializeCsv } from '../model/csv.ts';
+import { detectSeparator, parseDelimited, serializeCsv } from '../model/csv.js';
 
 export type ListAdapter = 'lines' | 'schedule' | 'standings' | 'credits';
 
@@ -61,7 +61,10 @@ const ROLE_LABEL_MAX = 48;
  * Read from what the graphic IS, never from a field title the operator can rename: its type,
  * and for the two types that hold other designs too, the runtime that reads the field.
  */
-export function listFormatFor(graphic: Pick<SavedGraphic, 'type'> & { template: { js?: string } }, fieldId: string): ListFormat | null {
+/** What a graphic's list formats are read from: its type and its code. */
+export type GraphicShape = { type: TemplateType; template: { js?: string } };
+
+export function listFormatFor(graphic: GraphicShape, fieldId: string): ListFormat | null {
   const js = graphic.template.js ?? '';
   if (graphic.type === 'ticker' && fieldId === 'f0') return { adapter: 'lines', main: 'f0' };
   if (graphic.type === 'end-credits' && fieldId === 'f0') return { adapter: 'credits', main: 'f0' };
@@ -151,7 +154,14 @@ export interface ListFill {
 }
 
 /** A cell as one line of text: a line break inside a cell would split one row into two. */
-const cellText = (cell: string): string => cell.replace(/\s*\n\s*/g, ' ').trim();
+// Split and trimmed, not `replace(/\s*\n\s*/g, ' ')`: that regex retries every start of a long
+// whitespace run, so 200 KB of spaces took 47 s (hostile input reaches here from a source, E4.2).
+const cellText = (cell: string): string =>
+  cell
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ');
 
 /** Without its trailing empty cells, which a wide spreadsheet selection always brings. */
 function trimRow(cells: string[]): string[] {
@@ -336,7 +346,7 @@ export const SCALAR_HEADER = ['Field ID', 'Label', 'Value'] as const;
 
 /** The fields a data template carries: every editable value but pictures, and but the list
  *  fields an adapter fills (those have their own starter rows). */
-export function scalarFields(graphic: Pick<SavedGraphic, 'type'> & { template: { js?: string } }, descriptors: FieldDescriptor[]): FieldDescriptor[] {
+export function scalarFields(graphic: GraphicShape, descriptors: FieldDescriptor[]): FieldDescriptor[] {
   return descriptors.filter((d) => d.kind !== 'image' && !listFormatFor(graphic, d.key));
 }
 

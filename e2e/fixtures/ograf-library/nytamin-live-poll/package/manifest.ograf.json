@@ -1,0 +1,140 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "news-live-poll",
+  "version": "1.0.0",
+  "name": "News Live Poll",
+  "description": "Broadcast lower-third live poll and stats graphic. Used to display real-time poll results and statistics.",
+  "author": {
+    "name": "OGraf Templates"
+  },
+  "main": "live-poll.js",
+  "supportsRealTime": true,
+  "supportsNonRealTime": true,
+  "stepCount": 1,
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      },
+      "frameRate": {
+        "ideal": 50
+      },
+      "accessToPublicInternet": {
+        "ideal": false
+      }
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "title": "Poll Title",
+        "description": "Headline displayed in the top header bar of the live poll lower-third",
+        "default": "LIVE VIEWER POLL • ECONOMIC OUTLOOK",
+        "gddType": "single-line"
+      },
+      "items": {
+        "type": "array",
+        "title": "Poll Items",
+        "description": "List of poll options with label text and numeric value",
+        "items": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "title": "Option Text",
+              "description": "Label for this poll row",
+              "default": "OPTION",
+              "gddType": "single-line"
+            },
+            "number": {
+              "type": "number",
+              "title": "Number",
+              "description": "Numeric stat value represented by the horizontal bar",
+              "default": 50
+            }
+          },
+          "required": [
+            "text",
+            "number"
+          ]
+        },
+        "default": [
+          {
+            "text": "STRONGLY APPROVE",
+            "number": 54
+          },
+          {
+            "text": "SOMEWHAT APPROVE",
+            "number": 29
+          },
+          {
+            "text": "UNDECIDED / NEUTRAL",
+            "number": 17
+          }
+        ]
+      },
+      "unit": {
+        "type": "string",
+        "title": "Value Suffix",
+        "description": "Optional unit suffix appended after each number (e.g. % or pts)",
+        "default": "%",
+        "gddType": "single-line"
+      },
+      "position": {
+        "type": "string",
+        "title": "Horizontal Alignment",
+        "description": "Horizontal placement of the live poll lower-third",
+        "enum": [
+          "bottom-left",
+          "bottom-center"
+        ],
+        "default": "bottom-left",
+        "gddType": "select",
+        "gddOptions": {
+          "labels": {
+            "bottom-left": "Bottom Left",
+            "bottom-center": "Bottom Center"
+          }
+        }
+      },
+      "primaryColor": {
+        "type": "string",
+        "title": "Header Box Color",
+        "description": "Base hex color for the poll title bar gradient",
+        "default": "#0f2b5b",
+        "pattern": "^#[0-9a-f]{6}$",
+        "gddType": "color-rrggbb",
+        "hidden": true
+      },
+      "secondaryColor": {
+        "type": "string",
+        "title": "Row Box Color",
+        "description": "Base hex color for the poll item row boxes",
+        "default": "#162032",
+        "pattern": "^#[0-9a-f]{6}$",
+        "gddType": "color-rrggbb",
+        "hidden": true
+      },
+      "accentColor": {
+        "type": "string",
+        "title": "Bar & Accent Color",
+        "description": "Base hex color for the left accent bar, swipe wipers, and horizontal stat bars",
+        "default": "#d32f2f",
+        "pattern": "^#[0-9a-f]{6}$",
+        "gddType": "color-rrggbb",
+        "hidden": true
+      }
+    },
+    "required": [
+      "title",
+      "items"
+    ]
+  }
+}

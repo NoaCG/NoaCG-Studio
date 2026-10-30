@@ -105,8 +105,9 @@ export function twitchChatDriver(channel: string, handlers: ChatDriverHandlers):
           ws.send(line.replace('PING', 'PONG'));
           continue;
         }
-        // `:tmi... 366 justinfan #chan :End of /NAMES list` - the join is confirmed.
-        if (line.includes(' 366 ')) {
+        // `:tmi... 366 justinfan #chan :End of /NAMES list` - the join is confirmed. The numeric
+        // must be the command: a chat line about "366 votes" is chat.
+        if (/^(?:@\S+ )?:\S+ 366 /.test(line)) {
           retryMs = 1_000; // a confirmed join resets the backoff ladder
           handlers.onStatus('live');
           continue;

@@ -7,6 +7,10 @@
 // imported quiz recipe, the road rule and its clock test, and the two pages that send.
 // covers: src/{templates/{types/{answerBoard,quizShow},behaviours/quiz},control/{hostedControl,matchClockWire}}.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/CueActions.tsx, src/control/liveControls.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // Every catalog quiz and the imported docs quiz: a key corrected on air lights with Reveal,
 // the two answer models stay what they are, and a clock-free event takes the fast road.
@@ -59,6 +63,7 @@ async function quizMeta(page: Page, id: string) {
       correct: byTitle('Correct answer').field,
       selected: byTitle('Selected answer').field,
       key: byTitle('Correct answer').value,
+      letters: (byTitle('Selected answer').items ?? []).filter((it) => it.value !== '').length,
     };
   }, id);
 }
@@ -68,7 +73,8 @@ const row = (letter: string) => letter.charCodeAt(0) - 65;
 
 // The two answer models. The SHOW boards (qz13-qz15, types/quizShow.ts) pick in one press per
 // letter and have no lock; every other board, and the imported quiz, picks with a letter in the
-// cue plus Select answer, and locks. Arcade is a show board, so it matches Sticker and Showtime.
+// LIVE block's one-press Select answer letters (pinned live controls AC-4), and locks. Arcade is a
+// show board, so it matches Sticker and Showtime.
 const SHOW_CONTROLS = ['pickA', 'pickB', 'pickC', 'pickD', 'clearPick', 'judge'];
 const BOARD_CONTROLS = ['select', 'lock', 'revealChoice', 'judge', 'audience'];
 const IMPORTED_CONTROLS = ['select', 'lock', 'revealChoice', 'judge'];
@@ -91,8 +97,9 @@ for (const id of CATALOG) {
     if (show) {
       await page.getByTestId('cue-action-pickB').click();
     } else {
-      await page.getByTestId(`cue-field-${meta.selected}-opt-B`).click();
-      await page.getByTestId('cue-action-select').click();
+      // One press: the letter IS the Select (pinned live controls AC-4); no second pick group.
+      await expect(page.getByTestId('cue-action-select').locator('button')).toHaveCount(meta.letters);
+      await page.getByTestId('cue-pick-select-B').click();
       await page.getByTestId('cue-action-lock').click();
     }
     await expect(program.locator('.quiz-option').nth(1)).toHaveClass(/quiz-sel/);
@@ -151,8 +158,7 @@ test('a catalog quiz saved before Reveal carried the key still reveals the key i
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
-  await page.getByTestId(`cue-field-${meta.selected}-opt-B`).click();
-  await page.getByTestId('cue-action-select').click();
+  await page.getByTestId('cue-pick-select-B').click();
   await page.getByTestId('cue-action-lock').click();
   const other = meta.key === 'A' ? 'B' : 'A';
   await page.getByTestId(`cue-field-${meta.correct}-opt-${other}`).click();
@@ -172,8 +178,9 @@ test('the docs example quiz: a correct answer changed on air reaches PROGRAM wit
   await expect(page.getByTestId('cue-actions').locator('h4').first()).toHaveText('Pick, then lock');
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   const look = (name: string) => program.locator(`[data-noacg-role~="${name}"]`);
-  // The mapped quiz's two letter pickers, in the order the recipe declares them: the key, the pick.
-  const [correct, selected] = await page
+  // The mapped quiz's letter picker in the cue is the key; the pick is the LIVE block's letters,
+  // its field moved under Advanced (pinned live controls AC-4, D8).
+  const [correct] = await page
     .locator('[data-testid^="cue-field-"][role="radiogroup"]')
     .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!));
   const key = (await page.locator(`[data-testid="${correct}"] [aria-pressed="true"]`).textContent())!.trim();
@@ -181,8 +188,8 @@ test('the docs example quiz: a correct answer changed on air reaches PROGRAM wit
 
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
-  await page.getByTestId(`${selected}-opt-C`).click();
-  await page.getByTestId('cue-action-select').click();
+  await page.getByTestId('cue-pick-select-C').click();
+  await expect(page.getByTestId('cue-pick-select-C')).toHaveAttribute('aria-pressed', 'true');
   await page.getByTestId('cue-action-lock').click();
   await page.getByTestId(`${correct}-opt-${other}`).click();
   await page.getByTestId('cue-action-judge').click();
@@ -199,6 +206,53 @@ test('the docs example quiz: a correct answer changed on air reaches PROGRAM wit
   const saved = await saveAsBeforeTheFix(page);
   expect(saved.savedPayload).toBeNull();
   expect(saved.readPayload).toEqual([saved.key]);
+});
+
+// 5. THE PICK IS ONE PRESS on every answer board (pinned live controls AC-4): a letter under
+//    Select answer selects it on PROGRAM and reads active, another letter moves it, and the
+//    hidden-choice format survives one disclosure away: a letter typed under Advanced, locked from
+//    the question, painted only by Reveal choice.
+
+test('a classic board picks in one press, moves the pick, and keeps the hidden-choice flow under Advanced', async ({ page }) => {
+  await page.goto('/');
+  const meta = await quizMeta(page, 'qz01');
+  await bootstrapGraphic(page, meta.name);
+  await openProductionWithCurrent(page, 'One press quiz');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  const chip = page.getByTestId('machine-state-chip');
+  // PREP keeps the key and the texts; the pick's field is not a box there.
+  await expect(page.getByTestId(`cue-field-${meta.correct}-opt-A`)).toBeVisible();
+  await expect(page.getByTestId(`cue-field-${meta.selected}-opt-B`)).toHaveCount(0);
+  await expect(page.getByTestId('cue-advanced-summary')).toContainText('Selected answer');
+
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question');
+  await page.getByTestId('cue-pick-select-B').click();
+  await expect(chip).toHaveText('Answer selected');
+  await expect(program.locator('.quiz-option').nth(1)).toHaveClass(/quiz-sel/);
+  await expect(page.getByTestId('cue-pick-select-B')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('cue-pick-select-C').click();
+  await expect(program.locator('.quiz-option').nth(2)).toHaveClass(/quiz-sel/);
+  await expect(program.locator('.quiz-option.quiz-sel')).toHaveCount(1);
+  await expect(page.getByTestId('cue-pick-select-C')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('cue-pick-select-B')).toHaveAttribute('aria-pressed', 'false');
+  // Locked, the letters grey with the machine: no select arrow leaves `locked`.
+  await page.getByTestId('cue-action-lock').click();
+  await expect(chip).toHaveText('Locked in');
+  await expect(page.getByTestId('cue-pick-select-A')).toBeDisabled();
+  await page.getByTestId('verb-out').click();
+  await expect(chip).toHaveText('not on air');
+
+  // THE HIDDEN CHOICE: typed under Advanced, sealed from the question, shown only on Reveal choice.
+  await page.getByTestId('cue-advanced-toggle').click();
+  await page.getByTestId(`cue-field-${meta.selected}-opt-D`).click();
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question');
+  await page.getByTestId('cue-action-lock').click();
+  await expect(chip).toHaveText('Locked, choice hidden');
+  await expect(program.locator('.quiz-option.quiz-sel')).toHaveCount(0);
+  await page.getByTestId('cue-action-revealChoice').click();
+  await expect(program.locator('.quiz-option').nth(3)).toHaveClass(/quiz-sel/);
 });
 
 test('a clock-free graphic sends its events on the fast road, and a clock keeps the slow one', async ({ page }) => {

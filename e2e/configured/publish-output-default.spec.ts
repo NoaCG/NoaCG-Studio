@@ -1,5 +1,6 @@
 // covers: src/backend/auth.ts, src/model/outputSetup.ts, src/components/DefaultOutputPreference.tsx
 // covers: src/components/home/{ProductionPage,PlayoutPanel}.tsx
+// covers: src/components/home/useProductionPublish.ts
 import { test, expect, type Page } from '@playwright/test';
 import { haveCreds, signIn } from './_helpers';
 import { awaitDurableReady, settleDurableWrites } from '../_durable';

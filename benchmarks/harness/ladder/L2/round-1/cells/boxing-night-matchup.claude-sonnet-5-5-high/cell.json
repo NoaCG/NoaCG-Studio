@@ -1,0 +1,172 @@
+{
+  "costUnread": false,
+  "brief": "boxing-night-matchup",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "failed",
+  "reason": "no record handed in",
+  "sessionId": "c01aa553-a447-444c-9730-bc4d69b5b589",
+  "costCents": 0,
+  "notionalUsd": 2.3620051000000006,
+  "wallSeconds": 655,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type matchup --design neutral --out ./graphic",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type matchup --design mu01 --out ./try-mu01",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type matchup --design mu02 --out ./try-mu02",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type matchup --design mu03 --out ./try-mu03",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type matchup --design mu04 --out ./try-mu04",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./try-mu01 --screenshots ./shots01",
+      "code": 0,
+      "digest": "sha256:77b8281cbfb78fe7fedef216363a72eb7e51867434f66b5f50633523690a08ff"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:18a9b5d9c5c9ece8c194fb91514bb30ff36cd8c18ab3d80e7374dff14b17ee21"
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f10=Test --out ../t1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ../testcopy --state onair --data f6=images/white.svg --data f7=images/green.svg --out ../t2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:206dc7fe5a953068df030c40ec0a17750c62686b6900df2022cc74808c59a257"
+    },
+    {
+      "command": "noacg screenshot ../testcopy --state onair --data f6=images/white.svg --data f7=images/green.svg --data f0=Tadhg Ó Súilleabháin-Mac Giolla Phádraig --data f1=Gediminas Šimkūnavičiūtė-Ąžuolaitis --data f8=The Pride of the Ballymun Road and Beyond --data f9=Žaibas Iš Šiaulių, Czar of the Baltic --event select --event lock --data f5=A --out ../t3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage graphic --out ../outputs/coverage",
+      "code": 1,
+      "digest": "sha256:206dc7fe5a953068df030c40ec0a17750c62686b6900df2022cc74808c59a257"
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 1,
+      "digest": "sha256:1d573206dc32298ea5f4cfc1f90ee31149abb1f5a3d5b83d892fe87ff071389c"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:1cef9d30826673d97a47544912fbf9655eb8fbbacbd3341f5af04c6a2b55125d"
+    },
+    {
+      "command": "noacg inspect graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot testcopy --state onair --event selectBlue --event lock --event clear --event selectRed --out t4.png",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot testcopy --state onair --event selectBlue --event lock --event clear --out t5.png",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot testcopy --state onair --data f6=images/white.svg --data f7=images/green.svg --event selectBlue --event lock --event clear --event selectRed --out t4.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot testcopy --state onair --event selectBlue --event lock --event clear --out t5.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage graphic --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:1cef9d30826673d97a47544912fbf9655eb8fbbacbd3341f5af04c6a2b55125d"
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f14=Bout 6 · 3 × 2 min · Leinster Novice Final · Semi-final Replay Special --out t6.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:62e320094adc2880cb14894bfc8bc46d9414e5e97609f4ddc0914aa1a08634b6"
+    },
+    {
+      "command": "noacg coverage graphic --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:62e320094adc2880cb14894bfc8bc46d9414e5e97609f4ddc0914aa1a08634b6"
+    },
+    {
+      "command": "noacg screenshot graphic --state onair --data f14=Bout 6 · 3 × 2 min Bout 6 · 3 × 2 min --out t7.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record graphic --out ../outputs/record.json --review ../outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:62e320094adc2880cb14894bfc8bc46d9414e5e97609f4ddc0914aa1a08634b6"
+    }
+  ]
+}

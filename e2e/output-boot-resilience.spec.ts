@@ -6,6 +6,9 @@
 // spec, and that host's RPCs are answered here.
 // covers: src/output/main.ts, src/backend/supabase.ts, src/control/hostedControl.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 
