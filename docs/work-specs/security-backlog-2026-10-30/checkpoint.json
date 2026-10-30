@@ -1,19 +1,12 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-30T22:04:43.823799+00:00",
+  "updatedAt": "2026-10-30T22:47:34.188026+00:00",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
-    "dependabot": {
-      "total": 52,
-      "critical": 1,
-      "high": 19,
-      "moderate": 22,
-      "low": 10,
-      "source": "Git push banner observed on30October2026; individual alert API403"
-    },
-    "codeScanningReported": 32,
-    "codeScanningVerified": null,
-    "note": "GitHub security endpoint access denied; do not invent an empty inventory or equate npm counts with GitHub alerts."
+    "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+    "dependabot": 4,
+    "codeScanning": 33,
+    "provenance": "Complete owner-provided GitHub export, not direct API retrieval. Earlier52 banner/32 estimate superseded for this snapshot. Connector scopes are fixed; do not request personal credentials or scope expansion."
   },
   "merged": [
     {
@@ -54,7 +47,17 @@
     "queueHelper": 41131968341,
     "mergeSha": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
     "mergeGroupCI": 41132934526,
-    "postlanding": "Post-landing41134174577 PASS; mainCI41134174507,configured41134174470 andmainCodeQL41134173062 still observed by active owner."
+    "postlanding": "Post-landing41134174577 PASS; mainCI41134174507,configured41134174470 andmainCodeQL41134173062 still observed by active owner.",
+    "state": "merged, exact merge/main/configured/deploy/post-landing checks complete",
+    "merge": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+    "mainCI": 41134174507,
+    "configured": 41134174470,
+    "codeQLAnalysis": 41134173062,
+    "postLanding": 41134174577,
+    "quarantine": 41134174482,
+    "deployVerify": 41134564581,
+    "terminalOwnerComment": 6246562887,
+    "currentAliasAlert": 104
   },
   "residualDependencies": {
     "npmAffectedPackageEntries": {
@@ -66,7 +69,42 @@
     },
     "sharedCause": "GHSA-mrhx-c7xc-m3w5; pinned/direct Zod3/4 copies remain. No forced incompatible major update was made.",
     "additionalLimit": "Monaco0.56.0 vendors DOMPurify3.4.8; the npm override does not update it. An isolated public-package audit yields8 conditional advisories. The inspected wrapper never enables the required setConfig/clearConfig,CUSTOM_ELEMENT_HANDLING,IN_PLACE,SAFE_FOR_TEMPLATES orXHTML-parser conditions; scoped verdicts are not_actionable for this wrapper, not a claim that the entire library is safe. Latest Monaco0.57.0 still declares3.4.15 and is not a complete version-only remedy.",
-    "companionAudit": "Blocked: Corepack requires repo.yarnpkg.com, denied by enforced network policy."
+    "companionAudit": "Blocked: Corepack requires repo.yarnpkg.com, denied by enforced network policy.",
+    "candidateAudits": {
+      "root": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 2,
+        "critical": 0,
+        "total": 2
+      },
+      "cli": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "renderer": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "preview": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    "remainingRoot": "@vercel/sandbox1.6.0 pinsZod3.24.4. No1.x natural remediation. SDK2.2+ replaces sandboxId with name and auto-resumes sessions; @remotion/vercel4.0.488 compiled code still uses sandboxId. docs/STACK_FRESHNESS.md explicitly requires compatible Remotion parent first. Do not force override or hide viazod/v3. CurrentSDKcollections unbounded exceptVercel team-list min1, endpointlimit1; no adversarial max-constrained sink demonstrated. Weekly audit issue1752 remains relevant; no gate changed."
   },
   "deferred": [
     {
@@ -79,10 +117,14 @@
     {
       "pr": 1503,
       "reason": "CI timing snapshot maintenance. It drops current source.observations/source.why provenance and adds six timing records; no security requirement to merge it. Kept for separate timing review."
+    },
+    {
+      "pr": 1834,
+      "reason": "Bot quarantine entry of entire import-svg-corpus suite; not taken over/merged by this security owner. Whole failed job124338789930 read: geometric fit-history assertion at1362/1409 fails then passes same source41134775210, distinct from active-content security assertions. Preserve normal ownership and all security tests."
     }
   ],
   "capabilityGaps": [
-    "Code scanning and Dependabot alert inventory/state APIs denied; direct statuses write denied, normal cloud queue-helper fallback works.",
+    "Security alert APIs/state writes403 and direct commit-status write403. Complete owner export unblocks inventory; normal main-only cloud-queue helper and connector auto-merge work.",
     "Codex cloud CLI task listing401; native remote child launch and environment mapping remain unqualified.",
     "No proven durable wake/re-arm, coordinator restart fencing or filesystem-loss recovery; no scheduler armed.",
     "Same-VM independent agents and browser checks work; this does not qualify separate native cloud workers."
@@ -153,14 +195,109 @@
         "Bounded wake re-arming and base-conflict repair over the authorized window",
         "Separate child launch/mapping if the selected topology requires it; CLIcloud list401"
       ],
-      "providerOnlyMetadata": "Codex execution actors and actual receipts only; do not change product AI providers/models,40phases,26criteria,$5 split or14-day window. Standing renewal and future explicit start remain unchanged."
+      "providerOnlyMetadata": "Codex execution actors and actual receipts only; do not change product AI providers/models,40phases,26criteria,$5 split or14-day window. Standing renewal and future explicit start remain unchanged.",
+      "currentNativeResume": {
+        "nonce": "security-resume-20261030-b1",
+        "agent": "/root/zod_candidate_review",
+        "utc": "2026-10-30 22:44:24 UTC",
+        "cwd": "/workspace/security-cli-zod",
+        "head": "26404f7ff87fbd73e008854acdf96252a20f1878",
+        "scope": "Completed agent resumed across environment reattachment. Same VM; not reclaimed-container/native remote launch proof."
+      },
+      "currentInterface": {
+        "savedEnvironmentConfigId": "edb063df-0ea1-459b-aa80-9147d4138f07~asenvcfg_9b269e66c4208191a2cc6dc009c81bce",
+        "name": "NoaCG-Studio",
+        "runnable": true,
+        "source": "Actual codex_app list_cloud_environments returned ready/runnable. Saved config is not runtime or canonical owner binding.",
+        "launch": "No create_thread/handoff launch tool exposed in current ALL_TOOLS; documentation reference alone is not callable availability. CLIcloud401 unchanged; no retry or credential substitution."
+      },
+      "reattachment": "Two transient shell transport disconnects and selected environment starting->ready reconciled without duplicate PRs/jobs; files/process evidence retained. This is not a proven VM restart/filesystem reconstruction."
     }
   },
-  "resume": "Reconcile this exact source head, original cloud helper and current PR/check/queue/merge state before retrying any operation. Preserve one repair owner. Do not start the Jev run or a competing fixer.",
+  "resume": "Active session remains sole repair owner of1835,1828,1836,1837,1838 until exact-merge/main/post-landing results terminal. Reconcile actual PR/check/job states before any retry. Do not startJev, change40phases/$5/14days, create indefinite scheduling or transplantcredentials.",
   "qualificationReceipts": {
     "preparationPR": 1825,
     "sealedSecretProbe": 41125379127,
     "secretProbeOutcome": "Both fixed PASS lines verified from whole job124302404225: sealed ZIP digest matches with contents unopened; Gateway credits authentication succeeds without inference.",
     "sheetsAndWorkerWake": "PR1825 records six synthetic-sheet reads and temporary write/read/finally-delete pass, native worker follow-up/resume and one disabled active one-shot wake. This does not prove unattended restart or reclaimed-container recovery."
+  },
+  "alertTriage": {
+    "revision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+    "confirmedCodeScanning": [
+      28,
+      1
+    ],
+    "notActionableCodeScanning": [
+      104,
+      99,
+      98,
+      97,
+      96,
+      95,
+      94,
+      93,
+      92,
+      91,
+      90,
+      89,
+      88,
+      87,
+      86,
+      85,
+      84,
+      83,
+      82,
+      78,
+      77,
+      74,
+      73,
+      72,
+      71,
+      57,
+      56,
+      46,
+      45,
+      21,
+      20
+    ],
+    "dependabot": "4 affected package entries warrant compatible updates; scanner runtime scope does not prove hosted collection reachability. Exact post-landing source-system state remains API403.",
+    "administrativeDismissals": false,
+    "alias": "103 PR instance became104 on main; fixed-name guarded attribute write remains a documented exact-claim false positive, with all four supplied flows read."
+  },
+  "activeRepairs": {
+    "1835": {
+      "branch": "security/bridge-origin-normalization",
+      "head": "dbfaea1d791a7195018ef4a768c919f7ff8c2419",
+      "merge": "a7fe94e6dfc5ec78d5a394d2b04ee032da6f7aaf",
+      "state": "merged; main/post-landing under active observation",
+      "groupCI": 41139486932,
+      "finding": 1,
+      "local": "CLI types/build,10 origin/auth/CORS tests and gates pass; independent134447-input comparison equivalent."
+    },
+    "1828": {
+      "branch": "dependabot/npm_and_yarn/cli/plugin-preview/zod-4.6.6",
+      "head": "f9e0e3b4940d4b4697a9a5b66f4d7cd322a8f4f7",
+      "state": "exact-head checks green; auto-merge enabled with pre/post SHA check",
+      "local": "16unit/protocol,2browser/package,5gates; audit0"
+    },
+    "1836": {
+      "branch": "security/cli-zod4",
+      "head": "26404f7ff87fbd73e008854acdf96252a20f1878",
+      "state": "exact-head checks green; auto-merge enabled with pre/post SHA check",
+      "local": "19offlineMCP pass,4livebridge explicitly skipped;28gates;types/build;audit0; published3400schema ceiling unchanged"
+    },
+    "1837": {
+      "branch": "security/zod4-pins",
+      "head": "23fae8c18f499178b5ae123ebdcde96abd02207c",
+      "state": "implementation CI running, no queue yet",
+      "local": "types app/API/renderer and actualRemotion bundle;37gates pass; localbuild j0031 preserves3knownproxy-loopbackfailures,4582pass26skip"
+    },
+    "1838": {
+      "branch": "security/inline-script-inventory",
+      "head": "2fec8a7688f1a3ea0af0d912bc0ab69026a795b2",
+      "state": "implementation CI running, no queue yet",
+      "finding": 28,
+      "local": "6Node regressions; Chromium source/bypass matrix; freshreview2namespacebugs reproduced/fixed;3finalpublication journeys;types/lint;localbuild j0032 preserves3knownproxy-loopbackfailures,4584pass26skip"
+    }
   }
 }

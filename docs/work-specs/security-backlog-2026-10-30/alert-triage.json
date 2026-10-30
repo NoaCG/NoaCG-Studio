@@ -1,0 +1,2087 @@
+{
+  "schema_version": "triage-finding/v0",
+  "repository": {
+    "path": "/workspace/security-inventory-review",
+    "revision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+  },
+  "findings": [
+    {
+      "triage_item_id": "codeql-104",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/104",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/assets/svgImport.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/assets/svgImport.ts:483",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "high",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/assets/svgImport.ts",
+          "lines": "483",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "BrandEditor or wizard file upload",
+        "importSvgMarkup XML parser then sanitize",
+        "Positive URI guard before alias copy; XMLSerializer escaping before later HTML parse"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "isAllowedSvgRef positively restricts normalized href to a fragment or image data in image/feImage context before the fixed-name attribute write (src/assets/svgImport.ts:374-379,466-484).",
+        "DOM setAttribute stores attribute text; XMLSerializer escapes it before HTML reparsing. Full four owner-supplied #103 predecessor flows were traced through both file-upload callers. See pinned alert-103-current-verdict.json for independent dynamic evidence, kept separate from this static triage."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-99",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/99",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/model/structure.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/model/structure.ts:175",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/model/structure.ts",
+          "lines": "175",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/model/structure.ts:175 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-98",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/98",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/model/structure.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/model/structure.ts:111",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/model/structure.ts",
+          "lines": "111",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/model/structure.ts:111 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-97",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/97",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/components/editorFoundation/operations.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/components/editorFoundation/operations.ts:110",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/components/editorFoundation/operations.ts",
+          "lines": "110",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/components/editorFoundation/operations.ts:110 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-96",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/96",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/editorPaths.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/editorPaths.ts:85",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/editorPaths.ts",
+          "lines": "85",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/editorPaths.ts:85 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-95",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/95",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/editorImages.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/editorImages.ts:127",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/editorImages.ts",
+          "lines": "127",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/editorImages.ts:127 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-94",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/94",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/editorImages.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/editorImages.ts:123",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/editorImages.ts",
+          "lines": "123",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/editorImages.ts:123 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-93",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/93",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/editorImages.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/editorImages.ts:118",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/editorImages.ts",
+          "lines": "118",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/editorImages.ts:118 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-92",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/92",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/editorGroups.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/editorGroups.ts:114",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/editorGroups.ts",
+          "lines": "114",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/editorGroups.ts:114 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-91",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/91",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/editorGroups.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/editorGroups.ts:48",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/editorGroups.ts",
+          "lines": "48",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/editorGroups.ts:48 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-90",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/90",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/editorGroups.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/editorGroups.ts:31",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/editorGroups.ts",
+          "lines": "31",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/editorGroups.ts:31 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-89",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/89",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/editorAnimation.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/editorAnimation.ts:88",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/editorAnimation.ts",
+          "lines": "88",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/editorAnimation.ts:88 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-88",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/88",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/designLayout.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/designLayout.ts:442",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/designLayout.ts",
+          "lines": "442",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/designLayout.ts:442 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-87",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/87",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/baseEdits.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/baseEdits.ts:388",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/baseEdits.ts",
+          "lines": "388",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/baseEdits.ts:388 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-86",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/86",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/designLayout.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/designLayout.ts:85",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/designLayout.ts",
+          "lines": "85",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/designLayout.ts:85 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-85",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/85",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/baseEdits.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/baseEdits.ts:325",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/baseEdits.ts",
+          "lines": "325",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/baseEdits.ts:325 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-84",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/84",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/baseEdits.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/baseEdits.ts:116",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/baseEdits.ts",
+          "lines": "116",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/baseEdits.ts:116 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-83",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/83",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/artworkEdits.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/artworkEdits.ts:29",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/artworkEdits.ts",
+          "lines": "29",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "Source snippet from detached parsed artwork",
+        "Inert template.content then isEqualNode",
+        "Return source offsets; no node adoption into application document"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "artworkRange creates a template in the already detached node.ownerDocument and assigns snippet markup solely for isEqualNode validation (src/blocks/artworkEdits.ts:23-33).",
+        "It returns numeric source offsets, never parsed template content. Text edits separately escape &,<,> (same file:58-65)."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-82",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/82",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/artworkEdits.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/artworkEdits.ts:11",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/artworkEdits.ts",
+          "lines": "11",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/artworkEdits.ts:11 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-78",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/78",
+      "source_type": "sarif",
+      "title": "Bad HTML filtering regexp",
+      "normalized_input": {
+        "vulnerable_component": "cli/plugin-preview/source.mjs",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "cli/plugin-preview/source.mjs:120",
+        "claimed_control": "js/bad-tag-filter",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Bad HTML filtering regexp",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "cli/plugin-preview/source.mjs",
+          "lines": "120",
+          "detail": "js/bad-tag-filter"
+        }
+      ],
+      "reachable_path": [
+        "Operator-selected package HTML",
+        "Resource inlining transform; any unmatched authored content remains intentionally executable",
+        "Independent CSP and opaque iframe enforce the claimed trust boundary"
+      ],
+      "boundary_assessment": {
+        "product_surface": "local MCP preview tooling",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "source.mjs:104,120 are package-asset inlining transforms, not a filter promising to remove active content; executable authored classic JavaScript is explicitly supported.",
+        "readSource prefixes an independent CSP before authored content (source.mjs:11,94-96), with default/connect/frame/object/base/form sources denied. The preview iframe uses sandbox=allow-scripts without allow-same-origin; see server.test.mjs:24-25 and built UI. Missed regex matches do not grant filesystem or same-origin authority."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-77",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/77",
+      "source_type": "sarif",
+      "title": "Bad HTML filtering regexp",
+      "normalized_input": {
+        "vulnerable_component": "cli/plugin-preview/source.mjs",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "cli/plugin-preview/source.mjs:104",
+        "claimed_control": "js/bad-tag-filter",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Bad HTML filtering regexp",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "cli/plugin-preview/source.mjs",
+          "lines": "104",
+          "detail": "js/bad-tag-filter"
+        }
+      ],
+      "reachable_path": [
+        "Operator-selected package HTML",
+        "Resource inlining transform; any unmatched authored content remains intentionally executable",
+        "Independent CSP and opaque iframe enforce the claimed trust boundary"
+      ],
+      "boundary_assessment": {
+        "product_surface": "local MCP preview tooling",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "source.mjs:104,120 are package-asset inlining transforms, not a filter promising to remove active content; executable authored classic JavaScript is explicitly supported.",
+        "readSource prefixes an independent CSP before authored content (source.mjs:11,94-96), with default/connect/frame/object/base/form sources denied. The preview iframe uses sandbox=allow-scripts without allow-same-origin; see server.test.mjs:24-25 and built UI. Missed regex matches do not grant filesystem or same-origin authority."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-74",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/74",
+      "source_type": "sarif",
+      "title": "Shell command built from environment values",
+      "normalized_input": {
+        "vulnerable_component": "benchmarks/harness/lib/subscription.mjs",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "benchmarks/harness/lib/subscription.mjs:147",
+        "claimed_control": "js/shell-command-injection-from-environment",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Shell command built from environment values",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "high",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "benchmarks/harness/lib/subscription.mjs",
+          "lines": "147",
+          "detail": "js/shell-command-injection-from-environment"
+        }
+      ],
+      "reachable_path": [
+        "Developer-controlled PATH/ComSpec and benchmark flags",
+        "invocation chooses executable/cmd shim",
+        "spawn/spawnSync; benchmark prompt on stdin"
+      ],
+      "boundary_assessment": {
+        "product_surface": "developer benchmark harness",
+        "source_trust": "trusted_developer_config",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "subscription.mjs:62-73 obtains Claude executable from PATH/where and operator process.env.ComSpec; invocation uses a cmd/bat shim only for that selected executable.",
+        "Prompts are delivered on stdin; tool/graphic data is not concatenated into this command. Auth/status and freeze version calls pass fixed arguments; runClaude callers supply fixed model/effort flags from benchmark operator configuration. Windows shim/PATH control is executable-selection authority at the same developer privilege, not a lower-trust template input."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-73",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/73",
+      "source_type": "sarif",
+      "title": "Shell command built from environment values",
+      "normalized_input": {
+        "vulnerable_component": "benchmarks/harness/lib/subscription.mjs",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "benchmarks/harness/lib/subscription.mjs:133",
+        "claimed_control": "js/shell-command-injection-from-environment",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Shell command built from environment values",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "high",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "benchmarks/harness/lib/subscription.mjs",
+          "lines": "133",
+          "detail": "js/shell-command-injection-from-environment"
+        }
+      ],
+      "reachable_path": [
+        "Developer-controlled PATH/ComSpec and benchmark flags",
+        "invocation chooses executable/cmd shim",
+        "spawn/spawnSync; benchmark prompt on stdin"
+      ],
+      "boundary_assessment": {
+        "product_surface": "developer benchmark harness",
+        "source_trust": "trusted_developer_config",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "subscription.mjs:62-73 obtains Claude executable from PATH/where and operator process.env.ComSpec; invocation uses a cmd/bat shim only for that selected executable.",
+        "Prompts are delivered on stdin; tool/graphic data is not concatenated into this command. Auth/status and freeze version calls pass fixed arguments; runClaude callers supply fixed model/effort flags from benchmark operator configuration. Windows shim/PATH control is executable-selection authority at the same developer privilege, not a lower-trust template input."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-72",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/72",
+      "source_type": "sarif",
+      "title": "Shell command built from environment values",
+      "normalized_input": {
+        "vulnerable_component": "benchmarks/harness/lib/subscription.mjs",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "benchmarks/harness/lib/subscription.mjs:82",
+        "claimed_control": "js/shell-command-injection-from-environment",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Shell command built from environment values",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "high",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "benchmarks/harness/lib/subscription.mjs",
+          "lines": "82",
+          "detail": "js/shell-command-injection-from-environment"
+        }
+      ],
+      "reachable_path": [
+        "Developer-controlled PATH/ComSpec and benchmark flags",
+        "invocation chooses executable/cmd shim",
+        "spawn/spawnSync; benchmark prompt on stdin"
+      ],
+      "boundary_assessment": {
+        "product_surface": "developer benchmark harness",
+        "source_trust": "trusted_developer_config",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "subscription.mjs:62-73 obtains Claude executable from PATH/where and operator process.env.ComSpec; invocation uses a cmd/bat shim only for that selected executable.",
+        "Prompts are delivered on stdin; tool/graphic data is not concatenated into this command. Auth/status and freeze version calls pass fixed arguments; runClaude callers supply fixed model/effort flags from benchmark operator configuration. Windows shim/PATH control is executable-selection authority at the same developer privilege, not a lower-trust template input."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-71",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/71",
+      "source_type": "sarif",
+      "title": "Shell command built from environment values",
+      "normalized_input": {
+        "vulnerable_component": "benchmarks/harness/judge/calibration.mjs",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "benchmarks/harness/judge/calibration.mjs:606",
+        "claimed_control": "js/shell-command-injection-from-environment",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Shell command built from environment values",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "high",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "benchmarks/harness/judge/calibration.mjs",
+          "lines": "606",
+          "detail": "js/shell-command-injection-from-environment"
+        }
+      ],
+      "reachable_path": [
+        "Developer-controlled PATH/ComSpec and benchmark flags",
+        "invocation chooses executable/cmd shim",
+        "spawn/spawnSync; benchmark prompt on stdin"
+      ],
+      "boundary_assessment": {
+        "product_surface": "developer benchmark harness",
+        "source_trust": "trusted_developer_config",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "subscription.mjs:62-73 obtains Claude executable from PATH/where and operator process.env.ComSpec; invocation uses a cmd/bat shim only for that selected executable.",
+        "Prompts are delivered on stdin; tool/graphic data is not concatenated into this command. Auth/status and freeze version calls pass fixed arguments; runClaude callers supply fixed model/effort flags from benchmark operator configuration. Windows shim/PATH control is executable-selection authority at the same developer privilege, not a lower-trust template input."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-57",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/57",
+      "source_type": "sarif",
+      "title": "Information exposure through a stack trace",
+      "normalized_input": {
+        "vulnerable_component": "cli/src/playout/server.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "cli/src/playout/server.ts:442",
+        "claimed_control": "js/stack-trace-exposure",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Information exposure through a stack trace",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "high",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "cli/src/playout/server.ts",
+          "lines": "442",
+          "detail": "js/stack-trace-exposure"
+        }
+      ],
+      "reachable_path": [
+        "Bridge route/adapters may fail",
+        "Catch projects message into typed error response",
+        "JSON response carries no server stack trace"
+      ],
+      "boundary_assessment": {
+        "product_surface": "local CLI Bridge",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "server.ts:442 is the generic JSON send helper, not a stack trace serialization. Catch at730-738 projects Error.message (or string value) into an explicit AgentError, without Error.stack.",
+        "No .stack read exists in cli/src/playout. Typed adapter errors are structured hop/code/detail objects; JSON.stringify(Error) does not serialize the non-enumerable stack property."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-56",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/56",
+      "source_type": "sarif",
+      "title": "Incomplete string escaping or encoding",
+      "normalized_input": {
+        "vulnerable_component": "src/export/fieldReference.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/export/fieldReference.ts:31",
+        "claimed_control": "js/incomplete-sanitization",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Incomplete string escaping or encoding",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/export/fieldReference.ts",
+          "lines": "31",
+          "detail": "js/incomplete-sanitization"
+        }
+      ],
+      "reachable_path": [
+        "Template fields and labels",
+        "Markdown table formatting helper",
+        "Write FIELDS.md plain package artifact; no app HTML sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "generated Markdown reference file",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "fieldReference.ts:31 escapes table pipes/newlines for Markdown formatting; it is not an HTML or JavaScript sanitizer.",
+        "All direct callers write FIELDS.md into export ZIPs (export/showExport.ts and targets); no product HTML/Markdown rendering sink consumes this result. Templates intentionally retain author-provided labels in the reference document. A renderer that executes unsanitized Markdown HTML is not established by this alert."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [
+        "Behavior of arbitrary external Markdown viewers is outside this exact claim; no assertion of safe rendering by every third-party viewer."
+      ],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-46",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/46",
+      "source_type": "sarif",
+      "title": "Incomplete string escaping or encoding",
+      "normalized_input": {
+        "vulnerable_component": "docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs:146",
+        "claimed_control": "js/incomplete-sanitization",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Incomplete string escaping or encoding",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "docs/research/plugin-graphics-quality-2026-10-02/evidence/pub-quiz-package/graphic.mjs",
+          "lines": "146",
+          "detail": "js/incomplete-sanitization"
+        }
+      ],
+      "reachable_path": [
+        "Graphic runtime field-ID lookup",
+        "Quoted CSS selector restricted to graphic root",
+        "Element lookup only; graphic runtime already has document/window authority"
+      ],
+      "boundary_assessment": {
+        "product_surface": "checked-in research evidence generated package",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "scopedDocument wrapper uses the string only in root.querySelector, a scoped CSS selector read; it is not an HTML/JavaScript execution sink.",
+        "The same Proxy forwards querySelector, createElement and all other document methods, and scopedWindow forwards window. Its purpose is per-graphic lookup, explicitly not a sandbox (graphic.mjs:135-157). Authored runtime already executes at that document privilege. Selector metacharacters can cause a query error/wrong match within root, but no privilege increase or active-content sanitization boundary is claimed by this helper."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-45",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/45",
+      "source_type": "sarif",
+      "title": "Incomplete string escaping or encoding",
+      "normalized_input": {
+        "vulnerable_component": "docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs:146",
+        "claimed_control": "js/incomplete-sanitization",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Incomplete string escaping or encoding",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "docs/research/plugin-graphics-quality-2026-10-02/evidence/d1-runs/pattern-bench-package/graphic.mjs",
+          "lines": "146",
+          "detail": "js/incomplete-sanitization"
+        }
+      ],
+      "reachable_path": [
+        "Graphic runtime field-ID lookup",
+        "Quoted CSS selector restricted to graphic root",
+        "Element lookup only; graphic runtime already has document/window authority"
+      ],
+      "boundary_assessment": {
+        "product_surface": "checked-in research evidence generated package",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "scopedDocument wrapper uses the string only in root.querySelector, a scoped CSS selector read; it is not an HTML/JavaScript execution sink.",
+        "The same Proxy forwards querySelector, createElement and all other document methods, and scopedWindow forwards window. Its purpose is per-graphic lookup, explicitly not a sandbox (graphic.mjs:135-157). Authored runtime already executes at that document privilege. Selector metacharacters can cause a query error/wrong match within root, but no privilege increase or active-content sanitization boundary is claimed by this helper."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-28",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/28",
+      "source_type": "sarif",
+      "title": "Bad HTML filtering regexp",
+      "normalized_input": {
+        "vulnerable_component": "src/validation/validateTemplate.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/validation/validateTemplate.ts:64",
+        "claimed_control": "js/bad-tag-filter",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Bad HTML filtering regexp",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "confirmed",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/validation/validateTemplate.ts",
+          "lines": "64",
+          "detail": "js/bad-tag-filter"
+        }
+      ],
+      "reachable_path": [
+        "Imported/authored HTML with executable inline script and adversarial tag syntax",
+        "Regex script/attribute inventory skips or truncates code",
+        "Sharing unsafe-JS screen misses code browser executes"
+      ],
+      "boundary_assessment": {
+        "product_surface": "template sharing/export safety screen",
+        "source_trust": "untrusted",
+        "boundary_crossed": true,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": "confirmed",
+        "rank": 1,
+        "rationale": "Directly reachable sharing-screen parser gap",
+        "drivers": [
+          "source-to-sink control",
+          "guard behavior"
+        ]
+      },
+      "evidence": [
+        "inlineScripts at validateTemplate.ts:64 splits the start tag at the first > without respecting quoted attribute values, then independently parses the truncated attribute list. A fake type/src string inside an attribute may hide executable code from inventory.",
+        "templateBench.ts:147 runs unsafeJsConstructs only over inventoried inline code and template.js; publishGate.ts:31-42 uses these results to permit production/shared output. Browser script parsing differs at quotes, malformed closing tags and HTML contexts."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [
+        "The screen is explicitly heuristic, not a security sandbox (publishGate.ts:12-17); this confirms a parser-caused inspection bypass, not an unconditional compromise of the Studio iframe.",
+        "Focused browser differential validation is a separate fix workflow."
+      ],
+      "recommended_next_step": "fix-finding",
+      "fix_finding_handoff": "Fix script inventory using browser-equivalent parsing while preserving source bytes, classic/module/data distinctions and pure Node consumers. Test quoted attrs, entities, comments, script-end states and legitimate imported runtime."
+    },
+    {
+      "triage_item_id": "codeql-21",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/21",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/blocks/motionPresets.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/blocks/motionPresets.ts:372",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/blocks/motionPresets.ts",
+          "lines": "372",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "src/blocks/motionPresets.ts:372 detached parsing of template source",
+        "Read IDs/geometry/structure or compare source nodes; keep changes in detached tree/source strings",
+        "Live previews retain sandbox boundary; no active-document adoption at this sink"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "The named sink parses a detached Document or inert template for queries/source-range validation; it does not insert parsed nodes into the active application document.",
+        "Editor operations return source strings, selectors or structured animation data. Template preview deliberately executes authored code only in an iframe without allow-same-origin (src/preview/frameGraphic.ts:16-20). This verdict concerns the exact reported parsing sink, not arbitrary template safety."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-20",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/20",
+      "source_type": "sarif",
+      "title": "DOM text reinterpreted as HTML",
+      "normalized_input": {
+        "vulnerable_component": "src/assets/svgImport.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "src/assets/svgImport.ts:1619",
+        "claimed_control": "js/xss-through-dom",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "DOM text reinterpreted as HTML",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "not_actionable",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "src/assets/svgImport.ts",
+          "lines": "1619",
+          "detail": "js/xss-through-dom"
+        }
+      ],
+      "reachable_path": [
+        "Uploaded SVG file text",
+        "Inert XML DOMParser, SVG root validation",
+        "sanitize before any live measurement and serialization"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted browser editor",
+        "source_trust": "untrusted",
+        "boundary_crossed": false,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": null,
+        "rank": null,
+        "rationale": "Positive source/control evidence defeats the exact named security claim",
+        "drivers": []
+      },
+      "evidence": [
+        "XML DOMParser returns an inert XML document; importSvgMarkup validates the SVG root and runs sanitize before candidate inventory, measurement or output (src/assets/svgImport.ts:1618-1634).",
+        "Active namespace/tag/event/URI/animation/style payloads are removed by the shared sanitizer. The parser call itself is not live insertion."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [],
+      "recommended_next_step": "Retain pinned evidence; no source suppression or administrative dismissal claimed.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "codeql-1",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/code-scanning/1",
+      "source_type": "sarif",
+      "title": "Polynomial regular expression used on uncontrolled data",
+      "normalized_input": {
+        "vulnerable_component": "cli/src/playout/server.ts",
+        "claimed_source": "User/template/environment-controlled input inferred from reported sink; complete code flow unavailable except predecessor103",
+        "claimed_sink": "cli/src/playout/server.ts:88",
+        "claimed_control": "js/polynomial-redos",
+        "affected_version_or_path": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
+        "preconditions": [
+          "Reach the named shipped helper under its documented input contract"
+        ],
+        "impact": "Polynomial regular expression used on uncontrolled data",
+        "references": [
+          "Owner export current main e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8"
+        ]
+      },
+      "verdict": "confirmed",
+      "confidence": "high",
+      "affected_locations": [
+        {
+          "label": "reported sink",
+          "path": "cli/src/playout/server.ts",
+          "lines": "88",
+          "detail": "js/polynomial-redos"
+        }
+      ],
+      "reachable_path": [
+        "Raw HTTP from another local process/user",
+        "Loopback Host check passes, Origin check runs before auth",
+        "Quadratic regexp stalls Bridge event loop"
+      ],
+      "boundary_assessment": {
+        "product_surface": "local CLI Bridge",
+        "source_trust": "untrusted",
+        "boundary_crossed": true,
+        "policy_basis": "SECURITY.md includes hosted Studio/imports/exports; scanner-only claims without impact excluded. Reachability and controls reviewed in source at exported commit."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": "confirmed",
+        "rank": 2,
+        "rationale": "Local preauth resource exhaustion, bounded header input",
+        "drivers": [
+          "source-to-sink control",
+          "guard behavior"
+        ]
+      },
+      "evidence": [
+        "server.ts:428-470 accepts raw Origin from loopback HTTP and calls originAllowed before token authentication; /health GET alone bypasses it.",
+        "originAllowed:88 applies unanchored /\\/+$/ to attacker-controlled slash runs ending in a non-slash; repeated start positions cause quadratic scanning.",
+        "Bridge binds127.0.0.1 (commands/bridge.ts:63), while token file is private0600 (playout/token.ts:29). Another local user can reach TCP without possessing the token; synchronous scanning delays the shared event loop."
+      ],
+      "counterevidence": [],
+      "proof_gaps": [
+        "Ordinary browser Origin cannot be chosen arbitrarily; no remote website path demonstrated. Node header limits bound the per-request cost.",
+        "Dynamic timings and listener validation are recorded separately by the fix investigator."
+      ],
+      "recommended_next_step": "fix-finding",
+      "fix_finding_handoff": "Replace shared trailing slash regex with linear backward scan in allowedOrigins/originAllowed. Preserve exact trim/missing-origin/loopback/allowlist semantics; verify long rejected input and ordinary auth/CORS behavior."
+    },
+    {
+      "triage_item_id": "dependabot-67",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/dependabot/67",
+      "source_type": "advisory",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "normalized_input": {
+        "vulnerable_component": "zod",
+        "claimed_source": "Oversized collection passed to a constrained Zod schema",
+        "claimed_sink": "Collection elements parsed before size bound rejection",
+        "claimed_control": "Zod version predates4.6.6",
+        "affected_version_or_path": "render-worker/package-lock.json 4.3.6",
+        "preconditions": [
+          "Reach a constrained array/map/set validation with oversized input"
+        ],
+        "impact": "Memory exhaustion",
+        "references": [
+          "GHSA-mrhx-c7xc-m3w5",
+          "CVE-2023-54404"
+        ]
+      },
+      "verdict": "needs_review",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "manifest",
+          "path": "render-worker/package-lock.json",
+          "lines": "dependency lock",
+          "detail": "Owner reports runtime scope; deployment exposure assessed separately"
+        }
+      ],
+      "reachable_path": [
+        "Affected package present in immutable lock",
+        "Actual constrained-collection caller/remote trust must be established separately"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted API or development/render/MCP dependency according to owning package",
+        "source_trust": "unknown",
+        "boundary_crossed": null,
+        "policy_basis": "SECURITY.md requires demonstrated impact; version presence warrants compatible dependency remediation but does not prove a remotely exposed collection parser."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": "needs_review",
+        "rank": 1,
+        "rationale": "Compatible dependency remediation in owning package; runtime exposure remains distinct from manifest scope",
+        "drivers": [
+          "affected package present",
+          "caller proof incomplete"
+        ]
+      },
+      "evidence": [
+        "Immutable manifests confirm vulnerable nested/direct pins; root direct Zod already4.6.7.",
+        "v3 imports must not be retained as a cosmetic way to hide the advisory."
+      ],
+      "counterevidence": [
+        "No demonstrated remote oversized constrained-collection path for every supplied lock entry."
+      ],
+      "proof_gaps": [
+        "Complete source-to-collection trace and deployment context of each nested parent"
+      ],
+      "recommended_next_step": "Authorized fix-finding: inspect parent compatibility, use suitable existing PR1828, verify schema and affected package behavior; no blind major override.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "dependabot-56",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/dependabot/56",
+      "source_type": "advisory",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "normalized_input": {
+        "vulnerable_component": "zod",
+        "claimed_source": "Oversized collection passed to a constrained Zod schema",
+        "claimed_sink": "Collection elements parsed before size bound rejection",
+        "claimed_control": "Zod version predates4.6.6",
+        "affected_version_or_path": "package-lock.json 4.1.11",
+        "preconditions": [
+          "Reach a constrained array/map/set validation with oversized input"
+        ],
+        "impact": "Memory exhaustion",
+        "references": [
+          "GHSA-mrhx-c7xc-m3w5",
+          "CVE-2023-54404"
+        ]
+      },
+      "verdict": "needs_review",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "manifest",
+          "path": "package-lock.json",
+          "lines": "dependency lock",
+          "detail": "Owner reports runtime scope; deployment exposure assessed separately"
+        }
+      ],
+      "reachable_path": [
+        "Affected package present in immutable lock",
+        "Actual constrained-collection caller/remote trust must be established separately"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted API or development/render/MCP dependency according to owning package",
+        "source_trust": "unknown",
+        "boundary_crossed": null,
+        "policy_basis": "SECURITY.md requires demonstrated impact; version presence warrants compatible dependency remediation but does not prove a remotely exposed collection parser."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": "needs_review",
+        "rank": 2,
+        "rationale": "Compatible dependency remediation in owning package; runtime exposure remains distinct from manifest scope",
+        "drivers": [
+          "affected package present",
+          "caller proof incomplete"
+        ]
+      },
+      "evidence": [
+        "Immutable manifests confirm vulnerable nested/direct pins; root direct Zod already4.6.7.",
+        "v3 imports must not be retained as a cosmetic way to hide the advisory."
+      ],
+      "counterevidence": [
+        "No demonstrated remote oversized constrained-collection path for every supplied lock entry."
+      ],
+      "proof_gaps": [
+        "Complete source-to-collection trace and deployment context of each nested parent"
+      ],
+      "recommended_next_step": "Authorized fix-finding: inspect parent compatibility, use suitable existing PR1828, verify schema and affected package behavior; no blind major override.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "dependabot-47",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/dependabot/47",
+      "source_type": "advisory",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "normalized_input": {
+        "vulnerable_component": "zod",
+        "claimed_source": "Oversized collection passed to a constrained Zod schema",
+        "claimed_sink": "Collection elements parsed before size bound rejection",
+        "claimed_control": "Zod version predates4.6.6",
+        "affected_version_or_path": "cli/plugin-preview/package-lock.json 4.4.3",
+        "preconditions": [
+          "Reach a constrained array/map/set validation with oversized input"
+        ],
+        "impact": "Memory exhaustion",
+        "references": [
+          "GHSA-mrhx-c7xc-m3w5",
+          "CVE-2023-54404"
+        ]
+      },
+      "verdict": "needs_review",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "manifest",
+          "path": "cli/plugin-preview/package-lock.json",
+          "lines": "dependency lock",
+          "detail": "Owner reports runtime scope; deployment exposure assessed separately"
+        }
+      ],
+      "reachable_path": [
+        "Affected package present in immutable lock",
+        "Actual constrained-collection caller/remote trust must be established separately"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted API or development/render/MCP dependency according to owning package",
+        "source_trust": "unknown",
+        "boundary_crossed": null,
+        "policy_basis": "SECURITY.md requires demonstrated impact; version presence warrants compatible dependency remediation but does not prove a remotely exposed collection parser."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": "needs_review",
+        "rank": 3,
+        "rationale": "Compatible dependency remediation in owning package; runtime exposure remains distinct from manifest scope",
+        "drivers": [
+          "affected package present",
+          "caller proof incomplete"
+        ]
+      },
+      "evidence": [
+        "Immutable manifests confirm vulnerable nested/direct pins; root direct Zod already4.6.7.",
+        "v3 imports must not be retained as a cosmetic way to hide the advisory."
+      ],
+      "counterevidence": [
+        "No demonstrated remote oversized constrained-collection path for every supplied lock entry."
+      ],
+      "proof_gaps": [
+        "Complete source-to-collection trace and deployment context of each nested parent"
+      ],
+      "recommended_next_step": "Authorized fix-finding: inspect parent compatibility, use suitable existing PR1828, verify schema and affected package behavior; no blind major override.",
+      "fix_finding_handoff": null
+    },
+    {
+      "triage_item_id": "dependabot-41",
+      "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/dependabot/41",
+      "source_type": "advisory",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "normalized_input": {
+        "vulnerable_component": "zod",
+        "claimed_source": "Oversized collection passed to a constrained Zod schema",
+        "claimed_sink": "Collection elements parsed before size bound rejection",
+        "claimed_control": "Zod version predates4.6.6",
+        "affected_version_or_path": "cli/package-lock.json 3.25.76",
+        "preconditions": [
+          "Reach a constrained array/map/set validation with oversized input"
+        ],
+        "impact": "Memory exhaustion",
+        "references": [
+          "GHSA-mrhx-c7xc-m3w5",
+          "CVE-2023-54404"
+        ]
+      },
+      "verdict": "needs_review",
+      "confidence": "medium",
+      "affected_locations": [
+        {
+          "label": "manifest",
+          "path": "cli/package-lock.json",
+          "lines": "dependency lock",
+          "detail": "Owner reports runtime scope; deployment exposure assessed separately"
+        }
+      ],
+      "reachable_path": [
+        "Affected package present in immutable lock",
+        "Actual constrained-collection caller/remote trust must be established separately"
+      ],
+      "boundary_assessment": {
+        "product_surface": "hosted API or development/render/MCP dependency according to owning package",
+        "source_trust": "unknown",
+        "boundary_crossed": null,
+        "policy_basis": "SECURITY.md requires demonstrated impact; version presence warrants compatible dependency remediation but does not prove a remotely exposed collection parser."
+      },
+      "exploitability_stack_rank": {
+        "rank_queue": "needs_review",
+        "rank": 4,
+        "rationale": "Compatible dependency remediation in owning package; runtime exposure remains distinct from manifest scope",
+        "drivers": [
+          "affected package present",
+          "caller proof incomplete"
+        ]
+      },
+      "evidence": [
+        "Immutable manifests confirm vulnerable nested/direct pins; root direct Zod already4.6.7.",
+        "v3 imports must not be retained as a cosmetic way to hide the advisory."
+      ],
+      "counterevidence": [
+        "No demonstrated remote oversized constrained-collection path for every supplied lock entry."
+      ],
+      "proof_gaps": [
+        "Complete source-to-collection trace and deployment context of each nested parent"
+      ],
+      "recommended_next_step": "Authorized fix-finding: inspect parent compatibility, use suitable existing PR1828, verify schema and affected package behavior; no blind major override.",
+      "fix_finding_handoff": null
+    }
+  ]
+}
