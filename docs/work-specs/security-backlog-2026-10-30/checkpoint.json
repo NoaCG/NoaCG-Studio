@@ -1,0 +1,104 @@
+{
+  "repository": "NoaCG/NoaCG-Studio",
+  "updatedAt": "2026-10-30T21:37:13.673665+00:00",
+  "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
+  "baselineAlerts": {
+    "dependabot": {
+      "total": 52,
+      "critical": 1,
+      "high": 19,
+      "moderate": 22,
+      "low": 10,
+      "source": "Git push banner observed on30October2026; individual alert API403"
+    },
+    "codeScanningReported": 32,
+    "codeScanningVerified": null,
+    "note": "GitHub security endpoint access denied; do not invent an empty inventory or equate npm counts with GitHub alerts."
+  },
+  "merged": [
+    {
+      "pr": 1581,
+      "sha": "4143603356e332ae711e7f67e8ef2712f8582aef"
+    },
+    {
+      "pr": 1589,
+      "sha": "17181cc52fe743a046d0c5b99aeea9cbbc5c5b73"
+    },
+    {
+      "pr": 1663,
+      "sha": "18fbb6f52426bf3b3aba194f73a34741c68575d1"
+    },
+    {
+      "pr": 1826,
+      "sha": "3154220793fd5b4e4f3a085a3a2e30ee7e20066b"
+    }
+  ],
+  "supersededClosed": {
+    "1810": 1581,
+    "1787": 1589,
+    "1662": 1589
+  },
+  "svg1452": {
+    "branch": "codex/security-svg-import",
+    "head": "e21722a786e8e8fefef4a087c867826490949957",
+    "merged": false,
+    "validation": "44/44 security+corpus with601 records;33 affected gates;5 app journeys;18 export journeys;lint/types pass",
+    "fixes": [
+      "Strict fragment/image-context href validation and normalized alias writes",
+      "Preserve safe SVG2 primary reference when removing unsafe fallback",
+      "Escape imported titles in clock/credits comments using existing helper",
+      "Escape HTML script delimiters at shared SPX definitionScriptBlock boundary; preserve data round-trip"
+    ],
+    "codeqlAssessment": "Current guarded attribute-write warning assessed false positive with pinned source/context/serialization evidence; alert-103-current-verdict.json. Security API current-instance/state read denied; no alert was dismissed or source suppression added.",
+    "status": "Check stampPASS; normal cloud queue helper dispatched; mandatory CI still in progress. Do not enable auto-merge until required CI is green.",
+    "queueHelper": 41131968341
+  },
+  "residualDependencies": {
+    "npmAffectedPackageEntries": {
+      "root": 7,
+      "cli": 3,
+      "renderWorker": 5,
+      "pluginPreview": 5,
+      "playerHost": 0
+    },
+    "sharedCause": "GHSA-mrhx-c7xc-m3w5; pinned/direct Zod3/4 copies remain. No forced incompatible major update was made.",
+    "additionalLimit": "Monaco vendors a separate DOMPurify copy; the installed npm override does not update that copy. Its wrapper does not enable the three inspected vulnerable modes; version alone is not demonstrated impact.",
+    "companionAudit": "Blocked: Corepack requires repo.yarnpkg.com, denied by enforced network policy."
+  },
+  "deferred": [
+    {
+      "prs": [
+        1641,
+        1642
+      ],
+      "reason": "Optional Vercel analytics; untouched"
+    },
+    {
+      "pr": 1503,
+      "reason": "Old E2E duration re-record; no security need established; untouched"
+    }
+  ],
+  "capabilityGaps": [
+    "Code scanning and Dependabot alert inventory/state APIs denied; direct statuses write denied, normal cloud queue-helper fallback works.",
+    "Codex cloud CLI task listing401; native remote child launch and environment mapping remain unqualified.",
+    "No proven durable wake/re-arm, coordinator restart fencing or filesystem-loss recovery; no scheduler armed.",
+    "Same-VM independent agents and browser checks work; this does not qualify separate native cloud workers."
+  ],
+  "futureJev": {
+    "ready": false,
+    "phases": 40,
+    "inference_ceiling_usd": 5,
+    "duration_calendar_days": 14,
+    "startedAt": null,
+    "deadline": null,
+    "standing_block_renewal": "Preserve approved text unchanged",
+    "metadata_needed": [
+      "Qualify actual Codex coordinator/worker/checker transport and environment mapping before changing Claude-specific actors",
+      "Update provider labels in phases/spec/project draft/runbook/readiness/start-contract/launch-bindings after qualification",
+      "Keep canonical root owner binding unchanged; selected runtime/source_config and native launch config are distinct identifiers",
+      "Bind real session/wake/run-issue/project/block identifiers only after explicit future start and readiness; leave start/deadline null now",
+      "Recompute existing spec hash/derived phase metadata when references are changed, preserving all product acceptance criteria"
+    ]
+  },
+  "resume": "Reconcile this exact source head, original cloud helper and current PR/check/queue/merge state before retrying any operation. Preserve one repair owner. Do not start the Jev run or a competing fixer."
+}
