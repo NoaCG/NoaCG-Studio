@@ -15,9 +15,9 @@ changed graphic needs the CLI.
 
 1. Check `node --version`: the CLI requires Node 20 or newer. Install a supported Node release
    with npm if the command is missing. Building the distribution itself requires Node 24.
-2. Install the reviewed CLI: `npm i -g @noacg/cli@0.12.3`. Check `noacg --version` before using
-   an existing installation. It must match 0.12.3 for this package. Otherwise install that exact
-   version or use `npx -y @noacg/cli@0.12.3 <command>` for each call. A newer CLI or plugin is
+2. Install the reviewed CLI: `npm i -g @noacg/cli@0.12.4`. Check `noacg --version` before using
+   an existing installation. It must match 0.12.4 for this package. Otherwise install that exact
+   version or use `npx -y @noacg/cli@0.12.4 <command>` for each call. A newer CLI or plugin is
    a separate reviewed version; do not silently switch to npm's latest.
 3. Run `noacg doctor`. Install system Chrome or Edge if it reports no browser. An explicit
    `NOACG_BROWSER` may name a supported Chromium executable. No browser is bundled.

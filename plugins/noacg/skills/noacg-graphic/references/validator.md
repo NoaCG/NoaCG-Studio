@@ -21,6 +21,7 @@ playout will).
 | `syntax` | error | `template.js` does not compile | fix the JS (and keep it ES5) |
 | `step-target` | warn | a `stepGroups` selector matches nothing | the selector, or drop the step |
 | `machine` | error | the NOACG_ANIM machine is off-shape, or machine data sits under an interpreter that predates it | take the machine from a type scaffold; never hand-edit the interpreter |
+| `controls-missing-live` | warn | a declared live operation left unmet: an operator arrow with no `machine.controls` entry, or a `set`/`adjust` naming a field the graphic does not have. Never a field merely without a control | add the `controls` entry, or fix the field id (`references/contract.md` §5b) |
 | `anim-data` | warn | a `NOACG_ANIM` block exists but does not parse | regenerate from a scaffold, or let validate re-convert the authoring shape |
 | `anim-data-target` | warn | a keyframe layer / reveal selector matches nothing | the selector matches an element of your markup (the spine's classes) |
 | `anim-data-call` | warn | a step `calls` a function the JS does not define | define it in the runtime outside the markers, or remove the call |
@@ -58,6 +59,7 @@ none of these; data arrives through `update()`.
 | `legibility-*` | warn | the on-air design rules: size per role (supporting text under about 24px at 1080p, more strongly under 20px), contrast, protection over video (a panel, glass included, a scrim, a shadow or an outline), safe area | read each message; they are measured numbers |
 | `bench-mark-unreadable` | warn | a brand mark with no plate of its own (bare ink: no tile, disc or shield behind it) does not read on the surface it sits on. A mark that brings its own plate is not judged | the mark's surface/ink, or the version of the mark on its own plate |
 | `bench-field-unpainted` | warn | a declared text field reaches NO pixel in ANY of the machine's states | the field's element is visible where the operator expects the value to appear. A `hidden` field in a `noacg-data-source` holder is a REPORTED field and is exempt - it is read, never drawn. A field on the `.<prefix>-clock` element is driven with a time, which is what a match clock reads |
+| `style-contract-unpainted` | warn | no rule paints with `--font-heading`, `--display-weight`, `--accent`, `--text-color`, `--text-dim` or `--panel-bg` | it plays, but a production can change only its place and size. Paint the type and colours it should be able to change with `var(--...)` |
 | `bench-events-skipped` | warn | the bench pressed fewer than all of the machine's operator arrows (a ceiling of 24, or a from-state it could not enter) and names the ones it left | press them by hand before air, or give the graphic fewer arrows - a control surface an operator can read is smaller than that. A from-state it could not enter is a real defect: an arrow nobody can ever press |
 | `bench-hidden` | error | the graphic is off air within 2 s of `stop()` | the exit hides the root and finishes |
 | `bench-replay` | error | `play()` after `stop()` is on air again | entrances are `fromTo`, state resets |
