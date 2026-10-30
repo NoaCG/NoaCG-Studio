@@ -311,6 +311,28 @@ test('a phase is named by its row or its project id, never by a guess', (t) => {
   assert.equal(phaseNumber(numeric.db, numeric.p.id, 'accept'), 2);
 });
 
+test('remaining-work numeric phase IDs resolve unless an existing row conflicts', (t) => {
+  const numbered = (ids) => fixture(t, (p) => {
+    p.phases.forEach((phase, index) => {
+      phase.id = ids[index];
+      phase.dependsOn = index ? [ids[index - 1]] : [];
+    });
+    return p;
+  });
+  const remaining = numbered(['51', '52']);
+  assert.equal(phaseNumber(remaining.db, remaining.p.id, '51'), 1);
+  assert.equal(phaseNumber(remaining.db, remaining.p.id, '52'), 2);
+  // Preserve the documented row-number fallback; do not migrate existing project identities.
+  assert.equal(phaseNumber(remaining.db, remaining.p.id, '2'), 2);
+  assert.throws(() => phaseNumber(remaining.db, remaining.p.id, '53'), /No phase "53"/);
+  assert.throws(() => phaseNumber(remaining.db, remaining.p.id, '0'), /No phase "0"/);
+  const matching = numbered(['1', '2']);
+  assert.equal(phaseNumber(matching.db, matching.p.id, '1'), 1);
+  assert.equal(phaseNumber(matching.db, matching.p.id, '2'), 2);
+  const collision = numbered(['2', '1']);
+  assert.throws(() => phaseNumber(collision.db, collision.p.id, '2'), /Ambiguous phase/);
+});
+
 test("a block renews only under the owner's standing permission, only after it ended, never after his pause", (t) => {
   const plain = fixture(t);
   plain.start();

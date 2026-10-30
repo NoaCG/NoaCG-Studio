@@ -70,7 +70,7 @@ export function readProject(text, now = Date.now()) {
 export function phaseRow(phases, name) {
   const byId = phases.findIndex((phase) => phase.id === name) + 1;
   const row = /^\d+$/.test(name ?? '') ? Number(name) : 0;
-  if (byId && row && byId !== row) throw Error(`Ambiguous phase "${name}": it is the id of row ${byId} and also row ${row}; name the first by row ${byId}, the second by its id`);
+  if (byId && row >= 1 && row <= phases.length && byId !== row) throw Error(`Ambiguous phase "${name}": it is the id of row ${byId} and also row ${row}; name the first by row ${byId}, the second by its id`);
   if (byId) return byId;
   if (row >= 1 && row <= phases.length) return row;
   throw Error(`No phase "${name}": name its project id or its row number`);

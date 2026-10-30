@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "de559c65e14638cdf157ca3721cb6273a96099aa7e7a8aa233b7bc9ebf07c01e",
+  "specSha256": "ebd60ff96521c54f67e62c11369bdf779e0ec7543f977adce65d039d4fc78601",
   "authority": {
     "status": "draft",
-    "source": "Owner preparation-only requests, full-run Opus opinion and approved limited pre-existing unrelated-failure exception retained. On 2026-10-29 the owner requested backend, graphics and whole-PR growth controls and reconciliation with PR #1816. Revised preparation: 18 phases; AC-1..AC-6, AC-8 and AC-9. Required merge checks remain binding. No implementation deadline, runtime launch or standing block-renewal authorization supplied."
+    "source": "Owner preparation-only requests, full-run Opus opinion and approved limited pre-existing unrelated-failure exception retained. On 2026-10-29 the owner requested backend, graphics and whole-PR growth controls and reconciliation with PR #1816. Revised preparation: 18 phases; AC-1..AC-6, AC-8 and AC-9. Required merge checks remain binding. No implementation deadline, runtime launch or standing block-renewal authorization supplied. On 2026-10-30 Opus agreed with operational corrections under the owner's conditional permission. Shared approval-order and numeric-ID fixes are separately authorized; the CI improvement run and standing renewal remain unauthorized."
   },
   "review": null
 }
