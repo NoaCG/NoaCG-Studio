@@ -49,6 +49,10 @@ function fixture(t, edit = (p) => p) {
   return { dir, dbPath, db, p, manifest, file: opened.file, text, current, start, record };
 }
 const networkPass = (command) => ({ status: 0, stdout: command === 'git' ? `${'a'.repeat(40)}\trefs/heads/main\n` : command === 'gh' ? '12\n' : 'workspace-child-ok' });
+const untilComplete = (p) => {
+  p.authorization.standing = { untilComplete: 'Continue this scope until complete; the date is a target.', blockRenewal: 'Renew daily blocks automatically.' };
+  return p;
+};
 function finishPhase(f, phase, at = NOW) {
   f.record(phase, 'build', { actor: `builder-${phase}` }, at);
   f.record(phase, 'landed', MERGE, at);
@@ -71,6 +75,57 @@ test('explicit 72-hour authorization passes store, supervisor and preflight; ord
     assert.throws(() => validateAuthorization({ ...authorization(), ...patch }, { now: NOW }));
   }
   assert.throws(() => validateAuthorization(authorization(), { now: NOW + 72 * HOUR }), /expired/);
+});
+
+test('completion authority crosses the target with bounded blocks and unchanged in-flight history', (t) => {
+  const f = fixture(t, untilComplete), old = f.start(), later = NOW + 80 * HOUR;
+  f.record(1, 'build', { actor: 'original-builder' });
+  const before = readSteps(f.text()), authorizationBefore = f.current().authorization;
+  assert.equal(nextStep(f.text(), later).action, 'paused');
+  assert.equal(openWave({ date: '2026-10-19', kind: 'plan-fixture', until: f.p.authorization.deadline, dir: f.dir, now: later }).window, 'resumed');
+  assert.throws(() => updateRun(f.db, f.p.id, 'start-block', { owner: 'coordinator-1', deadline: iso(later + 25 * HOUR), evidence: 'reconciled' }, later), /bounded/);
+  const renewed = renewBlock(f.db, f.p.id, later);
+  assert.equal(renewed.renewed, true);
+  assert.equal(Date.parse(renewed.block.deadline), later + 24 * HOUR);
+  assert.deepEqual(f.current().authorization, authorizationBefore);
+  assert.deepEqual(readSteps(f.text()), before);
+  assert.equal(nextStep(f.text(), later).action, 'wait');
+  assert.throws(() => f.record(1, 'landed', MERGE, later, old), /Stale/);
+  assert.throws(() => f.record(1, 'build', { actor: 'duplicate' }, later), /already launched/);
+  assert.equal(preflight({ context: 'coordinator', wave: f.file, now: later, run: networkPass }).ok, true);
+  assert.equal(holdable(f.text(), later).until, renewed.block.deadline);
+  f.record(1, 'landed', MERGE, later); f.record(1, 'check', { actor: 'checker' }, later);
+  f.record(1, 'pass', passReceipt(f, 1, 'checker'), later);
+  assert.equal(nextStep(f.text(), later).action, 'launch');
+  finishPhase(f, 2, later);
+  updateRun(f.db, f.p.id, 'finish', '', later);
+  assert.equal(nextStep(f.text(), later).action, 'finished');
+  assert.throws(() => renewBlock(f.db, f.p.id, later + 25 * HOUR), /finished/);
+});
+
+test('completion authority is explicit and cannot renew a pause, wait, uncertainty or wave', (t) => {
+  const later = NOW + 80 * HOUR;
+  const fixed = fixture(t, (p) => { p.authorization.standing = { blockRenewal: 'Renew daily.' }; return p; });
+  fixed.start(); assert.throws(() => renewBlock(fixed.db, fixed.p.id, later), /expired/);
+  const manual = fixture(t, (p) => { untilComplete(p); delete p.authorization.standing.blockRenewal; return p; });
+  manual.start(); assert.throws(() => renewBlock(manual.db, manual.p.id, later), /permission/);
+  assert.throws(() => validateAuthorization({ ...untilComplete(project()).authorization, deadline: iso(NOW + HOUR) }, { now: NOW, kind: 'wave' }), /only for continuing plans/);
+  assert.throws(() => validateAuthorization({ ...authorization(), standing: { untilComplete: true } }, { now: NOW }), /owner/);
+  const paused = fixture(t, untilComplete); paused.start();
+  updateRun(paused.db, paused.p.id, 'pause', 'owner says pause', NOW);
+  assert.throws(() => renewBlock(paused.db, paused.p.id, later), /paused/);
+  assert.ok(holdable(paused.text(), later).why);
+  const waiting = fixture(t, untilComplete); waiting.start();
+  updateRun(waiting.db, waiting.p.id, 'wait', { kind: 'dependency', reason: 'need proof', until: null }, NOW);
+  assert.throws(() => renewBlock(waiting.db, waiting.p.id, later), /wait blocks/);
+  updateRun(waiting.db, waiting.p.id, 'clear-wait', 'proof reconciled', later);
+  const uncertain = fixture(t, untilComplete); uncertain.start();
+  const doc = JSON.parse(uncertain.db.prepare('SELECT doc FROM runs').get().doc);
+  doc.pending = { id: 'unresolved-native-request', attempts: 1 };
+  uncertain.db.prepare('UPDATE runs SET doc=?').run(JSON.stringify(doc));
+  assert.throws(() => renewBlock(uncertain.db, uncertain.p.id, later), /Uncertain/);
+  updateRun(waiting.db, waiting.p.id, 'cancel', 'owner cancels', later);
+  assert.equal(nextStep(waiting.text(), later).action, 'cancelled');
 });
 
 test('a multi-day rehearsal pauses between phases, restarts without renewal and preserves findings', (t) => {
@@ -162,8 +217,8 @@ test('a replacement worker takes over its in-flight step through a fenced handof
   assert.equal(nextStep(f.text(), NOW).action, 'launch');
 });
 
-test('a second failure is diagnosed by an agent independent of everyone who worked on the phase', (t) => {
-  const f = fixture(t); f.start();
+for (const completion of [false, true]) test(`a second failure is diagnosed independently and never resets (completion=${completion})`, (t) => {
+  const f = fixture(t, completion ? untilComplete : undefined); f.start();
   f.record(1, 'build', { actor: 'builder' }); f.record(1, 'landed', MERGE); f.record(1, 'check', { actor: 'checker' });
   f.record(1, 'fail', 'product: first');
   f.record(1, 'repair', { actor: 'repairer' }); f.record(1, 'landed', MERGE); f.record(1, 'check', { actor: 'checker-2' });
@@ -180,6 +235,13 @@ test('a second failure is diagnosed by an agent independent of everyone who work
   f.record(1, 'fail', 'product: third');
   assert.equal(nextStep(f.text(), NOW).action, 'stop');
   assert.throws(() => f.record(1, 'diagnose', { actor: 'decider-2', decision: 'repair', reason: 'again' }), /next event is stop/);
+  if (completion) {
+    const before = readSteps(f.text()), later = NOW + 80 * HOUR;
+    renewBlock(f.db, f.p.id, later);
+    assert.equal(nextStep(f.text(), later).action, 'stop');
+    assert.deepEqual(readSteps(f.text()), before);
+    assert.throws(() => f.record(1, 'repair', { actor: 'extra' }, later), /next event is stop/);
+  }
 });
 
 test('block end, cancellation and expiry stop launches and wakes', async (t) => {

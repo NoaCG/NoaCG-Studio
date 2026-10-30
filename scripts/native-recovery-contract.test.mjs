@@ -1,5 +1,5 @@
 // gate: build
-// guards: scripts/native-recovery-contract.mjs
+// guards: scripts/native-recovery-contract.mjs, scripts/project-authorization.mjs
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { inspectNative, policyFingerprint, rearmNative, reconcileNative, wakeHealth } from './native-recovery-contract.mjs';
@@ -129,6 +129,31 @@ test('a dead wake chain is visible without automatically granting a second owner
   assert.equal(wakeHealth({ ...health, firedAt: health.dueAt, nextNativeId: 'confirmed-next' }, now).state, 'rearmed');
   assert.equal(wakeHealth({ ...health, dueAt: new Date(now + 60_000).toISOString() }, now).state, 'pending');
   assert.equal(wakeHealth({ ...health, terminal: true }, now).state, 'stop');
+});
+
+test('completion-authorized native wakes cross and follow the target within their actual block', () => {
+  const iso = (time) => new Date(time).toISOString(), hour = 3_600_000;
+  for (const clock of [now, now + 24 * hour]) {
+    const record = wake(); record.kind = 'plan';
+    record.authorization.standing = { untilComplete: 'Continue this scope until complete.' };
+    record.block = { startedAt: iso(clock - 30 * 60_000), deadline: iso(clock + 3 * hour) };
+    record.previous.firedAt = iso(clock - 5 * 60_000);
+    record.next = { ...record.next, dueAt: iso(clock + 2 * hour), deadline: record.block.deadline };
+    const admitted = rearmNative(record, clock);
+    assert.equal(admitted.state, 'eligible');
+    assert.equal(admitted.deadline, record.block.deadline);
+    assert.equal(wakeHealth(admitted, clock + hour).state, 'pending');
+    assert.equal(rearmNative({ ...record, paused: true }, clock).state, 'stop');
+    assert.equal(rearmNative({ ...record, terminal: true }, clock).state, 'stop');
+    assert.equal(rearmNative({ ...record, wait: { kind: 'permission' } }, clock).state, 'waiting');
+    assert.equal(rearmNative(record, Date.parse(record.block.deadline)).state, 'stop');
+    assert.equal(rearmNative({ ...record, next: { ...record.next, dueAt: record.block.deadline } }, clock).state, 'stop');
+    assert.equal(rearmNative({ ...record, next: { ...record.next, deadline: record.authorization.deadline } }, clock).state, 'unknown');
+    assert.equal(rearmNative({ ...record, block: null }, clock).state, 'unknown');
+    assert.equal(rearmNative({ ...record, block: { ...record.block, deadline: iso(clock + 25 * hour) } }, clock).state, 'unknown');
+    assert.equal(rearmNative({ ...record, kind: 'wave' }, clock).state, 'unknown');
+    assert.equal(rearmNative({ ...record, target: { ...target, policySha256: 'changed' } }, clock).state, 'unknown');
+  }
 });
 
 test('a wake at or beyond the fixed deadline is invalid before the window expires', () => {

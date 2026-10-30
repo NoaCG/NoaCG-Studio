@@ -57,7 +57,7 @@ import { fileURLToPath } from 'node:url';
 import { jobsDir } from './jobs-store.mjs';
 import { nextStep } from './plan-run.mjs';
 import { samePath } from './worktree-cleanup-lib.mjs';
-import { immutableProject, projectBoundary, readProject, validateProject, writeProject } from './project-authorization.mjs';
+import { immutableProject, projectBoundary, readProject, untilComplete, validateProject, writeProject } from './project-authorization.mjs';
 
 /** The store's folder name inside the job store, beside `logs/` and `relay/`. */
 export const WAVE_PLANS_DIR = 'wave-plans';
@@ -193,12 +193,12 @@ export function openWave({ date, kind, until, session, project, dir = jobsDir(),
   if (!/(?:[+-]\d{2}:\d{2}|Z)$/.test(String(until ?? '')) || Number.isNaN(end)) {
     return { refusal: `--until must be an ISO time with its offset, e.g. 2026-10-09T06:00:00+03:00 (got "${until}")` };
   }
-  if (end <= now) return { refusal: `the window end ${until} has already passed` };
   const file = path.join(ensureWavePlansDir(dir), name);
   const text = existsSync(file) ? readFileSync(file, 'utf8') : null;
   let existing;
   try {
     existing = text === null ? null : readProject(text, now);
+    if (end <= now && !untilComplete(existing?.authorization)) throw Error(`the window end ${until} has already passed`);
     if (project) {
       validateProject(project, now);
       if (!PLAN_RUN_KIND.test(kind) || Date.parse(project.authorization.deadline) !== end) throw Error('Project authorization must match this plan deadline');

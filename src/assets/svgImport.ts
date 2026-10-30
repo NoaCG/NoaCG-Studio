@@ -371,17 +371,37 @@ export function clockSampleMinutes(sample: string): number | null {
 /** Attribute names that run script — removed wholesale. */
 const isEventAttr = (name: string) => /^on/i.test(name);
 
-/** External reference: an absolute URL or protocol-relative — anything that would make the
- *  emitted graphic reach the network (`root/keep-generated-template-self-contained-runtime`).
- *  A local `#id` ref
- *  and a `data:` URL are fine. */
-function isExternalRef(value: string): boolean {
-  return /^(?:https?:)?\/\//i.test(value.trim());
+/** A graphic may reference its own definitions and embed image data. Other URI schemes,
+ *  relative files and navigation to data documents do not belong in a self-contained SVG. */
+function isAllowedSvgRef(tag: string, value: string): boolean {
+  return value.startsWith('#')
+    || ((tag === 'image' || tag === 'feimage') && /^data:image\//i.test(value));
 }
 
 /** SMIL animation elements — stripped with a note: deterministic playout owns time, and a
  *  wall-clock SMIL loop would also fail the OGraf post-production gate (plan §7). */
 const SMIL_TAGS = new Set(['animate', 'animatetransform', 'animatemotion', 'set']);
+const XLINK_NS = 'http://www.w3.org/1999/xlink';
+// These names leave SVG foreign-content parsing in HTML, even with an SVG xmlns.
+// Keep legacy inert artwork (including Inkscape flowRoot) rather than allowlisting shapes.
+const HTML_BREAKOUT_TAGS = new Set(('b big blockquote body br center code dd div dl dt em embed '
+  + 'h1 h2 h3 h4 h5 h6 head hr i img li listing menu meta nobr ol p pre ruby s small span '
+  + 'strong strike sub sup table tt u ul var iframe object').split(' '));
+
+/** XML-only node forms must not acquire markup when the result is parsed as HTML. */
+function sanitizeXmlNodes(svg: Element): void {
+  const walker = svg.ownerDocument.createTreeWalker(svg, NodeFilter.SHOW_ALL);
+  const nodes: Node[] = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    if (node.nodeType === Node.CDATA_SECTION_NODE) {
+      node.parentNode?.replaceChild(svg.ownerDocument.createTextNode(node.nodeValue ?? ''), node);
+    } else if (node.nodeType === Node.PROCESSING_INSTRUCTION_NODE
+      || (node.nodeType === Node.COMMENT_NODE && /^(?:>|->)/.test(node.nodeValue ?? ''))) {
+      node.parentNode?.removeChild(node);
+    }
+  }
+}
 
 /**
  * Sanitize the parsed SVG in place. Returns user-facing notices for everything removed —
@@ -389,6 +409,7 @@ const SMIL_TAGS = new Set(['animate', 'animatetransform', 'animatemotion', 'set'
  */
 function sanitize(svg: Element): string[] {
   const notices: string[] = [];
+  sanitizeXmlNodes(svg);
   let metadataBytes = 0;
   // Illustrator's editing payload can dwarf the visible SVG. Metadata/named-view nodes do
   // not render. Keep paint, definitions, fonts, title and description byte-faithful here.
@@ -407,13 +428,14 @@ function sanitize(svg: Element): string[] {
   const doomed: Element[] = [];
   const all = [svg, ...Array.from(svg.querySelectorAll('*'))];
   for (const el of all) {
-    const tag = el.tagName.toLowerCase();
+    const tag = el.localName.toLowerCase();
     if (tag === 'script') {
       scripts++;
       doomed.push(el);
       continue;
     }
-    if (tag === 'foreignobject') {
+    if (tag === 'foreignobject' || el.namespaceURI !== SVG_NS || HTML_BREAKOUT_TAGS.has(tag)
+      || (tag === 'font' && Array.from(el.attributes).some(attr => /^(?:color|face|size)$/i.test(attr.name)))) {
       foreign++;
       doomed.push(el);
       continue;
@@ -423,23 +445,43 @@ function sanitize(svg: Element): string[] {
       doomed.push(el);
       continue;
     }
+    // SVG title/desc are HTML integration points; style must contain CSS text only.
+    if (['title', 'desc', 'style'].includes(tag) && el.children.length) {
+      const text = el.textContent;
+      el.textContent = text;
+    }
     // Event handlers and javascript: URLs go regardless of the element they sit on.
     for (const attr of Array.from(el.attributes)) {
-      if (isEventAttr(attr.name)) {
+      if (isEventAttr(attr.localName)) {
         handlers++;
         el.removeAttribute(attr.name);
         continue;
       }
-      if (/^(?:href|xlink:href)$/i.test(attr.name)) {
-        if (/^\s*javascript:/i.test(attr.value)) {
+      if (attr.namespaceURI === 'http://www.w3.org/XML/1998/namespace' && attr.localName === 'base') {
+        external++;
+        el.removeAttributeNode(attr);
+        continue;
+      }
+      if (attr.localName.toLowerCase() === 'href') {
+        // URL parsing discards ASCII tabs/newlines even in an entity-decoded scheme.
+        const value = attr.value.replace(/[\t\r\n]/g, '').trim();
+        if (/^javascript:/i.test(value)) {
           handlers++;
           el.removeAttribute(attr.name);
-        } else if (isExternalRef(attr.value)) {
+        } else if (!isAllowedSvgRef(tag, value)) {
           // An element whose content IS the external file (<image>, <use>) cannot survive
           // losing it; anything else just loses the attribute.
           external++;
-          if (tag === 'image' || tag === 'use') doomed.push(el);
-          else el.removeAttribute(attr.name);
+          // SVG2 href takes precedence over XLink, regardless of attribute order. An
+          // unsafe fallback must not delete artwork whose primary reference is safe.
+          if ((tag === 'image' || tag === 'use')
+            && !(attr.namespaceURI === XLINK_NS && el.hasAttribute('href'))) doomed.push(el);
+          el.removeAttributeNode(attr);
+        } else if (attr.namespaceURI === XLINK_NS && attr.name !== 'xlink:href') {
+          // Use SVG2 href: XMLSerializer can otherwise restore the original alias.
+          // An existing href wins over XLink, as it does in the SVG renderer.
+          if (!el.hasAttribute('href')) el.setAttribute('href', value);
+          el.removeAttributeNode(attr);
         }
       }
     }

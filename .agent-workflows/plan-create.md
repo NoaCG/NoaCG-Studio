@@ -23,18 +23,23 @@ Read first: the spec(s), `AGENTS.md`, `docs/GOALS.md`, `.agent-workflows/plan-ru
 
 ## 2. Ask the owner once
 
-A plan run needs current explicit authorization, so this step is never decided for him; an
-unattended session without it stops with one request. Ask one question at a time, each with your
-recommendation, and record every answer verbatim:
+A plan run needs explicit authorization. Reuse the owner's still-applicable recorded decisions
+and plan launch receipt; do not ask again. Without them, an unattended session stops with one
+request. Ask only missing outcome decisions, one at a time, and record each answer verbatim:
 
-- **The authorization line:** scope, start and finite deadline. Timezone-free times are
+- **The authorization line:** scope, actual start and finite deadline or planning target. Timezone-free times are
   `Europe/Helsinki`; report the resolved date, time and offset.
 - **Standing permissions**, each his words or absent, never inferred: `blockRenewal` (open the next
-  24-hour block yourself), production migrations, and anything else he grants for nights.
+  24-hour block yourself), `untilComplete` (continue the same scope beyond the planning target),
+  production migrations, and anything else he grants. A date alone never grants until-complete.
 - **The phase list**, when it differs from the spec's order or scope.
 
 ## 3. Write the project
 
+- Before creating runtime state, qualify the chosen native coordinator, fresh workers and real
+  wake/re-entry as plan-run requires. Missing capabilities stop here; no provider substitution.
+- With explicit `untilComplete`, use the owner's target or authorized start +14-day default;
+  retain that immutable date throughout. Without it, the finite date is a hard deadline.
 - The project JSON from the runbook: id `plan-<plan>-<first-date>`, `ownership`, `authorization`
   (`source`, `scope`, `permissionPolicy` with its evidence, `startedAt`, `deadline`, and `standing`
   holding his words), `status: "paused"` and the phases.

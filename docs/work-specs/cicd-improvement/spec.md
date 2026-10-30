@@ -1,9 +1,9 @@
 # Faster delivery with credible site and graphics protection
 
-Status: prepared registration reconciled with Opus on 2026-10-30; CI improvement execution not authorized.
-The owner authorized preparation and registration only. Implementation,
-experiments, workflow activation and changes to the production-page run are not. This is the
-master proposal for the work after production-page completion, integrating the
+Status: intent agreed; awaiting owner start command and live Codex Cloud qualification.
+The owner's [launch policy](launch.md) records until-complete authority, daily block renewal
+and permission to start before remaining production-page studio acceptance. No CI implementation
+starts in the runner-preparation chat. This is the master plan integrating the
 [suite-budget plan](../e2e-suite-budget/spec.md) and [parallel-plan proposal](../parallel-plans/spec.md).
 It does not silently supersede their active procedures. The proposed replacements are listed below.
 Initial research is pinned to `d8dd1304910736437486d6f9f9cd9e401ac65589`; see
@@ -37,13 +37,15 @@ are each insufficient to call a feature complete.
 
 ## Owner requirements and decisions
 
-- Work starts after the production-page work is complete. Do not edit its plan, ledger, workers,
-  rows or worktrees. Confirm its final independent acceptance before any live trial here.
+- Work may start before remaining production-page studio tests finish, under the later owner
+  instruction in launch.md. Read actual receipts and retain pending acceptance honestly. Do not
+  edit its plan, ledger, workers, rows or worktrees.
 - The owner accepted on 2026-10-25: daily detection for unrelated, non-critical regressions,
   after selection qualification. Critical offline flows and affected graphics contracts are the pre-merge target;
   shared rendering, export and playout changes still receive broad checks before merge.
 - Retain independent reviewers and acceptance. Opus returned AGREE WITH CORRECTIONS on the spec
-  and again on the full run. Acceptance of the revised intent and execution admission remain pending.
+  and again on the full run. Revised intent is agreed; actual launch still needs the owner
+  command and a qualified native Codex Cloud continuation route.
 - Owner decision, 2026-10-29: an independently proven pre-existing, unrelated test failure may
   coexist with phase PASS only with attribution evidence and a tracking issue. Required merge
   gates still apply. Failures in checks, selection or shared infrastructure changed by the phase
@@ -58,7 +60,7 @@ are each insufficient to call a feature complete.
   capacity code's 13-runner allocation against a historical 20-job account limit. ci01 must verify
   the actual limit; neither number authorizes increasing the existing cost ceiling.
 - Owner direction, 2026-10-29: apply growth controls to backend tests, graphics checks and total PR
-  landing time as well as offline E2E. Update preparation only; do not launch implementation.
+  landing time as well as offline E2E. The later launch policy supersedes preparation-only timing.
 - Three plans are the immediate parallelism target. Ten contributors are a later capacity question.
 
 The following design is recommended, not a claim that these capabilities are already implemented.
@@ -242,8 +244,8 @@ Do not create a per-design bureaucracy or a new central task database. Each remo
 or moved case needs defect replay or an injected fault: fail on the fault, pass on the fix,
 and preserve the necessary boundary. Source overlap and equal test counts do not prove equivalence.
 
-First maintenance candidates come from the existing suite-budget inventory, remeasured after
-production-page completion: geometry cases currently booting the app; repeated playout setup;
+First maintenance candidates come from the existing suite-budget inventory, remeasured on
+current main with production-page acceptance gaps disclosed: geometry cases currently booting the app; repeated playout setup;
 and overlapping editor qualification walks. Keep persistence/UI/packaged-output checks where
 those boundaries matter. Land three small maintenance changes with separate before/after data,
 moving none to scheduled cadence before qualification. Place them before remaining audit-window work.
@@ -357,14 +359,14 @@ deadline and enforceable response does not satisfy this design.
 
 ## One implementation sequence
 
-The owner authorized registering the prepared plan on 2026-10-28, without implementation launch.
-Open its runtime project only after full-run review, explicit execution authorization with a finite
-deadline, and production-page completion. No start-after-software-only exception was approved. Each row has a single coherent outcome, `/check`,
+The owner authorized registering the prepared plan on 2026-10-28 and subsequently approved
+the launch policy in launch.md. Open its runtime project only on an owner start command after
+live continuation qualification. The default two-week date is a target, not expiry. Each row has a single coherent outcome, `/check`,
 `/queue-merge`, a repair owner and independent acceptance. Do not run three overlapping roadmaps.
 
 | Phase | Deliverable and prerequisite | Reversal |
 | --- | --- | --- |
-| P0: reconcile and baseline | Pin current main, rules and production-page completion receipt. Read existing main/configured/merge-group durations and queue waits. Triage the reported nightly failures before relying on them. Freeze cohorts. | Documents only |
+| P0: reconcile and baseline | Pin current main, rules and actual production-page receipts, retaining pending studio acceptance. Read existing main/configured/merge-group durations and queue waits. Triage the reported nightly failures before relying on them. Freeze cohorts. | Documents only |
 | P1: safety and feedback | Separate reversible rows: (a) remaining dispatch/source-identity protection; (b) selector hardening; (c) selected configured PR job and worker-guidance reconciliation after (a); (d) D1 guidance; (e) D7 whole-pipeline growth controls before the audit. Measure added safety cost separately. | Revert each scheduling/guidance change independently; a safety repair needs retained protection before reversal |
 | P2: contracts and miss audit | Distinguish critical/shared sets, fill demonstrated gaps and replay historical full-main failures against culprit selections. Continue the audit for two weeks after the last selection correction, starting after P1(b). Use existing full-main evidence; no duplicate shadow executions. | Retain existing full protection and corrected mappings |
 | P3: scoped catalog and maintenance | Fix scoped-report integrity first; reuse catalog-gates path in ci.yml. Prove the 24-hour coverage/completion bound, failed/missed-pass alarm, culprit and rollback drills before narrowing. Pair existing scoped/full evidence where identities match. Land three remeasured maintenance candidates. Optional worker backend feedback measured separately. | Restore full catalog/previous faithful placements; disable worker caller |
@@ -629,5 +631,6 @@ Planning only. The original registration landed in PR #1799. The full-run opinio
 on 2026-10-29 in the linked receipt. This revised preparation has 18 phases and eight active
 criteria. All implementation criteria remain open. No runtime project/block or worker is opened.
 The 2026-10-30 Opus corrections are incorporated; narrow shared runner fixes are authorized
-separately and do not pass these future CI criteria. Full production-page completion, finite execution authority
-and live continuation qualification are still required. Preparation tests never prove speedups.
+separately and do not pass these future CI criteria. The owner's later launch policy permits early
+start and until-complete execution; live continuation qualification remains required. Preparation
+tests never prove speedups. No implementation criterion is marked passed by agreeing to this plan.

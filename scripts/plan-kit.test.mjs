@@ -12,7 +12,7 @@ import { checkin, heartbeat, initKit, renderBrief, TRAPS } from './plan-kit.mjs'
 import { kitDir } from './run-recovery.mjs';
 import { openWave } from './wave-plan-store.mjs';
 import { openStore, recordRun, registerRun, updateRun } from './run-supervisor.mjs';
-import { readProject } from './project-authorization.mjs';
+import { readProject, writeProject } from './project-authorization.mjs';
 
 const NOW = Date.parse('2026-10-29T12:00:00Z');
 const HOUR = 3_600_000, MINUTE = 60_000;
@@ -132,4 +132,23 @@ test('the heartbeat is rendered from state.json and the ledger', (t) => {
   assert.match(body, /- phase E1, build, PR #1800, session_b/);
   assert.match(body, /- Bring the Stream Deck to S/);
   } finally { db.close(); }
+});
+
+test('completion authority schedules after the target but keeps worker briefs bounded by the block', (t) => {
+  const { file } = fixture(t), text = readFileSync(file, 'utf8'), p = readProject(text, NOW);
+  const later = NOW + 80 * HOUR;
+  p.authorization.standing = { untilComplete: 'Continue this scope until complete.' };
+  p.status = 'active';
+  p.block = { id: 'later-block', owner: 'same-owner', epoch: 2, startedAt: iso(later), deadline: iso(later + HOUR) };
+  writeFileSync(file, writeProject(text, p));
+  const due = checkin({ action: 'wait' }, state(), p, later);
+  assert.equal(due.at, iso(later + 30 * MINUTE));
+  assert.equal(checkin({ action: 'wait' }, { ...state(), waitingOn: { eta: iso(later + 4 * HOUR) } }, p, later).at, p.block.deadline);
+  assert.equal(checkin({ action: 'paused' }, state(), { ...p, status: 'paused' }, later).at, null);
+  const brief = renderBrief(file, 'build', 'E1', { SOURCE });
+  assert.ok(brief.text.includes(`Authorized window ends ${p.block.deadline}`));
+  assert.throws(() => renderBrief(file, 'build', 'E1', { SOURCE, DEADLINE: iso(later + 48 * HOUR) }), /cannot override/);
+  const body = heartbeat(file, later);
+  assert.match(body, /planning target .*continue until complete/);
+  assert.doesNotMatch(body, /the run ends/);
 });
