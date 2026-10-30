@@ -117,36 +117,36 @@ hands that decision to you as **Emphasis** in the wizard's Style step:
 In the generated code it is one class on `.credits-box`
 (`credits-box--emph-role` / `credits-box--emph-name`), so it can also be flipped by hand later.
 
-## The same field on an imported SVG
+## Imported SVG credits: the original artwork
 
-A graphic drawn in Illustrator (or Figma, or Inkscape) gets the same one field. Name one text
-layer `Credits` and the import binds the **credits roll** behaviour to it: the operator gets a
-multi-line Credits box holding whatever you typed into the layer, plus **Scroll speed (%)**, and on
-Take the whole list rolls from below the frame to above it, at a constant pace, until the last
-line has gone. Draw a plate named `Credits box` and the roll runs inside that plate instead of
-the whole frame. The format is the one above, unchanged: a line ending in a colon is a title, the
-lines under it are names, `Title: Name` works inline, a tab from a spreadsheet works, a blank line
-starts a new section.
+Draw the whole list in one text object in Illustrator, Figma or Inkscape. Name it `Credits`,
+export as SVG with live text, and choose **Credits roll** at import. No Credits box or special
+punctuation is needed. Long text may extend below the artboard; keep the artboard at the
+output frame size and include the complete object in the export.
 
-**The look is the sample's.** What you type into the Credits layer in your design app is the
-sample, and it is how you style the roll: the first line ending in `:` is what every title line
-will look like, and the line under it is what every name line will look like. Font, size, weight,
-colour, the indent, the leading between a title and its names, between two names, and the gap
-before the next title are all read off those lines. Two lines styled once, and every list the
-operator pastes follows them. The sample itself is hidden on air.
+On Take, the original text starts below the output frame and moves upwards at a constant pace
+until its final line clears the top. Its fonts, glyph runs, alignment, transforms, line breaks
+and spacing stay as drawn. Take again starts a new roll; Out cancels it.
 
-**Scroll speed 100** means the list moves at about 1.75 of its own lines a second, so about thirty
-lines pass through a 1080-high frame in about thirty seconds, whatever size the type is. 200 is
-twice as fast, 50 half; a value changed on air changes the pace of the running roll at once.
+**Scroll speed (%)** is the playout control. At 100 the text travels 90 output pixels per second
+in a 1080-high frame; 200 doubles that pace and 50 halves it. A live speed change keeps the roll
+in place. To change or add names, edit the Illustrator source and import the SVG again. New
+imports do not expose an editable Credits text field.
+
+Previously saved editable SVG credits keep their pasted-list field, parser, styling and
+optional Credits box. The catalog credits described above also keep their editable lists.
 
 ## For maintainers
 
 - The parser is `parseCredits` in `src/templates/endCredits/shared.ts` (`CREDITS_PARSER_JS`),
-  emitted into every generated template - the catalog rolls and the imported-SVG roll
+  emitted into the catalog rolls and legacy editable imported-SVG rolls
   (`src/templates/importedDesign/creditsRoll.ts`, declared by `src/templates/behaviours/credits.ts`)
   alike. It escapes every value **on the way out** through its `escape` argument (`escapeHtml` by
   default), so a design's own row builders are safe to rewrite without remembering the rule; a
   renderer that writes `textContent` passes the identity.
+- New imported artwork rolls use `src/templates/importedDesign/creditsArtwork.ts`, selected
+  by the additive `DesignSvg.behaviour.options.artwork` marker. They move the original text
+  subtree and do not emit the parser. Bindings without the marker retain the legacy engine.
 - It produces `{ type: 'group', role, names[] }`, plus `heading` and `entry`. A design that
   defines `renderCreditGroup(group)` receives the group whole - the only way one role can lay out
   above or beside several names. A design without one is served the group flattened into the

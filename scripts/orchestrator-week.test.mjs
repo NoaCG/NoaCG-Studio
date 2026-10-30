@@ -77,7 +77,7 @@ test('the page prints every section from the facts, with absent meters named rat
       { name: '2026-09-02-night-wave-plan.local.md', rows: [{ pool: 'opus' }, { pool: 'agy-claude-gpt + opus' }], decisions: { decided: 0, legacy: 1 } },
       { name: '2026-09-03-day-wave-plan.local.md', rows: [{ pool: 'codex' }], decisions: { decided: 3, legacy: 0 } },
     ],
-    issues: [{ number: 900, labels: ['P1', 'owner ask'] }, { number: 901, labels: ['P2', 'needs owner'] }, { number: 902, labels: ['P3'] }],
+    issues: [{ number: 900, labels: ['P1', 'requested'] }, { number: 901, labels: ['P2', 'needs decision'] }, { number: 902, labels: ['P3'] }],
     landed: { count: 18, branches: [] },
     skill: { commits: [{ sha: '9daf5b28', subject: 'Refuse a bad delegation' }], commonPathNow: { core: 198, marked: [], total: 640 }, commonPathThen: { core: 197, marked: [], total: 639 } },
   });
@@ -88,7 +88,7 @@ test('the page prints every section from the facts, with absent meters named rat
   assert.match(page, /Rows planned off Claude .*: 2 of 3/);
   assert.match(page, /Claude tokens per landed branch: 149,947,012/);
   assert.match(page, /DECIDED: lines in the wave plans\): 3, plus 1 in the older inline wording/);
-  assert.match(page, /Issues opened: 3; owner ask 1, needs owner 1\./);
+  assert.match(page, /Issues opened: 3; requested 1, needs decision 1\./);
   assert.match(page, /unverified on the installed builds: 1 \(claude-launched-session-gets-no-subagent-notifications\)/);
   assert.match(page, /640 lines now, 639 at the window's start; core 198 lines/);
   assert.match(page, /9daf5b28 Refuse a bad delegation/);

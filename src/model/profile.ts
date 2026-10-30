@@ -88,6 +88,13 @@ export type ProfileArrange = Record<string, Record<string, ArrangeEntry>>;
 export interface ShowProfile {
   v: typeof PROFILE_VERSION;
   arrange: ProfileArrange;
+  /**
+   * PINNED LIVE CONTROLS (docs/work-specs/pinned-live-controls/spec.md D1): the pool graphics, by
+   * name and in pin order, whose live controls every operator surface keeps on screen whatever cue
+   * is selected. Additive optional inside v1: absent and empty mean the same, and canonical form
+   * leaves the key out when nothing is pinned. Presentation only, never command authority.
+   */
+  pinnedGraphics?: string[];
 }
 
 /** A profile that changes nothing. Serializes to the same bytes every time, so an untouched
@@ -132,7 +139,20 @@ export function readShowProfile(value: unknown): ProfileRead {
   // know. When v2 arrives its migration step goes here, above this line, and only versions past
   // the newest one this build understands fall through to read-only.
   if (v !== PROFILE_VERSION) return { status: 'read-only', version: v, raw: value };
-  return { status: 'ok', profile: { v: PROFILE_VERSION, arrange: readArrange((value as { arrange?: unknown }).arrange) } };
+  const pinned = readPinned((value as { pinnedGraphics?: unknown }).pinnedGraphics);
+  return {
+    status: 'ok',
+    profile: { v: PROFILE_VERSION, arrange: readArrange((value as { arrange?: unknown }).arrange), ...(pinned.length > 0 ? { pinnedGraphics: pinned } : {}) },
+  };
+}
+
+/** The pinned list, degraded: a value that is not a list is dropped whole, and within a list
+ *  anything but a non-empty name, or a name already listed, is dropped. Order is kept. */
+function readPinned(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const name of value) if (typeof name === 'string' && name && !out.includes(name)) out.push(name);
+  return out;
 }
 
 function readArrange(value: unknown): ProfileArrange {
@@ -205,12 +225,40 @@ export function readPublishedProfile(value: unknown): ShowProfile | null {
  *
  * This is what a save path writes and what `publishControlShow` pins.
  */
-export function serializeShowProfile(profile: ShowProfile): ShowProfile {
+export function serializeShowProfile(profile: ShowProfile, pool?: readonly string[]): ShowProfile {
   const read = readShowProfile(profile);
   // A `ShowProfile` is v1 by its type, so anything else is a caller handing over something it
   // said was a profile and was not. An empty canonical profile is the answer that cannot lie.
   if (read.status !== 'ok') return emptyProfile();
-  return { v: PROFILE_VERSION, arrange: orderArrange(read.profile.arrange) };
+  // Pins keep the order they were made in: it is the order the blocks are drawn (D2). Given the
+  // pool, a pin naming a graphic no longer in it is dropped here (D7), and nothing else is.
+  const pinned = (read.profile.pinnedGraphics ?? []).filter((name) => !pool || pool.includes(name));
+  return { v: PROFILE_VERSION, arrange: orderArrange(read.profile.arrange), ...(pinned.length > 0 ? { pinnedGraphics: pinned } : {}) };
+}
+
+/** A profile that arranges nothing and pins nothing: what a surface deletes rather than stores,
+ *  so "no profile" stays one state. */
+export function profileIsEmpty(profile: ShowProfile): boolean {
+  return Object.keys(profile.arrange).length === 0 && !profile.pinnedGraphics?.length;
+}
+
+/** The pinned graphics a surface may draw from, in pin order: none for no profile or one this
+ *  build cannot read (the generated page), whatever it was handed. */
+export function pinnedGraphicsOf(value: unknown): string[] {
+  return readPublishedProfile(value)?.pinnedGraphics ?? [];
+}
+
+/**
+ * A profile with ONE graphic pinned or unpinned, canonical, its orphan pins dropped against `pool`
+ * (D7). A pin is appended, so blocks keep the order they were pinned in. Pinning a name that is not
+ * in the pool is refused: the profile comes back unchanged but for the orphan drop.
+ */
+export function withPinnedGraphic(profile: ShowProfile | undefined, graphic: string, pinned: boolean, pool: readonly string[]): ShowProfile {
+  const read = readShowProfile(profile);
+  const base = read.status === 'ok' ? read.profile : emptyProfile();
+  const others = (base.pinnedGraphics ?? []).filter((name) => name !== graphic);
+  const list = pinned && pool.includes(graphic) ? [...others, graphic] : others;
+  return serializeShowProfile({ ...base, pinnedGraphics: list }, pool);
 }
 
 /**
@@ -267,6 +315,7 @@ export function withGraphicArrange(
   profile: ShowProfile | undefined,
   graphic: string,
   entries: Record<string, ArrangeEntry>,
+  pool?: readonly string[],
 ): ShowProfile {
   const read = readShowProfile(profile);
   const base = read.status === 'ok' ? read.profile : emptyProfile();
@@ -278,7 +327,7 @@ export function withGraphicArrange(
   // Canonical on the way out, so the caller cannot store two spellings of one arrangement — and
   // so an entry that says nothing, a `hidden: false`, and a graphic whose every entry was
   // cleared all disappear by the format's own rules rather than by the surface remembering to.
-  return serializeShowProfile({ v: PROFILE_VERSION, arrange });
+  return serializeShowProfile({ v: PROFILE_VERSION, arrange, pinnedGraphics: base.pinnedGraphics }, pool);
 }
 
 // ── Validating (the refusing half) ───────────────────────────────────────────────────────────
@@ -338,7 +387,23 @@ export function validateShowProfile(value: unknown, pool: ProfilePool): ProfileF
   }
 
   validateArrange(row.arrange, pool, error, warn);
+  validatePinned((row as { pinnedGraphics?: unknown }).pinnedGraphics, pool, error, warn);
   return findings;
+}
+
+/** A pin is a pool graphic's name. One naming no graphic in the pool is a WARNING, never a refusal:
+ *  removing a pinned graphic leaves its entry behind until the next canonical write (D7). */
+function validatePinned(value: unknown, pool: ProfilePool, error: Report, warn: Report): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) {
+    error('pinnedGraphics', '`pinnedGraphics` must be a list of pool-graphic names.');
+    return;
+  }
+  value.forEach((name, i) => {
+    const at = `pinnedGraphics[${i}]`;
+    if (typeof name !== 'string' || !name) error(at, 'A pin is the name of a graphic in this production.');
+    else if (!declaredControls(pool, name)) warn(at, `No graphic named "${name}" is in this production. The pin draws nothing and is dropped on the next save.`);
+  });
 }
 
 type Report = (where: string, message: string) => void;

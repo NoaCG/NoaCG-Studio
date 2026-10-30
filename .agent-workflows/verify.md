@@ -15,7 +15,9 @@ cannot observe is not a criterion yet.
 
 ## 2. Pick the checks the change needs, no more
 
-Ordinary implementation and verification run in cloud; device/private local work stays local.
+Local implementation, review and targeted verification are always allowed without asking.
+Use qualified cloud execution when useful; unavailable cloud execution does not block local work.
+Device/private local work stays local.
 Select resources on the executing worker with `node scripts/execution-profile.mjs`, never from
 the coordinator's profile. GitHub Actions retains authoritative full PR/merge-group checks.
 Local checks and all existing local guards remain targeted; whole suites are refused off Actions.
@@ -90,10 +92,11 @@ the verify leg's mode; this evidence goes in the commit or the pull request.
 Everything an agent can verify, it verifies. Something reaches the owner only when human judgment
 genuinely helps, and never as a note for him to read later. A look at the change (a quick one he
 can take on his phone, or a desktop or production check where product judgment matters) goes in
-the pull request comment: what to open, where, and what to judge.
+the pull request description as a review step anyone could take (what to open, where, and what to
+judge), and is said to him in the final message.
 
 A decision only he can make, or a step only he can take, is asked at once, never filed as a
-`needs owner` issue:
+`needs decision` issue:
 
 - **He is in the session**: ask him there, one question with your recommendation, and continue
   from his answer.

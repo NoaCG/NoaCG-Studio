@@ -46,8 +46,10 @@ const PayloadStage = forwardRef<
      * each graphic's document has loaded its listener.
      */
     onReady?: () => void;
+    /** An imported face's bytes the payload does not hold (output/stage.ts `faceAsset`). */
+    faceAsset?: (src: string) => string | null;
   }
->(function PayloadStage({ payload, error, emptyLabel, testId, onState, onReady }, ref) {
+>(function PayloadStage({ payload, error, emptyLabel, testId, onState, onReady, faceAsset }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<OutputStage | null>(null);
   /**
@@ -71,6 +73,8 @@ const PayloadStage = forwardRef<
   onStateRef.current = onState;
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
+  const faceAssetRef = useRef(faceAsset);
+  faceAssetRef.current = faceAsset;
 
   useEffect(() => {
     const root = host.current;
@@ -78,6 +82,7 @@ const PayloadStage = forwardRef<
     const built = createOutputStage(root, payload, {
       // Scale into the MONITOR, not the viewport — the /output page keeps the window default.
       fit: () => ({ width: root.clientWidth, height: root.clientHeight }),
+      faceAsset: (src) => faceAssetRef.current?.(src) ?? null,
     });
     stage.current = built;
     plays.current = 0;

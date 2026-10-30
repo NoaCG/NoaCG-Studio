@@ -317,10 +317,27 @@ export-time reflow, stretching, or cropping.
   manifest, validates manifest + package, reads `v_noacg` (`readNoacgVendorBlock`), compares the
   recorded `sourceHash` with the shipped sources (`stale`), and derives the operator contract for
   ANY manifest through `control/ografContract.ts`. A package without `v_noacg.source` is a
-  third-party graphic: validated, inspectable, hostable in the bench - not importable as a
-  template (future, docs/AGENT_CLI.md).
+  third-party graphic, which `ografForeign.ts` imports.
+- **targets/ografForeign.ts** - a STRANGER'S OGraf package in and out (E3.1,
+  docs/work-specs/playout-ograf-rundown/spec.md). `readOgrafArchive` judges every entry name from
+  the zip's own central directory before JSZip parses it (JSZip cleans `../` and lets a later
+  entry replace an earlier one), then counts each file's bytes as they inflate, so a bomb stops at
+  the bound. `readForeignFiles` runs the conformance gate without NoaCG's own element-id rule (a
+  stranger's Graphic mounts under a host tag) and refuses any stated reference that leaves the
+  package or names nothing. The entry it makes IS the package (model/foreignPackage.ts): files
+  untouched as assets, a sha256 revision, empty panes. `foreignPackageZip` verifies and returns
+  the same bytes, and registry.ts routes a foreign graphic to it on the OGraf target and refuses
+  every other target. Bounds are pinned in scripts/ograf-foreign.test.mjs.
 - **common.ts** - addSharedAssets, addReferencedFonts, injectControlReceiver + addControlPanel,
   `fonts/FONT_LICENSES.md` (beside the bytes, not at the package root - see below).
+- **Place and size** (docs/work-specs/playout-adjustments/spec.md, phase 1b): a production export
+  resolves each adjusted graphic's default and each cue's fold (control/exportAppearance.ts, measured
+  by the dialog) and passes them as `ExportContext.appearance` and the controller's cues. Every
+  target bakes ONE runtime (control/appearanceRuntime.ts; `bakeAppearance` writes it as a
+  `<script id="noacg-appearance">`, the OGraf Graphic applies it to its canvas) that puts the
+  transform on the document's ROOT and maps rect reads back, because the catalog's fits measure through
+  transforms; the relay receiver applies a row's appearance through the same runtime, so it
+  replaces the bake. Nothing adjusted, nothing emitted: such a package keeps its bytes.
 
 ## Font licensing (the rule: the licence follows the BYTES)
 

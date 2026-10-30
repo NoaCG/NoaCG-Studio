@@ -73,6 +73,22 @@ export async function panelModule(code: string) {
       if (r.payload.outcome === 'ran') mark = from;
       return { outcome: r.payload.outcome as string, note: r.payload.note as string | undefined, id, ms: r.at - sent };
     },
+    /** The newest `actions` event, waited for until `pred` holds (protocol §10.2). */
+    actions: (pred: (a: Json) => boolean = () => true, what = 'actions') => until(() => last('actions', pred)?.payload, what),
+    /** A graphic action as the module sends it (protocol §10.3); the page's `result`, and once it
+     *  ran, its `settled`. A relay refusal comes back as `refused <code>`. */
+    action: async (p: { target: string; cap: string; instance: string; seen: number; args?: Json; id?: string }) => {
+      const id = p.id ?? `specdeck:${++n}`;
+      const from = heard.length;
+      const answer = await call('panel_press', {
+        p_key: key,
+        p_press: { v: 2, verb: 'graphic-action', target: p.target, seen: p.seen, id, cap: p.cap, instance: p.instance, ...(p.args ? { args: p.args } : {}) },
+      });
+      if (!answer.ok) return { outcome: `refused ${answer.refused}`, note: answer.note as string | undefined, id, settled: null };
+      const r = await until(() => last('result', (m) => m.id === id, from), `result for ${id}`);
+      const settled = r.payload.outcome === 'ran' ? (await until(() => last('settled', (m) => m.id === id, from), `settled for ${id}`)).payload : null;
+      return { outcome: r.payload.outcome as string, note: r.payload.note as string | undefined, id, settled };
+    },
     /** Milliseconds from the page sending each state to this client hearing it: the page stamps
      *  `at` as it sends, and both clocks are this machine's. */
     stateLags: () => heard.filter((m) => m.event === 'state' && typeof m.payload.at === 'number').map((m) => m.at - (m.payload.at as number)),

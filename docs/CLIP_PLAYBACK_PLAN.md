@@ -571,6 +571,10 @@ Additive in protocol v2 (`src/control/playoutProtocol.ts`, mirrored byte for byt
 - **Split the page along its seams**, as [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) plans, behaviour
   unchanged, `liveCue` and `selectedCueId` staying where they are. No general playout framework is
   built during the split (§19, question 4).
+  *Superseded for `liveCue` (owner, 2026-10-11; docs/work-specs/production-page-refactor/spec.md
+  §1.1, decision 2):* `liveCue` moved once into the production page's playout session
+  (`src/control/playoutSession.ts`, the `air` part), its one owner within the page and its
+  modules. `selectedCueId` stays React state in the page, as written here.
 - **Two kinds of server state, two update speeds** (§19, finding 10). The clock and the rows'
   remaining time change twice a second and subscribe to a small store of their own. Who owns a
   slot, what is on air, and whether a verb or All out is allowed change only on an action or a
@@ -1065,7 +1069,10 @@ renderer (`/output`); the database and its migrations; the Presenter page.
    lack controls, a control that needs the Bridge lives only on the production page, and **no change
    may break what the hosted page already does** (§8).
 2. **[issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)**: phase 0 runs its phases 1 and 2 as written; `liveCue`
-   and `selectedCueId` never move.
+   and `selectedCueId` never move. *Superseded for `liveCue`* by the production-page refactor
+   (docs/work-specs/production-page-refactor/spec.md §1.1, decision 2): it moved once into the
+   playout session's `air` part (`src/control/playoutSession.ts`); `selectedCueId` still never
+   moves out of the page.
 3. **The Bridge keeps no state** (`BRIDGE.md` §3), with two exceptions, both in memory: since phase
    2 each slot's generation and instance (§6.7), recorded in `BRIDGE.md` §3; from phase 3 the
    sequence runner (§6.10), kept beside them.

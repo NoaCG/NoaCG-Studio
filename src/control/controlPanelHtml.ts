@@ -20,6 +20,7 @@ import type { SpxField } from '../model/types';
 import type { FieldDescriptor } from '../model/fieldModel';
 import {
   arrangeControls,
+  continueEvents,
   controlChannelName,
   eventButtons,
   eventLegality,
@@ -34,6 +35,7 @@ import {
   type ControlButton,
 } from './controlModel';
 import type { RemoteControlConfig } from './realtimeControl';
+import { pickOptions, type PickGroup } from './liveControls';
 import { clockSpecFromHtml, type ClockSpec } from './matchClockWire';
 import { MATCH_CLOCK_PAGE_JS } from './matchClockPageJs';
 import { isImageAsset } from '../assets/assetUtils';
@@ -96,6 +98,9 @@ export interface EmittedGraphic {
 export interface EmittedAction {
   event: string;
   label: string;
+  /** A ONE-PRESS PICK (control/liveControls.ts `pickOptions`): drawn as one button per option.
+   *  Absent for every other control, so a package with no pick group carries what it always did. */
+  options?: PickGroup;
 }
 
 /** `arrangeControls`'s answer, flattened to what a dependency-free page can render directly. */
@@ -124,10 +129,11 @@ export interface PanelTemplate {
 function emitArrangement(
   events: ControlButton[],
   arrange: Record<string, ArrangeRead> | undefined,
+  pick?: (button: ControlButton) => PickGroup | null,
 ): EmittedArrangement {
   const flat = (controls: ArrangedControl[]): EmittedAction[] =>
-    controls.map((c) => ({ event: c.button.event, label: c.label }));
-  const arranged = arrangeControls(events, arrange);
+    controls.map((c) => (c.options ? { event: c.button.event, label: c.label, options: c.options } : { event: c.button.event, label: c.label }));
+  const arranged = arrangeControls(events, arrange, pick);
   return {
     pinned: flat(arranged.pinned),
     sections: arranged.sections.map(([section, controls]) => [section, flat(controls)]),
@@ -152,9 +158,18 @@ export function emitGraphic(
      *  downloaded graphic carries its contract and nothing of the production that used it
      *  (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6f). */
     arrange?: Record<string, ArrangeRead>;
+    /** Bake the one-press pick groups into `arranged` (the production controller draws them). */
+    pick?: boolean;
   },
 ): EmittedGraphic {
   const events = eventButtons(template.js);
+  const pick = opts?.pick
+    ? (() => {
+        const descriptors = fieldDescriptors(template.fields);
+        const path = continueEvents(template.js);
+        return (button: ControlButton) => pickOptions(button, descriptors, path, events);
+      })()
+    : undefined;
   const images = template.assets
     .filter((a) => isImageAsset(a.path))
     .map((a) => {
@@ -174,7 +189,7 @@ export function emitGraphic(
     events,
     legal: eventLegality(template.js),
     // The arrangement, resolved: the page renders from this and never re-derives it.
-    arranged: emitArrangement(events, opts?.arrange),
+    arranged: emitArrangement(events, opts?.arrange, pick),
     // The state NAMES, baked in: this page ships without React and cannot call
     // `formatMachineState`, but it must not print raw ids either — a student operating an
     // exported package has never seen "sealed". Resolved here, at generation time.

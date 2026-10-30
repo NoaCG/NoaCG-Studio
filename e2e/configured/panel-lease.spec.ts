@@ -13,6 +13,7 @@
 // (removing the worker, so the beat falls back to a page interval, fails it). It then cuts the answering page's network (H0 AC-3 in
 // docs/work-specs/playout-companion-qualification/spec.md): only the current owner ever acts.
 // covers: src/components/control/PanelControl.tsx, src/control/panelRelay.ts, src/control/workerTicker.ts
+// covers: src/components/home/ProductionShell.tsx
 
 import { test, expect, type WebSocketRoute } from '@playwright/test';
 import { haveCreds, SUPABASE_URL } from './_helpers';

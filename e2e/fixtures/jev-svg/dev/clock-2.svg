@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="850" height="200" viewBox="0 0 850 200" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="850" height="200" fill="#efe9dd" />
+  <g transform="translate(70 30)">
+    <rect x="0" y="0" width="710" height="140" fill="#4a385a" />
+    <text x="25" y="47" font-size="24">В ЕФІРІ ЗА</text>
+    <g transform="translate(390 25)">
+      <text x="0" y="72" font-size="64" data-name="Текст 2">00:30</text>
+    </g>
+  </g>
+  <g display="none">
+    <text x="0" y="0" font-size="20">59:59</text>
+  </g>
+</svg>

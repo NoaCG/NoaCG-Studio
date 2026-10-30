@@ -1,0 +1,209 @@
+{
+  "costUnread": false,
+  "brief": "brass-band-sponsor-strip",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "1f912abb-3ce0-420a-b2fb-6e72b1e96d20",
+  "costCents": 0,
+  "notionalUsd": 1.2917820000000002,
+  "wallSeconds": 343,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-strip --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:e15fff3a2a0117ebd414d36620fd1aa2d724221b1e0e1be83ea9470c1eaf284a"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=images/test-white.svg --data f2=images/test-black.svg --data f3=images/test-colour.svg --background C:/Users/ahonemi/AppData/Local/Temp/stage.svg --out ./graphic/shots/t1.png",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=images/test-white.svg --data f2=images/test-black.svg --data f3=images/test-colour.svg --background video --out ./graphic/shots/t-video.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=images/test-white.svg --data f2=images/test-black.svg --data f3=images/test-colour.svg --background #fff2c0 --out ./graphic/shots/t-fff2c0.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=images/test-white.svg --data f2=images/test-black.svg --data f3=images/test-colour.svg --background #000000 --out ./graphic/shots/t-000000.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=images/test-white.svg --data f2=images/test-black.svg --data f3=images/test-colour.svg --background video --out ./graphic/shots/t-video.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f1=images/test-white.svg --data f2=images/test-black.svg --data f3=images/test-colour.svg --background #fff2c0 --out ./graphic/shots/t-fff2c0.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state stress --data f1=images/test-white.svg --data f2=images/test-black.svg --data f3=images/test-colour.svg --background video --out ./graphic/shots/t-stress.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:17708e17436831fd6be47c3ace1084b169dc349c64fcc2fa1cdebdbb5d6bc0f6"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:17708e17436831fd6be47c3ace1084b169dc349c64fcc2fa1cdebdbb5d6bc0f6"
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./graphic/shots --background video",
+      "code": 0,
+      "digest": "sha256:6cf559aba302a56171ee28e75f3830b2f8c2b3a462bffe714bf3324b362a6d8d"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:36731ba225e918f9f290bb6513e1d9d440a46ba38870d77991eeddc51cffe712"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:89f4a492ad4fb84c5d5addf8f63973b1a886676790c0674f211d93cbc9f3fead"
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --json",
+      "code": 0,
+      "digest": "sha256:6cf559aba302a56171ee28e75f3830b2f8c2b3a462bffe714bf3324b362a6d8d"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:123ae7ed8165b27bca139486eb335dc335ba296358e4a864ae21baa04c80f28c"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:2c9701e6111618cba4ac9cb8f804cca816505bc1643a1fc186a00ad31542b266"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:8e046c3ec0908795174aab274771aec0ac1fa326b1cfbfd911b3e381d3add4a0"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:a75385a91119d57ab484e326c1249692c7c10e027e545539ffb32f7ca910e432"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./graphic/shots --background video",
+      "code": 0,
+      "digest": "sha256:af90c90795ca5fdfc60e89eea608c1dc13bf60e0e005596c56387fcfded73da7"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:af90c90795ca5fdfc60e89eea608c1dc13bf60e0e005596c56387fcfded73da7"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:c74453febc6e68e3a2020325e3eb3b0f93c1b5a2c85e44ade2de3dfb42360a76"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:c74453febc6e68e3a2020325e3eb3b0f93c1b5a2c85e44ade2de3dfb42360a76"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:c74453febc6e68e3a2020325e3eb3b0f93c1b5a2c85e44ade2de3dfb42360a76"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-1\\cells\\brass-band-sponsor-strip.claude-sonnet-5-5-high\\frames",
+    "frames": 26,
+    "crops": 4,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:c74453febc6e68e3a2020325e3eb3b0f93c1b5a2c85e44ade2de3dfb42360a76"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:c74453febc6e68e3a2020325e3eb3b0f93c1b5a2c85e44ade2de3dfb42360a76",
+    "benchValidated": "sha256:c74453febc6e68e3a2020325e3eb3b0f93c1b5a2c85e44ade2de3dfb42360a76",
+    "reviewed": "sha256:c74453febc6e68e3a2020325e3eb3b0f93c1b5a2c85e44ade2de3dfb42360a76",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 23,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

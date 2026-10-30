@@ -389,6 +389,189 @@ test('a published profile arranges and moves the shared value on the hosted page
   await opContext.close();
 });
 
+// ── PINNED LIVE CONTROLS ON THE HOSTED PAGE (docs/work-specs/pinned-live-controls/spec.md AC-2,
+// AC-5, AC-10) ──────────────────────────────────────────────────────────────────────────────────
+//
+// The production pins the totals board and publishes. The operator's page draws the totals block
+// first in a LIVE stack above the cue editor whatever cue is selected; a press there acts on the
+// totals board's ON-AIR cue while the votes cue is selected, through the same log; and a value
+// typed into the totals cue and staged but never aired is not the base the press counts from. Read
+// off the durable log, as the walk above is. Then the same stack at 375x812.
+test('a pinned graphic stays in the hosted LIVE stack and presses its own on-air cue', async ({ page, browser }) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+
+  await page.goto('/app#/home/productions');
+  const wizard = page.locator('.wz-modal');
+  if (await wizard.isVisible().catch(() => false)) await page.keyboard.press('Escape');
+  const card = page.getByTestId('import-pack-card');
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  await card.getByTestId('import-pack-file').setInputFiles({
+    name: 'vote-show.noacgpack.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(PACK),
+  });
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(2);
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible().catch(() => false)) {
+    await consent.getByRole('button', { name: 'No thanks' }).click();
+  }
+
+  // THE PIN, on the record before the publish, through the model's own door (the pin toggle is
+  // the production page's subject, e2e/production-controls.spec.ts).
+  const refused = await page.evaluate(
+    async ({ VOTES, TOTALS }) => {
+      const { loadShows, setShowProfile } = await import('/src/model/shows.ts');
+      const { withPinnedGraphic } = await import('/src/model/profile.ts');
+      const show = loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))!;
+      const written = setShowProfile(show.id, withPinnedGraphic(undefined, TOTALS, true, show.graphics.map((g) => g.name)));
+      if (written.refused) return true;
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      return (await commitDurableWrites()) !== null;
+    },
+    { VOTES, TOTALS },
+  );
+  expect(refused, 'the pin must actually be stored on the show record').toBe(false);
+
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
+  await page.keyboard.press('Escape');
+  const hosted = await page.evaluate(async (VOTES) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))?.hostedSlug ?? null;
+  }, VOTES);
+  expect(hosted, 'publishing must mint a hosted control slug').toBeTruthy();
+  const slug = hosted as string;
+
+  // A separate, signed-out context: the operator holds nothing but the link.
+  const opContext = await browser.newContext();
+  const op = await opContext.newPage();
+  await op.goto(`/app?control=${encodeURIComponent(slug)}`);
+  await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  const cues = op.getByTestId('hosted-cues').locator('.pd-cue');
+  await expect(cues).toHaveCount(2);
+
+  // THE STACK, before anything airs: the pinned totals block first, greyed, then the selected
+  // votes cue's block, both above the cue editor.
+  const stack = op.getByTestId('hosted-live-stack');
+  const blocks = stack.getByTestId('hosted-live-block');
+  await cues.nth(0).getByTestId('hosted-select-cue').click();
+  await expect(blocks).toHaveCount(2);
+  await expect(blocks.nth(0)).toHaveAttribute('data-graphic', TOTALS);
+  await expect(blocks.nth(1)).toHaveAttribute('data-graphic', VOTES);
+  await expect(blocks.nth(1)).toHaveAttribute('data-selected', 'true');
+  const totals = stack.locator(`[data-testid="hosted-live-block"][data-graphic="${TOTALS}"]`);
+  await expect(totals.getByTestId('hosted-live-block-state')).toHaveText('not on air');
+  const plusTwo = totals
+    .locator('.pd-actions-section')
+    .filter({ has: op.locator('h4', { hasText: /^Panelist 2$/ }) })
+    .getByRole('button', { name: '⚡ +1' });
+  await expect(plusTwo).toBeDisabled();
+  expect(
+    await op.evaluate(() => {
+      const s = document.querySelector('[data-testid="hosted-live-stack"]');
+      const e = document.querySelector('[data-testid="hosted-cue-editor"]');
+      return !!s && !!e && !!(s.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING);
+    }),
+    'the LIVE stack sits above the cue editor',
+  ).toBe(true);
+
+  // Both boards on air.
+  await op.getByTestId('hosted-take-cue').click();
+  await cues.nth(1).getByTestId('hosted-select-cue').click();
+  await op.getByTestId('hosted-take-cue').click();
+  await expect(op.locator('.prod-log-take')).toHaveCount(2, { timeout: 30_000 });
+  // The totals cue selected and pinned: one block, drawn once, marked as the selected one.
+  await expect(blocks).toHaveCount(1);
+  await expect(totals).toHaveAttribute('data-selected', 'true');
+
+  // A CORRECTION STAGED AND NOT AIRED: 20 typed into the totals cue's Points 2. It reaches the
+  // shared buffer, and it is never the base of a live press.
+  await op.getByTestId('hosted-field-f6').fill('20');
+  await expect(op.getByTestId('hosted-cue-unsent')).toContainText('not on air yet', { timeout: 30_000 });
+
+  // The votes cue selected again; the totals block stays, live, first.
+  await cues.nth(0).getByTestId('hosted-select-cue').click();
+  await expect(blocks).toHaveCount(2);
+  await expect(blocks.nth(0)).toHaveAttribute('data-graphic', TOTALS);
+  await expect(totals.getByTestId('hosted-live-block-state')).not.toHaveText('not on air', { timeout: 30_000 });
+  await expect(plusTwo).toBeEnabled();
+
+  const before = await wireHead(op, slug);
+  await plusTwo.click();
+  const evented = await wireAfter(op, slug, before, 1);
+  // The TOTALS board's own event, counted from what air was sent (0), never from the staged 20.
+  expect(evented[0]).toMatchObject({ graphic: TOTALS, kind: 'event', event: 'plus2' });
+  expect(evented[0].data).toEqual({});
+  const payload = await op.evaluate(
+    async ({ slug, id }) => {
+      const { hostedControlTail } = await import('/src/control/hostedControl.ts');
+      const row = (await hostedControlTail(slug, id - 1)).find((r) => r.id === id);
+      return (row?.msg as { payload?: Record<string, string> } | undefined)?.payload ?? null;
+    },
+    { slug, id: evented[0].id },
+  );
+  expect(payload).toEqual({ f6: '1' });
+
+  // Two ± presses inside one round trip: 2 then 3, never 2 twice.
+  const up = totals.getByTestId('hosted-live-number-f6-up');
+  await up.click();
+  await up.click();
+  const bumped = await wireAfter(op, slug, evented[0].id, 2);
+  expect(bumped.map((r) => [r.graphic, r.kind, r.data])).toEqual([
+    [TOTALS, 'update', { f6: '2' }],
+    [TOTALS, 'update', { f6: '3' }],
+  ]);
+  // The selection never moved.
+  await expect(cues.nth(0)).toHaveClass(/selected/);
+
+  // AC-10: the phone. One scrolling column, live buttons a finger tall, no sideways scroll, and
+  // the bottom verb bar still on screen with the stack scrolled into view.
+  await op.setViewportSize({ width: 375, height: 812 });
+  await totals.scrollIntoViewIfNeeded();
+  await expect(stack).toBeVisible();
+  expect(await op.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const heights = await stack.locator('.pd-actions-row button, .pd-live-number button').evaluateAll((els) =>
+    els.filter((el) => (el as HTMLElement).offsetParent !== null).map((el) => el.getBoundingClientRect().height),
+  );
+  expect(heights.length).toBeGreaterThan(0);
+  expect(Math.min(...heights), 'every live button is at least 40px tall').toBeGreaterThanOrEqual(40);
+  await expect(op.getByTestId('hosted-take-cue')).toBeInViewport();
+  await op.setViewportSize({ width: 1280, height: 900 });
+
+  // TWO OPERATOR PAGES on the same pinned board (AC-2): each press counts from what the other's
+  // press left, on the shared path (f5, bound: the tree's own patch road) and on the unbound
+  // figure (f6: what air was sent, read back off the log), so no press is lost between pages.
+  const op2Context = await browser.newContext();
+  const op2 = await op2Context.newPage();
+  await op2.goto(`/app?control=${encodeURIComponent(slug)}`);
+  await expect(op2.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  const totals2 = op2.locator(`[data-testid="hosted-live-block"][data-graphic="${TOTALS}"]`);
+  await expect(totals2.getByTestId('hosted-live-number-f6-up')).toBeEnabled({ timeout: 30_000 });
+  let head = await wireHead(op, slug);
+  const press = async (block: typeof totals, field: string) => {
+    await block.getByTestId(`hosted-live-number-${field}-up`).click();
+    const [row] = await wireAfter(op, slug, head, 1);
+    head = row.id;
+    return row;
+  };
+  expect((await press(totals2, 'f6')).data).toEqual({ f6: '4' });
+  // The first page counts on from what the second page's press aired, once its follow of the log
+  // has heard that row (realtime; no surface reads it out, so the wait is a bound, not a sleep
+  // for an animation).
+  await op.waitForTimeout(2_000);
+  expect((await press(totals, 'f6')).data).toEqual({ f6: '5' });
+  expect((await press(totals, 'f5')).data.f5).toBe('1');
+  expect((await press(totals2, 'f5')).data.f5).toBe('2');
+
+  await op2Context.close();
+  await opContext.close();
+});
+
 /**
  * PUBLISH NOTHING BEHIND US, whether or not the walk got to the end.
  *

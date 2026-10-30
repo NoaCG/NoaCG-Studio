@@ -18,6 +18,9 @@
 // nothing at all.
 // covers: {join.html,src/join/**}
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/ProductionShell.tsx
+// covers: src/control/cueDraft.ts
+// covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers}.ts
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
@@ -702,4 +705,91 @@ test('Fill from… in the cue editor pastes a message into the edited cue, and M
   const row = messages.locator('.pd-aud-row', { hasText: 'Straight from the cue editor' });
   await expect(row.getByTestId('audience-used')).toBeVisible();
   await expect(row.getByTestId('audience-provenance')).toHaveText('Pasted');
+});
+
+const MESSAGE_SHEET = 'https://docs.google.com/spreadsheets/d/1NoaCGMessageSheet00000000/edit#gid=0';
+const HEAD = 'Name,Message,Source,Reference\n';
+
+/** A stub message tab: the export answers with whatever `tab.csv` holds at the moment of the read. */
+async function stubMessageSheet(page: Page, csv: string): Promise<{ csv: string; reads: number }> {
+  const tab = { csv, reads: 0 };
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, async (route) => {
+    tab.reads += 1;
+    await route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: tab.csv });
+  });
+  return tab;
+}
+
+test('a message Sheet: rows arrive as candidates; a vanished row leaves an unused one and keeps a used one; Source and Reference stay off air', async ({ page }) => {
+  // data-sources C3; audience-flow AC-8; sheet-data-flow AC-11. Identity is the row's cells, never
+  // its place (scripts/sheet-messages.test.mjs pins the rules); this walks them on the page.
+  test.setTimeout(100_000);
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Sheet Messages');
+  const tab = await stubMessageSheet(
+    page,
+    `${HEAD}Ana,First from the Sheet,WhatsApp,+358 40 000 0001\nBo,Same words twice,,\nBo,Same words twice,,\nDee,Stays put,,\n`,
+  );
+  const messages = await openWorkspace(page, 'audience');
+  await messages.getByTestId('chat-add-platform').selectOption('sheet');
+  await messages.getByTestId('sheet-add-link').fill(MESSAGE_SHEET);
+  await messages.getByTestId('chat-add-connect').click();
+  await expect(messages.getByTestId('message-source-sheet')).toContainText('Sheet: Messages');
+
+  // Four rows, four candidates: two identical rows are two.
+  const rows = messages.locator('.pd-aud-row');
+  await expect(rows).toHaveCount(4, { timeout: 20_000 });
+  await expect(rows.filter({ hasText: 'Same words twice' })).toHaveCount(2);
+  const ana = rows.filter({ hasText: 'First from the Sheet' });
+  await expect(ana.getByTestId('audience-provenance')).toHaveText('Sheet: Messages · WhatsApp · +358 40 000 0001');
+
+  // Prepared and taken: only Name and Message reach the graphic.
+  await prepare(ana, 'House Q&A');
+  await expect(messages.getByTestId('audience-note')).toContainText('✓ Cue “First from the Sheet”');
+  // A second cue on the same card, from another row (sheet AC-11's two-cue refresh).
+  await rows.filter({ hasText: 'Stays put' }).getByTestId('audience-prepare').click();
+  await expect(messages.getByTestId('audience-note')).toContainText('✓ Cue “Stays put”');
+  await settleDurableWrites(messages);
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  await page.locator('.pd-cue', { hasText: 'First from the Sheet' }).first().click();
+  await page.getByTestId('verb-take').click();
+  await expect(program.locator('body')).toContainText('First from the Sheet');
+  await expect(program.locator('body')).toContainText('Ana');
+  await expect(program.locator('body')).not.toContainText('WhatsApp');
+  await expect(program.locator('body')).not.toContainText('+358');
+
+  // The Sheet changes: Ana's row and one of Bo's go, Cy's arrives, Dee's moves, and the rest is
+  // reordered.
+  const readsBefore = tab.reads;
+  tab.csv = `${HEAD}Cy,A new arrival,,\nDee,Stays put,,\nBo,Same words twice,,\n`;
+  await messages.getByTestId('audience-filter-all').click();
+  await expect(rows.filter({ hasText: 'A new arrival' })).toHaveCount(1, { timeout: 20_000 });
+  await expect(rows.filter({ hasText: 'Same words twice' })).toHaveCount(1);
+  expect(tab.reads).toBeGreaterThan(readsBefore);
+  // The used one stays, with its original and its cue, and says where its row went.
+  await expect(ana.getByTestId('audience-used')).toBeVisible();
+  await expect(ana.getByTestId('audience-withdrawn')).toHaveText('no longer in the Sheet');
+  await expect(rows.filter({ hasText: 'Stays put' }).getByTestId('audience-withdrawn')).toHaveCount(0);
+  await expect(rows).toHaveCount(4);
+  await expect(program.locator('body')).toContainText('First from the Sheet');
+  const rec = await record(messages, showId);
+  const question = fieldOf(rec, 'House Q&A', 'Question');
+  // Both prepared cues hold what was prepared: a refresh, a reorder and a delete rewrite neither.
+  expect(rec.cues.filter((c) => c.stagedFrom).map((c) => c.values[question])).toEqual(['First from the Sheet', 'Stays put']);
+
+  // The cue editor's door picks a Sheet message too, and names where it came from.
+  await page.locator('.pd-cue', { hasText: 'First from the Sheet' }).first().click();
+  await page.getByTestId('cue-fill-from').click();
+  const pick = page.getByTestId('cue-fill-pick').filter({ hasText: 'A new arrival' });
+  await expect(pick).toContainText('Sheet: Messages');
+
+  // A reload keeps every candidate once, and the used one's mark.
+  await page.keyboard.press('Escape');
+  await messages.reload();
+  await messages.getByTestId('audience-filter-all').click();
+  await expect(rows).toHaveCount(4);
+  await expect(rows.filter({ hasText: 'First from the Sheet' }).getByTestId('audience-withdrawn')).toBeVisible();
+  const reads = tab.reads;
+  await expect.poll(() => tab.reads, { timeout: 20_000 }).toBeGreaterThan(reads);
+  await expect(rows).toHaveCount(4);
 });

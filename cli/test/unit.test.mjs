@@ -34,7 +34,7 @@ import { readDoc, skillDir } from '../dist/commands/docs.js';
 import { flagBool, flagList, flagNumber, flagString, parseArgs, table, UsageError } from '../dist/output.js';
 import { FRAMES_MARKER, isGeneratedFile, markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo, zipDirectory } from '../dist/workspace.js';
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
-import { cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
+import { bridgeVersion, cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
 import { parseFieldList } from '../dist/commands/scaffold.js';
 import { openUrl, openUrlCommand } from '../dist/openUrl.js';
 
@@ -372,6 +372,21 @@ test('cliVersion is the package version the release tags', async () => {
   const pkg = JSON.parse(await fs.readFile(path.join(here, '..', 'package.json'), 'utf8'));
   assert.equal(cliVersion(), pkg.version);
   assert.match(cliVersion(), /^\d+\.\d+\.\d+/);
+});
+
+test("bridgeVersion is the Bridge's own line, and the exe's baked version wins", async () => {
+  const pkg = JSON.parse(await fs.readFile(path.join(here, '..', 'package.json'), 'utf8'));
+  const before = process.env.NOACG_BRIDGE_VERSION;
+  try {
+    delete process.env.NOACG_BRIDGE_VERSION;
+    assert.equal(bridgeVersion(), pkg.bridgeVersion);
+    process.env.NOACG_BRIDGE_VERSION = '7.8.9';
+    assert.equal(bridgeVersion(), '7.8.9');
+    assert.equal(cliVersion(), pkg.version, "the Bridge's version never becomes the CLI's");
+  } finally {
+    if (before === undefined) delete process.env.NOACG_BRIDGE_VERSION;
+    else process.env.NOACG_BRIDGE_VERSION = before;
+  }
 });
 
 test('an agent key is recognised by prefix and length, and only ever shown as a prefix', () => {
@@ -1704,4 +1719,81 @@ test('docs skill prints the procedure without its front matter, for a session wi
   assert.match(text, /save them ALL in ONE\s+command/);
   assert.match(text, /Run the SAME\s+command again/);
   assert.match(text, /pending Install/);
+});
+
+// AC-9 (docs/work-specs/pinned-live-controls/spec.md): the derived panel as PREP and LIVE, and the
+// validate finding that fires only on a declared live operation left unmet. Both rules live in the
+// app's src (the bridge runs them), read here directly: Node strips the types.
+const { livePanel } = await import('../../src/control/livePanel.ts');
+const { missingLiveControls } = await import('../../src/validation/liveControlsCheck.ts');
+const { describeInspection } = await import('../dist/commands/inspect.js');
+
+const select = (key, label, values) => ({ key, label, kind: 'select', defaultValue: values[0], options: values.map((v) => ({ label: v, value: v })) });
+const inspection = (descriptors, buttons, pathEvents) => ({
+  descriptors,
+  buttons,
+  stateGroups: [],
+  steps: { count: 2, stepped: true },
+  panel: livePanel(descriptors, buttons, new Set(pathEvents)),
+  notes: [],
+});
+
+test('inspect prints the panel as LIVE and PREP: a pick group as its options, a number with its stepper', () => {
+  const descriptors = [
+    { key: 'f0', label: 'Question', kind: 'text', defaultValue: '' },
+    select('f1', 'Answers shown', ['2', '3', '4']),
+    select('f2', 'Selected answer', ['A', 'B', 'C', 'D']),
+    select('f3', 'Correct answer', ['A', 'B', 'C', 'D']),
+    { key: 'f4', label: 'Score', kind: 'number', defaultValue: 0 },
+  ];
+  // `judge` is on the default path, so its Correct answer stays preparation, never a pick.
+  const buttons = [
+    { event: 'select', label: 'Select answer', payload: ['f2'] },
+    { event: 'judge', label: 'Reveal correct', payload: ['f3'] },
+  ];
+  const text = describeInspection(inspection(descriptors, buttons, ['judge']));
+  assert.ok(
+    text.includes('LIVE\n  Select answer: A | B | C | D\n  Reveal correct\n  Score -/+\nPREP\n  Question, Answers shown, Correct answer, Score'),
+    text,
+  );
+  assert.ok(!text.includes('Advice:'), 'a panel with live controls carries no advice');
+});
+
+test('inspect advises once when LIVE holds nothing but the transport verbs', () => {
+  const text = describeInspection(inspection([{ key: 'f0', label: 'Question', kind: 'text', defaultValue: '' }, select('f1', 'Answers shown', ['2', '3', '4'])], [], []));
+  assert.ok(text.includes('LIVE\n  Take / Update / Next / Out only\nPREP\n  Question, Answers shown'), text);
+  assert.equal(text.split('\n').filter((l) => l.startsWith('Advice:')).length, 1, text);
+});
+
+test('inspect prints what a production can adjust, and an older bridge that says nothing prints nothing', () => {
+  const text = describeInspection({ ...inspection([], [], []), adjustable: 'place and size, typeface, accent colour' });
+  assert.equal(text.split('\n').filter((l) => l === 'Adjustable: place and size, typeface, accent colour').length, 1, text);
+  assert.ok(!describeInspection(inspection([], [], [])).includes('Adjustable:'));
+});
+
+const arrow = (event) => ({ from: 'a', to: 'b', trigger: 'operator', event });
+const machine = (events, controls) => ({ groups: [{ id: 'main', initial: 'off', defaultPath: ['a', 'b'], states: [], transitions: events.map(arrow) }], ...(controls ? { controls } : {}) });
+const live = (m, fields) => missingLiveControls(m, new Set(fields)).map((i) => `${i.rule}: ${i.message}`);
+
+test('validate flags an operator arrow with no controls entry as controls-missing-live', () => {
+  const found = live(machine(['reveal', 'next']), ['f0']);
+  assert.equal(found.length, 1, found.join('\n'));
+  assert.match(found[0], /^controls-missing-live: .*"reveal"/);
+});
+
+test('validate flags a set or adjust naming a field the graphic does not have', () => {
+  const found = live(machine(['reset', 'goal'], [{ event: 'reset', set: { f9: '0' } }, { event: 'goal', adjust: { f8: 1 } }]), ['f0']);
+  assert.deepEqual(found, [
+    'controls-missing-live: Machine controls: "reset" sets "f9", but no field has that id.',
+    'controls-missing-live: Machine controls: "goal" adjusts "f8", but no field has that id.',
+  ]);
+});
+
+test('validate never flags a prep field for having no control: Answers shown, a clock duration, a stepped number', () => {
+  // A quiz show: Answers shown is a few-option field typed before air.
+  assert.deepEqual(live(machine(['judge'], [{ event: 'judge', label: 'Reveal correct', payload: ['f3'] }]), ['f0', 'f1', 'f3']), []);
+  // A clock: the duration is set once; Pause and Resume are its declared controls.
+  assert.deepEqual(live(machine(['pause', 'resume'], [{ event: 'pause' }, { event: 'resume' }]), ['f0', 'f2']), []);
+  // A score with no +1 control: its number already has the derived stepper.
+  assert.deepEqual(live(machine([]), ['f0', 'f4']), []);
 });

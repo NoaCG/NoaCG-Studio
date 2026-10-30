@@ -1,0 +1,169 @@
+{
+  "costUnread": false,
+  "brief": "pub-darts-duel",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "adb2dfb0-6b78-438f-9f8d-6a2a623f54d4",
+  "costCents": 0,
+  "notionalUsd": 0.9652614000000003,
+  "wallSeconds": 273,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type duel-score --design sb26 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:43187fdd66c117d5f80de0341e1a997cdf1cb1745b084ad1d6d21d9981301129"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --data f0=Gwenllian Pritchard-Llewellyn --data f2=Ó Súilleabháin --data f1=3 --data f3=2 --background video --out ../shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --data f0=Gwenllian Pritchard-Llewellyn --data f2=Ó Súilleabháin --data f1=3 --data f3=2 --event final --background video --out ../shots/longfinal.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:adbdd809ddd9995fae2a9c50ebbe1cc7c2963e77ea2dcb90a21d61384fa3645a"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:adbdd809ddd9995fae2a9c50ebbe1cc7c2963e77ea2dcb90a21d61384fa3645a"
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e"
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:76b6059109849954b200b7e1921c6ae55d78f88a786c16522a2c18cb1e9481bb"
+    },
+    {
+      "command": "noacg validate graphic",
+      "code": 0,
+      "digest": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-2\\cells\\pub-darts-duel.claude-sonnet-5-5-high\\frames",
+    "frames": 63,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "pointA",
+      "pointB",
+      "undoA",
+      "undoB",
+      "final",
+      "newGame"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e",
+    "benchValidated": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e",
+    "reviewed": "sha256:81c49c804953e7567b594789d441467e71a35474cbcd4b5500918e079607ef6e",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 27,
+    "opened": 0,
+    "unopened": [
+      "off.jpg",
+      "sample-video.jpg",
+      "sample-light.jpg",
+      "long-video.jpg",
+      "long-light.jpg",
+      "empty-video.jpg",
+      "empty-light.jpg",
+      "long-side-1-video.jpg",
+      "long-side-1-light.jpg",
+      "long-side-2-video.jpg",
+      "long-side-2-light.jpg",
+      "take-strip.jpg",
+      "event-pointa-strip.jpg",
+      "event-pointa-10000ms.jpg",
+      "event-pointb-strip.jpg",
+      "event-pointb-10000ms.jpg",
+      "event-undoa-strip.jpg",
+      "event-undoa-10000ms.jpg",
+      "event-undob-strip.jpg",
+      "event-undob-10000ms.jpg",
+      "event-final-strip.jpg",
+      "event-final-10000ms.jpg",
+      "event-newgame-strip.jpg",
+      "event-newgame-10000ms.jpg",
+      "update-strip.jpg",
+      "update-01500ms.jpg",
+      "out-strip.jpg"
+    ],
+    "all": false,
+    "fixed": 0
+  }
+}

@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isUnanswered, rpcFailure, sendWithResend, unansweredError, unansweredStatus } =
+const { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, REFUSALS_BEFORE_ABSENT, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isRefusal, isUnanswered, rpcFailure, sendWithResend, seqRoadVerdict, unansweredError, unansweredStatus } =
   await import('../src/control/failedSends.ts');
 
 /** A send that fails with each of `failures` in turn, then lands, and a clock that sleeping moves.
@@ -178,6 +178,37 @@ test('which answers mean the server did not answer, and how each is worded', () 
   assert.equal(refused.message, 'slow down');
 });
 
+test('a page that sends leaves the ordered road on proof the server has none, or a lasting refusal (#1697)', () => {
+  const operator = { sends: true };
+  const row = (refusals, timeouts = 0) => ({ refusals, timeouts });
+  assert.equal(seqRoadVerdict(404, 'PGRST202', row(1), operator, false), 'absent', 'no such function: the server has no sequence road');
+  // Each of these used to put the page on today's road, with no per-graphic order, at the first.
+  for (const [status, code] of [[500, 'XX000'], [400, 'P0001'], [401, '42501'], [409, '40001'], [500, '40P01'], [404, '42883'], [300, 'PGRST203']]) {
+    assert.equal(seqRoadVerdict(status, code, row(1), operator, false), 'ask-again', `${status} ${code}`);
+  }
+  assert.equal(seqRoadVerdict(500, 'XX000', row(REFUSALS_BEFORE_ABSENT - 1), operator, false), 'ask-again');
+  assert.equal(seqRoadVerdict(500, 'XX000', row(REFUSALS_BEFORE_ABSENT), operator, false), 'absent', 'a lasting fault still leaves the page working');
+  for (const [status, code] of [[0, undefined], [503, 'PGRST002'], [500, '57014']]) {
+    assert.equal(seqRoadVerdict(status, code, row(50, 50), operator, false), 'ask-again', `unanswered ${status} ${code}`);
+  }
+  assert.equal(seqRoadVerdict(404, 'PGRST202', row(1), operator, true), 'ask-again', 'a road that answered once is not given up mid-session (a stale schema cache)');
+  assert.equal(seqRoadVerdict(401, 'PGRST301', row(50), operator, false), 'ask-again', 'a lapsed sign-in says nothing about the server');
+  assert.equal(isRefusal(401, 'PGRST301'), false);
+  assert.equal(isRefusal(500, 'XX000'), true);
+  assert.equal(isRefusal(503, 'PGRST002'), false);
+  assert.equal(seqRoadVerdict(500, 'XX000', row(50), operator, true), 'ask-again');
+});
+
+test('a page that only follows keeps its old rule: any answer decides, and so do its timeouts', () => {
+  const renderer = { sends: false, timeoutsBeforeAbsent: 3 };
+  const row = (timeouts) => ({ refusals: 0, timeouts });
+  assert.equal(seqRoadVerdict(500, 'XX000', row(0), renderer, false), 'absent');
+  assert.equal(seqRoadVerdict(404, 'PGRST202', row(0), renderer, true), 'absent');
+  assert.equal(seqRoadVerdict(503, 'PGRST002', row(0), renderer, false), 'ask-again');
+  assert.equal(seqRoadVerdict(500, '57014', row(2), renderer, false), 'ask-again');
+  assert.equal(seqRoadVerdict(500, '57014', row(3), renderer, false), 'absent');
+});
+
 test('a notice stays until every graphic it was about has been sent again', () => {
   const debts = createSendDebts();
   const shown = 'Take is on this monitor only.';
@@ -220,4 +251,18 @@ test('a row settles its graphic but not another one still owed', () => {
   debts.failed([{ graphic: 'score', msg: { oid: 's' } }], 'Update failed: B.');
   assert.equal(debts.heard([{ graphic: 'quiz', msg: { oid: 'q' } }])('Update failed: B.'), 'Update failed: B.', 'the score is still owed');
   assert.equal(debts.landed([{ graphic: 'score' }])('Update failed: B.'), null);
+});
+
+test('owed() counts the graphics a failed send still owes, until a landing or its own row settles them (data-sources C6)', async () => {
+  const { createSendDebts } = await import('../src/control/failedSends.ts');
+  const debts = createSendDebts();
+  assert.equal(debts.owed(), 0);
+  debts.failed([{ graphic: 'A', msg: { oid: 'a1' } }, { graphic: 'B', msg: { oid: 'b1' } }], 'A and B failed');
+  assert.equal(debts.owed(), 2);
+  debts.landed([{ graphic: 'C' }]);
+  assert.equal(debts.owed(), 2, 'another graphic landing settles neither');
+  debts.heard([{ graphic: 'A', msg: { oid: 'a1' } }]);
+  assert.equal(debts.owed(), 1);
+  debts.landed([{ graphic: 'B' }]);
+  assert.equal(debts.owed(), 0);
 });

@@ -100,6 +100,30 @@ the brand to every graphic with `applyLookToTemplate`, points the production at 
 installing account has one of that id, then validates as for any graphic. This is what the remote
 MCP connector sends (docs/REMOTE_MCP_PLAN.md, key decision 5): the server never runs graphic code.
 
+**The production's data (version 3).** A pack may carry the production's seed tree, its shared
+bindings and its live candidate collections, and a rundown cue may carry its candidate
+(docs/work-specs/playout-election-package/spec.md, E7.2a):
+
+```jsonc
+"version": 3,
+"data": { "external": { "election": { "summary": { "status": "Preliminary" } } } },
+"bindings": { "Count bug": { "f1": "external.election.summary.status" } },
+"collections": [{ "v": 1, "id": "candidates", "sourceId": "election", "schemaRevision": 1, "graphic": "Candidate card",
+  "from": "candidates", "key": ["district", "candidate"], "fields": { "f0": { "from": "name" } } }],
+"cues": [{ "graphic": "Candidate card", "label": "Aino", "selection": { "v": 1, "recipe": "candidates", "key": ["02", 101] } }]
+```
+
+The version is 3 whenever any of these is present, so an older build refuses the file rather
+than installing candidate cues as plain ones; a v1 or v2 file carrying them is refused too. Every
+recipe is read with `control/sourceMapping.ts` `readCollectionRecipe` and every candidate passes
+the selection writer's own check (`selectionWriteError`) before anything installs; the install
+writes the seed (and starts the live tree from it), the bindings, then the recipes with the cues'
+candidates in one write (`model/shows.ts setShowSelections`). No source is carried: a connector,
+its address and any key stay out, so an imported production connects its source again
+explicitly. `buildPack` writes all of it from the production. The shipped example is
+`packs/election-rehearsal` (built to `public/packs/election-rehearsal.noacgpack.json`, with its
+`INSTALL.md` and starter files beside it).
+
 ## The three pieces
 
 - **`src/packs/graphicsPack.ts`** — the owner: `parsePack` (refuse-with-reason, never coerce),

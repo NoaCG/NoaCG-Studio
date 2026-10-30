@@ -43,7 +43,7 @@ files are which*, which is now in code:
   logged, copied or archived - and only while the primary checkout still holds a file at the same
   path; a secret that exists nowhere else refuses the removal. Everything else is treated as
   VALUABLE: it is copied to the archive outside the repo, the copy is verified file by file and
-  byte for byte, and only then may the worktree go. **A failed or unprovable copy refuses, and no
+  by SHA-256 content and link target, with the source rechecked after copying, and only then may the worktree go. **A failed or unprovable copy refuses, and no
   flag overrides it** - an archive nobody checked is not an archive.
 - **Nobody's floor is pulled out.** A worktree that is locked (how the harness marks an agent
   running right now), dirty, mid-rebase/bisect, or whose Claude Code session wrote a transcript
@@ -70,7 +70,7 @@ another sweep (both modes take one lock). Windows only: the in-use guarantee bel
 refusing to rename a folder a process is in. It runs the same assessment and apply as `--apply`,
 then acts only on a worktree that ALSO:
 
-- sits under `<primary>/.claude/worktrees/` on a managed branch - never the Codex app's worktrees
+- sits under `<primary>/.claude/worktrees/` on a managed branch or one named by the landing ledger - never the Codex app's worktrees
   in `~/.codex/worktrees` (the Codex app caps those itself), never anything else;
 - has LANDED (the landing ledger names its branch) or has no commits of its own;
 - has been quiet long enough - no Claude transcript turn AND no HEAD movement inside the window: a
@@ -80,17 +80,57 @@ then acts only on a worktree that ALSO:
 
 Anything that needs a person is never acted on; it goes to `<git-common-dir>/noacg-cleanup/
 last.json` (full report in `last.txt`), and the orchestrator home's session start says how many.
-Before assessing, the sweep fast-forwards a clean primary `main` to `origin/main`, as a handoff
-does. `NOACG_NO_AUTO_CLEANUP=1` switches it off.
+Before assessing, the sweep fast-forwards a primary `main` with no tracked changes to `origin/main`, as a handoff
+does. Unrelated untracked files stay in place; a collision with an untracked or ignored file refuses the fast-forward. `NOACG_NO_AUTO_CLEANUP=1` switches it off.
 
 **A chat the owner comes back to.** A resumed session whose worktree was cleaned up gets a fresh
 worktree at the same path, cut from `origin/main` on a new branch, and is told to enter it; a
 session that starts in a worktree whose branch landed is moved to a fresh branch from
 `origin/main` when its tree is clean (`scripts/worktree-followup.mjs`, from the SessionStart hook).
 
-**Keep the desktop app's "Auto-archive after PR merge or close" OFF** (owner, 2026-10-08). The
-app removes a worktree without copying its ignored output out first, which is how paid bench
-rounds were lost; this sweep does the same job with the archive.
+**Keep the desktop app's "Auto-archive after PR merge or close" OFF** until valuable ignored
+output is exported. Codex now saves recoverable Git snapshots before managed-worktree removal,
+but those snapshots do not promise to preserve ignored bench rounds or local runtime output.
+Use the app's supported `archive_worktree` tool for this chat's attached managed worktrees after
+the output export and post-landing checks. Never edit the app's ownership database or turn on
+broader automatic deletion to work around an unavailable tool. Current app behavior:
+https://developers.openai.com/codex/app/worktrees/
+
+## Finish the current session's work
+
+The queue-merge workflow's final step invokes cleanup for the finished feature worktree after
+exact-merge CI and post-land checks are recorded and repair ownership ends. Save the handoff and
+any durable results first. A continuing research chat stays open; cleanup does not require
+archiving the chat. Never remove a checkout with a queued job or a planned follow-up still using it.
+
+For a Codex-managed worktree, inspect this chat's artifacts and preserve valuable ignored output
+with `planArchive` and `archiveAndVerify` before calling the supported `archive_worktree` tool.
+Those helpers refuse secrets and unverified copies. For an ordinary linked worktree, use the
+`--self` dry run and apply below as the final commands in that checkout. A refusal is recorded
+and retained for a later safe sweep, never bypassed. Never archive another chat's worktree by
+guessing its owner, and never remove a shared or permanent checkout at session completion.
+
+## Disposable marketplace staging
+
+The same unattended sweep also calls `scripts/cleanup-staging.mjs`; no second scheduler is
+needed. It considers only `marketplace-upgrade-<six characters>` directories under
+`$CODEX_HOME/.tmp/marketplaces/.staging` (default `~/.codex`). It never scans the installed plugin
+cache, runtime distributions, NoaCG archives, general Temp or npm caches for automatic deletion.
+
+A candidate must be an ordinary independent Git clone from an OpenAI or NoaCG GitHub origin,
+unchanged for at least seven days, with every local ref and HEAD contained in freshly observed
+remote heads, no untracked/ignored content, no Git operation or lock, and no running process
+reference. Links, partial copies, failed reads and unavailable remote/process evidence retain
+the folder. Windows must allow a move to a fresh parked path before removal; state is rechecked
+there. At most five remote probes and removals run per sweep. Interrupted parked folders are
+never automatically expired; their recovery paths are in the journal.
+
+Standalone assessment: `node scripts/cleanup-staging.mjs` (read-only, with remote reads).
+Explicit application: `node scripts/cleanup-staging.mjs --apply`. The staging journal is
+`noacg-cleanup.jsonl` in that staging root; the existing sweep's `last.json` and `last.txt` also
+record staging results and failures. Durable paid evaluation/recovery archives have no age limit.
+New task scratch files belong under the account's Temp location, with important results saved
+outside Temp; this workflow does not infer that an arbitrary old task folder is disposable.
 
 ## Why the BULK sweep runs from the primary checkout only
 

@@ -57,6 +57,16 @@ export function IconFolder(props: IconProps) {
   );
 }
 
+/** A pinned graphic's live controls, kept on screen whatever cue is selected. */
+export function IconPin(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9 4h6l-1 5 3 3v2H7v-2l3-3-1-5z" />
+      <path d="M12 14v6" />
+    </Svg>
+  );
+}
+
 /** The graphics library. */
 export function IconGrid(props: IconProps) {
   return (

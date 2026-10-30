@@ -8,6 +8,7 @@
 // playout-both-roads.spec.ts). The offline spec that covers it can judge the RULE and not
 // the road.
 // covers: src/control/matchClockWire.ts
+// covers: src/components/home/CueActions.tsx
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';

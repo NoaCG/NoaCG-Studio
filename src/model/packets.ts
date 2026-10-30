@@ -65,6 +65,10 @@ export interface SavedGraphic {
    * an ordering game for something CasparCG states as a plain number.
    */
   layer?: number;
+  /** ADDITIVE OPTIONAL, its own `v` (docs/work-specs/playout-adjustments/spec.md): this graphic's
+   *  place and size in this production, the default every cue of it inherits member by member.
+   *  Meaningful only in a `Show.graphics` pool; read only through ./adjust.ts `readAdjust`. */
+  adjust?: import('./adjust').AdjustRecord | { v: number; [later: string]: unknown };
 }
 
 export interface Packet {
@@ -287,8 +291,9 @@ export function importLook(json: string): { looks: SavedLook[] | null; error: st
 
 // ── Capturing + applying a look ──────────────────────────────────────────────
 
-/** The generated @font-face block both bundled and imported fonts carry. */
-const FONT_BLOCK_RE = /\/\* (?:Bundled open-source|Imported) font[\s\S]*?\}/;
+/** The generated @font-face block both bundled and imported fonts carry, with a bundled face's
+ *  latin-ext rule right after it (model/fonts.ts `bundledFaceRules`), so a swap replaces both. */
+const FONT_BLOCK_RE = /\/\* (?:Bundled open-source|Imported) font[\s\S]*?\}(?:\s*@font-face \{[^}]*-latin-ext\.woff2[^}]*\})?/;
 
 /**
  * Read the CURRENT template's look (colors straight from its :root vars — including any

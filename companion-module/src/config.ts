@@ -20,7 +20,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'Pairing',
 			width: 12,
 			value:
-				'On the NoaCG production page, open Setup, then Panel, and press "Pair a panel". Type the code it shows below and save. The code works once, for five minutes.',
+				'On the NoaCG production page, open Setup, then Stream Deck panel…, and press "Pair a panel". Type the code it shows below and save. The code works once, for five minutes.',
 		},
 		{
 			type: 'textinput',

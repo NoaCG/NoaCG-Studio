@@ -16,6 +16,7 @@
 // imported, so `scripts/production-data-session.test.mjs` drives it with fakes.
 
 import { applyPatch, diffResolved, getPath, replacementPatch, withTreeWrites, type JsonObject, type ResolvedValues, type TreeWrite } from '../model/productionData.ts';
+import { SHARED_NOT_MOVED } from './liveControls.ts';
 import type { ControlSendItem } from './hostedControl';
 import type { fetchProductionData, patchProductionData, patchProductionDataBySlug, productionDataKey } from './productionDataApi';
 import type { DataPart, PlayoutSession } from './playoutSession';
@@ -38,9 +39,11 @@ export interface ProductionDataIo {
   onStorage: (listener: () => void) => () => void;
   /** Tell the operator something went wrong (the page's note line). */
   note: (text: string) => void;
+  /** Run `run` every `ms` until the answer is called: the timer a poll uses. */
+  every?: (ms: number, run: () => void) => () => void;
 }
 
-/** The page's sender, for now (a temporary interface: the page's `runVerb`). */
+/** The sender the page hands in: the graphic verbs' `run` (control/graphicVerbs.ts). */
 export type DataSend = (batches: ControlSendItem[][], label: string) => unknown;
 
 export interface ProductionDataSession {
@@ -50,13 +53,25 @@ export interface ProductionDataSession {
   /** The owner editing the tree (the Data workspace): one call, one write. */
   setLiveData: (next: JsonObject) => void;
   /** An operator press moving a bound value (the ± stepper, an event's `adjust`). */
-  patchBoundValues: (writes: TreeWrite[]) => Promise<void>;
+  /** Answers false when the write did not land (the note line says why). */
+  patchBoundValues: (writes: TreeWrite[]) => Promise<boolean>;
   /** A SOURCE READER's write (control/sheetSource.ts): a merge patch of the connected paths that
    *  changed. Answers true when it landed, false when nothing did (it is tried again), or the
-   *  paths the published row does not bind yet, which were left out while the rest landed. */
+   *  paths the published row does not bind yet, which were left out while the rest landed.
+   *  Published, a reader writes under its lease on the row instead (`holdServerTree`); this road is
+   *  its fallback on an instance that has not run migration 0097. */
   applySourcePatch: (patch: JsonObject) => Promise<boolean | string[]>;
+  /** Hold the tree a published source write answered with (control/hostedControl.ts
+   *  `publishedLeaseDoor`), when it is this mode's slug's: the server's answer, never an
+   *  optimistic tree, so a value the row refused cannot reach PREVIEW or a Take. */
+  holdServerTree: (slug: string, tree: JsonObject) => void;
   /** Pull the server's tree in: at the key's arrival, and whenever a feed row says it moved. */
   refresh: () => Promise<void>;
+  /** Read the published tree every `ms` while this lasts (answers the stop), at each tick only if
+   *  `wanted` answers true. A row says when a bound value moved, but a value nothing binds moves
+   *  silently: a live candidate's collection (control/selectionAir.ts, E7.1) is read this way.
+   *  Nothing while unpublished. */
+  poll: (ms: number, wanted?: () => boolean) => () => void;
   /** Put the bound fields' CHANGES on the wire, unpublished only. `resolved` is what `tree` resolves
    *  to; a tree the part no longer holds is passed over, since the render for the newer one follows. */
   dispatch: (resolved: ResolvedValues, tree: JsonObject, send: DataSend) => void;
@@ -88,12 +103,20 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     });
   };
 
+  /** Reads of the published tree, numbered as they start: an answer that started before one
+   *  already held is older than it, and is passed over (a slow read must not put an older tree
+   *  back, E7.1). */
+  let reads = 0;
+  let readHeld = 0;
   const refresh = async (): Promise<void> => {
     const from = mode;
     const key = part.get().dataKey;
     if (!key) return;
+    const n = ++reads;
     const current = await io.fetchProductionData(key);
-    if (current) write(from, { liveData: current.data as JsonObject, treeRead: true });
+    if (!current || n < readHeld) return;
+    readHeld = n;
+    write(from, { liveData: current.data as JsonObject, treeRead: true });
   };
 
   /** The operator's road for a tree change: optimistic on both, so the figure on screen moves at
@@ -165,8 +188,8 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     },
 
     /**
-     * ONE CALL, ONE WRITE. This charges a persist - and, published, an HTTP PATCH against the
-     * production's ingest budget - every time it is called, and it deliberately does not coalesce:
+     * ONE CALL, ONE WRITE. This charges a persist - and, published, a write on the production's
+     * command budget - every time it is called, and it deliberately does not coalesce:
      * every caller it has is one deliberate gesture (a stepper, Apply JSON, Reset, Clear, Move
      * numbers, a finished edit). A CALLER THAT FIRES AT KEYSTROKE RATE IS THE BUG, not this
      * function's missing debounce. Deferring belongs at the box (components/home/useDeferredEdits.ts),
@@ -188,7 +211,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       const patch = replacementPatch(before, next);
       if (Object.keys(patch).length === 0) return;
       void io
-        .patchProductionData(dataKey, patch)
+        .patchProductionData(dataKey, patch, session.key)
         .then((server) => write(from, { liveData: server as JsonObject }))
         .catch((error: Error) => {
           if (!session.alive()) return;
@@ -215,12 +238,12 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
      * press first while `treeRead` is false.
      */
     patchBoundValues: async (writes) => {
-      if (writes.length === 0) return;
+      if (writes.length === 0) return true;
       const before = part.get().liveData;
       const next = withTreeWrites(before, writes);
       const patch = replacementPatch(before, next);
-      if (Object.keys(patch).length === 0) return;
-      await operatorWrite(mode, next, patch, 'The shared value did not move');
+      if (Object.keys(patch).length === 0) return true;
+      return operatorWrite(mode, next, patch, SHARED_NOT_MOVED);
     },
 
     /**
@@ -274,7 +297,13 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       return skipped.length > 0 ? skipped : true;
     },
 
+    holdServerTree: (from, tree) => {
+      if (session.alive() && slug !== null && from === slug) write(mode, { liveData: tree });
+    },
+
     refresh,
+
+    poll: (ms, wanted) => (io.every ? io.every(ms, () => void (!wanted || wanted() ? refresh() : undefined)) : () => {}),
 
     /**
      * The dispatch: put the CHANGES on the wire, and nothing else.

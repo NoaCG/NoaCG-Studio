@@ -102,6 +102,11 @@ jobs:
         continue-on-error: true
         env:
           SPEC: ${{ matrix.spec }}
+          # TMPDIR on the runner's disk, as configured-suite.yml and hosted-latency.yml have it. The
+          # runner's /tmp is a 7.9 GB tmpfs and Playwright starts Chromium with --disable-dev-shm-usage,
+          # so its shared memory lives in TMPDIR; on /tmp a long shard can die on
+          # ERR_INSUFFICIENT_RESOURCES (issue 1574, and E2E 9/15 of run 39964759151).
+          TMPDIR: ${{ runner.temp }}
         run: npm run test:e2e -- "$(node scripts/e2e-quarantine.mjs filter "$SPEC")"
 
       # The context string is written and read by scripts/e2e-quarantine.mjs alone.

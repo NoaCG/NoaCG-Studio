@@ -1,0 +1,139 @@
+{
+  "costUnread": false,
+  "brief": "brass-band-sponsor-strip",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "b251a4ec-dfda-4e08-a69d-fafc198d9ab7",
+  "costCents": 0,
+  "notionalUsd": 0.7353056,
+  "wallSeconds": 240,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-strip --design bug17 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:c426a2d885b5daa291d5a8e5c596cba4aa2dca392c37f02c6d04245bac67aa90"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 0,
+      "digest": "sha256:12941cefea610d46012e96b17760607d945b365ac726b24310c410920b03d467"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 0,
+      "digest": "sha256:c42e1048c4bf9aebc6fd432e33feef0364351b13a07ba0f5cc32f9e69d3d2e06"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:c42e1048c4bf9aebc6fd432e33feef0364351b13a07ba0f5cc32f9e69d3d2e06"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 0,
+      "digest": "sha256:fad03a3573faddf2081e947132dfdb5839769db6c49c572e742cdd8605fc5339"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:b4472878090a50b87890730eee80bf07fc661661e736fc693b041e710e4f3af2"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:8a2386ee7f116699d4a24b97615b4375e8c0bf23236996a16113eed022a34a4f"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:8a2386ee7f116699d4a24b97615b4375e8c0bf23236996a16113eed022a34a4f"
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:a778cf1ea2674ef175780148840ed42e78ee5b8681d85506c429f7762f2a09e3"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:a778cf1ea2674ef175780148840ed42e78ee5b8681d85506c429f7762f2a09e3"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:a778cf1ea2674ef175780148840ed42e78ee5b8681d85506c429f7762f2a09e3"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-4\\cells\\brass-band-sponsor-strip.claude-sonnet-5-5-high\\frames",
+    "frames": 26,
+    "crops": 4,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:a778cf1ea2674ef175780148840ed42e78ee5b8681d85506c429f7762f2a09e3"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:a778cf1ea2674ef175780148840ed42e78ee5b8681d85506c429f7762f2a09e3",
+    "benchValidated": "sha256:a778cf1ea2674ef175780148840ed42e78ee5b8681d85506c429f7762f2a09e3",
+    "reviewed": "sha256:a778cf1ea2674ef175780148840ed42e78ee5b8681d85506c429f7762f2a09e3",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 11,
+    "opened": 11,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

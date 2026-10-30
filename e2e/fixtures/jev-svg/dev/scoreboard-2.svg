@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="620" viewBox="0 0 500 620" font-family="sans-serif" fill="#fff">
+  <rect x="0" y="0" width="500" height="620" fill="#f3eee5" />
+  <rect x="40" y="60" width="420" height="500" fill="#26243d" rx="35" />
+  <text x="250" y="110" font-size="26" text-anchor="middle">MATCH</text>
+  <line x1="70" y1="330" x2="430" y2="330" stroke="#baa0d2" />
+  <text x="80" y="190" font-size="32" data-name="Команда">Липа</text>
+  <text x="350" y="265" font-size="66" data-name="Шар 7">2</text>
+  <text x="80" y="405" font-size="32" data-name="Команда">Ясен</text>
+  <text x="350" y="480" font-size="66" data-name="Шар 8">5</text>
+</svg>

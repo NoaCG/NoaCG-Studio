@@ -20,6 +20,7 @@
 // way in had said the configured suite was even reachable from that change.
 // covers: src/templates/behaviours/**, src/templates/importedDesign/{behaviour,behaviourRuntime}.ts
 // covers: src/blocks/behaviourData.ts
+// covers: src/components/home/CueActions.tsx
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
@@ -115,10 +116,9 @@ test('an imported quiz board publishes, runs on the real output renderer, and re
     await output.screenshot({ path: `test-results/signed-in/${name}-output.png` });
   };
 
-  // The answer key and the pick, then air. Both are segmented pickers, not selects — few enough
-  // options that the control model draws them that way.
+  // The answer key, then air. It is a segmented picker, not a select — few enough options that
+  // the control model draws it that way. The pick is a one-press option once the board is live.
   await page.getByTestId('cue-field-f5-opt-C').click();
-  await page.getByTestId('cue-field-f6-opt-B').click();
   await page.getByTestId('verb-take').click();
 
   // The opacity poll is the WIRE proof: the artwork's own text sits in the markup either way, and
@@ -135,7 +135,7 @@ test('an imported quiz board publishes, runs on the real output renderer, and re
   await shotBoth('imported-quiz-1-question');
 
   // Select: the designer's own "B selected" layer, on the renderer.
-  await page.getByTestId('cue-action-select').click();
+  await page.getByTestId('cue-pick-select-B').click();
   await expect(drawn('answer.selected/B')).toHaveClass(ON, { timeout: 20_000 });
   await shotBoth('imported-quiz-2-selected');
 

@@ -1,0 +1,42 @@
+{
+  "status": "authored, structurally frozen and durably backed up; runtime secret placement and independent admission pending",
+  "frozen_at_utc": "2026-10-29T21:22:40.672075+00:00",
+  "author": "Codex preparation agent /root/prepare_corpus",
+  "recognition_counts": {
+    "development": 18,
+    "holdout": 18
+  },
+  "supplemental_count": 3,
+  "existing_non_blind_regression_count": 51,
+  "development_tree_sha256": "05ff44acb495f74a87b9de8cbfc28dd26ad1d6d3a0d099deba1306e6d4e241b1",
+  "holdout_tree_sha256": "fb156e4a8e14292ba00c2924f92ee44b936e4ed03e42b0ae487835aea43eaa1c",
+  "development_archive_sha256": "53f0e8642992a52cef9a7b1ea2b9876b054d7a8ae1e1d1ed469b30616f1c93b0",
+  "holdout_archive_sha256": "76b50fa471fe758386c2d33af268d4d91851f7033bacd35b43f10aed3ce9b533",
+  "development_labels_sha256": "49813b69d67ce296519e27c8e35159fd36b1b82e9d455e07eb13cd5c217b815f",
+  "holdout_labels_sha256": "eec1eca4e3c4a93c80d9598c47a173c5520d4e4d2bc4cc2085862ad8f4d19ffd",
+  "manifest_sha256": "15bc1509c2e0d55edde2524ea010ea26844b6718c3728d422eb9f290c38db0ab",
+  "aggregate_method": "SHA-256 of each partition SHA256SUMS, containing sorted per-file SHA-256 and relative path lines, excluding itself. Archive hashes commit exact archive bytes.",
+  "holdout_exposure": "author only during preparation; coordinator receives counts, hashes, public metadata and storage path only; filesystem boundary is procedural",
+  "provider_requests": 0,
+  "provider_spend_usd": 0,
+  "implementation_started": false,
+  "runtime_evaluation_performed": false,
+  "durable_storage_verified": true,
+  "source_spec_sha256": "f4b7484a6d8033aab7e5976645af5ae2346d83b74effaada4fed1c60f6368028",
+  "holdout_zip_sha256": "93d8531dc89187a244a070208762648f6a6808213433079344bd05fe2e53eaf3",
+  "holdout_zip_bytes": 31702,
+  "holdout_zip_base64_bytes": 42272,
+  "holdout_tar_gz_bytes": 24671,
+  "development_tar_gz_bytes": 98506,
+  "holdout_evaluation_phase": 34,
+  "planned_storage": {
+    "runtime": "main-only Actions environment jev-svg-evaluation / JEV_SVG_HOLDOUT_ZIP_BASE64",
+    "backup": "owner-private Drive folder, provisioned/verified by coordinator",
+    "retention": "90 days after completion",
+    "readers": "owner/custodian; main holdout job and independent checker after configuration freeze"
+  },
+  "git_copy_path": "dev-tree/e2e/fixtures/jev-svg/",
+  "legacy_copy_policy": "51 legacy SVGs and sidecars remain local; copy only manifest references to existing repository sibling svg-corpus.",
+  "storage_status": "Private owner Drive backup uploaded, owner-only/unshared permissions and fresh downloaded ZIP hash verified. Runtime protected Actions secret remains unprovisioned (administration403).",
+  "frozen_manifest_status": "manifest.json storage_status is the immutable authoring-time local snapshot; this receipt records subsequent verified storage. Preserve original manifest/archive hashes."
+}

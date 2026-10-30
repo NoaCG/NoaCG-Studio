@@ -135,3 +135,53 @@ function onAirWords(air: FolderAir, up: number): { tag: string; tone: 'air' | 'p
   if (up < air.total) return { tag: `${up} OF ${air.total} ON AIR`, tone: 'part', title: `${up} of the ${cues(air.total)} of this folder ${up === 1 ? 'is' : 'are'} on air. Out takes ${up === 1 ? 'it' : 'them'} off.` };
   return { tag: 'ON AIR', tone: 'air', title: `All ${cues(air.total)} of this folder are on air.` };
 }
+
+/** One cue of a folder as its panel lists it (data-sources C6, AC-16). */
+export interface FolderChild {
+  id: string;
+  label: string;
+  /** Where it plays: `2-10` on the server, `L20` for a graphic. */
+  address: string;
+  /** On air now, up on this page only (a graphic before the first publish), missed by the
+   *  folder's last Take (with why), or neither. */
+  outcome: 'air' | 'up' | 'miss' | 'off';
+  why?: string;
+  /** All together: the other cues of this folder on the same address. */
+  sharesWith?: string[];
+}
+
+/**
+ * EVERY CHILD OF A FOLDER, so a partial Take never reads as a green group: each cue's own outcome
+ * from the same facts its rundown row shows (`cueOnAir`, the page's per-cue Take misses), and in an
+ * All-together folder the known collisions. All together never replaces one cue with another: two
+ * cues on one address (two clips on a slot, two graphics on a layer) are refused before anything is
+ * sent (control/serverPlayout.ts says why), and this names which children collide. One by one and
+ * Play through use one place in turn by design, so nothing there is a collision.
+ */
+export function folderChildren(
+  members: readonly ShowCue[],
+  input: {
+    mode: ShowFolder['mode'];
+    address: (cue: ShowCue) => string;
+    onAir: readonly string[];
+    misses: Readonly<Record<string, string>>;
+    /** The production is published, so a graphic that is up airs. False, it is up on this page
+     *  only, as its rundown row says (D12). */
+    graphicsAir: boolean;
+  },
+): FolderChild[] {
+  const at = members.map((cue) => input.address(cue));
+  return members.map((cue, i) => {
+    const live = input.onAir.includes(cue.id);
+    const why = live ? undefined : input.misses[cue.id];
+    const shares = input.mode === 'together' && at[i] ? members.filter((_, j) => j !== i && at[j] === at[i]).map((other) => other.label) : [];
+    return {
+      id: cue.id,
+      label: cue.label,
+      address: at[i],
+      outcome: live ? (!input.graphicsAir && cue.source !== 'playout' ? 'up' : 'air') : why ? 'miss' : 'off',
+      ...(why ? { why } : {}),
+      ...(shares.length ? { sharesWith: shares } : {}),
+    };
+  });
+}

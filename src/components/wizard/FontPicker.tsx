@@ -4,6 +4,8 @@ import {
   familyFromFileName,
   fontAssetPath,
   fontFormatForExt,
+  LATIN_EXT_RANGE,
+  latinExtFile,
   registerAndMeasureFont,
   type BundledFont,
   type CustomFont,
@@ -43,13 +45,14 @@ const loaded = new Set<string>();
 export function ensureAppFontFace(font: BundledFont): void {
   if (loaded.has(font.id) || typeof FontFace === 'undefined') return;
   loaded.add(font.id);
-  const face = new FontFace(font.family, `url(/fonts/${font.file})`, {
-    weight: `${font.weights[0]} ${font.weights[1]}`,
-  });
-  face
-    .load()
-    .then((f) => (document.fonts as unknown as { add(f: FontFace): void }).add(f))
-    .catch(() => loaded.delete(font.id));
+  // A static face declares every weight, as its template's own copy does (model/fonts.ts
+  // faceWeightLine), so the placement canvas previews what airs, never a synthesised bold.
+  const weight = font.weights[0] === font.weights[1] ? '100 900' : `${font.weights[0]} ${font.weights[1]}`;
+  // Both files, as the template declares them (bundledFaceRules): the latin-ext one sets Š and Ž.
+  // Each loads on its own: a missing latin-ext file costs Š and Ž, never the whole face.
+  const add = (f: FontFace) => (document.fonts as unknown as { add(f: FontFace): void }).add(f);
+  new FontFace(font.family, `url(/fonts/${font.file})`, { weight }).load().then(add).catch(() => loaded.delete(font.id));
+  new FontFace(font.family, `url(/fonts/${latinExtFile(font)})`, { weight, unicodeRange: LATIN_EXT_RANGE }).load().then(add).catch(() => {});
 }
 
 /** Chromium's Local Font Access API (feature-detected; absent everywhere else). */

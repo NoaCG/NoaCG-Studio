@@ -2,6 +2,10 @@
 // covers: src/components/home/ProductionPage.tsx
 // covers: src/components/home/{ProductionDataPanel,ProductionDataWorkspace,SourcesLine}.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
+// covers: src/components/home/ProductionShell.tsx
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 //
 // THE PRODUCTION HEADER, DECLUTTERED (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03: "the
 // playout page is getting crowded"). What is pressed live stays in the header; the doors opened
@@ -29,13 +33,15 @@ test('a plain production shows Playout alone, and Setup holds every other door o
   await expect(page.getByTestId('export-production')).toHaveCount(0);
   await expect(page.getByTestId('panel-open')).toHaveCount(0);
 
-  // Setup, in its order: the panel, Playout settings, Export, then the two views, always.
+  // Setup, in its order: the panel, the production look, Playout settings, Export, then the two
+  // views, always.
   const setup = page.getByTestId('production-setup');
   await setup.click();
   const menu = page.getByTestId('production-setup-menu');
   await expect(setup).toHaveAttribute('aria-expanded', 'true');
   await expect(menu.getByRole('menuitem')).toHaveText([
     /Stream Deck panel…\s*Off/,
+    /Look…/,
     /Playout settings…/,
     /Export…/,
     'Data…',

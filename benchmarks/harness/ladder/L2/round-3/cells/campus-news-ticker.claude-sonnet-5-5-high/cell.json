@@ -1,0 +1,133 @@
+{
+  "costUnread": false,
+  "brief": "campus-news-ticker",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "b671afac-b7df-44d6-b984-b27aa0fd1d06",
+  "costCents": 0,
+  "notionalUsd": 0.7549314000000001,
+  "wallSeconds": 267,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type ticker --design tk07 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:03849fb6170f4d77eecbaaa28c294bf8c4804871bff0c8e96c09044604e51cb7"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:ffd6b96693c6297ebefd86922511aa999f50af6ef8af0babbcc7fe6824d74703"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:52235104c3f4b08c8edc8a70af0a69d77aa71fdd0f40a4863c5e89de097e9bce"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 1,
+      "digest": "sha256:b2f87473b778d4f96d5944fe4f83d9d789865cee7a45b68f83089bd2cc2fea03"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 1,
+      "digest": "sha256:13ff0b7efb44f1603455a75c89810a1c31837c2827617439d761788330a7eae1"
+    },
+    {
+      "command": "noacg scaffold --type ticker --design tk07 --out ../fresh",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f0=Roadworks on Yliopistonkatu, Hämeenkatu, Kauppakorkeakoulunkatu and Pitkänsillanranta delay buses to the Humanistinen tiedekunta campus until Friday evening, and the Opiskelijakunnanedustajistovaalien tulokset julkistetaan perjantaina --background video --out ./shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-3\\cells\\campus-news-ticker.claude-sonnet-5-5-high\\frames",
+    "frames": 47,
+    "crops": 1,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [
+      "pause",
+      "resume",
+      "skip"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2",
+    "benchValidated": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2",
+    "reviewed": "sha256:f155fc2c63291cb175eba114a6a954f6360022de88da1d290d1bc1175cb0d9d2",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 19,
+    "opened": 19,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

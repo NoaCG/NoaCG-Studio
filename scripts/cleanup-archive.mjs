@@ -15,7 +15,7 @@
 //   1. the recursive FILE COUNT matches, and
 //   2. every relative path matches, and
 //   3. every file's BYTE SIZE matches at that path, and
-//   4. the totals agree.
+//   4. SHA-256 contents and link targets match, and the source remains unchanged.
 // Any disagreement returns `ok: false` and the caller must refuse the removal. There is no
 // flag that overrides a failed verification - an archive nobody checked is not an archive.
 //
@@ -28,7 +28,8 @@
 // The source is never modified, never moved and never deleted here. Deleting is the caller's
 // step, and only after this module says the copy is provably complete.
 
-import { cpSync, existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { closeSync, cpSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, readlinkSync, renameSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
@@ -103,14 +104,21 @@ export function archiveDate(now = new Date()) {
  * made both sides of the proof blind to the same thing, so a copy that turned a link into files -
  * or lost one - verified clean. npm workspaces and `npm link` create these routinely.
  */
-export function walkFiles(target) {
+export function walkFiles(target, { hashContents = false } = {}) {
   let root;
   try {
-    root = statSync(target);
+    root = lstatSync(target);
   } catch {
     return null; // vanished or unreadable - the caller turns this into a refusal
   }
-  if (!root.isDirectory()) return [{ path: '', bytes: root.size, kind: 'file' }];
+  if (root.isSymbolicLink()) {
+    try { return [{ path: '', bytes: 0, kind: 'link', target: readlinkSync(target) }]; } catch { return null; }
+  }
+  if (!root.isDirectory()) {
+    if (!root.isFile() || (hashContents && isSecretPath(target.replaceAll('\\', '/')))) return null;
+    const digest = hashContents ? hashFile(target) : null;
+    return hashContents && !digest ? null : [{ path: '', bytes: root.size, kind: 'file', ...(hashContents ? { sha256: digest } : {}) }];
+  }
 
   const files = [];
   const stack = [target];
@@ -126,7 +134,7 @@ export function walkFiles(target) {
       const full = join(dir, entry.name);
       const path = relative(target, full).split(sep).join('/');
       if (entry.isSymbolicLink()) {
-        files.push({ path, bytes: 0, kind: 'link' });
+        try { files.push({ path, bytes: 0, kind: 'link', target: readlinkSync(full) }); } catch { return null; }
       } else if (entry.isDirectory()) {
         stack.push(full);
       } else if (entry.isFile()) {
@@ -140,7 +148,40 @@ export function walkFiles(target) {
       }
     }
   }
-  return files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  // Inspect the entire name set before opening any content. A newly appeared secret
+  // refuses verification instead of being read for a hash or copied into a receipt.
+  if (hashContents) {
+    if (files.some((file) => isSecretPath(file.path))) return null;
+    for (const file of files) {
+      if (file.kind !== 'file') continue;
+      file.sha256 = hashFile(join(target, file.path));
+      if (!file.sha256) return null;
+    }
+  }
+  return files;
+}
+
+/** Bounded-memory content proof; a file modified while being read cannot verify. */
+function hashFile(path) {
+  let fd;
+  try {
+    const before = lstatSync(path);
+    if (!before.isFile() || before.isSymbolicLink()) return null;
+    fd = openSync(path, 'r');
+    const opened = fstatSync(fd);
+    if (opened.ino !== before.ino || opened.dev !== before.dev) return null;
+    const hash = createHash('sha256');
+    const buffer = Buffer.allocUnsafe(1024 * 1024);
+    let bytes;
+    while ((bytes = readSync(fd, buffer, 0, buffer.length, null)) > 0) hash.update(buffer.subarray(0, bytes));
+    const after = fstatSync(fd);
+    const current = lstatSync(path);
+    if (after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs ||
+        current.ino !== before.ino || current.dev !== before.dev || current.size !== before.size ||
+        current.mtimeMs !== before.mtimeMs || current.ctimeMs !== before.ctimeMs) return null;
+    return hash.digest('hex');
+  } catch { return null; } finally { if (fd !== undefined) closeSync(fd); }
 }
 
 /** The *.json / *.jsonl half of a file list - the irreplaceable records, as opposed to frames. */
@@ -280,7 +321,7 @@ export function archiveAndVerify(plan, { copy = cpSync, makeDir = mkdirSync, qua
   };
 
   for (const item of plan.items) {
-    const before = walkFiles(item.source);
+    const before = walkFiles(item.source, { hashContents: true });
     if (before === null) return fail(`${item.path} became unreadable before it was copied`);
 
     if (!plan.alreadyArchived) {
@@ -292,11 +333,14 @@ export function archiveAndVerify(plan, { copy = cpSync, makeDir = mkdirSync, qua
       }
     }
 
-    const after = walkFiles(item.destination);
+    const after = walkFiles(item.destination, { hashContents: true });
     if (after === null) return fail(`${item.path} was copied but the archived copy cannot be read back`);
     const mismatch = compareTrees(before, after);
     // The source is still there. Nothing may be deleted on the strength of this copy.
     if (mismatch) return fail(`${item.path} did not archive faithfully: ${mismatch}`);
+
+    const stable = walkFiles(item.source, { hashContents: true });
+    if (stable === null || compareTrees(before, stable)) return fail(`${item.path}: source changed during copying - nothing removed`);
 
     done.verified.push({
       path: item.path,
@@ -304,6 +348,7 @@ export function archiveAndVerify(plan, { copy = cpSync, makeDir = mkdirSync, qua
       files: after.length,
       bytes: totalBytes(after),
       structured: structuredFiles(after).length,
+      algorithm: 'sha256',
     });
     done.files += after.length;
     done.bytes += totalBytes(after);
@@ -329,19 +374,21 @@ function quarantinePartial(destination) {
 /** Why an EXISTING destination is not already a faithful copy of the plan's sources, or null. */
 function verifyExisting(plan) {
   for (const item of plan.items) {
-    const before = walkFiles(item.source);
-    const after = walkFiles(item.destination);
+    const before = walkFiles(item.source, { hashContents: true });
+    const after = walkFiles(item.destination, { hashContents: true });
     if (before === null) return `${item.path} could not be read`;
     if (after === null) return `${item.path} is missing from it`;
     const mismatch = compareTrees(before, after);
     if (mismatch) return `${item.path}: ${mismatch}`;
+    const stable = walkFiles(item.source, { hashContents: true });
+    if (stable === null || compareTrees(before, stable)) return `${item.path}: source changed during verification`;
   }
   return null;
 }
 
 /**
  * Why two file lists are not the same tree, or null when they are. Counts first (the cheapest
- * and commonest failure), then paths, then per-file sizes, then the totals.
+ * and commonest failure), then paths, then per-file kinds, sizes, link targets and SHA-256 contents.
  */
 export function compareTrees(source, archived) {
   if (source.length !== archived.length) {
@@ -354,6 +401,8 @@ export function compareTrees(source, archived) {
     if ((source[i].kind ?? 'file') !== (archived[i].kind ?? 'file')) {
       return `${source[i].path || '(the file itself)'} is a ${source[i].kind} in the source and a ${archived[i].kind} archived`;
     }
+    if (source[i].target !== archived[i].target) return `${source[i].path || '(the link itself)'} has a different link target`;
+    if (source[i].sha256 !== archived[i].sha256) return `${source[i].path || '(the file itself)'} content differs (SHA-256)`;
     if (source[i].bytes !== archived[i].bytes) {
       return `${source[i].path || '(the file itself)'} is ${source[i].bytes} bytes in the source and ${archived[i].bytes} archived`;
     }

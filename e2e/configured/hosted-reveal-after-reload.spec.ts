@@ -109,10 +109,10 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     if (variant === 'fast') await output.route(REPORT_RPC, (r) => void heldReports.push(r));
 
     await tab.getByTestId(`hosted-field-f5-opt-${takenKey}`).click();
-    await tab.getByTestId(`hosted-field-f6-opt-${pick}`).click();
     await tab.getByTestId('hosted-take-cue').click();
     await expect(tab.getByTestId('hosted-live-chip'), tag).toContainText('Quiz board', WIRE);
-    await tab.getByRole('button', { name: /Select answer/ }).click();
+    // The pick is one press (pinned live controls AC-4).
+    await tab.getByTestId(`hosted-pick-select-${pick}`).click();
     // This round's pick on air, unlocked, before the lock: the previous round's picture is gone.
     await expect(air.locator(`[data-noacg-role~="answer.selected/${pick}"]`), tag).toHaveClass(/imported-design-on/, WIRE);
     await expect(air.locator('[data-noacg-role~="locked"]'), tag).not.toHaveClass(/imported-design-on/);

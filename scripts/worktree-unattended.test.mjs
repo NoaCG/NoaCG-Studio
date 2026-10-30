@@ -20,6 +20,7 @@ import { runUnattended, unattendedRule, UNATTENDED_IDLE_MINUTES } from './cleanu
 import { projectDirName, resetSessionScanCache } from './session-liveness.mjs';
 import {
   acquireSweepLock,
+  advanceLocalMain,
   lastSweepStart,
   markSweepStart,
   normalize,
@@ -119,6 +120,7 @@ function sweep(repo, { landed = [], jobs = [], realProcesses = false, processes 
   resetSessionScanCache();
   return runUnattended(repo.primary, {
     stateDir: repo.stateDir,
+    staging: () => ({ removed: [], kept: [], errors: [] }),
     landings: () => landed.map((branch) => ({ branch })),
     jobs: () => jobs,
     liveness: { root: repo.projects, inventory: NO_INVENTORY },
@@ -443,4 +445,53 @@ test('the owner\'s idle windows are pinned', () => {
   assert.equal(unattendedRule({ path: 'C:/repo/.claude/worktrees/chat', branch: 'claude/b', primaryRoot, landed }).idleMinutes, 4320);
   assert.equal(unattendedRule({ path: 'C:/elsewhere/chat', branch: 'claude/a', primaryRoot, landed }).rule, null);
   assert.equal(unattendedRule({ path: 'C:/repo/.claude/worktrees/chat', branch: 'feature/x', primaryRoot, landed }).rule, null);
+});
+
+
+test('landing records admit newer branch names without owning the entire namespace', (t) => {
+  const repo = makeRepo(t);
+  const known = addWorktree(repo.primary, 'new-agent-name', 'noacg/known-agent');
+  land(repo.primary, known);
+  const other = addWorktree(repo.primary, 'same-prefix', 'noacg/not-recorded');
+  land(repo.primary, other);
+  for (const wt of [known, other]) quiet(repo, wt.path, 30 * HOUR);
+  const result = sweep(repo, { landed: [known.branch] });
+  assert.deepEqual(result.done.removedWorktrees, [normalize(known.path)]);
+  assert.equal(existsSync(other.path), true);
+  assert.equal(branchExists(repo.primary, known.branch), true, 'unowned branch names are retained');
+});
+
+test('the existing unattended sweep runs and records staging cleanup without a new scheduler', (t) => {
+  const repo = makeRepo(t);
+  let calls = 0;
+  const removed = [{ path: 'staging/marketplace-upgrade-ABC123', bytes: 123, head: 'observed' }];
+  const result = runUnattended(repo.primary, {
+    stateDir: repo.stateDir, landings: () => [], jobs: () => [], abandoned: noneAbandoned,
+    liveness: { root: repo.projects, inventory: NO_INVENTORY },
+    staging: () => { calls++; return { removed, kept: [], errors: [] }; },
+    applyOptions: { prunePorts: () => [], reap: noDelegations, processes: nothingRunning },
+  });
+  assert.equal(calls, 1);
+  assert.deepEqual(result.done.staging.removed, removed);
+  const receipt = JSON.parse(readFileSync(join(repo.stateDir, 'last.json'), 'utf8'));
+  assert.deepEqual(receipt.staging.removed, removed);
+});
+
+
+test('an unrelated untracked file cannot stall finished-work cleanup, and collisions stay protected', (t) => {
+  const repo = makeRepo(t);
+  const wt = addWorktree(repo.primary, 'published-change');
+  land(repo.primary, wt);
+  writeFileSync(join(repo.primary, 'owner-notes.txt'), 'keep this file');
+  assert.equal(advanceLocalMain(repo.primary), true);
+  assert.equal(readFileSync(join(repo.primary, 'owner-notes.txt'), 'utf8'), 'keep this file');
+
+  const collision = addWorktree(repo.primary, 'collision');
+  land(repo.primary, collision);
+  const filename = `${collision.branch.replace(/\W/g, '-')}.txt`;
+  writeFileSync(join(repo.primary, filename), 'local work must survive');
+  const before = runGit(repo.primary, 'rev-parse', 'HEAD');
+  assert.equal(advanceLocalMain(repo.primary), false);
+  assert.equal(runGit(repo.primary, 'rev-parse', 'HEAD'), before);
+  assert.equal(readFileSync(join(repo.primary, filename), 'utf8'), 'local work must survive');
 });

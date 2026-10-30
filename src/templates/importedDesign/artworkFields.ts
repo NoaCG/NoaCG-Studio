@@ -7,7 +7,7 @@
 import { clockSampleMinutes } from '../../assets/svgImport';
 import type { SpxField } from '../../model/types';
 import type { DesignSvg } from '../../model/wizard';
-import { creditsIndex, creditsSampleText } from './creditsRoll';
+import { creditsArtworkFields, creditsIndex, creditsSampleText } from './creditsRoll';
 
 /** The ONE countdown field of a design (plan P2 "clock ftype"): the first text layer bound
  *  as a countdown, or -1. One, because the shared clock runtime (templates/shared/clock.ts)
@@ -23,8 +23,12 @@ export function countdownIndex(svg: DesignSvg): number {
 export function svgFields(svg: DesignSvg): SpxField[] {
   const clock = countdownIndex(svg);
   const credits = creditsIndex(svg);
+  const artworkCredits = creditsArtworkFields(svg);
   return [
     ...svg.fields.map((f, i): SpxField => {
+      // Keep stable field ids for the shared behavior compiler, but offer no editable control
+      // for immutable artwork. Its empty holder never writes into the original text.
+      if (artworkCredits.has(i)) return { field: `f${i}`, ftype: 'hidden', title: f.title, value: '' };
       if (i === clock) {
         return {
           field: `f${i}`,

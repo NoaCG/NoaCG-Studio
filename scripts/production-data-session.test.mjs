@@ -52,8 +52,8 @@ function fakeIo({ local = {}, backendConfigured = true } = {}) {
       calls.fetched.push(key);
       return next(answers.fetches);
     },
-    patchProductionData: (key, patch) => {
-      calls.patched.push([key, patch]);
+    patchProductionData: (key, patch, ownerShowId) => {
+      calls.patched.push(ownerShowId === undefined ? [key, patch] : [key, patch, ownerShowId]);
       return next(answers.patches);
     },
     patchProductionDataBySlug: (slug, patch) => {
@@ -185,7 +185,9 @@ test('the key road: an owner edit is a PATCH naming its removals, and the answer
 
   t.data.setLiveData({ home: 2 });
   assert.deepEqual(t.session.data.get().liveData, { home: 2 }, 'optimistic');
-  assert.deepEqual(t.calls.patched, [['key-1', { home: 2, away: null }]]);
+  // The owner's own edit names its production, so it goes through the owner's door and airs while
+  // Another system is paused (data-sources C5, migration 0100).
+  assert.deepEqual(t.calls.patched, [['key-1', { home: 2, away: null }, 'prod-1']]);
   assert.deepEqual(t.calls.saved, [], 'published, nothing goes to localStorage');
   // A feed tick landed in the same moment: the server's merge is what stands.
   t.answers.patches[0].resolve({ home: 2, clock: '10:00' });
@@ -415,4 +417,72 @@ test('the source writer, published: a value the row refuses never enters the loc
   assert.deepEqual(await write, ['sheet.s1.values.Score']);
   assert.deepEqual(t.session.data.get().liveData, { match: 1 }, 'PREVIEW and Take cannot see the refused value');
   assert.equal(t.calls.slugPatched.length, 1, 'nothing left to send');
+});
+
+test('a published lease write: the page holds only the server tree its own slug answered', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.answers.fetches[0].resolve({ data: { home: 1 } });
+  await flush();
+  t.data.holdServerTree('slug-1', { home: 1, sheet: { s1: { lines: 'a' } } });
+  assert.deepEqual(t.session.data.get().liveData, { home: 1, sheet: { s1: { lines: 'a' } } });
+  // An answer for another slug, or after the production left the slug, is not held.
+  t.data.holdServerTree('slug-2', { other: 1 });
+  t.data.published(null);
+  t.data.holdServerTree('slug-1', { late: 1 });
+  assert.equal(t.session.data.get().liveData.other, undefined);
+  assert.equal(t.session.data.get().liveData.late, undefined);
+});
+
+test('published: a read that started earlier and answers later never puts the older tree back (E7.1)', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  void t.data.refresh();
+  assert.equal(t.answers.fetches.length, 2, 'the key\'s own read, then the refresh');
+  t.answers.fetches[1].resolve({ data: { revision: 2 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 2 });
+  t.answers.fetches[0].resolve({ data: { revision: 1 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 2 }, 'the slow read is older than the tree held');
+  void t.data.refresh();
+  t.answers.fetches[2].resolve({ data: { revision: 3 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { revision: 3 }, 'a later read still lands');
+});
+
+test('published, a poll reads the tree on its cadence until stopped; unpublished it reads nothing (E7.1)', async () => {
+  const t = setup();
+  const timers = [];
+  t.io.every = (ms, run) => {
+    const timer = { ms, run, live: true };
+    timers.push(timer);
+    return () => (timer.live = false);
+  };
+  const stopLocal = t.data.poll(5000);
+  t.data.published(null);
+  timers[0].run();
+  assert.equal(t.calls.fetched.length, 0, 'an unpublished production has no tree to read');
+  stopLocal();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  const before = t.calls.fetched.length;
+  const stop = t.data.poll(5000);
+  assert.equal(timers[1].ms, 5000);
+  timers[1].run();
+  assert.equal(t.calls.fetched.length, before + 1);
+  stop();
+  assert.equal(timers[1].live, false);
+  let wanted = false;
+  t.data.poll(5000, () => wanted);
+  timers[2].run();
+  assert.equal(t.calls.fetched.length, before + 1, 'nothing to follow: no read');
+  wanted = true;
+  timers[2].run();
+  assert.equal(t.calls.fetched.length, before + 2);
 });

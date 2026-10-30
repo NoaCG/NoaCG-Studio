@@ -3,9 +3,9 @@ import type {
 	CompanionPresetSection,
 	CompanionPresetFeedback,
 } from '@companion-module/base'
-import type { PanelRow, PanelVerb } from './protocol.js'
-import { ACTION_VERBS } from './actions.js'
-import { AMBER, BLACK, DIM, GREEN, GREY, RED, WHITE, type FeedbacksSchema } from './feedbacks.js'
+import type { PanelActions, PanelRow, PanelVerb } from './protocol.js'
+import { ACTION_VERBS, type GraphicKeyOptions } from './actions.js'
+import { AMBER, BLACK, DARK_AMBER, DIM, GREEN, GREY, RED, WHITE, type FeedbacksSchema } from './feedbacks.js'
 import { SELECTED } from './view.js'
 import type { ModuleSchema } from './main.js'
 import type ModuleInstance from './main.js'
@@ -35,14 +35,81 @@ function verbFeedbacks(verb: PanelVerb, row = ''): Feedback[] {
 	]
 }
 
+/** What a graphic key shows: grey when its page would not run it, dark amber while it runs, amber
+ *  when it failed or is not known, and dark with a question mark when its graphic no longer has it. */
+function graphicFeedbacks(o: GraphicKeyOptions, text: string): Feedback[] {
+	const key = { graphic: o.graphic, cap: o.cap }
+	return [
+		{ feedbackId: 'action_allowed', options: key, isInverted: true, style: { color: GREY } },
+		{ feedbackId: 'action_outcome', options: { ...key, outcome: 'running' }, style: { bgcolor: DARK_AMBER } },
+		{ feedbackId: 'action_outcome', options: { ...key, outcome: 'failed' }, style: { bgcolor: AMBER, color: BLACK } },
+		{
+			feedbackId: 'action_outcome',
+			options: { ...key, outcome: 'unknown' },
+			style: { bgcolor: AMBER, color: BLACK, text: `${text}\\n?` },
+		},
+		{ feedbackId: 'action_unknown', options: key, style: { bgcolor: DIM, color: GREY, text: `? ${text}` } },
+	]
+}
+
+/**
+ * THE PINNED GRAPHICS' LIVE CONTROLS AS KEYS (L1 AC-8): for each graphic pinned on the production's
+ * pages, its block's controls in the block's order, a pick as one key per option and a number as
+ * its -1 and +1. A pin decides only what is listed here: every graphic's actions stay pressable
+ * through the Graphic action, and a saved key keeps working after its graphic is unpinned.
+ */
+export function graphicPresets(
+	label: string,
+	actions: PanelActions | null,
+): { presets: Presets; groups: { id: string; name: string; ids: string[] }[] } {
+	const presets: Presets = {}
+	const groups: { id: string; name: string; ids: string[] }[] = []
+	const pinned = (actions?.graphics ?? []).filter((g) => g.pinned)
+	pinned.forEach((g, i) => {
+		const ids: string[] = []
+		const key = (text: string, name: string, o: GraphicKeyOptions, extra: Feedback[] = []) => {
+			const id = `graphic_${i}_${ids.length}`
+			ids.push(id)
+			presets[id] = {
+				type: 'simple',
+				name: `${name} (${g.graphic})`,
+				style: { text, size: 'auto', color: WHITE, bgcolor: BLACK },
+				steps: [{ down: [{ actionId: 'graphic_action', options: o }], up: [] }],
+				feedbacks: [...extra, ...graphicFeedbacks(o, text), ...statusFeedbacks(label)],
+			}
+		}
+		const base = { graphic: g.graphic, option: '', delta: '1', args: '' }
+		for (const c of g.caps) {
+			// A control the page says no panel can press gets no ready key.
+			if (!c.invocable) continue
+			if (c.kind === 'step') {
+				key(`-1\\n${c.label}`, `${c.label} -1`, { ...base, cap: c.id, delta: '-1' })
+				key(`+1\\n${c.label}`, `${c.label} +1`, { ...base, cap: c.id })
+			} else if (c.options?.length) {
+				for (const opt of c.options)
+					key(`${opt.label}`, `${c.label}: ${opt.label}`, { ...base, cap: c.id, option: opt.value }, [
+						{
+							feedbackId: 'action_active',
+							options: { graphic: g.graphic, cap: c.id, option: opt.value },
+							style: { bgcolor: GREEN, color: WHITE },
+						},
+					])
+			} else key(c.label, c.label, { ...base, cap: c.id })
+		}
+		groups.push({ id: `graphic_${i}`, name: g.graphic, ids })
+	})
+	return { presets, groups }
+}
+
 /**
  * The ready keys an operator drags onto the grid: the transport, the clip clock, one Take and one
- * Select key per rundown row, and one Trigger key per cue, rebuilt whenever the production's rows
- * change.
+ * Select key per rundown row, one Trigger key per cue, and the pinned graphics' live controls,
+ * rebuilt whenever the production's rows or the graphics' controls change.
  */
 export function buildPresets(
 	label: string,
 	rows: readonly PanelRow[],
+	actions: PanelActions | null = null,
 ): { structure: CompanionPresetSection<ModuleSchema>[]; presets: Presets } {
 	const presets: Presets = {}
 	const v = (name: string) => `$(${label}:${name})`
@@ -146,6 +213,9 @@ export function buildPresets(
 		}
 	}
 
+	const graphics = graphicPresets(label, actions)
+	Object.assign(presets, graphics.presets)
+
 	const structure: CompanionPresetSection<ModuleSchema>[] = [
 		{
 			id: 'show',
@@ -171,11 +241,19 @@ export function buildPresets(
 				{ id: 'trigger_cues', type: 'simple', name: 'Trigger a cue', presets: triggerIds },
 			],
 		},
+		{
+			id: 'graphics',
+			name: 'Pinned graphics',
+			description: graphics.groups.length
+				? "The live controls of each graphic pinned on the production page. They act on that graphic's cue on air."
+				: 'Pin a graphic on the production page to list its live controls here.',
+			definitions: graphics.groups.map((g) => ({ id: g.id, type: 'simple' as const, name: g.name, presets: g.ids })),
+		},
 	]
 	return { structure, presets }
 }
 
 export function UpdatePresets(self: ModuleInstance): void {
-	const { structure, presets } = buildPresets(self.label, self.panel.rows?.rows ?? [])
+	const { structure, presets } = buildPresets(self.label, self.panel.rows?.rows ?? [], self.panel.actions)
 	self.setPresetDefinitions(structure, presets)
 }

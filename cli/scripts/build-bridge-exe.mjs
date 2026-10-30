@@ -11,8 +11,9 @@
 // bundled, so playwright-core and the MCP SDK never enter the file.
 //
 // WHAT IS PROVEN before this script reports success: the exe is started on a free port with
-// --no-open --quiet, GET /health answers as NoaCG Bridge with the version this package.json
-// carries, and the process is stopped. A build that produces a file which does not start is
+// --no-open --quiet, GET /health answers as NoaCG Bridge with the Bridge version this
+// package.json carries (`bridgeVersion`, its own line, not the CLI's `version`), and the process
+// is stopped. A build that produces a file which does not start is
 // refused here rather than discovered by the person who downloaded it.
 //
 // Not done here: code signing. The copied node.exe's own signature is invalidated by the
@@ -31,8 +32,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const outDir = path.join(root, 'dist-exe');
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+const version = pkg.bridgeVersion;
+if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) throw new Error(`cli/package.json has no bridgeVersion to build (got ${JSON.stringify(version)})`);
 const check = !process.argv.includes('--no-check');
-const exeName = process.platform === 'win32' ? `NoaCG-Bridge-${pkg.version}.exe` : 'noacg-bridge';
+const exeName = process.platform === 'win32' ? `NoaCG-Bridge-${version}.exe` : 'noacg-bridge';
 
 function step(name, fn) {
   process.stdout.write(`[bridge-exe] ${name}\n`);
@@ -61,8 +64,8 @@ step('bundle src/playoutEntry.ts with esbuild', () => {
     target: 'node24',
     format: 'cjs',
     outfile: bundle,
-    define: { 'process.env.NOACG_BRIDGE_VERSION': JSON.stringify(pkg.version) },
-    banner: { js: `// NoaCG Bridge ${pkg.version} - built from @noacg/cli. Source: https://github.com/NoaCG/NoaCG-Studio/tree/main/cli` },
+    define: { 'process.env.NOACG_BRIDGE_VERSION': JSON.stringify(version) },
+    banner: { js: `// NoaCG Bridge ${version} - built from the @noacg/cli package. Source: https://github.com/NoaCG/NoaCG-Studio/tree/main/cli` },
     logLevel: 'warning',
   });
 });
@@ -117,8 +120,8 @@ if (check) {
         }
       }
       if (!health) throw new Error(`the exe never answered /health on ${port}${stderr ? `\n${stderr}` : ''}`);
-      if (health.agent !== 'noacg-bridge' || health.version !== pkg.version) {
-        throw new Error(`/health answered ${JSON.stringify(health)}, expected agent noacg-bridge version ${pkg.version}`);
+      if (health.agent !== 'noacg-bridge' || health.version !== version) {
+        throw new Error(`/health answered ${JSON.stringify(health)}, expected agent noacg-bridge version ${version}`);
       }
       process.stdout.write(`[bridge-exe] /health: ${JSON.stringify(health)}\n`);
     } finally {
@@ -129,4 +132,4 @@ if (check) {
 
 for (const f of [bundle, blob, seaConfig]) if (existsSync(f)) rmSync(f);
 const mb = (readFileSync(exe).length / 1024 / 1024).toFixed(1);
-process.stdout.write(`[bridge-exe] ${path.relative(root, exe)} (${mb} MB, sha256 ${sha.slice(0, 12)}…) - NoaCG Bridge ${pkg.version}\n`);
+process.stdout.write(`[bridge-exe] ${path.relative(root, exe)} (${mb} MB, sha256 ${sha.slice(0, 12)}…) - NoaCG Bridge ${version}\n`);

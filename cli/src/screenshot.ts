@@ -485,6 +485,74 @@ async function runSequence(own: BenchContext, appOrigin: string, html: string, o
   return { image: strip[strip.length - 1].image, ran: ops.map(describeOp), atMs: at, machine, notes, unmoved, strip, crops };
 }
 
+/**
+ * The share of pixels that differ between two frames, a pixel counting when any channel moved by
+ * more than `tolerance` (JPEG noise stays under it). Frames of different sizes differ entirely.
+ * Read in a page of its own, which decodes both pictures; nothing in it reaches the network.
+ */
+export async function changedShare(a: Uint8Array, b: Uint8Array, tolerance = 24): Promise<number> {
+  const context = await (await launchBrowser()).newContext();
+  try {
+    const page = await context.newPage();
+    await context.route('**/*', (route) => route.abort('blockedbyclient'));
+    const url = (x: Uint8Array) => `data:${mimeTypeOf(x)};base64,${Buffer.from(x).toString('base64')}`;
+    return await page.evaluate(
+      async ({ a, b, tolerance }) => {
+        const pixels = async (src: string) => {
+          const bitmap = await createImageBitmap(await (await fetch(src)).blob());
+          const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+          const g = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D;
+          g.drawImage(bitmap, 0, 0);
+          return g.getImageData(0, 0, bitmap.width, bitmap.height);
+        };
+        const [p, q] = await Promise.all([pixels(a), pixels(b)]);
+        if (p.width !== q.width || p.height !== q.height) return 1;
+        let changed = 0;
+        for (let i = 0; i < p.data.length; i += 4) {
+          if (Math.abs(p.data[i] - q.data[i]) > tolerance || Math.abs(p.data[i + 1] - q.data[i + 1]) > tolerance || Math.abs(p.data[i + 2] - q.data[i + 2]) > tolerance || Math.abs(p.data[i + 3] - q.data[i + 3]) > tolerance) changed++;
+        }
+        return changed / (p.width * p.height);
+      },
+      { a: url(a), b: url(b), tolerance },
+    );
+  } finally {
+    await context.close();
+  }
+}
+
+/** How many moments a strip picture puts side by side. */
+export const STRIP_COLUMNS = 3;
+
+/** The time under a strip's moment: `120 ms`, `1.5 s`, `10 s`. */
+export const momentLabel = (ms: number) => (ms < 1000 ? `${ms} ms` : `${Number((ms / 1000).toFixed(1))} s`);
+
+/**
+ * One timeline as one picture: its moments in time order, `STRIP_COLUMNS` across and as many rows
+ * as they need, each at a third of the frame's size with its time under it. An agent reads one
+ * picture per timeline instead of one per moment: a full-HD frame costs a reader about as much as
+ * the whole strip does.
+ */
+export async function composeStrip(moments: Array<{ atMs: number; image: Uint8Array }>, size: { width: number; height: number }): Promise<Uint8Array> {
+  const tileW = Math.round(size.width / STRIP_COLUMNS);
+  const tileH = Math.round((size.height * tileW) / size.width);
+  const label = 30;
+  const rows = Math.ceil(moments.length / STRIP_COLUMNS);
+  const tiles = moments
+    .map((m) => `<figure><img src="data:${mimeTypeOf(m.image)};base64,${Buffer.from(m.image).toString('base64')}"><figcaption>${momentLabel(m.atMs)}</figcaption></figure>`)
+    .join('');
+  const html = `<!doctype html><style>*{margin:0;box-sizing:border-box}body{background:#000;display:grid;grid-template-columns:repeat(${STRIP_COLUMNS},${tileW}px);width:${tileW * STRIP_COLUMNS}px}figure{width:${tileW}px;height:${tileH + label}px;border:1px solid #444}img{display:block;width:100%;height:${tileH}px;object-fit:fill}figcaption{height:${label}px;font:600 20px/30px sans-serif;color:#fff;padding-left:8px}</style>${tiles}`;
+  const context = await (await launchBrowser()).newContext({ viewport: { width: tileW * STRIP_COLUMNS, height: rows * (tileH + label) }, javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    // Only data: images: nothing in this page reaches the network.
+    await context.route('**/*', (route) => (route.request().url().startsWith('data:') ? route.continue() : route.abort('blockedbyclient')));
+    await page.setContent(html, { waitUntil: 'load' });
+    return new Uint8Array(await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY }));
+  } finally {
+    await context.close();
+  }
+}
+
 /** Detail crops of field elements at native pixels: the element a field's value is written into
  *  (SPX binds a field to the element with its id), with a margin, inside the frame. A field with
  *  no element, or one with no size (hidden, empty), has no crop. */

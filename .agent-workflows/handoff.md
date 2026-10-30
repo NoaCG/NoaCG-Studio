@@ -67,8 +67,7 @@ no prompt, no summary. Don't invent work.
 
 One code block a fresh Claude Code or Codex session can be given alone, in the shape of the
 queue-merge workflow's next-session prompt (its section 3), with **why each remaining piece
-matters** and known risks. If the pull request already carries that prompt and nothing has changed
-since, repeat it. No transcript dump.
+matters** and known risks. No transcript dump.
 It lives in the reply only: never write it to a file or queue anything for it.
 
 When work remains, include the exact current branch and short HEAD, whether the working tree is

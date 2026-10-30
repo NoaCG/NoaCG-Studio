@@ -5,7 +5,7 @@ in Codex.
 
 **The question this answers: is there anything the owner should look at or decide?** What waits on
 him comes from two places: the items in the prompt that started this session (a wave's morning
-prompt lists its decisions and looks), and GitHub issues labelled `needs owner`, a decision only he
+prompt lists its decisions and looks), and GitHub issues labelled `needs decision`, a decision only he
 can make or a step only he can take (an account, a console, a permission).
 
 Optional argument: a filter, either a subject (walk only the items about it) or an area label.
@@ -15,7 +15,7 @@ Optional argument: a filter, either a subject (walk only the items about it) or 
 The prompt's items first, in its order. Then:
 
 ```bash
-gh issue list --label "needs owner" --json number,title,labels,url
+gh issue list --label "needs decision" --json number,title,labels,url
 ```
 
 Order the issues by priority (`P1`, `P2`, `P3`), oldest first within one, and keep only what the
@@ -30,11 +30,11 @@ nothing is open, or nothing matches, say so in one line and stop. An empty list 
    a console, the product on screen), get him in front of it once; for a local route, start this
    checkout's server with `npm run dev:worktree` if none is up.
 2. Wait for his answer. For a look, do not tell him what he will see: his eyes are the point.
-3. Record his answer in his words on the issue or pull request the item is about
-   (`gh issue comment`, `gh pr comment`):
+3. Record the outcome on the issue or pull request the item is about (`gh issue comment`,
+   `gh pr comment`) as a decision about NoaCG and its reason, never as who said what:
    - **Done or decided**: write a decision where the work that depends on it will read it (the
      issue that waits on it, the plan doc or the commit), then close the issue, unless the work the
-     decision starts is tracked there: then drop its `needs owner` label. Work larger than a small
+     decision starts is tracked there: then drop its `needs decision` label. Work larger than a small
      fix gets a prompt for a fresh session, in one code block in the chat, ready to copy.
    - **Feedback**: turn it into work, a fix now if it is small and in scope, otherwise a new issue
      linked from this one. Say which. The issue stays open until that work lands.

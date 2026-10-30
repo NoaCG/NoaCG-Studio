@@ -252,15 +252,16 @@ export async function productionForDataKey(key: string): Promise<ProductionRow |
  *  It mirrors the operator RPC's checks (entitlement, the 50-per-5s per-show cap), marks the
  *  row `src: 'api'`, and enforces the INGEST BUDGET in the database: at most 25 of a 5 s
  *  window's rows may be feed rows, so operator headroom holds globally, not per serverless
- *  instance. Ordering against operator commands is the log's own. Returns the event id. */
-export async function sendDataUpdate(key: string, graphic: string, data: Record<string, string>): Promise<number> {
+ *  instance. Ordering against operator commands is the log's own. Returns the event id, or null
+ *  when the production has paused Another system and the values were HELD for Resume (0100). */
+export async function sendDataUpdate(key: string, graphic: string, data: Record<string, string>): Promise<number | null> {
   const { data: eventId, error } = await (await sb()).rpc('control_data_send', {
     p_key: key,
     p_graphic: graphic,
     p_data: data,
   });
   if (error) throw new Error(error.message);
-  return Number(eventId);
+  return eventId === null || eventId === undefined ? null : Number(eventId);
 }
 
 // ── Production DATA: addressed by PATH, never by graphic (0048) ──────────────────────────────
@@ -279,6 +280,8 @@ export interface DataPatchResult {
   /** The production's whole tree AFTER the merge - what the caller can reconcile against. */
   data: Record<string, unknown>;
   writes: DataPatchWrite[];
+  /** The production has paused Another system: the tree took the patch, nothing aired (0100). */
+  paused: boolean;
 }
 
 /**
@@ -297,10 +300,11 @@ export interface DataPatchResult {
 export async function patchProductionData(key: string, patch: Record<string, unknown>): Promise<DataPatchResult> {
   const { data, error } = await (await sb()).rpc('control_data_patch', { p_key: key, p_patch: patch });
   if (error) throw new Error(error.message);
-  const row = (data ?? {}) as { data?: unknown; writes?: unknown };
+  const row = (data ?? {}) as { data?: unknown; writes?: unknown; paused?: unknown };
   return {
     data: (row.data ?? {}) as Record<string, unknown>,
     writes: Array.isArray(row.writes) ? (row.writes as DataPatchWrite[]) : [],
+    paused: row.paused === true,
   };
 }
 

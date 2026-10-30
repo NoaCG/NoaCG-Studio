@@ -38,7 +38,7 @@ plans live in the store (`node scripts/wave-plan-store.mjs --list`), reachable f
 The first prints one page: tokens by model and per harness on each meter, the Codex snapshot, the
 Antigravity calls, the delegation outcomes and which capability observations lapsed; the waves and
 their rows by pool, and what the queue landed; the `DECIDED:` count and the issues opened, with how
-many carry `owner ask` or `needs owner`; and the commits that touched the orchestration system,
+many carry `requested` or `needs decision`; and the commits that touched the orchestration system,
 with the common-path line count now against the window's start. Every number names its source in the
 script's header; do not restate a number the page does not carry. **Most of it is raw material, not
 report**: a number reaches him only when it changes something he would do (step 3).
@@ -73,8 +73,8 @@ because `docs/STACK_FRESHNESS.md` is time-driven and nothing in CI ever notices 
 This is the half the owner attends, so it is written for him and it is short. Read four things:
 
 - the North Star and the outcomes marked `(now)` in `docs/GOALS.md` - what we are building toward;
-- `gh issue list --label "owner ask"` - what he has asked for that is still open. An ask's age is the
-  date he said it, quoted in the issue body, not the date the issue was opened;
+- `gh issue list --label "requested"` - what he has asked for that is still open. A request's age is
+  the date recorded in the issue body, not the date the issue was opened;
 - the `P1` and `P2` issues (`gh issue list --label P1 --limit 200`, then `P2`) that serve an outcome marked now;
 - the open `bug` issues at `P1` (`gh issue list --label bug --label P1`) - what is broken for a user.
 
@@ -119,7 +119,7 @@ teaches him the page is padding.
 
 Where the plan and the vision could differ is usually one of these, and they are worth looking for
 by name: an item in `NOW` that has been there for weeks without moving, and may no longer be what he
-wants; a programme sitting at a gate only he can open; an owner ask that has gone unstarted long
+wants; a programme sitting at a gate only he can open; a request that has gone unstarted long
 enough that it may have stopped mattering; a decision taken on his behalf that a reasonable person
 could have taken the other way.
 
@@ -164,7 +164,7 @@ and a quiet section says so in one line rather than disappearing, so he can tell
 2. **What needs you** - the at-most-three questions, each tagged `needs: decision`, or the words
    "nothing needs you this week".
 3. **Serious** - anything a user could hit or that could stop work: red on `main`
-   (`alarm-issues.mjs`), a `P1` bug, an owner ask that has waited three weeks or more without
+   (`alarm-issues.mjs`), a `P1` bug, a request that has waited three weeks or more without
    starting, a routine missing from the scheduler or running on the wrong cadence, a meter near its
    cap that will change routing (Codex's weekly snapshot, for example). One line each, at most
    three, with what happens if nobody acts. Nothing is "the queue has it in hand" here; if the queue

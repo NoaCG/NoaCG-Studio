@@ -11,6 +11,8 @@
 //  2. Commit messages follow the house rules (`root/write-commit-message-outside-developer-reading`
 //     and `root/work-feature-branch-own-worktree-made`): no Co-Authored-By trailers, no
 //     AI/agent/chat-session language, no internal plan codenames.
+//  2b. Text written to GitHub (`gh issue|pr ...`) carries no prompt, owner notes or session ids
+//     (github-text.mjs).
 //  3. Commits never include dist/ or the generated .claude/launch.json.
 //  3b. Nobody polls the job queue in the foreground, and no polling loop runs without a time limit.
 //  3d. Nothing pushes to `main` - only the merge queue writes it.
@@ -29,6 +31,7 @@ import { envSecretsRefusal, showsEnvSecrets } from './env-secrets.mjs';
 import * as rules from '../rules.mjs';
 import { portsFor } from '../dev-port.mjs';
 import { mainPushRefusal } from './main-push.mjs';
+import { githubTextRefusal } from './github-text.mjs';
 import { isPortBusy } from '../port-probe.mjs';
 import { activeRuns, describeRuns } from '../e2e-runs.mjs';
 import {
@@ -223,6 +226,10 @@ if (isCommit) {
     );
   }
 }
+
+// --- 2b. GitHub text is for outside readers (github-text.mjs) ----------------------------------
+const githubText = githubTextRefusal(command, sessionDir);
+if (githubText) deny(githubText);
 
 // --- 3b. No unbounded foreground wait on a queued job ----------------------------------------
 //

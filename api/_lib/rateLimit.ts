@@ -173,6 +173,21 @@ export function checkDataIpRateLimit(req: Request): RateLimitDecision | null {
   return decision.allowed ? null : decision;
 }
 
+/** The public news feed reader (/api/data/feed, data-sources C4): a page asks once every 5
+ *  minutes per feed, so 30 a minute leaves room for a production with many feeds and refuses a
+ *  client using the route as a fetcher of arbitrary addresses. */
+export function feedIpRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('FEED_RATE_WINDOW_SEC', 60)) * 1000,
+    max: envInt('FEED_RATE_MAX', 30),
+  };
+}
+
+export function checkFeedIpRateLimit(req: Request): RateLimitDecision | null {
+  const decision = hitRateLimit(`feed-ip:${ipHash(req)}`, feedIpRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}
+
 export function dataIngestBudgetCaps(): RateLimitCaps {
   return {
     windowMs: Math.max(1, envInt('DATA_INGEST_RATE_WINDOW_SEC', 5)) * 1000,

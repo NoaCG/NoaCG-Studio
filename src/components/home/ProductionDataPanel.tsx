@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   deletePath,
   flattenLeaves,
@@ -18,14 +18,18 @@ import {
   type JsonObject,
   type ResolvedValues,
 } from '../../model/productionData';
-import { addGraphicToShow, preparedMessageField, setFieldBinding, setFieldBindings, setShowSeedData, type Show, type ShowSource } from '../../model/shows';
+import { addGraphicToShow, fillsFields, ownSheetGraphics, preparedMessageField, sourceKindWord, setFieldBinding, setFieldBindings, setShowSeedData, type FieldShowSource, type Show } from '../../model/shows';
 import { fieldDescriptors } from '../../control/controlModel';
 import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { SourceStatusStore } from '../../control/sheetSource';
-import { readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
-import { copyLink } from './copyLink';
+import { OwnReaderLine, ownSheetReaders, readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
+import { loadGraphics } from '../../model/library';
+import { ownReaderHolds, subscribeOwnReaderHolds } from '../../model/ownReaderHolds';
+import { stripLiveData } from '../../control/liveData';
+import { nameList } from './CueRundown';
 import { useDeferredEdits } from './useDeferredEdits';
+import { isApiPath } from '../../control/anotherSystem';
 
 /**
  * THE MANUAL DATA PLAYGROUND (docs/PRODUCTION_DATA_PLAN.md §3) — the production's live data
@@ -46,7 +50,6 @@ export default function ProductionDataPanel({
   liveData,
   setLiveData,
   resolved,
-  dataKey,
   sourceStatus,
 }: {
   show: Show;
@@ -54,9 +57,6 @@ export default function ProductionDataPanel({
   liveData: JsonObject;
   setLiveData: (data: JsonObject) => void;
   resolved: ResolvedValues;
-  /** The production's own data key, or null when there is nothing to show (unpublished,
-   *  offline, or not the owner). See the Data key block below for why it belongs on screen. */
-  dataKey?: string | null;
   /** What each source's reader last found (control/sheetSource.ts), for the overview. */
   sourceStatus: SourceStatusStore;
 }) {
@@ -69,10 +69,6 @@ export default function ProductionDataPanel({
    *  so a red line and a green one can never be on screen together - which they were, the moment
    *  any note was set outside `write()`. */
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
-  /** The data key is hidden until asked for: it is a credential, and this page is often on a
-   *  screen somebody else is looking at. */
-  const [keyOpen, setKeyOpen] = useState(false);
-  const [keyShown, setKeyShown] = useState(false);
   /** The one ✕ whose second click deletes, or null. One slot, so arming a row disarms any other. */
   const [armed, setArmed] = useState<string | null>(null);
 
@@ -168,21 +164,6 @@ export default function ProductionDataPanel({
           The values, lists and Sheets this production uses, and the graphics that show them.
           Change a value here and every graphic showing it follows, on air too.
         </p>
-        <div className="pd-live-actions">
-          {/* Only when there IS a key: unpublished productions and offline builds have no API to
-              point anybody at, and a permanently dead button is worse than no button. */}
-          {dataKey && (
-            <button
-              onClick={() => {
-                setKeyOpen((open) => !open);
-                setKeyShown(false);
-              }}
-              data-testid="data-key-toggle"
-            >
-              {keyOpen ? '▴ Hide data key' : '▾ Data key'}
-            </button>
-          )}
-        </div>
       </div>
 
       {/* ONE line, in the colour its own news deserves: a value that went nowhere must not arrive
@@ -191,54 +172,6 @@ export default function ProductionDataPanel({
         <p className={`${note.ok ? 'status-ok' : 'status-bad'} pd-data-note`} data-testid="data-note">
           {note.text}
         </p>
-      )}
-
-      {/* THE DATA KEY (docs/DATA_API.md). The API was documented and then unreachable: the key is
-          minted at publish and lived only in `control_shows.data_key`, so the whole guide told a
-          hosted operator to go and read a database row they have no way to open. It is the
-          OWNER'S OWN key, read over RLS in their own authenticated session
-          (control/productionDataApi.ts says why that is not the "never a web page" case the
-          integrator doc warns about), and it is strictly weaker than the control-page URL this
-          same production already hands out.
-
-          Hidden until asked for, because this screen is often in front of other people, and
-          revealed rather than masked-and-copyable so nobody hands out a key they never saw. */}
-      {dataKey && keyOpen && (
-        <div className="pd-datakey" data-testid="data-key">
-          <p className="hint">
-            An outside system - a timing service, a results feed, your own script - writes this
-            tree over HTTPS with this key. It writes data only: it cannot play, stop, take or
-            clear a graphic. Keep it in server-side config, never in a web page.
-          </p>
-          <div className="pd-datakey-row">
-            <code data-testid="data-key-value">{keyShown ? dataKey : '•'.repeat(24)}</code>
-            <button onClick={() => setKeyShown((shown) => !shown)} data-testid="data-key-reveal">
-              {keyShown ? 'Hide' : 'Reveal'}
-            </button>
-            <button
-              onClick={() => {
-                void copyLink(dataKey).then((ok) => {
-                  setNote(
-                    ok
-                      ? { text: '✓ Data key copied', ok: true }
-                      : { text: 'The key could not be copied. Reveal it and copy by hand.', ok: false },
-                  );
-                });
-              }}
-              data-testid="data-key-copy"
-            >
-              Copy
-            </button>
-          </div>
-          <p className="hint">
-            Publishing again mints a new key and the old one stops working. The endpoints, the
-            payload shapes and a worked example are in the{' '}
-            <a href="/docs#data-api" target="_blank" rel="noreferrer">
-              Live data guide
-            </a>
-            .
-          </p>
-        </div>
       )}
 
       <DataOverview
@@ -535,12 +468,12 @@ function OverviewValue({ leaf, name, users, list, connected, edits }: { leaf: Da
 
 /** A source on the overview: what it is, who reads it and how often, checked versus changed,
  *  Pause, and the graphics that follow it (data-sources AC-9's source details). */
-function OverviewSource({ show, setShows, source, store, pool }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; pool: ReadonlySet<string> }) {
+function OverviewSource({ show, setShows, source, store, pool }: { show: Show; setShows: (shows: Show[]) => void; source: FieldShowSource; store: SourceStatusStore; pool: ReadonlySet<string> }) {
   const { status, now } = useSourceStatus(store, source.id);
   const graphics = [...new Set(sourcePaths(show.bindings, source.id).map((p) => p.graphic))].filter((g) => pool.has(g));
   return (
     <div className="pd-bind-graphic-head" data-testid={`data-source-${source.id}`}>
-      <h4>Sheet: {source.label}</h4>
+      <h4>{sourceKindWord(source)}: {source.label}</h4>
       <span className="hint" data-testid="data-source-status">
         {statusWords(source.paused, status, now, false)}
         {status?.stale && !source.paused && <strong className="status-warn"> · stale</strong>}
@@ -550,7 +483,7 @@ function OverviewSource({ show, setShows, source, store, pool }: { show: Show; s
         ))}
       </span>
       <span className="hint" data-testid="data-source-reader">
-        {readerWords(source.paused, status)}
+        {readerWords(source.paused, status, source.kind)}
       </span>
       <span className="hint" data-testid="data-source-users">
         {graphics.length > 0 ? `Followed by ${graphics.join(', ')}` : 'No graphic follows it'}
@@ -581,12 +514,16 @@ function DataOverview({
   store: SourceStatusStore;
   edits: ValueEdits;
 }) {
-  const sources = show.sources ?? [];
+  // Only a Sheet tab or a feed holds values; a YouTube source feeds Messages alone.
+  const sources = (show.sources ?? []).filter(fillsFields);
   // A Sheet's values outlive its disconnection in the tree, following nothing: they are not local
-  // content, and they stay reachable under Advanced.
-  const local = leaves.filter((leaf) => !sourceIdOf(leaf.path));
+  // content, and they stay reachable under Advanced. Another system's are its own group (C5).
+  const local = leaves.filter((leaf) => !sourceIdOf(leaf.path) && !isApiPath(leaf.path));
+  const pushed = leaves.filter((leaf) => isApiPath(leaf.path));
   // Bindings outlive a graphic removed from the pool; only graphics still in it show anything.
   const pool = new Set(show.graphics.map((g) => g.name));
+  // A graphic reading a Sheet in its own code is a source too, one Pause cannot reach (C6).
+  const ownReaders = useMemo(() => ownSheetReaders(show.graphics, loadGraphics(), !!show.hostedSlug), [show.graphics, show.hostedSlug]);
   const row = (leaf: DataLeaf, key: string | null) => {
     const users = usersOf(show, pool, leaf.path);
     return (
@@ -610,10 +547,24 @@ function DataOverview({
           <OverviewSource show={show} setShows={setShows} source={source} store={store} pool={pool} />
           {leaves
             .filter((leaf) => isSourcePath(source.id, leaf.path))
-            .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id).length + 1)))}
+            .map((leaf) => row(leaf, leaf.path.slice(sourcePrefix(source.id, source.kind).length + 1)))}
         </div>
       ))}
-      {(local.length > 0 || sources.length === 0) && (
+      {ownReaders.map((reader) => (
+        <div className="pd-bind-graphic" key={`own:${reader.graphic}`}>
+          <OwnReaderLine reader={reader} />
+        </div>
+      ))}
+      {pushed.length > 0 && (
+        <div className="pd-bind-graphic" data-testid="data-api-values">
+          <div className="pd-bind-graphic-head">
+            <h4>Another system</h4>
+            <span className="hint">Written with the data key: see Another system below.</span>
+          </div>
+          {pushed.map((leaf) => row(leaf, null))}
+        </div>
+      )}
+      {(local.length > 0 || (sources.length === 0 && pushed.length === 0)) && (
         <div className="pd-bind-graphic" data-testid="data-local">
           <div className="pd-bind-graphic-head">
             <h4>Local content</h4>
@@ -680,6 +631,15 @@ function BindingTable({
   const [armed, setArmed] = useState<string | null>(null);
   /** The last "Bind all by title" outcome, per button. Cleared by the next press of any. */
   const [bindAllNote, setBindAllNote] = useState<{ scope: BindAllScope; text: string } | null>(null);
+  /** Graphics still reading a Sheet in their own code: their fields take no binding (C6). */
+  const holdsRev = useSyncExternalStore(
+    useCallback((onChange: () => void) => subscribeOwnReaderHolds(show.id, onChange), [show.id]),
+    () => [...ownReaderHolds(show.id)].join('\n'),
+  );
+  const ownGraphics = useMemo(
+    () => new Set([...ownSheetGraphics(show, loadGraphics()), ...(holdsRev ? holdsRev.split('\n') : [])]),
+    [show, holdsRev],
+  );
 
   const graphicsWithFields = show.graphics
     .map((g) => ({ g, descriptors: fieldDescriptors(g.template.fields ?? [], { includeHidden: true }) }))
@@ -715,7 +675,13 @@ function BindingTable({
     targets: { g: Show['graphics'][number]; descriptors: FieldDescriptor[] }[],
   ) => {
     const entries: { graphic: string; fieldId: string; path: string }[] = [];
+    const skipped: string[] = [];
     for (const { g, descriptors } of targets) {
+      // Its own code reads a Sheet: the binding would be refused (shows.ts `ownSheetGraphics`).
+      if (ownGraphics.has(g.name)) {
+        skipped.push(g.name);
+        continue;
+      }
       const suggestions = unambiguousSuggestions(descriptors, bindings[g.name], leaves);
       for (const fieldId of Object.keys(suggestions)) entries.push({ graphic: g.name, fieldId, path: suggestions[fieldId] });
     }
@@ -725,9 +691,12 @@ function BindingTable({
     setBindAllNote({
       scope,
       text:
-        entries.length > 0
+        (entries.length > 0
           ? `✓ ${entries.length} field${entries.length === 1 ? '' : 's'} bound`
-          : 'Nothing left to bind. No empty field has exactly one matching path.',
+          : skipped.length > 0
+            ? 'Nothing bound.'
+            : 'Nothing left to bind. No empty field has exactly one matching path.') +
+        (skipped.length > 0 ? ` ${nameList(skipped)} ${skipped.length === 1 ? 'reads' : 'read'} a Sheet in its own code: Connect data… moves it here first.` : ''),
     });
   };
   const hasFields = graphicsWithFields.length > 0;
@@ -794,6 +763,9 @@ function BindingTable({
               // the operator approved. setFieldBinding refuses it whatever the door; this says why
               // here, and offers the way that works - a separate card for the live data.
               const refused = !path && preparedMessageField(show, g.name, d.key);
+              // Its own code reads a Sheet: no new path, until Connect data… moves it here (C6). A
+              // binding saved before that stays, and can still be unbound.
+              const ownReader = !refused && ownGraphics.has(g.name);
               return (
                 <div className="pd-bind-row" key={d.key}>
                   <span className="pd-bind-field">
@@ -801,7 +773,7 @@ function BindingTable({
                   </span>
                   <input
                     value={bindEdits.text(key, path)}
-                    readOnly={refused}
+                    readOnly={refused || ownReader}
                     data-dirty={bindEdits.dirty(key) || undefined}
                     placeholder={suggestion ? `suggested: ${suggestion}` : 'pick or type a path'}
                     list="pd-data-paths"
@@ -817,14 +789,20 @@ function BindingTable({
                       Prepared messages use this field, so it cannot follow data.{' '}
                       <button
                         className="pd-bind-suggest"
-                        onClick={() => setShows(addGraphicToShow(show.id, { ...g.template, name: separateName(g.name) }, {}).shows)}
+                        // The separate card never brings the graphic's own Sheet reader with it.
+                        onClick={() => setShows(addGraphicToShow(show.id, { ...g.template, js: stripLiveData(g.template.js ?? ''), name: separateName(g.name) }, {}).shows)}
                         data-testid={`bind-separate-${g.name}-${d.key}`}
                       >
                         Add a separate card for live data
                       </button>
                     </span>
                   )}
-                  {suggestion && !refused && (
+                  {ownReader && (
+                    <span className="pd-bind-miss" data-testid={`bind-own-reader-${g.name}-${d.key}`}>
+                      {g.name} reads a Sheet in its own code. Connect data… on its cue moves it here first.
+                    </span>
+                  )}
+                  {suggestion && !refused && !ownReader && (
                     <button
                       className="pd-bind-suggest"
                       onClick={() => setShows(setFieldBinding(show.id, g.name, d.key, suggestion))}

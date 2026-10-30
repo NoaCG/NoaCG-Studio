@@ -1,7 +1,7 @@
 // Git-backed checkpoints for run-supervisor. No scheduler or native launcher lives here.
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
@@ -29,8 +29,23 @@ const COMMIT_IDENTITY = {
   GIT_AUTHOR_NAME: 'NoaCG Recovery', GIT_AUTHOR_EMAIL: 'noacg-recovery@users.noreply.github.com',
   GIT_COMMITTER_NAME: 'NoaCG Recovery', GIT_COMMITTER_EMAIL: 'noacg-recovery@users.noreply.github.com',
 };
+// Version 2 keeps the wave ledger, the part that grows with every recorded step, as its own blob
+// beside checkpoint.json, which names its sha256. 256 KiB bounds the document; 8 MiB bounds the
+// ledger, about twenty times a finished 47-phase plan's, and still a cheap fetch and read.
+// Version 1 checkpoints (ledger inline) are still read; code without this reader cannot read version 2.
+const DOCUMENT_LIMIT = 256 * 1024, LEDGER_LIMIT = 8 * 1024 * 1024, LEDGER_FILE = 'ledger.md';
+// The run kit (state.json, brief templates, the briefs sent, the block receipt) rides in the same
+// checkpoint as its own `kit/` tree, so it is pushed with every recorded event and `continue`
+// restores it. Text files in at most two levels of folders. The briefs folder grows by a brief per
+// launch (about 150 of 6 KB in a 50-phase run), so the bound is the ledger's 8 MiB: a full kit must
+// never make a record fail to publish. The repository is public: a kit holds no credential,
+// exactly like the run issue it mirrors.
+const KIT_LIMIT = LEDGER_LIMIT, KIT_DEPTH = 2;
+/** The run kit's folder: beside the wave file, named after it. */
+export const kitDir = (wave) => `${wave.replace(/\.md$/i, '')}.kit`;
+// Room for a merged ledger (merge-file output) at its bound.
 export const recoveryGit = (cwd, args, input) => execFileSync('git', args, {
-  cwd, input, encoding: 'utf8', timeout: 30_000, maxBuffer: 2 * 1024 * 1024,
+  cwd, input, encoding: 'utf8', timeout: 30_000, maxBuffer: 2 * LEDGER_LIMIT,
   stdio: ['pipe', 'pipe', 'pipe'],
   ...(args[0] === 'commit-tree' ? { env: { ...process.env, ...COMMIT_IDENTITY } } : {}),
   windowsHide: true,
@@ -148,6 +163,74 @@ function verifySource(config, r, published, git) {
   }
 }
 
+/** A checkpoint's document and ledger; a version 2 ledger blob is trusted only at its recorded hash. */
+function readCheckpoint(git, repository, commit) {
+  const snapshot = JSON.parse(git(repository, ['show', `${commit}:checkpoint.json`]));
+  if (snapshot.version === 1) return snapshot;
+  if (snapshot.version !== 2 || !/^[a-f0-9]{64}$/.test(snapshot.ledgerSha256 ?? '')) throw new Error('Unknown recovery checkpoint version');
+  const object = `${commit}:${LEDGER_FILE}`;
+  if (!(Number(git(repository, ['cat-file', '-s', object])) <= LEDGER_LIMIT)) throw new Error('Recovery ledger exceeds 8 MiB');
+  // Preserve the bytes, including the final newline, for hashing.
+  const bytes = execFileSync('git', ['cat-file', 'blob', object], { cwd: repository, timeout: 30_000, maxBuffer: LEDGER_LIMIT + 1, windowsHide: true });
+  if (sha(bytes) !== snapshot.ledgerSha256) throw new Error('Recovery ledger blob differs from its checkpoint hash');
+  return { version: 2, doc: snapshot.doc, ledger: bytes.toString('utf8') };
+}
+
+/** The run kit folder as a git tree, or null when there is none (or it is empty). Every file is
+ * hashed by one git process, since this runs on every recorded event. */
+function kitTree(git, repository, dir) {
+  if (!existsSync(dir)) return null;
+  const files = [];
+  let bytes = 0;
+  const walk = (folder, parts) => {
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+      const file = path.join(folder, entry.name);
+      if (!safePath(entry.name) || /[\r\n]/.test(entry.name)) throw new Error(`Run kit name is not a plain file name: ${file}`);
+      if (entry.isDirectory() && parts.length < KIT_DEPTH) walk(file, [...parts, entry.name]);
+      else if (entry.isFile()) {
+        bytes += statSync(file).size;
+        if (bytes > KIT_LIMIT) throw new Error('Run kit exceeds 8 MiB; keep briefs and receipts short, link the rest');
+        files.push({ parts: [...parts, entry.name], file });
+      } else throw new Error(`Run kit holds only text files in at most ${KIT_DEPTH} levels of folders: ${file}`);
+    }
+  };
+  walk(dir, []);
+  if (!files.length) return null;
+  const blobs = git(repository, ['hash-object', '-w', '--no-filters', '--stdin-paths'], `${files.map(({ file }) => file).join('\n')}\n`).split('\n');
+  const tree = (items) => {
+    const entries = [], folders = new Map();
+    for (const { parts, blob } of items) {
+      if (parts.length === 1) entries.push(`100644 blob ${blob}\t${parts[0]}`);
+      else folders.set(parts[0], [...(folders.get(parts[0]) ?? []), { parts: parts.slice(1), blob }]);
+    }
+    for (const [name, inner] of folders) entries.push(`040000 tree ${tree(inner)}\t${name}`);
+    return git(repository, ['mktree'], `${entries.join('\n')}\n`);
+  };
+  return tree(files.map(({ parts }, i) => ({ parts, blob: blobs[i] })));
+}
+
+/** The kit tree a checkpoint commit carries, or null. */
+function kitOf(git, repository, commit) {
+  return git(repository, ['ls-tree', commit, 'kit']).split(/\s+/)[2] || null;
+}
+
+/** Write a checkpoint's kit back beside the restored ledger; an interrupted restore repeats it. */
+function restoreKit(git, repository, commit, dir) {
+  for (const line of git(repository, ['ls-tree', '-r', commit, 'kit']).split('\n').filter(Boolean)) {
+    const [meta, name] = line.split('\t'), [, type, object] = meta.split(' ');
+    if (type !== 'blob' || !safePath(name)) throw new Error(`Recovery kit entry is not a plain file: ${name}`);
+    // Preserve the bytes, including the final newline.
+    const bytes = execFileSync('git', ['cat-file', 'blob', object], { cwd: repository, timeout: 30_000, maxBuffer: KIT_LIMIT + 1, windowsHide: true });
+    const target = path.join(dir, ...name.split('/').slice(1));
+    if (existsSync(target)) {
+      if (!readFileSync(target).equals(bytes)) throw new Error('Prepared run kit changed; preserve it and reconcile');
+      continue;
+    }
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, bytes, { flag: 'wx', mode: 0o600 });
+  }
+}
+
 /** Publish before dispatch. A rejected/unknown push cannot authorize an external action. */
 export function publishRun(db, id) {
   const git = transports.get(db) ?? recoveryGit;
@@ -170,16 +253,19 @@ export function publishRun(db, id) {
   for (const packet of [durableDoc.packet, durableDoc.manifest.packet]) {
     if (packet.restoredGithub) packet.restoredGithub = githubObservations(packet.restoredGithub);
   }
-  const payload = JSON.stringify({ version: 1, doc: durableDoc, ledger });
-  if (Buffer.byteLength(payload) > 256 * 1024) throw new Error('Recovery checkpoint exceeds 256 KiB; use committed evidence references');
+  if (Buffer.byteLength(ledger) > LEDGER_LIMIT) throw new Error('Recovery ledger exceeds 8 MiB');
+  const payload = JSON.stringify({ version: 2, doc: durableDoc, ledgerSha256: sha(ledger) });
+  if (Buffer.byteLength(payload) > DOCUMENT_LIMIT) throw new Error('Recovery checkpoint exceeds 256 KiB; use committed evidence references');
   const ref = refFor(id);
-  if (old && git(config.repository, ['show', `${old}:checkpoint.json`]) === payload) {
+  const kit = kitTree(git, config.repository, kitDir(doc.manifest.wave));
+  if (old && git(config.repository, ['show', `${old}:checkpoint.json`]) === payload && kitOf(git, config.repository, old) === kit) {
     if (remoteHead(git, config, ref) !== old) throw superseded();
     return old;
   }
   const blob = git(config.repository, ['hash-object', '-w', '--stdin'], payload);
+  const ledgerBlob = git(config.repository, ['hash-object', '-w', '--stdin'], ledger);
   const vercel = git(config.repository, ['hash-object', '-w', '--stdin'], NO_DEPLOY);
-  const tree = git(config.repository, ['mktree'], `100644 blob ${blob}\tcheckpoint.json\n100644 blob ${vercel}\tvercel.json\n`);
+  const tree = git(config.repository, ['mktree'], `100644 blob ${blob}\tcheckpoint.json\n100644 blob ${ledgerBlob}\t${LEDGER_FILE}\n100644 blob ${vercel}\tvercel.json\n${kit ? `040000 tree ${kit}\tkit\n` : ''}`);
   // Keep the actual source tree reachable after its feature branch has been deleted.
   const commit = git(config.repository, ['commit-tree', tree, ...(old ? ['-p', old] : []), '-p', r.revision], `Recovery checkpoint ${id}\n`);
   try {
@@ -218,12 +304,12 @@ function adoptLocked(db, id) {
   if (!head || !revision(remote) || remote === head) return false;
   git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
   if (git(config.repository, ['rev-list', '--parents', '-n', '1', remote]).split(' ')[1] !== head) return false;
-  const snapshot = JSON.parse(git(config.repository, ['show', `${remote}:checkpoint.json`]));
-  if (snapshot.version !== 1 || snapshot.doc?.manifest?.id !== id
+  const snapshot = readCheckpoint(git, config.repository, remote);
+  if (snapshot.doc?.manifest?.id !== id
       || snapshot.doc.restoration?.generation !== doc.restoration?.generation) return false;
   // Merge the accepted ledger with what was written locally since this store last published
   // (a Wake: line, a midpoint retro, an unsupervised plan-run record); refuse a real conflict.
-  const published = JSON.parse(git(config.repository, ['show', `${head}:checkpoint.json`])).ledger;
+  const published = readCheckpoint(git, config.repository, head).ledger;
   const local = readFileSync(doc.manifest.wave, 'utf8');
   const ledger = mergeLedger(git, config.repository, local, published, snapshot.ledger, ref);
   // The durable copy omits the local adapter and paths; this store's own manifest supplies them.
@@ -273,6 +359,7 @@ export function activeProject(db, config, plan, now = Date.now()) {
     .split('\n').map((line) => line.split(/\s+/)).filter(([, ref]) => own(ref));
   const active = refs.filter(([sha, ref]) => {
     git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
+    // Both versions carry the document inline; only the ledger moved to its own blob.
     const { doc } = JSON.parse(git(config.repository, ['show', `${sha}:checkpoint.json`]));
     return doc?.manifest?.kind === 'plan' && doc.status === 'active' && now < Date.parse(doc.manifest.authorization.deadline);
   }).map(([, ref]) => ref.slice(RECOVERY_REFS.length));
@@ -298,9 +385,8 @@ export function restoreRun(db, config, now = Date.now()) {
   const ref = refFor(config.id);
   git(config.repository, ['fetch', '--no-tags', config.remote, ref]);
   const checkpoint = git(config.repository, ['rev-parse', 'FETCH_HEAD']);
-  const raw = git(config.repository, ['show', `${checkpoint}:checkpoint.json`]);
-  const snapshot = JSON.parse(raw), { doc, ledger } = snapshot;
-  if (snapshot.version !== 1 || doc?.manifest?.id !== config.id
+  const { doc, ledger } = readCheckpoint(git, config.repository, checkpoint);
+  if (doc?.manifest?.id !== config.id
       || !sameRepository(doc.manifest.recovery?.repositoryFullName, config.repositoryFullName)) throw new Error('Recovery checkpoint identity differs');
   const r = validateState(doc, ledger);
   verifySource(config, r, checkpoint, git);
@@ -313,7 +399,7 @@ export function restoreRun(db, config, now = Date.now()) {
   if (existsSync(journal)) {
     if (readFileSync(journal, 'utf8') !== prepared) throw new Error('Interrupted restoration identity differs');
   } else {
-    if (existsSync(config.worktree) || existsSync(config.wave)) throw new Error('Restore needs unused worktree/ledger paths');
+    if (existsSync(config.worktree) || existsSync(config.wave) || existsSync(kitDir(config.wave))) throw new Error('Restore needs unused worktree/ledger/kit paths');
     writeFileSync(journal, prepared, { flag: 'wx', mode: 0o600 });
   }
   if (existsSync(config.worktree)) {
@@ -323,6 +409,7 @@ export function restoreRun(db, config, now = Date.now()) {
   if (existsSync(config.wave)) {
     if (readFileSync(config.wave, 'utf8') !== ledger) throw new Error('Prepared ledger changed; preserve it and reconcile');
   } else writeFileSync(config.wave, ledger, { flag: 'wx', mode: 0o600 });
+  restoreKit(git, config.repository, checkpoint, kitDir(config.wave));
   doc.manifest = { ...doc.manifest, wave: config.wave, adapter: config.adapter,
     recovery: { repository: config.repository, remote: config.remote, repositoryFullName: doc.manifest.recovery.repositoryFullName } };
   doc.packet.workspace = { ...doc.packet.workspace, worktree: config.worktree };
@@ -358,4 +445,30 @@ export function restoredObservation(doc, receipt, now) {
         || !['open', 'closed', 'merged'].includes(p.state) || !Number.isFinite(at) || at > now || now - at > 30_000) return false;
   }
   return true;
+}
+
+/** The owner-decision receipts an admission names, read at their commit on the remote's main:
+ * [{ path, sha256 }]. Each is a file whose name says it is an owner decision. Refuses a missing
+ * receipt, a commit not on main, or no receipts at all. */
+export function ownerReceipts(db, doc, admission) {
+  const config = doc.manifest.recovery, { receipts, commit } = admission ?? {};
+  if (!config) throw new Error('Admission reads owner receipts from the recovery repository; this run has none');
+  if (!Array.isArray(receipts) || !receipts.length || receipts.some((p) => !safePath(p) || !/owner-decision[^/]*\.md$/.test(p))
+      || new Set(receipts).size !== receipts.length || !revision(commit)) throw new Error('Admission needs the owner-decision receipt paths (owner-decision*.md) and the 40-hex commit on main that holds them');
+  const git = transports.get(db) ?? recoveryGit;
+  settings(config, git);
+  // Main's exact head, not FETCH_HEAD, which another fetch in this checkout may move meanwhile.
+  const main = remoteHead(git, config, 'refs/heads/main');
+  if (!revision(main)) throw new Error('The remote has no main to read owner receipts from');
+  git(config.repository, ['fetch', '--no-tags', config.remote, 'refs/heads/main']);
+  try { git(config.repository, ['merge-base', '--is-ancestor', commit, main]); } catch { throw new Error(`Owner receipts commit ${commit} is not on main`); }
+  return receipts.map((p) => {
+    let bytes;
+    // Preserve the bytes, including the final newline, for hashing; a directory is no receipt.
+    try {
+      if (git(config.repository, ['cat-file', '-t', `${commit}:${p}`]) !== 'blob') throw new Error('not a file');
+      bytes = execFileSync('git', ['show', `${commit}:${p}`], { cwd: config.repository, timeout: 30_000, maxBuffer: 2 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+    } catch { throw new Error(`Owner receipt ${p} is not a file at ${commit}`); }
+    return { path: p, sha256: sha(bytes) };
+  });
 }

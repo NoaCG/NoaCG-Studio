@@ -1,0 +1,180 @@
+{
+  "costUnread": false,
+  "brief": "school-quiz-secret-pick",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "ec1f9130-015e-4f00-9911-17083cbcaf56",
+  "costCents": 0,
+  "notionalUsd": 2.2039727000000005,
+  "wallSeconds": 533,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:b280058935e9fddfbee37c79040f61b030ae7a302716033f19ad0d14d35742fb"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:813834029760c652799f015c722e4419eba5ab858e2fa71f44f623474bee289f"
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:a8399e07b99fb3b63f62460b93ccf041407d409970164616505d4320a7bd85ec"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot . --state onair --data f1=Rosalind Franklin, for her X-ray work on the structure of DNA, which was crucial to the discovery of the double helix in the nineteen fifties at King's College London --data f0=Which scientist, working in Paris in the early 1900s, became the first person to win Nobel Prizes in two different sciences, and also the first woman to be awarded a Nobel Prize at all, in the year nineteen oh three? --out ../t1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:e7a58c2b4753676ad620db354f0d611228e9910129c0290f943007c83219ed54"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ../outputs/coverage",
+      "code": 0,
+      "digest": "sha256:e7a58c2b4753676ad620db354f0d611228e9910129c0290f943007c83219ed54"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:1c04afaa99103d49dc67a10dfe5cc7ff4a5168e924314cc9cd1d66ac80e0e021"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:1c04afaa99103d49dc67a10dfe5cc7ff4a5168e924314cc9cd1d66ac80e0e021"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=B --event select --at 1500ms --background video --out ../scratch/sel.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=B --event select --event lock --at 1500ms --background video --out ../scratch/lock.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=B --event lock --at 1500ms --background video --out ../scratch/sealed.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=B --event select --event lock --event revealChoice --event judge --at 1500ms --background video --out ../scratch/reveal.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f6=C --data f5=B --event lock --event judge --at 1500ms --background video --out ../scratch/judgeSealed.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --data f7=18 | 62 | 12 | 8 --data f5=B --data f6=C --event select --event lock --event judge --event audience --at 1500ms --background video --out ../scratch/aud.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:1c04afaa99103d49dc67a10dfe5cc7ff4a5168e924314cc9cd1d66ac80e0e021"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\baseline\\cells\\school-quiz-secret-pick.claude-sonnet-5-5-high\\frames",
+    "frames": 68,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:1c04afaa99103d49dc67a10dfe5cc7ff4a5168e924314cc9cd1d66ac80e0e021"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "select",
+      "lock",
+      "revealChoice",
+      "judge",
+      "audience"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:1c04afaa99103d49dc67a10dfe5cc7ff4a5168e924314cc9cd1d66ac80e0e021",
+    "benchValidated": "sha256:1c04afaa99103d49dc67a10dfe5cc7ff4a5168e924314cc9cd1d66ac80e0e021",
+    "reviewed": "sha256:1c04afaa99103d49dc67a10dfe5cc7ff4a5168e924314cc9cd1d66ac80e0e021",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 68,
+    "opened": 68,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

@@ -79,7 +79,8 @@ fonts, and I will use them." A user who already gave a brief gets no examples.
    you finish by hand.
 4. **Inspect the operator surface, and show it to the user.** `noacg inspect ./my-graphic` prints
    the control panel NoaCG derives from your graphic - one input per field, one button per action,
-   the step semantics. If the operator cannot change what they will need to change, add the field;
+   the step semantics - and the same panel as LIVE (pressed on air) and PREP (typed before air).
+   A value that changes on air gets a declared control (`references/contract.md` §5b). If the operator cannot change what they will need to change, add the field;
    if an action is missing, it belongs in the machine - a type's, or one you author
    (`references/contract.md` §5). Read the printed BUTTONS against what the brief's operator must
    do live - a clean validate does not prove the actions exist - and read the INPUTS against
@@ -186,8 +187,11 @@ never invent one they did not give.
   page you cannot read is a gap to report, not a guess to make.
 - **The logo** is copied into `images/` (an SVG over a PNG), referenced relatively, and placed
   where the design gives it room, on a surface it reads on. When the operator may need another
-  logo (a sponsor, an opponent), it is a `filelist` field. The validator does not check that an
-  `images/` file exists, so see the logo in the frames.
+  logo (a sponsor, an opponent), it is a `filelist` field. Logos that differ (a white one, a dark
+  one, a full-colour one) share ONE treatment the design already has, the same in every slot: the
+  graphic's own surface, or a soft glow or outline it draws. Never a box of its own around each
+  logo, and never boxes of different colours: a viewer sees tiles stuck onto the graphic. The
+  validator does not check that an `images/` file exists, so see the logo in the frames.
 - **A font** is bundled into `fonts/` with `@font-face` only when its licence allows that (an open
   licence such as the OFL most Google Fonts carry, with the licence text copied beside it). A
   commercial font: ask the user for its files and their licence, or use a close free font and say so.

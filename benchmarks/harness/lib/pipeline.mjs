@@ -134,7 +134,8 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     const frames = path.join(cellDir, 'frames');
     const inspect = await cli(['inspect', result.zipFile, '--json'], { cwd: cellDir });
     const stress = stressFile({ brief, descriptors: inspect.json?.inspection?.descriptors, cellDir });
-    const coverage = await cli(['coverage', result.zipFile, '--out', frames, '--stress', stress, '--json'], { cwd: cellDir });
+    // A frame per moment: the judge reads the capture as it always has, whatever the agent's look was.
+    const coverage = await cli(['coverage', result.zipFile, '--out', frames, '--stress', stress, '--frames', '--json'], { cwd: cellDir });
     cell.capture = { exit: coverage.code, dir: frames, frames: coverage.json?.frames ?? 0, crops: coverage.json?.crops ?? 0, findings: coverage.json?.findings ?? [], failures: coverage.json?.failures ?? [coverage.stderr.slice(-300)], digest: coverage.json?.digest ?? null };
     const validate = await cli(['validate', result.zipFile, '--json'], { cwd: cellDir });
     const merged = validate.json?.validation?.merged;
@@ -143,7 +144,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     cell.operator = { inputs: (inspect.json?.inspection?.descriptors ?? []).length, buttons: buttons.map((b) => b.event), missing: missingActions(brief, buttons) };
     cell.digest = digestCheck({ delivered: record.digest ?? null, benchValidated: validate.json?.digest ?? null, reviewed: result.reviewedDigest ?? null });
     cell.functional = cell.validation.ok && cell.operator.missing.length === 0 && cell.shape.ok;
-    cell.look = framesOpened(record.review ?? null, result.reads ?? readsOf(result.metrics?.steps));
+    cell.look = framesOpened(record.review ?? null, result.reads ?? readsOf(result.metrics?.steps), result.readsBack ?? readsOf(result.metrics?.steps, { back: true }));
   }
   // The forced look gates the hand-in (D1): where the run asks for it, a record without a review is
   // a graphic nobody was made to look at, and it is not delivered.

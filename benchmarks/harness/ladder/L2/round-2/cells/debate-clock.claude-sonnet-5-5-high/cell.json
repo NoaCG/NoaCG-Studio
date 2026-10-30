@@ -1,0 +1,128 @@
+{
+  "costUnread": false,
+  "brief": "debate-clock",
+  "arm": "subscription",
+  "model": "claude-sonnet-5-5",
+  "effort": "high",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "7d2fdca3-0d43-44ec-83db-8a7896e3932b",
+  "costCents": 0,
+  "notionalUsd": 0.9515113,
+  "wallSeconds": 267,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type speaking-timer --design dc01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:7acee18c4d09aa3d280c157b0c39def030a4081c01ccff9e40d3d9c0fbc526ec"
+    },
+    {
+      "command": "noacg validate . --screenshots ../shots",
+      "code": 0,
+      "digest": "sha256:9f6d5bfe1f7260afc54240d5121c7b6bbe6c0afef3f8a18982e7ed8d3c0ed60c"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:9f6d5bfe1f7260afc54240d5121c7b6bbe6c0afef3f8a18982e7ed8d3c0ed60c"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state stress --at 6s --background video --out ./shots/stress6.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:0f0067819049359209b06dc25fc9e224651e075645229a9bcb4533cf1b80e151"
+    },
+    {
+      "command": "noacg coverage ./graphic --out ./outputs/coverage",
+      "code": 0,
+      "digest": "sha256:0f0067819049359209b06dc25fc9e224651e075645229a9bcb4533cf1b80e151"
+    },
+    {
+      "command": "noacg screenshot ./graphic --event switch --event penalty --at 1500ms --background video --out ./shots/pen.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --review ./outputs/coverage/review.json",
+      "code": 0,
+      "digest": "sha256:0f0067819049359209b06dc25fc9e224651e075645229a9bcb4533cf1b80e151"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\claude\\noacg-bench-archive\\harness-ladder-L2\\round-2\\cells\\debate-clock.claude-sonnet-5-5-high\\frames",
+    "frames": 51,
+    "crops": 9,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:0f0067819049359209b06dc25fc9e224651e075645229a9bcb4533cf1b80e151"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 10,
+    "buttons": [
+      "switch",
+      "penalty",
+      "reset"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:0f0067819049359209b06dc25fc9e224651e075645229a9bcb4533cf1b80e151",
+    "benchValidated": "sha256:0f0067819049359209b06dc25fc9e224651e075645229a9bcb4533cf1b80e151",
+    "reviewed": "sha256:0f0067819049359209b06dc25fc9e224651e075645229a9bcb4533cf1b80e151",
+    "problems": []
+  },
+  "functional": true,
+  "look": {
+    "reviewed": 23,
+    "opened": 23,
+    "unopened": [],
+    "all": true,
+    "fixed": 0
+  }
+}

@@ -3,6 +3,10 @@
 // covers: src/control/hostedControl.ts, src/output/{stage.ts,prepare.ts}, src/preview/composeDocument.ts
 // covers: src/templates/**, src/components/home/ProductionSounds.tsx, src/packs/graphicsPack.ts, src/export/**, src/backend/{assets.ts,productionAudio.ts}
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
+// covers: src/components/home/CueActions.tsx
+// covers: src/control/airState.ts, src/control/sessionWire.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/cueDraft.ts
 // focus
 import { test, expect } from '@playwright/test';
 import { awaitDurableReady } from './_durable';

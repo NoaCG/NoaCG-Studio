@@ -45,7 +45,7 @@
 //                                                    is left for tuning and the rounds that fit, and
 //                                                    R recorded in the ledger for the wall to hold.
 //   node scripts/harness-bench.mjs --build <L#> --arms subscription --model <id> --effort <level>
-//                                  --briefs id,.. [--stage <round>] [--out <dir>] [--lanes <1-2>]
+//                                  --briefs id,.. [--stage <round>] [--out <dir>] [--lanes <1-3>]
 //                                                    SUBSCRIPTION. The harness ladder
 //                                                    (docs/work-specs/harness-ladder/spec.md, lib/
 //                                                    ladder.mjs): one `claude -p` per brief with this
@@ -54,7 +54,7 @@
 //                                                    L0 to L2 run nothing else; L3 and L4 spend credit
 //                                                    only inside what the ledger holds for them, and
 //                                                    no phase starts before the one before it closed.
-//                                                    --lanes 2 runs two sessions at once; one --out
+//                                                    --lanes 2 or 3 runs that many at once; one --out
 //                                                    per rung gathers its screen and its rest.
 //   node scripts/harness-bench.mjs --hold <L#> --kind exam|ceiling --cents <n> --by <L#> [--note "..."]
 //                                                    FREE. Hold money in the ledger for a later phase
@@ -67,10 +67,12 @@
 //                                                    SUBSCRIPTION. The frozen judge on a run's cells;
 //                                                    for L1 and L2 the ladder's judge, singles only,
 //                                                    three readings a graphic (D8 as amended).
-//   node scripts/harness-bench.mjs --tally <runDir> [--readings <file>]
+//   node scripts/harness-bench.mjs --tally <runDir> [--readings <file>] [--order tuning] [--phase <L#>]
 //                                                    FREE. 4.4's numbers and 4.5's verdict for an exam
 //                                                    run; for an L1 or L2 run, its rung's figures, D5's
-//                                                    screen and D6's match (tallyRung).
+//                                                    screen and D6's match (tallyRung). --order tuning
+//                                                    counts the run's tuning briefs instead (D7's
+//                                                    overfit check), figures only, in tally-tuning.json.
 //   node scripts/harness-bench.mjs --recapture <runDir> --rekey <file>
 //                                                    FREE. Move a misplaced stress value to its field
 //                                                    and capture both arms of that brief again.
@@ -99,7 +101,7 @@ import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown } from '../benchmarks/harness/lib/exam.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, holdFor, HOLD_KINDS, isLadder, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, setHold, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
-import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, SINGLE_READINGS, tallyRung } from '../benchmarks/harness/lib/ladder.mjs';
+import { ladderBriefs, ladderJudge, LADDER_JUDGED, LADDER_SET, refuseLadderBuild, rungMarkdown, rungRule, SINGLE_READINGS, tallyRung, tuningOrder } from '../benchmarks/harness/lib/ladder.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { examSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
@@ -521,7 +523,7 @@ async function build(phase) {
   // admitted against the whole run budget.
   if (!dry && arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
   const rungLanes = Number(value('lanes', '1'));
-  if (!Number.isInteger(rungLanes) || rungLanes < 1 || rungLanes > 2) fail('--lanes takes 1 or 2 subscription sessions at once');
+  if (!Number.isInteger(rungLanes) || rungLanes < 1 || rungLanes > 3) fail('--lanes takes 1 to 3 subscription sessions at once');
   if (rungLanes > 1 && arms.join() !== 'subscription') fail("--lanes is the subscription arm's alone: the credit arm runs one session at a time");
   if (effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) fail(`--effort ${effort}: low, medium, high, xhigh or max`);
   for (const a of arms) if (!['managed-agents', 'claude-code', 'august', 'subscription'].includes(a)) fail(`unknown arm ${a}`);
@@ -814,7 +816,7 @@ export async function recaptureCells({ runDir, rekey, cli, log = console.log }) 
       const before = path.join(dir, 'frames.before-rekey');
       if (!existsSync(before)) cpSync(frames, before, { recursive: true });
       rmSync(frames, { recursive: true, force: true });
-      const coverage = await cli(['coverage', zip, '--out', frames, '--stress', stressPath, '--json'], { cwd: dir });
+      const coverage = await cli(['coverage', zip, '--out', frames, '--stress', stressPath, '--frames', '--json'], { cwd: dir });
       cell.capture = { ...cell.capture, exit: coverage.code, frames: coverage.json?.frames ?? 0, crops: coverage.json?.crops ?? 0, findings: coverage.json?.findings ?? [], failures: coverage.json?.failures ?? [coverage.stderr.slice(-300)], digest: coverage.json?.digest ?? null, rekeyed: Object.keys(byArm[cell.arm] ?? {}) };
       writeFileSync(path.join(dir, 'cell.json'), `${JSON.stringify(cell, null, 2)}\n`);
       log(`  ${d.padEnd(48)} re-captured: ${cell.capture.frames} frame(s)${cell.capture.rekeyed.length ? `, re-keyed ${cell.capture.rekeyed.join(', ')}` : ''}`);
@@ -867,6 +869,9 @@ if (isMain) {
     const ranAs = existsSync(summaryFile) ? JSON.parse(readFileSync(summaryFile, 'utf8')).phase ?? null : null;
     const phase = value('phase', ranAs);
     if (ranAs && phase !== ranAs) fail(`${runDir} is a ${ranAs} run, not ${phase}`);
+    // A run still going has no summary.json yet; guessing its phase would hand a ladder run to the
+    // exam's judge, whose weekly cap is kept for the exam (D8).
+    if (!phase) fail(`${runDir} ${existsSync(summaryFile) ? 'has a summary.json that names no phase' : 'has no summary.json yet (is its run still going?)'}: name its phase with --phase`);
     const concurrency = Number(value('concurrency', '1'));
     if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) fail('--concurrency takes 1 to 4 judgements at once');
     // The ladder and its teaching rounds are judged in singles by the ladder's judge (D8); the exam
@@ -884,19 +889,24 @@ if (isMain) {
     const judgements = existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
     const ledger = readLedger(LEDGER_FILE);
     const summaryFile = path.join(runDir, 'summary.json');
-    const ranAs = existsSync(summaryFile) ? JSON.parse(readFileSync(summaryFile, 'utf8')).phase ?? null : null;
+    // A run still going has no summary.json yet: --phase names it, as for --judge.
+    const ranAs = existsSync(summaryFile) ? JSON.parse(readFileSync(summaryFile, 'utf8')).phase ?? null : value('phase', null);
     if (LADDER_JUDGED.includes(ranAs)) {
       // A rung (D5, D6): counted as H8 counted, with the ladder judge's singles and the rung's own
       // readings of the gate's flags (`readings.json` beside its cells, when it has any).
       const readingsFile = path.resolve(value('readings', path.join(runDir, 'readings.json')));
       const readings = existsSync(readingsFile) ? JSON.parse(readFileSync(readingsFile, 'utf8')).readings : {};
-      const tally = tallyRung({ cells, judgements, fingerprint: orFail(() => ladderJudge(ROOT)).fingerprint, readings });
-      writeFileSync(path.join(runDir, 'tally.json'), `${JSON.stringify(tally, null, 2)}\n`);
-      console.log(rungMarkdown(path.basename(runDir), tally));
+      const order = value('order', 'ladder');
+      if (!['ladder', 'tuning'].includes(order)) fail('--order is ladder (the eight, D5 and D6) or tuning (the tuning bank, figures only)');
+      const tuning = order === 'tuning';
+      const tally = tallyRung({ cells, judgements, fingerprint: orFail(() => ladderJudge(ROOT)).fingerprint, readings, rule: rungRule(ranAs), ...(tuning ? { order: tuningOrder(JSON.parse(readFileSync(TUNING, 'utf8')).briefs), match: false } : {}) });
+      const tallyFile = path.join(runDir, tuning ? 'tally-tuning.json' : 'tally.json');
+      writeFileSync(tallyFile, `${JSON.stringify(tally, null, 2)}\n`);
+      console.log(rungMarkdown(`${path.basename(runDir)}${tuning ? ', tuning briefs' : ''}`, tally));
       const toRead = tally.rows.filter((r) => r.flagsToRead.length).map((r) => `${r.brief} (${r.flagsToRead.join(', ')})`);
       if (toRead.length) console.log(`\nGate flags the judge's single did not name, to read against the operator surface (phase-8.md): ${toRead.join('; ')}`);
       if (tally.all.unjudged.length) console.log(`\nNot judged yet (fewer than ${SINGLE_READINGS.count} readings; --judge asks the rest): ${tally.all.unjudged.join(', ')}`);
-      console.log(`\n${path.join(runDir, 'tally.json')}`);
+      console.log(`\n${tallyFile}`);
     } else {
       // The gate's flags read against the operator surface (3.5, phase-8.md), when the run has them.
       const readingsFile = path.resolve(value('readings', path.join(HARNESS, 'exam', 'action-readings.json')));

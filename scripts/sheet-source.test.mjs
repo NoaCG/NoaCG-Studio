@@ -15,6 +15,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import './lib/tsResolve.mjs';
 
 const {
   SHEET_LEASE_MS,
@@ -22,6 +23,9 @@ const {
   SHEET_TIMEOUT_MS,
   createSheetReader,
   fieldValue,
+  initialStatus,
+  latestWriter,
+  missedStatus,
   pathValue,
   connectedFields,
   parseSheetLink,
@@ -502,6 +506,34 @@ test('the inbox consumer receives rows and has no writer: a source that only fee
   t2.reader.stop();
 });
 
+test('an old owner’s late read after the lease moved feeds the inbox nothing (data-sources C3)', async () => {
+  const b = browser();
+  const seen = [];
+  const a = tab(b, 'A', { paths: [], inbox: (rows) => seen.push(rows) });
+  await b.clock.advance(0);
+  assert.equal(seen.length, 1);
+  // A's next read is held in flight while the lease moves to B, which reads a newer tab.
+  let release;
+  b.sheet.hold = { promise: new Promise((r) => (release = r)) };
+  b.sheet.csv = 'old answer\n';
+  await b.clock.advance(SHEET_READ_MS);
+  const lease = b.leases.get('prod-1:s1');
+  b.leases.set('prod-1:s1', { ...lease, until: 0 });
+  b.sheet.hold = null;
+  b.sheet.csv = 'newer\n';
+  const fresh = [];
+  const second = tab(b, 'B', { paths: [], inbox: (rows) => fresh.push(rows) });
+  await b.clock.advance(0);
+  assert.deepEqual(fresh.at(-1), [['newer']]);
+  release();
+  await b.clock.advance(0);
+  assert.equal(seen.length, 1, 'the old owner’s answer reaches no inbox');
+  assert.equal(a.reader.holds(), false, 'and it knows it no longer holds the lease');
+  assert.equal(second.reader.holds(), true);
+  a.reader.stop();
+  second.reader.stop();
+});
+
 test('Pause pressed while a read is in flight: its answer writes nothing, and the reader says paused', async () => {
   const b = browser();
   const a = tab(b, 'A');
@@ -535,19 +567,6 @@ test('a page that slept past its lease with a read in flight writes nothing, and
   assert.equal(a.writes.length, 1, 'the answer under the lapsed claim wrote nothing');
   await b.clock.advance(SHEET_READ_MS);
   assert.deepEqual(a.writes.at(-1), { sheet: { s1: { lines: 'changed' } } }, 'the reader claimed again and read');
-  a.reader.stop();
-});
-
-test('a write that left a path out (not bound on the published row) retries that path only', async () => {
-  const b = browser();
-  b.sheet.csv = 'Name,Value\nA,1\nB,2\n';
-  const a = tab(b, 'A', { shape: 'values', paths: ['sheet.s1.values.A', 'sheet.s1.values.B'], landed: ['sheet.s1.values.B'] });
-  await b.clock.advance(0);
-  await b.clock.advance(SHEET_READ_MS);
-  assert.deepEqual(a.writes, [
-    { sheet: { s1: { values: { A: '1', B: '2' } } } },
-    { sheet: { s1: { values: { B: '2' } } } },
-  ]);
   a.reader.stop();
 });
 
@@ -618,4 +637,300 @@ test('the fields on a path are read from each graphic as it is drawn now, and de
   assert.deepEqual(fields.map((f) => f.kind), ['toggle', 'text'], 'a graphic that is gone adds nothing');
   assert.equal(pathValue(fields, 'TRUE'), null, 'the review and the reader both hold it');
   assert.equal(pathValue(connectedFields({ Board: bindings.Board }, 'sheet.s1.values.Live', fieldsOf), 'TRUE'), '1', 'the toggle alone takes 1');
+});
+
+// ── Published: the lease on the row, shared with the server tick (data-sources C2) ─────────────
+// `row` stands in for migration 0097's read state behind control/hostedControl.ts
+// `publishedLeaseDoor`, with the same rules: one owner, a claim that a handover changes, and a write
+// that is refused in the same step once the claim has moved. The database half of these rules is
+// the migration's own self-check and production-data-key-tick.spec.ts.
+
+function row(clock) {
+  const r = { owner: null, claim: null, until: 0, snapshot: {}, content: null, status: {}, tick: true, writes: [], n: 0, hold: null };
+  const reader = () => (r.owner === 'tick' ? 'server' : 'other');
+  r.door = (owner) => ({
+    claim: async (claim) => {
+      if (r.owner !== owner && r.until > clock.now()) return { held: false, status: { ...initialStatus(reader()), ...r.status, reader: reader() }, reader: reader() };
+      const mine = r.owner === owner && r.claim === claim && r.until > clock.now();
+      if (!mine) {
+        r.owner = owner;
+        r.claim = `${owner}:${(r.n += 1)}`;
+      }
+      r.until = clock.now() + SHEET_LEASE_MS;
+      return {
+        held: true,
+        claim: r.claim,
+        state: { snapshot: { ...r.snapshot }, content: r.content, status: { ...initialStatus('this'), ...r.status, reader: 'this', closedPage: r.tick } },
+      };
+    },
+    settle: async (claim, writes, next) => {
+      if (r.hold) await r.hold.promise;
+      if (r.claim !== claim || r.until <= clock.now()) return false;
+      if (Object.keys(writes).length > 0) r.writes.push({ owner, writes });
+      Object.assign(r, { snapshot: next.snapshot, content: next.content, status: next.status });
+      return true;
+    },
+    release: () => {
+      if (r.owner === owner) r.until = clock.now();
+    },
+  });
+  return r;
+}
+
+/** A published page's reader of s1, its lease on `r`. */
+function page(b, r, name, { paths = ['sheet.s1.lines'] } = {}) {
+  const t = { statuses: [], paused: false, connected: new Set(paths) };
+  t.reader = createSheetReader({
+    key: 'prod-1:s1',
+    sourceId: 's1',
+    link: { sheetId: ID, gid: '0' },
+    shape: 'lines',
+    tab: name,
+    world: 'slug-1',
+    io: { ...b.io, door: r.door(name) },
+    connected: () => t.connected,
+    paused: () => t.paused,
+    write: async () => assert.fail('published, a reader writes through its lease, never the unpublished writer'),
+    onStatus: (s) => t.statuses.push(s),
+  });
+  t.status = () => t.statuses.at(-1);
+  return t;
+}
+
+test('published: the page reads under the row lease, writes changed cells once by path, and keeps its status on the row', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  const a = page(b, r, 'tab-a');
+  await b.clock.advance(0);
+  assert.deepEqual(r.writes, [{ owner: 'tab-a', writes: { 'sheet.s1.lines': 'one\ntwo' } }]);
+  assert.equal(r.status.state, 'ok');
+  assert.equal(a.status().reader, 'this');
+  assert.equal(a.status().closedPage, true, 'the switch is on: the server reads once the pages close');
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(r.writes.length, 1, 'unchanged: nothing written');
+  assert.equal(r.status.checkedAt, b.clock.now(), 'checked is on the row, for a reload and the tick');
+  a.reader.stop();
+  assert.equal(r.until, b.clock.now(), 'stopping lets the row lease go, so the tick reads at its next minute');
+});
+
+test('published: a page while the tick holds the lease reads nothing and says the server reads it; the switch off says closed-page reading is off', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  Object.assign(r, { owner: 'tick', claim: 'tick:1', until: b.clock.now() + 30_000, status: { ...initialStatus('server'), state: 'ok', checkedAt: b.clock.now() - 40_000 } });
+  const a = page(b, r, 'tab-a');
+  await b.clock.advance(0);
+  assert.equal(b.sheet.fetches, 0);
+  assert.equal(a.status().reader, 'server');
+  assert.equal(a.status().checkedAt, b.clock.now() - 40_000, 'the tick’s own read, not one invented by the handover');
+  // The tick lets go: the page takes over at its next read.
+  r.until = b.clock.now();
+  r.tick = false;
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(b.sheet.fetches, 1);
+  assert.equal(a.status().reader, 'this');
+  assert.equal(a.status().closedPage, false);
+  a.reader.stop();
+});
+
+test('published handover from the tick: an unchanged cell keeps the operator’s override, a changed cell wins', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  // The tick wrote "one\ntwo" last; the operator has since typed over it in the tree.
+  Object.assign(r, { snapshot: { 'sheet.s1.lines': 'one\ntwo' }, content: JSON.stringify({ lines: 'one\ntwo' }), owner: 'tick', claim: 'tick:1', until: 0 });
+  const a = page(b, r, 'tab-a');
+  await b.clock.advance(0);
+  assert.equal(b.sheet.fetches, 1);
+  assert.deepEqual(r.writes, [], 'the unchanged cell writes nothing over the override');
+  b.sheet.csv = 'one\nchanged\n';
+  await b.clock.advance(SHEET_READ_MS);
+  assert.deepEqual(r.writes, [{ owner: 'tab-a', writes: { 'sheet.s1.lines': 'one\nchanged' } }]);
+  a.reader.stop();
+});
+
+test('published: an old owner’s write held across a handover is refused, writes nothing and cannot replace the new owner’s snapshot or status', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  const a = page(b, r, 'tab-a');
+  await b.clock.advance(0);
+  // A's next write is held in flight.
+  let release;
+  r.hold = { promise: new Promise((resolve) => (release = resolve)) };
+  b.sheet.csv = 'old answer\n';
+  await b.clock.advance(SHEET_READ_MS);
+  // The lease moves to the tick, which writes a newer value.
+  r.hold = null;
+  r.until = 0;
+  const tick = r.door('tick');
+  const held = await tick.claim(null);
+  assert.equal(await tick.settle(held.claim, { 'sheet.s1.lines': 'newer' }, { snapshot: { 'sheet.s1.lines': 'newer' }, content: 'n', status: { ...initialStatus('server'), state: 'ok' } }), true);
+  const before = structuredClone({ snapshot: r.snapshot, status: r.status, content: r.content });
+  const shown = a.statuses.length;
+  release();
+  await b.clock.advance(0);
+  assert.deepEqual(r.writes.map((w) => w.owner), ['tab-a', 'tick'], 'the old owner’s answer wrote nothing');
+  assert.deepEqual({ snapshot: r.snapshot, status: r.status, content: r.content }, before);
+  assert.equal(a.statuses.length, shown, 'and the page invents no read it did not keep');
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(a.status().reader, 'server', 'at its next read it shows who holds the lease');
+  a.reader.stop();
+});
+
+test('the status rules the tick shares: three missed minutes are stale, the time failing began is kept', () => {
+  let status = { ...initialStatus('server'), state: 'ok', checkedAt: 1 };
+  for (let i = 0; i < 3; i += 1) status = missedStatus(status, { error: 'can’t read it', fix: 'Share it.' }, 60_000 * (i + 1), 'server');
+  assert.equal(status.stale, true);
+  assert.equal(status.failingSince, 60_000);
+  assert.equal(status.reader, 'server');
+});
+
+test('a page going away lets its lease go, so the reloaded page reads at once, not after the lease', async () => {
+  const b = browser();
+  const a = tab(b, 'A');
+  await b.clock.advance(0);
+  a.frozen = true;
+  // pagehide: the page goes without its cleanup; it lets the lease go on the way out.
+  a.reader.release();
+  const again = tab(b, 'A-reloaded');
+  const fetches = b.sheet.fetches;
+  await b.clock.advance(0);
+  assert.equal(b.sheet.fetches - fetches, 1, 'the new page read at once');
+  assert.equal(again.status().reader, 'this');
+  again.reader.stop();
+});
+
+test('published: a lease that cannot be reached is a missed read, said as one, and three make it stale', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  const door = r.door('tab-a');
+  let down = false;
+  const claim = door.claim;
+  door.claim = async (c) => {
+    if (down) throw new Error('Could not find the function public.control_source_lease');
+    return claim(c);
+  };
+  const t = { statuses: [] };
+  const reader = createSheetReader({
+    key: 'prod-1:s1', sourceId: 's1', link: { sheetId: ID, gid: '0' }, shape: 'lines', tab: 'tab-a', world: 'slug-1',
+    io: { ...b.io, door }, connected: () => new Set(['sheet.s1.lines']), paused: () => false,
+    write: async () => true, onStatus: (s) => t.statuses.push(s),
+  });
+  await b.clock.advance(0);
+  assert.equal(t.statuses.at(-1).state, 'ok');
+  down = true;
+  await b.clock.advance(3 * SHEET_READ_MS);
+  const status = t.statuses.at(-1);
+  assert.equal(status.state, 'failing');
+  assert.match(status.error, /published production did not answer/);
+  assert.equal(status.stale, true);
+  reader.stop();
+});
+
+test('published: a Pause on the row from another page holds this page too, and it says paused without reading', async () => {
+  const b = browser();
+  const r = row(b.clock);
+  const door = r.door('tab-a');
+  const claim = door.claim;
+  door.claim = async (c) => ({ ...(await claim(c)), paused: true });
+  const t = { statuses: [] };
+  const reader = createSheetReader({
+    key: 'prod-1:s1', sourceId: 's1', link: { sheetId: ID, gid: '0' }, shape: 'lines', tab: 'tab-a', world: 'slug-1',
+    io: { ...b.io, door }, connected: () => new Set(['sheet.s1.lines']), paused: () => false,
+    write: async () => true, onStatus: (s) => t.statuses.push(s),
+  });
+  await b.clock.advance(SHEET_READ_MS);
+  assert.equal(b.sheet.fetches, 0);
+  assert.equal(t.statuses.at(-1).state, 'paused');
+  reader.stop();
+});
+
+test('published on an instance without the row lease: the page falls back to its own lease and the operator door', async () => {
+  const b = browser();
+  const door = {
+    claim: async () => {
+      throw Object.assign(new Error('Could not find the function public.control_source_lease'), { code: 'no_lease' });
+    },
+    settle: async () => assert.fail('the row lease is not there'),
+    release: () => {},
+  };
+  const writes = [];
+  const reader = createSheetReader({
+    key: 'prod-1:s1', sourceId: 's1', link: { sheetId: ID, gid: '0' }, shape: 'lines', tab: 'tab-a', world: 'slug-1',
+    io: { ...b.io, door }, connected: () => new Set(['sheet.s1.lines']), paused: () => false,
+    write: async (patch) => {
+      writes.push(patch);
+      return true;
+    },
+    onStatus: () => {},
+  });
+  await b.clock.advance(0);
+  assert.deepEqual(writes, [{ sheet: { s1: { lines: 'one\ntwo' } } }]);
+  assert.equal(b.leases.get('prod-1:s1').owner, 'tab-a', 'this browser holds the lease');
+  reader.stop();
+});
+
+// ── The page's writer of the published row's sources (data-sources C2) ────────────────────────
+
+test('the sources writer sends one write at a time and the newest value last: Pause then Resume ends resumed', async () => {
+  const clock = fakeClock();
+  const row = { value: null, sent: [], release: [] };
+  const w = latestWriter(
+    (value) =>
+      new Promise((resolve) => {
+        row.sent.push(value);
+        row.release.push(() => {
+          row.value = value;
+          resolve();
+        });
+      }),
+    { setTimer: clock.setTimer, clearTimer: clock.clearTimer, retryMs: 10_000, failed: () => {} },
+  );
+  w.push('paused');
+  w.push('resumed');
+  assert.deepEqual(row.sent, ['paused'], 'the second waits for the first');
+  row.release[0]();
+  await clock.advance(0);
+  assert.deepEqual(row.sent, ['paused', 'resumed']);
+  row.release[1]();
+  await clock.advance(0);
+  assert.equal(row.value, 'resumed', 'the row ends on the newest value');
+  // Values pushed while one is in flight collapse to the newest.
+  w.push('a');
+  w.push('b');
+  w.push('c');
+  row.release[2]();
+  await clock.advance(0);
+  assert.deepEqual(row.sent.slice(2), ['a', 'c']);
+  w.stop();
+});
+
+test('the sources writer tries a failed write again, and a newer value waiting replaces it', async () => {
+  const clock = fakeClock();
+  const sent = [];
+  const failures = [];
+  let fail = true;
+  const w = latestWriter(
+    async (value) => {
+      sent.push(value);
+      if (fail) throw new Error('offline');
+    },
+    { setTimer: clock.setTimer, clearTimer: clock.clearTimer, retryMs: 10_000, failed: (e) => failures.push(e.message) },
+  );
+  w.push('one');
+  await clock.advance(0);
+  assert.deepEqual(failures, ['offline']);
+  // Before the retry, the operator changes it again: the newest goes at once, and the retry that
+  // follows has nothing older to send.
+  fail = false;
+  w.push('two');
+  await clock.advance(10_000);
+  assert.deepEqual(sent, ['one', 'two']);
+  // Failing with nothing newer waiting, the same value is tried again after the interval.
+  fail = true;
+  w.push('three');
+  await clock.advance(0);
+  fail = false;
+  await clock.advance(10_000);
+  assert.deepEqual(sent, ['one', 'two', 'three', 'three']);
+  assert.deepEqual(failures, ['offline', 'offline']);
+  w.stop();
 });

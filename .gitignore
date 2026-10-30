@@ -201,6 +201,7 @@ sweep-*.json
 !.agents/skills/o/
 !.agents/skills/ograf-expert/
 !.agents/skills/orchestrator/
+!.agents/skills/plan-create/
 !.agents/skills/plan-run/
 !.agents/skills/queue-merge/
 !.agents/skills/so/
@@ -303,3 +304,6 @@ playout-lag-out*/
 
 # NoaCG-Bridge-<version>.exe and its build intermediates (cli/scripts/build-bridge-exe.mjs)
 cli/dist-exe
+
+# endurance.yml receipts (scripts/replay-smoke.mjs and later endurance scripts)
+endurance-output/

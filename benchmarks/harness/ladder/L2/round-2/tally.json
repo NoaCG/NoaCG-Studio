@@ -1,0 +1,556 @@
+{
+  "verdict": "screened out",
+  "screen": {
+    "briefs": 4,
+    "ran": 4,
+    "delivered": 4,
+    "usable": 2,
+    "notionalUsd": 4.2,
+    "usdPerUsable": 2.1,
+    "medianWallSeconds": 327,
+    "lookAll": 3,
+    "framesReviewed": 98,
+    "framesOpened": 91,
+    "rubberStamps": [
+      "boxing-night-matchup",
+      "collegiate-cs2-scorebug"
+    ],
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 4,
+      "judged": 4
+    },
+    "notUsable": 2,
+    "endsAt": "cost",
+    "done": true
+  },
+  "all": {
+    "briefs": 8,
+    "ran": 8,
+    "delivered": 8,
+    "usable": 5,
+    "notionalUsd": 10.09,
+    "usdPerUsable": 2.02,
+    "medianWallSeconds": 463,
+    "lookAll": 4,
+    "framesReviewed": 214,
+    "framesOpened": 157,
+    "rubberStamps": [
+      "boxing-night-matchup",
+      "collegiate-cs2-scorebug",
+      "hockey-club-match-board"
+    ],
+    "unjudged": [],
+    "agreement": {
+      "unanimous": 8,
+      "judged": 8
+    }
+  },
+  "lines": [
+    {
+      "rule": "at least 7 of 8 delivered and usable",
+      "holds": false,
+      "figure": "5 of 8"
+    },
+    {
+      "rule": "at most $1.35 notional per usable graphic",
+      "holds": false,
+      "figure": "$2.02"
+    },
+    {
+      "rule": "median wall at most 10 minutes",
+      "holds": true,
+      "figure": "463 s"
+    },
+    {
+      "rule": "every reviewed frame opened in at least 7 sessions",
+      "holds": false,
+      "figure": "4 of 8"
+    }
+  ],
+  "rows": [
+    {
+      "brief": "boxing-night-matchup",
+      "ran": true,
+      "id": "boxing-night-matchup.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.3287763999999997,
+      "wallSeconds": 511,
+      "overBudget": false,
+      "look": {
+        "reviewed": 27,
+        "opened": 27,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T06:50:01.726Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T06:50:49.671Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T06:51:23.563Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "collegiate-cs2-scorebug",
+      "ran": true,
+      "id": "collegiate-cs2-scorebug.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [
+        "event-nextmap: nextMap did not move the machine (still main=enter, phase=pre, pause=running). If it should have, the machine does not answer nextMap from there. It did not move it after any other event either."
+      ],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.1174024000000002,
+      "wallSeconds": 400,
+      "overBudget": false,
+      "look": {
+        "reviewed": 29,
+        "opened": 22,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T06:45:57.080Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T06:45:58.073Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T06:47:18.956Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "charity-stream-alerts",
+      "ran": true,
+      "id": "charity-stream-alerts.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 0.8475778000000003,
+      "wallSeconds": 254,
+      "overBudget": false,
+      "look": {
+        "reviewed": 25,
+        "opened": 25,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T05:26:25.751Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:27:00.643Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:27:38.979Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "film-fest-nominee-reveal",
+      "ran": true,
+      "id": "film-fest-nominee-reveal.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "high",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 0.9017922000000002,
+      "wallSeconds": 244,
+      "overBudget": false,
+      "look": {
+        "reviewed": 17,
+        "opened": 17,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T05:21:58.218Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:22:19.692Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:23:06.684Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "hockey-club-match-board",
+      "ran": true,
+      "id": "hockey-club-match-board.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": false,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": false,
+      "costCents": 0,
+      "notionalUsd": 1.8294450000000002,
+      "wallSeconds": 607,
+      "overBudget": false,
+      "look": {
+        "reviewed": 33,
+        "opened": 22,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "long-side-1-video.jpg",
+          "long-side-1-light.jpg",
+          "long-side-2-video.jpg",
+          "long-side-2-light.jpg",
+          "take-strip.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": true,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T05:36:04.243Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T05:36:43.924Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        },
+        {
+          "at": "2026-10-18T05:37:05.618Z",
+          "airable": false,
+          "mistakes": [],
+          "passes": false
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "volleyball-set-board",
+      "ran": true,
+      "id": "volleyball-set-board.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [
+        "undoPoint"
+      ],
+      "unmoved": [
+        "event-resume: resume did not move the machine (still main=enter, score=idle, result=live). If it should have, the machine does not answer resume from there. It did not move it after any other event either."
+      ],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.5267822000000002,
+      "wallSeconds": 451,
+      "overBudget": false,
+      "look": {
+        "reviewed": 31,
+        "opened": 31,
+        "unopened": [],
+        "all": true,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T05:31:13.228Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:31:57.042Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:33:17.253Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "school-quiz-secret-pick",
+      "ran": true,
+      "id": "school-quiz-secret-pick.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.5142491999999999,
+      "wallSeconds": 635,
+      "overBudget": false,
+      "look": {
+        "reviewed": 29,
+        "opened": 13,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "long-side-1-light.jpg",
+          "long-side-2-video.jpg",
+          "long-side-2-light.jpg",
+          "event-lock-10000ms.jpg",
+          "event-revealchoice-strip.jpg",
+          "event-revealchoice-10000ms.jpg",
+          "event-audience-strip.jpg",
+          "next-2-01500ms.jpg",
+          "update-01500ms.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T05:45:02.434Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:45:18.223Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:46:23.501Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    },
+    {
+      "brief": "ski-sprint-timing-tower",
+      "ran": true,
+      "id": "ski-sprint-timing-tower.subscription",
+      "outcome": "delivered",
+      "reason": null,
+      "delivered": true,
+      "judged": true,
+      "airable": true,
+      "confidence": "medium",
+      "defects": [],
+      "missing": [],
+      "readAsOffered": [],
+      "unmoved": [],
+      "validatorErrors": [],
+      "functional": true,
+      "usable": true,
+      "costCents": 0,
+      "notionalUsd": 1.0283870000000002,
+      "wallSeconds": 475,
+      "overBudget": false,
+      "look": {
+        "reviewed": 23,
+        "opened": 0,
+        "unopened": [
+          "off.jpg",
+          "sample-video.jpg",
+          "sample-light.jpg",
+          "long-video.jpg",
+          "long-light.jpg",
+          "empty-video.jpg",
+          "empty-light.jpg",
+          "take-strip.jpg",
+          "event-focus-strip.jpg",
+          "event-focus-10000ms.jpg",
+          "event-clear-strip.jpg",
+          "event-clear-10000ms.jpg",
+          "event-final-strip.jpg",
+          "event-final-10000ms.jpg",
+          "event-provisional-strip.jpg",
+          "event-provisional-10000ms.jpg",
+          "update-strip.jpg",
+          "update-01500ms.jpg",
+          "out-strip.jpg",
+          "event-clear-after-focus-strip.jpg",
+          "event-clear-after-focus-10000ms.jpg",
+          "event-provisional-after-final-strip.jpg",
+          "event-provisional-after-final-10000ms.jpg"
+        ],
+        "all": false,
+        "fixed": 0
+      },
+      "rubberStamp": false,
+      "flagsToRead": [],
+      "judgeReadings": [
+        {
+          "at": "2026-10-18T05:40:13.885Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:40:15.431Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        },
+        {
+          "at": "2026-10-18T05:41:58.291Z",
+          "airable": true,
+          "mistakes": [],
+          "passes": true
+        }
+      ],
+      "agreement": "3/3"
+    }
+  ]
+}

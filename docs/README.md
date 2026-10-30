@@ -211,7 +211,7 @@ Layers of documentation, top to bottom:
 
 ## The backlog
 
-- `backlog/` - only a README: the backlog is GitHub Issues, by priority (`P1`, `P2`, `P3`) and area, with `owner ask`, `needs owner` and `later` labels.
+- `backlog/` - only a README: the backlog is GitHub Issues, by priority (`P1`, `P2`, `P3`) and area, with `requested`, `needs decision` and `later` labels.
 
 ## Where the roadmap lives
 
