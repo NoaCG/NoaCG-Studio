@@ -159,9 +159,12 @@ indefinite monitoring without separate evidence; never extend the authorized win
 On plan pause/block/expiry, stop native auto-continuations, retries and new-session
 launches too; checkpoint/reconcile in-flight work and preserve queued-PR repair ownership.
 
-Continuing plan projects use the immutable project deadline and bounded work blocks in
-`plan-run.md`; their run kit (`state.json`, brief templates, briefs sent) rides in the recovery
-checkpoint. Any session, cloud or laptop, continues a project with the same `/plan-run` line;
+Continuing plan projects use the immutable deadline/target and bounded work blocks in
+`plan-run.md`. Explicit `untilComplete` makes the date a target; automatic daily blocks still
+need separate `blockRenewal`. Neither permission proves a platform wake or allows owner-pause
+recovery. Their run kit (`state.json`, brief templates, briefs sent) rides in the recovery
+checkpoint. Qualify the chosen native route before `continue` takes ownership. A qualified
+session continues the project with the same `/plan-run` line;
 the older coordinator is then refused as superseded and stops. A coordinator waiting on workers
 or CI waits in a running background job or monitor, never idle, so its machine is not reclaimed.
 A project pause/block end stops local keep-awake and block-specific wakes.

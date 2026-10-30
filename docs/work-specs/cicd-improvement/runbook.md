@@ -3,23 +3,23 @@
 Revised 2026-10-30 after [Opus corrections](evidence/opus-growth-reconciliation.md), retaining
 the prior full-run opinion and PR #1816 reconciliation.
 Registered name: `cicd-improvement` in [plan-run](../../../.agent-workflows/plan-run.md).
-Preparation and registration are authorized; implementation is not. This is a prepared plan,
-not a live supervisor project. The [spec](spec.md) owns intent and numbered phase order.
+The [owner launch policy](launch.md) is agreed; actual implementation awaits the owner command
+and cloud qualification. This is not a live supervisor project. The [spec](spec.md) owns intent and numbered phase order.
 The phase array below fixes exact acceptance and environments without inventing authorization.
 
 ## Launch admission
 
-- Obtain acceptance of revised intent and explicit execution authorization with scope, start and
-  finite deadline. Only then set `work.json authority.status` to `agreed`, citing that source,
-  refresh the normalized hash and check for zero structural problems. Preparation, an Opus
-  opinion or a green planning PR is not implementation authorization.
-- Require full production-page final PASS/finish and owner/studio acceptance. No software-phase-50
-  exception was approved. Read its receipt; do not mutate its project.
+- An owner `$plan-run cicd-improvement` command activates launch.md. Its intent, duration and
+  standing daily renewal decisions need no repeat confirmation. Verify the agreed work.json hash
+  and structural consistency. A merged preparation PR alone does not start implementation.
+- Read the actual production-page receipts. The owner permits starting before remaining studio
+  acceptance; keep it pending and do not mutate that project or claim final PASS.
 - Reconcile landed spec/runbook, current procedures, open PRs and existing projects. Use the live
   coordinator qualification below; permission and capability receipts are not permanent.
-- Size the window for implementation, useful samples and 14 clean days after the last selection
-  correction, including at least one realistic reset. Discuss six to eight weeks at launch, not
-  a promised duration or permission. Resolve the actual date, timezone and offset explicitly.
+- Record actual start and the owner's target, default start +14 days, with timezone and offset.
+  Explicit untilComplete authority allows the same project to continue beyond that target.
+  Fourteen clean days after the last selection correction still apply; resets may extend elapsed
+  time. The target is neither a completion promise nor permission to shorten observation.
 - Identify useful, separately authorized work for the ten-risky-row sample and three-plan cohort.
   Lack of work leaves improvement claims pending; it does not authorize filler tasks or indefinitely
   strand unrelated safety work. Bind participants and native capacity before their launch.
@@ -29,14 +29,14 @@ The phase array below fixes exact acceptance and environments without inventing 
   from the review's unverified deployment assumption.
 - A generic orchestrator wave cannot overlap under current policy. Surface this multi-week scheduling
   constraint in the execution brief. A dated observation pause is not permission to evade it.
-  No deadline, workload or wave-scheduling decision is invented during preparation.
-- Require the shared #1817 correction to have landed before opening this run. No kit-local override:
+  Do not invent additional workload or wave-scheduling permission.
+- Require the shared approval-order correction (landed in #1822, replacing #1817) before opening this run. No kit-local override:
   the shared procedures and build/fix/repair templates must agree. Worker evidence excludes Reviewed;
   the coordinator checks that the configured run's head_sha equals the reviewed head, posts its
   pinned stamp and enables auto-merge immediately with head checks before and after. GitHub requires
   Reviewed and CI gate for admission; the coordinator recovers any earlier Reviewed timeout through
   the existing procedure. The legitimate ci01 PR can supply live evidence, with no dummy landing.
-- Keep stable ci IDs and preserve existing project identities. The narrow #1818 fix allows numeric
+- Keep stable ci IDs and preserve existing project identities. The numeric-ID fix in #1822 (replacing #1818) allows numeric
   IDs beyond the row count; real conflicts still refuse and row-number fallback is unchanged.
 - Before selecting a local Windows coordinator home, qualify live checkpoint restoration and bounded
   recovery there. The full fixture run completed in about nine minutes and exposed a now-fixed
@@ -304,7 +304,7 @@ Copy these strings, not weaker summaries derived by the launcher.
     ],
     "acceptance": [
       "A qualified verdict requires at least 14 clean calendar days after the last defined reset, original-culprit and adversarial replays, zero unexplained misses and independently accepted ci12/ci13 integrity and deadline receipts.",
-      "Publish qualified only when every condition is proved. A demonstrated failed qualification may be reported immediately as not qualified with retained protection; incomplete observation alone waits while feasible within authorization. Expiry stops the project.",
+      "Publish qualified only when every condition is proved. A demonstrated failed qualification may be reported immediately as not qualified with retained protection; incomplete observation alone waits under until-complete authority. Owner pause or cancellation stops dependent work; the planning target does not shorten the audit.",
       "A fresh independent checker PASS on this evidence-only merge gates ci16. A not-qualified disposition permits only ci16's documented no-activation outcome, never narrowing."
     ],
     "environment": "CA: qualified cloud worker plus GitHub Actions; Immutable audit, fault-replay, scope-integrity and scheduled-coverage receipts; independent exact-merge acceptance.",
@@ -381,9 +381,9 @@ adding retries or weakening assertions.
 
 Use the landed plan-create/plan-kit procedure, not a copied production-page coordinator prompt.
 At authorized launch choose one qualified native coordinator home and record project/store/recovery
-identity, provider/session, exact owner authorization, finite deadline and standing permissions.
-Block renewal is absent unless explicitly granted; preparation grants no renewal. Initial and
-resumed blocks remain at most 24 hours and inside the original deadline.
+identity, provider/session, exact owner authorization, immutable planning target and standing
+permissions from launch.md. Record untilComplete and blockRenewal separately. Initial and resumed
+blocks remain at most 24 hours, including after the target; owner pauses never auto-resume.
 
 The kit holds state.json, canonical build/check/repair/fix templates and every rendered brief;
 copy exact phase metadata above, including spec path and CA environment. The ci IDs are the same
@@ -415,19 +415,16 @@ the block end, so a date beyond it needs an authorized renewal path, not a silen
 Stop launches and applicable wakes on pause, cancellation, expiry or supersession; preserve queued
 PR repair ownership. Independent compatible plans remain allowed; generic waves still run alone.
 
-## Waits, expiry and repair
+## Waits, duration and repair
 
 - Use supervisor prerequisite/capacity waits; do not relaunch workers to rediscover missing evidence.
   Real product failures use the existing diagnosis and repair limits.
-- At deadline stop launches and report passed/remaining rows, pending intents, repair owners, audit
-  reset point and immutable receipts. Expiry preserves history; it does not authorize continuation.
-  `activeProject` excludes expired projects, so `continue` answering `open` is never permission
-  to restart the full plan.
-- Before expiry, restarts keep the same project, phases, deadline and failure counts. After expiry,
-  new authorization must cite a separately reviewed remaining-work spec listing unfinished outcomes
-  and old PASS receipts/stable IDs. That new spec supplies exact phases under plan-run; do not
-  improvise a truncated array under old authority. No automatic deadline extension or PASS import.
-- Preserve pending-step identity, findings and consumed repair attempts in any successor. An exhausted
+- At the planning target, report passed/remaining rows, pending intents, repair owners and audit
+  reset point, then continue this same until-complete project under authorized daily blocks.
+  Never rewrite the target or open a successor to reset history. Owner pause/cancel still stops.
+- Restarts retain project, phases, target, permission policy, findings and failure counts. Ordinary
+  fixed-deadline plans still expire; this policy does not migrate an existing project's authority.
+- Preserve pending-step identity, findings and consumed repair attempts across recovery. An exhausted
   row stays stopped unless explicit owner authority grants another attempt under the existing rule.
   A fresh ledger is not a retry reset. If safe carry-forward cannot be demonstrated with existing
   receipts/procedure, stop rather than open a misleading project.

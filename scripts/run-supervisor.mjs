@@ -12,7 +12,7 @@ import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs
 import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, ownerReceipts, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
-import { DAY_MS, digest, immutableProject, phaseRow, projectBoundary, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { DAY_MS, authorizationEnd, digest, immutableProject, phaseRow, projectBoundary, readProject, untilComplete, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { admitPhases, changeProject, checkAdmission, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
@@ -101,7 +101,7 @@ export function registerRun(db, manifest, now = Date.now()) {
   } };
   const text = readFileSync(normalized.wave, 'utf8');
   const project = readProject(text, now);
-  if (end - start > MAX_WINDOW_MS && !project) throw Error('Multi-day plans require explicit continuing project metadata');
+  if ((end - start > MAX_WINDOW_MS || untilComplete(auth)) && !project) throw Error('Multi-day or until-complete plans require explicit continuing project metadata');
   if (project && (manifest.kind !== 'plan' || project.id !== manifest.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Manifest differs from original project authorization');
   if (windowStart(text) !== start || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== end) throw new Error('Wave window differs from authorization');
   if (REPORT_HEADING.test(text)) throw new Error('Wave already reported');
@@ -228,7 +228,8 @@ export function admitRun(db, id, admission, { now = Date.now(), authority } = {}
 export function renewBlock(db, id, now = Date.now()) {
   adoptAccepted(db, id);
   const { doc } = rowFor(db, id);
-  const project = readProject(readFileSync(doc.manifest.wave, 'utf8'), now);
+  assertCurrent(db, id, doc);
+  const project = checkedProject(doc, readFileSync(doc.manifest.wave, 'utf8'), now);
   if (!project) throw Error('Only a continuing project renews blocks');
   const words = project.authorization.standing?.blockRenewal;
   if (!required(words)) throw Error('The owner gave no standing permission to renew blocks; ask him, then start-block with his answer as evidence');
@@ -237,7 +238,7 @@ export function renewBlock(db, id, now = Date.now()) {
   if (!boundary) return { renewed: false, block: project.block };
   if (boundary.action === 'blocked') throw Error(`A recorded wait blocks the project (${boundary.why}): resolve it with clear-wait and its evidence, then renew`);
   if (project.status !== 'active' || boundary.action !== 'paused') throw Error(`Project is ${boundary.action} (${boundary.why}); only the owner resumes it`);
-  const deadline = new Date(Math.min(now + DAY_MS, Date.parse(project.authorization.deadline))).toISOString();
+  const deadline = new Date(Math.min(now + DAY_MS, authorizationEnd(project.authorization))).toISOString();
   updateRun(db, id, 'start-block', { owner: project.block.owner, deadline, evidence: `renewed under the owner's standing permission: ${words}` }, now);
   return { renewed: true, block: readProject(readFileSync(doc.manifest.wave, 'utf8'), now).block };
 }
@@ -485,8 +486,9 @@ export function continueProject(root, { plan, owner, ...recovery }, { now = Date
     const { checkpoint } = restoreRun(db, { ...recovery, id, worktree, wave, adapter }, now);
     const project = readProject(readFileSync(wave, 'utf8'), now);
     if (!project) throw new Error('Recovery checkpoint holds no continuing project');
-    const deadline = Math.min(now + DAY_MS, Date.parse(project.authorization.deadline));
+    const deadline = Math.min(now + DAY_MS, authorizationEnd(project.authorization));
     const where = { id, db: dbFile, wave, worktree };
+    if (project.status === 'paused') return { verdict: 'blocked', why: 'Owner-paused project: explicit resume evidence is required before start-block', ...where, next: nextStep(readFileSync(wave, 'utf8'), now) };
     try {
       updateRun(db, id, 'start-block', { owner, deadline: new Date(deadline).toISOString(), evidence: `continued from recovery checkpoint ${checkpoint}` }, now);
     } catch (error) {

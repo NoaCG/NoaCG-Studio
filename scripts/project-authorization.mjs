@@ -12,15 +12,20 @@ export function instant(value) {
   return time;
 }
 
+/** Only explicit owner words make a plan's date a target. Persist no Infinity or moving deadline. */
+export const untilComplete = (auth) => nonempty(auth?.standing?.untilComplete);
+export const authorizationEnd = (auth) => untilComplete(auth) ? Infinity : instant(auth?.deadline);
+
 export function validateAuthorization(auth, { now = Date.now(), open = true, kind = 'plan' } = {}) {
   if (!['plan', 'wave'].includes(kind)) throw Error('Authorization kind must be plan or wave');
   if (!auth || !['source', 'scope', 'permissionPolicy'].every((key) => nonempty(auth[key]))) throw Error('Explicit owner authorization, scope and permission policy required');
   // Standing permissions (block renewal, migrations, auto-merge) are the owner's words, kept verbatim.
   if (auth.standing !== undefined && (!auth.standing || typeof auth.standing !== 'object' || Array.isArray(auth.standing)
       || !Object.keys(auth.standing).length || Object.values(auth.standing).some((words) => !nonempty(words)))) throw Error('Standing permissions are the owner\'s words, one line each');
+  if (untilComplete(auth) && kind !== 'plan') throw Error('Until-complete permission is only for continuing plans, never waves');
   const start = instant(auth.startedAt), end = instant(auth.deadline);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || start > now
-      || (open && now >= end)) throw Error('Original finite authorization is invalid or expired');
+      || (open && now >= authorizationEnd(auth))) throw Error('Original finite authorization is invalid or expired');
   if (kind !== 'plan' && end - start > DAY_MS) throw Error('A wave remains limited to 24 hours');
   return { start, end };
 }
@@ -45,7 +50,7 @@ export function validateProject(project, now = Date.now()) {
     const start = instant(block.startedAt), end = instant(block.deadline);
     if (!nonempty(block.id) || !nonempty(block.owner) || !Number.isSafeInteger(block.epoch) || block.epoch < 1
         || !Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > DAY_MS
-        || start < instant(project.authorization.startedAt) || end > instant(project.authorization.deadline)) throw Error('Work block must be bounded within original project authorization');
+        || start < instant(project.authorization.startedAt) || end > authorizationEnd(project.authorization)) throw Error('Work block must be bounded within original project authorization');
   }
   return project;
 }
@@ -83,7 +88,7 @@ export function writeProject(text, project) {
 
 export function projectBoundary(project, now = Date.now()) {
   if (['cancelled', 'finished'].includes(project.status)) return { action: project.status, why: project.reason ?? project.status };
-  if (now >= instant(project.authorization.deadline)) return { action: 'expired', why: 'original project deadline expired; checkpoint and stop' };
+  if (now >= authorizationEnd(project.authorization)) return { action: 'expired', why: 'original project deadline expired; checkpoint and stop' };
   if (project.status !== 'active') return { action: project.status, why: project.reason ?? 'explicit resume with reconciliation required' };
   if (!project.block || now < instant(project.block.startedAt) || now >= instant(project.block.deadline)) return { action: 'paused', why: 'work block ended; checkpoint, stop launches and block-specific wakes' };
   return null;

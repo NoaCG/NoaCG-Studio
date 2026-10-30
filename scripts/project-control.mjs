@@ -2,7 +2,7 @@
 // the recovery ref's compare-and-swap (run-recovery.mjs); nothing here calls a remote.
 import { randomUUID } from 'node:crypto';
 import { readSteps, phasePosition } from './plan-run.mjs';
-import { digest, immutableProject, instant, projectBoundary, readProject, validateProject, writeProject } from './project-authorization.mjs';
+import { authorizationEnd, digest, immutableProject, projectBoundary, readProject, validateProject, writeProject } from './project-authorization.mjs';
 
 export function checkedProject(doc, text, now) {
   const project = readProject(text, now);
@@ -21,7 +21,7 @@ export function hasInFlight(text) {
 
 export function changeProject(doc, project, text, operation, value, now) {
   if (['cancelled', 'finished'].includes(project.status)) throw Error(`Project is ${project.status}`);
-  if (operation !== 'cancel' && now >= instant(project.authorization.deadline)) throw Error('Original project deadline expired');
+  if (operation !== 'cancel' && now >= authorizationEnd(project.authorization)) throw Error('Original project deadline expired');
   if (operation === 'start-block') {
     if (!value?.evidence?.trim() || !value.owner?.trim()) throw Error('Resume requires owner identity and reconciliation evidence');
     // A store restored from the shared checkpoint takes over the block it continued from; the

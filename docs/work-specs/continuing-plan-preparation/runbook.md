@@ -1,7 +1,7 @@
 # Future planned-run readiness
 
 This is preparation guidance. No example below authorizes or starts a real plan.
-Keep the owner's original deadline, scope, phase set and acceptance throughout.
+Keep the owner's original deadline/target, scope, phase set and acceptance throughout.
 
 Timezone-free owner dates and times use `Europe/Helsinki`, including today/tomorrow.
 Resolve the date's daylight-saving offset and report it; pass explicit-offset ISO
@@ -44,6 +44,12 @@ his words. An environment that starts `OW:` marks an owner phase: `next` answers
 `owner` (hand it over, wait on him) instead of launching its build. `/plan-create`
 writes this file.
 
+Only explicit owner words in `standing.untilComplete` make the finite `deadline` a planning
+target. This option is valid only for continuing plans, never ordinary waves. Record a target
+from the owner or an explicitly authorized start +14-day default; never persist Infinity or
+rewrite dates on renewal. `blockRenewal` is separate permission. Existing fixed-date projects
+remain fixed; do not retrofit this option into an already published authorization.
+
 Preserve every phase object and its additional plan data. Dependencies reference
 earlier phase IDs; sequential admission preserves the authorized phase order.
 A required acceptance environment may describe several named checks/environments;
@@ -63,7 +69,8 @@ adapter and the `recovery` block, so the project can continue in any session (be
 Packet/adapter/recovery requirements remain in the native-recovery runbook.
 Start a block with `run-supervisor.mjs start-block <db> <id> <json-file>` where the
 JSON contains `owner`, `deadline` and `evidence` of reconciliation. A block lasts
-at most 24 hours and ends no later than the project deadline. Save the returned
+at most 24 hours and, for fixed-date plans, ends no later than the project deadline. An
+until-complete plan can open such blocks after its target, under unchanged authority. Save the returned
 block's `id`, `owner` and `epoch` as the authority receipt for phase recording.
 On one host an active block cannot be replaced by a competing caller. An old
 receipt becomes invalid after resume. With a standing `blockRenewal`,
@@ -184,11 +191,12 @@ repository:
 It finds the plan's active project (`plan-<plan>-*`), restores its latest checkpoint
 into a fresh directory under `<state-root>` (on Windows keep it short, e.g.
 `C:\noacg-state`: it holds a full checkout), opens a new block (at most 24 hours,
-never past the original deadline) and prints `db`, `wave`, `block` and `next`. Save
+never past a fixed authorization deadline) and prints `db`, `wave`, `block` and `next`. Save
 `block` as the authority receipt and carry on from `next`; the run kit, failures, repair counts
 and in-flight steps carry over. `open` means no project is active: set one up with `/plan-create`.
 `blocked` means this session now owns the project but its recorded wait must be
-resolved (`clear-wait`) before `start-block`.
+resolved (`clear-wait`) or its owner pause explicitly resumed with evidence before `start-block`.
+An until-complete project is still discoverable after its target; keep its ID and history.
 
 A Claude cloud session continued a disposable project this way on 2026-10-20
 (`cloud-checkpoint-branch-2026-10-20.md`).
@@ -198,7 +206,7 @@ The previous coordinator needs nothing. Its next `record`, `next` or `tick` answ
 
 ## Checklist before any future planned run
 
-1. Current owner authorization: finite deadline, immutable scope, complete phases,
+1. Current owner authorization: finite deadline/target, explicit duration policy, immutable scope, complete phases,
    dependencies, criteria and required acceptance environments.
 2. Separate landed preflights and a fresh delegated context; record actual shell,
    child, network and policy evidence. Resolve every prerequisite once.
