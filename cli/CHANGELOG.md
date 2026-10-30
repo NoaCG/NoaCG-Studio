@@ -10,6 +10,16 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.12.4 - 2026-10-30
+
+The CLI and MCP server now use patched dependencies, including their input validator and HTTP
+helpers. Field values and production rundowns keep the same format. The Bridge command also
+refuses long malformed local requests without pausing other requests during its access check.
+
+Update a global installation with `npm i -g @noacg/cli`, or update the NoaCG plugin
+through your agent application's usual update command. For one-off runs, select version 0.12.4
+or later with `npx`.
+
 ## 0.12.3 - 2026-10-18
 
 This update replaces vulnerable dependencies used by the CLI and its MCP server with patched

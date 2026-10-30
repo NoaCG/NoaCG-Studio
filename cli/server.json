@@ -18,13 +18,13 @@
       ]
     }
   ],
-  "version": "0.12.3",
+  "version": "0.12.4",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@noacg/cli",
-      "version": "0.12.3",
+      "version": "0.12.4",
       "transport": {
         "type": "stdio"
       },

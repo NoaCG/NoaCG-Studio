@@ -15,6 +15,15 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.10.1 - 2026-10-30
+
+A malformed request from another program on the same computer could briefly pause the Bridge
+before it refused that request. This update keeps that check quick, so other requests can
+continue normally. Connections, saved servers and playout controls keep their existing behavior.
+
+Download the new Bridge from Downloads, replace the old file and restart it between broadcasts.
+No setup or server changes are needed.
+
 ## 0.10.0 - 2026-10-24
 
 **Ready for vMix.** NoaCG Bridge can now drive vMix on the same computer as well as a CasparCG
