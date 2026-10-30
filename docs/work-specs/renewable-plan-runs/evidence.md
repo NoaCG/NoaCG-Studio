@@ -61,3 +61,17 @@ The first legitimate CI phase can prove live queue writes, once coordinator admi
 Local transient logs are in `C:/Claude/Temp/renewable-runner-tests.log`,
 `renewable-pause-recovery-test.log`, `renewable-instructions-tests.log` and `renewable-checks.log`.
 They are not portable acceptance artifacts for the future CI implementation.
+
+## Native wake follow-up
+
+The automated review on #1827 identified a missed consumer: `rearmNative` still treated the
+target as expiry. Reproduced with a native wake whose active block crosses the target, then
+corrected it to use the same authorization-end helper. For until-complete plans, the provider
+request and returned health-check receipt carry the actual block deadline; the authorization
+target remains unchanged. Fixed-date callers retain their original receipt format.
+
+The regression covers blocks crossing and following the target, wake-health observation after
+the target, pause/terminal/wait refusal, expired and overlong blocks, wrong request deadline,
+wave exclusion and changed policy. All 52 targeted native/continuing/kit/wake cases passed.
+The native contract test now declares the authorization helper as a guarded dependency so
+future duration changes select this regression. This is still no proof of a real cloud wake.
