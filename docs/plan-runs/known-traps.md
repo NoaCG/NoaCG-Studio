@@ -62,6 +62,15 @@ and the exact base and head SHAs. It picks its own probes.
 
 - Dispatch it on your own branch: `configured-suite.yml` keeps one pending run per branch, so your
   dispatch no longer cancels another branch's. Never cancel a run you did not start.
+- Dispatch with `node scripts/candidate-dispatch.mjs dispatch --ref <your-branch>` from your
+  worktree at the reviewed head, not a bare `gh workflow run`. It refuses a branch that is not at
+  that commit, records the request first and prints the run ID GitHub gave it; put that run ID in
+  your receipt. Before believing a run, or when an acknowledgement was lost, run
+  `node scripts/candidate-dispatch.mjs reconcile <record>` and do what its `reason` says. Exit 0
+  means your own run passed and every configured-suite run of your commit passed, on every
+  attempt, and nothing else (3 is running or superseded: a run cancelled while pending never
+  passes; reconcile your newer run's record). A failed attempt stays failing after a re-run; after a runner death the
+  coordinator decides with a written reason. `--recover` re-dispatches at most once per record.
 - It is four shards and takes about 12 minutes. Wait for it in a background job, so a cloud machine
   is not reclaimed; if your container restarts, start that wait again.
 

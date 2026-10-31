@@ -102,20 +102,25 @@ on:
     - cron: '10 1 * * *'
   workflow_dispatch: {}
 
-# ONE GROUP PER LANDING, and one shared group for everything else.
+# ONE GROUP PER LANDING, one per dispatched branch, one for the cron.
 #
 # A single machine-wide group would have made the landing runs queue behind each other, and
 # GitHub keeps only ONE pending run per group - so on a day with twenty landings most of them
 # would be cancelled while pending and a verdict would cover an unknown handful of commits.
 # Attribution is the entire reason this runs on push, so a push gets its own group and its own
-# verdict. The cron and a dispatch on main keep the shared one, where serialising is right.
+# verdict.
 #
 # A DISPATCH ON A BRANCH GETS ITS BRANCH'S GROUP (2026-10-29, the production-page retro on #1553).
 # Plan-run builders dispatch this suite on their reviewed heads, several at once, and in the shared
 # group each new dispatch cancelled the one pending before it: hours lost and hand-made dispatch
 # orders. Per branch, a dispatch replaces only its own branch's pending run, the newer head.
+#
+# THE CRON HAS ITS OWN GROUP (2026-10-31, cicd-improvement ci03). It shared one with dispatches on
+# main, so a pending cron run and a pending main dispatch replaced each other. A dispatch on main
+# now groups by its ref like any branch. To know which run answers a dispatch, and to recover one
+# cancelled while pending, dispatch through scripts/candidate-dispatch.mjs.
 concurrency:
-  group: configured-suite-${{ github.event_name == 'push' && github.sha || github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.ref || 'shared' }}
+  group: configured-suite-${{ github.event_name == 'push' && github.sha || github.event_name == 'workflow_dispatch' && github.ref || github.event_name }}
   cancel-in-progress: false
 
 permissions:
