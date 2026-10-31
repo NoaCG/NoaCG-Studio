@@ -76,38 +76,49 @@ export function workflowShape(text) {
   const width = {};
   const axes = {};
   const dynamic = {};
+  const includes = {};
   let inJobs = false;
   let current = null;
   let matrixIndent = null;
+  let strategyIndent = null;
   let axis = null;
   for (const line of lines) {
     if (/^jobs:\s*$/.test(line)) { inJobs = true; continue; }
     if (inJobs && /^\S/.test(line)) inJobs = false;
     if (!inJobs) continue;
     const key = /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(line);
-    if (key) { current = key[1]; jobs.push(current); axes[current] = []; matrixIndent = null; axis = null; continue; }
+    if (key) { current = key[1]; jobs.push(current); axes[current] = []; matrixIndent = null; strategyIndent = null; axis = null; continue; }
     const nm = /^ {4}name:\s*(.+?)\s*$/.exec(line);
     if (nm && current && !names[current]) names[current] = nm[1].replace(/^['"]|['"]$/g, '');
     // A static matrix runs the job once per combination: count each axis's values. A matrix built
     // at run time (`${{ fromJSON(...) }}`) cannot be counted here and is measured weekly instead.
     const indent = line.search(/\S/);
-    if (/^\s+matrix:\s*$/.test(line)) { matrixIndent = indent; axis = null; continue; }
-    if (/^\s+matrix:\s*\$\{\{/.test(line) && current) { dynamic[current] = true; continue; }
+    if (/^\s+strategy:\s*$/.test(line)) { strategyIndent = indent; continue; }
+    const inStrategy = strategyIndent !== null && indent === strategyIndent + 2;
+    if (inStrategy && /^\s+matrix:\s*$/.test(line)) { matrixIndent = indent; axis = null; continue; }
+    if (inStrategy && /^\s+matrix:\s*\$\{\{/.test(line) && current) { dynamic[current] = true; continue; }
+    if (strategyIndent !== null && indent >= 0 && indent <= strategyIndent) strategyIndent = null;
     if (matrixIndent === null || indent < 0) continue;
     if (indent <= matrixIndent) { matrixIndent = null; axis = null; continue; }
     const kv = /^\s+([A-Za-z0-9_-]+):\s*(.*?)\s*$/.exec(line);
     if (kv && indent === matrixIndent + 2) {
       axis = null;
       if (/\$\{\{/.test(kv[2])) { dynamic[current] = true; continue; }
-      if (kv[1] === 'include' || kv[1] === 'exclude') continue;
+      // `include` adds its entries (each `- ` item); `exclude` only removes, so it is ignored, which
+      // can only overcount.
+      if (kv[1] === 'include') { axis = 'include'; continue; }
+      if (kv[1] === 'exclude') continue;
       const list = /^\[(.*)\]$/.exec(kv[2]);
       if (list) axes[current].push(list[1].split(',').filter((x) => x.trim()).length);
       else if (kv[2] === '') { axis = axes[current].length; axes[current].push(0); }
       continue;
     }
-    if (axis !== null && /^\s+-\s/.test(line) && indent === matrixIndent + 4) axes[current][axis] += 1;
+    if (axis === 'include' && /^\s+-\s/.test(line) && indent === matrixIndent + 4) { includes[current] = (includes[current] ?? 0) + 1; continue; }
+    if (axis !== null && axis !== 'include' && /^\s+-\s/.test(line) && indent === matrixIndent + 4) axes[current][axis] += 1;
   }
-  for (const j of jobs) width[j] = axes[j].reduce((a, n) => a * Math.max(1, n), 1);
+  // Combinations of the axes, plus each `include` entry (counted as its own run: an include that
+  // only extends an existing combination is overcounted, never undercounted).
+  for (const j of jobs) width[j] = (axes[j].length ? axes[j].reduce((a, n) => a * Math.max(1, n), 1) : includes[j] ? 0 : 1) + (includes[j] ?? 0);
   const on = /^on:\s*\n([\s\S]*?)(?=^\S)/m.exec(`${text ?? ''}\n_end:`)?.[1] ?? '';
   const crons = [...on.matchAll(/cron:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
   const inline = /^on:[ \t]*\[?([^\n\]]*)\]?[ \t]*$/m.exec(String(text ?? ''))?.[1] ?? '';
@@ -402,9 +413,21 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     });
     const covered = (item) => mine.find((e) => e.covers.includes(item.id));
     const tierItems = items.filter((i) => i.tier === tier);
-    const uncovered = tierItems.filter((i) => !covered(i));
-    const addedLanding = uncovered.reduce((a, i) => a + i.perLanding, 0);
-    const addedDay = uncovered.reduce((a, i) => a + i.perDay, 0);
+    // An exception waives added cost only up to what is left of its approved allowance after the
+    // measured cost it already excepts: growing an excepted job needs approval for the growth.
+    const left = new Map(mine.map((e) => [e.id, { perLanding: Math.max(0, e.claimed.perLanding - e.perLanding), perDay: Math.max(0, e.claimed.perDay - e.perDay) }]));
+    const charged = tierItems.map((i) => {
+      const e = covered(i);
+      if (!e) return i;
+      const room = left.get(e.id);
+      const waivedLanding = Math.min(i.perLanding, room.perLanding);
+      const waivedDay = Math.min(i.perDay, room.perDay);
+      room.perLanding -= waivedLanding;
+      room.perDay -= waivedDay;
+      return { ...i, perLanding: i.perLanding - waivedLanding, perDay: i.perDay - waivedDay };
+    });
+    const addedLanding = charged.reduce((a, i) => a + i.perLanding, 0);
+    const addedDay = charged.reduce((a, i) => a + i.perDay, 0);
     const added = addedLanding > 0 || addedDay > 0;
     const exLanding = mine.reduce((a, e) => a + (e.perLanding ?? 0), 0);
     const exDay = mine.reduce((a, e) => a + (e.perDay ?? 0), 0);

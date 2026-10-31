@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (51 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (52 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -189,7 +189,7 @@ issue, remain for ci17.
 - **Neither offline capacity lever moves quietly.** `MAIN_RUNNERS` and `SHARD_CAP_MINUTES` can
   rise only with a reviewed revision of the ceilings file.
 - **Cadence counts as growth.** A more frequent cron, a new trigger on an existing job, or a new
-  entry in a job's static matrix is priced as the runs it adds; a cheaper schedule adds nothing.
+  entry in a job's static matrix (axes or `include`) is priced as the runs it adds; a cheaper schedule adds nothing.
   A matrix built at run time cannot be counted from the file and is measured weekly.
 - **Pooled timing is collected live and carried forward.** Each weekly run reads an even spread
   of the week's merged PRs (stamp-based ready clock, first queue entry), categorised by line of
@@ -220,6 +220,9 @@ issue, remain for ci17.
 - **Renaming a covered job is no way round renewal.** An earlier exception in the same tier whose
   cover no longer names a real job, and that ran within 30 days of a new one, counts as the same
   scope, so the new one needs a measured repayment.
+- **An exception waives added cost only up to its allowance.** What it already excepts of the
+  measured cost is spent first; growing an excepted job beyond its recorded allowance is charged
+  to the tier like any addition.
 - **Which breaches stop growth.** Only cost (that tier) and ready or queue latency (every tier
   with pre-merge jobs, graphics included). Age, phase latency, a stale table, a missing report and exception alarms are owned,
   dated actions without a stop: an item's age is not caused by added capacity, and the others

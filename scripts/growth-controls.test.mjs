@@ -767,3 +767,25 @@ test('(b) a rename that moves a job into another tier brings its whole cost ther
   const r = assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 94 }), items: [eight], today: TODAY });
   assert.equal(r.tiers.backend.status, 'refuse');
 });
+
+test('(b) include-only matrix entries are counted, and an exception waives growth only up to its allowance', () => {
+  const drift = readFileSync(new URL('../.github/workflows/nightly-drift.yml', import.meta.url), 'utf8');
+  const shape = workflowShape(drift);
+  const job = Object.keys(shape.width).find((k) => shape.width[k] > 1);
+  assert.ok(job, 'the drift job has several include entries');
+  const inc = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  d:\n    name: Drift\n    strategy:\n      matrix:\n        include:\n          - wf: a\n            x: 1\n          - wf: b\n";
+  assert.equal(workflowShape(inc).width.d, 2);
+  const more = inc + '          - wf: c\n';
+  const [item] = priceAdditions({ workflows: { 'nightly-drift.yml': { base: inc, head: more } }, estimates: CEILINGS.estimates });
+  assert.ok(item.perDay > 0, 'one more scheduled entry is priced');
+  // ci04 already excepts all of its 17.7: growing the catalog gate is charged in full.
+  const m = { ...measurement({ graphics: 25.5 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 17.7, perDay: 0 } } };
+  const grow = [{ tier: 'graphics', id: 'job:ci.yml/Catalog calibration gate', perLanding: 40, perDay: 0 }];
+  const r = assessTiers({ ceilings: CEILINGS, measurement: m, items: grow, today: TODAY });
+  assert.equal(r.tiers.graphics.addedLanding, 40);
+  assert.equal(r.tiers.graphics.status, 'refuse');
+  // An exception for a new spec (no measured cost) waives that spec up to its allowance and no further.
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 5, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1', from: '2026-10-25', expires: '2026-11-20' };
+  const r2 = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: measurement({ backend: 60 }), items: [backendItem(8)], today: TODAY });
+  assert.equal(r2.tiers.backend.addedLanding, 3);
+});
