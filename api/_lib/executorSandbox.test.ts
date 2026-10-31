@@ -138,13 +138,10 @@ async function memoryStore() {
 before(() => {
   // start() reads the worker from <repo>/render-worker; the compiled test tree has none.
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+  if (!path.basename(root).startsWith('.tmp-api-runtime-')) return; // a real checkout has the worker
   const worker = path.join(root, 'render-worker', 'sandbox-job.mjs');
-  try {
-    readFileSync(worker);
-  } catch {
-    mkdirSync(path.dirname(worker), { recursive: true });
-    writeFileSync(worker, '// test stand-in\n');
-  }
+  mkdirSync(path.dirname(worker), { recursive: true });
+  writeFileSync(worker, '// test stand-in\n');
 });
 
 // ── Risk 1: persistence and resume ──────────────────────────────────────────
