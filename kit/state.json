@@ -53,7 +53,7 @@
       "nonce": "ci06-b-94e8",
       "branch": "claude/plan-cicd-improvement-ci06-build",
       "launchedAt": "2026-10-31T18:44:57Z",
-      "note": "Builder launched from 11523106. Large shared-CI phase (replaces worker full-backend dispatch; changes run templates). Overlap watch: JEV branches, bot PRs #1840/#1834/#1503."
+      "note": "Builder working (branch at 043f6b7d, no PR yet). Overlap: JEV PR #1870 edits scripts/e2e-affected.test.mjs; agreed order 19:40Z: #1870 first, ci06 merges main after. #1865 (configured stack start failures) passed to builder."
     }
   ],
   "owner": [],
@@ -176,11 +176,19 @@
     1859,
     1862,
     1863,
-    1868
+    1868,
+    1865
   ],
-  "neighbours": {
-    "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files"
-  },
+  "neighbours": [
+    {
+      "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files"
+    },
+    {
+      "at": "2026-10-31T19:40Z",
+      "with": "jev-svg-import coordinator session_017SdbwQ6d3pRaakjohGfCcC (run #1850)",
+      "what": "PR #1870 adds one road-list entry to scripts/e2e-affected.test.mjs; ci06 also edits it. Order: #1870 first, ci06 merges main and keeps the entry."
+    }
+  ],
   "decisions": [
     {
       "at": "2026-10-31T14:05Z",
