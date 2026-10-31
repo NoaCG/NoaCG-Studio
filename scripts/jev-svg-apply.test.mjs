@@ -237,7 +237,14 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
     const second = { ...q, fields: [...q.fields.filter((f) => f.layer !== 't0' && f.layer !== 't1'), { layer: 't1', on: true, kind: 'countdown' }], components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'clock', layer: 't1' }] }] };
     const s1 = apply(firstTimer.next, second);
     const s2 = apply(s1.next, second);
+    // The same timer, its countdown moved from the first clock to the second: the timer owns the
+    // new one and not the old, so leaving the timer puts the new one back; again changes nothing.
+    const onT0 = apply(two, { ...withField(q, 't0', { kind: 'countdown' }), components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'clock', layer: 't0' }, { role: 'bar', layer: 's0' }] }] });
+    const moveTo = { ...withField(withField(q, 't0', { kind: 'text' }), 't1', { kind: 'countdown' }), components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'clock', layer: 't1' }, { role: 'bar', layer: 's0' }] }] };
+    const mv = apply(onT0.next, moveTo);
+    const mv2 = apply(mv.next, moveTo);
     out.countdown = {
+      moved2: [row(mv.next, 't1').armedByTimer === true, row(mv.next, 't0').armedByTimer === true, D.disarmTimerClock(mv.next.svgFields).find((f) => f.candidateId === 't1').kind, JSON.stringify(mv2.patch) === JSON.stringify(mv.patch)],
       secondClock: [row(firstTimer.next, 't0').kind, [row(s1.next, 't0').kind, row(s1.next, 't1').kind], JSON.stringify(s2.patch) === JSON.stringify(s1.patch), D.behaviourBindingGaps(s1.next)],
       saysText: [row(t1.next, clockRow).kind, row(t2.next, clockRow).kind, JSON.stringify(t2.patch) === JSON.stringify(t1.patch), D.behaviourBindingGaps(t1.next).length > 0],
       quizInstead: [row(q1.next, clockRow).kind, row(q1.next, clockRow).armedByTimer, D.disarmTimerClock(q1.next.svgFields).find((f) => f.candidateId === clockRow).kind],
@@ -313,14 +320,58 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
   return out;
 };
 
+/** Runs in the browser: seeded random sequences of proposals and author edits over two clock
+ *  artworks, checking the countdown invariants after every accepted apply (A6, A9): applying it
+ *  again changes nothing, at most one ticked countdown, and an armed marker only on a countdown
+ *  under a timer. Deterministic: the same seed gives the same sequences. */
+const SEQUENCES = ({ TIMER, TWO_CLOCKS }) => {
+  const { D, drop } = window.__jev;
+  let seed = 7;
+  const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const fails = [];
+  let accepted = 0;
+  for (let trial = 0; trial < 1500; trial++) {
+    let d = drop(rnd(2) ? TIMER : TWO_CLOCKS);
+    const base = D.svgProposalOfDraft(d).proposal;
+    const texts = d.svgFields.map((f) => f.candidateId);
+    for (let step = 0; step < 4; step++) {
+      if (rnd(3) === 0) {
+        const id = texts[rnd(texts.length)];
+        const flip = rnd(3) === 0;
+        d = { ...d, svgFields: d.svgFields.map((f) => (f.candidateId !== id ? f : flip ? { ...f, on: !f.on } : { ...f, kind: f.kind === 'countdown' || !f.clock ? 'text' : 'countdown' })) };
+        if (rnd(4) === 0) d = { ...d, svgBehaviour: rnd(2) ? null : { kind: 'timer', bar: '', warning: '', paused: '', expired: '' } };
+        continue;
+      }
+      const fields = texts.filter(() => rnd(3) > 0).map((id) => ({ layer: id, on: rnd(4) > 0, kind: d.svgFields.find((f) => f.candidateId === id).clock && rnd(2) ? 'countdown' : 'text' }));
+      const clock = fields.filter((f) => f.kind === 'countdown' && f.on).slice(0, 1).map((f) => ({ role: 'clock', layer: f.layer }));
+      const components = rnd(3) === 0 ? [] : [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [...(rnd(2) ? [{ role: 'bar', layer: 's0' }] : []), ...clock] }];
+      const p = { ...base, fields, components };
+      const a = D.svgDraftWithProposal(d, p);
+      if (!a.ok) continue;
+      accepted++;
+      const once = { ...d, ...a.patch };
+      const b = D.svgDraftWithProposal(once, p);
+      const shape = (x) => JSON.stringify([x.svgFields, x.svgBehaviour, x.svgApplied]);
+      const why = [];
+      if (!b.ok || shape({ ...once, ...b.patch }) !== shape(once)) why.push('not idempotent');
+      if (once.svgFields.filter((f) => f.on && f.kind === 'countdown').length > 1) why.push('two countdowns');
+      if (once.svgFields.some((f) => f.armedByTimer && (f.kind !== 'countdown' || once.svgBehaviour?.kind !== 'timer'))) why.push('stale marker');
+      if (why.length > 0) fails.push(`${trial}.${step}: ${why.join(', ')}`);
+      d = once;
+    }
+  }
+  return { accepted, fails: fails.slice(0, 5), failed: fails.length };
+};
+
 const started = Date.now();
-const { trips, rules } = await withBundledPage(SPECS, async (page) => {
+const { trips, rules, sequences } = await withBundledPage(SPECS, async (page) => {
   await installDrivenPage(page);
   await page.evaluate(HELPERS);
   const trips = {};
   for (const f of files) trips[f.name] = await page.evaluate(ROUND_TRIP, f.markup).catch((e) => { throw new Error(`${f.name}: ${e.message}`); });
   const rules = await page.evaluate(RULES, { LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL });
-  return { trips, rules };
+  const sequences = await page.evaluate(SEQUENCES, { TIMER, TWO_CLOCKS });
+  return { trips, rules, sequences };
 });
 console.log(`[jev-svg-apply] ${files.length} files in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 if (process.env.JEV_SVG_APPLY_PRINT) console.log(JSON.stringify({ trips, rules }, null, 1));
@@ -389,6 +440,7 @@ test('A6: the countdown machinery runs on replacement and one countdown remains'
     countdowns: 1,
     twoArmed: [null, 0],
     fight: ['text', 'countdown', ['t1.kind']],
+    moved2: [true, false, 'text', true],
     secondClock: ['countdown', ['text', 'countdown'], true, []],
     saysText: ['text', 'text', true, true],
     quizInstead: ['countdown', false, 'countdown'],
@@ -399,6 +451,11 @@ test('A6: the countdown machinery runs on replacement and one countdown remains'
     keepsClock: ['countdown', null, true],
     moved: ['countdown', 'text', ['behaviour', 't0.kind']],
   });
+});
+
+test('A6 A9: random sequences of proposals and edits keep the countdown invariants', () => {
+  assert.ok(sequences.accepted > 1000, `only ${sequences.accepted} applies were accepted`);
+  assert.deepEqual(sequences.fails, [], `${sequences.failed} applies broke an invariant`);
 });
 
 test('A7: a proposal pick gives way to a kept correction', () => {

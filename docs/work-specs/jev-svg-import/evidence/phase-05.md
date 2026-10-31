@@ -69,9 +69,9 @@ observable through `svgDraftWithProposal(draft, proposal)` (draft.ts), which val
   earlier apply armed, the proposal's decisions are written, then `armTimerClock` arms the one
   clock-shaped row only if the new behaviour is a timer, nothing is a countdown yet, and that
   row's kind is undecided. Decided rows still count as clock-shaped, so two clock rows arm
-  nothing. Neither call changes a decided row. After a replacement the armed marker (which says
-  leaving the timer puts the row back to Text) is on a decided row only when the proposal decided
-  it a countdown under a new timer: that timer owns it. The author's own countdown, and any
+  nothing. Neither call changes a decided row. The armed marker (which says leaving the timer
+  puts the row back to Text) follows ownership, whether or not the behaviour changed: it is on a
+  decided row only when the proposal decided it a countdown under a timer, which then owns it. The author's own countdown, and any
   countdown under another behaviour, carries none. The machinery's changes join the reference; a
   decided row's reference is its decided value. A proposal that decides the only clock row is
   Text gets a timer with no clock, which `behaviourBindingGaps` reports, rather than a guess. At
@@ -126,7 +126,7 @@ name proposal can do today too.
   `svgApplied` is a new optional, draft-only key the build never reads; the drop resets it.
 - `src/components/wizard/import/fieldAutoMap.ts`: the existing box walk now passes each box's
   row place, and `boxPicksOf` / `withBoxPicks` turn a behaviour into a proposal's picks and back.
-- `scripts/jev-svg-apply.test.mjs` (factory gate, browser): 11 tests. Every development design
+- `scripts/jev-svg-apply.test.mjs` (factory gate, browser): 12 tests. Every development design
   and every corpus file (68 read) round-trips, builds the identical graphic, passes the export
   gate and applies again to no change; the omitted decisions are pinned per file (a vote board's
   eight written layers and a reveal's secret, both display targets). Rule cases on small named
@@ -175,15 +175,23 @@ clock on a graphic with no behaviour. The ownership rule stands; the marker now 
 A fourth, from the Codex review of `ce7c3ee`: the one-countdown check gave way to any other
 countdown, including one an earlier apply had armed and the replacement was about to disarm, so
 the proposal's countdown was reverted, the armed one disarmed, and the timer had no clock until a
-second apply. The check now gives way only to a countdown the author holds. Tests pin each
+second apply. The check now gives way only to a countdown the author holds. A fifth, from the final `/so` on `b200158`
+(`session_017SdbwLhQTSo53XUzzyabxX`, grade B): the marker rule ran only when the behaviour object
+changed, and a timer's clock is not one of its boxes, so moving the countdown under the same timer
+left the new clock unmarked and a stale marker on the old one. The marker now follows ownership on
+every apply. Tests pin each
 variant: a proposal deciding the only clock row is Text applied twice, a timer
 replaced by a quiz and by another timer, the author's own countdown under a proposal's timer, and
-two clock rows with one decided Text, and a second clock made the countdown after an earlier
-apply armed the first. Each fails under its mutation.
+two clock rows with one decided Text, a second clock made the countdown after an earlier
+apply armed the first, and the countdown moved under the same timer. Each fails under its mutation. A seeded property test
+then drives 1,500 random sequences of proposals and author edits over both clock artworks and
+checks after every accepted apply (about 3,950) that applying it again changes nothing, that at
+most one countdown is ticked, and that an armed marker sits only on a countdown under a timer.
+Against `b200158` it finds 269 stale markers; against this head none.
 
 ## Verification on this worker
 
-- `node --test scripts/jev-svg-apply.test.mjs`: 11/11 pass.
+- `node --test scripts/jev-svg-apply.test.mjs`: 12/12 pass.
 - `node --test scripts/jev-svg-contract.test.mjs` 16/16, `scripts/jev-svg-baseline.test.mjs`
   19/19 pass.
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail (inventory, bind, emit, runtime records).
