@@ -39,6 +39,8 @@ recipe declarations in `src/templates/behaviours`) and the capabilities it allow
   revision itself from `context.inventory.markup` (synchronously, `svgSourceRevision`) and never
   takes one from the caller. A different value refuses the whole proposal with `stale-revision`.
   The same markup always gives the same revision; any change to it, text included, gives another.
+  The hash is over the markup string as given, so a proposer stamps it from the same
+  `SvgImportResult.markup` the validator holds; a re-serialized copy reads as stale.
 - **R3 One owner per layer.** One field decision per layer (`conflicting-ownership`). A layer is
   picked by at most one (component, role, row) (`conflicting-ownership`, naming both claims).
   The recipe's role kind says whether the layer may also be an operator field: a `field` role
@@ -111,8 +113,10 @@ carry them. A layer the proposal does not name stays as the reader offered it.
   is built from the same constants, so the two vocabularies cannot drift; it is a shape screen,
   and `validateSvgProposal` is what decides.
 - `src/ai/svgInterpretation/validate.ts`: `validateSvgProposal`, one pure function enforcing R1-R7.
-- `scripts/jev-svg-contract.test.mjs` (build tier, Node): 15 tests, one or more per rule, over
-  the layer ids phase 3 recorded for scoreboard-1, quiz-1 and clock-1 and each file's own markup,
+- `scripts/jev-svg-contract.test.mjs` (build tier, Node): 16 tests, one or more per rule, over
+  hand-written inventories carrying the layer ids phase 3 recorded for scoreboard-1, quiz-1 and
+  clock-1, with each raw fixture file as the markup (the real reader needs a browser; row 5's
+  apply test goes through it),
   with the role table built from `src/templates/behaviours/words.json`.
 
 Nothing imports the contract yet; row 5 applies it through the draft. No product behaviour moved.
@@ -137,6 +141,13 @@ characters; a getter could pass the check and change for the copy; the hash dupl
   contract accepts it and row 5 shows the gaps through the existing path.
 - Re-hashing the markup on every validation is what R2 asks for (the rules review: never take the
   revision from the caller). Validation runs when a proposal arrives, not per keystroke.
+
+## Final assessment rounds
+
+- `9bda06bd`: fresh read-only `/so` (`session_017SdbwPQNrEMSZkmDJL38D3`), AGREE WITH CORRECTIONS,
+  grade B. Three corrections, all taken: say that the revision is over the markup string as given
+  (a re-serialized copy reads as stale); describe the test inventories as hand-written over the
+  raw fixtures; add a credits intent test. Codex review on that head: no findings.
 
 ## Decisions and traps
 

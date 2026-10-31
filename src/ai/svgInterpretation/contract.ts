@@ -174,7 +174,11 @@ export type SvgProposalVerdict =
 /** The revision a proposal is pinned to: the SHA-256 of the sanitized markup, which carries the
  *  layer markers and the text, so any change to the artwork the proposal read moves it. The
  *  shared synchronous SHA-256 (named for its first use), because validation runs inside a draft
- *  update, where `crypto.subtle` would make everything after it asynchronous. */
+ *  update, where `crypto.subtle` would make everything after it asynchronous.
+ *
+ *  It hashes the markup string exactly as given. A proposer must stamp the revision from the same
+ *  `SvgImportResult.markup` the validator will hold: markup re-serialized elsewhere (another
+ *  browser build orders namespace attributes differently) reads as stale, the safe direction. */
 export function svgSourceRevision(markup: string): string {
   return `sha256:${audioHash(new TextEncoder().encode(markup))}`;
 }

@@ -6,8 +6,9 @@
 // explicit and carries no text, so SVG words stay data. The rules are R1-R7 in
 // docs/work-specs/jev-svg-import/evidence/phase-04.md; each test names the one it pins.
 //
-// The inventories are the reader's, as phase 3 recorded them for the frozen development designs
-// (scripts/jev-svg-baseline.test.mjs: scoreboard-1, quiz-1, clock-1), over each file's own markup.
+// The inventories are written here by hand, carrying the layer ids phase 3 recorded for the frozen
+// development designs (scripts/jev-svg-baseline.test.mjs: scoreboard-1, quiz-1, clock-1), with each
+// raw fixture file as the markup. The real reader needs a browser; row 5's apply test uses it.
 // The role table is built from the recipe declarations in src/templates/behaviours/words.json,
 // so a role the recipes stop declaring fails here rather than drifting.
 //
@@ -249,6 +250,25 @@ test('only capabilities the caller allows, and never one the spec rules out (R4)
   assert.deepEqual(codes(validateSvgProposal(timer, ctx('clock-1'))), []);
   refused(validateSvgProposal(timer, ctx('clock-1', { capabilities: ['field.countdown'] })), 'unsupported-capability', 'components[0].recipe');
   refused(validateSvgProposal({ ...countdown, fields: [on('t1', { kind: 'countdown' })] }, ctx('clock-1')), 'unsupported-capability', 'fields[0].kind');
+});
+
+test('credits intent: each key decided or explicitly open, each value allowed (R4, R5)', () => {
+  const credits = (intent) => ({
+    version: 1, sourceRevision: rev('quiz-1'), fields: [on('t0')],
+    components: [{ id: 'credits', recipe: 'credits', intent, picks: [{ role: 'credits', layer: 't0' }, { role: 'box', layer: 's0' }] }],
+  });
+  const only = ['credits', 'credits.layout:role-above', 'credits.playback:cards'];
+  assert.deepEqual(codes(validateSvgProposal(credits({ layout: 'default', playback: 'default' }), ctx('quiz-1', { capabilities: ['credits'] }))), []);
+  const open = validateSvgProposal(credits({ layout: 'role-above', playback: UNRESOLVED }), ctx('quiz-1', { capabilities: only }));
+  assert.deepEqual(open.unresolved, [{ component: 'credits', key: 'playback' }]);
+  refused(validateSvgProposal(credits({ layout: 'default', playback: 'roll' }), ctx('quiz-1', { capabilities: only })), 'unsupported-capability', 'components[0].intent.playback');
+  refused(validateSvgProposal(credits({ layout: 'role-beside', playback: 'cards' }), ctx('quiz-1', { capabilities: only })), 'unsupported-capability', 'components[0].intent.layout');
+  refused(validateSvgProposal(credits({ playback: 'static' }), ctx('quiz-1', { capabilities: ['credits'] })), 'missing-intent', 'components[0].intent.layout');
+  refused(validateSvgProposal(credits({ layout: 'grid', playback: 'static' }), ctx('quiz-1', { capabilities: ['credits'] })), 'invalid-value', 'components[0].intent.layout');
+  assert.deepEqual(SVG_INTENT.credits, {
+    layout: ['default', 'role-above', 'role-beside', UNRESOLVED],
+    playback: ['default', 'static', 'roll', 'cards', UNRESOLVED],
+  }, 'the spec’s credits layouts and playbacks');
 });
 
 test('a proposal made from another revision is refused whole (R2)', () => {
