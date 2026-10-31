@@ -1,0 +1,184 @@
+# Phase ci02: coherent review checkpoints
+
+Row ci02 of the [cicd-improvement spec](../spec.md) (P1d; AC-2 measurement start). Prepared
+2026-10-31 by the ci02 builder (Claude Code Cloud worker of plan run #1842). It lands the D1
+review guidance once and starts the AC-2 sample. Nothing here passes AC-2: improvement needs the
+ten-row sample, which has not happened yet.
+
+## 1. The one guidance source (acceptance a)
+
+**Where.** A new "Review checkpoints" section in
+[`docs/plan-runs/known-traps.md`](../../../plan-runs/known-traps.md). Every brief template in
+`docs/plan-runs/templates/` (build, check, repair, fix) already tells its worker to read that
+file in full, at the worker's source SHA. So the guidance reaches every builder, repairer and
+checker of every plan run, this one and the separately authorized JEV run alike, without
+changing a template, and it exists in one place. The one existing line it touched is the Codex
+gate bullet in the same file, which said "ask `@codex review` again after each fix push" and now
+says one request per new head.
+
+**What it holds,** mapped to the spec's D1:
+
+| D1 requirement | Where in the section |
+| --- | --- |
+| Fresh reviewer gets the contract, a criterion-to-evidence map and exact base and head, not the repair conversation; it picks its own probes | opening paragraph |
+| One outstanding review per revision and scope; coherent checkpoints; frequent commits and backups kept; a new head voids an old clean verdict | first bullet |
+| Unchanged repair limits; the repeated-family trigger is not an extra attempt | second bullet, Repeated family row |
+| Separate product defects, faulty test expectations, infrastructure failures and delayed review in the record | third bullet |
+| Routine work gets no new design-review ceremony | Ordinary row |
+| Stateful work states its observable rules first; a fresh reviewer challenges them before code when the feature changes them | Risky row |
+| Two successive confirmed rounds of one family pause patching for a focused independent reassessment | Repeated family row |
+| A stalled review is never implicitly clean; the existing recovery procedure applies | Stalled row (plan-run's wait step) |
+
+The observable signal for an outstanding Codex review is the summary comment Codex keeps on
+each PR: its `codex-review-state` marker carries `"status":"running"` and the commit while a
+review runs. That is how the stalled case below was found, and a worker can read it with one
+REST call.
+
+**What it does not change (acceptance c).** No template, no procedure file, no workflow, check,
+test, limit or script. The coordinator still posts the head-bound `noacg/reviewed` stamp and
+requests auto-merge at once with head checks before and after (`plan-run.md`, `queue-merge.md`
+cloud step 5); GitHub still requires `CI gate` and `Reviewed` before admission (ruleset 22389043,
+as read in phase ci01). Checkers stay independent of builders and repairers, as the check
+template and plan-run require. The ordinary path is exactly today's: `/check`, the Codex review,
+a final fresh `/so`. Repair limits are restated, not changed. Parallel-plans D3 is marked
+fulfilled by this section, as the spec asks.
+
+### Scenario exercise with a fresh reviewer
+
+A fresh, read-only Claude Code Cloud session that shares nothing with this builder read the
+section at the branch head and applied it to four real cases from the record. Its answers are
+in section 4.
+
+| Scenario | Real case it was given |
+| --- | --- |
+| Ordinary | #1845 (provider wording in five planning and procedure files, no state rule) |
+| Risky | production-page row 30, #1695 (selection air re-send of a lost revision) |
+| Repeated family | production-page row 32: two failed checks in one family (press-safety base and instance identity), #1728 then #1730 |
+| Stalled | #1763 (row 39): one `@codex review` at 05:23Z, Codex state still `running`, PR merged 06:00Z |
+
+## 2. AC-2 baseline from existing records
+
+The comparison set is ci01's frozen cohort narrowed to its **backend/stateful stratum**: 13
+production-page rows (30-34, 38-41, 43, 45-47), the rows that set state rules. AC-2 asks for
+comparable risky rows; this is the nearest existing set. The JEV rows differ in feature area,
+so any comparison reports that difference rather than hiding it.
+
+Sources: the production-page ledger at `7d45649e` (row `build` times) and REST reads of each
+row's first PR (pull, reviews, comments, timeline), 57 calls, cached, no log text kept.
+
+**Pre-queue time** = the row's first ledger `build` to its first PR's first
+`added_to_merge_queue`. Minutes, nearest rank, n = 13:
+
+| p50 | p90 | max | mean |
+| ---: | ---: | ---: | ---: |
+| 180 | 513 | 514 | 225 |
+
+| Row | PR | Build to PR open | Pre-queue | Comments asking `@codex review` | Asked again before a result | Commits |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 30 | #1695 | 70 | 514 | 36 | 5 | 50 |
+| 31 | #1724 | 45 | 116 | 3 | 1 | 12 |
+| 32 | #1728 | 84 | 284 | 18 | 2 | 27 |
+| 33 | #1732 | 82 | 204 | 10 | 4 | 17 |
+| 34 | #1735 | 71 | 180 | 5 | 0 | 18 |
+| 38 | #1757 | 53 | 97 | 7 | 2 | 10 |
+| 39 | #1763 | 484 | 513 | 1 | 0 | 13 |
+| 40 | #1765 | 48 | 135 | 5 | 2 | 11 |
+| 41 | #1772 | 66 | 167 | 13 | 2 | 21 |
+| 43 | #1776 | 65 | 245 | 14 | 0 | 40 |
+| 45 | #1780 | 68 | 151 | 10 | 2 | 18 |
+| 46 | #1781 | 44 | 253 | 24 | 1 | 33 |
+| 47 | #1786 | 25 | 71 | 5 | 1 | 8 |
+
+Row 39's long build-to-open is #1759's stuck test merge; #1763 replaced it.
+
+**Review requests.** 151 comments asked for a Codex review (139 start with it), p50 10 per row,
+p90 24, max 36. 22 were a second request with no Codex result since the previous one, in 10 of
+13 rows. That is an upper bound for duplicates: a clean Codex finish can be only a reaction,
+which these reads did not time.
+
+**Review-service delay.** Of the 151 requests, 128 got a Codex review or receipt before the
+next request: request to result p50 3.0, p90 4.8, max 6.1 minutes. 23 got none before the next
+request or the end.
+
+**Stalled review.** #1763 is a confirmed stall that the old process passed: one request at
+2026-10-27T05:23:33Z, Codex reacted 👀, its state comment stayed `running` for commit
+`cef25ae`, no review or 👍 followed, and the PR merged at 06:00:20Z.
+
+**Repeated-family rounds.** At the checker level, 1 of 13 rows: row 32 failed its check twice in
+one family. Rows 30 and 32 failed their first independent check; 11 of 13 passed it. PR-level
+finding families were never recorded, so that part of the baseline is **missing**.
+
+**Invariants before and after coding.** Never recorded. **Missing.**
+
+## 3. The sample (acceptance b)
+
+**Eligible rows.** A row of separately authorized work (another plan run's phase or an
+owner-requested fix) whose builder starts from a source SHA that contains this guidance, and
+that is risky by the section's Risky row, judged on its acceptance before it is built. Not
+eligible: this run's own rows (the spec counts none of them for AC-2), work made for the sample,
+and rows built before this guidance landed. The first two eligible rows are the feasibility
+trial; the next ten are the comparison sample. A row that fails, stalls or never finishes stays
+in the sample with that outcome.
+
+**Per row, from existing records only** (PR, its comments and timeline, the run ledger): rules
+stated before coding and rules found after; confirmed rounds with family and class;
+repeated-family rounds and whether the reassessment ran; duplicate requests (a second request
+on the same head while one was outstanding); review-service delay; stalled requests and their
+recovery; first independent check outcome; pre-queue time as defined above. No builder records
+anything beyond what the section already asks.
+
+**Work available today.** The JEV SVG import run (owner start 2026-10-31T10:19:44Z, 40 phases,
+window to 2026-11-14) is the only separately authorized plan running. No owner-requested fix
+outside this run is open, and a generic wave cannot run beside a plan run. On a read of their
+acceptance, these JEV phases set state rules and are the provisional candidates, in run order:
+
+| Slot | JEV phase | Why risky | Status |
+| --- | --- | --- | --- |
+| Feasibility 1 | 5 Apply the contract through the existing draft | stale and conflicting decisions, atomic idempotent apply | pending |
+| Feasibility 2 | 7 Persist the clock instance and profile | persisted identity, duplicate refusal, recovery | pending |
+| 1 | 9 Adapt clock events and recovery | origin across updates, reload, reconnect, two outputs | pending |
+| 2 | 10 Resolve absolute target times | survives resend, replay and recovery | pending |
+| 3 | 17 Connect imported content fields to the Sheet adapters | pause, reconnect, closed-page delivery | pending |
+| 4 | 24 Apply linked updates without replaying motion | updates while moving, reopen and reconnect | pending |
+| 5 | 27 Protect source bindings and keys on reimport | identity across reimport | pending |
+| 6 | 28 Keep control arrangements through reimport and one panel dispatch | identity across reimport, one dispatch | pending |
+| 7 | 35 Connect qualified model proposals to the import flow | timeout, cancellation, stale response | pending |
+| 8 | 37 Qualify privacy and service-failure behavior | retries, cancellation, stale responses | pending |
+| 9 | none identified | | **missing** |
+| 10 | none identified | | **missing** |
+
+At this writing the JEV ledger has no phase events, so no row has started under or before the
+guidance. A JEV phase built from a source without this section leaves the sample and the next
+candidate moves up. The slots are a frame, not a claim: JEV's coordinator judges each row at its
+brief, a row may prove routine, and if fewer than twelve eligible rows exist when AC-2 is
+assessed, the shortfall is reported as missing and AC-2 stays pending.
+
+**PR clock.** Phase ci01 left the switch of PR ceilings to receipt-timed starts to ci02 or
+ci18. Only one receipt-timed sample exists (ci01 itself), so recalibrating now would rest on
+one PR. It stays with ci18; reports keep the stamp-based figure beside the receipt-based one.
+
+## 4. Fresh-reviewer exercise
+
+Pending: filled in from the fresh session's answers before the final assessment.
+
+## 5. Phase notes
+
+- **Previous verified main:** `139a9724ebb1a2522750008dcb5a6a8b72adeac0` (#1848, ci01; its
+  independent check passed with exact-merge checks green).
+- **Revert:** `git revert -m 1 <merge commit of this PR>`, landed through `/queue-merge`. It
+  removes the section, restores the old Codex bullet, the parallel-plans D3 line and this file.
+- **Decisions:**
+  - The guidance lives in `known-traps.md`, not in a template or `plan-run.md`: the templates are
+    fixed and all link that file, and `plan-run.md` is at its 90-line limit.
+  - "Revision" in the spec means the PR head. One outstanding request per head and scope; a
+    `/so` on the Rules and a `/so` on the final diff are different scopes.
+  - Stalled reviews get no timer, as parallel-plans D3 forbids one: the worker reports the gate
+    pending and the coordinator reconciles it under plan-run's existing wait step.
+  - The baseline is ci01's backend/stateful stratum, the comparable risky set that exists.
+  - Collection scripts were scratch work and are not committed; the method and every number
+    are here, with each PR named so it can be read again.
+- **Traps:**
+  - A clean Codex result can be only a 👍 reaction with no comment, so counting comments and
+    reviews undercounts results and overcounts duplicate requests.
+  - The Codex summary comment is edited in place: read its current `codex-review-state`, not
+    its first text.

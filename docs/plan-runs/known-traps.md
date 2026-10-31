@@ -15,8 +15,8 @@ that plan's brief, not here.
   verdict or enable auto-merge yourself: the harness refuses that as self-approval for some
   sessions and not others, and one path for every PR is what keeps the run predictable.
 - **Worker gates on your reviewed head:** CI gate, the Codex review finished and its
-  findings handled (ask `@codex review` again after each fix push; Codex reviews only on open or
-  on that request), and the configured-suite run you dispatched on that head finished green, not
+  findings handled (ask `@codex review` once for each new head you push, as Review checkpoints
+  below says; Codex reviews only on open or on that request), and the configured-suite run you dispatched on that head finished green, not
   merely started. The coordinator verifies its `head_sha` equals your reviewed head. Reviewed
   itself is not a worker prerequisite: it may be pending or red until the coordinator stamps.
   After posting the pinned stamp the coordinator enables auto-merge with head checks before and
@@ -26,6 +26,32 @@ that plan's brief, not here.
   cloud sessions. Use REST (`gh api`) or the GitHub tools, as the cloud path of `/queue-merge` says.
 - Other plan-run PRs land meanwhile. If yours conflicts, merge `origin/main` into your branch;
   never rebase a pushed branch.
+
+## Review checkpoints
+
+One rule set for every review in a run: the Codex PR review, `/so` and the independent checker.
+A fresh reviewer has none of the builder's or repairer's conversation. Give it the contract and
+the evidence: the acceptance, the PR's evidence per criterion (changed behaviour and its proof)
+and the exact base and head SHAs. It picks its own probes.
+
+- **One outstanding request per head and scope.** A request is outstanding until its result is
+  on the PR. For Codex that is while the summary comment's `codex-review-state` reads
+  `"status":"running"` for that commit. Never ask `@codex review` or start another `/so` on that
+  head and scope meanwhile. Fix related confirmed findings together, run the focused checks, push
+  one coherent checkpoint, then make one request for the new head. Keep committing and pushing
+  your branch as backup, but skip the full configured dispatch on a head you know needs another
+  repair. A new head voids a clean verdict on an older one.
+- **Repair limits do not change:** three attempts per failure, one repair then diagnose for a
+  failed check. Nothing here adds an attempt or lets a finding go unfixed.
+- **Each confirmed round** is answered in one PR comment naming its family (the rule it breaks)
+  and class: product defect, faulty test expectation, infrastructure failure or delayed review.
+
+| Scenario | When | What to do |
+| --- | --- | --- |
+| Ordinary | copy, docs, contained logic or tooling that sets no state rule | Nothing extra: `/check`, the Codex review, a fresh `/so` on the final diff. |
+| Risky | the change sets state rules: ownership; attempted, accepted and observed operations; unknown outcomes; other tabs or writers; revision-to-content identity; retries; reload and recovery | Before coding, write those rules as observable lines in the phase notes and push them; the PR description repeats them under **Rules**. When the phase changes them, a fresh read-only `/so` challenges the Rules before any code. Later, list rules found after coding apart from those stated before. |
+| Repeated family | two successive confirmed rounds (any reviewer) find variants of one missing rule | Stop patching. A fresh read-only `/so`, given the Rules and both findings, reassesses the rule model; correct it, then repair. A warning, not an extra attempt: later findings still count. |
+| Stalled | a requested review has no result: Codex still running, or a reviewer session idle | Never clean, and no second request on that head. Report the gate pending in your receipt with its request time and head, and stop as for any pending gate. The coordinator reconciles it under plan-run's wait step, spending no attempt; a replacement request or fresh reviewer is its call and replaces the stalled one. |
 
 ## The configured suite
 

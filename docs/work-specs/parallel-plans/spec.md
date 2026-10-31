@@ -103,6 +103,10 @@ mark a cancelled or incomplete run as passed to complete the rollback.
 
 ### D3. Improve review convergence without reducing scrutiny
 
+Fulfilled by cicd-improvement phase ci02: the canonical guidance is "Review checkpoints" in
+`docs/plan-runs/known-traps.md`, which every plan-run brief template links. The text below is
+kept as its source.
+
 For ordering, ownership, retries or recovery work, the row brief states the invariants before
 implementation: attempted versus accepted versus observed operations, unknown outcomes,
 other writers, identity/revisions and reload behavior. A small executable reference model is
