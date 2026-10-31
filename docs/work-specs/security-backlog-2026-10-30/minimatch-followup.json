@@ -276,5 +276,29 @@
       "Direct GitHub alert state/dismissal: integration capability unavailable."
     ],
     "remainingCodeIssue": "1752 Sandbox/Zod compatibility"
+  },
+  "cleanup": {
+    "worktree": "/workspace/security-minimatch",
+    "status": "removed_by_supported_self_cleanup",
+    "branch": "security/minimatch-2026-10-31",
+    "branchDeleted": true,
+    "archivedFiles": 63,
+    "archiveKB": 1013,
+    "archive": "/workspace/security-evidence/worktree-archives/worktree-cleanup/2026-10-31/security-minimatch-1dtav8r",
+    "copyVerified": true,
+    "secretsReadOrArchived": false,
+    "rebuildableRemoved": [
+      "root node_modules",
+      "Companion node_modules"
+    ],
+    "limitation": "Legacy Claude Codex plugin job-record reader unavailable; supported cleanup continued with OS process collection. No cleanup failure."
+  },
+  "liveAlertStateLimit": {
+    "source": "GitHub response to final checkpoint-branch push after cba1fcf2 landing",
+    "total": 3,
+    "high": 1,
+    "moderate": 2,
+    "observedAt": "2026-10-31T08:16:45.357746+00:00",
+    "interpretation": "Banner count only. Source #84 component is now patched and tested; exact alert closure/state remains unreadable. Do not infer new alert identities or claim closure."
   }
 }
