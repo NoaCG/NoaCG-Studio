@@ -116,7 +116,8 @@
     "Phase 2 configured-suite on 7f0a00ba: attempt 1 shard 3 failed at Start the local Supabase stack before tests (aggregate 96 passed, 0 failed, 0 flaky); attempt 2 green. Infra, not a fail-then-pass.",
     "Phase 3 checker receipt named a nonexistent session id; recorded the actual sender session_017SdbwNmSrW7hcHFgiAZpAj. Briefs now ask for the exact get_session id.",
     "Before enabling auto-merge, confirm the final /so verdict is in the PR body (phase 4 builder edit had silently failed).",
-    "Row 6: approved a one-entry addition to scripts/e2e-affected.test.mjs road list (new authorized spec joins the import road; exact-set assertion unchanged); cicd coordinator informed 19:39Z."
+    "Row 6: approved a one-entry addition to scripts/e2e-affected.test.mjs road list (new authorized spec joins the import road; exact-set assertion unchanged); cicd coordinator informed 19:39Z.",
+    "Row 6 configured-suite 41234246878 on old head 44783ae6: 145 passed, 0 failed, 1 flaky = e2e/configured/late-send-abandoned.spec.ts, already in e2e/quarantine.json since 2026-10-28 (#1805), outside this change; decide on the reviewed-head run, accept with written reason if it recurs."
   ],
   "ownerOpen": [
     {
