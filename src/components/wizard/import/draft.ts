@@ -1847,8 +1847,11 @@ export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): 
   const decided = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind || result.writes.some((w) => w.layer === id && w.attr === 'kind');
   // It sees every row, so a decided countdown still counts as the one there is.
   const machined = replaced ? armTimerClock(write(disarmTimerClock(draft.svgFields)), behaviour) : merged;
-  const svgFields = machined.map((f, i) => (decided(f.candidateId) ? merged[i] : f));
-  // The machinery's own change is the proposal's, not a correction: it joins the reference.
+  // A decided row keeps its decided kind and, once the machinery has run, never its marker, so a
+  // later disarm cannot take a proposal's or the author's countdown back.
+  const svgFields = machined.map((f, i) => (!decided(f.candidateId) ? f : replaced ? { ...f, kind: merged[i].kind, armedByTimer: false } : merged[i]));
+  // The machinery's own change is the proposal's, not a correction: it joins the reference. Sound
+  // only because it never touches a decided row, whose reference is its decided value.
   const referenceRows = { ...result.referenceRows };
   svgFields.forEach((f, i) => {
     if (merged[i].kind !== f.kind) referenceRows[f.candidateId] = { ...referenceRows[f.candidateId], kind: f.kind };

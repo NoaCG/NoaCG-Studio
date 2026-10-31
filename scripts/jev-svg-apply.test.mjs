@@ -217,8 +217,17 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
     const saysText = { ...withField(p, clockRow, { kind: 'text' }), components: [{ ...timer, picks: timer.picks.filter((k) => k.role !== 'clock') }] };
     const t1 = apply(none.next, saysText);
     const t2 = apply(t1.next, saysText);
+    // The timer replaced by a quiz while the proposal decides the armed row stays a countdown: no
+    // marker is left, so a later disarm (the picker's) keeps it.
+    const quizInstead = { ...p, components: [{ id: 'quiz', recipe: 'quiz', intent: { lock: 'default', reveal: 'default' }, picks: [{ role: 'question', layer: 't1' }] }] };
+    const q1 = apply(draft, quizInstead);
+    // Two clock rows, one decided Text, with a timer: the other is not guessed.
+    const decidedText = { ...withField(q, 't0', { kind: 'text' }), components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'bar', layer: 's0' }] }] };
+    const dt = apply(two, decidedText);
     out.countdown = {
-      saysText: [row(t1.next, clockRow).kind, row(t2.next, clockRow).kind, JSON.stringify(t2.patch) === JSON.stringify(t1.patch)],
+      saysText: [row(t1.next, clockRow).kind, row(t2.next, clockRow).kind, JSON.stringify(t2.patch) === JSON.stringify(t1.patch), D.behaviourBindingGaps(t1.next).length > 0],
+      quizInstead: [row(q1.next, clockRow).kind, row(q1.next, clockRow).armedByTimer, D.disarmTimerClock(q1.next.svgFields).find((f) => f.candidateId === clockRow).kind],
+      decidedText: [dt.next.svgBehaviour?.kind, dt.next.svgFields.filter((f) => f.kind === 'countdown').length],
       keptText: [row(keptText.next, clockRow).kind, keptText.kept],
       keepsClock: [row(k1.next, clockRow).kind, k1.next.svgBehaviour, JSON.stringify(k2.patch) === JSON.stringify(k1.patch)],
       moved: [row(moved.next, 't0').kind, row(moved.next, 't1').kind, moved.kept],
@@ -364,7 +373,9 @@ test('A6: the countdown machinery runs on replacement and one countdown remains'
     countdowns: 1,
     twoArmed: [null, 0],
     fight: ['text', 'countdown', ['t1.kind']],
-    saysText: ['text', 'text', true],
+    saysText: ['text', 'text', true, true],
+    quizInstead: ['countdown', false, 'countdown'],
+    decidedText: ['timer', 0],
     keptText: ['text', ['t0.kind']],
     keepsClock: ['countdown', null, true],
     moved: ['countdown', 'text', ['behaviour', 't0.kind']],
