@@ -58,7 +58,7 @@ changed because of them are in section 4.
 | Ordinary | #1845 (provider wording in five planning and procedure files, no state rule) |
 | Risky | production-page row 30, #1695 (selection air re-send of a lost revision) |
 | Repeated family | production-page row 32: two failed checks in one family (press-safety base and instance identity), #1728 then #1730 |
-| Stalled | #1763 (row 39): review on open plus one `@codex review` at 05:23Z, Codex state still `running`, PR merged 06:00Z |
+| Stalled | #1763 (row 39's replacement PR): review on open plus one `@codex review` at 05:23Z, Codex state still `running`, PR merged 06:00Z; its head had a clean review on #1759 at 05:16Z |
 
 ## 2. AC-2 baseline from existing records
 
@@ -97,9 +97,9 @@ text kept.
 | 47 | #1786 | 25 | 71 | 5 | 1 / 1 | 8 |
 
 Row 39's first PR, #1759, entered the queue 150 minutes after the build, was removed twice
-because GitHub's test merge was stuck, and was closed; #1763 replaced it and landed 513 minutes
-after the build. That wait is a queue fault after first entry, so it sits outside pre-queue time
-and is kept here as a tail.
+because GitHub's test merge was stuck, and was closed; #1763 replaced it, entered the queue 513
+and merged 522 minutes after the build. That wait is a queue fault after first entry, so it sits
+outside pre-queue time and is kept here as a tail.
 
 **Review requests.** 158 comments asked for a Codex review (146 start with it), p50 10 per row,
 p90 24, max 36. Counting comments only, 22 were a second request with no Codex result since the
@@ -112,12 +112,14 @@ means.
 next request: request to result p50 3.0, p90 4.8, max 6.1 minutes. 22 got none before the next
 request or the end.
 
-**Stalled review.** #1763, row 39's replacement PR, is a confirmed stall that the old process
-passed. Codex started a
-review when the PR opened (05:22:27Z, 👀 at 05:22:29Z) and again on the `@codex review` comment
-at 2026-10-27T05:23:33Z (👀 at 05:23:44Z). Its state comment stayed `running` for commit
-`cef25ae`, no review or 👍 followed, the PR was labelled for landing at 05:23:50Z and merged at
-06:00:20Z.
+**Stalled review.** #1763, row 39's replacement PR, holds a confirmed stalled request. Codex
+started a review when the PR opened (05:22:27Z, 👀 at 05:22:29Z) and again on the
+`@codex review` comment at 2026-10-27T05:23:33Z (👀 at 05:23:44Z). Its state comment stayed
+`running` for commit `cef25ae`, and no review or 👍 followed on #1763. The landed head was not
+unreviewed, though: Codex had reviewed the same commit clean on #1759 at 05:16:46Z, six minutes
+before #1763 opened. So the record shows a stall on a re-opened PR, not an unreviewed head
+landing, and the request on #1763 was a duplicate for an already-reviewed head. The section now
+says a result belongs to its commit and counts on a replacement PR once linked there.
 
 **Repeated-family rounds.** At the checker level, 1 of 13 rows: row 32 failed its check twice in
 one family. Rows 30 and 32 failed their first independent check; 11 of 13 passed it. PR-level
@@ -186,7 +188,7 @@ the section and the four cases only, told not to read this file first. It read `
 | Ordinary, #1845 | nothing extra: `/check`, one Codex review per head, a fresh `/so` on the final diff | matched: `/so` graded B, the fixes went out as one head, one clean Codex review, merged |
 | Risky, row 30 (#1695, #1704) | Rules in the phase notes and PR before code, a fresh `/so` on them before code, coherent checkpoints, one repair after the failed check | no Rules section; about 20 heads of one-finding patches before a `/so` on the design; one second request on the same head |
 | Repeated family, row 32 (#1728, #1730, #1731) | after the second failed check in one family, stop patching, reassess the model, then repair | plan-run's diagnose made that model-level call and #1731 was the model fix; one same-head Codex re-ask on #1728 |
-| Stalled, #1763 | never clean, no second request, report pending, the coordinator recovers, no stamp meanwhile | labelled for landing 17 seconds after the request and merged with Codex still running |
+| Stalled, #1763 | never clean, no second request, report pending, the coordinator recovers, no stamp meanwhile | labelled for landing 17 seconds after the request and merged with the #1763 request still running; the same head had been reviewed clean on #1759 six minutes before #1763 opened |
 
 Its yes/no answers: one outstanding request per head and scope, mostly yes (two defects below);
 repair limits unchanged and no attempt added, yes; a new review step for ordinary work, no (the
@@ -221,6 +223,10 @@ A third fresh `/so` (session `session_017SdbwLj2SUtSGWCVKg1Z3K`) graded `1dc0a12
 blocking error: row 39's pre-queue time was measured on its replacement PR, against the stated
 first-PR definition. Section 2 now uses #1759, and the eligibility, assessor and collector lines
 in section 3 follow its other findings.
+A fourth fresh `/so` (session `session_017SdbwMdy7kCNa6nJmwc8BP`) graded `137644fe` B on one
+blocking error: #1763 was described as an unreviewed head landing, but its head had a clean
+review on #1759. The stalled-review description, the #1763 times and a rule that a result
+belongs to its commit follow from it.
 
 ## 5. Phase notes
 

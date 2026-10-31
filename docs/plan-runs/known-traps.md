@@ -39,6 +39,8 @@ and the exact base and head SHAs. It picks its own probes.
   is made until its result is on the PR. Opening the PR is the Codex request for its first head;
   a later head needs one `@codex review`. Codex's result is a review, a receipt comment or a 👍;
   its summary comment's `codex-review-state` shows `"status":"running"` for the commit meanwhile.
+  A result belongs to its commit: a clean result on the same head in a closed earlier PR counts
+  on its replacement once linked there.
   Never ask `@codex review` or start another `/so` on that head and scope while one is outstanding.
   Fix related confirmed findings together, run the focused checks, push one coherent checkpoint,
   then make one request for the new head. Keep committing and pushing your branch as backup, but
