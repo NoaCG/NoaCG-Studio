@@ -376,18 +376,27 @@ export function helperReach(sources, configs = []) {
   const reach = new Map();
   for (const helper of sources.keys()) {
     if (!/^e2e\/_[^/]+\.ts$/.test(helper)) continue;
-    const seen = new Set([helper]);
-    const queue = [helper];
-    while (queue.length) for (const by of importers.get(queue.pop()) ?? []) if (!seen.has(by)) { seen.add(by); queue.push(by); }
-    const all = [...seen];
-    reach.set(helper, {
-      specs: all.filter((f) => /^e2e\/[^/]+\.spec\.ts$/.test(f)).map((f) => f.slice('e2e/'.length)).sort(),
-      catalog: all.some((f) => /^e2e\/catalog\/.+\.spec\.ts$/.test(f)),
-      configured: all.some((f) => /^e2e\/configured\/.+\.spec\.ts$/.test(f)),
-      suiteWide: all.some(loaded),
-    });
+    const all = importedBy(importers, [helper]);
+    reach.set(helper, { ...specsAmong(all), suiteWide: all.some(loaded) });
   }
   return reach;
+}
+
+/** `start` and every module that imports one of them, directly or through another. */
+function importedBy(importers, start) {
+  const seen = new Set(start);
+  const queue = [...start];
+  while (queue.length) for (const by of importers.get(queue.pop()) ?? []) if (!seen.has(by)) { seen.add(by); queue.push(by); }
+  return [...seen];
+}
+
+/** Of e2e modules: the default-suite specs (bare names), and whether a catalog or configured spec is among them. */
+function specsAmong(files) {
+  return {
+    specs: files.filter((f) => /^e2e\/[^/]+\.spec\.ts$/.test(f)).map((f) => f.slice('e2e/'.length)).sort(),
+    catalog: files.some((f) => /^e2e\/catalog\/.+\.spec\.ts$/.test(f)),
+    configured: files.some((f) => /^e2e\/configured\/.+\.spec\.ts$/.test(f)),
+  };
 }
 
 /**
@@ -631,17 +640,32 @@ function resolveModule(base, read) {
  * planned before (its headers, or the unmapped escalation), so the index only ever adds specs.
  *
  * @param {Map<string, string>} sources repo-relative path -> text: every spec and module under e2e/
- * @returns {{ refs: Map<string, { path: string, prefix: boolean }[]>, texts: Map<string, string[]>,
- *             importers: Map<string, string[]> }}
+ * @returns {{ refs: Map<string, { path: string, prefix: boolean, all?: boolean }[]>, texts: Map<string, string[]>,
+ *             importers: Map<string, string[]>, unread: string[] }}
  */
 export function readerIndex(sources) {
   const refs = new Map();
   const texts = new Map();
   const importers = new Map();
+  const unread = [];
   const has = (f) => (sources.has(f) ? f : null);
   for (const [file, text] of sources) {
     const dir = dirOf(file);
-    const literals = literalsOf(text);
+    for (const spec of importSpecifiers(text)) {
+      const target = resolveModule(joinPath(dir, spec.replace(/\?.*$/, '')), has);
+      if (target && target !== file) importers.set(target, [...(importers.get(target) ?? []), file]);
+    }
+    let literals;
+    try {
+      literals = literalsOf(text);
+    } catch {
+      // A module the tokenizer cannot follow is taken to read everything: its specs join every plan
+      // that asks for readers until it can be read, and `unread` names it (a test keeps it empty).
+      unread.push(file);
+      refs.set(file, [{ path: '', prefix: true, all: true }]);
+      texts.set(file, []);
+      continue;
+    }
     texts.set(file, literals.flatMap((l) => l.pieces));
     const found = [];
     for (const { text: lit, prefix } of literals) {
@@ -651,53 +675,26 @@ export function readerIndex(sources) {
       for (const path of new Set([joinPath(dir, lit), joinPath('', lit)])) found.push({ path: path + tail, prefix: isPrefix });
     }
     refs.set(file, found);
-    for (const spec of importSpecifiers(text)) {
-      const base = joinPath(dir, spec.replace(/\?.*$/, ''));
-      const target = resolveModule(base, has);
-      if (target && target !== file) importers.set(target, [...(importers.get(target) ?? []), file]);
-    }
   }
-  return { refs, texts, importers };
+  return { refs, texts, importers, unread };
 }
 
 /**
- * A module's string and template literals: `text` is a string's value or a template's text up to
- * its first `${` (`prefix` says it was cut there), and `pieces` every literal piece, for routes.
- * Tokenised by `scanScript`; a file it cannot follow falls back to a quote-pairing scan of its
- * lines with line comments dropped, which can find fewer or extra literals and so, the index
- * being additive, only ever a plan the headers already give or a wider one.
+ * A module's string and template literals, as `scanScript` tokenises them: `text` is a string's
+ * value or a template's text up to its first `${` (`prefix` says it was cut there), and `pieces`
+ * every literal piece, for routes. One pass with a stack, so a template nested inside `${}` is its
+ * own literal. A file the tokenizer cannot follow throws, which a test over every e2e module pins.
  */
 function literalsOf(text) {
-  let toks;
-  try {
-    toks = scanScript(text);
-  } catch {
-    return [...withoutLineComments(text).matchAll(/(['"`])((?:(?!\1)[^\\\n]|\\.)*)\1/g)].map((m) => {
-      const cut = m[1] === '`' ? m[2].indexOf('${') : -1;
-      const value = (cut >= 0 ? m[2].slice(0, cut) : m[2]).replace(/\\(.)/g, '$1');
-      return { text: value, prefix: cut >= 0, pieces: m[2].split(/\$\{[^}]*\}/) };
-    });
-  }
   const out = [];
-  for (let k = 0; k < toks.length; k++) {
-    if (toks[k].t === 'str') out.push({ text: toks[k].v, prefix: false, pieces: [toks[k].v] });
-    if (toks[k].t !== 'tplstart') continue;
-    // One template: its own pieces until its matching end, skipping any template nested in `${}`.
-    const start = k;
-    const pieces = [];
-    let first = null;
-    let cut = false;
-    let depth = 0;
-    for (k++; k < toks.length; k++) {
-      const t = toks[k];
-      if (t.t === 'tplstart') depth++;
-      else if (t.t === 'tplend') { if (depth-- === 0) break; }
-      else if (depth > 0) continue;
-      else if (t.t === 'chunk') { pieces.push(t.v); if (!cut) first = (first ?? '') + t.v; }
-      else if (t.t === 'code' && t.v === '${') cut = true;
-    }
-    out.push({ text: first ?? '', prefix: cut, pieces });
-    k = start; // the outer loop then walks the inside, so a string or template nested in `${}` is read too
+  const open = [];
+  for (const t of scanScript(text)) {
+    const top = open[open.length - 1];
+    if (t.t === 'str') out.push({ text: t.v, prefix: false, pieces: [t.v] });
+    else if (t.t === 'tplstart') open.push({ text: '', prefix: false, pieces: [] });
+    else if (t.t === 'tplend') out.push(open.pop());
+    else if (top && t.t === 'chunk') { top.pieces.push(t.v); if (!top.prefix) top.text += t.v; }
+    else if (top && t.t === 'code' && t.v === '${') top.prefix = true;
   }
   return out;
 }
@@ -708,6 +705,7 @@ function literalsOf(text) {
  * reference (`'e2e'`, a template cut to `src`) names nothing: it is a word, not evidence of a read.
  */
 function refNames(ref, file) {
+  if (ref.all) return true;
   if (!ref.path.replace(/\/$/, '').includes('/')) return false;
   return ref.prefix ? file.startsWith(ref.path) : file === ref.path || file.startsWith(`${ref.path}/`);
 }
@@ -728,15 +726,7 @@ export function readersOf(file, index) {
   for (const [from, list] of index.refs) {
     if (list.some((ref) => refNames(ref, file)) || (route && (index.texts.get(from) ?? []).some((piece) => route.test(piece)))) direct.push(from);
   }
-  const seen = new Set(direct);
-  const queue = [...direct];
-  while (queue.length) for (const by of index.importers.get(queue.pop()) ?? []) if (!seen.has(by)) { seen.add(by); queue.push(by); }
-  const all = [...seen];
-  return {
-    specs: all.filter((f) => /^e2e\/[^/]+\.spec\.ts$/.test(f)).map((f) => f.slice('e2e/'.length)).sort(),
-    catalog: all.some((f) => /^e2e\/catalog\/.+\.spec\.ts$/.test(f)),
-    configured: all.some((f) => /^e2e\/configured\/.+\.spec\.ts$/.test(f)),
-  };
+  return specsAmong(importedBy(index.importers, direct));
 }
 
 /**
@@ -856,7 +846,8 @@ export function planFor(
   changed,
   { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach, readers } = {},
 ) {
-  const readIndex = readers !== undefined ? readers : checkoutReaders();
+  // Built on first use: a change of only specs, helpers or CORE files never reads e2e/ for it.
+  let readIndex = readers;
   // Read lazily: `outsideCatalog` is false for every non-src file whatever the reach says, so a
   // change with nothing the reach could hold has no use for it.
   const reachAsked = catalogReach !== undefined || mayBeInReach(changed);
@@ -872,6 +863,18 @@ export function planFor(
   const copyOnly = [];
   const helperPlanned = [];
   const readPlanned = [];
+  /** Plans the specs that read `file` by path or route (those `keep` allows), with their flags. */
+  const addReaders = (file, keep = () => true) => {
+    if (readIndex === undefined) readIndex = checkoutReaders();
+    if (!readIndex) return;
+    const read = readersOf(file, readIndex);
+    const kept = read.specs.filter((s) => keep(s) && (!onDisk || onDisk.has(s)));
+    if (!kept.length && !read.catalog && !read.configured) return;
+    readPlanned.push(file);
+    for (const s of kept) specs.add(s);
+    if (read.catalog) catalog = true;
+    if (read.configured) configured = true;
+  };
   const fromTrace = new Set();
   const tracedEscalated = [];
   const tracedBroad = [];
@@ -898,16 +901,8 @@ export function planFor(
     // The specs that read this file by path or open it by route (`readerIndex`), asked before
     // IGNORE too: a fixture under the ignored `scripts/` is still something a spec reads. They join
     // the plan wherever a header's specs would, and never stand in for an escalation.
-    const read = readIndex ? readersOf(file, readIndex) : null;
-    const addReaders = () => {
-      if (!read || read.specs.length + Number(read.catalog) + Number(read.configured) === 0) return;
-      readPlanned.push(file);
-      for (const s of read.specs) if (!onDisk || onDisk.has(s)) specs.add(s);
-      if (read.catalog) catalog = true;
-      if (read.configured) configured = true;
-    };
     if (IGNORE.some((r) => r.test(file)) && !devServer.has(file)) {
-      addReaders();
+      addReaders(file);
       continue;
     }
     if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
@@ -931,8 +926,7 @@ export function planFor(
       for (const c of coverage) if (kept(c.spec) && c.test(file)) specs.add(c.spec);
       // Its readers are coverage too, and keep it on the same terms: a reader with screenshot
       // baselines, or one that measures when the wording grew.
-      for (const s of read?.specs ?? []) if (kept(s) && (!onDisk || onDisk.has(s))) specs.add(s);
-      if (read?.catalog) catalog = true;
+      addReaders(file, kept);
       continue;
     }
     const helper = helpers?.get(file);
@@ -968,7 +962,7 @@ export function planFor(
     }
     // A `?raw` file's importer is planned beside it, so that is its mapping even when no header
     // names the file itself; an unmapped importer still escalates on its own turn.
-    addReaders();
+    addReaders(file);
     if (covering.length === 0 && central.length === 0 && !rawEdges.has(file)) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
       escalate(file);
@@ -1368,7 +1362,13 @@ function gitIn(cwd, ...cmd) {
  * and had a byte-identical copy of this, comment-free - including the porcelain-prefix regex whose
  * reason is the next paragraph. Two copies of "what changed" is two answers waiting to differ.
  *
- * A rename contributes both its old and its new path (`nameStatusPaths`, `porcelainPaths`).
+ * BOTH SIDES OF A RENAME (cicd-improvement ci05). With rename detection on (git's default)
+ * `--name-only` prints only a renamed file's NEW path, so moving a core file out of `src/preview/`
+ * planned what its new home selects and never escalated (seen in 3c64200e3). `--no-renames` lists
+ * a rename as the deletion of the old path and the addition of the new one, in the diff and in the
+ * working tree, as `scripts/deploy-affecting-paths.mjs` already reads it. `-z` turns off git's
+ * quoting of unusual paths, and `--untracked-files=all` names the files in a new directory rather
+ * than the directory (both measured in scripts/review-request.mjs `workingTreePaths`).
  *
  * @param {string} base  a ref; the diff is `base...HEAD`
  * @param {string} [cwd] the repository to ask - a linked worktree passes its own root
@@ -1410,50 +1410,13 @@ export function catalogSince(ref, log = () => {}) {
 
 export function changedFilesSince(base, cwd = undefined) {
   const opts = { encoding: 'utf8', maxBuffer: 64 << 20, ...(cwd ? { cwd } : {}), windowsHide: true };
-  const committed = nameStatusPaths(execFileSync('git', ['diff', '--name-status', '-M', '-z', `${base}...HEAD`], opts));
-  const working = porcelainPaths(execFileSync('git', ['status', '--porcelain', '-z'], opts));
+  const committed = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', `${base}...HEAD`], opts).split('\0');
+  // `XY path` per NUL-separated entry; with --no-renames no entry carries a second path field.
+  const working = execFileSync('git', ['status', '--porcelain', '--no-renames', '--untracked-files=all', '-z'], opts)
+    .split('\0')
+    .filter((entry) => entry.length > 3)
+    .map((entry) => entry.slice(3));
   return [...new Set([...committed, ...working])].filter(Boolean).map((f) => f.replace(/\\/g, '/'));
-}
-
-/**
- * BOTH SIDES OF A RENAME (cicd-improvement ci05). `git diff --name-only` with rename detection on
- * (git's default) prints only a renamed file's NEW path, so moving a core file out of `src/model/`
- * planned what its new home selects and never escalated (seen in 3c64200e3). `--name-status -M
- * -z` gives `R<score>\0old\0new` for a rename or copy and `<status>\0path` for anything else;
- * every path is kept. NUL-separated, so a path with a space or a quote is never C-quoted.
- * @param {string} out
- * @returns {string[]}
- */
-export function nameStatusPaths(out) {
-  const parts = out.split('\0');
-  const paths = [];
-  for (let i = 0; i < parts.length; ) {
-    const status = parts[i++];
-    if (!status) continue;
-    const count = /^[RC]/.test(status) ? 2 : 1;
-    paths.push(...parts.slice(i, i + count));
-    i += count;
-  }
-  return paths.filter(Boolean);
-}
-
-/**
- * The working tree's paths from `git status --porcelain -z`: `XY path`, and for a staged rename
- * or copy `XY new\0old`, where the old path follows as its own field. Both sides are kept, for
- * the reason `nameStatusPaths` gives.
- * @param {string} out
- * @returns {string[]}
- */
-export function porcelainPaths(out) {
-  const parts = out.split('\0');
-  const paths = [];
-  for (let i = 0; i < parts.length; i++) {
-    const entry = parts[i];
-    if (entry.length < 4) continue;
-    paths.push(entry.slice(3));
-    if (/[RC]/.test(entry.slice(0, 2))) paths.push(parts[++i]);
-  }
-  return paths.filter(Boolean);
 }
 
 /**

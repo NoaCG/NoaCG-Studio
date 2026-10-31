@@ -2037,14 +2037,10 @@ test('ci04: the catalog flag of a combined change is the union of its parts', ()
 // ── ci05: path selection (cicd-improvement P1b, AC-4) ─────────────────────────
 // Each case reproduces a reported narrowing first (the defect is the `readers: null` or old-shape
 // answer), then pins the corrected plan.
-import { ESCALATES_WITH_HEADERS, PATH_ROUTE_PAGES, checkoutReaders, nameStatusPaths, porcelainPaths, readerIndex, readersOf } from './e2e-affected.mjs';
+import { ESCALATES_WITH_HEADERS, PATH_ROUTE_PAGES, checkoutReaders, readerIndex, readersOf } from './e2e-affected.mjs';
 import { specRegexes } from './e2e-affected-copy.mjs';
 
 test('ci05: a rename contributes its old and its new path, committed or staged', () => {
-  assert.deepEqual(nameStatusPaths('R097\0src/model/old.ts\0src/feature/new name.ts\0M\0a.ts\0C100\0b.ts\0c.ts\0D\0d.ts\0'),
-    ['src/model/old.ts', 'src/feature/new name.ts', 'a.ts', 'b.ts', 'c.ts', 'd.ts']);
-  assert.deepEqual(porcelainPaths('R  src/feature/x.ts\0src/model/x.ts\0 M a b.ts\0?? new/\0'), ['src/feature/x.ts', 'src/model/x.ts', 'a b.ts', 'new/']);
-
   const repo = mkdtempSync(join(tmpdir(), 'e2e-affected-rename-'));
   const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
   const write = (rel, text) => {
@@ -2066,10 +2062,11 @@ test('ci05: a rename contributes its old and its new path, committed or staged',
     git('mv', 'src/model/moved.ts', 'src/feature/moved.ts');
     git('commit', '-m', 'move a core file out of src/model');
     git('mv', 'src/model/staged.ts', 'src/feature/staged.ts');
+    write('src/feature/new dir/untracked file.ts', 'export const u = 1;');
     // The defect: what `git diff --name-only` (rename detection on) reported, the new path alone.
     assert.deepEqual(git('diff', '--name-only', `${base}...HEAD`).split('\n'), ['src/feature/moved.ts']);
     const changed = changedFilesSince(base, repo).sort();
-    assert.deepEqual(changed, ['src/feature/moved.ts', 'src/feature/staged.ts', 'src/model/moved.ts', 'src/model/staged.ts']);
+    assert.deepEqual(changed, ['src/feature/moved.ts', 'src/feature/new dir/untracked file.ts', 'src/feature/staged.ts', 'src/model/moved.ts', 'src/model/staged.ts']);
     const plan = planFor(changed, { traced: null, readers: null, catalogReach: null });
     assert.equal(plan.mode, 'full', 'the old src/model path escalates as core');
   } finally {
@@ -2121,6 +2118,10 @@ test('ci05: readerIndex reads literal paths, routes and imports, and nothing it 
   assert.deepEqual(of('e2e/fixtures/svg-shows/a.svg').specs, [], 'a directory literal keeps its slash');
   assert.ok(!readersOf('output.html', readerIndex(new Map([['e2e/x.spec.ts', "request.get('/api/output?x=1')"]]))).specs.length, '/api/output is not /output');
   assert.ok(of('output.html').specs.includes('k.spec.ts'), 'a route after a template host');
+  // A module the tokenizer cannot follow reads everything, rather than nothing.
+  const broken = readerIndex(new Map([['e2e/z.spec.ts', 'const s = "unterminated']]));
+  assert.deepEqual(broken.unread, ['e2e/z.spec.ts']);
+  assert.deepEqual(readersOf('e2e/fixtures/anything.svg', broken).specs, ['z.spec.ts']);
 });
 
 test('ci05: the path pages the planner extends match vite.config.ts', () => {
@@ -2171,6 +2172,7 @@ test('ci05: no file under e2e/fixtures plans nothing', () => {
     .map((d) => `${join(d.parentPath ?? d.path, d.name).slice(root.length).replaceAll('\\', '/').replace(/^\//, '')}`);
   assert.ok(files.length > 50, `${files.length} fixture files`);
   const index = checkoutReaders();
+  assert.deepEqual(index.unread, [], 'every e2e module tokenises, so none is taken to read everything');
   // Markdown is documentation (IGNORE) unless a spec reads it, which the readers then plan.
   const silent = files.filter((f) => planFor([f], { sprintFocus: true, readers: index }).mode === 'none' && !f.endsWith('.md'));
   assert.deepEqual(silent, []);

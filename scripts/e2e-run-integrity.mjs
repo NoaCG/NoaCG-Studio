@@ -43,8 +43,6 @@ export function mentionsEnospc(value) {
   return ENOSPC.test(text) && !WATCH_LIMIT.test(text);
 }
 
-const SELECTED_PREFIX = 'selection: ';
-
 /** The spec files a run must plan tests from: names separated by whitespace or commas. */
 export function expectedSpecs(value) {
   return String(value ?? '').split(/[\s,]+/).map((s) => s.replaceAll('\\', '/').replace(/^\.?\//, '')).filter(Boolean);
@@ -89,7 +87,7 @@ function freeBytes(dir, statfs) {
  */
 export function runProblems({ planned, unreported, enospc, free, missing = [] }) {
   const problems = [];
-  if (missing.length > 0) problems.push(`${SELECTED_PREFIX}${missing.length} selected spec file(s) planned no test, so they never ran: ${missing.join(', ')}`);
+  if (missing.length > 0) problems.push(`${missing.length} selected spec file(s) planned no test, so they never ran: ${missing.join(', ')}`);
   if (enospc) problems.push('the disk filled during the run (ENOSPC), so workers, artifacts or results may be missing');
   if (unreported > 0) problems.push(`${unreported} of ${planned} planned test(s) never reported a result, so the run was cut short`);
   if (free !== null && free < DISK_FLOOR_BYTES) {
@@ -134,8 +132,9 @@ export default class RunIntegrity {
   onEnd(result) {
     if (!this.active || result.status !== 'passed') return undefined;
     const tests = this.suite ? this.suite.allTests() : [];
+    const missing = missingSpecs(this.expected, tests.map(specFileOf));
     const problems = runProblems({
-      missing: missingSpecs(this.expected, tests.map(specFileOf)),
+      missing,
       planned: tests.length,
       unreported: tests.filter((test) => test.results.length === 0).length,
       enospc: this.enospc,
@@ -144,8 +143,9 @@ export default class RunIntegrity {
     if (!problems.length) return undefined;
     console.error('\nNOT A VERDICT - this run reports a pass it cannot stand behind:');
     for (const problem of problems) console.error(`  - ${problem}`);
-    const disk = problems.some((p) => !p.startsWith(SELECTED_PREFIX));
-    console.error(disk
+    // Anything beyond the one selection problem is about the disk or a cut-short run.
+    const diskOrTruncation = problems.length > (missing.length > 0 ? 1 : 0);
+    console.error(diskOrTruncation
       ? 'Free disk space (old test-results/ folders, finished worktrees) and run it again; nothing here is a test result.\n'
       : 'A spec the plan selected was not in the run: look for a test.only, a renamed or emptied spec, or a filter that no longer matches it.\n');
     return { status: 'failed' };

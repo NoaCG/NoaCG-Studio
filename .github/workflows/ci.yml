@@ -632,8 +632,7 @@ jobs:
             }
             import("./scripts/e2e-affected.mjs").then((m) => console.log(`${mine.map(m.specFilterArg).join(" ")}\n${mine.join(" ")}`));
           ')"
-          SPECS="$(echo "$PLAN" | sed -n 1p)"
-          NOACG_E2E_EXPECTED_SPECS="$(echo "$PLAN" | sed -n 2p)"
+          { read -r SPECS; read -r NOACG_E2E_EXPECTED_SPECS; } <<< "$PLAN"
           export NOACG_E2E_EXPECTED_SPECS
           echo "::notice title=E2E shard ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"
           npm run test:e2e -- $SPECS

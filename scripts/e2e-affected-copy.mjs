@@ -931,7 +931,8 @@ export function specsNaming(edit, specTexts) {
   return hits;
 }
 
-const NOT_WORDING_ARG = /\.(?:toHaveClass|toHaveCSS|toHaveId|toHaveURL|waitForURL|route|unroute)\(\s*(?:['"][^'"]*['"]\s*,\s*)?$/;
+/** The assertions whose regex argument is a class, CSS value, id or URL rather than wording. */
+const NOT_WORDING = new Set(['toHaveClass', 'toHaveCSS', 'toHaveId', 'toHaveURL', 'waitForURL', 'route', 'unroute']);
 
 /** Each spec text's compiled regexes, so a change with many copy edits scans each spec once. */
 const regexCache = new Map();
@@ -943,8 +944,10 @@ const regexCache = new Map();
  * written, not by whole phrases, so `specsNaming` asks each one of the old and new wording
  * directly. Before cicd-improvement ci05 only its literal runs were compared, and a run shorter
  * than a distinctive phrase (`getByRole('button', { name: /save/i })` against `Save graphic`) never
- * selected its spec. A literal that does not compile is left to the phrase path; `g` and `y` are
- * dropped so `test` keeps no state between terms.
+ * selected its spec. The literals come from `scanScript`, which tells a regex from a division; a
+ * text it cannot follow, or a literal that does not compile, is left to the phrase path. `g` and `y`
+ * are dropped so `test` keeps no state between terms. The argument of a class, CSS, id or URL
+ * assertion is not wording: `toHaveClass(/on/)` reads no copy.
  * @param {string} text
  * @returns {RegExp[]}
  */
@@ -952,15 +955,24 @@ export function specRegexes(text) {
   const cached = regexCache.get(text);
   if (cached) return cached;
   const out = [];
-  for (const m of text.matchAll(/[(,:=[!&|?]\s*\/((?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+)\/([a-z]*)/g)) {
-    // A class, CSS value, id or URL is not wording: `toHaveClass(/on/)` reads no copy.
-    if (NOT_WORDING_ARG.test(text.slice(Math.max(0, m.index - 60), m.index + 1))) continue;
+  let toks = [];
+  try {
+    toks = scanScript(text);
+  } catch (error) {
+    if (!(error instanceof Abort)) throw error;
+  }
+  for (let k = 0; k < toks.length; k++) {
+    const m = toks[k].t === 'code' && /^\/(.+)\/([a-z]*)$/s.exec(toks[k].v);
+    if (!m) continue;
+    // `name(/x/` or `name('arg', /x/`: the call this literal is the (first or second) argument of.
+    const callee = toks[k - 1]?.v === '(' ? toks[k - 2] : toks[k - 1]?.v === ',' && toks[k - 2]?.t === 'str' && toks[k - 3]?.v === '(' ? toks[k - 4] : null;
+    if (callee && NOT_WORDING.has(callee.v)) continue;
     // Literal letters only: escapes (`\s`, `\b`) and character classes (`[A-Za-z]`) are not wording.
     if (!/\p{L}{2}/u.test(m[1].replace(/\\./g, ' ').replace(/\[(?:[^\]\\]|\\.)*\]/g, ' '))) continue;
     try {
       out.push(new RegExp(m[1], m[2].replace(/[gy]/g, '')));
     } catch {
-      // Not a regex after all (a division the pattern above misread); the phrase path still reads it.
+      // Not a pattern this engine compiles; the phrase path still reads its literal runs.
     }
   }
   regexCache.set(text, out);

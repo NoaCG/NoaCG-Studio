@@ -27,23 +27,33 @@ first (the old-shape or `readers: null` answer), then the corrected plan. All ca
 
 ## 2. Design (decided by the builder)
 
-1. **Both rename paths.** `changedFilesSince` reads `git diff --name-status -M -z` and
-   `git status --porcelain -z` and keeps both sides of a rename or copy (`nameStatusPaths`,
-   `porcelainPaths`). NUL-separated, so no path is C-quoted. Every planner (offline, catalog,
-   main's `--catalog-since`) gets its list from this one function.
-2. **Readers, additive only.** `readerIndex` reads every spec and e2e module for the paths it
-   names: `new URL(lit, import.meta.url)` resolved from the module, any other path-shaped string
-   or template literal from the repository root (and `./`/`../` ones from the module too), a
-   template cut at `${` or a literal ending in `/` as a prefix, and a root page `<name>.html` by its
-   route (`/output?`, `'/output'`, `/output*`, `/output.html`; `/join/<name>` too, mirrored from
-   vite.config.ts `PATH_PAGES` and pinned against it). Readers are followed through imports, like
-   `helperReach`. `planFor` adds a file's readers wherever its header specs would be added, and
-   before IGNORE, so an ignored fixture under `scripts/` is still planned. They never replace an
+1. **Both rename paths.** `changedFilesSince` reads `git diff --name-only --no-renames -z` and
+   `git status --porcelain --no-renames --untracked-files=all -z`. With rename detection off a
+   rename is the deletion of its old path and the addition of its new one, so both are listed.
+   This departs from the spec's wording ("name-status/-M") on purpose: the intent is that both
+   paths reach the planner, and `--no-renames` does that with no parser, as
+   `scripts/deploy-affecting-paths.mjs` already does. `-z` stops git quoting unusual paths and
+   `--untracked-files=all` names the files in a new directory rather than the directory. Every
+   planner (offline, catalog, main's `--catalog-since`) gets its list from this one function.
+2. **Readers, additive only.** `readerIndex` reads every spec and e2e module's string and
+   template literals with the copy path's tokenizer (`scanScript`, so comments, regex literals and
+   multi-line templates are not mistaken for strings). Each path-shaped literal is resolved from
+   the module's directory and from the repository root; a template cut at `${` or a literal
+   ending in `/` is a prefix (a directory keeps its `/`, so `svg/` is not `svg-shows/`). A root page
+   `<name>.html` is read by a literal that opens its route: `/<name>`, alone or after a scheme and
+   host, followed by `?`, `#`, `*`, `.html` or the end, so `/api/output` is not `/output`
+   (`/join/<name>` too, mirrored from vite.config.ts `PATH_PAGES` and pinned against it). Readers
+   are followed through imports with the walk `helperReach` uses (now one shared function). A
+   module the tokenizer cannot follow is taken to read everything, never nothing, and a test keeps
+   that list empty. `planFor` builds the index on first use and adds a file's readers wherever its
+   header specs would be added, and before IGNORE, so an ignored fixture under `scripts/` is still
+   planned. A wording-only edit keeps the readers with screenshot baselines (and those that
+   measure, when the wording grew), as it keeps covering specs. Readers never replace an
    escalation: an unmapped fixture keeps the shared-change set and catalog gate it had, and its
    readers come on top. CORE files skip them, as they skip headers. A catalog or configured spec
    among the readers raises that flag.
-3. **Regex copy locators run as written.** `specRegexes` compiles each regex literal in a spec
-   that holds two literal letters outside escapes and character classes, and is not the argument
+3. **Regex copy locators run as written.** `specRegexes` takes each regex literal from the
+   tokenizer's output, and compiles those that hold two literal letters outside escapes and character classes, and is not the argument
    of `toHaveClass`, `toHaveCSS`, `toHaveId`, `toHaveURL`, `waitForURL` or `route`. `specsNaming`
    selects the spec when one matches the old or new wording. The phrase path is unchanged.
 4. **`ESCALATES_WITH_HEADERS`.** A file listed there escalates like CORE and keeps the specs its
@@ -57,6 +67,7 @@ first (the old-shape or `readers: null` answer), then the corrected plan. All ca
    reads `NOACG_E2E_EXPECTED_SPECS`; a passing run where a listed file planned no test fails with
    the file names. ci.yml's E2E shard step exports the shard's own file list. Checked on this
    base: all 241 offline specs list at least one test under `CI=1`, so no current spec trips it.
+   A test declared inside a helper counts for the spec file that loaded it (its file suite).
 
 Why this shape: every fix reuses the planner's existing machinery (the one changed-file function,
 the import walk, the copy module, the reporter every config already loads), and every planner
@@ -73,9 +84,9 @@ Test `ci05: no file under e2e/fixtures plans nothing` pins that no file under `e
 
 | Criterion | Evidence | Result |
 | --- | --- | --- |
-| (a) Pin old/new rename paths | rename test: real repo, committed and staged renames, both paths listed, the old core path escalates; `git diff --name-only` shown returning the new path alone | pass |
+| (a) Pin old/new rename paths | rename test: real repo, committed and staged renames and an untracked file in a new directory, all paths listed, the old core path escalates; `git diff --name-only` shown returning the new path alone | pass |
 | (a) Pin `output.html` | header-only answer 1 spec; with readers 15, including the six `/output` openers asserted by name; every root page's header set preserved | pass |
-| (a) Pin filesystem-read fixtures | `fidelity-nested.svg` gains its readers and keeps its escalation; `scripts/fixtures/youtube/` goes from `none` to its reader; the svg-corpus file keeps the catalog gate (ci04 trap); unit test of `readerIndex` (URL, template prefix, concatenation through a helper, comment, run-time path, look-alike routes) | pass |
+| (a) Pin filesystem-read fixtures | `fidelity-nested.svg` gains its readers and keeps its escalation; `scripts/fixtures/youtube/` goes from `none` to its reader; the svg-corpus file keeps the catalog gate (ci04 trap); unit test of `readerIndex` (URL, template prefix, concatenation through a helper, comment, run-time path, look-alike and API routes, a route after a template host, a multi-line template and an apostrophe in a regex before a literal, a directory literal's slash, an untokenisable module reading everything); a wording-only edit to `output.html` keeps its baselined reader | pass |
 | (a) Pin short-regex copy | `/save/i` and `/^OK$/` select their specs; `/\s+/`, `/\d+/`, `/[A-Za-z]{6,}/`, `toHaveClass(/on/)` and `toHaveURL(...)` do not; through `planFor` as a copy edit | pass |
 | (a) Pin the `spaceKey` override | with no traced map: mode `full`; under focus the shared-change set plus `editor-usability.spec.ts`; the header that used to narrow it still exists | pass |
 | (a) Report unsupported cases conservatively | readers only add; an unmapped fixture still escalates; run-time paths stated above; `e2e/fixtures` never plans `none` | pass |
@@ -83,10 +94,11 @@ Test `ci05: no file under e2e/fixtures plans nothing` pins that no file under `e
 | (b) Discovery and verdict probes prove selected cases cannot disappear | real Playwright over a scratch directory under ignored `test-results/`: `--list` with the real `playwright.config.ts` and `CI=1` refuses a focused test; with `forbidOnly` off, a `test.only` that filters two selected files out fails the run naming both; a selected file the filters no longer reach fails; the same files all present pass | pass |
 | (b) No focused test left committed | the probe writes its focused test into a scratch directory, removes it, and asserts `git status` is clean there; the lint rule covers the tree | pass |
 
-Mutation check, each fix reverted alone with the tests run: rename list back to `--name-only`
-(1 failure), readers off (3), regex matching off (1), `ESCALATES_WITH_HEADERS` empty (2),
-`forbidOnly: false` in playwright.config.ts (2, the static test and the discovery probe), the
-reporter's missing-spec check off (2, the unit test and the verdict probe).
+Mutation check, each fix reverted alone with the tests run, on the final code: rename detection
+back on (1 failure), readers off (4), regex matching off (1), the class/URL exclusion off (1),
+`ESCALATES_WITH_HEADERS` empty (2), `forbidOnly: false` in playwright.config.ts (2, the static
+test and the discovery probe), the reporter's missing-spec check off (2, the unit test and the
+verdict probe).
 
 ## 4. Cost (safety work, reported, not a regression)
 
@@ -104,7 +116,7 @@ which `bridge-ograf.spec.ts` imports), `9e84a1d7` (+2, `docs.html` route readers
 plan in this window beyond what other files in the same landing already escalated.
 
 Copy path, measured separately over the last 3,000 non-merge commits: 91 wording edits; 37 gain
-specs through a regex, 74 specs in all (about 0.8 per wording edit).
+specs through a regex, 75 specs in all (about 0.8 per wording edit).
 
 Graphics cost: the catalog gate count is unchanged (54 of 150) in the replay, so this row adds
 no measured graphics runner-minutes; nothing here leans on the ci04 exception (#1863). The run-
@@ -131,12 +143,26 @@ integrity check and the lint rule add no job; the probes add about 6 seconds to 
 
 ## 6. Verification run
 
+- `/check`: the code review returned 10 findings; 9 fixed (wording-only edits dropped readers;
+  quote pairing went out of step on comments, regex literals and multi-line templates; the
+  reporter attributed a helper-declared test to the helper; directory prefixes lost their slash;
+  literals without `./` were not resolved from their module; routes were not anchored; spec
+  regexes were recompiled per edit; the shard list was parsed twice; a JSDoc block sat on the
+  wrong declaration), 1 fixed by simplify (the reader index is now built lazily), none rejected.
+  Simplify (four reviewers): `--no-renames` replaced two hand-written parsers; one shared import
+  walk for helpers and readers; one `addReaders` (the copy branch had dropped the configured
+  flag); a single-pass literal scan with no second scanner; regex literals from the tokenizer
+  instead of a second pattern; the reporter's advice chosen from its inputs, not message text;
+  `read -r` in ci.yml. Skipped with reasons: `spaceKey.ts` into CORE (would plan one spec fewer
+  under focus), reading `PATH_PAGES` from vite.config.ts (a pinned test is cheaper than a shared
+  module the configs would import), an index keyed by path for `readersOf` (0.4 ms a call).
 - `node --test` over `scripts/e2e-affected.test.mjs`, `e2e-traced.test.mjs`,
   `catalog-affected.test.mjs`, `e2e-selection-misses.test.mjs`, `keyed-selection.test.mjs`,
-  `catalog-line-gate.test.mjs`, `e2e-run-integrity.test.mjs`: 283 pass, 0 fail.
-- `npm run gates -- run --changed origin/main`: 10 test files, 215 tests, all pass (one
-  `windowsHide` finding in the new probe fixed first).
+  `catalog-line-gate.test.mjs`, `e2e-run-integrity.test.mjs`: 284 pass, 0 fail.
+- `npm run gates -- run --changed origin/main`: all pass (one `windowsHide` finding in the new
+  probe fixed first).
 - `npx tsc --noEmit`, `npx eslint . --max-warnings 0`, `node scripts/check-workflows.mjs`: clean.
 - `CI=1 npx playwright test --list`: 241 of 241 offline specs list a test.
+- The replays in section 4 were rerun on the final code with identical totals.
 - No browser suite run here: no product surface changed; CI's own plan for this PR runs the
   selected shards with the new expected-spec check.
