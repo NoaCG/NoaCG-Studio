@@ -103,7 +103,7 @@ extra-test check off (1), an empty flag read as 'false' in the gate (1), the mer
 | --- | --- | --- | --- | ---: |
 | 41232694322 | dispatch with `diff_base` 11523106 (main), `8ab35e94` | all: 68 specs, 4 stacks (ci.yml and the planner changed) | 4 shards green; the verdict job **refused**: the `--list` call inherited the merge step's `PLAYWRIGHT_JSON_OUTPUT_NAME`, so the listing went over the merged report and the manifest was not JSON. The CI gate went red. A real missing-manifest case, failing closed; fixed in `bff4df3b` and pinned by a test | 49.1 |
 | 41233844505 | dispatch with `diff_base` 11523106, `bff4df3b` | all: 68 specs, 4 stacks | 145 ran, 0 failed, 0 flaky, 3 allowed skips; verdict and CI gate green | 49.2 |
-| UNTRIGGERED_RUN |
+| 41235203993 | dispatch with `diff_base` 321b23b2, `043f6b7d` (the diff is this evidence file only) | none: the plan job's notice reads `Untriggered - this change selects no configured spec` | both configured jobs skipped, offline plan none; CI gate green with the flag 'false' | 0 |
 
 The PR's own `pull_request` runs and the paired full `configured-suite.yml` dispatch on the
 reviewed head (`candidate-dispatch.mjs`, current policy until this lands) are listed in the PR
@@ -140,7 +140,7 @@ estimate, not a measurement:
 So the projected cost depends on section 8 taking effect. ci18 owns enforcement; the measured
 cohort after landing replaces these estimates. The largest share is offline escalations that
 select the whole configured set; narrowing them is a selection change for ci07's critical/shared
-sets, not this row. A follow-up issue records the two cheaper mechanics this row did not take:
+sets, not this row. Follow-up #1871 records the two cheaper mechanics this row did not take:
 caching the stack images and sharing the shard and merge steps between the two workflows.
 
 ## 7. Combined-tree exposure
