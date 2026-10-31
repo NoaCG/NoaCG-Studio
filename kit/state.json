@@ -42,7 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci03 builder"
+    "what": "ci03 configured-suite 41209299274 and /so on 4e49512a, then builder receipt",
+    "eta": "2026-10-31T14:40:00Z"
   },
   "inFlight": [
     {
@@ -52,7 +53,7 @@
       "nonce": "ci03-b-24b9",
       "branch": "claude/plan-cicd-improvement-ci03-build",
       "launchedAt": "2026-10-31T12:00:56Z",
-      "note": "PR #1854 at fc515373 with decision table; Codex keeps finding holes in pass-adoption from other runs (4th: main vs candidate quarantine policy). Coordinator decision 14:05Z: remove pass adoption entirely; cancelled/superseded never passes, only fail or non-terminal + --recover fresh dispatch (satisfies criterion a recovery).",
+      "note": "PR #1854 head 4e49512a (decision table; no pass adoption; V9 unanimity rule). CI gate, Factory gates green; Codex clean; configured-suite 41209299274 running; table-attack /so on 4e49512a requested 14:26Z.",
       "pr": 1854,
       "repairOwnerComment": 6543487751
     }
