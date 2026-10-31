@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (28 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (30 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -145,6 +145,18 @@ issue, remain for ci17.
 - **Age alarms after every landing,** in `post-land.yml`, not on a new schedule: a 6-hourly job
   is priced at 24 overhead runner-minutes a day (4 x 6.0) against a scheduled overhead ceiling
   of 10, and these controls refuse it.
+- **Unknown is never zero, and never "clean".** A diff the gate cannot read refuses the change;
+  a weekly report the gate cannot fetch leaves every tier without evidence, so additions are
+  refused (a fetch that finds no report at all writes `{ "none": true }` and the seed stands in);
+  the weekly job refuses to publish when last week's report cannot be read, rather than reset its
+  breaches and stops; the age check that cannot read every open item raises what it found and
+  never closes the alarm issue.
+- **Renames add nothing; removals earn no credit.** A renamed spec, job key or job name is the
+  same case; moving a spec into `e2e/configured/` or `e2e/catalog/` is a new case there. Pricing
+  a removed job as credit would let a cheap removal pay for an expensive addition.
+- **Every trigger is priced.** Pull request, merge group and push by their runs per landing;
+  `workflow_run`, `deployment_status` and check events as every run; any other trigger at least
+  once per landing, except a `workflow_dispatch` beside a cron, which is that schedule's re-run.
 - **Pooled timing reads clocks it is given.** Worker receipts and the plan-run ledger are not in
   the repository, so `collect --clocks <file>` takes them; without it the report says 0 samples,
   descriptive only, and never invents them. Open PRs' stamp clocks are read live.
