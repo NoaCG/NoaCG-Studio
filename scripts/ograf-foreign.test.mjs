@@ -341,21 +341,36 @@ test('comments are stripped in one pass, strings kept', () => {
   assert.equal(withoutComments('import Default/* vendor */from'), 'import Default from', 'a comment still separates tokens');
 });
 
-/** Median of three runs of `fn`, in ms. */
-async function time(fn) {
-  const runs = [];
-  for (let i = 0; i < 3; i++) {
-    const t = performance.now();
-    await fn();
-    runs.push(performance.now() - t);
-  }
-  return runs.sort((a, b) => a - b)[1];
+/** Milliseconds of CPU this process spends on one call of `fn`. Not wall time: other test files
+ *  running beside this one take turns on the CPU, which stretches wall time but not this. */
+async function ms(fn) {
+  const before = process.cpuUsage();
+  await fn();
+  const { user, system } = process.cpuUsage(before);
+  return (user + system) / 1000;
 }
 
-test('reading hostile input stays linear: doubling the input at most about doubles the time', async () => {
+/** Asserts that reading 4x the input takes under 8x the time: linear reading takes about 4x,
+ *  quadratic about 16x. Each size's fastest of up to five runs counts, the two sizes taken in turn;
+ *  it stops at the first pair in bound. One unmeasured run first, so a cold start cannot pad the
+ *  small time. */
+async function assertLinear(label, small, big) {
+  await small();
+  let s = Infinity;
+  let b = Infinity;
+  for (let i = 0; i < 5 && !(b < s * 8); i++) {
+    s = Math.min(s, await ms(small));
+    b = Math.min(b, await ms(big));
+  }
+  assert.ok(b < s * 8, `${label}: ${s.toFixed(1)} ms CPU then ${b.toFixed(1)} ms (${(b / s).toFixed(1)}x for 4x the input)`);
+  console.log(`  ${label}: ${s.toFixed(1)} ms CPU, 4x input ${b.toFixed(1)} ms (${(b / s).toFixed(1)}x)`);
+}
+
+test('reading hostile input stays linear: 4x the input takes about 4x the time, never 16x', async () => {
   // Inputs built to make a careless reader quadratic: an unclosed comment opened over and over, an
   // import keyword with no specifier repeated, a huge run of name characters after `import`, and an
-  // archive of many entries.
+  // archive of many entries. Archives are built before timing, so only the reading is timed.
+  const N = 25_000;
   const shapes = {
     comments: (n) => '/*'.repeat(n),
     imports: (n) => 'import '.repeat(n),
@@ -364,21 +379,19 @@ test('reading hostile input stays linear: doubling the input at most about doubl
   };
   for (const [label, make] of Object.entries(shapes)) {
     const ext = label === 'urls' ? 'style.css' : 'graphic.mjs';
-    const run = (n) => async () => {
+    const read = async (n) => {
       const extra = { [ext]: make(n) };
       if (ext === 'graphic.mjs') extra[ext] += '\nexport default class {}';
-      await importForeignOgraf('x.zip', await zipOf(minimal(extra), '', { compression: 'STORE' }));
+      const zip = await zipOf(minimal(extra), '', { compression: 'STORE' });
+      return () => importForeignOgraf('x.zip', zip);
     };
-    const small = await time(run(50_000));
-    const big = await time(run(100_000));
-    assert.ok(big < small * 3 + 20, `${label}: ${small.toFixed(1)} ms then ${big.toFixed(1)} ms`);
-    console.log(`  ${label}: 50k ${small.toFixed(1)} ms, 100k ${big.toFixed(1)} ms`);
+    await assertLinear(label, await read(N), await read(4 * N));
   }
-  const entries = (n) => async () => readOgrafArchive(await zipOf(new Map(Array.from({ length: n }, (_, i) => [`e${i}.txt`, Buffer.from('x')])), ''));
-  const small = await time(entries(450));
-  const big = await time(entries(900));
-  assert.ok(big < small * 3 + 20, `entries: ${small.toFixed(1)} ms then ${big.toFixed(1)} ms`);
-  console.log(`  entries: 450 ${small.toFixed(1)} ms, 900 ${big.toFixed(1)} ms`);
+  const entries = async (n) => {
+    const zip = await zipOf(new Map(Array.from({ length: n }, (_, i) => [`e${i}.txt`, Buffer.from('x')])), '');
+    return () => readOgrafArchive(zip);
+  };
+  await assertLinear('entries', await entries(L.entries / 4), await entries(L.entries));
 });
 
 test('the bounds are this road\'s: an html zip past them is the native importer\'s, as before', async () => {
