@@ -25,6 +25,9 @@
 //     gives a verdict: no new run on the ref in a complete listing SETTLE_MS on is
 //     `not-delivered`; any new run makes it `unproven`. Both take `--recover`, a fresh dispatch
 //     whose returned ID is the identity. A run that shows up later changes nothing.
+//   - Nothing is sent before its claim is on disk, created exclusively: a dispatch's intent
+//     record, and for `--recover` a claim on the old record, so a concurrent caller or a restart
+//     after the send never sends a second suite.
 //   - The one exception, which same-branch supersession needs: a proved run that was cancelled
 //     takes its verdict from a later dispatch run of the same workflow on the same ref and
 //     commit. The workflow has no inputs and checks out github.sha, so that verdict is a fact
@@ -41,7 +44,7 @@
 // unproven, recover, obsolete, cancelled). 3: still running, so wait and reconcile again.
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flagValue, hasFlag } from './jobs-store.mjs';
@@ -164,7 +167,7 @@ export function reconcile(intent, { api = ghApi, now = Date.now } = {}) {
   } catch (error) { return { state: 'unresolved', reason: error.message }; }
 }
 
-export function dispatch({ repository, workflow = 'configured-suite.yml', ref, sha }, {
+export function dispatch({ repository, workflow = 'configured-suite.yml', ref, sha, recovers }, {
   api = ghApi, observe = observeVerification, save, now = Date.now } = {}) {
   if (!REPOSITORY.test(repository ?? '') || !REF.test(ref ?? '') || !SHA.test(sha ?? '') || !/^[\w.-]+\.ya?ml$/.test(workflow)) {
     return { state: 'refused', reason: 'usage: a repository, a branch name, a full 40-character commit and a workflow file name' };
@@ -177,6 +180,7 @@ export function dispatch({ repository, workflow = 'configured-suite.yml', ref, s
   if (head !== sha) return { state: 'refused', reason: `${ref} is at ${head ?? 'nothing'}, not the requested ${sha}; nothing dispatched` };
   const requestedAt = new Date(now()).toISOString();
   const intent = { version: 1, repository, workflow, ref, sha, requestedAt, delivery: 'requested' };
+  if (recovers) intent.recovers = recovers; // Written before the POST, so a restart can find it.
   try { intent.priorRunIds = listDispatchRuns(api, intent, since(intent)).runs.map((run) => run.id); }
   catch (error) { return { state: 'refused', reason: `${error.message}; nothing dispatched` }; }
   const record = save(intent); // Before the dispatch: a lost acknowledgement reconciles from this.
@@ -208,6 +212,21 @@ export function saver(dir) {
   };
 }
 
+/**
+ * Claim a record's one recovery before anything is sent. The claim is created exclusively, so a
+ * concurrent caller, or the same one after a restart between the send and the final save, finds
+ * it and never sends again.
+ */
+function claimRecovery(file, at) {
+  try {
+    writeFileSync(`${file}.recovery`, `${JSON.stringify({ claimedAt: new Date(at).toISOString() })}\n`, { flag: 'wx' });
+    return true;
+  } catch (error) {
+    if (error.code === 'EEXIST') return false;
+    throw error;
+  }
+}
+
 export function exitCode(result) {
   if (REFUSALS.includes(result.state)) return 1;
   if (ACTION.includes(result.state)) return 2;
@@ -232,10 +251,13 @@ export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, 
       const save = saver(path.dirname(file));
       result = { record: file, ...reconcile(intent, deps) };
       if (['recover', 'not-delivered', 'unproven'].includes(result.state) && hasFlag(argv, '--recover')) {
-        if (intent.recoveredBy) result = { ...result, state: 'refused', reason: `already recovered by ${intent.recoveredBy}; reconcile that record` };
-        else {
-          const next = dispatch(intent, { ...deps, save });
+        if (intent.recoveredBy || !claimRecovery(file, (now ?? Date.now)())) {
+          result = { ...result, state: 'refused', reason: `already recovered${intent.recoveredBy ? ` by ${intent.recoveredBy}` : ''};`
+            + ` reconcile the record whose \`recovers\` names ${file}` };
+        } else {
+          const next = dispatch({ ...intent, recovers: file }, { ...deps, save });
           if (next.record) save({ ...intent, recoveredBy: next.record }, file);
+          else unlinkSync(`${file}.recovery`); // Refused before anything was sent: the claim is free again.
           result = { recoveredFrom: result, ...next };
         }
       }

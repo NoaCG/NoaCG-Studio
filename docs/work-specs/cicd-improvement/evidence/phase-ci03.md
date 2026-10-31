@@ -107,6 +107,14 @@ reassessment of the rule model came before the repair. It agreed with correction
    is `unproven`. The way out is a fresh dispatch (`--recover`, once per record).
 5. Nothing unproven is persisted, and a run that turns up late changes nothing.
 6. Exit 0 only for a finished, passing run under rules 1 and 2.
+7. Nothing is sent before its claim is on disk, created exclusively: a dispatch's intent record
+   (which names the record it recovers, if any), and for `--recover` a claim on the old record.
+   A concurrent caller, or a restart after the send, finds the claim and sends nothing. A
+   recovery refused before anything was sent frees its claim.
+
+Sweep of every path that sends an external request, against rule 7: `dispatch` (intent record
+before the POST) and `--recover` (claim, then `dispatch`). The observation advisory and all
+reconcile reads only read.
 
 The reassessment rejected a request-ID workflow input echoed in the run title: it changes the
 workflow for every event to solve what a fresh dispatch already solves.
@@ -148,6 +156,7 @@ ambiguity. These are fixtures.
 | Coordinator on `9dced3da` | a still-running run or replacement exited 0, which a reader could take as validated | pending evidence is never a pass | product defect | exit 0 only for a finished pass; 3 while running |
 | Codex on `9dced3da` (comment 4431737832) | two dispatches of one commit in the same millisecond got one record name, and the second overwrote the first | run identity must be proved, not inferred | product defect | random suffix, created exclusively; failing test first |
 | Codex on `a0371da1` (comment 4431748828) | after a lost acknowledgement, the first reconcile adopted a concurrent run on the same ref and kept it, so the real run's failure could be missed | run identity must be proved, not inferred (repeated family) | product defect | rules above: no inference at all without a returned ID; failing test first |
+| Codex on `eec131b4` (comment 4431771414) | `--recover` sent its dispatch before recording the claim, so a restart or a concurrent caller could send a second full suite | run identity and delivery must be proved, not inferred (fourth round) | product defect | rule 7, swept across both send paths; restart and interleaving tests first |
 
 ## 7. Phase notes
 

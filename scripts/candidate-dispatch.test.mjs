@@ -2,7 +2,7 @@
 // guards: scripts/candidate-dispatch.mjs, .github/workflows/configured-suite.yml
 // measures: none - an in-memory GitHub run model and the workflow's own concurrency text, no live Actions
 import assert from 'node:assert/strict';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -319,6 +319,69 @@ test('two intents for one commit at the same instant keep separate records', () 
     save({ ...intent('claude/one'), delivery: 'accepted' }, one); // An update rewrites its own record.
     assert.equal(JSON.parse(readFileSync(one, 'utf8')).delivery, 'accepted');
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('--recover sends at most once: a restart after the send, or a concurrent caller, never sends again', () => {
+  const h = harness({ 'claude/one': sha('1') });
+  try {
+    const first = h.send('claude/one');
+    Object.assign(h.gh.runs.find((r) => r.id === first.run.id), { status: 'completed', conclusion: 'cancelled' });
+    // The process dies right after GitHub accepted the recovery dispatch, before any final save.
+    const crash = (method, endpoint, body) => {
+      const result = h.gh.api(method, endpoint, body);
+      if (method === 'POST') throw Error('killed after the send');
+      return result;
+    };
+    const lines = [];
+    const cli = (api) => main(['reconcile', first.record, '--recover'],
+      { api, now: () => h.gh.clock, observe: () => {}, print: (l) => lines.push(JSON.parse(l)) });
+    assert.equal(cli(crash), 1);
+    assert.equal(h.gh.posts, 2);
+    // Restarted: the run the lost recovery started already carries the verdict, nothing is sent.
+    assert.equal(cli(h.gh.api), 3);
+    assert.equal(lines.at(-1).state, 'superseded');
+    assert.equal(h.gh.posts, 2, 'no second recovery dispatch');
+    // Even if that run is cancelled too, the claim on disk stops a second recovery.
+    h.gh.runs.forEach((r) => Object.assign(r, { status: 'completed', conclusion: 'cancelled' }));
+    assert.equal(cli(h.gh.api), 1);
+    assert.equal(h.gh.posts, 2);
+    assert.match(lines.at(-1).reason, /already recovered/);
+    // The recovery's own record was written before its send and names what it recovers.
+    const recovery = h.records().find((r) => r.recovers === first.record);
+    assert.equal(recovery?.sha, sha('1'));
+    // A concurrent caller holding the same record loses the exclusive claim too.
+    const other = h.send('claude/one');
+    Object.assign(h.gh.runs.find((r) => r.id === other.run.id), { status: 'completed', conclusion: 'cancelled' });
+    writeFileSync(`${other.record}.recovery`, '{}\n'); // Its twin claimed it a moment earlier.
+    const posts = h.gh.posts;
+    assert.equal(main(['reconcile', other.record, '--recover'], { api: h.gh.api, now: () => h.gh.clock, observe: () => {}, print: () => {} }), 1);
+    assert.equal(h.gh.posts, posts);
+  } finally { h.done(); }
+});
+
+test('a recovery refused before sending frees its claim; one GitHub answered keeps it', () => {
+  const h = harness({ 'claude/one': sha('1') });
+  try {
+    const first = h.send('claude/one');
+    Object.assign(h.gh.runs.find((r) => r.id === first.run.id), { status: 'completed', conclusion: 'cancelled' });
+    // Not-delivered then the head moves: the recovery is refused with nothing sent.
+    h.gh.heads['claude/one'] = sha('2');
+    const stale = { ...JSON.parse(readFileSync(first.record, 'utf8')), runId: undefined, delivery: 'uncertain' };
+    writeFileSync(first.record, JSON.stringify(stale));
+    h.gh.runs.length = 0;
+    h.gh.clock += SETTLE_MS;
+    assert.equal(h.cli(['reconcile', first.record, '--recover']), 1);
+    assert.match(h.lines.at(-1).reason, /not the requested/);
+    h.gh.heads['claude/one'] = sha('1');
+    const posts = h.gh.posts;
+    h.gh.failPost = 422;
+    assert.equal(h.cli(['reconcile', first.record, '--recover']), 1, 'the claim was free again');
+    assert.equal(h.gh.posts, posts + 1);
+    h.gh.failPost = null;
+    assert.equal(h.cli(['reconcile', first.record, '--recover']), 1, 'GitHub answered the last one: its claim holds');
+    assert.match(h.lines.at(-1).reason, /already recovered/);
+    assert.equal(h.gh.posts, posts + 1);
+  } finally { h.done(); }
 });
 
 test('the CLI refuses unknown commands with exit 1', () => {
