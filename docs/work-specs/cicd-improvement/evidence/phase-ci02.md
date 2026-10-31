@@ -70,14 +70,15 @@ picked by the Risky row's test on their acceptance. Reports state that differenc
 so any comparison reports that difference rather than hiding it.
 
 Sources: the production-page ledger at `7d45649e` (row `build` times) and REST reads of each
-row's first PR (pull, reviews, comments, timeline), 57 calls, cached, no log text kept.
+row's first PR (pull, reviews, comments, timeline), plus #1763, about 65 calls, cached, no log
+text kept.
 
 **Pre-queue time** = the row's first ledger `build` to its first PR's first
 `added_to_merge_queue`. Minutes, nearest rank, n = 13:
 
 | p50 | p90 | max | mean |
 | ---: | ---: | ---: | ---: |
-| 180 | 513 | 514 | 225 |
+| 167 | 284 | 514 | 197 |
 
 | Row | PR | Build to PR open | Pre-queue | Comments asking `@codex review` | Asked again before a result: comments only / PR open counted | Commits |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
@@ -87,7 +88,7 @@ row's first PR (pull, reviews, comments, timeline), 57 calls, cached, no log tex
 | 33 | #1732 | 82 | 204 | 10 | 4 / 5 | 17 |
 | 34 | #1735 | 71 | 180 | 5 | 0 / 1 | 18 |
 | 38 | #1757 | 53 | 97 | 7 | 2 / 3 | 10 |
-| 39 | #1763 | 484 | 513 | 1 | 0 / 1 | 13 |
+| 39 | #1759 | 92 | 150 | 8 | 0 / 0 | 13 |
 | 40 | #1765 | 48 | 135 | 5 | 2 / 2 | 11 |
 | 41 | #1772 | 66 | 167 | 13 | 2 / 3 | 21 |
 | 43 | #1776 | 65 | 245 | 14 | 0 / 0 | 40 |
@@ -95,20 +96,24 @@ row's first PR (pull, reviews, comments, timeline), 57 calls, cached, no log tex
 | 46 | #1781 | 44 | 253 | 24 | 1 / 2 | 33 |
 | 47 | #1786 | 25 | 71 | 5 | 1 / 1 | 8 |
 
-Row 39's long build-to-open is #1759's stuck test merge; #1763 replaced it.
+Row 39's first PR, #1759, entered the queue 150 minutes after the build, was removed twice
+because GitHub's test merge was stuck, and was closed; #1763 replaced it and landed 513 minutes
+after the build. That wait is a queue fault after first entry, so it sits outside pre-queue time
+and is kept here as a tail.
 
-**Review requests.** 151 comments asked for a Codex review (139 start with it), p50 10 per row,
+**Review requests.** 158 comments asked for a Codex review (146 start with it), p50 10 per row,
 p90 24, max 36. Counting comments only, 22 were a second request with no Codex result since the
 previous one, in 10 of 13 rows. The section counts opening the PR as the first request; on that
-count it is 30, in 12 of 13 rows. Both counts can overstate, because a clean Codex finish can be
+count it is 29, in 11 of 13 rows. Both counts can overstate, because a clean Codex finish can be
 only a reaction, which these reads did not time, and they cannot see a request made by other
 means.
 
-**Review-service delay.** Of the 151 requests, 128 got a Codex review or receipt before the
-next request: request to result p50 3.0, p90 4.8, max 6.1 minutes. 23 got none before the next
+**Review-service delay.** Of the 158 requests, 136 got a Codex review or receipt before the
+next request: request to result p50 3.0, p90 4.8, max 6.1 minutes. 22 got none before the next
 request or the end.
 
-**Stalled review.** #1763 is a confirmed stall that the old process passed. Codex started a
+**Stalled review.** #1763, row 39's replacement PR, is a confirmed stall that the old process
+passed. Codex started a
 review when the PR opened (05:22:27Z, 👀 at 05:22:29Z) and again on the `@codex review` comment
 at 2026-10-27T05:23:33Z (👀 at 05:23:44Z). Its state comment stayed `running` for commit
 `cef25ae`, no review or 👍 followed, the PR was labelled for landing at 05:23:50Z and merged at
@@ -123,8 +128,10 @@ finding families were never recorded, so that part of the baseline is **missing*
 ## 3. The sample (acceptance b)
 
 **Eligible rows.** A row of separately authorized work (another plan run's phase or an
-owner-requested fix) whose builder starts from a source SHA that contains this guidance, and
-that is risky by the section's Risky row, judged on its acceptance before it is built. Not
+owner-requested fix) whose PR's merge base contains this PR's merge commit
+(`git merge-base --is-ancestor`), since builders fetch `origin/main` again after their brief,
+and that is risky by the section's Risky row, judged on its acceptance before its outcome is
+known. Not
 eligible: this run's own rows (the spec counts none of them for AC-2), work made for the sample,
 and rows built before this guidance landed. The first two eligible rows are the feasibility
 trial; the next ten are the comparison sample. A row that fails, stalls or never finishes stays
@@ -135,7 +142,8 @@ stated before coding and rules found after; confirmed rounds with family and cla
 repeated-family rounds and whether the reassessment ran; duplicate requests (a second request
 on the same head while one was outstanding); review-service delay; stalled requests and their
 recovery; first independent check outcome; pre-queue time as defined above. No builder records
-anything beyond what the section already asks.
+anything beyond what the section already asks. The rows are read and reported, missing ones
+included, by ci17, which reports every AC, and by any earlier row whose acceptance uses AC-2.
 
 **Work available today.** The JEV SVG import run (owner start 2026-10-31T10:19:44Z, 40 phases,
 window to 2026-11-14) is the only separately authorized plan running. No owner-requested fix
@@ -160,8 +168,8 @@ acceptance, these JEV phases set state rules and are the provisional candidates,
 JEV phase 1 started at 2026-10-31T10:32:20Z from `139a9724`, before this section existed; it
 is not a candidate and is not eligible. A JEV phase built from a source without this section
 leaves the sample and the next candidate moves up; with twelve candidates for twelve slots,
-any loss leaves a slot missing. The slots are a frame, not a claim: JEV's coordinator judges each row at its
-brief, a row may prove routine, and if fewer than twelve eligible rows exist when AC-2 is
+any loss leaves a slot missing. The slots are a frame, not a claim: the builder applies the Risky row, the AC-2
+assessment judges eligibility from acceptance before reading outcomes, a row may prove routine, and if fewer than twelve eligible rows exist when AC-2 is
 assessed, the shortfall is reported as missing and AC-2 stays pending.
 
 **PR clock.** Phase ci01 left the switch of PR ceilings to receipt-timed starts to ci02 or
@@ -209,6 +217,10 @@ stratum wording, the JEV phase 1 line and the slots, and added the `plan-run.md`
 A second fresh `/so` (session `session_017SdbwMzRfxG3reJNQDpomr`) graded `5b823752` A with no
 blocking finding; its in-diff wording fixes (the review-request gate line, the scope of the D3
 note and the template reading claim) are in the final head.
+A third fresh `/so` (session `session_017SdbwLj2SUtSGWCVKg1Z3K`) graded `1dc0a125` B on one
+blocking error: row 39's pre-queue time was measured on its replacement PR, against the stated
+first-PR definition. Section 2 now uses #1759, and the eligibility, assessor and collector lines
+in section 3 follow its other findings.
 
 ## 5. Phase notes
 
