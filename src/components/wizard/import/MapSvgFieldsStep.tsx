@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { uuid } from '../../../model/id';
 import { fontNameKey } from '../../../model/fonts';
 import type { DraftPatch, WizardDraft } from '../draft/core';
@@ -213,10 +213,9 @@ export default function MapSvgFieldsStep({
   const pointedId = hoverId ?? selectedId;
   const selectable = (id: string) => ({
     onFocus: () => setSelectedId(id),
-    onBlur: (e: React.FocusEvent<HTMLElement>) => {
+    onBlur: (e: FocusEvent<HTMLElement>) => {
       if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSelectedId((s) => (s === id ? null : s));
     },
-    'data-selected': selectedId === id ? 'true' : undefined,
   });
   useEffect(() => {
     onHover(pointedId);
