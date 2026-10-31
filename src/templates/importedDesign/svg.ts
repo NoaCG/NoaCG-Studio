@@ -212,7 +212,7 @@ ${duration ? `  // A duration's length is a time the operator typed while the gr
   if (value === importedClockLast) return;
   importedClockLast = value;
   var offAir = typeof noacgMachineState === 'function' && noacgMachineState().groups.main === 'off';
-  if (offAir && ${CLOCK_TIME.toString()}.test(value)) el.setAttribute('data-start', value);
+  if (offAir && /${CLOCK_TIME.source}/.test(value)) el.setAttribute('data-start', value);
 ` : ''}}`;
 }
 const IMPORTED_CLOCK_HOOK = `  // The clock adopts its own field's value before the fit measures it (no-op otherwise).
