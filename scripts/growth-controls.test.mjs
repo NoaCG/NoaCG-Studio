@@ -4,7 +4,9 @@
 // evidence, freshness and exceptions, (c) indirect slowdown, (d) clocks and ages, (e) ownership,
 // correction, growth stop and admission.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
@@ -13,7 +15,7 @@ import {
   evidenceOf, exceptionStatus, ledgerChanges, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { ages, buildReport, makeReader, priceRuns, spread } from './growth-report.mjs';
+import { ages, buildReport, fetchLatest, makeReader, priceRuns, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -524,4 +526,37 @@ test('(e) a breach clears only on a measurement that is complete AND back in bou
   assert.ok(cut.stops.backend);
   const whole = buildReport({ ...base, runs: fixtureRuns(), previous: prevCost }).report;
   assert.deepEqual(whole.cleared, ['cost:backend'], 'complete and in bounds: cleared, and growth resumes');
+});
+
+test('(e) a long outage is never a first week, and unnamed or thinly read breaches stay', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-test-'));
+  const out = path.join(dir, 'out.json');
+  const art = (expired, at, id) => ({ name: 'growth-report', expired, created_at: at, workflow_run: { id, head_branch: 'main' } });
+  const fake = (artifacts) => (args) => {
+    if (args[0] === 'run') { writeFileSync(path.join(args[args.indexOf('-D') + 1], 'growth-report.json'), '{"generatedAt":"x"}'); return ''; }
+    return JSON.stringify({ artifacts });
+  };
+  assert.equal(fetchLatest(out, fake([])), null);
+  assert.deepEqual(JSON.parse(readFileSync(out, 'utf8')), { none: true }, 'no report ever: the first week');
+  assert.throws(() => fetchLatest(path.join(dir, 'gone.json'), fake([art(true, '2026-09-01T00:00:00Z', 1)])), /expired/, 'all expired: an outage, not a first week');
+  assert.equal(fetchLatest(out, fake([art(true, '2026-09-01T00:00:00Z', 1), art(false, '2026-11-02T00:00:00Z', 2)])).run, 2);
+  // A stopped latency breach survives a week whose merged-PR read was cut short, even with a fast pool.
+  const stopped = (key, extra = {}) => ({ key, since: '2026-11-02', due: '2026-11-09', owner: 'o', corrections: 1, state: 'stopped', detail: 'x', ...extra });
+  const fast = [...Array(12)].map((_, i) => ({ measure: 'queue', id: `#${i}`, category: 'other', value: 5, finishedAt: '2026-11-20T00:00:00Z' }));
+  const base = { ceilings: CEILINGS, runs: fixtureRuns(), days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', tableRecordedAt: '2026-11-20', collection: 'fixture' };
+  const previous = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped('latency:queue'), stopped('mystery:x'), stopped('age:ci07', { category: 'phase' })], stops: {}, timing: [] };
+  const r = buildReport({ ...base, previous, finished: fast, timingComplete: false }).report;
+  assert.deepEqual(r.breaches.map((b) => b.key).filter((k) => !k.startsWith('exception:')).sort(), ['age:ci07', 'latency:queue', 'mystery:x'], 'none clears: a cut-short read, an unnamed kind, a phase with no clocks read');
+});
+
+test('(d) a draft PR keeps its age clock: turning it into a draft does not clear an alarm', () => {
+  const now = '2026-10-31T12:00:00Z';
+  const fake = (args) => {
+    const route = args.at(-1);
+    if (/\/pulls\?/.test(route)) return JSON.stringify([{ number: 8, created_at: '2026-10-31T08:00:00Z', head: { ref: 'f' }, draft: true }]);
+    if (/\/commits\?/.test(route)) return JSON.stringify([{ sha: 'c1' }]);
+    if (/\/statuses/.test(route)) return JSON.stringify([{ context: 'noacg/reviewed', state: 'success', created_at: '2026-10-31T08:30:00Z' }]);
+    return '[]';
+  };
+  assert.equal(ages({ ceilings: CEILINGS, now, reader: makeReader(20, fake) }).actions.length, 1);
 });

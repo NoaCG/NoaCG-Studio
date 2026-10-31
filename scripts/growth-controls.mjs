@@ -428,7 +428,7 @@ export function ageAlarms(items, ceilings, now, owner = ceilings.owner) {
     const limit = c.unit === 'hours' ? c.age * 60 : c.age;
     const age = ageOf(item.clock);
     if (age === null || age <= limit) continue;
-    actions.push({ key: `age:${item.id}`, kind: 'age', subject: item.id, owner, due: addDays(now, 1), detail: `${item.category} ${item.id} unfinished for ${Math.round(age)} min, over its ${c.age} ${c.unit} ceiling (clock from ${item.clock.source} ${item.clock.start})` });
+    actions.push({ key: `age:${item.id}`, kind: 'age', subject: item.id, category: item.category, owner, due: addDays(now, 1), detail: `${item.category} ${item.id} unfinished for ${Math.round(age)} min, over its ${c.age} ${c.unit} ceiling (clock from ${item.clock.source} ${item.clock.start})` });
   }
   return actions;
 }
@@ -461,7 +461,14 @@ export function sustained(previous, current) {
 // ---------------------------------------------------------------------------------------------
 // Breaches: one bounded correction, then a growth stop for what the breach affects.
 
-/** Tiers whose growth a breach stops once its one correction has not fixed it. */
+/**
+ * Tiers whose growth a breach stops once its one correction has not fixed it. Only cost and
+ * pre-merge latency breaches stop growth. The others stay owned, dated actions without a stop:
+ * an item's age and a phase's latency are not caused by added capacity; a stale table, a missing
+ * report and an invalid or expiring exception already refuse growth through the evidence and
+ * exception rules. A breach that clears and comes back is a new breach with a fresh correction;
+ * clearing needs a complete, in-bounds week, so that cannot be gamed by a thin week.
+ */
 export function affectedTiers(key) {
   const [kind, subject] = key.split(':');
   if (kind === 'cost') return [subject];
@@ -478,7 +485,7 @@ export function carryBreaches({ previous = [], current = [], today, owner, corre
   const prev = new Map(previous.map((b) => [b.key, b]));
   // A breach is cleared only by evidence that it is back in bounds. One this week's evidence
   // could not judge (a tier measured partially, a read that failed) stays as it was, stop included.
-  const unconfirmed = previous.filter((b) => !current.some((c) => c.key === b.key) && !confirmed(b.key));
+  const unconfirmed = previous.filter((b) => !current.some((c) => c.key === b.key) && !confirmed(b));
   current = [...current, ...unconfirmed.map((b) => ({ ...b, detail: `${b.detail} (not re-measured this week: kept until evidence clears it)` }))];
   const out = [];
   for (const b of current) {

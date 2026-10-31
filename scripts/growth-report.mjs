@@ -115,7 +115,7 @@ export function seriesOf(runs) {
 }
 
 /** Assemble the report from collected facts. Pure, so the whole report replays from fixtures. */
-export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, listComplete = true, finished = [], pending = [], tableRecordedAt, collection }) {
+export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, listComplete = true, timingComplete = true, clocksRead = false, finished = [], pending = [], tableRecordedAt, collection }) {
   const priced = priceRuns(runs, { days });
   // An incomplete run list makes every tier partial BEFORE anything is judged from it.
   if (!listComplete) for (const t of TIERS) Object.assign(priced.tiers[t], { evidence: 'partial', lowerBound: true, why: 'the run list was cut short' });
@@ -171,13 +171,16 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
   if (cadence.overdue) current.push({ key: 'report:missing', kind: 'report', subject: 'weekly', detail: `${cadence.reason}: a week went unreported` });
   // What this week's evidence can clear: a cost breach needs its tier completely measured, a
   // latency breach an adequate pool, an age breach a complete read of the open items.
-  // A breach clears only on a measurement that is complete AND in bounds for its subject.
-  const confirmed = (key) => {
-    const [kind, subject] = key.split(':');
+  // A breach clears only on a measurement that is complete AND in bounds for its subject. Every
+  // kind is named; anything else stays.
+  const confirmed = (b) => {
+    const [kind, subject] = b.key.split(':');
     if (kind === 'cost') { const share = assessment.tiers[subject]?.share; return measurement.tiers[subject]?.evidence === 'complete' && Number.isFinite(share) && share <= 1; }
-    if (kind === 'latency') { const t = timing.find((x) => x.measure === subject); return Boolean(t?.adequate && !t.above); }
-    if (kind === 'age') return openComplete; // a complete read that raised no alarm for the item
-    return true; // table, exception and report alarms are re-derived in full every week
+    if (kind === 'latency') { const t = timing.find((x) => x.measure === subject); return Boolean(timingComplete && t?.adequate && !t.above); }
+    // An age item: its read was complete (open PRs from GitHub, phases from a clocks file that was read).
+    if (kind === 'age') return b.category === 'phase' ? clocksRead : openComplete;
+    // Re-derived in full from files every week: the table's date, the exception ledger, this report.
+    return ['table', 'exception', 'exception-invalid', 'report'].includes(kind);
   };
   const carried = carryBreaches({ previous: previous?.breaches ?? [], current, today, owner: ceilings.owner, confirmed });
   const report = {
@@ -240,7 +243,6 @@ function openItems(reader, now) {
   let complete = prs.length < 100;
   for (const pr of prs) {
     if (/^bot\/e2e-durations/.test(pr.head?.ref ?? '')) pending.push({ number: pr.number, opened: pr.created_at.slice(0, 10) });
-    if (pr.draft) continue;
     const commits = reader.get(`repos/${REPO}/pulls/${pr.number}/commits?per_page=100`);
     let known = Array.isArray(commits) && commits.length < 100;
     const stamps = [];
@@ -276,9 +278,10 @@ export const categoryOf = (ref = '') => (/^claude\/plan-jev/.test(ref) ? 'jev-pl
  */
 function finishedPrs(reader, from, to, limit) {
   const merged = [];
-  for (let page = 1; page <= 5; page++) {
+  let complete = true;
+  for (let page = 1; ; page++) {
     const body = reader.get(`repos/${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`);
-    if (!body) break;
+    if (!body || page > 5) { complete = false; break; }
     merged.push(...body.filter((p) => p.merged_at && Date.parse(p.merged_at) >= from && Date.parse(p.merged_at) < to));
     if (body.length < 100 || Date.parse(body.at(-1).updated_at) < from) break;
   }
@@ -296,19 +299,21 @@ function finishedPrs(reader, from, to, limit) {
       if (!statuses) { known = false; break; }
       for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at });
     }
+    if (!known) complete = false;
     const ready = known ? prClock({ stamps, openedAt: pr.created_at, mergedAt: pr.merged_at, now: pr.merged_at }) : { source: 'unknown' };
     if (ready.source === 'unknown') unknown.push(`#${pr.number}`);
     else samples.push({ measure: 'prReady', id: `#${pr.number}`, category, value: ready.minutes, finishedAt: pr.merged_at, source: ready.source });
-    const events = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100`) ?? [];
+    const events = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100`);
+    if (!events || events.length >= 100) { complete = false; continue; }
     const queued = events.filter((e) => e.event === 'added_to_merge_queue').map((e) => e.created_at);
-    if (queued.length && events.length < 100) samples.push({ measure: 'queue', id: `#${pr.number}`, category, value: queueClock({ queued, mergedAt: pr.merged_at, now: pr.merged_at }).minutes, finishedAt: pr.merged_at, source: 'timeline' });
+    if (queued.length) samples.push({ measure: 'queue', id: `#${pr.number}`, category, value: queueClock({ queued, mergedAt: pr.merged_at, now: pr.merged_at }).minutes, finishedAt: pr.merged_at, source: 'timeline' });
   }
-  return { samples, unknown, merged: merged.length };
+  return { samples, unknown, merged: merged.length, complete };
 }
 
 /** Finished samples and phase ledgers handed in as JSON: `{ samples: [...], phases: [{ id, events }] }`. */
 function readClocks(file, now) {
-  if (!file || !existsSync(file)) return { finished: [], open: [] };
+  if (!file || !existsSync(file)) return { finished: [], open: [], read: false };
   const body = JSON.parse(readFileSync(file, 'utf8'));
   const finished = [...(body.samples ?? [])];
   const open = [];
@@ -317,7 +322,7 @@ function readClocks(file, now) {
     if (clock.state === 'finished') finished.push({ measure: 'phase', category: p.category ?? 'phase', value: clock.hours, finishedAt: p.events.at(-1).at });
     else open.push({ id: p.id, category: 'phase', clock });
   }
-  return { finished, open };
+  return { finished, open, read: true };
 }
 
 export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ceilings }) {
@@ -354,7 +359,7 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   const unfinished = listed.runs.length - runs.length;
   const sampled = runs.filter((r) => r.jobs).length;
   const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
-  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, listComplete: listed.complete, finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
+  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, listComplete: listed.complete, timingComplete: done.complete, clocksRead: clocks.read, finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
   built.report.unknownClocks.push(...done.unknown);
   built.report.finishedPrs = { merged: done.merged, sampled: done.samples.filter((x) => x.measure === 'prReady').length + done.unknown.length };
   built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
@@ -393,22 +398,28 @@ export function ages({ ceilings, now = new Date().toISOString(), budget = 400, r
   return { actions, body, calls: reader.calls, complete: open.complete };
 }
 
-/** The newest published report: the `growth-report` artifact of the latest weekly-audit run on main. */
-export function fetchLatest(out) {
-  const runs = JSON.parse(execFileSync('gh', ['api', '-X', 'GET', `repos/${REPO}/actions/workflows/weekly-audit.yml/runs?branch=main&status=completed&per_page=10`], { encoding: 'utf8', windowsHide: true })).workflow_runs ?? [];
-  for (const run of runs) {
-    const arts = JSON.parse(execFileSync('gh', ['api', '-X', 'GET', `repos/${REPO}/actions/runs/${run.id}/artifacts`], { encoding: 'utf8', windowsHide: true })).artifacts ?? [];
-    if (!arts.some((a) => a.name === 'growth-report' && !a.expired)) continue;
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-'));
-    execFileSync('gh', ['run', 'download', String(run.id), '-n', 'growth-report', '-D', dir, '-R', REPO], { windowsHide: true });
-    const file = readdirSync(dir).find((f) => f.endsWith('.json'));
-    writeFileSync(out, readFileSync(path.join(dir, file)));
-    return { run: run.id, file: out };
+/**
+ * The newest published report: the newest live `growth-report` artifact made on main. One call
+ * lists every artifact of that name, expired ones included, so the first week (no report ever)
+ * is told apart from an outage that outlived the 35-day retention: the first writes
+ * `{ "none": true }`, the second writes nothing and fails, so neither the weekly run nor the gate
+ * can mistake a long gap for a clean start.
+ */
+export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
+  const all = (JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/actions/artifacts?name=growth-report&per_page=100`])).artifacts ?? [])
+    .filter((a) => a.workflow_run?.head_branch === 'main')
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  if (all.length === 0) {
+    writeFileSync(out, `${JSON.stringify({ none: true })}\n`);
+    return null;
   }
-  // No report among the newest runs: the first week. Said in the file, so a fetch that FAILED
-  // (no file at all) is never mistaken for a clean start that drops last week's stops.
-  writeFileSync(out, `${JSON.stringify({ none: true, checked: runs.map((r) => r.id) })}\n`);
-  return null;
+  const live = all.find((a) => !a.expired);
+  if (!live) throw new Error(`every growth report has expired (newest ${all[0].created_at}): weeks went unreported, which is not a first week`);
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-'));
+  gh(['run', 'download', String(live.workflow_run.id), '-n', 'growth-report', '-D', dir, '-R', REPO]);
+  const file = readdirSync(dir).find((f) => f.endsWith('.json'));
+  writeFileSync(out, readFileSync(path.join(dir, file)));
+  return { run: live.workflow_run.id, file: out };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

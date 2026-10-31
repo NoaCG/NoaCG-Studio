@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (30 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (37 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -95,7 +95,7 @@ no aggregate pull-request gate.
   dispatches continue: about 160 per landing, 137%, until #1871 or the dispatch change takes
   effect. The seed now carries 107.4 as partial evidence, so additive backend growth is refused
   from the 85% line today.
-- **A live weekly collection** (7 days, 100 calls, so thin by design: production uses 450):
+- **A live weekly collection** (7 days, 100 calls, so thin by design: production uses 550):
   2,934 completed runs in 29 strata, 115 landings, every tier partial, backend 167.6 per landing
   (143%) raised as `cost:backend` with an owner and a due date; aggregate 8,826 runner-minutes a
   day, 30.6% of the envelope. Its first version starved the last strata when the budget ran out;
@@ -157,9 +157,33 @@ issue, remain for ci17.
 - **Every trigger is priced.** Pull request, merge group and push by their runs per landing;
   `workflow_run`, `deployment_status` and check events as every run; any other trigger at least
   once per landing, except a `workflow_dispatch` beside a cron, which is that schedule's re-run.
-- **Pooled timing reads clocks it is given.** Worker receipts and the plan-run ledger are not in
-  the repository, so `collect --clocks <file>` takes them; without it the report says 0 samples,
-  descriptive only, and never invents them. Open PRs' stamp clocks are read live.
+- **Cadence counts as growth.** A more frequent cron, or a new trigger on an existing job, is
+  priced as the runs it adds; a cheaper schedule adds nothing.
+- **Pooled timing is collected live and carried forward.** Each weekly run reads an even spread
+  of the week's merged PRs (stamp-based ready clock, first queue entry), categorised by line of
+  work (JEV plan, cicd plan, bot, quarantine, other), and carries the samples in its report so the
+  next run pools 28 days without re-reading them. Receipt-based starts and phase ledgers live
+  outside the repository; `collect --clocks <file>` adds them. A PR whose start cannot be read is
+  listed as unknown, never sampled as zero. Live check, one day at 100 calls: 27 merged, 6
+  sampled, ready p50 12.7 minutes, queue p50 7.7.
+- **Weekly stops reach offline additions.** A stop on the offline tier, or a weekly report the
+  gate could not read, refuses a change that adds table-minutes, beside the table line.
+- **A breach clears only on a measurement that is complete AND in bounds.** Cost: the tier
+  completely measured (run list complete, every stratum sampled, no failed read) and at or under
+  its ceiling. Latency: an adequate pool, not above its ceiling, with every read behind it
+  complete. Age: a complete read of the item (open PRs from GitHub, drafts included; a phase only
+  from a clocks file that was read). Table, exception and report alarms are re-derived in full
+  each week. Any other kind never clears by default. A week with an unsampled stratum or a
+  cut-short run list publishes tier cost as a lower bound, marked before anything is judged.
+- **A long outage is never a first week.** The fetch lists every `growth-report` artifact on
+  main, expired ones included. No report ever means the first week (`{ "none": true }`); only
+  expired reports means weeks went unreported: the fetch fails, the weekly run refuses to publish
+  and the gate refuses additions.
+- **Which breaches stop growth.** Only cost (that tier) and ready or queue latency (the pre-merge
+  tiers). Age, phase latency, a stale table, a missing report and exception alarms are owned,
+  dated actions without a stop: an item's age is not caused by added capacity, and the others
+  already refuse growth through the evidence and exception rules. A breach that clears and comes
+  back is a new breach with a fresh correction; clearing needs a complete, in-bounds week.
 
 ## 6. Phase notes
 
@@ -174,5 +198,9 @@ issue, remain for ci17.
     list from that day's start, or the last day is silently skipped (found and fixed here).
   - A budget-bounded sampler must go round-robin across strata, or the strata read last
     (scheduled runs) are the ones left unmeasured.
+  - Two review rounds found variants of one missing rule (evidence that cannot prove recovery
+    cleared a breach). Per the repeated-family checkpoint, a fresh read-only review reassessed the
+    rule model before the repair; its five further cases are fixed with replay tests.
+  - Every child process under `scripts/` must pass `windowsHide` (`scripts/windows-hide.test.mjs`).
   - ci06 landed at 21:15Z on 2026-10-31: no complete measurement of its selected PR runs exists
     yet, so its cost stays a projection.
