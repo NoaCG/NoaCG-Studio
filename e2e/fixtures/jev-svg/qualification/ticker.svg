@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="180" viewBox="0 0 1600 180" font-family="sans-serif" fill="#fff">
-  <rect x="0" y="0" width="1600" height="180" fill="#122036" />
-  <rect x="20" y="30" width="1560" height="120" fill="#2f4c61" />
-  <text x="50" y="105" font-size="28">NEWS</text>
-  <text x="220" y="105" font-size="30" id="message-line">Harbor fair opens Friday • Garden tour at noon</text>
-</svg>

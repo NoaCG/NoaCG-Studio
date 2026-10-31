@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "3c808c66514499260e706893a37f03756b0dfbcd6e60a511a049e4e971ae8be3",
-  "authority": {
-    "status": "agreed",
-    "source": "the owner's decision of 2026-10-02 and his ruling of 2026-10-03 in docs/backlog/migrations-while-productions-are-live.md (automatic, never interrupting Playout, nothing waits for a quiet moment and nobody presses a button, an update delays a live action by at most half a second, removals only in later cleanups once nothing running depends on them, the same for website and database updates, a manual emergency override); the decisions the spec marks L1 to L14 are derived and open to his overrule"
-  },
-  "review": null
-}

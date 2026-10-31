@@ -1,7 +1,0 @@
-/* The footer's brand label. Its select (`.wz-brand-select`) is sized beside `.wz-footer` in
-   wizard-and-dialogs.css, because how it shrinks is the footer's one-line rule. */
-.wz-match { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); cursor: pointer; }
-
-/* The wizard's main forward action: bigger than its neighbors so the path onward is unmissable
-   (the amber fill comes from .primary). */
-.wz-footer button.wz-next { padding: 9px 26px; font-size: 14px; }

@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "6d9752cabc60991d6f514eb4d3527729c921b9b61fe54d7009872527ad41b979",
-  "authority": {
-    "status": "agreed",
-    "source": "owner task of 2026-10-11: research and plan a sustainable test strategy; keep the 20-minute shard timeout; additional shards, concurrency and nightly moves are not the long-term answer; design a practical cost reduction and a continuing maintenance process. Amended the same day: staged move toward affected tests plus critical journeys before merging, batched full E2E on pinned main commits with a 60-minute operational target and recorded landing ranges, selection safety before reducing full-run frequency, evidence rules that preserve named behaviours rather than counts, budgets based on measured headroom and a fixed envelope with narrow expiring exceptions, maintenance as completed weekly work; implement in small independently verified phases through /queue-merge"
-  },
-  "review": null
-}
