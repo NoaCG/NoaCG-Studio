@@ -201,6 +201,22 @@ const SVG_FIT_HOOK = `  // The fit ladder re-measures here - every text layer, t
  */
 function importedClockJs(duration: boolean): string {
   return `// ---- The clock's field (the time layer IS it) ----
+// THE FIT'S LINE SURVIVES THE TICK. A time the fit centred in its box rides one tspan whose dy
+// carries the snap (svgPaintLines), and the match clock's paint replaces the whole text every
+// second, which would drop the line back to its drawn baseline. So the paint is wrapped: the
+// new time goes into that same tspan, and the fit's size and squeeze on the layer stay as set.
+var importedClockMatchPaint = paintMatchClock;
+paintMatchClock = function () {
+  var el = matchClockEl();
+  var line = el && el.children.length === 1 && el.firstElementChild.tagName === 'tspan' ? el.firstElementChild : null;
+  importedClockMatchPaint();
+  if (line && el.firstElementChild !== line) {
+    line.textContent = el.textContent;
+    el.textContent = '';
+    el.appendChild(line);
+  }
+};
+
 // importedClockUpdate(fields): the match clock adopts what update() just wrote into its layer.
 ${duration ? `var importedClockLast = null;     // the clock field's last value, to tell a typed time from a resend
 ` : ''}function importedClockUpdate(fields) {

@@ -111,6 +111,8 @@ const RUN = async ({ markup, mode, script }) => {
     expired: w.document.querySelector('.imported-design').classList.contains('imported-design-expired'),
     clock: w.noacgMachineState().groups.clock_clock,
     scores: scores.map((s) => w.document.getElementById(s).textContent),
+    // The fit's own line: a centred value rides a tspan whose dy carries the vertical snap.
+    line: (() => { const kid = w.document.getElementById(field).firstElementChild; return kid ? `${kid.tagName}:${kid.getAttribute('dy')}` : null; })(),
   });
   const out = [];
   for (const [verb, arg] of script) {
@@ -248,6 +250,14 @@ test('a duration starts on Take from the length set before it, holds at zero, an
   const fresh = at(r, 'a new length set off air');
   assert.equal(fresh.start, '0:09');
   assert.ok(secs(fresh.time) >= 8, `the next Take counts the length set off air (${fresh.time})`);
+});
+
+test('the ticking time keeps the line the fit centred: its tspan and dy survive every paint (M1)', () => {
+  // score-clock-1's time is centred in its plate, so the fit paints it as one tspan with a dy.
+  const lines = [...runs.up.out, ...runs.duration.out].map((o) => `${o.label}: ${o.line}`);
+  const first = runs.up.out[0].line;
+  assert.match(first, /^tspan:-?\d/, 'the fit centred the time with a dy (otherwise this test proves nothing)');
+  assert.deepEqual(lines.filter((l) => !l.endsWith(`: ${first}`)), [], 'every reading keeps it');
 });
 
 test('a reloaded output given the running origin comes back at the real time (M5)', () => {
