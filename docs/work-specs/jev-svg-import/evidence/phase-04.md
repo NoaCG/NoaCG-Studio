@@ -10,6 +10,8 @@ behaviour changes, no model call, no spend. The holdout was not read.
 ## Pinned main
 
 Worktree created from `99c461b8ed30c2a03dfc87a002573263473a2425` (PR #1854) after a fresh fetch.
+Previous verified main: `99c461b8`: push CI, merge-group CI, configured-suite (41212628251),
+Post-landing, Quarantine and Push on main all succeeded.
 
 ## Rules (written before code)
 
@@ -30,7 +32,8 @@ recipe declarations in `src/templates/behaviours`) and the capabilities it allow
   id the inventory does not hold refuses the whole proposal with `unknown-layer`; an id of the
   wrong kind with `wrong-layer-kind`. A role the recipe does not declare refuses with
   `unknown-role`; a per-row role needs a row index inside the recipe's row limit, a graphic-level
-  role has none (`invalid-value`).
+  role has none (`invalid-value`). A text candidate the reader marks outside the artboard stays
+  artwork: it cannot be turned on or picked (`wrong-layer-kind`).
 - **R2 Current revision.** A proposal carries the `sourceRevision` of the inventory it was made
   from: `sha256:` plus the SHA-256 of the sanitized markup. Validation computes the expected
   revision itself from `context.inventory.markup` (synchronously, `svgSourceRevision`) and never
@@ -92,3 +95,47 @@ each key is a decision. Recipes not listed have no intent keys.
 A capability id is a recipe id (`quiz`), a recipe value (`quiz.lock:no-lock`) or `countdown` for
 a countdown field. Lower thirds, tickers and linked text need no component: field decisions
 carry them. A layer the proposal does not name stays as the reader offered it.
+
+## What landed
+
+- `src/ai/svgInterpretation/contract.ts`: the proposal types, the intent vocabulary, the
+  capability ids, `svgSourceRevision` (a synchronous SHA-256, checked against `node:crypto`) and
+  `SVG_PROPOSAL_OUTPUT`, the forced-output schema a later adapter row hands a provider. The schema
+  is built from the same constants, so the two vocabularies cannot drift; it is a shape screen,
+  and `validateSvgProposal` is what decides.
+- `src/ai/svgInterpretation/validate.ts`: `validateSvgProposal`, one pure function enforcing R1-R7.
+- `scripts/jev-svg-contract.test.mjs` (build tier, Node): 14 tests, one or more per rule, over
+  the layer ids phase 3 recorded for scoreboard-1, quiz-1 and clock-1 and each file's own markup,
+  with the role table built from `src/templates/behaviours/words.json`.
+
+Nothing imports the contract yet; row 5 applies it through the draft. No product behaviour moved.
+
+Mutation checks on this worker, reverted before commit, each failing the suite: dropping the
+revision comparison (2 tests), ignoring unexpected keys (2), allowing a second claim on a layer
+(1), allowing a vote label to stay an operator field (1), dropping the one-full-recipe guard (2),
+filling a missing intent key with `default` (2), accepting an unknown field layer (2), allowing
+no-Lock with automatic reveal (1).
+
+## Decisions and traps
+
+- The contract binds recipes by id with role picks, not a new family vocabulary, so row 5 can
+  express today's drafts (quiz, poll as `vote`, score, timer as `countdown`, generic recipes) and
+  the clock row 7 adds plugs in through the role table. The caller builds that table from the
+  recipe declarations; the contract copies none of them.
+- A field role pick on a text layer with no field decision, and a layer role pick on one, are
+  both accepted: the reader's own default (on) stands for the first, and row 5 unticks the second
+  as the mapping step does. Only an explicit contradicting decision is refused.
+- Inputs must be plain objects: one inheriting from another prototype is refused as a shape, so
+  validation never reads a value the proposal does not own. A parsed `__proto__` key is an
+  unexpected key.
+- An error names ids and enumerated words only, never a title.
+- Trap: a `PreToolUse` hook refuses commit messages with co-author trailers in this repository; a
+  command chained after the refused commit does not run either.
+
+## Revert
+
+On a fresh branch from `origin/main`, landed through the merge queue:
+
+    git revert -m 1 "$(git log origin/main --merges --format=%H -1 --grep='claude/plan-jev-svg-import-4-build')"
+
+It removes the contract, its validator, its test and this file. Nothing else depends on them yet.
