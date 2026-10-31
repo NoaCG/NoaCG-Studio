@@ -44,8 +44,10 @@ them against that code before the PR was opened. Its corrections are folded in a
 the rules.
 
 - **S1 Selection is focus in a row.** Focus anywhere inside a text, picture or outlined-text row
-  selects it; focus leaving that row ends it. The preview outlines the hovered row if there is
-  one, else the selected row. Selection is screen state in the step, never in the draft.
+  (or a text row's keep-the-nudge line) selects it; focus leaving that row ends it. The preview
+  outlines the pointer's hovered row if there is one, else the selected row. A hover written by
+  focus rather than the pointer never outranks a selection: focusing a row clears it. Selection
+  is screen state in the step, never in the draft.
 - **S2 Same artwork is same markup.** A drop whose sanitized markup equals the current draft's
   `designSvg.markup`, on a draft with at least one text row, keeps the draft. Anything else is a
   fresh drop exactly as before. "Use a different design" clears the artwork, so a drop after it
@@ -72,6 +74,15 @@ the type with a number layer rather than matching the word "Text", which the sam
 carries; an unused selection attribute was dropped; and the PR states that a same-file re-drop no
 longer starts over.
 
+## Review rounds after the PR opened
+
+- PR review of `44783ae6` (P2), class product defect, family S1: the alignment dots and the
+  keep-the-nudge box still wrote the hover on focus and never cleared it, so tabbing on to the
+  other twin left the old layer outlined. Those focus writes are gone (row focus selects), the
+  nudge line selects its row, and a row's focus clears a hover focus left behind (a behaviour
+  picker still writes one, outside this row's files). The spec's new step failed on `44783ae6`
+  (line 82) and passes after the fix.
+
 ## What landed
 
 - `MapSvgFieldsStep.tsx`: the focus selection (S1), on the three row kinds that hover already
@@ -89,6 +100,8 @@ No inspector, no expression editor, no new persisted key.
 
 ## Verification on this worker
 
+- On the head after the review fix: `e2e/jev-svg-preparation.spec.ts`, `import-svg.spec.ts` and
+  `import-svg-behaviour.spec.ts`, 109/109 through the queue.
 - `e2e/jev-svg-preparation.spec.ts` 3/3 through the queue.
 - `e2e/import-svg.spec.ts` and `e2e/import-svg-behaviour.spec.ts`: 106/106 through the queue,
   on `07b7b5a5` (the selection code is unchanged since; the re-drop now keeps rather than
