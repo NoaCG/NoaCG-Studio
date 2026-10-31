@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "0598c8faa81ec1d8a8e74a53caea96705e863f606544fab0a375ba4ab59c4eae",
-  "authority": {
-    "status": "agreed",
-    "source": "the owner's Phase 6 decisions of 2026-09-29 (the session prompt answering docs/PLAYOUT_ISOLATION_RESEARCH.md §18)"
-  },
-  "review": null
-}

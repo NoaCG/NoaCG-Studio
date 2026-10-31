@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "a72db8d108b99d6012f36aa84a487e4d8063c108bd8ce924d46db30f01382ec0",
-  "authority": {
-    "status": "agreed",
-    "source": "Owner master-planner instructions recorded in docs/work-specs/cicd-improvement/launch.md on 2026-10-30: revised intent accepted, Codex Cloud execution until complete with automatic daily blocks and default two-week planning target, early start before remaining production-page studio acceptance permitted. Runner changes first; actual CI launch requires the owner start command and qualified native continuation. Scope remains 18 phases and eight criteria; required merge gates and existing budgets bind."
-  },
-  "review": null
-}

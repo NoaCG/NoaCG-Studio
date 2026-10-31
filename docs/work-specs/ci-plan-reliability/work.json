@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "ba8606f2d92ed44737a17200a5e2c674241474b4c701749ed39e1f40ef28037c",
-  "authority": {
-    "status": "agreed",
-    "source": "owner, 2026-10-11: \"I authorize a small end-to-end cloud trial if feasible using existing access and ordinary resources. Choose the smallest useful trial that demonstrates automatic progression, independent checking, landing and post-merge verification. Prefer useful scoped work over artificial production changes made only to demonstrate the workflow.\" The two phases are open issues #1025 and #994, chosen by the plan-run improvement session as the smallest useful two-phase plan."
-  },
-  "review": null
-}
