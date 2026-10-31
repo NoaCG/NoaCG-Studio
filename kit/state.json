@@ -28,7 +28,18 @@
   },
   "branchPrefix": "claude",
   "waitingOn": null,
-  "inFlight": null,
+  "inFlight": [
+    {
+      "phase": "1",
+      "step": "build",
+      "session": "session_017SdbwMfxvT98sAbe3qp9XU",
+      "nonce": "1-b-f21d",
+      "branch": "claude/plan-jev-svg-import-1-build",
+      "source": "139a9724ebb1a2522750008dcb5a6a8b72adeac0",
+      "launchedAt": "2026-10-31T10:32:48Z",
+      "note": "builder; coordinator becomes PR repair owner once the PR exists"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": {},
@@ -46,7 +57,8 @@
     "github": "REST reads ok; GraphQL and branch deletion refused; direct commit-status writes 403: stamp via cloud-queue-merge.yml dispatch (first use pending, record receipt on first phase PR)",
     "open": "wake after container reclaim not observed; rely on the supervisor recovery checkpoint",
     "sanitizer": "e3337d7a on main 139a9724; scripts/svg-import-security.test.mjs 22/22",
-    "production": "row 45 PASS on 05baf75 (PR 1800, comment 6301497867); production-page paused on owner phases 51/52"
+    "production": "row 45 PASS on 05baf75 (PR 1800, comment 6301497867); production-page paused on owner phases 51/52",
+    "qualifyWorkerArchived": false
   },
   "block": {
     "id": "b10195f9-7d4f-4745-a3cb-f941f4586a1b",
