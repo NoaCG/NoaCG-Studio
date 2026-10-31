@@ -17,6 +17,8 @@ Allowed files: `src/components/wizard/import/draft.ts`, `src/components/wizard/i
 ## Pinned main
 
 Worktree created from `b666f302d4eea1e22506a6769b058318fc30438a` (PR #1861) after a fresh fetch.
+Previous verified main: `b666f302`: merge-group CI, push CI, configured-suite (41219291410),
+Post-landing, Quarantine and Push on main all succeeded.
 
 ## Rules (written before code)
 
