@@ -1278,6 +1278,41 @@ test('imported countdown: changing your mind puts the clock layer back to plain 
   await expect(kind).toHaveValue('countdown');
 });
 
+test('a clock beside a score tracker: one Clock choice with its modes, and both parts on the operator page', async ({ page }) => {
+  // THE CLOCK IS A PART, NOT A BEHAVIOUR (docs/work-specs/jev-svg-import, row 7, AC-8): a scorebug
+  // drawn as one piece of artwork keeps its scores AND its clock. A new import offers ONE clock
+  // choice - the Clock beside the behaviour - and the old countdown only where the file drew the
+  // moments only it paints (the countdown walks above). The clock's runtime is row 8's.
+  test.slow(); // the import, a production and the operator page
+  await openImportDoor(page, fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url)));
+  const kind = page.getByTestId('map-svg-behaviour-kind');
+  await expect(kind.locator('option[value="timer"]')).toHaveCount(0);
+  const mode = page.getByTestId('map-svg-clock-mode');
+  await expect(mode.locator('option')).toHaveText(['No clock.', /^Counts up/, /^Counts down from its time/, /^Counts down to a set time/]);
+  await expect(mode).toHaveValue('none');
+  // One layer reads as a time, so there is nothing more to ask.
+  await expect(page.getByTestId('map-svg-clock-layer')).toHaveCount(0);
+
+  await kind.selectOption('score');
+  for (const [at, name, figure] of [[0, /^home$/, /^home-score$/], [1, /^away$/, /^away-score$/]] as const) {
+    await page.getByTestId(`map-svg-score-name-${at}`).selectOption(await rowLabelled(page, name));
+    await page.getByTestId(`map-svg-score-figure-${at}`).selectOption(await rowLabelled(page, figure));
+  }
+  await mode.selectOption('duration');
+  await expect(mode).toHaveValue('duration');
+  await expect(kind).toHaveValue('score');
+  const time = await rowLabelled(page, /^match-time$/);
+  await expect(page.getByTestId(`map-svg-kind-${time}`)).toHaveValue('text');
+  await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+
+  await intoProduction(page, 'Score and clock', 'Clock night');
+  await settleDurableWrites(page);
+  // Both parts' buttons, each under its own section: the score's and the clock's.
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions).toContainText('New game');
+  for (const label of ['Start', 'Pause', 'Reset']) await expect(actions.getByRole('button', { name: label, exact: true })).toHaveCount(1);
+});
+
 test('imported quiz: the behaviour survives the export and runs standalone from a file', async ({ page }, testInfo) => {
   // EXPORT IS WHERE AN IMPORTED GRAPHIC STOPS BEING OURS. Everything above runs inside the app;
   // this asserts the same board works as a folder on a playout machine, with no NoaCG around it.

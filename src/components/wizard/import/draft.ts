@@ -8,6 +8,7 @@ import type { AssetFile, SpxTemplate } from '../../../model/types';
 import { addPlacedLine } from '../../../blocks/designLayout';
 import { applyPlacedFieldSpecs } from '../../../blocks/designFields';
 import type {
+  DesignSvgClock,
   DesignArt,
   DesignSvg,
   DesignSvgAlign,
@@ -23,6 +24,7 @@ import type { EraseRect, RegionInk } from '../../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
+import { CLOCK_MODES, CLOCK_NAME } from '../../../templates/behaviours/clock';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
 import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
 import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
@@ -87,6 +89,10 @@ export interface SvgImportDraft {
    *  one entry per layer the reader gave a use. Proposed from `show:` / `choice:` names at
    *  drop; every hidden layer no recipe claimed is offered the same two answers in the step. */
   svgExtras: SvgExtraDraft[];
+  /** THE CLOCK the author chose in the behaviour section (templates/behaviours/clock.ts): which
+   *  ticked text row shows the time and how it counts. Beside any behaviour but the old
+   *  countdown. null, or absent on a draft from before it existed, is no clock. */
+  svgClock: SvgClockDraft | null;
   /** Does the graphic HUG its text — one rectangle widening so a longer value fits at full
    *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
    *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
@@ -1066,6 +1072,13 @@ export interface SvgExtraDraft {
   group?: string;
 }
 
+/** The clock as the step holds it. */
+export interface SvgClockDraft {
+  /** The text row that shows the time. */
+  candidateId: string;
+  mode: DesignSvgClock['mode'];
+}
+
 /** The switches and choices the drop proposes from the two prefixes, named by their layers. */
 function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
   return proposeExtras(svg).map(({ candidateId, prefix }) =>
@@ -1111,7 +1124,19 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
     groups.set(e.group.trim(), list);
   }
   for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name, options });
+  const clock = svgClockOption(draft);
+  if (clock) out.push(clock);
   return out.length > 0 ? out : undefined;
+}
+
+/** The clock as the graphic carries it, or null: its row must still be a ticked text row, and
+ *  never beside the countdown, whose engine would drive the same kind of readout twice. */
+export function svgClockOption(draft: SvgImportDraft): DesignSvgClock | null {
+  const clock = draft.svgClock;
+  if (!clock || draft.svgBehaviour?.kind === 'timer') return null;
+  const row = draft.svgFields.find((f) => f.candidateId === clock.candidateId);
+  if (!row?.on || row.kind === 'countdown') return null;
+  return { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
 }
 
 /** One line saying what the graphic DOES, for the Finish step and the mapping step's summary. */
@@ -1135,6 +1160,8 @@ export function behaviourSummary(draft: SvgImportDraft): string {
   const choices = extras.filter((e) => e.kind === 'choice');
   if (switches.length > 0) parts.push(`${switches.length} ${switches.length === 1 ? 'switch' : 'switches'}`);
   for (const c of choices) if (c.kind === 'choice') parts.push(`a choice, ${c.name} (${c.options.map((o) => o.label).join(', ')})`);
+  const clock = svgClockOption(draft);
+  if (clock) parts.push(`a clock: ${CLOCK_MODES.find((m) => m.mode === clock.mode)?.label.toLowerCase() ?? clock.mode}`);
   return parts.join(' · ');
 }
 
@@ -1472,7 +1499,7 @@ type SvgClearPatch = SvgSlice & Required<Pick<DraftPatch, 'name' | 'category' | 
  *  none of the three can keep a stale one. Fresh arrays on every call, so no two drafts share
  *  one. */
 export function emptySvgSlice(): SvgSlice {
-  return { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [] };
+  return { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgClock: null, svgStretch: { on: false, shapeId: null }, svgFonts: [] };
 }
 
 /**
@@ -1572,6 +1599,8 @@ export function svgDraftFromImport(
     ...answers,
     // The switches and choices the names declare outright (`show:`, `choice:`).
     svgExtras: proposeSvgExtras(result),
+    // Never proposed: a clock-shaped layer says nothing about which way it counts.
+    svgClock: null,
     // THE HUG (plan §3) starts OFF here with the widest rectangle proposed;
     // the mapping step then MEASURES the rendered artwork and turns growth on
     // by itself where it is unambiguous (GOALS goal 5 - MapSvgFieldsStep
@@ -1634,6 +1663,7 @@ function svgKeptOnRedrop(fresh: SvgDropPatch, previous: SvgDropPrevious): SvgDro
     svgOutlines: previous.svgOutlines ?? fresh.svgOutlines,
     svgBehaviour: previous.svgBehaviour ?? null,
     svgExtras: previous.svgExtras ?? fresh.svgExtras,
+    svgClock: previous.svgClock ?? null,
     svgStretch: previous.svgStretch ?? fresh.svgStretch,
     svgFonts: previous.svgFonts ?? fresh.svgFonts,
     svgApplied: previous.svgApplied,
