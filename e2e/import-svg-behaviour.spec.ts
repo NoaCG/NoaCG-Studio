@@ -1278,46 +1278,22 @@ test('imported countdown: changing your mind puts the clock layer back to plain 
   await expect(kind).toHaveValue('countdown');
 });
 
-test('a clock beside a score tracker: one Clock choice with its modes, and both parts on the operator page', async ({ page }) => {
-  // THE CLOCK IS A PART, NOT A BEHAVIOUR (docs/work-specs/jev-svg-import, row 7, AC-8): a scorebug
-  // drawn as one piece of artwork keeps its scores AND its clock. A new import offers ONE clock
-  // choice - the Clock beside the behaviour - and the old countdown only where the file drew the
-  // moments only it paints (the countdown walks above). The clock's runtime is row 8's.
+test('the Clock waits for its runtime: a new import keeps the Countdown and offers no Clock yet', async ({ page }) => {
+  // THE CLOCK IS A PART, NOT A BEHAVIOUR (docs/work-specs/jev-svg-import, row 7, AC-8), persisted
+  // and compiled beside a score tracker - but a control is offered only when it can change the
+  // graphic, and until row 8 binds the match-clock runtime nothing would count. So the shipped step
+  // is the step as it was (`CLOCK_RUNTIME_READY` false): the old Countdown, no Clock select. Row 8
+  // turns this into the Clock walk; scripts/jev-svg-contract.test.mjs renders the ready picker.
   await openImportDoor(page, fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url)));
   const kind = page.getByTestId('map-svg-behaviour-kind');
-  await expect(kind.locator('option[value="timer"]')).toHaveCount(0);
-  await expect(kind.locator('option[value="clock"]')).toHaveCount(0);
-  const mode = page.getByTestId('map-svg-clock-mode');
-  await expect(mode.locator('option')).toHaveText(['No clock.', /^Counts up/, /^Counts down from its time/, /^Counts down to a set time/]);
-  await expect(mode).toHaveValue('none');
-  // One layer reads as a time, so there is nothing more to ask.
-  await expect(page.getByTestId('map-svg-clock-layer')).toHaveCount(0);
-
-  await kind.selectOption('score');
-  for (const [at, name, figure] of [[0, /^home$/, /^home-score$/], [1, /^away$/, /^away-score$/]] as const) {
-    await page.getByTestId(`map-svg-score-name-${at}`).selectOption(await rowLabelled(page, name));
-    await page.getByTestId(`map-svg-score-figure-${at}`).selectOption(await rowLabelled(page, figure));
-  }
-  await mode.selectOption('duration');
-  await expect(mode).toHaveValue('duration');
-  await expect(kind).toHaveValue('score');
-  const time = await rowLabelled(page, /^match-time$/);
-  await expect(page.getByTestId(`map-svg-kind-${time}`)).toHaveValue('text');
-  await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
-
-  await intoProduction(page, 'Score and clock', 'Clock night');
-  await settleDurableWrites(page);
-  // Both parts' buttons, each under its own section: the score's and the clock's.
-  const actions = page.getByTestId('cue-actions');
-  await expect(actions).toContainText('New game');
-  await expect(actions).toContainText('Clock');
-  for (const label of ['Start', 'Pause', 'Reset']) await expect(actions.getByRole('button', { name: new RegExp(`\\b${label}$`) })).toHaveCount(1);
-
-  // A file drawn for the countdown keeps that one choice, and the Clock is not offered beside it.
-  await openImportDoor(page, TIMER_SVG);
-  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('timer');
+  await expect(kind.locator('option[value="timer"]')).toHaveCount(1);
   await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
-  await page.getByTestId('map-svg-behaviour-kind').selectOption('none');
+  await kind.selectOption('score');
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+
+  // A file drawn for the countdown is proposed as one, as before.
+  await openImportDoor(page, TIMER_SVG);
+  await expect(kind).toHaveValue('timer');
   await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
 });
 

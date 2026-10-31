@@ -21,8 +21,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   SVG_INTENT,
   SVG_PROPOSAL_OUTPUT,
@@ -593,4 +595,56 @@ test('the draft builds a clock only on a row the step offers on this artwork, ne
   // Row ids are positions in one markup: a clock chosen on other artwork is no clock here.
   assert.deepEqual(clocks(draft({ svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg>other</svg>') } })), []);
   assert.equal(svgDesignOptions(draft({ svgClock: null })).extras, undefined, 'no clock, no extras: the same options as before');
+});
+
+test('with the clock runtime ready, a new import offers exactly one Clock choice with its modes; shipped, the step is unchanged (C5)', async () => {
+  const picker = 'virtual:picker';
+  const section = root('src/components/wizard/import/BehaviourSection.tsx');
+  const bundle = await rolldown({
+    input: picker,
+    platform: 'node',
+    cwd: root(''),
+    logLevel: 'silent',
+    plugins: [rawSuffix, {
+      name: 'picker-entry',
+      resolveId: (id) => (id === picker ? id : null),
+      load: (id) => (id === picker
+        ? `import { createElement } from 'react'; import { renderToStaticMarkup } from 'react-dom/server';
+           import BehaviourSection from ${JSON.stringify(section)};
+           export const render = (props) => renderToStaticMarkup(createElement(BehaviourSection, props));`
+        : null),
+    }],
+    transform: { define: { 'process.env.NODE_ENV': '"production"' } },
+  });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+  await bundle.close();
+  // A node bundle reaches its builtins through `createRequire(import.meta.url)`, which needs a file.
+  const dir = mkdtempSync(path.join(tmpdir(), 'jev-picker-'));
+  const file = path.join(dir, 'picker.mjs');
+  writeFileSync(file, output[0].code);
+  const { render } = await import(pathToFileURL(file).href);
+  rmSync(dir, { recursive: true, force: true });
+  const layer = (id, label, sample, clock = false) => ({ id, label, sample, marked: false, drawing: false, namedByGroup: false, numeric: false, clock });
+  const candidates = [layer('t0', 'home', 'FIELD'), layer('t1', 'match-time', '12:08', true), layer('t2', 'home-score', '2')];
+  const draft = {
+    designSvg: { markup: '<svg/>', width: 1200, height: 180, candidates, images: [], outlines: [], groups: [], shapes: [] },
+    svgFields: candidates.map((c) => ({ candidateId: c.id, on: true, title: c.label, sample: c.sample, numeric: false, clock: c.clock, kind: 'text' })),
+    svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [],
+  };
+  const props = (clockReady) => ({ draft, onDraft: () => {}, textLayers: candidates, pollDriven: new Set(), stageRef: { current: null }, layerBoxes: new Map(), artworkInk: null, setHoverId: () => {}, ...(clockReady === undefined ? {} : { clockReady }) });
+  const select = (html, testid) => new RegExp(`<select[^>]*data-testid="${testid}"[^>]*>(.*?)</select>`, 's').exec(html)?.[1] ?? null;
+  const options = (inner) => [...(inner ?? '').matchAll(/<option[^>]*value="([^"]*)"[^>]*>(.*?)<\/option>/gs)].map((m) => [m[1], m[2]]);
+
+  const ready = render(props(true));
+  const clock = options(select(ready, 'map-svg-clock-mode'));
+  assert.deepEqual(clock.map(([v]) => v), ['none', 'count-up', 'duration', 'target-time'], 'one Clock choice, with the modes');
+  assert.equal((ready.match(/data-testid="map-svg-clock-mode"/g) ?? []).length, 1);
+  const kinds = options(select(ready, 'map-svg-behaviour-kind')).map(([v]) => v);
+  assert.ok(!kinds.includes('timer') && !kinds.includes('clock'), kinds.join());
+
+  // Shipped: CLOCK_RUNTIME_READY is false, so the step is as it was on main.
+  for (const html of [render(props(undefined)), render(props(false))]) {
+    assert.equal(select(html, 'map-svg-clock-mode'), null);
+    assert.ok(options(select(html, 'map-svg-behaviour-kind')).some(([v]) => v === 'timer'), 'the old Countdown is still offered');
+  }
 });

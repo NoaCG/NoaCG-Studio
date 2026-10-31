@@ -37,6 +37,14 @@ export const CLOCK_MODES: readonly { mode: ClockMode; label: string; summary: st
   { mode: 'target-time', label: 'Counts down to a set time.', summary: 'a clock counting down to a set time' },
 ];
 
+/**
+ * WHETHER THE IMPORT STEP OFFERS THE CLOCK YET. A control is offered only when it can change the
+ * graphic (wizard/offer-control-can-change-graphic-front), and until row 8 binds the match-clock
+ * runtime to the time layer nothing would count, so the step stays exactly as it was: the old
+ * Countdown offered, no Clock. Row 8 sets this true in the change that binds the runtime.
+ */
+export const CLOCK_RUNTIME_READY = false;
+
 /** The one name a clock instance carries: a graphic has one clock, so it needs no other. */
 export const CLOCK_NAME = 'Clock';
 
