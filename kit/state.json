@@ -42,21 +42,23 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci04 merge queue (41218288085), then landed record and checker",
-    "eta": "2026-10-31T16:50:00Z"
+    "what": "ci04 checker verdict on b666f302, post-land runs, exception size review",
+    "eta": "2026-10-31T17:20:00Z"
   },
   "inFlight": [
     {
       "phase": "ci04",
-      "step": "queued",
-      "session": "session_017SdbwMZT1TksMVJDqp5Po7",
-      "nonce": "ci04-b-b14f",
-      "branch": "claude/plan-cicd-improvement-ci04-build",
-      "launchedAt": "2026-10-31T15:25:46Z",
+      "step": "check",
+      "session": "session_017SdbwQyLn4235Pyto4uXuE",
+      "nonce": "ci04-c-0ba5",
+      "actor": "checker-ci04-ci04-c-0ba5",
+      "launchedAt": "2026-10-31T16:22:19Z",
       "pr": 1861,
+      "mergeSha": "b666f302d4eea1e22506a6769b058318fc30438a",
+      "builder": "session_017SdbwMZT1TksMVJDqp5Po7",
       "reviewedHead": "75fdeec0ffffe730953c0d5be4c676a408ea52f5",
       "repairOwnerComment": 6545874735,
-      "note": "Receipt 16:06Z; gates verified; stamp 41218210741; queued 16:09:04Z behind JEV #1860 (merge group 41218288085)."
+      "note": "Merged 16:21:26Z (queue run 41218288085). Checker also reviews the #1863 exception size."
     }
   ],
   "owner": [],
