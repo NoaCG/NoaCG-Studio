@@ -32,6 +32,7 @@ What stays central in `scripts/e2e-affected.mjs`, each for a reason no spec head
 | `CORE` | the shared foundations whose change runs the full suite. The claim is "most specs", which is a fact about the file, not about any spec. |
 | `IGNORE` | files no spec can observe. There is no spec to hold them. |
 | `CATALOG_TRIGGERS` | raise the catalog calibration gate, a separate Playwright config over the whole catalog: one flag, not a spec a header could name. |
+| catalog reach (`checkoutCatalogReach`) | the source the catalog specs render through, read off their Node imports and their in-page `import('/src/...')` calls. A file in it raises the catalog gate whatever else the plan does. Under sprint focus an escalation raises the gate unless every escalating file is a `src/` module outside that reach; a file the walk cannot see (a dependency manifest, the build config, a `public/` asset, an unknown root file) or an unknown reach raises it. |
 | `CENTRAL` (`cli/`, `.claude-plugin/`, `benchmarks/agent/`) | source that is known and selects NO spec. Without the row it would read as unmapped and escalate. |
 | `CONFIGURED_SUITE_FILES` (`scripts/e2e-lists.mjs`) | the configured suite's own files trigger its line for every change, not for one spec's sake. Every other configured trigger is in a configured spec's header. |
 
@@ -68,7 +69,7 @@ removes one, and it never makes an unknown file look mapped: an unmapped path st
 | the map | what the plan does |
 |---|---|
 | fresh, file executed by fewer than half the traced specs | adds those specs, and says which ones it added |
-| fresh, file executed by more than half (`BROAD_SHARE`) | keeps the covers selection and names the file (`BROAD_ESCALATES` switches this to a core-style escalation) |
+| fresh, file executed by more than half (`BROAD_SHARE`) | escalates like core (the focus set under sprint focus) and names the file; `BROAD_ESCALATES` switched off keeps only its covers selection |
 | missing, unreadable, or older than `MAX_AGE_DAYS` (3) | escalates every file that would have asked it, and the CI plan annotates the run with the reason |
 | `cli/` and other CENTRAL source | never asked: the browser cannot see it |
 
@@ -80,9 +81,12 @@ that spec (`docs/work-specs/e2e-traced-selection/evidence/`).
 Why executed, not loaded: the app imports most of `src/` eagerly, so every spec loads 600 or more
 of its files. A load map would select nearly the whole suite for any change.
 
-Why broad files keep their headers: 276 of 1190 files are executed by most specs, because most
-specs walk the wizard and open the editor. Replayed over 150 landings with sprint focus, the narrow
-union costs +13% planned test-minutes, escalating broad files +25%, and a plain union +65%.
+Why broad files escalate: a file most specs execute is one whose change can break most specs, and
+its header rarely says so (`CanvasGuides.tsx` runs in 213 of 241 traced specs and its header named
+1). Broad files kept their headers from 2026-10-10 to 2026-10-31 to save cost: replayed over 150
+landings with sprint focus, the narrow union cost +13% planned test-minutes and escalating broad
+files +25%. The cicd-improvement ci04 row reversed that as safety work; its evidence
+(`docs/work-specs/cicd-improvement/evidence/phase-ci04.md`) has the remeasured cost.
 
 What the map cannot see stays the headers' job: files a spec reads from Node (a baseline, a
 fixture), what the dev server's own handlers run, and pages a spec opens in a context of its own.
@@ -111,8 +115,8 @@ run is unaffected. Its membership review, with a reason per entry, is owed
 | `e2e/configured/**` | nothing here | see "the configured tier" below. |
 | a wizard step | 37 specs, 36.2 min | the wizard rule names the surfaces the wizard specs drive, plus the components that MOUNT the shared pickers. Wide because the wizard IS the primary creation flow, not because nobody looked: `src/components/AGENTS.md` carries the per-surface split and the specs' own headers name the exceptions individually. |
 | one catalog design | 46 specs, 45.6 min, plus the catalog calibration gate | the pack specs ITERATE the catalog, so a design added, renamed or re-declared changes what they assert. Six of them were reachable from no template path at all until 2026-08-08, and ten designs landed green because of it. |
-| a shared foundation (`src/store`, `src/model`, `src/preview`, `src/validation`, the app shell, the router, `src/styles`, `package-lock.json`) | the focus set (55 specs, 36.9 min) under sprint focus; the full suite otherwise | genuine fan-out. Each is imported by most of the app, so no smaller claim can be made honestly. |
-| a path no rule recognises | the focus set under sprint focus; the full suite otherwise | the safe direction. It is also a REPORT: the plan names every unmapped file, and a file that keeps appearing there is a missing `covers:` line, not a fact of life. |
+| a shared foundation (`src/store`, `src/model`, `src/preview`, `src/validation`, the app shell, the router, `src/styles`, `package-lock.json`) | the focus set (55 specs, 36.9 min) under sprint focus, plus the catalog gate unless the catalog reach proves the file outside it (`src/styles` is; `src/model/easings.ts`, `src/preview/composeDocument.ts` and `package.json` are not); the full suite and the catalog gate otherwise | genuine fan-out. Each is imported by most of the app, so no smaller claim can be made honestly. |
+| a path no rule recognises | the focus set under sprint focus, plus the catalog gate unless it is a `src/` module outside the catalog reach; the full suite otherwise | the safe direction. It is also a REPORT: the plan names every unmapped file, and a file that keeps appearing there is a missing `covers:` line, not a fact of life. |
 | only the WORDING of a `.tsx`, `.jsx` or `.html` file, or only the PAINT of classes in a `.css` file | the specs whose source or helpers name the old or new wording (or the class), plus covering specs with screenshot baselines, plus covering specs that measure geometry when the wording grew | words can only break a spec that reads them, or a fit when they get longer. `scripts/e2e-affected-copy.mjs` takes this path only when the code left once the words are set aside is token-for-token identical and every word kept its place; a changed condition, handler, test id, class, compared, indexed or called-with string, a moved label, a non-paint CSS property, or anything its scanner cannot follow plans as before. Never for `src/templates`, `src/blocks`, `src/assets` or plain `.ts`. Measured on the 2026-10-07 wizard copy rows: `claude/i-wizard-leftovers` (cuts only) went from 43 spec files (544 tests) to 1 (3 tests); `ba939f4c7` (one FinishStep sentence made longer) from 47 (635) to 33 (536). `claude/e-wizard-copy`'s commit also changed conditions in eight files and still plans 51. |
 
 ## What the audit found

@@ -309,6 +309,11 @@ const CATALOG_TRIGGERS = [
   /^src\/blocks\//,
   /^src\/assets\//,
   /^src\/model\/fonts\.ts$/,
+  // The bundled font FILES the registry above names. Every design that sets a bundled face is
+  // measured in it, so a re-cut or replaced file moves widths under the whole catalog exactly as a
+  // registry edit does, and nothing imports a .woff2 for the reach below to find (it is fetched by
+  // URL). Before 2026-10-31 a change here planned two specs and no catalog gate.
+  /^public\/fonts\//,
   /^src\/model\/themeTokens\.ts$/,
   /^src\/validation\/runtimeBench\.ts$/,
   // The modules the bench MEASURES THROUGH, for the same reason as the line above: the catalog
@@ -504,6 +509,68 @@ export function helperImporters(root = REPO_ROOT) {
 const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helperImporters() : null);
 
 /**
+ * WHAT THE CATALOG GATE MEASURES THROUGH, read off its specs rather than listed (cicd-improvement
+ * ci04). The calibration gate (`playwright.catalog.config.ts`, e2e/catalog/) renders every design
+ * by importing source INTO THE PAGE - `await import('/src/templates/catalog.ts')`,
+ * `/src/preview/composeDocument.ts`, the bench - and its Node helpers import more source
+ * themselves (e2e/_ografParity.ts builds packages through src/export). A file in either closure
+ * can move a catalog measurement, so its change raises the catalog flag whatever else the plan
+ * does: CATALOG_TRIGGERS names the obvious roots, and this is what keeps a shared module such as
+ * src/model/easings.ts (imported by 21 template files) from planning the shared-change set and no
+ * catalog gate, which it did until this rule.
+ *
+ * The answer is a set of repo-relative paths, or null when it cannot be trusted: no catalog spec
+ * was found, or none names a page import. Null is not "outside the catalog" - `planFor` then
+ * raises the catalog for every escalating file, as it did before sprint focus existed.
+ *
+ * @param {string[]} specs repo-relative catalog spec paths
+ * @param {(file: string) => string | null} read a repo-relative path's text, or null when absent
+ * @returns {Set<string> | null}
+ */
+export function catalogReachOf(specs, read) {
+  if (specs.length === 0) return null;
+  const nodeSide = new Set();
+  for (const spec of specs) for (const f of importClosure(spec, read)) nodeSide.add(f);
+  const entries = new Set();
+  for (const f of nodeSide) {
+    for (const m of (read(f) ?? '').matchAll(/\bimport\(\s*['"`]\/(src\/[^'"`?]+)/g)) entries.add(m[1]);
+  }
+  if (entries.size === 0) return null;
+  const reach = new Set([...nodeSide].filter((f) => f.startsWith('src/')));
+  for (const entry of entries) {
+    if (read(entry) === null) return null; // a page import that names no file: the closure is unknown
+    for (const f of importClosure(entry, read)) reach.add(f);
+  }
+  return reach;
+}
+
+/** `catalogReachOf` over this checkout's e2e/catalog specs, read once per process. */
+let catalogReachCache;
+export function checkoutCatalogReach() {
+  if (catalogReachCache !== undefined) return catalogReachCache;
+  let specs = [];
+  try {
+    specs = readdirSync(join(REPO_ROOT, 'e2e', 'catalog'), { recursive: true })
+      .map((rel) => `e2e/catalog/${String(rel).replaceAll('\\', '/')}`)
+      .filter((f) => f.endsWith('.spec.ts'));
+  } catch {
+    specs = [];
+  }
+  catalogReachCache = catalogReachOf(specs, readCheckout);
+  return catalogReachCache;
+}
+
+/**
+ * Whether the reach PROVES a file cannot move a catalog measurement: a source module under src/ that
+ * the import walk can see, and that it did not reach. Anything else - a dependency manifest, the
+ * build config, app.html, a public/ asset fetched by URL, an unknown root file, or any file at all
+ * when the reach is unknown - is a dependency the walk cannot resolve, and fails toward the gate.
+ */
+export function outsideCatalog(file, reach) {
+  return reach !== null && /^src\/.+\.(m?[jt]sx?|css)$/.test(file) && !reach.has(file);
+}
+
+/**
  * THE CLASSIFICATION, as a pure function of a changed-file list.
  *
  * Split out from the CLI so it can be tested without a git repository and a real diff. That is
@@ -552,8 +619,9 @@ const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helper
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach = undefined } = {},
 ) {
+  const reach = catalogReach === undefined ? checkoutCatalogReach() : catalogReach;
   // Every `?raw` file lives under src/, so a change with nothing there skips reading the tree.
   const rawEdges = rawImporters ?? (changed.some((f) => f.startsWith('src/')) ? checkoutRawImporters() : new Map());
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
@@ -567,6 +635,8 @@ export function planFor(
   const fromTrace = new Set();
   const tracedEscalated = [];
   const tracedBroad = [];
+  // Every file that asked for the whole suite, for the catalog question asked after sprint focus.
+  const escalating = [];
   // A changed `?raw` file plans the module that inlines it as well as itself, with that module's
   // whole coverage: the copy path never narrows an importer brought in this way.
   const rawPlanned = changed.filter((f) => rawEdges.has(f));
@@ -578,7 +648,7 @@ export function planFor(
     // change most needs the configured suite named.
     if (CONFIGURED_TRIGGERS.some((r) => r.test(file))) configured = true;
     if (IGNORE.some((r) => r.test(file)) && !devServer.has(file)) continue;
-    if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
+    if (CATALOG_TRIGGERS.some((r) => r.test(file)) || reach?.has(file)) catalog = true;
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
       const name = file.replace(/^e2e\//, '');
       if (!onDisk || onDisk.has(name)) specs.add(name); // a deleted spec has nothing left to run
@@ -610,6 +680,7 @@ export function planFor(
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
+      escalating.push(file);
       full = true;
       continue;
     }
@@ -624,10 +695,14 @@ export function planFor(
     if (traced && central.length === 0) {
       if (traced.problem) {
         tracedEscalated.push(file);
+        escalating.push(file);
         full = true;
       } else if (traced.broad.has(file)) {
         tracedBroad.push(file);
-        if (traced.broadEscalates) full = true;
+        if (traced.broadEscalates) {
+          escalating.push(file);
+          full = true;
+        }
       } else {
         for (const s of traced.files.get(file) ?? []) if (!onDisk || onDisk.has(s)) fromTrace.add(s);
       }
@@ -636,6 +711,7 @@ export function planFor(
     // names the file itself; an unmapped importer still escalates on its own turn.
     if (covering.length === 0 && central.length === 0 && !rawEdges.has(file)) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
+      escalating.push(file);
       full = true;
     } else {
       for (const c of covering) specs.add(c.spec);
@@ -649,14 +725,18 @@ export function planFor(
 
   // The escalation that would have run everything runs the SHARED-CHANGE SET instead (the specs
   // whose header says `// focus`, union with whatever the mapped rules already named), unless the
-  // caller asked for the whole suite by name. The full->catalog coupling below is deliberately
-  // skipped for an intercepted run: a styles.css tweak stops paying the 25-minute catalog gate,
-  // while a direct CATALOG_TRIGGERS match above still raises the flag.
+  // caller asked for the whole suite by name. The full->catalog coupling below is kept for an
+  // intercepted run only where the catalog reach cannot rule it out (`outsideCatalog`): a
+  // styles.css tweak, which no catalog spec loads, stops paying the 25-minute catalog gate, while
+  // package.json, an unknown root file or a stale-map escalation with no reach still pay it. Until
+  // 2026-10-31 the coupling was dropped for every intercepted run, so src/model/easings.ts and
+  // package.json planned no catalog gate at all.
   let focusApplied = false;
   if (full && sprintFocus) {
     full = false;
     focusApplied = true;
     for (const s of FOCUS) specs.add(s);
+    if (escalating.some((f) => !outsideCatalog(f, reach))) catalog = true;
   }
   // A core/unmapped change gets the same conservative default the offline suite gets: assume it
   // could touch the catalog too, rather than trusting CATALOG_TRIGGERS to have named every path.
