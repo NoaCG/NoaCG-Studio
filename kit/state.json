@@ -115,6 +115,13 @@
       "mergeSha": "874c589b4df4449ba8819c784c6d1da983d33166",
       "pr": 1870,
       "checker": "session_017SdbwPHAGa7Qes3TUhCwZS"
+    },
+    {
+      "phase": "7",
+      "mergeSha": "c469facba90f6ed04cb29b9ef5ac7b23d72e7ec3",
+      "pr": 1878,
+      "checker": "session_017SdbwQSmznLue8PMtUwQER",
+      "note": "stand-in CI 41247810144 (main moved on with #1879)"
     }
   ],
   "coordinatorNotes": [
@@ -129,7 +136,8 @@
     "Row 7: clock recipe deliberately outside BEHAVIOUR_RECIPES until an owner Illustrator example exists (spec line 182); naming.ts will not propose clock layer names until then; rows 8-12 must not rely on it.",
     "Known flake #1778 (production-controls.spec.ts:2659 Setup Look, 110 s timeout on look-brand select) hit row 6 old head 44783ae6 and row 7 c90594e9 E2E 9/15; not quarantined; outside SVG import. Handle as red gate outside the change if it recurs on a reviewed head; fail-then-pass on one commit needs quarantine.",
     "Since ci06 (#1872, 26095c82): the selected configured check is part of the PR CI gate; coordinator verifies the CI run head_sha equals the reviewed head and reads its Configured selection; no routine configured-suite dispatch. Kit templates refreshed from main af39c249 at 21:50Z.",
-    "Trap: the coordinator worktree must stay at the pinned recovery revision 139a9724 for publish to work; read newer main with git show origin/main:<path>, never by checking it out here."
+    "Trap: the coordinator worktree must stay at the pinned recovery revision 139a9724 for publish to work; read newer main with git show origin/main:<path>, never by checking it out here.",
+    "e2e/import-svg.spec.ts quarantined 2026-10-31 by #1879 (fail-then-pass on af39c249, before row 7; test svg import growth limit, count 5); quarantined specs leave PR selection unless the change edits them. Later SVG rows that edit it run it again."
   ],
   "ownerOpen": [
     {
@@ -167,6 +175,13 @@
       ],
       "from": "7",
       "note": "Before flipping CLOCK_RUNTIME_READY: add CLOCK_NAME to the extras numbering taken names (hidden choice named Clock with a Start option collides on clock_start); read the flag from one source in both the render test and the draft; fix phase-07 notes count (eight contract tests, not seven)."
+    },
+    {
+      "forPhases": [
+        "8"
+      ],
+      "from": "7 checker",
+      "note": "Flipping CLOCK_RUNTIME_READY breaks e2e/import-svg-behaviour.spec.ts:1281 (shipped-state walk), which is outside row 8 files: request a boundary reconciliation for that test before pushing. #1875 (owner Illustrator clock example) must never gate rows 8 to 12 (spec line 182)."
     }
   ]
 }
