@@ -23,7 +23,8 @@ drop draft and field list, the build and bound artwork, the generated SPX contro
 gate, and the design mounted as the preview composes it. Per design the record holds the proposed
 behaviour, every importer layer ID with its element path and source id, the field list, the
 controls, each labelled anchor of `dev.expect.json` resolved to its layer, canonical appearance
-hashes, the export gate's refusals and the text at rest.
+hashes, the export gate's refusals, and the text at rest and with each ladder value
+(`scripts/ladder-values.mjs`) typed into every text field: painted lines, font size and overflow.
 
 The record is written in the test file by hand and has no re-record switch: a change that moves
 it must edit the test, so the difference is in the pull request diff. A failing design prints its
@@ -43,7 +44,10 @@ and every test of the refactored 51-file harness passed; `RECORDED_ON` still nam
 build, so the text-at-rest comparison was skipped there, and no fresh record was printed. With
 `RECORDED_ON` set to CI's build, PR run 41208189216 (`ca48aa85`) compared it: Factory gates
 passed with all 18 designs matching, text at rest included. On CI a different Chromium build now
-fails the baseline instead of skipping it.
+fails the baseline instead of skipping it. The typed-value lines were then taken from CI's own log
+(PR run 41209580727, `d2d54511`, which failed by design on the 17 designs with text because
+their typed lines were not yet recorded; its text at rest equalled the record and nothing else
+moved) and written into the record by hand.
 
 Mutation checks on this worker, reverted before commit: relabelling unnamed text (`Text ` to
 `Text  ` in `svgImport.ts`) failed 4 designs naming the field and control lines; adding an
@@ -54,6 +58,8 @@ attribute to every text layer failed the 17 designs with text, naming `appearanc
 - Reuse, not a copy: `svg-import-passes.test.mjs` now exports its browser pass (`RECORD`) through
   `recordInPage`, and when imported as `./svg-import-passes.test.mjs?library` it runs no corpus and
   registers no test. Its own run, records and snapshot are unchanged.
+- Typed values are compared like the 51-file harness's runtime record: painted lines and overflow
+  exactly, font size within one percentage point. Number fields are not typed into.
 - Appearance is hashed in a canonical form (attributes sorted, namespace declarations dropped),
   because Chromium builds order namespace attributes differently. The text-at-rest record is
   compared only on the Chromium build it was recorded on (`RECORDED_ON`), which is CI's build.
