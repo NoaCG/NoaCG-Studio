@@ -42,25 +42,10 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci04 checker verdict on b666f302, post-land runs, exception size review",
-    "eta": "2026-10-31T17:20:00Z"
+    "what": "launch ci05 builder",
+    "eta": "2026-10-31T16:55:00Z"
   },
-  "inFlight": [
-    {
-      "phase": "ci04",
-      "step": "check",
-      "session": "session_017SdbwQyLn4235Pyto4uXuE",
-      "nonce": "ci04-c-0ba5",
-      "actor": "checker-ci04-ci04-c-0ba5",
-      "launchedAt": "2026-10-31T16:22:19Z",
-      "pr": 1861,
-      "mergeSha": "b666f302d4eea1e22506a6769b058318fc30438a",
-      "builder": "session_017SdbwMZT1TksMVJDqp5Po7",
-      "reviewedHead": "75fdeec0ffffe730953c0d5be4c676a408ea52f5",
-      "repairOwnerComment": 6545874735,
-      "note": "Merged 16:21:26Z (queue run 41218288085). Checker also reviews the #1863 exception size."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -134,6 +119,21 @@
       "postLand": "CI 41212628266, configured-suite 41212628251, Post-landing 41212628247, Quarantine 41212628312, Push on main 41212627709 all success; repair ownership complete",
       "pass": "2026-10-31T15:24:11Z by checker-ci03-ci03-c-e087 (session_017SdbwLxSpt7m2iKzkvPqrj)",
       "checkerFindings": "non-blocking: test regex misses a flow-style checkout ref (added to #1859)"
+    },
+    {
+      "phase": "ci04",
+      "pr": 1861,
+      "mergeSha": "b666f302d4eea1e22506a6769b058318fc30438a",
+      "builder": "session_017SdbwMZT1TksMVJDqp5Po7",
+      "reviewedHead": "75fdeec0ffffe730953c0d5be4c676a408ea52f5",
+      "repairOwnerComment": 6545874735,
+      "followUps": [
+        1862,
+        1863
+      ],
+      "postLand": "CI 41219291374, configured-suite 41219291410, Post-landing 41219291381, Quarantine 41219291311, Push on main 41219290571 all success; repair ownership complete",
+      "pass": "2026-10-31T16:50:31Z by checker-ci04-ci04-c-0ba5 (session_017SdbwQyLn4235Pyto4uXuE)",
+      "checkerFindings": "exception size confirmed ~+17.7 graphics runner-min/landing; non-blocking: non-literal imports in reached src skipped (noted on #1863)"
     }
   ],
   "coordinatorNotes": [
