@@ -3,13 +3,18 @@
     "partition": "qualification",
     "excluded_from_recognition_count": true,
     "synthetic": true,
-    "runtime_support_not_asserted": true
+    "runtime_support_not_asserted": true,
+    "tiers": {
+      "supported": "A required qualification: its fields must work through existing source bindings (AC-14, AC-24). Moving-SVG motion stays unsupported.",
+      "optional-diagnostic": "A bounded measurement of current limits (AC-26). A shortfall is reported, never counted as support."
+    }
   },
   "designs": [
     {
       "id": "ticker",
       "partition": "qualification",
       "stratum": "ticker",
+      "tier": "supported",
       "svg": "qualification/ticker.svg",
       "svg_sha256": "59a62a3186c131f0db738fd623312bb61269a75fdfb15328b46068b76d0961a0",
       "provenance": {
@@ -70,6 +75,7 @@
       "id": "multiline",
       "partition": "qualification",
       "stratum": "multiline",
+      "tier": "supported",
       "svg": "qualification/multiline.svg",
       "svg_sha256": "09ab3aad3fefd11b72ca9527e86948362a0c832a00f2086c4ee01509a9039c8f",
       "provenance": {
@@ -128,6 +134,7 @@
       "id": "notice-zones",
       "partition": "qualification",
       "stratum": "notice-zones",
+      "tier": "optional-diagnostic",
       "svg": "qualification/notice-zones.svg",
       "svg_sha256": "71d905796db9a6fbd9cd0d9b4ec665cd339fd4562fba68a8e31649619471969c",
       "provenance": {
