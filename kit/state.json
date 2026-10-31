@@ -42,7 +42,7 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci06: JEV #1870 landing (cap 21:00Z), then final-head gates and builder receipt",
+    "what": "ci06: Build re-run verdict, final /so on b83dc98e, builder receipt",
     "eta": "2026-10-31T22:00:00Z"
   },
   "inFlight": [
@@ -53,7 +53,7 @@
       "nonce": "ci06-b-94e8",
       "branch": "claude/plan-cicd-improvement-ci06-build",
       "launchedAt": "2026-10-31T18:44:57Z",
-      "note": "PR #1872 head 661ccaed (first /so B on 39823f74: unnamed backend source selected nothing; fixed). #1865 bounded stack-start retry added. Waiting for JEV #1870 until 21:00Z, then merge main and re-earn gates; else finalize on current head.",
+      "note": "PR #1872 head b83dc98e (main merged after JEV #1870). /so pending. Build red: scripts/ograf-foreign.test.mjs:355 timing ratio (20.4 then 83.1 ms), outside the diff; builder told 21:07Z to re-run once and file a fail-then-pass issue if it passes.",
       "pr": 1872
     }
   ],
