@@ -42,20 +42,26 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci02 configured-suite 41196329611 on eee4dc1f and builder receipt",
-    "eta": "2026-10-31T11:40:00Z"
+    "what": "#1852 merge queue, then ci02 check on the merge SHA",
+    "eta": "2026-10-31T11:55:00Z"
   },
   "inFlight": [
     {
       "phase": "ci02",
-      "step": "build",
+      "step": "build: queued",
       "session": "session_017SdbwM1zQ8e4iQTwVWQyD1",
       "nonce": "ci02-b-6015",
       "branch": "claude/plan-cicd-improvement-ci02-build",
       "launchedAt": "2026-10-31T10:28:17Z",
       "pr": 1852,
       "repairOwnerComment": 6542394883,
-      "note": "PR #1852 head eee4dc1f after review rounds; CI gate green, Codex clean, /so assessments posted 11:25; configured-suite 41196329611 running"
+      "note": "stamped and queued; head reads posted on PR",
+      "reviewedHead": "eee4dc1fb8432c4d8cca01c4dee90270f3f055c2",
+      "configuredRun": 41196329611,
+      "soGrade": "A (session_017SdbwMrhpsWmK746j8WHZN)",
+      "stampRun": 41197372022,
+      "autoMergeEnabledAt": "2026-10-31T11:34:20Z",
+      "queuedAt": "2026-10-31T11:34:39Z"
     }
   ],
   "owner": [],
