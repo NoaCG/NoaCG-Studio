@@ -295,6 +295,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   let ledger = [];
   let offline = [];
   let diffFailed = false;
+  const newExceptions = [];
   if (base) {
     let diff = '';
     // An unreadable diff is unknown added cost, never zero: refused, and said so.
@@ -313,6 +314,10 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     if (baseCeilings) {
       const before = JSON.parse(baseCeilings);
       ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS } });
+      // A PR that adds an exception is flagged for the separate review the spec requires; the
+      // coordinator or owner decides, never the change's own author or an automatic repair.
+      const before_ids = new Set((before.exceptions ?? []).map((e) => e.id));
+      for (const e of ceilings.exceptions ?? []) if (!before_ids.has(e.id)) newExceptions.push(e.id);
       const wasInvalid = new Set(exceptionStatus(before.exceptions, today, before.exceptionMaxDays).invalid.map((e) => e.id));
       for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root)).invalid) if (!wasInvalid.has(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
     }
@@ -326,6 +331,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   let status = tiers.status;
   for (const t of TIERS) if (tiers.tiers[t].status !== 'ok' && tiers.tiers[t].items.length) reasons.push(`${t} tier ${tiers.tiers[t].status}: ${tiers.tiers[t].why}`);
   if (ledger.length || offline.length || diffFailed) { status = 'refuse'; reasons.push(...ledger, ...offline); }
+  if (newExceptions.length) { reasons.push(`this change adds budget exception(s) ${newExceptions.join(', ')}: each needs a separate, recorded review before it lands`); if (status === 'ok') status = 'warn'; }
   if (cadence.overdue && !unreadable) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
   if (fresh.stale) { reasons.push(fresh.reason); if (status === 'ok') status = 'warn'; }
   const markdown = [

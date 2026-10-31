@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (41 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (43 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -139,7 +139,12 @@ issue, remain for ci17.
 - **One exception ledger in `growth-ceilings.json`,** append-only, so renewal is detectable by
   scope (`covers`) rather than by name, file or tier. Every cover must name a real workflow job
   or spec in the exception's own tier: re-filing ci04's catalog job under backend, or rewording
-  it, covers nothing and offsets nothing. Work-spec offline lines keep their format, gain an
+  it, covers nothing and offsets nothing. Its credit is capped at what the covered items cost:
+  a job at its measured per-job cost from the weekly report (the seed carries the catalog gate
+  at ci04's 17.7), a spec at nothing, because a spec has only a deliberately high estimate. An
+  exception on a spec only keeps that spec's addition from counting. The review link must be an
+  issue comment recording the decision, and a change that adds an exception is warned for its
+  separate review. Work-spec offline lines keep their format, gain an
   optional repayment clause and become append-only too.
 - **Run sampling, not a full read.** A week is about 2,900 runs; the job token allows 1,000 calls
   an hour. Run lists are read in full and each stratum's jobs on an even spread, scaled to exact

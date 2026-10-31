@@ -71,6 +71,7 @@ export function priceRuns(runs, { days }) {
   const strata = {};
   for (const r of runs) (strata[`${r.workflow}|${r.event}`] ??= []).push(r);
   const totals = Object.fromEntries(TIERS.map((t) => [t, { landing: 0, scheduled: 0, partial: [] }]));
+  const jobs = {};
   for (const [key, list] of Object.entries(strata)) {
     const sampled = list.filter((r) => r.jobs);
     const event = key.split('|')[1];
@@ -81,8 +82,10 @@ export function priceRuns(runs, { days }) {
     if (missing) for (const t of TIERS) totals[t].partial.push(`${key}: ${missing} read(s) failed`);
     if (unfinished) for (const t of TIERS) totals[t].partial.push(`${key}: ${unfinished} run(s) still unfinished`);
     const perRun = Object.fromEntries(TIERS.map((t) => [t, 0]));
-    for (const r of sampled) for (const j of r.jobs) perRun[tierOfJob(r.workflow, j.name)] += minutes(j);
+    const perJob = {};
+    for (const r of sampled) for (const j of r.jobs) { perRun[tierOfJob(r.workflow, j.name)] += minutes(j); perJob[`${r.workflow}/${j.name}`] = (perJob[`${r.workflow}/${j.name}`] ?? 0) + minutes(j); }
     for (const t of TIERS) totals[t][bucket] += (perRun[t] / sampled.length) * list.length;
+    for (const [k, v] of Object.entries(perJob)) { jobs[k] ??= { landing: 0, scheduled: 0 }; jobs[k][bucket] += (v / sampled.length) * list.length; }
   }
   const landings = runs.filter((r) => r.workflow === 'ci.yml' && r.event === 'push' && r.branch === 'main').length;
   const tiers = {};
@@ -100,7 +103,9 @@ export function priceRuns(runs, { days }) {
       totalScheduled: totals[t].scheduled,
     };
   }
-  return { landings, tiers };
+  // Per-job cost, so an exception's credit can be capped at what the job it covers costs.
+  const perJobCost = Object.fromEntries(Object.entries(jobs).map(([k, v]) => [k, { perLanding: landings ? v.landing / landings : 0, perDay: v.scheduled / days }]));
+  return { landings, tiers, jobs: perJobCost };
 }
 
 /** Post-landing series per tier, oldest first, from sampled push runs on main. Pure. */
@@ -122,7 +127,7 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
   const priced = priceRuns(runs, { days });
   // An incomplete run list makes every tier partial BEFORE anything is judged from it.
   if (!listComplete) for (const t of TIERS) Object.assign(priced.tiers[t], { evidence: 'partial', lowerBound: true, why: 'the run list was cut short' });
-  let measurement = { source: 'weekly growth report', windowStart: new Date(Date.parse(windowEnd) - days * DAY).toISOString().slice(0, 10), windowEnd: windowEnd.slice(0, 10), landings: priced.landings, tiers: {} };
+  let measurement = { source: 'weekly growth report', windowStart: new Date(Date.parse(windowEnd) - days * DAY).toISOString().slice(0, 10), windowEnd: windowEnd.slice(0, 10), landings: priced.landings, tiers: {}, jobs: priced.jobs };
   for (const t of TIERS) measurement.tiers[t] = Object.fromEntries(Object.entries(priced.tiers[t]).filter(([k]) => !k.startsWith('total')));
   const series = seriesOf(runs);
   const slowdowns = {};

@@ -143,7 +143,7 @@ test('(b) the durations table alarms past eight days, and an open refresh PR is 
 });
 
 test('(b) an exception is owned, reviewed, scoped and at most 30 days; expired or invalid ones cover nothing', () => {
-  const ex = { id: 'a', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 10, owner: 'me', reviewed: 'https://x/1', from: '2026-10-25', expires: '2026-11-20' };
+  const ex = { id: 'a', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 10, owner: 'me', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1', from: '2026-10-25', expires: '2026-11-20' };
   const m = measurement({ backend: 110 });
   const run = (exceptions, today = TODAY) => assessTiers({ ceilings: { ...CEILINGS, exceptions }, measurement: m, items: [backendItem(8)], today }).tiers.backend;
   assert.equal(run([ex]).status, 'warn', 'the exception excepts 10 of the measured cost and covers the new spec: warned, not refused');
@@ -154,7 +154,7 @@ test('(b) an exception is owned, reviewed, scoped and at most 30 days; expired o
 });
 
 test('(b) the same scope is never renewed without a measured repayment, whatever it is called', () => {
-  const first = { id: 'a', tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: 'https://x/1', from: '2026-10-31', expires: '2026-11-30' };
+  const first = { id: 'a', tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1', from: '2026-10-31', expires: '2026-11-30' };
   const renamed = { ...first, id: 'b-new-name', from: '2026-12-01', expires: '2026-12-30' };
   const st = exceptionStatus([first, renamed], '2026-12-02', 30);
   assert.deepEqual(st.invalid.map((e) => e.id), ['b-new-name']);
@@ -562,7 +562,7 @@ test('(d) a draft PR keeps its age clock: turning it into a draft does not clear
 });
 
 test('(b) an exception cannot be re-filed under another tier or a reworded scope to dodge renewal or offset a tier', () => {
-  const first = { id: 'a', tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: 'https://x/1', from: '2026-10-31', expires: '2026-11-30' };
+  const first = { id: 'a', tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1', from: '2026-10-31', expires: '2026-11-30' };
   const known = knownCovers({ 'ci.yml': 'on:\n  pull_request:\njobs:\n  e2e-catalog:\n    name: Catalog calibration gate\n' }, ['e2e/configured/x.spec.ts']);
   const asBackend = { ...first, id: 'b', tier: 'backend', from: '2026-12-01', expires: '2026-12-30' };
   const st = exceptionStatus([first, asBackend], '2026-12-02', 30, known);
@@ -625,4 +625,22 @@ test('(d) a rewritten head never restarts or hides a ready clock', () => {
   assert.deepEqual(carried, { '#9': '2026-10-31T08:00:00Z' });
   const r = ages({ ceilings: CEILINGS, now, reader: makeReader(20, fake(true)), carried });
   assert.match(r.body, /#9 unfinished for 240 min/);
+});
+
+test('(b) an exception never excepts more than the job it covers, and a spec cover earns no credit', () => {
+  const ex = (covers, perLanding, id = 'p') => ({ id, tier: 'graphics', covers, perLanding, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1', from: '2026-10-31', expires: '2026-11-20' });
+  const item = [{ tier: 'graphics', id: 'spec:e2e/catalog/new.spec.ts', perLanding: 10.7, perDay: 0 }];
+  const m = { ...measurement({ graphics: 7.8 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 3, perDay: 0 } } };
+  // The probe: claim 50 on an existing spec to buy headroom for a new one.
+  const spec = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex(['spec:e2e/catalog/catalog-bench.spec.ts'], 50)] }, measurement: m, items: item, today: TODAY });
+  assert.equal(spec.tiers.graphics.status, 'refuse');
+  assert.match(spec.tiers.graphics.why, /claims 50, capped at what it covers/);
+  // A job cover is credited only up to the job's measured cost (3 here, not the 50 claimed).
+  const job = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex(['job:ci.yml/Catalog calibration gate'], 50)] }, measurement: m, items: [], today: TODAY });
+  assert.match(job.tiers.graphics.why, /^4\.8\/10 per landing/, 'credited 3, the job\'s measured cost, not the 50 claimed');
+  // A shard template matches every shard's measured name.
+  const shards = { ...m, jobs: { 'ci.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 4, perDay: 0 }, 'ci.yml/Configured E2E 2/2 (selected, local Supabase)': { perLanding: 5, perDay: 0 } } };
+  const bx = { ...ex(['job:ci.yml/Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)'], 20), tier: 'backend' };
+  const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [bx] }, measurement: { ...shards, tiers: { ...shards.tiers, backend: { perLanding: 50, perDay: 0, evidence: 'complete' } } }, items: [], today: TODAY });
+  assert.match(r.tiers.backend.why, /^41\/117 per landing/, 'credited 9, the two shards, not the 20 claimed');
 });

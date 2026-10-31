@@ -93,7 +93,14 @@
         "perDay": 8,
         "evidence": "complete"
       }
-    }
+    },
+    "jobs": {
+      "ci.yml/Catalog calibration gate": {
+        "perLanding": 17.7,
+        "perDay": 0
+      }
+    },
+    "jobsWhy": "Per-job cost an exception may credit at most. The catalog gate carries ci04's reviewed +17.7 projection only, not its pre-ci04 share of the 7.8, so its credit can only be smaller than its real cost."
   },
   "exceptions": [
     {

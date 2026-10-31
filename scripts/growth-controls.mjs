@@ -173,6 +173,26 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
   return items;
 }
 
+/**
+ * What a covered item costs per landing and per day, as far as an exception may credit it: a job
+ * from the measurement's per-job costs (a workflow `name:` with `${{ }}` matches every shard of
+ * it); anything else nothing.
+ */
+export function coverCosts(measurement) {
+  const jobs = Object.entries(measurement?.jobs ?? {});
+  return (cover) => {
+    const job = /^job:([^/]+)\/(.+)$/.exec(cover);
+    if (job) {
+      const pattern = new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+      return jobs.filter(([k]) => k.startsWith(`${job[1]}/`) && pattern.test(k.slice(job[1].length + 1)))
+        .reduce((a, [, v]) => ({ perLanding: a.perLanding + (v.perLanding ?? 0), perDay: a.perDay + (v.perDay ?? 0) }), { perLanding: 0, perDay: 0 });
+    }
+    // A spec has no measured runner-minutes of its own, only a deliberately high estimate, so it
+    // earns no credit: an exception naming a spec only keeps that spec's addition from counting.
+    return { perLanding: 0, perDay: 0 };
+  };
+}
+
 /** Every cover that names something real: each workflow job (`{ file: text }`) and spec path. */
 export function knownCovers(workflowTexts, specPaths) {
   const out = new Set(specPaths.map((f) => `spec:${f}`));
@@ -252,7 +272,8 @@ export function exceptionProblems(e, earlier, maxDays, known = null) {
   }
   if (!(e.perLanding > 0) && !(e.perDay > 0)) p.push('no cost');
   if (!e.owner) p.push('no owner');
-  if (!/^https?:\/\//.test(e.reviewed ?? '')) p.push('no separate review link');
+  // A separate review is a recorded decision on an issue, not a link to anything.
+  if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+#issuecomment-\d+$/.test(e.reviewed ?? '')) p.push('no separate review: link the issue comment that records the decision');
   const from = dayMs(e.from);
   const exp = dayMs(e.expires);
   if (!Number.isFinite(from) || !Number.isFinite(exp) || exp < from) p.push('no valid from/expires dates');
@@ -319,14 +340,19 @@ export function ledgerChanges({ base, head, mainRunners = null }) {
  * the latest weekly report's (or the frozen seed's); `stops` maps a tier to the breach that
  * stopped its growth.
  */
-export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [], known = null }) {
+export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [], known = null, coverCost = coverCosts(measurement) }) {
   const { active, invalid } = exceptionStatus(exceptions, today, ceilings.exceptionMaxDays, known);
   const tiers = {};
   for (const tier of TIERS) {
     const ceiling = ceilings.tiers[tier];
     const ev = evidenceOf(measurement, tier, today, ceilings.freshnessDays);
     const m = measurement?.tiers?.[tier];
-    const mine = active.filter((e) => e.tier === tier);
+    const mine = active.filter((e) => e.tier === tier).map((e) => {
+      // Credit is capped at what the covered items cost: an exception never excepts more than the
+      // jobs or specs it names, and an unknown cost earns no credit at all.
+      const cost = e.covers.reduce((a, c) => { const x = coverCost(c); return { perLanding: a.perLanding + x.perLanding, perDay: a.perDay + x.perDay }; }, { perLanding: 0, perDay: 0 });
+      return { ...e, perLanding: Math.min(e.perLanding ?? 0, cost.perLanding), perDay: Math.min(e.perDay ?? 0, cost.perDay), claimed: { perLanding: e.perLanding ?? 0, perDay: e.perDay ?? 0 } };
+    });
     const covered = (item) => mine.find((e) => e.covers.includes(item.id));
     const tierItems = items.filter((i) => i.tier === tier);
     const uncovered = tierItems.filter((i) => !covered(i));
@@ -342,7 +368,7 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     const line = ev.state === 'complete' ? ceilings.refuseShare : ceilings.warnShare;
     let status = 'ok';
     let why = m ? `${round1(usedLanding)}/${ceiling.perLanding} per landing, ${round1(usedDay)}/${ceiling.perDay} per day (${Math.round(100 * share)}%)` : 'not measured';
-    if (exLanding || exDay) why += `, ${mine.map((e) => `${e.id} excepts ${e.perLanding ?? 0}/landing to ${e.expires}`).join('; ')}`;
+    if (mine.length) why += `, ${mine.map((e) => `${e.id} excepts ${round1(e.perLanding)}/landing${e.perLanding < e.claimed.perLanding ? ` (claims ${e.claimed.perLanding}, capped at what it covers)` : ''} to ${e.expires}`).join('; ')}`;
     if (ev.state !== 'complete') why += `; evidence ${ev.state}: ${ev.why}`;
     if (added && stops[tier]) { status = 'refuse'; why += `; growth stopped: ${stops[tier]}`; }
     else if (added && ev.state === 'missing') { status = 'refuse'; why += '; headroom cannot be established, so added cost is refused'; }
