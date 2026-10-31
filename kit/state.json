@@ -42,20 +42,30 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci01 configured-suite run 41189183454 on e2d8dd35 and the builder receipt",
-    "eta": "2026-10-31T10:05:00Z"
+    "what": "#1848 merge queue, then ci01 check on the merge SHA",
+    "eta": "2026-10-31T10:20:00Z"
   },
   "inFlight": [
     {
       "phase": "ci01",
-      "step": "build",
+      "step": "build: queued",
       "session": "session_017SdbwPLYvBrBW7DyyvmdNr",
       "nonce": "ci01-b-afc1",
       "branch": "claude/plan-cicd-improvement-ci01-build",
       "launchedAt": "2026-10-31T08:13:14Z",
       "pr": 1848,
       "repairOwnerComment": 6541482080,
-      "note": "PR #1848 head e2d8dd35: CI gate green, Codex clean; configured-suite 41189183454 running (prior head d49a9f26 green on attempt 2 after #1829 infra death)"
+      "note": "stamp after gates, auto-merge with head checked before/after, added to merge queue",
+      "reviewedHead": "e2d8dd358d7c7d9df6ac155ccc87f77eeed88b62",
+      "configuredRun": "41189183454 red only by quarantined flake late-send-abandoned (#1805); accepted as outside the change, PR comment 6541972856",
+      "soGrade": "A (session_017SdbwPUnWgKzqUScfaZVqn)",
+      "stampRun": 41190920859,
+      "autoMergeEnabledAt": "2026-10-31T10:00:33Z",
+      "queuedAt": "2026-10-31T10:00:45Z",
+      "followUps": [
+        1846,
+        1847
+      ]
     }
   ],
   "owner": [],
