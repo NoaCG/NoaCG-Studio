@@ -59,8 +59,8 @@ what needs the verdict, and it is a lost verdict when the older commit is still 
     a verdict: no new run on the ref is `absent` until a complete listing five minutes on says
     `not-delivered`; any new run makes it `unproven`. Both take `--recover`, a fresh dispatch.
   - `reconcile <record> [--recover]` re-reads that identity and settles it: `running`,
-    `verdict` (with conclusion), `superseded` (cancelled; the named newer run on the same commit
-    carries the verdict, the newest by run ID), `cancelled` (stopped after its jobs started, so
+    `verdict` (with conclusion), `superseded` (cancelled; the later runs on the same commit carry
+    the verdict: failing if any failed, running while any runs, passing only if all passed), `cancelled` (stopped after its jobs started, so
     by a person or session: never recovered automatically), `recover` (cancelled while pending,
     nothing replaced it, the commit is still the head: `--recover` dispatches it again, once per
     record), or `obsolete` (the head moved; a
@@ -99,7 +99,8 @@ reassessment of the rule model came before the repair. It agreed with correction
 1. A run answers a dispatch only by proof: the run ID GitHub returned for it. Timing, ref and
    commit never stand in for it.
 2. Exception, needed by same-branch supersession: a proved run that was cancelled takes its
-   verdict from a later dispatch run of the same workflow, ref and commit, named in the answer.
+   verdict from the later dispatch runs of the same workflow, ref and commit: failing if any of
+   them failed, running while any runs, passing only if all passed. The answer names them.
    That workflow's dispatch takes no inputs and checks out `github.sha`, so that verdict is about
    the commit. The helper therefore serves `configured-suite.yml` only (a test pins
    `workflow_dispatch: {}`), and a run of any other workflow never adopts another's verdict.
@@ -160,6 +161,7 @@ ambiguity. These are fixtures.
 | Codex on `a0371da1` (comment 4431748828) | after a lost acknowledgement, the first reconcile adopted a concurrent run on the same ref and kept it, so the real run's failure could be missed | run identity must be proved, not inferred (repeated family) | product defect | rules above: no inference at all without a returned ID; failing test first |
 | Codex on `eec131b4` (comment 4431771414) | `--recover` sent its dispatch before recording the claim, so a restart or a concurrent caller could send a second full suite | run identity and delivery must be proved, not inferred (fourth round) | product defect | rule 7, swept across both send paths; restart and interleaving tests first |
 | Codex on `f121a8db` (comment 4431789152) | with `--workflow ci.yml`, a cancelled full run could adopt a replacement's pass made with a narrower `diff_base` | a verdict is adopted only from the same check | product defect | serve `configured-suite.yml` only; other workflows never adopt; test pins its input-free dispatch |
+| Fresh `/so` on `60d66b49` (grade B) | a cancelled run with several later runs on its commit took the newest, so a failure between them was hidden by a later pass | a failure on the commit is never hidden by a later pass | product defect | every later same-commit run counts: any failure fails it; test first. Non-blocking note taken: known-traps says an `attempt` above 1 is a re-run to read in full |
 
 ## 7. Phase notes
 

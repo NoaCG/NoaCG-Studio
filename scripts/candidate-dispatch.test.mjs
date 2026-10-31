@@ -311,6 +311,20 @@ test('only the input-free configured suite is served, and only it adopts a repla
   assert.notEqual(exitCode(ci), 0);
 });
 
+test('a failure on the commit after a cancel is never hidden by a later pass', () => {
+  const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
+  const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
+  const a = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' }; // replaced while pending
+  const b = { ...base, id: 11, status: 'completed', conclusion: 'failure' }; // the run that replaced it
+  const c = { ...base, id: 12, status: 'completed', conclusion: 'success' }; // a later pass on the same commit
+  const failed = settle(intent, a, { runs: [c, b, a], head: sha('1') });
+  assert.deepEqual([failed.state, failed.conclusion, failed.by.id, exitCode(failed)], ['superseded', 'failure', 11, 1]);
+  const pending = settle(intent, a, { runs: [{ ...c, status: 'in_progress', conclusion: null }, { ...b, conclusion: 'success' }, a], head: sha('1') });
+  assert.deepEqual([pending.conclusion, exitCode(pending)], [undefined, 3]);
+  const passed = settle(intent, a, { runs: [c, { ...b, conclusion: 'success' }, a], head: sha('1') });
+  assert.deepEqual([passed.conclusion, passed.by.id, exitCode(passed)], ['success', 11, 0]);
+});
+
 test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {
   assert.equal(exitCode({ state: 'running' }), 3);
   assert.equal(exitCode({ state: 'superseded' }), 3);

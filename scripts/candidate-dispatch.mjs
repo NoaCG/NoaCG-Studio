@@ -29,8 +29,9 @@
 //     record, and for `--recover` a claim on the old record, so a concurrent caller or a restart
 //     after the send never sends a second suite.
 //   - The one exception, which same-branch supersession needs: a proved run that was cancelled
-//     takes its verdict from a later dispatch run of the same workflow on the same ref and
-//     commit. That holds only because configured-suite.yml's dispatch takes no inputs and checks
+//     takes its verdict from the later dispatch runs of the same workflow on the same ref and
+//     commit: failing if any of them failed, running while any runs, passing only if all
+//     passed. That holds only because configured-suite.yml's dispatch takes no inputs and checks
 //     out github.sha, so its verdict is a fact about the commit; this helper therefore dispatches
 //     that workflow and no other. The answer names the run it used. A run
 //     cancelled while pending, with its commit still the branch head and nothing replacing it,
@@ -122,15 +123,20 @@ export function settle(intent, run, facts = {}) {
   if (run.conclusion !== 'cancelled') return { state: 'verdict', run, conclusion: run.conclusion };
   // Another workflow's runs may differ by their inputs: never adopt one of them.
   const replaceable = intent.workflow === WORKFLOW;
-  // Run IDs grow with creation; created_at has one-second resolution.
-  const replacement = !replaceable ? undefined : (fact('runs') ?? []).filter((other) => ownRun(intent, other) && other.id > run.id && other.head_sha === intent.sha
-      && other.conclusion !== 'cancelled').sort((a, b) => b.id - a.id)[0];
-  if (replacement) {
-    // The replacement's verdict is this commit's verdict: a failure must not hide behind the cancel.
-    const done = replacement.status === 'completed';
-    return { state: 'superseded', run, by: summary(replacement), ...(done ? { conclusion: replacement.conclusion } : {}),
-      reason: `run ${run.id} was cancelled; run ${replacement.id} on the same commit carries its verdict`
-        + (done ? ` (${replacement.conclusion})` : ' (still running)') };
+  // Every later run on the same commit counts (run IDs grow with creation; created_at has
+  // one-second resolution). A failure in any of them is the commit's verdict: a later pass must
+  // never hide it (fail-then-pass on one commit is the quarantine route, not a pass).
+  const later = !replaceable ? [] : (fact('runs') ?? []).filter((other) => ownRun(intent, other) && other.id > run.id
+      && other.head_sha === intent.sha && other.conclusion !== 'cancelled').sort((a, b) => a.id - b.id);
+  if (later.length) {
+    const failed = later.find((other) => other.status === 'completed' && other.conclusion !== 'success');
+    const pending = later.find((other) => other.status !== 'completed');
+    const by = failed ?? pending ?? later[0];
+    const conclusion = failed ? failed.conclusion : pending ? undefined : 'success';
+    return { state: 'superseded', run, by: summary(by), runIds: later.map((other) => other.id),
+      ...(conclusion ? { conclusion } : {}),
+      reason: `run ${run.id} was cancelled; ${later.length} later run(s) on the same commit carry its verdict:`
+        + (failed ? ` run ${failed.id} ended ${failed.conclusion}` : pending ? ` run ${pending.id} is still running` : ' all passed') };
   }
   // The group never cancels a started run (cancel-in-progress: false): someone chose to.
   if (fact('started')) return { state: 'cancelled', run,
