@@ -344,10 +344,10 @@ test('comments are stripped in one pass, strings kept', () => {
 /** CPU milliseconds this thread spends on `reps` calls of `fn`. CPU time, not wall time: on a busy
  *  runner a run of a few milliseconds can finish inside one time slice while a longer one is always
  *  interrupted, which stretches the longer one by about the load. This thread's, not the process's,
- *  whose garbage-collector threads add their own noise (Node before 23.9 has only the process's). */
+ *  which adds the garbage collector's helper threads. */
 async function cpuMs(fn, reps) {
   const now = () => {
-    const { user, system } = process.threadCpuUsage?.() ?? process.cpuUsage();
+    const { user, system } = process.threadCpuUsage();
     return (user + system) / 1000;
   };
   const before = now();
@@ -356,17 +356,25 @@ async function cpuMs(fn, reps) {
 }
 
 /** Asserts that reading 4x the input takes under 8x the time: linear reading takes about 4x,
- *  quadratic about 16x. The counter advances in ticks of about 4 ms, so each sample repeats the
- *  read until the small one takes 50 ms (which also warms it up). Each size's fastest of five
- *  samples counts, the two sizes taken in turn. */
+ *  quadratic about 16x. Both sizes are read once first, so no sample counts a cold start. The CPU
+ *  counter advances in ticks of about 4 ms, so each sample repeats the read until the small one
+ *  takes 50 ms. Each size's fastest of five samples counts, the sizes taken in turn. The rounds
+ *  stop past 10 s of CPU (a linear reader needs under 2 s), so a quadratic one fails with its
+ *  numbers well inside the CI job's time limit. */
 async function assertLinear(label, small, big) {
+  await small();
+  await big();
   let reps = 1;
   while ((await cpuMs(small, reps)) < 50) reps *= 2;
   let s = Infinity;
   let b = Infinity;
-  for (let i = 0; i < 5; i++) {
-    s = Math.min(s, await cpuMs(small, reps));
-    b = Math.min(b, await cpuMs(big, reps));
+  let spent = 0;
+  for (let i = 0; i < 5 && spent < 10_000; i++) {
+    const one = await cpuMs(small, reps);
+    const four = await cpuMs(big, reps);
+    s = Math.min(s, one);
+    b = Math.min(b, four);
+    spent += one + four;
   }
   assert.ok(b < s * 8, `${label}: ${s.toFixed(1)} ms CPU then ${b.toFixed(1)} ms for ${reps} reads (${(b / s).toFixed(1)}x for 4x the input)`);
   console.log(`  ${label}: ${s.toFixed(1)} ms CPU, 4x input ${b.toFixed(1)} ms, ${reps} reads (${(b / s).toFixed(1)}x)`);
