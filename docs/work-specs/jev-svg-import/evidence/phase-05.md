@@ -63,11 +63,20 @@ observable through `svgDraftWithProposal(draft, proposal)` (draft.ts), which val
   countdown row, any other as the generic recipe); each pick lands in its (role, row) box, the row
   count is one past the highest row picked, and a pick that cannot land refuses the whole
   proposal (`invalid-value`, same refused result as A1).
-- **A6 The countdown machinery runs on replacement.** When the behaviour is replaced by a
-  different one, `disarmTimerClock` first puts back what the drop or an earlier apply armed, the
-  proposal's decisions are written, then `armTimerClock` arms the one clock-shaped row only if the
-  new behaviour is a timer and nothing is a countdown yet. At most one ticked countdown row
-  remains: where a kept correction holds one, the proposal's countdown is not written.
+- **A6 The countdown machinery fills only what nobody decided.** A row's kind belongs to the
+  author if corrected, to the proposal if it decides it, and otherwise to the machinery. When the
+  behaviour is replaced by a different one, `disarmTimerClock` puts back what the drop or an
+  earlier apply armed, the proposal's decisions are written, then `armTimerClock` arms the one
+  clock-shaped row only if the new behaviour is a timer, nothing is a countdown yet, and that
+  row's kind is undecided. Decided rows still count as clock-shaped, so two clock rows arm
+  nothing. Neither call changes a decided row. After a replacement the armed marker (which says
+  leaving the timer puts the row back to Text) is on a decided row only when the proposal decided
+  it a countdown under a new timer: that timer owns it. The author's own countdown, and any
+  countdown under another behaviour, carries none. The machinery's changes join the reference; a
+  decided row's reference is its decided value. A proposal that decides the only clock row is
+  Text gets a timer with no clock, which `behaviourBindingGaps` reports, rather than a guess. At
+  most one ticked countdown row remains: where a kept correction holds one, the proposal's
+  countdown is not written.
 - **A7 A proposal never fights a kept correction.** Validation sees the proposal alone; after the
   merge, a proposal pick or field decision that conflicts with a kept correction is not written
   and `kept` names the correction. Conflicts: a field role on a row that is off, a display-target
@@ -148,6 +157,23 @@ reference component was dropped; writes are grouped by layer. Declined: hashing 
 disarm functions (the restore after them is tested); folding the countdown check into the
 conflict filter (it must run last); sharing the empty behaviour seeds with `BehaviourSection.tsx`
 and moving the contract test onto `SVG_RECIPE_ROLES` (both outside this row's files).
+
+## Repeated family: the countdown machinery
+
+Two successive confirmed rounds found variants of one missing rule: `/check` (the machinery
+re-armed a row the author corrected) and the Codex review of `8ac181c` (P2: a proposal deciding
+the only clock row is Text was armed on the first apply and reverted on the second, so not
+idempotent). Patching stopped; a fresh read-only `/so` reassessed the rule model
+(`session_017SdbwM9BjvqAPefyuZ3gfK`, AGREE WITH CORRECTIONS): each row kind has one owner, and the
+machinery owns only undecided rows. Its corrections were taken: decided rows still count when
+arming looks for the one clock, the reference rule is stated with it, and a decided row's marker
+is settled explicitly. A third round, from the final `/so` on `ce7c3ee`
+(`session_017SdbwQpooehha71gQNkZBd`, grade B), found that clearing the marker on every decided row
+also cleared it on a proposal's countdown under a new timer, so leaving that timer kept a ticking
+clock on a graphic with no behaviour. The ownership rule stands; the marker now follows it (A6).
+Tests pin each variant: a proposal deciding the only clock row is Text applied twice, a timer
+replaced by a quiz and by another timer, the author's own countdown under a proposal's timer, and
+two clock rows with one decided Text. Each fails under its mutation.
 
 ## Verification on this worker
 

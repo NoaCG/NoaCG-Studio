@@ -1844,12 +1844,17 @@ export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): 
   const merged = write(draft.svgFields);
   // The machinery fills only what nobody decided: a kind the author corrected or the proposal
   // decides is never armed or disarmed, so the same proposal gives the same rows every time.
-  const decided = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind || result.writes.some((w) => w.layer === id && w.attr === 'kind');
+  const corrected = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind;
+  const proposed = (id: string) => result.writes.some((w) => w.layer === id && w.attr === 'kind');
+  const decided = (id: string) => corrected(id) || proposed(id);
   // It sees every row, so a decided countdown still counts as the one there is.
   const machined = replaced ? armTimerClock(write(disarmTimerClock(draft.svgFields)), behaviour) : merged;
-  // A decided row keeps its decided kind and, once the machinery has run, never its marker, so a
-  // later disarm cannot take a proposal's or the author's countdown back.
-  const svgFields = machined.map((f, i) => (!decided(f.candidateId) ? f : replaced ? { ...f, kind: merged[i].kind, armedByTimer: false } : merged[i]));
+  // A decided row keeps its decided kind. Its marker, once the machinery has run, says only this:
+  // the proposal's countdown under a timer belongs to that timer, so leaving the timer puts it back
+  // (the trap `disarmTimerClock` exists for). The author's own countdown, or one under any other
+  // behaviour, carries none, so no later disarm takes it back.
+  const timerOwns = (i: number, id: string) => proposed(id) && !corrected(id) && merged[i].kind === 'countdown' && behaviour?.kind === 'timer';
+  const svgFields = machined.map((f, i) => (!decided(f.candidateId) ? f : replaced ? { ...f, kind: merged[i].kind, armedByTimer: timerOwns(i, f.candidateId) } : merged[i]));
   // The machinery's own change is the proposal's, not a correction: it joins the reference. Sound
   // only because it never touches a decided row, whose reference is its decided value.
   const referenceRows = { ...result.referenceRows };

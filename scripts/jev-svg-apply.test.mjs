@@ -221,12 +221,21 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
     // marker is left, so a later disarm (the picker's) keeps it.
     const quizInstead = { ...p, components: [{ id: 'quiz', recipe: 'quiz', intent: { lock: 'default', reveal: 'default' }, picks: [{ role: 'question', layer: 't1' }] }] };
     const q1 = apply(draft, quizInstead);
+    // The timer replaced by another timer with the proposal's countdown on the same row: the new
+    // timer owns it, so leaving the timer (the picker's disarm) puts it back to Text.
+    const timerInstead = { ...p, components: [{ ...timer, picks: timer.picks.filter((k) => k.role !== 'bar') }] };
+    const tt = apply(draft, timerInstead);
+    // The author's own countdown under a proposal's new timer carries no marker.
+    const own = { ...none.next, svgFields: none.next.svgFields.map((f) => (f.candidateId === clockRow ? { ...f, kind: 'countdown' } : f)) };
+    const ownT = apply(own, timerInstead);
     // Two clock rows, one decided Text, with a timer: the other is not guessed.
     const decidedText = { ...withField(q, 't0', { kind: 'text' }), components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'bar', layer: 's0' }] }] };
     const dt = apply(two, decidedText);
     out.countdown = {
       saysText: [row(t1.next, clockRow).kind, row(t2.next, clockRow).kind, JSON.stringify(t2.patch) === JSON.stringify(t1.patch), D.behaviourBindingGaps(t1.next).length > 0],
       quizInstead: [row(q1.next, clockRow).kind, row(q1.next, clockRow).armedByTimer, D.disarmTimerClock(q1.next.svgFields).find((f) => f.candidateId === clockRow).kind],
+      timerInstead: [tt.next.svgBehaviour?.kind, row(tt.next, clockRow).kind, row(tt.next, clockRow).armedByTimer, D.disarmTimerClock(tt.next.svgFields).find((f) => f.candidateId === clockRow).kind],
+      ownTimer: [row(ownT.next, clockRow).kind, row(ownT.next, clockRow).armedByTimer === true],
       decidedText: [dt.next.svgBehaviour?.kind, dt.next.svgFields.filter((f) => f.kind === 'countdown').length],
       keptText: [row(keptText.next, clockRow).kind, keptText.kept],
       keepsClock: [row(k1.next, clockRow).kind, k1.next.svgBehaviour, JSON.stringify(k2.patch) === JSON.stringify(k1.patch)],
@@ -375,6 +384,8 @@ test('A6: the countdown machinery runs on replacement and one countdown remains'
     fight: ['text', 'countdown', ['t1.kind']],
     saysText: ['text', 'text', true, true],
     quizInstead: ['countdown', false, 'countdown'],
+    timerInstead: ['timer', 'countdown', true, 'text'],
+    ownTimer: ['countdown', false],
     decidedText: ['timer', 0],
     keptText: ['text', ['t0.kind']],
     keepsClock: ['countdown', null, true],
