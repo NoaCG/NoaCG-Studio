@@ -130,6 +130,9 @@ export function settle(intent, run, facts = {}) {
       && other.head_sha === intent.sha && other.conclusion !== 'cancelled').sort((a, b) => a.id - b.id);
   if (later.length) {
     const failed = later.find((other) => other.status === 'completed' && other.conclusion !== 'success');
+    // A pass needs every later run: an incomplete listing can hide a failure on the commit.
+    if (!failed && fact('complete') !== true) return { state: 'unresolved', run, runIds: later.map((other) => other.id),
+      reason: `run ${run.id} was cancelled and the run listing for ${intent.ref} is incomplete; a pass cannot be proved` };
     const pending = later.find((other) => other.status !== 'completed');
     const by = failed ?? pending ?? later[0];
     const conclusion = failed ? failed.conclusion : pending ? undefined : 'success';
@@ -138,6 +141,8 @@ export function settle(intent, run, facts = {}) {
       reason: `run ${run.id} was cancelled; ${later.length} later run(s) on the same commit carry its verdict:`
         + (failed ? ` run ${failed.id} ended ${failed.conclusion}` : pending ? ` run ${pending.id} is still running` : ' all passed') };
   }
+  if (replaceable && fact('complete') !== true) return { state: 'unresolved', run,
+    reason: `run ${run.id} was cancelled and the run listing for ${intent.ref} is incomplete; whether a later run replaced it cannot be proved` };
   // The group never cancels a started run (cancel-in-progress: false): someone chose to.
   if (fact('started')) return { state: 'cancelled', run,
     reason: `run ${run.id} was cancelled after its jobs started, by a person or session, not by a newer dispatch; find out why before dispatching again` };
@@ -166,8 +171,11 @@ export function reconcile(intent, { api = ghApi, now = Date.now } = {}) {
     } else attribution = attribute(intent, listDispatchRuns(api, intent, since(intent)), now());
     if (attribution.state !== 'accepted') return attribution;
     const { run } = attribution;
+    let listing;
+    const list = () => (listing ??= listDispatchRuns(api, intent, since(intent)));
     return settle(intent, run, {
-      runs: () => listDispatchRuns(api, intent, since(intent)).runs,
+      runs: () => list().runs,
+      complete: () => list().complete,
       started: () => {
         const jobs = api('GET', `repos/${intent.repository}/actions/runs/${run.id}/jobs?per_page=1`);
         if (!jobs.ok || !Number.isSafeInteger(jobs.json?.total_count)) throw Error(`could not read the jobs of run ${run.id}`);

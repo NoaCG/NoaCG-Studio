@@ -100,7 +100,8 @@ reassessment of the rule model came before the repair. It agreed with correction
    commit never stand in for it.
 2. Exception, needed by same-branch supersession: a proved run that was cancelled takes its
    verdict from the later dispatch runs of the same workflow, ref and commit: failing if any of
-   them failed, running while any runs, passing only if all passed. The answer names them.
+   them failed, running while any runs, passing only if all passed, and only from a complete
+   run listing (otherwise `unresolved`). The answer names them.
    That workflow's dispatch takes no inputs and checks out `github.sha`, so that verdict is about
    the commit. The helper therefore serves `configured-suite.yml` only (a test pins
    `workflow_dispatch: {}`), and a run of any other workflow never adopts another's verdict.
@@ -162,6 +163,7 @@ ambiguity. These are fixtures.
 | Codex on `eec131b4` (comment 4431771414) | `--recover` sent its dispatch before recording the claim, so a restart or a concurrent caller could send a second full suite | run identity and delivery must be proved, not inferred (fourth round) | product defect | rule 7, swept across both send paths; restart and interleaving tests first |
 | Codex on `f121a8db` (comment 4431789152) | with `--workflow ci.yml`, a cancelled full run could adopt a replacement's pass made with a narrower `diff_base` | a verdict is adopted only from the same check | product defect | serve `configured-suite.yml` only; other workflows never adopt; test pins its input-free dispatch |
 | Fresh `/so` on `60d66b49` (grade B) | a cancelled run with several later runs on its commit took the newest, so a failure between them was hidden by a later pass | a failure on the commit is never hidden by a later pass | product defect | every later same-commit run counts: any failure fails it; test first. Non-blocking note taken: known-traps says an `attempt` above 1 is a re-run to read in full |
+| Codex on `f3df92d4` (comment 4431892429) | the cancelled-run path ignored whether the run listing was complete, so past one page an earlier failure could drop out and the record pass | a failure on the commit is never hidden (same family as the row above) | product defect | no pass, and no `recover`, from an incomplete listing; a found failure still fails; 101-run test first |
 
 ## 7. Phase notes
 

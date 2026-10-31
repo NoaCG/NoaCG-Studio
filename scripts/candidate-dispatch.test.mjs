@@ -70,7 +70,7 @@ function github({ heads, returnsId = true } = {}) {
       const after = Date.parse(q.get('created').slice(2));
       const rows = state.runs.filter((r) => r.event === q.get('event') && r.head_branch === q.get('branch')
         && Date.parse(r.created_at) >= after).sort((a, b) => b.id - a.id);
-      return ok({ total_count: rows.length, workflow_runs: rows });
+      return ok({ total_count: rows.length, workflow_runs: state.pageSize ? rows.slice(0, state.pageSize) : rows });
     }
     if (method === 'GET' && (m = /\/actions\/runs\/(\d+)\/jobs\?/.exec(endpoint))) {
       return ok({ total_count: state.runs.find((x) => x.id === Number(m[1]))?.jobsStarted ?? 0, jobs: [] });
@@ -239,7 +239,7 @@ test('same-branch pending supersession: follow the same commit, recover once, or
 
     // The head moved on: the old commit's run is obsolete here.
     h.gh.heads['claude/one'] = sha('2');
-    const moved = settle(intent(), { ...firstRun }, { runs: h.gh.runs, head: sha('2') });
+    const moved = settle(intent(), { ...firstRun }, { complete: true, runs: h.gh.runs, head: sha('2') });
     assert.equal(moved.state, 'obsolete');
     assert.match(moved.reason, /exact-SHA check branch/);
   } finally { h.done(); }
@@ -271,19 +271,19 @@ test('a same-second replacement is found by run ID; a run cancelled after it sta
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: at };
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
   const twin = { ...base, id: 11, status: 'queued', conclusion: null };
-  assert.equal(settle(intent, cancelled, { runs: [twin, cancelled], head: sha('1') }).by.id, 11);
-  assert.equal(settle(intent, { ...twin, id: 9 }, { runs: [cancelled], head: sha('1') }).state, 'running');
-  const byHand = settle(intent, cancelled, { runs: [cancelled], started: true, head: sha('1') });
+  assert.equal(settle(intent, cancelled, { complete: true, runs: [twin, cancelled], head: sha('1') }).by.id, 11);
+  assert.equal(settle(intent, { ...twin, id: 9 }, { complete: true, runs: [cancelled], head: sha('1') }).state, 'running');
+  const byHand = settle(intent, cancelled, { complete: true, runs: [cancelled], started: true, head: sha('1') });
   assert.equal(byHand.state, 'cancelled');
   assert.equal(exitCode(byHand), 2);
-  assert.equal(settle(intent, cancelled, { runs: [cancelled], head: sha('1') }).state, 'recover');
+  assert.equal(settle(intent, cancelled, { complete: true, runs: [cancelled], head: sha('1') }).state, 'recover');
 });
 
 test('a superseded record carries its replacement\'s verdict and exit code', () => {
   const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
-  const settled = (replacement) => settle(intent, cancelled, { runs: [cancelled, { ...base, id: 11, ...replacement }], head: sha('1') });
+  const settled = (replacement) => settle(intent, cancelled, { complete: true, runs: [cancelled, { ...base, id: 11, ...replacement }], head: sha('1') });
   const failed = settled({ status: 'completed', conclusion: 'failure' });
   assert.deepEqual([failed.state, failed.conclusion, failed.by.id], ['superseded', 'failure', 11]);
   assert.equal(exitCode(failed), 1);
@@ -306,7 +306,7 @@ test('only the input-free configured suite is served, and only it adopts a repla
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: '.github/workflows/ci.yml', created_at: '2026-10-31T12:00:00Z' };
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
   const narrower = { ...base, id: 11, status: 'completed', conclusion: 'success' }; // e.g. a diff_base run
-  const ci = settle({ workflow: 'ci.yml', ref: 'claude/one', sha: sha('1') }, cancelled, { runs: [cancelled, narrower], head: sha('1') });
+  const ci = settle({ workflow: 'ci.yml', ref: 'claude/one', sha: sha('1') }, cancelled, { complete: true, runs: [cancelled, narrower], head: sha('1') });
   assert.equal(ci.state, 'recover');
   assert.notEqual(exitCode(ci), 0);
 });
@@ -317,12 +317,30 @@ test('a failure on the commit after a cancel is never hidden by a later pass', (
   const a = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' }; // replaced while pending
   const b = { ...base, id: 11, status: 'completed', conclusion: 'failure' }; // the run that replaced it
   const c = { ...base, id: 12, status: 'completed', conclusion: 'success' }; // a later pass on the same commit
-  const failed = settle(intent, a, { runs: [c, b, a], head: sha('1') });
+  const failed = settle(intent, a, { complete: true, runs: [c, b, a], head: sha('1') });
   assert.deepEqual([failed.state, failed.conclusion, failed.by.id, exitCode(failed)], ['superseded', 'failure', 11, 1]);
-  const pending = settle(intent, a, { runs: [{ ...c, status: 'in_progress', conclusion: null }, { ...b, conclusion: 'success' }, a], head: sha('1') });
+  const pending = settle(intent, a, { complete: true, runs: [{ ...c, status: 'in_progress', conclusion: null }, { ...b, conclusion: 'success' }, a], head: sha('1') });
   assert.deepEqual([pending.conclusion, exitCode(pending)], [undefined, 3]);
-  const passed = settle(intent, a, { runs: [c, { ...b, conclusion: 'success' }, a], head: sha('1') });
+  const passed = settle(intent, a, { complete: true, runs: [c, { ...b, conclusion: 'success' }, a], head: sha('1') });
   assert.deepEqual([passed.conclusion, passed.by.id, exitCode(passed)], ['success', 11, 0]);
+});
+
+test('a cancelled run never passes from an incomplete run listing', () => {
+  const h = harness({ 'claude/one': sha('1') });
+  try {
+    const first = h.send('claude/one');
+    Object.assign(h.gh.runs.find((r) => r.id === first.run.id), { status: 'completed', conclusion: 'cancelled' });
+    // A failure on the commit, then more than a page of passing runs on the same branch and commit.
+    Object.assign(h.gh.dispatchByOther('claude/one'), { status: 'completed', conclusion: 'failure' });
+    for (let i = 0; i < 100; i += 1) Object.assign(h.gh.dispatchByOther('claude/one'), { status: 'completed', conclusion: 'success' });
+    h.gh.pageSize = 100;
+    const answer = reconcile(JSON.parse(readFileSync(first.record, 'utf8')), h.deps);
+    assert.notEqual(exitCode(answer), 0, JSON.stringify({ state: answer.state, conclusion: answer.conclusion }));
+    assert.equal(answer.state, 'unresolved');
+    h.gh.pageSize = undefined; // The whole listing shows the failure.
+    const whole = reconcile(JSON.parse(readFileSync(first.record, 'utf8')), h.deps);
+    assert.deepEqual([whole.state, whole.conclusion, exitCode(whole)], ['superseded', 'failure', 1]);
+  } finally { h.done(); }
 });
 
 test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {
