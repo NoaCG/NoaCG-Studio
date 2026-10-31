@@ -1278,6 +1278,25 @@ test('imported countdown: changing your mind puts the clock layer back to plain 
   await expect(kind).toHaveValue('countdown');
 });
 
+test('the Clock waits for its runtime: a new import keeps the Countdown and offers no Clock yet', async ({ page }) => {
+  // THE CLOCK IS A PART, NOT A BEHAVIOUR (docs/work-specs/jev-svg-import, row 7, AC-8), persisted
+  // and compiled beside a score tracker - but a control is offered only when it can change the
+  // graphic, and until row 8 binds the match-clock runtime nothing would count. So the shipped step
+  // is the step as it was (`CLOCK_RUNTIME_READY` false): the old Countdown, no Clock select. Row 8
+  // turns this into the Clock walk; scripts/jev-svg-contract.test.mjs renders the ready picker.
+  await openImportDoor(page, fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url)));
+  const kind = page.getByTestId('map-svg-behaviour-kind');
+  await expect(kind.locator('option[value="timer"]')).toHaveCount(1);
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+  await kind.selectOption('score');
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+
+  // A file drawn for the countdown is proposed as one, as before.
+  await openImportDoor(page, TIMER_SVG);
+  await expect(kind).toHaveValue('timer');
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+});
+
 test('imported quiz: the behaviour survives the export and runs standalone from a file', async ({ page }, testInfo) => {
   // EXPORT IS WHERE AN IMPORTED GRAPHIC STOPS BEING OURS. Everything above runs inside the app;
   // this asserts the same board works as a folder on a playout machine, with no NoaCG around it.

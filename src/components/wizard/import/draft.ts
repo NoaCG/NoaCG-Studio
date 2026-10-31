@@ -8,6 +8,7 @@ import type { AssetFile, SpxTemplate } from '../../../model/types';
 import { addPlacedLine } from '../../../blocks/designLayout';
 import { applyPlacedFieldSpecs } from '../../../blocks/designFields';
 import type {
+  DesignSvgClock,
   DesignArt,
   DesignSvg,
   DesignSvgAlign,
@@ -23,6 +24,7 @@ import type { EraseRect, RegionInk } from '../../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
+import { CLOCK_MODES, CLOCK_NAME, CLOCK_RUNTIME_READY } from '../../../templates/behaviours/clock';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
 import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
 import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
@@ -87,6 +89,10 @@ export interface SvgImportDraft {
    *  one entry per layer the reader gave a use. Proposed from `show:` / `choice:` names at
    *  drop; every hidden layer no recipe claimed is offered the same two answers in the step. */
   svgExtras: SvgExtraDraft[];
+  /** THE CLOCK the author chose in the behaviour section (templates/behaviours/clock.ts): which
+   *  ticked text row shows the time and how it counts. Beside any behaviour but the old
+   *  countdown. Absent or null is no clock, and so is one chosen on other artwork. */
+  svgClock?: SvgClockDraft | null;
   /** Does the graphic HUG its text — one rectangle widening so a longer value fits at full
    *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
    *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
@@ -1066,6 +1072,17 @@ export interface SvgExtraDraft {
   group?: string;
 }
 
+/** The clock as the step holds it. */
+export interface SvgClockDraft {
+  /** The text row that shows the time. */
+  candidateId: string;
+  mode: DesignSvgClock['mode'];
+  /** The artwork revision it was chosen on (`svgSourceRevision`). Row ids are positions in that
+   *  markup, so on any other artwork the clock reads as none: a drop never carries it onto a
+   *  layer the author did not pick, and the same file dropped again keeps it. */
+  revision: string;
+}
+
 /** The switches and choices the drop proposes from the two prefixes, named by their layers. */
 function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
   return proposeExtras(svg).map(({ candidateId, prefix }) =>
@@ -1100,8 +1117,19 @@ export function extraLayerName(label: string): string {
 function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
   const exists = (id: string) => draft.designSvg?.groups.some((g) => g.id === id) ?? false;
   const out: DesignSvgExtra[] = [];
+  // ONE NAME PER PART. Each extra's buttons and group are named after it, case and punctuation
+  // aside, so two hidden layers both called "Sponsor" would be one name twice, which the compiler
+  // refuses. The later one is numbered, as a choice's options are (`optionKey`).
+  const taken = new Set<string>();
+  const unique = (name: string): string => {
+    const token = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    let next = name;
+    for (let n = 2; taken.has(token(next)); n++) next = `${name} ${n}`;
+    taken.add(token(next));
+    return next;
+  };
   for (const e of draft.svgExtras) {
-    if (e.use === 'switch' && exists(e.candidateId) && e.name.trim()) out.push({ kind: 'switch', name: e.name.trim(), layer: e.candidateId });
+    if (e.use === 'switch' && exists(e.candidateId) && e.name.trim()) out.push({ kind: 'switch', name: unique(e.name.trim()), layer: e.candidateId });
   }
   const groups = new Map<string, { label: string; layer: string }[]>();
   for (const e of draft.svgExtras) {
@@ -1110,8 +1138,39 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
     list.push({ label: e.name.trim(), layer: e.candidateId });
     groups.set(e.group.trim(), list);
   }
-  for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name, options });
+  for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name: unique(name), options });
+  const clock = svgClockOption(draft);
+  if (clock) out.push(clock);
   return out.length > 0 ? out : undefined;
+}
+
+/**
+ * The rows a CLOCK may show its time on: the ticked text rows whose sample reads as a time. None
+ * at all beside the old countdown, whether it is the behaviour, the moments the file drew for it
+ * (the names propose it) or a row bound as one: one clock engine per graphic. The mapping step
+ * offers exactly these, and the graphic carries a clock only on one of them, so a clock the step
+ * no longer shows is never built behind the author's back.
+ */
+export function svgClockRows(draft: SvgImportDraft, ready: boolean = CLOCK_RUNTIME_READY): SvgFieldDraft[] {
+  // Until the clock's runtime is bound there is nowhere a clock may go, whoever wrote `svgClock`.
+  if (!ready || draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
+  if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
+  const driven = pollDrivenLayers(draft.svgBehaviour);
+  return draft.svgFields.filter((f) => f.on && f.clock && !driven.has(f.candidateId));
+}
+
+/** Whether the file drew the moments only the countdown paints: its names propose it, read the way
+ *  the drop reads them. */
+export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
+  return !!svg && bestProposal({ ...svg, candidates: svg.candidates.filter((c) => !c.outsideCanvas) })?.recipe === 'countdown';
+}
+
+/** The clock as the graphic carries it, or null. */
+export function svgClockOption(draft: SvgImportDraft, ready: boolean = CLOCK_RUNTIME_READY): DesignSvgClock | null {
+  const clock = draft.svgClock;
+  if (!clock || !draft.designSvg || clock.revision !== svgSourceRevision(draft.designSvg.markup)) return null;
+  if (!svgClockRows(draft, ready).some((f) => f.candidateId === clock.candidateId)) return null;
+  return { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
 }
 
 /** One line saying what the graphic DOES, for the Finish step and the mapping step's summary. */
@@ -1135,6 +1194,8 @@ export function behaviourSummary(draft: SvgImportDraft): string {
   const choices = extras.filter((e) => e.kind === 'choice');
   if (switches.length > 0) parts.push(`${switches.length} ${switches.length === 1 ? 'switch' : 'switches'}`);
   for (const c of choices) if (c.kind === 'choice') parts.push(`a choice, ${c.name} (${c.options.map((o) => o.label).join(', ')})`);
+  const clock = svgClockOption(draft);
+  if (clock) parts.push(CLOCK_MODES.find((m) => m.mode === clock.mode)?.summary ?? 'a clock');
   return parts.join(' · ');
 }
 

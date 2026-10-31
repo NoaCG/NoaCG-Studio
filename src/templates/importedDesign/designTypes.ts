@@ -45,8 +45,8 @@ export interface DesignSvg {
   /**
    * The SWITCHES and CHOICES bound to the artwork beside (or instead of) a behaviour
    * (docs/SVG_BEHAVIOUR_PLAN.md §7c): a hidden layer the operator shows and hides, or a set of
-   * hidden layers of which one shows at a time. Any number; each compiles as its own parallel
-   * group under its own name. Absent = none, which every import before this had.
+   * hidden layers of which one shows at a time - and at most one CLOCK. Each compiles as its own
+   * parallel group under its own name. Absent = none, which every import before this had.
    */
   extras?: DesignSvgExtra[];
   /**
@@ -317,7 +317,23 @@ export type DesignSvgExtra =
       name: string;
       /** Two or more options, each a hidden layer with the word the operator presses. */
       options: { label: string; layer: string }[];
-    };
+    }
+  | DesignSvgClock;
+
+/**
+ * THE CLOCK on the artwork's own time layer (templates/behaviours/clock.ts): an INSTANCED part,
+ * so it sits beside a score tracker or any other one full recipe. One per graphic. A saved
+ * `timer` behaviour is the older countdown and stays exactly that; nothing converts one into this.
+ */
+export interface DesignSvgClock {
+  kind: 'clock';
+  /** The operator's word for it - the section its buttons sit under. */
+  name: string;
+  /** The candidate id of the ticked text row that shows the time. */
+  field: string;
+  /** How it counts, chosen once by the author: never switched on air. */
+  mode: 'count-up' | 'duration' | 'target-time';
+}
 
 /** One outlined-text group hidden in favour of a placed HTML field. */
 export interface DesignSvgOutline {
