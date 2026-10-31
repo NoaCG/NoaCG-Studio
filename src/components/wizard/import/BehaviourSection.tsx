@@ -29,6 +29,7 @@ import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_MODES } from '../../../templates/behaviours/clock';
+import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
   clearFill,
   fillGap,
@@ -635,7 +636,7 @@ export default function BehaviourSection({
                     const found = CLOCK_MODES.find((m) => m.mode === mode);
                     if (!found) return setClock(null);
                     const row = clockRows.find((f) => f.candidateId === clock?.candidateId) ?? clockRows[0];
-                    setClock({ candidateId: row.candidateId, mode: found.mode });
+                    setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? '') });
                   }}
                   data-testid="map-svg-clock-mode"
                 >

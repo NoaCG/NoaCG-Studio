@@ -55,6 +55,8 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
   drew the moments only the countdown paints) or the draft already holds one; then the Clock is
   not offered. The graphic carries a clock only on a row the step offers, so a clock the step no
   longer shows is never built. The clock is chosen, never proposed from a name.
+- **C6 A clock belongs to its artwork.** Row ids are positions in one markup, so a stored clock
+  binds only on the revision it was chosen on; any other drop reads as no clock.
 
 ## What landed
 
@@ -65,16 +67,16 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
 - `designTypes.ts`: `DesignSvgClock` in the `DesignSvgExtra` union.
 - `behaviour.ts`: the clock binding, instanced options under their namespace, and
   `refuseCollisions`.
-- `draft.ts` (reconciled with the coordinator at 20:46Z, outside the row's list): `svgClock` in the draft,
-  `svgClockOption`, the clock in `svgExtrasOptions` and in the summary; a fresh drop starts with no
-  clock and a same-artwork drop keeps it (row 6 rule S3).
+- `draft.ts` (reconciled with the coordinator at 20:46Z, outside the row's list): the optional
+  `svgClock`, `svgClockRows`, `svgCountdownDrawn` and `svgClockOption`, the clock in
+  `svgExtrasOptions` and one summary part. The stored clock carries the artwork revision it was
+  chosen on, the rule row 5's `svgApplied` already uses: on other artwork it reads as no clock, and
+  the same file dropped again keeps it (row 6 rule S3). So no drop, clear or keep path changed, and
+  no pinned draft record either.
 - `BehaviourSection.tsx`: the Clock and Time layer selects; the Countdown option only per C5.
   Choosing a row for the clock sets that row's kind back to text.
 - `scripts/jev-svg-contract.test.mjs`: five tests, C1 to C5, through the real compiler, the
   machine compiler and the machine validator.
-- `scripts/import-drop.test.mjs` (reconciled at 21:07Z, outside the row's list): its exact pin of
-  the SVG answers a clear and a picture drop take back goes from 8 to 9, because `svgClock` is one
-  of them; the loop beside it still checks each key resets.
 - `e2e/import-svg-behaviour.spec.ts` (reconciled, outside the row's list): one new test, the
   Clock walk on `score-clock-1.svg`, then the countdown file keeping its one choice. No existing
   test or assertion changed.

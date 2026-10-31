@@ -91,8 +91,8 @@ export interface SvgImportDraft {
   svgExtras: SvgExtraDraft[];
   /** THE CLOCK the author chose in the behaviour section (templates/behaviours/clock.ts): which
    *  ticked text row shows the time and how it counts. Beside any behaviour but the old
-   *  countdown. null, or absent on a draft from before it existed, is no clock. */
-  svgClock: SvgClockDraft | null;
+   *  countdown. Absent or null is no clock, and so is one chosen on other artwork. */
+  svgClock?: SvgClockDraft | null;
   /** Does the graphic HUG its text — one rectangle widening so a longer value fits at full
    *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
    *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
@@ -1077,6 +1077,10 @@ export interface SvgClockDraft {
   /** The text row that shows the time. */
   candidateId: string;
   mode: DesignSvgClock['mode'];
+  /** The artwork revision it was chosen on (`svgSourceRevision`). Row ids are positions in that
+   *  markup, so on any other artwork the clock reads as none: a drop never carries it onto a
+   *  layer the author did not pick, and the same file dropped again keeps it. */
+  revision: string;
 }
 
 /** The switches and choices the drop proposes from the two prefixes, named by their layers. */
@@ -1152,7 +1156,8 @@ export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
 /** The clock as the graphic carries it, or null. */
 export function svgClockOption(draft: SvgImportDraft): DesignSvgClock | null {
   const clock = draft.svgClock;
-  if (!clock || !svgClockRows(draft).some((f) => f.candidateId === clock.candidateId)) return null;
+  if (!clock || !draft.designSvg || clock.revision !== svgSourceRevision(draft.designSvg.markup)) return null;
+  if (!svgClockRows(draft).some((f) => f.candidateId === clock.candidateId)) return null;
   return { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
 }
 
@@ -1516,7 +1521,7 @@ type SvgClearPatch = SvgSlice & Required<Pick<DraftPatch, 'name' | 'category' | 
  *  none of the three can keep a stale one. Fresh arrays on every call, so no two drafts share
  *  one. */
 export function emptySvgSlice(): SvgSlice {
-  return { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgClock: null, svgStretch: { on: false, shapeId: null }, svgFonts: [] };
+  return { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [] };
 }
 
 /**
@@ -1616,8 +1621,6 @@ export function svgDraftFromImport(
     ...answers,
     // The switches and choices the names declare outright (`show:`, `choice:`).
     svgExtras: proposeSvgExtras(result),
-    // Never proposed: a clock-shaped layer says nothing about which way it counts.
-    svgClock: null,
     // THE HUG (plan §3) starts OFF here with the widest rectangle proposed;
     // the mapping step then MEASURES the rendered artwork and turns growth on
     // by itself where it is unambiguous (GOALS goal 5 - MapSvgFieldsStep
@@ -1680,7 +1683,6 @@ function svgKeptOnRedrop(fresh: SvgDropPatch, previous: SvgDropPrevious): SvgDro
     svgOutlines: previous.svgOutlines ?? fresh.svgOutlines,
     svgBehaviour: previous.svgBehaviour ?? null,
     svgExtras: previous.svgExtras ?? fresh.svgExtras,
-    svgClock: previous.svgClock ?? null,
     svgStretch: previous.svgStretch ?? fresh.svgStretch,
     svgFonts: previous.svgFonts ?? fresh.svgFonts,
     svgApplied: previous.svgApplied,

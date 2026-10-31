@@ -565,7 +565,7 @@ test('the clock is chosen, never proposed: the name reader and the example list 
   assert.ok(recipeById('countdown'), 'the countdown recipe stays registered for saved graphics');
 });
 
-test('the draft builds a clock only on a row the step offers, never beside a countdown engine (C3, C5)', async () => {
+test('the draft builds a clock only on a row the step offers on this artwork, never beside a countdown engine (C3, C5)', async () => {
   const { svgDesignOptions, svgClockRows } = await load('src/components/wizard/import/draft.ts');
   const layer = (id, label, sample, clock = false) => ({ id, label, sample, marked: false, drawing: false, namedByGroup: false, numeric: false, clock });
   const candidates = [layer('t0', 'home', 'FIELD'), layer('t1', 'match-time', '12:08', true), layer('t2', 'period', '1:00', true)];
@@ -573,7 +573,7 @@ test('the draft builds a clock only on a row the step offers, never beside a cou
     designSvg: { markup: '<svg/>', width: 1200, height: 180, candidates, images: [], outlines: [], groups: [], shapes: [] },
     svgFields: candidates.map((c) => ({ candidateId: c.id, on: true, title: c.label, sample: c.sample, numeric: false, clock: c.clock, kind: 'text' })),
     svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [],
-    svgClock: { candidateId: 't1', mode: 'duration' },
+    svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg/>') },
     ...over,
   });
   const clocks = (d) => (svgDesignOptions(d).extras ?? []).filter((e) => e.kind === 'clock');
@@ -589,6 +589,8 @@ test('the draft builds a clock only on a row the step offers, never beside a cou
   const unticked = draft();
   unticked.svgFields[1] = { ...unticked.svgFields[1], on: false };
   assert.deepEqual(clocks(unticked), []);
-  assert.deepEqual(clocks(draft({ svgClock: { candidateId: 't0', mode: 'count-up' } })), []);
+  assert.deepEqual(clocks(draft({ svgClock: { candidateId: 't0', mode: 'count-up', revision: svgSourceRevision('<svg/>') } })), []);
+  // Row ids are positions in one markup: a clock chosen on other artwork is no clock here.
+  assert.deepEqual(clocks(draft({ svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg>other</svg>') } })), []);
   assert.equal(svgDesignOptions(draft({ svgClock: null })).extras, undefined, 'no clock, no extras: the same options as before');
 });

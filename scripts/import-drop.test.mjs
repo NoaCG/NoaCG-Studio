@@ -132,7 +132,7 @@ test('a dropped picture takes back every SVG answer an SVG clear does', () => {
   const cleared = clearSvgPatch(mergeDraft(initialDraft(), drop(inventory())));
   // Whatever SVG answer the clear takes back, a picture drop takes back too, to the same value.
   assert.deepEqual(svgKeys(patch), svgKeys(cleared));
-  assert.equal(svgKeys(cleared).length, 9);
+  assert.equal(svgKeys(cleared).length, 8);
   for (const key of svgKeys(cleared)) assert.deepEqual(patch[key], cleared[key], key);
 });
 
