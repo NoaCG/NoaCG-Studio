@@ -64,6 +64,13 @@ function normalizePictureHref(el: Element): void {
   el.removeAttribute('xlink:href');
 }
 
+/** Add a class, keeping the designer's own classes and never doubling ours. */
+function addClass(el: Element, cls: string): void {
+  const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+  if (!own.includes(cls)) own.push(cls);
+  el.setAttribute('class', own.join(' '));
+}
+
 /**
  * Rename an element's id and move every in-document reference to it with the rename. An SVG
  * refers to its own nodes by `#id` all over - a `<use>` inside a `<pattern>`, a gradient, a clip
@@ -147,9 +154,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
       // roll copies looks and leading off the lines of the text those runs belong to.
       const target = i === credits || artworkCredits.has(i) ? el.closest('text') ?? el : el;
       const cls = i === clock ? `${PREFIX}-clock` : creditsClass(PREFIX);
-      const own = (target.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-      if (!own.includes(cls)) own.push(cls);
-      target.setAttribute('class', own.join(' '));
+      addClass(target, cls);
       return;
     }
     // A PICTURE field binds the node whose href paints the picture, which is not always the node
@@ -165,9 +170,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
       // a correction (templates/shared/matchClock.ts). Two attributes say which way it counts and
       // where Reset returns; the layer's font, position and transform are the designer's, untouched.
       if (i === matchClock?.index) {
-        const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-        if (!own.includes(`${PREFIX}-clock`)) own.push(`${PREFIX}-clock`);
-        el.setAttribute('class', own.join(' '));
+        addClass(el, `${PREFIX}-clock`);
         el.setAttribute('data-count', matchClock.count);
         el.setAttribute('data-start', matchClock.start);
       }
@@ -185,9 +188,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   for (const outline of svg.outlines) {
     const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${outline.candidateId}"]`);
     if (!el) continue;
-    const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-    if (!own.includes(`${PREFIX}-outlined`)) own.push(`${PREFIX}-outlined`);
-    el.setAttribute('class', own.join(' '));
+    addClass(el, `${PREFIX}-outlined`);
   }
   // A text layer the author said should come OFF the artwork, hidden the same way and for the
   // same reason: the designer's own shapes stay in the file, and one rule takes them off air.
@@ -196,9 +197,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   for (const gone of svg.hidden ?? []) {
     const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${gone.candidateId}"]`);
     if (!el) continue;
-    const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-    if (!own.includes(`${PREFIX}-removed`)) own.push(`${PREFIX}-removed`);
-    el.setAttribute('class', own.join(' '));
+    addClass(el, `${PREFIX}-removed`);
   }
   // THE ELEMENTS A LAYOUT RELATIONSHIP NAMES (plan §6c): every participant - an element that
   // may GROW, and anything DECLARED to travel with it - is stamped with one token, and the

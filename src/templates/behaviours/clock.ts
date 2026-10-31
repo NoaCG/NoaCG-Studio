@@ -56,6 +56,10 @@ export function clockReadout(mode: ClockMode, drawn: string): { count: 'up' | 'd
   return { count: mode === 'count-up' ? 'up' : 'down', start: drawn.trim() };
 }
 
+/** A time the match clock reads as written: minutes and seconds ("12:08"). It parses "1:30:00"
+ *  as 1:30, so a layer drawn in hours is not offered the clock, and is never a duration's length. */
+export const CLOCK_TIME = /^\d{1,2}:\d{2}$/;
+
 /** The role: the text layer that shows the time, which the operator can also type to correct. */
 const ROLE = 'clock';
 

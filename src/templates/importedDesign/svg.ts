@@ -41,6 +41,7 @@ import {
 } from '../shared/base';
 import { clockRuntimeJs } from '../shared/clock';
 import { matchClockJs } from '../shared/matchClock';
+import { CLOCK_TIME } from '../behaviours/clock';
 import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
@@ -195,24 +196,24 @@ const SVG_FIT_HOOK = `  // The fit ladder re-measures here - every text layer, t
  * so an operator sets the length without a second field. On air every typed time is a correction,
  * paused or running, and leaves the length alone. Off air is the machine's own answer: its main
  * group rests in its off state before the Take and after the Out (blocks/animMachine.ts
- * `MAIN_GROUP_ID`, `OFF_STATE_ID`). Only a real M:SS time is a length; anything else stays a
- * correction.
+ * `MAIN_GROUP_ID`, `OFF_STATE_ID`; written out, since templates import nothing from blocks/).
+ * Only a `CLOCK_TIME` is a length; anything else stays a correction.
  */
 function importedClockJs(duration: boolean): string {
   return `// ---- The clock's field (the time layer IS it) ----
 // importedClockUpdate(fields): the match clock adopts what update() just wrote into its layer.
-function importedClockUpdate(fields) {
+${duration ? `var importedClockLast = null;     // the clock field's last value, to tell a typed time from a resend
+` : ''}function importedClockUpdate(fields) {
   var el = matchClockEl();
   if (!el || !fields || !Object.prototype.hasOwnProperty.call(fields, el.id)) return;
-${duration ? `  var before = matchClockSent;
   matchClockUpdate(el.id, fields[el.id]);
-  // A duration's length is the time the operator set while the graphic was off air.
+${duration ? `  // A duration's length is a time the operator typed while the graphic was off air.
+  var value = String(fields[el.id] == null ? '' : fields[el.id]).trim();
+  if (value === importedClockLast) return;
+  importedClockLast = value;
   var offAir = typeof noacgMachineState === 'function' && noacgMachineState().groups.main === 'off';
-  var length = matchClockPlain(matchClockSent);
-  if (offAir && matchClockSent !== before && matchClockOriginOf(matchClockSent) === null && /^\\d{1,3}:\\d{2}$/.test(length)) {
-    el.setAttribute('data-start', length);
-  }` : `  matchClockUpdate(el.id, fields[el.id]);`}
-}`;
+  if (offAir && ${CLOCK_TIME.toString()}.test(value)) el.setAttribute('data-start', value);
+` : ''}}`;
 }
 const IMPORTED_CLOCK_HOOK = `  // The clock adopts its own field's value before the fit measures it (no-op otherwise).
   if (typeof importedClockUpdate === 'function') importedClockUpdate(fields);`;
