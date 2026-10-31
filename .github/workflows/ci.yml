@@ -1343,7 +1343,11 @@ jobs:
             import { specFilterArg } from "./scripts/e2e-affected.mjs";
             console.log(process.argv.slice(1).map(specFilterArg).join(" "));
           ' $SELECTED)"
-          CI=1 npx --no-install playwright test -c playwright.live.config.ts --list --reporter=json $FILTERS > configured-manifest.json
+          # Its own JSON file: the step's PLAYWRIGHT_JSON_OUTPUT_NAME would otherwise send the listing
+          # over the merged report.
+          CI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=configured-manifest.json \
+            npx --no-install playwright test -c playwright.live.config.ts --list --reporter=json $FILTERS > /dev/null
+          [ -s configured-manifest.json ] || echo "::error title=No selected manifest::Listing the selected files wrote no configured-manifest.json."
           echo "Selected $(echo "$SELECTED" | wc -w) spec file(s): ${SELECTED}"
       - name: Judge the selection
         id: assert

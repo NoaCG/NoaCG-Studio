@@ -321,6 +321,9 @@ test('ci06: the configured jobs run on the planner flag and read no hosted secre
   assert.match(shards, /NOACG_E2E_EXPECTED_SPECS/);
   const verdictJob = job('configured-verdict');
   assert.match(verdictJob, /--manifest configured-manifest\.json/);
+  // The listing writes its own file: inheriting the merge step's PLAYWRIGHT_JSON_OUTPUT_NAME sent it
+  // over the merged report on the first real run (41232694322), and the verdict refused it.
+  assert.match(verdictJob, /PLAYWRIGHT_JSON_OUTPUT_NAME=configured-manifest\.json\s*\\\s*\n\s*npx --no-install playwright test -c playwright\.live\.config\.ts --list/);
   assert.doesNotMatch(verdictJob, /--quarantine/);
   assert.doesNotMatch(verdictJob, /secrets\./);
   assert.match(job('gate'), /needs: \[[^\]]*\bconfigured, configured-verdict\]/);
