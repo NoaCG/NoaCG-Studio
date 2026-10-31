@@ -37,7 +37,9 @@
       "branch": "claude/plan-jev-svg-import-2-build",
       "source": "0b4e403da1f4762dee874e3fed18c29eb0497116",
       "launchedAt": "2026-10-31T11:20:13Z",
-      "note": "builder; coordinator becomes PR repair owner once the PR exists"
+      "note": "builder running gates; coordinator subscribed to #1853 as repair owner",
+      "pr": 1853,
+      "head": "bec791a7fce3b1a8b507dded9cc25ad9f2525b98"
     }
   ],
   "owner": [],
