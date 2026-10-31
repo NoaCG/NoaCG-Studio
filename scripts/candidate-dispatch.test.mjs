@@ -101,7 +101,9 @@ function harness(heads, options) {
     observe: (request) => { observed.push({ ...request, postsBefore: gh.posts }); } };
   const send = (ref, extra = {}) => dispatch({ repository: REPO, workflow: WF, ref, sha: gh.heads[ref], ...extra }, deps);
   const records = () => readdirSync(dir).map((f) => JSON.parse(readFileSync(path.join(dir, f), 'utf8')));
-  return { gh, dir, deps, send, observed, records, done: () => rmSync(dir, { recursive: true, force: true }) };
+  const lines = [];
+  const cli = (argv) => main(argv, { api: gh.api, now: () => gh.clock, observe: () => {}, print: (l) => lines.push(JSON.parse(l)) });
+  return { gh, dir, deps, send, observed, records, lines, cli, done: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
 test('three unrelated candidates dispatched together each get their own run on their own commit', () => {
@@ -213,14 +215,13 @@ test('same-branch pending supersession: follow the same commit, recover once, or
 
     // Nothing replaced it and the commit is still the head: recover, once.
     assert.equal(reconcile(intent(), h.deps).state, 'recover');
-    const lines = [];
-    const cli = (argv) => main(argv, { api: h.gh.api, now: () => h.gh.clock, observe: () => {}, print: (l) => lines.push(JSON.parse(l)) });
+    const { cli, lines } = h;
     h.gh.clock += 1000;
     assert.equal(cli(['reconcile', first.record, '--recover']), 0);
     const recovered = lines.at(-1);
     assert.equal(recovered.recoveredFrom.state, 'recover');
     assert.equal(recovered.state, 'running');
-    assert.equal(JSON.parse(readFileSync(recovered.record, 'utf8')).supersedes, first.record);
+    assert.equal(JSON.parse(readFileSync(first.record, 'utf8')).recoveredBy, recovered.record);
     assert.equal(cli(['reconcile', first.record, '--recover']), 0, 'the old record now follows its replacement');
     assert.equal(lines.at(-1).state, 'superseded');
     assert.equal(lines.at(-1).by.id, recovered.run.id);
@@ -230,7 +231,7 @@ test('same-branch pending supersession: follow the same commit, recover once, or
 
     // The head moved on: the old commit's run is obsolete here.
     h.gh.heads['claude/one'] = sha('2');
-    const moved = settle(intent(), { ...firstRun }, { runs: h.gh.runs }, sha('2'));
+    const moved = settle(intent(), { ...firstRun }, { runs: h.gh.runs, head: sha('2') });
     assert.equal(moved.state, 'obsolete');
     assert.match(moved.reason, /exact-SHA check branch/);
   } finally { h.done(); }
@@ -244,11 +245,10 @@ test('a run found without a returned ID is kept, so a later run on the ref canno
     assert.equal(JSON.parse(readFileSync(first.record, 'utf8')).runId, first.run.id);
     Object.assign(h.gh.runs.find((r) => r.id === first.run.id), { status: 'completed', conclusion: 'cancelled' });
     h.gh.clock += 1000;
-    const lines = [];
-    main(['reconcile', first.record, '--recover'], { api: h.gh.api, now: () => h.gh.clock, observe: () => {}, print: (l) => lines.push(JSON.parse(l)) });
-    assert.equal(lines.at(-1).state, 'running');
-    main(['reconcile', first.record], { api: h.gh.api, now: () => h.gh.clock, print: (l) => lines.push(JSON.parse(l)) });
-    assert.equal(lines.at(-1).state, 'superseded');
+    h.cli(['reconcile', first.record, '--recover']);
+    assert.equal(h.lines.at(-1).state, 'running');
+    h.cli(['reconcile', first.record]);
+    assert.equal(h.lines.at(-1).state, 'superseded');
   } finally { h.done(); }
 });
 
@@ -258,12 +258,12 @@ test('a same-second replacement is found by run ID; a run cancelled after it sta
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: at };
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
   const twin = { ...base, id: 11, status: 'queued', conclusion: null };
-  assert.equal(settle(intent, cancelled, { runs: [twin, cancelled] }, sha('1')).by.id, 11);
-  assert.equal(settle(intent, { ...twin, id: 9 }, { runs: [cancelled] }, sha('1')).state, 'running');
-  const byHand = settle(intent, cancelled, { runs: [cancelled], started: true }, sha('1'));
+  assert.equal(settle(intent, cancelled, { runs: [twin, cancelled], head: sha('1') }).by.id, 11);
+  assert.equal(settle(intent, { ...twin, id: 9 }, { runs: [cancelled], head: sha('1') }).state, 'running');
+  const byHand = settle(intent, cancelled, { runs: [cancelled], started: true, head: sha('1') });
   assert.equal(byHand.state, 'cancelled');
   assert.equal(exitCode(byHand), 2);
-  assert.equal(settle(intent, cancelled, { runs: [cancelled] }, sha('1')).state, 'recover');
+  assert.equal(settle(intent, cancelled, { runs: [cancelled], head: sha('1') }).state, 'recover');
 });
 
 test('exit codes: 0 running or passing, 1 refused or failing, 2 no verdict yet', () => {

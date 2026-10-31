@@ -37,6 +37,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { flagValue, hasFlag } from './jobs-store.mjs';
 import { observeVerification } from './verification-dispatch.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
@@ -46,9 +47,9 @@ const REPOSITORY = /^[\w.-]+\/[\w.-]+$/;
 export const SETTLE_MS = 5 * 60_000;
 // Clock skew allowed between this machine and GitHub's created_at.
 const SKEW_MS = 60_000;
-export const REFUSALS = ['refused', 'mismatch', 'ambiguous', 'unresolved'];
+const REFUSALS = ['refused', 'mismatch', 'ambiguous', 'unresolved'];
 // No verdict for the requested commit yet, and something to do about it.
-export const ACTION = ['absent', 'not-delivered', 'recover', 'obsolete', 'cancelled'];
+const ACTION = ['absent', 'not-delivered', 'recover', 'obsolete', 'cancelled'];
 
 /** `gh api` adapter: { ok, status, json, error }. A 4xx is a definite answer; anything else is not. */
 export function ghApi(method, endpoint, body) {
@@ -68,7 +69,7 @@ const since = (intent) => new Date(Date.parse(intent.requestedAt) - SKEW_MS).toI
 const ownRun = (intent, run) => run.event === 'workflow_dispatch' && run.head_branch === intent.ref
   && run.path?.split('@')[0] === `.github/workflows/${intent.workflow}`;
 
-export function listDispatchRuns(api, { repository, workflow, ref }, after) {
+function listDispatchRuns(api, { repository, workflow, ref }, after) {
   const r = api('GET', `repos/${repository}/actions/workflows/${workflow}/runs?event=workflow_dispatch`
     + `&branch=${encodeURIComponent(ref)}&created=${encodeURIComponent(`>=${after}`)}&per_page=100`);
   if (!r.ok || !Array.isArray(r.json?.workflow_runs)) throw Error('dispatch run listing unreadable');
@@ -91,7 +92,7 @@ export function attribute(intent, { runs, complete }, now) {
   if (!candidates.length) {
     const final = intent.delivery !== 'accepted' && complete && now - Date.parse(intent.requestedAt) >= SETTLE_MS;
     return { state: final ? 'not-delivered' : 'absent', reason: final
-      ? `no run on ${intent.ref} for this request in a complete listing ${SETTLE_MS / 60_000} minutes on`
+      ? `no run on ${intent.ref} for this request in a complete listing ${SETTLE_MS / 60_000} minutes on; reconcile with --recover to dispatch it again`
       : 'no run found for this request yet; reconcile again before dispatching' };
   }
   const [run] = candidates;
@@ -101,22 +102,27 @@ export function attribute(intent, { runs, complete }, now) {
   return { state: 'accepted', run: summary(run) };
 }
 
-/** What the attributed run's outcome means for this commit's verdict. Pure. */
-export function settle(intent, run, { runs = [], started = false }, branchHead) {
+/**
+ * What the attributed run's outcome means for this commit's verdict. Each fact (runs, started,
+ * head) is a value or a getter, read only when the answer needs it.
+ */
+export function settle(intent, run, facts = {}) {
+  const fact = (key) => (typeof facts[key] === 'function' ? facts[key]() : facts[key]);
   if (run.status !== 'completed') return { state: 'running', run };
   if (run.conclusion !== 'cancelled') return { state: 'verdict', run, conclusion: run.conclusion };
   // Run IDs grow with creation; created_at has one-second resolution.
-  const replacement = runs.filter((other) => ownRun(intent, other) && other.id > run.id && other.head_sha === intent.sha
+  const replacement = (fact('runs') ?? []).filter((other) => ownRun(intent, other) && other.id > run.id && other.head_sha === intent.sha
       && other.conclusion !== 'cancelled').sort((a, b) => b.id - a.id)[0];
   if (replacement) return { state: 'superseded', run, by: summary(replacement),
     reason: `run ${run.id} was cancelled; run ${replacement.id} on the same commit carries its verdict` };
   // The group never cancels a started run (cancel-in-progress: false): someone chose to.
-  if (started) return { state: 'cancelled', run,
-    reason: `run ${run.id} was cancelled after its jobs started, by a person or session, not by a newer dispatch; not recovered automatically` };
+  if (fact('started')) return { state: 'cancelled', run,
+    reason: `run ${run.id} was cancelled after its jobs started, by a person or session, not by a newer dispatch; find out why before dispatching again` };
+  const branchHead = fact('head');
   if (branchHead === intent.sha) return { state: 'recover', run,
-    reason: `run ${run.id} was cancelled while pending and ${intent.sha} is still the head of ${intent.ref}; dispatch it again` };
+    reason: `run ${run.id} was cancelled while pending and ${intent.sha} is still the head of ${intent.ref}; reconcile with --recover to dispatch it again` };
   return { state: 'obsolete', run, reason: `run ${run.id} was cancelled and ${intent.ref} moved to ${branchHead ?? 'nothing'};`
-    + ' a verdict still required for the old commit goes through the exact-SHA check branch' };
+    + ' dispatch the new head; a verdict still required for the old commit goes through the exact-SHA check branch' };
 }
 
 function branchHead(api, { repository, ref }) {
@@ -129,13 +135,14 @@ function branchHead(api, { repository, ref }) {
 /** Re-read the run this intent names (finding it once if GitHub returned no ID) and settle it. */
 export function reconcile(intent, { api = ghApi, now = Date.now, save, record } = {}) {
   try {
-    let attribution;
+    let attribution, listing;
     if (intent.runId !== undefined) {
       const r = api('GET', `repos/${intent.repository}/actions/runs/${intent.runId}`);
       if (!r.ok && r.status !== 404) throw Error(`could not read run ${intent.runId}`);
       attribution = attribute(intent, { runs: r.ok && r.json ? [r.json] : [], complete: true }, now());
     } else {
-      attribution = attribute(intent, listDispatchRuns(api, intent, since(intent)), now());
+      listing = listDispatchRuns(api, intent, since(intent));
+      attribution = attribute(intent, listing, now());
       if (attribution.state === 'accepted' && save) {
         // Found once, kept: a later run on the same ref must not make this record ambiguous.
         Object.assign(intent, { runId: attribution.run.id, delivery: 'accepted' });
@@ -144,15 +151,19 @@ export function reconcile(intent, { api = ghApi, now = Date.now, save, record } 
     }
     if (attribution.state !== 'accepted') return attribution;
     const { run } = attribution;
-    if (run.status !== 'completed' || run.conclusion !== 'cancelled') return settle(intent, run, {}, null);
-    const jobs = api('GET', `repos/${intent.repository}/actions/runs/${run.id}/jobs?per_page=1`);
-    if (!jobs.ok || !Number.isSafeInteger(jobs.json?.total_count)) throw Error(`could not read the jobs of run ${run.id}`);
-    return settle(intent, run, { runs: listDispatchRuns(api, intent, since(intent)).runs, started: jobs.json.total_count > 0 },
-      branchHead(api, intent));
+    return settle(intent, run, {
+      runs: () => (listing ?? listDispatchRuns(api, intent, since(intent))).runs,
+      started: () => {
+        const jobs = api('GET', `repos/${intent.repository}/actions/runs/${run.id}/jobs?per_page=1`);
+        if (!jobs.ok || !Number.isSafeInteger(jobs.json?.total_count)) throw Error(`could not read the jobs of run ${run.id}`);
+        return jobs.json.total_count > 0;
+      },
+      head: () => branchHead(api, intent),
+    });
   } catch (error) { return { state: 'unresolved', reason: error.message }; }
 }
 
-export function dispatch({ repository, workflow = 'configured-suite.yml', ref, sha, supersedes }, {
+export function dispatch({ repository, workflow = 'configured-suite.yml', ref, sha }, {
   api = ghApi, observe = observeVerification, save, now = Date.now } = {}) {
   if (!REPOSITORY.test(repository ?? '') || !REF.test(ref ?? '') || !SHA.test(sha ?? '') || !/^[\w.-]+\.ya?ml$/.test(workflow)) {
     return { state: 'refused', reason: 'usage: a repository, a branch name, a full 40-character commit and a workflow file name' };
@@ -165,7 +176,6 @@ export function dispatch({ repository, workflow = 'configured-suite.yml', ref, s
   if (head !== sha) return { state: 'refused', reason: `${ref} is at ${head ?? 'nothing'}, not the requested ${sha}; nothing dispatched` };
   const requestedAt = new Date(now()).toISOString();
   const intent = { version: 1, repository, workflow, ref, sha, requestedAt, delivery: 'requested' };
-  if (supersedes) intent.supersedes = supersedes;
   try { intent.priorRunIds = listDispatchRuns(api, intent, since(intent)).runs.map((run) => run.id); }
   catch (error) { return { state: 'refused', reason: `${error.message}; nothing dispatched` }; }
   const record = save(intent); // Before the dispatch: a lost acknowledgement reconciles from this.
@@ -200,8 +210,8 @@ export function exitCode(result) {
 }
 
 export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, print = console.log } = {}) {
-  const flag = (name) => { const at = argv.indexOf(name); return at >= 0 ? argv[at + 1] : undefined; };
-  const deps = { api, now, ...(observe ? { observe } : {}) };
+  const flag = (name) => flagValue(argv, name);
+  const deps = { api, now, observe };
   let result;
   try {
     if (argv[0] === 'dispatch') {
@@ -214,10 +224,10 @@ export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, 
       const intent = JSON.parse(readFileSync(file, 'utf8'));
       const save = saver(path.dirname(file));
       result = { record: file, ...reconcile(intent, { ...deps, save, record: file }) };
-      if (['recover', 'not-delivered'].includes(result.state) && argv.includes('--recover')) {
+      if (['recover', 'not-delivered'].includes(result.state) && hasFlag(argv, '--recover')) {
         if (intent.recoveredBy) result = { ...result, state: 'refused', reason: `already recovered by ${intent.recoveredBy}; reconcile that record` };
         else {
-          const next = dispatch({ ...intent, supersedes: file }, { ...deps, save });
+          const next = dispatch(intent, { ...deps, save });
           if (next.record) save({ ...intent, recoveredBy: next.record }, file);
           result = { recoveredFrom: result, ...next };
         }
