@@ -42,19 +42,28 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci06: Build re-run verdict, final /so on b83dc98e, builder receipt",
-    "eta": "2026-10-31T22:00:00Z"
+    "what": "ci06 merge queue; quarantine PR #1877 gates; then ci06 landed record and checker",
+    "eta": "2026-10-31T22:10:00Z"
   },
   "inFlight": [
     {
       "phase": "ci06",
-      "step": "build",
+      "step": "queued",
       "session": "session_017SdbwPCfuZxDW8WaBDH9Dm",
       "nonce": "ci06-b-94e8",
       "branch": "claude/plan-cicd-improvement-ci06-build",
       "launchedAt": "2026-10-31T18:44:57Z",
-      "note": "PR #1872 head b83dc98e (main merged after JEV #1870). /so pending. Build red: scripts/ograf-foreign.test.mjs:355 timing ratio (20.4 then 83.1 ms), outside the diff; builder told 21:07Z to re-run once and file a fail-then-pass issue if it passes.",
-      "pr": 1872
+      "note": "Receipt 21:13Z; gates verified at source (CI attempt 2 green; attempt 1 Build fail-then-pass on unrelated timing test, #1873); stamp 41242695255; queued 21:15:45Z.",
+      "pr": 1872,
+      "reviewedHead": "b83dc98e82f08f342b405121cd2227bc3d197e3e",
+      "repairOwnerComment": 6549238470
+    },
+    {
+      "phase": "ci06-repair",
+      "step": "queued-fix",
+      "pr": 1877,
+      "branch": "claude/quarantine-production-data-key-tick",
+      "note": "Coordinator quarantine entry for #1874 (production-data-key-tick fail-then-pass on PR #1872 run 41238514372), head 06cabd05; needs CI, Codex, stamp."
     }
   ],
   "owner": [],
@@ -178,7 +187,10 @@
     1862,
     1863,
     1868,
-    1865
+    1865,
+    1871,
+    1873,
+    1874
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
@@ -196,6 +208,12 @@
       "phase": "ci04",
       "decision": "Graphics-tier overrun from ci04's catalog gate (projected +15 to +18 runner-min per landing vs frozen ceiling 10) goes through the spec's explicit exception route (spec.md:323): scoped to ci04's added catalog runs, owned by the coordinator, expires 2026-11-30, repaid via #1862, independently reviewed by the ci04 checker; ci18 carries it into refusal machinery. Ceilings unchanged.",
       "record": "https://github.com/NoaCG/NoaCG-Studio/issues/1863#issuecomment-6545849957"
+    },
+    {
+      "at": "2026-10-31T21:15Z",
+      "phase": "ci06",
+      "decision": "Landed ci06 with Build green on re-run: attempt 1 failed a timing-ratio Node test outside the diff (ograf-foreign, also failed on earlier head 6131c179); fail-then-pass recorded in #1873, no Node quarantine route (same as #1856). From the next phase on, follow ci06's PR instructions: no worker configured-suite.yml dispatch; read the reviewed head's CI run Configured selection and the two configured jobs; full dispatch only for a named reason; keep reading the per-landing configured run on the merge SHA.",
+      "record": "https://github.com/NoaCG/NoaCG-Studio/pull/1872#issuecomment-6549238470"
     }
   ]
 }
