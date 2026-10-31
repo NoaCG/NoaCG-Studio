@@ -24,6 +24,16 @@ import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../..
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
+import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
+import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
+import {
+  SVG_DRAFT_CAPABILITIES,
+  applySvgProposal,
+  SVG_RECIPE_ROLES,
+  type SvgRowAnswer,
+} from '../../../ai/svgInterpretation/apply';
+import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
+import { canonical } from '../../../model/publishedRecord';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -85,6 +95,23 @@ export interface SvgImportDraft {
    *  the mapping step offers the Google fetch or an upload for the rest. An entry with
    *  neither source is UNRESOLVED — created anyway, with a warning. */
   svgFonts: SvgFontDraft[];
+  /** What the last accepted SVG proposal left as ITS answers (docs/work-specs/jev-svg-import,
+   *  row 5, rule A3): the reference a later proposal compares the draft against, so it may
+   *  replace an earlier proposal's answer and never the author's. Draft-only - the build never
+   *  reads it. Absent until a proposal is applied; every drop resets it. */
+  svgApplied?: SvgAppliedReference;
+}
+
+/** The reference `svgDraftWithProposal` keeps (rules A3 and A8). */
+export interface SvgAppliedReference {
+  /** The artwork revision it belongs to; any other revision reads as no reference. */
+  revision: string;
+  /** Per row, the value that is the proposal's rather than a correction. */
+  rows: Record<string, SvgRowAnswer>;
+  /** The behaviour the proposal left, or the reference's own when the author's was kept. */
+  behaviour: SvgBehaviourDraft | null;
+  /** The behaviour's intent keys nobody has decided yet: the question the step still owes. */
+  unresolved: SvgUnresolvedIntent[];
 }
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
@@ -1446,21 +1473,12 @@ export function emptySvgSlice(): SvgSlice {
 }
 
 /**
- * THE DRAFT A DROPPED SVG STARTS FROM: every answer the mapping step then opens on. The brand
- * is the shell's, as on every other road, and is patched over this.
+ * THE ANSWERS A DROP GIVES this artwork: its rows, ticked as the reader offers them, and the
+ * behaviour proposed from the layer names. Pure over the reader's result, and the width and
+ * height the drop fits play no part, so `svgDraftWithProposal` recomputes exactly these from
+ * `designSvg` as the reference an untouched draft equals (docs/work-specs/jev-svg-import, row 5).
  */
-export function svgDraftFromImport(
-  result: SvgImportResult,
-  context: { resolution: { width: number; height: number }; previous: SvgDropPrevious },
-): SvgDropPatch {
-  const { resolution: res, previous } = context;
-  // Fit-to-frame like the raster path: a larger canvas scales DOWN to the
-  // frame (vector — nothing is lost); the viewBox in the markup is untouched,
-  // only the design-space size the box is sized by changes.
-  const fit =
-    result.width > res.width || result.height > res.height
-      ? Math.min(res.width / result.width, res.height / result.height)
-      : 1;
+function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgFields' | 'svgImages' | 'svgOutlines' | 'svgBehaviour'> {
   // A behaviour PROPOSED from the layer names, never required
   // (docs/GRAPHIC_BEHAVIOUR_PLAN.md). Proposed before the fields because the FIELDS
   // have to be able to see it: a proposed countdown needs its clock layer bound as
@@ -1471,11 +1489,6 @@ export function svgDraftFromImport(
   const written = pollDrivenLayers(proposed);
   const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
   return {
-    designSvg: {
-      ...result,
-      width: Math.round(result.width * fit),
-      height: Math.round(result.height * fit),
-    },
     // EVERY detected text starts ON (plan §2, zero clicks). The `f:` prefix
     // says "this is definitely a field" and names it — it never says "and
     // nothing else is": one layer exported as `f:Competition` used to turn the
@@ -1526,6 +1539,34 @@ export function svgDraftFromImport(
     // Every picker in the mapping step is re-pickable, and a file that looks like
     // nothing in particular proposes nothing at all.
     svgBehaviour: proposed,
+  };
+}
+
+/**
+ * THE DRAFT A DROPPED SVG STARTS FROM: every answer the mapping step then opens on. The brand
+ * is the shell's, as on every other road, and is patched over this.
+ */
+export function svgDraftFromImport(
+  result: SvgImportResult,
+  context: { resolution: { width: number; height: number }; previous: SvgDropPrevious },
+): SvgDropPatch {
+  const { resolution: res, previous } = context;
+  // Fit-to-frame like the raster path: a larger canvas scales DOWN to the
+  // frame (vector — nothing is lost); the viewBox in the markup is untouched,
+  // only the design-space size the box is sized by changes.
+  const fit =
+    result.width > res.width || result.height > res.height
+      ? Math.min(res.width / result.width, res.height / result.height)
+      : 1;
+  // The rows and the behaviour: the answers a proposal may later replace (svgDropAnswers).
+  const answers = svgDropAnswers(result);
+  return {
+    designSvg: {
+      ...result,
+      width: Math.round(result.width * fit),
+      height: Math.round(result.height * fit),
+    },
+    ...answers,
     // The switches and choices the names declare outright (`show:`, `choice:`).
     svgExtras: proposeSvgExtras(result),
     // THE HUG (plan §3) starts OFF here with the widest rectangle proposed;
@@ -1547,6 +1588,8 @@ export function svgDraftFromImport(
         FONTS.find((b) => fontNameKey(b.family) === fontNameKey(f.lookup))?.id ?? null,
       customFont: null,
     })),
+    // A fresh drop answers nothing a proposal said about the artwork it replaces.
+    svgApplied: undefined,
     // A fresh drop replaces any raster state from this walk.
     designArt: null,
     importedImages: [],
@@ -1663,4 +1706,242 @@ export function withSvgImportPasses(
   next = withDesignFieldSpecs(next, draft);
   if (opts.stretchDemo) next = withStretchDemoLine(next, draft);
   return next;
+}
+
+// ── AN SVG PROPOSAL, APPLIED THROUGH THIS DRAFT (docs/work-specs/jev-svg-import, row 5) ──────
+// A proposal (src/ai/svgInterpretation/contract.ts) says which layers are fields and which
+// behaviour binds them. It reaches the graphic only by becoming the ordinary answers below -
+// rows ticked, titled and kinded, one behaviour - so the preview, the control renderer and
+// Finish build it exactly as they build a hand-mapped import, and the author corrects it with
+// the same step. The rules are A1-A11 in docs/work-specs/jev-svg-import/evidence/phase-05.md.
+
+type SvgRows = Pick<SvgImportDraft, 'svgFields' | 'svgImages' | 'svgOutlines'>;
+
+/** Every row, as a proposal decides it. */
+function svgRowAnswers(d: SvgRows): Record<string, SvgRowAnswer> {
+  return {
+    ...Object.fromEntries(d.svgFields.map((f) => [f.candidateId, { on: f.on, kind: f.kind, title: f.title }])),
+    ...Object.fromEntries([...d.svgImages, ...d.svgOutlines].map((f) => [f.candidateId, { on: f.on, title: f.title }])),
+  };
+}
+
+/** A behaviour as ONE proposal component: its filled boxes as picks, a timer's clock as the
+ *  ticked countdown row, its options as intent (rule A8, read backwards). */
+function svgComponentOf(b: SvgBehaviourDraft, rows: Record<string, SvgRowAnswer>, open: readonly SvgUnresolvedIntent[]): SvgProposalComponent {
+  const recipe = recipeIdOf(b);
+  const picks: SvgProposalComponent['picks'] = boxPicksOf(b);
+  // A countdown readout role is not a box: the ticked countdown row carries it.
+  const readout = Object.entries(SVG_RECIPE_ROLES[recipe]?.roles ?? {}).find(([, r]) => r.countdown)?.[0];
+  const clock = readout && Object.entries(rows).find(([, r]) => r.on && r.kind === 'countdown')?.[0];
+  if (readout && clock) picks.unshift({ role: readout, layer: clock });
+  const isOpen = (key: string) => open.some((u) => u.key === key);
+  const intent: Record<string, string> = {};
+  if (recipe === 'quiz') {
+    // An option the author set answers its key, whatever was open before.
+    const options = b.kind === 'quiz' ? b.options : undefined;
+    intent.lock = options?.lock === true ? 'lock' : options?.lock === false ? 'default' : isOpen('lock') ? 'unresolved' : 'default';
+    intent.reveal = options?.autoReveal === true ? 'automatic' : options?.autoReveal === false ? 'manual' : isOpen('reveal') ? 'unresolved' : 'default';
+  }
+  if (recipe === 'credits') {
+    intent.layout = isOpen('layout') ? 'unresolved' : 'default';
+    intent.playback = isOpen('playback') ? 'unresolved' : 'default';
+  }
+  return { id: recipe, recipe, picks, intent };
+}
+
+/** A component as the draft shape of its recipe, every box set to its pick (rule A5). The
+ *  timer's clock is not a box: the countdown row carries it. */
+function svgBehaviourOfComponent(c: SvgProposalComponent, count: number): SvgBehaviourDraft {
+  const n = <T,>(make: () => T): T[] => Array.from({ length: count }, make);
+  let empty: SvgBehaviourDraft;
+  if (c.recipe === 'quiz') {
+    const options: Record<string, boolean> = {};
+    if (c.intent.lock === 'lock') options.lock = true;
+    if (c.intent.reveal === 'manual') options.autoReveal = false;
+    if (c.intent.reveal === 'automatic') options.autoReveal = true;
+    empty = {
+      kind: 'quiz',
+      ...(Object.keys(options).length > 0 ? { options } : {}),
+      question: '',
+      answers: n(() => ''),
+      rows: n(() => ({ selected: '', correct: '', wrong: '' })),
+      locked: '',
+    };
+  } else if (c.recipe === 'score') empty = { kind: 'score', rows: n(emptyScoreRow), final: '' };
+  else if (c.recipe === 'vote') empty = { kind: 'poll', question: '', rows: n(emptyPollRow), total: '', badge: '' };
+  else if (c.recipe === 'countdown') empty = emptyTimerDraft();
+  else empty = { kind: 'recipe', recipe: c.recipe, layers: {}, ...(count > 0 ? { rows: n(emptyRecipeRow) } : {}), options: {} };
+  return withBoxPicks(empty, c.picks);
+}
+
+/** Deep equality that ignores key order: two drafts built by different paths name their keys
+ *  in different orders. */
+const sameValue = (a: unknown, b: unknown): boolean => canonical(a) === canonical(b);
+
+/** What the import holds that a proposal compares against: the reference (rule A3). */
+function svgReferenceOf(draft: SvgImportDraft, svg: SvgImportResult): SvgAppliedReference {
+  const revision = svgSourceRevision(svg.markup);
+  if (draft.svgApplied?.revision === revision) return draft.svgApplied;
+  const drop = svgDropAnswers(svg);
+  return { revision, rows: svgRowAnswers(drop), behaviour: drop.svgBehaviour, unresolved: [] };
+}
+
+export type SvgProposalApplied =
+  | {
+      ok: true;
+      /** One draft update: the rows, the behaviour and the reference, nothing else. */
+      patch: SvgRows & Pick<SvgImportDraft, 'svgBehaviour'> & { svgApplied: SvgAppliedReference };
+      /** The behaviour intent nobody has decided: the one question the import still owes. */
+      decisions: SvgUnresolvedIntent[];
+      /** The author's corrections that won over the proposal. */
+      kept: string[];
+    }
+  | { ok: false; errors: SvgProposalError[] };
+
+/**
+ * APPLY A PROPOSAL to this import, all or nothing (rules A1-A9).
+ *
+ * Refused - an invalid, stale, conflicting or inexpressible proposal - it returns the errors and
+ * no patch, so the draft stays exactly as it was. Accepted, it returns ONE patch: each row value
+ * and the behaviour the proposal may write (only where the author has not corrected it), and
+ * the reference the next proposal compares against. Applying the same proposal to its own result
+ * changes nothing.
+ */
+export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): SvgProposalApplied {
+  const svg = draft.designSvg;
+  if (!svg) return { ok: false, errors: [{ code: 'invalid-shape', at: '', detail: 'no imported artwork' }] };
+  const ref = svgReferenceOf(draft, svg);
+  const rows = svgRowAnswers(draft);
+  const result = applySvgProposal(proposal, {
+    inventory: svg,
+    current: { rows, component: draft.svgBehaviour ? svgComponentOf(draft.svgBehaviour, rows, ref.unresolved) : null },
+    reference: ref.rows,
+    behaviourCorrected: !sameValue(draft.svgBehaviour, ref.behaviour),
+    open: ref.unresolved,
+  });
+  if (!result.ok) return result;
+
+  // A5: the component as the draft's own shape; every pick must land in a box.
+  let behaviour = draft.svgBehaviour;
+  if (result.replaceBehaviour) {
+    const c = result.component;
+    behaviour = c ? svgBehaviourOfComponent(c, result.rowCount) : null;
+    if (c && behaviour) {
+      const landed = new Set(boxPicksOf(behaviour).map((l) => `${l.role}#${l.row ?? ''}=${l.layer}`));
+      const roles = SVG_RECIPE_ROLES[c.recipe]?.roles ?? {};
+      const lost = c.picks.findIndex((p) => !roles[p.role]?.countdown && !landed.has(`${p.role}#${p.row ?? ''}=${p.layer}`));
+      if (lost >= 0) return { ok: false, errors: [{ code: 'invalid-value', at: `components[0].picks[${lost}]`, detail: 'the draft has no box for this pick' }] };
+    }
+  }
+  const replaced = !sameValue(behaviour, draft.svgBehaviour);
+
+  // A4: write only what the merge allowed. A6: the countdown machinery runs around it, and
+  // never over a kind the author corrected: that row keeps exactly what the merge left it.
+  const byLayer = new Map<string, Record<string, unknown>>();
+  for (const w of result.writes) byLayer.set(w.layer, { ...byLayer.get(w.layer), [w.attr]: w.value });
+  const write = <T extends { candidateId: string }>(list: T[]): T[] =>
+    list.map((row) => (byLayer.has(row.candidateId) ? { ...row, ...byLayer.get(row.candidateId) } : row));
+  const merged = write(draft.svgFields);
+  // The machinery fills only what nobody decided: a kind the author corrected or the proposal
+  // decides is never armed or disarmed, so the same proposal gives the same rows every time.
+  const corrected = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind;
+  const proposed = (id: string) => result.writes.some((w) => w.layer === id && w.attr === 'kind');
+  const decided = (id: string) => corrected(id) || proposed(id);
+  // It sees every row, so a decided countdown still counts as the one there is.
+  const machined = replaced ? armTimerClock(write(disarmTimerClock(draft.svgFields)), behaviour) : merged;
+  // A decided row keeps its decided kind, and its marker says only this, whether or not the
+  // behaviour changed: the proposal's countdown under a timer belongs to that timer, so leaving the
+  // timer puts it back (the trap `disarmTimerClock` exists for). The author's own countdown, or one
+  // under any other behaviour, carries none, so no later disarm takes it back.
+  const timerOwns = (i: number, id: string) => proposed(id) && !corrected(id) && merged[i].kind === 'countdown' && behaviour?.kind === 'timer';
+  const svgFields = machined.map((f, i) => {
+    if (!decided(f.candidateId)) return f;
+    const row = replaced ? { ...f, kind: merged[i].kind } : merged[i];
+    // Written only where it changes, so an untouched row keeps the exact shape it had.
+    if (timerOwns(i, f.candidateId)) return row.armedByTimer ? row : { ...row, armedByTimer: true };
+    return row.armedByTimer ? { ...row, armedByTimer: false } : row;
+  });
+  // The machinery's own change is the proposal's, not a correction: it joins the reference. Sound
+  // only because it never touches a decided row, whose reference is its decided value.
+  const referenceRows = { ...result.referenceRows };
+  svgFields.forEach((f, i) => {
+    if (merged[i].kind !== f.kind) referenceRows[f.candidateId] = { ...referenceRows[f.candidateId], kind: f.kind };
+  });
+  // A8: open are the keys the behaviour it holds still leaves open; an option answers one.
+  const held = behaviour ? svgComponentOf(behaviour, svgRowAnswers({ ...draft, svgFields }), result.decisions) : null;
+  const decisions = result.decisions.filter((u) => held?.intent[u.key] === 'unresolved');
+  return {
+    ok: true,
+    patch: {
+      svgFields,
+      svgImages: write(draft.svgImages),
+      svgOutlines: write(draft.svgOutlines),
+      svgBehaviour: behaviour,
+      svgApplied: {
+        revision: ref.revision,
+        rows: referenceRows,
+        behaviour: result.replaceBehaviour ? behaviour : ref.behaviour,
+        unresolved: decisions,
+      },
+    },
+    decisions,
+    kept: result.kept,
+  };
+}
+
+/**
+ * THIS IMPORT AS A PROPOSAL (rule A10): the deterministic reader's answers in the contract's
+ * words, so the name-based import and any later proposer speak one language and the round trip
+ * can be proved. A decision the contract would refuse as contradicting the draft's own picks (a
+ * display-target text layer still ticked, an unticked layer a field role picks) or a title it
+ * refuses is left out, and `omitted` names each: that row stays as the reader offered it.
+ */
+export function svgProposalOfDraft(draft: SvgImportDraft): { proposal: SvgProposal; omitted: string[] } | null {
+  const svg = draft.designSvg;
+  if (!svg) return null;
+  const rows = svgRowAnswers(draft);
+  const revision = svgSourceRevision(svg.markup);
+  const open = draft.svgApplied?.revision === revision ? draft.svgApplied.unresolved : [];
+  const text = new Set(svg.candidates.map((c) => c.id));
+  const fields: SvgProposal['fields'] = Object.entries(rows).map(([layer, r]) => ({
+    layer,
+    on: r.on,
+    ...(text.has(layer) ? { kind: r.kind ?? 'text' } : {}),
+    ...(r.title ? { title: r.title } : {}),
+  }));
+  let proposal: SvgProposal = {
+    version: 1,
+    sourceRevision: revision,
+    fields,
+    components: draft.svgBehaviour ? [svgComponentOf(draft.svgBehaviour, rows, open)] : [],
+  };
+  const omitted: string[] = [];
+  const context = { inventory: svg, recipes: SVG_RECIPE_ROLES, capabilities: SVG_DRAFT_CAPABILITIES };
+  const verdict = validateSvgProposal(proposal, context);
+  if (!verdict.ok) {
+    // Only two refusals are the draft contradicting itself, and each has one answer: a pick's
+    // ownership conflict leaves out that layer's decision, a refused title leaves out the title.
+    // Anything else stays refused, so a real defect is never hidden.
+    const drop = new Set<number>();
+    const untitle = new Set<number>();
+    const picks = proposal.components[0]?.picks ?? [];
+    for (const e of verdict.errors) {
+      const title = /^fields\[(\d+)\]\.title$/.exec(e.at);
+      const pick = /^components\[0\]\.picks\[(\d+)\]\.layer$/.exec(e.at);
+      if (title && e.code === 'invalid-value') untitle.add(Number(title[1]));
+      else if (pick && e.code === 'conflicting-ownership') {
+        const at = fields.findIndex((f) => f.layer === picks[Number(pick[1])]?.layer);
+        if (at >= 0) drop.add(at);
+      }
+    }
+    proposal = {
+      ...proposal,
+      fields: fields.flatMap((f, i) => {
+        if (drop.has(i)) { omitted.push(`${f.layer} decision`); return []; }
+        if (untitle.has(i)) { omitted.push(`${f.layer} title`); const { title: _title, ...rest } = f; return [rest]; }
+        return [f];
+      }),
+    };
+  }
+  return { proposal, omitted };
 }
