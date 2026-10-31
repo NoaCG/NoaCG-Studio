@@ -42,25 +42,10 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci05 checker verdict on 11523106 and post-land runs",
-    "eta": "2026-10-31T19:05:00Z"
+    "what": "launch ci06 builder",
+    "eta": "2026-10-31T18:50:00Z"
   },
-  "inFlight": [
-    {
-      "phase": "ci05",
-      "step": "check",
-      "session": "session_017SdbwQTTB6JCPKjCb9DEDz",
-      "nonce": "ci05-c-f4ff",
-      "actor": "checker-ci05-ci05-c-f4ff",
-      "launchedAt": "2026-10-31T18:15:31Z",
-      "pr": 1866,
-      "mergeSha": "11523106a407cb856e619e0d4ddbbfa3785d5739",
-      "builder": "session_017SdbwMVW7egupuYwsg7axa",
-      "reviewedHead": "ab8218aa992744fed9554884fc4bee53aca0e371",
-      "repairOwnerComment": 6547172372,
-      "note": "Merged 18:14:31Z (queue run 41227594711)."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -149,6 +134,20 @@
       "postLand": "CI 41219291374, configured-suite 41219291410, Post-landing 41219291381, Quarantine 41219291311, Push on main 41219290571 all success; repair ownership complete",
       "pass": "2026-10-31T16:50:31Z by checker-ci04-ci04-c-0ba5 (session_017SdbwQyLn4235Pyto4uXuE)",
       "checkerFindings": "exception size confirmed ~+17.7 graphics runner-min/landing; non-blocking: non-literal imports in reached src skipped (noted on #1863)"
+    },
+    {
+      "phase": "ci05",
+      "pr": 1866,
+      "mergeSha": "11523106a407cb856e619e0d4ddbbfa3785d5739",
+      "builder": "session_017SdbwMVW7egupuYwsg7axa",
+      "reviewedHead": "ab8218aa992744fed9554884fc4bee53aca0e371",
+      "repairOwnerComment": 6547172372,
+      "followUps": [
+        1868
+      ],
+      "postLand": "CI 41228424514, configured-suite 41228424640, Post-landing 41228424434, Quarantine 41228424433, Push on main 41228423657, deploy-verify 41228646994 all success; repair ownership complete",
+      "pass": "2026-10-31T18:43:40Z by checker-ci05-ci05-c-f4ff (session_017SdbwQTTB6JCPKjCb9DEDz)",
+      "checkerFindings": "cost confirmed: catalog gates 54 to 54, +0.15% planned E2E minutes; non-blocking: endurance config lacks the integrity reporter (pre-existing)"
     }
   ],
   "coordinatorNotes": [
