@@ -75,6 +75,11 @@ test('a prepared field is selected, corrected, re-dropped and reopened on the la
   await page.keyboard.press('Shift+Tab');
   await expect(page.getByTestId('map-svg-row-t2').locator('input[type="checkbox"]')).toBeFocused();
   await expect.poll(() => highlightAt(page)).toBe(second);
+  // Focus walking on from a control inside the row (an alignment dot) to the other twin moves the
+  // outline with it: focus never leaves a hover behind that outranks the new selection.
+  await page.getByTestId('map-svg-align-t2').locator('button').first().focus();
+  await page.getByTestId('map-svg-title-t0').focus();
+  await expect.poll(() => highlightAt(page)).toBe(first);
 
   // THE DELIBERATE CORRECTION, on the second twin only: its label and its sample.
   await page.getByTestId('map-svg-title-t2').fill('Second guest');

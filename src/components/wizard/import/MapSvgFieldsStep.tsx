@@ -208,11 +208,15 @@ export default function MapSvgFieldsStep({
   // A SELECTED row keeps its layer lit (docs/work-specs/jev-svg-import, row 6): the reader who
   // clicks into a row to correct it then looks at the preview, and the pointer leaving the row
   // on the way there must not take the answer away. Selection is focus inside the row, so the
-  // keyboard selects too and leaving the row ends it. A hover elsewhere still wins while it lasts.
+  // keyboard selects too and leaving the row ends it. A pointer hover elsewhere still wins while
+  // it lasts; a hover a behaviour picker wrote on FOCUS is not one, so focusing a row clears it.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const pointedId = hoverId ?? selectedId;
   const selectable = (id: string) => ({
-    onFocus: () => setSelectedId(id),
+    onFocus: () => {
+      setSelectedId(id);
+      setHoverId((h) => (h === id ? h : null));
+    },
     onBlur: (e: FocusEvent<HTMLElement>) => {
       if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSelectedId((s) => (s === id ? null : s));
     },
@@ -1364,7 +1368,6 @@ export default function MapSvgFieldsStep({
                                 title={`${SVG_ALIGN_WORD[h]}, ${v}${
                                   drawn ? ' - read from your drawing' : chosen ? ' - set by you' : ''
                                 }`}
-                                onFocus={() => setHoverId(f.candidateId)}
                                 onClick={() =>
                                   patchField(f.candidateId, {
                                     // The drawn dot IS "read from your drawing", so it clears the
@@ -1464,12 +1467,12 @@ export default function MapSvgFieldsStep({
                 data-testid={`map-svg-nudge-${f.candidateId}`}
                 onMouseEnter={() => setHoverId(f.candidateId)}
                 onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
+                {...selectable(f.candidateId)}
               >
                 <input
                   type="checkbox"
                   checked={!!f.keepNudge}
                   disabled={!f.on}
-                  onFocus={() => setHoverId(f.candidateId)}
                   onChange={(e) => patchField(f.candidateId, { keepNudge: e.target.checked || undefined })}
                 />
                 <span>keep the nudge you drew: {nudgeWords(fit.nudge)}</span>
