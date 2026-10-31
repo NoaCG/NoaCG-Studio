@@ -1,4 +1,4 @@
-// guards: playwright.config.ts, playwright.catalog.config.ts, playwright.live.config.ts, playwright.production.config.ts
+// guards: playwright.config.ts, playwright.catalog.config.ts, playwright.live.config.ts, playwright.production.config.ts, playwright.endurance.config.ts, eslint.config.js
 //
 // The run-integrity reporter, driven the way Playwright drives it, with the disk STUBBED: a full
 // disk is simulated by a statfs that reports almost nothing free and by an ENOSPC write error,
@@ -168,5 +168,14 @@ test('ci05: discovery and verdict probes - a focused or vanished selected spec c
     rmSync(dir, { recursive: true, force: true });
   }
   // And nothing focused is committed: the scratch directory is gone and git sees no change from it.
-  assert.equal(execFileSync('git', ['status', '--porcelain', '--', 'test-results'], { cwd: root, encoding: 'utf8' }), '');
+  assert.equal(execFileSync('git', ['status', '--porcelain', '--', 'test-results'], { cwd: root, encoding: 'utf8', windowsHide: true }), '');
+});
+
+test('ci05: the lint rule refuses a focused test in any e2e file before it is committed', async () => {
+  const { ESLint } = await import('eslint');
+  const eslint = new ESLint({ cwd: root });
+  const code = "import { test } from '@playwright/test';\ntest.only('a', () => {});\ntest.describe.only('b', () => {});\ntest('c', () => {});\n";
+  const [result] = await eslint.lintText(code, { filePath: path.join(root, 'e2e', 'probe-focused.spec.ts') });
+  const focused = result.messages.filter((m) => m.ruleId === 'no-restricted-syntax' && /No focused tests/.test(m.message));
+  assert.deepEqual(focused.map((m) => m.line), [2, 3]);
 });
