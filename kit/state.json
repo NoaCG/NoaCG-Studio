@@ -42,30 +42,19 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "#1848 merge queue, then ci01 check on the merge SHA",
-    "eta": "2026-10-31T10:20:00Z"
+    "what": "ci01 checker verdict on 139a9724 (exact-merge CI, configured-suite, post-land)",
+    "eta": "2026-10-31T10:45:00Z"
   },
   "inFlight": [
     {
       "phase": "ci01",
-      "step": "build: queued",
-      "session": "session_017SdbwPLYvBrBW7DyyvmdNr",
-      "nonce": "ci01-b-afc1",
-      "branch": "claude/plan-cicd-improvement-ci01-build",
-      "launchedAt": "2026-10-31T08:13:14Z",
+      "step": "check",
+      "session": "session_017SdbwNSAz6wbCVYuBV95PV",
+      "nonce": "ci01-c-4a4a",
+      "mergeSha": "139a9724ebb1a2522750008dcb5a6a8b72adeac0",
       "pr": 1848,
-      "repairOwnerComment": 6541482080,
-      "note": "stamp after gates, auto-merge with head checked before/after, added to merge queue",
-      "reviewedHead": "e2d8dd358d7c7d9df6ac155ccc87f77eeed88b62",
-      "configuredRun": "41189183454 red only by quarantined flake late-send-abandoned (#1805); accepted as outside the change, PR comment 6541972856",
-      "soGrade": "A (session_017SdbwPUnWgKzqUScfaZVqn)",
-      "stampRun": 41190920859,
-      "autoMergeEnabledAt": "2026-10-31T10:00:33Z",
-      "queuedAt": "2026-10-31T10:00:45Z",
-      "followUps": [
-        1846,
-        1847
-      ]
+      "launchedAt": "2026-10-31T10:09:45Z",
+      "note": "checker waits for exact-merge checks; coordinator remains #1848 repair owner through post-land"
     }
   ],
   "owner": [],
@@ -98,5 +87,19 @@
     "issue": 1842,
     "commentId": 6541029721
   },
-  "qualificationComment": 6541029560
+  "qualificationComment": 6541029560,
+  "landed": [
+    {
+      "phase": "ci01",
+      "pr": 1848,
+      "mergeSha": "139a9724ebb1a2522750008dcb5a6a8b72adeac0",
+      "builder": "session_017SdbwPLYvBrBW7DyyvmdNr",
+      "reviewedHead": "e2d8dd358d7c7d9df6ac155ccc87f77eeed88b62",
+      "repairOwnerComment": 6541482080,
+      "followUps": [
+        1846,
+        1847
+      ]
+    }
+  ]
 }
