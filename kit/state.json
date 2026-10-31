@@ -28,24 +28,35 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 2 builder gates on PR #1853 head bec791a7 (configured-suite 41197443186, /so)",
-    "eta": "2026-10-31T12:15:00Z"
+    "what": "owner answer: private holdout backup check for phase 2 (run issue comment 6543054609)"
   },
   "inFlight": [
     {
       "phase": "2",
-      "step": "build",
+      "step": "build (gates green except /so A-)",
       "session": "session_017SdbwLoYJYFe2efH73A2vG",
       "nonce": "2-b-0f9c",
       "branch": "claude/plan-jev-svg-import-2-build",
       "source": "0b4e403da1f4762dee874e3fed18c29eb0497116",
       "launchedAt": "2026-10-31T11:20:13Z",
-      "note": "builder waiting on configured-suite 41197443186 on bec791a7; CI red only on Reviewed; coordinator subscribed to #1853",
+      "note": "stamp held: A or A+ required; waiting on owner backup check, then fresh /so on the unchanged head",
       "pr": 1853,
-      "head": "bec791a7fce3b1a8b507dded9cc25ad9f2525b98"
+      "head": "bec791a7fce3b1a8b507dded9cc25ad9f2525b98",
+      "configuredRun": 41197443186,
+      "ciRun": 41197423440,
+      "soGrade": "A- (AGREE WITH CORRECTIONS) on bec791a7: holds only on the unverified private owner backup",
+      "builderReceiptAt": "2026-10-31T11:56:03Z"
     }
   ],
-  "owner": [],
+  "owner": [
+    {
+      "item": "Fresh content-free check of the private holdout Drive backup (SHA-256 93d8531d...53eaf3, owner-only sharing, date); optional: jev-svg-evaluation main-only deployment rule",
+      "phase": "2",
+      "comment": 6543054609,
+      "askedAt": "2026-10-31T11:58Z",
+      "why": "phase 2 /so A- holds only on it; coordinator has no Drive access or link; tuning workers must not open it"
+    }
+  ],
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
