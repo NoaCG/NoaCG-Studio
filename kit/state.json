@@ -121,6 +121,7 @@
     }
   ],
   "followups": [
-    "corpus-receipt.json status still says independent admission pending (outside row 2 files)"
+    "corpus-receipt.json status still says independent admission pending (outside row 2 files)",
+    "#1865: configured-suite local Supabase start fails before tests (3 times 31 Oct); infra, owned by cicd-improvement; never counts as a test failure"
   ]
 }
