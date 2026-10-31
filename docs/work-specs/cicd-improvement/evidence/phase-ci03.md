@@ -113,7 +113,9 @@ no jobs started.
 
 Only R's own run can pass (V10): no record borrows another run's pass, on any branch, because
 another branch's run can be judged differently (`main`'s applies the quarantine). Failures are
-still collected from every run at the commit. No row passes from a partial listing, an unread
+still collected from every dispatch run at the commit. Push and cron runs are not in C: they run
+on `main` under the quarantine, and a candidate commit is not yet on `main`. A run that GitHub
+lists nowhere yet cannot be seen by any row; for R itself, its own lookup covers that (V3, V9). No row passes from a partial listing, an unread
 attempt, a pending result or a run whose outcome is unknown.
 
 ### Rules (found after coding)
@@ -206,6 +208,7 @@ ambiguity. These are fixtures.
 | Codex on `fc515373` (comment 4431966863) | a cancelled candidate could adopt a pass from `main`'s run, which applies the quarantine while candidates do not | no record borrows another run's pass | product defect | coordinator decision: pass adoption removed entirely; V7 `superseded` never passes and recovers with a fresh dispatch; failures still collected across branches; table and tests updated |
 | Fresh `/so` on `fc515373` (grade B, table attack) | the same hole as the row above, reproduced; everything else in the table held (statuses, conclusions, attempts, cancels, listing, both snapshots) | no record borrows another run's pass | product defect | closed by the same decision; also `dispatch --ref main` is refused, since main's runs apply the quarantine; table case for a `main` run at the commit |
 | Codex on `f69616a2` (comment 4431986549) | the reverse snapshot race: R's own lookup showed a newer attempt still running while both listings showed the older attempt passed | two reads never disagree into a pass | product defect | coordinator decision: one unanimity rule (V9) over every observation of every run, R's lookup included; table cases for both directions |
+| Table-attack `/so` on `f69616a2` (grade B) | R's own lookup showed attempt 2 running while both listings still showed attempt 1 passed | two reads never disagree into a pass | product defect | closed by the V9 unanimity rule in `4e49512a` (table case `V9 R lookup newer than both listings`). Non-blocking wording fixed: decision 3, the moved-head comment, and what C leaves out |
 
 ## 7. Phase notes
 
@@ -221,9 +224,9 @@ ambiguity. These are fixtures.
   - A dispatch on `main` keeps one group with other main dispatches (serial, as before) and
     leaves the cron's; nothing else about main changes in the workflow. The helper refuses
     `--ref main`: main's runs apply the quarantine, so they are judged by their landing runs.
-  - A cancelled run is followed to a newer run on the same commit before any recovery, so a
-    double dispatch never costs a third run. Recovery happens only on request (`--recover`) and
-    once per record: no automatic retry.
+  - A run cancelled while pending never passes and borrows nothing. A worker that already
+    dispatched again reconciles that newer run's own record; `--recover` dispatches afresh, on
+    request only and once per record: no automatic retry.
   - Five minutes settles absence: GitHub creates a dispatch run within seconds, and absence is
     believed only from a complete listing.
 - **Traps:**

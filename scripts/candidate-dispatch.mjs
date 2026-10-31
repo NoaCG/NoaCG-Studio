@@ -33,8 +33,8 @@
 //     anywhere fails it). No record borrows another run's pass. A run cancelled while pending
 //     is `superseded`: reconcile the record of the run dispatched after it, or `--recover` once
 //     to dispatch the commit afresh. A run someone cancelled after it started blocks the commit.
-//     A moved head makes the old commit obsolete here: a verdict a checker still needs for it
-//     goes through the exact-SHA check branch (check.tmpl). The rows are the decision table in
+//     A run cancelled while pending on a branch that has moved on is obsolete: a verdict a
+//     checker still needs for that commit goes through the exact-SHA check branch (check.tmpl). The rows are the decision table in
 //     the phase evidence; settle() and attribute() transcribe it.
 //
 // Output: one JSON line. The exit code is the verdict: 0 only for the requested run's own pass
