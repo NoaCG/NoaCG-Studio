@@ -60,10 +60,11 @@ launch merely because this file is read or merged.
   unrelated non-critical detection bound, audit reset rules and 14 clean days of observation.
   A two-week target does not promise completion in two weeks or shorten that observation.
 
-## Codex Cloud platform prerequisite (history)
+## Platform prerequisite
 
-Recorded 2026-10-30 for the Codex Cloud route. The 2026-10-31 override replaced that route, so
-this section no longer gates the live run. Kept as the record of why the provider changed.
+The first paragraph below is history: the 2026-10-30 Codex Cloud findings that led to the
+2026-10-31 override. The rules in the second paragraph still bind the live Claude Code Cloud
+route; read "the owning Codex Cloud coding chat" there as the run's owning coding session.
 
 The [2026-10-30 cloud qualification](../renewable-plan-runs/evidence.md) passed coordinator and
 same-VM worker execution, Git access and disposable push. Independently hosted worker creation,
