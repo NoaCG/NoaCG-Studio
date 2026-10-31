@@ -28,21 +28,28 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 5 builder gates on PR #1864",
-    "eta": "2026-10-31T18:10:00Z"
+    "what": "PR #1864 merge queue (merge-group CI) for phase 5",
+    "eta": "2026-10-31T18:20:00Z"
   },
   "inFlight": [
     {
       "phase": "5",
-      "step": "build",
+      "step": "build (queued)",
       "session": "session_017SdbwQLdfGt1qGm3R23bXH",
       "nonce": "5-b-fba6",
       "branch": "claude/plan-jev-svg-import-5-build",
       "source": "b666f302d4eea1e22506a6769b058318fc30438a",
       "launchedAt": "2026-10-31T16:34:36Z",
-      "note": "builder running gates; coordinator subscribed to #1864",
+      "note": "in merge queue; coordinator is #1864 repair owner through post-land. Checker note: no screen calls the new apply path yet (builder did no screen walk); judge AC-5 (automatic working preview, existing control renderer, ordinary Finish/save) against that. Builder filed follow-up #1867.",
       "head": "6a21ffe67976e27c07e90eb14874bab00666ff79",
-      "pr": 1864
+      "pr": 1864,
+      "reviewedHead": "133d6b3eed5e4fea5a3defcbfbd8cd43d691aa01",
+      "configuredRun": 41225590692,
+      "ciRun": 41225553163,
+      "soSession": "session_017SdbwMpTQGKohMo9vn7FpK",
+      "soGrade": "A",
+      "stampRun": 41227127447,
+      "autoMergeEnabledAt": "2026-10-31T17:59:22Z"
     }
   ],
   "owner": [],
@@ -122,6 +129,7 @@
   ],
   "followups": [
     "corpus-receipt.json status still says independent admission pending (outside row 2 files)",
-    "#1865: configured-suite local Supabase start fails before tests (3 times 31 Oct); infra, owned by cicd-improvement; never counts as a test failure"
+    "#1865: configured-suite local Supabase start fails before tests (3 times 31 Oct); infra, owned by cicd-improvement; never counts as a test failure",
+    "#1867 (P3, from phase 5 builder): contract test keeps its own copy of the role table; row 4 doc nit"
   ]
 }
