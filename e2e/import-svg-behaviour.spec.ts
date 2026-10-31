@@ -1283,7 +1283,6 @@ test('a clock beside a score tracker: one Clock choice with its modes, and both 
   // drawn as one piece of artwork keeps its scores AND its clock. A new import offers ONE clock
   // choice - the Clock beside the behaviour - and the old countdown only where the file drew the
   // moments only it paints (the countdown walks above). The clock's runtime is row 8's.
-  test.slow(); // the import, a production and the operator page
   await openImportDoor(page, fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url)));
   const kind = page.getByTestId('map-svg-behaviour-kind');
   await expect(kind.locator('option[value="timer"]')).toHaveCount(0);
