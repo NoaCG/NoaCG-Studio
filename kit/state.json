@@ -41,7 +41,7 @@
     "open": "archived-session revival; wake delivery during an account usage-limit stop (2026-10-17 finding: not retried); remote owner fencing"
   },
   "waitingOn": {
-    "what": "#1845 merge queue and post-land results; ci01 builder receipt"
+    "what": "post-land results on b9950454 (#1845); ci01 builder receipt"
   },
   "inFlight": [
     {
@@ -57,19 +57,22 @@
   "fixes": [
     {
       "issue": 1844,
-      "step": "queued",
+      "step": "merged",
       "session": "session_017SdbwPksekn9AFTtWPgZ2P",
       "nonce": "fix-1844-f-3dee",
       "branch": "claude/plan-cicd-improvement-fix-1844",
       "launchedAt": "2026-10-31T08:14:12Z",
       "pr": 1845,
       "repairOwnerComment": 6541077937,
-      "note": "stamped via cloud-queue-merge, auto-merge on with head checked before/after; in merge queue",
+      "note": "post-land runs on merge SHA pending: CI 41186467036, configured-suite 41186467058, Post-landing 41186467026, Quarantine 41186467071",
       "reviewedHead": "e6a44c21ae040a0a4c5a6a070d5788f331e8cdd2",
       "configuredRun": 41184329583,
       "soGrade": "A",
       "stampRun": 41186048502,
-      "queuedAt": "2026-10-31T08:48:33Z"
+      "queuedAt": "2026-10-31T08:48:33Z",
+      "mergeSha": "b995045483919cd42b73333751e112e240cacff5",
+      "mergedAt": "2026-10-31T08:54Z",
+      "mergeGroupCi": "41186116603 success"
     }
   ],
   "triggers": {
