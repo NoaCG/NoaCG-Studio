@@ -94,7 +94,7 @@ The repair PRs' own review, queue and check time fall into the matching segment 
 
 **Execution inside review time.** The PR-open-to-stamp segment overlaps CI. Within it, the
 union of time with at least one of the branch's CI or configured-suite runs executing is
-reported per PR in the table below (union, so parallel runs are not added): 1,894 of 2,410
+reported per PR in the table below (union, so parallel runs are not added): 1,894 of 2,418
 minutes in total. The remainder is time with nothing running: review service, coding fixes and
 agent turns. This is measured occupancy, not active agent work; commit frequency was not used.
 
@@ -110,7 +110,7 @@ were found only by the post-landing checker. Later comparisons count rows and at
 
 **Cancelled and failed attempts.** Across the 24 PRs: 267 PR CI runs, 186 cancelled and 28
 failed; 197 configured-suite dispatches, 100 cancelled (mostly before #1816 gave each branch its
-own group). Runner-minutes by conclusion are in section 5.
+own group). Runner-minutes by conclusion, including estimated PR-event waste, are in section 5.
 
 ### Eligible runner wait versus dependency wait
 
@@ -119,7 +119,7 @@ is the eligible wait for a runner; run start to job creation is dependency wait,
 holds build and plan jobs and is not tabulated separately here.
 In two dense windows (2026-10-25 04:30-08:00Z, 1,123 jobs from 168 runs; 2026-10-30
 21:00-23:00Z, 670 jobs from 98 runs) eligible runner wait was p50 0.03, p90 0.03-0.05, p99
-0.08-0.18 and max 0.3 minutes. No job waited a minute for a runner. Queue-to-merged time
+0.08-0.18 and max 0.3 minutes. No job waited a minute for a runner. Queue-to-merged time from the last queue entry
 (p50 9.2, p90 12.1 minutes) is almost all merge-group execution, not waiting for runners.
 
 ### Per-PR detail
@@ -221,7 +221,8 @@ landings in 2026-10-24..30 the configured push run failed 4 times (runs 40177524
 40289330116, 40724937287, 41134775201) and was cancelled 3 times. All 7 SHAs had their
 migrations applied first. Three (failures 40177524989 and 40724937287, cancellation
 40093685213) also had a Vercel production deployment before the verdict; the other four show no
-Vercel success on their deployment record, so production kept an earlier build. Backend
+Vercel success on their deployment record, which suggests (not shown) that Vercel skipped the
+build and production kept an earlier one. Backend
 integration of the combined tree is never checked before migrations reach production.
 
 The existing incident path: a red configured run files or updates the rolling issue
@@ -263,19 +264,19 @@ distinct runner names so a job listed twice is not counted twice:
 | 2026-10-25 04:30-08:00Z | 1,123 | 55 | 17 s at 55 or more | 0.3 min |
 | 2026-10-30 21:00-23:00Z | 670 | **60** | 24 s at exactly 60, never above | 0.2 min |
 
-Actual concurrency: **60 concurrent standard Linux jobs**. Up to 60 ran at once with no job
-waiting, and usage stopped at exactly 60, matching GitHub's documented Team plan limit
-(https://docs.github.com/en/actions/reference/limits). The 20 limit is obsolete. Not proved: the
-plan itself (organisation endpoints are refused to this session), and that jobs queue above 60,
-since no sampled moment had more than 60 eligible jobs. **Neither number raises any ceiling**: `MAIN_RUNNERS` stays 13 for a
+Actual concurrency: **at least 60 concurrent standard Linux jobs observed**, with no job
+waiting, which matches GitHub's documented Team plan limit of 60
+(https://docs.github.com/en/actions/reference/limits). The 20 limit is obsolete. Not shown: the
+limit itself, since no sampled moment had more than 60 eligible jobs; the plan (organisation
+endpoints are refused to this session); and whether other NoaCG repositories share the pool. **Neither number raises any ceiling**: `MAIN_RUNNERS` stays 13 for a
 full offline run, `MAX_SHARDS` stays separate from it, and the merge queue keeps 5 builds.
 Slots and runner-minutes are reported separately; neither proves the other fits.
 
 ### 4.2 Tier ceilings and the common-basis envelope
 
-**Common basis:** runner-minutes per day, as a 7-day rolling mean of every job that held a
-runner (started to completed), including failed, cancelled and re-run attempts and scheduled
-work. Each job counts once, in one tier, by workflow and job name:
+**Measure.** Runner-minutes of every job that held a runner (started to completed), including
+failed, cancelled and re-run attempts. Each job counts once, in one tier, by workflow and job
+name:
 
 - *Offline*: `ci.yml` E2E shards, plan, retry and combined report; nightly E2E shards and plan;
   offline quarantine runs.
@@ -285,32 +286,60 @@ work. Each job counts once, in one tier, by workflow and job name:
 - *Fixed overhead*: everything else, including build, factory gates, CI gate, Reviewed, the
   Vercel wait, post-land, deploy-verify, cloud queueing, verdict jobs and CodeQL scanning.
 
-Baseline window 2026-10-24..30 (7 days). Jobs were read for all 657 completed push,
-merge-group, dispatch and scheduled runs. PR-event runs are estimated: 44 of 473 PR CI runs
-and 8 of 276 configured dispatches sampled, scaled by exact run counts per conclusion; 111 of
-606 CodeQL runs sampled. Estimated lines are provisional calibration for ci18.
+**Common basis, normalised to the workload.** A ceiling must not refuse growth just because more
+work lands (D6 aims at three plans at once; AC-8 judges cost per accepted change). So each tier
+has two ceilings: **runner-minutes per landing** for everything a landing causes (its push run
+plus its share of merge-group, PR and dispatch runs, so repeated and cancelled PR runs count
+against the change), and **runner-minutes per day** for scheduled work, which does not scale with
+landings. The rolling window is 7 days.
 
-| Tier | Per landing | Merge group | PR (est.) | Dispatch | Scheduled or other | **Baseline/day** | **Ceiling/day** | Baseline share |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Offline | 2,748 | 674 | 3,524 | 204 | 166 | **7,316** | **9,500** | 77% |
-| Backend | 801 | 0 | 834 | 0 | 62 | **1,697** | **2,100** | 81% |
-| Graphics | 54 | 14 | 54 | 13 | 92 | **227** | **300** | 76% |
-| Fixed overhead | 446 (298 CodeQL) | 129 | 873 (313 CodeQL) | 10 | 8 | **1,466** | **1,800** | 81% |
-| **Sum** | | | | | | **10,706** | **13,700** | 78% |
+**Reference workload,** 2026-10-24..30: 122 landings (17.4 a day), 129 merge-group runs, 473 PR
+CI runs, 276 configured dispatches, 606 CodeQL runs, and the scheduled nightly, configured,
+catalog-gates, hosted-latency and fit-sweep runs. Jobs were read for all 657 completed push,
+merge-group, dispatch and scheduled runs. PR-event runs are estimated: every PR CI run (44) and
+configured dispatch (8) created in the two dense windows of section 2, scaled by exact run
+counts per conclusion; for CodeQL, the most recent 86 PR runs, every sixth push run (20), and the
+dependency-update and scheduled runs (5), 111 of 606. Lines resting on estimates are marked;
+they are provisional calibration for ci18.
 
-**Envelope: 28,800 runner-minutes per day**, which is 20 concurrent slots for 24 hours: the
-envelope the existing offline line was sized against. The measured 60 slots do not enlarge it.
-The four ceilings sum to 13,700, inside the envelope; the remaining 15,100 is unallocated, and no
-tier may use it without a reviewed decision.
+Baseline, 7-day totals in runner-minutes (est. marks the estimated lines):
+
+| Tier | Push runs | Merge group | PR (est.) | Dispatch | Scheduled or other | Landing-driven total | Scheduled per day |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Offline | 19,237 | 4,717 | 24,671 | 1,426 | 1,161 | 50,051 | 166 |
+| Backend | 5,606 | 0 | 5,841 | 0 | 431 | 11,447 (half est.) | 62 |
+| Graphics | 378 | 95 | 380 | 93 | 642 | 946 | 92 |
+| Fixed overhead | 3,122 (2,083 CodeQL, est.) | 903 | 6,111 (2,191 CodeQL) | 70 | 56 | 10,206 | 8 |
+
+Frozen ceilings, version 1:
+
+| Tier | **Baseline per landing** | **Ceiling per landing** | **Baseline scheduled/day** | **Ceiling scheduled/day** | Baseline share |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Offline | 410 | **535** | 166 | **215** | 77% |
+| Backend | 94 | **117** | 62 | **78** | 80% |
+| Graphics | 7.8 | **10** | 92 | **115** | 78-80% |
+| Fixed overhead | 84 | **105** | 8 | **10** | 80% |
+| **Sum** | 596 | **767** | 328 | **418** | |
+
+**Envelope: 28,800 runner-minutes per day**, 20 concurrent slots for 24 hours: the envelope the
+existing offline line was sized against. The observed 60 slots do not enlarge it. At the
+reference workload the ceilings allocate 767 x 17.4 + 418 = about 13,800 a day, inside the
+envelope; the rest is unallocated, and no tier may claim it without a reviewed decision. The
+envelope holds the full ceilings up to about 37 landings a day (2.1 times the reference). The
+daily raw total by tier (10,706 a day in the window) is the weekly report line and the envelope
+check, not a PR gate.
 
 **Offline ceiling preserved.** The authoritative offline control stays the existing per-run line
 in `scripts/e2e-capacity.mjs`: 13 runners x `budgetMinutes`, warn at 85%, refuse additive growth
-at 95%; today 161.4 of 210.3 table-minutes, 76.7%. The daily 9,500 is that same line expressed
-on the common basis at the reference workload (7,316 / 0.767); it adds no minutes to it.
+at 95%; today 161.4 of 210.3 table-minutes, 76.7%. That line measures table-minutes of one full
+run; the per-landing figure measures real runner-minutes of everything a landing causes. They
+are different measures. The per-landing offline ceiling is a companion set at the same 76.7%
+share (410 / 0.767), so at the reference workload it is no looser than the existing line; it
+never replaces or raises that line.
 
-The other three ceilings put the baseline at about 80%: a tier warns (85%) after about 6% growth
-and refuses additive growth (95%) after about 19%. Each tier is judged alone; no cheaper tier
-offsets a refused one. Aggregate cost is a weekly report line, not a PR gate.
+The other three tiers put the baseline at about 80%: a tier warns (85%) after about 6% growth in
+cost per landing and refuses additive growth (95%) after about 19%. Each tier is judged alone; no
+cheaper tier offsets a refused one.
 
 ### 4.3 Clocks and timing ceilings
 
@@ -323,7 +352,13 @@ Clock starts, all observable, never reset by a fix, requeue or new head:
 | Queue-to-landing | the PR's first `added_to_merge_queue` timeline event | PR `merged_at` |
 
 Baseline from the cohort. The PR clock uses the stamp fallback, because the production-page
-ledger kept no worker-receipt time:
+ledger kept no worker-receipt time. **The PR ceilings below are calibrated on, and apply to, the
+stamp-based start.** A receipt starts earlier than the stamp, so once receipt-timed samples exist
+the same PR reads longer with no real slowdown. Switching a PR's measured start from stamp to
+receipt is a measurement change, not a breach: ci02/ci18 recalibrate the PR ceilings on
+receipt-timed samples with a reviewed rationale, and until then reports keep the stamp-based
+figure beside the receipt-based one. Queue figures here count from the first queue entry (#1740
+entered twice; from its last entry it took 12.1 minutes, from its first 70.5).
 
 | Item | n | p50 | p90 | max | **Per-item age ceiling** | **Pooled ceiling** |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
@@ -357,6 +392,13 @@ backend 5,904 / 12 / 121; graphics 1,178 / 2 / 28; overhead 2,017 / 3 / 5. The t
 used 5,301 and 3,021 runner-minutes, of which 293 and 191 were cancelled and 48 and 32 failed.
 Runs cancelled while pending cost no runner time and are counted only as runs.
 
+PR-event runs, estimated from the dense-window samples and labelled as estimates: PR CI runs
+that ended cancelled (254 of 473, superseded by a newer push) used about **20,000
+runner-minutes** in the week, about 2,860 a day and about two thirds of all PR CI time; inside
+them, jobs that were themselves cancelled used about 7,200. Failed jobs in PR CI runs used about
+970. For configured dispatches, 144 of 276 ended cancelled, but no cancelled dispatch fell in
+the samples, so their cost is **missing**, not zero.
+
 ## 6. Live landing evidence (acceptance d)
 
 This PR is the legitimate phase PR whose landing records the shared stamp and auto-merge order;
@@ -384,7 +426,9 @@ auto-merge request (head read before and after), and GitHub's admission on the r
   - Strata come from changed paths (`supabase/`, `api/`, `e2e/configured/`), because the ledger
     records no category.
   - The envelope is the historical 20-slot day, so a larger account limit buys no budget.
-  - Non-offline ceilings are baseline / 0.8, so growth warns early without refusing today.
+  - Ceilings are per landing (plus per day for scheduled work) so more throughput is never
+    refused as growth; non-offline ceilings are baseline / 0.8, so growth warns early without
+    refusing today.
   - Collection scripts were scratch work and are not committed. This file holds the method and
     every derived number, and names every run, PR and job so each can be read again.
 - **Traps:**
