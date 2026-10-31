@@ -51,9 +51,10 @@ that plan's brief, not here.
 - Push only your own branch. Never push a diagnostic branch: run diagnostics locally or with a
   workflow input on your own branch. A cloud session cannot delete a branch it pushed, so every
   extra branch stays behind.
-- **Playwright browser mismatch (#1647):** if the queue wants `chromium_headless_shell-1228` and the
-  image has `-1243`, symlink it under `/opt/pw-browsers`, with no repository change. Never run
-  `playwright install`.
+- **Playwright browser mismatch (#1647):** the session-start hook links a missing pinned build
+  (for example `chromium_headless_shell-1228`) to the image's build under `/opt/pw-browsers`. A
+  session started from an older commit can still miss it: symlink the folder by hand, with no
+  repository change. Never run `playwright install`.
 - Keep each new e2e test within the per-test ceiling:
   `node scripts/check-e2e-protection.mjs --changed origin/main`.
 - Never merge or push `main`, never touch another worktree, and leave nothing running.

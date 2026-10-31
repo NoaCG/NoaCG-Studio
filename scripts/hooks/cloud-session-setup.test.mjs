@@ -58,6 +58,27 @@ test('a missing pinned build is pointed at the image build, under the new layout
   }
 });
 
+test('an image build already in the new layout is linked whole (#1647)', { skip: NO_SYMLINKS }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pw-browsers-'));
+  try {
+    for (const [folder, sub, exe] of [['chromium', 'chrome-linux64', 'chrome'], ['chromium_headless_shell', 'chrome-headless-shell-linux64', 'chrome-headless-shell']]) {
+      mkdirSync(join(dir, `${folder}-1243`, sub), { recursive: true });
+      writeFileSync(join(dir, `${folder}-1243`, sub, exe), '');
+    }
+    const linked = aliasPinnedChromium(dir, { chromium: '1228', 'chromium-headless-shell': '1228' });
+    assert.deepEqual(linked, ['chromium-1228 -> chromium-1243', 'chromium_headless_shell-1228 -> chromium_headless_shell-1243']);
+    assert.equal(readlinkSync(join(dir, 'chromium_headless_shell-1228')), join(dir, 'chromium_headless_shell-1243'));
+    assert.ok(existsSync(join(dir, 'chromium_headless_shell-1228', 'chrome-headless-shell-linux64', 'chrome-headless-shell')));
+    assert.deepEqual(aliasPinnedChromium(dir, { chromium: '1228', 'chromium-headless-shell': '1228' }), []);
+    // A link left dangling by an earlier image is replaced, not a crash.
+    rmSync(join(dir, 'chromium-1228'));
+    symlinkSync(join(dir, 'chromium-1194'), join(dir, 'chromium-1228'));
+    assert.deepEqual(aliasPinnedChromium(dir, { chromium: '1228' }), ['chromium-1228 -> chromium-1243']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a pinned build the image really has is left alone, and a missing folder is not an error', () => {
   const dir = imageWith1194();
   try {
