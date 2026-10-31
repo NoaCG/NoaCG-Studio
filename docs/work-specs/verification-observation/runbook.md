@@ -14,7 +14,7 @@ required check, retry, timeout or product assertion is changed.
 | `queue-pr.mjs` mechanical fallback | Immediately before its original dispatch | Same ref, `require_review`, optional `diff_base`, order and bot-App bypass |
 | `jobs.mjs` recovery | Existing recovery body delegates to tested `dispatchRecovery` | Same full-CI dispatch, return value, diagnostics and retry restrictions |
 | Human/manual command | `node scripts/verification-dispatch.mjs -- workflow run <workflow> --ref <ref> ...` | The exact gh arguments execute once after the advisory, for every decision or lookup failure |
-| `candidate-dispatch.mjs` (plan-run configured-suite dispatch) | After its branch-head check and recorded intent, immediately before dispatch | One dispatch of the workflow on that ref; the advisory still gates nothing. Its own head, run-ID and supersession refusals are not observation decisions |
+| `candidate-dispatch.mjs` (plan-run configured-suite dispatch) | First, before its branch-head check, recorded intent and dispatch | One dispatch of the workflow on that ref; the advisory still gates nothing. Its own head, run-ID and supersession refusals are not observation decisions |
 | Raw `gh`, GitHub UI, external callers | Not intercepted; use the supported manual wrapper | No global hook or false cross-machine duplicate-prevention claim |
 | `.github/workflows/e2e-durations-refresh.yml` token fallback | Inventory only: this is a workflow-internal automatic call, outside the supported manual paths | Its existing shell dispatch and measured workflow/configuration remain unchanged |
 | Scheduled freshness/deploy checks and native Actions triggers | Inventory only; no lookup gate is added | All existing schedules and event behavior remain unchanged |

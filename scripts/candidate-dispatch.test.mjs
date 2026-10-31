@@ -67,10 +67,14 @@ function github({ heads, returnsId = true } = {}) {
     }
     if (method === 'GET' && (m = /\/actions\/workflows\/([^/]+)\/runs\?(.+)$/.exec(endpoint))) {
       const q = new URLSearchParams(m[2]);
-      const after = Date.parse(q.get('created').slice(2));
-      const rows = state.runs.filter((r) => r.event === q.get('event') && r.head_branch === q.get('branch')
-        && Date.parse(r.created_at) >= after).sort((a, b) => b.id - a.id);
+      const after = q.get('created') ? Date.parse(q.get('created').slice(2)) : 0;
+      const rows = state.runs.filter((r) => r.event === q.get('event') && (!q.get('branch') || r.head_branch === q.get('branch'))
+        && Date.parse(r.created_at) >= after && (!q.get('head_sha') || r.head_sha === q.get('head_sha'))).sort((a, b) => b.id - a.id);
       return ok({ total_count: rows.length, workflow_runs: state.pageSize ? rows.slice(0, state.pageSize) : rows });
+    }
+    if (method === 'GET' && (m = /\/actions\/runs\/(\d+)\/attempts\/(\d+)$/.exec(endpoint))) {
+      const r = state.runs.find((x) => x.id === Number(m[1]));
+      return ok({ status: 'completed', conclusion: r?.earlierAttempts?.[Number(m[2]) - 1] ?? 'success' });
     }
     if (method === 'GET' && (m = /\/actions\/runs\/(\d+)\/jobs\?/.exec(endpoint))) {
       return ok({ total_count: state.runs.find((x) => x.id === Number(m[1]))?.jobsStarted ?? 0, jobs: [] });
@@ -239,7 +243,7 @@ test('same-branch pending supersession: follow the same commit, recover once, or
 
     // The head moved on: the old commit's run is obsolete here.
     h.gh.heads['claude/one'] = sha('2');
-    const moved = settle(intent(), { ...firstRun }, { complete: true, runs: h.gh.runs, head: sha('2') });
+    const moved = settle(intent(), { ...firstRun }, { complete: true, started: () => false, runs: h.gh.runs, head: sha('2') });
     assert.equal(moved.state, 'obsolete');
     assert.match(moved.reason, /exact-SHA check branch/);
   } finally { h.done(); }
@@ -265,25 +269,25 @@ test('a run that appears after not-delivered and --recover changes nothing', () 
   } finally { h.done(); }
 });
 
-test('a same-second replacement is found by run ID; a run cancelled after it started is never auto-recovered', () => {
+test('a same-second replacement is found by run ID; a run cancelled after it started blocks the commit and is never auto-recovered', () => {
   const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
   const at = '2026-10-31T12:00:00Z';
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: at };
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
   const twin = { ...base, id: 11, status: 'queued', conclusion: null };
-  assert.equal(settle(intent, cancelled, { complete: true, runs: [twin, cancelled], head: sha('1') }).by.id, 11);
-  assert.equal(settle(intent, { ...twin, id: 9 }, { complete: true, runs: [cancelled], head: sha('1') }).state, 'running');
-  const byHand = settle(intent, cancelled, { complete: true, runs: [cancelled], started: true, head: sha('1') });
+  assert.equal(settle(intent, cancelled, { complete: true, started: () => false, runs: [twin, cancelled], head: sha('1') }).by.id, 11);
+  assert.equal(settle(intent, { ...twin, id: 9 }, { complete: true, started: () => false, runs: [cancelled, { ...twin, id: 9 }], head: sha('1') }).state, 'running');
+  const byHand = settle(intent, cancelled, { complete: true, started: () => true, runs: [cancelled], head: sha('1') });
   assert.equal(byHand.state, 'cancelled');
-  assert.equal(exitCode(byHand), 2);
-  assert.equal(settle(intent, cancelled, { complete: true, runs: [cancelled], head: sha('1') }).state, 'recover');
+  assert.equal(exitCode(byHand), 1, 'its result is unknown: the commit cannot pass');
+  assert.equal(settle(intent, cancelled, { complete: true, started: () => false, runs: [cancelled], head: sha('1') }).state, 'recover');
 });
 
 test('a superseded record carries its replacement\'s verdict and exit code', () => {
   const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
-  const settled = (replacement) => settle(intent, cancelled, { complete: true, runs: [cancelled, { ...base, id: 11, ...replacement }], head: sha('1') });
+  const settled = (replacement) => settle(intent, cancelled, { complete: true, started: () => false, runs: [cancelled, { ...base, id: 11, ...replacement }], head: sha('1') });
   const failed = settled({ status: 'completed', conclusion: 'failure' });
   assert.deepEqual([failed.state, failed.conclusion, failed.by.id], ['superseded', 'failure', 11]);
   assert.equal(exitCode(failed), 1);
@@ -306,7 +310,7 @@ test('only the input-free configured suite is served, and only it adopts a repla
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: '.github/workflows/ci.yml', created_at: '2026-10-31T12:00:00Z' };
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
   const narrower = { ...base, id: 11, status: 'completed', conclusion: 'success' }; // e.g. a diff_base run
-  const ci = settle({ workflow: 'ci.yml', ref: 'claude/one', sha: sha('1') }, cancelled, { complete: true, runs: [cancelled, narrower], head: sha('1') });
+  const ci = settle({ workflow: 'ci.yml', ref: 'claude/one', sha: sha('1') }, cancelled, { complete: true, started: () => false, runs: [cancelled, narrower], head: sha('1') });
   assert.equal(ci.state, 'recover');
   assert.notEqual(exitCode(ci), 0);
 });
@@ -317,11 +321,11 @@ test('a failure on the commit after a cancel is never hidden by a later pass', (
   const a = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' }; // replaced while pending
   const b = { ...base, id: 11, status: 'completed', conclusion: 'failure' }; // the run that replaced it
   const c = { ...base, id: 12, status: 'completed', conclusion: 'success' }; // a later pass on the same commit
-  const failed = settle(intent, a, { complete: true, runs: [c, b, a], head: sha('1') });
+  const failed = settle(intent, a, { complete: true, started: () => false, runs: [c, b, a], head: sha('1') });
   assert.deepEqual([failed.state, failed.conclusion, failed.by.id, exitCode(failed)], ['superseded', 'failure', 11, 1]);
-  const pending = settle(intent, a, { complete: true, runs: [{ ...c, status: 'in_progress', conclusion: null }, { ...b, conclusion: 'success' }, a], head: sha('1') });
+  const pending = settle(intent, a, { complete: true, started: () => false, runs: [{ ...c, status: 'in_progress', conclusion: null }, { ...b, conclusion: 'success' }, a], head: sha('1') });
   assert.deepEqual([pending.conclusion, exitCode(pending)], [undefined, 3]);
-  const passed = settle(intent, a, { complete: true, runs: [c, { ...b, conclusion: 'success' }, a], head: sha('1') });
+  const passed = settle(intent, a, { complete: true, started: () => false, runs: [c, { ...b, conclusion: 'success' }, a], head: sha('1') });
   assert.deepEqual([passed.conclusion, passed.by.id, exitCode(passed)], ['success', 11, 0]);
 });
 
@@ -341,6 +345,59 @@ test('a cancelled run never passes from an incomplete run listing', () => {
     const whole = reconcile(JSON.parse(readFileSync(first.record, 'utf8')), h.deps);
     assert.deepEqual([whole.state, whole.conclusion, exitCode(whole)], ['superseded', 'failure', 1]);
   } finally { h.done(); }
+});
+
+test('rule 8: no re-dispatch, recovery or re-run turns a failure on the commit into a pass', () => {
+  const h = harness({ 'claude/one': sha('1') }, { returnsId: false });
+  try {
+    // The reviewer's sequence: lost run ID, that run fails, --recover, the recovery passes.
+    const lost = h.send('claude/one');
+    assert.deepEqual([lost.state, lost.runIds], ['unproven', [100]]);
+    Object.assign(h.gh.runs[0], { status: 'completed', conclusion: 'failure' });
+    h.gh.returnsId = true;
+    h.gh.clock += 1000;
+    h.cli(['reconcile', lost.record, '--recover']);
+    const recovered = h.lines.at(-1);
+    Object.assign(h.gh.runs.find((r) => r.id === recovered.run.id), { status: 'completed', conclusion: 'success' });
+    h.cli(['reconcile', recovered.record]);
+    assert.deepEqual([h.lines.at(-1).state, h.lines.at(-1).conclusion, h.lines.at(-1).by.id], ['verdict', 'failure', 100]);
+    assert.equal(h.cli(['reconcile', recovered.record]), 1);
+    // A plain second dispatch after the failure: still failing.
+    h.gh.clock += 1000;
+    const again = h.send('claude/one');
+    Object.assign(h.gh.runs.find((r) => r.id === again.run.id), { status: 'completed', conclusion: 'success' });
+    const read = reconcile(JSON.parse(readFileSync(again.record, 'utf8')), h.deps);
+    assert.deepEqual([read.conclusion, exitCode(read)], ['failure', 1]);
+  } finally { h.done(); }
+  // A re-run that passed on attempt 2 after attempt 1 failed.
+  const h2 = harness({ 'claude/two': sha('2') });
+  try {
+    const sent = h2.send('claude/two');
+    Object.assign(h2.gh.runs[0], { status: 'completed', conclusion: 'success', run_attempt: 2, earlierAttempts: ['failure'] });
+    const read = reconcile(JSON.parse(readFileSync(sent.record, 'utf8')), h2.deps);
+    assert.deepEqual([read.state, read.conclusion, exitCode(read)], ['verdict', 'failure', 1]);
+    h2.gh.runs[0].earlierAttempts = ['success'];
+    assert.equal(exitCode(reconcile(JSON.parse(readFileSync(sent.record, 'utf8')), h2.deps)), 0);
+  } finally { h2.done(); }
+});
+
+test('rule 8 corrections: any branch, started cancels block, the run must be listed, failed beats running', () => {
+  const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
+  const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
+  const mine = { ...base, id: 20, status: 'completed', conclusion: 'success' };
+  const at = (runs, started = () => false) => settle(intent, mine, { complete: true, started, runs, head: sha('1') });
+  assert.equal(exitCode(at([mine])), 0);
+  const elsewhere = at([mine, { ...base, id: 19, head_branch: 'claude/other', status: 'completed', conclusion: 'failure' }]);
+  assert.deepEqual([elsewhere.conclusion, elsewhere.by.id, exitCode(elsewhere)], ['failure', 19, 1]);
+  const stopped = { ...base, id: 18, status: 'completed', conclusion: 'cancelled' };
+  assert.equal(exitCode(at([mine, stopped])), 0, 'cancelled while pending: ignored');
+  const byHand = at([mine, stopped], (run) => run.id === 18);
+  assert.deepEqual([byHand.state, exitCode(byHand)], ['cancelled', 1]);
+  const unlisted = at([]);
+  assert.deepEqual([unlisted.state, exitCode(unlisted)], ['unresolved', 1]);
+  const racing = settle(intent, { ...mine, status: 'in_progress', conclusion: null },
+    { complete: true, started: () => false, head: sha('1'), runs: [{ ...mine, status: 'in_progress', conclusion: null }, { ...base, id: 21, status: 'completed', conclusion: 'failure' }] });
+  assert.deepEqual([racing.conclusion, exitCode(racing)], ['failure', 1]);
 });
 
 test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {

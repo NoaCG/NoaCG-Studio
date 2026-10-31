@@ -98,23 +98,30 @@ reassessment of the rule model came before the repair. It agreed with correction
 
 1. A run answers a dispatch only by proof: the run ID GitHub returned for it. Timing, ref and
    commit never stand in for it.
-2. Exception, needed by same-branch supersession: a proved run that was cancelled takes its
-   verdict from the later dispatch runs of the same workflow, ref and commit: failing if any of
-   them failed, running while any runs, passing only if all passed, and only from a complete
-   run listing (otherwise `unresolved`). The answer names them.
-   That workflow's dispatch takes no inputs and checks out `github.sha`, so that verdict is about
-   the commit. The helper therefore serves `configured-suite.yml` only (a test pins
+2. Exception, needed by same-branch supersession: a proved run that was cancelled while
+   pending takes its verdict from the other runs of its commit, as rule 8 judges them. That
+   workflow's dispatch takes no inputs and checks out `github.sha`, so its verdict is about the
+   commit. The helper therefore serves `configured-suite.yml` only (a test pins
    `workflow_dispatch: {}`), and a run of any other workflow never adopts another's verdict.
 3. A run on another commit than requested is refused.
 4. Without a returned ID the record never gives a verdict. With no new run on the ref it is
    `absent`, then `not-delivered` after a complete listing five minutes on; with any new run it
    is `unproven`. The way out is a fresh dispatch (`--recover`, once per record).
 5. Nothing unproven is persisted, and a run that turns up late changes nothing.
-6. Exit 0 only for a finished, passing run under rules 1 and 2.
+6. Exit 0 only for a finished, passing verdict under rules 1, 2 and 8.
 7. Nothing is sent before its claim is on disk, created exclusively: a dispatch's intent record
    (which names the record it recovers, if any), and for `--recover` a claim on the old record.
    A concurrent caller, or a restart after the send, finds the claim and sends nothing. A
    recovery refused before anything was sent frees its claim.
+
+8. A commit's verdict covers every `configured-suite.yml` dispatch run at that commit, on any
+   branch, listed by `head_sha` with no time window, and every attempt of each (earlier attempts
+   read through the attempts API). The listing must be complete and must show the requested
+   run, or the answer is `unresolved`. Failed beats running beats passed. A run cancelled after
+   it started blocks the commit (`cancelled`, exit 1); only one cancelled while pending is
+   ignored. A failed earlier attempt keeps the commit failing even after a re-run for a runner
+   death: that case is the coordinator's call, with a written reason. So no re-dispatch,
+   recovery or re-run turns a failure on the commit into a pass.
 
 Sweep of every path that sends an external request, against rule 7: `dispatch` (intent record
 before the POST) and `--recover` (claim, then `dispatch`). The observation advisory and all
@@ -164,6 +171,7 @@ ambiguity. These are fixtures.
 | Codex on `f121a8db` (comment 4431789152) | with `--workflow ci.yml`, a cancelled full run could adopt a replacement's pass made with a narrower `diff_base` | a verdict is adopted only from the same check | product defect | serve `configured-suite.yml` only; other workflows never adopt; test pins its input-free dispatch |
 | Fresh `/so` on `60d66b49` (grade B) | a cancelled run with several later runs on its commit took the newest, so a failure between them was hidden by a later pass | a failure on the commit is never hidden by a later pass | product defect | every later same-commit run counts: any failure fails it; test first. Non-blocking note taken: known-traps says an `attempt` above 1 is a re-run to read in full |
 | Codex on `f3df92d4` (comment 4431892429) | the cancelled-run path ignored whether the run listing was complete, so past one page an earlier failure could drop out and the record pass | a failure on the commit is never hidden (same family as the row above) | product defect | no pass, and no `recover`, from an incomplete listing; a found failure still fails; 101-run test first |
+| Fresh `/so` on `509df299` (grade B) | a plain re-dispatch, `--recover` or a re-run attempt after a failure on the commit could still exit 0 | a failure on the commit is never hidden (third round of this family) | product defect | repeated family: a fresh reassessment of the rule model first (agreed with five corrections, all applied), then rule 8; tests first. Non-blocking: the runbook row now says the advisory runs before the head check |
 
 ## 7. Phase notes
 
