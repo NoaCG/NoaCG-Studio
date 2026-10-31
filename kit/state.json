@@ -28,8 +28,8 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 2 fresh /so on unchanged head bec791a7 (builder session_017SdbwLoYJYFe2efH73A2vG)",
-    "eta": "2026-10-31T13:20:00Z"
+    "what": "phase 2 builder: phase-02.md wording fix, new head gates, fresh separate-session /so",
+    "eta": "2026-10-31T13:40:00Z"
   },
   "inFlight": [
     {
@@ -40,12 +40,12 @@
       "branch": "claude/plan-jev-svg-import-2-build",
       "source": "0b4e403da1f4762dee874e3fed18c29eb0497116",
       "launchedAt": "2026-10-31T11:20:13Z",
-      "note": "backup check recorded (comment 6543526298); builder asked for fresh /so on unchanged head bec791a7, then coordinator stamps",
+      "note": "/so (subagent) on bec791a7: A- holds only on phase-02.md 69-71 wording; builder asked to fix docs, re-run gates and a fresh separate-session /so",
       "pr": 1853,
       "head": "bec791a7fce3b1a8b507dded9cc25ad9f2525b98",
       "configuredRun": 41197443186,
       "ciRun": 41197423440,
-      "soGrade": "A- (AGREE WITH CORRECTIONS) on bec791a7: holds only on the unverified private owner backup",
+      "soGrade": "A- on bec791a7 (backup accepted; wording fix pending)",
       "builderReceiptAt": "2026-10-31T11:56:03Z"
     }
   ],
