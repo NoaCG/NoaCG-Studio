@@ -286,7 +286,7 @@
       "execSessionRecovery": "After reattachment, oldunifiedexecsession handles were unavailable while ownedVitePIDs still existed. Reconciled by exactprocessarguments andstopped thoseownedservers; no duplicatework launched. Does not proveVMreclamation/filesystem restoration."
     }
   },
-  "resume": "All11implementation/deliveryPRs aremerged andterminal, includingpublishedCLI0.12.4/Bridge0.10.1. No owner or wake remainsarmed. FirstreadcurrentAGENTS/proceduresandthischeckpoint, respectprivatecredential follow-up/approval in conversation, obtainnewtwo-moderatealertrecords, thenhandle#56/#1752 throughcompatibleSDKbackport/migration withoutforcingbrokenZodtypes. Jev remainsassessment-only:40phases,$5ceiling,14daysunchanged; qualifydurablewake/recovery andactualnativeworker mappingbeforeanyseparate explicitstart.",
+  "resume": "All 11 implementation/delivery PRs are merged and terminal, including published CLI 0.12.4 and Bridge 0.10.1. No repair owner or wake remains armed. Read AGENTS/procedures and this checkpoint. The exposed test agent key was revoked and verified HTTP 401; provision a replacement through the approved secret store before dependent tests. Resolve test-account password exposure with a secure secret-store writer. Obtain the two new moderate alert records. Handle Dependabot #56 / issue #1752 through a compatible SDK validator backport or supported migration; do not force broken Zod types. Jev remains assessment-only: 40 phases, $5 ceiling and 14 days unchanged; qualify durable wake/recovery and native worker mapping before a separately authorized start.",
   "qualificationReceipts": {
     "preparationPR": 1825,
     "sealedSecretProbe": 41125379127,
@@ -710,5 +710,24 @@
     "ownedDevServers": "Three owned Viteprocesses reconciled by exactPID/arguments and stopped. Oldunifiedexecsession handles were unavailable after reattachment; processidentity was checked before stopping."
   },
   "finalNetworkRecheck": "After final environment starting->ready, Git origin/main and repositoryActions API preflight PASS again. Prior oauth2.googleapis.com routed through enforcedproxy withHTTP404; policy/credentials unchanged.",
-  "finalFollowup": "Current GitHubbanner3(1high2moderate), security list/detail APIs403 unchanged. Knownhigh56 blockedbySDKcontracts; two newmoderate metadata records remainunreadable andunmatched by refreshed npm/Yarnpublicadvisorychecks. Ownerexport requestpending. Credential-handling approval/privateincident is tracked in conversation; no values in repository."
+  "finalFollowup": "Current GitHub banner: 3 vulnerabilities (1 high, 2 moderate). Alert list/detail APIs remain inaccessible to the integration; no unchanged retries. Known high #56 is blocked by SDK contracts; two new moderate records are unreadable and unmatched by refreshed public advisory checks. The test agent key is revoked and verified unusable. Account password rotation and replacement-key distribution need a secure managed-secret writer. No Jev run started.",
+  "credentialRemediation": {
+    "authorization": "User authorized scoped credential handling in the current session.",
+    "agentKey": {
+      "variable": "NOACG_TEST_AGENT_KEY",
+      "status": "revoked_and_verified",
+      "beforeHttpStatus": 200,
+      "deleteHttpStatus": 200,
+      "afterHttpStatus": 401,
+      "valuesRecorded": false,
+      "replacementRequiredForFutureCredentialDependentTests": true
+    },
+    "testAccountPasswords": {
+      "status": "blocked_on_secure_secret_store_writer",
+      "environmentMetadata": "Runtime variable bindings report ready; no writable managed-cloud or GitHub CI secret-store interface is exposed.",
+      "deliveryAssessment": "One password variable exactly matches its variable-name placeholder. The other does not. This does not establish whether backing account passwords were exposed; do not dismiss the incident based on placeholder appearance.",
+      "action": "No password changed: a supported secure replacement and propagation path is required first to avoid losing access or breaking consumers. Do not place replacement secrets in repository artifacts, logs, arbitrary product env variables, or chat."
+    },
+    "privateEvidence": "Local private remediation receipt records statuses only; no credential values in repository."
+  }
 }
