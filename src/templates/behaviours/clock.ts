@@ -18,9 +18,10 @@
 // recipe and engine - nothing here reads or converts one.
 //
 // WHAT THIS ROW DECLARES AND WHAT LATER ROWS ADD. Row 7 persists the instance and its mode and
-// declares the machine and the controls. The readout's runtime binding (row 8), the namespaced
+// declares the machine and the controls; row 8 binds the readout (`clockReadout`, read by
+// importedDesign/svgBind.ts and svg.ts, which emit the match-clock runtime for it). The namespaced
 // wire and recovery (row 9), the target instant (row 10) and the per-mode control polish (row 11)
-// land on this declaration; until row 8 the machine's calls find no runtime and do nothing.
+// land on this declaration.
 
 import { scorebugType } from '../types/sportsBugs';
 import type { TypeBranch, TypeControlEvent, TypeGroup, TypeMachine } from '../types/graphicType';
@@ -37,16 +38,18 @@ export const CLOCK_MODES: readonly { mode: ClockMode; label: string; summary: st
   { mode: 'target-time', label: 'Counts down to a set time.', summary: 'a clock counting down to a set time' },
 ];
 
-/**
- * WHETHER THE IMPORT STEP OFFERS THE CLOCK YET. A control is offered only when it can change the
- * graphic (wizard/offer-control-can-change-graphic-front), and until row 8 binds the match-clock
- * runtime to the time layer nothing would count, so the step stays exactly as it was: the old
- * Countdown offered, no Clock. Row 8 sets this true in the change that binds the runtime.
- */
-export const CLOCK_RUNTIME_READY = false;
-
 /** The one name a clock instance carries: a graphic has one clock, so it needs no other. */
 export const CLOCK_NAME = 'Clock';
+
+/**
+ * THE READOUT'S TWO ATTRIBUTES, as the match-clock runtime reads them off its element
+ * (templates/shared/matchClock.ts): which way it counts, and the time Reset returns to. The time is
+ * the one the designer drew, as a native scorebug's is its period length; a duration counts down
+ * from it, and so does a target time until its instant lands (row 10).
+ */
+export function clockReadout(mode: ClockMode, drawn: string): { count: 'up' | 'down'; start: string } {
+  return { count: mode === 'count-up' ? 'up' : 'down', start: drawn.trim() };
+}
 
 /** The role: the text layer that shows the time, which the operator can also type to correct. */
 const ROLE = 'clock';
@@ -57,9 +60,13 @@ const EVENTS: Record<string, string> = { clockStart: 'start', clockStop: 'pause'
 /** The engine's own calls, kept beside the repaint (`withRepaint`). */
 const ENGINE_CALLS = ['startMatchClock', 'stopMatchClock', 'resetMatchClock'];
 
-export function clockMode(ctx: RecipeContext): ClockMode {
-  const mode = ctx.options.mode;
+/** A persisted mode as the clock reads it: one it does not know counts up, never a guessed countdown. */
+export function asClockMode(mode: unknown): ClockMode {
   return mode === 'duration' || mode === 'target-time' ? mode : 'count-up';
+}
+
+export function clockMode(ctx: RecipeContext): ClockMode {
+  return asClockMode(ctx.options.mode);
 }
 
 /** The scorebug's own clock group, namespaced: its states, timelines and arcs unchanged. */

@@ -7,7 +7,7 @@
 import type { DesignSvg, DesignSvgFollower } from '../../model/wizard';
 import { SVG_CANDIDATE_ATTR, svgPictureTarget } from '../../assets/svgImport';
 import { boundBehaviour } from './behaviour';
-import { countdownIndex, svgFields } from './artworkFields';
+import { boundClock, countdownIndex, svgFields } from './artworkFields';
 import { creditsArtworkFields, creditsClass, creditsIndex } from './creditsRoll';
 import { PREFIX } from './shared';
 import { followToken, growToken, LAYOUT_EL_ATTR, layoutRules } from './svgLayout';
@@ -131,6 +131,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   }
 
   const clock = countdownIndex(svg);
+  const matchClock = boundClock(svg);
   const credits = creditsIndex(svg);
   const artworkCredits = creditsArtworkFields(svg, root);
   [...svg.fields, ...svg.images].forEach((field, i) => {
@@ -159,6 +160,17 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
     // unaccompanied `setAttribute('id', …)` would leave the shape painting nothing.
     if (i < svg.fields.length) {
       setIdKeepingRefs(root, el, `f${i}`);
+      // THE CLOCK'S READOUT is the time layer itself, keeping its id: the match-clock runtime
+      // paints the ticking time into it, and the operator's typed time lands in the same node as
+      // a correction (templates/shared/matchClock.ts). Two attributes say which way it counts and
+      // where Reset returns; the layer's font, position and transform are the designer's, untouched.
+      if (i === matchClock?.index) {
+        const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+        if (!own.includes(`${PREFIX}-clock`)) own.push(`${PREFIX}-clock`);
+        el.setAttribute('class', own.join(' '));
+        el.setAttribute('data-count', matchClock.count);
+        el.setAttribute('data-start', matchClock.start);
+      }
       return;
     }
     const picture = svgPictureTarget(el, root);

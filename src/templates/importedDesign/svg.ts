@@ -40,10 +40,11 @@ import {
   zoneCssText,
 } from '../shared/base';
 import { clockRuntimeJs } from '../shared/clock';
+import { matchClockJs } from '../shared/matchClock';
 import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
-import { countdownIndex, svgFields } from './artworkFields';
+import { boundClock, countdownIndex, svgFields } from './artworkFields';
 import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, isArtworkCredits } from './creditsRoll';
 import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
@@ -182,6 +183,35 @@ const SVG_FIT_HOOK = `  // The fit ladder re-measures here - every text layer, t
   // placed on it alike (no-op otherwise).
   if (typeof fitSvgText === 'function') fitSvgText();`;
 
+/**
+ * THE CLOCK'S HALF OF update() (templates/behaviours/clock.ts). The time layer IS the clock's
+ * field, so once update() has written the operator's value into it the match clock adopts that
+ * value as the clock's own truth: a changed time corrects it, a resend is painted over with the
+ * running time (`matchClockUpdate`). Before the fit, so the ladder measures the time on air and
+ * never a raw wire value.
+ *
+ * A DURATION also takes its LENGTH from the field: a time typed while the clock stands still is
+ * what the next Take or Reset counts down from, as the countdown's minutes were, so an operator
+ * sets the length before the Take without a second field. A correction to a running clock moves
+ * the count and leaves the length alone.
+ */
+function importedClockJs(duration: boolean): string {
+  return `// ---- The clock's field (the time layer IS it) ----
+// importedClockUpdate(fields): the match clock adopts what update() just wrote into its layer.
+function importedClockUpdate(fields) {
+  var el = matchClockEl();
+  if (!el || !fields || !Object.prototype.hasOwnProperty.call(fields, el.id)) return;
+${duration ? `  var before = matchClockSent;
+  matchClockUpdate(el.id, fields[el.id]);
+  // A duration's length is the time the operator set while it stood still.
+  if (matchClockSent !== before && matchClockAt === null && matchClockOriginOf(matchClockSent) === null) {
+    el.setAttribute('data-start', matchClockPlain(matchClockSent));
+  }` : `  matchClockUpdate(el.id, fields[el.id]);`}
+}`;
+}
+const IMPORTED_CLOCK_HOOK = `  // The clock adopts its own field's value before the fit measures it (no-op otherwise).
+  if (typeof importedClockUpdate === 'function') importedClockUpdate(fields);`;
+
 /** The preset to build with - always one of this category's, whatever a carried-over draft says. */
 function designPreset(id: string): AnimPreset {
   return DESIGN_PRESETS.find((p) => p.id === id) ?? DESIGN_PRESETS[0];
@@ -223,6 +253,9 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   // hidden data source the runtime reads - the exact contract every catalog countdown uses.
   const clock = countdownIndex(svg);
   const clockField = clock === -1 ? null : artworkFields[clock];
+  // The CLOCK part drives the match clock through its own time layer (svgBind.ts), and never the
+  // countdown engine above: `countdownIndex` is -1 on a design that carries it.
+  const matchClock = boundClock(svg);
   const clockHolder = clockField
     ? `
     <!-- ${escapeHtml(clockField.title)} (${clockField.field}) - the countdown's length in minutes, written by SPX
@@ -338,7 +371,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
   const js =
     runtimeJs(name, preset.emit(cfg)).replace(
       PLACED_TEXT_HOOK,
-      `${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}`,
+      `${matchClock ? `${IMPORTED_CLOCK_HOOK}\n` : ''}${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}`,
     ) +
     SVG_FIT_JS +
     // The relationship TABLE rides only for a design that declares something in it - a growth
@@ -357,6 +390,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
       : '') +
     '\n' +
     (clockField ? `\n${clockRuntimeJs(PREFIX, clockField.field)}\n` : '') +
+    (matchClock ? `\n${matchClockJs(PREFIX)}\n\n${importedClockJs(matchClock.mode === 'duration')}\n` : '') +
     // The point shifters a path panel grows by and a path gauge fills by.
     (grows || behaviour?.fillsGauge ? `\n${SHAPE_SHIFT_JS}` : '') +
     (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +

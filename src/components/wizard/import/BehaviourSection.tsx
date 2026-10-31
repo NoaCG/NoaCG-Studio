@@ -28,7 +28,7 @@ import {
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
-import { CLOCK_MODES, CLOCK_RUNTIME_READY } from '../../../templates/behaviours/clock';
+import { CLOCK_MODES } from '../../../templates/behaviours/clock';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
   clearFill,
@@ -217,7 +217,6 @@ export default function BehaviourSection({
   layerBoxes,
   artworkInk,
   setHoverId,
-  clockReady = CLOCK_RUNTIME_READY,
 }: {
   draft: WizardDraft;
   onDraft: (patch: DraftPatch) => void;
@@ -235,8 +234,6 @@ export default function BehaviourSection({
   artworkInk: FillBox | null;
   /** Point the preview's highlight at a layer while a picker names it. */
   setHoverId: (id: string | null) => void;
-  /** Whether the Clock is offered: `CLOCK_RUNTIME_READY`, which only a test overrides. */
-  clockReady?: boolean;
 }) {
   const [fill, setFill] = useState<{ before: SvgBehaviourDraft; picks: FillPick[] } | null>(null);
   // THE QUIZ's pickers work on the rows that are ON — an answer has to be a real field before it
@@ -260,11 +257,10 @@ export default function BehaviourSection({
   // ONE CLOCK CHOICE PER IMPORT. The CLOCK is a part beside the behaviour, not one of them
   // (templates/behaviours/clock.ts), so a score tracker and a clock are one graphic. The old
   // COUNTDOWN stays the choice only where the file drew the moments only it paints, which is when
-  // the names propose it, or where the draft already holds one (draft.ts `svgClockRows`). Until the
-  // clock's runtime is bound (`CLOCK_RUNTIME_READY`) the step is as it was: Countdown, no Clock.
+  // the names propose it, or where the draft already holds one (draft.ts `svgClockRows`).
   const countdownDrawn = useMemo(() => svgCountdownDrawn(draft.designSvg), [draft.designSvg]);
-  const clockRows = svgClockRows(draft, clockReady);
-  const clock = svgClockOption(draft, clockReady) ? draft.svgClock : null;
+  const clockRows = svgClockRows(draft);
+  const clock = svgClockOption(draft) ? draft.svgClock : null;
   const setClock = (next: SvgClockDraft | null) => onDraft({ svgClock: next });
   // ANY OTHER RECIPE WITHOUT ROWS - the meter, the alert - is held generically and its pickers are
   // read off the recipe's own roles, so a recipe added tomorrow needs no new block here.
@@ -619,7 +615,7 @@ export default function BehaviourSection({
               <option value="quiz">Quiz. Select an answer, lock it in, reveal it.</option>
               <option value="poll">Live vote. The room votes; the bars move; you show the result.</option>
               <option value="score">Score tracker. A point per press, per team, and a new game.</option>
-              {(!clockReady || timer || countdownDrawn) && <option value="timer">Countdown. It starts on air; you hold it, let it go, reset it.</option>}
+              {(timer || countdownDrawn) && <option value="timer">Countdown. It starts on air; you hold it, let it go, reset it.</option>}
               {/* Every other recipe, from the registry: a recipe added tomorrow is offered here
                   with no new line, in the words its declaration carries. */}
               {BEHAVIOUR_RECIPES.filter((r) => !r.instanced && !LEGACY_RECIPES.has(r.id)).map((r) => (

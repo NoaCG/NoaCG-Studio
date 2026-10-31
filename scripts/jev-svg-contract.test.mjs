@@ -578,12 +578,8 @@ test('the draft builds a clock only on a row the step offers on this artwork, ne
     svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg/>') },
     ...over,
   });
-  // As shipped (CLOCK_RUNTIME_READY false) no clock is offered or built, whoever set one.
-  assert.deepEqual(svgClockRows(draft()), []);
-  assert.equal(svgDesignOptions(draft()).extras, undefined);
-  // With the runtime ready:
-  const clocks = (d) => [svgClockOption(d, true)].filter(Boolean);
-  const rows = (d) => svgClockRows(d, true);
+  const clocks = (d) => [svgClockOption(d)].filter(Boolean);
+  const rows = (d) => svgClockRows(d);
   assert.deepEqual(rows(draft()).map((f) => f.candidateId), ['t1', 't2'], 'the time-shaped ticked rows');
   assert.deepEqual(clocks(draft()), [{ kind: 'clock', name: 'Clock', field: 't1', mode: 'duration' }]);
   // A countdown row ANYWHERE is the old engine: no clock is offered or built beside it.
@@ -600,11 +596,20 @@ test('the draft builds a clock only on a row the step offers on this artwork, ne
   // Row ids are positions in one markup: a clock chosen on other artwork is no clock here.
   assert.deepEqual(clocks(draft({ svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg>other</svg>') } })), []);
   assert.equal(svgDesignOptions(draft({ svgClock: null })).extras, undefined, 'no clock, no extras: the same options as before');
-  // The option the extras carry is exactly this one, so a ready draft builds it.
-  assert.deepEqual(clocks(draft()), [{ kind: 'clock', name: 'Clock', field: 't1', mode: 'duration' }]);
+  // The option the extras carry is exactly this one, so the draft builds it.
+  assert.deepEqual(svgDesignOptions(draft()).extras, [{ kind: 'clock', name: 'Clock', field: 't1', mode: 'duration' }]);
+  // A choice the author called "Clock", with a Start option, is numbered beside a built clock:
+  // under one name its Start would be the clock's own `clock_start` (row 8).
+  const named = draft({
+    designSvg: { ...draft().designSvg, groups: [{ id: 'g0', label: 'g0', hidden: true }, { id: 'g1', label: 'g1', hidden: true }] },
+    svgExtras: [{ candidateId: 'g0', use: 'choice', name: 'Start', group: 'Clock' }, { candidateId: 'g1', use: 'choice', name: 'Stop', group: 'Clock' }],
+  });
+  const extras = svgDesignOptions(named).extras;
+  assert.deepEqual(extras.map((e) => `${e.kind}:${e.name}`), ['choice:Clock 2', 'clock:Clock']);
+  assert.deepEqual(svgDesignOptions(draft({ svgClock: null, svgExtras: named.svgExtras, designSvg: named.designSvg })).extras.map((e) => e.name), ['Clock'], 'without a clock the name is free');
 });
 
-test('with the clock runtime ready, a new import offers exactly one Clock choice with its modes; shipped, the step is unchanged (C5)', async () => {
+test('a new import offers exactly one Clock choice with its modes, and no Countdown (C5)', async () => {
   const picker = 'virtual:picker';
   const section = root('src/components/wizard/import/BehaviourSection.tsx');
   const bundle = await rolldown({
@@ -638,22 +643,17 @@ test('with the clock runtime ready, a new import offers exactly one Clock choice
     svgFields: candidates.map((c) => ({ candidateId: c.id, on: true, title: c.label, sample: c.sample, numeric: false, clock: c.clock, kind: 'text' })),
     svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [],
   };
-  const props = (clockReady) => ({ draft, onDraft: () => {}, textLayers: candidates, pollDriven: new Set(), stageRef: { current: null }, layerBoxes: new Map(), artworkInk: null, setHoverId: () => {}, ...(clockReady === undefined ? {} : { clockReady }) });
+  const props = { draft, onDraft: () => {}, textLayers: candidates, pollDriven: new Set(), stageRef: { current: null }, layerBoxes: new Map(), artworkInk: null, setHoverId: () => {} };
   const select = (html, testid) => new RegExp(`<select[^>]*data-testid="${testid}"[^>]*>(.*?)</select>`, 's').exec(html)?.[1] ?? null;
   const options = (inner) => [...(inner ?? '').matchAll(/<option[^>]*value="([^"]*)"[^>]*>(.*?)<\/option>/gs)].map((m) => [m[1], m[2]]);
 
-  const ready = render(props(true));
+  const ready = render(props);
   const clock = options(select(ready, 'map-svg-clock-mode'));
   assert.deepEqual(clock.map(([v]) => v), ['none', 'count-up', 'duration', 'target-time'], 'one Clock choice, with the modes');
   assert.equal((ready.match(/data-testid="map-svg-clock-mode"/g) ?? []).length, 1);
   const kinds = options(select(ready, 'map-svg-behaviour-kind')).map(([v]) => v);
   assert.ok(!kinds.includes('timer') && !kinds.includes('clock'), kinds.join());
 
-  // Shipped: CLOCK_RUNTIME_READY is false, so the step is as it was on main.
-  for (const html of [render(props(undefined)), render(props(false))]) {
-    assert.equal(select(html, 'map-svg-clock-mode'), null);
-    assert.ok(options(select(html, 'map-svg-behaviour-kind')).some(([v]) => v === 'timer'), 'the old Countdown is still offered');
-  }
 });
 
 test('extras the author named alike build as separate parts, and a hand-made collision is still refused (C3)', async () => {

@@ -1278,20 +1278,25 @@ test('imported countdown: changing your mind puts the clock layer back to plain 
   await expect(kind).toHaveValue('countdown');
 });
 
-test('the Clock waits for its runtime: a new import keeps the Countdown and offers no Clock yet', async ({ page }) => {
-  // THE CLOCK IS A PART, NOT A BEHAVIOUR (docs/work-specs/jev-svg-import, row 7, AC-8), persisted
-  // and compiled beside a score tracker - but a control is offered only when it can change the
-  // graphic, and until row 8 binds the match-clock runtime nothing would count. So the shipped step
-  // is the step as it was (`CLOCK_RUNTIME_READY` false): the old Countdown, no Clock select. Row 8
-  // turns this into the Clock walk; scripts/jev-svg-contract.test.mjs renders the ready picker.
+test('one Clock choice on a new import: it sits beside the score tracker, and a countdown file keeps its Countdown', async ({ page }) => {
+  // THE CLOCK IS A PART, NOT A BEHAVIOUR (docs/work-specs/jev-svg-import, rows 7 and 8, AC-8):
+  // chosen on the time layer, beside a score tracker, and driven by the match clock
+  // (scripts/imported-match-clock.test.mjs runs it). The old Countdown is offered only where the
+  // file drew the moments only it paints.
   await openImportDoor(page, fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url)));
   const kind = page.getByTestId('map-svg-behaviour-kind');
-  await expect(kind.locator('option[value="timer"]')).toHaveCount(1);
-  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+  const clock = page.getByTestId('map-svg-clock-mode');
+  await expect(kind.locator('option[value="timer"]')).toHaveCount(0);
+  await expect(clock).toHaveCount(1);
+  await expect(clock.locator('option')).toHaveCount(4);
+  await expect(clock).toHaveValue('none');
   await kind.selectOption('score');
-  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+  await clock.selectOption('duration');
+  await expect(clock).toHaveValue('duration');
+  await expect(kind).toHaveValue('score');
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(1);
 
-  // A file drawn for the countdown is proposed as one, as before.
+  // A file drawn for the countdown is proposed as one, as before, and offers no Clock.
   await openImportDoor(page, TIMER_SVG);
   await expect(kind).toHaveValue('timer');
   await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
