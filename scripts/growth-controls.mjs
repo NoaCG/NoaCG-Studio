@@ -73,22 +73,43 @@ export function workflowShape(text) {
   const lines = String(text ?? '').split(/\r?\n/);
   const jobs = [];
   const names = {};
+  const width = {};
+  const axes = {};
   let inJobs = false;
   let current = null;
+  let matrixIndent = null;
+  let axis = null;
   for (const line of lines) {
     if (/^jobs:\s*$/.test(line)) { inJobs = true; continue; }
     if (inJobs && /^\S/.test(line)) inJobs = false;
     if (!inJobs) continue;
     const key = /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(line);
-    if (key) { current = key[1]; jobs.push(current); continue; }
+    if (key) { current = key[1]; jobs.push(current); axes[current] = []; matrixIndent = null; axis = null; continue; }
     const nm = /^ {4}name:\s*(.+?)\s*$/.exec(line);
     if (nm && current && !names[current]) names[current] = nm[1].replace(/^['"]|['"]$/g, '');
+    // A static matrix runs the job once per combination: count each axis's values. A matrix built
+    // at run time (`${{ fromJSON(...) }}`) cannot be counted here and is measured weekly instead.
+    const indent = line.search(/\S/);
+    if (/^\s+matrix:\s*$/.test(line)) { matrixIndent = indent; axis = null; continue; }
+    if (matrixIndent === null || indent < 0) continue;
+    if (indent <= matrixIndent) { matrixIndent = null; axis = null; continue; }
+    const kv = /^\s+([A-Za-z0-9_-]+):\s*(.*?)\s*$/.exec(line);
+    if (kv && indent === matrixIndent + 2) {
+      axis = null;
+      if (kv[1] === 'include' || kv[1] === 'exclude') continue;
+      const list = /^\[(.*)\]$/.exec(kv[2]);
+      if (list) axes[current].push(list[1].split(',').filter((x) => x.trim()).length);
+      else if (kv[2] === '') { axis = axes[current].length; axes[current].push(0); }
+      continue;
+    }
+    if (axis !== null && /^\s+-\s/.test(line) && indent === matrixIndent + 4) axes[current][axis] += 1;
   }
+  for (const j of jobs) width[j] = axes[j].reduce((a, n) => a * Math.max(1, n), 1);
   const on = /^on:\s*\n([\s\S]*?)(?=^\S)/m.exec(`${text ?? ''}\n_end:`)?.[1] ?? '';
   const crons = [...on.matchAll(/cron:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
   const inline = /^on:[ \t]*\[?([^\n\]]*)\]?[ \t]*$/m.exec(String(text ?? ''))?.[1] ?? '';
   const triggers = new Set([...on.matchAll(/^ {2}([a-z_]+):/gm)].map((m) => m[1]).concat(inline.split(/[\s,]+/).filter(Boolean)));
-  return { jobs, names, crons, triggers };
+  return { jobs, names, crons, triggers, width };
 }
 
 /** Runs per day of a five-field cron line (minute, hour, day-of-month, month, day-of-week). */
@@ -163,10 +184,14 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
       const tier = tierOfJob(wf, name);
       if (tier === 'offline') continue; // offline work is the table line's to price
       const fresh = !before.jobs.includes(job) && !beforeNames.has(name);
-      // A new job pays for every run; an existing job pays for the runs a more frequent trigger
-      // or schedule adds (an hourly cron where a daily one was), never less than nothing.
-      const runs = fresh ? now.runs : Math.max(0, now.runs - was.runs);
-      const daily = fresh ? now.daily : Math.max(0, now.daily - was.daily);
+      // A new job pays for every run of every matrix entry; an existing job pays for the runs a
+      // more frequent trigger or schedule adds (an hourly cron where a daily one was) and for any
+      // matrix entries it gains, never less than nothing.
+      const w = after.width[job] ?? 1;
+      const oldKey = before.jobs.includes(job) ? job : before.jobs.find((j) => (before.names[j] ?? j) === name);
+      const wasW = fresh ? 0 : before.width[oldKey] ?? 1;
+      const runs = fresh ? now.runs * w : Math.max(0, now.runs * w - was.runs * wasW);
+      const daily = fresh ? now.daily * w : Math.max(0, now.daily * w - was.daily * wasW);
       if (runs <= 0 && daily <= 0) continue;
       items.push({ tier, id: `job:${wf}/${name}`, perLanding: runs * e.newJobMinutes, perDay: daily * e.newJobMinutes, how: `${fresh ? 'new job' : 'more frequent job'} at ${e.newJobMinutes} runner-min${runs ? `, +${runs.toFixed(2)} runs per landing` : ''}${daily ? `, +${daily.toFixed(2)} runs per day (${after.crons.join(' + ')})` : ''}` });
     }

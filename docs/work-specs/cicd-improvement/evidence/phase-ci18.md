@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (49 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (50 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -181,8 +181,9 @@ issue, remain for ci17.
 - **Every trigger is priced.** Pull request, merge group and push by their runs per landing;
   `workflow_run`, `deployment_status` and check events as every run; any other trigger at least
   once per landing, except a `workflow_dispatch` beside a cron, which is that schedule's re-run.
-- **Cadence counts as growth.** A more frequent cron, or a new trigger on an existing job, is
-  priced as the runs it adds; a cheaper schedule adds nothing.
+- **Cadence counts as growth.** A more frequent cron, a new trigger on an existing job, or a new
+  entry in a job's static matrix is priced as the runs it adds; a cheaper schedule adds nothing.
+  A matrix built at run time cannot be counted from the file and is measured weekly.
 - **Pooled timing is collected live and carried forward.** Each weekly run reads an even spread
   of the week's merged PRs (stamp-based ready clock, first queue entry), categorised by line of
   work (JEV plan, cicd plan, bot, quarantine, other), and carries the samples in its report so the

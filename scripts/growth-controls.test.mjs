@@ -731,3 +731,17 @@ test('(b) renaming the covered job first is no way round a measured repayment, a
   assert.equal(fetchLatest(path.join(dir, 'b.json'), gone, { at: '2026-12-01T00:00:00Z', revision: 2 }), null);
   assert.equal(JSON.parse(readFileSync(path.join(dir, 'b.json'), 'utf8')).none, true);
 });
+
+test('(b) a matrix entry added to an existing job is priced, and a growth stop refuses it', () => {
+  const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  assert.equal(workflowShape(ci).width['guided-mod'], 2);
+  const wider = ci.replace("claude-code: ['2.1.287', '2.1.295']", "claude-code: ['2.1.287', '2.1.295', '2.1.300']");
+  const [item] = priceAdditions({ workflows: { 'ci.yml': { base: ci, head: wider } }, estimates: CEILINGS.estimates });
+  assert.equal(item.id, 'job:ci.yml/Guided mod (Claude Code ${{ matrix.claude-code }})');
+  assert.ok(Math.abs(item.perLanding - CEILINGS.estimates.runsPerLanding.everyRun * CEILINGS.estimates.newJobMinutes) < 1e-9, 'one more entry on every run');
+  assert.deepEqual(priceAdditions({ workflows: { 'ci.yml': { base: ci, head: ci } }, estimates: CEILINGS.estimates }), []);
+  const r = assessTiers({ ceilings: noExceptions, measurement: measurement({ overhead: 40 }), items: [item], today: TODAY, stops: { overhead: 'cost:overhead' } });
+  assert.equal(r.tiers.overhead.status, 'refuse');
+  const dash = "on:\n  push:\njobs:\n  a:\n    name: A\n    strategy:\n      matrix:\n        os:\n          - x\n          - y\n        node: [1, 2, 3]\n    steps: []\n";
+  assert.equal(workflowShape(dash).width.a, 6);
+});
