@@ -54,7 +54,7 @@ test('checkout: every job tests github.sha, the commit fixed when the event was 
 
 // An in-memory GitHub: a dispatch creates a run on the branch head AT DISPATCH TIME.
 function github({ heads, returnsId = true } = {}) {
-  const state = { heads: { ...heads }, runs: [], nextId: 100, clock: T0, posts: 0, onPost: null, failPost: null };
+  const state = { heads: { ...heads }, runs: [], nextId: 100, returnsId, clock: T0, posts: 0, onPost: null, failPost: null };
   const run = (ref, created) => ({ id: state.nextId++, event: 'workflow_dispatch', head_branch: ref, head_sha: state.heads[ref],
     path: `.github/workflows/${WF}`, status: 'queued', conclusion: null, run_attempt: 1, created_at: new Date(created).toISOString(),
     html_url: `https://github.com/${REPO}/actions/runs/${state.nextId - 1}` });
@@ -86,7 +86,7 @@ function github({ heads, returnsId = true } = {}) {
       const r = run(body.ref, state.clock);
       state.runs.push(r);
       if (state.failPost === 'lost') return { ok: false, status: 0, error: 'connection reset' };
-      return ok(returnsId && body.return_run_details ? { workflow_run_id: r.id, html_url: r.html_url } : null);
+      return ok(state.returnsId && body.return_run_details ? { workflow_run_id: r.id, html_url: r.html_url } : null);
     }
     return { ok: false, status: 404, error: `fixture has no ${method} ${endpoint}` };
   };
@@ -159,34 +159,41 @@ test('a ref that moves between the check and the dispatch yields a refused misma
   } finally { h.done(); }
 });
 
-test('without a returned run ID the one new run is found; two new runs are ambiguous', () => {
+test('without a returned run ID no run is ever adopted; --recover dispatches afresh', () => {
   const h = harness({ 'claude/one': sha('1') }, { returnsId: false });
   try {
-    h.gh.dispatchByOther('claude/one'); // Before the request: in the prior snapshot, never attributed.
+    h.gh.dispatchByOther('claude/one'); // Before the request: in the prior snapshot.
     h.gh.clock += 60_000;
     const sent = h.send('claude/one');
-    assert.equal(sent.state, 'running');
-    assert.equal(sent.run.id, 101);
-    h.gh.onPost = () => h.gh.dispatchByOther('claude/one'); // Someone else dispatches the same branch at once.
-    h.gh.clock += 60_000;
-    const clash = h.send('claude/one');
-    assert.equal(clash.state, 'ambiguous');
-    assert.equal(clash.runIds.length, 2);
+    assert.deepEqual([sent.state, sent.runIds, exitCode(sent)], ['unproven', [101], 2]);
+    assert.equal(JSON.parse(readFileSync(sent.record, 'utf8')).runId, undefined);
+    h.gh.returnsId = true;
+    h.cli(['reconcile', sent.record, '--recover']);
+    assert.deepEqual([h.lines.at(-1).recoveredFrom.state, h.lines.at(-1).state, h.lines.at(-1).run.id], ['unproven', 'running', 102]);
   } finally { h.done(); }
 });
 
-test('a lost acknowledgement reconciles from the recorded intent', () => {
+test('a lost acknowledgement never adopts a run, even the right one, and never passes', () => {
   const h = harness({ 'claude/one': sha('1') });
   try {
-    h.gh.failPost = 'lost';
+    // GitHub is still creating ours when the acknowledgement is lost; a concurrent dispatch on
+    // the same ref is visible first.
+    const api = (method, endpoint, body) => {
+      if (method !== 'POST') return h.gh.api(method, endpoint, body);
+      h.gh.dispatchByOther('claude/one');
+      return { ok: false, status: 0, error: 'timeout' };
+    };
     const seen = [];
     const save = h.deps.save;
     const sent = dispatch({ repository: REPO, workflow: WF, ref: 'claude/one', sha: sha('1') },
-      { ...h.deps, save: (intent, file) => { seen.push(intent.delivery); return save(intent, file); } });
-    assert.deepEqual(seen, ['requested', 'uncertain', 'accepted']);
-    assert.equal(sent.state, 'running');
-    assert.equal(sent.run.head_sha, sha('1'));
-    assert.equal(h.records()[0].runId, sent.run.id);
+      { ...h.deps, api, save: (intent, file) => { seen.push(intent.delivery); return save(intent, file); } });
+    assert.deepEqual(seen, ['requested', 'uncertain']);
+    assert.equal(sent.state, 'unproven');
+    // Ours appears and fails, the other passes: the record still gives no verdict at all.
+    h.gh.dispatchByOther('claude/one');
+    h.gh.runs.forEach((r) => Object.assign(r, { status: 'completed', conclusion: r.id === 100 ? 'success' : 'failure' }));
+    const later = reconcile(JSON.parse(readFileSync(sent.record, 'utf8')), h.deps);
+    assert.deepEqual([later.state, [...later.runIds].sort(), exitCode(later)], ['unproven', [100, 101], 2]);
   } finally { h.done(); }
 });
 
@@ -238,18 +245,23 @@ test('same-branch pending supersession: follow the same commit, recover once, or
   } finally { h.done(); }
 });
 
-test('a run found without a returned ID is kept, so a later run on the ref cannot make it ambiguous', () => {
-  const h = harness({ 'claude/one': sha('1') }, { returnsId: false });
+test('a run that appears after not-delivered and --recover changes nothing', () => {
+  const h = harness({ 'claude/one': sha('1') });
   try {
-    const first = h.send('claude/one');
-    assert.equal(first.state, 'running');
-    assert.equal(JSON.parse(readFileSync(first.record, 'utf8')).runId, first.run.id);
-    Object.assign(h.gh.runs.find((r) => r.id === first.run.id), { status: 'completed', conclusion: 'cancelled' });
-    h.gh.clock += 1000;
-    h.cli(['reconcile', first.record, '--recover']);
-    assert.equal(h.lines.at(-1).state, 'running');
-    h.cli(['reconcile', first.record]);
-    assert.equal(h.lines.at(-1).state, 'superseded');
+    h.gh.failPost = 'none'; // The dispatch is lost outright: no run, no acknowledgement.
+    const api = (method, endpoint, body) => (method === 'POST' && h.gh.failPost === 'none'
+      ? { ok: false, status: 0, error: 'timeout' } : h.gh.api(method, endpoint, body));
+    const lost = dispatch({ repository: REPO, workflow: WF, ref: 'claude/one', sha: sha('1') }, { ...h.deps, api });
+    assert.equal(lost.state, 'absent');
+    h.gh.clock += SETTLE_MS;
+    h.gh.failPost = null;
+    h.cli(['reconcile', lost.record, '--recover']);
+    const recovered = h.lines.at(-1);
+    assert.deepEqual([recovered.recoveredFrom.state, recovered.state], ['not-delivered', 'running']);
+    h.gh.dispatchByOther('claude/one'); // The lost original turns up late.
+    h.cli(['reconcile', recovered.record]);
+    assert.equal(h.lines.at(-1).run.id, recovered.run.id, 'the proved run, never the late one');
+    assert.equal(h.cli(['reconcile', lost.record, '--recover']), 1, 'the old record recovers at most once');
   } finally { h.done(); }
 });
 

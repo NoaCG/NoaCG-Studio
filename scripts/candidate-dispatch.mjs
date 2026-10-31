@@ -19,11 +19,16 @@
 //     so a lost acknowledgement is reconciled from what was asked, never guessed afterwards.
 //   - The existing observation advisory (verification-dispatch.mjs) still runs first and still
 //     gates nothing.
-//   - The run ID GitHub returns for the dispatch is the identity. When none comes back, the one
-//     NEW dispatch run on that ref is; two new runs are ambiguous and refused, a run on another
-//     commit is a mismatch and refused. An absent run stays uncertain until the listing is
-//     complete and SETTLE_MS has passed.
-//   - A cancelled run is followed to the newer run on the SAME commit when there is one. A run
+//   - The run ID GitHub returns for the dispatch is the ONLY proof of which run answers it;
+//     timing, ref and commit never stand in for it. A run on another commit is a mismatch and
+//     refused. Without a returned ID (acknowledgement lost, or none sent back) the record never
+//     gives a verdict: no new run on the ref in a complete listing SETTLE_MS on is
+//     `not-delivered`; any new run makes it `unproven`. Both take `--recover`, a fresh dispatch
+//     whose returned ID is the identity. A run that shows up later changes nothing.
+//   - The one exception, which same-branch supersession needs: a proved run that was cancelled
+//     takes its verdict from a later dispatch run of the same workflow on the same ref and
+//     commit. The workflow has no inputs and checks out github.sha, so that verdict is a fact
+//     about the commit, and the answer names the run it used. A run
 //     cancelled while pending, with its commit still the branch head and nothing replacing it,
 //     is `recover`: `--recover` dispatches it again, once per record. A run someone cancelled
 //     after it started is never recovered automatically. A moved head makes the old commit
@@ -31,9 +36,9 @@
 //     branch (check.tmpl).
 //
 // Output: one JSON line. The exit code is the verdict: 0 only for a finished, passing run on the
-// requested commit (its own, or a superseding run's). 1: a refusal (refused, mismatch, ambiguous,
+// requested commit (its own, or a superseding run's). 1: a refusal (refused, mismatch,
 // unresolved) or a failing verdict. 2: no verdict and something to do (absent, not-delivered,
-// recover, obsolete, cancelled). 3: still running, so wait and reconcile again.
+// unproven, recover, obsolete, cancelled). 3: still running, so wait and reconcile again.
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -49,9 +54,9 @@ const REPOSITORY = /^[\w.-]+\/[\w.-]+$/;
 export const SETTLE_MS = 5 * 60_000;
 // Clock skew allowed between this machine and GitHub's created_at.
 const SKEW_MS = 60_000;
-const REFUSALS = ['refused', 'mismatch', 'ambiguous', 'unresolved'];
+const REFUSALS = ['refused', 'mismatch', 'unresolved'];
 // No verdict for the requested commit yet, and something to do about it.
-const ACTION = ['absent', 'not-delivered', 'recover', 'obsolete', 'cancelled'];
+const ACTION = ['absent', 'not-delivered', 'unproven', 'recover', 'obsolete', 'cancelled'];
 
 /** `gh api` adapter: { ok, status, json, error }. A 4xx is a definite answer; anything else is not. */
 export function ghApi(method, endpoint, body) {
@@ -81,23 +86,20 @@ function listDispatchRuns(api, { repository, workflow, ref }, after) {
 
 /** Which run answers this intent, or why none can be named. Pure. */
 export function attribute(intent, { runs, complete }, now) {
-  let candidates;
-  if (intent.runId !== undefined) {
-    candidates = runs.filter((run) => run.id === intent.runId);
-    if (!candidates.length) return { state: 'unresolved', reason: `returned run ${intent.runId} could not be read` };
-  } else {
-    candidates = runs.filter((run) => ownRun(intent, run) && !intent.priorRunIds.includes(run.id)
+  if (intent.runId === undefined) {
+    // No proof: never adopt a run, only tell delivered-somehow from not delivered at all.
+    const fresh = runs.filter((run) => ownRun(intent, run) && !intent.priorRunIds.includes(run.id)
       && Date.parse(run.created_at) >= Date.parse(intent.requestedAt) - SKEW_MS);
-  }
-  if (candidates.length > 1) return { state: 'ambiguous', runIds: candidates.map((run) => run.id),
-    reason: `${candidates.length} new dispatch runs on ${intent.ref} since the request; none can be attributed to it` };
-  if (!candidates.length) {
+    if (fresh.length) return { state: 'unproven', runIds: fresh.map((run) => run.id),
+      reason: `no run ID came back for this dispatch and ${fresh.length} new dispatch run(s) exist on ${intent.ref};`
+        + ' none can be proved to be this request\'s, so this record never gives a verdict: reconcile with --recover to dispatch afresh' };
     const final = intent.delivery !== 'accepted' && complete && now - Date.parse(intent.requestedAt) >= SETTLE_MS;
     return { state: final ? 'not-delivered' : 'absent', reason: final
       ? `no run on ${intent.ref} for this request in a complete listing ${SETTLE_MS / 60_000} minutes on; reconcile with --recover to dispatch it again`
       : 'no run found for this request yet; reconcile again before dispatching' };
   }
-  const [run] = candidates;
+  const run = runs.find((candidate) => candidate.id === intent.runId);
+  if (!run) return { state: 'unresolved', reason: `returned run ${intent.runId} could not be read` };
   if (!ownRun(intent, run)) return { state: 'mismatch', run: summary(run), reason: `run ${run.id} is not a ${intent.workflow} dispatch on ${intent.ref}` };
   if (run.head_sha !== intent.sha) return { state: 'mismatch', run: summary(run),
     reason: `run ${run.id} tested ${run.head_sha}, not the requested ${intent.sha}: the ref moved` };
@@ -140,26 +142,18 @@ function branchHead(api, { repository, ref }) {
 }
 
 /** Re-read the run this intent names (finding it once if GitHub returned no ID) and settle it. */
-export function reconcile(intent, { api = ghApi, now = Date.now, save, record } = {}) {
+export function reconcile(intent, { api = ghApi, now = Date.now } = {}) {
   try {
-    let attribution, listing;
+    let attribution;
     if (intent.runId !== undefined) {
       const r = api('GET', `repos/${intent.repository}/actions/runs/${intent.runId}`);
       if (!r.ok && r.status !== 404) throw Error(`could not read run ${intent.runId}`);
       attribution = attribute(intent, { runs: r.ok && r.json ? [r.json] : [], complete: true }, now());
-    } else {
-      listing = listDispatchRuns(api, intent, since(intent));
-      attribution = attribute(intent, listing, now());
-      if (attribution.state === 'accepted' && save) {
-        // Found once, kept: a later run on the same ref must not make this record ambiguous.
-        Object.assign(intent, { runId: attribution.run.id, delivery: 'accepted' });
-        save(intent, record);
-      }
-    }
+    } else attribution = attribute(intent, listDispatchRuns(api, intent, since(intent)), now());
     if (attribution.state !== 'accepted') return attribution;
     const { run } = attribution;
     return settle(intent, run, {
-      runs: () => (listing ?? listDispatchRuns(api, intent, since(intent))).runs,
+      runs: () => listDispatchRuns(api, intent, since(intent)).runs,
       started: () => {
         const jobs = api('GET', `repos/${intent.repository}/actions/runs/${run.id}/jobs?per_page=1`);
         if (!jobs.ok || !Number.isSafeInteger(jobs.json?.total_count)) throw Error(`could not read the jobs of run ${run.id}`);
@@ -193,7 +187,7 @@ export function dispatch({ repository, workflow = 'configured-suite.yml', ref, s
   } else intent.delivery = sent.status >= 400 && sent.status < 500 ? 'refused' : 'uncertain';
   save(intent, record);
   if (intent.delivery === 'refused') return { record, state: 'refused', reason: `GitHub refused the dispatch: ${sent.error}` };
-  return { record, ...reconcile(intent, { api, now, save, record }) };
+  return { record, ...reconcile(intent, { api, now }) };
 }
 
 function recordDir() {
@@ -236,8 +230,8 @@ export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, 
       const file = path.resolve(argv[1]);
       const intent = JSON.parse(readFileSync(file, 'utf8'));
       const save = saver(path.dirname(file));
-      result = { record: file, ...reconcile(intent, { ...deps, save, record: file }) };
-      if (['recover', 'not-delivered'].includes(result.state) && hasFlag(argv, '--recover')) {
+      result = { record: file, ...reconcile(intent, deps) };
+      if (['recover', 'not-delivered', 'unproven'].includes(result.state) && hasFlag(argv, '--recover')) {
         if (intent.recoveredBy) result = { ...result, state: 'refused', reason: `already recovered by ${intent.recoveredBy}; reconcile that record` };
         else {
           const next = dispatch(intent, { ...deps, save });

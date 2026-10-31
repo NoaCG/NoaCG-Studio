@@ -54,11 +54,10 @@ what needs the verdict, and it is a lost verdict when the older commit is still 
     that commit. It records the intent (repository, workflow, ref, commit, time, the dispatch
     runs already on that ref) **before** dispatching, then dispatches once with
     `return_run_details`.
-  - The run ID GitHub returns is the identity. Without one (older API, lost acknowledgement)
-    the one new dispatch run on that ref since the request is; two are `ambiguous`, a run on
-    another commit is `mismatch`, both refused (exit 1). No run is `absent` until a complete
-    listing five minutes on says `not-delivered`. A run found by listing is written into the
-    record, so a later run on the same ref cannot make it ambiguous.
+  - The run ID GitHub returns is the only proof of identity (rules below). A returned run on
+    another commit is `mismatch`, refused (exit 1). Without a returned ID the record never gives
+    a verdict: no new run on the ref is `absent` until a complete listing five minutes on says
+    `not-delivered`; any new run makes it `unproven`. Both take `--recover`, a fresh dispatch.
   - `reconcile <record> [--recover]` re-reads that identity and settles it: `running`,
     `verdict` (with conclusion), `superseded` (cancelled; the named newer run on the same commit
     carries the verdict, the newest by run ID), `cancelled` (stopped after its jobs started, so
@@ -84,14 +83,33 @@ lookup and its runbook mode, worker full-backend dispatch policy (ci06 owns its 
 | (a) Schedules isolated from main dispatches | `candidate-dispatch.test.mjs` evaluates the workflow's own group expression for landings, the cron, a main dispatch and three branches: all distinct, cron = `configured-suite-schedule` | pass |
 | (a) Required pending same-branch supersession has recovery | live: run 41200019293 replaced while pending by 41200054838; `reconcile` answered `superseded` by 41200054838 on the same commit. Fixture: `recover`, `--recover` once, refused the second time, `obsolete` after the head moved | pass |
 | (a) Preserve `github.sha` checkout | test: no checkout step pins `ref:` | pass |
-| (a) Refuse ambiguous or mismatched request-to-run evidence | fixtures: two new runs → `ambiguous`; ref moved between check and dispatch → `mismatch`; live: a stale `--sha` refused with nothing dispatched or recorded | pass |
-| (b) Reconcile uncertain dispatches by recorded intent, ref, requested commit and run identity | fixtures: intent written before the POST; lost acknowledgement reconciled to its run; absent stays uncertain until a complete settled listing; 422 recorded as refused | pass |
+| (a) Refuse ambiguous or mismatched request-to-run evidence | fixtures: without a returned ID no run is adopted (`unproven`), even when the right run later appears beside another; ref moved between check and dispatch → `mismatch`; live: a stale `--sha` refused with nothing dispatched or recorded | pass |
+| (b) Reconcile uncertain dispatches by recorded intent, ref, requested commit and run identity | fixtures: intent written before the POST; a lost acknowledgement is reconciled against the recorded ref, commit, time and prior runs to `absent`, `not-delivered` or `unproven`, never to an inferred run; `--recover` dispatches afresh once; a late original changes nothing; 422 recorded as refused | pass |
 | (b) Preserve per-landing full backend validation and observation-only lookup | push groups per commit (test); observation runs before the POST and its failure does not block (test); live advisory printed `UNRESOLVED` and the dispatch proceeded | pass |
 | (c) Reuse #1816's groups; verify same-branch replacement, schedule/main interaction, actual source identity; change only demonstrated gaps | sections 1 to 3 | pass |
 
 Mutation check: restoring the old `'shared'` expression fails the concurrency test; removing
-the commit comparison fails the mismatch test; removing the ambiguity refusal fails the
-ambiguity test.
+the commit comparison fails the mismatch test.
+
+### Rules (found after coding)
+
+Two successive review rounds (below) found variants of one missing rule, so a fresh read-only
+reassessment of the rule model came before the repair. It agreed with corrections, all applied:
+
+1. A run answers a dispatch only by proof: the run ID GitHub returned for it. Timing, ref and
+   commit never stand in for it.
+2. Exception, needed by same-branch supersession: a proved run that was cancelled takes its
+   verdict from a later dispatch run of the same workflow, ref and commit, named in the answer.
+   The workflow has no inputs and checks out `github.sha`, so that verdict is about the commit.
+3. A run on another commit than requested is refused.
+4. Without a returned ID the record never gives a verdict. With no new run on the ref it is
+   `absent`, then `not-delivered` after a complete listing five minutes on; with any new run it
+   is `unproven`. The way out is a fresh dispatch (`--recover`, once per record).
+5. Nothing unproven is persisted, and a run that turns up late changes nothing.
+6. Exit 0 only for a finished, passing run under rules 1 and 2.
+
+The reassessment rejected a request-ID workflow input echoed in the run title: it changes the
+workflow for every event to solve what a fresh dispatch already solves.
 
 ## 5. Live trial (bounded: five dispatches, four full runs)
 
@@ -128,7 +146,8 @@ ambiguity. These are fixtures.
 | --- | --- | --- | --- | --- |
 | Codex on `1deedf58` (comment 4431729773) | reconciling a cancelled run whose same-commit replacement failed answered `superseded`, exit 0, so the failure hid behind the cancel | a superseded verdict must carry its replacement's outcome | product defect | `superseded` carries the replacement's conclusion and exit code; failing test first |
 | Coordinator on `9dced3da` | a still-running run or replacement exited 0, which a reader could take as validated | pending evidence is never a pass | product defect | exit 0 only for a finished pass; 3 while running |
-| Codex on `9dced3da` (comment 4431737832) | two dispatches of one commit in the same millisecond got one record name, and the second overwrote the first | a record's identity must be unique | product defect | random suffix, created exclusively; failing test first |
+| Codex on `9dced3da` (comment 4431737832) | two dispatches of one commit in the same millisecond got one record name, and the second overwrote the first | run identity must be proved, not inferred | product defect | random suffix, created exclusively; failing test first |
+| Codex on `a0371da1` (comment 4431748828) | after a lost acknowledgement, the first reconcile adopted a concurrent run on the same ref and kept it, so the real run's failure could be missed | run identity must be proved, not inferred (repeated family) | product defect | rules above: no inference at all without a returned ID; failing test first |
 
 ## 7. Phase notes
 
@@ -138,9 +157,9 @@ ambiguity. These are fixtures.
   restores the shared cron/main group, removes the helper, its test, the known-traps lines, the
   runbook row and this file. Records the helper wrote stay in each worktree's git directory.
 - **Decisions:**
-  - Identity comes from the dispatch's returned run ID, not from a new workflow input. That
-    works on any branch whatever workflow file it carries, and needs no workflow change beyond
-    the group. A run-name or expected-commit input would only work after it reached each branch.
+  - Identity comes only from the dispatch's returned run ID, not from a new workflow input or
+    from listing. That works on any branch whatever workflow file it carries, and needs no
+    workflow change beyond the group. A lost acknowledgement costs at most one fresh dispatch.
   - A dispatch on `main` keeps one group with other main dispatches (serial, as before) and
     leaves the cron's; nothing else about main changes.
   - A cancelled run is followed to a newer run on the same commit before any recovery, so a
