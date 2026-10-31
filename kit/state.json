@@ -52,7 +52,7 @@
       "nonce": "ci03-b-24b9",
       "branch": "claude/plan-cicd-improvement-ci03-build",
       "launchedAt": "2026-10-31T12:00:56Z",
-      "note": "PR #1854 head 60d66b49: CI gate, configured-suite 41203979114, Codex clean; /so graded B at 13:24 (pass for failed commit under cancel-replace); builder idle since 13:22 nudged at 13:37 with the finding. Factory gates flake on eec131b4 classified (fail then pass on rerun).",
+      "note": "PR #1854 head f3df92d4 (fixes /so B on 60d66b49); Codex, configured-suite 41206542018 and /so session_017SdbwP1UhvEb5Wm2i6R9XW pending. #1856 filed for double-stop ig06 flake (fail 124543016817 then pass 124544510340 on eec131b4).",
       "pr": 1854,
       "repairOwnerComment": 6543487751
     }
@@ -120,14 +120,16 @@
   "coordinatorNotes": [
     "Record a check intent with actor exactly checker-<phase>-<nonce> so the PASS receipt matches (ci01 needed a resume to reconcile).",
     "Post before/after PR head reads in a coordinator comment when enabling auto-merge.",
-    "Never pipe run-supervisor output into head -c: SIGPIPE can abort the transaction."
+    "Never pipe run-supervisor output into head -c: SIGPIPE can abort the transaction.",
+    "A builder's /so child session does not wake the builder when it finishes; check-ins must look at the /so session status (ci03 stalled 13:22-13:37)."
   ],
   "followUpIssues": [
     1829,
     1805,
     1846,
     1847,
-    1849
+    1849,
+    1856
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files"
