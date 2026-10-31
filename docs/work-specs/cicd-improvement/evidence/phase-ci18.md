@@ -211,6 +211,8 @@ issue, remain for ci17.
   - Two review rounds found variants of one missing rule (evidence that cannot prove recovery
     cleared a breach). Per the repeated-family checkpoint, a fresh read-only review reassessed the
     rule model before the repair; its five further cases are fixed with replay tests.
+  - Phase age alarms keep their own rolling issue (`Plan phases past their age ceiling`): the
+    post-landing check reads no ledger and must never close or overwrite a phase alarm.
   - Every child process under `scripts/` must pass `windowsHide` (`scripts/windows-hide.test.mjs`).
   - ci06 landed at 21:15Z on 2026-10-31: no complete measurement of its selected PR runs exists
     yet, so its cost stays a projection.

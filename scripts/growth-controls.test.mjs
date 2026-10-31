@@ -592,6 +592,11 @@ test('(d) the plan-run ledger feeds the phase age alarm: one overdue phase acts 
   const r = ages({ ceilings: CEILINGS, now: '2026-10-31T19:00:00Z', reader: makeReader(10, fake), ledger });
   assert.deepEqual(r.actions.map((a) => a.key), ['age:phase 7'], '13 hours since its first build, repairs included; 6 passed; 5 was stopped');
   assert.equal(r.actions[0].category, 'phase');
+  assert.match(r.phaseBody, /phase 7 unfinished/);
+  assert.equal(r.body, '', 'the PR issue carries no phase');
+  // A check after a landing reads no ledger: it leaves the phase issue untouched (undefined), never empty.
+  const postLand = ages({ ceilings: CEILINGS, now: '2026-10-31T19:00:00Z', reader: makeReader(10, fake) });
+  assert.equal(postLand.phaseBody, undefined);
 });
 
 test('(e) a run still unfinished at collection keeps its tier partial, so a stop survives it', () => {

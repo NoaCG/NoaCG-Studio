@@ -422,21 +422,27 @@ export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args
 }
 
 export const AGE_ISSUE = 'Delivery items past their age ceiling';
+export const PHASE_AGE_ISSUE = 'Plan phases past their age ceiling';
 export const WEEKLY_ISSUE = 'Growth controls: weekly actions';
 
 /** The per-item age check alone: cheap enough to run after every landing. */
 export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget), ledger = null, carried = {} }) {
   const open = openItems(reader, now, carried);
-  // Phases from the plan-run ledger, when the coordinator passes its wave file: the phase clock
-  // lives outside the repository, so this is its route into the same alarm.
-  const phases = ledger ? phasesFromLedger(ledger).map((p) => ({ id: p.id, category: 'phase', clock: phaseClock({ events: p.events, now }) })) : [];
-  const actions = ageAlarms([...open.items, ...phases], ceilings, now);
+  const head = (what) => `Owner: ${ceilings.owner}. Checked ${now} (${reader.calls} API calls). Each ${what} below is past its age ceiling (docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4.3) and needs a corrective action by its date: land it, unblock it or close it with a reason.`;
+  const text = (what, list) => (list.length ? [head(what), '', ...list.map((a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}.`)].join('\n') : '');
+  const prActions = ageAlarms(open.items, ceilings, now);
   // A partial read is not "nothing overdue": it raises what it found and never closes the issue.
-  if (!open.complete && actions.length === 0) return { actions, body: null, calls: reader.calls, complete: false };
-  const body = actions.length
-    ? [`Owner: ${ceilings.owner}. Checked ${now} (${reader.calls} API calls). Each item below is past its age ceiling (docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4.3) and needs a corrective action by its date: land it, unblock it or close it with a reason.`, '', ...actions.map((a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}.`)].join('\n')
-    : '';
-  return { actions, body, calls: reader.calls, complete: open.complete };
+  const body = !open.complete && prActions.length === 0 ? null : text('pull request', prActions);
+  // Phases come only from the plan-run ledger the coordinator passes, so they keep an issue of
+  // their own: a check without the ledger (after a landing) never touches a phase alarm.
+  let phaseBody;
+  let phaseActions = [];
+  if (ledger !== null) {
+    const phases = phasesFromLedger(ledger).map((p) => ({ id: p.id, category: 'phase', clock: phaseClock({ events: p.events, now }) }));
+    phaseActions = ageAlarms(phases, ceilings, now);
+    phaseBody = text('plan phase', phaseActions);
+  }
+  return { actions: [...prActions, ...phaseActions], body, phaseBody, calls: reader.calls, complete: open.complete };
 }
 
 /**
@@ -476,11 +482,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     let carried;
     try { carried = carriedStarts(findIssue(AGE_ISSUE)?.body); } catch { carried = {}; }
     const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null, carried });
+    if (result.phaseBody !== undefined) {
+      console.log(result.phaseBody || 'no plan phase past its age ceiling');
+      if (args.includes('--issue')) console.log(rollingIssue(PHASE_AGE_ISSUE, result.phaseBody));
+    }
     if (result.body === null) {
       console.log(`::warning title=Delivery age alarms::the open items could not all be read (${result.calls} API calls); the alarm issue is left as it was`);
       process.exit(1);
     }
-    console.log(result.body || `nothing past its age ceiling (${result.calls} API calls)`);
+    console.log(result.body || `no pull request past its age ceiling (${result.calls} API calls)`);
     if (args.includes('--issue')) console.log(rollingIssue(AGE_ISSUE, result.body));
   } else if (command === 'collect') {
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
