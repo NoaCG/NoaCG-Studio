@@ -201,7 +201,7 @@ jobs:
   # range, carries last week's breaches through one correction to a growth stop, and publishes
   # the `growth-report` artifact the capacity line in ci.yml reads on every pull request. A
   # week with no report is itself an owned failure: the capacity line says so, and the next
-  # report raises it. Bounded at 450 API calls, under the token's hourly limit.
+  # report raises it. Bounded at 550 API calls, under the token's hourly limit.
   growth:
     name: Weekly growth report
     runs-on: ubuntu-latest
@@ -232,7 +232,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           ISSUE: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && '--issue' || '' }}
-        run: node scripts/growth-report.mjs collect --budget 450 --previous "$RUNNER_TEMP/previous-growth.json" --out growth-report.json --summary "$GITHUB_STEP_SUMMARY" $ISSUE
+        run: node scripts/growth-report.mjs collect --budget 550 --previous "$RUNNER_TEMP/previous-growth.json" --out growth-report.json --summary "$GITHUB_STEP_SUMMARY" $ISSUE
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:

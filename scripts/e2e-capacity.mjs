@@ -241,6 +241,17 @@ export function changedSpecs(base, cwd = ROOT) {
   return specs;
 }
 
+/**
+ * The weekly report's offline stop reaches the table line: a stop on the offline tier, or a report
+ * that could not be read (so no stop can be ruled out), refuses a change that adds offline minutes.
+ */
+export function applyOfflineStop(growth, result) {
+  if (!(result.added > 0)) return growth;
+  if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); }
+  else if (growth.unreadable) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and no offline stop can be ruled out without the weekly report`); }
+  return growth;
+}
+
 const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
 const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
 
@@ -308,7 +319,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     ...offline.map((p) => `- Budget exceptions: ${p}.`),
     '',
   ].join('\n');
-  return { status, reasons, markdown, table: fresh, tiers, items };
+  return { status, reasons, markdown, table: fresh, tiers, items, stops: report?.stops ?? {}, unreadable };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -335,6 +346,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const result = assess({ table, suite, changed, measured: fromReport, exceptions: readExceptions(), today, tableStale: growth.table.stale });
   const runnerMinutes = value('--runner-minutes') !== undefined ? Number(value('--runner-minutes')) : null;
   const wallMinutes = value('--wall-minutes') !== undefined ? Number(value('--wall-minutes')) : null;
+  // A growth stop on the offline tier (a cost or pre-merge latency breach whose one correction
+  // failed) refuses added offline minutes too, whatever the table line says.
+  applyOfflineStop(growth, result);
   const order = { ok: 0, warn: 1, refuse: 2 };
   if (order[growth.status] > order[result.status]) result.status = growth.status;
   if (growth.status !== 'ok' && growth.reasons.length) result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;

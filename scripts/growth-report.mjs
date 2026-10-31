@@ -4,7 +4,7 @@
 // THE WEEKLY GROWTH REPORT - D7's measurement, attribution and ownership half
 // (docs/work-specs/cicd-improvement/spec.md D7 and AC-9; the rules are in growth-controls.mjs).
 //
-//   node scripts/growth-report.mjs collect [--days 7] [--budget 450] [--previous prev.json]
+//   node scripts/growth-report.mjs collect [--days 7] [--budget 550] [--previous prev.json]
 //        [--clocks clocks.json] [--out report.json] [--summary file] [--now ISO]
 //        [--issue]                                            # keep the weekly rolling issue
 //   node scripts/growth-report.mjs ages [--issue]              # open items past their age ceiling
@@ -18,8 +18,10 @@
 // stratum's exact run count. A stratum it could not sample, or a read that failed, makes that
 // tier's evidence partial, never zero. Sampled post-landing runs form the series an indirect
 // slowdown is found and attributed in. Open pull requests' clocks give the per-item age alarms;
-// `--clocks` adds finished samples and phase ledgers for the pooled weekly timing (the plan-run
-// ledger and worker receipts are not in the repository). Breaches carry over from `--previous`.
+// an even spread of the window's merged pull requests gives the pooled ready and queue samples,
+// carried forward report to report for the 28-day window; `--clocks` adds receipts-based samples
+// and phase ledgers (the plan-run ledger and worker receipts are not in the repository).
+// Breaches carry over from `--previous`, and only complete evidence clears one.
 //
 // The report is a step summary and a JSON artifact (`growth-report`); the capacity line in
 // ci.yml fetches the newest one, so its stops and its measurement reach every pull request.
@@ -87,6 +89,9 @@ export function priceRuns(runs, { days }) {
       perLanding: landings ? totals[t].landing / landings : null,
       perDay: totals[t].scheduled / days,
       evidence: landings && partial.length === 0 ? 'complete' : 'partial',
+      // With a stratum unsampled the number is a lower bound, never the cost: it may raise a
+      // breach, and it can never clear one (buildReport's `confirmed`).
+      ...(partial.length ? { lowerBound: true } : {}),
       ...(partial.length ? { why: partial.slice(0, 4).join('; ') + (partial.length > 4 ? ` and ${partial.length - 4} more` : '') } : {}),
       totalLanding: totals[t].landing,
       totalScheduled: totals[t].scheduled,
@@ -110,7 +115,7 @@ export function seriesOf(runs) {
 }
 
 /** Assemble the report from collected facts. Pure, so the whole report replays from fixtures. */
-export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], finished = [], pending = [], tableRecordedAt, collection }) {
+export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, finished = [], pending = [], tableRecordedAt, collection }) {
   const priced = priceRuns(runs, { days });
   let measurement = { source: 'weekly growth report', windowStart: new Date(Date.parse(windowEnd) - days * DAY).toISOString().slice(0, 10), windowEnd: windowEnd.slice(0, 10), landings: priced.landings, tiers: {} };
   for (const t of TIERS) measurement.tiers[t] = Object.fromEntries(Object.entries(priced.tiers[t]).filter(([k]) => !k.startsWith('total')));
@@ -137,8 +142,18 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
     ...ex.expired.map((e) => ({ ...e, state: 'expired, counted again' })),
     ...ex.invalid.map((e) => ({ ...e, state: 'invalid, covers nothing' })),
   ];
+  // Finished samples accumulate across reports for the rolling 28-day window: this week's plus
+  // the ones last week's report carried, each read once.
+  const cutoff = Date.parse(now) - ceilings.timing.pooledWindowDays * DAY;
+  const seen = new Set();
+  const samples = [...finished, ...(previous?.timingSamples ?? [])].filter((x) => {
+    const key = `${x.measure}|${x.id ?? ''}|${x.finishedAt}`;
+    if (seen.has(key) || Date.parse(x.finishedAt) < cutoff) return false;
+    seen.add(key);
+    return true;
+  });
   const timing = ['prReady', 'phase', 'queue'].map((m) => {
-    const t = pooledTiming(finished.filter((s) => s.measure === m), m, ceilings, now);
+    const t = pooledTiming(samples.filter((s) => s.measure === m), m, ceilings, now);
     const before = previous?.timing?.find((p) => p.measure === m);
     return { ...t, sustained: sustained(before, t) };
   });
@@ -152,12 +167,21 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
   ];
   const cadence = previous ? reportCadence({ generatedAt: previous.generatedAt, today, maxAgeDays: ceilings.reportMaxAgeDays }) : { overdue: false };
   if (cadence.overdue) current.push({ key: 'report:missing', kind: 'report', subject: 'weekly', detail: `${cadence.reason}: a week went unreported` });
-  const carried = carryBreaches({ previous: previous?.breaches ?? [], current, today, owner: ceilings.owner });
+  // What this week's evidence can clear: a cost breach needs its tier completely measured, a
+  // latency breach an adequate pool, an age breach a complete read of the open items.
+  const confirmed = (key) => {
+    const [kind, subject] = key.split(':');
+    if (kind === 'cost') return measurement.tiers[subject]?.evidence === 'complete';
+    if (kind === 'latency') return Boolean(timing.find((t) => t.measure === subject)?.adequate);
+    if (kind === 'age') return openComplete;
+    return true;
+  };
+  const carried = carryBreaches({ previous: previous?.breaches ?? [], current, today, owner: ceilings.owner, confirmed });
   const report = {
     generatedAt: now, ceilingsVersion: ceilings.version, owner: ceilings.owner, measurement, slowdowns,
     assessment: { status: assessment.status, tiers: Object.fromEntries(TIERS.map((t) => [t, { status: assessment.tiers[t].status, why: assessment.tiers[t].why, evidence: assessment.tiers[t].evidence, share: assessment.tiers[t].share }])) },
     aggregate, table, exceptions: exceptions.map(({ id, tier, covers, expires, repayment, state, soon: s, problems }) => ({ id, tier, covers, expires, repayment, state, soon: s, problems })),
-    timing, unknownClocks: openItems.filter((i) => i.clock.source === 'unknown').map((i) => i.id),
+    timing, timingSamples: samples, unknownClocks: openItems.filter((i) => i.clock.source === 'unknown').map((i) => i.id),
     breaches: carried.breaches, stops: carried.stops, cleared: carried.cleared, collection, ceilings: { tiers: ceilings.tiers, envelopeRunnerMinutesPerDay: ceilings.envelopeRunnerMinutesPerDay, timing: ceilings.timing },
   };
   return { report, markdown: weeklyMarkdown({ ...report, ceilings: { ...report.ceilings }, assessment: { tiers: Object.fromEntries(TIERS.map((t) => [t, assessment.tiers[t]])) } }) };
@@ -239,6 +263,46 @@ function openItems(reader, now) {
   return { items, pending, complete };
 }
 
+/** The category a PR's timing sample is reported under: which line of work opened it. */
+export const categoryOf = (ref = '') => (/^claude\/plan-jev/.test(ref) ? 'jev-plan' : /^claude\/plan-cicd/.test(ref) ? 'cicd-plan' : /^bot\//.test(ref) ? 'bot' : /^quarantine\//.test(ref) ? 'quarantine' : 'other');
+
+/**
+ * Finished pull requests of the window, an even spread of at most `limit`: their ready clock
+ * (stamp-based; receipts live outside the repository) and queue clock at landing, as pooled
+ * samples. A PR whose start cannot be read is listed as unknown, never sampled as zero.
+ */
+function finishedPrs(reader, from, to, limit) {
+  const merged = [];
+  for (let page = 1; page <= 5; page++) {
+    const body = reader.get(`repos/${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`);
+    if (!body) break;
+    merged.push(...body.filter((p) => p.merged_at && Date.parse(p.merged_at) >= from && Date.parse(p.merged_at) < to));
+    if (body.length < 100 || Date.parse(body.at(-1).updated_at) < from) break;
+  }
+  merged.sort((a, b) => a.merged_at.localeCompare(b.merged_at));
+  const samples = [];
+  const unknown = [];
+  for (const i of spread(merged.length, limit)) {
+    const pr = merged[i];
+    const category = categoryOf(pr.head?.ref);
+    const commits = reader.get(`repos/${REPO}/pulls/${pr.number}/commits?per_page=100`);
+    const stamps = [];
+    let known = Array.isArray(commits) && commits.length < 100;
+    for (const c of known ? commits : []) {
+      const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100`);
+      if (!statuses) { known = false; break; }
+      for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at });
+    }
+    const ready = known ? prClock({ stamps, openedAt: pr.created_at, mergedAt: pr.merged_at, now: pr.merged_at }) : { source: 'unknown' };
+    if (ready.source === 'unknown') unknown.push(`#${pr.number}`);
+    else samples.push({ measure: 'prReady', id: `#${pr.number}`, category, value: ready.minutes, finishedAt: pr.merged_at, source: ready.source });
+    const events = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100`) ?? [];
+    const queued = events.filter((e) => e.event === 'added_to_merge_queue').map((e) => e.created_at);
+    if (queued.length && events.length < 100) samples.push({ measure: 'queue', id: `#${pr.number}`, category, value: queueClock({ queued, mergedAt: pr.merged_at, now: pr.merged_at }).minutes, finishedAt: pr.merged_at, source: 'timeline' });
+  }
+  return { samples, unknown, merged: merged.length };
+}
+
 /** Finished samples and phase ledgers handed in as JSON: `{ samples: [...], phases: [{ id, events }] }`. */
 function readClocks(file, now) {
   if (!file || !existsSync(file)) return { finished: [], open: [] };
@@ -253,13 +317,15 @@ function readClocks(file, now) {
   return { finished, open };
 }
 
-export function collect({ days = 7, budget = 450, now = new Date().toISOString(), previous = null, clocksFile = null, ceilings }) {
+export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ceilings }) {
   const reader = makeReader(budget);
   const to = Date.parse(now) - 6 * 3_600_000;
   const from = to - days * DAY;
   const listed = listRuns(reader, from, to);
   const runs = listed.runs.filter((r) => r.status === 'completed');
   const open = openItems(reader, now);
+  // About a third of the budget for finished PRs' clocks (about five reads each), the rest for jobs.
+  const done = finishedPrs(reader, from, to, Math.max(5, Math.floor(budget / 15)));
   const strata = {};
   for (const r of runs) (strata[`${r.workflow}|${r.event}`] ??= []).push(r);
   const keys = Object.keys(strata);
@@ -285,7 +351,9 @@ export function collect({ days = 7, budget = 450, now = new Date().toISOString()
   const unfinished = listed.runs.length - runs.length;
   const sampled = runs.filter((r) => r.jobs).length;
   const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
-  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], finished: clocks.finished, pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
+  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
+  built.report.unknownClocks.push(...done.unknown);
+  built.report.finishedPrs = { merged: done.merged, sampled: done.samples.filter((x) => x.measure === 'prReady').length + done.unknown.length };
   built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
   if (!listed.complete) for (const t of TIERS) { built.report.measurement.tiers[t].evidence = 'partial'; built.report.measurement.tiers[t].why = 'the run list was cut short'; }
   return built;
@@ -368,7 +436,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
     const read = previousFile ? JSON.parse(readFileSync(previousFile, 'utf8')) : null;
     const previous = read && !read.none ? read : null;
-    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 450), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ceilings });
+    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 550), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ceilings });
     measured(report.measurement.landings, 'landings in the growth window');
     console.log(markdown);
     if (value('--out')) writeFileSync(value('--out'), `${JSON.stringify(report, null, 2)}\n`);

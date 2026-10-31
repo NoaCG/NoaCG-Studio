@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
+import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
   evidenceOf, exceptionStatus, ledgerChanges, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
@@ -459,4 +459,48 @@ test('(b) a renamed spec or job adds nothing; a job on an unpriced trigger is ne
   assert.equal(dispatch[0].perLanding, CEILINGS.estimates.newJobMinutes, 'unknown frequency is at least once per landing');
   const rerun = priceAdditions({ workflows: { 'z.yml': { base: '', head: "on:\n  schedule:\n    - cron: '0 6 * * 1'\n  workflow_dispatch: {}\njobs:\n  a:\n    name: Weekly\n" } }, estimates: CEILINGS.estimates });
   assert.equal(rerun[0].perLanding, 0, 'a dispatch beside a cron is its manual re-run');
+});
+
+test('(b) a more frequent schedule or trigger on an existing job is priced; an unchanged one is not', () => {
+  const daily = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  sweep:\n    name: Fit sweep\n";
+  const hourly = daily.replace("'0 3 * * *'", "'0 * * * *'");
+  const [item] = priceAdditions({ workflows: { 'fit-sweep.yml': { base: daily, head: hourly } }, estimates: CEILINGS.estimates });
+  assert.equal(item.tier, 'graphics');
+  assert.equal(item.perDay, 23 * CEILINGS.estimates.newJobMinutes);
+  assert.deepEqual(priceAdditions({ workflows: { 'fit-sweep.yml': { base: daily, head: daily } }, estimates: CEILINGS.estimates }), []);
+  assert.deepEqual(priceAdditions({ workflows: { 'fit-sweep.yml': { base: hourly, head: daily } }, estimates: CEILINGS.estimates }), [], 'a cheaper schedule adds nothing');
+  const pushOnly = 'on:\n  push:\njobs:\n  a:\n    name: Post\n';
+  const [wider] = priceAdditions({ workflows: { 'x.yml': { base: pushOnly, head: pushOnly.replace('  push:\n', '  push:\n  pull_request:\n') } }, estimates: CEILINGS.estimates });
+  assert.equal(wider.perLanding, CEILINGS.estimates.prRunsPerLanding * CEILINGS.estimates.newJobMinutes);
+});
+
+test('(e) partial evidence never clears a breach or its growth stop', () => {
+  const stopped = { key: 'cost:backend', since: '2026-11-02', due: '2026-11-09', owner: 'o', corrections: 1, state: 'stopped', detail: 'x' };
+  const kept = carryBreaches({ previous: [stopped], current: [], today: '2026-11-16', confirmed: () => false });
+  assert.equal(kept.breaches[0].state, 'stopped');
+  assert.ok(kept.stops.backend);
+  assert.deepEqual(kept.cleared, []);
+  // Replayed through the report: the backend stratum went unsampled, so its cost is a lower bound.
+  const runs = fixtureRuns().map((r) => (r.workflow === 'configured-suite.yml' ? { ...r, jobs: null } : r));
+  const previous = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped], stops: { backend: 'x' }, timing: [] };
+  const { report } = buildReport({ ceilings: CEILINGS, runs, days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', previous, tableRecordedAt: '2026-11-20', collection: 'fixture' });
+  assert.equal(report.measurement.tiers.backend.evidence, 'partial');
+  assert.equal(report.measurement.tiers.backend.lowerBound, true);
+  assert.ok(report.stops.backend, 'the stop survives an unmeasured week');
+});
+
+test('(d) pooled samples carry forward report to report inside the 28-day window', () => {
+  const s = (id, finishedAt) => ({ measure: 'prReady', id, category: 'other', value: 20, finishedAt });
+  const previous = { generatedAt: '2026-11-17T06:00:00Z', breaches: [], stops: {}, timing: [], timingSamples: [s('#1', '2026-11-10T00:00:00Z'), s('#2', '2026-10-01T00:00:00Z')] };
+  const { report } = buildReport({ ceilings: CEILINGS, runs: fixtureRuns(), days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', previous, finished: [s('#3', '2026-11-20T00:00:00Z'), s('#1', '2026-11-10T00:00:00Z')], tableRecordedAt: '2026-11-20', collection: 'fixture' });
+  assert.deepEqual(report.timingSamples.map((x) => x.id).sort(), ['#1', '#3'], 'deduplicated, and #2 is past 28 days');
+  assert.equal(report.timing.find((t) => t.measure === 'prReady').pooled.n, 2);
+});
+
+test('(e) an offline growth stop, or an unreadable weekly report, refuses added offline minutes', () => {
+  const stop = applyOfflineStop({ status: 'ok', reasons: [], stops: { offline: 'cost:offline since 2026-11-02' } }, { added: 1.2 });
+  assert.equal(stop.status, 'refuse');
+  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: { offline: 'x' } }, { added: 0 }).status, 'ok', 'maintenance lands');
+  assert.equal(applyOfflineStop({ status: 'warn', reasons: [], stops: {}, unreadable: true }, { added: 0.5 }).status, 'refuse');
+  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {} }, { added: 3 }).status, 'ok');
 });

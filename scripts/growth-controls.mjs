@@ -112,6 +112,23 @@ export function cronRunsPerDay(cron) {
   return perDay;
 }
 
+const FOLLOWS = ['workflow_run', 'deployment_status', 'check_suite', 'check_run', 'status'];
+const KNOWN = new Set(['pull_request', 'pull_request_target', 'merge_group', 'push', 'schedule', ...FOLLOWS]);
+
+/**
+ * How often a workflow's jobs run: per landing by trigger (every PR run, the merge-group run, the
+ * push that lands; a job that follows other runs as if on every one; any other trigger at least
+ * once per landing, because an unknown frequency is not zero, except a dispatch beside a cron,
+ * which is that schedule's manual re-run) and per day by its crons.
+ */
+export function cadence(shape, e) {
+  const has = (t) => shape.triggers.has(t);
+  let runs = (has('pull_request') || has('pull_request_target') ? e.prRunsPerLanding : 0) + (has('merge_group') ? 1 : 0) + (has('push') ? 1 : 0);
+  if (FOLLOWS.some(has)) runs = Math.max(runs, e.runsPerLanding.everyRun);
+  if ([...shape.triggers].some((t) => !KNOWN.has(t) && !(t === 'workflow_dispatch' && shape.crons.length))) runs = Math.max(runs, 1);
+  return { runs, daily: shape.crons.reduce((n, c) => n + cronRunsPerDay(c), 0) };
+}
+
 /**
  * What this change adds, tier by tier, priced conservatively. Pure.
  *
@@ -135,28 +152,22 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
   for (const [wf, { base, head }] of Object.entries(workflows)) {
     const before = workflowShape(base);
     const after = workflowShape(head);
+    const was = cadence(before, e);
+    const now = cadence(after, e);
     // A renamed key or a renamed display name is the same job, not a new one. A removed job earns
     // no credit: pricing it would let a cheap removal pay for an expensive addition.
     const beforeNames = new Set(before.jobs.map((j) => before.names[j] ?? j));
-    const fresh = after.jobs.filter((j) => !before.jobs.includes(j) && !beforeNames.has(after.names[j] ?? j));
-    for (const job of fresh) {
+    for (const job of after.jobs) {
       const name = after.names[job] ?? job;
       const tier = tierOfJob(wf, name);
       if (tier === 'offline') continue; // offline work is the table line's to price
-      const perDay = after.crons.reduce((n, c) => n + cronRunsPerDay(c), 0) * e.newJobMinutes;
-      // Runs per landing by trigger: every PR run, the merge-group run, the push that lands. A
-      // job that follows other runs (workflow_run, deployment_status, check_suite) is priced as
-      // if it ran on every one; any other trigger (a dispatch, an issue event) at least once per
-      // landing, because an unknown frequency is not zero.
-      const has = (t) => after.triggers.has(t);
-      let runs = (has('pull_request') || has('pull_request_target') ? e.prRunsPerLanding : 0) + (has('merge_group') ? 1 : 0) + (has('push') ? 1 : 0);
-      if (has('workflow_run') || has('deployment_status') || has('check_suite') || has('check_run') || has('status')) runs = Math.max(runs, e.runsPerLanding.everyRun);
-      const known = new Set(['pull_request', 'pull_request_target', 'merge_group', 'push', 'schedule', 'workflow_run', 'deployment_status', 'check_suite', 'check_run', 'status']);
-      // A dispatch beside a cron is that schedule's manual re-run, not per-landing work.
-      const unknown = [...after.triggers].filter((t) => !known.has(t) && !(t === 'workflow_dispatch' && after.crons.length));
-      if (unknown.length) runs = Math.max(runs, 1);
-      const perLanding = runs * e.newJobMinutes;
-      items.push({ tier, id: `job:${wf}/${name}`, perLanding, perDay, how: `new job at ${e.newJobMinutes} runner-min${perLanding ? `, x ${runs.toFixed(2)} runs per landing` : ''}${perDay ? `, ${after.crons.join(' + ')} per day` : ''}` });
+      const fresh = !before.jobs.includes(job) && !beforeNames.has(name);
+      // A new job pays for every run; an existing job pays for the runs a more frequent trigger
+      // or schedule adds (an hourly cron where a daily one was), never less than nothing.
+      const runs = fresh ? now.runs : Math.max(0, now.runs - was.runs);
+      const daily = fresh ? now.daily : Math.max(0, now.daily - was.daily);
+      if (runs <= 0 && daily <= 0) continue;
+      items.push({ tier, id: `job:${wf}/${name}`, perLanding: runs * e.newJobMinutes, perDay: daily * e.newJobMinutes, how: `${fresh ? 'new job' : 'more frequent job'} at ${e.newJobMinutes} runner-min${runs ? `, +${runs.toFixed(2)} runs per landing` : ''}${daily ? `, +${daily.toFixed(2)} runs per day (${after.crons.join(' + ')})` : ''}` });
     }
   }
   return items;
@@ -463,8 +474,12 @@ export function affectedTiers(key) {
  * correction (one) and a remeasure date; a breach still present on that date stops growth in
  * its affected tiers; a breach measured back in bounds is cleared, and its stop with it.
  */
-export function carryBreaches({ previous = [], current = [], today, owner, correctionDays = 7 }) {
+export function carryBreaches({ previous = [], current = [], today, owner, correctionDays = 7, confirmed = () => true }) {
   const prev = new Map(previous.map((b) => [b.key, b]));
+  // A breach is cleared only by evidence that it is back in bounds. One this week's evidence
+  // could not judge (a tier measured partially, a read that failed) stays as it was, stop included.
+  const unconfirmed = previous.filter((b) => !current.some((c) => c.key === b.key) && !confirmed(b.key));
+  current = [...current, ...unconfirmed.map((b) => ({ ...b, detail: `${b.detail} (not re-measured this week: kept until evidence clears it)` }))];
   const out = [];
   for (const b of current) {
     const was = prev.get(b.key);
