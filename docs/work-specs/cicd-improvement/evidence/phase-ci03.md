@@ -77,7 +77,7 @@ lookup and its runbook mode, worker full-backend dispatch policy (ci06 owns its 
 
 | Criterion | Evidence | Result |
 | --- | --- | --- |
-| (a) Three unrelated intended candidates have attributable run IDs and matching `head_sha` verdicts | Live trial, section 5: three open PR heads dispatched within 12 s | see section 5 |
+| (a) Three unrelated intended candidates have attributable run IDs and matching `head_sha` verdicts | Live trial, section 5: three open PR heads dispatched within 12 s, each with its returned run ID, its own commit and a green verdict; fixture with three branches | pass |
 | (a) Schedules isolated from main dispatches | `candidate-dispatch.test.mjs` evaluates the workflow's own group expression for landings, the cron, a main dispatch and three branches: all distinct, cron = `configured-suite-schedule` | pass |
 | (a) Required pending same-branch supersession has recovery | live: run 41200019293 replaced while pending by 41200054838; `reconcile` answered `superseded` by 41200054838 on the same commit. Fixture: `recover`, `--recover` once, refused the second time, `obsolete` after the head moved | pass |
 | (a) Preserve `github.sha` checkout | test: no checkout step pins `ref:` | pass |
@@ -101,14 +101,19 @@ writes no issue and no quarantine.
 
 | Candidate | Requested commit | Run (returned ID) | Run `head_sha` | Verdict |
 | --- | --- | --- | --- | --- |
-| this PR's branch | `7111a18e` | 41199979934 | `7111a18e` | TRIAL_A |
-| #1840 `bot/e2e-traced` | `3d03b88e` | 41199986962 | `3d03b88e` | TRIAL_B |
-| #1834 `quarantine/enter-2026-10-30-20ab0166` | `ddf504da` | 41199994555 | `ddf504da` | TRIAL_C |
+| this PR's branch | `7111a18e` | 41199979934 | `7111a18e` | success (plan, 4 shards, verdict job all ran) |
+| #1840 `bot/e2e-traced` | `3d03b88e` | 41199986962 | `3d03b88e` | success (plan, 4 shards, verdict job all ran) |
+| #1834 `quarantine/enter-2026-10-30-20ab0166` | `ddf504da` | 41199994555 | `ddf504da` | success (plan, 4 shards, verdict job all ran) |
 
 Same-branch replacement on this branch while 41199979934 ran: 41200019293 (pending) was
 cancelled when 41200054838 was dispatched on the same commit; `reconcile` on the first record
-said `superseded` by 41200054838, whose verdict is TRIAL_D. A dispatch with a stale `--sha`
+said `superseded` by 41200054838, whose verdict is success with every job run. A dispatch with a stale `--sha`
 (`1fcbb1f3`) was refused: nothing dispatched, nothing recorded.
+
+All three were in progress together at 12:20 UTC; none cancelled another, and `reconcile` on each
+record returned `verdict`, `success`, on its own requested commit. The trial used the helper at
+`7111a18e`; later review commits changed how a cancelled run is read (section 3), not dispatch or
+attribution, and the fixtures cover both.
 
 Not exercised live: a schedule meeting a main dispatch (the new group takes effect only once
 landed; the cron starts hours late and cannot be timed), a lost acknowledgement, and a genuine
