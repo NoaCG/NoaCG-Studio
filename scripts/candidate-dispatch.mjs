@@ -146,7 +146,10 @@ export function settle(intent, run, facts = {}) {
     return started(run) ? cancelledAfterStart(run) : lost(intent, run, fact);
   }
   const listed = fact('runs') ?? [];
-  if (fact('complete') !== true || !listed.some((other) => other.id === run.id)) return { state: 'unresolved', run,
+  if (fact('complete') !== true || !listed.some((other) => other.id === run.id)) return run.status !== 'completed'
+    // Right after a dispatch the listing lags; running never admits anything, so it is safe here.
+    ? { state: 'running', run, reason: `run ${run.id} is running; the list of runs at this commit does not show it yet` }
+    : { state: 'unresolved', run,
     reason: `the list of ${WORKFLOW} runs at ${intent.sha} is incomplete or does not yet show run ${run.id}; no verdict can be proved` };
   const all = [run, ...listed.filter((other) => sameCheck(intent, other) && other.id !== run.id)].sort((x, y) => x.id - y.id);
   const counted = all.filter((other) => other.conclusion !== 'cancelled' || other.status !== 'completed' || started(other));

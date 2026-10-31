@@ -395,6 +395,8 @@ test('rule 8 corrections: any branch, started cancels block, the run must be lis
   assert.deepEqual([byHand.state, exitCode(byHand)], ['cancelled', 1]);
   const unlisted = at([]);
   assert.deepEqual([unlisted.state, exitCode(unlisted)], ['unresolved', 1]);
+  const fresh = settle(intent, { ...mine, status: 'queued', conclusion: null }, { complete: true, started: () => false, runs: [], head: sha('1') });
+  assert.deepEqual([fresh.state, exitCode(fresh)], ['running', 3], 'a just-dispatched run the listing lags behind');
   const racing = settle(intent, { ...mine, status: 'in_progress', conclusion: null },
     { complete: true, started: () => false, head: sha('1'), runs: [{ ...mine, status: 'in_progress', conclusion: null }, { ...base, id: 21, status: 'completed', conclusion: 'failure' }] });
   assert.deepEqual([racing.conclusion, exitCode(racing)], ['failure', 1]);

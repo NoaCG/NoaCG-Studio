@@ -116,8 +116,9 @@ reassessment of the rule model came before the repair. It agreed with correction
 
 8. A commit's verdict covers every `configured-suite.yml` dispatch run at that commit, on any
    branch, listed by `head_sha` with no time window, and every attempt of each (earlier attempts
-   read through the attempts API). The listing must be complete and must show the requested
-   run, or the answer is `unresolved`. Failed beats running beats passed. A run cancelled after
+   read through the attempts API). Before any pass or failure the listing must be complete and
+   must show the requested run, or the answer is `unresolved`; while that run is still running
+   and the listing lags, the answer is `running`. Failed beats running beats passed. A run cancelled after
    it started blocks the commit (`cancelled`, exit 1); only one cancelled while pending is
    ignored. A failed earlier attempt keeps the commit failing even after a re-run for a runner
    death: that case is the coordinator's call, with a written reason. So no re-dispatch,
@@ -172,6 +173,7 @@ ambiguity. These are fixtures.
 | Fresh `/so` on `60d66b49` (grade B) | a cancelled run with several later runs on its commit took the newest, so a failure between them was hidden by a later pass | a failure on the commit is never hidden by a later pass | product defect | every later same-commit run counts: any failure fails it; test first. Non-blocking note taken: known-traps says an `attempt` above 1 is a re-run to read in full |
 | Codex on `f3df92d4` (comment 4431892429) | the cancelled-run path ignored whether the run listing was complete, so past one page an earlier failure could drop out and the record pass | a failure on the commit is never hidden (same family as the row above) | product defect | no pass, and no `recover`, from an incomplete listing; a found failure still fails; 101-run test first |
 | Fresh `/so` on `509df299` (grade B) | a plain re-dispatch, `--recover` or a re-run attempt after a failure on the commit could still exit 0 | a failure on the commit is never hidden (third round of this family) | product defect | repeated family: a fresh reassessment of the rule model first (agreed with five corrections, all applied), then rule 8; tests first. Non-blocking: the runbook row now says the advisory runs before the head check |
+| Builder, live dispatch on `a7d85b74` | right after a dispatch the commit listing does not yet show the new run, so `dispatch` answered `unresolved` (exit 1) for a successful dispatch | an answer must match what is known | product defect | a run that is still running answers `running` (exit 3) while the listing lags; a finished run still needs the complete listing; test first |
 
 ## 7. Phase notes
 
