@@ -15,7 +15,7 @@ import {
   evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { ages, buildReport, carriedStarts, fetchLatest, makeReader, priceRuns, spread } from './growth-report.mjs';
+import { ages, buildReport, carriedStarts, fetchLatest, makeReader, phaseIssueTitle, priceRuns, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -504,7 +504,8 @@ test('(e) an offline growth stop, or an unreadable weekly report, refuses added 
   assert.equal(stop.status, 'refuse');
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: { offline: 'x' } }, { added: 0 }).status, 'ok', 'maintenance lands');
   assert.equal(applyOfflineStop({ status: 'warn', reasons: [], stops: {}, unreadable: true }, { added: 0.5 }).status, 'refuse');
-  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {} }, { added: 3 }).status, 'ok');
+  const measured = assessTiers({ ceilings: noExceptions, measurement: measurement({ offline: 300 }), items: [], today: TODAY });
+  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: measured }, { added: 3 }).status, 'ok');
 });
 
 test('(e) a breach clears only on a measurement that is complete AND back in bounds', () => {
@@ -682,4 +683,13 @@ test('(c) an attributed offline slowdown refuses the next offline addition at th
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: assessTiers({ ceilings: noExceptions, measurement: after, items: [], today: TODAY }) }, { added: 0 }).status, 'ok', 'maintenance that adds nothing lands');
   const partial = measurement({ offline: 460 }, { evidence: 'partial' });
   assert.equal(grow(partial).status, 'refuse', '86% on partial evidence is past the 85% line');
+});
+
+test('(d) each plan\'s phase alarms live in their own issue, and (b) a missing offline measurement refuses offline additions', () => {
+  assert.notEqual(phaseIssueTitle('/k/2026-10-31-plan-cicd-improvement.md'), phaseIssueTitle('/k/2026-10-31-plan-jev-svg-import.md'));
+  assert.equal(phaseIssueTitle('/k/2026-10-31-plan-jev-svg-import.md'), 'Plan phases past their age ceiling: 2026-10-31-plan-jev-svg-import');
+  const missing = clone(measurement({})); delete missing.tiers.offline;
+  const tiers = assessTiers({ ceilings: noExceptions, measurement: missing, items: [], today: TODAY });
+  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers }, { added: 1 }).status, 'refuse');
+  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers }, { added: 0 }).status, 'ok');
 });

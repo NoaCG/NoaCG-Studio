@@ -429,6 +429,8 @@ export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args
 
 export const AGE_ISSUE = 'Delivery items past their age ceiling';
 export const PHASE_AGE_ISSUE = 'Plan phases past their age ceiling';
+/** The phase alarm issue of one plan: keyed by its wave file, so concurrent plans never share one. */
+export const phaseIssueTitle = (ledgerFile) => `${PHASE_AGE_ISSUE}: ${path.basename(String(ledgerFile)).replace(/\.[^.]+$/, '')}`;
 export const WEEKLY_ISSUE = 'Growth controls: weekly actions';
 
 /** The per-item age check alone: cheap enough to run after every landing. */
@@ -497,7 +499,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null, carried: carriedStarts(existing), existing });
     if (result.phaseBody !== undefined) {
       console.log(result.phaseBody || 'no plan phase past its age ceiling');
-      if (args.includes('--issue')) console.log(rollingIssue(PHASE_AGE_ISSUE, result.phaseBody));
+      // One issue per plan's ledger, so a run checking its own plan never closes another's alarm.
+      if (args.includes('--issue')) console.log(rollingIssue(phaseIssueTitle(ledgerFile), result.phaseBody));
     }
     if (result.body === null) {
       console.log(`::warning title=Delivery age alarms::the open items could not all be read (${result.calls} API calls); the alarm issue is left as it was`);

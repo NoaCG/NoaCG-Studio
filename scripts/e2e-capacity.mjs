@@ -251,6 +251,7 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   const line = tier?.evidence === 'complete' ? refuseShare : warnShare;
   if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); }
   else if (growth.unreadable) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and no offline stop can be ruled out without the weekly report`); }
+  else if (!tier || tier.evidence === 'missing') { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and the offline tier has no measurement, so its headroom cannot be established`); }
   // The offline tier's measured runner-minutes per landing, including any slowdown the weekly
   // report attributed, judge an offline addition too: at its line (95%, or 85% on partial or
   // stale evidence) added offline minutes are refused, as in every other tier. The table line
