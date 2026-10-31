@@ -190,10 +190,13 @@ const SVG_FIT_HOOK = `  // The fit ladder re-measures here - every text layer, t
  * running time (`matchClockUpdate`). Before the fit, so the ladder measures the time on air and
  * never a raw wire value.
  *
- * A DURATION also takes its LENGTH from the field: a time typed while the clock stands still is
- * what the next Take or Reset counts down from, as the countdown's minutes were, so an operator
- * sets the length before the Take without a second field. A correction to a running clock moves
- * the count and leaves the length alone.
+ * A DURATION also takes its LENGTH from the field: a time typed while the graphic is OFF AIR is
+ * what the next Take, and every Reset after it, counts down from, as the countdown's minutes were,
+ * so an operator sets the length without a second field. On air every typed time is a correction,
+ * paused or running, and leaves the length alone. Off air is the machine's own answer: its main
+ * group rests in its off state before the Take and after the Out (blocks/animMachine.ts
+ * `MAIN_GROUP_ID`, `OFF_STATE_ID`). Only a real M:SS time is a length; anything else stays a
+ * correction.
  */
 function importedClockJs(duration: boolean): string {
   return `// ---- The clock's field (the time layer IS it) ----
@@ -203,9 +206,11 @@ function importedClockUpdate(fields) {
   if (!el || !fields || !Object.prototype.hasOwnProperty.call(fields, el.id)) return;
 ${duration ? `  var before = matchClockSent;
   matchClockUpdate(el.id, fields[el.id]);
-  // A duration's length is the time the operator set while it stood still.
-  if (matchClockSent !== before && matchClockAt === null && matchClockOriginOf(matchClockSent) === null) {
-    el.setAttribute('data-start', matchClockPlain(matchClockSent));
+  // A duration's length is the time the operator set while the graphic was off air.
+  var offAir = typeof noacgMachineState === 'function' && noacgMachineState().groups.main === 'off';
+  var length = matchClockPlain(matchClockSent);
+  if (offAir && matchClockSent !== before && matchClockOriginOf(matchClockSent) === null && /^\\d{1,3}:\\d{2}$/.test(length)) {
+    el.setAttribute('data-start', length);
   }` : `  matchClockUpdate(el.id, fields[el.id]);`}
 }`;
 }

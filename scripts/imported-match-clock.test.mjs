@@ -155,14 +155,16 @@ const runs = await withBundledPage(SPECS, async (page) => {
     ]),
     duration: await run('duration', [
       ['wait', 3000], ['read', 'off air'],
-      ['update', '0:05'], ['read', 'length set before the Take'],
+      ['update', ''], ['update', '0:05'], ['read', 'length set before the Take'],
       ['take'], ['wait', SETTLE], ['read', 'taken'], ['wait', 2000], ['read', 'two seconds later'],
       ['wait', 10000], ['read', 'run out'], ['wait', 3000], ['read', 'held at zero'],
       ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'reset'],
       ['event', 'clock_start'], ['wait', SETTLE], ['read', 'started again'], ['wait', 1000], ['read', 'a second later'],
       ['update', '0:30'], ['wait', 1000], ['read', 'a second after a correction'],
-      ['event', 'clock_pause'], ['wait', SETTLE], ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'reset after a correction'],
+      ['event', 'clock_pause'], ['wait', SETTLE], ['update', '0:20'], ['read', 'corrected while paused'],
+      ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'reset after corrections'],
       ['out'], ['wait', 3000], ['take'], ['wait', SETTLE], ['read', 'second Take'], ['wait', 2000], ['read', 'two seconds into it'],
+      ['out'], ['wait', 3000], ['update', '0:09'], ['take'], ['wait', SETTLE], ['read', 'a new length set off air'],
     ]),
     recovery: await run('count-up', [
       ['take'], ['event', 'clock_start'], ['wait', 60000],
@@ -227,7 +229,8 @@ test('counting up waits for Start; Pause holds, a typed time corrects it held or
 test('a duration starts on Take from the length set before it, holds at zero, and Reset goes back to that length (M4)', () => {
   const r = runs.duration;
   assert.equal(at(r, 'off air').time, '12:08', 'nothing counts before the Take');
-  assert.equal(at(r, 'length set before the Take').time, '0:05');
+  const set = at(r, 'length set before the Take');
+  assert.deepEqual([set.time, set.start], ['0:05', '0:05'], 'an empty value never becomes the length; a time typed off air does');
   const taken = at(r, 'taken');
   assert.equal(taken.clock, 'running');
   assert.ok(secs(taken.time) <= 5 && secs(taken.time) >= 4, taken.time);
@@ -237,10 +240,14 @@ test('a duration starts on Take from the length set before it, holds at zero, an
   assert.deepEqual([reset.time, reset.expired, reset.clock], ['0:05', false, 'armed']);
   assert.equal(secs(at(r, 'started again').time) - secs(at(r, 'a second later').time), 1);
   assert.equal(at(r, 'a second after a correction').value, '0:29');
-  assert.equal(at(r, 'reset after a correction').time, '0:05', 'a correction to a running clock leaves the length alone');
+  assert.equal(at(r, 'corrected while paused').time, '0:20');
+  assert.equal(at(r, 'reset after corrections').time, '0:05', 'a correction on air, running or paused, leaves the length alone');
   const again = at(r, 'second Take');
   assert.ok(secs(again.time) >= 4, `a second Take is a new count of the same length (${again.time})`);
   assert.equal(secs(again.time) - secs(at(r, 'two seconds into it').time), 2);
+  const fresh = at(r, 'a new length set off air');
+  assert.equal(fresh.start, '0:09');
+  assert.ok(secs(fresh.time) >= 8, `the next Take counts the length set off air (${fresh.time})`);
 });
 
 test('a reloaded output given the running origin comes back at the real time (M5)', () => {

@@ -1156,7 +1156,8 @@ export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
   if (draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
   if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
   const driven = pollDrivenLayers(draft.svgBehaviour);
-  return draft.svgFields.filter((f) => f.on && f.clock && !driven.has(f.candidateId));
+  // M:SS only: the match clock reads minutes and seconds, so a drawn "1:30:00" would run 90 seconds.
+  return draft.svgFields.filter((f) => f.on && f.clock && /^\d{1,2}:\d{2}$/.test(f.sample.trim()) && !driven.has(f.candidateId));
 }
 
 /** Whether the file drew the moments only the countdown paints: its names propose it, read the way

@@ -28,7 +28,7 @@ import {
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
-import { CLOCK_MODES } from '../../../templates/behaviours/clock';
+import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
   clearFill,
@@ -633,7 +633,7 @@ export default function BehaviourSection({
                   value={clock?.mode ?? 'none'}
                   onChange={(e) => {
                     const mode = e.target.value;
-                    const found = CLOCK_MODES.find((m) => m.mode === mode);
+                    const found = CLOCK_PICKER_MODES.find((m) => m.mode === mode);
                     if (!found) return setClock(null);
                     const row = clockRows.find((f) => f.candidateId === clock?.candidateId) ?? clockRows[0];
                     setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? '') });
@@ -641,7 +641,7 @@ export default function BehaviourSection({
                   data-testid="map-svg-clock-mode"
                 >
                   <option value="none">No clock.</option>
-                  {CLOCK_MODES.map((m) => (
+                  {CLOCK_PICKER_MODES.map((m) => (
                     <option key={m.mode} value={m.mode}>
                       {m.label}
                     </option>

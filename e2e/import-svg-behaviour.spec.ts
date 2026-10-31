@@ -1288,7 +1288,8 @@ test('one Clock choice on a new import: it sits beside the score tracker, and a 
   const clock = page.getByTestId('map-svg-clock-mode');
   await expect(kind.locator('option[value="timer"]')).toHaveCount(0);
   await expect(clock).toHaveCount(1);
-  await expect(clock.locator('option')).toHaveCount(4);
+  // No clock, counting up and a duration; the target time waits for its instant (row 10).
+  await expect(clock.locator('option')).toHaveCount(3);
   await expect(clock).toHaveValue('none');
   await kind.selectOption('score');
   await clock.selectOption('duration');

@@ -37,17 +37,19 @@ Previous verified main: `c469fac` (row 7, PR #1878), followed by quarantine PR #
   a resend of the same text is painted over with the running time, and a stamped value
   (`45:00@<ms>`) re-anchors it. Counting up waits for Start; Pause holds; Reset returns to the
   drawn time, held.
-- **M4 A duration starts on Take, from the length the operator set.** A time typed while the clock
-  stands still is also its length (`data-start`), so the Take, and every Reset after it, counts
-  down from it; a correction to a running clock moves the count and leaves the length alone. It
-  holds at 0:00 with the root marked `imported-design-expired`. Nothing counts before the Take.
+- **M4 A duration starts on Take, from the length the operator set off air.** A time typed while
+  the graphic is off air (the machine's main group in its off state, before the Take and after the
+  Out) is also its length (`data-start`), so the next Take, and every Reset after it, counts down
+  from it. On air every typed time is a correction, running or paused, and leaves the length
+  alone. Only an M:SS time is a length; an empty value never is. It holds at 0:00 with the root
+  marked `imported-design-expired`. Nothing counts before the Take.
 - **M5 Recovery is the match clock's.** A fresh output given the running origin comes back at the
   real time. Stamping that origin on the wire for the imported clock is row 9.
 
 ## What landed
 
-- `clock.ts`: `asClockMode` (one reading of a stored mode) and `clockReadout` (the two
-  attributes). `CLOCK_RUNTIME_READY` is retired rather than flipped: with the runtime bound
+- `clock.ts`: `asClockMode` (one reading of a stored mode), `clockReadout` (the two
+  attributes) and `CLOCK_PICKER_MODES` (the modes the step offers). `CLOCK_RUNTIME_READY` is retired rather than flipped: with the runtime bound
   there is nothing left to switch, and one source is no flag at all.
 - `artworkFields.ts`: `boundClock`; `countdownIndex` is -1 on a design carrying the clock.
 - `svgBind.ts`: the three attributes on the time layer.
@@ -56,17 +58,24 @@ Previous verified main: `c469fac` (row 7, PR #1878), followed by quarantine PR #
   through the real reader, draft, assembler, validator and composer on a driven clock.
 - Reconciled with the coordinator, outside the row's list (row 7 corrections and the flag's
   consumers): `draft.ts` (no `ready` parameter; a built clock's name is taken first, so a choice
-  called "Clock" becomes "Clock 2" and cannot share `clock_start`), `BehaviourSection.tsx` (no
-  `clockReady` prop), `scripts/jev-svg-contract.test.mjs` (the shipped-state lines go, the
+  called "Clock" becomes "Clock 2" and cannot share `clock_start`; only an M:SS layer is offered
+  the clock), `BehaviourSection.tsx` (no `clockReady` prop; the picker offers
+  `CLOCK_PICKER_MODES`), `scripts/jev-svg-contract.test.mjs` (the shipped-state lines go, the
   numbering is pinned) and `e2e/import-svg-behaviour.spec.ts` (row 7's shipped-state walk becomes
   the live one-Clock-choice walk).
 
 ## Decisions and traps
 
-- **The duration's length is the operator's.** The countdown it replaces for new imports let the
-  operator set the length; a clock fixed to the drawn time would have been a capability loss. A
-  time typed while the clock stands still sets it, so a correction during a pause also moves
-  where Reset returns. Counting up keeps the native rule: Reset goes to the drawn time.
+- **The duration's length is the operator's, set off air.** The countdown it replaces for new
+  imports let the operator set the length; a clock fixed to the drawn time would have been a
+  capability loss. Off air is the only time that cannot be a correction to a count in progress,
+  so a correction during a pause never moves where Reset returns (review finding on the first
+  head). Counting up keeps the native rule: Reset goes to the drawn time, whatever it reads.
+- **The target time is not offered yet.** Until row 10 resolves an instant it would count down
+  from the drawn time, which is not what "Counts down to a set time" says; a control is offered
+  only when it does what it says. A stored target-time clock still compiles. Row 10 offers it.
+- **Only M:SS layers are offered the clock.** The import reads "1:30:00" as a time, but the match
+  clock reads minutes and seconds, so it would run 90 seconds. Such a layer stays text.
 - **Minutes print unpadded**, as on every native scorebug ("7:05"): a layer drawn "07:05" reads
   "7:05" once the clock paints it.
 - **The painted time trails the clock's truth by up to one repaint**, as on a native board; the

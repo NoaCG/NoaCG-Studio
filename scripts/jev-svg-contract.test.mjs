@@ -581,6 +581,10 @@ test('the draft builds a clock only on a row the step offers on this artwork, ne
   const clocks = (d) => [svgClockOption(d)].filter(Boolean);
   const rows = (d) => svgClockRows(d);
   assert.deepEqual(rows(draft()).map((f) => f.candidateId), ['t1', 't2'], 'the time-shaped ticked rows');
+  // The match clock reads M:SS: a layer drawn in hours is not offered, so it never runs as seconds.
+  const hours = draft();
+  hours.svgFields[2] = { ...hours.svgFields[2], sample: '1:30:00' };
+  assert.deepEqual(rows(hours).map((f) => f.candidateId), ['t1']);
   assert.deepEqual(clocks(draft()), [{ kind: 'clock', name: 'Clock', field: 't1', mode: 'duration' }]);
   // A countdown row ANYWHERE is the old engine: no clock is offered or built beside it.
   const withCountdown = draft();
@@ -649,7 +653,8 @@ test('a new import offers exactly one Clock choice with its modes, and no Countd
 
   const ready = render(props);
   const clock = options(select(ready, 'map-svg-clock-mode'));
-  assert.deepEqual(clock.map(([v]) => v), ['none', 'count-up', 'duration', 'target-time'], 'one Clock choice, with the modes');
+  // The target time waits for its instant (row 10): only modes that can change the graphic are offered.
+  assert.deepEqual(clock.map(([v]) => v), ['none', 'count-up', 'duration'], 'one Clock choice, with the modes');
   assert.equal((ready.match(/data-testid="map-svg-clock-mode"/g) ?? []).length, 1);
   const kinds = options(select(ready, 'map-svg-behaviour-kind')).map(([v]) => v);
   assert.ok(!kinds.includes('timer') && !kinds.includes('clock'), kinds.join());

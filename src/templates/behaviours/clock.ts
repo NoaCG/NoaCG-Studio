@@ -38,6 +38,11 @@ export const CLOCK_MODES: readonly { mode: ClockMode; label: string; summary: st
   { mode: 'target-time', label: 'Counts down to a set time.', summary: 'a clock counting down to a set time' },
 ];
 
+/** The modes the import step OFFERS: a control is offered only when it can change the graphic
+ *  (wizard/offer-control-can-change-graphic-front), and a target time has no instant to count to
+ *  until row 10 resolves one, so it waits for that row. A stored one still compiles. */
+export const CLOCK_PICKER_MODES = CLOCK_MODES.filter((m) => m.mode !== 'target-time');
+
 /** The one name a clock instance carries: a graphic has one clock, so it needs no other. */
 export const CLOCK_NAME = 'Clock';
 
