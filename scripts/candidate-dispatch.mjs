@@ -159,18 +159,20 @@ export function settle(intent, run, facts = {}) {
     runIds, ...(conclusion ? { conclusion } : {}), reason: `${counted.length} run(s) of ${WORKFLOW} at this commit: ${why}` });
   const failed = counted.find((other) => other.status === 'completed' && !['success', 'cancelled'].includes(other.conclusion));
   if (failed) return says('verdict', failed, failed.conclusion, `run ${failed.id} ended ${failed.conclusion}; a later pass never hides it`);
+  // Every re-run's earlier attempts, including a re-run later cancelled while pending or still
+  // running: cancelling or re-running a run never erases a failure it already had.
+  for (const other of all.filter((candidate) => attemptOf(candidate) > 1)) {
+    const earlier = facts.attempts?.(other);
+    if (!Array.isArray(earlier)) return { state: 'unresolved', run, runIds, reason: `the earlier attempts of re-run ${other.id} could not be read` };
+    const bad = earlier.find((conclusion) => conclusion !== 'success');
+    if (bad) return says('verdict', other, bad, `run ${other.id} was re-run (attempt ${attemptOf(other)}) after an attempt that ended ${bad}`
+      + ' (a re-run after a runner death is the coordinator\'s call, with a written reason)');
+  }
   const stopped = counted.find((other) => other.status === 'completed' && other.conclusion === 'cancelled');
   if (stopped) return { ...cancelledAfterStart(stopped), run, runIds };
   const pending = counted.find((other) => other.status !== 'completed');
   if (pending) return says('running', pending, undefined, `run ${pending.id} is still running`);
   if (!counted.length) return lost(intent, run, fact);
-  for (const other of counted.filter((candidate) => attemptOf(candidate) > 1)) {
-    const earlier = facts.attempts?.(other);
-    if (!Array.isArray(earlier)) return { state: 'unresolved', run, runIds, reason: `the earlier attempts of re-run ${other.id} could not be read` };
-    const bad = earlier.find((conclusion) => conclusion !== 'success');
-    if (bad) return says('verdict', other, bad, `run ${other.id} passed only on attempt ${attemptOf(other)}; an earlier attempt ended ${bad}`
-      + ' (a re-run after a runner death is the coordinator\'s call, with a written reason)');
-  }
   return says('verdict', counted[0], 'success', 'every run and attempt passed');
 }
 

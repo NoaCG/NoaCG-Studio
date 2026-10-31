@@ -120,7 +120,8 @@ reassessment of the rule model came before the repair. It agreed with correction
    must show the requested run, or the answer is `unresolved`; while that run is still running
    and the listing lags, the answer is `running`. Failed beats running beats passed. A run cancelled after
    it started blocks the commit (`cancelled`, exit 1); only one cancelled while pending is
-   ignored. A failed earlier attempt keeps the commit failing even after a re-run for a runner
+   ignored, and never its earlier attempts: every re-run's earlier attempts are read, whether
+   it later passed, is still running or was cancelled. A failed earlier attempt keeps the commit failing even after a re-run for a runner
    death: that case is the coordinator's call, with a written reason. So no re-dispatch,
    recovery or re-run turns a failure on the commit into a pass.
 
@@ -174,6 +175,7 @@ ambiguity. These are fixtures.
 | Codex on `f3df92d4` (comment 4431892429) | the cancelled-run path ignored whether the run listing was complete, so past one page an earlier failure could drop out and the record pass | a failure on the commit is never hidden (same family as the row above) | product defect | no pass, and no `recover`, from an incomplete listing; a found failure still fails; 101-run test first |
 | Fresh `/so` on `509df299` (grade B) | a plain re-dispatch, `--recover` or a re-run attempt after a failure on the commit could still exit 0 | a failure on the commit is never hidden (third round of this family) | product defect | repeated family: a fresh reassessment of the rule model first (agreed with five corrections, all applied), then rule 8; tests first. Non-blocking: the runbook row now says the advisory runs before the head check |
 | Builder, live dispatch on `a7d85b74` | right after a dispatch the commit listing does not yet show the new run, so `dispatch` answered `unresolved` (exit 1) for a successful dispatch | an answer must match what is known | product defect | a run that is still running answers `running` (exit 3) while the listing lags; a finished run still needs the complete listing; test first |
+| Codex on `a7d85b74` (comment 4431931311) | a run whose attempt 1 failed and whose re-run was then cancelled while pending was dropped, erasing that failure | a failure on the commit is never hidden (same family) | product defect | earlier attempts of every re-run are read, including cancelled and running ones, before anything else but a finished failure; test first |
 
 ## 7. Phase notes
 

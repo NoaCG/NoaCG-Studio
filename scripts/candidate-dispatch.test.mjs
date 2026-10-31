@@ -402,6 +402,18 @@ test('rule 8 corrections: any branch, started cancels block, the run must be lis
   assert.deepEqual([racing.conclusion, exitCode(racing)], ['failure', 1]);
 });
 
+test('a cancelled or running re-run never erases its failed earlier attempt', () => {
+  const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
+  const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
+  const mine = { ...base, id: 20, status: 'completed', conclusion: 'success' };
+  const failedOnce = { ...base, id: 19, run_attempt: 2 };
+  const attempts = (run) => (run.id === 19 ? ['failure'] : []);
+  for (const second of [{ status: 'completed', conclusion: 'cancelled' }, { status: 'in_progress', conclusion: null }]) {
+    const answer = settle(intent, mine, { complete: true, started: () => false, attempts, head: sha('1'), runs: [mine, { ...failedOnce, ...second }] });
+    assert.deepEqual([answer.conclusion, answer.by.id, exitCode(answer)], ['failure', 19, 1], second.status);
+  }
+});
+
 test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {
   assert.equal(exitCode({ state: 'running' }), 3);
   assert.equal(exitCode({ state: 'superseded' }), 3);
