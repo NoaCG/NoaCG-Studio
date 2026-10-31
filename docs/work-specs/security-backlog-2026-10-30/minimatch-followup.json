@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-10-31T07:36:53.660802+00:00",
+  "updatedAt": "2026-10-31T08:12:45.247977+00:00",
   "repositoryRevision": "9f575a235899c3f3e12e5fc8b515aa88994cccc8",
   "candidateRevision": "0be00bff71149764a1e04ab635c38d9b1eb95c5e",
   "pr": "https://github.com/NoaCG/NoaCG-Studio/pull/1841",
-  "status": "merged_post_landing_pending",
+  "status": "terminal_verified",
   "triage": {
     "schema_version": "triage-finding/v0",
     "repository": {
@@ -176,7 +176,8 @@
     "root": "Full lint,API types,5affected checks/37tests PASS",
     "independentReview": "Fresh boundary investigator plus fresh four-file candidate reviewer; no concrete bypass/regression; source scope confirmed.",
     "localBuild": "j-0034 failed exit2 before npm output; no repeated build on unchanged source; full Actions build required.",
-    "audit": "Root reports only known Sandbox/Zod high2package entries for1GHSA; Companion reports minimatch3.1.5 broad-range claim and pre-existing ESLint9 deprecation."
+    "audit": "Root reports only known Sandbox/Zod high2package entries for1GHSA; Companion reports minimatch3.1.5 broad-range claim and pre-existing ESLint9 deprecation.",
+    "sourceTreeEquality": "git diff --exit-code cba1fcf2c5096aca5be9b64fa5eb472ead395d5e 0be00bff71149764a1e04ab635c38d9b1eb95c5e passed: reviewed/tested candidate and landed tree identical."
   },
   "administrativeDismissals": false,
   "sourceSuppressions": false,
@@ -192,7 +193,88 @@
     "mergeGroupSuccessfulJobs": 22,
     "mainCI": 41182134885,
     "configuredSuite": 41182134823,
-    "postLanding": 41182134872
+    "postLanding": 41182134872,
+    "exactMergeReceipts": [
+      {
+        "id": 41182134885,
+        "name": "CI",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134885"
+      },
+      {
+        "id": 41182134823,
+        "name": "configured-suite",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134823"
+      },
+      {
+        "id": 41182134690,
+        "name": "Push on main",
+        "event": "dynamic",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134690"
+      },
+      {
+        "id": 41182134872,
+        "name": "Post-landing",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134872"
+      },
+      {
+        "id": 41182134832,
+        "name": "Quarantine",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134832"
+      },
+      {
+        "id": 41182294105,
+        "name": "deploy-verify",
+        "event": "deployment_status",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182294105"
+      },
+      {
+        "id": 41181623147,
+        "name": "CI",
+        "event": "merge_group",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41181623147"
+      }
+    ],
+    "allRequiredExactMergeResults": "success"
   },
-  "mergeRevision": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e"
+  "mergeRevision": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+  "repairOwnerEnded": true,
+  "issueComment": 6540996386,
+  "outcomes": {
+    "fixed": [
+      "Dependabot84 installed minimatch10 component",
+      "Companion additional minimatch10 preprocessing and bundledglob13 matcher"
+    ],
+    "falsePositiveWithEvidence": [
+      "Dependabot83 exact preprocessing mechanism absent inminimatch3.1.5"
+    ],
+    "blocked": [
+      "Direct GitHub alert state/dismissal: integration capability unavailable."
+    ],
+    "remainingCodeIssue": "1752 Sandbox/Zod compatibility"
+  }
 }

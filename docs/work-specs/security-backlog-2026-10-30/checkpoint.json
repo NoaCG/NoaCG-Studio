@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-31T07:52:06.928660+00:00",
+  "updatedAt": "2026-10-31T08:12:45.247977+00:00",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -61,15 +61,15 @@
   },
   "residualDependencies": {
     "npmAffectedPackageEntries": {
-      "root": 7,
-      "cli": 3,
-      "renderWorker": 5,
-      "pluginPreview": 5,
+      "root": 2,
+      "cli": 0,
+      "renderWorker": 0,
+      "pluginPreview": 0,
       "playerHost": 0
     },
-    "sharedCause": "GHSA-mrhx-c7xc-m3w5; pinned/direct Zod3/4 copies remain. No forced incompatible major update was made.",
+    "sharedCause": "Remaining root npm affected-package entries are @vercel/sandbox and nested Zod for one GHSA-mrhx-c7xc-m3w5. Compatible source fix remains blocked by SDK contracts; no broken major override.",
     "additionalLimit": "Monaco0.56.0 vendors DOMPurify3.4.8; the npm override does not update it. An isolated public-package audit yields8 conditional advisories. The inspected wrapper never enables the required setConfig/clearConfig,CUSTOM_ELEMENT_HANDLING,IN_PLACE,SAFE_FOR_TEMPLATES orXHTML-parser conditions; scoped verdicts are not_actionable for this wrapper, not a claim that the entire library is safe. Latest Monaco0.57.0 still declares3.4.15 and is not a complete version-only remedy.",
-    "companionAudit": "Newly qualified: official @yarnpkg/cli-dist 4.12.0 downloaded through allowed npm registry with integrity verified; explicit inherited proxy, TLS and supported Node22.20 used. Immutable install, lint, all5tests and package PASS on #1841 candidate; native audit now reports minimatch3.1.5 exact-claim false positive plus pre-existing ESLint9 deprecation. Corepack host remains denied; no policy bypass or change.",
+    "companionAudit": "Official integrity-verified Yarn4.12 CLI via allowed npm registry and explicit proxy/TLS qualified on Node22.20. Landed-source lint,5tests,build/package and immutable install PASS. Native audit reports minimatch3.1.5 broad-range exact-claim false positive plus existing ESLint9 deprecation; no other vulnerability claim identified. Corepack host remains denied, unchanged.",
     "candidateAudits": {
       "root": {
         "info": 0,
@@ -111,7 +111,7 @@
       "evidence": "Publicregistry tarball stillcalls Sandbox.get({sandboxId}) at dist/esm/index.mjs5816 andreads sandbox.sandboxId5983. Broad parent upgrade does not remove SDKv2 incompatibility. No paid sandbox call."
     },
     "landedAudit": {
-      "sha": "020d2dbc9460e143f2b6911409e87776e3def921",
+      "sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
       "counts": {
         "root": {
           "info": 0,
@@ -154,7 +154,8 @@
           "total": 0
         }
       },
-      "units": "npm affected-package entries, not distinct GitHub alert counts; root2entries share1GHSA"
+      "units": "npm affected-package entries, not distinct GitHub alert counts; root2entries share1GHSA",
+      "reuseLimit": "Root and Companion refreshed for PR1841. Other lock dependency entries remain unchanged from recorded post-release audits."
     },
     "overrideAssessment": {
       "result": "blocked: dependency-only override breaks SDKpublictypes",
@@ -174,6 +175,11 @@
       "currentApiCheck": "125files tsconfig.api passesboth with existing skipLibCheck; this hides the type loss, so green existingchecks are insufficientcompatibilityproof.",
       "runtimeComparison": "33schemas/459boundedcases;32ordinaryvalidgeneratedcontrols match. Infinityacceptance anderrorobjectcontracts differ. No SDKservice orcredentials used.",
       "next": "CompatibleSDK1.x validator backport with regenerateddeclarations, or supported Remotion/SandboxAPI migration preservingpersistedID/recovery/stop semantics. No forcedoverride/alert suppression."
+    },
+    "minimatchModerates": {
+      "84": "Installed vulnerable component updated to11.0.2 through scoped overrides; direct security-alert state unreadable.",
+      "83": "Minimatch3.1.5 lacks the exact advisory preprocessing mechanism; retain callable API and evidence, no administrative dismissal.",
+      "companionAdditionalV10": "Unreported typescript-estree/glob13 minimatch10 path also repaired; glob14 updates actual bundled matcher."
     }
   },
   "deferred": [
@@ -284,9 +290,22 @@
       "reattachment": "Two transient shell transport disconnects and selected environment starting->ready reconciled without duplicate PRs/jobs; files/process evidence retained. This is not a proven VM restart/filesystem reconstruction.",
       "implementationProof": "Coordinator implemented and landed11scopedPRs in selectedCloud; freshsameVMread-onlyinvestigation/review/acceptance workers and completed-to-resumed receipt proven. Separate delegatedcoding/gitpush transport is not independentlyqualified as a remotechild.",
       "execSessionRecovery": "After reattachment, oldunifiedexecsession handles were unavailable while ownedVitePIDs still existed. Reconciled by exactprocessarguments andstopped thoseownedservers; no duplicatework launched. Does not proveVMreclamation/filesystem restoration."
+    },
+    "latestObservedPreparation": {
+      "run": 41182891906,
+      "head": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+      "conclusion": "success",
+      "origin": "Separately dispatched preparation workflow observed in repository Actions; not dispatched by this security follow-up.",
+      "scope": "Trusted-main workflow only checks sealed digest and non-billable Gateway authentication; no implementation/evaluation run or inference proof."
+    },
+    "latestRecoveryObservation": {
+      "kind": "Foreground shell transport reconnect",
+      "environment": "same bound managed instance",
+      "evidence": "Existing clean checkout/head and active watcher PIDs/session persisted; Git and Actions preflight re-passed.",
+      "limit": "Does not prove idle wake, VM reclaim/reconstruction, durable coding-owner recovery or native separate cloud-child launch."
     }
   },
-  "resume": "PR1841 has merged at cba1fcf2c5096aca5be9b64fa5eb472ead395d5e; headCI41181084576 and mergeGroup41181623147 passed. Current coordinator still owns post-landing results: mainCI41182134885, configured41182134823, post41182134872, CodeQL41182134690, quarantine41182134832 and applicable deployment verification. Reconcile these receipts before any takeover. Then update checkpoint and finish the owned worktree. Minimatch83 exact-claim false-positive evidence is in minimatch-followup.json; no administrative dismissal. Sandbox/Zod56 remains blocked under issue1752. Test key already revoked/HTTP401 verified; user will replace secret. No Jev start;40phases/$5/14days unchanged.",
+  "resume": "Read AGENTS, current security/queue/check/verify/cloud-delegate procedures and this checkpoint. All12 source/deliveryPRs including1841 aremerged andterminal at cba1fcf2c5096aca5be9b64fa5eb472ead395d5e; no repair owner or wake remains armed. Remaining code issue1752 needs a compatible Sandbox/Zod backport or supported migration, never a forced broken override. Minimatch83 has exact-claim false-positive evidence; security-alert administration remains unavailable. Test key already revoked andHTTP401verified; user will replace approved managed secret via local test-account CLI consent. Password follow-up still needs secure store access. No Jev start;40phases/$5/14days unchanged; qualify durablewake/recovery/nativeworker mapping first.",
   "qualificationReceipts": {
     "preparationPR": 1825,
     "sealedSecretProbe": 41125379127,
@@ -334,7 +353,8 @@
     ],
     "dependabot": "4 affected package entries warrant compatible updates; scanner runtime scope does not prove hosted collection reachability. Exact post-landing source-system state remains API403.",
     "administrativeDismissals": false,
-    "alias": "103 PR instance became104 on main; fixed-name guarded attribute write remains a documented exact-claim false positive, with all four supplied flows read."
+    "alias": "103 PR instance became104 on main; fixed-name guarded attribute write remains a documented exact-claim false positive, with all four supplied flows read.",
+    "minimatchFollowup": "minimatch-followup.json contains two additional owner-supplied records, static verdicts, source/compatibility evidence and independent runtime checks."
   },
   "independentVerification": {
     "file": "verification.json",
@@ -342,23 +362,9 @@
     "scope": "Five pinned source boundaries, residual copy explicitly retained",
     "result": "Current reported boundaries fixed; no source-system dismissal implied"
   },
-  "finalImplementationMain": {
-    "sha": "020d2dbc9460e143f2b6911409e87776e3def921",
-    "fullCI": 41141605832,
-    "configuredSuite": 41141605857,
-    "codeQLAnalysis": 41141605094,
-    "postLanding": 41141605717,
-    "quarantine": 41141605738,
-    "result": "All PASS"
-  },
-  "implementationRepairOwnersEnded": [
-    1835,
-    1828,
-    1836,
-    1837,
-    1838
-  ],
-  "status": "All 12 source PRs merged; PR1841 repair ownership stays active until exact-merge CI/configured/post-landing verification is terminal.",
+  "finalImplementationMain": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+  "implementationRepairOwnersEnded": true,
+  "status": "All 12 authorized implementation/delivery PRs are merged and terminal; exact-merge results passed. Remaining SDK/security-administration/credential-owner follow-ups recorded; no continuing monitor.",
   "landedPRs": [
     1452,
     1589,
@@ -370,7 +376,8 @@
     1836,
     1837,
     1838,
-    1839
+    1839,
+    1841
   ],
   "implementationRepairs": {
     "1835": {
@@ -630,16 +637,7 @@
     "bridgeArtifact": "https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.10.1; actualWindowsbuild/prove step passed;94,167,040-byte exe andSHA256sidecar present",
     "terminalOwnerComment": 6536086591
   },
-  "activeRepairOwners": [
-    {
-      "pr": 1841,
-      "branch": "security/minimatch-2026-10-31",
-      "head": "0be00bff71149764a1e04ab635c38d9b1eb95c5e",
-      "owner": "current Codex coordinator",
-      "mode": "active session; no unattended wake claimed",
-      "repairAttempts": 0
-    }
-  ],
+  "activeRepairOwners": [],
   "wakeArmed": false,
   "defaultBranchDependabotBannerHistory": [
     {
@@ -667,7 +665,8 @@
       "package-lock.json",
       "companion-module/yarn.lock"
     ],
-    "source": "Owner export supplied in current session; public advisory HTTP 200 independently verified."
+    "source": "Owner export supplied in current session; public advisory HTTP 200 independently verified.",
+    "sourceSystemState": "Security-alert list/detail API remains inaccessible; metadata gap is resolved by owner export. No claim of live alert closure/dismissal."
   },
   "exposureAssessment": {
     "confirmedProduction": [
@@ -721,10 +720,15 @@
       "svg-security-review: read-only prepared47a snapshot",
       "security-backlog: merged dependency worktree retained as node_modules source shared by the preparedreview snapshot; no activeimplementation"
     ],
-    "ownedDevServers": "Three owned Viteprocesses reconciled by exactPID/arguments and stopped. Oldunifiedexecsession handles were unavailable after reattachment; processidentity was checked before stopping."
+    "ownedDevServers": "Three owned Viteprocesses reconciled by exactPID/arguments and stopped. Oldunifiedexecsession handles were unavailable after reattachment; processidentity was checked before stopping.",
+    "minimatch": {
+      "worktree": "/workspace/security-minimatch",
+      "status": "pending supported self dry-run/apply after terminal receipts",
+      "archiveRoot": "/workspace/security-evidence/worktree-archives"
+    }
   },
   "finalNetworkRecheck": "After final environment starting->ready, Git origin/main and repositoryActions API preflight PASS again. Prior oauth2.googleapis.com routed through enforcedproxy withHTTP404; policy/credentials unchanged.",
-  "finalFollowup": "Superseded by minimatchFollowup: remaining moderate alert identities are known (84/83), PR1841 active. Test key revocation verified; user will replace secret. No Jev run started.",
+  "finalFollowup": "Minimatch identities84/83 reconciled with publicGHSA. PR1841 merged andall7requiredexact-merge workflow receiptsPASS.83is exact-claim falsepositivewith evidence, no dismissal. SDK/Zod high remains issue1752. Key revoked/verified; replacement belongs to user because secure-store writer is unavailable. Jev run unstarted.",
   "credentialRemediation": {
     "authorization": "User authorized scoped credential handling in the current session.",
     "agentKey": {
@@ -749,7 +753,7 @@
     "report": "minimatch-followup.json",
     "pr": 1841,
     "head": "0be00bff71149764a1e04ab635c38d9b1eb95c5e",
-    "status": "merged_post_landing_pending",
+    "status": "terminal_verified",
     "repairOwner": "Current Codex coordinator remains active through merge and exact-merge/post-landing results.",
     "ownerComment": 6540664598,
     "mergeSha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
@@ -757,6 +761,73 @@
     "mergeGroupConclusion": "success",
     "mainCIRun": 41182134885,
     "configuredSuiteRun": 41182134823,
-    "postLandingRun": 41182134872
+    "postLandingRun": 41182134872,
+    "receipts": [
+      {
+        "id": 41182134885,
+        "name": "CI",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134885"
+      },
+      {
+        "id": 41182134823,
+        "name": "configured-suite",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134823"
+      },
+      {
+        "id": 41182134690,
+        "name": "Push on main",
+        "event": "dynamic",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134690"
+      },
+      {
+        "id": 41182134872,
+        "name": "Post-landing",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134872"
+      },
+      {
+        "id": 41182134832,
+        "name": "Quarantine",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182134832"
+      },
+      {
+        "id": 41182294105,
+        "name": "deploy-verify",
+        "event": "deployment_status",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41182294105"
+      },
+      {
+        "id": 41181623147,
+        "name": "CI",
+        "event": "merge_group",
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+        "html_url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41181623147"
+      }
+    ],
+    "repairOwnerEnded": true,
+    "issueComment": 6540996386
   }
 }
