@@ -93,6 +93,8 @@ No inspector, no expression editor, no new persisted key.
 - `e2e/import-svg.spec.ts` and `e2e/import-svg-behaviour.spec.ts`: 106/106 through the queue,
   on `07b7b5a5` (the selection code is unchanged since; the re-drop now keeps rather than
   re-applies).
+- `e2e/import-svg.spec.ts` and `e2e/svg-examples.spec.ts` (both drop SVGs several times): 86/86
+  through the queue on `9c295197`.
 - Mutation checks, each reverted: a same-artwork drop always fresh fails the walk at the
   re-drop ("Second guest" expected, "name-2" received), before and after the correction; the
   preview outlining only the hover fails it at the selection.
