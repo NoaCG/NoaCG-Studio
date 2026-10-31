@@ -48,7 +48,8 @@ export interface SvgRowWrite {
 export interface SvgApplyInput {
   inventory: SvgProposalInventory;
   current: SvgAnswers;
-  reference: SvgAnswers;
+  /** Per row, the value that is the proposal's rather than a correction (A3). */
+  reference: Readonly<Record<string, SvgRowAnswer>>;
   /** The behaviour differs from its reference. Decided by the draft on its own shapes, because
    *  a recipe option the component cannot express (an unticked Lock) is still a correction. */
   behaviourCorrected: boolean;
@@ -81,7 +82,7 @@ export type SvgApplyResult =
 
 /** The recipe role table, from the recipe declarations (src/templates/behaviours), so the
  *  contract never copies them. Built once: the registry is fixed at load. */
-const ROLE_TABLE: Readonly<Record<string, SvgRecipeRoles>> = Object.fromEntries(BEHAVIOUR_RECIPES.map((r) => [r.id, {
+export const SVG_RECIPE_ROLES: Readonly<Record<string, SvgRecipeRoles>> = Object.fromEntries(BEHAVIOUR_RECIPES.map((r) => [r.id, {
     ...(r.instanced ? { instanced: true } : {}),
     ...(r.rows ? { rowsMax: r.rows.max } : {}),
     roles: Object.fromEntries(r.roles.map((role) => [role.id, {
@@ -91,10 +92,6 @@ const ROLE_TABLE: Readonly<Record<string, SvgRecipeRoles>> = Object.fromEntries(
       ...(role.countdown ? { countdown: true } : {}),
     }])),
   }]));
-
-export function svgRecipeRoleTable(): Readonly<Record<string, SvgRecipeRoles>> {
-  return ROLE_TABLE;
-}
 
 /** A2: what today's draft can hold. One behaviour, so only full recipes; the countdown field;
  *  the quiz's existing Lock and reveal options. */
@@ -108,8 +105,12 @@ export const SVG_DRAFT_CAPABILITIES: readonly string[] = [
 
 const ATTRS = ['on', 'kind', 'title'] as const;
 
+const set = (rows: Record<string, SvgRowAnswer>, layer: string, attr: keyof SvgRowAnswer, value: unknown) => {
+  (rows[layer] as unknown as Record<string, unknown>)[attr] = value;
+};
+
 export function applySvgProposal(proposal: unknown, input: SvgApplyInput): SvgApplyResult {
-  const recipes = ROLE_TABLE;
+  const recipes = SVG_RECIPE_ROLES;
   // A1: row 4's validator decides whether the proposal may be used at all.
   const verdict = validateSvgProposal(proposal, {
     inventory: input.inventory,
@@ -123,16 +124,16 @@ export function applySvgProposal(proposal: unknown, input: SvgApplyInput): SvgAp
 
   const { current, reference } = input;
   const next: Record<string, SvgRowAnswer> = Object.fromEntries(Object.entries(current.rows).map(([id, r]) => [id, { ...r }]));
-  const nextRef: Record<string, SvgRowAnswer> = Object.fromEntries(Object.entries(reference.rows).map(([id, r]) => [id, { ...r }]));
+  const nextRef: Record<string, SvgRowAnswer> = Object.fromEntries(Object.entries(reference).map(([id, r]) => [id, { ...r }]));
   const kept = new Set<string>();
   /** `layer.attr` values the proposal wrote. */
   const taken = new Set<string>();
-  const corrected = (layer: string, attr: keyof SvgRowAnswer) => current.rows[layer]?.[attr] !== reference.rows[layer]?.[attr];
+  const corrected = (layer: string, attr: keyof SvgRowAnswer) => current.rows[layer]?.[attr] !== reference[layer]?.[attr];
 
   // A4: per value, the proposal writes only what is untouched.
   for (const [i, d] of accepted.fields.entries()) {
     const row = current.rows[d.layer];
-    if (!row || !reference.rows[d.layer]) {
+    if (!row || !reference[d.layer]) {
       return { ok: false, errors: [{ code: 'unknown-layer', at: `fields[${i}].layer`, detail: 'the draft holds no row for this layer' }] };
     }
     for (const attr of ATTRS) {
@@ -142,15 +143,15 @@ export function applySvgProposal(proposal: unknown, input: SvgApplyInput): SvgAp
         if (row[attr] !== value) kept.add(`${d.layer}.${attr}`);
         continue;
       }
-      (next[d.layer] as unknown as Record<string, unknown>)[attr] = value;
-      (nextRef[d.layer] as unknown as Record<string, unknown>)[attr] = value;
+      set(next, d.layer, attr, value);
+      set(nextRef, d.layer, attr, value);
       taken.add(`${d.layer}.${attr}`);
     }
   }
   /** Put a value the proposal wrote back to what the draft held, because a correction wins. */
   const revert = (layer: string, attr: keyof SvgRowAnswer) => {
-    (next[layer] as unknown as Record<string, unknown>)[attr] = current.rows[layer][attr];
-    (nextRef[layer] as unknown as Record<string, unknown>)[attr] = reference.rows[layer][attr];
+    set(next, layer, attr, current.rows[layer][attr]);
+    set(nextRef, layer, attr, reference[layer][attr]);
     taken.delete(`${layer}.${attr}`);
   };
 

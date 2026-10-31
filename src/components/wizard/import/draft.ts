@@ -29,10 +29,11 @@ import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
 import {
   SVG_DRAFT_CAPABILITIES,
   applySvgProposal,
-  svgRecipeRoleTable,
+  SVG_RECIPE_ROLES,
   type SvgRowAnswer,
 } from '../../../ai/svgInterpretation/apply';
 import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
+import { canonical } from '../../../model/publishedRecord';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -1477,7 +1478,7 @@ export function emptySvgSlice(): SvgSlice {
  * height the drop fits play no part, so `svgDraftWithProposal` recomputes exactly these from
  * `designSvg` as the reference an untouched draft equals (docs/work-specs/jev-svg-import, row 5).
  */
-export function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgFields' | 'svgImages' | 'svgOutlines' | 'svgBehaviour'> {
+function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgFields' | 'svgImages' | 'svgOutlines' | 'svgBehaviour'> {
   // A behaviour PROPOSED from the layer names, never required
   // (docs/GRAPHIC_BEHAVIOUR_PLAN.md). Proposed before the fields because the FIELDS
   // have to be able to see it: a proposed countdown needs its clock layer bound as
@@ -1720,8 +1721,7 @@ type SvgRows = Pick<SvgImportDraft, 'svgFields' | 'svgImages' | 'svgOutlines'>;
 function svgRowAnswers(d: SvgRows): Record<string, SvgRowAnswer> {
   return {
     ...Object.fromEntries(d.svgFields.map((f) => [f.candidateId, { on: f.on, kind: f.kind, title: f.title }])),
-    ...Object.fromEntries(d.svgImages.map((f) => [f.candidateId, { on: f.on, title: f.title }])),
-    ...Object.fromEntries(d.svgOutlines.map((f) => [f.candidateId, { on: f.on, title: f.title }])),
+    ...Object.fromEntries([...d.svgImages, ...d.svgOutlines].map((f) => [f.candidateId, { on: f.on, title: f.title }])),
   };
 }
 
@@ -1730,10 +1730,10 @@ function svgRowAnswers(d: SvgRows): Record<string, SvgRowAnswer> {
 function svgComponentOf(b: SvgBehaviourDraft, rows: Record<string, SvgRowAnswer>, open: readonly SvgUnresolvedIntent[]): SvgProposalComponent {
   const recipe = recipeIdOf(b);
   const picks: SvgProposalComponent['picks'] = boxPicksOf(b);
-  if (b.kind === 'timer') {
-    const clock = Object.entries(rows).find(([, r]) => r.on && r.kind === 'countdown')?.[0];
-    if (clock) picks.unshift({ role: 'clock', layer: clock });
-  }
+  // A countdown readout role is not a box: the ticked countdown row carries it.
+  const readout = Object.entries(SVG_RECIPE_ROLES[recipe]?.roles ?? {}).find(([, r]) => r.countdown)?.[0];
+  const clock = readout && Object.entries(rows).find(([, r]) => r.on && r.kind === 'countdown')?.[0];
+  if (readout && clock) picks.unshift({ role: readout, layer: clock });
   const isOpen = (key: string) => open.some((u) => u.key === key);
   const intent: Record<string, string> = {};
   if (recipe === 'quiz') {
@@ -1776,14 +1776,7 @@ function svgBehaviourOfComponent(c: SvgProposalComponent, count: number): SvgBeh
 
 /** Deep equality that ignores key order: two drafts built by different paths name their keys
  *  in different orders. */
-function sameValue(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
-  const ka = Object.keys(a).filter((k) => (a as Record<string, unknown>)[k] !== undefined);
-  const kb = Object.keys(b).filter((k) => (b as Record<string, unknown>)[k] !== undefined);
-  return ka.length === kb.length && ka.every((k) => sameValue((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
-}
+const sameValue = (a: unknown, b: unknown): boolean => canonical(a) === canonical(b);
 
 /** What the import holds that a proposal compares against: the reference (rule A3). */
 function svgReferenceOf(draft: SvgImportDraft, svg: SvgImportResult): SvgAppliedReference {
@@ -1822,7 +1815,7 @@ export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): 
   const result = applySvgProposal(proposal, {
     inventory: svg,
     current: { rows, component: draft.svgBehaviour ? svgComponentOf(draft.svgBehaviour, rows, ref.unresolved) : null },
-    reference: { rows: ref.rows, component: ref.behaviour ? svgComponentOf(ref.behaviour, ref.rows, ref.unresolved) : null },
+    reference: ref.rows,
     behaviourCorrected: !sameValue(draft.svgBehaviour, ref.behaviour),
     open: ref.unresolved,
   });
@@ -1831,22 +1824,23 @@ export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): 
   // A5: the component as the draft's own shape; every pick must land in a box.
   let behaviour = draft.svgBehaviour;
   if (result.replaceBehaviour) {
-    const built = result.component ? svgBehaviourOfComponent(result.component, result.rowCount) : null;
-    if (built && result.component) {
-      const landed = boxPicksOf(built);
-      const lost = result.component.picks.findIndex((p) => p.role !== 'clock' && !landed.some((l) => l.role === p.role && l.layer === p.layer && l.row === p.row));
+    const c = result.component;
+    behaviour = c ? svgBehaviourOfComponent(c, result.rowCount) : null;
+    if (c && behaviour) {
+      const landed = new Set(boxPicksOf(behaviour).map((l) => `${l.role}#${l.row ?? ''}=${l.layer}`));
+      const roles = SVG_RECIPE_ROLES[c.recipe]?.roles ?? {};
+      const lost = c.picks.findIndex((p) => !roles[p.role]?.countdown && !landed.has(`${p.role}#${p.row ?? ''}=${p.layer}`));
       if (lost >= 0) return { ok: false, errors: [{ code: 'invalid-value', at: `components[0].picks[${lost}]`, detail: 'the draft has no box for this pick' }] };
     }
-    behaviour = built;
   }
   const replaced = !sameValue(behaviour, draft.svgBehaviour);
 
   // A4: write only what the merge allowed. A6: the countdown machinery runs around it, and
   // never over a kind the author corrected: that row keeps exactly what the merge left it.
-  const write = <T extends { candidateId: string }>(list: T[]): T[] => list.map((row) => {
-    const mine = result.writes.filter((w) => w.layer === row.candidateId);
-    return mine.length === 0 ? row : { ...row, ...Object.fromEntries(mine.map((w) => [w.attr, w.value])) };
-  });
+  const byLayer = new Map<string, Record<string, unknown>>();
+  for (const w of result.writes) byLayer.set(w.layer, { ...byLayer.get(w.layer), [w.attr]: w.value });
+  const write = <T extends { candidateId: string }>(list: T[]): T[] =>
+    list.map((row) => (byLayer.has(row.candidateId) ? { ...row, ...byLayer.get(row.candidateId) } : row));
   const merged = write(draft.svgFields);
   const kindCorrected = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind;
   const machined = replaced ? armTimerClock(write(disarmTimerClock(draft.svgFields)), behaviour) : merged;
@@ -1905,7 +1899,7 @@ export function svgProposalOfDraft(draft: SvgImportDraft): { proposal: SvgPropos
     components: draft.svgBehaviour ? [svgComponentOf(draft.svgBehaviour, rows, open)] : [],
   };
   const omitted: string[] = [];
-  const context = { inventory: svg, recipes: svgRecipeRoleTable(), capabilities: SVG_DRAFT_CAPABILITIES };
+  const context = { inventory: svg, recipes: SVG_RECIPE_ROLES, capabilities: SVG_DRAFT_CAPABILITIES };
   const verdict = validateSvgProposal(proposal, context);
   if (!verdict.ok) {
     // Only two refusals are the draft contradicting itself, and each has one answer: a pick's
