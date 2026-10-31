@@ -341,29 +341,35 @@ test('comments are stripped in one pass, strings kept', () => {
   assert.equal(withoutComments('import Default/* vendor */from'), 'import Default from', 'a comment still separates tokens');
 });
 
-/** Milliseconds of CPU this process spends on one call of `fn`. Not wall time: other test files
- *  running beside this one take turns on the CPU, which stretches wall time but not this. */
-async function ms(fn) {
-  const before = process.cpuUsage();
-  await fn();
-  const { user, system } = process.cpuUsage(before);
-  return (user + system) / 1000;
+/** CPU milliseconds this thread spends on `reps` calls of `fn`. CPU time, not wall time: on a busy
+ *  runner a run of a few milliseconds can finish inside one time slice while a longer one is always
+ *  interrupted, which stretches the longer one by about the load. This thread's, not the process's,
+ *  whose garbage-collector threads add their own noise (Node before 23.9 has only the process's). */
+async function cpuMs(fn, reps) {
+  const now = () => {
+    const { user, system } = process.threadCpuUsage?.() ?? process.cpuUsage();
+    return (user + system) / 1000;
+  };
+  const before = now();
+  for (let i = 0; i < reps; i++) await fn();
+  return now() - before;
 }
 
 /** Asserts that reading 4x the input takes under 8x the time: linear reading takes about 4x,
- *  quadratic about 16x. Each size's fastest of up to five runs counts, the two sizes taken in turn;
- *  it stops at the first pair in bound. One unmeasured run first, so a cold start cannot pad the
- *  small time. */
+ *  quadratic about 16x. The counter advances in ticks of about 4 ms, so each sample repeats the
+ *  read until the small one takes 50 ms (which also warms it up). Each size's fastest of five
+ *  samples counts, the two sizes taken in turn. */
 async function assertLinear(label, small, big) {
-  await small();
+  let reps = 1;
+  while ((await cpuMs(small, reps)) < 50) reps *= 2;
   let s = Infinity;
   let b = Infinity;
-  for (let i = 0; i < 5 && !(b < s * 8); i++) {
-    s = Math.min(s, await ms(small));
-    b = Math.min(b, await ms(big));
+  for (let i = 0; i < 5; i++) {
+    s = Math.min(s, await cpuMs(small, reps));
+    b = Math.min(b, await cpuMs(big, reps));
   }
-  assert.ok(b < s * 8, `${label}: ${s.toFixed(1)} ms CPU then ${b.toFixed(1)} ms (${(b / s).toFixed(1)}x for 4x the input)`);
-  console.log(`  ${label}: ${s.toFixed(1)} ms CPU, 4x input ${b.toFixed(1)} ms (${(b / s).toFixed(1)}x)`);
+  assert.ok(b < s * 8, `${label}: ${s.toFixed(1)} ms CPU then ${b.toFixed(1)} ms for ${reps} reads (${(b / s).toFixed(1)}x for 4x the input)`);
+  console.log(`  ${label}: ${s.toFixed(1)} ms CPU, 4x input ${b.toFixed(1)} ms, ${reps} reads (${(b / s).toFixed(1)}x)`);
 }
 
 test('reading hostile input stays linear: 4x the input takes about 4x the time, never 16x', async () => {
