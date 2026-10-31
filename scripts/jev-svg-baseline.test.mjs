@@ -69,7 +69,7 @@ const LAYERS = (items) => {
   const canon = (el) => {
     const attrs = [...el.attributes].filter((a) => a.name !== 'xmlns' && !a.name.startsWith('xmlns:'))
       .map((a) => `${a.name}="${a.value}"`).sort();
-    const kids = [...el.childNodes].map((n) => (n.nodeType === 1 ? canon(n) : n.nodeType === 3 ? n.data : '')).join('');
+    const kids = [...el.childNodes].map((n) => (n.nodeType === 1 ? canon(n) : n.nodeType === 3 || n.nodeType === 4 ? n.data : '')).join('');
     return `<${el.tagName}${attrs.map((a) => ` ${a}`).join('')}>${kids}</${el.tagName}>`;
   };
   return items.map(({ sanitized, bound, anchors }) => {
@@ -86,6 +86,7 @@ const LAYERS = (items) => {
 
 /** A design's labelled anchors: its fields (credits through their sub-anchors) and its decoys. */
 function anchorsOf(label) {
+  if (!label) return [];
   const field = (f) => ({ role: f.role, kind: f.kind, path: f.source.element_path, tag: f.source.tag });
   return [
     ...label.expected.fields.flatMap((f) => (f.source_anchors ? f.source_anchors.map(field) : [field(f)])),
