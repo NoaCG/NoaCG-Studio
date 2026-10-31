@@ -52,7 +52,11 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
 - **C3 Refusals.** A second clock part, or a clock beside the countdown recipe, is refused (one
   clock runtime per graphic, never two engines). Any two parts that would share a group, event,
   field key, row set or option name are refused, whatever their recipes. A clock whose time layer
-  is no longer a field binds nothing.
+  is no longer a field binds nothing. The wizard never produces such a collision: extras named
+  alike (case and punctuation aside) are numbered ("Sponsor", "Sponsor 2"), as a choice's options
+  are. On `874c589b` two same-named extras already crashed the wizard's preview build, because the
+  machine came out off-shape and `attachMachine` threw; row 7 prevents it for wizard drafts and
+  keeps the compiler's refusal as the backstop.
 - **C4 Saved countdowns are untouched.** A `timer` behaviour compiles to the same bytes as on
   `874c589b` (table, runtime, fields, holders, type, steps). Nothing converts a timer into a clock,
   and the draft never emits a clock beside the old engine: a timer behaviour, a file whose names
@@ -76,7 +80,8 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
 - `designTypes.ts`: `DesignSvgClock` in the `DesignSvgExtra` union.
 - `behaviour.ts`: the clock binding, instanced options under their namespace, and
   `refuseCollisions`.
-- `draft.ts` (reconciled with the coordinator at 20:46Z, outside the row's list): the optional
+- `draft.ts` (reconciled with the coordinator at 20:46Z and 21:43Z, outside the row's list): the
+  numbered extras names (C3), the optional
   `svgClock`, `svgClockRows`, `svgCountdownDrawn` and `svgClockOption`, the clock in
   `svgExtrasOptions` and one summary part. The stored clock carries the artwork revision it was
   chosen on, the rule row 5's `svgApplied` already uses: on other artwork it reads as no clock, and

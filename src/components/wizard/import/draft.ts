@@ -1117,8 +1117,19 @@ export function extraLayerName(label: string): string {
 function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
   const exists = (id: string) => draft.designSvg?.groups.some((g) => g.id === id) ?? false;
   const out: DesignSvgExtra[] = [];
+  // ONE NAME PER PART. Each extra's buttons and group are named after it, case and punctuation
+  // aside, so two hidden layers both called "Sponsor" would be one name twice, which the compiler
+  // refuses. The later one is numbered, as a choice's options are (`optionKey`).
+  const taken = new Set<string>();
+  const unique = (name: string): string => {
+    const token = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    let next = name;
+    for (let n = 2; taken.has(token(next)); n++) next = `${name} ${n}`;
+    taken.add(token(next));
+    return next;
+  };
   for (const e of draft.svgExtras) {
-    if (e.use === 'switch' && exists(e.candidateId) && e.name.trim()) out.push({ kind: 'switch', name: e.name.trim(), layer: e.candidateId });
+    if (e.use === 'switch' && exists(e.candidateId) && e.name.trim()) out.push({ kind: 'switch', name: unique(e.name.trim()), layer: e.candidateId });
   }
   const groups = new Map<string, { label: string; layer: string }[]>();
   for (const e of draft.svgExtras) {
@@ -1127,7 +1138,7 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
     list.push({ label: e.name.trim(), layer: e.candidateId });
     groups.set(e.group.trim(), list);
   }
-  for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name, options });
+  for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name: unique(name), options });
   const clock = svgClockOption(draft);
   if (clock) out.push(clock);
   return out.length > 0 ? out : undefined;

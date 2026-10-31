@@ -655,3 +655,24 @@ test('with the clock runtime ready, a new import offers exactly one Clock choice
     assert.ok(options(select(html, 'map-svg-behaviour-kind')).some(([v]) => v === 'timer'), 'the old Countdown is still offered');
   }
 });
+
+test('extras the author named alike build as separate parts, and a hand-made collision is still refused (C3)', async () => {
+  const { svgDesignOptions } = await load('src/components/wizard/import/draft.ts');
+  const groups = ['g0', 'g1', 'g2', 'g3'].map((id) => ({ id, label: id, hidden: true }));
+  const draft = {
+    designSvg: { markup: '<svg/>', width: 1200, height: 180, candidates: [], images: [], outlines: [], groups, shapes: [] },
+    svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgStretch: { on: false, shapeId: null }, svgFonts: [],
+    svgExtras: [
+      { candidateId: 'g0', use: 'switch', name: 'Sponsor' },
+      { candidateId: 'g1', use: 'switch', name: 'sponsor' },
+      { candidateId: 'g2', use: 'choice', name: 'A', group: 'Sponsor' },
+      { candidateId: 'g3', use: 'choice', name: 'B', group: 'Sponsor' },
+    ],
+  };
+  const extras = svgDesignOptions(draft).extras;
+  assert.deepEqual(extras.map((e) => e.name), ['Sponsor', 'sponsor 2', 'Sponsor 3']);
+  const { svg, bound } = compile({ fields: [], extras });
+  built(bound, svg);
+  // Written by hand, the same three still collide.
+  assert.throws(() => compile({ fields: [], extras: extras.map((e) => ({ ...e, name: 'Sponsor' })) }), /both declare the group "sponsor_group"/);
+});
