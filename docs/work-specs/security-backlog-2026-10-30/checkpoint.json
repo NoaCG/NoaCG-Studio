@@ -750,11 +750,11 @@
       "deleteHttpStatus": 200,
       "afterHttpStatus": 401,
       "valuesRecorded": false,
-      "replacementRequiredForFutureCredentialDependentTests": true,
+      "replacementRequiredForFutureCredentialDependentTests": false,
       "replacementOwner": "User confirmed: revoke now; user will replace the test secret. Key was already revoked and verified; do not repeat revocation."
     },
     "testAccountPasswords": {
-      "status": "blocked_on_secure_secret_store_writer",
+      "status": "resolved_owner_rotated_2026-10-31",
       "environmentMetadata": "Runtime variable bindings report ready; no writable managed-cloud or GitHub CI secret-store interface is exposed.",
       "deliveryAssessment": "One password variable exactly matches its variable-name placeholder. The other does not. This does not establish whether backing account passwords were exposed; do not dismiss the incident based on placeholder appearance.",
       "action": "No password changed: a supported secure replacement and propagation path is required first to avoid losing access or breaking consumers. Do not place replacement secrets in repository artifacts, logs, arbitrary product env variables, or chat."
@@ -864,9 +864,10 @@
       "secureWriter": "absent: Claude cloud environment secrets are set only by the owner in environment settings; no session tool writes them. No GitHub Actions workflow reads this key (repo grep of secrets.* names), so there is no CI copy to update.",
       "minted": false,
       "reason": "Minting needs the owner-consented browser flow and could not be stored; rule: do not mint an unused key.",
-      "ownerAction": "On the owner's computer: run `noacg login --name \"Claude cloud tests\"` with NOACG_CREDENTIALS_DIR set to a fresh temporary folder, sign in as the test account and allow; copy the key from credentials.json in that folder into the Claude cloud environment's NOACG_TEST_AGENT_KEY setting; delete the folder; start a new session, which verifies by GET (200 plus test-account identity). Note: cli/src/auth.ts:16 mentions a `login --show` flag that does not exist."
+      "ownerAction": "Optional cleanup only: delete the dead NOACG_TEST_AGENT_KEY cloud setting; update or remove NOACG_TEST_ACCOUNT_PASSWORD/EMAIL; revoke unknown keys in Agent access.",
+      "decision": "Owner-reviewed 2026-10-31: no test, CI job, hook or script reads NOACG_TEST_AGENT_KEY (the CLI reads NOACG_AGENT_KEY); it was an agent convenience only. Leaked key stays revoked. No replacement needed now; mint one per task when a live save is actually needed. Suggested to owner: delete the dead NOACG_TEST_AGENT_KEY setting, review Settings > Account > Agent access for unknown keys."
     },
-    "testAccountPassword": "Unchanged and still blocked on the same missing writer. Owner action: change the test account password and update NOACG_TEST_ACCOUNT_PASSWORD in the same environment settings.",
+    "testAccountPassword": "Resolved by owner 2026-10-31: owner changed the test account passwords manually, so any exposed value is now useless. New values are held by the owner, not in the repository.",
     "sandboxZod": {
       "advisory": "GHSA-mrhx-c7xc-m3w5, zod <4.6.6, no zod 3.x fix release (latest 3.x is 3.25.76). npm audit: @vercel/sandbox <=2.2.0-beta.0 affected; fix only via SDK major.",
       "upstream": "@vercel/sandbox latest 3.9.1 depends on zod ^4.1.1; no new 1.x release after 1.10.2. @remotion/vercel latest still 4.0.539 (devDependency @vercel/sandbox 1.6.0, peer >=1.0.0).",
