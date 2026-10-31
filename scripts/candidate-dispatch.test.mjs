@@ -439,6 +439,9 @@ test('decision table: one case per row, first matching row wins', () => {
   check('V9 a re-run started between the reads', settle(intent, R, facts([R], { recheck: () => ({ complete: true, runs: [run(20, { run_attempt: 2, status: 'queued', conclusion: null })] }) })), 'V9', 'running', 3);
   check('V9 a new run appeared between the reads', settle(intent, R, facts([R], { recheck: () => ({ complete: true, runs: [R, run(22, { status: 'queued', conclusion: null })] }) })), 'V9', 'running', 3);
   check('V9 second read incomplete', settle(intent, R, facts([R], { recheck: () => ({ complete: false, runs: [R] }) })), 'V9', 'running', 3);
+  check('V9 R lookup newer than both listings', settle(intent, run(20, { run_attempt: 2, status: 'in_progress', conclusion: null }), facts([R])), 'V9', 'running', 3);
+  check('V9 R lookup newer and finished, listings older', settle(intent, run(20, { run_attempt: 2 }), facts([R])), 'V9', 'running', 3);
+  check('V9 listings newer than R lookup, both passed', settle(intent, R, facts([run(20, { run_attempt: 2 })], { attempts: () => ['success'] })), 'V9', 'running', 3);
   check('V9 second read fails', settle(intent, R, facts([R], { recheck: () => { throw Error('down'); } })), 'V9', 'unresolved', 1);
   check('V10 pass', settle(intent, R, facts([R, run(4), stopped])), 'V10', 'verdict', 0);
   check('V7 R cancelled while pending never borrows a pass', settle(intent, Rcancel, facts([Rcancel, run(21)])), 'V7', 'superseded', 3);

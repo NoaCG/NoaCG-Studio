@@ -90,7 +90,7 @@ for V); every answer names its row, and the test file has one case per row. The 
 row wins. R is the run GitHub returned for the dispatch; its own lookup proves identity only.
 C is every `configured-suite.yml` `workflow_dispatch` run at the requested commit, on any
 branch, listed by `head_sha` with no time window, R included. Statuses and attempts come from
-that one listing, and a second read of it must match before any pass. A run "cancelled while pending" is one whose latest attempt was cancelled and had
+that listing, and every observation of every run must agree before any pass (V9). A run "cancelled while pending" is one whose latest attempt was cancelled and had
 no jobs started.
 
 | Row | When | Answer | Exit |
@@ -108,7 +108,7 @@ no jobs started.
 | V6 | a run in C was cancelled after its jobs started (or that cannot be read) | `cancelled` (or `unresolved`) | 1 |
 | V7 | R itself was cancelled while pending | `superseded`: never a pass; reconcile the record of the run dispatched after it, or `--recover` once. `obsolete` if the branch moved | 3 / 2 |
 | V8 | a run in C that was not cancelled is still running | `running` | 3 |
-| V9 | a second read of the listing, after every check above, is incomplete or differs in any run of C (the set of runs, an attempt number, a status or a conclusion) | `running`; reconcile again (unreadable: `unresolved`) | 3 / 1 |
+| V9 | unanimity fails: any two observations of a run disagree (R's own lookup, the listing, a second read taken after every check above), or the second read is incomplete or shows another set of runs. No snapshot is preferred | `running`; reconcile again (second read unreadable: `unresolved`) | 3 / 1 |
 | V10 | otherwise: R passed, and every other run in C passed on every attempt, twice read | pass | 0 |
 
 Only R's own run can pass (V10): no record borrows another run's pass, on any branch, because
@@ -205,6 +205,7 @@ ambiguity. These are fixtures.
 | Codex on `8e31f98c` (comment 4431949279) | R re-run between its own lookup and the listing: the listing's newer snapshot of R was dropped | a failure on the commit is never hidden | product defect | first C kept both snapshots of R; then, at the coordinator's request, the whole class of two reads disagreeing was closed: R's lookup proves identity only, statuses come from one listing, and a second read must match before any pass (V9); table cases first |
 | Codex on `fc515373` (comment 4431966863) | a cancelled candidate could adopt a pass from `main`'s run, which applies the quarantine while candidates do not | no record borrows another run's pass | product defect | coordinator decision: pass adoption removed entirely; V7 `superseded` never passes and recovers with a fresh dispatch; failures still collected across branches; table and tests updated |
 | Fresh `/so` on `fc515373` (grade B, table attack) | the same hole as the row above, reproduced; everything else in the table held (statuses, conclusions, attempts, cancels, listing, both snapshots) | no record borrows another run's pass | product defect | closed by the same decision; also `dispatch --ref main` is refused, since main's runs apply the quarantine; table case for a `main` run at the commit |
+| Codex on `f69616a2` (comment 4431986549) | the reverse snapshot race: R's own lookup showed a newer attempt still running while both listings showed the older attempt passed | two reads never disagree into a pass | product defect | coordinator decision: one unanimity rule (V9) over every observation of every run, R's lookup included; table cases for both directions |
 
 ## 7. Phase notes
 

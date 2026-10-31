@@ -181,14 +181,17 @@ export function settle(intent, lookedUp, facts = {}) {
   const counted = all.filter((other) => !pendingCancel(other));
   const pending = counted.find((other) => other.status !== 'completed');
   if (pending) return answer('V8', 'running', pending, null, `run ${pending.id} at this commit is still running`);
-  // Time of check versus time of use: re-read the listing; any change since means not yet.
-  const key = (runs) => JSON.stringify(runs.filter((other) => sameCheck(intent, other)).sort((x, y) => x.id - y.id)
-    .map((other) => [other.id, attemptOf(other), other.status, other.conclusion]));
+  // Unanimity (V9): every observation of every run must agree before any pass, R's own lookup,
+  // the first listing and a second read alike. No snapshot is preferred over another: a newer
+  // attempt or status anywhere, a missing or new run, or an incomplete re-read means not yet.
+  const seen = (other) => JSON.stringify([other.id, attemptOf(other), other.status, other.conclusion]);
+  const key = (runs) => JSON.stringify(runs.filter((other) => sameCheck(intent, other)).sort((x, y) => x.id - y.id).map(seen));
   let again;
   try { again = facts.recheck?.(); } catch { again = undefined; }
   if (!again || !Array.isArray(again.runs)) return answer('V9', 'unresolved', null, null, 'the list of runs at this commit could not be read a second time');
-  if (again.complete !== true || key(again.runs) !== key(all)) return answer('V9', 'running', null, null,
-    'the runs at this commit changed between two reads (a new run, a re-run or a status change); reconcile again');
+  if (seen(lookedUp) !== seen(run) || again.complete !== true || key(again.runs) !== key(all)) return answer('V9', 'running', null, null,
+    'the observations of the runs at this commit disagree (R\'s own lookup, the listing and its re-read: a newer attempt,'
+      + ' a status change, a new or missing run); reconcile again');
   return { ...answer('V10', 'verdict', run, 'success', `run ${run.id} and all ${counted.length - 1} other run(s) at this commit passed on every attempt, twice read`),
     runIds: counted.map((other) => other.id) };
 }
