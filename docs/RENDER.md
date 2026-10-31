@@ -303,8 +303,8 @@ IP_HASH_SALT=            (any long random string)
 
 The deploy build prebuilds the Remotion bundle (`vercel.json` buildCommand) and ships
 it to the functions (includeFiles); sandboxes get it via `addBundleToSandbox` — nothing
-of ours is npm-installed inside sandboxes. `@vercel/sandbox` is pinned to the version
-`@remotion/vercel` is built against; bump them together only.
+of ours is npm-installed inside sandboxes. `@vercel/sandbox` is exact-pinned on the 3.x SDK;
+its migration notes (persistence, runtime, name lookups) are in docs/STACK_FRESHNESS.md.
 
 Inside the sandbox, **all five formats** render through one worker
 (`render-worker/sandbox-job.mjs`, a detached command): it reads the manifest from a file

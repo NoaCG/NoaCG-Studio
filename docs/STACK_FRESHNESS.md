@@ -35,16 +35,18 @@ No automated dependency bumps, and no Dependabot. This is a deliberate call, not
 - **Remotion is exact-pinned in three package files** (`package.json`, `render-worker/`,
   `player-host/`) and they must move together. The split exists so a source-available licence
   never enters the AGPL bundle.
-- **`@vercel/sandbox` is exact-pinned** and runs the render worker. It is pinned to the version
-  `@remotion/vercel` is built against, and **its peer range is not evidence of anything**:
-  `@remotion/vercel` declares `@vercel/sandbox: ">=1.0.0"`, so npm will happily install a v2 that
-  its own compiled code cannot call. v2 removed the `sandboxId` API entirely — sandboxes are
-  addressed by `name` with session resume — while `@remotion/vercel@4.0.488`'s built output still
-  calls `Sandbox.get({ sandboxId })` and reads `sandbox.sandboxId` (`dist/index.mjs`, three
-  places). Our own three call sites in `api/_lib/executorSandbox.ts` fail typecheck, which is the
-  visible half; the dependency's calls fail at RUNTIME on a real hosted render, where no local
-  gate looks. **Checked 2026-08-03 against 2.9.2 and reverted.** It unblocks only on a
-  `@remotion/vercel` release built against v2 — check its compiled code, not its peer range.
+- **`@vercel/sandbox` is exact-pinned on 3.x** and runs the render worker (moved from 1.6.0 in
+  2026-10 for GHSA-mrhx-c7xc-m3w5: every 1.x pins a Zod 3 the fix never reached). Its peer
+  range in `@remotion/vercel` (`>=1.0.0`) is not evidence of anything: check compiled code.
+  `@remotion/vercel` still calls `Sandbox.get({ sandboxId })`, but only in `getRenderProgress`
+  and the render-on-Vercel path, which we do not use. We use only `createSandbox` and
+  `addBundleToSandbox`, whose calls exist in 3.x. Three 3.x behaviours are handled in
+  `api/_lib/executorSandbox.ts` and pinned by its test: sandboxes are persistent by default and
+  Sandbox-level calls resume a stopped one (we switch persistence off and read through the
+  Session); the default image is Ubuntu while `createSandbox` installs with `dnf` (it passes
+  the legacy `node24` runtime, Amazon Linux 2023, and the test fails if a Remotion bump changes
+  that); lookups are by `name` (job refs carry a `sbx3:` prefix). On any bump of either
+  package, rerun that test and one live render.
 - **The Vite build target must stay `es2017`** while CasparCG 2.3.x is supported
   (docs/CLOUD_PLAYOUT.md §3). A 2.3.2 client embeds a Chromium 71 CEF that rejects `?.` and
   `??` outright — a dead layer with nothing in the log. No automated gate catches this class.

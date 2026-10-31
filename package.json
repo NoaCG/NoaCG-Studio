@@ -219,7 +219,7 @@
     "@remotion/vercel": "^4.0.488",
     "@supabase/supabase-js": "^2.110.9",
     "@vercel/functions": "^3.7.5",
-    "@vercel/sandbox": "1.6.0",
+    "@vercel/sandbox": "3.9.1",
     "ai": "^7.0.93",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
