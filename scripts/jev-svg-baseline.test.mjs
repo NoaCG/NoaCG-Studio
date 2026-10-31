@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/assets/svgImport.ts, src/templates/importedDesign/**, src/templates/behaviours/**, src/components/wizard/import/**, src/preview/composeDocument.ts, src/model/fonts.ts, src/validation/**, e2e/fixtures/jev-svg/**, scripts/svg-import-passes.test.mjs, scripts/catalog-emit.mjs, scripts/driven-clock.mjs
+// guards: src/assets/svgImport.ts, src/templates/importedDesign/**, src/templates/behaviours/**, src/components/wizard/import/**, src/preview/composeDocument.ts, src/model/fonts.ts, src/validation/**, src/components/wizard/CreationWizard.tsx, public/fonts/**, e2e/fixtures/jev-svg/**, scripts/svg-import-passes.test.mjs, scripts/ladder-values.mjs, scripts/catalog-emit.mjs, scripts/driven-clock.mjs
 //
 // WHAT TODAY'S IMPORT DOES WITH THE 18 DEVELOPMENT DESIGNS, BEFORE ANY RECOGNITION WORK.
 //
@@ -23,8 +23,9 @@
 //               attributes, no namespace declarations: Chromium builds order those differently),
 //               and of the emitted css, js and NOACG_LAYOUT / NOACG_BEHAVIOUR tables
 //   gate        the export gate's refusals
-//   rest        the mounted design at rest: `<field> <painted lines> <font size %> over|fits`,
-//               compared only on the Chromium build it was recorded on (RECORDED_ON)
+//   text        the mounted design at rest, then with each LADDER_VALUES entry typed into every
+//               text field: `<field> <painted lines> <font size %> over|fits`. Compared on the
+//               Chromium build it was recorded on (RECORDED_ON), font size within TOLERANCE
 //
 // NO RE-RECORD SWITCH, ON PURPOSE. The record below is written by hand. A change that moves it
 // edits this file, so the difference is in the pull request's diff for a reviewer, never folded
@@ -37,6 +38,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { LADDER_VALUES } from './ladder-values.mjs';
 import { measured } from './measured.mjs';
 import { boundSvg, diff, recordInPage } from './svg-import-passes.test.mjs?library';
 
@@ -47,8 +49,10 @@ const labels = JSON.parse(readFileSync(`${DIR}dev.expect.json`, 'utf8'));
 const STRATA = ['lower-third', 'scoreboard', 'clock', 'quiz', 'credits', 'score-clock'];
 const sha = (s) => createHash('sha256').update(s ?? '').digest('hex');
 
-/** The Chromium build `rest` was recorded on; another build lays text out differently. */
+/** The Chromium build `text` was recorded on; another build lays text out differently. */
 const RECORDED_ON = '149.0.7827.55';
+/** Percentage points a font size may move and still match, as in the 51-file harness. */
+const TOLERANCE = 1;
 
 const designs = manifest.files.map((f) => {
   const markup = readFileSync(`${DIR}${f.path}`, 'utf8');
@@ -97,7 +101,7 @@ function anchorsOf(label) {
 const started = Date.now();
 let browser = null;
 let layered = null;
-const raws = await recordInPage(designs, {}, async (page, records) => {
+const raws = await recordInPage(designs, LADDER_VALUES, async (page, records) => {
   browser = page.context().browser().version();
   layered = await page.evaluate(LAYERS, designs.map((d) => {
     const raw = records[d.name];
@@ -129,8 +133,25 @@ function recordOf(raw, extra) {
       behaviour: sha(raw.tables.behaviour),
     },
     gate: raw.gate,
-    rest: raw.runtime.rest.lines.map((l) => `${l.id} ${l.lines} ${l.sizePct ?? '-'} ${l.over ? 'over' : 'fits'}`),
+    text: Object.fromEntries(['rest', ...Object.keys(LADDER_VALUES)].map((k) => [k, raw.runtime[k].lines.map((l) =>
+      `${l.id} ${l.lines} ${l.sizePct ?? '-'} ${l.over ? 'over' : 'fits'}`)])),
   };
+}
+
+/** Every text line that moved: painted lines and overflow exactly, font size within TOLERANCE. */
+function textMoves(was = {}, now = {}) {
+  const out = [];
+  for (const key of new Set([...Object.keys(was), ...Object.keys(now)])) {
+    const a = was[key] ?? [];
+    const b = now[key] ?? [];
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      const [x, y] = [a[i]?.split(' '), b[i]?.split(' ')];
+      const same = x && y && x[0] === y[0] && x[1] === y[1] && x[3] === y[3]
+        && (x[2] === y[2] || Math.abs(Number(x[2]) - Number(y[2])) <= TOLERANCE);
+      if (!same) out.push(`text.${key}.${i}: ${JSON.stringify(a[i])} -> ${JSON.stringify(b[i])}`);
+    }
+  }
+  return out;
 }
 
 /** Recorded 2026-10-31 on main 6b3592c3, before any jev-svg-import row changed the importer. */
@@ -169,7 +190,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits'] },
   },
   'lower-third-2': {
     behaviour: null,
@@ -208,7 +229,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits'] },
   },
   'lower-third-3': {
     behaviour: null,
@@ -230,7 +251,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: [],
+    text: { rest: [] },
   },
   'scoreboard-1': {
     behaviour: null,
@@ -274,7 +295,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'] },
   },
   'scoreboard-2': {
     behaviour: null,
@@ -317,7 +338,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'] },
   },
   'scoreboard-3': {
     behaviour: null,
@@ -383,7 +404,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits', 'f6 1 100 fits', 'f7 1 100 fits', 'f8 1 100 fits', 'f9 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits', 'f6 1 100 fits', 'f7 1 100 fits', 'f8 1 100 fits', 'f9 1 100 fits'] },
   },
   'clock-1': {
     behaviour: null,
@@ -413,7 +434,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits'] },
   },
   'clock-2': {
     behaviour: null,
@@ -445,7 +466,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits'] },
   },
   'clock-3': {
     behaviour: null,
@@ -479,7 +500,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits'] },
   },
   'quiz-1': {
     behaviour: 'quiz',
@@ -527,7 +548,7 @@ const BASELINE = {
       behaviour: 'a7ebb963fa864b84c15fc3fa9fa6b6f1b94ba3ed701fa60fb27ac61333229f8d',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'] },
   },
   'quiz-2': {
     behaviour: null,
@@ -586,7 +607,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits', 'f6 1 100 fits', 'f7 1 100 fits', 'f8 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits', 'f6 1 100 fits', 'f7 1 100 fits', 'f8 1 100 fits'] },
   },
   'quiz-3': {
     behaviour: 'recipe',
@@ -626,7 +647,7 @@ const BASELINE = {
       behaviour: '17d5e70f01e2236b374607c10b45818cf0369ba2243d5b870813db1d30bfa5b4',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits'] },
   },
   'credits-1': {
     behaviour: null,
@@ -672,7 +693,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits'] },
   },
   'credits-2': {
     behaviour: null,
@@ -719,7 +740,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits'] },
   },
   'credits-3': {
     behaviour: null,
@@ -761,7 +782,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'] },
   },
   'score-clock-1': {
     behaviour: null,
@@ -805,7 +826,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'] },
   },
   'score-clock-2': {
     behaviour: null,
@@ -849,7 +870,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits'] },
   },
   'score-clock-3': {
     behaviour: null,
@@ -901,7 +922,7 @@ const BASELINE = {
       behaviour: '74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b',
     },
     gate: [],
-    rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits', 'f6 1 100 fits'],
+    text: { rest: ['f0 1 100 fits', 'f1 1 100 fits', 'f2 1 100 fits', 'f3 1 100 fits', 'f4 1 100 fits', 'f5 1 100 fits', 'f6 1 100 fits'] },
   },
 };
 
@@ -915,18 +936,19 @@ test('the baseline is the 18 development designs, three per stratum, each file a
 
 for (const d of designs) {
   test(`${d.name}: the import matches its recorded baseline`, () => {
-    const { rest: wasRest, ...was } = BASELINE[d.name] ?? {};
-    const { rest, ...now } = records[d.name];
+    const { text: wasText, ...was } = BASELINE[d.name] ?? {};
+    const { text, ...now } = records[d.name];
     const lines = diff(was, now, 0);
-    if (browser === RECORDED_ON) diff({ rest: wasRest }, { rest }, 0, '', lines);
-    // Printed when anything moved, the uncompared layout included, so a CI log carries it.
-    if (lines.length || diff(wasRest, rest, 0).length) console.log(`[jev-svg-baseline] record ${d.name} ${JSON.stringify(records[d.name])}`);
+    const textMoved = textMoves(wasText, text);
+    if (browser === RECORDED_ON) lines.push(...textMoved);
+    // Printed when anything moved, the uncompared text included, so a CI log carries it.
+    if (lines.length || textMoved.length) console.log(`[jev-svg-baseline] record ${d.name} ${JSON.stringify(records[d.name])}`);
     assert.equal(lines.length, 0, `${d.name} moved from its baseline:\n  ${lines.join('\n  ')}`);
   });
 }
 
-// On CI a different build fails rather than skips: a browser upgrade must re-take `rest` in the diff,
+// On CI a different build fails rather than skips: a browser upgrade must re-take `text` in the diff,
 // never switch the comparison off unseen.
-test('the layout at rest is compared on the build it was recorded on', { skip: browser === RECORDED_ON || process.env.CI ? false : `recorded on Chromium ${RECORDED_ON}, this is ${browser}: CI compares it` }, () => {
-  assert.equal(browser, RECORDED_ON, `CI runs Chromium ${browser}, the record's text at rest is from ${RECORDED_ON}: take the printed records on this build and update RECORDED_ON`);
+test('the text is compared on the build it was recorded on', { skip: browser === RECORDED_ON || process.env.CI ? false : `recorded on Chromium ${RECORDED_ON}, this is ${browser}: CI compares it` }, () => {
+  assert.equal(browser, RECORDED_ON, `CI runs Chromium ${browser}, the record's text is from ${RECORDED_ON}: take the printed records on this build and update RECORDED_ON`);
 });
