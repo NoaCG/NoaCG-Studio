@@ -356,16 +356,15 @@ async function cpuMs(fn, reps) {
 }
 
 /** Asserts that reading 4x the input takes under 8x the time: linear reading takes about 4x,
- *  quadratic about 16x. Both sizes are read once first, so no sample counts a cold start. The CPU
- *  counter advances in ticks of about 4 ms, so each sample repeats the read until the small one
- *  takes 50 ms. Each size's fastest of five samples counts, the sizes taken in turn. The rounds
- *  stop past 10 s of CPU (a linear reader needs 1 to 3 s), so a quadratic one fails with its
- *  numbers well inside the CI job's time limit. */
+ *  quadratic about 16x. The CPU counter advances in ticks of about 4 ms, so each sample repeats
+ *  the read until the small one takes 50 ms, counted on warm reads (the lower of two). Each size's
+ *  fastest of five samples counts, the sizes taken in turn, so a cold first sample of the large
+ *  one is dropped too. The rounds stop past 10 s of CPU (a linear reader needs 1 to 3 s), so a
+ *  quadratic one fails with its numbers well inside the CI job's time limit. */
 async function assertLinear(label, small, big) {
   await small();
-  await big();
   let reps = 1;
-  while ((await cpuMs(small, reps)) < 50) reps *= 2;
+  while (Math.min(await cpuMs(small, reps), await cpuMs(small, reps)) < 50) reps *= 2;
   let s = Infinity;
   let b = Infinity;
   let spent = 0;
