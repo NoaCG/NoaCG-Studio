@@ -117,7 +117,8 @@
     "Phase 3 checker receipt named a nonexistent session id; recorded the actual sender session_017SdbwNmSrW7hcHFgiAZpAj. Briefs now ask for the exact get_session id.",
     "Before enabling auto-merge, confirm the final /so verdict is in the PR body (phase 4 builder edit had silently failed).",
     "Row 6: approved a one-entry addition to scripts/e2e-affected.test.mjs road list (new authorized spec joins the import road; exact-set assertion unchanged); cicd coordinator informed 19:39Z.",
-    "Row 6 configured-suite 41234246878 on old head 44783ae6: 145 passed, 0 failed, 1 flaky = e2e/configured/late-send-abandoned.spec.ts, already in e2e/quarantine.json since 2026-10-28 (#1805), outside this change; decide on the reviewed-head run, accept with written reason if it recurs."
+    "Row 6 configured-suite 41234246878 on old head 44783ae6: 145 passed, 0 failed, 1 flaky = e2e/configured/late-send-abandoned.spec.ts, already in e2e/quarantine.json since 2026-10-28 (#1805), outside this change; decide on the reviewed-head run, accept with written reason if it recurs.",
+    "cicd coordinator 19:40Z: ci06 (claude/plan-cicd-improvement-ci06-build, no PR yet) also edits scripts/e2e-affected.test.mjs and e2e-affected.mjs; agreed order: #1870 lands first, ci06 merges main after and keeps the entry. #1865 passed to the ci06 builder."
   ],
   "ownerOpen": [
     {
