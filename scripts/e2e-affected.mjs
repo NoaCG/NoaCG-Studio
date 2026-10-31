@@ -32,7 +32,7 @@ import { jobsDir, readJobs } from './jobs-store.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, FOCUS } from './e2e-lists.mjs';
+import { CONFIGURED_BACKEND, CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, FOCUS } from './e2e-lists.mjs';
 import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
 import {
@@ -963,9 +963,11 @@ export function planFor(
     // change most needs the configured suite. An edited configured spec (or its baselines) runs
     // itself; shared configured ground runs the whole set; a covers line runs its spec.
     const configuredSpec = /^e2e\/configured\/([^/]+\.spec\.ts)(?:-snapshots\/|$)/.exec(file)?.[1];
+    const configuredNamed = configuredCoverage.filter((c) => c.test(file)).map((c) => c.spec);
     if (configuredSpec) selectConfigured(file, [configuredSpec]);
-    else if (configuredShared(file)) configuredWhole.add(file);
-    selectConfigured(file, configuredCoverage.filter((c) => c.test(file)).map((c) => c.spec));
+    // Shared ground, or backend-facing source no configured header names: uncertain, the whole set.
+    else if (configuredShared(file) || (!configuredNamed.length && CONFIGURED_BACKEND.some((r) => r.test(file)))) configuredWhole.add(file);
+    selectConfigured(file, configuredNamed);
     // The catalog reach is asked before IGNORE for the same reason: a script a catalog spec imports
     // (scripts/rules.mjs) is ignored for the offline suite and is still something the gate runs.
     if (inCatalogReach(file, reach)) catalog = true;

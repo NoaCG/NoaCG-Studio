@@ -86,6 +86,20 @@ test('ci06: helpers, live config, setup, workflows and the toolchain select the 
   assert.equal(configuredFullFor('e2e/configured/teams.spec.ts-snapshots/a.png'), false);
 });
 
+test('ci06: backend-facing source no configured header names selects the whole set (/so finding on 39823f74)', () => {
+  for (const file of ['api/_lib/http.ts', 'api/_lib/auth.ts', 'api/new-route.ts', 'src/backend/supabase.ts']) {
+    const p = plan([file]);
+    assert.equal(p.configuredAll, true, file);
+    assert.ok(p.configuredReasons.whole.includes(file), file);
+  }
+  // A backend file a configured header names runs those specs, not the whole set.
+  const named = plan(['src/backend/teams.ts']);
+  assert.equal(named.configuredAll, false);
+  assert.ok(named.configuredSpecs.includes('teams.spec.ts'));
+  // A test beside the code is not the backend.
+  for (const file of ['api/_lib/http.test.ts', 'api/_lib/aiGateway.test.ts']) assert.equal(plan([file]).configuredAll, false, file);
+});
+
 test('ci06: an uncertain shared change (any offline escalation) selects the whole configured set', () => {
   for (const file of ['src/brand-new-area/thing.ts', 'src/model/shows.ts', 'src/store/index.ts', 'src/components/spaceKey.ts']) {
     for (const sprintFocus of [false, true]) {

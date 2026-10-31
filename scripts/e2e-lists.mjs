@@ -234,6 +234,15 @@ export const CONFIGURED_COVERAGE = coverageOf(CONFIGURED_HEADERS);
  * The toolchain scripts (planner, shard packer, verdict, reporter) are added by import closure in
  * scripts/e2e-affected.mjs (`configuredToolchain`), so a script they start importing is covered too.
  */
+/**
+ * THE BACKEND-FACING SOURCE (ci06): the serverless API and the browser's backend client. A
+ * configured header that names one of these files selects its specs; one that NO configured header
+ * names is an uncertain dependency of the configured suite (a shared server module such as
+ * api/_lib/http.ts or auth.ts, or a new route) and selects the whole set, as an unmapped file
+ * escalates the offline plan. Tests beside the code are not the backend.
+ */
+export const CONFIGURED_BACKEND = [/^api\/(?!.*\.test\.[cm]?[jt]s$).+\.[cm]?[jt]sx?$/, /^src\/backend\/(?!.*\.test\.[cm]?[jt]s$).+\.[cm]?[jt]sx?$/];
+
 export const CONFIGURED_FULL = [
   /^e2e\/configured\/(?![^/]+\.spec\.ts(?:-snapshots\/|$))/,
   /^playwright\.live\.config\.ts$/,

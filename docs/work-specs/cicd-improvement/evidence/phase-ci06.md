@@ -33,6 +33,9 @@ stays open: its three-plan cohort is ci14.
      `.github/actions/`, `package.json`, `package-lock.json`, `vite.config.ts`) and the toolchain
      read off imports (`configuredToolchain`: the planner, shard packer, verdict and run-integrity
      reporter and everything they import);
+   - the **whole set** for backend-facing source no configured header names
+     (`CONFIGURED_BACKEND`: `api/` and `src/backend/`, tests excluded), such as a shared server
+     module (`api/_lib/http.ts`, `auth.ts`) or a new route. Added after the first `/so` (section 10);
    - the **whole set** for every file the offline plan escalates (CORE, unmapped, broad, a stale
      traced map, `ESCALATES_WITH_HEADERS`). The spec's "uncertain dependencies" are the planner's
      own uncertain class; a configured header that names such a file adds nothing it does not
@@ -84,7 +87,7 @@ stays open: its three-plan cohort is ci14.
 | (a) Every configured spec declares covers or a justified none | 12 headers added; `auditSpecHeaders` rule 4 and its fixture; `ci06: every configured spec declares ...` over the real repository | pass |
 | (a) Edited specs still run | `ci06: an edited configured spec runs itself, and a deleted one plans nothing` | pass |
 | (a) Exact selected spec/case identity, not only a boolean | spec identity in the plan JSON (`ci06: the planner CLI carries the manifest ...`), shown in the plan job's summary; case identity is the `--list` manifest uploaded with the verdict (`configured-selected-report` artifact, `configured-manifest.json`) | pass |
-| (a) Helper, live config, setup, workflow and uncertain shared changes select the full set | `ci06: helpers, live config, setup, workflows and the toolchain ...`, `ci06: an uncertain shared change ...` | pass |
+| (a) Helper, live config, setup, workflow and uncertain shared changes select the full set | `ci06: helpers, live config, setup, workflows and the toolchain ...`, `ci06: backend-facing source no configured header names ...`, `ci06: an uncertain shared change ...` | pass |
 | (b) Triggered PRs execute every selected case on an isolated migrated local stack | Run 41233844505 (section 5): the whole set, 68 specs on 4 local stacks, each migrated and asserted by the shared action; 145 tests ran and passed, 3 skipped inside `expected-run.json`'s allowed skips; the verdict matched the report to the `--list` manifest; CI gate green | pass |
 | (b) Missing, empty, mismatched or unexpectedly skipped results fail the existing CI gate, which reads the planner flag | verdict tests `ci06: missing, empty, mismatched or unexpectedly skipped ...`; the gate step run from ci.yml under bash (`ci06: the CI gate reads the planner flag ...`, `... accepts a skip only when ...`) | pass |
 | (c) Untriggered PR and explicit merge-group skip cases | Untriggered: the selection step run from ci.yml under bash (`ci06: the selection step turns the manifest into the flag ...`) and a real dispatched run whose diff selects nothing (section 5). Merge group: the same step exempts it and the gate refuses a merge group that does not say 'false' (tests above); the first real merge group is this PR's own landing, which the checker reads | pass (real merge-group run: at landing) |
@@ -95,7 +98,7 @@ stays open: its three-plan cohort is ci14.
 Mutation check, each change reverted alone with the tests run: escalation not coupled (1
 failure), shared ground off (2), an edited spec not selected (2), the manifest check off (1), the
 extra-test check off (1), an empty flag read as 'false' in the gate (1), the merge-group check off
-(1), the configured header refusal off (1), the quarantine split off (1).
+(1), the configured header refusal off (1), the quarantine split off (1), the backend-facing rule off (1).
 
 ## 5. Real Actions runs
 
@@ -119,7 +122,9 @@ trigger or catalog rule changed, so **0 graphics runner-minutes** are added; not
 on #1863.
 
 Selection share, replaying the 56 first-parent landings in this clone (`302d565b` to `11523106`)
-through the ci06 planner with sprint focus and the committed traced map: 31 select nothing, 3 a
+through the ci06 planner with sprint focus and the committed traced map (re-run after the
+backend-facing rule, identical: every landing in the window that touched unnamed backend source
+already selected the whole set for another reason): 31 select nothing, 3 a
 subset (about 3 test-minutes, one stack, about 6 runner-minutes), 22 the whole set. The whole-set
 reasons: an offline escalation (src/components broad files 6, unmapped 9, src/model 3,
 src/preview 2, others 4), dependency manifests (6 and 5), workflows (3), the planner's scripts
@@ -228,3 +233,12 @@ From the next phase on, the coordinator:
 - `CI=1 npx playwright test -c playwright.live.config.ts --list --reporter=json` locally: ids
   present and stable, no backend needed.
 - Real Actions runs: section 5 and the PR description.
+- First `/so` (fresh read-only cloud session, head `39823f74`): AGREE WITH CORRECTIONS, grade B.
+  Its one blocking finding, confirmed by running the planner: `api/_lib/http.ts`, `auth.ts`, a new
+  `api/` route and `src/backend/supabase.ts` selected no configured spec, so once the routine
+  dispatch stopped they would get no backend check before merge. Fixed by the backend-facing rule
+  (section 2) with a test and its mutation. Family: a missing uncertain-dependency class in the
+  selection rule; class: product defect in the selector. Its other notes (the real merge group is
+  proven at landing; the cost depends on the dispatch stopping) are stated in sections 4, 6 and 8.
+- After coordinator input: the shared action retries the stack start once (#1865), pinned by a
+  test that counts exactly two starts.

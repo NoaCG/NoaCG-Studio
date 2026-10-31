@@ -131,7 +131,8 @@ configured spec runs itself, a `covers:` line runs its spec, a changed helper or
 the configured specs that import or read it, and the WHOLE configured set runs for the suite's
 shared ground (`CONFIGURED_FULL` in `scripts/e2e-lists.mjs` and the toolchain scripts read off
 imports: helpers, `playwright.live.config.ts`, `supabase/`, the workflows and shared actions,
-dependency manifests, the planner and verdict) and for any change the offline plan escalates. A
+dependency manifests, the planner and verdict), for backend-facing source (`api/`, `src/backend/`)
+that no configured header names, and for any change the offline plan escalates. A
 quarantined spec leaves the selection unless the change edits it. ci.yml's `configured` jobs run
 the selection on a local stack (`.github/actions/configured-stack`, shared with
 `configured-suite.yml`), and `configured-verdict` checks the merged report against a
