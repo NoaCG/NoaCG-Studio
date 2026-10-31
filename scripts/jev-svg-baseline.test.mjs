@@ -48,7 +48,7 @@ const STRATA = ['lower-third', 'scoreboard', 'clock', 'quiz', 'credits', 'score-
 const sha = (s) => createHash('sha256').update(s ?? '').digest('hex');
 
 /** The Chromium build `rest` was recorded on; another build lays text out differently. */
-const RECORDED_ON = '153.0.8010.12';
+const RECORDED_ON = '149.0.7827.55';
 
 const designs = manifest.files.map((f) => {
   const markup = readFileSync(`${DIR}${f.path}`, 'utf8');
