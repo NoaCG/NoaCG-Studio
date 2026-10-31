@@ -1,6 +1,6 @@
 # Phase 2: independent corpus and labels
 
-Run `plan-jev-svg-import-2026-10-31` (issue #1850). Acceptance subset: AC-2. Builder: Claude Code
+Run `plan-jev-svg-import-2026-10-31` (issue #1850), PR #1853. Acceptance subset: AC-2. Builder: Claude Code
 cloud worker created by coordinator `session_017SdbwQ6d3pRaakjohGfCcC`, environment
 `env_017nuiDZBW9smUNLdWVQK8cf`. Recorded 2026-10-31 UTC. No product source changed, no model
 call was made and no spend occurred.
@@ -96,6 +96,6 @@ Frozen hashes at this landing, for files the receipt does not cover:
 
 On a fresh branch from `origin/main`, landed through the merge queue:
 
-    git revert -m 1 "$(git log origin/main --merges --format=%H -1 --grep='Merge pull request #<this PR> ')"
+    git revert -m 1 "$(git log origin/main --merges --format=%H -1 --grep='Merge pull request #1853 ')"
 
 It removes this file and the three `tier` fields with their definitions.
