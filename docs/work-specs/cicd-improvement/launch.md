@@ -14,6 +14,19 @@ Owner words:
 > Can you make the runner changes here first, so the cloud session can just start the CI plan
 > instead of having to fix the plan-run system before it starts?
 
+## Provider override, 2026-10-31
+
+The run started on 2026-10-31 in Claude Code Cloud (run issue #1842, project authorization
+`plan-cicd-improvement-2026-10-31`). Owner words, verbatim:
+
+> I explicitly authorize Claude Code Cloud instead of Codex Cloud for this run while the Codex
+> issues in #1301 remain unresolved. This supersedes the Codex-only provider wording in the plan
+> registration, spec, launch.md and work.json authority description. Preserve all other approved
+> scope, acceptance, budgets and safeguards. Do not switch providers again automatically.
+
+The Codex Cloud wording below is kept as history. Where it names the provider, this override
+governs. Everything else in this policy stays binding unchanged.
+
 ## One-command activation
 
 An owner invocation of `$plan-run cicd-improvement` starts admission using this policy. No
@@ -24,7 +37,10 @@ project, issue or trigger while that route is unqualified. This is not permissio
 launch merely because this file is read or merged.
 
 - Scope: the 18 ordered rows ci01-ci18 and their exact acceptance. P5/P6 stay excluded.
-- Provider: Codex Cloud. Do not substitute Claude, local workers or an API service.
+- Provider: Claude Code Cloud, under the 2026-10-31 override above. Do not substitute Codex,
+  local workers or an API service, and do not switch providers again automatically.
+  Original 2026-10-30 wording, superseded: "Provider: Codex Cloud. Do not substitute Claude,
+  local workers or an API service."
 - Actual start is the future successful launch time. Default planning target is start +14 days.
   An explicit `until <date>` replaces the initial target, not this completion policy. Resolve
   this owner's times in Europe/Kiev and record the actual offset. Preserve instants on resume.
@@ -44,7 +60,11 @@ launch merely because this file is read or merged.
   unrelated non-critical detection bound, audit reset rules and 14 clean days of observation.
   A two-week target does not promise completion in two weeks or shorten that observation.
 
-## Current platform prerequisite
+## Platform prerequisite
+
+The first paragraph below is history: the 2026-10-30 Codex Cloud findings that led to the
+2026-10-31 override. The rules in the second paragraph still bind the live Claude Code Cloud
+route; read "the owning Codex Cloud coding chat" there as the run's owning coding session.
 
 The [2026-10-30 cloud qualification](../renewable-plan-runs/evidence.md) passed coordinator and
 same-VM worker execution, Git access and disposable push. Independently hosted worker creation,
