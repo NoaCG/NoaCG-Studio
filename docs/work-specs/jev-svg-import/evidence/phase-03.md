@@ -34,7 +34,7 @@ What today's import does with these designs (facts for later rows, not a score):
 - Behaviour proposed for 2 of 18: `quiz` for quiz-1 and `recipe` for quiz-3. No scoreboard,
   clock, credits or score+clock design gets a behaviour.
 - Every labelled field anchor resolves to an importer layer and is offered on.
-- Decoys: of 23 non-editable anchors, 16 are offered as live fields (on), 2 are offered off and 5
+- Decoys: of 23 non-editable anchors, 19 are offered as live fields (on), 1 is offered off and 3
   have no importer layer.
 - lower-third-3, the outline-only negative, has one shape and no fields.
 
