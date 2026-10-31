@@ -109,6 +109,12 @@
       "pr": 1864,
       "checker": "session_017SdbwMTGSHtax14wmvEa4b",
       "note": "configured-suite attempt 2 after #1865 infra"
+    },
+    {
+      "phase": "6",
+      "mergeSha": "874c589b4df4449ba8819c784c6d1da983d33166",
+      "pr": 1870,
+      "checker": "session_017SdbwPHAGa7Qes3TUhCwZS"
     }
   ],
   "coordinatorNotes": [
@@ -132,5 +138,15 @@
     "corpus-receipt.json status still says independent admission pending (outside row 2 files)",
     "#1865: configured-suite local Supabase start fails before tests (3 times 31 Oct); infra, owned by cicd-improvement; never counts as a test failure",
     "#1867 (P3, from phase 5 builder): contract test keeps its own copy of the role table; row 4 doc nit"
+  ],
+  "carryForward": [
+    {
+      "forPhases": [
+        "35",
+        "36"
+      ],
+      "from": "6",
+      "note": "Re-prove that a deliberate correction survives a UI-driven reanalysis of look-alike layers (row 6 proved it at the proposal door only)."
+    }
   ]
 }
