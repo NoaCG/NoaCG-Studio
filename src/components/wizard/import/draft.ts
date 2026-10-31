@@ -1450,7 +1450,10 @@ function withSvgOutlineFields(
 // and every test that builds an import "as the wizard would" build the same draft.
 
 /** The draft as it stood before a drop or a clear: what decides the graphic's name. */
-type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'>;
+/** What a drop is told about the draft it lands on. The answers are optional: only a drop of
+ *  the SAME artwork reads them (`svgKeptOnRedrop`), and a caller with none gets a fresh drop. */
+type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'> &
+  Partial<Pick<WizardDraft, Extract<keyof SvgImportDraft, `svg${string}`> | 'designFields' | 'animation'>>;
 
 /** Every key a drop sets, so leaving one out does not compile: the whole slice but the raster
  *  road's baked-text answer, and the wizard-level keys that make the draft an imported design. */
@@ -1560,7 +1563,7 @@ export function svgDraftFromImport(
       : 1;
   // The rows and the behaviour: the answers a proposal may later replace (svgDropAnswers).
   const answers = svgDropAnswers(result);
-  return {
+  const fresh: SvgDropPatch = {
     designSvg: {
       ...result,
       width: Math.round(result.width * fit),
@@ -1609,6 +1612,33 @@ export function svgDraftFromImport(
     lines: [],
     zone: null,
     animation: { presetId: null, outPresetId: null },
+  };
+  return previous.svgFields?.length && previous.designSvg?.markup === result.markup ? svgKeptOnRedrop(fresh, previous) : fresh;
+}
+
+/**
+ * THE SAME ARTWORK DROPPED AGAIN KEEPS THE READER'S DRAFT (docs/work-specs/jev-svg-import, row 6,
+ * AC-20). The reader reads it again and finds exactly what it found before, so nothing it offers
+ * is new, and every answer the reader gave stays: the rows, the behaviour, growth, fonts, the
+ * fields they drew, the motion, and the reference a later proposal is measured against. A
+ * proposal reaches the draft only through `svgDraftWithProposal`, which never overrides a
+ * correction. Same markup is same revision: the reader's ids are positions in it, so every row
+ * still names the layer it named, however alike two layers are. Different artwork is a fresh
+ * drop; taking the SVG back first (`svgDraftCleared`) is how a reader starts this one over.
+ */
+function svgKeptOnRedrop(fresh: SvgDropPatch, previous: SvgDropPrevious): SvgDropPatch {
+  return {
+    ...fresh,
+    svgFields: previous.svgFields ?? fresh.svgFields,
+    svgImages: previous.svgImages ?? fresh.svgImages,
+    svgOutlines: previous.svgOutlines ?? fresh.svgOutlines,
+    svgBehaviour: previous.svgBehaviour ?? null,
+    svgExtras: previous.svgExtras ?? fresh.svgExtras,
+    svgStretch: previous.svgStretch ?? fresh.svgStretch,
+    svgFonts: previous.svgFonts ?? fresh.svgFonts,
+    svgApplied: previous.svgApplied,
+    designFields: previous.designFields ?? fresh.designFields,
+    animation: previous.animation ?? fresh.animation,
   };
 }
 

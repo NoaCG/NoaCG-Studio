@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { uuid } from '../../../model/id';
 import { fontNameKey } from '../../../model/fonts';
 import type { DraftPatch, WizardDraft } from '../draft/core';
@@ -205,9 +205,25 @@ export default function MapSvgFieldsStep({
   // than measured here — and reported as a candidate id, because that marker is what the
   // preview's markup keeps (WizardOptions.previewMarkers). Cleared when the step unmounts:
   // an outline left lit over a graphic nobody is choosing layers for any more is a lie.
+  // A SELECTED row keeps its layer lit (docs/work-specs/jev-svg-import, row 6): the reader who
+  // clicks into a row to correct it then looks at the preview, and the pointer leaving the row
+  // on the way there must not take the answer away. Selection is focus inside the row, so the
+  // keyboard selects too and leaving the row ends it. A pointer hover elsewhere still wins while
+  // it lasts; a hover a behaviour picker wrote on FOCUS is not one, so focusing a row clears it.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const pointedId = hoverId ?? selectedId;
+  const selectable = (id: string) => ({
+    onFocus: () => {
+      setSelectedId(id);
+      setHoverId((h) => (h === id ? h : null));
+    },
+    onBlur: (e: FocusEvent<HTMLElement>) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSelectedId((s) => (s === id ? null : s));
+    },
+  });
   useEffect(() => {
-    onHover(hoverId);
-  }, [hoverId, onHover]);
+    onHover(pointedId);
+  }, [pointedId, onHover]);
   useEffect(() => () => onHover(null), [onHover]);
 
   // ── ADD A FIELD WHERE THE FILE DREW NOTHING (docs/SVG_IMPORT_PLAN.md §6a step 3) ──
@@ -482,10 +498,10 @@ export default function MapSvgFieldsStep({
   // Keyed on the hovered row's DECLARED answer rather than on the field list, which is a fresh
   // array on every keystroke in a Text box: a patch copies the row and keeps its `align` object,
   // so the overlay is re-sent when the grid is clicked and not while the reader types.
-  const hoveredAlign = hoverId ? draft.svgFields.find((f) => f.candidateId === hoverId)?.align : undefined;
+  const hoveredAlign = pointedId ? draft.svgFields.find((f) => f.candidateId === pointedId)?.align : undefined;
   useEffect(() => {
-    const boxId = hoverId ? boxOfRow[hoverId] : undefined;
-    const fit = hoverId ? boxFits[hoverId] : undefined;
+    const boxId = pointedId ? boxOfRow[pointedId] : undefined;
+    const fit = pointedId ? boxFits[pointedId] : undefined;
     onBoxOverlay(
       boxId && fit
         ? {
@@ -497,7 +513,7 @@ export default function MapSvgFieldsStep({
           }
         : null,
     );
-  }, [hoverId, boxOfRow, boxFits, onBoxOverlay, hoveredAlign]);
+  }, [pointedId, boxOfRow, boxFits, onBoxOverlay, hoveredAlign]);
   useEffect(() => () => onBoxOverlay(null), [onBoxOverlay]);
 
   // ── GROWTH IS CHOSEN PER BOX (docs/TEXT_BOX_BINDING.md, rung 4) ──
@@ -1239,6 +1255,7 @@ export default function MapSvgFieldsStep({
               className={`map-svg-row ${f.on ? '' : 'off'}`}
               onMouseEnter={() => setHoverId(f.candidateId)}
               onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
+              {...selectable(f.candidateId)}
               data-testid={`map-svg-row-${f.candidateId}`}
             >
               <input
@@ -1351,7 +1368,6 @@ export default function MapSvgFieldsStep({
                                 title={`${SVG_ALIGN_WORD[h]}, ${v}${
                                   drawn ? ' - read from your drawing' : chosen ? ' - set by you' : ''
                                 }`}
-                                onFocus={() => setHoverId(f.candidateId)}
                                 onClick={() =>
                                   patchField(f.candidateId, {
                                     // The drawn dot IS "read from your drawing", so it clears the
@@ -1451,12 +1467,12 @@ export default function MapSvgFieldsStep({
                 data-testid={`map-svg-nudge-${f.candidateId}`}
                 onMouseEnter={() => setHoverId(f.candidateId)}
                 onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
+                {...selectable(f.candidateId)}
               >
                 <input
                   type="checkbox"
                   checked={!!f.keepNudge}
                   disabled={!f.on}
-                  onFocus={() => setHoverId(f.candidateId)}
                   onChange={(e) => patchField(f.candidateId, { keepNudge: e.target.checked || undefined })}
                 />
                 <span>keep the nudge you drew: {nudgeWords(fit.nudge)}</span>
@@ -1740,6 +1756,7 @@ export default function MapSvgFieldsStep({
               className={`map-svg-row ${f.on ? '' : 'off'}`}
               onMouseEnter={() => setHoverId(f.candidateId)}
               onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
+              {...selectable(f.candidateId)}
               data-testid={`map-svg-image-${f.candidateId}`}
             >
               <input
@@ -1793,6 +1810,7 @@ export default function MapSvgFieldsStep({
               className={`map-svg-row ${f.on ? '' : 'off'}`}
               onMouseEnter={() => setHoverId(f.candidateId)}
               onMouseLeave={() => setHoverId((h) => (h === f.candidateId ? null : h))}
+              {...selectable(f.candidateId)}
               data-testid={`map-svg-outline-${f.candidateId}`}
             >
               <input
