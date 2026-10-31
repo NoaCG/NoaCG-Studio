@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-31T07:36:53.660802+00:00",
+  "updatedAt": "2026-10-31T07:52:06.928660+00:00",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -286,7 +286,7 @@
       "execSessionRecovery": "After reattachment, oldunifiedexecsession handles were unavailable while ownedVitePIDs still existed. Reconciled by exactprocessarguments andstopped thoseownedservers; no duplicatework launched. Does not proveVMreclamation/filesystem restoration."
     }
   },
-  "resume": "Current active repair is PR #1841, security/minimatch-2026-10-31 at 0be00bff71149764a1e04ab635c38d9b1eb95c5e in /workspace/security-minimatch. Read its current head/checks/owner receipt before acting; one repair owner. Preserve all tests and land only through queue-merge. Observe exact merge and post-landing results, then finish checkpoint/cleanup. Owner supplied minimatch alerts84/83; gap now metadata-resolved. Test agent key already revoked and HTTP401 verified; user will replace the approved managed secret. Sandbox/Zod#56 remains blocked by supported SDK contracts (issue1752). No Jev run; wake/recovery qualification and40phases/$5/14days unchanged.",
+  "resume": "PR1841 has merged at cba1fcf2c5096aca5be9b64fa5eb472ead395d5e; headCI41181084576 and mergeGroup41181623147 passed. Current coordinator still owns post-landing results: mainCI41182134885, configured41182134823, post41182134872, CodeQL41182134690, quarantine41182134832 and applicable deployment verification. Reconcile these receipts before any takeover. Then update checkpoint and finish the owned worktree. Minimatch83 exact-claim false-positive evidence is in minimatch-followup.json; no administrative dismissal. Sandbox/Zod56 remains blocked under issue1752. Test key already revoked/HTTP401 verified; user will replace secret. No Jev start;40phases/$5/14days unchanged.",
   "qualificationReceipts": {
     "preparationPR": 1825,
     "sealedSecretProbe": 41125379127,
@@ -358,7 +358,7 @@
     1837,
     1838
   ],
-  "status": "Prior 11 PRs are terminal. Minimatch follow-up #1841 is active; remain through merge and post-landing results.",
+  "status": "All 12 source PRs merged; PR1841 repair ownership stays active until exact-merge CI/configured/post-landing verification is terminal.",
   "landedPRs": [
     1452,
     1589,
@@ -749,8 +749,14 @@
     "report": "minimatch-followup.json",
     "pr": 1841,
     "head": "0be00bff71149764a1e04ab635c38d9b1eb95c5e",
-    "status": "in_progress",
+    "status": "merged_post_landing_pending",
     "repairOwner": "Current Codex coordinator remains active through merge and exact-merge/post-landing results.",
-    "ownerComment": 6540664598
+    "ownerComment": 6540664598,
+    "mergeSha": "cba1fcf2c5096aca5be9b64fa5eb472ead395d5e",
+    "mergeGroupRun": 41181623147,
+    "mergeGroupConclusion": "success",
+    "mainCIRun": 41182134885,
+    "configuredSuiteRun": 41182134823,
+    "postLandingRun": 41182134872
   }
 }
