@@ -129,7 +129,8 @@
     "Row 6 configured-suite 41234246878 on old head 44783ae6: 145 passed, 0 failed, 1 flaky = e2e/configured/late-send-abandoned.spec.ts, already in e2e/quarantine.json since 2026-10-28 (#1805), outside this change; decide on the reviewed-head run, accept with written reason if it recurs.",
     "cicd coordinator 19:40Z: ci06 (claude/plan-cicd-improvement-ci06-build, no PR yet) also edits scripts/e2e-affected.test.mjs and e2e-affected.mjs; agreed order: #1870 lands first, ci06 merges main after and keeps the entry. #1865 passed to the ci06 builder.",
     "Row 7: clock recipe deliberately outside BEHAVIOUR_RECIPES until an owner Illustrator example exists (spec line 182); naming.ts will not propose clock layer names until then; rows 8-12 must not rely on it.",
-    "Known flake #1778 (production-controls.spec.ts:2659 Setup Look, 110 s timeout on look-brand select) hit row 6 old head 44783ae6 and row 7 c90594e9 E2E 9/15; not quarantined; outside SVG import. Handle as red gate outside the change if it recurs on a reviewed head; fail-then-pass on one commit needs quarantine."
+    "Known flake #1778 (production-controls.spec.ts:2659 Setup Look, 110 s timeout on look-brand select) hit row 6 old head 44783ae6 and row 7 c90594e9 E2E 9/15; not quarantined; outside SVG import. Handle as red gate outside the change if it recurs on a reviewed head; fail-then-pass on one commit needs quarantine.",
+    "Since ci06 (#1872, 26095c82): the selected configured check is part of the PR CI gate; coordinator verifies the CI run head_sha equals the reviewed head and reads its Configured selection; no routine configured-suite dispatch. Kit templates refreshed from main af39c249 at 21:50Z."
   ],
   "ownerOpen": [
     {
