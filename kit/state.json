@@ -110,7 +110,8 @@
       "repairOwnerComment": 6542394883,
       "postLand": "CI 41197798930, configured-suite 41197798902, Post-landing 41197798980, Quarantine 41197798944, Push on main 41197798778 all success; repair ownership complete",
       "pass": "2026-10-31T11:59:34Z by checker-ci02-ci02-c-0762",
-      "checkerFindings": "non-blocking: JEV candidate pool may be larger; Risky row silent on fixing pre-code /so findings"
+      "checkerFindings": "non-blocking: JEV candidate pool may be larger; Risky row silent on fixing pre-code /so findings",
+      "checkerSession": "session_017SdbwNaUnWd8a1wdrJE8tu (checker corrected its self-reported id at 11:59:20Z; the PASS record already names this launched session)"
     }
   ],
   "coordinatorNotes": [
