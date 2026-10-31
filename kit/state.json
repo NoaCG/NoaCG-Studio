@@ -27,20 +27,17 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": {
-    "what": "phase 3 checker verdict on aa84e1e4 (exact-merge CI, configured-suite, post-land)",
-    "eta": "2026-10-31T15:35:00Z"
-  },
+  "waitingOn": null,
   "inFlight": [
     {
-      "phase": "3",
-      "step": "check",
-      "session": "session_017SdbwNmSrW7hcHFgiAZpAj",
-      "nonce": "3-c-7e1e",
-      "mergeSha": "aa84e1e4e00fed784ec3e1d89af879aa948e866a",
-      "pr": 1858,
-      "launchedAt": "2026-10-31T14:50:30Z",
-      "note": "checker waits for exact-merge checks; coordinator remains #1858 repair owner through post-land"
+      "phase": "4",
+      "step": "build",
+      "session": "session_017SdbwQXMLVdn1z11xNz6hD",
+      "nonce": "4-b-e211",
+      "branch": "claude/plan-jev-svg-import-4-build",
+      "source": "99c461b8ed30c2a03dfc87a002573263473a2425",
+      "launchedAt": "2026-10-31T15:07:47Z",
+      "note": "builder; coordinator becomes PR repair owner once the PR exists"
     }
   ],
   "owner": [],
@@ -90,12 +87,19 @@
       "mergeSha": "7f0a00baadea97b14073ec7c48fbb796ddd8da13",
       "pr": 1853,
       "checker": "session_017SdbwLYxxdnKLPSXpi4vqQ"
+    },
+    {
+      "phase": "3",
+      "mergeSha": "aa84e1e4e00fed784ec3e1d89af879aa948e866a",
+      "pr": 1858,
+      "checker": "session_017SdbwNmSrW7hcHFgiAZpAj"
     }
   ],
   "coordinatorNotes": [
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z).",
     "Builders run the final /so as a separate create_session, not a subagent (phase 2, 12:49Z). Add that line to every build brief launch.",
-    "Phase 2 configured-suite on 7f0a00ba: attempt 1 shard 3 failed at Start the local Supabase stack before tests (aggregate 96 passed, 0 failed, 0 flaky); attempt 2 green. Infra, not a fail-then-pass."
+    "Phase 2 configured-suite on 7f0a00ba: attempt 1 shard 3 failed at Start the local Supabase stack before tests (aggregate 96 passed, 0 failed, 0 flaky); attempt 2 green. Infra, not a fail-then-pass.",
+    "Phase 3 checker receipt named a nonexistent session id; recorded the actual sender session_017SdbwNmSrW7hcHFgiAZpAj. Briefs now ask for the exact get_session id."
   ],
   "ownerOpen": [
     {
