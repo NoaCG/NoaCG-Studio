@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "project": "plan-cicd-improvement-2026-10-31",
+  "plan": "cicd-improvement",
+  "spec": "docs/work-specs/cicd-improvement/spec.md",
+  "issue": 1842,
+  "coordinator": {
+    "session": "session_017SdbwPphatUYXtpZ9CHkPu",
+    "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
+    "return": "send it with mcp__claude-code-remote__send_message (or mcp__Claude_Code_Remote__send_message) to session_017SdbwPphatUYXtpZ9CHkPu, and also print it as your final answer"
+  },
+  "provider": {
+    "name": "Claude Code Cloud",
+    "override": "Owner 2026-10-31: Claude Code Cloud instead of Codex Cloud while the #1301 Codex issues remain unresolved; supersedes the Codex-only wording in plan-run.md registration, spec, launch.md and work.json authority. Never switch providers automatically; recovery keeps Claude.",
+    "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
+  },
+  "authorization": {
+    "line": "Owner /plan-run cicd-improvement in Claude Code Cloud session session_017SdbwPphatUYXtpZ9CHkPu, 2026-10-31: run the 18 ordered phases ci01-ci06, ci18, ci07-ci17 until complete; planning target actual start +14 days in Europe/Kiev.",
+    "startedAt": "2026-10-31T10:10:00+02:00",
+    "deadline": "2026-11-14T10:10:00+02:00",
+    "standing": {
+      "untilComplete": "Continue this approved scope until complete. (launch.md, 2026-10-30: \"We just need to do it as fast as possible, and it works as long as it needs to work.\")",
+      "blockRenewal": "Record untilComplete and automatic blockRenewal separately; renew work blocks of at most 24 hours without asking again. (launch.md, 2026-10-30: \"I want to do it in Codex in the cloud, all autonomously.\")",
+      "provider": "I explicitly authorize Claude Code Cloud instead of Codex Cloud for this run while the Codex issues in #1301 remain unresolved. This supersedes the Codex-only provider wording in the plan registration, spec, launch.md and work.json authority description. Preserve all other approved scope, acceptance, budgets and safeguards. Do not switch providers again automatically.",
+      "operations": "Use the existing NoaCG Claude Cloud environment and subscription. I authorize the native workers, independent reviewers, bounded qualification probes, scheduled check-ins and routine merge-queue operations needed for this run. Do not start another product plan."
+    }
+  },
+  "brief": {
+    "read": "docs/work-specs/cicd-improvement/runbook.md (exact phase metadata, audit reset and coverage rules, waits and repair, parallel work and read budgets) and docs/work-specs/cicd-improvement/launch.md;",
+    "rules": "Provider is Claude Code Cloud (owner override 2026-10-31); never substitute Codex, an API model or a same-VM subagent for a cloud worker. Evidence goes in docs/work-specs/cicd-improvement/evidence/phase-<id>.md, one file per phase; assessment rows add evidence only and hide no product change in a report. Never weaken, skip or loosen a check, test, limit or budget, never write a test-maintenance entry or budget exception to pass a gate, and never manufacture samples or filler work to meet a timing target. The limited unrelated-failure exception applies only with independent attribution evidence and its tracking issue; pending, cancelled or missing results never qualify, and a failure in checks, selection, shared infrastructure or protection the phase changed stays blocking. Worker full-backend dispatch stays current policy until ci06 lands its replacement. Bound each GitHub API collection pass to 100 calls, cache immutable run/job reads, and keep credentials and signed log URLs out of evidence. A JEV session may run beside this plan: before touching ci.yml, configured-suite, selectors/lists, helpers, Playwright configs, quarantine handling or locks, check open PRs and branches for overlap and report a conflict instead of racing it."
+  },
+  "branchPrefix": "claude",
+  "qualification": {
+    "coordinatorPreflight": [
+      "2026-10-31T08:01:20Z ok",
+      "2026-10-31T08:01:25Z ok"
+    ],
+    "freshWorker": "session_017SdbwPAwyQZ2UXSPzTLMBV nonce cicd-qual-20261031T080149Z-ba5a0ece preflight ok, HEAD cba1fcf2 clean, send_message receipt 08:03:11Z",
+    "wake": "send_later trig_01BK1FoHsoynvdbLPaSJKjNi fired 2026-10-31T08:09:06Z into this session on a fresh container (boot 08:09:05Z), worktree intact",
+    "github": "REST reads ok; whole failed job log 124462225477 (29107 lines) ok; commit-status write is a known proxy denial, not retried: stamp via cloud-queue-merge.yml dispatch",
+    "open": "archived-session revival; wake delivery during an account usage-limit stop (2026-10-17 finding: not retried); remote owner fencing"
+  },
+  "waitingOn": null,
+  "inFlight": [],
+  "owner": [],
+  "fixes": [],
+  "triggers": {}
+}
