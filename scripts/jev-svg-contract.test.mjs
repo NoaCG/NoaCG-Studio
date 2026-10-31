@@ -568,7 +568,7 @@ test('the clock is chosen, never proposed: the name reader and the example list 
 });
 
 test('the draft builds a clock only on a row the step offers on this artwork, never beside a countdown engine (C3, C5)', async () => {
-  const { svgDesignOptions, svgClockRows } = await load('src/components/wizard/import/draft.ts');
+  const { svgDesignOptions, svgClockRows, svgClockOption } = await load('src/components/wizard/import/draft.ts');
   const layer = (id, label, sample, clock = false) => ({ id, label, sample, marked: false, drawing: false, namedByGroup: false, numeric: false, clock });
   const candidates = [layer('t0', 'home', 'FIELD'), layer('t1', 'match-time', '12:08', true), layer('t2', 'period', '1:00', true)];
   const draft = (over = {}) => ({
@@ -578,13 +578,18 @@ test('the draft builds a clock only on a row the step offers on this artwork, ne
     svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg/>') },
     ...over,
   });
-  const clocks = (d) => (svgDesignOptions(d).extras ?? []).filter((e) => e.kind === 'clock');
-  assert.deepEqual(svgClockRows(draft()).map((f) => f.candidateId), ['t1', 't2'], 'the time-shaped ticked rows');
+  // As shipped (CLOCK_RUNTIME_READY false) no clock is offered or built, whoever set one.
+  assert.deepEqual(svgClockRows(draft()), []);
+  assert.equal(svgDesignOptions(draft()).extras, undefined);
+  // With the runtime ready:
+  const clocks = (d) => [svgClockOption(d, true)].filter(Boolean);
+  const rows = (d) => svgClockRows(d, true);
+  assert.deepEqual(rows(draft()).map((f) => f.candidateId), ['t1', 't2'], 'the time-shaped ticked rows');
   assert.deepEqual(clocks(draft()), [{ kind: 'clock', name: 'Clock', field: 't1', mode: 'duration' }]);
   // A countdown row ANYWHERE is the old engine: no clock is offered or built beside it.
   const withCountdown = draft();
   withCountdown.svgFields[2] = { ...withCountdown.svgFields[2], kind: 'countdown' };
-  assert.deepEqual(svgClockRows(withCountdown), []);
+  assert.deepEqual(rows(withCountdown), []);
   assert.deepEqual(clocks(withCountdown), []);
   assert.deepEqual(clocks(draft({ svgBehaviour: { kind: 'timer', bar: '', warning: '', paused: '', expired: '' } })), []);
   // An unticked or non-time row is not offered, so a stored clock on it is not built either.
@@ -595,6 +600,8 @@ test('the draft builds a clock only on a row the step offers on this artwork, ne
   // Row ids are positions in one markup: a clock chosen on other artwork is no clock here.
   assert.deepEqual(clocks(draft({ svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg>other</svg>') } })), []);
   assert.equal(svgDesignOptions(draft({ svgClock: null })).extras, undefined, 'no clock, no extras: the same options as before');
+  // The option the extras carry is exactly this one, so a ready draft builds it.
+  assert.deepEqual(clocks(draft()), [{ kind: 'clock', name: 'Clock', field: 't1', mode: 'duration' }]);
 });
 
 test('with the clock runtime ready, a new import offers exactly one Clock choice with its modes; shipped, the step is unchanged (C5)', async () => {

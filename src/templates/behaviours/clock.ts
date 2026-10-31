@@ -88,8 +88,10 @@ export const clockRecipe: BehaviourRecipe = {
   defaultZone: 'top-center',
   instanced: true,
   // Bound by the picker, never by a layer name: a clock-shaped sample says a layer COULD be a
-  // clock, never which way it counts (spec: recognition does not imply clock direction).
-  roles: [{ id: ROLE, label: 'Time', kind: 'field', pool: 'text', required: true, words: /^$/ }],
+  // clock, never which way it counts (spec: recognition does not imply clock direction). The
+  // words match nothing, not even an unnamed layer, so joining the name proposal's list changes
+  // nothing.
+  roles: [{ id: ROLE, label: 'Time', kind: 'field', pool: 'text', required: true, words: /(?!)/ }],
   fields: () => [],
   path: (ctx): RecipePath =>
     clockMode(ctx) === 'count-up'

@@ -263,8 +263,8 @@ export default function BehaviourSection({
   // the names propose it, or where the draft already holds one (draft.ts `svgClockRows`). Until the
   // clock's runtime is bound (`CLOCK_RUNTIME_READY`) the step is as it was: Countdown, no Clock.
   const countdownDrawn = useMemo(() => svgCountdownDrawn(draft.designSvg), [draft.designSvg]);
-  const clockRows = clockReady ? svgClockRows(draft) : [];
-  const clock = svgClockOption(draft) ? draft.svgClock : null;
+  const clockRows = svgClockRows(draft, clockReady);
+  const clock = svgClockOption(draft, clockReady) ? draft.svgClock : null;
   const setClock = (next: SvgClockDraft | null) => onDraft({ svgClock: next });
   // ANY OTHER RECIPE WITHOUT ROWS - the meter, the alert - is held generically and its pickers are
   // read off the recipe's own roles, so a recipe added tomorrow needs no new block here.

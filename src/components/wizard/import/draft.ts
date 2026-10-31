@@ -24,7 +24,7 @@ import type { EraseRect, RegionInk } from '../../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
-import { CLOCK_MODES, CLOCK_NAME } from '../../../templates/behaviours/clock';
+import { CLOCK_MODES, CLOCK_NAME, CLOCK_RUNTIME_READY } from '../../../templates/behaviours/clock';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
 import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
 import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
@@ -1140,8 +1140,9 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
  * offers exactly these, and the graphic carries a clock only on one of them, so a clock the step
  * no longer shows is never built behind the author's back.
  */
-export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
-  if (draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
+export function svgClockRows(draft: SvgImportDraft, ready: boolean = CLOCK_RUNTIME_READY): SvgFieldDraft[] {
+  // Until the clock's runtime is bound there is nowhere a clock may go, whoever wrote `svgClock`.
+  if (!ready || draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
   if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
   const driven = pollDrivenLayers(draft.svgBehaviour);
   return draft.svgFields.filter((f) => f.on && f.clock && !driven.has(f.candidateId));
@@ -1154,10 +1155,10 @@ export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
 }
 
 /** The clock as the graphic carries it, or null. */
-export function svgClockOption(draft: SvgImportDraft): DesignSvgClock | null {
+export function svgClockOption(draft: SvgImportDraft, ready: boolean = CLOCK_RUNTIME_READY): DesignSvgClock | null {
   const clock = draft.svgClock;
   if (!clock || !draft.designSvg || clock.revision !== svgSourceRevision(draft.designSvg.markup)) return null;
-  if (!svgClockRows(draft).some((f) => f.candidateId === clock.candidateId)) return null;
+  if (!svgClockRows(draft, ready).some((f) => f.candidateId === clock.candidateId)) return null;
   return { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
 }
 
