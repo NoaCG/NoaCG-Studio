@@ -49,7 +49,7 @@
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-10-31T11:50:00Z"
+    "checkinAt": "2026-10-31T12:20:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -66,7 +66,8 @@
     "open": "wake after container reclaim not observed; rely on the supervisor recovery checkpoint",
     "sanitizer": "e3337d7a on main 139a9724; scripts/svg-import-security.test.mjs 22/22",
     "production": "row 45 PASS on 05baf75 (PR 1800, comment 6301497867); production-page paused on owner phases 51/52",
-    "stamp": "first use of the cloud-queue-merge.yml dispatch allow rule from this session: run 41194685411 (Stamp, label and queue success) posted noacg/reviewed on ddcc83e7 for PR 1851 at 10:55Z; enable_pr_auto_merge accepted, head checked before/after, added_to_merge_queue 10:55:46Z"
+    "stamp": "first use of the cloud-queue-merge.yml dispatch allow rule from this session: run 41194685411 (Stamp, label and queue success) posted noacg/reviewed on ddcc83e7 for PR 1851 at 10:55Z; enable_pr_auto_merge accepted, head checked before/after, added_to_merge_queue 10:55:46Z",
+    "rearm": "check-in trig_01Jr4tUyo8tjeUJY8pnQ9xPi fired 11:50:53Z into this session; re-armed in place to 12:20Z at 11:51:46Z (live bounded re-arm)"
   },
   "block": {
     "id": "b10195f9-7d4f-4745-a3cb-f941f4586a1b",
