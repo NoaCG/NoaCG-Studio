@@ -410,16 +410,27 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     const ceiling = ceilings.tiers[tier];
     const ev = evidenceOf(measurement, tier, today, ceilings.freshnessDays);
     const m = measurement?.tiers?.[tier];
-    const credited = new Set();
-    const mine = active.filter((e) => e.tier === tier).map((e) => {
-      // Credit is capped at what the covered items cost: an exception never excepts more than the
-      // jobs or specs it names, an unknown cost earns no credit at all, and a job already credited
-      // by an earlier active exception (an overlapping renewal) is not credited twice.
-      const fresh = e.covers.filter((c) => !credited.has(c));
-      for (const c of e.covers) credited.add(c);
-      const cost = fresh.reduce((a, c) => { const x = coverCost(c); return { perLanding: a.perLanding + x.perLanding, perDay: a.perDay + x.perDay }; }, { perLanding: 0, perDay: 0 });
-      return { ...e, perLanding: Math.min(e.perLanding ?? 0, cost.perLanding), perDay: Math.min(e.perDay ?? 0, cost.perDay), claimed: { perLanding: e.perLanding ?? 0, perDay: e.perDay ?? 0 } };
-    });
+    // Credit is capped at what the covered items cost: an exception never excepts more than the
+    // jobs or specs it names and an unknown cost earns no credit. Each cover's measured cost is a
+    // pool that active exceptions draw on in ledger order, so overlapping entries (a renewal with a
+    // larger allowance) together never credit more than the cover costs, and none is starved.
+    const pool = new Map();
+    const draw = (covers, want, key) => {
+      let got = 0;
+      for (const c of covers) {
+        if (!pool.has(c)) pool.set(c, { ...coverCost(c) });
+        const take = Math.min(want - got, pool.get(c)[key]);
+        pool.get(c)[key] -= take;
+        got += take;
+      }
+      return got;
+    };
+    const mine = active.filter((e) => e.tier === tier).map((e) => ({
+      ...e,
+      perLanding: draw(e.covers, e.perLanding ?? 0, 'perLanding'),
+      perDay: draw(e.covers, e.perDay ?? 0, 'perDay'),
+      claimed: { perLanding: e.perLanding ?? 0, perDay: e.perDay ?? 0 },
+    }));
     const covered = (item) => mine.find((e) => e.covers.includes(item.id));
     const tierItems = items.filter((i) => i.tier === tier);
     // An exception waives added cost only up to what is left of its approved allowance after the

@@ -283,9 +283,14 @@ function readyClock(reader, pr, now, { forcePushed = false, carried = null, merg
   let known = Array.isArray(commits) && commits.length < 100;
   const stamps = carried ? [{ at: carried }] : [];
   for (const c of known ? commits : []) {
-    const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100`);
-    if (!statuses) { known = false; break; }
-    for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at, head: c.sha });
+    // Every page of a commit's statuses: the first stamp can sit past the first hundred.
+    for (let page = 1; ; page++) {
+      const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100&page=${page}`);
+      if (!statuses || page > 5) { known = false; break; }
+      for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at, head: c.sha });
+      if (statuses.length < 100) break;
+    }
+    if (!known) break;
   }
   if (forcePushed && !carried) known = false;
   if (!known) return { complete: false, clock: { start: null, source: 'unknown', state: mergedAt ? 'finished' : 'unfinished', minutes: null } };

@@ -800,3 +800,27 @@ test('(b) a ceilings revision needs a recorded decision, not any link, and is al
   assert.equal(ceilingsRevision(base, head).version, 2, 'legal, and still named');
   assert.equal(ceilingsRevision(base, clone(base)), null);
 });
+
+test('(b) overlapping exceptions share a cover\'s measured cost: a larger renewal is credited, never beyond the cost', () => {
+  const base = { tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
+  const first = { ...base, id: 'a', perLanding: 17.7, from: '2026-11-01', expires: '2026-11-30' };
+  const renewal = { ...base, id: 'b', perLanding: 30, from: '2026-11-20', expires: '2026-12-19', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-11-19' } };
+  const m = { ...measurement({ graphics: 37.8 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 30, perDay: 0 } } };
+  const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, renewal] }, measurement: m, items: [{ tier: 'graphics', id: 'spec:e2e/catalog/x.spec.ts', perLanding: 1, perDay: 0 }], today: '2026-11-25' });
+  assert.match(r.tiers.graphics.why, /^7\.8\/10 per landing/, '30 credited in all: 17.7 + 12.3, never 47.7');
+});
+
+test('(d) a commit with more than a hundred statuses is read to its first stamp', () => {
+  const now = '2026-10-31T12:00:00Z';
+  const filler = [...Array(100)].map(() => ({ context: 'other', state: 'success', created_at: '2026-10-31T11:00:00Z' }));
+  const fake = (args) => {
+    const route = args.at(-1);
+    if (/\/pulls\?/.test(route)) return JSON.stringify([{ number: 5, created_at: '2026-10-31T07:00:00Z', head: { ref: 'f' }, draft: false }]);
+    if (/\/commits\?/.test(route)) return JSON.stringify([{ sha: 'c1' }]);
+    if (/statuses.*page=1$/.test(route)) return JSON.stringify(filler);
+    if (/statuses.*page=2$/.test(route)) return JSON.stringify([{ context: 'noacg/reviewed', state: 'success', created_at: '2026-10-31T08:00:00Z' }]);
+    return '[]';
+  };
+  const r = ages({ ceilings: CEILINGS, now, reader: makeReader(20, fake) });
+  assert.match(r.body, /#5 unfinished for 240 min/);
+});
