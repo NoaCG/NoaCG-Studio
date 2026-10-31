@@ -42,18 +42,18 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci03 on 16eeebc0: configured-suite 41210877109, Codex, final /so; then builder receipt",
+    "what": "ci03 merge queue 41212166922, then landed record and independent checker",
     "eta": "2026-10-31T15:35:00Z"
   },
   "inFlight": [
     {
       "phase": "ci03",
-      "step": "build",
+      "step": "queued",
       "session": "session_017SdbwMGuLKVb3TwYhw5nip",
       "nonce": "ci03-b-24b9",
       "branch": "claude/plan-cicd-improvement-ci03-build",
       "launchedAt": "2026-10-31T12:00:56Z",
-      "note": "PR #1854 final head 16eeebc0 (V4 null-conclusion and V1 main-record fixes from the A on fb84aa97). Codex requested; configured-suite 41210877109 running; final table-attack /so session_017SdbwPYGNdQRVq9giCSUKz.",
+      "note": "PR #1854 head 16eeebc0 stamped (41212101095), auto-merge on, merge queue run 41212166922. Builder receipt received 14:51Z. Follow-up #1859 (P3).",
       "pr": 1854,
       "repairOwnerComment": 6543487751
     }
@@ -130,7 +130,8 @@
     1846,
     1847,
     1849,
-    1856
+    1856,
+    1859
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files"
