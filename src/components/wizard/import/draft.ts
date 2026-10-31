@@ -1451,7 +1451,7 @@ function withSvgOutlineFields(
 
 /** The draft as it stood before a drop or a clear: what decides the graphic's name. */
 /** What a drop is told about the draft it lands on. The answers are optional: only a drop of
- *  the SAME artwork reads them (`svgReanalysed`), and a caller with none gets a fresh drop. */
+ *  the SAME artwork reads them (`svgKeptOnRedrop`), and a caller with none gets a fresh drop. */
 type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'> &
   Partial<Pick<WizardDraft, Extract<keyof SvgImportDraft, `svg${string}`> | 'designFields' | 'animation'>>;
 
@@ -1613,20 +1613,21 @@ export function svgDraftFromImport(
     zone: null,
     animation: { presetId: null, outPresetId: null },
   };
-  return previous.svgFields && previous.designSvg?.markup === result.markup ? svgReanalysed(fresh, previous) : fresh;
+  return previous.svgFields?.length && previous.designSvg?.markup === result.markup ? svgKeptOnRedrop(fresh, previous) : fresh;
 }
 
 /**
- * THE SAME ARTWORK DROPPED AGAIN IS A REANALYSIS, not a new walk (docs/work-specs/jev-svg-import,
- * row 6, AC-20). Every answer the reader gave stays - the rows, the behaviour, growth, fonts, the
- * fields they drew, the motion - and the analysis is run again through the one door a proposal
- * takes (`svgDraftWithProposal`), so it may restate what nobody touched and never overrides a
+ * THE SAME ARTWORK DROPPED AGAIN KEEPS THE READER'S DRAFT (docs/work-specs/jev-svg-import, row 6,
+ * AC-20). The reader reads it again and finds exactly what it found before, so nothing it offers
+ * is new, and every answer the reader gave stays: the rows, the behaviour, growth, fonts, the
+ * fields they drew, the motion, and the reference a later proposal is measured against. A
+ * proposal reaches the draft only through `svgDraftWithProposal`, which never overrides a
  * correction. Same markup is same revision: the reader's ids are positions in it, so every row
  * still names the layer it named, however alike two layers are. Different artwork is a fresh
  * drop; taking the SVG back first (`svgDraftCleared`) is how a reader starts this one over.
  */
-function svgReanalysed(fresh: SvgDropPatch, previous: SvgDropPrevious): SvgDropPatch {
-  const kept: SvgDropPatch = {
+function svgKeptOnRedrop(fresh: SvgDropPatch, previous: SvgDropPrevious): SvgDropPatch {
+  return {
     ...fresh,
     svgFields: previous.svgFields ?? fresh.svgFields,
     svgImages: previous.svgImages ?? fresh.svgImages,
@@ -1639,10 +1640,6 @@ function svgReanalysed(fresh: SvgDropPatch, previous: SvgDropPrevious): SvgDropP
     designFields: previous.designFields ?? fresh.designFields,
     animation: previous.animation ?? fresh.animation,
   };
-  const analysis = svgProposalOfDraft({ ...fresh, designKeepBakedText: false });
-  const applied = analysis ? svgDraftWithProposal({ ...kept, designKeepBakedText: false }, analysis.proposal) : null;
-  // A refused analysis changes nothing (A1): the reader's draft is the answer.
-  return applied?.ok ? { ...kept, ...applied.patch } : kept;
 }
 
 /** THE DRAFT WITH THE SVG TAKEN BACK: every answer the drop gave is cleared. The name the file

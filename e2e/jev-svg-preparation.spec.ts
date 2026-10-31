@@ -4,8 +4,9 @@
 // row 6, AC-20). The mapping step is the existing surface: a row shows the field's editable
 // label, its type and its sample, and selecting it lights the exact layer it binds on the
 // preview. The artwork here has two plates drawn alike, so a correction that slid to the twin
-// layer would read as kept. Dropping the same artwork again re-runs the analysis, and the walk
-// is then saved into a production and reopened.
+// layer would read as kept. A later analysis reaches the draft only through the proposal door
+// (`svgDraftWithProposal`), dropping the same artwork again keeps the draft, and the walk is then
+// saved into a production and reopened.
 
 import { test, expect, type Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
@@ -23,6 +24,7 @@ const TWO_GUESTS = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height=
   <text x="70" y="166" font-size="22" id="role">Guest role</text>
   <text x="710" y="118" font-size="36" id="name-2">Guest name</text>
   <text x="710" y="166" font-size="22" id="role-2">Guest role</text>
+  <text x="1200" y="40" font-size="20" id="count">12</text>
 </svg>`;
 
 /** A routine lower third from the development corpus, named the way an ordinary export is. */
@@ -43,13 +45,14 @@ test('a prepared field is selected, corrected, reanalysed and reopened on the la
   await page.goto('/app');
   await dropSvg(page, file);
 
-  // THE EXISTING SURFACE SAYS WHAT EACH FIELD IS: its label, its type and its sample, one row per
-  // layer, and both twins are offered.
+  // THE EXISTING SURFACE SAYS WHAT EACH FIELD IS: its editable label and sample, one row per
+  // layer with both twins offered, and its type, which a number layer states on its own row.
   for (const id of ['t0', 't2']) {
-    await expect(page.getByTestId(`map-svg-row-${id}`)).toContainText('Field name');
-    await expect(page.getByTestId(`map-svg-row-${id}`)).toContainText('Text');
+    await expect(page.getByTestId(`map-svg-title-${id}`)).toBeEditable();
     await expect(page.getByTestId(`map-svg-sample-${id}`)).toHaveValue('Guest name');
+    await expect(page.getByTestId(`map-svg-row-${id}`)).not.toContainText('(number)');
   }
+  await expect(page.getByTestId('map-svg-row-t4')).toContainText('Text (number)');
 
   // Where each twin's name layer is, measured by hovering it.
   await page.getByTestId('map-svg-row-t0').hover();
@@ -80,7 +83,7 @@ test('a prepared field is selected, corrected, reanalysed and reopened on the la
   await page.getByTestId('map-svg-fields').locator('h3').first().click();
   await expect(page.getByTestId('wz-preview-highlight')).toHaveCount(0);
 
-  // REANALYSIS: the same artwork dropped again on the Design step. Every answer stays on the
+  // THE SAME ARTWORK DROPPED AGAIN on the Design step keeps the draft: every answer stays on the
   // layer it was given to, and the twin is untouched.
   await page.locator('.wz-modal').getByRole('button', { name: 'Back' }).click();
   await expect(page.getByTestId('import-svg-card')).toBeVisible();
@@ -109,8 +112,40 @@ test('a prepared field is selected, corrected, reanalysed and reopened on the la
       x: Object.fromEntries(['f0', 'f2'].map((id) => [id, doc.getElementById(id)?.getAttribute('x') ?? null])),
     };
   });
-  expect(saved?.fields).toEqual(['f0 name Guest name', 'f1 role Guest role', 'f2 Second guest Bo Lind', 'f3 role-2 Guest role']);
+  expect(saved?.fields).toEqual(['f0 name Guest name', 'f1 role Guest role', 'f2 Second guest Bo Lind', 'f3 role-2 Guest role', 'f4 count 12']);
   expect(saved?.x).toEqual({ f0: '70', f2: '710' });
+});
+
+test('a reanalysis through the proposal door keeps a correction on the twin it was made on', async ({ page }) => {
+  // The pure half of the walk above, on the draft functions the step uses: no UI asks for a new
+  // analysis yet (rows 35 and 36 add the proposer), and this is the door every one goes through.
+  await page.goto('/app');
+  const result = await page.evaluate(async (markup) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const drop = {
+      ...D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } }),
+      designKeepBakedText: false,
+    };
+    const titles = (d: typeof drop) => d.svgFields.map((f) => `${f.candidateId} ${f.title}`);
+    // The author renames the second twin; the first keeps the reader's name.
+    const corrected = { ...drop, svgFields: drop.svgFields.map((f) => (f.candidateId === 't2' ? { ...f, title: 'Second guest' } : f)) };
+    // An analysis that names both look-alike layers the same.
+    const base = D.svgProposalOfDraft(drop)!.proposal;
+    const proposal = { ...base, fields: base.fields.map((f) => (f.layer === 't0' || f.layer === 't2' ? { ...f, title: 'Guest' } : f)) };
+    const once = D.svgDraftWithProposal(corrected, proposal);
+    if (!once.ok) return { errors: once.errors };
+    const next = { ...corrected, ...once.patch };
+    const twice = D.svgDraftWithProposal(next, proposal);
+    return {
+      titles: titles(next),
+      kept: once.kept,
+      again: twice.ok ? titles({ ...next, ...twice.patch }) : null,
+    };
+  }, TWO_GUESTS);
+  expect(result.titles).toEqual(['t0 Guest', 't1 role', 't2 Second guest', 't3 role-2', 't4 count']);
+  expect(result.kept?.some((k: string) => k.includes('t2'))).toBe(true);
+  expect(result.again).toEqual(result.titles);
 });
 
 test('a routine lower third reaches a working graphic with no mapping stop', async ({ page }) => {
