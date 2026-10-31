@@ -670,3 +670,16 @@ test('(b) overlapping active exceptions never credit the same job twice', () => 
   assert.match(r.tiers.graphics.why, /^12\.3\/10 per landing/);
   assert.equal(r.tiers.graphics.status, 'refuse');
 });
+
+test('(c) an attributed offline slowdown refuses the next offline addition at the tier line', () => {
+  const before = measurement({ offline: 480 });
+  const s = detectSlowdown([20, 20, 20, 22.2, 22.2, 22.2].map((v, i) => point(i, v)));
+  const after = applySlowdown(before, 'offline', s);
+  assert.ok(Math.abs(after.tiers.offline.perLanding - 532.8) < 1e-9, '480 x 1.11: the ceiling stays 535');
+  const grow = (m) => applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY }) }, { added: 1.5 });
+  assert.equal(grow(before).status, 'ok', '90% before the slowdown: the table line decides');
+  assert.equal(grow(after).status, 'refuse', '99.6% after it: the next offline spec is refused');
+  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: assessTiers({ ceilings: noExceptions, measurement: after, items: [], today: TODAY }) }, { added: 0 }).status, 'ok', 'maintenance that adds nothing lands');
+  const partial = measurement({ offline: 460 }, { evidence: 'partial' });
+  assert.equal(grow(partial).status, 'refuse', '86% on partial evidence is past the 85% line');
+});

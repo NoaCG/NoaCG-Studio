@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (45 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (47 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -133,9 +133,18 @@ issue, remain for ci17.
   the warning band is the margin unmeasured drift may use. Refusing every addition on a stale
   table would stop every new offline spec in both live runs at 77% usage for a refresh that is
   an owned failure, not their change's.
-- **The offline table line stays the offline PR gate.** The per-landing offline tier is
-  measured weekly and can stop offline growth after a failed correction, but it does not price
-  offline specs a second time.
+- **The offline table line still prices offline specs; the measured offline tier refuses them at
+  its line.** An offline spec is priced once, in table-minutes, by the existing line. The weekly
+  offline tier (runner-minutes per landing, including any attributed slowdown) refuses a change
+  that adds offline minutes once it reaches 95% (85% on partial or stale evidence), as every
+  other tier does, and its stop refuses them after a failed correction.
+- **The seed labels offline and fixed overhead complete.** ci01 estimated part of their PR-event
+  minutes from dense-window samples scaled to exact run counts, the same stratified estimate the
+  weekly sampler calls complete. Backend and graphics are partial in the seed because each misses
+  a whole kind of cost (unsampled cancelled dispatches; ci04's unmeasured catalog gate).
+- **An exception on record that a rename or removal makes invalid covers nothing; it does not
+  refuse the change.** Only an exception the change itself adds is judged by the gate, so
+  removing an excepted job (cost-reducing maintenance) lands.
 - **One exception ledger in `growth-ceilings.json`,** append-only, so renewal is detectable by
   scope (`covers`) rather than by name, file or tier. Every cover must name a real workflow job
   or spec in the exception's own tier: re-filing ci04's catalog job under backend, or rewording

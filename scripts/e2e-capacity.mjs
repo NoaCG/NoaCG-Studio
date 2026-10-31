@@ -245,10 +245,17 @@ export function changedSpecs(base, cwd = ROOT) {
  * The weekly report's offline stop reaches the table line: a stop on the offline tier, or a report
  * that could not be read (so no stop can be ruled out), refuses a change that adds offline minutes.
  */
-export function applyOfflineStop(growth, result) {
+export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refuseShare = HARD_SHARE } = {}) {
   if (!(result.added > 0)) return growth;
+  const tier = growth.tiers?.tiers?.offline;
+  const line = tier?.evidence === 'complete' ? refuseShare : warnShare;
   if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); }
   else if (growth.unreadable) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and no offline stop can be ruled out without the weekly report`); }
+  // The offline tier's measured runner-minutes per landing, including any slowdown the weekly
+  // report attributed, judge an offline addition too: at its line (95%, or 85% on partial or
+  // stale evidence) added offline minutes are refused, as in every other tier. The table line
+  // still prices them; this only refuses when the measured tier has no room left.
+  else if (Number.isFinite(tier?.share) && tier.share >= line) { growth.status = 'refuse'; growth.reasons.push(`offline tier at ${Math.round(100 * tier.share)}% of its per-landing ceiling (the ${Math.round(100 * line)}% line), and this change adds ${result.added.toFixed(1)} offline minute(s)`); }
   return growth;
 }
 
@@ -318,8 +325,10 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       // coordinator or owner decides, never the change's own author or an automatic repair.
       const before_ids = new Set((before.exceptions ?? []).map((e) => e.id));
       for (const e of ceilings.exceptions ?? []) if (!before_ids.has(e.id)) newExceptions.push(e.id);
-      const wasInvalid = new Set(exceptionStatus(before.exceptions, today, before.exceptionMaxDays).invalid.map((e) => e.id));
-      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root)).invalid) if (!wasInvalid.has(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
+      // Only an exception this change adds is judged here. One already on record that a rename or
+      // a removed job makes invalid simply covers nothing: removing an excepted job is
+      // cost-reducing maintenance and must land.
+      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root)).invalid) if (newExceptions.includes(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
     }
     const baseSpecs = (gitShow(base, 'docs/work-specs', root) ?? '').split('\n').filter((n) => n.endsWith('/'));
     const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`, root) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));
