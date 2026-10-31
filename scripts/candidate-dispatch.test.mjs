@@ -266,6 +266,20 @@ test('a same-second replacement is found by run ID; a run cancelled after it sta
   assert.equal(settle(intent, cancelled, { runs: [cancelled], head: sha('1') }).state, 'recover');
 });
 
+test('a superseded record carries its replacement\'s verdict and exit code', () => {
+  const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
+  const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
+  const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
+  const settled = (replacement) => settle(intent, cancelled, { runs: [cancelled, { ...base, id: 11, ...replacement }], head: sha('1') });
+  const failed = settled({ status: 'completed', conclusion: 'failure' });
+  assert.deepEqual([failed.state, failed.conclusion, failed.by.id], ['superseded', 'failure', 11]);
+  assert.equal(exitCode(failed), 1);
+  assert.equal(exitCode(settled({ status: 'completed', conclusion: 'success' })), 0);
+  const running = settled({ status: 'in_progress', conclusion: null });
+  assert.equal(running.conclusion, undefined);
+  assert.equal(exitCode(running), 0);
+});
+
 test('exit codes: 0 running or passing, 1 refused or failing, 2 no verdict yet', () => {
   assert.equal(exitCode({ state: 'running' }), 0);
   assert.equal(exitCode({ state: 'superseded' }), 0);

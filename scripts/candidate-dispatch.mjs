@@ -30,8 +30,9 @@
 //     obsolete here: a verdict a checker still needs for it goes through the exact-SHA check
 //     branch (check.tmpl).
 //
-// Output: one JSON line. Exit 0: running, superseded, or a passing verdict. Exit 1: a refusal
-// (refused, mismatch, ambiguous, unresolved) or a failing verdict. Exit 2: no verdict yet and
+// Output: one JSON line. Exit 0: running, or a passing verdict (its own, or a superseding run's on
+// the same commit). Exit 1: a refusal (refused, mismatch, ambiguous, unresolved) or a failing
+// verdict, including a superseding run's. Exit 2: no verdict yet and
 // something to do (absent, not-delivered, recover, obsolete, cancelled).
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -113,8 +114,13 @@ export function settle(intent, run, facts = {}) {
   // Run IDs grow with creation; created_at has one-second resolution.
   const replacement = (fact('runs') ?? []).filter((other) => ownRun(intent, other) && other.id > run.id && other.head_sha === intent.sha
       && other.conclusion !== 'cancelled').sort((a, b) => b.id - a.id)[0];
-  if (replacement) return { state: 'superseded', run, by: summary(replacement),
-    reason: `run ${run.id} was cancelled; run ${replacement.id} on the same commit carries its verdict` };
+  if (replacement) {
+    // The replacement's verdict is this commit's verdict: a failure must not hide behind the cancel.
+    const done = replacement.status === 'completed';
+    return { state: 'superseded', run, by: summary(replacement), ...(done ? { conclusion: replacement.conclusion } : {}),
+      reason: `run ${run.id} was cancelled; run ${replacement.id} on the same commit carries its verdict`
+        + (done ? ` (${replacement.conclusion})` : ' (still running)') };
+  }
   // The group never cancels a started run (cancel-in-progress: false): someone chose to.
   if (fact('started')) return { state: 'cancelled', run,
     reason: `run ${run.id} was cancelled after its jobs started, by a person or session, not by a newer dispatch; find out why before dispatching again` };
@@ -205,7 +211,8 @@ export function saver(dir) {
 }
 
 export function exitCode(result) {
-  if (REFUSALS.includes(result.state) || (result.state === 'verdict' && result.conclusion !== 'success')) return 1;
+  const finished = result.state === 'verdict' || (result.state === 'superseded' && result.conclusion !== undefined);
+  if (REFUSALS.includes(result.state) || (finished && result.conclusion !== 'success')) return 1;
   return ACTION.includes(result.state) ? 2 : 0;
 }
 
