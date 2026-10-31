@@ -64,3 +64,5 @@ jobs:
           except (urllib.error.URLError, TimeoutError, ValueError):
               sys.exit('FAIL: Gateway credits request failed')
           print('PASS: evaluation Gateway key authenticated via GET /v1/credits; no inference')
+
+# push-permission probe 2026-10-31T08:02:05Z, never merged
