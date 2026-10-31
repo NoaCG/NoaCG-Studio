@@ -212,21 +212,46 @@ export const COVERAGE = coverageOf(SPEC_HEADERS);
 /** SPRINT FOCUS - the student-critical spec set (docs/GOALS_ARCHIVE.md "Student release"). */
 export const FOCUS = [...SPEC_HEADERS].filter(([, h]) => h.focus).map(([spec]) => spec);
 
-// THE CONFIGURED SUITE'S OWN FILES. These trigger the configured-suite line for every change, not
-// for one spec's sake, so they are the one part of the trigger list no configured spec's header
-// holds. `e2e/configured/**` is ignored by the offline plan outright (those specs need a real
-// Supabase project and a throwaway account), which is exactly why a change there must still say
-// the configured suite is owed.
-export const CONFIGURED_SUITE_FILES = [/^e2e\/configured\//, /^playwright\.live\.config\.ts$/];
-
 /**
- * THE CONFIGURED SUITE'S TRIGGERS: its own files, plus every `covers:` line a configured spec
- * declares. The offline plan pins the ABSENCE of a hosted-only surface, so a change to one of
- * these reports "covered" while the live path breaks; naming the trigger turns that hole into a
- * printed line, and it is then a decision rather than an oversight.
+ * THE CONFIGURED SPECS' HEADERS. The offline plan pins the ABSENCE of a hosted-only surface, so a
+ * change to what a configured spec covers reports "covered" offline while the live path breaks;
+ * each configured spec's `covers:` lines select it for ci.yml's configured job (cicd-improvement
+ * ci06). `e2e/configured/**` is ignored by the offline plan outright, which is exactly why the
+ * configured selection is asked before that ignore list.
  */
 export const CONFIGURED_HEADERS = readSpecHeaders('e2e/configured');
-export const CONFIGURED_TRIGGERS = [...CONFIGURED_SUITE_FILES, ...[...CONFIGURED_HEADERS.values()].flatMap((h) => h.covers)];
+
+/** The configured specs on disk (bare names), and which of them each changed file's header selects. */
+export const CONFIGURED_SPECS = [...CONFIGURED_HEADERS.keys()];
+export const CONFIGURED_COVERAGE = coverageOf(CONFIGURED_HEADERS);
+
+/**
+ * THE CONFIGURED SUITE'S SHARED GROUND (cicd-improvement ci06). A change here can move every
+ * configured spec at once, so it selects the WHOLE configured set rather than the specs a header
+ * names: the suite's helpers and expectations (anything under e2e/configured/ but a spec or its
+ * baselines), its config, the local stack it runs on (supabase/: config, migrations, seed), the
+ * workflows and shared actions that bring that stack up and judge it, and the dependency manifests.
+ * The toolchain scripts (planner, shard packer, verdict, reporter) are added by import closure in
+ * scripts/e2e-affected.mjs (`configuredToolchain`), so a script they start importing is covered too.
+ */
+/**
+ * THE BACKEND-FACING SOURCE (ci06): the serverless API and the browser's backend client. A
+ * configured header that names one of these files selects its specs; one that NO configured header
+ * names is an uncertain dependency of the configured suite (a shared server module such as
+ * api/_lib/http.ts or auth.ts, or a new route) and selects the whole set, as an unmapped file
+ * escalates the offline plan. Tests beside the code are not the backend.
+ */
+export const CONFIGURED_BACKEND = [/^api\/(?!.*\.test\.[cm]?[jt]s$).+\.[cm]?[jt]sx?$/, /^src\/backend\/(?!.*\.test\.[cm]?[jt]s$).+\.[cm]?[jt]sx?$/];
+
+export const CONFIGURED_FULL = [
+  /^e2e\/configured\/(?![^/]+\.spec\.ts(?:-snapshots\/|$))/,
+  /^playwright\.live\.config\.ts$/,
+  /^supabase\//,
+  /^\.github\/workflows\/(?:ci|configured-suite)\.yml$/,
+  /^\.github\/actions\//,
+  /^package(?:-lock)?\.json$/,
+  /^vite\.config\.ts$/,
+];
 
 /**
  * THE BUILD'S REFUSALS, as a pure function so each one can be driven with a fixture.
@@ -238,6 +263,7 @@ export const CONFIGURED_TRIGGERS = [...CONFIGURED_SUITE_FILES, ...[...CONFIGURED
  *    naming a path that moved matches nothing and is silent - the file then falls through to
  *    whatever else covers it, which is the run-FEWER failure with no alarm attached.
  * 3. Every spec a central rule names exists on disk.
+ * 4. Every configured spec declares `covers:` or `none - <why>` (no central rule applies there).
  *
  * @param {{ headers: Map<string, object>, configured?: Map<string, object>, files: string[],
  *           specsOnDisk: string[], central?: [RegExp, string[]][] }} input
@@ -250,6 +276,13 @@ export function auditSpecHeaders({ headers, configured = new Map(), files, specs
   for (const [spec, h] of headers) {
     if (h.covers.length === 0 && h.none === null && !centralSpecs.has(spec)) {
       problems.push(`e2e/${spec} declares no \`// covers:\` - name the source it covers (\`// covers: src/area/**\`), or say \`// covers: none - <why>\``);
+    }
+  }
+  // The configured suite has no central rules: its selected PR job (ci.yml, cicd-improvement ci06)
+  // plans a configured spec only from its own header, so a spec with none would run only per landing.
+  for (const [spec, h] of configured) {
+    if (h.covers.length === 0 && h.none === null) {
+      problems.push(`e2e/configured/${spec} declares no \`// covers:\` - name the source it covers, or say \`// covers: none - <why>\``);
     }
   }
   const lists = [...[...headers].map(([s, h]) => [`e2e/${s}`, h]), ...[...configured].map(([s, h]) => [`e2e/configured/${s}`, h])];

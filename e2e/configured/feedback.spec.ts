@@ -1,3 +1,5 @@
+// covers: src/feedback/**, src/components/feedback/**, src/backend/feedback.ts, api/_lib/feedbackStore.ts
+
 import { test, expect, type Page, type Request } from '@playwright/test';
 import { SUPABASE_URL } from './_helpers';
 

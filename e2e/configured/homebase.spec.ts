@@ -1,3 +1,5 @@
+// covers: src/components/home/HomePage.tsx, src/components/SettingsDialog.tsx, src/components/auth/AuthStatus.tsx
+
 import { test, expect } from '@playwright/test';
 import { haveCreds, signIn } from './_helpers';
 
