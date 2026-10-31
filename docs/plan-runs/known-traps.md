@@ -14,18 +14,49 @@ that plan's brief, not here.
   the PR and the reviewed SHA in your receipt. Never dispatch `cloud-queue-merge.yml` with a
   verdict or enable auto-merge yourself: the harness refuses that as self-approval for some
   sessions and not others, and one path for every PR is what keeps the run predictable.
-- **Worker gates on your reviewed head:** CI gate, the Codex review finished and its
-  findings handled (ask `@codex review` again after each fix push; Codex reviews only on open or
-  on that request), and the configured-suite run you dispatched on that head finished green, not
-  merely started. The coordinator verifies its `head_sha` equals your reviewed head. Reviewed
-  itself is not a worker prerequisite: it may be pending or red until the coordinator stamps.
-  After posting the pinned stamp the coordinator enables auto-merge with head checks before and
-  after; GitHub still requires Reviewed and all required checks before admitting the PR. Recover
-  an earlier Reviewed timeout through queue-merge, without delaying the auto-merge request.
+- **Worker gates on your reviewed head:** CI gate, the Codex review finished and its findings
+  handled (ask `@codex review` at most once per head, for a coherent checkpoint or the final head,
+  as Review checkpoints below says; Codex reviews only on open or on that request), and the
+  configured-suite run you dispatched on that head finished green, not merely started. The
+  coordinator verifies its `head_sha` equals your reviewed head. Reviewed itself is not a worker
+  prerequisite: it may be pending or red until the coordinator stamps. After posting the pinned
+  stamp the coordinator enables auto-merge with head checks before and after; GitHub still requires
+  Reviewed and all required checks before admitting the PR. Recover an earlier Reviewed timeout
+  through queue-merge, without delaying the auto-merge request.
 - **Cloud GitHub access:** `gh`'s GraphQL commands (`gh pr view`, `gh pr merge`) are refused in
   cloud sessions. Use REST (`gh api`) or the GitHub tools, as the cloud path of `/queue-merge` says.
 - Other plan-run PRs land meanwhile. If yours conflicts, merge `origin/main` into your branch;
   never rebase a pushed branch.
+
+## Review checkpoints
+
+One rule set for every review in a run: the Codex PR review, `/so` and the independent checker.
+A fresh reviewer has none of the builder's or repairer's conversation. Give it the contract and
+the evidence: the acceptance, the PR's evidence per criterion (changed behaviour and its proof)
+and the exact base and head SHAs. It picks its own probes.
+
+- **One outstanding request per head and scope.** A request is outstanding from the moment it
+  is made until its result is on the PR. Opening the PR is the Codex request for its first head;
+  a later head needs one `@codex review`. Codex's result is a review, a receipt comment or a 👍;
+  its summary comment's `codex-review-state` shows `"status":"running"` for the commit meanwhile.
+  A result belongs to its commit: a clean result on the same head in a closed earlier PR counts
+  on its replacement once linked there.
+  Never ask `@codex review` or start another `/so` on that head and scope while one is outstanding.
+  Fix related confirmed findings together, run the focused checks, push one coherent checkpoint,
+  then make one request for the new head. Keep committing and pushing your branch as backup, but
+  skip the full configured dispatch on a head you know needs another repair. A new head voids a
+  clean verdict on an older one.
+- **Repair limits are those of queue-merge and plan-run, unchanged.** Nothing here adds an
+  attempt or lets a finding go unfixed.
+- **The reply to each confirmed round** names its family (the rule it breaks) and class: product
+  defect, faulty test expectation, infrastructure failure or delayed review.
+
+| Scenario | When | What to do |
+| --- | --- | --- |
+| Ordinary | copy, docs, contained logic or tooling that sets or changes no state rule | Nothing extra: `/check`, the Codex review, a fresh `/so` on the final diff. |
+| Risky | the change sets or changes state rules: ownership; attempted, accepted and observed operations; unknown outcomes; other tabs or writers; revision-to-content identity; retries; reload and recovery | Before coding, write those rules as observable lines in the phase notes and push them; the PR description repeats them under **Rules**. A fresh read-only `/so` challenges the Rules before any code. When the transitions are the feature, test them against a small reference model or oracle derived from the Rules, never one that repeats the production algorithm. A finding that exposes a product decision the spec never made goes to the coordinator before any patch. Later, list rules found after coding apart from those stated before. |
+| Repeated family | two successive confirmed rounds (any reviewer) find variants of one missing rule | Stop patching. A fresh reassessment of the rule model, given the Rules and both findings, comes first: a read-only `/so`, or plan-run's diagnose agent when the rounds are failed checks. Correct the model, then repair if an attempt remains. A warning, not an extra attempt: later findings still count. |
+| Stalled | a request still outstanding 30 minutes after it was made (plan-run's idle threshold), or a reviewer session idle that long | Never clean, and no second request on that head. Report the gate pending in your receipt with its request time and head, and stop as for any pending gate. The coordinator treats it as a review-service wait that spends no attempt: it says on the PR that the request is stalled, which ends it as the outstanding one, then makes one new request or starts a fresh reviewer. No stamp until a real result. |
 
 ## The configured suite
 
