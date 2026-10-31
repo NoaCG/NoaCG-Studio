@@ -5,7 +5,7 @@
     "synthetic": true,
     "runtime_support_not_asserted": true,
     "tiers": {
-      "supported": "A required qualification: its fields must work through existing source bindings (AC-14, AC-24). Moving-SVG motion stays unsupported.",
+      "supported": "Required, not yet shown: its fields must work through existing source bindings (AC-14, AC-24). Moving-SVG motion stays unsupported.",
       "optional-diagnostic": "A bounded measurement of current limits (AC-26). A shortfall is reported, never counted as support."
     }
   },

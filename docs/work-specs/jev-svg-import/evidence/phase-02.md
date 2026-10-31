@@ -15,7 +15,8 @@ after a fresh fetch.
 
 An independent script (not committed; the phase allows no script file) parsed every file in
 `e2e/fixtures/jev-svg` and `e2e/fixtures/svg-corpus` and compared it with
-`preparation/corpus-receipt.json`. Zero failures.
+`preparation/corpus-receipt.json`. Every check below passed. Three of the receipt's digests cannot
+be checked from this worker and are listed under "Not reproducible from git".
 
 | Check | Result |
 |---|---|
@@ -29,8 +30,8 @@ An independent script (not committed; the phase allows no script file) parsed ev
 | Provenance on every design: `synthetic-original`, named author, no exporter claim, no third-party artwork | pass |
 | 99 label anchors (fields, credits sub-anchors, non-editable decoys, qualification anchors) resolve by `element_path` to an element of the stated tag; every `source_id` equals that element's `id`; every text default equals the element's text after trimming each line's indentation (needed only for the multiline `body`, whose `tspan` lines are indented) | pass |
 | Regression slice: 51 entries, one per SVG in `svg-corpus`, each SVG and sidecar hash matches, all `recognition_score_eligible: false` | pass |
-| Regression pin `b3708b65` is an ancestor of the pin; the 51 SVGs and sidecars are unchanged since it | pass |
-| Inherited sidecars: each `name` equals its file slug and carries a boolean `expect.accepted` | pass |
+| Regression pin `b3708b65` is an ancestor of the pinned main `0b4e403d`; the 51 SVGs and sidecars are unchanged since it | pass |
+| Inherited sidecars, structural check: each `name` equals its file slug, each has a non-empty `story` and `whyThisMatters`, and each `expect.accepted` is a boolean (50 accepted, 1 refusal: `geometry-unescaped-ampersand`). Families: Illustrator 16, Figma 8, Inkscape 7, geometry 7, effects 6, logo 6, Affinity 1 | pass |
 | Qualification fixtures: three, hashes match, `excluded_from_recognition_count: true` | pass |
 
 Coverage across the development set: unnamed and generic ids, misleading ids, decorative numbers,
@@ -65,7 +66,10 @@ ambiguous score-clock link. The holdout's composition is not visible to this wor
   meant to prove. The receipt records the backup uploaded with owner-only permissions and a fresh
   download hash-verified by the coordinator during preparation. A fresh check belongs to the
   owner/custodian or the coordinator, recorded without content; until then this half rests on the
-  preparation record.
+  preparation record. **Owner of the fresh check: the coordinator**, which verified the backup in
+  preparation. It records the download's SHA-256 (must equal `93d8531d…53eaf3`), owner-only
+  permissions and the date in the run ledger before it accepts this row. Until that entry exists,
+  this half of the row's verification is open, and no tuning row (31 onward) may start.
 - Retention: 90 days after run completion (receipt `planned_storage.retention`); readers are the
   owner/custodian, the main-only holdout job and the independent checker after configuration
   freeze. Tuning workers, including this one, received neither the secret nor the backup.
@@ -84,7 +88,7 @@ Frozen hashes at this landing, for files the receipt does not cover:
 
 | File | SHA-256 |
 |---|---|
-| `e2e/fixtures/jev-svg/qualification/expect.json` | `47064efc0e5abb54bdd095d4882f94164afd5db26dd7b39b1de468e96931f282` |
+| `e2e/fixtures/jev-svg/qualification/expect.json` | `15a85fca625858274c7fb7e00441595c3747baae75aa99199839936f5786f52b` |
 | `e2e/fixtures/jev-svg/regression.manifest.json` | `a1271ce68e395094c6cfad36a8ad4a09e6d04ba3e3a9518bc57c186e947bc610` |
 
 ## Decisions and traps
