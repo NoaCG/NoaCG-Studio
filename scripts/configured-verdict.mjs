@@ -208,7 +208,50 @@ function outcomeOf(test) {
   return st.every((x) => x === 'passed') ? 'expected' : 'flaky';
 }
 
-export function verdict(report, { minTests, allowedSkips, workspace = '', quarantined = null, edited = new Set() }) {
+/** One test's identity, the same in a `--list` report and a run's report of one config. */
+const caseId = (spec) => spec.id || `${spec.file}:${spec.line ?? 0}:${spec.column ?? 0} ${spec.title}`;
+
+/**
+ * THE SELECTED MANIFEST (cicd-improvement ci06), for a run that executes a selection rather than
+ * the whole suite: ci.yml's configured job on a pull request. `selected` is the bare spec names the
+ * planner chose; `listed` is every test `playwright test --list` finds in them with the same config,
+ * which is what the run must report. Exact, both ways: an empty selection or listing, a selected
+ * spec with no listed test, a listed test the report lacks, and a reported test nobody listed are
+ * all problems, so a shard that died, a filter that drifted or a report from another selection
+ * cannot pass. A skip is still judged by `allowedSkips`, as for a full run, so a selection of an
+ * allowed-skip spec alone (bridge-real-server.spec.ts, which needs hardware no runner has) passes
+ * having run nothing: it was listed, reported and skipped as expected.
+ *
+ * @param {object} report the merged run report
+ * @param {{ selected: string[], listed: object }} manifest `listed` is the `--list` JSON report
+ * @returns {{ title: string, detail: string }[]}
+ */
+export function manifestProblems(report, { selected, listed }) {
+  const want = allSpecs(listed);
+  const got = allSpecs(report);
+  const problems = [];
+  if (!selected.length || !want.length) {
+    problems.push({ title: 'Empty selection', detail: `the plan selected ${selected.length} spec file(s) and the listing found ${want.length} test(s); a triggered run has to list and report at least one selected test.` });
+    return problems;
+  }
+  const listedFiles = new Set(want.map((s) => s.file));
+  const unlisted = selected.filter((f) => !listedFiles.has(f));
+  if (unlisted.length) problems.push({ title: 'Selected spec lists no test', detail: unlisted.join(' ') });
+  const sample = (list) => `${list.slice(0, 8).map((s) => `${s.file} - ${s.title}`).join('; ')}${list.length > 8 ? '; ...' : ''}`;
+  const wantIds = new Set(want.map(caseId));
+  const gotIds = new Set(got.map(caseId));
+  const missing = want.filter((s) => !gotIds.has(caseId(s)));
+  if (missing.length) {
+    problems.push({ title: 'Selected tests missing from the report', detail: `${missing.length} of ${want.length}: ${sample(missing)}` });
+  }
+  const extra = got.filter((s) => !wantIds.has(caseId(s)));
+  if (extra.length) {
+    problems.push({ title: 'Report does not match the selection', detail: `${extra.length} reported test(s) were not selected: ${sample(extra)}` });
+  }
+  return problems;
+}
+
+export function verdict(report, { minTests, allowedSkips, workspace = '', quarantined = null, edited = new Set(), manifest = null }) {
   const stats = report?.stats ?? {};
   const expected = stats.expected ?? 0;
   const unexpected = stats.unexpected ?? 0;
@@ -276,7 +319,9 @@ export function verdict(report, { minTests, allowedSkips, workspace = '', quaran
       detail: `These spec files skipped:${unexpectedSkips.map((f) => ` ${f}`).join('')}. Nothing should skip - every credential and capability is present by construction, so a skip means the environment did not come up the way this job assumes.`,
     });
   }
-  if (ran < minTests) {
+  if (manifest) problems.push(...manifestProblems(report, manifest));
+  // A selection is judged by its manifest, not by the whole suite's floor.
+  else if (ran < minTests) {
     problems.push({
       title: 'Too few tests ran',
       detail: `${ran} test(s) executed, expected at least ${minTests}.`,
@@ -312,6 +357,9 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
   // hosted-latency.yml, which keeps every flake red. The edited specs are read exactly as ci.yml's
   // retry reads them (`changedSince`, `editedSpecs`), so the two refusals cannot disagree.
   const quarantineFile = valueOf('--quarantine', '');
+  // A selected run (ci.yml, ci06): the planner's spec names and the `--list` report of them.
+  const manifestFile = valueOf('--manifest', '');
+  const selectedArg = valueOf('--selected', '');
   const edited = new Set([...editedSpecs(changedSince(valueOf('--changed', '')))].map(specPath));
 
   const out = (line) => console.log(line);
@@ -353,6 +401,16 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
     unjudged('No report', `Could not read ${file} - the run never produced one (${error.message}).`, 'no JSON report - the run never started');
   }
 
+  let manifest = null;
+  if (manifestFile) {
+    try {
+      manifest = { selected: selectedArg.split(/\s+/).filter(Boolean), listed: JSON.parse(readFileSync(manifestFile, 'utf8')) };
+    } catch (error) {
+      unjudged('No manifest', `Could not read the selected manifest "${manifestFile}" (${error.message}), so the selection cannot be judged.`, 'no readable manifest - the selection could not be judged');
+      process.exit(0);
+    }
+  }
+
   // A store this build cannot read quarantines nothing: every flake stays red, the direction that
   // hides nothing.
   let quarantined = null;
@@ -365,7 +423,7 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
   }
 
   if (report) {
-    const v = verdict(report, { ...expected, workspace: process.env.GITHUB_WORKSPACE ?? '', quarantined, edited });
+    const v = verdict(report, { ...expected, workspace: process.env.GITHUB_WORKSPACE ?? '', quarantined, edited, manifest });
     out(`Ran ${v.ran} tests (${v.expected} passed, ${v.unexpected} failed, ${v.flaky} flaky), ${v.skipped} skipped.`);
     for (const p of v.problems) out(`::error title=${p.title}::${p.detail}`);
     for (const spec of v.enter) {

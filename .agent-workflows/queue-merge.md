@@ -65,7 +65,8 @@ presence, or a successful scheduling call do not prove this.
   It needs a working cloud wake and reads GitHub directly when cloud landings have no local jobs.
   In a plan run it is also the one that posts `noacg/reviewed` and turns auto-merge on, after it
   reads every worker gate green on the reviewed head except Reviewed, which reads the stamp;
-  confirm the configured run's `head_sha` matches that head. The worker stops with its evidence
+  confirm the CI run's `head_sha` matches that head and read its plan's `Configured selection`
+  (the selected configured check is part of the CI gate). The worker stops with its evidence
   (`plan-run.md`). Enable auto-merge after the pinned stamp, checking the head before and after
   as cloud step 5 requires; do not add a wait for Reviewed. GitHub enforces the required checks,
   while the coordinator handles a stale Reviewed through the existing recovery procedure.

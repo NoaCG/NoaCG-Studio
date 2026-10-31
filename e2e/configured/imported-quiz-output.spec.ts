@@ -5,7 +5,7 @@
 // loaded by the configured suite too: e2e/configured/imported-quiz-output.spec.ts drops
 // `quiz-board.svg` and follows it all the way to a hosted production's output. The offline
 // plan selects the three specs that load the folder (their own covers headers), and this line is
-// the other half - CONFIGURED_TRIGGERS is asked BEFORE the ignore list, which is what makes it
+// the other half - the configured selection is asked BEFORE the ignore list, which is what makes it
 // reachable at all for a path under `docs/`.
 // covers: docs/svg-samples/quiz-board.svg
 //
