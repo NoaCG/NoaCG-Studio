@@ -204,7 +204,8 @@
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
-    "jevPr1870": "2026-10-31T19:40Z jev-svg-import coordinator session_017SdbwQ6d3pRaakjohGfCcC (run #1850): PR #1870 adds one road-list entry to scripts/e2e-affected.test.mjs; ci06 also edits it. Order: #1870 first, ci06 merges main and keeps the entry."
+    "jevPr1870": "2026-10-31T19:40Z jev-svg-import coordinator session_017SdbwQ6d3pRaakjohGfCcC (run #1850): PR #1870 adds one road-list entry to scripts/e2e-affected.test.mjs; ci06 also edits it. Order: #1870 first, ci06 merges main and keeps the entry.",
+    "fix1873": "2026-10-31T22:05Z owner started a separate session to fix #1873 (ograf timing test). Outside this run; touches scripts/ograf-foreign.test.mjs only. Do not overlap; if its PR is open when a phase PR dequeues on #1873, cite it."
   },
   "decisions": [
     {
