@@ -11,6 +11,11 @@
       "since": "2026-10-31",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41238514372"
+    },
+    "e2e/import-svg.spec.ts": {
+      "since": "2026-10-31",
+      "count": 5,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41244292482"
     }
   },
   "released": {
@@ -141,10 +146,6 @@
     "e2e/import-svg-corpus.spec.ts": {
       "count": 1,
       "last": "2026-10-18"
-    },
-    "e2e/import-svg.spec.ts": {
-      "count": 4,
-      "last": "2026-10-29"
     },
     "e2e/layout.spec.ts": {
       "count": 1,
