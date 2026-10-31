@@ -28,28 +28,19 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "PR #1858 merge queue (merge-group CI) for phase 3",
-    "eta": "2026-10-31T15:05:00Z"
+    "what": "phase 3 checker verdict on aa84e1e4 (exact-merge CI, configured-suite, post-land)",
+    "eta": "2026-10-31T15:35:00Z"
   },
   "inFlight": [
     {
       "phase": "3",
-      "step": "build (queued)",
-      "session": "session_017SdbwRJQF38EZh2tBc5f3v",
-      "nonce": "3-b-e38b",
-      "branch": "claude/plan-jev-svg-import-3-build",
-      "source": "6b3592c3fc70e9306a54a41bbf87ab9674d894f5",
-      "launchedAt": "2026-10-31T13:48:58Z",
-      "note": "in merge queue; coordinator is #1858 repair owner through post-land. Checker note: baseline text.* lines were transcribed by hand from CI run on d2d54511 and hold only on CI Chromium 149.0.7827.55; judge that against the no-regeneration rule.",
+      "step": "check",
+      "session": "session_017SdbwNmSrW7hcHFgiAZpAj",
+      "nonce": "3-c-7e1e",
+      "mergeSha": "aa84e1e4e00fed784ec3e1d89af879aa948e866a",
       "pr": 1858,
-      "head": "d2d545115ee08c077aa2644c8eda2290fd7a736c",
-      "reviewedHead": "488cfe6202dd8785d202cf20fd276c13753364b7",
-      "configuredRun": 41210273938,
-      "ciRun": 41209831838,
-      "soSession": "session_017SdbwPRdFx7Lm3TFqbeNzJ",
-      "soGrade": "A",
-      "stampRun": 41211502916,
-      "autoMergeEnabledAt": "2026-10-31T14:44:39Z"
+      "launchedAt": "2026-10-31T14:50:30Z",
+      "note": "checker waits for exact-merge checks; coordinator remains #1858 repair owner through post-land"
     }
   ],
   "owner": [],
