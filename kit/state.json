@@ -27,20 +27,17 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": {
-    "what": "phase 1 checker verdict on 0b4e403d (exact-merge CI, configured-suite, post-land)",
-    "eta": "2026-10-31T11:45:00Z"
-  },
+  "waitingOn": null,
   "inFlight": [
     {
-      "phase": "1",
-      "step": "check",
-      "session": "session_017SdbwPAo2tiP855EUJf6ur",
-      "nonce": "1-c-333c",
-      "mergeSha": "0b4e403da1f4762dee874e3fed18c29eb0497116",
-      "pr": 1851,
-      "launchedAt": "2026-10-31T11:03:44Z",
-      "note": "checker waits for exact-merge checks; coordinator remains #1851 repair owner through post-land"
+      "phase": "2",
+      "step": "build",
+      "session": "session_017SdbwLoYJYFe2efH73A2vG",
+      "nonce": "2-b-0f9c",
+      "branch": "claude/plan-jev-svg-import-2-build",
+      "source": "0b4e403da1f4762dee874e3fed18c29eb0497116",
+      "launchedAt": "2026-10-31T11:20:13Z",
+      "note": "builder; coordinator becomes PR repair owner once the PR exists"
     }
   ],
   "owner": [],
@@ -75,5 +72,16 @@
   "heartbeat": {
     "issue": 1850,
     "commentId": 6542260768
-  }
+  },
+  "passed": [
+    {
+      "phase": "1",
+      "mergeSha": "0b4e403da1f4762dee874e3fed18c29eb0497116",
+      "pr": 1851,
+      "checker": "session_017SdbwPAo2tiP855EUJf6ur"
+    }
+  ],
+  "coordinatorNotes": [
+    "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z)."
+  ]
 }
