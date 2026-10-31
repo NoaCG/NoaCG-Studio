@@ -241,7 +241,7 @@ export function changedSpecs(base, cwd = ROOT) {
   return specs;
 }
 
-const gitShow = (rev, file) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd: ROOT, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
+const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
 const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
 
 /**
@@ -251,48 +251,59 @@ const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(tex
  */
 export function growthAssessment({ base, reportPath, table, today, root = ROOT }) {
   const ceilings = JSON.parse(readFileSync(path.join(root, 'scripts', 'growth-ceilings.json'), 'utf8'));
+  const reasons = [];
+  // Asked for a report and none could be read (the fetch failed): the tiers have no evidence and
+  // no stops can be known, so additive growth is refused. A fetch that found no report at all
+  // writes `{ none: true }`, and the frozen seed stands in until the first weekly run.
   let report = null;
-  if (reportPath && existsSync(reportPath)) { try { report = JSON.parse(readFileSync(reportPath, 'utf8')); } catch { report = null; } }
-  const measurement = report?.measurement ?? ceilings.measurement;
+  let unreadable = false;
+  if (reportPath) { try { report = JSON.parse(readFileSync(reportPath, 'utf8')); } catch { unreadable = true; } }
+  if (report?.none) report = null;
+  const measurement = unreadable ? null : report?.measurement ?? ceilings.measurement;
+  if (unreadable) reasons.push('the newest weekly growth report could not be read, so no tier can establish headroom');
   const cadence = reportCadence({ generatedAt: report?.generatedAt ?? null, today, maxAgeDays: ceilings.reportMaxAgeDays });
   const fresh = tableFreshness({ recordedAt: table.source?.recordedAt, today, boundDays: ceilings.freshnessDays, pending: report?.table?.pending ?? [] });
   const added = [];
   const workflows = {};
-  const reasons = [];
   let ledger = [];
   let offline = [];
+  let diffFailed = false;
   if (base) {
     let diff = '';
-    try { diff = execFileSync('git', ['diff', '--name-status', `${base}...HEAD`], { cwd: root, encoding: 'utf8', windowsHide: true }); } catch { reasons.push(`cannot diff ${base}: what this change adds is unknown`); }
+    // An unreadable diff is unknown added cost, never zero: refused, and said so.
+    try { diff = execFileSync('git', ['diff', '--name-status', `${base}...HEAD`], { cwd: root, encoding: 'utf8', windowsHide: true }); } catch { diffFailed = true; reasons.push(`cannot diff ${base}: what this change adds is unknown, so it is refused`); }
     for (const line of diff.split('\n')) {
       const [status, ...rest] = line.trim().split(/\s+/);
       const file = rest.at(-1);
       if (!status || !file) continue;
-      if (/^[AR]/.test(status)) added.push(file);
-      if (/^[AMR]/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) workflows[file.split('/').pop()] = { base: gitShow(base, file) ?? '', head: readFileSync(path.join(root, file), 'utf8') };
+      // A rename adds nothing unless it moves a case into a priced kind (an offline spec moved
+      // into e2e/configured/ is a new backend case).
+      const kind = (f) => (/^e2e\/configured\//.test(f) ? 'backend' : /^e2e\/catalog\//.test(f) ? 'graphics' : 'other');
+      if (/^A/.test(status) || (/^R/.test(status) && kind(rest[0]) !== kind(file))) added.push(file);
+      if (/^[AMR]/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) workflows[file.split('/').pop()] = { base: gitShow(base, file, root) ?? '', head: readFileSync(path.join(root, file), 'utf8') };
     }
-    const baseCeilings = gitShow(base, 'scripts/growth-ceilings.json');
+    const baseCeilings = gitShow(base, 'scripts/growth-ceilings.json', root);
     if (baseCeilings) {
       const before = JSON.parse(baseCeilings);
-      ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs')), head: MAIN_RUNNERS } });
+      ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS } });
       const wasInvalid = new Set(exceptionStatus(before.exceptions, today, before.exceptionMaxDays).invalid.map((e) => e.id));
       for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays).invalid) if (!wasInvalid.has(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
     }
-    const baseSpecs = (gitShow(base, 'docs/work-specs') ?? '').split('\n').filter((n) => n.endsWith('/'));
-    const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));
+    const baseSpecs = (gitShow(base, 'docs/work-specs', root) ?? '').split('\n').filter((n) => n.endsWith('/'));
+    const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`, root) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));
     offline = offlineExceptionChanges(baseExceptions, readExceptions(root));
   }
   const items = priceAdditions({ added, workflows, estimates: ceilings.estimates });
   const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {} });
   let status = tiers.status;
   for (const t of TIERS) if (tiers.tiers[t].status !== 'ok' && tiers.tiers[t].items.length) reasons.push(`${t} tier ${tiers.tiers[t].status}: ${tiers.tiers[t].why}`);
-  if (ledger.length || offline.length) { status = 'refuse'; reasons.push(...ledger, ...offline); }
+  if (ledger.length || offline.length || diffFailed) { status = 'refuse'; reasons.push(...ledger, ...offline); }
   if (cadence.overdue) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
   if (fresh.stale) { reasons.push(fresh.reason); if (status === 'ok') status = 'warn'; }
   const markdown = [
     ...summarizeTiers(tiers),
     `- ${fresh.reason}.`,
-    `- ${cadence.reason}${report ? ` (week to ${report.measurement?.windowEnd})` : '; tiers judged on the frozen seed measured to ' + ceilings.measurement.windowEnd}.`,
+    `- ${cadence.reason}${report ? ` (week to ${report.measurement?.windowEnd})` : unreadable ? '; the newest report could not be read: no tier evidence' : `; tiers judged on the frozen seed measured to ${ceilings.measurement.windowEnd}`}.`,
     ...ledger.map((p) => `- Ceilings file: ${p}.`),
     ...offline.map((p) => `- Budget exceptions: ${p}.`),
     '',
@@ -326,7 +337,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const wallMinutes = value('--wall-minutes') !== undefined ? Number(value('--wall-minutes')) : null;
   const order = { ok: 0, warn: 1, refuse: 2 };
   if (order[growth.status] > order[result.status]) result.status = growth.status;
-  if (growth.status !== 'ok') result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;
+  if (growth.status !== 'ok' && growth.reasons.length) result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;
   const text = `${summarize(result, { runnerMinutes, wallMinutes, label: fromReport ? 'measured' : 'estimate' })}${growth.markdown}`;
   console.log(text);
   const summary = value('--summary');

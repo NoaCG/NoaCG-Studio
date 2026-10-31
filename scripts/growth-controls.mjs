@@ -86,7 +86,7 @@ export function workflowShape(text) {
   }
   const on = /^on:\s*\n([\s\S]*?)(?=^\S)/m.exec(`${text ?? ''}\n_end:`)?.[1] ?? '';
   const crons = [...on.matchAll(/cron:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
-  const inline = /^on:\s*\[?([^\n\]]*)\]?\s*$/m.exec(String(text ?? ''))?.[1] ?? '';
+  const inline = /^on:[ \t]*\[?([^\n\]]*)\]?[ \t]*$/m.exec(String(text ?? ''))?.[1] ?? '';
   const triggers = new Set([...on.matchAll(/^ {2}([a-z_]+):/gm)].map((m) => m[1]).concat(inline.split(/[\s,]+/).filter(Boolean)));
   return { jobs, names, crons, triggers };
 }
@@ -135,15 +135,24 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
   for (const [wf, { base, head }] of Object.entries(workflows)) {
     const before = workflowShape(base);
     const after = workflowShape(head);
-    const fresh = after.jobs.filter((j) => !before.jobs.includes(j));
+    // A renamed key or a renamed display name is the same job, not a new one. A removed job earns
+    // no credit: pricing it would let a cheap removal pay for an expensive addition.
+    const beforeNames = new Set(before.jobs.map((j) => before.names[j] ?? j));
+    const fresh = after.jobs.filter((j) => !before.jobs.includes(j) && !beforeNames.has(after.names[j] ?? j));
     for (const job of fresh) {
       const name = after.names[job] ?? job;
       const tier = tierOfJob(wf, name);
       if (tier === 'offline') continue; // offline work is the table line's to price
       const perDay = after.crons.reduce((n, c) => n + cronRunsPerDay(c), 0) * e.newJobMinutes;
-      // Runs per landing by trigger: every PR run, the merge-group run, the push that lands.
-      const runs = (after.triggers.has('pull_request') || after.triggers.has('pull_request_target') ? e.prRunsPerLanding : 0)
-        + (after.triggers.has('merge_group') ? 1 : 0) + (after.triggers.has('push') ? 1 : 0);
+      // Runs per landing by trigger: every PR run, the merge-group run, the push that lands. A
+      // job that follows other runs (workflow_run, deployment_status, check_suite) is priced as
+      // if it ran on every one; any other trigger (a dispatch, an issue event) at least once per
+      // landing, because an unknown frequency is not zero.
+      const has = (t) => after.triggers.has(t);
+      let runs = (has('pull_request') || has('pull_request_target') ? e.prRunsPerLanding : 0) + (has('merge_group') ? 1 : 0) + (has('push') ? 1 : 0);
+      if (has('workflow_run') || has('deployment_status') || has('check_suite') || has('check_run') || has('status')) runs = Math.max(runs, e.runsPerLanding.everyRun);
+      const known = new Set(['pull_request', 'pull_request_target', 'merge_group', 'push', 'schedule', 'workflow_run', 'deployment_status', 'check_suite', 'check_run', 'status']);
+      if ([...after.triggers].some((t) => !known.has(t))) runs = Math.max(runs, 1);
       const perLanding = runs * e.newJobMinutes;
       items.push({ tier, id: `job:${wf}/${name}`, perLanding, perDay, how: `new job at ${e.newJobMinutes} runner-min${perLanding ? `, x ${runs.toFixed(2)} runs per landing` : ''}${perDay ? `, ${after.crons.join(' + ')} per day` : ''}` });
     }
@@ -296,7 +305,7 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     if (added && stops[tier]) { status = 'refuse'; why += `; growth stopped: ${stops[tier]}`; }
     else if (added && ev.state === 'missing') { status = 'refuse'; why += '; headroom cannot be established, so added cost is refused'; }
     else if (added && after >= line) { status = 'refuse'; why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day, reaching ${Math.round(100 * after)}%, at or over the ${Math.round(100 * line)}% line${ev.state === 'complete' ? '' : ' that partial or stale evidence sets'}`; }
-    else if ((after ?? 0) >= ceilings.warnShare || ev.state !== 'complete' || stops[tier]) { status = 'warn'; if (added) why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day`; }
+    else if ((after ?? 0) >= ceilings.warnShare || (added && ev.state !== 'complete') || stops[tier]) { status = 'warn'; if (added) why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day`; }
     tiers[tier] = { status, why, evidence: ev.state, share, after, addedLanding, addedDay, items: tierItems.map((i) => ({ ...i, exception: covered(i)?.id ?? null })) };
   }
   const order = { ok: 0, warn: 1, refuse: 2 };

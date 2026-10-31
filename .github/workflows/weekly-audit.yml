@@ -206,17 +206,25 @@ jobs:
     name: Weekly growth report
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read # run and job records, and last week's artifact
+      pull-requests: read # open items' clocks
+      statuses: read # the noacg/reviewed stamps those clocks start from
+      issues: write # the rolling actions issue
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+      # A failed fetch leaves no file, and the step below then refuses to publish rather than
+      # reset last week's breaches and stops; no report at all (the first week) is written down.
       - name: Last week's report
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/previous-growth.json" || true
+        run: node scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/previous-growth.json"
       # The rolling issue is a statement about main (the audit's own rule above), so only a
       # schedule or a run on main raises or withdraws it.
       - name: Measure, attribute and assign

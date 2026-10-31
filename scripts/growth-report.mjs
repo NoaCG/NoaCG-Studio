@@ -168,21 +168,25 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
 
 export function listRuns(reader, from, to) {
   const runs = [];
-  // Whole calendar days covering [from, to): `created=` filters by UTC day.
-  for (let d = Math.floor(from / DAY) * DAY; d < to; d += DAY) {
-    const day = new Date(d).toISOString().slice(0, 10);
-    for (let page = 1; page <= 10; page++) {
-      const body = reader.get(`repos/${REPO}/actions/runs?created=${day}&per_page=100&page=${page}&exclude_pull_requests=true`);
+  let complete = true;
+  // Six-hour slices: `created=` returns at most 1,000 runs per query, and a busy day has more
+  // than that. A slice that still reports more than it can page is an incomplete list.
+  const SLICE = DAY / 4;
+  for (let a = Math.floor(from / SLICE) * SLICE; a < to; a += SLICE) {
+    const range = `${new Date(a).toISOString().slice(0, 19)}Z..${new Date(a + SLICE - 1000).toISOString().slice(0, 19)}Z`;
+    for (let page = 1; ; page++) {
+      const body = reader.get(`repos/${REPO}/actions/runs?created=${range}&per_page=100&page=${page}&exclude_pull_requests=true`);
       if (!body) return { runs, complete: false };
+      if ((body.total_count ?? 0) > 1000) complete = false;
       for (const r of body.workflow_runs ?? []) {
         const at = Date.parse(r.created_at);
         if (at < from || at >= to) continue;
         runs.push({ id: r.id, workflow: String(r.path ?? '').split('/').pop().replace(/@.*$/, ''), event: r.event, branch: r.head_branch, sha: r.head_sha, created: r.created_at, conclusion: r.conclusion, status: r.status, jobs: null });
       }
-      if ((body.workflow_runs ?? []).length < 100) break;
+      if ((body.workflow_runs ?? []).length < 100 || page >= 10) break;
     }
   }
-  return { runs, complete: true };
+  return { runs, complete };
 }
 
 export function readJobs(reader, run) {
@@ -196,33 +200,43 @@ export function readJobs(reader, run) {
   return jobs;
 }
 
-/** Open pull requests' clocks: stamp-based ready clock (receipts live outside the repo) and queue clock. */
+/**
+ * Open pull requests' clocks: the stamp-based ready clock (worker receipts live outside the
+ * repository) and the queue clock. A PR whose commits or statuses could not all be read gets an
+ * unknown clock, never a later start; `complete` says whether every read succeeded.
+ */
 function openItems(reader, now) {
-  const prs = reader.get(`repos/${REPO}/pulls?state=open&per_page=100`) ?? [];
+  const prs = reader.get(`repos/${REPO}/pulls?state=open&per_page=100`);
+  if (!prs) return { items: [], pending: [], complete: false };
   const items = [];
   const pending = [];
+  let complete = prs.length < 100;
   for (const pr of prs) {
     if (/^bot\/e2e-durations/.test(pr.head?.ref ?? '')) pending.push({ number: pr.number, opened: pr.created_at.slice(0, 10) });
     if (pr.draft) continue;
-    const commits = reader.get(`repos/${REPO}/pulls/${pr.number}/commits?per_page=100`) ?? [];
+    const commits = reader.get(`repos/${REPO}/pulls/${pr.number}/commits?per_page=100`);
+    let known = Array.isArray(commits) && commits.length < 100;
     const stamps = [];
-    for (const c of commits.slice(-10)) {
-      const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100`) ?? [];
-      for (const s of statuses) if (s.context === 'noacg/reviewed' && s.state === 'success') stamps.push({ at: s.created_at, head: c.sha });
+    for (const c of known ? commits : []) {
+      const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100`);
+      if (!statuses) { known = false; break; }
+      for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at, head: c.sha });
     }
-    const clock = prClock({ stamps, openedAt: pr.created_at, now });
+    if (!known) complete = false;
+    const clock = known ? prClock({ stamps, openedAt: pr.created_at, now }) : { start: null, source: 'unknown', state: 'unfinished', minutes: null };
     items.push({ id: `#${pr.number}`, category: 'prReady', clock });
     // A timeline over 100 events needs paging, or its queue events go missing (ci01 traps).
     const events = [];
-    for (let page = 1; page <= 3; page++) {
-      const body = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100&page=${page}`) ?? [];
+    for (let page = 1; page <= 5; page++) {
+      const body = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100&page=${page}`);
+      if (!body) { complete = false; break; }
       events.push(...body);
       if (body.length < 100) break;
     }
     const queued = events.filter((e) => e.event === 'added_to_merge_queue').map((e) => e.created_at);
     if (queued.length) items.push({ id: `#${pr.number} queue`, category: 'queue', clock: queueClock({ queued, now }) });
   }
-  return { items, pending };
+  return { items, pending, complete };
 }
 
 /** Finished samples and phase ledgers handed in as JSON: `{ samples: [...], phases: [{ id, events }] }`. */
@@ -282,7 +296,12 @@ export function collect({ days = 7, budget = 450, now = new Date().toISOString()
  * is empty. Only a run about main may raise or withdraw an alarm (the caller checks the ref).
  */
 export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args, { encoding: 'utf8' })) {
-  const found = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&per_page=100&labels=`]) || '[]').find((i) => i.title === title && !i.pull_request);
+  let found;
+  for (let page = 1; page <= 10 && !found; page++) {
+    const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&creator=github-actions%5Bbot%5D&per_page=100&page=${page}`]) || '[]');
+    found = list.find((i) => i.title === title && !i.pull_request);
+    if (list.length < 100) break;
+  }
   if (body && found) { gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', `body=${body}`]); return `updated #${found.number}`; }
   if (body) { const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-f', `body=${body}`])); return `opened #${made.number}`; }
   if (found) { gh(['api', '-X', 'POST', `repos/${REPO}/issues/${found.number}/comments`, '-f', 'body=Nothing overdue any more; closing.']); gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', 'state=closed']); return `closed #${found.number}`; }
@@ -293,14 +312,15 @@ export const AGE_ISSUE = 'Delivery items past their age ceiling';
 export const WEEKLY_ISSUE = 'Growth controls: weekly actions';
 
 /** The per-item age check alone: cheap enough to run after every landing. */
-export function ages({ ceilings, now = new Date().toISOString(), budget = 120 }) {
-  const reader = makeReader(budget);
+export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget) }) {
   const open = openItems(reader, now);
   const actions = ageAlarms(open.items, ceilings, now);
+  // A partial read is not "nothing overdue": it raises what it found and never closes the issue.
+  if (!open.complete && actions.length === 0) return { actions, body: null, calls: reader.calls, complete: false };
   const body = actions.length
     ? [`Owner: ${ceilings.owner}. Checked ${now} (${reader.calls} API calls). Each item below is past its age ceiling (docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4.3) and needs a corrective action by its date: land it, unblock it or close it with a reason.`, '', ...actions.map((a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}.`)].join('\n')
     : '';
-  return { actions, body, calls: reader.calls };
+  return { actions, body, calls: reader.calls, complete: open.complete };
 }
 
 /** The newest published report: the `growth-report` artifact of the latest weekly-audit run on main. */
@@ -315,6 +335,9 @@ export function fetchLatest(out) {
     writeFileSync(out, readFileSync(path.join(dir, file)));
     return { run: run.id, file: out };
   }
+  // No report among the newest runs: the first week. Said in the file, so a fetch that FAILED
+  // (no file at all) is never mistaken for a clean start that drops last week's stops.
+  writeFileSync(out, `${JSON.stringify({ none: true, checked: runs.map((r) => r.id) })}\n`);
   return null;
 }
 
@@ -327,12 +350,24 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } else if (command === 'ages') {
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
     const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString() });
+    if (result.body === null) {
+      console.log(`::warning title=Delivery age alarms::the open items could not all be read (${result.calls} API calls); the alarm issue is left as it was`);
+      process.exit(1);
+    }
     console.log(result.body || `nothing past its age ceiling (${result.calls} API calls)`);
     if (args.includes('--issue')) console.log(rollingIssue(AGE_ISSUE, result.body));
   } else if (command === 'collect') {
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
     const previousFile = value('--previous');
-    const previous = previousFile && existsSync(previousFile) ? JSON.parse(readFileSync(previousFile, 'utf8')) : null;
+    if (previousFile && !existsSync(previousFile)) {
+      // Publishing without last week would reset every breach and drop every growth stop. Fail
+      // instead: no artifact is published, the gate keeps reading the last good report, and its
+      // age makes the missing week an owned failure.
+      console.log(`::error title=Weekly growth report::last week's report (${previousFile}) could not be read; not publishing a report that would reset breaches and stops`);
+      process.exit(1);
+    }
+    const read = previousFile ? JSON.parse(readFileSync(previousFile, 'utf8')) : null;
+    const previous = read && !read.none ? read : null;
     const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 450), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ceilings });
     measured(report.measurement.landings, 'landings in the growth window');
     console.log(markdown);

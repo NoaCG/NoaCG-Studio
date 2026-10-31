@@ -13,7 +13,7 @@ import {
   evidenceOf, exceptionStatus, ledgerChanges, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { buildReport, priceRuns, spread } from './growth-report.mjs';
+import { ages, buildReport, makeReader, priceRuns, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -423,4 +423,38 @@ test('(e) admission: a backend test, a graphics fixture and a critical journey n
   assert.match(admit({ ...graphicsFixture, whyNotCheaper: '' }, tiers).reasons.join(), /cheaper layer/);
   const full = assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 116 }), items: [backendItem(1)], today: TODAY });
   assert.equal(admit(backendTest, full).admitted, false, 'admission and the tier gate cannot disagree');
+});
+
+test('(d) the age check never reads a failed or partial GitHub read as "nothing overdue"', () => {
+  const now = '2026-10-31T12:00:00Z';
+  const routes = {
+    pulls: [{ number: 7, created_at: '2026-10-31T08:00:00Z', head: { ref: 'f' }, draft: false }],
+    commits: [{ sha: 'c1' }, { sha: 'c2' }],
+    statuses: [{ context: 'noacg/reviewed', state: 'success', created_at: '2026-10-31T08:30:00Z' }],
+    timeline: [],
+  };
+  const fake = (failStatuses) => (args) => {
+    const route = args.at(-1);
+    if (/\/pulls\?/.test(route)) return JSON.stringify(routes.pulls);
+    if (/\/commits\?/.test(route)) return JSON.stringify(routes.commits);
+    if (/\/statuses/.test(route)) { if (failStatuses) throw new Error('502'); return JSON.stringify(routes.statuses); }
+    return JSON.stringify(routes.timeline);
+  };
+  const ok = ages({ ceilings: CEILINGS, now, reader: makeReader(50, fake(false)) });
+  assert.equal(ok.actions.length, 1, 'stamped 08:30, 210 minutes ago: over 120');
+  assert.match(ok.body, /#7 unfinished for 210 min/);
+  const failed = ages({ ceilings: CEILINGS, now, reader: makeReader(50, fake(true)) });
+  assert.equal(failed.body, null, 'unknown, so the issue is neither cleared nor closed');
+  const starved = ages({ ceilings: CEILINGS, now, reader: makeReader(2, fake(false)) });
+  assert.equal(starved.body, null, 'an exhausted budget is a partial read too');
+});
+
+test('(b) a renamed spec or job adds nothing; a job on an unpriced trigger is never free', () => {
+  const base = 'on:\n  pull_request:\njobs:\n  build:\n    name: Build\n';
+  const renamedKey = 'on:\n  pull_request:\njobs:\n  compile:\n    name: Build\n';
+  assert.deepEqual(priceAdditions({ workflows: { 'ci.yml': { base, head: renamedKey } }, estimates: CEILINGS.estimates }), []);
+  const afterRun = priceAdditions({ workflows: { 'x.yml': { base: '', head: 'on:\n  workflow_run:\n    workflows: [CI]\njobs:\n  a:\n    name: Follow\n' } }, estimates: CEILINGS.estimates });
+  assert.equal(afterRun[0].perLanding, CEILINGS.estimates.runsPerLanding.everyRun * CEILINGS.estimates.newJobMinutes);
+  const dispatch = priceAdditions({ workflows: { 'y.yml': { base: '', head: 'on:\n  workflow_dispatch:\njobs:\n  a:\n    name: Manual\n' } }, estimates: CEILINGS.estimates });
+  assert.equal(dispatch[0].perLanding, CEILINGS.estimates.newJobMinutes, 'unknown frequency is at least once per landing');
 });
