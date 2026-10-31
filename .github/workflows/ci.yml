@@ -511,6 +511,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Nothing to run: the flag is 'false', said with its reason.
+          off() {
+            echo "::notice title=Configured selection::$1"
+            printf 'flag=false\nspecs=\nshardspecs=[]\nmatrix={"shardIndex":[1],"shardTotal":[1]}\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
           exempt=""
           case "$EVENT" in
             merge_group) exempt="merge group: the combined tree's backend is checked per landing by configured-suite.yml, not before merge" ;;
@@ -520,10 +526,8 @@ jobs:
             *) exempt="event ${EVENT} runs no configured selection" ;;
           esac
           if [ -n "$exempt" ]; then
-            echo "::notice title=Configured selection::Exempt - ${exempt}."
-            printf 'flag=false\nspecs=\nshardspecs=[]\nmatrix={"shardIndex":[1],"shardTotal":[1]}\n' >> "$GITHUB_OUTPUT"
             printf '### Configured selection\n\nExempt: %s.\n' "$exempt" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            off "Exempt - ${exempt}."
           fi
           if [ -z "$MANIFEST" ] || [ "$MANIFEST" = "null" ]; then
             echo "::error title=Configured selection::The plan carried no configured manifest, so this change's configured selection is unknown. Refusing rather than reading that as nothing selected."
@@ -541,10 +545,7 @@ jobs:
               "", (.specs[] | "- e2e/configured/\(.)")' <<<"$MANIFEST"
           } >> "$GITHUB_STEP_SUMMARY"
           case "$MODE" in
-            none)
-              echo "::notice title=Configured selection::Untriggered - this change selects no configured spec ($(jq -r '.quarantined | length' <<<"$MANIFEST") quarantined left out)."
-              printf 'flag=false\nspecs=\nshardspecs=[]\nmatrix={"shardIndex":[1],"shardTotal":[1]}\n' >> "$GITHUB_OUTPUT"
-              exit 0 ;;
+            none) off "Untriggered - this change selects no configured spec ($(jq -r '.quarantined | length' <<<"$MANIFEST") quarantined left out)." ;;
             subset|all) ;;
             *) echo "::error title=Configured selection::Unknown manifest mode '${MODE}'."; exit 1 ;;
           esac
@@ -1245,19 +1246,18 @@ jobs:
           SHARD_INDEX: ${{ matrix.shardIndex }}
           TMPDIR: ${{ runner.temp }}
         run: |
-          MINE="$(node -e '
-            const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");
-            const mine = bins[Number(process.env.SHARD_INDEX) - 1];
+          # Line 1: this shard's file names; line 2: their anchored filters.
+          OUT="$(node --input-type=module -e '
+            import { specFilterArg } from "./scripts/e2e-affected.mjs";
+            const mine = JSON.parse(process.env.SHARD_SPECS ?? "[]")[Number(process.env.SHARD_INDEX) - 1];
             if (!Array.isArray(mine) || mine.length === 0) {
               console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);
               process.exit(1);
             }
-            console.log(mine.join(" "));
+            console.log(`${mine.join(" ")}\n${mine.map(specFilterArg).join(" ")}`);
           ')" || exit 1
-          SPECS="$(node --input-type=module -e '
-            import { specFilterArg } from "./scripts/e2e-affected.mjs";
-            console.log(process.argv.slice(1).map(specFilterArg).join(" "));
-          ' $MINE)" || exit 1
+          MINE="$(sed -n 1p <<<"$OUT")"
+          SPECS="$(sed -n 2p <<<"$OUT")"
           export NOACG_E2E_EXPECTED_SPECS="$(printf 'e2e/configured/%s ' $MINE)"
           echo "::notice title=Configured E2E ${SHARD_INDEX}::$(echo "$MINE" | wc -w) spec file(s): ${MINE}"
           code=0

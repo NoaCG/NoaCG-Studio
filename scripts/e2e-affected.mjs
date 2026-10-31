@@ -90,15 +90,13 @@ export function splitQuarantined(specs, quarantined, { changed = [] } = {}) {
  * @param {string[]} changed repo-relative paths
  */
 export function configuredManifest(plan, quarantined, changed = []) {
-  const selected = plan.configuredSpecs ?? [];
-  const inStore = new Set(quarantined ?? []);
-  const changedSet = new Set(changed);
-  const out = (s) => inStore.has(`e2e/configured/${s}`) && !changedSet.has(`e2e/configured/${s}`);
-  const specs = selected.filter((s) => !out(s));
+  // The offline split, over planner names (`configured/<spec>`), so its edited-spec rule is the same one.
+  const split = splitQuarantined((plan.configuredSpecs ?? []).map((s) => `configured/${s}`), quarantined, { changed });
+  const specs = split.blocking.map((s) => s.slice('configured/'.length));
   return {
     mode: specs.length === 0 ? 'none' : plan.configuredAll ? 'all' : 'subset',
     specs,
-    quarantined: selected.filter(out).map((s) => `e2e/configured/${s}`),
+    quarantined: split.quarantined,
     reasons: plan.configuredReasons ?? { whole: [], files: {} },
   };
 }
@@ -837,8 +835,10 @@ export function configuredToolchain() {
 }
 
 /** Whether a changed file is shared configured ground: the whole configured set runs for it. */
-export function configuredFullFor(file, toolchain = configuredToolchain()) {
-  return CONFIGURED_FULL.some((r) => r.test(file)) || toolchain.has(file);
+export function configuredFullFor(file, toolchain) {
+  if (CONFIGURED_FULL.some((r) => r.test(file))) return true;
+  // Only a script or a root config can be in the toolchain, so nothing else reads it.
+  return /^(scripts\/|playwright\.)/.test(file) && (toolchain ?? configuredToolchain()).has(file);
 }
 
 /**
@@ -915,7 +915,7 @@ export function planFor(
   // to the configured specs it selected.
   const configuredOn = new Set(configuredOnDisk);
   const configuredSel = new Set();
-  const configuredWhole = [];
+  const configuredWhole = new Set();
   const configuredWhy = new Map();
   const selectConfigured = (file, list) => {
     const kept = list.filter((s) => configuredOn.has(s));
@@ -946,12 +946,10 @@ export function planFor(
   // Whether any file that asked for the whole suite could move the catalog: the question sprint
   // focus leaves open once it has turned that escalation into the shared-change set.
   let escalationReachesCatalog = false;
-  // Every file that escalated, for the configured selection: a dependency the offline plan could not
-  // map is uncertain for the configured suite too, so it selects the whole configured set.
-  const escalated = new Set();
+  // A file that escalates is uncertain for the configured suite too: it selects the whole configured set.
   const escalate = (file) => {
     full = true;
-    escalated.add(file);
+    configuredWhole.add(file);
     if (!outsideCatalog(file, reach)) escalationReachesCatalog = true;
   };
   // A changed `?raw` file plans the module that inlines it as well as itself, with that module's
@@ -966,7 +964,7 @@ export function planFor(
     // itself; shared configured ground runs the whole set; a covers line runs its spec.
     const configuredSpec = /^e2e\/configured\/([^/]+\.spec\.ts)(?:-snapshots\/|$)/.exec(file)?.[1];
     if (configuredSpec) selectConfigured(file, [configuredSpec]);
-    else if (configuredShared(file)) configuredWhole.push(file);
+    else if (configuredShared(file)) configuredWhole.add(file);
     selectConfigured(file, configuredCoverage.filter((c) => c.test(file)).map((c) => c.spec));
     // The catalog reach is asked before IGNORE for the same reason: a script a catalog spec imports
     // (scripts/rules.mjs) is ignored for the offline suite and is still something the gate runs.
@@ -1009,7 +1007,7 @@ export function planFor(
       if (helper.catalog) catalog = true;
       selectConfigured(file, helper.configuredSpecs ?? []);
       // A helper that says a configured spec imports it but cannot name which is uncertain.
-      if (helper.configured && !(helper.configuredSpecs ?? []).length) configuredWhole.push(file);
+      if (helper.configured && !(helper.configuredSpecs ?? []).length) configuredWhole.add(file);
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
@@ -1076,8 +1074,7 @@ export function planFor(
   // stack (ci.yml `configured`, cicd-improvement ci06), so a change that touches ONLY its territory
   // reports 'none' for the offline gate and its configured selection below.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
-  for (const file of escalated) if (!configuredWhole.includes(file)) configuredWhole.push(file);
-  const configuredAll = configuredWhole.length > 0;
+  const configuredAll = configuredWhole.size > 0;
   const configuredSpecs = configuredAll ? [...configuredOn].sort() : [...configuredSel].sort();
   const configured = configuredSpecs.length > 0;
   return {
@@ -1694,7 +1691,8 @@ function emitJson({ mode, specs, catalog, base, changedFiles, traced = null, pla
 
   // The quarantine split comes AFTER the ghost check below so a ghost is still reported, and
   // BEFORE sizing and packing so the shards are sized for the files they will actually run.
-  const { blocking: suite, quarantined } = splitQuarantined(planned, quarantineOnDisk(), { changed: changedFiles ?? [] });
+  const store = quarantineOnDisk();
+  const { blocking: suite, quarantined } = splitQuarantined(planned, store, { changed: changedFiles ?? [] });
   if (quarantined.length > 0) {
     process.stderr.write(`e2e-affected: ${quarantined.length} quarantined spec(s) left the blocking shards for quarantine.yml: ${quarantined.join(', ')}\n`);
   }
@@ -1763,7 +1761,7 @@ function emitJson({ mode, specs, catalog, base, changedFiles, traced = null, pla
   }
 
   process.stdout.write(
-    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed, traced, configured: configuredManifest(plan, quarantineOnDisk(), changedFiles ?? []) })}\n`,
+    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed, traced, configured: configuredManifest(plan, store, changedFiles ?? []) })}\n`,
   );
 }
 

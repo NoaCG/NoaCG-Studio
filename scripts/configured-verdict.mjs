@@ -237,15 +237,16 @@ export function manifestProblems(report, { selected, listed }) {
   const listedFiles = new Set(want.map((s) => s.file));
   const unlisted = selected.filter((f) => !listedFiles.has(f));
   if (unlisted.length) problems.push({ title: 'Selected spec lists no test', detail: unlisted.join(' ') });
+  const sample = (list) => `${list.slice(0, 8).map((s) => `${s.file} - ${s.title}`).join('; ')}${list.length > 8 ? '; ...' : ''}`;
   const wantIds = new Set(want.map(caseId));
   const gotIds = new Set(got.map(caseId));
   const missing = want.filter((s) => !gotIds.has(caseId(s)));
   if (missing.length) {
-    problems.push({ title: 'Selected tests missing from the report', detail: `${missing.length} of ${want.length}: ${missing.slice(0, 8).map((s) => `${s.file} - ${s.title}`).join('; ')}${missing.length > 8 ? '; ...' : ''}` });
+    problems.push({ title: 'Selected tests missing from the report', detail: `${missing.length} of ${want.length}: ${sample(missing)}` });
   }
   const extra = got.filter((s) => !wantIds.has(caseId(s)));
   if (extra.length) {
-    problems.push({ title: 'Report does not match the selection', detail: `${extra.length} reported test(s) were not selected: ${extra.slice(0, 8).map((s) => `${s.file} - ${s.title}`).join('; ')}${extra.length > 8 ? '; ...' : ''}` });
+    problems.push({ title: 'Report does not match the selection', detail: `${extra.length} reported test(s) were not selected: ${sample(extra)}` });
   }
   return problems;
 }

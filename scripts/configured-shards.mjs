@@ -64,33 +64,35 @@ export function configuredMinutes(reports) {
 export const SELECTED_SHARD_MINUTES = 10;
 
 /**
- * How many runners a SELECTION gets: one per `SELECTED_SHARD_MINUTES` of its measured weight, at
- * least one and at most `CONFIGURED_SHARDS`, so the whole set still gets the four a landing gets
- * and a two-spec selection pays for one stack, not four.
+ * The weights both the runner count and the packing read: the suite's measured files, or, with
+ * nothing measured, one minute each (zeros would all pack onto the first runner; ones split by count).
+ */
+function weightTable(suite, reports) {
+  const known = Object.entries(configuredMinutes(reports)).filter(([f]) => suite.includes(f));
+  return { known: known.length, table: { minutes: Object.fromEntries(known.length ? known : suite.map((f) => [f, 1])) } };
+}
+
+/**
+ * How many runners a SELECTION gets: one per `SELECTED_SHARD_MINUTES` of its weight, at least one
+ * and at most `CONFIGURED_SHARDS`, so the whole set still gets the four a landing gets and a
+ * two-spec selection pays for one stack, not four.
  */
 export function selectedShardCount(suite, reports = []) {
-  const measured = configuredMinutes(reports);
-  const known = Object.values(measured);
-  const median = known.length ? [...known].sort((a, b) => a - b)[Math.floor(known.length / 2)] : 1;
-  const total = suite.reduce((sum, f) => sum + (measured[f] ?? median), 0);
-  return Math.min(CONFIGURED_SHARDS, Math.max(1, Math.ceil(total / SELECTED_SHARD_MINUTES)));
+  const { table } = weightTable(suite, reports);
+  return Math.min(CONFIGURED_SHARDS, Math.max(1, Math.ceil(minutesFor(suite, table) / SELECTED_SHARD_MINUTES)));
 }
 
 /**
  * @param {{ suite: string[], reports?: object[], shards?: number }} input
  */
 export function planConfigured({ suite, reports = [], shards = CONFIGURED_SHARDS }) {
-  const measured = configuredMinutes(reports);
-  const known = Object.entries(measured).filter(([f]) => suite.includes(f));
-  // Nothing measured weighs every file at zero, and zeros all pack onto the first runner; one
-  // minute each splits by file count instead.
-  const table = { minutes: Object.fromEntries(known.length ? known : suite.map((f) => [f, 1])) };
+  const { known, table } = weightTable(suite, reports);
   const shardSpecs = packShards(suite, shards, table);
   return {
     shardSpecs,
     matrix: { shardIndex: shardSpecs.map((_, i) => i + 1), shardTotal: [shardSpecs.length] },
     predicted: shardSpecs.map((bin) => Number(minutesFor(bin, table).toFixed(1))),
-    weights: { measured: known.length, median: suite.length - known.length },
+    weights: { measured: known, median: suite.length - known },
   };
 }
 
