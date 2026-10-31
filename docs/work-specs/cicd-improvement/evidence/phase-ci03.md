@@ -128,6 +128,7 @@ ambiguity. These are fixtures.
 | --- | --- | --- | --- | --- |
 | Codex on `1deedf58` (comment 4431729773) | reconciling a cancelled run whose same-commit replacement failed answered `superseded`, exit 0, so the failure hid behind the cancel | a superseded verdict must carry its replacement's outcome | product defect | `superseded` carries the replacement's conclusion and exit code; failing test first |
 | Coordinator on `9dced3da` | a still-running run or replacement exited 0, which a reader could take as validated | pending evidence is never a pass | product defect | exit 0 only for a finished pass; 3 while running |
+| Codex on `9dced3da` (comment 4431737832) | two dispatches of one commit in the same millisecond got one record name, and the second overwrote the first | a record's identity must be unique | product defect | random suffix, created exclusively; failing test first |
 
 ## 7. Phase notes
 

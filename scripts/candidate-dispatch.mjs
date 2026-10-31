@@ -35,6 +35,7 @@
 // unresolved) or a failing verdict. 2: no verdict and something to do (absent, not-delivered,
 // recover, obsolete, cancelled). 3: still running, so wait and reconcile again.
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -203,9 +204,12 @@ function recordDir() {
 
 export function saver(dir) {
   return (intent, file) => {
-    const target = file ?? path.join(dir, `${intent.workflow.replace(/\.ya?ml$/, '')}-${intent.sha.slice(0, 12)}-${intent.requestedAt.replace(/[:.]/g, '')}.json`);
-    mkdirSync(path.dirname(target), { recursive: true });
-    writeFileSync(target, `${JSON.stringify(intent, null, 2)}\n`);
+    mkdirSync(dir, { recursive: true });
+    if (file) { writeFileSync(file, `${JSON.stringify(intent, null, 2)}\n`); return file; }
+    // A new record never replaces another: unique name, created exclusively ('wx' fails on a clash).
+    const target = path.join(dir, `${intent.workflow.replace(/\.ya?ml$/, '')}-${intent.sha.slice(0, 12)}-`
+      + `${intent.requestedAt.replace(/[:.]/g, '')}-${randomUUID().slice(0, 8)}.json`);
+    writeFileSync(target, `${JSON.stringify(intent, null, 2)}\n`, { flag: 'wx' });
     return target;
   };
 }

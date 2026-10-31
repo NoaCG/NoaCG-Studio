@@ -129,6 +129,7 @@ test('the intent is recorded and observation runs before the dispatch, and obser
     assert.equal(sent.state, 'running');
     assert.deepEqual(h.observed.map((o) => [o.ref, o.expectedRevision, o.postsBefore]), [['claude/one', sha('1'), 0]]);
     assert.deepEqual(h.records().map((r) => [r.delivery, r.runId]), [['accepted', sent.run.id]]);
+    h.gh.onPost = null;
     const throwing = dispatch({ repository: REPO, workflow: WF, ref: 'claude/one', sha: sha('1') },
       { ...h.deps, observe: () => { throw Error('lookup down'); } });
     assert.equal(throwing.state, 'running');
@@ -293,6 +294,19 @@ test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 s
   const lines = [];
   assert.equal(main(['reconcile', '/nonexistent/record.json'], { api: () => ({ ok: false }), print: (l) => lines.push(JSON.parse(l)) }), 1);
   assert.equal(lines[0].state, 'unresolved');
+});
+
+test('two intents for one commit at the same instant keep separate records', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'candidate-dispatch-'));
+  try {
+    const save = saver(dir);
+    const intent = (ref) => ({ version: 1, repository: REPO, workflow: WF, ref, sha: sha('1'), requestedAt: new Date(T0).toISOString() });
+    const one = save(intent('claude/one')), two = save(intent('claude/two'));
+    assert.notEqual(one, two);
+    assert.deepEqual([one, two].map((f) => JSON.parse(readFileSync(f, 'utf8')).ref), ['claude/one', 'claude/two']);
+    save({ ...intent('claude/one'), delivery: 'accepted' }, one); // An update rewrites its own record.
+    assert.equal(JSON.parse(readFileSync(one, 'utf8')).delivery, 'accepted');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('the CLI refuses unknown commands with exit 1', () => {
