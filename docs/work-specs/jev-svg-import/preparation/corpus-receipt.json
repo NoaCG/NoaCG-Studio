@@ -1,5 +1,5 @@
 {
-  "status": "authored, structurally frozen and durably backed up; runtime secret placement and independent admission pending",
+  "status": "authored, structurally frozen and durably backed up; runtime secret placed and digest-verified; independent admission pending",
   "frozen_at_utc": "2026-10-29T21:22:40.672075+00:00",
   "author": "Codex preparation agent /root/prepare_corpus",
   "recognition_counts": {
@@ -37,6 +37,6 @@
   },
   "git_copy_path": "dev-tree/e2e/fixtures/jev-svg/",
   "legacy_copy_policy": "51 legacy SVGs and sidecars remain local; copy only manifest references to existing repository sibling svg-corpus.",
-  "storage_status": "Private owner Drive backup uploaded, owner-only/unshared permissions and fresh downloaded ZIP hash verified. Runtime protected Actions secret remains unprovisioned (administration403).",
+  "storage_status": "Private owner Drive backup uploaded, owner-only/unshared permissions and fresh downloaded ZIP hash verified. Runtime protected Actions secret provisioned; main-only qualification run 41182891906 (31 October 2026) verified its decoded SHA-256 without opening it.",
   "frozen_manifest_status": "manifest.json storage_status is the immutable authoring-time local snapshot; this receipt records subsequent verified storage. Preserve original manifest/archive hashes."
 }
