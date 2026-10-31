@@ -1,6 +1,6 @@
 # Phase 1: prerequisites and execution route
 
-Run `plan-jev-svg-import-2026-10-31` (issue #1850). Acceptance subset: AC-1. Builder: Claude Code
+Run `plan-jev-svg-import-2026-10-31` (issue #1850), PR #1851. Acceptance subset: AC-1. Builder: Claude Code
 cloud worker `session_017SdbwMfxvT98sAbe3qp9XU`, created by coordinator
 `session_017SdbwQ6d3pRaakjohGfCcC`, environment `env_017nuiDZBW9smUNLdWVQK8cf`. Recorded
 2026-10-31 UTC. No product file changed.
@@ -63,5 +63,8 @@ landing, workflow landing becomes an explicit owner step before row 32.
 
 ## Revert
 
-`git revert -m 1 <merge commit of this PR>` on a fresh branch, landed through the merge queue.
+On a fresh branch from `origin/main`, landed through the merge queue:
+
+    git revert -m 1 "$(git log origin/main --merges --format=%H -1 --grep='Merge pull request #1851 ')"
+
 It removes only this file and the workflow comment.
