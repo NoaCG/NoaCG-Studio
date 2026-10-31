@@ -1287,6 +1287,7 @@ test('a clock beside a score tracker: one Clock choice with its modes, and both 
   await openImportDoor(page, fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url)));
   const kind = page.getByTestId('map-svg-behaviour-kind');
   await expect(kind.locator('option[value="timer"]')).toHaveCount(0);
+  await expect(kind.locator('option[value="clock"]')).toHaveCount(0);
   const mode = page.getByTestId('map-svg-clock-mode');
   await expect(mode.locator('option')).toHaveText(['No clock.', /^Counts up/, /^Counts down from its time/, /^Counts down to a set time/]);
   await expect(mode).toHaveValue('none');
@@ -1312,6 +1313,13 @@ test('a clock beside a score tracker: one Clock choice with its modes, and both 
   await expect(actions).toContainText('New game');
   await expect(actions).toContainText('Clock');
   for (const label of ['Start', 'Pause', 'Reset']) await expect(actions.getByRole('button', { name: new RegExp(`\\b${label}$`) })).toHaveCount(1);
+
+  // A file drawn for the countdown keeps that one choice, and the Clock is not offered beside it.
+  await openImportDoor(page, TIMER_SVG);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('timer');
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('none');
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
 });
 
 test('imported quiz: the behaviour survives the export and runs standalone from a file', async ({ page }, testInfo) => {
