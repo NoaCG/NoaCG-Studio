@@ -64,5 +64,12 @@
       "launchedAt": "2026-10-31T08:14:12Z"
     }
   ],
-  "triggers": {}
+  "triggers": {
+    "checkin": "trig_01Fuv5cBhW2aDhhfPdT4PZ6U"
+  },
+  "heartbeat": {
+    "issue": 1842,
+    "commentId": 6541029721
+  },
+  "qualificationComment": 6541029560
 }
