@@ -15,7 +15,15 @@ Run `plan-jev-svg-import-2026-10-31` (issue #1850). Acceptance subset AC-8, verb
 
 This row owns the persisted instance, its compile and the picker. The readout's runtime binding
 is row 8, the namespaced wire and recovery row 9, the target instant row 10 and the per-mode
-control polish row 11; until row 8 lands, a new Clock's buttons compile and find no runtime.
+control polish row 11.
+
+**The picker ships switched off** (`CLOCK_RUNTIME_READY = false` in `clock.ts`), on the
+coordinator's decision of 21:24Z after the Codex P1 on `c90594e9`: the invariant
+wizard/offer-control-can-change-graphic-front (offer a control only when it can change the
+graphic) outranks this row's wording, and until row 8 binds the match-clock runtime a Clock would
+count nothing. While false the import step is exactly as on main: the old Countdown offered, no
+Clock select. Row 8 sets it true in the change that binds the runtime, and the live picker walk
+moves there. This row still proves the ready picker with a Node render (C5).
 
 Builder: Claude Code cloud worker created by coordinator `session_017SdbwQ6d3pRaakjohGfCcC`,
 environment `env_017nuiDZBW9smUNLdWVQK8cf`. No model call, no spend; the holdout was not read.
@@ -49,7 +57,8 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
   `874c589b` (table, runtime, fields, holders, type, steps). Nothing converts a timer into a clock,
   and the draft never emits a clock beside the old engine: a timer behaviour, a file whose names
   propose the countdown, or any ticked row bound as a countdown (`svgClockRows`).
-- **C5 One clock choice per import.** The behaviour section offers a Clock select (No clock and
+- **C5 One clock choice per import, once the runtime is ready.** While `CLOCK_RUNTIME_READY` is
+  false the step is unchanged from main. When true, the behaviour section offers a Clock select (No clock and
   the three modes) on the ticked rows whose sample reads as a time, plus a Time layer select when
   there is more than one. The old Countdown is offered only where the file's names propose it (it
   drew the moments only the countdown paints) or the draft already holds one; then the Clock is
@@ -73,13 +82,14 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
   chosen on, the rule row 5's `svgApplied` already uses: on other artwork it reads as no clock, and
   the same file dropped again keeps it (row 6 rule S3). So no drop, clear or keep path changed, and
   no pinned draft record either.
-- `BehaviourSection.tsx`: the Clock and Time layer selects; the Countdown option only per C5.
-  Choosing a row for the clock sets that row's kind back to text.
-- `scripts/jev-svg-contract.test.mjs`: five tests, C1 to C5, through the real compiler, the
-  machine compiler and the machine validator.
+- `BehaviourSection.tsx`: the Clock and Time layer selects and the Countdown option per C5, behind
+  `clockReady` (default `CLOCK_RUNTIME_READY`, overridden only by the render test).
+- `scripts/jev-svg-contract.test.mjs`: seven tests (C1-C6) through the real compiler, the machine
+  compiler and validator, the draft, and a server render of the picker with the flag forced true
+  (one Clock choice, its modes, no Countdown) and as shipped (no Clock, Countdown offered).
 - `e2e/import-svg-behaviour.spec.ts` (reconciled, outside the row's list): one new test, the
-  Clock walk on `score-clock-1.svg`, then the countdown file keeping its one choice. No existing
-  test or assertion changed.
+  shipped state on `score-clock-1.svg` (Countdown offered, no Clock) and on the countdown file. No
+  existing test or assertion changed.
 
 ## Decisions and traps
 
@@ -92,8 +102,7 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
   them. Every other new import gets only the Clock.
 - **The field row's own Countdown kind** (MapSvgFieldsStep, a clock-shaped row's Text or Countdown
   choice) is outside this row's files and still offers the old engine on a single layer: #1876. The draft never emits a clock on such a row (C4).
-- **Target time is offered now**, as the contract's third mode; its instant is row 10. Count-up
-  and duration need row 8's runtime too.
+- **Target time is one of the ready picker's modes**, as the contract's third; its instant is row 10.
 - Trap: commit messages in this repo carry no co-author trailer; the command guard refuses one.
 
 ## Verification on this worker
