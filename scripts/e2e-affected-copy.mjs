@@ -923,11 +923,42 @@ export function specsNaming(edit, specTexts) {
       continue;
     }
     const terms = edit.terms.map((t) => t.toLowerCase());
+    if (specRegexes(text).some((re) => edit.terms.some((t) => re.test(t)))) { hits.push(spec); continue; }
     for (const p of specPhrases(text)) {
       if (terms.some((t) => phraseMeets(p, t))) { hits.push(spec); break; }
     }
   }
   return hits;
+}
+
+/**
+ * A spec's regex literals that read wording, compiled: those with a literal run of two letters or
+ * more outside escapes and character classes (`/save/i`, `/^OK$/`), not `/\s+/g`, `/\d+/` or
+ * `/[A-Za-z]{6,}/`. A regex locator matches the way it is
+ * written, not by whole phrases, so `specsNaming` asks each one of the old and new wording
+ * directly. Before cicd-improvement ci05 only its literal runs were compared, and a run shorter
+ * than a distinctive phrase (`getByRole('button', { name: /save/i })` against `Save graphic`) never
+ * selected its spec. A literal that does not compile is left to the phrase path; `g` and `y` are
+ * dropped so `test` keeps no state between terms.
+ * @param {string} text
+ * @returns {RegExp[]}
+ */
+const NOT_WORDING_ARG = /\.(?:toHaveClass|toHaveCSS|toHaveId|toHaveURL|waitForURL|route|unroute)\(\s*(?:['"][^'"]*['"]\s*,\s*)?$/;
+
+export function specRegexes(text) {
+  const out = [];
+  for (const m of text.matchAll(/[(,:=[!&|?]\s*\/((?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+)\/([a-z]*)/g)) {
+    // A class, CSS value, id or URL is not wording: `toHaveClass(/on/)` reads no copy.
+    if (NOT_WORDING_ARG.test(text.slice(Math.max(0, m.index - 60), m.index + 1))) continue;
+    // Literal letters only: escapes (`\s`, `\b`) and character classes (`[A-Za-z]`) are not wording.
+    if (!/\p{L}{2}/u.test(m[1].replace(/\\./g, ' ').replace(/\[(?:[^\]\\]|\\.)*\]/g, ' '))) continue;
+    try {
+      out.push(new RegExp(m[1], m[2].replace(/[gy]/g, '')));
+    } catch {
+      // Not a regex after all (a division the pattern above misread); the phrase path still reads it.
+    }
+  }
+  return out;
 }
 
 /**

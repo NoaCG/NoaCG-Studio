@@ -628,6 +628,11 @@ jobs:
             import("./scripts/e2e-affected.mjs").then((m) => console.log(mine.map(m.specFilterArg).join(" ")));
           ')"
           echo "::notice title=E2E shard ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"
+          # The same list, by name, for the run-integrity reporter: a spec handed to this shard that
+          # plans no test (a test.only elsewhere, a filter that misses it, its tests gone) fails the
+          # shard instead of passing without it (scripts/e2e-run-integrity.mjs, cicd-improvement ci05).
+          NOACG_E2E_EXPECTED_SPECS="$(node -e 'console.log(JSON.parse(process.env.SHARD_SPECS)[Number(process.env.SHARD_INDEX) - 1].join(" "))')"
+          export NOACG_E2E_EXPECTED_SPECS
           npm run test:e2e -- $SPECS
 
       # A spec writes its pictures and reports to its own output folder (`testInfo.outputPath`,

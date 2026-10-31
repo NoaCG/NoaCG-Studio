@@ -11,7 +11,12 @@
 //   - an error anywhere in the run says ENOSPC (no space left on the device);
 //   - a test the run planned never reported a result - the run was truncated, whatever the cause;
 //   - the disk the run writes to has less than DISK_FLOOR_BYTES free, so its artifacts and its
-//     verdict may both be partial.
+//     verdict may both be partial;
+//   - a spec file the run was told to expect (NOACG_E2E_EXPECTED_SPECS, the plan's file list for a
+//     CI shard) planned no test at all. A selected spec can vanish without failing anything: a
+//     `test.only` elsewhere in the run filters it out where `forbidOnly` is off, a filter that no
+//     longer matches its path drops it, or its tests were deleted or wrapped away. Playwright then
+//     runs the rest and passes (cicd-improvement ci05).
 //
 // Wired into every Playwright config beside the visible reporter, so it covers a run however it is
 // started (`npm run test:e2e`, the affected runner, the job queue, CI) - except a run given its
@@ -38,6 +43,24 @@ export function mentionsEnospc(value) {
   return ENOSPC.test(text) && !WATCH_LIMIT.test(text);
 }
 
+const SELECTED_PREFIX = 'selection: ';
+
+/** The spec files a run must plan tests from: names separated by whitespace or commas. */
+export function expectedSpecs(value) {
+  return String(value ?? '').split(/[\s,]+/).map((s) => s.replaceAll('\\', '/').replace(/^\.?\//, '')).filter(Boolean);
+}
+
+/**
+ * The expected spec files no planned test comes from. A name matches a test file by its trailing
+ * path segments (`foo.spec.ts` is `<testDir>/foo.spec.ts`, not `<testDir>/other-foo.spec.ts`).
+ * @param {string[]} expected
+ * @param {string[]} files the planned tests' absolute file paths
+ */
+export function missingSpecs(expected, files) {
+  const seen = files.map((f) => `/${f.replaceAll('\\', '/')}`);
+  return expected.filter((name) => !seen.some((f) => f.endsWith(`/${name}`)));
+}
+
 /** Free bytes on the volume holding `dir`, or null when it cannot be read. */
 function freeBytes(dir, statfs) {
   try {
@@ -50,10 +73,11 @@ function freeBytes(dir, statfs) {
 
 /**
  * Why this run is not a verdict, as sentences; empty when it is one.
- * @param {{ planned: number, unreported: number, enospc: boolean, free: number|null, floor?: number }} run
+ * @param {{ planned: number, unreported: number, enospc: boolean, free: number|null, missing?: string[] }} run
  */
-export function runProblems({ planned, unreported, enospc, free }) {
+export function runProblems({ planned, unreported, enospc, free, missing = [] }) {
   const problems = [];
+  if (missing.length > 0) problems.push(`${SELECTED_PREFIX}${missing.length} selected spec file(s) planned no test, so they never ran: ${missing.join(', ')}`);
   if (enospc) problems.push('the disk filled during the run (ENOSPC), so workers, artifacts or results may be missing');
   if (unreported > 0) problems.push(`${unreported} of ${planned} planned test(s) never reported a result, so the run was cut short`);
   if (free !== null && free < DISK_FLOOR_BYTES) {
@@ -71,6 +95,7 @@ export default class RunIntegrity {
     this.enospc = false;
     this.suite = null;
     this.dir = process.cwd();
+    this.expected = expectedSpecs(options.expected ?? process.env.NOACG_E2E_EXPECTED_SPECS);
   }
 
   printsToStdio() {
@@ -98,6 +123,7 @@ export default class RunIntegrity {
     if (!this.active || result.status !== 'passed') return undefined;
     const tests = this.suite ? this.suite.allTests() : [];
     const problems = runProblems({
+      missing: missingSpecs(this.expected, tests.map((test) => test.location?.file ?? '')),
       planned: tests.length,
       unreported: tests.filter((test) => test.results.length === 0).length,
       enospc: this.enospc,
@@ -106,7 +132,10 @@ export default class RunIntegrity {
     if (!problems.length) return undefined;
     console.error('\nNOT A VERDICT - this run reports a pass it cannot stand behind:');
     for (const problem of problems) console.error(`  - ${problem}`);
-    console.error('Free disk space (old test-results/ folders, finished worktrees) and run it again; nothing here is a test result.\n');
+    const disk = problems.some((p) => !p.startsWith(SELECTED_PREFIX));
+    console.error(disk
+      ? 'Free disk space (old test-results/ folders, finished worktrees) and run it again; nothing here is a test result.\n'
+      : 'A spec the plan selected was not in the run: look for a test.only, a renamed or emptied spec, or a filter that no longer matches it.\n');
     return { status: 'failed' };
   }
 }
