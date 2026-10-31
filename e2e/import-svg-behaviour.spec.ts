@@ -1310,7 +1310,8 @@ test('a clock beside a score tracker: one Clock choice with its modes, and both 
   // Both parts' buttons, each under its own section: the score's and the clock's.
   const actions = page.getByTestId('cue-actions');
   await expect(actions).toContainText('New game');
-  for (const label of ['Start', 'Pause', 'Reset']) await expect(actions.getByRole('button', { name: label, exact: true })).toHaveCount(1);
+  await expect(actions).toContainText('Clock');
+  for (const label of ['Start', 'Pause', 'Reset']) await expect(actions.getByRole('button', { name: new RegExp(`\\b${label}$`) })).toHaveCount(1);
 });
 
 test('imported quiz: the behaviour survives the export and runs standalone from a file', async ({ page }, testInfo) => {
