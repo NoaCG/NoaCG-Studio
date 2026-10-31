@@ -42,7 +42,7 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci01 checker verdict on 139a9724 (exact-merge CI, configured-suite, post-land)",
+    "what": "ci01 checker verdict on 139a9724 (exact-merge runs all green)",
     "eta": "2026-10-31T10:45:00Z"
   },
   "inFlight": [
@@ -99,7 +99,8 @@
       "followUps": [
         1846,
         1847
-      ]
+      ],
+      "postLand": "CI 41191464690, configured-suite 41191464702, Post-landing 41191464651, Quarantine 41191464817, Push on main 41191464655 all success; repair ownership complete"
     }
   ]
 }
