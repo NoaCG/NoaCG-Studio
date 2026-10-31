@@ -28,21 +28,29 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 1 builder gates on PR #1851 head ddcc83e7 (CI, configured-suite, /so)",
-    "eta": "2026-10-31T11:15:00Z"
+    "what": "PR #1851 merge queue (merge-group CI) for phase 1",
+    "eta": "2026-10-31T11:20:00Z"
   },
   "inFlight": [
     {
       "phase": "1",
-      "step": "build",
+      "step": "build (queued)",
       "session": "session_017SdbwMfxvT98sAbe3qp9XU",
       "nonce": "1-b-f21d",
       "branch": "claude/plan-jev-svg-import-1-build",
       "source": "139a9724ebb1a2522750008dcb5a6a8b72adeac0",
       "launchedAt": "2026-10-31T10:32:48Z",
-      "note": "builder waiting on CI and configured-suite on ddcc83e7; coordinator subscribed to #1851 as repair owner",
+      "note": "in merge queue; coordinator is #1851 repair owner through post-land",
       "pr": 1851,
-      "head": "ddcc83e7e0766a0db6b85b2d06b4d045062b60ce"
+      "head": "ddcc83e7e0766a0db6b85b2d06b4d045062b60ce",
+      "reviewedHead": "ddcc83e7e0766a0db6b85b2d06b4d045062b60ce",
+      "configuredRun": 41193591312,
+      "ciRun": 41193587502,
+      "soSession": "session_017SdbwMAKxAgv7Mk4wSqff4",
+      "soGrade": "A",
+      "stampRun": 41194685411,
+      "autoMergeEnabledAt": "2026-10-31T10:55:42Z",
+      "queuedAt": "2026-10-31T10:55:46Z"
     }
   ],
   "owner": [],
@@ -65,7 +73,8 @@
     "github": "REST reads ok; GraphQL and branch deletion refused; direct commit-status writes 403: stamp via cloud-queue-merge.yml dispatch (first use pending, record receipt on first phase PR)",
     "open": "wake after container reclaim not observed; rely on the supervisor recovery checkpoint",
     "sanitizer": "e3337d7a on main 139a9724; scripts/svg-import-security.test.mjs 22/22",
-    "production": "row 45 PASS on 05baf75 (PR 1800, comment 6301497867); production-page paused on owner phases 51/52"
+    "production": "row 45 PASS on 05baf75 (PR 1800, comment 6301497867); production-page paused on owner phases 51/52",
+    "stamp": "first use of the cloud-queue-merge.yml dispatch allow rule from this session: run 41194685411 (Stamp, label and queue success) posted noacg/reviewed on ddcc83e7 for PR 1851 at 10:55Z; enable_pr_auto_merge accepted, head checked before/after, added_to_merge_queue 10:55:46Z"
   },
   "block": {
     "id": "b10195f9-7d4f-4745-a3cb-f941f4586a1b",
