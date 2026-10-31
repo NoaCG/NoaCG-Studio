@@ -159,7 +159,7 @@ test('a ref that moves between the check and the dispatch yields a refused misma
     h.gh.onPost = () => { h.gh.heads['claude/one'] = sha('8'); };
     const sent = h.send('claude/one');
     assert.equal(sent.state, 'mismatch');
-    assert.match(sent.reason, /tested 8{40}, not the requested 1{40}/);
+    assert.match(sent.reason, /at 8{40}, not a configured-suite\.yml dispatch on claude\/one at 1{40}/);
   } finally { h.done(); }
 });
 
@@ -311,7 +311,7 @@ test('only the input-free configured suite is served, and only it adopts a repla
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
   const narrower = { ...base, id: 11, status: 'completed', conclusion: 'success' }; // e.g. a diff_base run
   const ci = settle({ workflow: 'ci.yml', ref: 'claude/one', sha: sha('1') }, cancelled, { complete: true, started: () => false, runs: [cancelled, narrower], head: sha('1') });
-  assert.equal(ci.state, 'recover');
+  assert.deepEqual([ci.row, ci.state], ['V1', 'refused']);
   assert.notEqual(exitCode(ci), 0);
 });
 
@@ -412,6 +412,43 @@ test('a cancelled or running re-run never erases its failed earlier attempt', ()
     const answer = settle(intent, mine, { complete: true, started: () => false, attempts, head: sha('1'), runs: [mine, { ...failedOnce, ...second }] });
     assert.deepEqual([answer.conclusion, answer.by.id, exitCode(answer)], ['failure', 19, 1], second.status);
   }
+});
+
+test('decision table: one case per row, first matching row wins', () => {
+  const C = sha('c');
+  const intent = { version: 1, repository: REPO, workflow: WF, ref: 'claude/one', sha: C, requestedAt: new Date(T0).toISOString(), priorRunIds: [7] };
+  const run = (id, more = {}) => ({ id, event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: C, path: `.github/workflows/${WF}`,
+    created_at: new Date(T0).toISOString(), status: 'completed', conclusion: 'success', run_attempt: 1, ...more });
+  const R = run(20);
+  const facts = (runs, more = {}) => ({ complete: true, runs, started: () => false, attempts: () => ['success'], head: C, ...more });
+  const check = (label, got, row, state, exit) => assert.deepEqual([got.row, got.state, exitCode(got)], [row, state, exit], label);
+  const noId = { ...intent, delivery: 'uncertain' };
+  check('A1 a new run, no proof', attribute(noId, { runs: [run(21)], complete: true }, T0), 'A1', 'unproven', 2);
+  check('A2 nothing, settled', attribute(noId, { runs: [run(7)], complete: true }, T0 + SETTLE_MS), 'A2', 'not-delivered', 2);
+  check('A3 nothing yet', attribute(noId, { runs: [], complete: true }, T0 + 1000), 'A3', 'absent', 2);
+  check('A3 accepted, never final', attribute({ ...noId, delivery: 'accepted' }, { runs: [], complete: true }, T0 + SETTLE_MS), 'A3', 'absent', 2);
+  check('A4 unreadable', attribute({ ...intent, runId: 20 }, { runs: [], complete: true }, T0), 'A4', 'unresolved', 1);
+  check('A5 other commit', attribute({ ...intent, runId: 20 }, { runs: [run(20, { head_sha: sha('d') })], complete: true }, T0), 'A5', 'mismatch', 1);
+  check('A5 other branch', attribute({ ...intent, runId: 20 }, { runs: [run(20, { head_branch: 'x' })], complete: true }, T0), 'A5', 'mismatch', 1);
+  check('V1 other workflow', settle({ ...intent, workflow: 'ci.yml' }, R, facts([R])), 'V1', 'refused', 1);
+  check('V2 failure elsewhere', settle(intent, R, facts([R, run(5, { head_branch: 'other', conclusion: 'failure' })])), 'V2', 'verdict', 1);
+  check('V2 even from a partial list', settle(intent, R, facts([run(5, { conclusion: 'timed_out' })], { complete: false })), 'V2', 'verdict', 1);
+  check('V2 own failure', settle(intent, run(20, { conclusion: 'failure' }), facts([run(20, { conclusion: 'failure' })])), 'V2', 'verdict', 1);
+  check('V3 incomplete, finished', settle(intent, R, facts([R], { complete: false })), 'V3', 'unresolved', 1);
+  check('V3 R not listed, running', settle(intent, run(20, { status: 'queued', conclusion: null }), facts([])), 'V3', 'running', 3);
+  const rerun = run(6, { run_attempt: 3, status: 'completed', conclusion: 'cancelled' });
+  check('V4 failed earlier attempt of a cancelled re-run', settle(intent, R, facts([R, rerun], { attempts: () => ['success', 'failure'] })), 'V4', 'verdict', 1);
+  check('V5 attempts unreadable', settle(intent, R, facts([R, run(6, { run_attempt: 2 })], { attempts: () => { throw Error('down'); } })), 'V5', 'unresolved', 1);
+  const stopped = run(6, { conclusion: 'cancelled' });
+  check('V6 cancelled after start', settle(intent, R, facts([R, stopped], { started: () => true })), 'V6', 'cancelled', 1);
+  check('V6 start unknown', settle(intent, R, facts([R, stopped], { started: () => { throw Error('down'); } })), 'V6', 'unresolved', 1);
+  check('V7 another still running', settle(intent, R, facts([R, run(21, { status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
+  const Rcancel = run(20, { conclusion: 'cancelled' });
+  check('V7 R replaced, replacement running', settle(intent, Rcancel, facts([Rcancel, run(21, { status: 'queued', conclusion: null })])), 'V7', 'superseded', 3);
+  check('V8 recover', settle(intent, Rcancel, facts([Rcancel, stopped])), 'V8', 'recover', 2);
+  check('V8 obsolete', settle(intent, Rcancel, facts([Rcancel], { head: sha('d') })), 'V8', 'obsolete', 2);
+  check('V9 pass', settle(intent, R, facts([R, run(4), stopped])), 'V9', 'verdict', 0);
+  check('V9 R replaced, all passed', settle(intent, Rcancel, facts([Rcancel, run(21)])), 'V9', 'superseded', 0);
 });
 
 test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {

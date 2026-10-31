@@ -102,93 +102,80 @@ function listDispatchRuns(api, { repository, workflow, ref }, after) {
     complete: Number.isSafeInteger(r.json.total_count) && r.json.total_count <= r.json.workflow_runs.length };
 }
 
-/** Which run answers this intent, or why none can be named. Pure. */
+// THE DECISION TABLE (docs/work-specs/cicd-improvement/evidence/phase-ci03.md, section 4). The
+// two functions below transcribe it row by row, first matching row wins, and every answer names
+// its row. scripts/candidate-dispatch.test.mjs has one test per row.
+
+/** Rows A1-A5: which run answers this record, or why none can be named. Pure. */
 export function attribute(intent, { runs, complete }, now) {
   if (intent.runId === undefined) {
-    // No proof: never adopt a run, only tell delivered-somehow from not delivered at all.
     const fresh = runs.filter((run) => ownRun(intent, run) && !intent.priorRunIds.includes(run.id)
       && Date.parse(run.created_at) >= Date.parse(intent.requestedAt) - SKEW_MS);
-    if (fresh.length) return { state: 'unproven', runIds: fresh.map((run) => run.id),
+    if (fresh.length) return { row: 'A1', state: 'unproven', runIds: fresh.map((run) => run.id),
       reason: `no run ID came back for this dispatch and ${fresh.length} new dispatch run(s) exist on ${intent.ref};`
         + ' none can be proved to be this request\'s, so this record never gives a verdict: reconcile with --recover to dispatch afresh' };
-    const final = intent.delivery !== 'accepted' && complete && now - Date.parse(intent.requestedAt) >= SETTLE_MS;
-    return { state: final ? 'not-delivered' : 'absent', reason: final
-      ? `no run on ${intent.ref} for this request in a complete listing ${SETTLE_MS / 60_000} minutes on; reconcile with --recover to dispatch it again`
-      : 'no run found for this request yet; reconcile again before dispatching' };
+    if (intent.delivery !== 'accepted' && complete && now - Date.parse(intent.requestedAt) >= SETTLE_MS) return { row: 'A2',
+      state: 'not-delivered', reason: `no run on ${intent.ref} for this request in a complete listing ${SETTLE_MS / 60_000} minutes on; reconcile with --recover to dispatch it again` };
+    return { row: 'A3', state: 'absent', reason: 'no run found for this request yet; reconcile again before dispatching' };
   }
   const run = runs.find((candidate) => candidate.id === intent.runId);
-  if (!run) return { state: 'unresolved', reason: `returned run ${intent.runId} could not be read` };
-  if (!ownRun(intent, run)) return { state: 'mismatch', run: summary(run), reason: `run ${run.id} is not a ${intent.workflow} dispatch on ${intent.ref}` };
-  if (run.head_sha !== intent.sha) return { state: 'mismatch', run: summary(run),
-    reason: `run ${run.id} tested ${run.head_sha}, not the requested ${intent.sha}: the ref moved` };
+  if (!run) return { row: 'A4', state: 'unresolved', reason: `returned run ${intent.runId} could not be read` };
+  if (!ownRun(intent, run) || run.head_sha !== intent.sha) return { row: 'A5', state: 'mismatch', run: summary(run),
+    reason: `run ${run.id} is a ${run.event} run of ${run.path} on ${run.head_branch} at ${run.head_sha}, not a ${intent.workflow} dispatch on ${intent.ref} at ${intent.sha}` };
   return { state: 'accepted', run: summary(run) };
 }
 
 /**
- * What the attributed run's outcome means for this commit's verdict. Each fact (runs, complete,
- * head) is a value or a getter, read only when the answer needs it; `started(run)` says whether a
- * cancelled run had started jobs, and `attempts(run)` gives a re-run's earlier conclusions.
- *
- * Rule 8: the verdict covers EVERY configured-suite dispatch run of this commit, on any branch,
- * and every attempt of each. Failed beats running beats passed. A run cancelled after it started
- * blocks the commit; only one cancelled while pending is ignored. So a failure on the commit is
- * never hidden by a later pass, a re-dispatch, a recovery or a re-run: a fail-then-pass on one
- * commit is the quarantine route, and a re-run after a runner death is the coordinator's call.
+ * Rows V1-V9: the verdict for the requested commit, given its proved run R. C is R plus every
+ * configured-suite workflow_dispatch run listed at the commit, on any branch. Facts (runs,
+ * complete, head) are values or getters; `started(run)` and `attempts(run)` are read only when a
+ * row needs them, and may throw when GitHub cannot be read.
  */
 export function settle(intent, run, facts = {}) {
   const fact = (key) => (typeof facts[key] === 'function' ? facts[key]() : facts[key]);
-  const started = (other) => facts.started?.(other) ?? true; // Unknown counts as started.
-  // Only an input-free workflow's runs on one commit are one check (rule 2). This helper serves
-  // only such a workflow; a record naming another is answered by its own run alone.
-  if (intent.workflow !== WORKFLOW) {
-    if (run.status !== 'completed') return { state: 'running', run };
-    if (run.conclusion !== 'cancelled') return { state: 'verdict', run, conclusion: run.conclusion };
-    return started(run) ? cancelledAfterStart(run) : lost(intent, run, fact);
-  }
+  // R cancelled while pending answers through the other runs of its commit (rule 2).
+  const pendingCancel = (other) => other.status === 'completed' && other.conclusion === 'cancelled';
+  const answer = (row, state, by, conclusion, why) => ({ row,
+    state: pendingCancel(run) && ['verdict', 'running'].includes(state) ? 'superseded' : state, run,
+    ...(by ? { by: summary(by) } : {}), ...(conclusion ? { conclusion } : {}), reason: why });
+  if (intent.workflow !== WORKFLOW) return answer('V1', 'refused', null, null,
+    `this record names ${intent.workflow}; only ${WORKFLOW}, whose runs on one commit are one check, is judged here`);
   const listed = fact('runs') ?? [];
-  if (fact('complete') !== true || !listed.some((other) => other.id === run.id)) return run.status !== 'completed'
-    // Right after a dispatch the listing lags; running never admits anything, so it is safe here.
-    ? { state: 'running', run, reason: `run ${run.id} is running; the list of runs at this commit does not show it yet` }
-    : { state: 'unresolved', run,
-    reason: `the list of ${WORKFLOW} runs at ${intent.sha} is incomplete or does not yet show run ${run.id}; no verdict can be proved` };
   const all = [run, ...listed.filter((other) => sameCheck(intent, other) && other.id !== run.id)].sort((x, y) => x.id - y.id);
-  const counted = all.filter((other) => other.conclusion !== 'cancelled' || other.status !== 'completed' || started(other));
-  const runIds = counted.map((other) => other.id);
-  const own = run.status === 'completed' && run.conclusion === 'cancelled' && !counted.includes(run);
-  const says = (state, by, conclusion, why) => ({ state: own ? 'superseded' : state, run, by: summary(by),
-    runIds, ...(conclusion ? { conclusion } : {}), reason: `${counted.length} run(s) of ${WORKFLOW} at this commit: ${why}` });
-  const failed = counted.find((other) => other.status === 'completed' && !['success', 'cancelled'].includes(other.conclusion));
-  if (failed) return says('verdict', failed, failed.conclusion, `run ${failed.id} ended ${failed.conclusion}; a later pass never hides it`);
-  // Every re-run's earlier attempts, including a re-run later cancelled while pending or still
-  // running: cancelling or re-running a run never erases a failure it already had.
+  const failed = all.find((other) => other.status === 'completed' && !['success', 'cancelled'].includes(other.conclusion));
+  if (failed) return answer('V2', 'verdict', failed, failed.conclusion, `run ${failed.id} at this commit ended ${failed.conclusion}`);
+  if (fact('complete') !== true || !listed.some((other) => other.id === run.id)) return run.status !== 'completed'
+    ? answer('V3', 'running', run, null, `run ${run.id} is running; the list of runs at this commit does not show it yet`)
+    : answer('V3', 'unresolved', null, null, `the list of ${WORKFLOW} runs at this commit is incomplete or does not show run ${run.id}`);
+  let unreadable;
   for (const other of all.filter((candidate) => attemptOf(candidate) > 1)) {
-    const earlier = facts.attempts?.(other);
-    if (!Array.isArray(earlier)) return { state: 'unresolved', run, runIds, reason: `the earlier attempts of re-run ${other.id} could not be read` };
+    let earlier;
+    try { earlier = facts.attempts?.(other); } catch { earlier = undefined; }
+    if (!Array.isArray(earlier)) { unreadable ??= other; continue; }
     const bad = earlier.find((conclusion) => conclusion !== 'success');
-    if (bad) return says('verdict', other, bad, `run ${other.id} was re-run (attempt ${attemptOf(other)}) after an attempt that ended ${bad}`
+    if (bad) return answer('V4', 'verdict', other, bad, `run ${other.id} was re-run after an attempt that ended ${bad}`
       + ' (a re-run after a runner death is the coordinator\'s call, with a written reason)');
   }
-  const stopped = counted.find((other) => other.status === 'completed' && other.conclusion === 'cancelled');
-  if (stopped) return { ...cancelledAfterStart(stopped), run, runIds };
+  if (unreadable) return answer('V5', 'unresolved', unreadable, null, `the earlier attempts of re-run ${unreadable.id} could not be read`);
+  for (const other of all.filter(pendingCancel)) {
+    let started;
+    try { started = facts.started?.(other) ?? true; } catch { started = undefined; }
+    if (started === undefined) return answer('V6', 'unresolved', other, null, `whether cancelled run ${other.id} had started could not be read`);
+    if (started) return answer('V6', 'cancelled', other, 'cancelled', `run ${other.id} was cancelled after its jobs started, by a person`
+      + ' or session, not by a newer dispatch: its result is unknown, so the commit cannot pass; find out why before dispatching again');
+  }
+  const counted = all.filter((other) => !pendingCancel(other));
   const pending = counted.find((other) => other.status !== 'completed');
-  if (pending) return says('running', pending, undefined, `run ${pending.id} is still running`);
-  if (!counted.length) return lost(intent, run, fact);
-  return says('verdict', counted[0], 'success', 'every run and attempt passed');
-}
-
-function cancelledAfterStart(run) {
-  return { state: 'cancelled', run: summary(run), conclusion: 'cancelled',
-    reason: `run ${run.id} was cancelled after its jobs started, by a person or session, not by a newer dispatch:`
-      + ' its result is unknown, so the commit cannot pass; find out why before dispatching again' };
-}
-
-/** A run cancelled while pending that no other run on its commit answers. */
-function lost(intent, run, fact) {
-  const branchHead = fact('head');
-  if (branchHead === intent.sha) return { state: 'recover', run,
-    reason: `run ${run.id} was cancelled while pending and ${intent.sha} is still the head of ${intent.ref}; reconcile with --recover to dispatch it again` };
-  return { state: 'obsolete', run, reason: `run ${run.id} was cancelled and ${intent.ref} moved to ${branchHead ?? 'nothing'};`
-    + ' dispatch the new head; a verdict still required for the old commit goes through the exact-SHA check branch' };
+  if (pending) return answer('V7', 'running', pending, null, `run ${pending.id} at this commit is still running`);
+  if (!counted.length) {
+    const head = fact('head');
+    return head === intent.sha
+      ? answer('V8', 'recover', null, null, `run ${run.id} was cancelled while pending and ${intent.sha} is still the head of ${intent.ref}; reconcile with --recover to dispatch it again`)
+      : answer('V8', 'obsolete', null, null, `run ${run.id} was cancelled and ${intent.ref} moved to ${head ?? 'nothing'};`
+        + ' dispatch the new head; a verdict still required for the old commit goes through the exact-SHA check branch');
+  }
+  return { ...answer('V9', 'verdict', counted[0], 'success', `all ${counted.length} run(s) at this commit passed on every attempt`),
+    runIds: counted.map((other) => other.id) };
 }
 
 function branchHead(api, { repository, ref }) {
