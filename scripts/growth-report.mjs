@@ -115,8 +115,10 @@ export function seriesOf(runs) {
 }
 
 /** Assemble the report from collected facts. Pure, so the whole report replays from fixtures. */
-export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, finished = [], pending = [], tableRecordedAt, collection }) {
+export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, listComplete = true, finished = [], pending = [], tableRecordedAt, collection }) {
   const priced = priceRuns(runs, { days });
+  // An incomplete run list makes every tier partial BEFORE anything is judged from it.
+  if (!listComplete) for (const t of TIERS) Object.assign(priced.tiers[t], { evidence: 'partial', lowerBound: true, why: 'the run list was cut short' });
   let measurement = { source: 'weekly growth report', windowStart: new Date(Date.parse(windowEnd) - days * DAY).toISOString().slice(0, 10), windowEnd: windowEnd.slice(0, 10), landings: priced.landings, tiers: {} };
   for (const t of TIERS) measurement.tiers[t] = Object.fromEntries(Object.entries(priced.tiers[t]).filter(([k]) => !k.startsWith('total')));
   const series = seriesOf(runs);
@@ -169,12 +171,13 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
   if (cadence.overdue) current.push({ key: 'report:missing', kind: 'report', subject: 'weekly', detail: `${cadence.reason}: a week went unreported` });
   // What this week's evidence can clear: a cost breach needs its tier completely measured, a
   // latency breach an adequate pool, an age breach a complete read of the open items.
+  // A breach clears only on a measurement that is complete AND in bounds for its subject.
   const confirmed = (key) => {
     const [kind, subject] = key.split(':');
-    if (kind === 'cost') return measurement.tiers[subject]?.evidence === 'complete';
-    if (kind === 'latency') return Boolean(timing.find((t) => t.measure === subject)?.adequate);
-    if (kind === 'age') return openComplete;
-    return true;
+    if (kind === 'cost') { const share = assessment.tiers[subject]?.share; return measurement.tiers[subject]?.evidence === 'complete' && Number.isFinite(share) && share <= 1; }
+    if (kind === 'latency') { const t = timing.find((x) => x.measure === subject); return Boolean(t?.adequate && !t.above); }
+    if (kind === 'age') return openComplete; // a complete read that raised no alarm for the item
+    return true; // table, exception and report alarms are re-derived in full every week
   };
   const carried = carryBreaches({ previous: previous?.breaches ?? [], current, today, owner: ceilings.owner, confirmed });
   const report = {
@@ -351,11 +354,10 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   const unfinished = listed.runs.length - runs.length;
   const sampled = runs.filter((r) => r.jobs).length;
   const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
-  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
+  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, listComplete: listed.complete, finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
   built.report.unknownClocks.push(...done.unknown);
   built.report.finishedPrs = { merged: done.merged, sampled: done.samples.filter((x) => x.measure === 'prReady').length + done.unknown.length };
   built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
-  if (!listed.complete) for (const t of TIERS) { built.report.measurement.tiers[t].evidence = 'partial'; built.report.measurement.tiers[t].why = 'the run list was cut short'; }
   return built;
 }
 

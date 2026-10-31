@@ -504,3 +504,24 @@ test('(e) an offline growth stop, or an unreadable weekly report, refuses added 
   assert.equal(applyOfflineStop({ status: 'warn', reasons: [], stops: {}, unreadable: true }, { added: 0.5 }).status, 'refuse');
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {} }, { added: 3 }).status, 'ok');
 });
+
+test('(e) a breach clears only on a measurement that is complete AND back in bounds', () => {
+  const stopped = (key) => ({ key, since: '2026-11-02', due: '2026-11-09', owner: 'o', corrections: 1, state: 'stopped', detail: 'x' });
+  const base = { ceilings: CEILINGS, days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', tableRecordedAt: '2026-11-20', collection: 'fixture' };
+  // Latency: an adequate pool still above the ceiling is not recovery, though one week cannot re-raise it.
+  const slow = [...Array(12)].map((_, i) => ({ measure: 'queue', id: `#${i}`, category: 'other', value: 100, finishedAt: '2026-11-20T00:00:00Z' }));
+  const prevLatency = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped('latency:queue')], stops: {}, timing: [{ measure: 'queue', adequate: false, above: false }] };
+  const still = buildReport({ ...base, runs: fixtureRuns(), previous: prevLatency, finished: slow }).report;
+  assert.equal(still.breaches.find((b) => b.key === 'latency:queue')?.state, 'stopped');
+  assert.ok(still.stops.offline);
+  const fast = slow.map((x) => ({ ...x, value: 5 }));
+  const recovered = buildReport({ ...base, runs: fixtureRuns(), previous: prevLatency, finished: fast }).report;
+  assert.deepEqual(recovered.cleared, ['latency:queue']);
+  // Cost: a run list cut short is partial before anything is judged, so a stop survives it.
+  const prevCost = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped('cost:backend')], stops: { backend: 'x' }, timing: [] };
+  const cut = buildReport({ ...base, runs: fixtureRuns(), previous: prevCost, listComplete: false }).report;
+  assert.equal(cut.measurement.tiers.backend.evidence, 'partial');
+  assert.ok(cut.stops.backend);
+  const whole = buildReport({ ...base, runs: fixtureRuns(), previous: prevCost }).report;
+  assert.deepEqual(whole.cleared, ['cost:backend'], 'complete and in bounds: cleared, and growth resumes');
+});
