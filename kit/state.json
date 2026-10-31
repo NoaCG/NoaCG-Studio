@@ -50,7 +50,10 @@
       "session": "session_017SdbwPLYvBrBW7DyyvmdNr",
       "nonce": "ci01-b-afc1",
       "branch": "claude/plan-cicd-improvement-ci01-build",
-      "launchedAt": "2026-10-31T08:13:14Z"
+      "launchedAt": "2026-10-31T08:13:14Z",
+      "pr": 1848,
+      "repairOwnerComment": 6541482080,
+      "note": "PR open at a47f6876; worker gates pending"
     }
   ],
   "owner": [],
