@@ -14,14 +14,15 @@ that plan's brief, not here.
   the PR and the reviewed SHA in your receipt. Never dispatch `cloud-queue-merge.yml` with a
   verdict or enable auto-merge yourself: the harness refuses that as self-approval for some
   sessions and not others, and one path for every PR is what keeps the run predictable.
-- **Worker gates on your reviewed head:** CI gate, the Codex review finished and its
-  findings handled (ask `@codex review` once for each new head you push, as Review checkpoints
-  below says; Codex reviews only on open or on that request), and the configured-suite run you dispatched on that head finished green, not
-  merely started. The coordinator verifies its `head_sha` equals your reviewed head. Reviewed
-  itself is not a worker prerequisite: it may be pending or red until the coordinator stamps.
-  After posting the pinned stamp the coordinator enables auto-merge with head checks before and
-  after; GitHub still requires Reviewed and all required checks before admitting the PR. Recover
-  an earlier Reviewed timeout through queue-merge, without delaying the auto-merge request.
+- **Worker gates on your reviewed head:** CI gate, the Codex review finished and its findings
+  handled (ask `@codex review` once for each new head you push, as Review checkpoints below says;
+  Codex reviews only on open or on that request), and the configured-suite run you dispatched on
+  that head finished green, not merely started. The coordinator verifies its `head_sha` equals your
+  reviewed head. Reviewed itself is not a worker prerequisite: it may be pending or red until the
+  coordinator stamps. After posting the pinned stamp the coordinator enables auto-merge with head
+  checks before and after; GitHub still requires Reviewed and all required checks before admitting
+  the PR. Recover an earlier Reviewed timeout through queue-merge, without delaying the auto-merge
+  request.
 - **Cloud GitHub access:** `gh`'s GraphQL commands (`gh pr view`, `gh pr merge`) are refused in
   cloud sessions. Use REST (`gh api`) or the GitHub tools, as the cloud path of `/queue-merge` says.
 - Other plan-run PRs land meanwhile. If yours conflicts, merge `origin/main` into your branch;
