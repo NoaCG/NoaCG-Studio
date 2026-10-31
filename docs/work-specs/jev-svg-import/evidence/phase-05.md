@@ -100,3 +100,84 @@ unresolved keys stay on the draft rather than only in a return value, and Finish
 is left to its row (A8); the round trip asserts its omissions (A10). Noted, not fixed: a recipe
 pick can land on a `show:` or `choice:` layer that `svgExtras` already uses, which the drop's own
 name proposal can do today too.
+
+## What landed
+
+- `src/ai/svgInterpretation/apply.ts`: `applySvgProposal`, the merge over a neutral view of the
+  draft (per row `on`, `kind`, `title`; the behaviour as one component), enforcing A1-A9. Also
+  `SVG_RECIPE_ROLES`, the role table built once from the recipe declarations (row 4's note: it
+  lived only in the contract test), and `SVG_DRAFT_CAPABILITIES`. It imports no wizard code:
+  src/ai may not import src/components.
+- `src/components/wizard/import/draft.ts`: `svgDraftWithProposal(draft, proposal)`, the one
+  door, and `svgProposalOfDraft(draft)`, the name-based import as a proposal. The drop's rows and
+  behaviour moved unchanged into `svgDropAnswers`, so the reference is the drop's own function.
+  `svgApplied` is a new optional, draft-only key the build never reads; the drop resets it.
+- `src/components/wizard/import/fieldAutoMap.ts`: the existing box walk now passes each box's
+  row place, and `boxPicksOf` / `withBoxPicks` turn a behaviour into a proposal's picks and back.
+- `scripts/jev-svg-apply.test.mjs` (factory gate, browser): 11 tests. Every development design
+  and every corpus file (68 read) round-trips, builds the identical graphic, passes the export
+  gate and applies again to no change; the omitted decisions are pinned per file (a vote board's
+  eight written layers and a reveal's secret, both display targets). Rule cases on small named
+  artworks cover refusals, capability limits, corrections and re-application, the behaviour, the
+  countdown machinery, conflicts, open intent and text as data.
+
+Nothing calls the door yet: no visible product behaviour changes in this row. The row that wires
+a proposer into the mapping step consumes it, and asks the open questions it keeps.
+
+Mutation checks on this worker, reverted before commit, each failing the suite: treating every
+value as untouched (3 tests), always replacing the behaviour, dropping the conflict rule, dropping
+the one-countdown rule, skipping the disarm, not advancing the reference, not holding open keys
+(1 each).
+
+## Code review and simplify (`/check`)
+
+The review found ten candidates, all confirmed and fixed: the arm and disarm pair overruled a
+kind the author corrected; replacing the behaviour disarmed a countdown the proposal kept and
+nothing wrote it back (not idempotent); the conflict revert ran after the one-countdown check and
+could leave two; an open key outlived an option the author set; the behaviour comparison counted
+the proposer's id and pick order; a last row whose only pick gave way vanished instead of staying
+empty; an unreachable second-component branch (A2 now says how a second component is really
+refused); a copy of `recipeIdOf`; repeated work in the reference loop and the role table.
+
+Simplify applied: the countdown readout comes from the role table rather than the timer's name;
+draft equality uses the existing `canonical` (`src/model/publishedRecord.ts`); the unused
+reference component was dropped; writes are grouped by layer. Declined: hashing the markup once
+(the validator computes the revision itself, row 4's R2); a skip parameter on the shared arm and
+disarm functions (the restore after them is tested); folding the countdown check into the
+conflict filter (it must run last); sharing the empty behaviour seeds with `BehaviourSection.tsx`
+and moving the contract test onto `SVG_RECIPE_ROLES` (both outside this row's files).
+
+## Verification on this worker
+
+- `node --test scripts/jev-svg-apply.test.mjs`: 11/11 pass.
+- `node --test scripts/jev-svg-contract.test.mjs` 16/16, `scripts/jev-svg-baseline.test.mjs`
+  19/19 pass.
+- `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail (inventory, bind, emit, runtime records).
+  The same four fail on unchanged main `b666f302` on this machine, so this is the machine's
+  browser build against the recorded snapshot, not this change; CI judges it.
+- `e2e/import-svg-behaviour.spec.ts` 38/38 and `e2e/import-svg.spec.ts` 68/68 through the queue.
+  A first combined run hit its cap at 103/106 with none failing; a second lost its dev server when
+  source files were edited mid-run (connection refused), and passed on the re-run with no edits.
+- `npx tsc --noEmit`, eslint on the changed files, dependency-cruiser on both folders, and
+  `npm run gates -- run --changed origin/main`: clean.
+
+## Decisions and traps
+
+- The reference is kept on the draft (`svgApplied`) rather than inferred from the drop alone, so
+  a better later proposal can replace an earlier one's answers but never the author's.
+- Unresolved intent is kept, not decided: Finish with an open key is the wiring row's question.
+- A proposal states the whole behaviour: no component means none.
+- `svgApplied` is optional and only the drop resets it, because a new key in `emptySvgSlice`
+  would change the 51-file harness's pinned clear record, which is outside this row.
+- Trap: editing source while a queued e2e run uses the dev server kills the run.
+- Trap: `svg-import-passes` records fail locally on this cloud image's browser build; run a
+  control on main before reading them as a regression.
+
+## Revert
+
+On a fresh branch from `origin/main`, landed through the merge queue:
+
+    git revert -m 1 "$(git log origin/main --merges --format=%H -1 --grep='claude/plan-jev-svg-import-5-build')"
+
+It removes the apply, its test and the door, and puts the drop back in one function. Nothing
+else depends on them yet; a draft holding `svgApplied` simply carries an unread key.
