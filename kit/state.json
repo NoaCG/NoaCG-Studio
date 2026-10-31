@@ -42,19 +42,16 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci01 checker verdict on 139a9724 (exact-merge runs all green)",
-    "eta": "2026-10-31T10:45:00Z"
+    "what": "ci02 builder"
   },
   "inFlight": [
     {
-      "phase": "ci01",
-      "step": "check",
-      "session": "session_017SdbwNSAz6wbCVYuBV95PV",
-      "nonce": "ci01-c-4a4a",
-      "mergeSha": "139a9724ebb1a2522750008dcb5a6a8b72adeac0",
-      "pr": 1848,
-      "launchedAt": "2026-10-31T10:09:45Z",
-      "note": "checker waits for exact-merge checks; coordinator remains #1848 repair owner through post-land"
+      "phase": "ci02",
+      "step": "build",
+      "session": "session_017SdbwM1zQ8e4iQTwVWQyD1",
+      "nonce": "ci02-b-6015",
+      "branch": "claude/plan-cicd-improvement-ci02-build",
+      "launchedAt": "2026-10-31T10:28:17Z"
     }
   ],
   "owner": [],
@@ -100,7 +97,21 @@
         1846,
         1847
       ],
-      "postLand": "CI 41191464690, configured-suite 41191464702, Post-landing 41191464651, Quarantine 41191464817, Push on main 41191464655 all success; repair ownership complete"
+      "postLand": "CI 41191464690, configured-suite 41191464702, Post-landing 41191464651, Quarantine 41191464817, Push on main 41191464655 all success; repair ownership complete",
+      "pass": "2026-10-31T10:27:18Z by checker-ci01-ci01-c-4a4a (session_017SdbwNSAz6wbCVYuBV95PV)",
+      "checkerFindings": "non-blocking: evidence 4.4 wrong commit (#1849); head reads not posted on PR"
     }
+  ],
+  "coordinatorNotes": [
+    "Record a check intent with actor exactly checker-<phase>-<nonce> so the PASS receipt matches (ci01 needed a resume to reconcile).",
+    "Post before/after PR head reads in a coordinator comment when enabling auto-merge.",
+    "Never pipe run-supervisor output into head -c: SIGPIPE can abort the transaction."
+  ],
+  "followUpIssues": [
+    1829,
+    1805,
+    1846,
+    1847,
+    1849
   ]
 }
