@@ -72,6 +72,9 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
   Choosing a row for the clock sets that row's kind back to text.
 - `scripts/jev-svg-contract.test.mjs`: five tests, C1 to C5, through the real compiler, the
   machine compiler and the machine validator.
+- `scripts/import-drop.test.mjs` (reconciled at 21:07Z, outside the row's list): its exact pin of
+  the SVG answers a clear and a picture drop take back goes from 8 to 9, because `svgClock` is one
+  of them; the loop beside it still checks each key resets.
 - `e2e/import-svg-behaviour.spec.ts` (reconciled, outside the row's list): one new test, the
   Clock walk on `score-clock-1.svg`, then the countdown file keeping its one choice. No existing
   test or assertion changed.
