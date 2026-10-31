@@ -228,6 +228,29 @@ export const CONFIGURED_SUITE_FILES = [/^e2e\/configured\//, /^playwright\.live\
 export const CONFIGURED_HEADERS = readSpecHeaders('e2e/configured');
 export const CONFIGURED_TRIGGERS = [...CONFIGURED_SUITE_FILES, ...[...CONFIGURED_HEADERS.values()].flatMap((h) => h.covers)];
 
+/** The configured specs on disk (bare names), and which of them each changed file's header selects. */
+export const CONFIGURED_SPECS = [...CONFIGURED_HEADERS.keys()];
+export const CONFIGURED_COVERAGE = coverageOf(CONFIGURED_HEADERS);
+
+/**
+ * THE CONFIGURED SUITE'S SHARED GROUND (cicd-improvement ci06). A change here can move every
+ * configured spec at once, so it selects the WHOLE configured set rather than the specs a header
+ * names: the suite's helpers and expectations (anything under e2e/configured/ but a spec or its
+ * baselines), its config, the local stack it runs on (supabase/: config, migrations, seed), the
+ * workflows and shared actions that bring that stack up and judge it, and the dependency manifests.
+ * The toolchain scripts (planner, shard packer, verdict, reporter) are added by import closure in
+ * scripts/e2e-affected.mjs (`configuredToolchain`), so a script they start importing is covered too.
+ */
+export const CONFIGURED_FULL = [
+  /^e2e\/configured\/(?![^/]+\.spec\.ts(?:-snapshots\/|$))/,
+  /^playwright\.live\.config\.ts$/,
+  /^supabase\//,
+  /^\.github\/workflows\/(?:ci|configured-suite)\.yml$/,
+  /^\.github\/actions\//,
+  /^package(?:-lock)?\.json$/,
+  /^vite\.config\.ts$/,
+];
+
 /**
  * THE BUILD'S REFUSALS, as a pure function so each one can be driven with a fixture.
  *
@@ -238,6 +261,7 @@ export const CONFIGURED_TRIGGERS = [...CONFIGURED_SUITE_FILES, ...[...CONFIGURED
  *    naming a path that moved matches nothing and is silent - the file then falls through to
  *    whatever else covers it, which is the run-FEWER failure with no alarm attached.
  * 3. Every spec a central rule names exists on disk.
+ * 4. Every configured spec declares `covers:` or `none - <why>` (no central rule applies there).
  *
  * @param {{ headers: Map<string, object>, configured?: Map<string, object>, files: string[],
  *           specsOnDisk: string[], central?: [RegExp, string[]][] }} input
@@ -250,6 +274,13 @@ export function auditSpecHeaders({ headers, configured = new Map(), files, specs
   for (const [spec, h] of headers) {
     if (h.covers.length === 0 && h.none === null && !centralSpecs.has(spec)) {
       problems.push(`e2e/${spec} declares no \`// covers:\` - name the source it covers (\`// covers: src/area/**\`), or say \`// covers: none - <why>\``);
+    }
+  }
+  // The configured suite has no central rules: its selected PR job (ci.yml, cicd-improvement ci06)
+  // plans a configured spec only from its own header, so a spec with none would run only per landing.
+  for (const [spec, h] of configured) {
+    if (h.covers.length === 0 && h.none === null) {
+      problems.push(`e2e/configured/${spec} declares no \`// covers:\` - name the source it covers, or say \`// covers: none - <why>\``);
     }
   }
   const lists = [...[...headers].map(([s, h]) => [`e2e/${s}`, h]), ...[...configured].map(([s, h]) => [`e2e/configured/${s}`, h])];

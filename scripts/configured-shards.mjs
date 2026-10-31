@@ -60,6 +60,22 @@ export function configuredMinutes(reports) {
   return { ...finished, ...nightlyMinutes(reports) };
 }
 
+/** Test-minutes one runner is aimed at when a pull request runs a selection (ci.yml, ci06). */
+export const SELECTED_SHARD_MINUTES = 10;
+
+/**
+ * How many runners a SELECTION gets: one per `SELECTED_SHARD_MINUTES` of its measured weight, at
+ * least one and at most `CONFIGURED_SHARDS`, so the whole set still gets the four a landing gets
+ * and a two-spec selection pays for one stack, not four.
+ */
+export function selectedShardCount(suite, reports = []) {
+  const measured = configuredMinutes(reports);
+  const known = Object.values(measured);
+  const median = known.length ? [...known].sort((a, b) => a - b)[Math.floor(known.length / 2)] : 1;
+  const total = suite.reduce((sum, f) => sum + (measured[f] ?? median), 0);
+  return Math.min(CONFIGURED_SHARDS, Math.max(1, Math.ceil(total / SELECTED_SHARD_MINUTES)));
+}
+
 /**
  * @param {{ suite: string[], reports?: object[], shards?: number }} input
  */
@@ -80,7 +96,7 @@ export function planConfigured({ suite, reports = [], shards = CONFIGURED_SHARDS
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values, positionals } = parseArgs({
-    options: { 'github-output': { type: 'boolean' } },
+    options: { 'github-output': { type: 'boolean' }, specs: { type: 'string' } },
     allowPositionals: true,
   });
   const reports = [];
@@ -92,7 +108,21 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       console.error(`configured-shards: ignoring ${file} - ${error.message}`);
     }
   }
-  const plan = planConfigured({ suite: configuredSpecFiles(), reports });
+  // `--specs '<json array>'`: a selection (ci.yml's pull-request job), sized by its own weight. A
+  // name that is not a configured spec on disk is refused: it would run nothing and pass nothing.
+  let suite = configuredSpecFiles();
+  let shards = CONFIGURED_SHARDS;
+  if (values.specs !== undefined) {
+    const asked = JSON.parse(values.specs);
+    const ghosts = asked.filter((f) => !suite.includes(f));
+    if (!Array.isArray(asked) || asked.length === 0 || ghosts.length) {
+      console.error(`configured-shards: --specs must name configured specs on disk; got ${values.specs}`);
+      process.exit(1);
+    }
+    suite = [...asked].sort();
+    shards = selectedShardCount(suite, reports);
+  }
+  const plan = planConfigured({ suite, reports, shards });
   console.error(
     plan.weights.measured
       ? `configured-shards: ${plan.shardSpecs.length} shards, predicted ${plan.predicted.join(', ')} test-minutes; ` +

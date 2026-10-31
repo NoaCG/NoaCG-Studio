@@ -525,9 +525,10 @@ test('a helper reaches its specs through other helpers, and an unreached helper 
   assert.deepEqual(leaf.specs, ['direct.spec.ts', 'dynamic.spec.ts', 'through.spec.ts']);
   assert.equal(leaf.catalog, true, 'reached e2e/catalog/bench.spec.ts through _mid');
   assert.equal(leaf.mode, 'subset');
-  const live = planFor(['e2e/_only-live.ts'], { helpers });
-  assert.equal(live.mode, 'none', 'only a configured spec imports it, and that suite never runs here');
+  const live = planFor(['e2e/_only-live.ts'], { helpers, configuredOnDisk: ['live.spec.ts'] });
+  assert.equal(live.mode, 'none', 'only a configured spec imports it, and that suite runs in its own job');
   assert.equal(live.configured, true);
+  assert.deepEqual(live.configuredSpecs, ['live.spec.ts'], 'ci06: the importing configured spec is named, not only flagged');
   assert.equal(planFor(['e2e/_orphan.ts'], { helpers }).mode, 'full', 'nothing imports it: run more, not less');
   assert.equal(planFor(['e2e/_loaded.ts'], { helpers }).mode, 'full', 'a config-loaded helper imports it');
   assert.equal(planFor(['e2e/_bare.ts'], { helpers }).mode, 'full', 'a config names it without its extension');
@@ -1313,6 +1314,12 @@ test('the build refuses a spec with no covers, a glob that matches nothing and a
   assert.deepEqual(auditSpecHeaders({ headers, configured, files, specsOnDisk, central }), [
     'e2e/configured/live.spec.ts covers `src/nowhere.ts`, which matches no file in the repository',
   ]);
+  // ...and a configured spec with no header at all is refused (ci06: the selected PR job plans
+  // configured specs from their headers alone), while `none - <why>` is accepted.
+  const bare = new Map([['silent.spec.ts', parseSpecHeader("import x from 'y';")], ['honest.spec.ts', parseSpecHeader('// covers: none - needs hardware no runner has\n')]]);
+  assert.deepEqual(auditSpecHeaders({ headers, configured: bare, files, specsOnDisk, central }), [
+    'e2e/configured/silent.spec.ts declares no `// covers:` - name the source it covers, or say `// covers: none - <why>`',
+  ]);
 
   // 3. A central rule naming a spec that does not exist.
   problems = auditSpecHeaders({ headers, files, specsOnDisk, central: [...central, [/^src\/d\//, ['renamed-away.spec.ts']]] });
@@ -1482,7 +1489,7 @@ test('--files prints the CONFIGURED-deployment notice, exactly like the ref mode
     env: CLI_ENV,
     windowsHide: true,
   });
-  assert.match(out, /CONFIGURED deployment/);
+  assert.match(out, /selects 1 CONFIGURED spec/);
   assert.match(out, /test:e2e:live:queued/);
 });
 
@@ -2104,7 +2111,7 @@ test('ci05: readerIndex reads literal paths, routes and imports, and nothing it 
   ]);
   const index = readerIndex(sources);
   const of = (file) => readersOf(file, index);
-  assert.deepEqual(of('e2e/fixtures/one.svg'), { specs: ['a.spec.ts'], catalog: true, configured: false });
+  assert.deepEqual(of('e2e/fixtures/one.svg'), { specs: ['a.spec.ts'], catalog: true, configured: false, configuredSpecs: [] });
   assert.deepEqual(of('e2e/fixtures/shows/intro.svg').specs, ['a.spec.ts'], 'a template names a prefix');
   assert.deepEqual(of('e2e/fixtures/zips/riverlight.zip').specs, ['a.spec.ts', 'b.spec.ts'], 'through the helper that reads it');
   assert.deepEqual(of('scripts/fixtures/feed.json').specs, ['c.spec.ts']);
