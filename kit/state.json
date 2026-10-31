@@ -28,29 +28,19 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "PR #1860 merge queue (merge-group CI) for phase 4",
-    "eta": "2026-10-31T16:30:00Z"
+    "what": "phase 4 checker verdict on aa14e865 (exact-merge CI, configured-suite, post-land)",
+    "eta": "2026-10-31T17:00:00Z"
   },
   "inFlight": [
     {
       "phase": "4",
-      "step": "build (queued)",
-      "session": "session_017SdbwQXMLVdn1z11xNz6hD",
-      "nonce": "4-b-e211",
-      "branch": "claude/plan-jev-svg-import-4-build",
-      "source": "99c461b8ed30c2a03dfc87a002573263473a2425",
-      "launchedAt": "2026-10-31T15:07:47Z",
-      "note": "in merge queue; coordinator is #1860 repair owner through post-land; final /so verdict added to PR body 16:08Z",
+      "step": "check",
+      "session": "session_017SdbwR5Y5dr7RVPGYfjKUr",
+      "nonce": "4-c-290f",
+      "mergeSha": "aa14e8650379ae1a9735b07317418d41c2faeee4",
       "pr": 1860,
-      "head": "9bda06bdcf5e544993ee7103140a1cfbd921326f",
-      "reviewedHead": "cbbbc8f7ecb8cbee434586af88b52771de99c92c",
-      "configuredRun": 41216832401,
-      "ciRun": 41216834134,
-      "soSession": "session_017SdbwMzqUQNbCYzKJwtKii",
-      "soGrade": "A",
-      "stampRun": 41218124028,
-      "autoMergeEnabledAt": "2026-10-31T16:08:3xZ",
-      "queuedAt": "2026-10-31T16:08:41Z"
+      "launchedAt": "2026-10-31T16:16:25Z",
+      "note": "checker judges row 4/5 split of AC-4 and waits for exact-merge checks; coordinator remains #1860 repair owner through post-land"
     }
   ],
   "owner": [],
