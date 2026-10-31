@@ -45,12 +45,15 @@ recipe declarations in `src/templates/behaviours`) and the capabilities it allow
   (the score's team and figure, the quiz's question and answers) is a field and may not carry a
   decision with `on: false`; a `layer` role on a text candidate (the vote's labels) is a display
   target and may not carry a decision with `on: true` (`conflicting-ownership`, the step's "two
-  writers on one node"). At most one full recipe per graphic, as the existing one-full-recipe
+  writers on one node"). A (role, row) slot holds one layer. The countdown readout has one
+  writer: only a role declared as the readout (the countdown recipe's `clock`) may pick a layer
+  decided `countdown`, and that role needs one. At most one full recipe per graphic, as the existing one-full-recipe
   guard says, and at most one countdown field (`conflicting-ownership`). Component ids are unique
   (`duplicate-component`).
 - **R4 Supported capabilities only.** A component's recipe and each specific intent value must be
   in `context.capabilities` (`quiz`, `quiz.lock:no-lock`); a `countdown` field needs a
-  clock-shaped candidate and the `countdown` capability. Anything else refuses with
+  clock-shaped candidate and the `field.countdown` capability, separate from the `countdown`
+  recipe's id. Anything else refuses with
   `unsupported-capability`. A recipe the role table does not hold refuses the same way. The
   spec's unsupported pairs are refused whatever the caller allows: no-Lock with automatic reveal.
 - **R5 Unresolved intent stays explicit.** Every intent key of a recipe is required. A missing
@@ -62,12 +65,15 @@ recipe declarations in `src/templates/behaviours`) and the capabilities it allow
   note: only ids, enumerated values, booleans, row indexes and an optional field title. A field
   decision carries `layer`, `on`, `kind` (`text` or `countdown`, text candidates only) and
   `title`; author-owned choices (`whenOff`, `align`, `keepNudge`) and anything else refuse with
-  `unexpected-key`. A title longer than 60 characters, spanning lines or holding a control
-  character refuses with `invalid-value`. Validation never reads the inventory's text, so two
+  `unexpected-key`. A title longer than 60 characters, spanning lines or holding a control or
+  format character (bidi overrides, zero-width marks) refuses with `invalid-value`. An error
+  repeats only values shaped like an id; anything else is `(not an id)`. Validation never reads the inventory's text, so two
   inventories that differ only in text give the same verdict for proposals carrying their own
   revisions.
 - **R7 All or nothing, deterministic.** The verdict is either accepted, with a normalized copy of
-  the proposal, or refused, with every error found and nothing usable. Inputs are never mutated;
+  the proposal, or refused, with every error found and nothing usable. The proposal is read once,
+  as a plain-data snapshot, so a getter or proxy cannot answer one way for the check and another
+  for the copy, and an inherited value is never read. Inputs are never mutated;
   the same inputs give the same verdict; validating an accepted normalized proposal again gives
   an identical result.
 
@@ -92,19 +98,20 @@ each key is a decision. Recipes not listed have no intent keys.
 | `credits` | `layout`: `default`, `role-above`, `role-beside`, `unresolved`; `playback`: `default`, `static`, `roll`, `cards`, `unresolved`. Cards advance on operator Next; a timed advance is a later profile value, not a proposal key |
 | `clock` (the instanced recipe row 7 adds) | `mode`: `count-up`, `duration`, `target-time`, `unresolved`; no `default`, because the spec makes an absent clock intent a decision. No live mode switch and no count-up stop limit |
 
-A capability id is a recipe id (`quiz`), a recipe value (`quiz.lock:no-lock`) or `countdown` for
-a countdown field. Lower thirds, tickers and linked text need no component: field decisions
+A capability id is a recipe id (`quiz`), a recipe value (`quiz.lock:no-lock`) or
+`field.countdown` for a countdown field. Lower thirds, tickers and linked text need no component: field decisions
 carry them. A layer the proposal does not name stays as the reader offered it.
 
 ## What landed
 
 - `src/ai/svgInterpretation/contract.ts`: the proposal types, the intent vocabulary, the
-  capability ids, `svgSourceRevision` (a synchronous SHA-256, checked against `node:crypto`) and
+  capability ids, `svgSourceRevision` (the repository's existing synchronous SHA-256,
+  `src/assets/audioHash.ts`, checked against `node:crypto`) and
   `SVG_PROPOSAL_OUTPUT`, the forced-output schema a later adapter row hands a provider. The schema
   is built from the same constants, so the two vocabularies cannot drift; it is a shape screen,
   and `validateSvgProposal` is what decides.
 - `src/ai/svgInterpretation/validate.ts`: `validateSvgProposal`, one pure function enforcing R1-R7.
-- `scripts/jev-svg-contract.test.mjs` (build tier, Node): 14 tests, one or more per rule, over
+- `scripts/jev-svg-contract.test.mjs` (build tier, Node): 15 tests, one or more per rule, over
   the layer ids phase 3 recorded for scoreboard-1, quiz-1 and clock-1 and each file's own markup,
   with the role table built from `src/templates/behaviours/words.json`.
 
@@ -115,6 +122,21 @@ revision comparison (2 tests), ignoring unexpected keys (2), allowing a second c
 (1), allowing a vote label to stay an operator field (1), dropping the one-full-recipe guard (2),
 filling a missing intent key with `default` (2), accepting an unknown field layer (2), allowing
 no-Lock with automatic reveal (1).
+
+## Code review (`/check`)
+
+The review pass found ten candidates; eight were confirmed and fixed: the countdown field and the
+countdown recipe shared one capability id; the pick limit (128) could not hold the bingo's
+declared 90 rows; one (role, row) slot could take two layers; a field role could write into the
+countdown readout; errors repeated raw proposal text; titles accepted bidi and zero-width
+characters; a getter could pass the check and change for the copy; the hash duplicated
+`audioHash`. Two were declined, with reasons:
+
+- Required roles, `rows.min` and row contiguity are not validity rules. A partial binding is a
+  legal draft today (the mapping step's `behaviourBindingGaps` names what is missing), so the
+  contract accepts it and row 5 shows the gaps through the existing path.
+- Re-hashing the markup on every validation is what R2 asks for (the rules review: never take the
+  revision from the caller). Validation runs when a proposal arrives, not per keystroke.
 
 ## Decisions and traps
 

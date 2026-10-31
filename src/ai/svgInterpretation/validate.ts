@@ -39,17 +39,21 @@ const isRecord = (v: unknown): v is Rec => {
   return proto === Object.prototype || proto === null;
 };
 const COMPONENT_ID = new RegExp(`^[a-z][a-z0-9-]{0,${SVG_PROPOSAL_LIMITS.idChars - 1}}$`);
-/** A control character, or a Unicode line or paragraph separator: a title is one line. */
-const hasControl = (s: string) => [...s].some((ch) => { const c = ch.codePointAt(0) ?? 0; return c < 0x20 || (c >= 0x7f && c <= 0x9f) || c === 0x2028 || c === 0x2029; });
+/** A control or format character (bidi overrides, zero-width marks) or a line or paragraph
+ *  separator: a title is one plain line that reads as it renders. */
+const UNPLAIN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+/** What an error may repeat of the proposal: a value shaped like an id, nothing else. */
+const ID_SHAPED = /^[A-Za-z0-9._:-]{1,32}$/;
+const name = (v: string | null) => (v !== null && ID_SHAPED.test(v) ? `"${v}"` : '(not an id)');
 
-export function validateSvgProposal(input: unknown, context: SvgProposalContext): SvgProposalVerdict {
+export function validateSvgProposal(submitted: unknown, context: SvgProposalContext): SvgProposalVerdict {
   const errors: SvgProposalError[] = [];
   const fail = (code: SvgProposalErrorCode, at: string, detail: string) => { errors.push({ code, at, detail }); };
   const own = (v: Rec, key: string) => Object.prototype.hasOwnProperty.call(v, key);
 
   /** R6: a key outside the schema is refused, never ignored. */
   const onlyKeys = (v: Rec, at: string, allowed: readonly string[]) => {
-    for (const key of Object.keys(v)) if (!allowed.includes(key)) fail('unexpected-key', at, `key "${key.slice(0, SVG_PROPOSAL_LIMITS.idChars)}"`);
+    for (const key of Object.keys(v)) if (!allowed.includes(key)) fail('unexpected-key', at, `key ${name(key)}`);
   };
   const idString = (v: unknown, at: string): string | null => {
     if (typeof v !== 'string' || v.length === 0 || v.length > SVG_PROPOSAL_LIMITS.idChars) {
@@ -64,6 +68,14 @@ export function validateSvgProposal(input: unknown, context: SvgProposalContext)
     return v.slice(0, max);
   };
 
+  // R7: validate a plain-data SNAPSHOT, read once. A getter or proxy cannot then answer one way
+  // for the check and another for the normalized copy, and an inherited value is never read.
+  let input: unknown;
+  try {
+    input = JSON.parse(JSON.stringify(submitted) ?? 'null');
+  } catch {
+    input = null;
+  }
   if (!isRecord(input)) {
     fail('invalid-shape', '', 'expected an object');
     return { ok: false, errors };
@@ -98,9 +110,9 @@ export function validateSvgProposal(input: unknown, context: SvgProposalContext)
     const candidate = layer === null ? undefined : text.get(layer);
     // R1: a field decision names a text, picture or outline candidate.
     if (layer !== null) {
-      if (!known(layer)) fail('unknown-layer', `${at}.layer`, `no layer "${layer}" in the inventory`);
-      else if (!candidate && !pictures.has(layer) && !outlines.has(layer)) fail('wrong-layer-kind', `${at}.layer`, `"${layer}" is a drawing, not a text, picture or outline layer`);
-      else if (candidate?.outsideCanvas && field.on) fail('wrong-layer-kind', `${at}.layer`, `"${layer}" lies outside the artboard and stays artwork`);
+      if (!known(layer)) fail('unknown-layer', `${at}.layer`, `no layer ${name(layer)} in the inventory`);
+      else if (!candidate && !pictures.has(layer) && !outlines.has(layer)) fail('wrong-layer-kind', `${at}.layer`, `${name(layer)} is a drawing, not a text, picture or outline layer`);
+      else if (candidate?.outsideCanvas && field.on) fail('wrong-layer-kind', `${at}.layer`, `${name(layer)} lies outside the artboard and stays artwork`);
     }
     // R6 + R4: the kind belongs to text candidates; a countdown needs a clock-shaped one.
     if (own(raw, 'kind')) {
@@ -110,20 +122,20 @@ export function validateSvgProposal(input: unknown, context: SvgProposalContext)
         field.kind = raw.kind;
         if (raw.kind === 'countdown') {
           if (!allowed.has(COUNTDOWN_CAPABILITY)) fail('unsupported-capability', `${at}.kind`, COUNTDOWN_CAPABILITY);
-          else if (candidate && !candidate.clock) fail('unsupported-capability', `${at}.kind`, `"${layer}" is not clock-shaped`);
+          else if (candidate && !candidate.clock) fail('unsupported-capability', `${at}.kind`, `${name(layer)} is not clock-shaped`);
           if (field.on) countdowns += 1;
         }
       }
     } else if (candidate) fail('invalid-value', `${at}.kind`, 'a text layer needs its kind');
     if (own(raw, 'title')) {
       const t = raw.title;
-      if (typeof t !== 'string' || t.trim().length === 0 || t.length > SVG_PROPOSAL_LIMITS.titleChars || hasControl(t)) {
+      if (typeof t !== 'string' || t.trim().length === 0 || t.length > SVG_PROPOSAL_LIMITS.titleChars || UNPLAIN.test(t)) {
         fail('invalid-value', `${at}.title`, `expected one line of at most ${SVG_PROPOSAL_LIMITS.titleChars} characters`);
       } else field.title = t;
     }
     // R3: one decision per layer.
     if (layer !== null) {
-      if (decision.has(layer)) fail('conflicting-ownership', `${at}.layer`, `"${layer}" is decided twice`);
+      if (decision.has(layer)) fail('conflicting-ownership', `${at}.layer`, `${name(layer)} is decided twice`);
       else decision.set(layer, field);
     }
     fields.push(field);
@@ -143,19 +155,20 @@ export function validateSvgProposal(input: unknown, context: SvgProposalContext)
     onlyKeys(raw, at, ['id', 'recipe', 'picks', 'intent']);
     let cid = '';
     if (typeof raw.id !== 'string' || !COMPONENT_ID.test(raw.id)) fail('invalid-value', `${at}.id`, 'expected a lower-case id');
-    else if (componentIds.has(raw.id)) fail('duplicate-component', `${at}.id`, `"${raw.id}" is used twice`);
+    else if (componentIds.has(raw.id)) fail('duplicate-component', `${at}.id`, `${name(raw.id)} is used twice`);
     else { cid = raw.id; componentIds.add(cid); }
 
     // R4: the recipe must be declared and allowed.
     const recipeId = idString(raw.recipe, `${at}.recipe`);
     const roles = recipeId !== null && Object.prototype.hasOwnProperty.call(context.recipes, recipeId) ? context.recipes[recipeId] : undefined;
     if (recipeId !== null) {
-      if (!roles) fail('unsupported-capability', `${at}.recipe`, `no recipe "${recipeId}"`);
+      if (!roles) fail('unsupported-capability', `${at}.recipe`, `no recipe ${name(recipeId)}`);
       else if (!allowed.has(recipeId)) fail('unsupported-capability', `${at}.recipe`, recipeId);
       else if (!roles.instanced) fullRecipes = [...fullRecipes, recipeId];
     }
 
     const picks: SvgProposalPick[] = [];
+    const slots = new Set<string>();
     list(raw.picks, `${at}.picks`, SVG_PROPOSAL_LIMITS.picks).forEach((p, pi) => {
       const pat = `${at}.picks[${pi}]`;
       if (!isRecord(p)) { fail('invalid-shape', pat, 'expected an object'); return; }
@@ -164,30 +177,38 @@ export function validateSvgProposal(input: unknown, context: SvgProposalContext)
       const layer = idString(p.layer, `${pat}.layer`);
       const pick: SvgProposalPick = { role: roleId ?? '', layer: layer ?? '' };
       const role = roleId !== null && roles && Object.prototype.hasOwnProperty.call(roles.roles, roleId) ? roles.roles[roleId] : undefined;
-      if (roleId !== null && roles && !role) fail('unknown-role', `${pat}.role`, `"${recipeId}" declares no role "${roleId}"`);
+      if (roleId !== null && roles && !role) fail('unknown-role', `${pat}.role`, `${name(recipeId)} declares no role ${name(roleId)}`);
       // R1: a per-row role takes a row inside the recipe's limit; a graphic-level one none.
       if (own(p, 'row')) {
         const max = roles?.rowsMax ?? 0;
-        if (!Number.isInteger(p.row) || (p.row as number) < 0 || (p.row as number) >= max) fail('invalid-value', `${pat}.row`, `expected a row below ${max}`);
-        else if (role && !role.perRow) fail('invalid-value', `${pat}.row`, `"${roleId}" is not a per-row role`);
+        if (!Number.isInteger(p.row) || (p.row as number) < 0 || (p.row as number) >= Math.min(max, SVG_PROPOSAL_LIMITS.rows)) fail('invalid-value', `${pat}.row`, `expected a row below ${max}`);
+        else if (role && !role.perRow) fail('invalid-value', `${pat}.row`, `${name(roleId)} is not a per-row role`);
         else pick.row = p.row as number;
-      } else if (role?.perRow) fail('invalid-value', `${pat}.row`, `"${roleId}" needs its row`);
+      } else if (role?.perRow) fail('invalid-value', `${pat}.row`, `${name(roleId)} needs its row`);
       if (layer !== null) {
         // R1: the layer exists and suits the role's pool.
         const pool = role?.pool ?? (role?.kind === 'field' ? 'text' : undefined);
-        if (!known(layer)) fail('unknown-layer', `${pat}.layer`, `no layer "${layer}" in the inventory`);
-        else if (pool === 'text' && !text.has(layer)) fail('wrong-layer-kind', `${pat}.layer`, `"${roleId}" takes a text layer`);
-        else if (pool === 'drawn' && !drawn.has(layer)) fail('wrong-layer-kind', `${pat}.layer`, `"${roleId}" takes a group or shape`);
-        else if (text.get(layer)?.outsideCanvas) fail('wrong-layer-kind', `${pat}.layer`, `"${layer}" lies outside the artboard and stays artwork`);
+        if (!known(layer)) fail('unknown-layer', `${pat}.layer`, `no layer ${name(layer)} in the inventory`);
+        else if (pool === 'text' && !text.has(layer)) fail('wrong-layer-kind', `${pat}.layer`, `${name(roleId)} takes a text layer`);
+        else if (pool === 'drawn' && !drawn.has(layer)) fail('wrong-layer-kind', `${pat}.layer`, `${name(roleId)} takes a group or shape`);
+        else if (text.get(layer)?.outsideCanvas) fail('wrong-layer-kind', `${pat}.layer`, `${name(layer)} lies outside the artboard and stays artwork`);
         // R3: one claim per layer across every component and role.
-        const claim = `${cid || at}/${roleId ?? '?'}${pick.row === undefined ? '' : `#${pick.row}`}`;
+        const claim = `${cid || at}/${name(roleId)}${pick.row === undefined ? '' : `#${pick.row}`}`;
         const earlier = claimedBy.get(layer);
-        if (earlier) fail('conflicting-ownership', `${pat}.layer`, `"${layer}" is claimed by ${earlier} and ${claim}`);
+        if (earlier) fail('conflicting-ownership', `${pat}.layer`, `${name(layer)} is claimed by ${earlier} and ${claim}`);
         else claimedBy.set(layer, claim);
         // R3: the role's kind says whether the layer is also an operator field.
         const d = decision.get(layer);
-        if (role?.kind === 'field' && d && !d.on) fail('conflicting-ownership', `${pat}.layer`, `"${roleId}" is an operator field but "${layer}" is decided off`);
-        if (role?.kind === 'layer' && d?.on && text.has(layer)) fail('conflicting-ownership', `${pat}.layer`, `"${roleId}" is a display target but "${layer}" is decided an operator field`);
+        if (role?.kind === 'field' && d && !d.on) fail('conflicting-ownership', `${pat}.layer`, `${name(roleId)} is an operator field but ${name(layer)} is decided off`);
+        if (role?.kind === 'field' && !role.countdown && d?.kind === 'countdown') fail('conflicting-ownership', `${pat}.layer`, `${name(roleId)} writes a field but ${name(layer)} is the countdown readout`);
+        if (role?.countdown && d?.kind !== 'countdown') fail('conflicting-ownership', `${pat}.layer`, `${name(roleId)} is the countdown readout but ${name(layer)} is not decided a countdown`);
+        if (role?.kind === 'layer' && d?.on && text.has(layer)) fail('conflicting-ownership', `${pat}.layer`, `${name(roleId)} is a display target but ${name(layer)} is decided an operator field`);
+      }
+      // R3: one layer per (role, row) slot.
+      if (role) {
+        const slot = `${roleId}#${pick.row ?? ''}`;
+        if (slots.has(slot)) fail('conflicting-ownership', pat, `${name(roleId)}${pick.row === undefined ? '' : ` row ${pick.row}`} is bound twice`);
+        slots.add(slot);
       }
       picks.push(pick);
     });
