@@ -28,28 +28,19 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "PR #1870 merge queue (merge-group CI) for phase 6",
-    "eta": "2026-10-31T20:30:00Z"
+    "what": "phase 6 checker verdict on 874c589b (exact-merge CI, configured-suite, post-land, UI walk)",
+    "eta": "2026-10-31T21:10:00Z"
   },
   "inFlight": [
     {
       "phase": "6",
-      "step": "build (queued)",
-      "session": "session_017SdbwQKAr6E9sLBeHDSSW4",
-      "nonce": "6-b-472e",
-      "branch": "claude/plan-jev-svg-import-6-build",
-      "source": "11523106a407cb856e619e0d4ddbbfa3785d5739",
-      "launchedAt": "2026-10-31T18:44:47Z",
-      "note": "in merge queue; coordinator is #1870 repair owner through post-land. Checker notes: reanalysis proven at the proposal door, not via UI (rows 35/36 to extend); e2e-affected.test.mjs +3 lines (one entry) is the reconciled departure; cicd ci06 merges after this.",
-      "head": "59ab289eaf05dffdd7057dd6ceb0759f85c6a28b",
+      "step": "check",
+      "session": "session_017SdbwPHAGa7Qes3TUhCwZS",
+      "nonce": "6-c-cb11",
+      "mergeSha": "874c589b4df4449ba8819c784c6d1da983d33166",
       "pr": 1870,
-      "reviewedHead": "59ab289eaf05dffdd7057dd6ceb0759f85c6a28b",
-      "configuredRun": 41235439553,
-      "ciRun": 41235420613,
-      "soSession": "session_017SdbwQVLn2mSkw3mvFtKGj",
-      "soGrade": "A",
-      "stampRun": 41237504738,
-      "autoMergeEnabledAt": "2026-10-31T20:09:09Z"
+      "launchedAt": "2026-10-31T20:20:20Z",
+      "note": "checker walks the UI and judges UI-driven reanalysis; coordinator remains #1870 repair owner through post-land; cicd told #1870 merged 20:19Z"
     }
   ],
   "owner": [],
