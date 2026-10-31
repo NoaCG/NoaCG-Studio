@@ -147,9 +147,8 @@ characters; a getter could pass the check and change for the copy; the hash dupl
 - A field role pick on a text layer with no field decision, and a layer role pick on one, are
   both accepted: the reader's own default (on) stands for the first, and row 5 unticks the second
   as the mapping step does. Only an explicit contradicting decision is refused.
-- Inputs must be plain objects: one inheriting from another prototype is refused as a shape, so
-  validation never reads a value the proposal does not own. A parsed `__proto__` key is an
-  unexpected key.
+- Validation reads a JSON snapshot of the proposal, so only its own data counts: an inherited
+  value is never read, and a parsed `__proto__` key is an unexpected key.
 - An error names ids and enumerated words only, never a title.
 - Trap: a `PreToolUse` hook refuses commit messages with co-author trailers in this repository; a
   command chained after the refused commit does not run either.
