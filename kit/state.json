@@ -37,7 +37,8 @@
       "branch": "claude/plan-jev-svg-import-5-build",
       "source": "b666f302d4eea1e22506a6769b058318fc30438a",
       "launchedAt": "2026-10-31T16:34:36Z",
-      "note": "builder; coordinator becomes PR repair owner once the PR exists"
+      "note": "builder active (commit 17:04Z, refactoring apply.ts/draft.ts); no PR yet",
+      "head": "d366422f6b1fa3fb643441f9db966dd319ee5e93"
     }
   ],
   "owner": [],
