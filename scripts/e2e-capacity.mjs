@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
-import { TIERS, assessTiers, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
+import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -303,6 +303,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   let offline = [];
   let diffFailed = false;
   const newExceptions = [];
+  let revisionNote = null;
   if (base) {
     let diff = '';
     // An unreadable diff is unknown added cost, never zero: refused, and said so.
@@ -324,6 +325,9 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS }, shardCap: { base: capIn(gitShow(base, 'scripts/e2e-durations.mjs', root)), head: capIn(readFileSync(path.join(root, 'scripts', 'e2e-durations.mjs'), 'utf8')) } });
       // A PR that adds an exception is flagged for the separate review the spec requires; the
       // coordinator or owner decides, never the change's own author or an automatic repair.
+      // A reviewed revision of the ceilings is legal, never silent: it is named for the owner too.
+      const revision = ceilingsRevision(before, ceilings);
+      if (revision) revisionNote = `this change revises the frozen ceilings file to version ${revision.version} (${revision.rationale ?? 'no rationale'}; authority ${revision.authority ?? 'none'}; ${revision.reviewed ?? 'no review link'}): the owner confirms it before it lands`;
       const before_ids = new Set((before.exceptions ?? []).map((e) => e.id));
       for (const e of ceilings.exceptions ?? []) if (!before_ids.has(e.id)) newExceptions.push(e.id);
       // Only an exception this change adds is judged here. One already on record that a rename or
@@ -341,6 +345,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   let status = tiers.status;
   for (const t of TIERS) if (tiers.tiers[t].status !== 'ok' && tiers.tiers[t].items.length) reasons.push(`${t} tier ${tiers.tiers[t].status}: ${tiers.tiers[t].why}`);
   if (ledger.length || offline.length || diffFailed) { status = 'refuse'; reasons.push(...ledger, ...offline); }
+  if (revisionNote) { reasons.push(revisionNote); if (status === 'ok') status = 'warn'; }
   if (newExceptions.length) { reasons.push(`this change adds budget exception(s) ${newExceptions.join(', ')}: each needs a separate, recorded review before it lands`); if (status === 'ok') status = 'warn'; }
   if (cadence.overdue && !unreadable) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
   if (fresh.stale) { reasons.push(fresh.reason); if (status === 'ok') status = 'warn'; }

@@ -12,7 +12,7 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { ages, buildReport, carriedStarts, fetchLatest, makeReader, phaseIssueTitle, priceRuns, spread } from './growth-report.mjs';
@@ -176,7 +176,7 @@ test('(b) the ledger is append-only and the ceilings move only by a reviewed rev
   assert.match(ledgerChanges({ base, head: raised }).join(), /without a new version/);
   const cheaper = clone(base); cheaper.estimates.backendCaseMinutes = 0.1;
   assert.equal(ledgerChanges({ base, head: cheaper }).length, 1, 'estimates cannot be quietly lowered either');
-  const revised = clone(raised); revised.version = 2; revised.revisions = [{ version: 2, rationale: 'measured', authority: 'owner', reviewed: 'https://x/2' }];
+  const revised = clone(raised); revised.version = 2; revised.revisions = [{ version: 2, rationale: 'measured', authority: 'owner', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1842#issuecomment-2' }];
   assert.deepEqual(ledgerChanges({ base, head: revised }), []);
   assert.match(ledgerChanges({ base, head: clone(base), mainRunners: { base: 13, head: 15 } }).join(), /MAIN_RUNNERS rose/);
   assert.match(ledgerChanges({ base, head: clone(base), shardCap: { base: 20, head: 25 } }).join(), /SHARD_CAP_MINUTES rose/);
@@ -788,4 +788,15 @@ test('(b) include-only matrix entries are counted, and an exception waives growt
   const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 5, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1', from: '2026-10-25', expires: '2026-11-20' };
   const r2 = assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: measurement({ backend: 60 }), items: [backendItem(8)], today: TODAY });
   assert.equal(r2.tiers.backend.addedLanding, 3);
+});
+
+test('(b) a ceilings revision needs a recorded decision, not any link, and is always named for the owner', () => {
+  const base = clone(CEILINGS);
+  const head = clone(base); head.version = 2; head.tiers.backend.perLanding = 400;
+  head.revisions = [{ version: 2, rationale: 'more', authority: 'me', reviewed: 'https://example.com/x' }];
+  assert.match(ledgerChanges({ base, head, mainRunners: { base: 13, head: 20 }, shardCap: { base: 20, head: 40 } }).join(), /without a new version and a reviewed revision/);
+  head.revisions[0].reviewed = 'https://github.com/NoaCG/NoaCG-Studio/issues/1842#issuecomment-9';
+  assert.deepEqual(ledgerChanges({ base, head, mainRunners: { base: 13, head: 20 } }), []);
+  assert.equal(ceilingsRevision(base, head).version, 2, 'legal, and still named');
+  assert.equal(ceilingsRevision(base, clone(base)), null);
 });

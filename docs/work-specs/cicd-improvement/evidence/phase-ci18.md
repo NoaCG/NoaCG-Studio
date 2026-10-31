@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (52 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (53 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -183,11 +183,12 @@ issue, remain for ci17.
   once per landing, except a `workflow_dispatch` beside a cron, which is that schedule's re-run.
 - **A new job is priced at the slowest measured job of its own tier** (backend 12.7, graphics
   11.2, overhead 6.0), times its static matrix size; a matrix built at run time counts as 15
-  entries. A rename that moves a job into another tier brings its whole cost there. Making an
+  entries. A rename that moves a job into another tier is priced there as a new job of that tier. Making an
   existing job longer (more steps, a longer timeout) is not priced at PR time: like tests added
   inside a spec, it reaches the tier through the weekly measurement and slowdown attribution.
-- **Neither offline capacity lever moves quietly.** `MAIN_RUNNERS` and `SHARD_CAP_MINUTES` can
-  rise only with a reviewed revision of the ceilings file.
+- **Neither offline capacity lever moves quietly.** `MAIN_RUNNERS`, `SHARD_CAP_MINUTES` and every
+  frozen value can rise only with a new version whose revision links the issue comment recording
+  the decision, and even then the gate names the revision for the owner to confirm.
 - **Cadence counts as growth.** A more frequent cron, a new trigger on an existing job, or a new
   entry in a job's static matrix (axes or `include`) is priced as the runs it adds; a cheaper schedule adds nothing.
   A matrix built at run time cannot be counted from the file and is measured weekly.

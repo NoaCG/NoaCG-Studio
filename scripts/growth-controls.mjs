@@ -290,6 +290,9 @@ export function reportCadence({ generatedAt, today, maxAgeDays }) {
 
 // Scope is what an exception covers, whatever tier, id or file it is filed under: re-filing a
 // covered job under another tier is the same scope, and would offset that tier besides.
+/** A recorded decision: an issue comment, never a link to anything else or the change itself. */
+const ISSUE_COMMENT = /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+#issuecomment-\d+$/;
+
 const overlaps = (a, b) => a.covers.some((c) => b.covers.includes(c));
 
 /** The tier a covered entry belongs to: `job:<workflow>/<job name>` or `spec:<path>`. */
@@ -318,7 +321,7 @@ export function exceptionProblems(e, earlier, maxDays, known = null) {
   if (!(e.perLanding > 0) && !(e.perDay > 0)) p.push('no cost');
   if (!e.owner) p.push('no owner');
   // A separate review is a recorded decision on an issue, not a link to anything.
-  if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+#issuecomment-\d+$/.test(e.reviewed ?? '')) p.push('no separate review: link the issue comment that records the decision');
+  if (!ISSUE_COMMENT.test(e.reviewed ?? '')) p.push('no separate review: link the issue comment that records the decision');
   const from = dayMs(e.from);
   const exp = dayMs(e.expires);
   if (!Number.isFinite(from) || !Number.isFinite(exp) || exp < from) p.push('no valid from/expires dates');
@@ -366,6 +369,12 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
  * owner's authority. `mainRunners` and `shardCap` are the offline line's MAIN_RUNNERS and
  * SHARD_CAP_MINUTES before and after: the two levers that set its capacity.
  */
+/** The revision a change to the ceilings file carries, if it changed anything but the exception ledger. */
+export function ceilingsRevision(base, head) {
+  if (!base || !head || same(stripLedger(base), stripLedger(head))) return null;
+  return (head.revisions ?? []).find((r) => r.version === head.version) ?? { version: head.version };
+}
+
 export function ledgerChanges({ base, head, mainRunners = null, shardCap = null }) {
   const problems = [];
   if (!base || !head) return problems;
@@ -379,7 +388,7 @@ export function ledgerChanges({ base, head, mainRunners = null, shardCap = null 
   // so a new entry put ahead of the old ones would turn the old one into the "renewal".
   const prefix = (head.exceptions ?? []).slice(0, (base.exceptions ?? []).length).map((e) => e.id);
   if (problems.length === 0 && !same(prefix, (base.exceptions ?? []).map((e) => e.id))) problems.push('new exceptions must be appended after the existing ones: the ledger is append-only, in order');
-  const revised = head.version > base.version && (head.revisions ?? []).some((r) => r.version === head.version && r.rationale && r.authority && /^https?:\/\//.test(r.reviewed ?? ''));
+  const revised = head.version > base.version && (head.revisions ?? []).some((r) => r.version === head.version && r.rationale && r.authority && ISSUE_COMMENT.test(r.reviewed ?? ''));
   if (!same(stripLedger(base), stripLedger(head)) && !revised) problems.push('the frozen ceilings, estimates or measurement changed without a new version and a reviewed revision (rationale, authority)');
   if (mainRunners && mainRunners.head > mainRunners.base && !revised) problems.push(`MAIN_RUNNERS rose from ${mainRunners.base} to ${mainRunners.head}: more runners never buy budget without a reviewed revision`);
   if (shardCap && shardCap.head > shardCap.base && !revised) problems.push(`SHARD_CAP_MINUTES rose from ${shardCap.base} to ${shardCap.head}: a longer shard never buys budget without a reviewed revision`);
