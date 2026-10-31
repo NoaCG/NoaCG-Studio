@@ -52,7 +52,7 @@
       "nonce": "ci03-b-24b9",
       "branch": "claude/plan-cicd-improvement-ci03-build",
       "launchedAt": "2026-10-31T12:00:56Z",
-      "note": "PR open at 1deedf58: configured-suite.yml (+8/-3), new scripts/candidate-dispatch.mjs + test, known-traps, evidence; no overlapping open PR on workflows/dispatch helpers at 12:41",
+      "note": "PR #1854 head eec131b4. Codex found 4 real P2 defects in candidate-dispatch (verdict propagation, record collision, attribution, recovery claim); 3 fixed, 4th sent with a claim-before-send sweep. Factory gates red on eec131b4 (double-stop ig06 1.4px, outside diff; passed on prior heads) sent to builder for one confirmation re-run + flake route.",
       "pr": 1854,
       "repairOwnerComment": 6543487751
     }
