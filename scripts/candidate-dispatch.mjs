@@ -138,8 +138,9 @@ export function settle(intent, lookedUp, facts = {}) {
   const pendingCancel = (other) => other.status === 'completed' && other.conclusion === 'cancelled';
   const answer = (row, state, by, conclusion, why) => ({ row, state, run,
     ...(by ? { by: summary(by) } : {}), ...(conclusion ? { conclusion } : {}), reason: why });
-  if (intent.workflow !== WORKFLOW) return answer('V1', 'refused', null, null,
-    `this record names ${intent.workflow}; only ${WORKFLOW}, whose runs on one commit are one check, is judged here`);
+  if (intent.workflow !== WORKFLOW || intent.ref === 'main') return answer('V1', 'refused', null, null,
+    `this record names ${intent.workflow} on ${intent.ref}; only ${WORKFLOW} on a candidate branch is judged here`
+      + ' (main applies the quarantine, so its runs are judged by their landing runs)');
   const listed = fact('runs') ?? [];
   const all = listed.filter((other) => sameCheck(intent, other)).sort((x, y) => x.id - y.id);
   // A failure seen in any read, R's own lookup included, is a failure.
@@ -155,7 +156,8 @@ export function settle(intent, lookedUp, facts = {}) {
     let earlier;
     try { earlier = facts.attempts?.(other); } catch { earlier = undefined; }
     if (!Array.isArray(earlier)) { unreadable ??= other; continue; }
-    const bad = earlier.find((conclusion) => conclusion !== 'success');
+    const at = earlier.findIndex((conclusion) => conclusion !== 'success');
+    const bad = at < 0 ? undefined : String(earlier[at] ?? 'no conclusion');
     if (bad) return answer('V4', 'verdict', other, bad, `run ${other.id} was re-run after an attempt that ended ${bad}`
       + ' (a re-run after a runner death is the coordinator\'s call, with a written reason)');
   }

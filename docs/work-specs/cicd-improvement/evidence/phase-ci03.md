@@ -100,10 +100,10 @@ no jobs started.
 | A3 | no run ID otherwise | `absent`; reconcile again | 2 |
 | A4 | the returned run cannot be read | `unresolved` | 1 |
 | A5 | the returned run is not a dispatch of this workflow on this branch at this commit | `mismatch` | 1 |
-| V1 | the record names another workflow | `refused` | 1 |
+| V1 | the record names another workflow, or `main` (judged with the quarantine) | `refused` | 1 |
 | V2 | any run seen in any read (R's lookup or the listing, even a partial one) has a latest attempt that finished neither `success` nor `cancelled` | failing, naming it | 1 |
 | V3 | the listing is incomplete or does not show R | `running` while R runs, else `unresolved` | 3 / 1 |
-| V4 | an earlier attempt of any run in C, re-run or cancelled re-run alike, did not succeed | failing; a runner-death re-run is the coordinator's call | 1 |
+| V4 | an earlier attempt of any run in C, re-run or cancelled re-run alike, did not succeed (no conclusion included) | failing; a runner-death re-run is the coordinator's call | 1 |
 | V5 | an earlier attempt of a run in C cannot be read | `unresolved` | 1 |
 | V6 | a run in C was cancelled after its jobs started (or that cannot be read) | `cancelled` (or `unresolved`) | 1 |
 | V7 | R itself was cancelled while pending | `superseded`: never a pass; reconcile the record of the run dispatched after it, or `--recover` once. `obsolete` if the branch moved | 3 / 2 |
@@ -209,6 +209,7 @@ ambiguity. These are fixtures.
 | Fresh `/so` on `fc515373` (grade B, table attack) | the same hole as the row above, reproduced; everything else in the table held (statuses, conclusions, attempts, cancels, listing, both snapshots) | no record borrows another run's pass | product defect | closed by the same decision; also `dispatch --ref main` is refused, since main's runs apply the quarantine; table case for a `main` run at the commit |
 | Codex on `f69616a2` (comment 4431986549) | the reverse snapshot race: R's own lookup showed a newer attempt still running while both listings showed the older attempt passed | two reads never disagree into a pass | product defect | coordinator decision: one unanimity rule (V9) over every observation of every run, R's lookup included; table cases for both directions |
 | Table-attack `/so` on `f69616a2` (grade B) | R's own lookup showed attempt 2 running while both listings still showed attempt 1 passed | two reads never disagree into a pass | product defect | closed by the V9 unanimity rule in `4e49512a` (table case `V9 R lookup newer than both listings`). Non-blocking wording fixed: decision 3, the moved-head comment, and what C leaves out |
+| Table-attack `/so` on `fb84aa97` (grade A, two recommended fixes) | an earlier attempt with a null conclusion read as a pass (V4); a record for `main`, only possible by hand or from an older helper, reconciled to a pass (V1) | the code must transcribe the table | product defect | V4 treats any non-success, no conclusion included, as failing; V1 refuses a record for `main`; table cases first |
 
 ## 7. Phase notes
 

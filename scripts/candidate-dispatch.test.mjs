@@ -418,6 +418,8 @@ test('decision table: one case per row, first matching row wins', () => {
   check('A5 other commit', attribute({ ...intent, runId: 20 }, { runs: [run(20, { head_sha: sha('d') })], complete: true }, T0), 'A5', 'mismatch', 1);
   check('A5 other branch', attribute({ ...intent, runId: 20 }, { runs: [run(20, { head_branch: 'x' })], complete: true }, T0), 'A5', 'mismatch', 1);
   check('V1 other workflow', settle({ ...intent, workflow: 'ci.yml' }, R, facts([R])), 'V1', 'refused', 1);
+  const onMain = run(20, { head_branch: 'main' });
+  check('V1 a record for main (judged with the quarantine)', settle({ ...intent, ref: 'main' }, onMain, facts([onMain])), 'V1', 'refused', 1);
   check('V2 failure elsewhere', settle(intent, R, facts([R, run(5, { head_branch: 'other', conclusion: 'failure' })])), 'V2', 'verdict', 1);
   check('V2 even from a partial list', settle(intent, R, facts([run(5, { conclusion: 'timed_out' })], { complete: false })), 'V2', 'verdict', 1);
   check('V2 own failure', settle(intent, run(20, { conclusion: 'failure' }), facts([run(20, { conclusion: 'failure' })])), 'V2', 'verdict', 1);
@@ -426,6 +428,7 @@ test('decision table: one case per row, first matching row wins', () => {
   check('V3 R not listed, running', settle(intent, run(20, { status: 'queued', conclusion: null }), facts([])), 'V3', 'running', 3);
   const rerun = run(6, { run_attempt: 3, status: 'completed', conclusion: 'cancelled' });
   check('V4 failed earlier attempt of a cancelled re-run', settle(intent, R, facts([R, rerun], { attempts: () => ['success', 'failure'] })), 'V4', 'verdict', 1);
+  check('V4 an earlier attempt with no conclusion', settle(intent, R, facts([R, run(6, { run_attempt: 2 })], { attempts: () => [null] })), 'V4', 'verdict', 1);
   check('V5 attempts unreadable', settle(intent, R, facts([R, run(6, { run_attempt: 2 })], { attempts: () => { throw Error('down'); } })), 'V5', 'unresolved', 1);
   const stopped = run(6, { conclusion: 'cancelled' });
   check('V6 cancelled after start', settle(intent, R, facts([R, stopped], { started: () => true })), 'V6', 'cancelled', 1);
