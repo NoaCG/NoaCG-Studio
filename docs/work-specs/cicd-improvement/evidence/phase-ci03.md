@@ -95,9 +95,10 @@ the commit comparison fails the mismatch test.
 
 `scripts/candidate-dispatch.mjs` transcribes this table row by row (`attribute` for A, `settle`
 for V); every answer names its row, and the test file has one case per row. The first matching
-row wins. R is the run GitHub returned for the dispatch. C is R plus every `configured-suite.yml`
-`workflow_dispatch` run at the requested commit, on any branch, listed by `head_sha` with no
-time window. A run "cancelled while pending" is one whose latest attempt was cancelled and had
+row wins. R is the run GitHub returned for the dispatch. C is R as its own lookup returned it,
+plus every `configured-suite.yml` `workflow_dispatch` run at the requested commit, on any
+branch, listed by `head_sha` with no time window, R's listed snapshot included (so a re-run of
+R between the two reads is never lost). A run "cancelled while pending" is one whose latest attempt was cancelled and had
 no jobs started.
 
 | Row | When | Answer | Exit |
@@ -206,6 +207,7 @@ ambiguity. These are fixtures.
 | Fresh `/so` on `509df299` (grade B) | a plain re-dispatch, `--recover` or a re-run attempt after a failure on the commit could still exit 0 | a failure on the commit is never hidden (third round of this family) | product defect | repeated family: a fresh reassessment of the rule model first (agreed with five corrections, all applied), then rule 8; tests first. Non-blocking: the runbook row now says the advisory runs before the head check |
 | Builder, live dispatch on `a7d85b74` | right after a dispatch the commit listing does not yet show the new run, so `dispatch` answered `unresolved` (exit 1) for a successful dispatch | an answer must match what is known | product defect | a run that is still running answers `running` (exit 3) while the listing lags; a finished run still needs the complete listing; test first |
 | Codex on `a7d85b74` (comment 4431931311) | a run whose attempt 1 failed and whose re-run was then cancelled while pending was dropped, erasing that failure | a failure on the commit is never hidden (same family) | product defect | the verdict rule became the decision table above, transcribed row by row with one test per row (V4 covers this case) |
+| Codex on `8e31f98c` (comment 4431949279) | R re-run between its own lookup and the listing: the listing's newer snapshot of R was dropped | a failure on the commit is never hidden | product defect | C keeps both snapshots of R (table definition); table cases for a newer failed and a newer running attempt, test first |
 
 ## 7. Phase notes
 

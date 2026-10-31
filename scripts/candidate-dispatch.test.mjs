@@ -434,6 +434,7 @@ test('decision table: one case per row, first matching row wins', () => {
   check('V2 failure elsewhere', settle(intent, R, facts([R, run(5, { head_branch: 'other', conclusion: 'failure' })])), 'V2', 'verdict', 1);
   check('V2 even from a partial list', settle(intent, R, facts([run(5, { conclusion: 'timed_out' })], { complete: false })), 'V2', 'verdict', 1);
   check('V2 own failure', settle(intent, run(20, { conclusion: 'failure' }), facts([run(20, { conclusion: 'failure' })])), 'V2', 'verdict', 1);
+  check('V2 R re-run since its lookup, newer attempt failed', settle(intent, R, facts([run(20, { run_attempt: 2, conclusion: 'failure' })])), 'V2', 'verdict', 1);
   check('V3 incomplete, finished', settle(intent, R, facts([R], { complete: false })), 'V3', 'unresolved', 1);
   check('V3 R not listed, running', settle(intent, run(20, { status: 'queued', conclusion: null }), facts([])), 'V3', 'running', 3);
   const rerun = run(6, { run_attempt: 3, status: 'completed', conclusion: 'cancelled' });
@@ -442,6 +443,7 @@ test('decision table: one case per row, first matching row wins', () => {
   const stopped = run(6, { conclusion: 'cancelled' });
   check('V6 cancelled after start', settle(intent, R, facts([R, stopped], { started: () => true })), 'V6', 'cancelled', 1);
   check('V6 start unknown', settle(intent, R, facts([R, stopped], { started: () => { throw Error('down'); } })), 'V6', 'unresolved', 1);
+  check('V7 R re-run since its lookup, still running', settle(intent, R, facts([run(20, { run_attempt: 2, status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
   check('V7 another still running', settle(intent, R, facts([R, run(21, { status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
   const Rcancel = run(20, { conclusion: 'cancelled' });
   check('V7 R replaced, replacement running', settle(intent, Rcancel, facts([Rcancel, run(21, { status: 'queued', conclusion: null })])), 'V7', 'superseded', 3);

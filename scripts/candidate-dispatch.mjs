@@ -126,8 +126,9 @@ export function attribute(intent, { runs, complete }, now) {
 }
 
 /**
- * Rows V1-V9: the verdict for the requested commit, given its proved run R. C is R plus every
- * configured-suite workflow_dispatch run listed at the commit, on any branch. Facts (runs,
+ * Rows V1-V9: the verdict for the requested commit, given its proved run R. C is R as its own
+ * lookup returned it, plus every configured-suite workflow_dispatch run listed at the commit on
+ * any branch, R's listed snapshot included. Facts (runs,
  * complete, head) are values or getters; `started(run)` and `attempts(run)` are read only when a
  * row needs them, and may throw when GitHub cannot be read.
  */
@@ -141,7 +142,9 @@ export function settle(intent, run, facts = {}) {
   if (intent.workflow !== WORKFLOW) return answer('V1', 'refused', null, null,
     `this record names ${intent.workflow}; only ${WORKFLOW}, whose runs on one commit are one check, is judged here`);
   const listed = fact('runs') ?? [];
-  const all = [run, ...listed.filter((other) => sameCheck(intent, other) && other.id !== run.id)].sort((x, y) => x.id - y.id);
+  // R's own lookup AND its listed snapshot both count: if R was re-run in between, the newer
+  // attempt is never lost.
+  const all = [run, ...listed.filter((other) => sameCheck(intent, other))].sort((x, y) => x.id - y.id);
   const failed = all.find((other) => other.status === 'completed' && !['success', 'cancelled'].includes(other.conclusion));
   if (failed) return answer('V2', 'verdict', failed, failed.conclusion, `run ${failed.id} at this commit ended ${failed.conclusion}`);
   if (fact('complete') !== true || !listed.some((other) => other.id === run.id)) return run.status !== 'completed'
@@ -175,7 +178,7 @@ export function settle(intent, run, facts = {}) {
         + ' dispatch the new head; a verdict still required for the old commit goes through the exact-SHA check branch');
   }
   return { ...answer('V9', 'verdict', counted[0], 'success', `all ${counted.length} run(s) at this commit passed on every attempt`),
-    runIds: counted.map((other) => other.id) };
+    runIds: [...new Set(counted.map((other) => other.id))] };
 }
 
 function branchHead(api, { repository, ref }) {
