@@ -212,7 +212,13 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
     const p1 = apply(two, { ...withField(q, 't0', { kind: 'countdown' }), components: [ownTimer] });
     const edited = { ...p1.next, svgBehaviour: { ...p1.next.svgBehaviour, bar: '' } };
     const moved = apply(edited, { ...withField(withField(q, 't0', { kind: 'text' }), 't1', { kind: 'countdown' }), components: [{ ...ownTimer, picks: [{ role: 'clock', layer: 't1' }, { role: 'bar', layer: 's0' }] }] });
+    // A proposal that decides the only clock row is Text, with a timer: the machinery does not
+    // overrule it, and applying it again changes nothing.
+    const saysText = { ...withField(p, clockRow, { kind: 'text' }), components: [{ ...timer, picks: timer.picks.filter((k) => k.role !== 'clock') }] };
+    const t1 = apply(none.next, saysText);
+    const t2 = apply(t1.next, saysText);
     out.countdown = {
+      saysText: [row(t1.next, clockRow).kind, row(t2.next, clockRow).kind, JSON.stringify(t2.patch) === JSON.stringify(t1.patch)],
       keptText: [row(keptText.next, clockRow).kind, keptText.kept],
       keepsClock: [row(k1.next, clockRow).kind, k1.next.svgBehaviour, JSON.stringify(k2.patch) === JSON.stringify(k1.patch)],
       moved: [row(moved.next, 't0').kind, row(moved.next, 't1').kind, moved.kept],
@@ -358,6 +364,7 @@ test('A6: the countdown machinery runs on replacement and one countdown remains'
     countdowns: 1,
     twoArmed: [null, 0],
     fight: ['text', 'countdown', ['t1.kind']],
+    saysText: ['text', 'text', true],
     keptText: ['text', ['t0.kind']],
     keepsClock: ['countdown', null, true],
     moved: ['countdown', 'text', ['behaviour', 't0.kind']],

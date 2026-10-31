@@ -1842,9 +1842,12 @@ export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): 
   const write = <T extends { candidateId: string }>(list: T[]): T[] =>
     list.map((row) => (byLayer.has(row.candidateId) ? { ...row, ...byLayer.get(row.candidateId) } : row));
   const merged = write(draft.svgFields);
-  const kindCorrected = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind;
+  // The machinery fills only what nobody decided: a kind the author corrected or the proposal
+  // decides is never armed or disarmed, so the same proposal gives the same rows every time.
+  const decided = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind || result.writes.some((w) => w.layer === id && w.attr === 'kind');
+  // It sees every row, so a decided countdown still counts as the one there is.
   const machined = replaced ? armTimerClock(write(disarmTimerClock(draft.svgFields)), behaviour) : merged;
-  const svgFields = machined.map((f, i) => (kindCorrected(f.candidateId) ? merged[i] : f));
+  const svgFields = machined.map((f, i) => (decided(f.candidateId) ? merged[i] : f));
   // The machinery's own change is the proposal's, not a correction: it joins the reference.
   const referenceRows = { ...result.referenceRows };
   svgFields.forEach((f, i) => {
