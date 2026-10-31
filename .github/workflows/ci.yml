@@ -578,12 +578,24 @@ jobs:
       # in its work spec, and the gate below refuses without one. The report job measures the same
       # files from this run's own blobs once they exist. Pull requests and merge groups only: main
       # has landed already, and the weekly refresh pull request carries main's usage.
+      #
+      # THE GROWTH TIERS ride on the same verdict (scripts/growth-controls.mjs, D7): what this
+      # change adds to the backend, graphics and fixed-overhead tiers, priced conservatively and
+      # judged per tier against the newest weekly growth report, which the step below fetches.
+      # No report, or an unreadable one, is missing evidence, never zero cost.
+      - name: Newest weekly growth report
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/growth-report.json" || true
       - name: E2E capacity line (estimate)
         id: capacity
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         env:
           BASE: ${{ steps.plan.outputs.base }}
-        run: node scripts/e2e-capacity.mjs --changed "${BASE:-}" --github-output --summary "$GITHUB_STEP_SUMMARY"
+        run: node scripts/e2e-capacity.mjs --changed "${BASE:-}" --growth "$RUNNER_TEMP/growth-report.json" --github-output --summary "$GITHUB_STEP_SUMMARY"
 
   e2e:
     name: E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})

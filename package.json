@@ -58,6 +58,7 @@
     "check:freshness": "node scripts/check-vendored-versions.mjs && node scripts/check-model-ids.mjs && node scripts/check-ograf-schema.mjs && node scripts/e2e-durations.mjs --check",
     "check:e2e-durations": "node scripts/e2e-durations.mjs --check",
     "check:e2e-capacity": "node scripts/e2e-capacity.mjs",
+    "check:growth-report": "node scripts/growth-report.mjs collect",
     "check:e2e-selection-misses": "node scripts/e2e-selection-misses.mjs --days 7",
     "check:e2e-protection": "node scripts/check-e2e-protection.mjs --changed origin/main",
     "record:e2e-durations": "node scripts/e2e-durations.mjs --record",

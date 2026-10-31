@@ -194,3 +194,41 @@ jobs:
           if [ -n "$EXISTING" ]; then
             gh issue close "$EXISTING" --comment "Audit green again at ${{ github.sha }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
+
+  # THE WEEKLY GROWTH REPORT (docs/work-specs/cicd-improvement/spec.md D7, scripts/growth-report.mjs).
+  # Its own job so the audit's red cannot skip it and its red cannot hide the audit. It prices the
+  # week's runner-minutes into the four frozen tiers, attributes indirect slowdowns to a landing
+  # range, carries last week's breaches through one correction to a growth stop, and publishes
+  # the `growth-report` artifact the capacity line in ci.yml reads on every pull request. A
+  # week with no report is itself an owned failure: the capacity line says so, and the next
+  # report raises it. Bounded at 450 API calls, under the token's hourly limit.
+  growth:
+    name: Weekly growth report
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Last week's report
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/growth-report.mjs fetch --out "$RUNNER_TEMP/previous-growth.json" || true
+      # The rolling issue is a statement about main (the audit's own rule above), so only a
+      # schedule or a run on main raises or withdraws it.
+      - name: Measure, attribute and assign
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ (github.event_name == 'schedule' || github.ref == 'refs/heads/main') && '--issue' || '' }}
+        run: node scripts/growth-report.mjs collect --budget 450 --previous "$RUNNER_TEMP/previous-growth.json" --out growth-report.json --summary "$GITHUB_STEP_SUMMARY" $ISSUE
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: growth-report
+          path: growth-report.json
+          retention-days: 35
+          if-no-files-found: error

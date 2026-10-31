@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // gate: workflow ci.yml
-// guards: scripts/e2e-durations.json, e2e/**, docs/work-specs/**/spec.md
+// guards: scripts/e2e-durations.json, scripts/growth-ceilings.json, e2e/**, docs/work-specs/**/spec.md, .github/workflows/**
 // THE CAPACITY LINE - how much of the full E2E run's envelope the suite uses, and whether THIS
 // change may add to it (docs/work-specs/e2e-suite-budget/spec.md, decisions 1-3).
 //
@@ -8,7 +8,15 @@
 //   node scripts/e2e-capacity.mjs --changed <base>              # ...with this change's spec files
 //   node scripts/e2e-capacity.mjs --changed <base> --report <merged.json>   # ...measured from the run
 //   flags: --github-output (write capacity=ok|warn|refuse and capacity_reason), --summary <file>
-//          (append a markdown summary), --today YYYY-MM-DD (exception expiry, tests)
+//          (append a markdown summary), --today YYYY-MM-DD (exception expiry, tests),
+//          --growth <growth-report.json> (the latest weekly growth report; the D7 tiers below)
+//
+// THE GROWTH TIERS (docs/work-specs/cicd-improvement/spec.md D7, scripts/growth-controls.mjs).
+// Beside the table line, the same verdict judges what the change adds to each of the four frozen
+// tiers (offline, backend, graphics, fixed overhead), each alone, against the latest weekly
+// report's measurement; whether the durations table is past its 8-day bound (then added minutes
+// are refused from the 85% line); and whether the change edits the frozen ceilings or removes
+// or renews an exception without a measured repayment. There is no aggregate gate.
 //
 // WHY A LINE AND NOT A COUNT. The offline suite grew from 115 to 169 measured minutes in the three
 // weeks to 2026-10-11, almost all of it new spec files, and the full run on main lost a shard at
@@ -50,6 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
+import { TIERS, assessTiers, exceptionStatus, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -104,8 +113,8 @@ export function parseExceptions(markdown) {
   const out = [];
   for (const line of lines.slice(start + 1)) {
     if (/^##\s/.test(line)) break;
-    const m = /^-\s+`?(e2e\/[^\s:`]+\.spec\.ts)`?:\s*([\d.]+)\s*min,\s*(.+?),\s*expires\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(line.trim());
-    if (m) out.push({ spec: m[1], minutes: Number(m[2]), protects: m[3].trim(), expires: m[4] });
+    const m = /^-\s+`?(e2e\/[^\s:`]+\.spec\.ts)`?:\s*([\d.]+)\s*min,\s*(.+?)(?:,\s*repaid\s+([\d.]+)\s*min\s+in\s+run\s+(\d+))?,\s*expires\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(line.trim());
+    if (m) out.push({ spec: m[1], minutes: Number(m[2]), protects: m[3].trim(), expires: m[6], ...(m[4] ? { repaid: { minutes: Number(m[4]), run: m[5] } } : {}) });
   }
   return out;
 }
@@ -122,6 +131,26 @@ export function readExceptions(root = ROOT) {
     for (const e of parseExceptions(readFileSync(file, 'utf8'))) out.push({ ...e, from: `docs/work-specs/${folder.name}/spec.md` });
   }
   return out;
+}
+
+/**
+ * What a change does to the offline exception lines, against its base. The lines stay on record
+ * after they expire (append-only), and a new line for a spec the base already excepted - in any
+ * work spec, under any wording - renews that scope, which needs a measured repayment clause:
+ * `, repaid <minutes> min in run <run id>` before `expires`.
+ */
+export function offlineExceptionChanges(base, head) {
+  const key = (e) => `${e.from}|${e.spec}|${e.minutes}|${e.expires}`;
+  const name = (e) => e.spec.split('/').pop();
+  const baseKeys = new Set(base.map(key));
+  const headKeys = new Set(head.map(key));
+  const problems = [];
+  for (const e of base) if (!headKeys.has(key(e))) problems.push(`the budget exception for ${e.spec} in ${e.from} (expires ${e.expires}) was removed or moved: exception lines stay on record after they expire`);
+  for (const e of head) {
+    if (baseKeys.has(key(e))) continue;
+    if (base.some((b) => name(b) === name(e)) && !(e.repaid?.minutes > 0)) problems.push(`the new budget exception for ${e.spec} renews an earlier one for the same spec without a measured repayment (\`, repaid <minutes> min in run <id>\`)`);
+  }
+  return problems;
 }
 
 /** An exception covers a spec today if it names it, has not expired, and does not run too long. */
@@ -143,7 +172,7 @@ export function exceptionFor(exceptions, spec, today) {
  * and no measurement counts at the median before a run and at the p90 once a report exists but
  * omits it (the shard that carried it died).
  */
-export function assess({ table = readTable(), suite = specFilesOnDisk(), changed = [], measured = null, exceptions = [], today = new Date().toISOString().slice(0, 10) } = {}) {
+export function assess({ table = readTable(), suite = specFilesOnDisk(), changed = [], measured = null, exceptions = [], today = new Date().toISOString().slice(0, 10), tableStale = false } = {}) {
   const minutes = { ...table.minutes };
   const values = Object.values(table.minutes);
   const median = percentile(values, 0.5);
@@ -172,9 +201,12 @@ export function assess({ table = readTable(), suite = specFilesOnDisk(), changed
   const uncovered = details.filter((d) => d.delta > 0 && !d.exception);
   let status = 'ok';
   let reason = `${after.toFixed(1)} of ${capacity.toFixed(1)} table-minutes (${(100 * share).toFixed(0)}%) on ${MAIN_RUNNERS} runners`;
-  if (share >= HARD_SHARE && added > 0 && uncovered.length > 0) {
+  // A stale table cannot establish the last ten points of headroom (growth-controls.mjs rule 3),
+  // so while it is past its freshness bound added minutes are refused from the warning line.
+  const line = tableStale ? WARN_SHARE : HARD_SHARE;
+  if (share >= line && added > 0 && uncovered.length > 0) {
     status = 'refuse';
-    reason = `${reason}; this change adds ${added.toFixed(1)} minute(s) above the ${Math.round(100 * HARD_SHARE)}% line without a budget exception for ${uncovered.map((d) => d.spec).join(', ')}`;
+    reason = `${reason}; this change adds ${added.toFixed(1)} minute(s) above the ${Math.round(100 * line)}% line${tableStale ? ' a stale durations table sets' : ''} without a budget exception for ${uncovered.map((d) => d.spec).join(', ')}`;
   } else if (share >= WARN_SHARE) {
     status = 'warn';
     reason = `${reason}; above the ${Math.round(100 * WARN_SHARE)}% line${added > 0 ? `, this change adds ${added.toFixed(1)} minute(s)` : ''}`;
@@ -209,6 +241,65 @@ export function changedSpecs(base, cwd = ROOT) {
   return specs;
 }
 
+const gitShow = (rev, file) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd: ROOT, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
+const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
+
+/**
+ * The D7 half of this line, with its I/O: the latest weekly growth report (or the frozen seed
+ * when there is none), the files this change adds, the workflows it touches, and the ceilings
+ * and exception records before and after. Never throws: what it cannot read is missing evidence.
+ */
+export function growthAssessment({ base, reportPath, table, today, root = ROOT }) {
+  const ceilings = JSON.parse(readFileSync(path.join(root, 'scripts', 'growth-ceilings.json'), 'utf8'));
+  let report = null;
+  if (reportPath && existsSync(reportPath)) { try { report = JSON.parse(readFileSync(reportPath, 'utf8')); } catch { report = null; } }
+  const measurement = report?.measurement ?? ceilings.measurement;
+  const cadence = reportCadence({ generatedAt: report?.generatedAt ?? null, today, maxAgeDays: ceilings.reportMaxAgeDays });
+  const fresh = tableFreshness({ recordedAt: table.source?.recordedAt, today, boundDays: ceilings.freshnessDays, pending: report?.table?.pending ?? [] });
+  const added = [];
+  const workflows = {};
+  const reasons = [];
+  let ledger = [];
+  let offline = [];
+  if (base) {
+    let diff = '';
+    try { diff = execFileSync('git', ['diff', '--name-status', `${base}...HEAD`], { cwd: root, encoding: 'utf8', windowsHide: true }); } catch { reasons.push(`cannot diff ${base}: what this change adds is unknown`); }
+    for (const line of diff.split('\n')) {
+      const [status, ...rest] = line.trim().split(/\s+/);
+      const file = rest.at(-1);
+      if (!status || !file) continue;
+      if (/^[AR]/.test(status)) added.push(file);
+      if (/^[AMR]/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) workflows[file.split('/').pop()] = { base: gitShow(base, file) ?? '', head: readFileSync(path.join(root, file), 'utf8') };
+    }
+    const baseCeilings = gitShow(base, 'scripts/growth-ceilings.json');
+    if (baseCeilings) {
+      const before = JSON.parse(baseCeilings);
+      ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs')), head: MAIN_RUNNERS } });
+      const wasInvalid = new Set(exceptionStatus(before.exceptions, today, before.exceptionMaxDays).invalid.map((e) => e.id));
+      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays).invalid) if (!wasInvalid.has(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
+    }
+    const baseSpecs = (gitShow(base, 'docs/work-specs') ?? '').split('\n').filter((n) => n.endsWith('/'));
+    const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));
+    offline = offlineExceptionChanges(baseExceptions, readExceptions(root));
+  }
+  const items = priceAdditions({ added, workflows, estimates: ceilings.estimates });
+  const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {} });
+  let status = tiers.status;
+  for (const t of TIERS) if (tiers.tiers[t].status !== 'ok' && tiers.tiers[t].items.length) reasons.push(`${t} tier ${tiers.tiers[t].status}: ${tiers.tiers[t].why}`);
+  if (ledger.length || offline.length) { status = 'refuse'; reasons.push(...ledger, ...offline); }
+  if (cadence.overdue) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
+  if (fresh.stale) { reasons.push(fresh.reason); if (status === 'ok') status = 'warn'; }
+  const markdown = [
+    ...summarizeTiers(tiers),
+    `- ${fresh.reason}.`,
+    `- ${cadence.reason}${report ? ` (week to ${report.measurement?.windowEnd})` : '; tiers judged on the frozen seed measured to ' + ceilings.measurement.windowEnd}.`,
+    ...ledger.map((p) => `- Ceilings file: ${p}.`),
+    ...offline.map((p) => `- Budget exceptions: ${p}.`),
+    '',
+  ].join('\n');
+  return { status, reasons, markdown, table: fresh, tiers, items };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const value = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
@@ -227,10 +318,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // empty suite or an empty table is a moved directory or a lost file, never a 0% usage.
   measured(suite.length, 'e2e spec files on disk');
   measured(Object.keys(table.minutes).length, 'measured spec durations');
-  const result = assess({ table, suite, changed, measured: fromReport, exceptions: readExceptions(), today });
+  // THE GROWTH TIERS (D7, scripts/growth-controls.mjs): the table's age, what this change adds to
+  // each tier, and what it does to the frozen ceilings and the exception records.
+  const growth = growthAssessment({ base: base && !/^0{40}$/.test(base) ? base : null, reportPath: value('--growth'), table, today });
+  const result = assess({ table, suite, changed, measured: fromReport, exceptions: readExceptions(), today, tableStale: growth.table.stale });
   const runnerMinutes = value('--runner-minutes') !== undefined ? Number(value('--runner-minutes')) : null;
   const wallMinutes = value('--wall-minutes') !== undefined ? Number(value('--wall-minutes')) : null;
-  const text = summarize(result, { runnerMinutes, wallMinutes, label: fromReport ? 'measured' : 'estimate' });
+  const order = { ok: 0, warn: 1, refuse: 2 };
+  if (order[growth.status] > order[result.status]) result.status = growth.status;
+  if (growth.status !== 'ok') result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;
+  const text = `${summarize(result, { runnerMinutes, wallMinutes, label: fromReport ? 'measured' : 'estimate' })}${growth.markdown}`;
   console.log(text);
   const summary = value('--summary');
   if (summary) appendFileSync(summary, `${text}\n`);

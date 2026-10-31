@@ -1,0 +1,339 @@
+#!/usr/bin/env node
+// gate: workflow weekly-audit.yml
+// guards: scripts/growth-controls.mjs, scripts/growth-ceilings.json, scripts/e2e-durations.json
+// THE WEEKLY GROWTH REPORT - D7's measurement, attribution and ownership half
+// (docs/work-specs/cicd-improvement/spec.md D7 and AC-9; the rules are in growth-controls.mjs).
+//
+//   node scripts/growth-report.mjs collect [--days 7] [--budget 450] [--previous prev.json]
+//        [--clocks clocks.json] [--out report.json] [--summary file] [--now ISO]
+//        [--issue]                                            # keep the weekly rolling issue
+//   node scripts/growth-report.mjs ages [--issue]              # open items past their age ceiling
+//   node scripts/growth-report.mjs fetch --out report.json     # the latest published report
+//
+// `collect` reads this repository's Actions runs for the window (ending six hours ago, so runs
+// have finished) and prices every job's runner-minutes into its tier: offline, backend,
+// graphics, fixed overhead. Every completed run is counted; failed, cancelled and re-run attempts
+// count, because they held runners. It reads at most `--budget` API calls: run lists in full,
+// then the jobs of an evenly spread sample of each (workflow, event) stratum, scaled to the
+// stratum's exact run count. A stratum it could not sample, or a read that failed, makes that
+// tier's evidence partial, never zero. Sampled post-landing runs form the series an indirect
+// slowdown is found and attributed in. Open pull requests' clocks give the per-item age alarms;
+// `--clocks` adds finished samples and phase ledgers for the pooled weekly timing (the plan-run
+// ledger and worker receipts are not in the repository). Breaches carry over from `--previous`.
+//
+// The report is a step summary and a JSON artifact (`growth-report`); the capacity line in
+// ci.yml fetches the newest one, so its stops and its measurement reach every pull request.
+import { execFileSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import {
+  TIERS, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
+  expiringSoon, phaseClock, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
+} from './growth-controls.mjs';
+import { measured } from './measured.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const REPO = process.env.GH_REPO || process.env.GITHUB_REPOSITORY || 'NoaCG/NoaCG-Studio';
+const DAY = 86_400_000;
+
+/** A bounded reader over `gh api`: it counts calls and refuses past its budget. */
+export function makeReader(budget, run = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 << 20 })) {
+  const reader = { calls: 0, failures: 0, exhausted: false };
+  reader.get = (route) => {
+    if (reader.calls >= budget) { reader.exhausted = true; return null; }
+    reader.calls += 1;
+    try { return JSON.parse(run(['api', '-X', 'GET', route])); } catch { reader.failures += 1; return null; }
+  };
+  return reader;
+}
+
+const minutes = (j) => (j.started_at && j.completed_at ? Math.max(0, (Date.parse(j.completed_at) - Date.parse(j.started_at)) / 60_000) : 0);
+
+/** Evenly spread `k` of `n` indices, always including the first and the last. */
+export function spread(n, k) {
+  if (k >= n) return [...Array(n).keys()];
+  if (k <= 1) return [n - 1];
+  return [...new Set([...Array(k).keys()].map((i) => Math.round((i * (n - 1)) / (k - 1))))];
+}
+
+/**
+ * Price sampled runs into tiers and scale each stratum to its run count. Pure.
+ * `runs` are `{ id, workflow, event, branch, sha, created, conclusion, jobs|null }`, `jobs` null
+ * when the run was not sampled (or its read failed: `failed: true`).
+ */
+export function priceRuns(runs, { days }) {
+  const strata = {};
+  for (const r of runs) (strata[`${r.workflow}|${r.event}`] ??= []).push(r);
+  const totals = Object.fromEntries(TIERS.map((t) => [t, { landing: 0, scheduled: 0, partial: [] }]));
+  for (const [key, list] of Object.entries(strata)) {
+    const sampled = list.filter((r) => r.jobs);
+    const event = key.split('|')[1];
+    const bucket = event === 'schedule' ? 'scheduled' : 'landing';
+    const missing = list.filter((r) => r.failed || (!r.jobs && sampled.length === 0)).length;
+    if (sampled.length === 0) { for (const t of TIERS) totals[t].partial.push(`${key}: ${list.length} run(s) not sampled`); continue; }
+    if (missing) for (const t of TIERS) totals[t].partial.push(`${key}: ${missing} read(s) failed`);
+    const perRun = Object.fromEntries(TIERS.map((t) => [t, 0]));
+    for (const r of sampled) for (const j of r.jobs) perRun[tierOfJob(r.workflow, j.name)] += minutes(j);
+    for (const t of TIERS) totals[t][bucket] += (perRun[t] / sampled.length) * list.length;
+  }
+  const landings = runs.filter((r) => r.workflow === 'ci.yml' && r.event === 'push' && r.branch === 'main').length;
+  const tiers = {};
+  for (const t of TIERS) {
+    const partial = totals[t].partial;
+    tiers[t] = {
+      perLanding: landings ? totals[t].landing / landings : null,
+      perDay: totals[t].scheduled / days,
+      evidence: landings && partial.length === 0 ? 'complete' : 'partial',
+      ...(partial.length ? { why: partial.slice(0, 4).join('; ') + (partial.length > 4 ? ` and ${partial.length - 4} more` : '') } : {}),
+      totalLanding: totals[t].landing,
+      totalScheduled: totals[t].scheduled,
+    };
+  }
+  return { landings, tiers };
+}
+
+/** Post-landing series per tier, oldest first, from sampled push runs on main. Pure. */
+export function seriesOf(runs) {
+  const out = Object.fromEntries(TIERS.map((t) => [t, []]));
+  const pushes = runs.filter((r) => r.jobs && r.event === 'push' && r.branch === 'main' && (r.workflow === 'ci.yml' || r.workflow === 'configured-suite.yml'))
+    .sort((a, b) => a.created.localeCompare(b.created));
+  for (const r of pushes) {
+    const per = Object.fromEntries(TIERS.map((t) => [t, 0]));
+    for (const j of r.jobs) per[tierOfJob(r.workflow, j.name)] += minutes(j);
+    const complete = r.conclusion === 'success' && r.jobs.every((j) => j.status === 'completed');
+    for (const t of TIERS) if (per[t] > 0) out[t].push({ sha: r.sha, at: r.created, complete, value: per[t] });
+  }
+  return out;
+}
+
+/** Assemble the report from collected facts. Pure, so the whole report replays from fixtures. */
+export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], finished = [], pending = [], tableRecordedAt, collection }) {
+  const priced = priceRuns(runs, { days });
+  let measurement = { source: 'weekly growth report', windowStart: new Date(Date.parse(windowEnd) - days * DAY).toISOString().slice(0, 10), windowEnd: windowEnd.slice(0, 10), landings: priced.landings, tiers: {} };
+  for (const t of TIERS) { const { totalLanding, totalScheduled, ...rest } = priced.tiers[t]; measurement.tiers[t] = rest; }
+  const series = seriesOf(runs);
+  const slowdowns = {};
+  for (const t of TIERS) {
+    if (!(measurement.tiers[t].perLanding > 0)) continue;
+    const s = detectSlowdown(series[t]);
+    if (s.found) { slowdowns[t] = s; measurement = applySlowdown(measurement, t, s); }
+  }
+  const today = now.slice(0, 10);
+  const prevStops = previous?.stops ?? {};
+  const assessment = assessTiers({ ceilings, measurement, items: [], today, stops: prevStops });
+  const perDayLandings = priced.landings / days;
+  const aggregate = {
+    perDay: TIERS.reduce((a, t) => a + (measurement.tiers[t].perLanding ?? 0) * perDayLandings + measurement.tiers[t].perDay, 0),
+    allocatedPerDay: TIERS.reduce((a, t) => a + ceilings.tiers[t].perLanding * perDayLandings + ceilings.tiers[t].perDay, 0),
+  };
+  const table = tableFreshness({ recordedAt: tableRecordedAt, today, boundDays: ceilings.freshnessDays, pending });
+  const ex = exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays);
+  const soon = new Set(expiringSoon(ex.active, today).map((e) => e.id));
+  const exceptions = [
+    ...ex.active.map((e) => ({ ...e, state: 'active', soon: soon.has(e.id) })),
+    ...ex.expired.map((e) => ({ ...e, state: 'expired, counted again' })),
+    ...ex.invalid.map((e) => ({ ...e, state: 'invalid, covers nothing' })),
+  ];
+  const timing = ['prReady', 'phase', 'queue'].map((m) => {
+    const t = pooledTiming(finished.filter((s) => s.measure === m), m, ceilings, now);
+    const before = previous?.timing?.find((p) => p.measure === m);
+    return { ...t, sustained: sustained(before, t) };
+  });
+  const current = [
+    ...costBreaches(assessment),
+    ...timing.filter((t) => t.sustained).map((t) => ({ key: `latency:${t.measure}`, kind: 'latency', subject: t.measure, detail: `${t.measure} pooled p50 ${t.pooled.p50} / p90 ${t.pooled.p90} over p50 ${t.ceiling.p50} / p90 ${t.ceiling.p90} two adequately sampled weeks running` })),
+    ...ageAlarms(openItems, ceilings, now),
+    ...(table.stale ? [{ key: 'table:stale', kind: 'table', subject: 'e2e-durations', detail: table.reason }] : []),
+    ...exceptions.filter((e) => e.soon).map((e) => ({ key: `exception:${e.id}`, kind: 'exception', subject: e.id, due: e.expires, detail: `exception ${e.id} expires ${e.expires}; expiry restores refusal; renewal needs a measured repayment (${e.repayment ?? 'no repayment named'})` })),
+    ...ex.invalid.map((e) => ({ key: `exception-invalid:${e.id}`, kind: 'exception', subject: e.id, detail: `exception ${e.id} covers nothing: ${e.problems.join('; ')}` })),
+  ];
+  const cadence = previous ? reportCadence({ generatedAt: previous.generatedAt, today, maxAgeDays: ceilings.reportMaxAgeDays }) : { overdue: false };
+  if (cadence.overdue) current.push({ key: 'report:missing', kind: 'report', subject: 'weekly', detail: `${cadence.reason}: a week went unreported` });
+  const carried = carryBreaches({ previous: previous?.breaches ?? [], current, today, owner: ceilings.owner });
+  const report = {
+    generatedAt: now, ceilingsVersion: ceilings.version, owner: ceilings.owner, measurement, slowdowns,
+    assessment: { status: assessment.status, tiers: Object.fromEntries(TIERS.map((t) => [t, { status: assessment.tiers[t].status, why: assessment.tiers[t].why, evidence: assessment.tiers[t].evidence, share: assessment.tiers[t].share }])) },
+    aggregate, table, exceptions: exceptions.map(({ id, tier, covers, expires, repayment, state, soon: s, problems }) => ({ id, tier, covers, expires, repayment, state, soon: s, problems })),
+    timing, unknownClocks: openItems.filter((i) => i.clock.source === 'unknown').map((i) => i.id),
+    breaches: carried.breaches, stops: carried.stops, cleared: carried.cleared, collection, ceilings: { tiers: ceilings.tiers, envelopeRunnerMinutesPerDay: ceilings.envelopeRunnerMinutesPerDay, timing: ceilings.timing },
+  };
+  return { report, markdown: weeklyMarkdown({ ...report, ceilings: { ...report.ceilings }, assessment: { tiers: Object.fromEntries(TIERS.map((t) => [t, assessment.tiers[t]])) } }) };
+}
+
+// ---------------------------------------------------------------------------------------------
+// I/O.
+
+export function listRuns(reader, from, to) {
+  const runs = [];
+  for (let d = from; d < to; d += DAY) {
+    const day = new Date(d).toISOString().slice(0, 10);
+    for (let page = 1; page <= 10; page++) {
+      const body = reader.get(`repos/${REPO}/actions/runs?created=${day}&per_page=100&page=${page}&exclude_pull_requests=true`);
+      if (!body) return { runs, complete: false };
+      for (const r of body.workflow_runs ?? []) {
+        const at = Date.parse(r.created_at);
+        if (at < from || at >= to) continue;
+        runs.push({ id: r.id, workflow: String(r.path ?? '').split('/').pop().replace(/@.*$/, ''), event: r.event, branch: r.head_branch, sha: r.head_sha, created: r.created_at, conclusion: r.conclusion, status: r.status, jobs: null });
+      }
+      if ((body.workflow_runs ?? []).length < 100) break;
+    }
+  }
+  return { runs, complete: true };
+}
+
+export function readJobs(reader, run) {
+  const jobs = [];
+  for (let page = 1; page <= 3; page++) {
+    const body = reader.get(`repos/${REPO}/actions/runs/${run.id}/jobs?filter=all&per_page=100&page=${page}`);
+    if (!body) return null;
+    jobs.push(...(body.jobs ?? []).map((j) => ({ name: j.name, status: j.status, started_at: j.started_at, completed_at: j.completed_at })));
+    if ((body.jobs ?? []).length < 100) break;
+  }
+  return jobs;
+}
+
+/** Open pull requests' clocks: stamp-based ready clock (receipts live outside the repo) and queue clock. */
+function openItems(reader, now) {
+  const prs = reader.get(`repos/${REPO}/pulls?state=open&per_page=100`) ?? [];
+  const items = [];
+  const pending = [];
+  for (const pr of prs) {
+    if (/^bot\/e2e-durations/.test(pr.head?.ref ?? '')) pending.push({ number: pr.number, opened: pr.created_at.slice(0, 10) });
+    if (pr.draft) continue;
+    const commits = reader.get(`repos/${REPO}/pulls/${pr.number}/commits?per_page=100`) ?? [];
+    const stamps = [];
+    for (const c of commits.slice(-10)) {
+      const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100`) ?? [];
+      for (const s of statuses) if (s.context === 'noacg/reviewed' && s.state === 'success') stamps.push({ at: s.created_at, head: c.sha });
+    }
+    const clock = prClock({ stamps, openedAt: pr.created_at, now });
+    items.push({ id: `#${pr.number}`, category: 'prReady', clock });
+    // A timeline over 100 events needs paging, or its queue events go missing (ci01 traps).
+    const events = [];
+    for (let page = 1; page <= 3; page++) {
+      const body = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100&page=${page}`) ?? [];
+      events.push(...body);
+      if (body.length < 100) break;
+    }
+    const queued = events.filter((e) => e.event === 'added_to_merge_queue').map((e) => e.created_at);
+    if (queued.length) items.push({ id: `#${pr.number} queue`, category: 'queue', clock: queueClock({ queued, now }) });
+  }
+  return { items, pending };
+}
+
+/** Finished samples and phase ledgers handed in as JSON: `{ samples: [...], phases: [{ id, events }] }`. */
+function readClocks(file, now) {
+  if (!file || !existsSync(file)) return { finished: [], open: [] };
+  const body = JSON.parse(readFileSync(file, 'utf8'));
+  const finished = [...(body.samples ?? [])];
+  const open = [];
+  for (const p of body.phases ?? []) {
+    const clock = phaseClock({ events: p.events, now });
+    if (clock.state === 'finished') finished.push({ measure: 'phase', category: p.category ?? 'phase', value: clock.hours, finishedAt: p.events.at(-1).at });
+    else open.push({ id: p.id, category: 'phase', clock });
+  }
+  return { finished, open };
+}
+
+export function collect({ days = 7, budget = 450, now = new Date().toISOString(), previous = null, clocksFile = null, ceilings }) {
+  const reader = makeReader(budget);
+  const to = Date.parse(now) - 6 * 3_600_000;
+  const from = to - days * DAY;
+  const listed = listRuns(reader, from, to);
+  const runs = listed.runs.filter((r) => r.status === 'completed');
+  const open = openItems(reader, now);
+  const strata = {};
+  for (const r of runs) (strata[`${r.workflow}|${r.event}`] ??= []).push(r);
+  const keys = Object.keys(strata);
+  const left = Math.max(0, budget - reader.calls);
+  const k = Math.max(2, Math.floor(left / Math.max(1, keys.length)));
+  // Post-landing CI runs get a double share: they are the slowdown series.
+  for (const key of keys) {
+    const list = strata[key].sort((a, b) => a.created.localeCompare(b.created));
+    const want = key === 'ci.yml|push' || key === 'configured-suite.yml|push' ? 2 * k : k;
+    for (const i of spread(list.length, want)) {
+      const jobs = readJobs(reader, list[i]);
+      if (jobs) list[i].jobs = jobs; else if (!reader.exhausted) list[i].failed = true;
+    }
+  }
+  const clocks = readClocks(clocksFile, now);
+  const table = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'e2e-durations.json'), 'utf8'));
+  const unfinished = listed.runs.length - runs.length;
+  const sampled = runs.filter((r) => r.jobs).length;
+  const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
+  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], finished: clocks.finished, pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
+  built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
+  if (!listed.complete) for (const t of TIERS) { built.report.measurement.tiers[t].evidence = 'partial'; built.report.measurement.tiers[t].why = 'the run list was cut short'; }
+  return built;
+}
+
+/**
+ * Keep ONE rolling issue per alarm title: open or update it with `body`, or close it when `body`
+ * is empty. Only a run about main may raise or withdraw an alarm (the caller checks the ref).
+ */
+export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args, { encoding: 'utf8' })) {
+  const found = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&per_page=100&labels=`]) || '[]').find((i) => i.title === title && !i.pull_request);
+  if (body && found) { gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', `body=${body}`]); return `updated #${found.number}`; }
+  if (body) { const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-f', `body=${body}`])); return `opened #${made.number}`; }
+  if (found) { gh(['api', '-X', 'POST', `repos/${REPO}/issues/${found.number}/comments`, '-f', 'body=Nothing overdue any more; closing.']); gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', 'state=closed']); return `closed #${found.number}`; }
+  return 'nothing to raise';
+}
+
+export const AGE_ISSUE = 'Delivery items past their age ceiling';
+export const WEEKLY_ISSUE = 'Growth controls: weekly actions';
+
+/** The per-item age check alone: cheap enough to run after every landing. */
+export function ages({ ceilings, now = new Date().toISOString(), budget = 120 }) {
+  const reader = makeReader(budget);
+  const open = openItems(reader, now);
+  const actions = ageAlarms(open.items, ceilings, now);
+  const body = actions.length
+    ? [`Owner: ${ceilings.owner}. Checked ${now} (${reader.calls} API calls). Each item below is past its age ceiling (docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4.3) and needs a corrective action by its date: land it, unblock it or close it with a reason.`, '', ...actions.map((a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}.`)].join('\n')
+    : '';
+  return { actions, body, calls: reader.calls };
+}
+
+/** The newest published report: the `growth-report` artifact of the latest weekly-audit run on main. */
+export function fetchLatest(out) {
+  const runs = JSON.parse(execFileSync('gh', ['api', '-X', 'GET', `repos/${REPO}/actions/workflows/weekly-audit.yml/runs?branch=main&status=completed&per_page=10`], { encoding: 'utf8' })).workflow_runs ?? [];
+  for (const run of runs) {
+    const arts = JSON.parse(execFileSync('gh', ['api', '-X', 'GET', `repos/${REPO}/actions/runs/${run.id}/artifacts`], { encoding: 'utf8' })).artifacts ?? [];
+    if (!arts.some((a) => a.name === 'growth-report' && !a.expired)) continue;
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-'));
+    execFileSync('gh', ['run', 'download', String(run.id), '-n', 'growth-report', '-D', dir, '-R', REPO]);
+    const file = readdirSync(dir).find((f) => f.endsWith('.json'));
+    writeFileSync(out, readFileSync(path.join(dir, file)));
+    return { run: run.id, file: out };
+  }
+  return null;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const [command, ...args] = process.argv.slice(2);
+  const value = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
+  if (command === 'fetch') {
+    const got = fetchLatest(value('--out') ?? 'growth-report.json');
+    console.log(got ? `growth report from weekly-audit run ${got.run} -> ${got.file}` : 'no published growth report found');
+  } else if (command === 'ages') {
+    const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
+    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString() });
+    console.log(result.body || `nothing past its age ceiling (${result.calls} API calls)`);
+    if (args.includes('--issue')) console.log(rollingIssue(AGE_ISSUE, result.body));
+  } else if (command === 'collect') {
+    const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
+    const previousFile = value('--previous');
+    const previous = previousFile && existsSync(previousFile) ? JSON.parse(readFileSync(previousFile, 'utf8')) : null;
+    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 450), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ceilings });
+    measured(report.measurement.landings, 'landings in the growth window');
+    console.log(markdown);
+    if (value('--out')) writeFileSync(value('--out'), `${JSON.stringify(report, null, 2)}\n`);
+    if (value('--summary')) appendFileSync(value('--summary'), `${markdown}\n`);
+    if (args.includes('--issue')) console.log(rollingIssue(WEEKLY_ISSUE, report.breaches.length ? markdown : ''));
+  } else {
+    console.error('usage: growth-report.mjs collect|ages|fetch [...] (see the header)');
+    process.exit(2);
+  }
+}
