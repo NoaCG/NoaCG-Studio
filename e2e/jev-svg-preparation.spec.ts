@@ -39,7 +39,7 @@ async function highlightAt(page: Page): Promise<number> {
   return Math.round(box.x + box.width / 2);
 }
 
-test('a prepared field is selected, corrected, reanalysed and reopened on the layer it names', async ({ page }, info) => {
+test('a prepared field is selected, corrected, re-dropped and reopened on the layer it names', async ({ page }, info) => {
   const file = info.outputPath('two-guests.svg');
   writeFileSync(file, TWO_GUESTS);
   await page.goto('/app');
