@@ -63,28 +63,28 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
 - `designTypes.ts`: `DesignSvgClock` in the `DesignSvgExtra` union.
 - `behaviour.ts`: the clock binding, instanced options under their namespace, and
   `refuseCollisions`.
-- `draft.ts` (reconciled with the coordinator, outside the row's list): `svgClock` in the draft,
+- `draft.ts` (reconciled with the coordinator at 20:46Z, outside the row's list): `svgClock` in the draft,
   `svgClockOption`, the clock in `svgExtrasOptions` and in the summary; a fresh drop starts with no
   clock and a same-artwork drop keeps it (row 6 rule S3).
 - `BehaviourSection.tsx`: the Clock and Time layer selects; the Countdown option only per C5.
   Choosing a row for the clock sets that row's kind back to text.
 - `scripts/jev-svg-contract.test.mjs`: five tests, C1 to C5, through the real compiler, the
   machine compiler and the machine validator.
-- `e2e/import-svg-behaviour.spec.ts` (reconciled, outside the row's list): the Clock walk on
-  `score-clock-1.svg`.
+- `e2e/import-svg-behaviour.spec.ts` (reconciled, outside the row's list): one new test, the
+  Clock walk on `score-clock-1.svg`, then the countdown file keeping its one choice. No existing
+  test or assertion changed.
 
 ## Decisions and traps
 
 - **Example gate.** `scripts/check-svg-example-coverage.mjs` requires every id in
   `BEHAVIOUR_RECIPES` to have an Illustrator source set, which a cloud worker cannot author. The
   clock is registered through `recipeById` only; moving it into the list is one line once the
-  owner's Illustrator clock example exists. Follow-up issue filed.
+  owner's Illustrator clock example exists: #1875.
 - **The countdown is kept where the file drew for it.** The new clock paints no drawn moments yet,
   so a file drawn with a drain bar, last-stretch and time-up plate keeps the countdown, which paints
   them. Every other new import gets only the Clock.
 - **The field row's own Countdown kind** (MapSvgFieldsStep, a clock-shaped row's Text or Countdown
-  choice) is outside this row's files and still offers the old engine on a single layer. Follow-up
-  issue filed. The draft never emits a clock on such a row (C4).
+  choice) is outside this row's files and still offers the old engine on a single layer: #1876. The draft never emits a clock on such a row (C4).
 - **Target time is offered now**, as the contract's third mode; its instant is row 10. Count-up
   and duration need row 8's runtime too.
 - Trap: commit messages in this repo carry no co-author trailer; the command guard refuses one.
