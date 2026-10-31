@@ -34,7 +34,7 @@ What stays central in `scripts/e2e-affected.mjs`, each for a reason no spec head
 | `CATALOG_TRIGGERS` | raise the catalog calibration gate, a separate Playwright config over the whole catalog: one flag, not a spec a header could name. |
 | catalog reach (`checkoutCatalogReach`) | the source the catalog specs render through, read off their Node imports and their in-page `import('/src/...')` calls. A file in it raises the catalog gate whatever else the plan does. Under sprint focus an escalation raises the gate unless every escalating file is a `src/` module outside that reach; a file the walk cannot see (a dependency manifest, the build config, a `public/` asset, an unknown root file) or an unknown reach raises it. |
 | `CENTRAL` (`cli/`, `.claude-plugin/`, `benchmarks/agent/`) | source that is known and selects NO spec. Without the row it would read as unmapped and escalate. |
-| `CONFIGURED_SUITE_FILES` (`scripts/e2e-lists.mjs`) | the configured suite's own files trigger its line for every change, not for one spec's sake. Every other configured trigger is in a configured spec's header. |
+| `CONFIGURED_FULL` (`scripts/e2e-lists.mjs`) and the configured toolchain (`configuredToolchain`) | the configured suite's shared ground (its helpers, live config, `supabase/`, the workflows and actions that run it, dependency manifests, the planner and verdict) selects every configured spec, not one spec's sake. Every other configured selection is in a configured spec's header. |
 
 Every row of the old map that named a spec moved into those specs' headers, the wide ones included.
 `src/templates/**` is now written in 53 headers and the wizard directory in 40. That was a judgement,

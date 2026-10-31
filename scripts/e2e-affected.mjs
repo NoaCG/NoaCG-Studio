@@ -30,9 +30,9 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cloudPlanAdmission, executionProfile } from './execution-profile.mjs';
 import { jobsDir, readJobs } from './jobs-store.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONFIGURED_TRIGGERS, COVERAGE, FOCUS } from './e2e-lists.mjs';
+import { CONFIGURED_BACKEND, CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, FOCUS } from './e2e-lists.mjs';
 import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
 import {
@@ -74,6 +74,30 @@ export function splitQuarantined(specs, quarantined, { changed = [] } = {}) {
   return {
     blocking: specs.filter((s) => !out(s)),
     quarantined: specs.filter(out).map(specPath),
+  };
+}
+
+/**
+ * THE CONFIGURED MANIFEST (cicd-improvement ci06): what ci.yml's selected configured job runs, as the
+ * plan JSON carries it. `specs` are bare names in e2e/configured/; `all` says shared ground or an
+ * uncertain dependency selected the whole set (`reasons.whole` names the files); `reasons.files`
+ * maps each other contributing file to the specs it selected. A quarantined spec leaves the
+ * blocking list exactly as the offline split does (`splitQuarantined`): it runs per landing under
+ * the quarantine, unless this change edits it. `none` with no reasons is the untriggered case.
+ *
+ * @param {{ configuredSpecs?: string[], configuredAll?: boolean, configuredReasons?: object }} plan
+ * @param {string[]} quarantined store identities
+ * @param {string[]} changed repo-relative paths
+ */
+export function configuredManifest(plan, quarantined, changed = []) {
+  // The offline split, over planner names (`configured/<spec>`), so its edited-spec rule is the same one.
+  const split = splitQuarantined((plan.configuredSpecs ?? []).map((s) => `configured/${s}`), quarantined, { changed });
+  const specs = split.blocking.map((s) => s.slice('configured/'.length));
+  return {
+    mode: specs.length === 0 ? 'none' : plan.configuredAll ? 'all' : 'subset',
+    specs,
+    quarantined: split.quarantined,
+    reasons: plan.configuredReasons ?? { whole: [], files: {} },
   };
 }
 
@@ -396,6 +420,7 @@ function specsAmong(files) {
     specs: files.filter((f) => /^e2e\/[^/]+\.spec\.ts$/.test(f)).map((f) => f.slice('e2e/'.length)).sort(),
     catalog: files.some((f) => /^e2e\/catalog\/.+\.spec\.ts$/.test(f)),
     configured: files.some((f) => /^e2e\/configured\/.+\.spec\.ts$/.test(f)),
+    configuredSpecs: files.filter((f) => /^e2e\/configured\/[^/]+\.spec\.ts$/.test(f)).map((f) => f.slice('e2e/configured/'.length)).sort(),
   };
 }
 
@@ -791,6 +816,127 @@ export function inCatalogReach(file, reach) {
 const mayBeInReach = (changed) => changed.some((f) => /^(src|e2e|scripts)\//.test(f));
 
 /**
+ * THE CONFIGURED SUITE'S TOOLCHAIN (ci06): the scripts that decide which configured specs run, pack
+ * them, run them and judge the report, read off their imports. A change to any of them can change
+ * what the selected configured job proves, so it selects the whole configured set
+ * (`CONFIGURED_FULL` in scripts/e2e-lists.mjs holds the fixed paths).
+ */
+export const CONFIGURED_TOOLCHAIN_ENTRIES = [
+  'scripts/e2e-affected.mjs',
+  'scripts/configured-shards.mjs',
+  'scripts/configured-verdict.mjs',
+  'scripts/e2e-run-integrity.mjs',
+  'playwright.live.config.ts',
+];
+let toolchainCache = null;
+export function configuredToolchain() {
+  toolchainCache ??= new Set(CONFIGURED_TOOLCHAIN_ENTRIES.flatMap((entry) => [...importClosure(entry, readCheckout)]));
+  return toolchainCache;
+}
+
+/** Whether a changed file is shared configured ground: the whole configured set runs for it. */
+export function configuredFullFor(file, toolchain, devServer) {
+  if (CONFIGURED_FULL.some((r) => r.test(file))) return true;
+  // Only a script or a root config can be in the toolchain or the dev server's startup modules (its
+  // /api plugins serve every configured spec), so nothing else reads them.
+  if (!/^(scripts\/|playwright\.|vite\.)/.test(file)) return false;
+  return (toolchain ?? configuredToolchain()).has(file) || (devServer ?? devServerModules()).has(file);
+}
+
+/**
+ * THE APP'S IMPORT GRAPH (cicd-improvement ci06), for the configured selection: every module under
+ * src/ and api/ with the relative imports it makes (static, side-effect, literal `import()`, `?raw`,
+ * CSS), resolved as the bundler does (`resolveModule`: .ts, .tsx, .mjs, .js, .jsx, index files, a
+ * name written with its extension such as `x.css`). `unresolved` names every module with a relative
+ * import that names no file: what lies behind it is unknown.
+ *
+ * @param {Map<string, string>} sources repo-relative path -> text, of every module
+ * @param {Set<string>} [files] every file an import may name (a `?raw` text, a `.json`), modules included
+ * @returns {{ importers: Map<string, string[]>, imports: Map<string, string[]>, unresolved: Set<string> }}
+ */
+export function sourceGraph(sources, files = new Set(sources.keys())) {
+  const importers = new Map();
+  const imports = new Map();
+  const unresolved = new Set();
+  const has = (f) => (files.has(f) ? f : null);
+  for (const [file, text] of sources) {
+    // Imports a literal walk cannot follow (a glob, a template import()) leave the module unknown.
+    if (/import\.meta\.glob\s*\(|\bimport\s*\(\s*`[^`]*\$\{/.test(withoutLineComments(text))) unresolved.add(file);
+    const out = new Set();
+    for (const spec of importSpecifiers(text)) {
+      const target = resolveModule(joinPath(dirOf(file), spec.replace(/\?.*$/, '')), has);
+      if (!target) unresolved.add(file);
+      else if (target !== file) out.add(target);
+    }
+    for (const target of out) {
+      if (!importers.has(target)) importers.set(target, []);
+      importers.get(target).push(file);
+    }
+    imports.set(file, [...out]);
+  }
+  return { importers, imports, unresolved };
+}
+
+/** `sourceGraph` over this checkout's src/ and api/, read once per process. */
+let sourceGraphCache = null;
+export function checkoutSourceGraph() {
+  if (sourceGraphCache) return sourceGraphCache;
+  const sources = new Map();
+  const files = new Set();
+  for (const dir of ['src', 'api']) {
+    // Files only: a directory in the set would resolve `./templates/x` to the directory, not its index.
+    for (const entry of readdirSync(join(REPO_ROOT, dir), { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const file = `${relative(REPO_ROOT, join(entry.parentPath ?? entry.path, entry.name)).replaceAll('\\', '/')}`;
+      files.add(file);
+      if (/\.(m?[jt]sx?|css)$/.test(file)) sources.set(file, readCheckout(file) ?? '');
+    }
+  }
+  sourceGraphCache = sourceGraph(sources, files);
+  return sourceGraphCache;
+}
+
+/**
+ * THE CONFIGURED SPECS A SOURCE CHANGE REACHES THROUGH IMPORTS (ci06, the rule model reassessed after
+ * two /so rounds). A configured spec depends on its declared files (its `covers:` lines) and on every
+ * module they import, transitively: a changed file selects each configured spec that declares the
+ * file itself or any module that imports it, directly or through others. A spec whose declared
+ * files reach a module with an unresolvable import has an unknown closure, and every src/ or api/
+ * change selects it. `outside` says no declared closure holds the file.
+ *
+ * @param {string} file repo-relative path under src/ or api/
+ * @param {ReturnType<typeof sourceGraph>} graph
+ * @param {{ spec: string, test: (f: string) => boolean }[]} coverage the configured specs' covers
+ * @returns {{ specs: string[], outside: boolean }}
+ */
+const unknownSpecs = new WeakMap();
+export function configuredByImports(file, graph, coverage) {
+  const up = importedBy(graph.importers, [file]);
+  const specs = new Set(coverage.filter((c) => up.some((f) => c.test(f))).map((c) => c.spec));
+  const outside = specs.size === 0;
+  // The specs whose closure is unknown, once per graph: they do not depend on the changed file.
+  if (!unknownSpecs.has(graph)) {
+    const behind = importedBy(graph.importers, [...graph.unresolved]);
+    unknownSpecs.set(graph, coverage.filter((c) => behind.some((f) => c.test(f))).map((c) => c.spec));
+  }
+  for (const s of unknownSpecs.get(graph)) specs.add(s);
+  return { specs: [...specs].sort(), outside };
+}
+
+/** Whether `file` reaches src/backend/ through its imports, directly or through others. */
+export function reachesBackend(file, graph) {
+  const seen = new Set([file]);
+  const queue = [file];
+  while (queue.length) {
+    for (const next of graph.imports.get(queue.pop()) ?? []) {
+      if (/^src\/backend\//.test(next)) return true;
+      if (!seen.has(next)) { seen.add(next); queue.push(next); }
+    }
+  }
+  return false;
+}
+
+/**
  * THE CLASSIFICATION, as a pure function of a changed-file list.
  *
  * Split out from the CLI so it can be tested without a git repository and a real diff. That is
@@ -844,7 +990,8 @@ const mayBeInReach = (changed) => changed.some((f) => /^(src|e2e|scripts)\//.tes
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach, readers } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach, readers,
+    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor, appGraph } = {},
 ) {
   // Built on first use: a change of only specs, helpers or CORE files never reads e2e/ for it.
   let readIndex = readers;
@@ -858,7 +1005,19 @@ export function planFor(
   const specs = new Set();
   let full = false;
   let catalog = false;
-  let configured = false;
+  // THE CONFIGURED SELECTION (ci06): which configured specs this change selects, and why. `whole`
+  // names the files that select the whole configured set; `why` maps every other contributing file
+  // to the configured specs it selected.
+  const configuredOn = new Set(configuredOnDisk);
+  const configuredSel = new Set();
+  const configuredWhole = new Set();
+  const configuredWhy = new Map();
+  const selectConfigured = (file, list) => {
+    const kept = list.filter((s) => configuredOn.has(s));
+    if (!kept.length) return;
+    for (const s of kept) configuredSel.add(s);
+    configuredWhy.set(file, [...new Set([...(configuredWhy.get(file) ?? []), ...kept])].sort());
+  };
   const unmapped = [];
   const copyOnly = [];
   const helperPlanned = [];
@@ -869,11 +1028,12 @@ export function planFor(
     if (!readIndex) return;
     const read = readersOf(file, readIndex);
     const kept = read.specs.filter((s) => keep(s) && (!onDisk || onDisk.has(s)));
-    if (!kept.length && !read.catalog && !read.configured) return;
+    // Configured readers are never narrowed by `keep`: the configured set has no screenshot rule.
+    selectConfigured(file, read.configuredSpecs ?? []);
+    if (!kept.length && !read.catalog) return;
     readPlanned.push(file);
     for (const s of kept) specs.add(s);
     if (read.catalog) catalog = true;
-    if (read.configured) configured = true;
   };
   const fromTrace = new Set();
   const tracedEscalated = [];
@@ -881,8 +1041,10 @@ export function planFor(
   // Whether any file that asked for the whole suite could move the catalog: the question sprint
   // focus leaves open once it has turned that escalation into the shared-change set.
   let escalationReachesCatalog = false;
+  // A file that escalates is uncertain for the configured suite too: it selects the whole configured set.
   const escalate = (file) => {
     full = true;
+    configuredWhole.add(file);
     if (!outsideCatalog(file, reach)) escalationReachesCatalog = true;
   };
   // A changed `?raw` file plans the module that inlines it as well as itself, with that module's
@@ -891,10 +1053,29 @@ export function planFor(
   const viaRaw = new Set(rawPlanned.flatMap((f) => rawEdges.get(f)));
 
   for (const file of new Set([...changed, ...viaRaw])) {
-    // Asked BEFORE the ignore list, deliberately: `e2e/configured/**` is ignored for the
-    // offline plan (those specs cannot run here), and that is precisely the file set whose
-    // change most needs the configured suite named.
-    if (CONFIGURED_TRIGGERS.some((r) => r.test(file))) configured = true;
+    // Asked BEFORE the ignore list, deliberately: `e2e/configured/**` and `supabase/` are ignored
+    // for the offline plan (those specs cannot run here), and that is precisely the file set whose
+    // change most needs the configured suite. An edited configured spec (or its baselines) runs
+    // itself; shared configured ground runs the whole set; a covers line runs its spec.
+    const configuredSpec = /^e2e\/configured\/([^/]+\.spec\.ts)(?:-snapshots\/|$)/.exec(file)?.[1];
+    // App source reaches the configured specs whose declared files import it (`configuredByImports`).
+    // Outside every declared closure, backend-facing source, or a module that imports src/backend/
+    // directly, is uncertain and selects the whole set.
+    // A backend-facing file no header names is shared by every spec that calls the backend, whatever
+    // its import closure says (api/_lib/http.ts sits in 13 declared closures and serves every route).
+    let configuredNamed = configuredCoverage.filter((c) => c.test(file)).map((c) => c.spec);
+    let backendOutside = !configuredNamed.length && CONFIGURED_BACKEND.some((r) => r.test(file));
+    if (/^(src|api)\//.test(file)) {
+      if (appGraph === undefined) appGraph = checkoutSourceGraph();
+      if (appGraph) {
+        const imported = configuredByImports(file, appGraph, configuredCoverage);
+        configuredNamed = [...new Set([...configuredNamed, ...imported.specs])];
+        if (imported.outside && reachesBackend(file, appGraph)) backendOutside = true;
+      }
+    }
+    if (configuredSpec) selectConfigured(file, [configuredSpec]);
+    else if (configuredShared(file, undefined, devServer) || backendOutside) configuredWhole.add(file);
+    selectConfigured(file, configuredNamed);
     // The catalog reach is asked before IGNORE for the same reason: a script a catalog spec imports
     // (scripts/rules.mjs) is ignored for the offline suite and is still something the gate runs.
     if (inCatalogReach(file, reach)) catalog = true;
@@ -934,7 +1115,9 @@ export function planFor(
       helperPlanned.push(file);
       for (const s of helper.specs) if (!onDisk || onDisk.has(s)) specs.add(s);
       if (helper.catalog) catalog = true;
-      if (helper.configured) configured = true;
+      selectConfigured(file, helper.configuredSpecs ?? []);
+      // A helper that says a configured spec imports it but cannot name which is uncertain.
+      if (helper.configured && !(helper.configuredSpecs ?? []).length) configuredWhole.add(file);
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
@@ -997,12 +1180,17 @@ export function planFor(
   if (full) catalog = true;
 
   const list = full ? [] : [...specs].sort();
-  // `configured` never changes `mode`: the configured suite is opt-in, needs secrets, and is
-  // reported rather than run (scripts/e2e-lists.mjs). A change that touches ONLY its territory
-  // still reports 'none' for this gate, and the printed line is what says otherwise.
+  // `configured` never changes `mode`: the configured suite runs in its own job on its own local
+  // stack (ci.yml `configured`, cicd-improvement ci06), so a change that touches ONLY its territory
+  // reports 'none' for the offline gate and its configured selection below.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
+  const configuredAll = configuredWhole.size > 0;
+  const configuredSpecs = configuredAll ? [...configuredOn].sort() : [...configuredSel].sort();
+  const configured = configuredSpecs.length > 0;
   return {
-    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly, helperPlanned, rawPlanned, readPlanned,
+    mode, specs: list, catalog, configured, configuredSpecs, configuredAll,
+    configuredReasons: { whole: [...configuredWhole].sort(), files: Object.fromEntries([...configuredWhy].sort()) },
+    unmapped, focusApplied, copyOnly, helperPlanned, rawPlanned, readPlanned,
     traced: full ? [] : traceOnly,
     tracedProblem: tracedEscalated.length > 0 ? traced.problem : null,
     tracedEscalated,
@@ -1606,14 +1794,15 @@ function tracedReport({ traced = [], tracedProblem = null, tracedEscalated = [],
  *  size and the assignment cannot disagree. For mode 'full' the suite comes from the directory
  *  rather than from `specs`, which stays `[]` because that is what the rest of the CLI means by
  *  "no filter"; the two are consistent because every runner is now handed its files explicitly. */
-function emitJson({ mode, specs, catalog, base, changedFiles, traced = null }) {
+function emitJson({ mode, specs, catalog, base, changedFiles, traced = null, plan = {} }) {
   const changed = changedFiles === null ? null : changedFiles.length;
   const onDisk = specFilesOnDisk();
   const planned = mode === 'full' ? onDisk : specs;
 
   // The quarantine split comes AFTER the ghost check below so a ghost is still reported, and
   // BEFORE sizing and packing so the shards are sized for the files they will actually run.
-  const { blocking: suite, quarantined } = splitQuarantined(planned, quarantineOnDisk(), { changed: changedFiles ?? [] });
+  const store = quarantineOnDisk();
+  const { blocking: suite, quarantined } = splitQuarantined(planned, store, { changed: changedFiles ?? [] });
   if (quarantined.length > 0) {
     process.stderr.write(`e2e-affected: ${quarantined.length} quarantined spec(s) left the blocking shards for quarantine.yml: ${quarantined.join(', ')}\n`);
   }
@@ -1682,7 +1871,7 @@ function emitJson({ mode, specs, catalog, base, changedFiles, traced = null }) {
   }
 
   process.stdout.write(
-    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed, traced })}\n`,
+    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed, traced, configured: configuredManifest(plan, store, changedFiles ?? []) })}\n`,
   );
 }
 
@@ -1814,7 +2003,7 @@ export function parseArgs(args) {
  * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
-function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], helperPlanned = [], rawPlanned = [], readPlanned = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [], catalogReachUnknown = false }, { count, noun, hypothetical, catalogHere = true }) {
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, configuredSpecs = [], configuredAll = false, configuredReasons = { whole: [] }, unmapped, focusApplied, copyOnly = [], helperPlanned = [], rawPlanned = [], readPlanned = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [], catalogReachUnknown = false }, { count, noun, hypothetical, catalogHere = true }) {
   // What made the plan escalate, so the line that says so names the cause the reader has to fix.
   const why = ['core/unmapped', tracedProblem && 'untraced', tracedBroad.length > 0 && BROAD_ESCALATES && 'broad'].filter(Boolean).join('/');
   if (catalogReachUnknown) {
@@ -1853,7 +2042,8 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
   // e2e/configured/ leaves this gate with nothing to run, and that verdict on its own reads as
   // "covered" when the covering suite is the one that never ran.
   if (configured) {
-    log('e2e-affected: this change touches behaviour only a CONFIGURED deployment has - run `npm run test:e2e:live:queued` (needs .env + a throwaway test account; not runnable in CI).');
+    const why = configuredAll ? ` - the whole set, for ${configuredReasons.whole.slice(0, 3).join(', ')}${configuredReasons.whole.length > 3 ? ` and ${configuredReasons.whole.length - 3} more` : ''}` : '';
+    log(`e2e-affected: this change selects ${configuredSpecs.length} CONFIGURED spec(s)${why}. A pull request runs them in ci.yml's configured job on a local stack; locally: \`npm run test:e2e:live:queued\` (needs a configured env file and a throwaway test account).`);
   }
   if (unmapped.length > 0) {
     log(`e2e-affected: no mapping for these files (falling back to the ${focusApplied ? 'SPRINT FOCUS set' : 'full suite'}):`);
@@ -1948,7 +2138,7 @@ function main() {
     const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), helpers: helpersFor(changed) });
     narratePlan(log, plan, { count: changed.length, noun: 'path(s)', hypothetical: true });
     if (asJson) {
-      emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed, traced: tracedReport(plan) });
+      emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed, traced: tracedReport(plan), plan });
       return 0;
     }
     // --files answers a planning question, not "run this now": it has no branch to run Playwright
@@ -1964,7 +2154,7 @@ function main() {
   if (has('--all')) {
     const catalog = catalogSince(parsed.catalogSince, log);
     if (asJson) {
-      emitJson({ mode: 'full', specs: [], catalog, base: null, changedFiles: null });
+      emitJson({ mode: 'full', specs: [], catalog, base: null, changedFiles: null, plan: { configuredSpecs: CONFIGURED_SPECS, configuredAll: true, configuredReasons: { whole: ['--all (no diff)'], files: {} } } });
       return 0;
     }
     log(`e2e-affected: --all - the FULL suite${catalog ? ' and the catalog gate' : ', without the catalog gate'}, with no diff.`);
@@ -2026,7 +2216,7 @@ function main() {
   // means `catalogAffected` is false (see `planFor`), so returning here early loses no message
   // `narratePlan` would otherwise have printed.
   if (asJson && mode === 'none') {
-    emitJson({ mode: 'none', specs: [], catalog: false, base, changedFiles: changed });
+    emitJson({ mode: 'none', specs: [], catalog: false, base, changedFiles: changed, plan: planResult });
     return 0;
   }
   const here = localRunPolicy(planResult, { ci: onCi(), profile: executionProfile() });
@@ -2040,7 +2230,7 @@ function main() {
     // is exactly why the empty plan must report 'none' rather than 'subset'. An empty spec list
     // handed to Playwright is not "no tests", it is EVERY test, so a mislabelled subset would
     // quietly run the whole suite.
-    emitJson({ mode, specs: plan, catalog: catalogAffected, base, changedFiles: changed, traced: tracedReport(planResult) });
+    emitJson({ mode, specs: plan, catalog: catalogAffected, base, changedFiles: changed, traced: tracedReport(planResult), plan: planResult });
     return 0;
   }
 

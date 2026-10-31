@@ -263,6 +263,13 @@ jobs:
       # or 'refuse' (scripts/e2e-capacity.mjs; docs/work-specs/e2e-suite-budget/spec.md).
       capacity: ${{ steps.capacity.outputs.capacity }}
       capacityReason: ${{ steps.capacity.outputs.capacity_reason }}
+      # THE CONFIGURED SELECTION (cicd-improvement ci06). `configured` is 'true' or 'false', never
+      # empty: the gate reads it, and an empty flag fails there. The specs, their shards and the
+      # exemption that explains a 'false' come with it.
+      configured: ${{ steps.configured.outputs.flag }}
+      configuredSpecs: ${{ steps.configured.outputs.specs }}
+      configuredShardSpecs: ${{ steps.configured.outputs.shardspecs }}
+      configuredMatrix: ${{ steps.configured.outputs.matrix }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -481,9 +488,88 @@ jobs:
               `catalog=${plan.catalog}`,
               `shardspecs=${JSON.stringify(plan.shardSpecs)}`,
               `quarantined=${JSON.stringify(plan.quarantined ?? [])}`,
+              `configuredmanifest=${JSON.stringify(plan.configured ?? null)}`,
               `matrix=${JSON.stringify({ shardIndex: Array.from({ length: shards }, (_, i) => i + 1), shardTotal: [shards] })}`,
             ].join("\n"));
           ' "$PLAN" >> "$GITHUB_OUTPUT"
+
+      # THE SELECTED CONFIGURED CHECK'S FLAG (cicd-improvement ci06). A pull request (or a
+      # dispatched branch run, as queued mechanical PRs get) runs the configured specs its change
+      # selects, on a local stack, in the `configured` jobs below, and the gate requires their
+      # verdict. Two events are EXEMPT by design, and say so here rather than by a missing output:
+      #   - merge_group: the combined tree's backend is NOT checked before merge. The full
+      #     configured suite runs per landing (configured-suite.yml on the push to main) and
+      #     reports; it is not a pre-merge gate (docs/work-specs/cicd-improvement, D4).
+      #   - push to main, and a dispatch on main: configured-suite.yml's push run is that verdict.
+      # The manifest a planner bug left out is refused here, never read as "nothing selected".
+      - name: Configured selection
+        id: configured
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          MANIFEST: ${{ steps.plan.outputs.configuredmanifest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Nothing to run: the flag is 'false', said with its reason.
+          off() {
+            echo "::notice title=Configured selection::$1"
+            printf 'flag=false\nspecs=\nshardspecs=[]\nmatrix={"shardIndex":[1],"shardTotal":[1]}\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          exempt=""
+          case "$EVENT" in
+            merge_group) exempt="merge group: the combined tree's backend is checked per landing by configured-suite.yml, not before merge" ;;
+            push) exempt="push to main: configured-suite.yml runs the full configured suite on this commit" ;;
+            workflow_dispatch) [ "$REF" = "refs/heads/main" ] && exempt="dispatch on main: configured-suite.yml owns main's configured verdict" ;;
+            pull_request) ;;
+            *) exempt="event ${EVENT} runs no configured selection" ;;
+          esac
+          if [ -n "$exempt" ]; then
+            printf '### Configured selection\n\nExempt: %s.\n' "$exempt" >> "$GITHUB_STEP_SUMMARY"
+            off "Exempt - ${exempt}."
+          fi
+          if [ -z "$MANIFEST" ] || [ "$MANIFEST" = "null" ]; then
+            echo "::error title=Configured selection::The plan carried no configured manifest, so this change's configured selection is unknown. Refusing rather than reading that as nothing selected."
+            exit 1
+          fi
+          MODE="$(jq -r '.mode' <<<"$MANIFEST")"
+          SPECS="$(jq -c '.specs' <<<"$MANIFEST")"
+          {
+            echo '### Configured selection'
+            echo
+            jq -r '"Mode: \(.mode), \(.specs | length) spec(s).",
+              (if .reasons.whole | length > 0 then "Whole set, for: \(.reasons.whole | join(", "))." else empty end),
+              (.reasons.files | to_entries[] | "- `\(.key)` selects \(.value | join(", "))"),
+              (if .quarantined | length > 0 then "Quarantined (run per landing): \(.quarantined | join(", "))." else empty end),
+              "", (.specs[] | "- e2e/configured/\(.)")' <<<"$MANIFEST"
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$MODE" in
+            none) off "Untriggered - this change selects no configured spec ($(jq -r '.quarantined | length' <<<"$MANIFEST") quarantined left out)." ;;
+            subset|all) ;;
+            *) echo "::error title=Configured selection::Unknown manifest mode '${MODE}'."; exit 1 ;;
+          esac
+          # Shard weights from the newest main report that has one, best effort: without it every
+          # file weighs the same and the split is by count.
+          REPORTS=""
+          # As configured-suite.yml reads them: up to three of main's completed runs (a red run's
+          # report still weighs the files it finished), each download bounded so a slow artifact
+          # service cannot spend the plan job's budget.
+          for id in $(timeout 30 gh run list --workflow configured-suite.yml --branch main --status completed --limit 3 \
+            --json databaseId --jq '.[].databaseId' 2>/dev/null || true); do
+            if timeout 45 gh run download "$id" --name configured-report --dir "previous/$id" >/dev/null 2>&1 \
+              && [ -f "previous/$id/configured-report.json" ]; then
+              REPORTS="$REPORTS previous/$id/configured-report.json"
+            fi
+          done
+          SHARDS="$(node scripts/configured-shards.mjs --specs "$SPECS" $REPORTS)"
+          echo "::notice title=Configured selection::${MODE}: $(jq -r '.specs | length' <<<"$MANIFEST") configured spec(s) on $(jq -r '.shardSpecs | length' <<<"$SHARDS") local stack(s)."
+          {
+            echo "flag=true"
+            echo "specs=$(jq -r '.specs | join(" ")' <<<"$MANIFEST")"
+            echo "shardspecs=$(jq -c '.shardSpecs' <<<"$SHARDS")"
+            echo "matrix=$(jq -c '.matrix' <<<"$SHARDS")"
+          } >> "$GITHUB_OUTPUT"
 
       # THE CAPACITY LINE, estimated before a shard runs. How much of the full run's envelope
       # (13 runners x the shard budget) the suite on disk uses with this change's spec files in
@@ -1114,6 +1200,197 @@ jobs:
           WALL_MIN="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '(now - (.created_at | fromdate)) / 60' 2>/dev/null || true)"
           node scripts/e2e-capacity.mjs --changed "${BASE:-}" --report merged-report.json ${RUNNER_MIN:+--runner-minutes "$RUNNER_MIN"} ${WALL_MIN:+--wall-minutes "$WALL_MIN"} --summary "$GITHUB_STEP_SUMMARY" || true
 
+  # THE SELECTED CONFIGURED CHECK (cicd-improvement ci06). The configured specs this change selects
+  # (the plan's `configured` outputs: each spec's `covers:` header, an edited spec itself, the specs
+  # that import a changed helper or read a changed file, and the WHOLE set for the suite's shared
+  # ground or any change the offline plan had to escalate), run against a local Supabase stack on
+  # the runner with the CLI's published default keys: the same bootstrap and verdict as
+  # configured-suite.yml, and no hosted credential. Pull requests only (and dispatched branch runs);
+  # the merge group and main are exempt in the plan, which the gate checks.
+  configured:
+    name: Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)
+    needs: plan
+    if: ${{ needs.plan.outputs.configured == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.configuredMatrix) }}
+    env:
+      # The local stack's throwaway accounts, as configured-suite.yml has them: literals, not
+      # secrets, minted inside this runner and destroyed with it.
+      E2E_EMAIL: e2e-s${{ matrix.shardIndex }}@noacg.local
+      E2E_PASSWORD: noacg-e2e-local-pw
+      E2E_TEAMMATE_EMAIL: e2e-teammate-s${{ matrix.shardIndex }}@noacg.local
+      E2E_TEAMMATE_PASSWORD: noacg-e2e-local-pw
+      SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
+      SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: ./.github/actions/node-modules
+      - uses: ./.github/actions/playwright-chromium
+      - uses: ./.github/actions/configured-stack
+      # This shard's files, as anchored filters; an empty list is refused (no filter is EVERY test).
+      # NOACG_E2E_EXPECTED_SPECS makes the run-integrity reporter fail a listed file that planned no
+      # test (ci05). The outcome is read from the merged report in `configured-verdict`.
+      - name: Configured E2E (selected)
+        id: suite
+        env:
+          SHARD_SPECS: ${{ needs.plan.outputs.configuredShardSpecs }}
+          SHARD_INDEX: ${{ matrix.shardIndex }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          # Line 1: this shard's file names; line 2: their anchored filters.
+          OUT="$(node --input-type=module -e '
+            import { specFilterArg } from "./scripts/e2e-affected.mjs";
+            const mine = JSON.parse(process.env.SHARD_SPECS ?? "[]")[Number(process.env.SHARD_INDEX) - 1];
+            if (!Array.isArray(mine) || mine.length === 0) {
+              console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);
+              process.exit(1);
+            }
+            console.log(`${mine.join(" ")}\n${mine.map(specFilterArg).join(" ")}`);
+          ')" || exit 1
+          MINE="$(sed -n 1p <<<"$OUT")"
+          SPECS="$(sed -n 2p <<<"$OUT")"
+          export NOACG_E2E_EXPECTED_SPECS="$(printf 'e2e/configured/%s ' $MINE)"
+          echo "::notice title=Configured E2E ${SHARD_INDEX}::$(echo "$MINE" | wc -w) spec file(s): ${MINE}"
+          code=0
+          # The config's run-integrity reporter is named again: a CLI --reporter replaces the config's list.
+          npm run test:e2e:live -- --global-timeout=1500000 --reporter=list,blob,./scripts/e2e-run-integrity.mjs $SPECS || code=$?
+          echo "exit=${code}" >> "$GITHUB_OUTPUT"
+          for blob in blob-report/*.zip; do
+            [ -f "$blob" ] && mv "$blob" "blob-report/report-${SHARD_INDEX}.zip"
+          done
+          true
+      - name: Supabase container logs (on failure)
+        if: ${{ failure() || steps.suite.outputs.exit != '0' }}
+        run: |
+          for c in $(docker ps -a --filter 'name=supabase_' --format '{{.Names}}'); do
+            echo "===== $c ====="
+            docker logs --tail 60 "$c" 2>&1 || true
+          done
+      # As the offline shards check: a spec that writes into the repository fails here.
+      - name: Tests left the tree clean
+        run: |
+          DIRTY="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$DIRTY" ]; then
+            echo "::error title=E2E wrote into the repository::A configured spec in this shard changed or created files git does not ignore. Write test output to testInfo.outputPath() instead."
+            echo "$DIRTY"
+            exit 1
+          fi
+      - name: Upload shard report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: configured-selected-blob-${{ matrix.shardIndex }}
+          path: blob-report/
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Upload failure evidence
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: configured-selected-results-${{ matrix.shardIndex }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # The selected configured VERDICT: every shard's report merged and judged against the manifest,
+  # exactly (scripts/configured-verdict.mjs `--manifest`): the selected specs, every test a
+  # `--list` of them finds, nothing missing, nothing extra, nothing skipped outside
+  # expected-run.json's allowed skips, no failure and no flake. Not quarantined here: a
+  # quarantined spec left the selection in the plan unless this change edits it.
+  configured-verdict:
+    name: Configured E2E verdict (selected)
+    needs: [plan, configured]
+    if: ${{ !cancelled() && needs.plan.outputs.configured == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: ./.github/actions/node-modules
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: configured-selected-blob-*
+          merge-multiple: true
+      - name: Merge the shard reports and list the selected tests
+        id: merge
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: configured-report.json
+          MATRIX: ${{ needs.plan.outputs.configuredMatrix }}
+          SELECTED: ${{ needs.plan.outputs.configuredSpecs }}
+        run: |
+          missing="$(node --input-type=module -e '
+            import { existsSync, readdirSync } from "node:fs";
+            import { missingShards } from "./scripts/nightly-triage.mjs";
+            const names = existsSync("all-blob-reports") ? readdirSync("all-blob-reports") : [];
+            const shards = JSON.parse(process.env.MATRIX || "{}").shardTotal?.[0] ?? 0;
+            console.log(missingShards(names, shards).join(" "));
+          ')"
+          if [ -n "$missing" ]; then
+            echo "::error title=A shard sent no report::Shard(s) ${missing} uploaded no blob report, so their tests are not in this verdict."
+            echo "missing=${missing}" >> "$GITHUB_OUTPUT"
+          fi
+          if ls all-blob-reports/*.zip > /dev/null 2>&1; then
+            npx --no-install playwright merge-reports --reporter=json all-blob-reports
+          else
+            echo "::error title=No shard reported::No shard uploaded a blob report."
+          fi
+          # The manifest's cases: every test the selected files hold under the same config, listed
+          # from this checkout. The run must report exactly these.
+          FILTERS="$(node --input-type=module -e '
+            import { specFilterArg } from "./scripts/e2e-affected.mjs";
+            console.log(process.argv.slice(1).map(specFilterArg).join(" "));
+          ' $SELECTED)"
+          # Its own JSON file: the step's PLAYWRIGHT_JSON_OUTPUT_NAME would otherwise send the listing
+          # over the merged report.
+          CI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=configured-manifest.json \
+            npx --no-install playwright test -c playwright.live.config.ts --list --reporter=json $FILTERS > /dev/null
+          [ -s configured-manifest.json ] || echo "::error title=No selected manifest::Listing the selected files wrote no configured-manifest.json."
+          echo "Selected $(echo "$SELECTED" | wc -w) spec file(s): ${SELECTED}"
+      - name: Judge the selection
+        id: assert
+        env:
+          SELECTED: ${{ needs.plan.outputs.configuredSpecs }}
+        run: >-
+          node scripts/configured-verdict.mjs configured-report.json
+          --expect e2e/configured/expected-run.json
+          --manifest configured-manifest.json
+          --selected "$SELECTED"
+          --label "Configured E2E (selected)"
+      - name: Upload the report and manifest
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: configured-selected-report
+          path: |
+            configured-report.json
+            configured-manifest.json
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Fail unless the selection is a clean verdict
+        if: ${{ steps.assert.outputs.green != 'true' || needs.configured.result != 'success' || steps.merge.outputs.missing != '' }}
+        env:
+          SHARDS: ${{ needs.configured.result }}
+        run: |
+          if [ "$SHARDS" != "success" ]; then
+            echo "::error title=A shard did not finish::The selected configured shards ended '${SHARDS}', so the merged report is missing their tests."
+          fi
+          exit 1
+
   gate:
     name: CI gate
     if: ${{ !cancelled() }}
@@ -1131,7 +1408,7 @@ jobs:
     # every code-testing job passed, and both times the gate went red and filed the rolling
     # red-main issue against a commit nothing was wrong with. A gate whose verdict can be
     # flipped by a job with no opinion about the code is reporting on the wrong thing.
-    needs: [build, plan, e2e, e2e-retry, e2e-catalog, factory, guided-mod]
+    needs: [build, plan, e2e, e2e-retry, e2e-catalog, factory, guided-mod, configured, configured-verdict]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -1158,6 +1435,10 @@ jobs:
           FACTORY_RESULT: ${{ needs.factory.result }}
           GUIDED_MOD_RESULT: ${{ needs.guided-mod.result }}
           CAPACITY_RESULT: ${{ needs.plan.outputs.capacity }}
+          EVENT: ${{ github.event_name }}
+          CONFIGURED_FLAG: ${{ needs.plan.outputs.configured }}
+          CONFIGURED_RESULT: ${{ needs.configured.result }}
+          CONFIGURED_VERDICT: ${{ needs.configured-verdict.result }}
           CAPACITY_REASON: ${{ needs.plan.outputs.capacityReason }}
         run: |
           status=0
@@ -1235,6 +1516,33 @@ jobs:
           optional "E2E shards" "$E2E_RESULT"
           optional "Catalog calibration gate" "$CATALOG_RESULT"
           optional "Guided mod" "$GUIDED_MOD_RESULT"
+          # THE SELECTED CONFIGURED CHECK (cicd-improvement ci06), read off the plan's flag. 'true':
+          # the shards and the manifest verdict must both pass; a cap reads as no verdict, which is
+          # still not a pass. 'false': both must be skipped, and a merge group must say 'false' (its
+          # exemption). Anything else - an empty flag from a plan that never decided - is a fault,
+          # never a skip read as approval.
+          if [ "$EVENT" = "merge_group" ] && [ "$CONFIGURED_FLAG" != "false" ]; then
+            echo "::error title=CI gate::The merge group's plan gave configured flag '${CONFIGURED_FLAG}'; a merge group is exempt and must say 'false'."
+            status=1
+          fi
+          case "$CONFIGURED_FLAG" in
+            true)
+              for pair in "Configured E2E shards (selected)=$CONFIGURED_RESULT" "Configured E2E verdict (selected)=$CONFIGURED_VERDICT"; do
+                case "${pair#*=}" in
+                  success) ;;
+                  cancelled) exhaust "${pair%%=*}" cancelled ;;
+                  *) fail "${pair%%=*}" "${pair#*=}" ;;
+                esac
+              done ;;
+            false)
+              if [ "$CONFIGURED_RESULT" != "skipped" ] || [ "$CONFIGURED_VERDICT" != "skipped" ]; then
+                echo "::error title=CI gate::The plan selected no configured spec, yet the configured jobs ended '${CONFIGURED_RESULT}' / '${CONFIGURED_VERDICT}'."
+                status=1
+              fi ;;
+            *)
+              echo "::error title=CI gate::The E2E plan gave no configured flag ('${CONFIGURED_FLAG}'), so whether this change owes a configured check is unknown."
+              status=1 ;;
+          esac
           # Exhausted with nothing failed is still a non-zero exit: no verdict is not a pass.
           if [ "$status" = "0" ] && [ "$exhausted" = "1" ]; then
             exit 1

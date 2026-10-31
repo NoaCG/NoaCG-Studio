@@ -1,3 +1,5 @@
+// covers: src/components/HostedControlPage.tsx, src/components/control/ownStaged.ts
+
 import { publishProduction } from '../_publish';
 import { test, expect, type FrameLocator, type Page, type Route } from '@playwright/test';
 import { dropSvg, intoProduction, QUIZ_SVG } from '../_svg-import';
