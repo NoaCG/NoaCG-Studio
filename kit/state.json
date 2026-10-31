@@ -27,19 +27,29 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": null,
+  "waitingOn": {
+    "what": "PR #1858 merge queue (merge-group CI) for phase 3",
+    "eta": "2026-10-31T15:05:00Z"
+  },
   "inFlight": [
     {
       "phase": "3",
-      "step": "build",
+      "step": "build (queued)",
       "session": "session_017SdbwRJQF38EZh2tBc5f3v",
       "nonce": "3-b-e38b",
       "branch": "claude/plan-jev-svg-import-3-build",
       "source": "6b3592c3fc70e9306a54a41bbf87ab9674d894f5",
       "launchedAt": "2026-10-31T13:48:58Z",
-      "note": "builder running gates; coordinator subscribed to #1858 as repair owner",
+      "note": "in merge queue; coordinator is #1858 repair owner through post-land. Checker note: baseline text.* lines were transcribed by hand from CI run on d2d54511 and hold only on CI Chromium 149.0.7827.55; judge that against the no-regeneration rule.",
       "pr": 1858,
-      "head": "d2d545115ee08c077aa2644c8eda2290fd7a736c"
+      "head": "d2d545115ee08c077aa2644c8eda2290fd7a736c",
+      "reviewedHead": "488cfe6202dd8785d202cf20fd276c13753364b7",
+      "configuredRun": 41210273938,
+      "ciRun": 41209831838,
+      "soSession": "session_017SdbwPRdFx7Lm3TFqbeNzJ",
+      "soGrade": "A",
+      "stampRun": 41211502916,
+      "autoMergeEnabledAt": "2026-10-31T14:44:39Z"
     }
   ],
   "owner": [],
