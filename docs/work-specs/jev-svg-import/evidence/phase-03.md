@@ -1,6 +1,6 @@
 # Phase 3: existing import baseline
 
-Run `plan-jev-svg-import-2026-10-31` (issue #1850). Acceptance subset: AC-3. Builder: Claude Code
+Run `plan-jev-svg-import-2026-10-31` (issue #1850), PR #1858. Acceptance subset: AC-3. Builder: Claude Code
 cloud worker created by coordinator `session_017SdbwQ6d3pRaakjohGfCcC`, environment
 `env_017nuiDZBW9smUNLdWVQK8cf`. Recorded 2026-10-31 UTC. No product source changed, no model
 call was made and no spend occurred. The holdout was not read.
@@ -62,6 +62,6 @@ attribute to every text layer failed the 17 designs with text, naming `appearanc
 
 On a fresh branch from `origin/main`, landed through the merge queue:
 
-    git revert -m 1 "$(git log origin/main --merges --format=%H -1 --grep='Merge pull request #PR_NUMBER ')"
+    git revert -m 1 "$(git log origin/main --merges --format=%H -1 --grep='Merge pull request #1858 ')"
 
 It removes the baseline test and this file and restores the harness's previous shape.
