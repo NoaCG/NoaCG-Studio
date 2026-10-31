@@ -37,7 +37,7 @@
       "branch": "claude/plan-jev-svg-import-7-build",
       "source": "874c589b4df4449ba8819c784c6d1da983d33166",
       "launchedAt": "2026-10-31T20:40:28Z",
-      "note": "boundary request 20:45Z reconciled: draft.ts svgClock (~8 lines) and one new test in e2e/import-svg-behaviour.spec.ts approved as departures; example gate option (a): clockRecipe via recipeById, not in BEHAVIOUR_RECIPES, gate untouched, P2 issue for owner Illustrator clock example, stated in PR. Checker to judge."
+      "note": "boundary request 20:45Z reconciled: draft.ts svgClock (~8 lines) and one new test in e2e/import-svg-behaviour.spec.ts approved as departures; example gate option (a): clockRecipe via recipeById, not in BEHAVIOUR_RECIPES, gate untouched, P2 issue for owner Illustrator clock example, stated in PR. Checker to judge. Second request 21:07Z approved: scripts/import-drop.test.mjs:135 count 8->9 (svgClock is a reset-on-drop answer; exact pin kept)."
     }
   ],
   "owner": [],
