@@ -693,3 +693,16 @@ test('(d) each plan\'s phase alarms live in their own issue, and (b) a missing o
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers }, { added: 1 }).status, 'refuse');
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers }, { added: 0 }).status, 'ok');
 });
+
+test('(b) a renewal cannot be put ahead of the exception it renews, and nested specs are priced', () => {
+  const base = clone(CEILINGS);
+  const prepended = clone(base);
+  prepended.exceptions.unshift({ ...base.exceptions[0], id: 'catalog-gate-2', from: '2026-11-29', expires: '2026-12-28' });
+  assert.match(ledgerChanges({ base, head: prepended }).join(), /appended after the existing ones/);
+  const appended = clone(base);
+  appended.exceptions.push({ ...base.exceptions[0], id: 'catalog-gate-2', from: '2026-11-29', expires: '2026-12-28' });
+  assert.deepEqual(ledgerChanges({ base, head: appended }), [], 'appending is the route; the renewal itself is then judged invalid without a receipt');
+  assert.match(exceptionStatus(appended.exceptions, '2026-12-05', 30).invalid[0].problems.join(), /without a measured repayment/);
+  const nested = priceAdditions({ added: ['e2e/configured/sub/x.spec.ts', 'e2e/catalog/deep/y.spec.ts'], estimates: CEILINGS.estimates });
+  assert.deepEqual(nested.map((i) => i.tier), ['backend', 'graphics']);
+});

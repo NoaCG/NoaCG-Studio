@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (46 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (47 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -172,6 +172,9 @@ issue, remain for ci17.
   the weekly job refuses to publish when last week's report cannot be read, rather than reset its
   breaches and stops; the age check that cannot read every open item raises what it found and
   never closes the alarm issue.
+- **Tests added inside an existing spec are not priced per PR.** As the offline table line has
+  always done, an edited spec counts at its last measured cost; what it adds reaches the tier
+  through the weekly measurement and slowdown attribution, and refuses later additions from there.
 - **Renames add nothing; removals earn no credit.** A renamed spec, job key or job name is the
   same case; moving a spec into `e2e/configured/` or `e2e/catalog/` is a new case there. Pricing
   a removed job as credit would let a cheap removal pay for an expensive addition.

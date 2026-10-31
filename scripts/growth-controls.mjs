@@ -140,12 +140,12 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
   const e = estimates;
   const items = [];
   for (const file of added) {
-    if (/^e2e\/configured\/[^/]+\.spec\.ts$/.test(file)) {
+    if (/^e2e\/configured\/.+\.spec\.ts$/.test(file)) {
       // Each configured stack is set up once per ten measured test-minutes, so a case brings
       // its share of a stack's setup on every run it is part of.
       const setup = e.backendStackSetupMinutes * (e.backendCaseMinutes / e.backendStackQuantumMinutes);
       items.push({ tier: 'backend', id: `spec:${file}`, perLanding: e.runsPerLanding.backend * (e.backendCaseMinutes + setup), perDay: 0, how: `new configured spec at ${e.backendCaseMinutes} test-min + ${setup.toFixed(2)} setup, x ${e.runsPerLanding.backend} runs per landing` });
-    } else if (/^e2e\/catalog\/[^/]+\.spec\.ts$/.test(file)) {
+    } else if (/^e2e\/catalog\/.+\.spec\.ts$/.test(file)) {
       items.push({ tier: 'graphics', id: `spec:${file}`, perLanding: e.runsPerLanding.graphics * e.graphicsCaseMinutes, perDay: 0, how: `new catalog spec at ${e.graphicsCaseMinutes} min, x ${e.runsPerLanding.graphics} catalog runs per landing` });
     }
   }
@@ -326,6 +326,10 @@ export function ledgerChanges({ base, head, mainRunners = null }) {
     if (!now) problems.push(`exception ${e.id} was removed: the ledger is append-only`);
     else if (!same(e, now)) problems.push(`exception ${e.id} was edited: the ledger is append-only; add a new entry`);
   }
+  // Append-only means in order too: renewal is judged against the entries BEFORE an exception,
+  // so a new entry put ahead of the old ones would turn the old one into the "renewal".
+  const prefix = (head.exceptions ?? []).slice(0, (base.exceptions ?? []).length).map((e) => e.id);
+  if (problems.length === 0 && !same(prefix, (base.exceptions ?? []).map((e) => e.id))) problems.push('new exceptions must be appended after the existing ones: the ledger is append-only, in order');
   const revised = head.version > base.version && (head.revisions ?? []).some((r) => r.version === head.version && r.rationale && r.authority && /^https?:\/\//.test(r.reviewed ?? ''));
   if (!same(stripLedger(base), stripLedger(head)) && !revised) problems.push('the frozen ceilings, estimates or measurement changed without a new version and a reviewed revision (rationale, authority)');
   if (mainRunners && mainRunners.head > mainRunners.base && !revised) problems.push(`MAIN_RUNNERS rose from ${mainRunners.base} to ${mainRunners.head}: more runners never buy budget without a reviewed revision`);
