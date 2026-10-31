@@ -467,7 +467,7 @@ export function ages({ ceilings, now = new Date().toISOString(), budget = 400, r
  * `{ "none": true }`, the second writes nothing and fails, so neither the weekly run nor the gate
  * can mistake a long gap for a clean start.
  */
-export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
+export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true }), restart = null) {
   const all = (JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/actions/artifacts?name=growth-report&per_page=100`])).artifacts ?? [])
     .filter((a) => a.workflow_run?.head_branch === 'main')
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -476,6 +476,12 @@ export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encod
     return null;
   }
   const live = all.find((a) => !a.expired);
+  // The only way back after every report expired: a reviewed restart recorded in the ceilings file
+  // (a new version with its revision), dated after the newest report. Then it is a first week again.
+  if (!live && restart?.at && restart.at > all[0].created_at) {
+    writeFileSync(out, `${JSON.stringify({ none: true, restart })}\n`);
+    return null;
+  }
   if (!live) throw new Error(`every growth report has expired (newest ${all[0].created_at}): weeks went unreported, which is not a first week`);
   const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-'));
   gh(['run', 'download', String(live.workflow_run.id), '-n', 'growth-report', '-D', dir, '-R', REPO]);
@@ -488,7 +494,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const [command, ...args] = process.argv.slice(2);
   const value = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
   if (command === 'fetch') {
-    const got = fetchLatest(value('--out') ?? 'growth-report.json');
+    const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
+    const got = fetchLatest(value('--out') ?? 'growth-report.json', undefined, ceilings.reportRestart ?? null);
     console.log(got ? `growth report from weekly-audit run ${got.run} -> ${got.file}` : 'no published growth report found');
   } else if (command === 'ages') {
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));

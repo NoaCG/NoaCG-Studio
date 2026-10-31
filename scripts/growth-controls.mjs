@@ -280,7 +280,10 @@ export function exceptionProblems(e, earlier, maxDays, known = null) {
   if (!Number.isFinite(from) || !Number.isFinite(exp) || exp < from) p.push('no valid from/expires dates');
   else if (exp - from > maxDays * DAY) p.push(`runs ${Math.round((exp - from) / DAY)} days, over ${maxDays}`);
   if (Array.isArray(e.covers) && e.covers.length) {
-    const prior = earlier.filter((x) => Array.isArray(x.covers) && overlaps(x, e));
+    // A renamed or removed job is no way round renewal: an earlier entry in the same tier whose
+    // cover no longer names anything real, and that ran within 30 days of this one, is the same scope.
+    const orphaned = (x) => known && x.tier === e.tier && x.covers.some((c) => !known.has(c)) && dayMs(x.expires) + maxDays * DAY >= dayMs(e.from);
+    const prior = earlier.filter((x) => Array.isArray(x.covers) && (overlaps(x, e) || orphaned(x)));
     if (prior.length) {
       const r = e.repaid;
       const latest = Math.max(...prior.map((x) => dayMs(x.from)));

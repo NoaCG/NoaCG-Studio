@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (48 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (49 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -114,7 +114,7 @@ no aggregate pull-request gate.
    https://github.com/NoaCG/NoaCG-Studio/issues/1863#issuecomment-6545849957, from 2026-10-31,
    expires 2026-11-30, repayment #1862. On 2026-12-01 its cost counts again (255% of the
    ceiling), additive graphics growth is refused, and the weekly report raises `cost:graphics`.
-   A renewal for the same job without a measured repayment receipt is invalid under any name.
+   A renewal for the same job without a measured repayment receipt is invalid under any id, tier or job name.
 2. **Backend.** Measured above: 107.4 before ci06, about 160 after while dispatches continue,
    over the 117 ceiling. The controls refuse further additive backend growth; cost-reducing
    maintenance lands. Reduction work: #1871.
@@ -206,7 +206,12 @@ issue, remain for ci17.
 - **A long outage is never a first week.** The fetch lists every `growth-report` artifact on
   main, expired ones included. No report ever means the first week (`{ "none": true }`); only
   expired reports means weeks went unreported: the fetch fails, the weekly run refuses to publish
-  and the gate refuses additions.
+  and the gate refuses additions. The way back is the owner's: a `reportRestart` (`at`, reason)
+  recorded in `growth-ceilings.json`, which needs a new version and a reviewed revision like any
+  other change there; dated after the newest report, it makes the next run a first week.
+- **Renaming a covered job is no way round renewal.** An earlier exception in the same tier whose
+  cover no longer names a real job, and that ran within 30 days of a new one, counts as the same
+  scope, so the new one needs a measured repayment.
 - **Which breaches stop growth.** Only cost (that tier) and ready or queue latency (the pre-merge
   tiers). Age, phase latency, a stale table, a missing report and exception alarms are owned,
   dated actions without a stop: an item's age is not caused by added capacity, and the others

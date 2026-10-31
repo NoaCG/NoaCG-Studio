@@ -716,3 +716,18 @@ test('(b) a new spec is priced for the scheduled runs it joins, and nested specs
   assert.ok(known.has('spec:e2e/configured/nested/new.spec.ts'));
   assert.ok(knownCoversOnDisk().has('job:ci.yml/Catalog calibration gate'));
 });
+
+test('(b) renaming the covered job first is no way round a measured repayment, and a reviewed restart ends a reporting outage', () => {
+  const ci04 = clone(CEILINGS.exceptions[0]);
+  const renamed = { ...ci04, id: 'catalog-gate-2', covers: ['job:ci.yml/Catalog calibration gate (v2)'], from: '2026-11-29', expires: '2026-12-28' };
+  const known = knownCovers({ 'ci.yml': 'on:\n  pull_request:\njobs:\n  e2e-catalog:\n    name: Catalog calibration gate (v2)\n' }, []);
+  const st = exceptionStatus([ci04, renamed], '2026-12-05', 30, known);
+  assert.match(st.invalid.find((e) => e.id === 'catalog-gate-2').problems.join(), /renews the scope of ci04-catalog-gate without a measured repayment/);
+  const later = { ...renamed, id: 'unrelated', from: '2027-03-01', expires: '2027-03-30' };
+  assert.equal(exceptionStatus([ci04, later], '2027-03-05', 30, known).active.length, 1, 'months later, an orphaned entry no longer stands in the way');
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-restart-'));
+  const gone = () => JSON.stringify({ artifacts: [{ name: 'growth-report', expired: true, created_at: '2026-09-01T00:00:00Z', workflow_run: { id: 1, head_branch: 'main' } }] });
+  assert.throws(() => fetchLatest(path.join(dir, 'a.json'), gone), /expired/);
+  assert.equal(fetchLatest(path.join(dir, 'b.json'), gone, { at: '2026-12-01T00:00:00Z', revision: 2 }), null);
+  assert.equal(JSON.parse(readFileSync(path.join(dir, 'b.json'), 'utf8')).none, true);
+});
