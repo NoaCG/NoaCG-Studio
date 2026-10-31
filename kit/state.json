@@ -28,21 +28,28 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 6 builder gates on PR #1870 head 59ab289e (CI, configured-suite, final /so)",
-    "eta": "2026-10-31T20:15:00Z"
+    "what": "PR #1870 merge queue (merge-group CI) for phase 6",
+    "eta": "2026-10-31T20:30:00Z"
   },
   "inFlight": [
     {
       "phase": "6",
-      "step": "build",
+      "step": "build (queued)",
       "session": "session_017SdbwQKAr6E9sLBeHDSSW4",
       "nonce": "6-b-472e",
       "branch": "claude/plan-jev-svg-import-6-build",
       "source": "11523106a407cb856e619e0d4ddbbfa3785d5739",
       "launchedAt": "2026-10-31T18:44:47Z",
-      "note": "builder asked 19:38Z to touch scripts/e2e-affected.test.mjs (outside TOUCHES): one road entry for the authorized new spec; coordinator reconciled 19:39Z (exact set kept, departure in PR); cicd coordinator informed. Builder rerunning gates.",
+      "note": "in merge queue; coordinator is #1870 repair owner through post-land. Checker notes: reanalysis proven at the proposal door, not via UI (rows 35/36 to extend); e2e-affected.test.mjs +3 lines (one entry) is the reconciled departure; cicd ci06 merges after this.",
       "head": "59ab289eaf05dffdd7057dd6ceb0759f85c6a28b",
-      "pr": 1870
+      "pr": 1870,
+      "reviewedHead": "59ab289eaf05dffdd7057dd6ceb0759f85c6a28b",
+      "configuredRun": 41235439553,
+      "ciRun": 41235420613,
+      "soSession": "session_017SdbwQVLn2mSkw3mvFtKGj",
+      "soGrade": "A",
+      "stampRun": 41237504738,
+      "autoMergeEnabledAt": "2026-10-31T20:09:09Z"
     }
   ],
   "owner": [],
