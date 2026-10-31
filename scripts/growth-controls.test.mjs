@@ -12,7 +12,7 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  evidenceOf, exceptionStatus, ledgerChanges, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { ages, buildReport, fetchLatest, makeReader, priceRuns, spread } from './growth-report.mjs';
@@ -559,4 +559,37 @@ test('(d) a draft PR keeps its age clock: turning it into a draft does not clear
     return '[]';
   };
   assert.equal(ages({ ceilings: CEILINGS, now, reader: makeReader(20, fake) }).actions.length, 1);
+});
+
+test('(b) an exception cannot be re-filed under another tier or a reworded scope to dodge renewal or offset a tier', () => {
+  const first = { id: 'a', tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: 'https://x/1', from: '2026-10-31', expires: '2026-11-30' };
+  const known = knownCovers({ 'ci.yml': 'on:\n  pull_request:\njobs:\n  e2e-catalog:\n    name: Catalog calibration gate\n' }, ['e2e/configured/x.spec.ts']);
+  const asBackend = { ...first, id: 'b', tier: 'backend', from: '2026-12-01', expires: '2026-12-30' };
+  const st = exceptionStatus([first, asBackend], '2026-12-02', 30, known);
+  assert.match(st.invalid.find((e) => e.id === 'b').problems.join(), /not in the backend tier/);
+  assert.match(st.invalid.find((e) => e.id === 'b').problems.join(), /renews the scope of a/, 'scope is what it covers, whatever the tier');
+  const reworded = { ...first, id: 'c', covers: ['job:ci.yml/Catalog calibration gate (affected)'], from: '2026-12-01', expires: '2026-12-30' };
+  assert.match(exceptionStatus([first, reworded], '2026-12-02', 30, known).invalid[0].problems.join(), /names no job or spec/);
+  // And the offset it would have bought is refused: backend at 116/117 with a +5 addition.
+  const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, asBackend] }, measurement: measurement({ backend: 116 }), items: [backendItem(5)], today: '2026-12-02', known });
+  assert.equal(r.tiers.backend.status, 'refuse');
+  assert.deepEqual(exceptionStatus([first], TODAY, 30, known).active.map((e) => e.id), ['a'], 'the real ci04 scope stays valid');
+});
+
+test('(d) the plan-run ledger feeds the phase age alarm: one overdue phase acts at the coordinator check-in', () => {
+  const ledger = [
+    '- 2026-10-31T06:00:00.000Z phase 7 build ci07 builder',
+    '- 2026-10-31T09:00:00.000Z phase 7 fail product: x',
+    '- 2026-10-31T09:30:00.000Z phase 7 repair',
+    '- 2026-10-31T07:00:00.000Z phase 6 build',
+    '- 2026-10-31T10:00:00.000Z phase 6 pass',
+    '- 2026-10-30T01:00:00.000Z phase 5 build',
+    '- 2026-10-30T02:00:00.000Z phase 5 stop owner',
+  ].join('\n');
+  const phases = phasesFromLedger(ledger);
+  assert.deepEqual(phases.map((p) => p.id).sort(), ['phase 5', 'phase 6', 'phase 7']);
+  const fake = (args) => (/\/pulls\?/.test(args.at(-1)) ? '[]' : '[]');
+  const r = ages({ ceilings: CEILINGS, now: '2026-10-31T19:00:00Z', reader: makeReader(10, fake), ledger });
+  assert.deepEqual(r.actions.map((a) => a.key), ['age:phase 7'], '13 hours since its first build, repairs included; 6 passed; 5 was stopped');
+  assert.equal(r.actions[0].category, 'phase');
 });

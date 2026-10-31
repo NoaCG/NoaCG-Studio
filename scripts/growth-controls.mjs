@@ -173,6 +173,16 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
   return items;
 }
 
+/** Every cover that names something real: each workflow job (`{ file: text }`) and spec path. */
+export function knownCovers(workflowTexts, specPaths) {
+  const out = new Set(specPaths.map((f) => `spec:${f}`));
+  for (const [wf, text] of Object.entries(workflowTexts)) {
+    const shape = workflowShape(text);
+    for (const j of shape.jobs) out.add(`job:${wf}/${shape.names[j] ?? j}`);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Evidence and freshness.
 
@@ -213,14 +223,33 @@ export function reportCadence({ generatedAt, today, maxAgeDays }) {
 // ---------------------------------------------------------------------------------------------
 // Exceptions.
 
-const overlaps = (a, b) => a.tier === b.tier && a.covers.some((c) => b.covers.includes(c));
+// Scope is what an exception covers, whatever tier, id or file it is filed under: re-filing a
+// covered job under another tier is the same scope, and would offset that tier besides.
+const overlaps = (a, b) => a.covers.some((c) => b.covers.includes(c));
 
-/** Problems with one exception, judged against the entries before it in the ledger. */
-export function exceptionProblems(e, earlier, maxDays) {
+/** The tier a covered entry belongs to: `job:<workflow>/<job name>` or `spec:<path>`. */
+export function tierOfCover(cover) {
+  const job = /^job:([^/]+)\/(.+)$/.exec(cover);
+  if (job) return tierOfJob(job[1], job[2]);
+  const spec = /^spec:(e2e\/.+\.spec\.ts)$/.exec(cover);
+  if (spec) return /^e2e\/configured\//.test(spec[1]) ? 'backend' : /^e2e\/catalog\//.test(spec[1]) ? 'graphics' : 'offline';
+  return null;
+}
+
+/**
+ * Problems with one exception, judged against the entries before it in the ledger. `known`, when
+ * given, is every cover that names a real job or spec today; a cover outside it (a reworded scope)
+ * covers nothing.
+ */
+export function exceptionProblems(e, earlier, maxDays, known = null) {
   const p = [];
   if (!e.id) p.push('no id');
   if (!TIERS.includes(e.tier)) p.push(`unknown tier ${e.tier}`);
   if (!Array.isArray(e.covers) || e.covers.length === 0) p.push('no scope (covers)');
+  for (const c of Array.isArray(e.covers) ? e.covers : []) {
+    if (tierOfCover(c) !== e.tier) p.push(`covers ${c}, which is not in the ${e.tier} tier`);
+    else if (known && !known.has(c)) p.push(`covers ${c}, which names no job or spec in the repository`);
+  }
   if (!(e.perLanding > 0) && !(e.perDay > 0)) p.push('no cost');
   if (!e.owner) p.push('no owner');
   if (!/^https?:\/\//.test(e.reviewed ?? '')) p.push('no separate review link');
@@ -241,12 +270,12 @@ export function exceptionProblems(e, earlier, maxDays) {
 }
 
 /** Active exceptions on `today`, and the invalid ones with why. Expired ones are listed apart. */
-export function exceptionStatus(ledger = [], today, maxDays) {
+export function exceptionStatus(ledger = [], today, maxDays, known = null) {
   const active = [];
   const invalid = [];
   const expired = [];
   ledger.forEach((e, i) => {
-    const problems = exceptionProblems(e, ledger.slice(0, i), maxDays);
+    const problems = exceptionProblems(e, ledger.slice(0, i), maxDays, known);
     if (problems.length) invalid.push({ ...e, problems });
     else if (dayMs(e.expires) < dayMs(today)) expired.push(e);
     else if (dayMs(e.from) <= dayMs(today)) active.push(e);
@@ -290,8 +319,8 @@ export function ledgerChanges({ base, head, mainRunners = null }) {
  * the latest weekly report's (or the frozen seed's); `stops` maps a tier to the breach that
  * stopped its growth.
  */
-export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [] }) {
-  const { active, invalid } = exceptionStatus(exceptions, today, ceilings.exceptionMaxDays);
+export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [], known = null }) {
+  const { active, invalid } = exceptionStatus(exceptions, today, ceilings.exceptionMaxDays, known);
   const tiers = {};
   for (const tier of TIERS) {
     const ceiling = ceilings.tiers[tier];
@@ -412,6 +441,23 @@ export function queueClock({ queued = [], mergedAt = null, now }) {
   const start = [...queued].sort()[0] ?? null;
   if (!start) return { start: null, source: 'unknown', state: mergedAt ? 'finished' : 'unfinished', minutes: null };
   return { start, source: 'timeline', state: mergedAt ? 'finished' : 'unfinished', minutes: minutesBetween(start, mergedAt ?? now) };
+}
+
+/**
+ * Phase items from a plan-run wave file (scripts/plan-run.mjs ledger lines
+ * `- <time> phase <n> <event> [detail]`). A `stop` ends a phase unfinished (kept with its age); an
+ * owner pause keeps ageing, because owner waits stay in gross time.
+ */
+export function phasesFromLedger(text) {
+  const by = new Map();
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const m = /^- (\d{4}-\d{2}-\d{2}T\S+) phase (\S+) (\w+)/.exec(line.trim());
+    if (!m) continue;
+    const type = m[3] === 'stop' ? 'cancelled' : m[3];
+    if (!by.has(m[2])) by.set(m[2], []);
+    by.get(m[2]).push({ type, at: m[1] });
+  }
+  return [...by].map(([id, events]) => ({ id: `phase ${id}`, events }));
 }
 
 const ageOf = (clock) => clock.minutes ?? (clock.hours !== undefined && clock.hours !== null ? clock.hours * 60 : null);

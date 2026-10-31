@@ -151,7 +151,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+      # A read that fails leaves the alarm issue as it was and warns; it never turns the landing's
+      # post-land run red, which the phase checkers read for migrations and advisors.
       - name: Open items past their age ceiling
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

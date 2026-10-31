@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (37 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (39 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -137,11 +137,17 @@ issue, remain for ci17.
   measured weekly and can stop offline growth after a failed correction, but it does not price
   offline specs a second time.
 - **One exception ledger in `growth-ceilings.json`,** append-only, so renewal is detectable by
-  scope (`covers`) rather than by name or file. Work-spec offline lines keep their format, gain an
+  scope (`covers`) rather than by name, file or tier. Every cover must name a real workflow job
+  or spec in the exception's own tier: re-filing ci04's catalog job under backend, or rewording
+  it, covers nothing and offsets nothing. Work-spec offline lines keep their format, gain an
   optional repayment clause and become append-only too.
 - **Run sampling, not a full read.** A week is about 2,900 runs; the job token allows 1,000 calls
   an hour. Run lists are read in full and each stratum's jobs on an even spread, scaled to exact
   run counts; an unsampled stratum or failed read makes tiers partial.
+- **Phase ages reach the alarm through the coordinator.** The phase clock lives in the plan-run
+  wave file, outside the repository, so `.agent-workflows/plan-run.md` has the coordinator run
+  `growth-report.mjs ages --ledger <wave file> --issue` on every check-in; one phase past 12 hours
+  since its first `build` (repairs included) gets its owned, dated action then.
 - **Age alarms after every landing,** in `post-land.yml`, not on a new schedule: a 6-hourly job
   is priced at 24 overhead runner-minutes a day (4 x 6.0) against a scheduled overhead ceiling
   of 10, and these controls refuse it.

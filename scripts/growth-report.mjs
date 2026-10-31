@@ -5,9 +5,9 @@
 // (docs/work-specs/cicd-improvement/spec.md D7 and AC-9; the rules are in growth-controls.mjs).
 //
 //   node scripts/growth-report.mjs collect [--days 7] [--budget 550] [--previous prev.json]
-//        [--clocks clocks.json] [--out report.json] [--summary file] [--now ISO]
+//        [--clocks clocks.json] [--ledger <wave file>] [--out report.json] [--summary file] [--now ISO]
 //        [--issue]                                            # keep the weekly rolling issue
-//   node scripts/growth-report.mjs ages [--issue]              # open items past their age ceiling
+//   node scripts/growth-report.mjs ages [--ledger <wave file>] [--issue]   # items past their age ceiling
 //   node scripts/growth-report.mjs fetch --out report.json     # the latest published report
 //
 // `collect` reads this repository's Actions runs for the window (ending six hours ago, so runs
@@ -33,8 +33,9 @@ import { fileURLToPath } from 'node:url';
 
 import {
   TIERS, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
-  expiringSoon, phaseClock, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
+  expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
 } from './growth-controls.mjs';
+import { knownCoversOnDisk } from './e2e-capacity.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -115,7 +116,7 @@ export function seriesOf(runs) {
 }
 
 /** Assemble the report from collected facts. Pure, so the whole report replays from fixtures. */
-export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, listComplete = true, timingComplete = true, clocksRead = false, finished = [], pending = [], tableRecordedAt, collection }) {
+export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, listComplete = true, timingComplete = true, clocksRead = false, known = null, finished = [], pending = [], tableRecordedAt, collection }) {
   const priced = priceRuns(runs, { days });
   // An incomplete run list makes every tier partial BEFORE anything is judged from it.
   if (!listComplete) for (const t of TIERS) Object.assign(priced.tiers[t], { evidence: 'partial', lowerBound: true, why: 'the run list was cut short' });
@@ -130,14 +131,14 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
   }
   const today = now.slice(0, 10);
   const prevStops = previous?.stops ?? {};
-  const assessment = assessTiers({ ceilings, measurement, items: [], today, stops: prevStops });
+  const assessment = assessTiers({ ceilings, measurement, items: [], today, stops: prevStops, known });
   const perDayLandings = priced.landings / days;
   const aggregate = {
     perDay: TIERS.reduce((a, t) => a + (measurement.tiers[t].perLanding ?? 0) * perDayLandings + measurement.tiers[t].perDay, 0),
     allocatedPerDay: TIERS.reduce((a, t) => a + ceilings.tiers[t].perLanding * perDayLandings + ceilings.tiers[t].perDay, 0),
   };
   const table = tableFreshness({ recordedAt: tableRecordedAt, today, boundDays: ceilings.freshnessDays, pending });
-  const ex = exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays);
+  const ex = exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, known);
   const soon = new Set(expiringSoon(ex.active, today).map((e) => e.id));
   const exceptions = [
     ...ex.active.map((e) => ({ ...e, state: 'active', soon: soon.has(e.id) })),
@@ -312,12 +313,14 @@ function finishedPrs(reader, from, to, limit) {
 }
 
 /** Finished samples and phase ledgers handed in as JSON: `{ samples: [...], phases: [{ id, events }] }`. */
-function readClocks(file, now) {
-  if (!file || !existsSync(file)) return { finished: [], open: [], read: false };
-  const body = JSON.parse(readFileSync(file, 'utf8'));
+function readClocks(file, now, ledgerFile = null) {
+  const read = Boolean((file && existsSync(file)) || (ledgerFile && existsSync(ledgerFile)));
+  if (!read) return { finished: [], open: [], read: false };
+  const body = file && existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
   const finished = [...(body.samples ?? [])];
   const open = [];
-  for (const p of body.phases ?? []) {
+  const phases = [...(body.phases ?? []), ...(ledgerFile && existsSync(ledgerFile) ? phasesFromLedger(readFileSync(ledgerFile, 'utf8')) : [])];
+  for (const p of phases) {
     const clock = phaseClock({ events: p.events, now });
     if (clock.state === 'finished') finished.push({ measure: 'phase', category: p.category ?? 'phase', value: clock.hours, finishedAt: p.events.at(-1).at });
     else open.push({ id: p.id, category: 'phase', clock });
@@ -325,7 +328,7 @@ function readClocks(file, now) {
   return { finished, open, read: true };
 }
 
-export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ceilings }) {
+export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ledgerFile = null, ceilings }) {
   const reader = makeReader(budget);
   const to = Date.parse(now) - 6 * 3_600_000;
   const from = to - days * DAY;
@@ -354,12 +357,12 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
       if (jobs) run.jobs = jobs; else if (!reader.exhausted) run.failed = true;
     }
   }
-  const clocks = readClocks(clocksFile, now);
+  const clocks = readClocks(clocksFile, now, ledgerFile);
   const table = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'e2e-durations.json'), 'utf8'));
   const unfinished = listed.runs.length - runs.length;
   const sampled = runs.filter((r) => r.jobs).length;
   const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
-  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, listComplete: listed.complete, timingComplete: done.complete, clocksRead: clocks.read, finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
+  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, listComplete: listed.complete, timingComplete: done.complete, clocksRead: clocks.read, known: knownCoversOnDisk(ROOT), finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
   built.report.unknownClocks.push(...done.unknown);
   built.report.finishedPrs = { merged: done.merged, sampled: done.samples.filter((x) => x.measure === 'prReady').length + done.unknown.length };
   built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
@@ -387,9 +390,12 @@ export const AGE_ISSUE = 'Delivery items past their age ceiling';
 export const WEEKLY_ISSUE = 'Growth controls: weekly actions';
 
 /** The per-item age check alone: cheap enough to run after every landing. */
-export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget) }) {
+export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget), ledger = null }) {
   const open = openItems(reader, now);
-  const actions = ageAlarms(open.items, ceilings, now);
+  // Phases from the plan-run ledger, when the coordinator passes its wave file: the phase clock
+  // lives outside the repository, so this is its route into the same alarm.
+  const phases = ledger ? phasesFromLedger(ledger).map((p) => ({ id: p.id, category: 'phase', clock: phaseClock({ events: p.events, now }) })) : [];
+  const actions = ageAlarms([...open.items, ...phases], ceilings, now);
   // A partial read is not "nothing overdue": it raises what it found and never closes the issue.
   if (!open.complete && actions.length === 0) return { actions, body: null, calls: reader.calls, complete: false };
   const body = actions.length
@@ -430,7 +436,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(got ? `growth report from weekly-audit run ${got.run} -> ${got.file}` : 'no published growth report found');
   } else if (command === 'ages') {
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
-    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString() });
+    const ledgerFile = value('--ledger');
+    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null });
     if (result.body === null) {
       console.log(`::warning title=Delivery age alarms::the open items could not all be read (${result.calls} API calls); the alarm issue is left as it was`);
       process.exit(1);
@@ -449,7 +456,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
     const read = previousFile ? JSON.parse(readFileSync(previousFile, 'utf8')) : null;
     const previous = read && !read.none ? read : null;
-    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 550), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ceilings });
+    const { report, markdown } = collect({ days: Number(value('--days') ?? 7), budget: Number(value('--budget') ?? 550), now: value('--now') ?? new Date().toISOString(), previous, clocksFile: value('--clocks'), ledgerFile: value('--ledger'), ceilings });
     measured(report.measurement.landings, 'landings in the growth window');
     console.log(markdown);
     if (value('--out')) writeFileSync(value('--out'), `${JSON.stringify(report, null, 2)}\n`);

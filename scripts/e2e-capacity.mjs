@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
-import { TIERS, assessTiers, exceptionStatus, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
+import { TIERS, assessTiers, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -252,6 +252,22 @@ export function applyOfflineStop(growth, result) {
   return growth;
 }
 
+/** Every e2e spec path on disk, repo-relative, across the offline, configured and catalog folders. */
+function specPathsOnDisk(root) {
+  const out = [];
+  for (const dir of ['e2e', 'e2e/configured', 'e2e/catalog']) {
+    const abs = path.join(root, dir);
+    if (existsSync(abs)) for (const f of readdirSync(abs)) if (f.endsWith('.spec.ts')) out.push(`${dir}/${f}`);
+  }
+  return out;
+}
+
+/** The covers that name a real job or spec in this checkout. */
+export function knownCoversOnDisk(root = ROOT) {
+  const wfDir = path.join(root, '.github', 'workflows');
+  return knownCovers(Object.fromEntries(readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')])), specPathsOnDisk(root));
+}
+
 const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
 const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
 
@@ -298,14 +314,15 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       const before = JSON.parse(baseCeilings);
       ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS } });
       const wasInvalid = new Set(exceptionStatus(before.exceptions, today, before.exceptionMaxDays).invalid.map((e) => e.id));
-      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays).invalid) if (!wasInvalid.has(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
+      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root)).invalid) if (!wasInvalid.has(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
     }
     const baseSpecs = (gitShow(base, 'docs/work-specs', root) ?? '').split('\n').filter((n) => n.endsWith('/'));
     const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`, root) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));
     offline = offlineExceptionChanges(baseExceptions, readExceptions(root));
   }
   const items = priceAdditions({ added, workflows, estimates: ceilings.estimates });
-  const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {} });
+  const known = knownCoversOnDisk(root);
+  const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {}, known });
   let status = tiers.status;
   for (const t of TIERS) if (tiers.tiers[t].status !== 'ok' && tiers.tiers[t].items.length) reasons.push(`${t} tier ${tiers.tiers[t].status}: ${tiers.tiers[t].why}`);
   if (ledger.length || offline.length || diffFailed) { status = 'refuse'; reasons.push(...ledger, ...offline); }
