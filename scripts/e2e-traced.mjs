@@ -59,17 +59,21 @@ export const MAX_AGE_DAYS = 3;
 export const BROAD_SHARE = 0.5;
 
 /**
- * WHAT A BROAD FILE DOES TO A PLAN - decided 2026-10-10, revert by flipping this one constant.
+ * WHAT A BROAD FILE DOES TO A PLAN - decided 2026-10-10, reversed 2026-10-31 (cicd-improvement ci04).
  *
- * false (now): a broad file keeps its curated selection and the plan names it; the map adds specs
- * only for narrow files. true: a broad file escalates like CORE (the focus set under sprint focus).
- * Replayed over the 150 landings to origin/main on 2026-10-10 with sprint focus on, today's curated
- * plans total 4915 test-minutes; the narrow union makes that 5555 (+13%), escalating broad files
- * 6152 (+25%, 15 more landings run the focus set), and a plain union with no broad rule 8102
- * (+65%). The miss that motivated the map (#927, `svg.ts`) is narrow and is caught either way, and
- * neither setting ever plans fewer specs than the headers alone.
+ * true (now): a broad file escalates like CORE, which under sprint focus is the shared-change set
+ * (the `// focus` specs) plus its curated selection. false: it kept only its curated selection,
+ * and the map added specs only for narrow files.
+ *
+ * Why it changed: "most of the suite executes this file" is the evidence that a change to it can
+ * break most of the suite, and false let that file run whatever its header happened to name.
+ * Measured at main 99c461b8: src/components/canvas/CanvasGuides.tsx runs in 213 of 241 traced
+ * specs and planned 1. The 2026-10-10 replay put the cost of escalating broad files at +25%
+ * test-minutes against +13% for keeping covers (15 more of 150 landings ran the focus set); the
+ * ci04 evidence (docs/work-specs/cicd-improvement/evidence/phase-ci04.md) remeasures it. This is
+ * safety work and is reported as added cost, not as a regression.
  */
-export const BROAD_ESCALATES = false;
+export const BROAD_ESCALATES = true;
 
 /**
  * The repository file a dev-server script URL names, repo-relative with forward slashes, or null

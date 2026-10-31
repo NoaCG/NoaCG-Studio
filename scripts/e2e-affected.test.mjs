@@ -24,7 +24,9 @@ import {
   catalogForChange,
   catalogSince,
   branchBase,
+  catalogReachOf,
   changedFilesSince,
+  checkoutCatalogReach,
   copyContext,
   headIsMainMerge,
   helperImporters,
@@ -34,6 +36,8 @@ import {
   importClosure,
   integrationBase,
   localRunPolicy,
+  inCatalogReach,
+  outsideCatalog,
   packShards,
   parseArgs,
   planFor,
@@ -1879,4 +1883,145 @@ test('a full run still knows whether the change it carries needs the catalog gat
   assert.equal(catalogSince(undefined), true, 'no ref raises it');
   assert.equal(catalogSince('0000000000000000000000000000000000000000'), true, 'the null sha of a first push raises it');
   assert.equal(catalogSince('not-a-ref-anyone-has'), true, 'a ref git cannot diff raises it');
+});
+
+// ── cicd-improvement ci04: broad/shared and catalog selection (AC-4) ───────────────────────────
+// The archived defects, as reported against main 55f98f9e6 and reproduced at 99c461b8
+// (docs/work-specs/cicd-improvement/evidence/phase-ci04.md): a broad file planned its one curated
+// spec, and a shared file that reaches designs planned the shared-change set with catalog:false
+// because sprint focus dropped the catalog coupling. Each is pinned at the planner and through the
+// blocking CLI CI runs.
+const broadMap = (file) => ({ files: new Map([[file, ['a.spec.ts']]]), broad: new Set([file]), broadEscalates: true, problem: null });
+
+test('ci04: a broad traced file plans at least the shared-change set, not only its curated header', () => {
+  const file = 'src/components/canvas/CanvasGuides.tsx';
+  const curated = planFor([file], { sprintFocus: true });
+  assert.equal(curated.focusApplied, false, 'its header alone names a narrow subset - the defect shape');
+  const plan = planFor([file], { sprintFocus: true, traced: broadMap(file) });
+  assert.equal(plan.focusApplied, true);
+  for (const s of [...FOCUS, ...curated.specs]) assert.ok(plan.specs.includes(s), `${s} is planned`);
+  assert.deepEqual(plan.tracedBroad, [file]);
+  assert.equal(planFor([file], { sprintFocus: false, traced: broadMap(file) }).mode, 'full', '--full-escalation runs everything');
+});
+
+test('ci04: the catalog reach is read off the catalog specs and holds what they render through', () => {
+  const reach = checkoutCatalogReach();
+  assert.ok(reach instanceof Set && reach.size > 0, 'the checkout reach is known');
+  for (const f of ['src/templates/catalog.ts', 'src/preview/composeDocument.ts', 'src/validation/runtimeBench.ts', 'src/model/easings.ts', 'src/export/bundledFonts.ts', 'src/export/targets/ograf.ts']) {
+    assert.ok(reach.has(f), `${f} is in the reach`);
+  }
+  for (const f of ['src/styles/base.css', 'src/components/canvas/CanvasGuides.tsx']) assert.ok(!reach.has(f), `${f} is outside it`);
+  assert.ok(inCatalogReach('e2e/fixtures/svg-corpus/any.svg', reach), 'ograf-parity reads the SVG corpus from disk');
+  assert.equal(planFor(['e2e/fixtures/svg-corpus/any.svg'], { sprintFocus: true }).catalog, true);
+});
+
+const CI04_SHARED = [
+  ['src/model/easings.ts', 'a shared model file 21 template files import'],
+  ['src/preview/composeDocument.ts', 'the composer every catalog spec renders through'],
+  ['package.json', 'the dependency manifest, which the import walk cannot resolve'],
+  ['package-lock.json', 'the resolved dependencies'],
+  ['vite.config.ts', 'the build config that serves every design'],
+];
+for (const [file, why] of CI04_SHARED) {
+  test(`ci04: ${file} (${why}) raises the catalog gate under sprint focus`, () => {
+    const plan = planFor([file], { sprintFocus: true });
+    assert.equal(plan.focusApplied, true);
+    assert.equal(plan.catalog, true);
+  });
+}
+
+test('ci04: the CLI CI branches on raises the catalog gate for a reached module and a manifest', () => {
+  for (const file of ['src/model/easings.ts', 'package.json']) {
+    const cli = JSON.parse(execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', file], { cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV, windowsHide: true }));
+    assert.equal(cli.catalog, true, file);
+  }
+});
+
+test('ci04: a script a catalog spec imports raises the catalog gate though the offline suite ignores it', () => {
+  assert.ok(checkoutCatalogReach().has('scripts/rules.mjs'), 'mark-height and multicol-containment import it');
+  const plan = planFor(['scripts/rules.mjs'], { sprintFocus: true });
+  assert.equal(plan.catalog, true);
+  assert.deepEqual(plan.specs, [], 'and still plans no offline spec');
+});
+
+test('ci04: a font file or a non-escalating module in the reach raises the catalog gate on its own', () => {
+  for (const file of ['public/fonts/anton.woff2', 'src/export/bundledFonts.ts']) {
+    const plan = planFor([file], { sprintFocus: true });
+    assert.equal(plan.focusApplied, false, file);
+    assert.equal(plan.catalog, true, file);
+  }
+});
+
+test('ci04: an escalation the reach proves outside the catalog keeps the shared-change set without the catalog gate', () => {
+  const plan = planFor(['src/styles/base.css'], { sprintFocus: true });
+  assert.equal(plan.focusApplied, true, 'shared protection is kept');
+  assert.equal(plan.catalog, false, 'no catalog spec loads app styles');
+  assert.equal(planFor(['src/styles/base.css'], { sprintFocus: false }).catalog, true, 'a full run still assumes it');
+});
+
+test('ci04: an unknown reach, an unknown root file or a stale map never plans an escalation without the catalog gate', () => {
+  assert.equal(planFor(['src/styles/base.css'], { sprintFocus: true, catalogReach: null }).catalog, true, 'no reach: every escalation raises it');
+  const unknownRoot = planFor(['some-new-root.config.mjs'], { sprintFocus: true });
+  assert.deepEqual(unknownRoot.unmapped, ['some-new-root.config.mjs']);
+  assert.equal(unknownRoot.catalog, true, 'a file outside src/ is a dependency the walk cannot resolve');
+  const stale = { files: new Map(), broad: new Set(), problem: 'stale' };
+  assert.equal(planFor(['scripts/e2e-lists.mjs'], { sprintFocus: true, traced: stale }).catalog, true, 'a stale-map escalation outside src/ raises it');
+  assert.equal(planFor(['src/brandTokens.css'], { sprintFocus: true, traced: stale, catalogReach: null }).catalog, true, 'and any one while the reach is unknown');
+  // The traced map and the catalog reach answer different questions: a stale map escalates the
+  // offline plan, while the import reach still proves an app stylesheet outside the catalog.
+  assert.equal(planFor(['src/brandTokens.css'], { sprintFocus: true, traced: stale }).catalog, false);
+  const unknownNew = planFor(['src/sync/replication.ts'], { sprintFocus: true, catalogReach: null });
+  assert.equal(unknownNew.focusApplied, true, 'an unmapped module still escalates');
+  assert.equal(unknownNew.catalog, true);
+  assert.equal(unknownNew.catalogReachUnknown, true, 'and the plan says why');
+});
+
+test('ci04: catalogReachOf follows Node helpers and page imports, and refuses what it cannot resolve', () => {
+  const files = {
+    'e2e/catalog/a.spec.ts': "import { toApp } from '../_bench';\nawait page.evaluate(async () => { await import('/src/templates/catalog.ts'); });",
+    'e2e/_bench.ts': "import { x } from '../src/render/runtimeScript';\nconst m = await import('/src/preview/composeDocument.ts');",
+    'src/render/runtimeScript.ts': '',
+    'src/templates/catalog.ts': "import { lt } from './lt01';",
+    'src/templates/lt01.ts': "import { ease } from '../model/easings';",
+    'src/model/easings.ts': '',
+    'src/preview/composeDocument.ts': "import './frame.css';",
+    'src/preview/frame.css': '',
+    'src/styles/app.css': '',
+  };
+  const read = (f) => files[f] ?? null;
+  const reach = catalogReachOf(['e2e/catalog/a.spec.ts'], read);
+  assert.deepEqual([...reach].filter((f) => f.startsWith('src/')).sort(), ['src/model/easings.ts', 'src/preview/composeDocument.ts', 'src/preview/frame.css', 'src/render/runtimeScript.ts', 'src/templates/catalog.ts', 'src/templates/lt01.ts']);
+  assert.ok(reach.has('e2e/_bench.ts') && reach.has('e2e/catalog/a.spec.ts'), 'the Node side is in it too');
+  // STRICT: an edge the walk cannot follow makes the whole answer unknown, never a smaller set.
+  const withFile = (extra) => (f) => ({ ...files, ...extra })[f] ?? null;
+  const strict = (extra) => catalogReachOf(['e2e/catalog/a.spec.ts'], withFile(extra));
+  assert.equal(strict({ 'src/model/easings.ts': "import { x } from './gone';" }), null, 'an unresolvable relative import');
+  assert.equal(strict({ 'src/model/easings.ts': "const m = import.meta.glob('./curves/*.ts');" }), null, 'a glob');
+  assert.equal(strict({ 'src/preview/frame.css': "@import './missing.css';" }), null, 'an unresolvable CSS @import');
+  assert.equal(strict({ 'src/model/easings.ts': "const u = new URL('./missing.wasm', import.meta.url);" }), null, 'an unresolvable asset URL');
+  const tsx = strict({ 'src/model/easings.ts': "import { Frame } from './Frame';", 'src/model/Frame.tsx': '' });
+  assert.ok(tsx.has('src/model/Frame.tsx'), 'a .tsx module resolves as the bundler does');
+  const css = strict({ 'src/preview/frame.css': "@import './tokens.css';", 'src/preview/tokens.css': '' });
+  assert.ok(css.has('src/preview/tokens.css'), 'a CSS @import is followed');
+  const dir = strict({ 'e2e/_bench.ts': "const CORPUS = new URL('./fixtures/corpus/', import.meta.url);\nconst m = await import('/src/preview/composeDocument.ts');" });
+  assert.ok(inCatalogReach('e2e/fixtures/corpus/a.svg', dir), 'a directory read from disk holds every file under it');
+  assert.ok(!inCatalogReach('e2e/fixtures/other/a.svg', dir));
+  assert.ok(strict({ 'src/model/easings.ts': "const out = `s.src = new URL('./${lib.lottie}', import.meta.url).href;`;" }), 'emitted text inside a template literal is not an import');
+  const commented = strict({ 'e2e/_bench.ts': "// await import('/src/old.ts');\nconst m = await import('/src/preview/composeDocument.ts');" });
+  assert.ok(commented, 'a commented-out page import is not read');
+  assert.equal(catalogReachOf([], read), null, 'no catalog spec: unknown');
+  assert.equal(catalogReachOf(['e2e/catalog/b.spec.ts'], (f) => (f === 'e2e/catalog/b.spec.ts' ? "const x = 1;" : null)), null, 'no page import: unknown');
+  assert.equal(catalogReachOf(['e2e/catalog/c.spec.ts'], (f) => (f === 'e2e/catalog/c.spec.ts' ? "await import('/src/gone.ts');" : null)), null, 'a page import naming no file: unknown');
+  assert.equal(outsideCatalog('src/styles/app.css', reach), true);
+  assert.equal(outsideCatalog('src/model/easings.ts', reach), false);
+  assert.equal(outsideCatalog('public/fonts/x.woff2', reach), false, 'not a module the walk can see');
+  assert.equal(outsideCatalog('src/styles/app.css', null), false, 'no reach proves nothing');
+});
+
+test('ci04: the catalog flag of a combined change is the union of its parts', () => {
+  const changed = ['src/styles/base.css', 'src/model/easings.ts', 'docs/GOALS.md'];
+  const parts = changed.map((f) => planFor([f], { sprintFocus: true }).catalog);
+  const { catalog } = planFor(changed, { sprintFocus: true });
+  assert.equal(catalog, parts.some(Boolean));
+  assert.equal(catalog, true);
 });
