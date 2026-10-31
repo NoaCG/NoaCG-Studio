@@ -1,4 +1,4 @@
-// guards: src/ai/svgInterpretation/contract.ts, src/ai/svgInterpretation/validate.ts, src/templates/behaviours/words.json
+// guards: src/ai/svgInterpretation/contract.ts, src/ai/svgInterpretation/validate.ts, src/templates/behaviours/words.json, src/templates/behaviours/clock.ts, src/templates/behaviours/registry.ts, src/templates/importedDesign/behaviour.ts, src/templates/importedDesign/designTypes.ts
 //
 // THE SVG PROPOSAL CONTRACT (docs/work-specs/jev-svg-import/spec.md, row 4, AC-4): a proposal
 // names only real layers of a fitting kind, is pinned to the revision it was made from, gives each
@@ -12,12 +12,19 @@
 // The role table is built from the recipe declarations in src/templates/behaviours/words.json,
 // so a role the recipes stop declaring fails here rather than drifting.
 //
+// Row 7 (AC-8) adds the other side of the clock component the contract already names: the
+// persisted clock instance, compiled through the real behaviour compiler beside a score tracker,
+// with its refusals, and the saved countdown compiling exactly as it did. Rules C1-C5 are in
+// docs/work-specs/jev-svg-import/evidence/phase-07.md.
+//
 //   node --test scripts/jev-svg-contract.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   SVG_INTENT,
   SVG_PROPOSAL_OUTPUT,
@@ -25,6 +32,8 @@ import {
   svgSourceRevision,
 } from '../src/ai/svgInterpretation/contract.ts';
 import { validateSvgProposal } from '../src/ai/svgInterpretation/validate.ts';
+import { rolldown } from 'rolldown';
+import { rawSuffix } from './rolldown-raw.mjs';
 
 const root = (rel) => fileURLToPath(new URL(`../${rel}`, import.meta.url));
 const fixture = (id) => readFileSync(root(`e2e/fixtures/jev-svg/dev/${id}.svg`), 'utf8');
@@ -412,4 +421,258 @@ test('the forced-output schema is built from the same vocabulary', () => {
   assert.deepEqual(Object.keys(field.properties).sort(), ['kind', 'layer', 'on', 'title']);
   assert.equal(field.additionalProperties, false);
   assert.ok(new RegExp(SVG_PROPOSAL_OUTPUT.schema.properties.sourceRevision.pattern).test(rev('quiz-1')));
+});
+
+// ---- Row 7: the persisted clock instance (AC-8) ----
+
+/** One TypeScript module of the app's graph, importable here (the compiler reads words.json). */
+async function load(rel) {
+  const bundle = await rolldown({ input: root(rel), platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent' });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+  await bundle.close();
+  return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
+}
+const { boundBehaviour, bindingsOf, composeParts } = await load('src/templates/importedDesign/behaviour.ts');
+const { compileMachine } = await load('src/templates/types/graphicType.ts');
+const { isAnimData } = await load('src/blocks/animData.ts');
+const { validateMachine } = await load('src/blocks/animMachine.ts');
+const { BEHAVIOUR_RECIPES, recipeById } = await load('src/templates/behaviours/registry.ts');
+
+/** scoreboard-1's layers as the step binds them: two names, two figures, and the clock layer. */
+const SCORE_FIELDS = [
+  { candidateId: 't0', title: 'Home', sample: 'SAND', numeric: false },
+  { candidateId: 't1', title: 'Away', sample: 'PINE', numeric: false },
+  { candidateId: 't2', title: 'Value-A', sample: '4', numeric: true },
+  { candidateId: 't3', title: 'Value-B', sample: '6', numeric: true },
+  { candidateId: 't4', title: 'Clock', sample: '12:00', numeric: false },
+];
+const scoreBehaviour = { kind: 'score', rows: [{ name: 0, score: 2, flash: 's1' }, { name: 1, score: 3, flash: 's2' }] };
+const clockExtra = (mode, field = 't4') => ({ kind: 'clock', name: 'Clock', field, mode });
+const design = (over) => ({ markup: '<svg/>', width: 1920, height: 1080, fields: SCORE_FIELDS, images: [], outlines: [], fonts: [], ...over });
+const spx = (fields) => fields.map((f, i) => ({ field: `f${i}`, ftype: f.numeric ? 'number' : 'textfield', title: f.title, value: f.sample }));
+const compile = (over) => {
+  const svg = design(over);
+  return { svg, bound: boundBehaviour(svg, spx(svg.fields)) };
+};
+/** The animation data an imported graphic's In and Out make, with the parts' steps applied. */
+const data = (bound) => bound.steps({ version: 2, root: '#box', speed: 1, steps: [{ name: 'In', duration: 0.5, ease: 'power2.out', layers: {} }, { name: 'Out', duration: 0.4, ease: 'power2.in', layers: {} }] });
+/** The machine the template would carry, through the same gates `attachMachine` throws on. */
+function built(bound, svg) {
+  const type = bound.type(svg);
+  const anim = data(bound);
+  const machine = compileMachine(type, anim, { easeIn: 'power2.out', easeOut: 'power2.in' });
+  const next = { ...anim, machine };
+  assert.ok(isAnimData(next), 'the compiled machine is on-shape');
+  assert.deepEqual(validateMachine(next).errors, []);
+  return { type, machine, anim };
+}
+const table = (bound) => JSON.parse(/var NOACG_BEHAVIOUR = (\{.*?\});/s.exec(bound.js(0))?.[1] ?? 'null');
+const clockGroupOf = (machine) => machine.groups.find((g) => g.id === 'clock_clock');
+
+test('one score full recipe and one clock compile together under the one-full-recipe guard (C1)', () => {
+  const { svg, bound } = compile({ behaviour: scoreBehaviour, extras: [clockExtra('count-up')] });
+  const { type, machine } = built(bound, svg);
+  assert.ok(machine.groups.some((g) => g.id === 'flag'), 'the score keeps its own groups');
+  const clock = clockGroupOf(machine);
+  assert.deepEqual(clock.states.map((s) => s.id).sort(), ['armed', 'running', 'stopped']);
+  assert.equal(clock.initial, 'armed', 'counting up waits for Start');
+  // The match clock's own runtime calls, never the countdown engine's.
+  const calls = clock.states.flatMap((s) => (s.timeline?.calls ?? []).map((c) => c.call));
+  for (const call of ['startMatchClock', 'stopMatchClock', 'resetMatchClock']) assert.ok(calls.includes(call), call);
+  assert.ok(!calls.some((c) => /^(pauseClock|resumeClock|noacgClockReset)$/.test(c)), calls.join());
+  const events = type.controls.map((c) => c.event);
+  assert.deepEqual(events.filter((e) => e.startsWith('clock_')), ['clock_start', 'clock_pause', 'clock_reset']);
+  assert.ok(events.includes('newGame'), 'the score keeps its own buttons');
+  const t = table(bound);
+  assert.equal(t.recipe, 'score', 'the full recipe still names the table');
+  assert.deepEqual(t.parts, ['score', 'clock:Clock']);
+  // Field identity: the clock role is the ticked time layer's own field, under the namespace.
+  assert.equal(t.fields['clock.clock.clock'], 'f4');
+  assert.deepEqual(t.options, { 'clock.clock.mode': 'count-up' });
+  assert.equal(bound.fieldCount, 0, 'the clock owns no hidden field: its value is the time layer');
+  // The guard itself is unchanged: a second full recipe is still refused.
+  const quiz = { recipe: 'quiz', rows: ['A', 'B'], fields: { question: 0, answer: { A: 1, B: 4 } }, layers: {} };
+  assert.throws(() => composeParts(spx(SCORE_FIELDS), [...bindingsOf(svg), quiz]), /one full recipe at most \(score, quiz\)/);
+});
+
+test('the mode is persisted per instance: up waits for Start, a duration starts on Take, a target has no Pause or Reset (C2)', () => {
+  const entrance = (mode) => {
+    const { svg, bound } = compile({ behaviour: scoreBehaviour, extras: [clockExtra(mode)] });
+    const { type, machine, anim } = built(bound, svg);
+    return { calls: anim.steps[0].calls.map((c) => c.call), group: clockGroupOf(machine), controls: type.controls.filter((c) => c.section === 'Clock').map((c) => c.label) };
+  };
+  const up = entrance('count-up');
+  assert.ok(!up.calls.includes('startMatchClock'), up.calls.join());
+  assert.deepEqual(up.controls, ['Start', 'Pause', 'Reset']);
+  const duration = entrance('duration');
+  assert.deepEqual(duration.calls.filter((c) => /MatchClock$/.test(c)), ['resetMatchClock', 'startMatchClock']);
+  assert.equal(duration.group.initial, 'running', 'running from the Take, so Start is greyed and Pause is live');
+  assert.deepEqual(duration.controls, ['Start', 'Pause', 'Reset']);
+  const target = entrance('target-time');
+  assert.deepEqual(target.calls.filter((c) => /MatchClock$/.test(c)), ['startMatchClock']);
+  assert.deepEqual(target.group.states.map((s) => s.id), ['running']);
+  assert.deepEqual(target.controls, []);
+  // A mode the type does not know reads as counting up, never as a guess at a countdown.
+  assert.equal(entrance('sideways').group.initial, 'armed');
+});
+
+test('a second clock, a clock beside the countdown and any shared name are refused (C3)', () => {
+  assert.throws(() => compile({ behaviour: scoreBehaviour, extras: [clockExtra('count-up'), clockExtra('duration', 't0')] }), /one clock at most/);
+  // Never two engines: the saved countdown recipe and a clock instance do not compose.
+  const timerFields = SCORE_FIELDS.map((f, i) => (i === 4 ? { ...f, countdown: true } : f));
+  assert.throws(() => compile({ fields: timerFields, behaviour: { kind: 'timer' }, extras: [clockExtra('duration')] }), /one clock at most \(countdown, clock:Clock\)/);
+  // Two parts under one name would merge into one group and one set of buttons.
+  const sponsor = [
+    { kind: 'switch', name: 'Sponsor', layer: 'g0' },
+    { kind: 'choice', name: 'Sponsor', options: [{ label: 'A', layer: 'g1' }, { label: 'B', layer: 'g2' }] },
+  ];
+  assert.throws(() => compile({ extras: sponsor }), /switch:Sponsor and choice:Sponsor both declare the group "sponsor_group"/);
+  assert.throws(() => compile({ extras: [sponsor[0], sponsor[0]] }), /both declare the group "sponsor_group"/);
+  // A switch the author happened to call Clock is a different namespace from the clock.
+  const { svg, bound } = compile({ behaviour: scoreBehaviour, extras: [clockExtra('count-up'), { kind: 'switch', name: 'Clock', layer: 'g0' }] });
+  built(bound, svg);
+  // A clock whose time layer is no longer a field binds nothing, rather than a clock with no readout.
+  assert.deepEqual(bindingsOf(design({ extras: [clockExtra('count-up', 'gone')] })), []);
+});
+
+test('a saved countdown compiles exactly as before: its recipe, engine, field, paints and Take (C4)', () => {
+  const timerFields = SCORE_FIELDS.map((f, i) => (i === 4 ? { ...f, countdown: true } : f));
+  const { svg, bound } = compile({ fields: timerFields, behaviour: { kind: 'timer', bar: 's0', warning: 's1', paused: 's2', expired: 's3' } });
+  const { type, machine, anim } = built(bound, svg);
+  const t = table(bound);
+  assert.equal(t.recipe, 'countdown');
+  assert.equal(t.parts, undefined, 'one part: no clock instance was attached');
+  assert.deepEqual(t.fields, { clock: 'f4', warnAt: 'f5' });
+  assert.deepEqual(t.kinds, { f4: { kind: 'clock', warnAt: 'f5' } });
+  assert.deepEqual(t.paint, [
+    { gauge: 'bar', from: 'clock:fraction' },
+    { look: 'warning', when: { facts: ['clock:warning'] } },
+    { look: 'expired', when: { facts: ['clock:expired'] } },
+    { look: 'paused', when: { state: ['clock/paused'] } },
+  ]);
+  assert.equal(t.options, undefined);
+  // Its own engine: the countdown's calls, starting on the Take from a reset.
+  const group = machine.groups.find((g) => g.id === 'clock');
+  assert.equal(group.initial, 'running');
+  assert.deepEqual(group.states.map((s) => s.id), ['running', 'paused', 'armed']);
+  assert.deepEqual(anim.steps[0].calls.map((c) => c.call).slice(0, 1), ['noacgClockReset']);
+  assert.ok(!machine.groups.flatMap((g) => g.states.flatMap((s) => (s.timeline?.calls ?? []).map((c) => c.call))).some((c) => /MatchClock$/.test(c)));
+  assert.deepEqual(type.controls.map((c) => c.event), ['start', 'pause', 'reset']);
+  assert.equal(type.id, 'imported-countdown');
+});
+
+test('the clock is chosen, never proposed: the name reader and the example list do not see it yet (C5)', () => {
+  assert.equal(recipeById('clock')?.instanced, true);
+  assert.equal(BEHAVIOUR_RECIPES.some((r) => r.id === 'clock'), false);
+  assert.ok(recipeById('countdown'), 'the countdown recipe stays registered for saved graphics');
+});
+
+test('the draft builds a clock only on a row the step offers on this artwork, never beside a countdown engine (C3, C5)', async () => {
+  const { svgDesignOptions, svgClockRows, svgClockOption } = await load('src/components/wizard/import/draft.ts');
+  const layer = (id, label, sample, clock = false) => ({ id, label, sample, marked: false, drawing: false, namedByGroup: false, numeric: false, clock });
+  const candidates = [layer('t0', 'home', 'FIELD'), layer('t1', 'match-time', '12:08', true), layer('t2', 'period', '1:00', true)];
+  const draft = (over = {}) => ({
+    designSvg: { markup: '<svg/>', width: 1200, height: 180, candidates, images: [], outlines: [], groups: [], shapes: [] },
+    svgFields: candidates.map((c) => ({ candidateId: c.id, on: true, title: c.label, sample: c.sample, numeric: false, clock: c.clock, kind: 'text' })),
+    svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [],
+    svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg/>') },
+    ...over,
+  });
+  // As shipped (CLOCK_RUNTIME_READY false) no clock is offered or built, whoever set one.
+  assert.deepEqual(svgClockRows(draft()), []);
+  assert.equal(svgDesignOptions(draft()).extras, undefined);
+  // With the runtime ready:
+  const clocks = (d) => [svgClockOption(d, true)].filter(Boolean);
+  const rows = (d) => svgClockRows(d, true);
+  assert.deepEqual(rows(draft()).map((f) => f.candidateId), ['t1', 't2'], 'the time-shaped ticked rows');
+  assert.deepEqual(clocks(draft()), [{ kind: 'clock', name: 'Clock', field: 't1', mode: 'duration' }]);
+  // A countdown row ANYWHERE is the old engine: no clock is offered or built beside it.
+  const withCountdown = draft();
+  withCountdown.svgFields[2] = { ...withCountdown.svgFields[2], kind: 'countdown' };
+  assert.deepEqual(rows(withCountdown), []);
+  assert.deepEqual(clocks(withCountdown), []);
+  assert.deepEqual(clocks(draft({ svgBehaviour: { kind: 'timer', bar: '', warning: '', paused: '', expired: '' } })), []);
+  // An unticked or non-time row is not offered, so a stored clock on it is not built either.
+  const unticked = draft();
+  unticked.svgFields[1] = { ...unticked.svgFields[1], on: false };
+  assert.deepEqual(clocks(unticked), []);
+  assert.deepEqual(clocks(draft({ svgClock: { candidateId: 't0', mode: 'count-up', revision: svgSourceRevision('<svg/>') } })), []);
+  // Row ids are positions in one markup: a clock chosen on other artwork is no clock here.
+  assert.deepEqual(clocks(draft({ svgClock: { candidateId: 't1', mode: 'duration', revision: svgSourceRevision('<svg>other</svg>') } })), []);
+  assert.equal(svgDesignOptions(draft({ svgClock: null })).extras, undefined, 'no clock, no extras: the same options as before');
+  // The option the extras carry is exactly this one, so a ready draft builds it.
+  assert.deepEqual(clocks(draft()), [{ kind: 'clock', name: 'Clock', field: 't1', mode: 'duration' }]);
+});
+
+test('with the clock runtime ready, a new import offers exactly one Clock choice with its modes; shipped, the step is unchanged (C5)', async () => {
+  const picker = 'virtual:picker';
+  const section = root('src/components/wizard/import/BehaviourSection.tsx');
+  const bundle = await rolldown({
+    input: picker,
+    platform: 'node',
+    cwd: root(''),
+    logLevel: 'silent',
+    plugins: [rawSuffix, {
+      name: 'picker-entry',
+      resolveId: (id) => (id === picker ? id : null),
+      load: (id) => (id === picker
+        ? `import { createElement } from 'react'; import { renderToStaticMarkup } from 'react-dom/server';
+           import BehaviourSection from ${JSON.stringify(section)};
+           export const render = (props) => renderToStaticMarkup(createElement(BehaviourSection, props));`
+        : null),
+    }],
+    transform: { define: { 'process.env.NODE_ENV': '"production"' } },
+  });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+  await bundle.close();
+  // A node bundle reaches its builtins through `createRequire(import.meta.url)`, which needs a file.
+  const dir = mkdtempSync(path.join(tmpdir(), 'jev-picker-'));
+  const file = path.join(dir, 'picker.mjs');
+  writeFileSync(file, output[0].code);
+  const { render } = await import(pathToFileURL(file).href);
+  rmSync(dir, { recursive: true, force: true });
+  const layer = (id, label, sample, clock = false) => ({ id, label, sample, marked: false, drawing: false, namedByGroup: false, numeric: false, clock });
+  const candidates = [layer('t0', 'home', 'FIELD'), layer('t1', 'match-time', '12:08', true), layer('t2', 'home-score', '2')];
+  const draft = {
+    designSvg: { markup: '<svg/>', width: 1200, height: 180, candidates, images: [], outlines: [], groups: [], shapes: [] },
+    svgFields: candidates.map((c) => ({ candidateId: c.id, on: true, title: c.label, sample: c.sample, numeric: false, clock: c.clock, kind: 'text' })),
+    svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [],
+  };
+  const props = (clockReady) => ({ draft, onDraft: () => {}, textLayers: candidates, pollDriven: new Set(), stageRef: { current: null }, layerBoxes: new Map(), artworkInk: null, setHoverId: () => {}, ...(clockReady === undefined ? {} : { clockReady }) });
+  const select = (html, testid) => new RegExp(`<select[^>]*data-testid="${testid}"[^>]*>(.*?)</select>`, 's').exec(html)?.[1] ?? null;
+  const options = (inner) => [...(inner ?? '').matchAll(/<option[^>]*value="([^"]*)"[^>]*>(.*?)<\/option>/gs)].map((m) => [m[1], m[2]]);
+
+  const ready = render(props(true));
+  const clock = options(select(ready, 'map-svg-clock-mode'));
+  assert.deepEqual(clock.map(([v]) => v), ['none', 'count-up', 'duration', 'target-time'], 'one Clock choice, with the modes');
+  assert.equal((ready.match(/data-testid="map-svg-clock-mode"/g) ?? []).length, 1);
+  const kinds = options(select(ready, 'map-svg-behaviour-kind')).map(([v]) => v);
+  assert.ok(!kinds.includes('timer') && !kinds.includes('clock'), kinds.join());
+
+  // Shipped: CLOCK_RUNTIME_READY is false, so the step is as it was on main.
+  for (const html of [render(props(undefined)), render(props(false))]) {
+    assert.equal(select(html, 'map-svg-clock-mode'), null);
+    assert.ok(options(select(html, 'map-svg-behaviour-kind')).some(([v]) => v === 'timer'), 'the old Countdown is still offered');
+  }
+});
+
+test('extras the author named alike build as separate parts, and a hand-made collision is still refused (C3)', async () => {
+  const { svgDesignOptions } = await load('src/components/wizard/import/draft.ts');
+  const groups = ['g0', 'g1', 'g2', 'g3'].map((id) => ({ id, label: id, hidden: true }));
+  const draft = {
+    designSvg: { markup: '<svg/>', width: 1200, height: 180, candidates: [], images: [], outlines: [], groups, shapes: [] },
+    svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgStretch: { on: false, shapeId: null }, svgFonts: [],
+    svgExtras: [
+      { candidateId: 'g0', use: 'switch', name: 'Sponsor' },
+      { candidateId: 'g1', use: 'switch', name: 'sponsor' },
+      { candidateId: 'g2', use: 'choice', name: 'A', group: 'Sponsor' },
+      { candidateId: 'g3', use: 'choice', name: 'B', group: 'Sponsor' },
+    ],
+  };
+  const extras = svgDesignOptions(draft).extras;
+  assert.deepEqual(extras.map((e) => e.name), ['Sponsor', 'sponsor 2', 'Sponsor 3']);
+  const { svg, bound } = compile({ fields: [], extras });
+  built(bound, svg);
+  // Written by hand, the same three still collide.
+  assert.throws(() => compile({ fields: [], extras: extras.map((e) => ({ ...e, name: 'Sponsor' })) }), /both declare the group "sponsor_group"/);
 });
