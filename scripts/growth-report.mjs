@@ -75,9 +75,11 @@ export function priceRuns(runs, { days }) {
     const sampled = list.filter((r) => r.jobs);
     const event = key.split('|')[1];
     const bucket = event === 'schedule' ? 'scheduled' : 'landing';
-    const missing = list.filter((r) => r.failed || (!r.jobs && sampled.length === 0)).length;
+    const missing = list.filter((r) => r.failed).length;
+    const unfinished = list.filter((r) => r.status && r.status !== 'completed').length;
     if (sampled.length === 0) { for (const t of TIERS) totals[t].partial.push(`${key}: ${list.length} run(s) not sampled`); continue; }
     if (missing) for (const t of TIERS) totals[t].partial.push(`${key}: ${missing} read(s) failed`);
+    if (unfinished) for (const t of TIERS) totals[t].partial.push(`${key}: ${unfinished} run(s) still unfinished`);
     const perRun = Object.fromEntries(TIERS.map((t) => [t, 0]));
     for (const r of sampled) for (const j of r.jobs) perRun[tierOfJob(r.workflow, j.name)] += minutes(j);
     for (const t of TIERS) totals[t][bucket] += (perRun[t] / sampled.length) * list.length;
@@ -236,7 +238,7 @@ export function readJobs(reader, run) {
  * repository) and the queue clock. A PR whose commits or statuses could not all be read gets an
  * unknown clock, never a later start; `complete` says whether every read succeeded.
  */
-function openItems(reader, now) {
+function openItems(reader, now, carried = {}) {
   const prs = reader.get(`repos/${REPO}/pulls?state=open&per_page=100`);
   if (!prs) return { items: [], pending: [], complete: false };
   const items = [];
@@ -244,29 +246,51 @@ function openItems(reader, now) {
   let complete = prs.length < 100;
   for (const pr of prs) {
     if (/^bot\/e2e-durations/.test(pr.head?.ref ?? '')) pending.push({ number: pr.number, opened: pr.created_at.slice(0, 10) });
-    const commits = reader.get(`repos/${REPO}/pulls/${pr.number}/commits?per_page=100`);
-    let known = Array.isArray(commits) && commits.length < 100;
-    const stamps = [];
-    for (const c of known ? commits : []) {
-      const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100`);
-      if (!statuses) { known = false; break; }
-      for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at, head: c.sha });
-    }
-    if (!known) complete = false;
-    const clock = known ? prClock({ stamps, openedAt: pr.created_at, now }) : { start: null, source: 'unknown', state: 'unfinished', minutes: null };
-    items.push({ id: `#${pr.number}`, category: 'prReady', clock });
+    const id = `#${pr.number}`;
     // A timeline over 100 events needs paging, or its queue events go missing (ci01 traps).
     const events = [];
+    let timelineRead = true;
     for (let page = 1; page <= 5; page++) {
       const body = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100&page=${page}`);
-      if (!body) { complete = false; break; }
+      if (!body) { timelineRead = false; break; }
       events.push(...body);
       if (body.length < 100) break;
     }
+    const ready = readyClock(reader, pr, now, { forcePushed: !timelineRead || events.some((e) => e.event === 'head_ref_force_pushed'), carried: carried[id] });
+    if (!ready.complete) complete = false;
+    items.push({ id, category: 'prReady', clock: ready.clock });
+    if (!timelineRead) continue;
     const queued = events.filter((e) => e.event === 'added_to_merge_queue').map((e) => e.created_at);
-    if (queued.length) items.push({ id: `#${pr.number} queue`, category: 'queue', clock: queueClock({ queued, now }) });
+    if (queued.length) items.push({ id: `${id} queue`, category: 'queue', clock: queueClock({ queued, now }) });
   }
   return { items, pending, complete };
+}
+
+/**
+ * One PR's ready clock from the stamps on its commits, never later than a start an earlier read
+ * already saw (`carried`). A rewritten head can drop the commit that carried the first stamp: then,
+ * with no carried start, the clock is unknown and the read incomplete, so it neither raises a late
+ * alarm nor clears an existing one.
+ */
+function readyClock(reader, pr, now, { forcePushed = false, carried = null, mergedAt = null } = {}) {
+  const commits = reader.get(`repos/${REPO}/pulls/${pr.number}/commits?per_page=100`);
+  let known = Array.isArray(commits) && commits.length < 100;
+  const stamps = carried ? [{ at: carried }] : [];
+  for (const c of known ? commits : []) {
+    const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100`);
+    if (!statuses) { known = false; break; }
+    for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at, head: c.sha });
+  }
+  if (forcePushed && !carried) known = false;
+  if (!known) return { complete: false, clock: { start: null, source: 'unknown', state: mergedAt ? 'finished' : 'unfinished', minutes: null } };
+  return { complete: true, clock: prClock({ stamps, openedAt: pr.created_at, mergedAt, now: mergedAt ?? now }) };
+}
+
+/** Starts an earlier read saw, from the rolling age issue's lines or last week's report. */
+export function carriedStarts(text) {
+  const out = {};
+  for (const m of String(text ?? '').matchAll(/prReady (#\d+) unfinished[^\n]*?\(clock from \w+ (\d{4}-\d{2}-\d{2}T[\d:.]+Z)\)/g)) if (!out[m[1]] || m[2] < out[m[1]]) out[m[1]] = m[2];
+  return out;
 }
 
 /** The category a PR's timing sample is reported under: which line of work opened it. */
@@ -292,20 +316,15 @@ function finishedPrs(reader, from, to, limit) {
   for (const i of spread(merged.length, limit)) {
     const pr = merged[i];
     const category = categoryOf(pr.head?.ref);
-    const commits = reader.get(`repos/${REPO}/pulls/${pr.number}/commits?per_page=100`);
-    const stamps = [];
-    let known = Array.isArray(commits) && commits.length < 100;
-    for (const c of known ? commits : []) {
-      const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100`);
-      if (!statuses) { known = false; break; }
-      for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at });
-    }
-    if (!known) complete = false;
-    const ready = known ? prClock({ stamps, openedAt: pr.created_at, mergedAt: pr.merged_at, now: pr.merged_at }) : { source: 'unknown' };
+    const events = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100`);
+    const timelineRead = Array.isArray(events) && events.length < 100;
+    const read = readyClock(reader, pr, pr.merged_at, { forcePushed: !timelineRead || events.some((e) => e.event === 'head_ref_force_pushed'), mergedAt: pr.merged_at });
+    const ready = read.clock;
+    // Never stamped is a measurement (unknown, reported); a failed or rewritten read is not complete.
+    if (!read.complete) complete = false;
     if (ready.source === 'unknown') unknown.push(`#${pr.number}`);
     else samples.push({ measure: 'prReady', id: `#${pr.number}`, category, value: ready.minutes, finishedAt: pr.merged_at, source: ready.source });
-    const events = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100`);
-    if (!events || events.length >= 100) { complete = false; continue; }
+    if (!timelineRead) { complete = false; continue; }
     const queued = events.filter((e) => e.event === 'added_to_merge_queue').map((e) => e.created_at);
     if (queued.length) samples.push({ measure: 'queue', id: `#${pr.number}`, category, value: queueClock({ queued, mergedAt: pr.merged_at, now: pr.merged_at }).minutes, finishedAt: pr.merged_at, source: 'timeline' });
   }
@@ -333,8 +352,10 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   const to = Date.parse(now) - 6 * 3_600_000;
   const from = to - days * DAY;
   const listed = listRuns(reader, from, to);
-  const runs = listed.runs.filter((r) => r.status === 'completed');
-  const open = openItems(reader, now);
+  // Runs still queued or running at collection stay in their stratum, unsampled: their cost is
+  // unknown, so the tiers they touch are partial and cannot establish recovery.
+  const runs = listed.runs;
+  const open = openItems(reader, now, previous?.openStarts ?? {});
   // About a third of the budget for finished PRs' clocks (about five reads each), the rest for jobs.
   const done = finishedPrs(reader, from, to, Math.max(5, Math.floor(budget / 15)));
   const strata = {};
@@ -347,7 +368,8 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   const plan = keys.map((key) => {
     const list = strata[key].sort((a, b) => a.created.localeCompare(b.created));
     const want = key === 'ci.yml|push' || key === 'configured-suite.yml|push' ? 2 * k : k;
-    return { list, picks: spread(list.length, want) };
+    const done = list.filter((r) => r.status === 'completed');
+    return { list: done, picks: spread(done.length, want) };
   });
   for (let round = 0; plan.some((p) => p.picks.length > round); round++) {
     for (const { list, picks } of plan) {
@@ -359,11 +381,15 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   }
   const clocks = readClocks(clocksFile, now, ledgerFile);
   const table = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'e2e-durations.json'), 'utf8'));
-  const unfinished = listed.runs.length - runs.length;
+  const unfinished = runs.filter((r) => r.status !== 'completed').length;
   const sampled = runs.filter((r) => r.jobs).length;
-  const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
+  const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length - unfinished} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
   const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, listComplete: listed.complete, timingComplete: done.complete, clocksRead: clocks.read, known: knownCoversOnDisk(ROOT), finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
   built.report.unknownClocks.push(...done.unknown);
+  // First observed ready starts of open PRs, carried so a rewritten head never restarts one.
+  built.report.openStarts = { ...(previous?.openStarts ?? {}) };
+  for (const i of open.items) if (i.category === 'prReady' && i.clock.start && (!built.report.openStarts[i.id] || i.clock.start < built.report.openStarts[i.id])) built.report.openStarts[i.id] = i.clock.start;
+  for (const id of Object.keys(built.report.openStarts)) if (!open.items.some((i) => i.id === id) && open.complete) delete built.report.openStarts[id];
   built.report.finishedPrs = { merged: done.merged, sampled: done.samples.filter((x) => x.measure === 'prReady').length + done.unknown.length };
   built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
   return built;
@@ -373,6 +399,15 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
  * Keep ONE rolling issue per alarm title: open or update it with `body`, or close it when `body`
  * is empty. Only a run about main may raise or withdraw an alarm (the caller checks the ref).
  */
+export function findIssue(title, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
+  for (let page = 1; page <= 10; page++) {
+    const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&creator=github-actions%5Bbot%5D&per_page=100&page=${page}`]) || '[]');
+    const found = list.find((i) => i.title === title && !i.pull_request);
+    if (found || list.length < 100) return found ?? null;
+  }
+  return null;
+}
+
 export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
   let found;
   for (let page = 1; page <= 10 && !found; page++) {
@@ -390,8 +425,8 @@ export const AGE_ISSUE = 'Delivery items past their age ceiling';
 export const WEEKLY_ISSUE = 'Growth controls: weekly actions';
 
 /** The per-item age check alone: cheap enough to run after every landing. */
-export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget), ledger = null }) {
-  const open = openItems(reader, now);
+export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget), ledger = null, carried = {} }) {
+  const open = openItems(reader, now, carried);
   // Phases from the plan-run ledger, when the coordinator passes its wave file: the phase clock
   // lives outside the repository, so this is its route into the same alarm.
   const phases = ledger ? phasesFromLedger(ledger).map((p) => ({ id: p.id, category: 'phase', clock: phaseClock({ events: p.events, now }) })) : [];
@@ -437,7 +472,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } else if (command === 'ages') {
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
     const ledgerFile = value('--ledger');
-    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null });
+    // Starts the open alarm issue already records outlive a rewritten head.
+    let carried;
+    try { carried = carriedStarts(findIssue(AGE_ISSUE)?.body); } catch { carried = {}; }
+    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null, carried });
     if (result.body === null) {
       console.log(`::warning title=Delivery age alarms::the open items could not all be read (${result.calls} API calls); the alarm issue is left as it was`);
       process.exit(1);

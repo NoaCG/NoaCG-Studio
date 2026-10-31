@@ -15,7 +15,7 @@ import {
   evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { ages, buildReport, fetchLatest, makeReader, priceRuns, spread } from './growth-report.mjs';
+import { ages, buildReport, carriedStarts, fetchLatest, makeReader, priceRuns, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -592,4 +592,32 @@ test('(d) the plan-run ledger feeds the phase age alarm: one overdue phase acts 
   const r = ages({ ceilings: CEILINGS, now: '2026-10-31T19:00:00Z', reader: makeReader(10, fake), ledger });
   assert.deepEqual(r.actions.map((a) => a.key), ['age:phase 7'], '13 hours since its first build, repairs included; 6 passed; 5 was stopped');
   assert.equal(r.actions[0].category, 'phase');
+});
+
+test('(e) a run still unfinished at collection keeps its tier partial, so a stop survives it', () => {
+  const runs = [...fixtureRuns(), { id: 99, workflow: 'configured-suite.yml', event: 'push', branch: 'main', sha: 'm9', created: '2026-10-27T00:00:00Z', conclusion: null, status: 'in_progress', jobs: null }];
+  assert.equal(priceRuns(runs, { days: 7 }).tiers.backend.evidence, 'partial');
+  const stopped = { key: 'cost:backend', since: '2026-11-02', due: '2026-11-09', owner: 'o', corrections: 1, state: 'stopped', detail: 'x' };
+  const previous = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped], stops: { backend: 'x' }, timing: [] };
+  const { report } = buildReport({ ceilings: CEILINGS, runs, days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', previous, tableRecordedAt: '2026-11-20', collection: 'fixture' });
+  assert.ok(report.stops.backend);
+});
+
+test('(d) a rewritten head never restarts or hides a ready clock', () => {
+  const now = '2026-10-31T12:00:00Z';
+  const fake = (forcePushed) => (args) => {
+    const route = args.at(-1);
+    if (/\/pulls\?/.test(route)) return JSON.stringify([{ number: 9, created_at: '2026-10-31T07:00:00Z', head: { ref: 'f' }, draft: false }]);
+    if (/\/commits\?/.test(route)) return JSON.stringify([{ sha: 'new' }]);
+    if (/\/statuses/.test(route)) return JSON.stringify([{ context: 'noacg/reviewed', state: 'success', created_at: '2026-10-31T11:50:00Z' }]);
+    if (/timeline/.test(route)) return JSON.stringify(forcePushed ? [{ event: 'head_ref_force_pushed', created_at: '2026-10-31T11:45:00Z' }] : []);
+    return '[]';
+  };
+  // The 08:00 stamp sat on a commit the force-push dropped: no carried start, so unknown and incomplete.
+  assert.equal(ages({ ceilings: CEILINGS, now, reader: makeReader(20, fake(true)) }).body, null);
+  // The open alarm issue recorded the 08:00 start: it is kept, and the item stays overdue.
+  const carried = carriedStarts('- prReady #9 unfinished for 180 min, over its 120 minutes ceiling (clock from stamp 2026-10-31T08:00:00Z). Owner o; act by 2026-11-01.');
+  assert.deepEqual(carried, { '#9': '2026-10-31T08:00:00Z' });
+  const r = ages({ ceilings: CEILINGS, now, reader: makeReader(20, fake(true)), carried });
+  assert.match(r.body, /#9 unfinished for 240 min/);
 });
