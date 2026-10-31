@@ -42,21 +42,23 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci05 merge queue (41227594711), then landed record and checker",
-    "eta": "2026-10-31T18:45:00Z"
+    "what": "ci05 checker verdict on 11523106 and post-land runs",
+    "eta": "2026-10-31T19:05:00Z"
   },
   "inFlight": [
     {
       "phase": "ci05",
-      "step": "queued",
-      "session": "session_017SdbwMVW7egupuYwsg7axa",
-      "nonce": "ci05-b-e56d",
-      "branch": "claude/plan-cicd-improvement-ci05-build",
-      "launchedAt": "2026-10-31T16:51:47Z",
+      "step": "check",
+      "session": "session_017SdbwQTTB6JCPKjCb9DEDz",
+      "nonce": "ci05-c-f4ff",
+      "actor": "checker-ci05-ci05-c-f4ff",
+      "launchedAt": "2026-10-31T18:15:31Z",
       "pr": 1866,
+      "mergeSha": "11523106a407cb856e619e0d4ddbbfa3785d5739",
+      "builder": "session_017SdbwMVW7egupuYwsg7axa",
       "reviewedHead": "ab8218aa992744fed9554884fc4bee53aca0e371",
       "repairOwnerComment": 6547172372,
-      "note": "Receipt 18:02Z; gates verified at source; stamp 41227524328; queued 18:04:11Z (merge group 41227594711, behind #1864)."
+      "note": "Merged 18:14:31Z (queue run 41227594711)."
     }
   ],
   "owner": [],
