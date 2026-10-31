@@ -42,33 +42,10 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci06 checker verdict on 26095c82; #1877 re-queue",
-    "eta": "2026-10-31T22:30:00Z"
+    "what": "launch ci18 builder",
+    "eta": "2026-10-31T22:00:00Z"
   },
-  "inFlight": [
-    {
-      "phase": "ci06",
-      "step": "check",
-      "session": "session_017SdbwLwL72Eo4iEEnxQKWh",
-      "nonce": "ci06-c-7596",
-      "actor": "checker-ci06-ci06-c-7596",
-      "launchedAt": "2026-10-31T21:31:16Z",
-      "pr": 1872,
-      "mergeSha": "26095c826f1a0ee910d17070d42026a841b9f284",
-      "builder": "session_017SdbwPCfuZxDW8WaBDH9Dm",
-      "reviewedHead": "b83dc98e82f08f342b405121cd2227bc3d197e3e",
-      "repairOwnerComment": 6549238470,
-      "note": "Merged 21:28:08Z (queue run 41242778650)."
-    },
-    {
-      "phase": "ci06-repair",
-      "step": "queued-fix",
-      "pr": 1877,
-      "branch": "claude/quarantine-production-data-key-tick",
-      "repairOwnerComment": 6549328402,
-      "note": "Quarantine entry for #1874, head 06cabd05. Dequeued 21:28Z by #1873 timing flake in merge group 41243467985 (data-only PR cannot cause it); re-queued once 21:29Z."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -171,6 +148,26 @@
       "postLand": "CI 41228424514, configured-suite 41228424640, Post-landing 41228424434, Quarantine 41228424433, Push on main 41228423657, deploy-verify 41228646994 all success; repair ownership complete",
       "pass": "2026-10-31T18:43:40Z by checker-ci05-ci05-c-f4ff (session_017SdbwQTTB6JCPKjCb9DEDz)",
       "checkerFindings": "cost confirmed: catalog gates 54 to 54, +0.15% planned E2E minutes; non-blocking: endurance config lacks the integrity reporter (pre-existing)"
+    },
+    {
+      "phase": "ci06",
+      "pr": 1872,
+      "mergeSha": "26095c826f1a0ee910d17070d42026a841b9f284",
+      "builder": "session_017SdbwPCfuZxDW8WaBDH9Dm",
+      "reviewedHead": "b83dc98e82f08f342b405121cd2227bc3d197e3e",
+      "repairOwnerComment": 6549238470,
+      "followUps": [
+        1865,
+        1871,
+        1873,
+        1874
+      ],
+      "repairs": [
+        "PR #1877 quarantine entry for #1874, merged af39c249"
+      ],
+      "postLand": "CI 41243723122, configured-suite 41243723141, Post-landing 41243723069, Quarantine 41243723106, Push on main 41243722930 all success; merge group exempt as designed; repair ownership complete",
+      "pass": "2026-10-31T21:48Z by checker-ci06-ci06-c-7596 (session_017SdbwLwL72Eo4iEEnxQKWh)",
+      "checkerFindings": "cost correction: JEV workers still dispatch full configured-suite, so the ~102/117 backend projection is not yet in effect (no-offset case); nit runbook.md:36 'configured run head_sha' wording"
     }
   ],
   "coordinatorNotes": [
@@ -217,6 +214,11 @@
       "phase": "ci06",
       "decision": "Landed ci06 with Build green on re-run: attempt 1 failed a timing-ratio Node test outside the diff (ograf-foreign, also failed on earlier head 6131c179); fail-then-pass recorded in #1873, no Node quarantine route (same as #1856). From the next phase on, follow ci06's PR instructions: no worker configured-suite.yml dispatch; read the reviewed head's CI run Configured selection and the two configured jobs; full dispatch only for a named reason; keep reading the per-landing configured run on the merge SHA.",
       "record": "https://github.com/NoaCG/NoaCG-Studio/pull/1872#issuecomment-6549238470"
+    },
+    {
+      "at": "2026-10-31T21:50Z",
+      "phase": "ci06",
+      "decision": "Kit templates build/fix/repair replaced with ci06's versions from main (receipts name the CI run with its configured selection, not a configured-suite dispatch). Coordinator gate from ci18 on: CI gate green on the reviewed head including the plan job's Configured selection and both configured jobs (or the untriggered notice), Codex, /so A; no worker configured-suite dispatch unless a reason is named; still read the per-landing configured-suite run on the merge SHA."
     }
   ]
 }
