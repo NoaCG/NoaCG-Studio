@@ -28,19 +28,19 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 4 builder: final /so verdict into PR #1860 description, then coordinator enables auto-merge",
-    "eta": "2026-10-31T16:25:00Z"
+    "what": "PR #1860 merge queue (merge-group CI) for phase 4",
+    "eta": "2026-10-31T16:30:00Z"
   },
   "inFlight": [
     {
       "phase": "4",
-      "step": "build (stamped)",
+      "step": "build (queued)",
       "session": "session_017SdbwQXMLVdn1z11xNz6hD",
       "nonce": "4-b-e211",
       "branch": "claude/plan-jev-svg-import-4-build",
       "source": "99c461b8ed30c2a03dfc87a002573263473a2425",
       "launchedAt": "2026-10-31T15:07:47Z",
-      "note": "stamped; auto-merge held until the builder adds the final /so verdict to the PR description (asked 16:08Z)",
+      "note": "in merge queue; coordinator is #1860 repair owner through post-land; final /so verdict added to PR body 16:08Z",
       "pr": 1860,
       "head": "9bda06bdcf5e544993ee7103140a1cfbd921326f",
       "reviewedHead": "cbbbc8f7ecb8cbee434586af88b52771de99c92c",
@@ -48,7 +48,9 @@
       "ciRun": 41216834134,
       "soSession": "session_017SdbwMzqUQNbCYzKJwtKii",
       "soGrade": "A",
-      "stampRun": 41218124028
+      "stampRun": 41218124028,
+      "autoMergeEnabledAt": "2026-10-31T16:08:3xZ",
+      "queuedAt": "2026-10-31T16:08:41Z"
     }
   ],
   "owner": [],
@@ -110,7 +112,8 @@
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z).",
     "Builders run the final /so as a separate create_session, not a subagent (phase 2, 12:49Z). Add that line to every build brief launch.",
     "Phase 2 configured-suite on 7f0a00ba: attempt 1 shard 3 failed at Start the local Supabase stack before tests (aggregate 96 passed, 0 failed, 0 flaky); attempt 2 green. Infra, not a fail-then-pass.",
-    "Phase 3 checker receipt named a nonexistent session id; recorded the actual sender session_017SdbwNmSrW7hcHFgiAZpAj. Briefs now ask for the exact get_session id."
+    "Phase 3 checker receipt named a nonexistent session id; recorded the actual sender session_017SdbwNmSrW7hcHFgiAZpAj. Briefs now ask for the exact get_session id.",
+    "Before enabling auto-merge, confirm the final /so verdict is in the PR body (phase 4 builder edit had silently failed)."
   ],
   "ownerOpen": [
     {
