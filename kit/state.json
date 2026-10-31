@@ -42,25 +42,10 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci03 checker verdict on 99c461b8 and post-land runs",
-    "eta": "2026-10-31T16:00:00Z"
+    "what": "launch ci04 builder",
+    "eta": "2026-10-31T15:30:00Z"
   },
-  "inFlight": [
-    {
-      "phase": "ci03",
-      "step": "check",
-      "session": "session_017SdbwLxSpt7m2iKzkvPqrj",
-      "nonce": "ci03-c-e087",
-      "actor": "checker-ci03-ci03-c-e087",
-      "launchedAt": "2026-10-31T15:00:13Z",
-      "pr": 1854,
-      "mergeSha": "99c461b8ed30c2a03dfc87a002573263473a2425",
-      "builder": "session_017SdbwMGuLKVb3TwYhw5nip",
-      "reviewedHead": "16eeebc051fa6df31476e4480e6f175af167cea6",
-      "repairOwnerComment": 6543487751,
-      "note": "Merged 14:58:57Z (queue run 41212166922). Checker reads every Actions run on the merge SHA."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -119,6 +104,21 @@
       "pass": "2026-10-31T11:59:34Z by checker-ci02-ci02-c-0762",
       "checkerFindings": "non-blocking: JEV candidate pool may be larger; Risky row silent on fixing pre-code /so findings",
       "checkerSession": "session_017SdbwNaUnWd8a1wdrJE8tu (checker corrected its self-reported id at 11:59:20Z; the PASS record already names this launched session)"
+    },
+    {
+      "phase": "ci03",
+      "pr": 1854,
+      "mergeSha": "99c461b8ed30c2a03dfc87a002573263473a2425",
+      "builder": "session_017SdbwMGuLKVb3TwYhw5nip",
+      "reviewedHead": "16eeebc051fa6df31476e4480e6f175af167cea6",
+      "repairOwnerComment": 6543487751,
+      "followUps": [
+        1856,
+        1859
+      ],
+      "postLand": "CI 41212628266, configured-suite 41212628251, Post-landing 41212628247, Quarantine 41212628312, Push on main 41212627709 all success; repair ownership complete",
+      "pass": "2026-10-31T15:24:11Z by checker-ci03-ci03-c-e087 (session_017SdbwLxSpt7m2iKzkvPqrj)",
+      "checkerFindings": "non-blocking: test regex misses a flow-style checkout ref (added to #1859)"
     }
   ],
   "coordinatorNotes": [
