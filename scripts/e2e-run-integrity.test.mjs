@@ -111,6 +111,14 @@ test('ci05: a spec the plan selected that planned no test fails a passing run, a
   assert.equal(run({ tests: [located('a.spec.ts')] }).verdict, undefined);
 });
 
+test('ci05: a test declared by a helper counts for the spec file that loaded it', () => {
+  const fileSuite = { type: () => 'file', location: { file: path.join(root, 'e2e', 'suite-user.spec.ts') } };
+  const declared = { results: [{ status: 'passed' }], location: { file: path.join(root, 'e2e', '_suite.ts') }, parent: { type: () => 'describe', parent: fileSuite } };
+  const reporter = new RunIntegrity({ _mode: 'test', statfs: roomy, expected: 'suite-user.spec.ts' });
+  reporter.onBegin({ rootDir: root }, { allTests: () => [declared] });
+  assert.equal(reporter.onEnd({ status: 'passed' }), undefined);
+});
+
 test('ci05: every Playwright config CI runs forbids a focused test there', () => {
   for (const config of ['playwright.config.ts', 'playwright.catalog.config.ts', 'playwright.live.config.ts', 'playwright.production.config.ts', 'playwright.endurance.config.ts']) {
     assert.match(readFileSync(path.join(root, config), 'utf8'), /^\s*forbidOnly: Boolean\(process\.env\.CI\),$/m, config);

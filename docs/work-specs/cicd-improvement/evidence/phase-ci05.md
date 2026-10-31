@@ -16,7 +16,7 @@ first (the old-shape or `readers: null` answer), then the corrected plan. All ca
 | Case | Base b666f302 | ci05 | Pinned by |
 | --- | --- | --- | --- |
 | Rename out of a core directory (3c64200e3: `src/preview/measureCue.ts` to `src/components/home/measureCue.ts`) | `git diff --name-only` lists only the new path: 23 specs, no escalation | both paths: the old `src/preview/` path escalates (shared-change set, 83 specs) | `ci05: a rename contributes its old and its new path, committed or staged` (real temp repo, committed and staged renames) |
-| `output.html` | 1 spec (`productions.spec.ts`, its only header) | 18 specs: every spec or helper that opens `/output` | `ci05: output.html plans every spec that opens /output ...` |
+| `output.html` | 1 spec (`productions.spec.ts`, its only header) | 15 specs: every spec or helper that opens `/output` | `ci05: output.html plans every spec that opens /output ...` |
 | `e2e/fixtures/fidelity-nested.svg` (read with `readFileSync(new URL(...))`) | unmapped: the 77-spec shared-change set, none of its 5 readers | the same set plus its 5 readers | `ci05: a fixture read from disk plans its readers and keeps the escalation it had` |
 | `scripts/fixtures/youtube/*.json` (read by `production-chat-intake.spec.ts`) | mode `none`: ignored with all of `scripts/` | its reader | same test |
 | `scripts/rules.mjs` (imported by 5 offline specs) | catalog gate only, no offline spec | catalog gate plus its 5 importers | updated ci04 test |
@@ -74,7 +74,7 @@ Test `ci05: no file under e2e/fixtures plans nothing` pins that no file under `e
 | Criterion | Evidence | Result |
 | --- | --- | --- |
 | (a) Pin old/new rename paths | rename test: real repo, committed and staged renames, both paths listed, the old core path escalates; `git diff --name-only` shown returning the new path alone | pass |
-| (a) Pin `output.html` | header-only answer 1 spec; with readers 18, including the six `/output` openers asserted by name; every root page's header set preserved | pass |
+| (a) Pin `output.html` | header-only answer 1 spec; with readers 15, including the six `/output` openers asserted by name; every root page's header set preserved | pass |
 | (a) Pin filesystem-read fixtures | `fidelity-nested.svg` gains its readers and keeps its escalation; `scripts/fixtures/youtube/` goes from `none` to its reader; the svg-corpus file keeps the catalog gate (ci04 trap); unit test of `readerIndex` (URL, template prefix, concatenation through a helper, comment, run-time path, look-alike routes) | pass |
 | (a) Pin short-regex copy | `/save/i` and `/^OK$/` select their specs; `/\s+/`, `/\d+/`, `/[A-Za-z]{6,}/`, `toHaveClass(/on/)` and `toHaveURL(...)` do not; through `planFor` as a copy edit | pass |
 | (a) Pin the `spaceKey` override | with no traced map: mode `full`; under focus the shared-change set plus `editor-usability.spec.ts`; the header that used to narrow it still exists | pass |

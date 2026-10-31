@@ -33,7 +33,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIGURED_TRIGGERS, COVERAGE, FOCUS } from './e2e-lists.mjs';
-import { COPY_PATH_FILE, copyEdit, specsNaming } from './e2e-affected-copy.mjs';
+import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
 import {
   budgetMinutes,
@@ -613,48 +613,42 @@ function resolveModule(base, read) {
  * all under the ignored `scripts/` (`scripts/fixtures/youtube/`), and `output.html` planned one spec
  * while nine open `/output`.
  *
- * Read off each spec and each e2e module it imports, line comments dropped:
- *   - `new URL(lit, import.meta.url)`, resolved against the module's own directory;
- *   - any other string or template literal shaped like a repo path (`e2e/fixtures/...`,
- *     `public/fonts/inter.woff2`), resolved from the repository root, and a `./` or `../` one from
- *     the module's directory as well;
- *   - a template literal or one ending in `/` names a PREFIX (`fixtures/svg-shows/${name}.svg`
- *     reads everything under `fixtures/svg-shows/`); a plain one names that file or directory.
- * A root page `<name>.html` is read by every module whose code holds its route `/<name>` followed
- * by `?`, `#`, `*`, `.html` or a closing quote (or `/` for `PATH_ROUTE_PAGES`).
+ * Read off each spec and each e2e module it imports, from its string and template literals as the
+ * copy path's tokenizer reads them (`scanScript`: comments, regex literals and multi-line templates
+ * are not mistaken for strings):
+ *   - every path-shaped literal (`e2e/fixtures/...`, `./fixtures/x.svg` in `new URL(...)`,
+ *     `public/fonts/inter.woff2`) is resolved both from the module's own directory and from the
+ *     repository root; a reference that names no file costs nothing;
+ *   - a template literal cut at its first `${`, or a literal ending in `/`, names a PREFIX
+ *     (`fixtures/svg-shows/${name}.svg` reads everything under `fixtures/svg-shows/`); a plain one
+ *     names that file or directory.
+ * A root page `<name>.html` is read by every module with a literal (or template piece) that opens
+ * its route: `/<name>`, alone or after a scheme and host, followed by `?`, `#`, `*`, `.html` or the
+ * end (or `/` for `PATH_ROUTE_PAGES`). `/api/output` is not `/output`.
  *
  * What it cannot see, stated: a path built at run time from parts (`join(dir, 'fixtures', name)`)
  * and a route assembled from a variable. Such a reader is not found; the file then plans what it
  * planned before (its headers, or the unmapped escalation), so the index only ever adds specs.
  *
  * @param {Map<string, string>} sources repo-relative path -> text: every spec and module under e2e/
- * @returns {{ refs: Map<string, { path: string, prefix: boolean }[]>, code: Map<string, string>,
+ * @returns {{ refs: Map<string, { path: string, prefix: boolean }[]>, texts: Map<string, string[]>,
  *             importers: Map<string, string[]> }}
  */
 export function readerIndex(sources) {
   const refs = new Map();
-  const code = new Map();
+  const texts = new Map();
   const importers = new Map();
   const has = (f) => (sources.has(f) ? f : null);
   for (const [file, text] of sources) {
-    const body = withoutLineComments(text);
-    code.set(file, body);
     const dir = dirOf(file);
+    const literals = literalsOf(text);
+    texts.set(file, literals.flatMap((l) => l.pieces));
     const found = [];
-    const urlAt = new Set();
-    for (const m of body.matchAll(/new\s+URL\(\s*(['"`])((?:(?!\1)[^\\\n]|\\.)*)\1\s*,\s*import\.meta\.url/g)) {
-      const { text: lit, prefix } = literalPath(m[1], m[2]);
-      urlAt.add(m.index + m[0].indexOf(m[1]));
-      if (lit) found.push({ path: joinPath(dir, lit), prefix: prefix || lit.endsWith('/') });
-    }
-    for (const m of body.matchAll(/(['"`])((?:(?!\1)[^\\\n]|\\.)*)\1/g)) {
-      if (urlAt.has(m.index)) continue;
-      const { text: lit, prefix } = literalPath(m[1], m[2]);
-      if (!lit || !lit.includes('/') || /\s|^[a-z]+:|^\/|^[#?*@]/i.test(lit) || /^\.{0,2}\/?$/.test(lit)) continue;
+    for (const { text: lit, prefix } of literals) {
+      if (!lit.includes('/') || /\s|^[a-z][\w+.-]*:|^\/|^[#?*@]/i.test(lit) || /^\.{0,2}\/?$/.test(lit)) continue;
       const isPrefix = prefix || lit.endsWith('/');
-      if (/^\.{1,2}\//.test(lit)) found.push({ path: joinPath(dir, lit), prefix: isPrefix });
-      const fromRoot = joinPath('', lit);
-      if (fromRoot.includes('/') || isPrefix) found.push({ path: fromRoot, prefix: isPrefix });
+      const tail = lit.endsWith('/') ? '/' : '';
+      for (const path of new Set([joinPath(dir, lit), joinPath('', lit)])) found.push({ path: path + tail, prefix: isPrefix });
     }
     refs.set(file, found);
     for (const spec of importSpecifiers(text)) {
@@ -663,23 +657,58 @@ export function readerIndex(sources) {
       if (target && target !== file) importers.set(target, [...(importers.get(target) ?? []), file]);
     }
   }
-  return { refs, code, importers };
+  return { refs, texts, importers };
 }
 
-/** A literal's path text up to its first `${`, and whether a `${` cut it there. */
-function literalPath(quote, raw) {
-  const cut = quote === '`' ? raw.indexOf('${') : -1;
-  const text = (cut >= 0 ? raw.slice(0, cut) : raw).replace(/\\(.)/g, '$1');
-  return { text, prefix: cut >= 0 };
+/**
+ * A module's string and template literals: `text` is a string's value or a template's text up to
+ * its first `${` (`prefix` says it was cut there), and `pieces` every literal piece, for routes.
+ * Tokenised by `scanScript`; a file it cannot follow falls back to a quote-pairing scan of its
+ * lines with line comments dropped, which can find fewer or extra literals and so, the index
+ * being additive, only ever a plan the headers already give or a wider one.
+ */
+function literalsOf(text) {
+  let toks;
+  try {
+    toks = scanScript(text);
+  } catch {
+    return [...withoutLineComments(text).matchAll(/(['"`])((?:(?!\1)[^\\\n]|\\.)*)\1/g)].map((m) => {
+      const cut = m[1] === '`' ? m[2].indexOf('${') : -1;
+      const value = (cut >= 0 ? m[2].slice(0, cut) : m[2]).replace(/\\(.)/g, '$1');
+      return { text: value, prefix: cut >= 0, pieces: m[2].split(/\$\{[^}]*\}/) };
+    });
+  }
+  const out = [];
+  for (let k = 0; k < toks.length; k++) {
+    if (toks[k].t === 'str') out.push({ text: toks[k].v, prefix: false, pieces: [toks[k].v] });
+    if (toks[k].t !== 'tplstart') continue;
+    // One template: its own pieces until its matching end, skipping any template nested in `${}`.
+    const start = k;
+    const pieces = [];
+    let first = null;
+    let cut = false;
+    let depth = 0;
+    for (k++; k < toks.length; k++) {
+      const t = toks[k];
+      if (t.t === 'tplstart') depth++;
+      else if (t.t === 'tplend') { if (depth-- === 0) break; }
+      else if (depth > 0) continue;
+      else if (t.t === 'chunk') { pieces.push(t.v); if (!cut) first = (first ?? '') + t.v; }
+      else if (t.t === 'code' && t.v === '${') cut = true;
+    }
+    out.push({ text: first ?? '', prefix: cut, pieces });
+    k = start; // the outer loop then walks the inside, so a string or template nested in `${}` is read too
+  }
+  return out;
 }
 
 /**
  * Does a reference name `file`: the file, a directory holding it, or, for a prefix, any path that
- * starts with it. A one-segment reference (`'e2e'`, a template cut to `src`) names nothing: it is
- * a word, not evidence of a read.
+ * starts with it (a directory prefix keeps its `/`, so `svg/` is not `svg-shows/`). A one-segment
+ * reference (`'e2e'`, a template cut to `src`) names nothing: it is a word, not evidence of a read.
  */
 function refNames(ref, file) {
-  if (!ref.path.includes('/')) return false;
+  if (!ref.path.replace(/\/$/, '').includes('/')) return false;
   return ref.prefix ? file.startsWith(ref.path) : file === ref.path || file.startsWith(`${ref.path}/`);
 }
 
@@ -692,10 +721,12 @@ function refNames(ref, file) {
  */
 export function readersOf(file, index) {
   const page = /^([\w-]+)\.html$/.exec(file)?.[1];
-  const route = page && page !== 'index' ? new RegExp(String.raw`/${page}(?:[?#*'"\x60]|\.html${PATH_ROUTE_PAGES.includes(page) ? '|/' : ''})`) : null;
+  const route = page && page !== 'index'
+    ? new RegExp(String.raw`^(?:[a-z][\w+.-]*://[^/]*)?/${page}(?:[?#*]|\.html|$${PATH_ROUTE_PAGES.includes(page) ? '|/' : ''})`, 'i')
+    : null;
   const direct = [];
   for (const [from, list] of index.refs) {
-    if (list.some((ref) => refNames(ref, file)) || (route && route.test(index.code.get(from) ?? ''))) direct.push(from);
+    if (list.some((ref) => refNames(ref, file)) || (route && (index.texts.get(from) ?? []).some((piece) => route.test(piece)))) direct.push(from);
   }
   const seen = new Set(direct);
   const queue = [...direct];
@@ -896,10 +927,12 @@ export function planFor(
     if (copy) {
       copyOnly.push(file);
       for (const s of specsNaming(copy, specTexts)) specs.add(s);
-      for (const c of coverage) {
-        const kept = baselined.includes(c.spec) || (copy.grew && measuring.includes(c.spec));
-        if (kept && c.test(file)) specs.add(c.spec);
-      }
+      const kept = (spec) => baselined.includes(spec) || (copy.grew && measuring.includes(spec));
+      for (const c of coverage) if (kept(c.spec) && c.test(file)) specs.add(c.spec);
+      // Its readers are coverage too, and keep it on the same terms: a reader with screenshot
+      // baselines, or one that measures when the wording grew.
+      for (const s of read?.specs ?? []) if (kept(s) && (!onDisk || onDisk.has(s))) specs.add(s);
+      if (read?.catalog) catalog = true;
       continue;
     }
     const helper = helpers?.get(file);

@@ -2096,6 +2096,14 @@ test('ci05: readerIndex reads literal paths, routes and imports, and nothing it 
     ].join('\n')],
     ['e2e/catalog/d.spec.ts', "readFileSync(new URL('../fixtures/one.svg', import.meta.url));"],
     ['e2e/j.spec.ts', "await page.goto('/join/studio');"],
+    ['e2e/k.spec.ts', [
+      "await page.setContent(`<p>it's\nmulti-line</p>`);",
+      "const quote = /it's/;",
+      "readFileSync(join(import.meta.dirname, 'fixtures/kept.svg'));",
+      "readdirSync('e2e/fixtures/svg/');",
+      "await request.get('/api/output?x=1');",
+      "await page.goto(`${origin}/output#live`);",
+    ].join('\n')],
   ]);
   const index = readerIndex(sources);
   const of = (file) => readersOf(file, index);
@@ -2103,10 +2111,16 @@ test('ci05: readerIndex reads literal paths, routes and imports, and nothing it 
   assert.deepEqual(of('e2e/fixtures/shows/intro.svg').specs, ['a.spec.ts'], 'a template names a prefix');
   assert.deepEqual(of('e2e/fixtures/zips/riverlight.zip').specs, ['a.spec.ts', 'b.spec.ts'], 'through the helper that reads it');
   assert.deepEqual(of('scripts/fixtures/feed.json').specs, ['c.spec.ts']);
-  assert.deepEqual(of('output.html').specs, ['a.spec.ts'], '/output-like is another route');
+  assert.deepEqual(of('output.html').specs, ['a.spec.ts', 'k.spec.ts'], '/output-like and /api/output are other routes');
   assert.deepEqual(of('docs.html').specs, [], '/docs/<page> is not docs.html');
   assert.deepEqual(of('join.html').specs, ['j.spec.ts'], 'a PATH_PAGES route keeps its segment');
   assert.deepEqual(of('e2e/fixtures/other.svg').specs, [], 'a path built at run time is not seen, and a word is not a path');
+  // A multi-line template and an apostrophe in a regex do not throw the literal scan out of step.
+  assert.deepEqual(of('e2e/fixtures/kept.svg').specs, ['k.spec.ts'], 'a literal without ./ resolves from its module too');
+  assert.deepEqual(of('e2e/fixtures/svg/a.svg').specs, ['k.spec.ts']);
+  assert.deepEqual(of('e2e/fixtures/svg-shows/a.svg').specs, [], 'a directory literal keeps its slash');
+  assert.ok(!readersOf('output.html', readerIndex(new Map([['e2e/x.spec.ts', "request.get('/api/output?x=1')"]]))).specs.length, '/api/output is not /output');
+  assert.ok(of('output.html').specs.includes('k.spec.ts'), 'a route after a template host');
 });
 
 test('ci05: the path pages the planner extends match vite.config.ts', () => {
@@ -2175,6 +2189,10 @@ test('ci05: a short regex locator selects its spec for the wording it matches', 
   assert.deepEqual(specsNaming({ kind: 'text', terms: ['Save graphic', 'Store graphic'] }, specs), ['save.spec.ts']);
   assert.deepEqual(specsNaming({ kind: 'text', terms: ['OK'] }, specs), ['ok.spec.ts']);
   assert.deepEqual(specsNaming({ kind: 'text', terms: ['Close'] }, specs), []);
+  // A copy-only edit to a page keeps the readers that carry screenshot baselines, as it keeps such
+  // covering specs; readers that only open the page are not re-run for wording alone.
+  const page = planFor(['output.html'], { copyEdits: new Map([['output.html', { kind: 'text', terms: ['Waiting for cues'] }]]), specTexts: new Map(), baselined: ['output-ready.spec.ts'] });
+  assert.deepEqual(page.specs, ['output-ready.spec.ts']);
   // And through the planner: a copy-only edit plans the spec whose regex reads the old wording.
   const file = 'src/components/SaveBar.tsx';
   const plan = planFor([file], { copyEdits: new Map([[file, { kind: 'text', terms: ['Save graphic', 'Store graphic'] }]]), specTexts: specs, readers: null });

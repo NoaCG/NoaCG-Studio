@@ -61,6 +61,18 @@ export function missingSpecs(expected, files) {
   return expected.filter((name) => !seen.some((f) => f.endsWith(`/${name}`)));
 }
 
+/**
+ * The spec file a test was loaded from: its file suite's location, not the test's own, which is
+ * wherever `test()` was called (a helper that declares tests for its importers).
+ */
+function specFileOf(test) {
+  let suite = test.parent;
+  // `type` is a method on newer reporter APIs and a property on older ones.
+  const typeOf = (x) => (typeof x.type === 'function' ? x.type() : x.type);
+  while (suite && typeOf(suite) !== 'file') suite = suite.parent;
+  return suite?.location?.file ?? test.location?.file ?? '';
+}
+
 /** Free bytes on the volume holding `dir`, or null when it cannot be read. */
 function freeBytes(dir, statfs) {
   try {
@@ -123,7 +135,7 @@ export default class RunIntegrity {
     if (!this.active || result.status !== 'passed') return undefined;
     const tests = this.suite ? this.suite.allTests() : [];
     const problems = runProblems({
-      missing: missingSpecs(this.expected, tests.map((test) => test.location?.file ?? '')),
+      missing: missingSpecs(this.expected, tests.map(specFileOf)),
       planned: tests.length,
       unreported: tests.filter((test) => test.results.length === 0).length,
       enospc: this.enospc,

@@ -931,6 +931,11 @@ export function specsNaming(edit, specTexts) {
   return hits;
 }
 
+const NOT_WORDING_ARG = /\.(?:toHaveClass|toHaveCSS|toHaveId|toHaveURL|waitForURL|route|unroute)\(\s*(?:['"][^'"]*['"]\s*,\s*)?$/;
+
+/** Each spec text's compiled regexes, so a change with many copy edits scans each spec once. */
+const regexCache = new Map();
+
 /**
  * A spec's regex literals that read wording, compiled: those with a literal run of two letters or
  * more outside escapes and character classes (`/save/i`, `/^OK$/`), not `/\s+/g`, `/\d+/` or
@@ -943,9 +948,9 @@ export function specsNaming(edit, specTexts) {
  * @param {string} text
  * @returns {RegExp[]}
  */
-const NOT_WORDING_ARG = /\.(?:toHaveClass|toHaveCSS|toHaveId|toHaveURL|waitForURL|route|unroute)\(\s*(?:['"][^'"]*['"]\s*,\s*)?$/;
-
 export function specRegexes(text) {
+  const cached = regexCache.get(text);
+  if (cached) return cached;
   const out = [];
   for (const m of text.matchAll(/[(,:=[!&|?]\s*\/((?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+)\/([a-z]*)/g)) {
     // A class, CSS value, id or URL is not wording: `toHaveClass(/on/)` reads no copy.
@@ -958,6 +963,7 @@ export function specRegexes(text) {
       // Not a regex after all (a division the pattern above misread); the phrase path still reads it.
     }
   }
+  regexCache.set(text, out);
   return out;
 }
 
