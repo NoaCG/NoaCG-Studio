@@ -42,18 +42,21 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci05 builder: PR opened and first gates",
-    "eta": "2026-10-31T18:30:00Z"
+    "what": "ci05 merge queue (41227594711), then landed record and checker",
+    "eta": "2026-10-31T18:45:00Z"
   },
   "inFlight": [
     {
       "phase": "ci05",
-      "step": "build",
+      "step": "queued",
       "session": "session_017SdbwMVW7egupuYwsg7axa",
       "nonce": "ci05-b-e56d",
       "branch": "claude/plan-cicd-improvement-ci05-build",
       "launchedAt": "2026-10-31T16:51:47Z",
-      "note": "Builder running (17:45Z check-in): /check review stage, applying review simplifications; no PR yet."
+      "pr": 1866,
+      "reviewedHead": "ab8218aa992744fed9554884fc4bee53aca0e371",
+      "repairOwnerComment": 6547172372,
+      "note": "Receipt 18:02Z; gates verified at source; stamp 41227524328; queued 18:04:11Z (merge group 41227594711, behind #1864)."
     }
   ],
   "owner": [],
@@ -161,7 +164,8 @@
     1856,
     1859,
     1862,
-    1863
+    1863,
+    1868
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files"
