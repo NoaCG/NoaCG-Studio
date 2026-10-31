@@ -548,13 +548,13 @@ export function catalogReachOf(specs, read) {
 let catalogReachCache;
 export function checkoutCatalogReach() {
   if (catalogReachCache !== undefined) return catalogReachCache;
-  let specs = [];
+  let specs;
   try {
     specs = readdirSync(join(REPO_ROOT, 'e2e', 'catalog'), { recursive: true })
       .map((rel) => `e2e/catalog/${String(rel).replaceAll('\\', '/')}`)
       .filter((f) => f.endsWith('.spec.ts'));
   } catch {
-    specs = [];
+    specs = []; // no catalog directory: the reach is unknown, and catalogReachOf says so
   }
   catalogReachCache = catalogReachOf(specs, readCheckout);
   return catalogReachCache;
