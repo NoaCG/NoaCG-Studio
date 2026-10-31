@@ -217,12 +217,12 @@ test('same-branch pending supersession: follow the same commit, recover once, or
     assert.equal(reconcile(intent(), h.deps).state, 'recover');
     const { cli, lines } = h;
     h.gh.clock += 1000;
-    assert.equal(cli(['reconcile', first.record, '--recover']), 0);
+    assert.equal(cli(['reconcile', first.record, '--recover']), 3, 'recovered: the new run is still running');
     const recovered = lines.at(-1);
     assert.equal(recovered.recoveredFrom.state, 'recover');
     assert.equal(recovered.state, 'running');
     assert.equal(JSON.parse(readFileSync(first.record, 'utf8')).recoveredBy, recovered.record);
-    assert.equal(cli(['reconcile', first.record, '--recover']), 0, 'the old record now follows its replacement');
+    assert.equal(cli(['reconcile', first.record, '--recover']), 3, 'the old record now follows its replacement, still running');
     assert.equal(lines.at(-1).state, 'superseded');
     assert.equal(lines.at(-1).by.id, recovered.run.id);
     Object.assign(h.gh.runs.find((r) => r.id === recovered.run.id), { status: 'completed', conclusion: 'cancelled' });
@@ -277,12 +277,13 @@ test('a superseded record carries its replacement\'s verdict and exit code', () 
   assert.equal(exitCode(settled({ status: 'completed', conclusion: 'success' })), 0);
   const running = settled({ status: 'in_progress', conclusion: null });
   assert.equal(running.conclusion, undefined);
-  assert.equal(exitCode(running), 0);
+  assert.equal(exitCode(running), 3);
 });
 
-test('exit codes: 0 running or passing, 1 refused or failing, 2 no verdict yet', () => {
-  assert.equal(exitCode({ state: 'running' }), 0);
-  assert.equal(exitCode({ state: 'superseded' }), 0);
+test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {
+  assert.equal(exitCode({ state: 'running' }), 3);
+  assert.equal(exitCode({ state: 'superseded' }), 3);
+  assert.equal(exitCode({ state: 'superseded', conclusion: 'success' }), 0);
   assert.equal(exitCode({ state: 'verdict', conclusion: 'success' }), 0);
   assert.equal(exitCode({ state: 'verdict', conclusion: 'failure' }), 1);
   assert.equal(exitCode({ state: 'mismatch' }), 1);

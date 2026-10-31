@@ -30,10 +30,10 @@
 //     obsolete here: a verdict a checker still needs for it goes through the exact-SHA check
 //     branch (check.tmpl).
 //
-// Output: one JSON line. Exit 0: running, or a passing verdict (its own, or a superseding run's on
-// the same commit). Exit 1: a refusal (refused, mismatch, ambiguous, unresolved) or a failing
-// verdict, including a superseding run's. Exit 2: no verdict yet and
-// something to do (absent, not-delivered, recover, obsolete, cancelled).
+// Output: one JSON line. The exit code is the verdict: 0 only for a finished, passing run on the
+// requested commit (its own, or a superseding run's). 1: a refusal (refused, mismatch, ambiguous,
+// unresolved) or a failing verdict. 2: no verdict and something to do (absent, not-delivered,
+// recover, obsolete, cancelled). 3: still running, so wait and reconcile again.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -211,9 +211,11 @@ export function saver(dir) {
 }
 
 export function exitCode(result) {
+  if (REFUSALS.includes(result.state)) return 1;
+  if (ACTION.includes(result.state)) return 2;
   const finished = result.state === 'verdict' || (result.state === 'superseded' && result.conclusion !== undefined);
-  if (REFUSALS.includes(result.state) || (finished && result.conclusion !== 'success')) return 1;
-  return ACTION.includes(result.state) ? 2 : 0;
+  if (!finished) return 3; // Still running: pending evidence is never a pass.
+  return result.conclusion === 'success' ? 0 : 1;
 }
 
 export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, print = console.log } = {}) {

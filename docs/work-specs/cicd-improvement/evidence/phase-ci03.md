@@ -67,8 +67,10 @@ what needs the verdict, and it is a lost verdict when the older commit is still 
     record), or `obsolete` (the head moved; a
     verdict a checker still requires for that commit uses the existing exact-SHA check branch in
     `check.tmpl`). A `superseded` answer carries the replacement's conclusion once it finishes.
-    Exit 0 for running or a passing verdict; 1 for a refusal or a failing verdict, the
-    replacement's included; 2 when there is no verdict yet and something to do.
+    Exit 0 only for a finished, passing run on the requested commit; 1 for a refusal or a
+    failing verdict, the replacement's included; 2 when there is no verdict and something to
+    do; 3 while the run or its replacement is still running. No script reads the exit code
+    today; workers follow known-traps.
 
 Not changed: `ci.yml` (ordinary PR cancellation and the merge-group group), the exact-SHA
 recovery path, the push trigger, per-landing full backend validation, the observation-only
@@ -125,6 +127,7 @@ ambiguity. These are fixtures.
 | Round | Finding | Family | Class | Fix |
 | --- | --- | --- | --- | --- |
 | Codex on `1deedf58` (comment 4431729773) | reconciling a cancelled run whose same-commit replacement failed answered `superseded`, exit 0, so the failure hid behind the cancel | a superseded verdict must carry its replacement's outcome | product defect | `superseded` carries the replacement's conclusion and exit code; failing test first |
+| Coordinator on `9dced3da` | a still-running run or replacement exited 0, which a reader could take as validated | pending evidence is never a pass | product defect | exit 0 only for a finished pass; 3 while running |
 
 ## 7. Phase notes
 
