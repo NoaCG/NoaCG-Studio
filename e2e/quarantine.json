@@ -6,11 +6,6 @@
       "since": "2026-10-28",
       "count": 16,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40763025050"
-    },
-    "e2e/editor-transform-qualification.spec.ts": {
-      "since": "2026-10-30",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41027970852"
     }
   },
   "released": {
@@ -125,6 +120,10 @@
     "e2e/editor-pen.spec.ts": {
       "count": 1,
       "last": "2026-10-10"
+    },
+    "e2e/editor-transform-qualification.spec.ts": {
+      "count": 1,
+      "last": "2026-10-31"
     },
     "e2e/exports.spec.ts": {
       "count": 1,
