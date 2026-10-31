@@ -134,7 +134,7 @@ set runs for the suite's
 shared ground (`CONFIGURED_FULL` in `scripts/e2e-lists.mjs` and the toolchain scripts read off
 imports: helpers, `playwright.live.config.ts`, `supabase/`, the workflows and shared actions,
 dependency manifests, the dev server's plugins, the planner and verdict), for backend-facing
-source (`api/`, `src/backend/`) that no configured header names or that imports `src/backend/`
+source (`api/`, `src/backend/`) that no configured header names or that reaches `src/backend/`
 outside every declared closure, and for any change the offline plan escalates. A
 quarantined spec leaves the selection unless the change edits it. ci.yml's `configured` jobs run
 the selection on a local stack (`.github/actions/configured-stack`, shared with

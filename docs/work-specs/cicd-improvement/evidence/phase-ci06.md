@@ -41,7 +41,7 @@ stays open: its three-plan cohort is ci14.
    - the **whole set** for backend-facing source no configured header names
      (`CONFIGURED_BACKEND`: `api/` and `src/backend/`, tests excluded), such as a shared server
      module (`api/_lib/http.ts`, `auth.ts`) or a new route, whatever its import closure says, and
-     for a module no declared closure holds that imports `src/backend/` (backend-only code the
+     for a module no declared closure holds that reaches `src/backend/` through its imports (backend-only code the
      offline gate never runs, such as `AccountSaveNotice.tsx`). Added after review (section 10);
    - the **whole set** for every file the offline plan escalates (CORE, unmapped, broad, a stale
      traced map, `ESCALATES_WITH_HEADERS`). The spec's "uncertain dependencies" are the planner's
@@ -99,8 +99,9 @@ applied:
   stopped at every React component).
 - M2. A declared closure that reaches an unresolvable import is unknown: every source change
   selects that spec.
-- M3. Backend-facing source no header names, and a module outside every closure that imports
-  `src/backend/`, select the whole set.
+- M3. Backend-facing source no header names, and a module outside every closure that reaches
+  `src/backend/` through its imports, select the whole set. An `import.meta.glob` or a template
+  `import()` makes its module unknown, like an unresolvable import.
 - M4. Shared ground (now including the dev server's startup modules), every offline escalation, an
   edited configured spec, root helpers and files a configured spec reads keep their rules.
 - M5. A file in no declared closure and none of the classes above selects nothing. That boundary
@@ -130,7 +131,8 @@ failure), shared ground off (2), an edited spec not selected (2), the manifest c
 extra-test check off (1), an empty flag read as 'false' in the gate (1), the merge-group check off
 (1), the configured header refusal off (1), the quarantine split off (1), the backend-facing rule off (1),
 the import closure off (1), the dev server modules off (1), the backend-importer rule off (1), the
-unresolved-import rule off (1), unresolved imports not recorded (1).
+unresolved-import rule off (1), unresolved imports not recorded (1), directories left in the graph
+(1), the backend reach direct-only (1), a glob import not marked unknown (1).
 
 ## 5. Real Actions runs
 
@@ -157,9 +159,10 @@ Selection share, replaying the first-parent landings in this clone through the c
 with sprint focus and the committed traced map. Before the review rounds: 56 landings (`302d565b`
 to `11523106`), 31 select nothing, 3 a subset, 22 the whole set. With the final model (backend
 rule, import closures, dev server modules), over the 57 landings to `874c589b` (JEV #1870
-included): **31 nothing, 3 a subset (about 3 test-minutes each, one stack, about 6 runner-minutes),
-23 the whole set**. The new rules moved no landing in this window: the ones that touched closure
-or backend source already escalated. A future change confined to, say, `src/control/` now selects
+included): **30 nothing, 4 a subset (three of about 3 test-minutes on one stack, about 6
+runner-minutes each; one of 12.1 test-minutes on two stacks, about 17), 23 the whole set**. The
+new rules moved one landing from nothing to a subset; the others that touched closure or backend
+source already escalated. A future change confined to, say, `src/control/` now selects
 most hosted specs (about 50) where it selected a handful. The whole-set
 reasons: an offline escalation (src/components broad files 6, unmapped 9, src/model 3,
 src/preview 2, others 4), dependency manifests (6 and 5), workflows (3), the planner's scripts
@@ -283,6 +286,12 @@ From the next phase on, the coordinator:
   `joinName.ts`, `realtimeControl.ts` select nothing though declared files import them. Same
   family as the first, so the rule model was reassessed (section 3) before the fix; the fix and
   its corrections are tested with five mutations. Class: product defect in the selector.
+  The review leg on that commit found 9 more: fixed a directory standing in for its index file in
+  the graph, backend reach checked only one import deep, glob and template imports not marked
+  unknown, the injected dev-server set ignored, a shadowed variable, per-file recomputation of the
+  unknown specs and duplicate importer edges; skipped, with reasons: a deleted module outside every
+  closure (its importers change with it and are planned), and sharing the src/ read with the
+  `?raw` index (a refactor of unchanged code).
 - On `6131c179` the PR run's Build failed one timing test out of this diff's reach
   (`scripts/ograf-foreign.test.mjs`, 3.35x against a 3x bound; main's control 2.0x): #1873. Its
   selected configured verdict caught a flake (`production-data-key-tick.spec.ts` failed then passed

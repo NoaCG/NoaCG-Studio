@@ -83,8 +83,16 @@ test('ci06: the import walk follows every import kind and fails toward running m
   const far = configuredByImports('src/far.ts', graph, coverage);
   assert.deepEqual(far.specs, ['lost.spec.ts']);
   assert.equal(far.outside, true);
-  // This checkout's graph resolves every relative import (a new hole would select specs widely, loudly).
-  assert.deepEqual([...checkoutSourceGraph().unresolved], []);
+  // An import the literal walk cannot follow (a glob, a template import()) leaves its module unknown.
+  for (const text of ["const m = import.meta.glob('./w/*.tsx');", 'const m = await import(`./l/${x}.ts`);']) {
+    assert.deepEqual([...sourceGraph(new Map([['src/g.ts', text]])).unresolved], ['src/g.ts'], text);
+  }
+  // This checkout's graph resolves every relative import (a new hole would select specs widely, loudly),
+  // and holds files only: a directory in it would stand in for its index file.
+  const graph2 = checkoutSourceGraph();
+  assert.deepEqual([...graph2.unresolved], []);
+  assert.ok(graph2.importers.has('src/ai/index.ts'), "`./ai` resolves to src/ai/index.ts, not to the directory");
+  assert.ok(!graph2.importers.has('src/ai'));
 });
 
 test('ci06: the dev server plugins and a backend-importing module outside every closure select the whole set', () => {
@@ -93,6 +101,8 @@ test('ci06: the dev server plugins and a backend-importing module outside every 
   }
   const p = plan(['src/components/AccountSaveNotice.tsx']);
   assert.equal(p.configuredAll, true, 'imports src/backend/ and no declared closure holds it');
+  // Through another module too: src/bridge/bridgeApi.ts reaches src/backend/ only transitively.
+  assert.equal(plan(['src/bridge/bridgeApi.ts']).configuredAll, true);
 });
 
 test('ci06: helpers, live config, setup, workflows and the toolchain select the whole configured set', () => {

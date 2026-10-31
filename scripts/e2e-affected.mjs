@@ -30,7 +30,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cloudPlanAdmission, executionProfile } from './execution-profile.mjs';
 import { jobsDir, readJobs } from './jobs-store.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIGURED_BACKEND, CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, FOCUS } from './e2e-lists.mjs';
 import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
@@ -860,15 +860,19 @@ export function sourceGraph(sources, files = new Set(sources.keys())) {
   const unresolved = new Set();
   const has = (f) => (files.has(f) ? f : null);
   for (const [file, text] of sources) {
-    const out = [];
+    // Imports a literal walk cannot follow (a glob, a template import()) leave the module unknown.
+    if (/import\.meta\.glob\s*\(|\bimport\s*\(\s*`[^`]*\$\{/.test(withoutLineComments(text))) unresolved.add(file);
+    const out = new Set();
     for (const spec of importSpecifiers(text)) {
       const target = resolveModule(joinPath(dirOf(file), spec.replace(/\?.*$/, '')), has);
-      if (!target) { unresolved.add(file); continue; }
-      if (target === file) continue;
-      out.push(target);
-      importers.set(target, [...(importers.get(target) ?? []), file]);
+      if (!target) unresolved.add(file);
+      else if (target !== file) out.add(target);
     }
-    imports.set(file, out);
+    for (const target of out) {
+      if (!importers.has(target)) importers.set(target, []);
+      importers.get(target).push(file);
+    }
+    imports.set(file, [...out]);
   }
   return { importers, imports, unresolved };
 }
@@ -880,8 +884,10 @@ export function checkoutSourceGraph() {
   const sources = new Map();
   const files = new Set();
   for (const dir of ['src', 'api']) {
-    for (const rel of readdirSync(join(REPO_ROOT, dir), { recursive: true })) {
-      const file = `${dir}/${String(rel).replaceAll('\\', '/')}`;
+    // Files only: a directory in the set would resolve `./templates/x` to the directory, not its index.
+    for (const entry of readdirSync(join(REPO_ROOT, dir), { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const file = `${relative(REPO_ROOT, join(entry.parentPath ?? entry.path, entry.name)).replaceAll('\\', '/')}`;
       files.add(file);
       if (/\.(m?[jt]sx?|css)$/.test(file)) sources.set(file, readCheckout(file) ?? '');
     }
@@ -903,15 +909,31 @@ export function checkoutSourceGraph() {
  * @param {{ spec: string, test: (f: string) => boolean }[]} coverage the configured specs' covers
  * @returns {{ specs: string[], outside: boolean }}
  */
+const unknownSpecs = new WeakMap();
 export function configuredByImports(file, graph, coverage) {
   const up = importedBy(graph.importers, [file]);
   const specs = new Set(coverage.filter((c) => up.some((f) => c.test(f))).map((c) => c.spec));
   const outside = specs.size === 0;
-  for (const u of graph.unresolved) {
-    const behind = importedBy(graph.importers, [u]);
-    for (const c of coverage) if (behind.some((f) => c.test(f))) specs.add(c.spec);
+  // The specs whose closure is unknown, once per graph: they do not depend on the changed file.
+  if (!unknownSpecs.has(graph)) {
+    const behind = importedBy(graph.importers, [...graph.unresolved]);
+    unknownSpecs.set(graph, coverage.filter((c) => behind.some((f) => c.test(f))).map((c) => c.spec));
   }
+  for (const s of unknownSpecs.get(graph)) specs.add(s);
   return { specs: [...specs].sort(), outside };
+}
+
+/** Whether `file` reaches src/backend/ through its imports, directly or through others. */
+export function reachesBackend(file, graph) {
+  const seen = new Set([file]);
+  const queue = [file];
+  while (queue.length) {
+    for (const next of graph.imports.get(queue.pop()) ?? []) {
+      if (/^src\/backend\//.test(next)) return true;
+      if (!seen.has(next)) { seen.add(next); queue.push(next); }
+    }
+  }
+  return false;
 }
 
 /**
@@ -1046,13 +1068,13 @@ export function planFor(
     if (/^(src|api)\//.test(file)) {
       if (appGraph === undefined) appGraph = checkoutSourceGraph();
       if (appGraph) {
-        const reach = configuredByImports(file, appGraph, configuredCoverage);
-        configuredNamed = [...new Set([...configuredNamed, ...reach.specs])];
-        if (reach.outside && (appGraph.imports.get(file) ?? []).some((f) => /^src\/backend\//.test(f))) backendOutside = true;
+        const imported = configuredByImports(file, appGraph, configuredCoverage);
+        configuredNamed = [...new Set([...configuredNamed, ...imported.specs])];
+        if (imported.outside && reachesBackend(file, appGraph)) backendOutside = true;
       }
     }
     if (configuredSpec) selectConfigured(file, [configuredSpec]);
-    else if (configuredShared(file) || backendOutside) configuredWhole.add(file);
+    else if (configuredShared(file, undefined, devServer) || backendOutside) configuredWhole.add(file);
     selectConfigured(file, configuredNamed);
     // The catalog reach is asked before IGNORE for the same reason: a script a catalog spec imports
     // (scripts/rules.mjs) is ignored for the offline suite and is still something the gate runs.
