@@ -191,6 +191,8 @@ From the next phase on, the coordinator:
 ## 9. Phase notes
 
 - Previous verified main: `11523106a407cb856e619e0d4ddbbfa3785d5739` (ci05 merge).
+  The branch took in `main` at `874c589b` (JEV #1870, by agreed order) and keeps its road-list
+  entry in `scripts/e2e-affected.test.mjs`.
 - Revert: `git revert -m 1 <this PR's merge commit>`. That restores the routine worker dispatch in
   known-traps and the templates together with the workflows, so the two cannot disagree.
 - Decisions: offline escalation selects the whole configured set (the cost of section 6 is that
