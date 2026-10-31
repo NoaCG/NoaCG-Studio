@@ -251,13 +251,19 @@ export function collect({ days = 7, budget = 450, now = new Date().toISOString()
   const keys = Object.keys(strata);
   const left = Math.max(0, budget - reader.calls);
   const k = Math.max(2, Math.floor(left / Math.max(1, keys.length)));
-  // Post-landing CI runs get a double share: they are the slowdown series.
-  for (const key of keys) {
+  // Round-robin, so a budget that runs out leaves every stratum sampled rather than the last few
+  // empty. Post-landing CI runs get a double share: they are the slowdown series.
+  const plan = keys.map((key) => {
     const list = strata[key].sort((a, b) => a.created.localeCompare(b.created));
     const want = key === 'ci.yml|push' || key === 'configured-suite.yml|push' ? 2 * k : k;
-    for (const i of spread(list.length, want)) {
-      const jobs = readJobs(reader, list[i]);
-      if (jobs) list[i].jobs = jobs; else if (!reader.exhausted) list[i].failed = true;
+    return { list, picks: spread(list.length, want) };
+  });
+  for (let round = 0; plan.some((p) => p.picks.length > round); round++) {
+    for (const { list, picks } of plan) {
+      if (round >= picks.length) continue;
+      const run = list[picks[round]];
+      const jobs = readJobs(reader, run);
+      if (jobs) run.jobs = jobs; else if (!reader.exhausted) run.failed = true;
     }
   }
   const clocks = readClocks(clocksFile, now);
