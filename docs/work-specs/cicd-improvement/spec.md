@@ -1,6 +1,7 @@
 # Faster delivery with credible site and graphics protection
 
-Status: intent agreed; awaiting owner start command and live Codex Cloud qualification.
+Status: intent agreed; live since 2026-10-31 in Claude Code Cloud under the owner's dated
+provider override in [launch.md](launch.md) (run issue #1842). Providers are not switched again automatically.
 The owner's [launch policy](launch.md) records until-complete authority, daily block renewal
 and permission to start before remaining production-page studio acceptance. No CI implementation
 starts in the runner-preparation chat. This is the master plan integrating the
@@ -44,8 +45,9 @@ are each insufficient to call a feature complete.
   after selection qualification. Critical offline flows and affected graphics contracts are the pre-merge target;
   shared rendering, export and playout changes still receive broad checks before merge.
 - Retain independent reviewers and acceptance. Opus returned AGREE WITH CORRECTIONS on the spec
-  and again on the full run. Revised intent is agreed; actual launch still needs the owner
-  command and a qualified native Codex Cloud continuation route.
+  and again on the full run. Revised intent is agreed. The run launched on 2026-10-31 in Claude
+  Code Cloud under the owner's provider override recorded in launch.md, replacing the earlier
+  Codex Cloud requirement.
 - Owner decision, 2026-10-29: an independently proven pre-existing, unrelated test failure may
   coexist with phase PASS only with attribution evidence and a tracking issue. Required merge
   gates still apply. Failures in checks, selection or shared infrastructure changed by the phase

@@ -3,8 +3,9 @@
 Revised 2026-10-30 after [Opus corrections](evidence/opus-growth-reconciliation.md), retaining
 the prior full-run opinion and PR #1816 reconciliation.
 Registered name: `cicd-improvement` in [plan-run](../../../.agent-workflows/plan-run.md).
-The [owner launch policy](launch.md) is agreed; actual implementation awaits the owner command
-and cloud qualification. This is not a live supervisor project. The [spec](spec.md) owns intent and numbered phase order.
+The [owner launch policy](launch.md) is agreed. The run is live since 2026-10-31 in Claude Code
+Cloud under the owner's dated provider override in launch.md (run issue #1842); providers are
+not switched again automatically. The [spec](spec.md) owns intent and numbered phase order.
 The phase array below fixes exact acceptance and environments without inventing authorization.
 
 ## Launch admission
