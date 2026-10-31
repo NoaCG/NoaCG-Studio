@@ -62,6 +62,13 @@ and the exact base and head SHAs. It picks its own probes.
 
 - Dispatch it on your own branch: `configured-suite.yml` keeps one pending run per branch, so your
   dispatch no longer cancels another branch's. Never cancel a run you did not start.
+- Dispatch with `node scripts/candidate-dispatch.mjs dispatch --ref <your-branch>` from your
+  worktree at the reviewed head, not a bare `gh workflow run`. It refuses a branch that is not at
+  that commit, records the request first and prints the run ID GitHub gave it. Put that run ID in
+  your receipt. Before believing a run, or when an acknowledgement was lost, run
+  `node scripts/candidate-dispatch.mjs reconcile <record>`: `mismatch` and `ambiguous` are never
+  your verdict; `superseded` names the run on the same commit that is; `recover` means yours was
+  cancelled while pending and your head is unchanged, so add `--recover` (once).
 - It is four shards and takes about 12 minutes. Wait for it in a background job, so a cloud machine
   is not reclaimed; if your container restarts, start that wait again.
 
