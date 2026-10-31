@@ -42,18 +42,21 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci04 builder: PR opened and first gates",
-    "eta": "2026-10-31T16:30:00Z"
+    "what": "ci04 merge queue (41218288085), then landed record and checker",
+    "eta": "2026-10-31T16:50:00Z"
   },
   "inFlight": [
     {
       "phase": "ci04",
-      "step": "build",
+      "step": "queued",
       "session": "session_017SdbwMZT1TksMVJDqp5Po7",
       "nonce": "ci04-b-b14f",
       "branch": "claude/plan-cicd-improvement-ci04-build",
       "launchedAt": "2026-10-31T15:25:46Z",
-      "note": "Builder launched from 99c461b8. Overlap watch: bot PR #1840 (scripts/e2e-traced.json)."
+      "pr": 1861,
+      "reviewedHead": "75fdeec0ffffe730953c0d5be4c676a408ea52f5",
+      "repairOwnerComment": 6545874735,
+      "note": "Receipt 16:06Z; gates verified; stamp 41218210741; queued 16:09:04Z behind JEV #1860 (merge group 41218288085)."
     }
   ],
   "owner": [],
@@ -144,7 +147,9 @@
     1847,
     1849,
     1856,
-    1859
+    1859,
+    1862,
+    1863
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files"
@@ -155,6 +160,12 @@
       "phase": "ci03",
       "decision": "narrow candidate-dispatch: no verdict adoption from other runs; recovery = fresh claimed dispatch",
       "reason": "four successive review holes in adoption logic; adoption not required by acceptance"
+    },
+    {
+      "at": "2026-10-31T16:08Z",
+      "phase": "ci04",
+      "decision": "Graphics-tier overrun from ci04's catalog gate (projected +15 to +18 runner-min per landing vs frozen ceiling 10) goes through the spec's explicit exception route (spec.md:323): scoped to ci04's added catalog runs, owned by the coordinator, expires 2026-11-30, repaid via #1862, independently reviewed by the ci04 checker; ci18 carries it into refusal machinery. Ceilings unchanged.",
+      "record": "https://github.com/NoaCG/NoaCG-Studio/issues/1863#issuecomment-6545849957"
     }
   ]
 }
