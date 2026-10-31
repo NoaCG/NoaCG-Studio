@@ -43,7 +43,7 @@
   },
   "waitingOn": {
     "what": "ci05 builder: PR opened and first gates",
-    "eta": "2026-10-31T17:50:00Z"
+    "eta": "2026-10-31T18:30:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci05-b-e56d",
       "branch": "claude/plan-cicd-improvement-ci05-build",
       "launchedAt": "2026-10-31T16:51:47Z",
-      "note": "Builder launched from b666f302. Overlap watch: bot PRs #1840, #1834, #1503."
+      "note": "Builder running (17:45Z check-in): /check review stage, applying review simplifications; no PR yet."
     }
   ],
   "owner": [],
