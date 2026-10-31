@@ -28,21 +28,27 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 4 builder gates on PR #1860 head 9bda06bd",
-    "eta": "2026-10-31T16:05:00Z"
+    "what": "phase 4 builder: final /so verdict into PR #1860 description, then coordinator enables auto-merge",
+    "eta": "2026-10-31T16:25:00Z"
   },
   "inFlight": [
     {
       "phase": "4",
-      "step": "build",
+      "step": "build (stamped)",
       "session": "session_017SdbwQXMLVdn1z11xNz6hD",
       "nonce": "4-b-e211",
       "branch": "claude/plan-jev-svg-import-4-build",
       "source": "99c461b8ed30c2a03dfc87a002573263473a2425",
       "launchedAt": "2026-10-31T15:07:47Z",
-      "note": "builder running gates (CI 41215541360, configured-suite 41215556131); coordinator subscribed to #1860",
+      "note": "stamped; auto-merge held until the builder adds the final /so verdict to the PR description (asked 16:08Z)",
       "pr": 1860,
-      "head": "9bda06bdcf5e544993ee7103140a1cfbd921326f"
+      "head": "9bda06bdcf5e544993ee7103140a1cfbd921326f",
+      "reviewedHead": "cbbbc8f7ecb8cbee434586af88b52771de99c92c",
+      "configuredRun": 41216832401,
+      "ciRun": 41216834134,
+      "soSession": "session_017SdbwMzqUQNbCYzKJwtKii",
+      "soGrade": "A",
+      "stampRun": 41218124028
     }
   ],
   "owner": [],
