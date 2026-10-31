@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-31T00:09:12.934705+00:00",
+  "updatedAt": "2026-10-31T07:36:53.660802+00:00",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -69,7 +69,7 @@
     },
     "sharedCause": "GHSA-mrhx-c7xc-m3w5; pinned/direct Zod3/4 copies remain. No forced incompatible major update was made.",
     "additionalLimit": "Monaco0.56.0 vendors DOMPurify3.4.8; the npm override does not update it. An isolated public-package audit yields8 conditional advisories. The inspected wrapper never enables the required setConfig/clearConfig,CUSTOM_ELEMENT_HANDLING,IN_PLACE,SAFE_FOR_TEMPLATES orXHTML-parser conditions; scoped verdicts are not_actionable for this wrapper, not a claim that the entire library is safe. Latest Monaco0.57.0 still declares3.4.15 and is not a complete version-only remedy.",
-    "companionAudit": "Corepack native Yarn command remains blocked by repo.yarnpkg.com policy. Independent public npm bulk-advisory check parsed trackedYarn4 lock with175publicpackages and returned{}. This qualifies advisory metadata coverage only; no Companion build or source change.",
+    "companionAudit": "Newly qualified: official @yarnpkg/cli-dist 4.12.0 downloaded through allowed npm registry with integrity verified; explicit inherited proxy, TLS and supported Node22.20 used. Immutable install, lint, all5tests and package PASS on #1841 candidate; native audit now reports minimatch3.1.5 exact-claim false positive plus pre-existing ESLint9 deprecation. Corepack host remains denied; no policy bypass or change.",
     "candidateAudits": {
       "root": {
         "info": 0,
@@ -286,7 +286,7 @@
       "execSessionRecovery": "After reattachment, oldunifiedexecsession handles were unavailable while ownedVitePIDs still existed. Reconciled by exactprocessarguments andstopped thoseownedservers; no duplicatework launched. Does not proveVMreclamation/filesystem restoration."
     }
   },
-  "resume": "All 11 implementation/delivery PRs are merged and terminal, including published CLI 0.12.4 and Bridge 0.10.1. No repair owner or wake remains armed. Read AGENTS/procedures and this checkpoint. The exposed test agent key was revoked and verified HTTP 401; provision a replacement through the approved secret store before dependent tests. Resolve test-account password exposure with a secure secret-store writer. Obtain the two new moderate alert records. Handle Dependabot #56 / issue #1752 through a compatible SDK validator backport or supported migration; do not force broken Zod types. Jev remains assessment-only: 40 phases, $5 ceiling and 14 days unchanged; qualify durable wake/recovery and native worker mapping before a separately authorized start.",
+  "resume": "Current active repair is PR #1841, security/minimatch-2026-10-31 at 0be00bff71149764a1e04ab635c38d9b1eb95c5e in /workspace/security-minimatch. Read its current head/checks/owner receipt before acting; one repair owner. Preserve all tests and land only through queue-merge. Observe exact merge and post-landing results, then finish checkpoint/cleanup. Owner supplied minimatch alerts84/83; gap now metadata-resolved. Test agent key already revoked and HTTP401 verified; user will replace the approved managed secret. Sandbox/Zod#56 remains blocked by supported SDK contracts (issue1752). No Jev run; wake/recovery qualification and40phases/$5/14days unchanged.",
   "qualificationReceipts": {
     "preparationPR": 1825,
     "sealedSecretProbe": 41125379127,
@@ -358,7 +358,7 @@
     1837,
     1838
   ],
-  "status": "terminal for all authorized code repairs and distribution delivery; blocked follow-ups recorded; no continuing monitor",
+  "status": "Prior 11 PRs are terminal. Minimatch follow-up #1841 is active; remain through merge and post-landing results.",
   "landedPRs": [
     1452,
     1589,
@@ -630,7 +630,16 @@
     "bridgeArtifact": "https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.10.1; actualWindowsbuild/prove step passed;94,167,040-byte exe andSHA256sidecar present",
     "terminalOwnerComment": 6536086591
   },
-  "activeRepairOwners": [],
+  "activeRepairOwners": [
+    {
+      "pr": 1841,
+      "branch": "security/minimatch-2026-10-31",
+      "head": "0be00bff71149764a1e04ab635c38d9b1eb95c5e",
+      "owner": "current Codex coordinator",
+      "mode": "active session; no unattended wake claimed",
+      "repairAttempts": 0
+    }
+  ],
   "wakeArmed": false,
   "defaultBranchDependabotBannerHistory": [
     {
@@ -647,14 +656,18 @@
     }
   ],
   "inventoryCoverageGap": {
-    "count": 2,
-    "severity": "moderate",
-    "source": "Newest GitHubgitpushbanner",
-    "alertNumbers": "unknown",
-    "advisories": "unknown",
-    "manifests": "unknown",
-    "status": "Await ownerexport of the two actual records; no invented finding entries/verdicts/dismissals.",
-    "independentChecks": "All five npm lockfiles refreshed: root2affectedpackageentries foroneZodGHSA,otherszero. CompanionYarnlock publicadvisorybulkcheck175unique publicpackages returnszero; skipped workspaceandTypeScriptpatchwrapper, baseTypeScriptversionaudited."
+    "unknownRecords": 0,
+    "status": "Owner supplied the two new moderate records; both independently matched the public advisory. Live GitHub security alert state remains unreadable to the integration.",
+    "alertNumbers": [
+      84,
+      83
+    ],
+    "advisory": "GHSA-g3hv-75wg-m249",
+    "manifests": [
+      "package-lock.json",
+      "companion-module/yarn.lock"
+    ],
+    "source": "Owner export supplied in current session; public advisory HTTP 200 independently verified."
   },
   "exposureAssessment": {
     "confirmedProduction": [
@@ -683,7 +696,8 @@
     "1641": "Draft optional SpeedInsights; notmerged",
     "1642": "Draft optional Analytics; notmerged",
     "1503": "Timing-table update needs separate measurement/budget review; notmerged",
-    "1834": "Bot corpusquarantine proposal: wholefailedlogshows geometricfit-history assertion, notactive-content failure; notmerged bythisowner"
+    "1834": "Bot corpusquarantine proposal: wholefailedlogshows geometricfit-history assertion, notactive-content failure; notmerged bythisowner",
+    "1840": "Bot traced E2E spec-map refresh; unrelated to security dependency repair; not taken over."
   },
   "cleanup": {
     "removedFinishedWorktrees": [
@@ -710,7 +724,7 @@
     "ownedDevServers": "Three owned Viteprocesses reconciled by exactPID/arguments and stopped. Oldunifiedexecsession handles were unavailable after reattachment; processidentity was checked before stopping."
   },
   "finalNetworkRecheck": "After final environment starting->ready, Git origin/main and repositoryActions API preflight PASS again. Prior oauth2.googleapis.com routed through enforcedproxy withHTTP404; policy/credentials unchanged.",
-  "finalFollowup": "Current GitHub banner: 3 vulnerabilities (1 high, 2 moderate). Alert list/detail APIs remain inaccessible to the integration; no unchanged retries. Known high #56 is blocked by SDK contracts; two new moderate records are unreadable and unmatched by refreshed public advisory checks. The test agent key is revoked and verified unusable. Account password rotation and replacement-key distribution need a secure managed-secret writer. No Jev run started.",
+  "finalFollowup": "Superseded by minimatchFollowup: remaining moderate alert identities are known (84/83), PR1841 active. Test key revocation verified; user will replace secret. No Jev run started.",
   "credentialRemediation": {
     "authorization": "User authorized scoped credential handling in the current session.",
     "agentKey": {
@@ -720,7 +734,8 @@
       "deleteHttpStatus": 200,
       "afterHttpStatus": 401,
       "valuesRecorded": false,
-      "replacementRequiredForFutureCredentialDependentTests": true
+      "replacementRequiredForFutureCredentialDependentTests": true,
+      "replacementOwner": "User confirmed: revoke now; user will replace the test secret. Key was already revoked and verified; do not repeat revocation."
     },
     "testAccountPasswords": {
       "status": "blocked_on_secure_secret_store_writer",
@@ -729,5 +744,13 @@
       "action": "No password changed: a supported secure replacement and propagation path is required first to avoid losing access or breaking consumers. Do not place replacement secrets in repository artifacts, logs, arbitrary product env variables, or chat."
     },
     "privateEvidence": "Local private remediation receipt records statuses only; no credential values in repository."
+  },
+  "minimatchFollowup": {
+    "report": "minimatch-followup.json",
+    "pr": 1841,
+    "head": "0be00bff71149764a1e04ab635c38d9b1eb95c5e",
+    "status": "in_progress",
+    "repairOwner": "Current Codex coordinator remains active through merge and exact-merge/post-landing results.",
+    "ownerComment": 6540664598
   }
 }

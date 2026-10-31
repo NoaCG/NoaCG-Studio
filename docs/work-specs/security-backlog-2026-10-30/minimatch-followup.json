@@ -1,0 +1,190 @@
+{
+  "updatedAt": "2026-10-31T07:36:53.660802+00:00",
+  "repositoryRevision": "9f575a235899c3f3e12e5fc8b515aa88994cccc8",
+  "candidateRevision": "0be00bff71149764a1e04ab635c38d9b1eb95c5e",
+  "pr": "https://github.com/NoaCG/NoaCG-Studio/pull/1841",
+  "status": "merge_and_post_landing_pending",
+  "triage": {
+    "schema_version": "triage-finding/v0",
+    "repository": {
+      "path": "NoaCG/NoaCG-Studio",
+      "revision": "9f575a235899c3f3e12e5fc8b515aa88994cccc8"
+    },
+    "findings": [
+      {
+        "triage_item_id": "dependabot-84",
+        "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/dependabot/84",
+        "source_type": "advisory",
+        "title": "minimatch globparts amplification",
+        "normalized_input": {
+          "vulnerable_component": "minimatch 10.2.5",
+          "claimed_source": "Attacker-controlled glob patterns",
+          "claimed_sink": "firstPhasePreProcess generates globParts then quadratic secondPhasePreProcess",
+          "claimed_control": "Preprocessing amplification is not bounded",
+          "affected_version_or_path": "package-lock.json",
+          "preconditions": [
+            "Caller enables optimizationLevel >= 2",
+            "A lower-trust actor controls glob patterns supplied to development tooling"
+          ],
+          "impact": "CPU/memory exhaustion in development tool process",
+          "references": [
+            "GHSA-g3hv-75wg-m249",
+            "CVE-2026-118764",
+            "Owner-supplied open-alert metadata; independently fetched public advisory"
+          ]
+        },
+        "verdict": "needs_review",
+        "confidence": "medium",
+        "affected_locations": [
+          {
+            "label": "dependency lock",
+            "path": "package-lock.json",
+            "detail": "Development/transitive minimatch 10.2.5"
+          }
+        ],
+        "reachable_path": [
+          "ESLint10/config-array/typescript-estree -> minimatch10 named API",
+          "Current consumers default to optimizationLevel1; no hosted lower-trust pattern route established"
+        ],
+        "boundary_assessment": {
+          "product_surface": "development tooling",
+          "source_trust": "trusted_developer_config",
+          "boundary_crossed": null,
+          "policy_basis": "Root SECURITY.md supported hosted/import/export surfaces, scanner-only claims require demonstrated impact; manifests and source show development-only lint/cleanup dependencies."
+        },
+        "exploitability_stack_rank": {
+          "rank_queue": "needs_review",
+          "rank": 1,
+          "rationale": "Vulnerable component installed, but material lower-trust reachability/optimization precondition not established",
+          "drivers": [
+            "Development-only surface",
+            "No hosted application import",
+            "Optimization level prerequisite"
+          ]
+        },
+        "evidence": [
+          "Version10 preprocessing has unbounded generated-entry loop; root three parents use constructor.match or named minimatch without removed makeRe/set internals."
+        ],
+        "counterevidence": [
+          "No production dependency or browser/API import identified."
+        ],
+        "proof_gaps": [
+          "No supported lower-trust source enabling optimizationLevel2 established for root lint callers."
+        ],
+        "recommended_next_step": "Compatible dependency repair in PR1841, followed by exact-merge verification.",
+        "fix_finding_handoff": null
+      },
+      {
+        "triage_item_id": "dependabot-83",
+        "input_id": "https://github.com/NoaCG/NoaCG-Studio/security/dependabot/83",
+        "source_type": "advisory",
+        "title": "minimatch globparts amplification",
+        "normalized_input": {
+          "vulnerable_component": "minimatch 3.1.5",
+          "claimed_source": "Attacker-controlled glob patterns",
+          "claimed_sink": "firstPhasePreProcess generates globParts then quadratic secondPhasePreProcess",
+          "claimed_control": "Preprocessing amplification is not bounded",
+          "affected_version_or_path": "companion-module/yarn.lock",
+          "preconditions": [
+            "Caller enables optimizationLevel >= 2",
+            "A lower-trust actor controls glob patterns supplied to development tooling"
+          ],
+          "impact": "CPU/memory exhaustion in development tool process",
+          "references": [
+            "GHSA-g3hv-75wg-m249",
+            "CVE-2026-118764",
+            "Owner-supplied open-alert metadata; independently fetched public advisory"
+          ]
+        },
+        "verdict": "not_actionable",
+        "confidence": "high",
+        "affected_locations": [
+          {
+            "label": "dependency lock",
+            "path": "companion-module/yarn.lock",
+            "detail": "Development/transitive minimatch 3.1.5"
+          }
+        ],
+        "reachable_path": [
+          "Companion ESLint9/config-array/eslintrc -> callable minimatch3; direct brace parse, no optimization preprocessing"
+        ],
+        "boundary_assessment": {
+          "product_surface": "development tooling",
+          "source_trust": "trusted_developer_config",
+          "boundary_crossed": false,
+          "policy_basis": "Root SECURITY.md supported hosted/import/export surfaces, scanner-only claims require demonstrated impact; manifests and source show development-only lint/cleanup dependencies."
+        },
+        "exploitability_stack_rank": {
+          "rank_queue": null,
+          "rank": null,
+          "rationale": "Specific vulnerable implementation absent",
+          "drivers": []
+        },
+        "evidence": [
+          "Version3.1.5 has no firstPhasePreProcess, secondPhasePreProcess or optimizationLevel implementation; callable API required by unchanged ESLint9 callers."
+        ],
+        "counterevidence": [
+          "Broad advisory range <11.0.1 includes3.1.5 despite absent mechanism."
+        ],
+        "proof_gaps": [],
+        "recommended_next_step": "Retain exact-claim false-positive evidence; no source suppression or administrative dismissal.",
+        "fix_finding_handoff": null
+      }
+    ]
+  },
+  "implementation": {
+    "root": "Scoped minimatch11.0.2 overrides under eslint/config-array/typescript-estree only.",
+    "companion": "Scoped typescript-estree/minimatch11.0.2 and rimraf/glob14.0.3 resolutions; preserve minimatch3 for callable consumers.",
+    "bundledBoundary": "Glob13 bundles older minimatch and checks RegExp internal nodes; raw minimatch replacement is incomplete and incompatible. Glob14 updated both bundles and internal consumer.",
+    "productionExposure": "Development lint and cleanup only. No hosted minimatch/glob import found.",
+    "policy": "Node24 root, Node22.20 Companion; three-day dependency age gate and script-disable policy unchanged."
+  },
+  "verification": {
+    "contractNode24": {
+      "oldBundledGlobPatterns": 256,
+      "newBundledGlobPatterns": 64,
+      "baselineAmplifiedPatterns": 256,
+      "alternateOldPatterns": 6,
+      "alternateNewPatterns": 4,
+      "comparisons": 800,
+      "globCases": 40,
+      "rimrafCases": 2,
+      "boundedAttackPatterns": 64,
+      "v3AttackPatterns": 1,
+      "v11makeRe": "undefined",
+      "v10magicType": "RegExp",
+      "v11magicType": "Matcher",
+      "fixture": "/tmp/minimatch-fixture-z5fotd"
+    },
+    "contractNode22": {
+      "oldBundledGlobPatterns": 256,
+      "newBundledGlobPatterns": 64,
+      "baselineAmplifiedPatterns": 256,
+      "alternateOldPatterns": 6,
+      "alternateNewPatterns": 4,
+      "comparisons": 800,
+      "globCases": 40,
+      "rimrafCases": 2,
+      "boundedAttackPatterns": 64,
+      "v3AttackPatterns": 1,
+      "v11makeRe": "undefined",
+      "v10magicType": "RegExp",
+      "v11magicType": "Matcher",
+      "fixture": "/tmp/minimatch-fixture-Kr7tMF"
+    },
+    "companion": "lint,5tests,build/package,immutable Yarn4.12 install PASS on Node22.20",
+    "root": "Full lint,API types,5affected checks/37tests PASS",
+    "independentReview": "Fresh boundary investigator plus fresh four-file candidate reviewer; no concrete bypass/regression; source scope confirmed.",
+    "localBuild": "j-0034 failed exit2 before npm output; no repeated build on unchanged source; full Actions build required.",
+    "audit": "Root reports only known Sandbox/Zod high2package entries for1GHSA; Companion reports minimatch3.1.5 broad-range claim and pre-existing ESLint9 deprecation."
+  },
+  "administrativeDismissals": false,
+  "sourceSuppressions": false,
+  "ci": {
+    "headRun": 41181084576,
+    "queueHelper": 41181112890,
+    "queueHelperConclusion": "success",
+    "reviewedJob": 124478442253,
+    "reviewedConclusion": "success"
+  }
+}
