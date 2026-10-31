@@ -37,8 +37,9 @@
       "branch": "claude/plan-jev-svg-import-6-build",
       "source": "11523106a407cb856e619e0d4ddbbfa3785d5739",
       "launchedAt": "2026-10-31T18:44:47Z",
-      "note": "builder running (commit 19:05Z; session worker_epoch 2, so its container restarted once and it continued); no PR yet",
-      "head": "fd2a08d6cb3cc688a7bb25042e1550537afc13fa"
+      "note": "builder asked 19:38Z to touch scripts/e2e-affected.test.mjs (outside TOUCHES): one road entry for the authorized new spec; coordinator reconciled 19:39Z (exact set kept, departure in PR); cicd coordinator informed. Builder rerunning gates.",
+      "head": "fd2a08d6cb3cc688a7bb25042e1550537afc13fa",
+      "pr": 1870
     }
   ],
   "owner": [],
@@ -114,7 +115,8 @@
     "Builders run the final /so as a separate create_session, not a subagent (phase 2, 12:49Z). Add that line to every build brief launch.",
     "Phase 2 configured-suite on 7f0a00ba: attempt 1 shard 3 failed at Start the local Supabase stack before tests (aggregate 96 passed, 0 failed, 0 flaky); attempt 2 green. Infra, not a fail-then-pass.",
     "Phase 3 checker receipt named a nonexistent session id; recorded the actual sender session_017SdbwNmSrW7hcHFgiAZpAj. Briefs now ask for the exact get_session id.",
-    "Before enabling auto-merge, confirm the final /so verdict is in the PR body (phase 4 builder edit had silently failed)."
+    "Before enabling auto-merge, confirm the final /so verdict is in the PR body (phase 4 builder edit had silently failed).",
+    "Row 6: approved a one-entry addition to scripts/e2e-affected.test.mjs road list (new authorized spec joins the import road; exact-set assertion unchanged); cicd coordinator informed 19:39Z."
   ],
   "ownerOpen": [
     {
