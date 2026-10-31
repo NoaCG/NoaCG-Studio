@@ -66,3 +66,4 @@ jobs:
           print('PASS: evaluation Gateway key authenticated via GET /v1/credits; no inference')
 
 # push-permission probe 2026-10-31T08:02:05Z, never merged
+# worker push probe jevq-7f3c19
