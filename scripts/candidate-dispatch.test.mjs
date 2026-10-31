@@ -6,7 +6,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { attribute, dispatch, main, reconcile, saver, SETTLE_MS, settle } from './candidate-dispatch.mjs';
+import { attribute, dispatch, exitCode, main, reconcile, saver, SETTLE_MS, settle } from './candidate-dispatch.mjs';
 
 const workflowText = readFileSync(new URL('../.github/workflows/configured-suite.yml', import.meta.url), 'utf8');
 const REPO = 'NoaCG/fixture', WF = 'configured-suite.yml';
@@ -71,6 +71,9 @@ function github({ heads, returnsId = true } = {}) {
       const rows = state.runs.filter((r) => r.event === q.get('event') && r.head_branch === q.get('branch')
         && Date.parse(r.created_at) >= after).sort((a, b) => b.id - a.id);
       return ok({ total_count: rows.length, workflow_runs: rows });
+    }
+    if (method === 'GET' && (m = /\/actions\/runs\/(\d+)\/jobs\?/.exec(endpoint))) {
+      return ok({ total_count: state.runs.find((x) => x.id === Number(m[1]))?.jobsStarted ?? 0, jobs: [] });
     }
     if (method === 'GET' && (m = /\/actions\/runs\/(\d+)$/.exec(endpoint))) {
       const r = state.runs.find((x) => x.id === Number(m[1]));
@@ -173,10 +176,14 @@ test('a lost acknowledgement reconciles from the recorded intent', () => {
   const h = harness({ 'claude/one': sha('1') });
   try {
     h.gh.failPost = 'lost';
-    const sent = h.send('claude/one');
-    assert.equal(h.records()[0].delivery, 'uncertain');
+    const seen = [];
+    const save = h.deps.save;
+    const sent = dispatch({ repository: REPO, workflow: WF, ref: 'claude/one', sha: sha('1') },
+      { ...h.deps, save: (intent, file) => { seen.push(intent.delivery); return save(intent, file); } });
+    assert.deepEqual(seen, ['requested', 'uncertain', 'accepted']);
     assert.equal(sent.state, 'running');
     assert.equal(sent.run.head_sha, sha('1'));
+    assert.equal(h.records()[0].runId, sent.run.id);
   } finally { h.done(); }
 });
 
@@ -227,6 +234,50 @@ test('same-branch pending supersession: follow the same commit, recover once, or
     assert.equal(moved.state, 'obsolete');
     assert.match(moved.reason, /exact-SHA check branch/);
   } finally { h.done(); }
+});
+
+test('a run found without a returned ID is kept, so a later run on the ref cannot make it ambiguous', () => {
+  const h = harness({ 'claude/one': sha('1') }, { returnsId: false });
+  try {
+    const first = h.send('claude/one');
+    assert.equal(first.state, 'running');
+    assert.equal(JSON.parse(readFileSync(first.record, 'utf8')).runId, first.run.id);
+    Object.assign(h.gh.runs.find((r) => r.id === first.run.id), { status: 'completed', conclusion: 'cancelled' });
+    h.gh.clock += 1000;
+    const lines = [];
+    main(['reconcile', first.record, '--recover'], { api: h.gh.api, now: () => h.gh.clock, observe: () => {}, print: (l) => lines.push(JSON.parse(l)) });
+    assert.equal(lines.at(-1).state, 'running');
+    main(['reconcile', first.record], { api: h.gh.api, now: () => h.gh.clock, print: (l) => lines.push(JSON.parse(l)) });
+    assert.equal(lines.at(-1).state, 'superseded');
+  } finally { h.done(); }
+});
+
+test('a same-second replacement is found by run ID; a run cancelled after it started is never auto-recovered', () => {
+  const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
+  const at = '2026-10-31T12:00:00Z';
+  const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: at };
+  const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
+  const twin = { ...base, id: 11, status: 'queued', conclusion: null };
+  assert.equal(settle(intent, cancelled, { runs: [twin, cancelled] }, sha('1')).by.id, 11);
+  assert.equal(settle(intent, { ...twin, id: 9 }, { runs: [cancelled] }, sha('1')).state, 'running');
+  const byHand = settle(intent, cancelled, { runs: [cancelled], started: true }, sha('1'));
+  assert.equal(byHand.state, 'cancelled');
+  assert.equal(exitCode(byHand), 2);
+  assert.equal(settle(intent, cancelled, { runs: [cancelled] }, sha('1')).state, 'recover');
+});
+
+test('exit codes: 0 running or passing, 1 refused or failing, 2 no verdict yet', () => {
+  assert.equal(exitCode({ state: 'running' }), 0);
+  assert.equal(exitCode({ state: 'superseded' }), 0);
+  assert.equal(exitCode({ state: 'verdict', conclusion: 'success' }), 0);
+  assert.equal(exitCode({ state: 'verdict', conclusion: 'failure' }), 1);
+  assert.equal(exitCode({ state: 'mismatch' }), 1);
+  assert.equal(exitCode({ state: 'absent' }), 2);
+  assert.equal(exitCode({ state: 'not-delivered' }), 2);
+  assert.equal(dispatch({ repository: undefined, ref: 'claude/one', sha: sha('1') }, { api: () => ({ ok: false }) }).state, 'refused');
+  const lines = [];
+  assert.equal(main(['reconcile', '/nonexistent/record.json'], { api: () => ({ ok: false }), print: (l) => lines.push(JSON.parse(l)) }), 1);
+  assert.equal(lines[0].state, 'unresolved');
 });
 
 test('the CLI refuses unknown commands with exit 1', () => {

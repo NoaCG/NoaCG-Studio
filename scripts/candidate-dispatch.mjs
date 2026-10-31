@@ -23,13 +23,16 @@
 //     NEW dispatch run on that ref is; two new runs are ambiguous and refused, a run on another
 //     commit is a mismatch and refused. An absent run stays uncertain until the listing is
 //     complete and SETTLE_MS has passed.
-//   - A run cancelled while pending is followed to the newer run on the SAME commit when there is
-//     one; when the commit is still the branch head and nothing replaced it, `--recover` dispatches
-//     it again, once per record. A moved head makes the old commit obsolete here: a verdict a
-//     checker still needs for it goes through the exact-SHA check branch (check.tmpl).
+//   - A cancelled run is followed to the newer run on the SAME commit when there is one. A run
+//     cancelled while pending, with its commit still the branch head and nothing replacing it,
+//     is `recover`: `--recover` dispatches it again, once per record. A run someone cancelled
+//     after it started is never recovered automatically. A moved head makes the old commit
+//     obsolete here: a verdict a checker still needs for it goes through the exact-SHA check
+//     branch (check.tmpl).
 //
-// Output: one JSON line. Exit 1 on a refusal (refused, mismatch, ambiguous, unresolved), else 0;
-// `state` says what to do next.
+// Output: one JSON line. Exit 0: running, superseded, or a passing verdict. Exit 1: a refusal
+// (refused, mismatch, ambiguous, unresolved) or a failing verdict. Exit 2: no verdict yet and
+// something to do (absent, not-delivered, recover, obsolete, cancelled).
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -38,11 +41,14 @@ import { observeVerification } from './verification-dispatch.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
 const REF = /^(?!-)(?!refs\/)[\w./-]+$/;
+const REPOSITORY = /^[\w.-]+\/[\w.-]+$/;
 // GitHub creates a dispatch run within seconds; past this a complete listing without it is final.
 export const SETTLE_MS = 5 * 60_000;
 // Clock skew allowed between this machine and GitHub's created_at.
 const SKEW_MS = 60_000;
 export const REFUSALS = ['refused', 'mismatch', 'ambiguous', 'unresolved'];
+// No verdict for the requested commit yet, and something to do about it.
+export const ACTION = ['absent', 'not-delivered', 'recover', 'obsolete', 'cancelled'];
 
 /** `gh api` adapter: { ok, status, json, error }. A 4xx is a definite answer; anything else is not. */
 export function ghApi(method, endpoint, body) {
@@ -96,16 +102,19 @@ export function attribute(intent, { runs, complete }, now) {
 }
 
 /** What the attributed run's outcome means for this commit's verdict. Pure. */
-export function settle(intent, run, { runs }, branchHead) {
+export function settle(intent, run, { runs = [], started = false }, branchHead) {
   if (run.status !== 'completed') return { state: 'running', run };
   if (run.conclusion !== 'cancelled') return { state: 'verdict', run, conclusion: run.conclusion };
-  const replacement = runs.filter((other) => ownRun(intent, other) && other.id !== run.id && other.head_sha === intent.sha
-      && Date.parse(other.created_at) > Date.parse(run.created_at) && other.conclusion !== 'cancelled')
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+  // Run IDs grow with creation; created_at has one-second resolution.
+  const replacement = runs.filter((other) => ownRun(intent, other) && other.id > run.id && other.head_sha === intent.sha
+      && other.conclusion !== 'cancelled').sort((a, b) => b.id - a.id)[0];
   if (replacement) return { state: 'superseded', run, by: summary(replacement),
     reason: `run ${run.id} was cancelled; run ${replacement.id} on the same commit carries its verdict` };
+  // The group never cancels a started run (cancel-in-progress: false): someone chose to.
+  if (started) return { state: 'cancelled', run,
+    reason: `run ${run.id} was cancelled after its jobs started, by a person or session, not by a newer dispatch; not recovered automatically` };
   if (branchHead === intent.sha) return { state: 'recover', run,
-    reason: `run ${run.id} was cancelled and ${intent.sha} is still the head of ${intent.ref}; dispatch it again` };
+    reason: `run ${run.id} was cancelled while pending and ${intent.sha} is still the head of ${intent.ref}; dispatch it again` };
   return { state: 'obsolete', run, reason: `run ${run.id} was cancelled and ${intent.ref} moved to ${branchHead ?? 'nothing'};`
     + ' a verdict still required for the old commit goes through the exact-SHA check branch' };
 }
@@ -117,24 +126,40 @@ function branchHead(api, { repository, ref }) {
   throw Error(`could not read the head of ${ref}`);
 }
 
-export function reconcile(intent, { api = ghApi, now = Date.now } = {}) {
+/** Re-read the run this intent names (finding it once if GitHub returned no ID) and settle it. */
+export function reconcile(intent, { api = ghApi, now = Date.now, save, record } = {}) {
   try {
-    const listing = listDispatchRuns(api, intent, since(intent));
     let attribution;
     if (intent.runId !== undefined) {
       const r = api('GET', `repos/${intent.repository}/actions/runs/${intent.runId}`);
+      if (!r.ok && r.status !== 404) throw Error(`could not read run ${intent.runId}`);
       attribution = attribute(intent, { runs: r.ok && r.json ? [r.json] : [], complete: true }, now());
-    } else attribution = attribute(intent, listing, now());
+    } else {
+      attribution = attribute(intent, listDispatchRuns(api, intent, since(intent)), now());
+      if (attribution.state === 'accepted' && save) {
+        // Found once, kept: a later run on the same ref must not make this record ambiguous.
+        Object.assign(intent, { runId: attribution.run.id, delivery: 'accepted' });
+        save(intent, record);
+      }
+    }
     if (attribution.state !== 'accepted') return attribution;
-    return settle(intent, attribution.run, listing, branchHead(api, intent));
+    const { run } = attribution;
+    if (run.status !== 'completed' || run.conclusion !== 'cancelled') return settle(intent, run, {}, null);
+    const jobs = api('GET', `repos/${intent.repository}/actions/runs/${run.id}/jobs?per_page=1`);
+    if (!jobs.ok || !Number.isSafeInteger(jobs.json?.total_count)) throw Error(`could not read the jobs of run ${run.id}`);
+    return settle(intent, run, { runs: listDispatchRuns(api, intent, since(intent)).runs, started: jobs.json.total_count > 0 },
+      branchHead(api, intent));
   } catch (error) { return { state: 'unresolved', reason: error.message }; }
 }
 
 export function dispatch({ repository, workflow = 'configured-suite.yml', ref, sha, supersedes }, {
   api = ghApi, observe = observeVerification, save, now = Date.now } = {}) {
-  if (!REF.test(ref ?? '') || !SHA.test(sha ?? '') || !/^[\w.-]+\.ya?ml$/.test(workflow)) {
-    return { state: 'refused', reason: 'usage: a branch name, a full 40-character commit and a workflow file name' };
+  if (!REPOSITORY.test(repository ?? '') || !REF.test(ref ?? '') || !SHA.test(sha ?? '') || !/^[\w.-]+\.ya?ml$/.test(workflow)) {
+    return { state: 'refused', reason: 'usage: a repository, a branch name, a full 40-character commit and a workflow file name' };
   }
+  // The advisory first: its reads must not widen the window between the head check and the dispatch.
+  try { observe({ workflow, ref, expectedRevision: sha, repository, purpose: 'candidate verification', print: (line) => console.error(line) }); }
+  catch { /* Observation is advisory and never gates the dispatch. */ }
   let head;
   try { head = branchHead(api, { repository, ref }); } catch (error) { return { state: 'refused', reason: error.message }; }
   if (head !== sha) return { state: 'refused', reason: `${ref} is at ${head ?? 'nothing'}, not the requested ${sha}; nothing dispatched` };
@@ -144,8 +169,6 @@ export function dispatch({ repository, workflow = 'configured-suite.yml', ref, s
   try { intent.priorRunIds = listDispatchRuns(api, intent, since(intent)).runs.map((run) => run.id); }
   catch (error) { return { state: 'refused', reason: `${error.message}; nothing dispatched` }; }
   const record = save(intent); // Before the dispatch: a lost acknowledgement reconciles from this.
-  try { observe({ workflow, ref, expectedRevision: sha, repository, purpose: 'candidate verification', print: (line) => console.error(line) }); }
-  catch { /* Observation is advisory and never gates the dispatch. */ }
   const sent = api('POST', `repos/${repository}/actions/workflows/${workflow}/dispatches`, { ref, return_run_details: true });
   if (sent.ok) {
     intent.delivery = 'accepted';
@@ -153,7 +176,7 @@ export function dispatch({ repository, workflow = 'configured-suite.yml', ref, s
   } else intent.delivery = sent.status >= 400 && sent.status < 500 ? 'refused' : 'uncertain';
   save(intent, record);
   if (intent.delivery === 'refused') return { record, state: 'refused', reason: `GitHub refused the dispatch: ${sent.error}` };
-  return { record, ...reconcile(intent, { api, now }) };
+  return { record, ...reconcile(intent, { api, now, save, record }) };
 }
 
 function recordDir() {
@@ -171,33 +194,40 @@ export function saver(dir) {
   };
 }
 
+export function exitCode(result) {
+  if (REFUSALS.includes(result.state) || (result.state === 'verdict' && result.conclusion !== 'success')) return 1;
+  return ACTION.includes(result.state) ? 2 : 0;
+}
+
 export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, print = console.log } = {}) {
   const flag = (name) => { const at = argv.indexOf(name); return at >= 0 ? argv[at + 1] : undefined; };
   const deps = { api, now, ...(observe ? { observe } : {}) };
   let result;
-  if (argv[0] === 'dispatch') {
-    const repository = flag('--repo') ?? api('GET', 'repos/{owner}/{repo}').json?.full_name;
-    const sha = flag('--sha') ?? spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim();
-    result = dispatch({ repository, workflow: flag('--workflow'), ref: flag('--ref'), sha },
-      { ...deps, save: saver(flag('--records') ?? recordDir()) });
-  } else if (argv[0] === 'reconcile' && argv[1]) {
-    const file = path.resolve(argv[1]);
-    const intent = JSON.parse(readFileSync(file, 'utf8'));
-    result = { record: file, ...reconcile(intent, deps) };
-    const due = ['recover', 'not-delivered'].includes(result.state);
-    if (due && argv.includes('--recover')) {
-      if (intent.recoveredBy) result = { ...result, state: 'refused', reason: `already recovered by ${intent.recoveredBy}; reconcile that record` };
-      else {
-        const next = dispatch({ ...intent, supersedes: file }, { ...deps, save: saver(path.dirname(file)) });
-        if (next.record) saver(path.dirname(file))({ ...intent, recoveredBy: next.record }, file);
-        result = { recoveredFrom: result, ...next };
+  try {
+    if (argv[0] === 'dispatch') {
+      const repository = flag('--repo') ?? api('GET', 'repos/{owner}/{repo}').json?.full_name;
+      const sha = flag('--sha') ?? spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim();
+      result = dispatch({ repository, workflow: flag('--workflow'), ref: flag('--ref'), sha },
+        { ...deps, save: saver(flag('--records') ?? recordDir()) });
+    } else if (argv[0] === 'reconcile' && argv[1]) {
+      const file = path.resolve(argv[1]);
+      const intent = JSON.parse(readFileSync(file, 'utf8'));
+      const save = saver(path.dirname(file));
+      result = { record: file, ...reconcile(intent, { ...deps, save, record: file }) };
+      if (['recover', 'not-delivered'].includes(result.state) && argv.includes('--recover')) {
+        if (intent.recoveredBy) result = { ...result, state: 'refused', reason: `already recovered by ${intent.recoveredBy}; reconcile that record` };
+        else {
+          const next = dispatch({ ...intent, supersedes: file }, { ...deps, save });
+          if (next.record) save({ ...intent, recoveredBy: next.record }, file);
+          result = { recoveredFrom: result, ...next };
+        }
       }
+    } else {
+      result = { state: 'refused', reason: 'usage: dispatch --ref <branch> [--sha <commit>] [--workflow <file>] | reconcile <record.json> [--recover]' };
     }
-  } else {
-    result = { state: 'refused', reason: 'usage: dispatch --ref <branch> [--sha <commit>] [--workflow <file>] | reconcile <record.json> [--recover]' };
-  }
+  } catch (error) { result = { state: 'unresolved', reason: error.message }; }
   print(JSON.stringify(result));
-  return REFUSALS.includes(result.state) ? 1 : 0;
+  return exitCode(result);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main();

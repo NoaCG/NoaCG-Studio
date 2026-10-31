@@ -67,8 +67,11 @@ and the exact base and head SHAs. It picks its own probes.
   that commit, records the request first and prints the run ID GitHub gave it. Put that run ID in
   your receipt. Before believing a run, or when an acknowledgement was lost, run
   `node scripts/candidate-dispatch.mjs reconcile <record>`: `mismatch` and `ambiguous` are never
-  your verdict; `superseded` names the run on the same commit that is; `recover` means yours was
-  cancelled while pending and your head is unchanged, so add `--recover` (once).
+  your verdict; `superseded` names the run on the same commit that is. `recover` (yours was
+  cancelled while pending, your head unchanged) and `not-delivered` (no run appeared) take
+  `--recover`, once. `absent` means reconcile again in a minute. `obsolete` means your head moved,
+  so dispatch the new head. `cancelled` means someone stopped your run after it started: find out
+  why before dispatching again.
 - It is four shards and takes about 12 minutes. Wait for it in a background job, so a cloud machine
   is not reclaimed; if your container restarts, start that wait again.
 

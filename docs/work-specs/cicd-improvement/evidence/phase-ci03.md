@@ -1,0 +1,142 @@
+# Phase ci03: candidate dispatches and source identity
+
+Row ci03 of the [cicd-improvement spec](../spec.md) (P1a; AC-6 scheduling). Prepared 2026-10-31
+by the ci03 builder (Claude Code Cloud worker of plan run #1842) from `main` at
+`1fcbb1f393c53f7bad5c39254469b6e065a8dd8b`. It verifies what PR #1816 landed and changes only the
+two gaps that remained. AC-6 as a whole stays open: its selected PR gate is ci06 and its cohort
+is ci14.
+
+## 1. What PR #1816 already does, verified
+
+`configured-suite.yml` at the source SHA:
+
+| Property | Verified by | Result |
+| --- | --- | --- |
+| A landing (push on `main`) gets a group per commit, so per-landing full backend validation keeps one verdict per landing | the concurrency expression; 27 push runs from 2026-10-29 13:49 to 2026-10-31 11:40, none cancelled | holds, unchanged |
+| A dispatch on a branch gets that branch's group | expression; 12 dispatch runs in the same window on six branches | holds, unchanged |
+| `cancel-in-progress: false` | workflow text | holds, unchanged |
+| Every job checks out `github.sha`, fixed when the dispatch event is created | the three `actions/checkout@v5` steps carry no `ref:` | holds; now pinned by a test |
+| Cross-branch cancellation stopped | dispatches before #1816 (2026-10-28 08:46 to 2026-10-29 13:49): 41, of which 28 cancelled. After: 12, of which 3 cancelled, all on their own branch | holds |
+
+The three cancellations after #1816, read from their jobs:
+
+| Run | Branch, commit | Jobs started | What cancelled it |
+| --- | --- | --- | --- |
+| 41195194922 | ci02 build, `1dc0a125` | 5 of 7 | not the group (it never cancels a started run): the branch owner, after pushing a newer head |
+| 41195809538 | ci02 build, `137644fe` | 5 of 7 | same |
+| 41197150230 | JEV build 2, `43a000d8` | none | the group: pending behind 41196943268, replaced 2 s after 41197443186 (`bec791a7`) was dispatched |
+
+So the one remaining scheduling hazard among branches is the one #1816 left on purpose: a pending
+run replaced by a newer dispatch on the same branch. It is not a fault while the newer head is
+what needs the verdict, and it is a lost verdict when the older commit is still required.
+
+## 2. The gaps that remained
+
+1. **Schedules and main dispatches shared a group** (`'shared'`). GitHub keeps one pending run
+   per group, so a pending cron run and a pending dispatch on `main` replaced each other. No main
+   dispatch happened in the last 100 runs; the collision is in the expression, and the spec
+   (D5) names it.
+2. **No request-to-run identity.** A worker dispatched with `gh workflow run ... --ref <branch>`,
+   which names a branch, not a commit, and found "its" run again by listing. Nothing refused a
+   run on a commit the branch had moved to, two overlapping dispatches on one branch, or a
+   replaced pending run; a coordinator compared `head_sha` by hand.
+
+## 3. The change
+
+- **Concurrency** (`configured-suite.yml`): the group is now
+  `push → github.sha`, `workflow_dispatch → github.ref` (main included), anything else (the cron)
+  `→ github.event_name`. The cron is alone; a main dispatch groups with main dispatches only; a
+  branch dispatch and a landing are unchanged.
+- **`scripts/candidate-dispatch.mjs`**, used by plan-run workers (known-traps "The configured
+  suite"):
+  - `dispatch --ref <branch> [--sha <commit>]` runs the existing observation advisory
+    (`verification-dispatch.mjs`, still gating nothing), then refuses unless the branch head is
+    that commit. It records the intent (repository, workflow, ref, commit, time, the dispatch
+    runs already on that ref) **before** dispatching, then dispatches once with
+    `return_run_details`.
+  - The run ID GitHub returns is the identity. Without one (older API, lost acknowledgement)
+    the one new dispatch run on that ref since the request is; two are `ambiguous`, a run on
+    another commit is `mismatch`, both refused (exit 1). No run is `absent` until a complete
+    listing five minutes on says `not-delivered`. A run found by listing is written into the
+    record, so a later run on the same ref cannot make it ambiguous.
+  - `reconcile <record> [--recover]` re-reads that identity and settles it: `running`,
+    `verdict` (with conclusion), `superseded` (cancelled; the named newer run on the same commit
+    carries the verdict, the newest by run ID), `cancelled` (stopped after its jobs started, so
+    by a person or session: never recovered automatically), `recover` (cancelled while pending,
+    nothing replaced it, the commit is still the head: `--recover` dispatches it again, once per
+    record), or `obsolete` (the head moved; a
+    verdict a checker still requires for that commit uses the existing exact-SHA check branch in
+    `check.tmpl`). Exit 0 for running, superseded or a passing verdict; 1 for a refusal or a
+    failing verdict; 2 when there is no verdict yet and something to do.
+
+Not changed: `ci.yml` (ordinary PR cancellation and the merge-group group), the exact-SHA
+recovery path, the push trigger, per-landing full backend validation, the observation-only
+lookup and its runbook mode, worker full-backend dispatch policy (ci06 owns its replacement).
+
+## 4. Acceptance
+
+| Criterion | Evidence | Result |
+| --- | --- | --- |
+| (a) Three unrelated intended candidates have attributable run IDs and matching `head_sha` verdicts | Live trial, section 5: three open PR heads dispatched within 12 s | see section 5 |
+| (a) Schedules isolated from main dispatches | `candidate-dispatch.test.mjs` evaluates the workflow's own group expression for landings, the cron, a main dispatch and three branches: all distinct, cron = `configured-suite-schedule` | pass |
+| (a) Required pending same-branch supersession has recovery | live: run 41200019293 replaced while pending by 41200054838; `reconcile` answered `superseded` by 41200054838 on the same commit. Fixture: `recover`, `--recover` once, refused the second time, `obsolete` after the head moved | pass |
+| (a) Preserve `github.sha` checkout | test: no checkout step pins `ref:` | pass |
+| (a) Refuse ambiguous or mismatched request-to-run evidence | fixtures: two new runs → `ambiguous`; ref moved between check and dispatch → `mismatch`; live: a stale `--sha` refused with nothing dispatched or recorded | pass |
+| (b) Reconcile uncertain dispatches by recorded intent, ref, requested commit and run identity | fixtures: intent written before the POST; lost acknowledgement reconciled to its run; absent stays uncertain until a complete settled listing; 422 recorded as refused | pass |
+| (b) Preserve per-landing full backend validation and observation-only lookup | push groups per commit (test); observation runs before the POST and its failure does not block (test); live advisory printed `UNRESOLVED` and the dispatch proceeded | pass |
+| (c) Reuse #1816's groups; verify same-branch replacement, schedule/main interaction, actual source identity; change only demonstrated gaps | sections 1 to 3 | pass |
+
+Mutation check: restoring the old `'shared'` expression fails the concurrency test; removing
+the commit comparison fails the mismatch test; removing the ambiguity refusal fails the
+ambiguity test.
+
+## 5. Live trial (bounded: five dispatches, four full runs)
+
+The dispatch API returned the run ID (`workflow_run_id`) every time, so the spec's "the dispatch
+call currently returns no run ID" no longer holds; listing is only the fallback.
+
+Three unrelated candidates, dispatched through the helper at 12:11:16 to 12:11:28 UTC. The two
+others are open bot PRs (#1840, #1834) where no one dispatches this suite; a dispatch off `main`
+writes no issue and no quarantine.
+
+| Candidate | Requested commit | Run (returned ID) | Run `head_sha` | Verdict |
+| --- | --- | --- | --- | --- |
+| this PR's branch | `7111a18e` | 41199979934 | `7111a18e` | TRIAL_A |
+| #1840 `bot/e2e-traced` | `3d03b88e` | 41199986962 | `3d03b88e` | TRIAL_B |
+| #1834 `quarantine/enter-2026-10-30-20ab0166` | `ddf504da` | 41199994555 | `ddf504da` | TRIAL_C |
+
+Same-branch replacement on this branch while 41199979934 ran: 41200019293 (pending) was
+cancelled when 41200054838 was dispatched on the same commit; `reconcile` on the first record
+said `superseded` by 41200054838, whose verdict is TRIAL_D. A dispatch with a stale `--sha`
+(`1fcbb1f3`) was refused: nothing dispatched, nothing recorded.
+
+Not exercised live: a schedule meeting a main dispatch (the new group takes effect only once
+landed; the cron starts hours late and cannot be timed), a lost acknowledgement, and a genuine
+ambiguity. These are fixtures.
+
+## 6. Phase notes
+
+- **Previous verified main:** `1fcbb1f393c53f7bad5c39254469b6e065a8dd8b` (#1852, ci02; its
+  exact-merge CI, configured-suite, post-landing and quarantine runs are green).
+- **Revert:** `git revert -m 1 <merge commit of this PR>`, landed through `/queue-merge`. It
+  restores the shared cron/main group, removes the helper, its test, the known-traps lines, the
+  runbook row and this file. Records the helper wrote stay in each worktree's git directory.
+- **Decisions:**
+  - Identity comes from the dispatch's returned run ID, not from a new workflow input. That
+    works on any branch whatever workflow file it carries, and needs no workflow change beyond
+    the group. A run-name or expected-commit input would only work after it reached each branch.
+  - A dispatch on `main` keeps one group with other main dispatches (serial, as before) and
+    leaves the cron's; nothing else about main changes.
+  - A cancelled run is followed to a newer run on the same commit before any recovery, so a
+    double dispatch never costs a third run. Recovery happens only on request (`--recover`) and
+    once per record: no automatic retry.
+  - Five minutes settles absence: GitHub creates a dispatch run within seconds, and absence is
+    believed only from a complete listing.
+- **Traps:**
+  - A cancelled run with started jobs was cancelled by a person or session, not by the group:
+    `cancel-in-progress: false` never cancels a started run. Read the jobs before blaming
+    supersession.
+  - `run_started_at` equals `created_at` even for a run waiting in its group; it does not show
+    when a run actually started.
+  - Build branches are deleted after landing, so a finished phase's branch cannot be used to
+    re-run its candidate; the exact-SHA check branch is the route.
