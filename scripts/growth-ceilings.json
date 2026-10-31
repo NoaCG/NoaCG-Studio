@@ -66,7 +66,7 @@
     "prRunsPerLanding": 2.84
   },
   "measurement": {
-    "source": "phase-ci01.md section 4.2 reference week, plus the reviewed ci04 projection for the catalog gate it added afterwards",
+    "source": "phase-ci01.md section 4.2 reference week; backend re-measured by ci18 before ci06 landed; graphics plus the reviewed ci04 projection",
     "windowStart": "2026-10-24",
     "windowEnd": "2026-10-30",
     "landings": 122,
@@ -77,10 +77,10 @@
         "evidence": "complete"
       },
       "backend": {
-        "perLanding": 94,
+        "perLanding": 107.4,
         "perDay": 62,
         "evidence": "partial",
-        "why": "half the PR-event minutes are estimated and cancelled configured dispatches were never sampled (phase-ci01.md section 5)"
+        "why": "ci18 read every configured-suite push (33) and dispatch (50) run of 2026-10-29T21Z to 2026-10-31T21Z: 3,544 runner-minutes over 33 landings, 107.4 per landing (ci01 froze 94). ci06, landed 2026-10-31T21:15Z, adds selected PR runs (projected +56 per landing) while worker dispatches continue (run 41244504178), and no complete week has measured that yet"
       },
       "graphics": {
         "perLanding": 25.5,

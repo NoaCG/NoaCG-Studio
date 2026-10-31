@@ -113,7 +113,7 @@ export function seriesOf(runs) {
 export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], finished = [], pending = [], tableRecordedAt, collection }) {
   const priced = priceRuns(runs, { days });
   let measurement = { source: 'weekly growth report', windowStart: new Date(Date.parse(windowEnd) - days * DAY).toISOString().slice(0, 10), windowEnd: windowEnd.slice(0, 10), landings: priced.landings, tiers: {} };
-  for (const t of TIERS) { const { totalLanding, totalScheduled, ...rest } = priced.tiers[t]; measurement.tiers[t] = rest; }
+  for (const t of TIERS) measurement.tiers[t] = Object.fromEntries(Object.entries(priced.tiers[t]).filter(([k]) => !k.startsWith('total')));
   const series = seriesOf(runs);
   const slowdowns = {};
   for (const t of TIERS) {
@@ -168,7 +168,8 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
 
 export function listRuns(reader, from, to) {
   const runs = [];
-  for (let d = from; d < to; d += DAY) {
+  // Whole calendar days covering [from, to): `created=` filters by UTC day.
+  for (let d = Math.floor(from / DAY) * DAY; d < to; d += DAY) {
     const day = new Date(d).toISOString().slice(0, 10);
     for (let page = 1; page <= 10; page++) {
       const body = reader.get(`repos/${REPO}/actions/runs?created=${day}&per_page=100&page=${page}&exclude_pull_requests=true`);

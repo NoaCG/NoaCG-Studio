@@ -237,7 +237,7 @@ export function expiringSoon(active, today, withinDays = 7) {
   return active.filter((e) => dayMs(e.expires) - dayMs(today) <= withinDays * DAY);
 }
 
-const stripLedger = (c) => { const { exceptions, revisions, ...rest } = c ?? {}; return rest; };
+const stripLedger = (c) => Object.fromEntries(Object.entries(c ?? {}).filter(([k]) => k !== 'exceptions' && k !== 'revisions'));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
