@@ -152,6 +152,9 @@ test('a moved ref is refused before anything is dispatched or recorded', () => {
     assert.equal(h.gh.posts, 0);
     assert.deepEqual(h.records(), []);
     assert.equal(dispatch({ repository: REPO, workflow: WF, ref: 'refs/heads/x', sha: sha('1') }, h.deps).state, 'refused');
+    h.gh.heads.main = sha('1');
+    assert.match(dispatch({ repository: REPO, workflow: WF, ref: 'main', sha: sha('1') }, h.deps).reason, /quarantine/, 'main applies the quarantine');
+    assert.equal(h.gh.posts, 0);
     assert.equal(dispatch({ repository: REPO, workflow: WF, ref: 'claude/one', sha: 'abc' }, h.deps).state, 'refused');
   } finally { h.done(); }
 });
@@ -220,38 +223,34 @@ test('an absent run stays uncertain until a complete listing after the settle ti
   } finally { h.done(); }
 });
 
-test('same-branch pending supersession: follow the same commit, recover once, or call the old commit obsolete', () => {
+test('same-branch pending supersession: superseded, recover once with a fresh run, or obsolete', () => {
   const h = harness({ 'claude/one': sha('1') });
   try {
     const first = h.send('claude/one');
     const firstRun = h.gh.runs.find((r) => r.id === first.run.id);
     Object.assign(firstRun, { status: 'completed', conclusion: 'cancelled' });
     const intent = () => JSON.parse(readFileSync(first.record, 'utf8'));
-
-    // Nothing replaced it and the commit is still the head: recover, once.
-    assert.equal(reconcile(intent(), h.deps).state, 'recover');
+    // Cancelled while pending: never a pass of its own; recover once with a fresh dispatch.
+    const replaced = reconcile(intent(), h.deps);
+    assert.deepEqual([replaced.row, replaced.state, exitCode(replaced)], ['V7', 'superseded', 3]);
     const { cli, lines } = h;
     h.gh.clock += 1000;
     assert.equal(cli(['reconcile', first.record, '--recover']), 3, 'recovered: the new run is still running');
     const recovered = lines.at(-1);
-    assert.equal(recovered.recoveredFrom.state, 'recover');
-    assert.equal(recovered.state, 'running');
-    assert.equal(JSON.parse(readFileSync(first.record, 'utf8')).recoveredBy, recovered.record);
-    assert.equal(cli(['reconcile', first.record, '--recover']), 3, 'the old record now follows its replacement, still running');
-    assert.equal(lines.at(-1).state, 'superseded');
-    assert.equal(lines.at(-1).by.id, recovered.run.id);
-    Object.assign(h.gh.runs.find((r) => r.id === recovered.run.id), { status: 'completed', conclusion: 'cancelled' });
+    assert.deepEqual([recovered.recoveredFrom.state, recovered.state], ['superseded', 'running']);
+    assert.equal(intent().recoveredBy, recovered.record);
+    // The fresh run passes: its own record passes; the old record still never does.
+    Object.assign(h.gh.runs.find((r) => r.id === recovered.run.id), { status: 'completed', conclusion: 'success' });
+    assert.equal(cli(['reconcile', recovered.record]), 0);
+    assert.equal(cli(['reconcile', first.record]), 3);
     assert.equal(cli(['reconcile', first.record, '--recover']), 1, 'a record recovers at most once');
     assert.match(lines.at(-1).reason, /already recovered/);
-
     // The head moved on: the old commit's run is obsolete here.
-    h.gh.heads['claude/one'] = sha('2');
-    const moved = settle(intent(), { ...firstRun }, { complete: true, started: () => false, runs: h.gh.runs, head: sha('2') });
-    assert.equal(moved.state, 'obsolete');
+    const moved = settle(intent(), { ...firstRun }, { complete: true, started: () => false, runs: [firstRun], head: sha('2') });
+    assert.deepEqual([moved.state, exitCode(moved)], ['obsolete', 2]);
     assert.match(moved.reason, /exact-SHA check branch/);
   } finally { h.done(); }
 });
-
 test('a run that appears after not-delivered and --recover changes nothing', () => {
   const h = harness({ 'claude/one': sha('1') });
   try {
@@ -272,34 +271,24 @@ test('a run that appears after not-delivered and --recover changes nothing', () 
   } finally { h.done(); }
 });
 
-test('a same-second replacement is found by run ID; a run cancelled after it started blocks the commit and is never auto-recovered', () => {
-  const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
-  const at = '2026-10-31T12:00:00Z';
-  const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: at };
-  const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
-  const twin = { ...base, id: 11, status: 'queued', conclusion: null };
-  assert.equal(settle(intent, cancelled, { complete: true, started: () => false, runs: [twin, cancelled], head: sha('1') }).by.id, 11);
-  assert.equal(settle(intent, { ...twin, id: 9 }, { complete: true, started: () => false, runs: [cancelled, { ...twin, id: 9 }], head: sha('1') }).state, 'running');
-  const byHand = settle(intent, cancelled, { complete: true, started: () => true, runs: [cancelled], head: sha('1') });
-  assert.equal(byHand.state, 'cancelled');
-  assert.equal(exitCode(byHand), 1, 'its result is unknown: the commit cannot pass');
-  assert.equal(settle(intent, cancelled, { complete: true, started: () => false, runs: [cancelled], head: sha('1') }).state, 'recover');
-});
-
-test('a superseded record carries its replacement\'s verdict and exit code', () => {
+test('a run cancelled after it started blocks the commit and is never auto-recovered', () => {
   const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
   const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
-  const settled = (replacement) => settle(intent, cancelled, { complete: true, started: () => false, runs: [cancelled, { ...base, id: 11, ...replacement }], head: sha('1') });
-  const failed = settled({ status: 'completed', conclusion: 'failure' });
-  assert.deepEqual([failed.state, failed.conclusion, failed.by.id], ['superseded', 'failure', 11]);
-  assert.equal(exitCode(failed), 1);
-  assert.equal(exitCode(settled({ status: 'completed', conclusion: 'success' })), 0);
-  const running = settled({ status: 'in_progress', conclusion: null });
-  assert.equal(running.conclusion, undefined);
-  assert.equal(exitCode(running), 3);
+  const byHand = settle(intent, cancelled, { complete: true, started: () => true, runs: [cancelled], head: sha('1') });
+  assert.deepEqual([byHand.state, exitCode(byHand)], ['cancelled', 1], 'its result is unknown: the commit cannot pass');
 });
-
+test('a cancelled record never borrows a pass, but a failure anywhere at the commit still fails it', () => {
+  const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
+  const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
+  const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
+  const settled = (other) => settle(intent, cancelled, { complete: true, started: () => false, runs: [cancelled, { ...base, id: 11, ...other }], head: sha('1') });
+  const passedElsewhere = settled({ status: 'completed', conclusion: 'success', head_branch: 'main' });
+  assert.deepEqual([passedElsewhere.state, exitCode(passedElsewhere)], ['superseded', 3], 'a pass on main (quarantine applied) is not lent');
+  assert.deepEqual([settled({ status: 'completed', conclusion: 'success' }).state, exitCode(settled({ status: 'completed', conclusion: 'success' }))], ['superseded', 3]);
+  const failed = settled({ status: 'completed', conclusion: 'failure' });
+  assert.deepEqual([failed.state, failed.conclusion, failed.by.id, exitCode(failed)], ['verdict', 'failure', 11, 1]);
+});
 test('only the input-free configured suite is served, and only it adopts a replacement\'s verdict', () => {
   // Rule 2 rests on this: a dispatch with no inputs on one commit is one check.
   assert.equal(WORKFLOW, 'configured-suite.yml');
@@ -321,17 +310,12 @@ test('only the input-free configured suite is served, and only it adopts a repla
 test('a failure on the commit after a cancel is never hidden by a later pass', () => {
   const intent = { workflow: WF, ref: 'claude/one', sha: sha('1') };
   const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: `.github/workflows/${WF}`, created_at: '2026-10-31T12:00:00Z' };
-  const a = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' }; // replaced while pending
-  const b = { ...base, id: 11, status: 'completed', conclusion: 'failure' }; // the run that replaced it
-  const c = { ...base, id: 12, status: 'completed', conclusion: 'success' }; // a later pass on the same commit
-  const failed = settle(intent, a, { complete: true, started: () => false, runs: [c, b, a], head: sha('1') });
-  assert.deepEqual([failed.state, failed.conclusion, failed.by.id, exitCode(failed)], ['superseded', 'failure', 11, 1]);
-  const pending = settle(intent, a, { complete: true, started: () => false, runs: [{ ...c, status: 'in_progress', conclusion: null }, { ...b, conclusion: 'success' }, a], head: sha('1') });
-  assert.deepEqual([pending.conclusion, exitCode(pending)], [undefined, 3]);
-  const passed = settle(intent, a, { complete: true, started: () => false, runs: [c, { ...b, conclusion: 'success' }, a], head: sha('1') });
-  assert.deepEqual([passed.conclusion, passed.by.id, exitCode(passed)], ['success', 11, 0]);
+  const b = { ...base, id: 11, status: 'completed', conclusion: 'failure' };
+  const c = { ...base, id: 12, status: 'completed', conclusion: 'success' };
+  // C's own record: B failed on the same commit before it, so C does not pass.
+  const read = settle(intent, c, { complete: true, started: () => false, runs: [c, b], head: sha('1') });
+  assert.deepEqual([read.conclusion, read.by.id, exitCode(read)], ['failure', 11, 1]);
 });
-
 test('a cancelled run never passes from an incomplete run listing', () => {
   const h = harness({ 'claude/one': sha('1') });
   try {
@@ -346,7 +330,7 @@ test('a cancelled run never passes from an incomplete run listing', () => {
     assert.equal(answer.state, 'unresolved');
     h.gh.pageSize = undefined; // The whole listing shows the failure.
     const whole = reconcile(JSON.parse(readFileSync(first.record, 'utf8')), h.deps);
-    assert.deepEqual([whole.state, whole.conclusion, exitCode(whole)], ['superseded', 'failure', 1]);
+    assert.deepEqual([whole.state, whole.conclusion, exitCode(whole)], ['verdict', 'failure', 1]);
   } finally { h.done(); }
 });
 
@@ -446,25 +430,26 @@ test('decision table: one case per row, first matching row wins', () => {
   const stopped = run(6, { conclusion: 'cancelled' });
   check('V6 cancelled after start', settle(intent, R, facts([R, stopped], { started: () => true })), 'V6', 'cancelled', 1);
   check('V6 start unknown', settle(intent, R, facts([R, stopped], { started: () => { throw Error('down'); } })), 'V6', 'unresolved', 1);
-  check('V7 the listing shows R re-run and running', settle(intent, R, facts([run(20, { run_attempt: 2, status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
-  check('V7 another still running', settle(intent, R, facts([R, run(21, { status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
+  check('V8 the listing shows R re-run and running', settle(intent, R, facts([run(20, { run_attempt: 2, status: 'in_progress', conclusion: null })])), 'V8', 'running', 3);
+  check('V8 another still running', settle(intent, R, facts([R, run(21, { status: 'in_progress', conclusion: null })])), 'V8', 'running', 3);
   const Rcancel = run(20, { conclusion: 'cancelled' });
-  check('V7 R replaced, replacement running', settle(intent, Rcancel, facts([Rcancel, run(21, { status: 'queued', conclusion: null })])), 'V7', 'superseded', 3);
-  check('V8 recover', settle(intent, Rcancel, facts([Rcancel, stopped])), 'V8', 'recover', 2);
-  check('V8 obsolete', settle(intent, Rcancel, facts([Rcancel], { head: sha('d') })), 'V8', 'obsolete', 2);
+  check('V7 R cancelled while pending, replacement running', settle(intent, Rcancel, facts([Rcancel, run(21, { status: 'queued', conclusion: null })])), 'V7', 'superseded', 3);
+  check('V7 R cancelled while pending, nothing else', settle(intent, Rcancel, facts([Rcancel, stopped])), 'V7', 'superseded', 3);
+  check('V7 obsolete', settle(intent, Rcancel, facts([Rcancel], { head: sha('d') })), 'V7', 'obsolete', 2);
   check('V9 a re-run started between the reads', settle(intent, R, facts([R], { recheck: () => ({ complete: true, runs: [run(20, { run_attempt: 2, status: 'queued', conclusion: null })] }) })), 'V9', 'running', 3);
   check('V9 a new run appeared between the reads', settle(intent, R, facts([R], { recheck: () => ({ complete: true, runs: [R, run(22, { status: 'queued', conclusion: null })] }) })), 'V9', 'running', 3);
   check('V9 second read incomplete', settle(intent, R, facts([R], { recheck: () => ({ complete: false, runs: [R] }) })), 'V9', 'running', 3);
   check('V9 second read fails', settle(intent, R, facts([R], { recheck: () => { throw Error('down'); } })), 'V9', 'unresolved', 1);
   check('V10 pass', settle(intent, R, facts([R, run(4), stopped])), 'V10', 'verdict', 0);
-  check('V10 R replaced, all passed', settle(intent, Rcancel, facts([Rcancel, run(21)])), 'V10', 'superseded', 0);
-  check('V3 R lookup older than the listing is not trusted for status', settle(intent, R, facts([run(20, { status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
+  check('V7 R cancelled while pending never borrows a pass', settle(intent, Rcancel, facts([Rcancel, run(21)])), 'V7', 'superseded', 3);
+  check('V7 not even from main at the same commit', settle(intent, Rcancel, facts([Rcancel, run(21, { head_branch: 'main' })])), 'V7', 'superseded', 3);
+  check('V8 R lookup older than the listing is not trusted for status', settle(intent, R, facts([run(20, { status: 'in_progress', conclusion: null })])), 'V8', 'running', 3);
 });
 
 test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {
   assert.equal(exitCode({ state: 'running' }), 3);
   assert.equal(exitCode({ state: 'superseded' }), 3);
-  assert.equal(exitCode({ state: 'superseded', conclusion: 'success' }), 0);
+  assert.equal(exitCode({ state: 'superseded', conclusion: 'success' }), 3, 'superseded never passes');
   assert.equal(exitCode({ state: 'verdict', conclusion: 'success' }), 0);
   assert.equal(exitCode({ state: 'verdict', conclusion: 'failure' }), 1);
   assert.equal(exitCode({ state: 'mismatch' }), 1);
@@ -505,11 +490,10 @@ test('--recover sends at most once: a restart after the send, or a concurrent ca
       { api, now: () => h.gh.clock, observe: () => {}, print: (l) => lines.push(JSON.parse(l)) });
     assert.equal(cli(crash), 1);
     assert.equal(h.gh.posts, 2);
-    // Restarted: the run the lost recovery started already carries the verdict, nothing is sent.
-    assert.equal(cli(h.gh.api), 3);
-    assert.equal(lines.at(-1).state, 'superseded');
+    // Restarted: the claim on disk stops a second recovery; nothing is sent.
+    assert.equal(cli(h.gh.api), 1);
+    assert.match(lines.at(-1).reason, /already recovered/);
     assert.equal(h.gh.posts, 2, 'no second recovery dispatch');
-    // Even if that run is cancelled too, the claim on disk stops a second recovery.
     h.gh.runs.forEach((r) => Object.assign(r, { status: 'completed', conclusion: 'cancelled' }));
     assert.equal(cli(h.gh.api), 1);
     assert.equal(h.gh.posts, 2);

@@ -28,21 +28,19 @@
 //   - Nothing is sent before its claim is on disk, created exclusively: a dispatch's intent
 //     record, and for `--recover` a claim on the old record, so a concurrent caller or a restart
 //     after the send never sends a second suite.
-//   - The one exception, which same-branch supersession needs: a proved run that was cancelled
-//     while pending takes its verdict from the other runs of its commit, judged by rule 8 (see
-//     settle). That holds only because configured-suite.yml's dispatch takes no inputs and checks
-//     out github.sha, so its verdict is a fact about the commit; this helper therefore dispatches
-//     that workflow and no other. The answer names the run it used. A run
-//     cancelled while pending, with its commit still the branch head and nothing replacing it,
-//     is `recover`: `--recover` dispatches it again, once per record. A run someone cancelled
-//     after it started is never recovered automatically. A moved head makes the old commit
-//     obsolete here: a verdict a checker still needs for it goes through the exact-SHA check
-//     branch (check.tmpl).
+//   - A pass is only ever the requested run's own: it passed, and every other configured-suite
+//     dispatch run at the commit, on any branch, and every attempt, passed too (a failure
+//     anywhere fails it). No record borrows another run's pass. A run cancelled while pending
+//     is `superseded`: reconcile the record of the run dispatched after it, or `--recover` once
+//     to dispatch the commit afresh. A run someone cancelled after it started blocks the commit.
+//     A moved head makes the old commit obsolete here: a verdict a checker still needs for it
+//     goes through the exact-SHA check branch (check.tmpl). The rows are the decision table in
+//     the phase evidence; settle() and attribute() transcribe it.
 //
-// Output: one JSON line. The exit code is the verdict: 0 only for a finished, passing run on the
-// requested commit, covering every run of it (rule 8). 1: a refusal (refused, mismatch,
-// unresolved, cancelled after it started) or a failing verdict. 2: no verdict and something to
-// do (absent, not-delivered, unproven, recover, obsolete). 3: still running.
+// Output: one JSON line. The exit code is the verdict: 0 only for the requested run's own pass
+// (table row V10). 1: a refusal (refused, mismatch, unresolved, cancelled after it started) or a
+// failing verdict. 2: no verdict and something to do (absent, not-delivered, unproven,
+// obsolete). 3: running or superseded, so wait, reconcile again or recover.
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -56,13 +54,14 @@ const REF = /^(?!-)(?!refs\/)[\w./-]+$/;
 const REPOSITORY = /^[\w.-]+\/[\w.-]+$/;
 // GitHub creates a dispatch run within seconds; past this a complete listing without it is final.
 export const SETTLE_MS = 5 * 60_000;
-// The only workflow served: its dispatch takes no inputs, which the supersession exception needs.
+// The only workflow served: its dispatch takes no inputs, so every run of it at one commit is the
+// same check and a failure in any of them is the commit's failure.
 export const WORKFLOW = 'configured-suite.yml';
 // Clock skew allowed between this machine and GitHub's created_at.
 const SKEW_MS = 60_000;
 const REFUSALS = ['refused', 'mismatch', 'unresolved', 'cancelled'];
 // No verdict for the requested commit yet, and something to do about it.
-const ACTION = ['absent', 'not-delivered', 'unproven', 'recover', 'obsolete'];
+const ACTION = ['absent', 'not-delivered', 'unproven', 'obsolete'];
 
 /** `gh api` adapter: { ok, status, json, error }. A 4xx is a definite answer; anything else is not. */
 export function ghApi(method, endpoint, body) {
@@ -136,10 +135,8 @@ export function attribute(intent, { runs, complete }, now) {
 export function settle(intent, lookedUp, facts = {}) {
   let run = lookedUp;
   const fact = (key) => (typeof facts[key] === 'function' ? facts[key]() : facts[key]);
-  // R cancelled while pending answers through the other runs of its commit (rule 2).
   const pendingCancel = (other) => other.status === 'completed' && other.conclusion === 'cancelled';
-  const answer = (row, state, by, conclusion, why) => ({ row,
-    state: pendingCancel(run) && ['verdict', 'running'].includes(state) ? 'superseded' : state, run,
+  const answer = (row, state, by, conclusion, why) => ({ row, state, run,
     ...(by ? { by: summary(by) } : {}), ...(conclusion ? { conclusion } : {}), reason: why });
   if (intent.workflow !== WORKFLOW) return answer('V1', 'refused', null, null,
     `this record names ${intent.workflow}; only ${WORKFLOW}, whose runs on one commit are one check, is judged here`);
@@ -170,16 +167,20 @@ export function settle(intent, lookedUp, facts = {}) {
     if (started) return answer('V6', 'cancelled', other, 'cancelled', `run ${other.id} was cancelled after its jobs started, by a person`
       + ' or session, not by a newer dispatch: its result is unknown, so the commit cannot pass; find out why before dispatching again');
   }
-  const counted = all.filter((other) => !pendingCancel(other));
-  const pending = counted.find((other) => other.status !== 'completed');
-  if (pending) return answer('V7', 'running', pending, null, `run ${pending.id} at this commit is still running`);
-  if (!counted.length) {
+  // R cancelled while pending never passes: no other run's verdict is borrowed (another branch's
+  // run can be judged differently, e.g. main's applies the quarantine). The fresh dispatch of
+  // --recover, with its own proved run ID, decides instead.
+  if (pendingCancel(run)) {
     const head = fact('head');
     return head === intent.sha
-      ? answer('V8', 'recover', null, null, `run ${run.id} was cancelled while pending and ${intent.sha} is still the head of ${intent.ref}; reconcile with --recover to dispatch it again`)
-      : answer('V8', 'obsolete', null, null, `run ${run.id} was cancelled and ${intent.ref} moved to ${head ?? 'nothing'};`
+      ? answer('V7', 'superseded', null, null, `run ${run.id} was cancelled while pending and never gives a pass; reconcile the record of`
+        + ` the run you dispatched after it, or reconcile this one with --recover to dispatch ${intent.sha} afresh once`)
+      : answer('V7', 'obsolete', null, null, `run ${run.id} was cancelled and ${intent.ref} moved to ${head ?? 'nothing'};`
         + ' dispatch the new head; a verdict still required for the old commit goes through the exact-SHA check branch');
   }
+  const counted = all.filter((other) => !pendingCancel(other));
+  const pending = counted.find((other) => other.status !== 'completed');
+  if (pending) return answer('V8', 'running', pending, null, `run ${pending.id} at this commit is still running`);
   // Time of check versus time of use: re-read the listing; any change since means not yet.
   const key = (runs) => JSON.stringify(runs.filter((other) => sameCheck(intent, other)).sort((x, y) => x.id - y.id)
     .map((other) => [other.id, attemptOf(other), other.status, other.conclusion]));
@@ -188,7 +189,7 @@ export function settle(intent, lookedUp, facts = {}) {
   if (!again || !Array.isArray(again.runs)) return answer('V9', 'unresolved', null, null, 'the list of runs at this commit could not be read a second time');
   if (again.complete !== true || key(again.runs) !== key(all)) return answer('V9', 'running', null, null,
     'the runs at this commit changed between two reads (a new run, a re-run or a status change); reconcile again');
-  return { ...answer('V10', 'verdict', counted[0], 'success', `all ${counted.length} run(s) at this commit passed on every attempt, twice read`),
+  return { ...answer('V10', 'verdict', run, 'success', `run ${run.id} and all ${counted.length - 1} other run(s) at this commit passed on every attempt, twice read`),
     runIds: counted.map((other) => other.id) };
 }
 
@@ -234,6 +235,8 @@ export function reconcile(intent, { api = ghApi, now = Date.now } = {}) {
 export function dispatch({ repository, workflow = WORKFLOW, ref, sha, recovers }, {
   api = ghApi, observe = observeVerification, save, now = Date.now } = {}) {
   if (workflow !== WORKFLOW) return { state: 'refused', reason: `only ${WORKFLOW} is dispatched here; nothing dispatched` };
+  // main's runs apply the quarantine, so a pass there can hide a fail-then-pass: never a candidate.
+  if (ref === 'main') return { state: 'refused', reason: 'main is judged by its landing runs, with the quarantine; dispatch a candidate branch, or the exact-SHA check branch for an old commit' };
   if (!REPOSITORY.test(repository ?? '') || !REF.test(ref ?? '') || !SHA.test(sha ?? '')) {
     return { state: 'refused', reason: 'usage: a repository, a branch name and a full 40-character commit' };
   }
@@ -295,8 +298,7 @@ function claimRecovery(file, at) {
 export function exitCode(result) {
   if (REFUSALS.includes(result.state)) return 1;
   if (ACTION.includes(result.state)) return 2;
-  const finished = result.state === 'verdict' || (result.state === 'superseded' && result.conclusion !== undefined);
-  if (!finished) return 3; // Still running: pending evidence is never a pass.
+  if (result.state !== 'verdict') return 3; // Running or superseded: never a pass.
   return result.conclusion === 'success' ? 0 : 1;
 }
 
@@ -315,7 +317,7 @@ export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, 
       const intent = JSON.parse(readFileSync(file, 'utf8'));
       const save = saver(path.dirname(file));
       result = { record: file, ...reconcile(intent, deps) };
-      if (['recover', 'not-delivered', 'unproven'].includes(result.state) && hasFlag(argv, '--recover')) {
+      if (['superseded', 'not-delivered', 'unproven'].includes(result.state) && hasFlag(argv, '--recover')) {
         if (intent.recoveredBy || !claimRecovery(file, (now ?? Date.now)())) {
           result = { ...result, state: 'refused', reason: `already recovered${intent.recoveredBy ? ` by ${intent.recoveredBy}` : ''};`
             + ` reconcile the record whose \`recovers\` names ${file}` };

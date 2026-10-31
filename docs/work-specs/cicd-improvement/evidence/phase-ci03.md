@@ -58,18 +58,10 @@ what needs the verdict, and it is a lost verdict when the older commit is still 
     another commit is `mismatch`, refused (exit 1). Without a returned ID the record never gives
     a verdict: no new run on the ref is `absent` until a complete listing five minutes on says
     `not-delivered`; any new run makes it `unproven`. Both take `--recover`, a fresh dispatch.
-  - `reconcile <record> [--recover]` re-reads that identity and settles it: `running`,
-    `verdict` (with conclusion), `superseded` (cancelled; the later runs on the same commit carry
-    the verdict: failing if any failed, running while any runs, passing only if all passed), `cancelled` (stopped after its jobs started, so
-    by a person or session: never recovered automatically), `recover` (cancelled while pending,
-    nothing replaced it, the commit is still the head: `--recover` dispatches it again, once per
-    record), or `obsolete` (the head moved; a
-    verdict a checker still requires for that commit uses the existing exact-SHA check branch in
-    `check.tmpl`). A `superseded` answer carries the replacement's conclusion once it finishes.
-    Exit 0 only for a finished, passing run on the requested commit; 1 for a refusal or a
-    failing verdict, the replacement's included; 2 when there is no verdict and something to
-    do; 3 while the run or its replacement is still running. No script reads the exit code
-    today; workers follow known-traps.
+  - `reconcile <record> [--recover]` re-reads that identity and answers by the decision table
+    in section 4. Exit 0 only for the requested run's own pass (row V10); 1 for a refusal or a
+    failing verdict; 2 when there is no verdict and something to do; 3 while running or
+    superseded. No script reads the exit code today; workers follow known-traps.
 
 Not changed: `ci.yml` (ordinary PR cancellation and the merge-group group), the exact-SHA
 recovery path, the push trigger, per-landing full backend validation, the observation-only
@@ -81,7 +73,7 @@ lookup and its runbook mode, worker full-backend dispatch policy (ci06 owns its 
 | --- | --- | --- |
 | (a) Three unrelated intended candidates have attributable run IDs and matching `head_sha` verdicts | Live trial, section 5: three open PR heads dispatched within 12 s, each with its returned run ID, its own commit and a green verdict; fixture with three branches | pass |
 | (a) Schedules isolated from main dispatches | `candidate-dispatch.test.mjs` evaluates the workflow's own group expression for landings, the cron, a main dispatch and three branches: all distinct, cron = `configured-suite-schedule` | pass |
-| (a) Required pending same-branch supersession has recovery | live: run 41200019293 replaced while pending by 41200054838; `reconcile` answered `superseded` by 41200054838 on the same commit. Fixture: `recover`, `--recover` once, refused the second time, `obsolete` after the head moved | pass |
+| (a) Required pending same-branch supersession has recovery | live: run 41200019293 replaced while pending by 41200054838 (green) on the same commit. Table V7: a run cancelled while pending is `superseded` and never passes; `--recover` dispatches the commit afresh once (claimed on disk first) and that run's own record decides; `obsolete` after the head moved. Fixtures for each | pass |
 | (a) Preserve `github.sha` checkout | test: no checkout step pins `ref:` | pass |
 | (a) Refuse ambiguous or mismatched request-to-run evidence | fixtures: without a returned ID no run is adopted (`unproven`), even when the right run later appears beside another; ref moved between check and dispatch → `mismatch`; live: a stale `--sha` refused with nothing dispatched or recorded | pass |
 | (b) Reconcile uncertain dispatches by recorded intent, ref, requested commit and run identity | fixtures: intent written before the POST; a lost acknowledgement is reconciled against the recorded ref, commit, time and prior runs to `absent`, `not-delivered` or `unproven`, never to an inferred run; `--recover` dispatches afresh once; a late original changes nothing; 422 recorded as refused | pass |
@@ -114,14 +106,15 @@ no jobs started.
 | V4 | an earlier attempt of any run in C, re-run or cancelled re-run alike, did not succeed | failing; a runner-death re-run is the coordinator's call | 1 |
 | V5 | an earlier attempt of a run in C cannot be read | `unresolved` | 1 |
 | V6 | a run in C was cancelled after its jobs started (or that cannot be read) | `cancelled` (or `unresolved`) | 1 |
-| V7 | a run in C that was not cancelled is still running | `running` | 3 |
-| V8 | every run in C was cancelled while pending | `recover` if the branch head is still the commit, else `obsolete` | 2 |
+| V7 | R itself was cancelled while pending | `superseded`: never a pass; reconcile the record of the run dispatched after it, or `--recover` once. `obsolete` if the branch moved | 3 / 2 |
+| V8 | a run in C that was not cancelled is still running | `running` | 3 |
 | V9 | a second read of the listing, after every check above, is incomplete or differs in any run of C (the set of runs, an attempt number, a status or a conclusion) | `running`; reconcile again (unreadable: `unresolved`) | 3 / 1 |
-| V10 | otherwise: every remaining run in C passed on every attempt, twice read | pass | 0 |
+| V10 | otherwise: R passed, and every other run in C passed on every attempt, twice read | pass | 0 |
 
-When R itself was cancelled while pending, V2, V4, V7 and V10 answer `superseded` with the same
-exit code. No row passes from a partial listing, an unread attempt, a pending result or a run
-whose outcome is unknown.
+Only R's own run can pass (V10): no record borrows another run's pass, on any branch, because
+another branch's run can be judged differently (`main`'s applies the quarantine). Failures are
+still collected from every run at the commit. No row passes from a partial listing, an unread
+attempt, a pending result or a run whose outcome is unknown.
 
 ### Rules (found after coding)
 
@@ -130,17 +123,16 @@ reassessment of the rule model came before the repair. It agreed with correction
 
 1. A run answers a dispatch only by proof: the run ID GitHub returned for it. Timing, ref and
    commit never stand in for it.
-2. Exception, needed by same-branch supersession: a proved run that was cancelled while
-   pending takes its verdict from the other runs of its commit, as rule 8 judges them. That
-   workflow's dispatch takes no inputs and checks out `github.sha`, so its verdict is about the
-   commit. The helper therefore serves `configured-suite.yml` only (a test pins
-   `workflow_dispatch: {}`), and a run of any other workflow never adopts another's verdict.
+2. No record borrows another run's pass (coordinator decision after four holes in adopting one):
+   a run cancelled while pending is `superseded` and recovers with one fresh dispatch whose own
+   proved run decides. The helper serves `configured-suite.yml` only (a test pins
+   `workflow_dispatch: {}`), so failures from every run at the commit are one check's failures.
 3. A run on another commit than requested is refused.
 4. Without a returned ID the record never gives a verdict. With no new run on the ref it is
    `absent`, then `not-delivered` after a complete listing five minutes on; with any new run it
    is `unproven`. The way out is a fresh dispatch (`--recover`, once per record).
 5. Nothing unproven is persisted, and a run that turns up late changes nothing.
-6. Exit 0 only for a finished, passing verdict under rules 1, 2 and 8.
+6. Exit 0 only for R's own pass under rule 8 (table row V10).
 7. Nothing is sent before its claim is on disk, created exclusively: a dispatch's intent record
    (which names the record it recovers, if any), and for `--recover` a claim on the old record.
    A concurrent caller, or a restart after the send, finds the claim and sends nothing. A
@@ -181,7 +173,9 @@ writes no issue and no quarantine.
 
 Same-branch replacement on this branch while 41199979934 ran: 41200019293 (pending) was
 cancelled when 41200054838 was dispatched on the same commit; `reconcile` on the first record
-said `superseded` by 41200054838, whose verdict is success with every job run. A dispatch with a stale `--sha`
+said `superseded` by 41200054838, whose verdict is success with every job run. (That was the
+helper at `7111a18e`; since the coordinator's decision the first record answers `superseded`
+without borrowing the pass, and 41200054838's own record carries it.) A dispatch with a stale `--sha`
 (`1fcbb1f3`) was refused: nothing dispatched, nothing recorded.
 
 All three were in progress together at 12:20 UTC; none cancelled another, and `reconcile` on each
@@ -209,6 +203,8 @@ ambiguity. These are fixtures.
 | Builder, live dispatch on `a7d85b74` | right after a dispatch the commit listing does not yet show the new run, so `dispatch` answered `unresolved` (exit 1) for a successful dispatch | an answer must match what is known | product defect | a run that is still running answers `running` (exit 3) while the listing lags; a finished run still needs the complete listing; test first |
 | Codex on `a7d85b74` (comment 4431931311) | a run whose attempt 1 failed and whose re-run was then cancelled while pending was dropped, erasing that failure | a failure on the commit is never hidden (same family) | product defect | the verdict rule became the decision table above, transcribed row by row with one test per row (V4 covers this case) |
 | Codex on `8e31f98c` (comment 4431949279) | R re-run between its own lookup and the listing: the listing's newer snapshot of R was dropped | a failure on the commit is never hidden | product defect | first C kept both snapshots of R; then, at the coordinator's request, the whole class of two reads disagreeing was closed: R's lookup proves identity only, statuses come from one listing, and a second read must match before any pass (V9); table cases first |
+| Codex on `fc515373` (comment 4431966863) | a cancelled candidate could adopt a pass from `main`'s run, which applies the quarantine while candidates do not | no record borrows another run's pass | product defect | coordinator decision: pass adoption removed entirely; V7 `superseded` never passes and recovers with a fresh dispatch; failures still collected across branches; table and tests updated |
+| Fresh `/so` on `fc515373` (grade B, table attack) | the same hole as the row above, reproduced; everything else in the table held (statuses, conclusions, attempts, cancels, listing, both snapshots) | no record borrows another run's pass | product defect | closed by the same decision; also `dispatch --ref main` is refused, since main's runs apply the quarantine; table case for a `main` run at the commit |
 
 ## 7. Phase notes
 
@@ -222,7 +218,8 @@ ambiguity. These are fixtures.
     from listing. That works on any branch whatever workflow file it carries, and needs no
     workflow change beyond the group. A lost acknowledgement costs at most one fresh dispatch.
   - A dispatch on `main` keeps one group with other main dispatches (serial, as before) and
-    leaves the cron's; nothing else about main changes.
+    leaves the cron's; nothing else about main changes in the workflow. The helper refuses
+    `--ref main`: main's runs apply the quarantine, so they are judged by their landing runs.
   - A cancelled run is followed to a newer run on the same commit before any recovery, so a
     double dispatch never costs a third run. Recovery happens only on request (`--recover`) and
     once per record: no automatic retry.
