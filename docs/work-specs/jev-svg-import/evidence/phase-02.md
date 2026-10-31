@@ -27,7 +27,7 @@ An independent script (not committed; the phase allows no script file) parsed ev
 | No holdout SVG hash and no holdout label hash matches any `.svg` or `.json` tracked in git; no `holdout.expect` file is tracked | pass |
 | Holdout and development file hashes are disjoint | pass |
 | Provenance on every design: `synthetic-original`, named author, no exporter claim, no third-party artwork | pass |
-| 99 label anchors (fields, credits sub-anchors, non-editable decoys, qualification anchors) resolve by `element_path` to an element of the stated tag; every `source_id` equals that element's `id`; every text default equals the element's text | pass |
+| 99 label anchors (fields, credits sub-anchors, non-editable decoys, qualification anchors) resolve by `element_path` to an element of the stated tag; every `source_id` equals that element's `id`; every text default equals the element's text after trimming each line's indentation (needed only for the multiline `body`, whose `tspan` lines are indented) | pass |
 | Regression slice: 51 entries, one per SVG in `svg-corpus`, each SVG and sidecar hash matches, all `recognition_score_eligible: false` | pass |
 | Regression pin `b3708b65` is an ancestor of the pin; the 51 SVGs and sidecars are unchanged since it | pass |
 | Inherited sidecars: each `name` equals its file slug and carries a boolean `expect.accepted` | pass |
@@ -46,7 +46,9 @@ ambiguous score-clock link. The holdout's composition is not visible to this wor
   the committed files were tried and none matched. The 18 development SVGs are still bound to the
   receipt through `manifest_sha256`, whose per-file hashes all match.
 - The holdout archive and labels are not readable by this worker, by protocol. Their binding is the
-  sealed ZIP digest below.
+  sealed ZIP digest below. The receipt's `holdout_archive_sha256` (`76b50fa4…`) is the tar.gz
+  copy of the same packet, which is not the runtime artifact and is not reachable here; it stays
+  unverified in this phase. Row 34 checks the ZIP and its 18 members.
 
 ## Holdout storage
 
@@ -57,9 +59,13 @@ ambiguous score-clock link. The holdout's composition is not visible to this wor
   being opened, and the log shows only the two PASS lines with both secrets masked. The job runs
   only on `refs/heads/main`; the environment's main-only branch rule rests on the owner's report
   (readiness), since the settings API is refused to this integration.
-- Private owner backup: not reachable from this worker. The receipt records it uploaded with
-  owner-only permissions and a fresh download hash-verified by the coordinator; this phase relies
-  on that record and does not re-verify it.
+- Private owner backup: not re-verified in this phase. This is a departure from the wording
+  "verify backup availability": the same acceptance says tuning workers receive neither the secret
+  nor the backup, so a builder that opened the owner-only backup would break the separation it is
+  meant to prove. The receipt records the backup uploaded with owner-only permissions and a fresh
+  download hash-verified by the coordinator during preparation. A fresh check belongs to the
+  owner/custodian or the coordinator, recorded without content; until then this half rests on the
+  preparation record.
 - Retention: 90 days after run completion (receipt `planned_storage.retention`); readers are the
   owner/custodian, the main-only holdout job and the independent checker after configuration
   freeze. Tuning workers, including this one, received neither the secret nor the backup.
@@ -69,9 +75,10 @@ ambiguous score-clock link. The holdout's composition is not visible to this wor
 The only change in this phase adds a `tier` to each qualification fixture and defines the tiers:
 `ticker` and `multiline` are **supported** binding qualifications (AC-14, AC-24; moving-SVG motion
 stays unsupported), and `notice-zones` is an **optional diagnostic** (AC-26) whose shortfall is
-reported, never counted as support. The 36 recognition labels already carry their per-design
-`unsupported` and `unresolved_intent` lists and are frozen by their receipt hashes, so they are
-left byte-identical.
+reported, never counted as support. The 18 development labels already carry their per-design
+`unsupported` and `unresolved_intent` lists and are frozen by `development_labels_sha256`, so they
+are left byte-identical. The 18 holdout labels are not visible here and are frozen by
+`holdout_labels_sha256`.
 
 Frozen hashes at this landing, for files the receipt does not cover:
 
