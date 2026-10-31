@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-31T08:16:45.357746+00:00",
+  "updatedAt": "2026-10-31T00:00:00Z",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -305,7 +305,7 @@
       "limit": "Does not prove idle wake, VM reclaim/reconstruction, durable coding-owner recovery or native separate cloud-child launch."
     }
   },
-  "resume": "Read AGENTS, current security/queue/check/verify/cloud-delegate procedures and this checkpoint. All12 source/deliveryPRs including1841 aremerged andterminal at cba1fcf2c5096aca5be9b64fa5eb472ead395d5e; no repair owner or wake remains armed. Remaining code issue1752 needs a compatible Sandbox/Zod backport or supported migration, never a forced broken override. Minimatch83 has exact-claim false-positive evidence; security-alert administration remains unavailable. Test key already revoked andHTTP401verified; user will replace approved managed secret via local test-account CLI consent. Password follow-up still needs secure store access. No Jev start;40phases/$5/14days unchanged; qualify durablewake/recovery/nativeworker mapping first.",
+  "resume": "Read AGENTS, current security/queue/check/verify/cloud-delegate procedures and this checkpoint. All12 source/deliveryPRs including1841 aremerged andterminal at cba1fcf2c5096aca5be9b64fa5eb472ead395d5e; no repair owner or wake remains armed. Remaining code issue1752 needs a compatible Sandbox/Zod backport or supported migration, never a forced broken override. Minimatch83 has exact-claim false-positive evidence; security-alert administration remains unavailable. Test key already revoked andHTTP401verified; user will replace approved managed secret via local test-account CLI consent. Password follow-up still needs secure store access. No Jev start;40phases/$5/14days unchanged; qualify durablewake/recovery/nativeworker mapping first. UPDATE 2026-10-31 followup20261031: saved test key still 401, no writer, owner must mint and save; Sandbox fix path is SDK 3.x migration needing one approved live render.",
   "qualificationReceipts": {
     "preparationPR": 1825,
     "sealedSecretProbe": 41125379127,
@@ -855,5 +855,29 @@
     "activeRepairOwners": [],
     "wakeArmed": false,
     "parallelWork": "Fresh isolated work can proceed after rechecking current ownership; no competing implementation was active at this handoff."
+  },
+  "followup20261031": {
+    "session": "Claude Code cloud, under jev-svg-import coordinator; main still cba1fcf2c5096aca5be9b64fa5eb472ead395d5e; no competing security PR or worktree",
+    "testAgentKey": {
+      "savedBindingPresent": true,
+      "authCheck": "GET https://noacg.studio/api/me/agent-keys with the saved NOACG_TEST_AGENT_KEY returned 401 on 2026-10-31: the saved value is still not a valid key (the revoked one or another invalid value). No DELETE sent; value never printed.",
+      "secureWriter": "absent: Claude cloud environment secrets are set only by the owner in environment settings; no session tool writes them. No GitHub Actions workflow reads this key (repo grep of secrets.* names), so there is no CI copy to update.",
+      "minted": false,
+      "reason": "Minting needs the owner-consented browser flow and could not be stored; rule: do not mint an unused key.",
+      "ownerAction": "On the owner's computer: run `noacg login --name \"Claude cloud tests\"` with NOACG_CREDENTIALS_DIR set to a fresh temporary folder, sign in as the test account and allow; copy the key from credentials.json in that folder into the Claude cloud environment's NOACG_TEST_AGENT_KEY setting; delete the folder; start a new session, which verifies by GET (200 plus test-account identity). Note: cli/src/auth.ts:16 mentions a `login --show` flag that does not exist."
+    },
+    "testAccountPassword": "Unchanged and still blocked on the same missing writer. Owner action: change the test account password and update NOACG_TEST_ACCOUNT_PASSWORD in the same environment settings.",
+    "sandboxZod": {
+      "advisory": "GHSA-mrhx-c7xc-m3w5, zod <4.6.6, no zod 3.x fix release (latest 3.x is 3.25.76). npm audit: @vercel/sandbox <=2.2.0-beta.0 affected; fix only via SDK major.",
+      "upstream": "@vercel/sandbox latest 3.9.1 depends on zod ^4.1.1; no new 1.x release after 1.10.2. @remotion/vercel latest still 4.0.539 (devDependency @vercel/sandbox 1.6.0, peer >=1.0.0).",
+      "newEvidence": "In @remotion/vercel 4.0.539 dist/esm/index.mjs, sandboxId appears only at 5811/5816/5983, inside getRenderProgress (5810) and the render-on-vercel path. Our executor uses only createSandbox (5739) and addBundleToSandbox (82), which call Sandbox.create/mkDir/writeFiles/runCommand. So the Remotion parent is NOT what blocks our migration; the earlier record overstated that.",
+      "realBlockers": [
+        "3.x sandboxes are persistent by default and auto-resume on SDK calls needing a session: our readProgress polling of an expired job could restart (and bill) it unless created non-persistent or updated with persistent:false.",
+        "3.x default image is Ubuntu; Remotion's installSystemDependencies runs `sudo dnf install`. It passes deprecated `runtime: node24`; which OS that yields under 3.x cannot be determined from the package.",
+        "Sandbox.get takes name, not sandboxId; in-flight jobs holding a 1.x sandboxId across the deploy must fail cleanly through the existing deadline path."
+      ],
+      "decision": "No code change landed. The migration (sdk 3.x + our executor using name, persistent:false, stop on finish) is feasible but needs one live, billable Vercel Sandbox render to verify provisioning, progress, completion, expiry-without-resume and stop. This session has no Vercel credentials, and a paid live call needs owner approval. No override, no alert dismissal. Issue #1752 stays open.",
+      "independentVerification": "Fresh read-only agent confirmed all claims with file:line evidence: sandboxId only in Remotion getRenderProgress/render paths (5811/5816/5983); every method createSandbox/addBundleToSandbox calls exists compatibly in 3.9.1; get takes name only; Sandbox.get alone does not resume, but readFileToBuffer/writeFiles/runCommand go through withResume (sandbox.js:614-624), so polling can restart a stopped persistent sandbox; create-time persistent and update({persistent}) exist; default image Ubuntu, runtime node24 deprecated but accepted, resulting OS unclear; zod ^4.1.1 admits patched 4.6.6+."
+    }
   }
 }
