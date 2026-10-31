@@ -42,10 +42,20 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "launch ci04 builder",
-    "eta": "2026-10-31T15:30:00Z"
+    "what": "ci04 builder: PR opened and first gates",
+    "eta": "2026-10-31T16:30:00Z"
   },
-  "inFlight": [],
+  "inFlight": [
+    {
+      "phase": "ci04",
+      "step": "build",
+      "session": "session_017SdbwMZT1TksMVJDqp5Po7",
+      "nonce": "ci04-b-b14f",
+      "branch": "claude/plan-cicd-improvement-ci04-build",
+      "launchedAt": "2026-10-31T15:25:46Z",
+      "note": "Builder launched from 99c461b8. Overlap watch: bot PR #1840 (scripts/e2e-traced.json)."
+    }
+  ],
   "owner": [],
   "fixes": [
     {
