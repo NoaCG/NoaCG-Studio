@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-30T23:25:00.064607+00:00",
+  "updatedAt": "2026-10-31T00:03:03.141164+00:00",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -69,7 +69,7 @@
     },
     "sharedCause": "GHSA-mrhx-c7xc-m3w5; pinned/direct Zod3/4 copies remain. No forced incompatible major update was made.",
     "additionalLimit": "Monaco0.56.0 vendors DOMPurify3.4.8; the npm override does not update it. An isolated public-package audit yields8 conditional advisories. The inspected wrapper never enables the required setConfig/clearConfig,CUSTOM_ELEMENT_HANDLING,IN_PLACE,SAFE_FOR_TEMPLATES orXHTML-parser conditions; scoped verdicts are not_actionable for this wrapper, not a claim that the entire library is safe. Latest Monaco0.57.0 still declares3.4.15 and is not a complete version-only remedy.",
-    "companionAudit": "Blocked: Corepack requires repo.yarnpkg.com, denied by enforced network policy.",
+    "companionAudit": "Corepack native Yarn command remains blocked by repo.yarnpkg.com policy. Independent public npm bulk-advisory check parsed trackedYarn4 lock with175publicpackages and returned{}. This qualifies advisory metadata coverage only; no Companion build or source change.",
     "candidateAudits": {
       "root": {
         "info": 0,
@@ -194,7 +194,7 @@
     }
   ],
   "capabilityGaps": [
-    "Security alert APIs/state writes403 and direct commit-status write403. Complete owner export unblocks inventory; normal main-only cloud-queue helper and connector auto-merge work.",
+    "GitHubSecurityalert list/detail/state capabilities remain403. Ownerexport supplies prior4/33 records; newtwo moderate records require ownerdata. Directstatuswrite403 usesnormalmain-only queuehelper. Git/PR/Actions/log/dispatch/queue/release workflows actuallysucceeded.",
     "Codex cloud CLI task listing401; native remote child launch and environment mapping remain unqualified.",
     "No proven durable wake/re-arm, coordinator restart fencing or filesystem-loss recovery; no scheduler armed.",
     "Same-VM independent agents and browser checks work; this does not qualify separate native cloud workers."
@@ -281,10 +281,12 @@
         "source": "Actual codex_app list_cloud_environments returned ready/runnable. Saved config is not runtime or canonical owner binding.",
         "launch": "No create_thread/handoff launch tool exposed in current ALL_TOOLS; documentation reference alone is not callable availability. CLIcloud401 unchanged; no retry or credential substitution."
       },
-      "reattachment": "Two transient shell transport disconnects and selected environment starting->ready reconciled without duplicate PRs/jobs; files/process evidence retained. This is not a proven VM restart/filesystem reconstruction."
+      "reattachment": "Two transient shell transport disconnects and selected environment starting->ready reconciled without duplicate PRs/jobs; files/process evidence retained. This is not a proven VM restart/filesystem reconstruction.",
+      "implementationProof": "Coordinator implemented and landed11scopedPRs in selectedCloud; freshsameVMread-onlyinvestigation/review/acceptance workers and completed-to-resumed receipt proven. Separate delegatedcoding/gitpush transport is not independentlyqualified as a remotechild.",
+      "execSessionRecovery": "After reattachment, oldunifiedexecsession handles were unavailable while ownedVitePIDs still existed. Reconciled by exactprocessarguments andstopped thoseownedservers; no duplicatework launched. Does not proveVMreclamation/filesystem restoration."
     }
   },
-  "resume": "Ten implementation PRs merged and all relevant terminalresults recorded. Active delivery owner for1839 remains through normal queue, main/postlanding and both registry/Windows release results. Reconcile currentPR/check/release states before retry. Do not startJev, change40phases/$5/14days ortransplantcredentials. #1752/#56 retain SDK incompatibility; currentGitHubalert state writes unavailable.",
+  "resume": "All11implementation/deliveryPRs aremerged andterminal, includingpublishedCLI0.12.4/Bridge0.10.1. No owner or wake remainsarmed. FirstreadcurrentAGENTS/proceduresandthischeckpoint, respectprivatecredential follow-up/approval in conversation, obtainnewtwo-moderatealertrecords, thenhandle#56/#1752 throughcompatibleSDKbackport/migration withoutforcingbrokenZodtypes. Jev remainsassessment-only:40phases,$5ceiling,14daysunchanged; qualifydurablewake/recovery andactualnativeworker mappingbeforeanyseparate explicitstart.",
   "qualificationReceipts": {
     "preparationPR": 1825,
     "sealedSecretProbe": 41125379127,
@@ -334,7 +336,43 @@
     "administrativeDismissals": false,
     "alias": "103 PR instance became104 on main; fixed-name guarded attribute write remains a documented exact-claim false positive, with all four supplied flows read."
   },
-  "activeRepairs": {
+  "independentVerification": {
+    "file": "verification.json",
+    "verifier": "/root/security_fix_verifier (fresh-context, read-only)",
+    "scope": "Five pinned source boundaries, residual copy explicitly retained",
+    "result": "Current reported boundaries fixed; no source-system dismissal implied"
+  },
+  "finalImplementationMain": {
+    "sha": "020d2dbc9460e143f2b6911409e87776e3def921",
+    "fullCI": 41141605832,
+    "configuredSuite": 41141605857,
+    "codeQLAnalysis": 41141605094,
+    "postLanding": 41141605717,
+    "quarantine": 41141605738,
+    "result": "All PASS"
+  },
+  "implementationRepairOwnersEnded": [
+    1835,
+    1828,
+    1836,
+    1837,
+    1838
+  ],
+  "status": "terminal for all authorized code repairs and distribution delivery; blocked follow-ups recorded; no continuing monitor",
+  "landedPRs": [
+    1452,
+    1589,
+    1581,
+    1663,
+    1826,
+    1828,
+    1835,
+    1836,
+    1837,
+    1838,
+    1839
+  ],
+  "implementationRepairs": {
     "1835": {
       "branch": "security/bridge-origin-normalization",
       "head": "dbfaea1d791a7195018ef4a768c919f7ff8c2419",
@@ -564,29 +602,7 @@
       ]
     }
   },
-  "independentVerification": {
-    "file": "verification.json",
-    "verifier": "/root/security_fix_verifier (fresh-context, read-only)",
-    "scope": "Five pinned source boundaries, residual copy explicitly retained",
-    "result": "Current reported boundaries fixed; no source-system dismissal implied"
-  },
-  "finalImplementationMain": {
-    "sha": "020d2dbc9460e143f2b6911409e87776e3def921",
-    "fullCI": 41141605832,
-    "configuredSuite": 41141605857,
-    "codeQLAnalysis": 41141605094,
-    "postLanding": 41141605717,
-    "quarantine": 41141605738,
-    "result": "All PASS"
-  },
-  "implementationRepairOwnersEnded": [
-    1835,
-    1828,
-    1836,
-    1837,
-    1838
-  ],
-  "activeDelivery": {
+  "deliveryRelease": {
     "pr": 1839,
     "branch": "security/release-cli-bridge-patches",
     "head": "a894c83e4d4765a40d5c6b6ca3ecb6efd847c275",
@@ -597,12 +613,76 @@
       "bridge": "0.10.1"
     },
     "reason": "Registry still serves0.12.3 with old SDK/Zod and Bridge download0.10.0; reviewed version bump triggers existing trusted publishing and Windows build/release workflows. Runtime source unchanged.",
-    "local": "CLI build;28focused tests pass4livebridge skips;95gate tests selected,2platform skips;actualCLI package dryrun63files includesbuiltMCP/changelog;16file diff onlyversion substitutions and2changelog sections"
+    "local": "CLI build;28focused tests pass4livebridge skips;95gate tests selected,2platform skips;actualCLI package dryrun63files includesbuiltMCP/changelog;16file diff onlyversion substitutions and2changelog sections",
+    "state": "terminal merged, published and verified",
+    "merge": "9f575a235899c3f3e12e5fc8b515aa88994cccc8",
+    "mergeGroupCI": 41144649562,
+    "mainCI": 41145177220,
+    "configured": 41145177006,
+    "codeQL": 41145177173,
+    "postLanding": 41145177159,
+    "quarantine": 41145177147,
+    "deployVerify": 41145416824,
+    "cliRelease": 41145177146,
+    "bridgeRelease": 41145177155,
+    "allResults": "PASS",
+    "publishedVerification": "Normal verify-only command passed: all8stamps, registrylatest0.12.4, signedprovenancelink,63files628238bytes and installednpx0.12.4 --version. InitialETARGET during propagation retained; passed afterregistry servedversion.",
+    "bridgeArtifact": "https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.10.1; actualWindowsbuild/prove step passed;94,167,040-byte exe andSHA256sidecar present",
+    "terminalOwnerComment": 6536086591
   },
-  "defaultBranchDependabotBanner": {
-    "total": 1,
-    "high": 1,
-    "alert": 56,
-    "source": "Actual git push banner for releasebranch, after implementation merges. Individual alert API remains403; no administrative dismissal."
+  "activeRepairOwners": [],
+  "wakeArmed": false,
+  "defaultBranchDependabotBannerHistory": [
+    {
+      "total": 1,
+      "high": 1,
+      "alert": 56,
+      "source": "Actual git push banner for releasebranch, after implementation merges. Individual alert API remains403; no administrative dismissal."
+    },
+    {
+      "total": 3,
+      "high": 1,
+      "moderate": 2,
+      "source": "Later actual push banner on checkpointbranch; two moderate records not present in ownerexport and absent from current public registry audits. Individual GitHubalert API403 unchanged."
+    }
+  ],
+  "inventoryCoverageGap": {
+    "count": 2,
+    "severity": "moderate",
+    "source": "Newest GitHubgitpushbanner",
+    "alertNumbers": "unknown",
+    "advisories": "unknown",
+    "manifests": "unknown",
+    "status": "Await ownerexport of the two actual records; no invented finding entries/verdicts/dismissals.",
+    "independentChecks": "All five npm lockfiles refreshed: root2affectedpackageentries foroneZodGHSA,otherszero. CompanionYarnlock publicadvisorybulkcheck175unique publicpackages returnszero; skipped workspaceandTypeScriptpatchwrapper, baseTypeScriptversionaudited."
+  },
+  "exposureAssessment": {
+    "confirmedProduction": [
+      "Uploaded SVG -> imported/exported active content and field metadata boundary; fixed1452",
+      "Executable inline script omission in publish/export safety screen; fixed1838. Preview iframe remains opaque and JS screen remainsheuristic."
+    ],
+    "localRuntime": [
+      "Bridge rawlocalHTTPbeforetoken: boundedCPUstall, fixed1835; ordinary hostilewebsite Origin payload notproven",
+      "CLI/MCPstdio and localpreview: compatibledependencyremediation; remote hostedexploitnotdemonstrated"
+    ],
+    "developmentOnly": [
+      "Vite/launch-editor dev/build surfaces",
+      "Benchmark executable/PATH/ComSpec chosen bydeveloper; prompts onstdin",
+      "RemotionStudio copy occurs in renderer dependency tree; package runtime scope alone does not establish exposed collectionvalidation."
+    ],
+    "staticArtifacts": [
+      "FIELDS.md formatting output has no productHTMLrenderer sink",
+      "Research graphic IDselector helper is lookup withinroot, with fullauthoredscript document/window authority already present"
+    ],
+    "conditionalOrUnproven": [
+      "RootSandboxZod3 remainsaffected; no attacker-controlled maxconstrained collection pathestablished. SDKoverridebreakstypecontracts; supportedparentmigration/backportneeded.",
+      "Monaco vendorsDOMPurify3.4.8; npmoverride does not replacevendorcode. All8 inspectedconditionaladvisories require modes absent inactualwrapper; scopednot_actionable, notuniversal safety."
+    ]
+  },
+  "remainingOpenPRs": {
+    "1641": "Draft optional SpeedInsights; notmerged",
+    "1642": "Draft optional Analytics; notmerged",
+    "1503": "Timing-table update needs separate measurement/budget review; notmerged",
+    "1834": "Bot corpusquarantine proposal: wholefailedlogshows geometricfit-history assertion, notactive-content failure; notmerged bythisowner"
   }
 }
