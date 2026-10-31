@@ -28,28 +28,19 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "PR #1878 merge queue for phase 7",
-    "eta": "2026-10-31T22:30:00Z"
+    "what": "phase 7 checker verdict on c469facb (exact-merge CI, configured-suite, post-land, saved-countdown proof)",
+    "eta": "2026-10-31T23:10:00Z"
   },
   "inFlight": [
     {
       "phase": "7",
-      "step": "build (queued)",
-      "session": "session_017SdbwQ21yeAkbzrvAQ9Tnk",
-      "nonce": "7-b-9116",
-      "branch": "claude/plan-jev-svg-import-7-build",
-      "source": "874c589b4df4449ba8819c784c6d1da983d33166",
-      "launchedAt": "2026-10-31T20:40:28Z",
-      "note": "auto-merge on; coordinator is #1878 repair owner through post-land. Checker notes: departures draft.ts, one behaviour-spec test, clock outside BEHAVIOUR_RECIPES (#1875), picker shipped off behind CLOCK_RUNTIME_READY with a flag-forced test; saved graphics byte-identical per builder and /so.",
+      "step": "check",
+      "session": "session_017SdbwQSmznLue8PMtUwQER",
+      "nonce": "7-c-d7f3",
+      "mergeSha": "c469facba90f6ed04cb29b9ef5ac7b23d72e7ec3",
       "pr": 1878,
-      "head": "ef58b52286d5171d298bd73b103d58002ca6acfb",
-      "reviewedHead": "e0b5f9ce0a1ff0351895a0ca89bb26b542f00c6c",
-      "ciRun": 41245389327,
-      "configuredSelection": "all: 67 configured specs on 4 local stacks, verdict success",
-      "soSession": "session_017SdbwMPic3dR9sMTXovt47",
-      "soGrade": "A",
-      "stampRun": 41246615996,
-      "autoMergeEnabledAt": "2026-10-31T22:06:25Z"
+      "launchedAt": "2026-10-31T22:19:48Z",
+      "note": "checker judges coordinator decisions (flag off, clock outside BEHAVIOUR_RECIPES) and which AC-8 runtime parts are row 7s; coordinator remains #1878 repair owner through post-land"
     }
   ],
   "owner": [],
