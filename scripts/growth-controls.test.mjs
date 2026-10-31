@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
+import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
   evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
@@ -705,4 +705,14 @@ test('(b) a renewal cannot be put ahead of the exception it renews, and nested s
   assert.match(exceptionStatus(appended.exceptions, '2026-12-05', 30).invalid[0].problems.join(), /without a measured repayment/);
   const nested = priceAdditions({ added: ['e2e/configured/sub/x.spec.ts', 'e2e/catalog/deep/y.spec.ts'], estimates: CEILINGS.estimates });
   assert.deepEqual(nested.map((i) => i.tier), ['backend', 'graphics']);
+});
+
+test('(b) a new spec is priced for the scheduled runs it joins, and nested specs are scopes an exception may name', () => {
+  const [backend, catalog] = priceAdditions({ added: ['e2e/configured/x.spec.ts', 'e2e/catalog/y.spec.ts'], estimates: CEILINGS.estimates });
+  assert.ok(backend.perDay > 0 && catalog.perDay > 0);
+  const m = { ...measurement({ backend: 50 }), tiers: { ...measurement({}).tiers, backend: { perLanding: 50, perDay: 73, evidence: 'complete' } } };
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [backend], today: TODAY }).tiers.backend.status, 'refuse', '73/78 a day plus the new spec crosses 95%');
+  const known = knownCoversOnDisk(undefined, ['e2e/configured/nested/new.spec.ts']);
+  assert.ok(known.has('spec:e2e/configured/nested/new.spec.ts'));
+  assert.ok(knownCoversOnDisk().has('job:ci.yml/Catalog calibration gate'));
 });

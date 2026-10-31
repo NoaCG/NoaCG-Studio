@@ -144,9 +144,10 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
       // Each configured stack is set up once per ten measured test-minutes, so a case brings
       // its share of a stack's setup on every run it is part of.
       const setup = e.backendStackSetupMinutes * (e.backendCaseMinutes / e.backendStackQuantumMinutes);
-      items.push({ tier: 'backend', id: `spec:${file}`, perLanding: e.runsPerLanding.backend * (e.backendCaseMinutes + setup), perDay: 0, how: `new configured spec at ${e.backendCaseMinutes} test-min + ${setup.toFixed(2)} setup, x ${e.runsPerLanding.backend} runs per landing` });
+      const unit = e.backendCaseMinutes + setup;
+      items.push({ tier: 'backend', id: `spec:${file}`, perLanding: e.runsPerLanding.backend * unit, perDay: (e.scheduledRunsPerDay?.backend ?? 0) * unit, how: `new configured spec at ${e.backendCaseMinutes} test-min + ${setup.toFixed(2)} setup, x ${e.runsPerLanding.backend} runs per landing and ${e.scheduledRunsPerDay?.backend ?? 0} scheduled runs a day` });
     } else if (/^e2e\/catalog\/.+\.spec\.ts$/.test(file)) {
-      items.push({ tier: 'graphics', id: `spec:${file}`, perLanding: e.runsPerLanding.graphics * e.graphicsCaseMinutes, perDay: 0, how: `new catalog spec at ${e.graphicsCaseMinutes} min, x ${e.runsPerLanding.graphics} catalog runs per landing` });
+      items.push({ tier: 'graphics', id: `spec:${file}`, perLanding: e.runsPerLanding.graphics * e.graphicsCaseMinutes, perDay: (e.scheduledRunsPerDay?.graphics ?? 0) * e.graphicsCaseMinutes, how: `new catalog spec at ${e.graphicsCaseMinutes} min, x ${e.runsPerLanding.graphics} catalog runs per landing and ${e.scheduledRunsPerDay?.graphics ?? 0} scheduled runs a day` });
     }
   }
   for (const [wf, { base, head }] of Object.entries(workflows)) {

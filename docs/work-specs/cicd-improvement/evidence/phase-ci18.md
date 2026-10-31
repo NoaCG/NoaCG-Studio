@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (47 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (48 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -36,7 +36,7 @@ no aggregate pull-request gate.
 | --- | --- |
 | 85% warns, 95% refuses additive growth; adding nothing is never refused, also over a ceiling | `(b) each tier warns at 85%...` |
 | No cross-tier offset | `(b) no cross-tier offset` |
-| Setup cost: a configured case brings its share of a stack (2.3 min per 10 test-minutes); a new job is priced per run it joins, by trigger, and a scheduled job per cron firing | `(b) a new case is priced conservatively...`, `(b) a new workflow job is priced...` |
+| Setup cost: a configured case brings its share of a stack (2.3 min per 10 test-minutes), on every PR, landing and scheduled run it joins; a new job is priced per run it joins, by trigger, and a scheduled job per cron firing | `(b) a new case is priced conservatively...`, `(b) a new workflow job is priced...` |
 | Conservative new-case prices: the slowest measured unit of each kind (configured spec 2.6 min, run 41233844505, p90 1.47; catalog spec time 4.1 min; a new job 6.0 min, the Build job) | `growth-ceilings.json` `estimates.why`; test above |
 | Missing evidence refuses added cost; partial or stale evidence refuses it from the 85% line | `(b) missing evidence refuses...` |
 | Durations table alarm past 8 days, an open refresh PR is not fresh, and a stale table refuses added offline minutes from 85% | `(b) the durations table alarms...` |

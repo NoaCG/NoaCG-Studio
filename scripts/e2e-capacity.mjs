@@ -262,18 +262,17 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
 
 /** Every e2e spec path on disk, repo-relative, across the offline, configured and catalog folders. */
 function specPathsOnDisk(root) {
-  const out = [];
-  for (const dir of ['e2e', 'e2e/configured', 'e2e/catalog']) {
-    const abs = path.join(root, dir);
-    if (existsSync(abs)) for (const f of readdirSync(abs)) if (f.endsWith('.spec.ts')) out.push(`${dir}/${f}`);
-  }
-  return out;
+  // Recursive, like the Playwright configs that read these folders, so a nested spec that pricing
+  // sees is also a scope an exception may name.
+  const abs = path.join(root, 'e2e');
+  if (!existsSync(abs)) return [];
+  return readdirSync(abs, { recursive: true }).map((f) => `e2e/${String(f).split(path.sep).join('/')}`).filter((f) => f.endsWith('.spec.ts'));
 }
 
 /** The covers that name a real job or spec in this checkout. */
-export function knownCoversOnDisk(root = ROOT) {
+export function knownCoversOnDisk(root = ROOT, specs = specPathsOnDisk(root)) {
   const wfDir = path.join(root, '.github', 'workflows');
-  return knownCovers(Object.fromEntries(readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')])), specPathsOnDisk(root));
+  return knownCovers(Object.fromEntries(readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')])), specs);
 }
 
 const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
