@@ -37,7 +37,7 @@
       "branch": "claude/plan-jev-svg-import-8-build",
       "source": "d06974d30c42f504073fc810f2d1316168eb1f8d",
       "launchedAt": "2026-10-31T22:40:57Z",
-      "note": "builder; carries row 6/7 forwards (flip CLOCK_RUNTIME_READY, CLOCK_NAME reservation, spec line 1281 boundary request)"
+      "note": "builder; carries row 6/7 forwards (flip CLOCK_RUNTIME_READY, CLOCK_NAME reservation, spec line 1281 boundary request) 22:46Z boundary approved: retire CLOCK_RUNTIME_READY (not flip); departures draft.ts (CLOCK_NAME seeded into taken), BehaviourSection.tsx (clockReady prop gone), jev-svg-contract.test.mjs (shipped-off assertions removed, live kept + Clock 2 block), e2e/import-svg-behaviour.spec.ts:1281 becomes the live walk; TIMER_SVG countdown proof kept."
     }
   ],
   "owner": [],
