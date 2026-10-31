@@ -372,13 +372,14 @@ auto-merge request (head read before and after), and GitHub's admission on the r
 ## 7. Phase notes
 
 - **Previous verified main:** `cba1fcf2c5096aca5be9b64fa5eb472ead395d5e` (green push CI,
-  configured suite and post-land). The branch is built on `ee73212a`, which only changed the
-  cloud-session setup hook.
+  configured suite and post-land). The branch also carries `ee73212a` (cloud-session setup hook)
+  and `b9950454` (#1845, provider wording only; acceptance unchanged).
 - **Revert:** `git revert -m 1 <merge commit of this PR>`, landed through `/queue-merge`. It
   removes only this file.
 - **Decisions:**
-  - Phase notes live here, not in `spec.md`: `work.json` pins the spec's SHA-256 and the open
-    #1845 edits the spec, so a note there would break the authorized hash and race #1845.
+  - Phase notes live here, not in `spec.md`: `work.json` pins the spec's SHA-256, and #1845,
+    which landed during this phase, edited the spec, so a note there would re-pin the authorized
+    hash and race other spec changes.
   - Strata come from changed paths (`supabase/`, `api/`, `e2e/configured/`), because the ledger
     records no category.
   - The envelope is the historical 20-slot day, so a larger account limit buys no budget.
