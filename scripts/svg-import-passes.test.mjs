@@ -68,11 +68,11 @@ import { measured } from './measured.mjs';
 
 const root = (rel) => fileURLToPath(new URL(`../${rel}`, import.meta.url));
 const CORPUS = root('e2e/fixtures/svg-corpus/');
-const FONTS_DIR = root('public/fonts/');
+export const FONTS_DIR = root('public/fonts/');
 const SNAPSHOT = root('scripts/fixtures/svg-corpus-passes.json');
 const UPDATE = process.env.UPDATE_SVG_CORPUS_PASSES === '1';
 /** The origin the bundled font files are served from inside the page. Never a real host. */
-const ORIGIN = 'http://svg-corpus.harness';
+export const ORIGIN = 'http://svg-corpus.harness';
 /** Pixels or percentage points a runtime number may move and still match. */
 const TOLERANCE = 1;
 /** The same, for a record listed under `volatile`. */
@@ -90,7 +90,7 @@ const RUNTIME_FROM = process.env.SVG_CORPUS_RUNTIME_FROM ?? null;
  *  Windows builder sees a runtime change before CI does. Same machine, same hinting. */
 const RUNTIME_LOCAL = RUNTIME_PINNED ? null : process.env.SVG_CORPUS_RUNTIME_LOCAL ?? null;
 
-const SPECS = [
+export const SPECS = [
   ['assets/svgImport.ts', 'NOACG_SVG'],
   ['templates/behaviours/naming.ts', 'NOACG_NAMING'],
   ['components/wizard/import/draft.ts', 'NOACG_DRAFT'],
@@ -113,7 +113,7 @@ const corpus = readdirSync(CORPUS)
   .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
 /** Runs in the browser: one corpus file through every pass, as the wizard runs them at drop. */
-const RECORD = async ({ markup, origin, ladder }) => {
+export const RECORD = async ({ markup, origin, ladder }) => {
   const w0 = window;
   const { NOACG_SVG: R, NOACG_DRAFT: D, NOACG_STAGE: S, NOACG_FILL: F, NOACG_FONTS: FONTS } = w0;
 
@@ -391,10 +391,10 @@ const READINGS = [
   },
 ];
 
-const sha = (s) => createHash('sha256').update(s ?? '').digest('hex');
+export const sha = (s) => createHash('sha256').update(s ?? '').digest('hex');
 
 /** The bound <svg> as the emitted html carries it, without the indent the assembler adds. */
-function boundSvg(html) {
+export function boundSvg(html) {
   const start = html.indexOf('<svg');
   const end = html.lastIndexOf('</svg>');
   if (start < 0 || end < 0) return null;
@@ -407,7 +407,7 @@ function fontCss(css) {
 }
 
 /** One file's records, keyed by pass. */
-function recordsOf(raw) {
+export function recordsOf(raw) {
   if (raw.refused) return { inventory: { refused: raw.refused } };
   return {
     inventory: { ...raw.inventory, markupSha256: sha(raw.markup) },
@@ -461,7 +461,7 @@ function crossCheck(name, sidecar, rec) {
 
 /** Every difference between two records, as `path: before -> after`. A runtime record's sizes and
  *  boxes may move by `tol`; everything else, line counts included, is exact. */
-function diff(before, after, tol, path = '', out = []) {
+export function diff(before, after, tol, path = '', out = []) {
   if (out.length >= 12) return out;
   const show = (v) => (v === undefined ? 'absent' : JSON.stringify(v)?.slice(0, 160));
   if (typeof before === 'number' && typeof after === 'number' && tol > 0 && /\.(sizePct|x|y|w|h)$/.test(path)) {
@@ -485,154 +485,170 @@ function diff(before, after, tol, path = '', out = []) {
   return out;
 }
 
-const started = Date.now();
-const fontBytes = new Map();
-let naming = null;
-let readings = null;
-const raws = await withBundledPage(SPECS, async (page) => {
-  // Offline and the same everywhere: the harness origin serves the bundled faces, nothing else
-  // leaves the page.
-  await page.route('**/*', (route) => {
-    const url = route.request().url();
-    const file = url.startsWith(`${ORIGIN}/fonts/`) ? url.slice(`${ORIGIN}/fonts/`.length) : null;
-    if (file && /^[a-z0-9-]+\.woff2$/.test(file) && existsSync(`${FONTS_DIR}${file}`)) {
-      if (!fontBytes.has(file)) fontBytes.set(file, readFileSync(`${FONTS_DIR}${file}`));
-      return route.fulfill({ status: 200, contentType: 'font/woff2', headers: { 'access-control-allow-origin': '*' }, body: fontBytes.get(file) });
-    }
-    return route.abort();
-  });
-  await installDrivenPage(page);
-  const out = {};
-  for (const file of corpus) {
-    out[file.name] = await page.evaluate(RECORD, { markup: file.markup, origin: ORIGIN, ladder: LADDER_VALUES })
-      .catch((e) => { throw new Error(`${file.name}: ${e.message}`); });
-  }
-  naming = await page.evaluate(NAMING);
-  readings = {};
-  for (const r of READINGS) {
-    readings[r.name] = await page.evaluate(RECORD, { markup: r.markup, origin: ORIGIN, ladder: {} })
-      .catch((e) => { throw new Error(`reading ${r.name}: ${e.message}`); });
-  }
-  return out;
-});
-const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
-const records = Object.fromEntries(corpus.map((f) => [f.name, recordsOf(raws[f.name])]));
-const findings = corpus.flatMap((f) => crossCheck(f.name, f.sidecar, records[f.name]));
-const recordCount = Object.values(records).reduce((n, r) => n + Object.keys(r).length, 0);
-measured(recordCount, 'corpus pass records');
-console.log(`[svg-import-passes] ${corpus.length} files, ${recordCount} records in ${seconds} s`);
-console.log(`[svg-import-passes] ${findings.length} findings against the sidecars:\n  ${findings.join('\n  ')}`);
-
-const before = existsSync(SNAPSHOT) ? JSON.parse(readFileSync(SNAPSHOT, 'utf8')) : null;
-let snapshot = before;
-if (UPDATE || !before) {
-  // Off Linux the runtime record is not this machine's to write: it keeps the committed one, or
-  // takes the lines a CI run printed (RUNTIME_FROM, a saved job log).
-  const fromLog = RUNTIME_FROM
-    ? Object.fromEntries([...readFileSync(RUNTIME_FROM, 'utf8').matchAll(/\[svg-import-passes\] runtime-record (\S+) (\{.*\})\s*$/gm)].map((m) => [m[1], JSON.parse(m[2])]))
-    : {};
-  const owed = [];
-  const files = Object.fromEntries(Object.entries(records).map(([name, rec]) => {
-    if (RUNTIME_PINNED || !rec.runtime) return [name, rec];
-    const runtime = fromLog[name] ?? before?.files?.[name]?.runtime;
-    if (runtime) return [name, { ...rec, runtime }];
-    owed.push(name);
-    const rest = { ...rec };
-    delete rest.runtime;
-    return [name, rest];
-  }));
-  // A file with no Linux runtime yet is written without one: CI then fails on it and prints it.
-  if (owed.length) console.log(`[svg-import-passes] no runtime record for ${owed.join(', ')}: take it from a CI run's log`);
-  snapshot = {
-    $comment:
-      'Every SVG corpus file through every import pass (scripts/svg-import-passes.test.mjs). Re-record only with UPDATE_SVG_CORPUS_PASSES=1 and the reason in the pull request; the diff is the review. The runtime records are Linux (CI) measurements.',
-    findings,
-    volatile: before?.volatile ?? {},
-    files,
-  };
-  writeFileSync(SNAPSHOT, `${JSON.stringify(snapshot, null, 1)}\n`);
-  console.log(`[svg-import-passes] recorded ${SNAPSHOT}${RUNTIME_PINNED ? '' : ` (runtime records kept from the snapshot${RUNTIME_FROM ? ` or taken from ${RUNTIME_FROM}` : ''})`}`);
-}
-
-let localRuntime = null;
-if (RUNTIME_LOCAL) {
-  if (!existsSync(RUNTIME_LOCAL)) {
-    writeFileSync(RUNTIME_LOCAL, JSON.stringify(Object.fromEntries(Object.entries(records).map(([name, r]) => [name, r.runtime ?? null]))));
-    console.log(`[svg-import-passes] wrote this machine's runtime baseline to ${RUNTIME_LOCAL}`);
-  }
-  localRuntime = JSON.parse(readFileSync(RUNTIME_LOCAL, 'utf8'));
-}
-
-test('the corpus is the files with a sidecar, and the record holds each of them', () => {
-  assert.ok(corpus.length >= 49, `only ${corpus.length} corpus files`);
-  assert.deepEqual(Object.keys(records), Object.keys(snapshot.files).sort(), 'a corpus file was added or removed: re-record');
-});
-
-test('a drop names the graphic after its file unless the reader named it, and a clear takes only that name back', () => {
-  assert.deepEqual(naming.drops, ['Quiz board', 'Quiz board', 'Final', 'Scoreboard', '']);
-  const empty = { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null };
-  assert.deepEqual(naming.clears, [{ ...empty, name: '' }, { ...empty, name: 'Final' }]);
-});
-
-for (const { name, retired, expect } of READINGS) {
-  test(`reading ${name}: ${retired}`, () => {
-    const raw = readings[name];
-    assert.ok(!raw.refused, `${name}: refused: ${raw.refused}`);
-    // One row per text layer the reader found, in its order (t0, t1, ...), which is how the step
-    // names its rows; the draft itself lists furniture last.
-    const rowOf = new Map(raw.fieldList.fields.map((f) => [f.candidateId, f]));
-    const rows = raw.inventory.candidates.map((c, i) => {
-      assert.equal(c.id, `t${i}`, `${name}: the reader's text layers are t0, t1, ...`);
-      const f = rowOf.get(c.id);
-      assert.ok(f, `${name}: text layer ${c.id} has no row in the draft`);
-      return { title: f.title, sample: f.sample, on: f.on, kept: !f.on && f.whenOff !== 'remove', namedByGroup: c.namedByGroup };
+/** Run these files through RECORD in one offline page with the bundled faces and the driven
+ *  clock, keyed by name; `more(page, records)` runs on the same page afterwards. The jev-svg baseline
+ *  (scripts/jev-svg-baseline.test.mjs) records its designs through this, so both read one path. */
+export async function recordInPage(files, ladder, more = async () => {}) {
+  const fontBytes = new Map();
+  return withBundledPage(SPECS, async (page) => {
+    // Offline and the same everywhere: the harness origin serves the bundled faces, nothing else
+    // leaves the page.
+    await page.route('**/*', (route) => {
+      const url = route.request().url();
+      const file = url.startsWith(`${ORIGIN}/fonts/`) ? url.slice(`${ORIGIN}/fonts/`.length) : null;
+      if (file && /^[a-z0-9-]+\.woff2$/.test(file) && existsSync(`${FONTS_DIR}${file}`)) {
+        if (!fontBytes.has(file)) fontBytes.set(file, readFileSync(`${FONTS_DIR}${file}`));
+        return route.fulfill({ status: 200, contentType: 'font/woff2', headers: { 'access-control-allow-origin': '*' }, body: fontBytes.get(file) });
+      }
+      return route.abort();
     });
-    if (expect.rows) {
-      const picked = rows.map((row, i) => Object.fromEntries(Object.keys(expect.rows[i] ?? {}).map((k) => [k, row[k]])));
-      assert.deepEqual(picked, expect.rows, `${name}: the rows`);
+    await installDrivenPage(page);
+    const out = {};
+    for (const file of files) {
+      out[file.name] = await page.evaluate(RECORD, { markup: file.markup, origin: ORIGIN, ladder })
+        .catch((e) => { throw new Error(`${file.name}: ${e.message}`); });
     }
-    const got = { notices: raw.inventory.notices, fields: raw.template.fields.map((f) => `${f.field}:${f.title}`), html: raw.template.html, gate: raw.gate };
-    if (expect.fields) assert.deepEqual(got.fields, expect.fields, `${name}: the template's fields`);
-    assert.deepEqual(got.gate, [], `${name}: the export gate refuses the template`);
-    const bound = boundSvg(got.html);
-    assert.ok(bound, `${name}: the template carries no bound <svg>`);
-    for (const re of expect.bound ?? []) assert.match(bound, re, `${name}: the bound svg`);
-    for (const re of expect.notBound ?? []) assert.doesNotMatch(bound, re, `${name}: the bound svg`);
-    for (const re of expect.notices ?? []) assert.ok(got.notices.some((n) => re.test(n)), `${name}: no notice matching ${re}, only ${JSON.stringify(got.notices)}`);
+    await more(page, out);
+    return out;
   });
 }
 
-test('the findings against the sidecars are the recorded ones', () => {
-  assert.deepEqual(findings, snapshot.findings);
-});
+/** Imported as `./svg-import-passes.test.mjs?library`, this file only lends the functions above:
+ *  it runs no corpus and registers no test. */
+const LIBRARY = new URL(import.meta.url).searchParams.has('library');
 
-/** Every file whose `pass` record differs from the snapshot, with what moved. */
-function changedIn(pass) {
-  const changed = [];
-  for (const { name } of corpus) {
-    const volatile = snapshot.volatile?.[name]?.[pass];
-    const tol = pass === 'runtime' ? (volatile ? VOLATILE_TOLERANCE : TOLERANCE) : 0;
-    const was = pass === 'runtime' && localRuntime ? localRuntime[name] ?? undefined : snapshot.files[name]?.[pass];
-    const lines = diff(was, records[name][pass], tol);
-    if (lines.length) changed.push({ name, lines });
+if (!LIBRARY) {
+  const started = Date.now();
+  let naming = null;
+  let readings = null;
+  const raws = await recordInPage(corpus, LADDER_VALUES, async (page) => {
+    naming = await page.evaluate(NAMING);
+    readings = {};
+    for (const r of READINGS) {
+      readings[r.name] = await page.evaluate(RECORD, { markup: r.markup, origin: ORIGIN, ladder: {} })
+        .catch((e) => { throw new Error(`reading ${r.name}: ${e.message}`); });
+    }
+  });
+  const seconds = ((Date.now() - started) / 1000).toFixed(1);
+
+  const records = Object.fromEntries(corpus.map((f) => [f.name, recordsOf(raws[f.name])]));
+  const findings = corpus.flatMap((f) => crossCheck(f.name, f.sidecar, records[f.name]));
+  const recordCount = Object.values(records).reduce((n, r) => n + Object.keys(r).length, 0);
+  measured(recordCount, 'corpus pass records');
+  console.log(`[svg-import-passes] ${corpus.length} files, ${recordCount} records in ${seconds} s`);
+  console.log(`[svg-import-passes] ${findings.length} findings against the sidecars:\n  ${findings.join('\n  ')}`);
+
+  const before = existsSync(SNAPSHOT) ? JSON.parse(readFileSync(SNAPSHOT, 'utf8')) : null;
+  let snapshot = before;
+  if (UPDATE || !before) {
+    // Off Linux the runtime record is not this machine's to write: it keeps the committed one, or
+    // takes the lines a CI run printed (RUNTIME_FROM, a saved job log).
+    const fromLog = RUNTIME_FROM
+      ? Object.fromEntries([...readFileSync(RUNTIME_FROM, 'utf8').matchAll(/\[svg-import-passes\] runtime-record (\S+) (\{.*\})\s*$/gm)].map((m) => [m[1], JSON.parse(m[2])]))
+      : {};
+    const owed = [];
+    const files = Object.fromEntries(Object.entries(records).map(([name, rec]) => {
+      if (RUNTIME_PINNED || !rec.runtime) return [name, rec];
+      const runtime = fromLog[name] ?? before?.files?.[name]?.runtime;
+      if (runtime) return [name, { ...rec, runtime }];
+      owed.push(name);
+      const rest = { ...rec };
+      delete rest.runtime;
+      return [name, rest];
+    }));
+    // A file with no Linux runtime yet is written without one: CI then fails on it and prints it.
+    if (owed.length) console.log(`[svg-import-passes] no runtime record for ${owed.join(', ')}: take it from a CI run's log`);
+    snapshot = {
+      $comment:
+        'Every SVG corpus file through every import pass (scripts/svg-import-passes.test.mjs). Re-record only with UPDATE_SVG_CORPUS_PASSES=1 and the reason in the pull request; the diff is the review. The runtime records are Linux (CI) measurements.',
+      findings,
+      volatile: before?.volatile ?? {},
+      files,
+    };
+    writeFileSync(SNAPSHOT, `${JSON.stringify(snapshot, null, 1)}\n`);
+    console.log(`[svg-import-passes] recorded ${SNAPSHOT}${RUNTIME_PINNED ? '' : ` (runtime records kept from the snapshot${RUNTIME_FROM ? ` or taken from ${RUNTIME_FROM}` : ''})`}`);
   }
-  return changed;
-}
 
-for (const pass of PASSES) {
-  // Measured everywhere; compared against Linux's record or this machine's own baseline, and
-  // where there is neither, said so (see RUNTIME_PINNED).
-  const skip = pass === 'runtime' && !RUNTIME_PINNED && !localRuntime
-    ? `not compared on ${process.platform}: the record is Linux's (CI), and ${changedIn(pass).length} file(s) differ from it here; CI compares it, or set SVG_CORPUS_RUNTIME_LOCAL=<file> on main to compare against this machine`
-    : false;
-  test(`${pass}: every corpus file matches its record`, { skip }, () => {
-    const changed = changedIn(pass);
-    if (pass === 'runtime' && !localRuntime) {
-      // The fresh records, one line each, so a re-record off Linux can take them from this log.
-      for (const { name } of changed) console.log(`[svg-import-passes] runtime-record ${name} ${JSON.stringify(records[name].runtime)}`);
+  let localRuntime = null;
+  if (RUNTIME_LOCAL) {
+    if (!existsSync(RUNTIME_LOCAL)) {
+      writeFileSync(RUNTIME_LOCAL, JSON.stringify(Object.fromEntries(Object.entries(records).map(([name, r]) => [name, r.runtime ?? null]))));
+      console.log(`[svg-import-passes] wrote this machine's runtime baseline to ${RUNTIME_LOCAL}`);
     }
-    const said = changed.map(({ name, lines }) => `${name} / ${pass}\n    ${lines.join('\n    ')}`);
-    assert.equal(changed.length, 0, `${changed.length} file(s) changed in ${pass}:\n  ${said.join('\n  ')}`);
+    localRuntime = JSON.parse(readFileSync(RUNTIME_LOCAL, 'utf8'));
+  }
+
+  test('the corpus is the files with a sidecar, and the record holds each of them', () => {
+    assert.ok(corpus.length >= 49, `only ${corpus.length} corpus files`);
+    assert.deepEqual(Object.keys(records), Object.keys(snapshot.files).sort(), 'a corpus file was added or removed: re-record');
   });
+
+  test('a drop names the graphic after its file unless the reader named it, and a clear takes only that name back', () => {
+    assert.deepEqual(naming.drops, ['Quiz board', 'Quiz board', 'Final', 'Scoreboard', '']);
+    const empty = { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null };
+    assert.deepEqual(naming.clears, [{ ...empty, name: '' }, { ...empty, name: 'Final' }]);
+  });
+
+  for (const { name, retired, expect } of READINGS) {
+    test(`reading ${name}: ${retired}`, () => {
+      const raw = readings[name];
+      assert.ok(!raw.refused, `${name}: refused: ${raw.refused}`);
+      // One row per text layer the reader found, in its order (t0, t1, ...), which is how the step
+      // names its rows; the draft itself lists furniture last.
+      const rowOf = new Map(raw.fieldList.fields.map((f) => [f.candidateId, f]));
+      const rows = raw.inventory.candidates.map((c, i) => {
+        assert.equal(c.id, `t${i}`, `${name}: the reader's text layers are t0, t1, ...`);
+        const f = rowOf.get(c.id);
+        assert.ok(f, `${name}: text layer ${c.id} has no row in the draft`);
+        return { title: f.title, sample: f.sample, on: f.on, kept: !f.on && f.whenOff !== 'remove', namedByGroup: c.namedByGroup };
+      });
+      if (expect.rows) {
+        const picked = rows.map((row, i) => Object.fromEntries(Object.keys(expect.rows[i] ?? {}).map((k) => [k, row[k]])));
+        assert.deepEqual(picked, expect.rows, `${name}: the rows`);
+      }
+      const got = { notices: raw.inventory.notices, fields: raw.template.fields.map((f) => `${f.field}:${f.title}`), html: raw.template.html, gate: raw.gate };
+      if (expect.fields) assert.deepEqual(got.fields, expect.fields, `${name}: the template's fields`);
+      assert.deepEqual(got.gate, [], `${name}: the export gate refuses the template`);
+      const bound = boundSvg(got.html);
+      assert.ok(bound, `${name}: the template carries no bound <svg>`);
+      for (const re of expect.bound ?? []) assert.match(bound, re, `${name}: the bound svg`);
+      for (const re of expect.notBound ?? []) assert.doesNotMatch(bound, re, `${name}: the bound svg`);
+      for (const re of expect.notices ?? []) assert.ok(got.notices.some((n) => re.test(n)), `${name}: no notice matching ${re}, only ${JSON.stringify(got.notices)}`);
+    });
+  }
+
+  test('the findings against the sidecars are the recorded ones', () => {
+    assert.deepEqual(findings, snapshot.findings);
+  });
+
+  /** Every file whose `pass` record differs from the snapshot, with what moved. */
+  function changedIn(pass) {
+    const changed = [];
+    for (const { name } of corpus) {
+      const volatile = snapshot.volatile?.[name]?.[pass];
+      const tol = pass === 'runtime' ? (volatile ? VOLATILE_TOLERANCE : TOLERANCE) : 0;
+      const was = pass === 'runtime' && localRuntime ? localRuntime[name] ?? undefined : snapshot.files[name]?.[pass];
+      const lines = diff(was, records[name][pass], tol);
+      if (lines.length) changed.push({ name, lines });
+    }
+    return changed;
+  }
+
+  for (const pass of PASSES) {
+    // Measured everywhere; compared against Linux's record or this machine's own baseline, and
+    // where there is neither, said so (see RUNTIME_PINNED).
+    const skip = pass === 'runtime' && !RUNTIME_PINNED && !localRuntime
+      ? `not compared on ${process.platform}: the record is Linux's (CI), and ${changedIn(pass).length} file(s) differ from it here; CI compares it, or set SVG_CORPUS_RUNTIME_LOCAL=<file> on main to compare against this machine`
+      : false;
+    test(`${pass}: every corpus file matches its record`, { skip }, () => {
+      const changed = changedIn(pass);
+      if (pass === 'runtime' && !localRuntime) {
+        // The fresh records, one line each, so a re-record off Linux can take them from this log.
+        for (const { name } of changed) console.log(`[svg-import-passes] runtime-record ${name} ${JSON.stringify(records[name].runtime)}`);
+      }
+      const said = changed.map(({ name, lines }) => `${name} / ${pass}\n    ${lines.join('\n    ')}`);
+      assert.equal(changed.length, 0, `${changed.length} file(s) changed in ${pass}:\n  ${said.join('\n  ')}`);
+    });
+  }
 }
