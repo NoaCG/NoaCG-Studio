@@ -339,4 +339,7 @@ test('ci06: the configured jobs run on the planner flag and read no hosted secre
   const stack = readFileSync(new URL('../.github/actions/configured-stack/action.yml', import.meta.url), 'utf8');
   for (const must of [/schema_migrations/, /has_table_privilege/, /supabase_realtime/, /pg_default_acl/, /grant_type=password/, /version: 2\.111\.0/]) assert.match(stack, must);
   assert.doesNotMatch(stack, /secrets\./);
+  // #1865: the stack START is retried once, after a stop, and nothing else is: exactly two starts.
+  assert.equal(stack.match(/supabase start -x studio,edge-runtime/g).length, 2);
+  assert.match(stack, /supabase stop --no-backup \|\| true\n\s*supabase start -x studio,edge-runtime \|\| exit 1/);
 });

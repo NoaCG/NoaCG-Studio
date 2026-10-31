@@ -193,6 +193,10 @@ From the next phase on, the coordinator:
   case identity from `--list` on the verdict job, not in the plan job (the plan job installs no
   dependencies); quarantined configured specs follow the offline split; a flake on a PR is red, as
   it was on a worker dispatch.
+  The shared action retries the stack START once, after `supabase stop`, and nothing else (#1865,
+  #1829: Docker port wiring failing before any test ran); a test, shard or verdict is never
+  retried, and the aggregate still refuses a missing shard. #1865 stays open until a retried start
+  is seen recovering on a real run.
 - Traps for later rows: the configured selection's shared ground includes ci.yml, so every ci.yml
   change runs the whole configured set on its PR. ci07's critical/shared sets may narrow the
   escalation coupling only with the reset the runbook requires. `CONFIGURED_TRIGGERS` stays

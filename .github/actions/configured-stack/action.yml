@@ -35,11 +35,22 @@ runs:
     # and there is no supabase/functions directory to serve). Realtime and storage MUST stay:
     # src/control/hostedControl.ts subscribes to postgres_changes, and migration 0001 creates
     # the storage buckets. Nothing else is trimmed before the first run is measured.
+    #
+    # ONE BOUNDED RETRY OF THE START, and of nothing else (#1865, #1829). Docker on a fresh runner
+    # sometimes fails to wire a container's ports ("failed to set up container networking",
+    # "port is already allocated") before any test runs. The half-started stack is stopped and
+    # started once more; a second failure fails the step. No test, shard or verdict is retried,
+    # and every assertion below still runs on whatever came up.
     - name: Start the local Supabase stack
       shell: bash
       run: |
-        set -euo pipefail
-        supabase start -x studio,edge-runtime
+        set -uo pipefail
+        if ! supabase start -x studio,edge-runtime; then
+          echo "::warning title=Local stack start failed once::Stopping the half-started stack and starting it once more (#1865). A second failure fails this step."
+          docker ps -a --format '{{.Names}}\t{{.Status}}' || true
+          supabase stop --no-backup || true
+          supabase start -x studio,edge-runtime || exit 1
+        fi
         echo "--- containers actually running ---"
         docker ps --format '{{.Names}}\t{{.Image}}'
 
