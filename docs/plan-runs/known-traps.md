@@ -17,8 +17,9 @@ that plan's brief, not here.
 - **Worker gates on your reviewed head:** CI gate, the Codex review finished and its findings
   handled (ask `@codex review` at most once per head, for a coherent checkpoint or the final head,
   as Review checkpoints below says; Codex reviews only on open or on that request), and the
-  configured-suite run you dispatched on that head finished green, not merely started. The
-  coordinator verifies its `head_sha` equals your reviewed head. Reviewed itself is not a worker
+  configured evidence the CI gate carries (The configured suite below): the CI run on that head
+  finished, its plan's `Configured selection` read. The coordinator verifies that CI run's
+  `head_sha` equals your reviewed head. Reviewed itself is not a worker
   prerequisite: it may be pending or red until the coordinator stamps. After posting the pinned
   stamp the coordinator enables auto-merge with head checks before and after; GitHub still requires
   Reviewed and all required checks before admitting the PR. Recover an earlier Reviewed timeout
@@ -60,8 +61,24 @@ and the exact base and head SHAs. It picks its own probes.
 
 ## The configured suite
 
-- Dispatch it on your own branch: `configured-suite.yml` keeps one pending run per branch, so your
-  dispatch no longer cancels another branch's. Never cancel a run you did not start.
+- **It is a required part of your PR's CI gate (since ci06).** The `E2E plan` job's `Configured
+  selection` step (its summary) says what your change owes: **triggered**, the configured specs it
+  selects and why, run on a local stack by `Configured E2E n/m (selected, local Supabase)` and
+  judged exactly by `Configured E2E verdict (selected)`; the **whole set** when the change touches
+  the suite's shared ground (its helpers, `playwright.live.config.ts`, `supabase/`, ci.yml or
+  `configured-suite.yml`, `.github/actions/`, dependency manifests, the planner or verdict) or
+  anything the offline plan escalates; or **untriggered**, an explicit notice that the change selects
+  no configured spec. The CI gate fails unless the jobs match that flag, so a green CI gate on your
+  reviewed head is the configured evidence: put the CI run ID and the selection (mode, spec count)
+  in your receipt. No separate pre-merge configured dispatch is owed.
+- **What it does not cover.** The merge group is exempt (its plan says so): the combined tree's
+  backend is not checked before merge. The full configured suite still runs on every landing
+  (`configured-suite.yml` on the push to `main`), and the checker reads that run on the merge SHA.
+  A quarantined configured spec leaves the PR selection unless your change edits it.
+- **A full dispatch is for a reason, not a routine.** When the coordinator asks for one, or a
+  repair has to reproduce a landing's configured failure: dispatch on your own branch.
+  `configured-suite.yml` keeps one pending run per branch, so your dispatch does not cancel another
+  branch's. Never cancel a run you did not start.
 - Dispatch with `node scripts/candidate-dispatch.mjs dispatch --ref <your-branch>` from your
   worktree at the reviewed head, not a bare `gh workflow run`. It refuses a branch that is not at
   that commit, records the request first and prints the run ID GitHub gave it; put that run ID in
@@ -71,8 +88,9 @@ and the exact base and head SHAs. It picks its own probes.
   attempt, and nothing else (3 is running or superseded: a run cancelled while pending never
   passes; reconcile your newer run's record). A failed attempt stays failing after a re-run; after a runner death the
   coordinator decides with a written reason. `--recover` re-dispatches at most once per record.
-- It is four shards and takes about 12 minutes. Wait for it in a background job, so a cloud machine
-  is not reclaimed; if your container restarts, start that wait again.
+- The full suite is four shards and takes about 12 minutes; the PR selection packs one local
+  stack per ten measured minutes. Wait for either in a background job, so a cloud machine is not
+  reclaimed; if your container restarts, start that wait again.
 
 ## A red gate
 
