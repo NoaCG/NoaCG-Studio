@@ -359,7 +359,7 @@ async function cpuMs(fn, reps) {
  *  quadratic about 16x. Both sizes are read once first, so no sample counts a cold start. The CPU
  *  counter advances in ticks of about 4 ms, so each sample repeats the read until the small one
  *  takes 50 ms. Each size's fastest of five samples counts, the sizes taken in turn. The rounds
- *  stop past 10 s of CPU (a linear reader needs under 2 s), so a quadratic one fails with its
+ *  stop past 10 s of CPU (a linear reader needs 1 to 3 s), so a quadratic one fails with its
  *  numbers well inside the CI job's time limit. */
 async function assertLinear(label, small, big) {
   await small();
