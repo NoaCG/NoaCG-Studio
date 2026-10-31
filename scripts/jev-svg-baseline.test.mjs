@@ -925,4 +925,8 @@ for (const d of designs) {
   });
 }
 
-test('the layout at rest is compared on the build it was recorded on', { skip: browser === RECORDED_ON ? false : `recorded on Chromium ${RECORDED_ON}, this is ${browser}: CI compares it` }, () => {});
+// On CI a different build fails rather than skips: a browser upgrade must re-take `rest` in the diff,
+// never switch the comparison off unseen.
+test('the layout at rest is compared on the build it was recorded on', { skip: browser === RECORDED_ON || process.env.CI ? false : `recorded on Chromium ${RECORDED_ON}, this is ${browser}: CI compares it` }, () => {
+  assert.equal(browser, RECORDED_ON, `CI runs Chromium ${browser}, the record's text at rest is from ${RECORDED_ON}: take the printed records on this build and update RECORDED_ON`);
+});

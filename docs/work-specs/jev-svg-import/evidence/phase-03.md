@@ -38,9 +38,12 @@ What today's import does with these designs (facts for later rows, not a score):
   have no importer layer.
 - lower-third-3, the outline-only negative, has one shape and no fields.
 
-CI: the Factory gates job of PR run 41208009662 on `4ddfebe3` (Chromium 149.0.7827.55) passed
-all 20 baseline tests and every test of the refactored 51-file harness. It printed no fresh
-record, so its text at rest equals the record taken on this worker; `RECORDED_ON` is CI's build.
+CI, on CI's Chromium 149.0.7827.55: in PR run 41208009662 (`4ddfebe3`) all 20 baseline tests
+and every test of the refactored 51-file harness passed; `RECORDED_ON` still named this worker's
+build, so the text-at-rest comparison was skipped there, and no fresh record was printed. With
+`RECORDED_ON` set to CI's build, PR run 41208189216 (`ca48aa85`) compared it: Factory gates
+passed with all 18 designs matching, text at rest included. On CI a different Chromium build now
+fails the baseline instead of skipping it.
 
 Mutation checks on this worker, reverted before commit: relabelling unnamed text (`Text ` to
 `Text  ` in `svgImport.ts`) failed 4 designs naming the field and control lines; adding an
