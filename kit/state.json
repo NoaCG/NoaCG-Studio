@@ -28,7 +28,8 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "owner answer: private holdout backup check for phase 2 (run issue comment 6543054609)"
+    "what": "owner answer: private holdout backup check for phase 2 (run issue comment 6543054609); long fallback",
+    "eta": "2026-10-31T18:25:00Z"
   },
   "inFlight": [
     {
@@ -60,7 +61,7 @@
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-10-31T12:27:21Z"
+    "checkinAt": "2026-10-31T18:30:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
