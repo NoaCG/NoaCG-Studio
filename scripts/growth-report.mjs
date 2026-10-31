@@ -42,7 +42,7 @@ const REPO = process.env.GH_REPO || process.env.GITHUB_REPOSITORY || 'NoaCG/NoaC
 const DAY = 86_400_000;
 
 /** A bounded reader over `gh api`: it counts calls and refuses past its budget. */
-export function makeReader(budget, run = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 << 20 })) {
+export function makeReader(budget, run = (args) => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 << 20, windowsHide: true })) {
   const reader = { calls: 0, failures: 0, exhausted: false };
   reader.get = (route) => {
     if (reader.calls >= budget) { reader.exhausted = true; return null; }
@@ -363,7 +363,7 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
  * Keep ONE rolling issue per alarm title: open or update it with `body`, or close it when `body`
  * is empty. Only a run about main may raise or withdraw an alarm (the caller checks the ref).
  */
-export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args, { encoding: 'utf8' })) {
+export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
   let found;
   for (let page = 1; page <= 10 && !found; page++) {
     const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&creator=github-actions%5Bbot%5D&per_page=100&page=${page}`]) || '[]');
@@ -393,12 +393,12 @@ export function ages({ ceilings, now = new Date().toISOString(), budget = 400, r
 
 /** The newest published report: the `growth-report` artifact of the latest weekly-audit run on main. */
 export function fetchLatest(out) {
-  const runs = JSON.parse(execFileSync('gh', ['api', '-X', 'GET', `repos/${REPO}/actions/workflows/weekly-audit.yml/runs?branch=main&status=completed&per_page=10`], { encoding: 'utf8' })).workflow_runs ?? [];
+  const runs = JSON.parse(execFileSync('gh', ['api', '-X', 'GET', `repos/${REPO}/actions/workflows/weekly-audit.yml/runs?branch=main&status=completed&per_page=10`], { encoding: 'utf8', windowsHide: true })).workflow_runs ?? [];
   for (const run of runs) {
-    const arts = JSON.parse(execFileSync('gh', ['api', '-X', 'GET', `repos/${REPO}/actions/runs/${run.id}/artifacts`], { encoding: 'utf8' })).artifacts ?? [];
+    const arts = JSON.parse(execFileSync('gh', ['api', '-X', 'GET', `repos/${REPO}/actions/runs/${run.id}/artifacts`], { encoding: 'utf8', windowsHide: true })).artifacts ?? [];
     if (!arts.some((a) => a.name === 'growth-report' && !a.expired)) continue;
     const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-'));
-    execFileSync('gh', ['run', 'download', String(run.id), '-n', 'growth-report', '-D', dir, '-R', REPO]);
+    execFileSync('gh', ['run', 'download', String(run.id), '-n', 'growth-report', '-D', dir, '-R', REPO], { windowsHide: true });
     const file = readdirSync(dir).find((f) => f.endsWith('.json'));
     writeFileSync(out, readFileSync(path.join(dir, file)));
     return { run: run.id, file: out };
