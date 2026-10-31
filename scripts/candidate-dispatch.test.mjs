@@ -6,7 +6,10 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { attribute, dispatch, exitCode, main, reconcile, saver, SETTLE_MS, settle, WORKFLOW } from './candidate-dispatch.mjs';
+import { attribute, dispatch, exitCode, main, reconcile, saver, SETTLE_MS, settle as settleOnce, WORKFLOW } from './candidate-dispatch.mjs';
+
+// Pure-table cases read the listing twice unchanged unless a case says otherwise.
+const settle = (intent, run, facts = {}) => settleOnce(intent, run, { recheck: () => ({ complete: facts.complete, runs: facts.runs }), ...facts });
 
 const workflowText = readFileSync(new URL('../.github/workflows/configured-suite.yml', import.meta.url), 'utf8');
 const REPO = 'NoaCG/fixture', WF = 'configured-suite.yml';
@@ -434,7 +437,7 @@ test('decision table: one case per row, first matching row wins', () => {
   check('V2 failure elsewhere', settle(intent, R, facts([R, run(5, { head_branch: 'other', conclusion: 'failure' })])), 'V2', 'verdict', 1);
   check('V2 even from a partial list', settle(intent, R, facts([run(5, { conclusion: 'timed_out' })], { complete: false })), 'V2', 'verdict', 1);
   check('V2 own failure', settle(intent, run(20, { conclusion: 'failure' }), facts([run(20, { conclusion: 'failure' })])), 'V2', 'verdict', 1);
-  check('V2 R re-run since its lookup, newer attempt failed', settle(intent, R, facts([run(20, { run_attempt: 2, conclusion: 'failure' })])), 'V2', 'verdict', 1);
+  check('V2 the listing shows a newer failed attempt of R', settle(intent, R, facts([run(20, { run_attempt: 2, conclusion: 'failure' })])), 'V2', 'verdict', 1);
   check('V3 incomplete, finished', settle(intent, R, facts([R], { complete: false })), 'V3', 'unresolved', 1);
   check('V3 R not listed, running', settle(intent, run(20, { status: 'queued', conclusion: null }), facts([])), 'V3', 'running', 3);
   const rerun = run(6, { run_attempt: 3, status: 'completed', conclusion: 'cancelled' });
@@ -443,14 +446,19 @@ test('decision table: one case per row, first matching row wins', () => {
   const stopped = run(6, { conclusion: 'cancelled' });
   check('V6 cancelled after start', settle(intent, R, facts([R, stopped], { started: () => true })), 'V6', 'cancelled', 1);
   check('V6 start unknown', settle(intent, R, facts([R, stopped], { started: () => { throw Error('down'); } })), 'V6', 'unresolved', 1);
-  check('V7 R re-run since its lookup, still running', settle(intent, R, facts([run(20, { run_attempt: 2, status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
+  check('V7 the listing shows R re-run and running', settle(intent, R, facts([run(20, { run_attempt: 2, status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
   check('V7 another still running', settle(intent, R, facts([R, run(21, { status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
   const Rcancel = run(20, { conclusion: 'cancelled' });
   check('V7 R replaced, replacement running', settle(intent, Rcancel, facts([Rcancel, run(21, { status: 'queued', conclusion: null })])), 'V7', 'superseded', 3);
   check('V8 recover', settle(intent, Rcancel, facts([Rcancel, stopped])), 'V8', 'recover', 2);
   check('V8 obsolete', settle(intent, Rcancel, facts([Rcancel], { head: sha('d') })), 'V8', 'obsolete', 2);
-  check('V9 pass', settle(intent, R, facts([R, run(4), stopped])), 'V9', 'verdict', 0);
-  check('V9 R replaced, all passed', settle(intent, Rcancel, facts([Rcancel, run(21)])), 'V9', 'superseded', 0);
+  check('V9 a re-run started between the reads', settle(intent, R, facts([R], { recheck: () => ({ complete: true, runs: [run(20, { run_attempt: 2, status: 'queued', conclusion: null })] }) })), 'V9', 'running', 3);
+  check('V9 a new run appeared between the reads', settle(intent, R, facts([R], { recheck: () => ({ complete: true, runs: [R, run(22, { status: 'queued', conclusion: null })] }) })), 'V9', 'running', 3);
+  check('V9 second read incomplete', settle(intent, R, facts([R], { recheck: () => ({ complete: false, runs: [R] }) })), 'V9', 'running', 3);
+  check('V9 second read fails', settle(intent, R, facts([R], { recheck: () => { throw Error('down'); } })), 'V9', 'unresolved', 1);
+  check('V10 pass', settle(intent, R, facts([R, run(4), stopped])), 'V10', 'verdict', 0);
+  check('V10 R replaced, all passed', settle(intent, Rcancel, facts([Rcancel, run(21)])), 'V10', 'superseded', 0);
+  check('V3 R lookup older than the listing is not trusted for status', settle(intent, R, facts([run(20, { status: 'in_progress', conclusion: null })])), 'V7', 'running', 3);
 });
 
 test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {

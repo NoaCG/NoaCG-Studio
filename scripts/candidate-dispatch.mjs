@@ -126,13 +126,15 @@ export function attribute(intent, { runs, complete }, now) {
 }
 
 /**
- * Rows V1-V9: the verdict for the requested commit, given its proved run R. C is R as its own
- * lookup returned it, plus every configured-suite workflow_dispatch run listed at the commit on
- * any branch, R's listed snapshot included. Facts (runs,
- * complete, head) are values or getters; `started(run)` and `attempts(run)` are read only when a
- * row needs them, and may throw when GitHub cannot be read.
+ * Rows V1-V10: the verdict for the requested commit, given its proved run R. R's own lookup
+ * proves identity only. C is every configured-suite workflow_dispatch run listed at the commit
+ * on any branch, R included: statuses and attempts come from that one listing, and a second
+ * read of it must match before any pass. Facts (runs, complete, head) are values or getters;
+ * `started(run)`, `attempts(run)` and `recheck()` are read only when a row needs them, and may
+ * throw when GitHub cannot be read.
  */
-export function settle(intent, run, facts = {}) {
+export function settle(intent, lookedUp, facts = {}) {
+  let run = lookedUp;
   const fact = (key) => (typeof facts[key] === 'function' ? facts[key]() : facts[key]);
   // R cancelled while pending answers through the other runs of its commit (rule 2).
   const pendingCancel = (other) => other.status === 'completed' && other.conclusion === 'cancelled';
@@ -142,14 +144,15 @@ export function settle(intent, run, facts = {}) {
   if (intent.workflow !== WORKFLOW) return answer('V1', 'refused', null, null,
     `this record names ${intent.workflow}; only ${WORKFLOW}, whose runs on one commit are one check, is judged here`);
   const listed = fact('runs') ?? [];
-  // R's own lookup AND its listed snapshot both count: if R was re-run in between, the newer
-  // attempt is never lost.
-  const all = [run, ...listed.filter((other) => sameCheck(intent, other))].sort((x, y) => x.id - y.id);
-  const failed = all.find((other) => other.status === 'completed' && !['success', 'cancelled'].includes(other.conclusion));
+  const all = listed.filter((other) => sameCheck(intent, other)).sort((x, y) => x.id - y.id);
+  // A failure seen in any read, R's own lookup included, is a failure.
+  const failed = [run, ...all].find((other) => other.status === 'completed' && !['success', 'cancelled'].includes(other.conclusion));
   if (failed) return answer('V2', 'verdict', failed, failed.conclusion, `run ${failed.id} at this commit ended ${failed.conclusion}`);
-  if (fact('complete') !== true || !listed.some((other) => other.id === run.id)) return run.status !== 'completed'
+  const listedR = all.find((other) => other.id === run.id);
+  if (fact('complete') !== true || !listedR) return run.status !== 'completed'
     ? answer('V3', 'running', run, null, `run ${run.id} is running; the list of runs at this commit does not show it yet`)
     : answer('V3', 'unresolved', null, null, `the list of ${WORKFLOW} runs at this commit is incomplete or does not show run ${run.id}`);
+  run = listedR; // From here on, statuses and attempts come from the one listing.
   let unreadable;
   for (const other of all.filter((candidate) => attemptOf(candidate) > 1)) {
     let earlier;
@@ -177,8 +180,16 @@ export function settle(intent, run, facts = {}) {
       : answer('V8', 'obsolete', null, null, `run ${run.id} was cancelled and ${intent.ref} moved to ${head ?? 'nothing'};`
         + ' dispatch the new head; a verdict still required for the old commit goes through the exact-SHA check branch');
   }
-  return { ...answer('V9', 'verdict', counted[0], 'success', `all ${counted.length} run(s) at this commit passed on every attempt`),
-    runIds: [...new Set(counted.map((other) => other.id))] };
+  // Time of check versus time of use: re-read the listing; any change since means not yet.
+  const key = (runs) => JSON.stringify(runs.filter((other) => sameCheck(intent, other)).sort((x, y) => x.id - y.id)
+    .map((other) => [other.id, attemptOf(other), other.status, other.conclusion]));
+  let again;
+  try { again = facts.recheck?.(); } catch { again = undefined; }
+  if (!again || !Array.isArray(again.runs)) return answer('V9', 'unresolved', null, null, 'the list of runs at this commit could not be read a second time');
+  if (again.complete !== true || key(again.runs) !== key(all)) return answer('V9', 'running', null, null,
+    'the runs at this commit changed between two reads (a new run, a re-run or a status change); reconcile again');
+  return { ...answer('V10', 'verdict', counted[0], 'success', `all ${counted.length} run(s) at this commit passed on every attempt, twice read`),
+    runIds: counted.map((other) => other.id) };
 }
 
 function branchHead(api, { repository, ref }) {
@@ -204,6 +215,7 @@ export function reconcile(intent, { api = ghApi, now = Date.now } = {}) {
     return settle(intent, run, {
       runs: () => list().runs,
       complete: () => list().complete,
+      recheck: () => listCommitRuns(api, intent),
       attempts: (other) => Array.from({ length: attemptOf(other) - 1 }, (_, i) => {
         const r = api('GET', `repos/${intent.repository}/actions/runs/${other.id}/attempts/${i + 1}`);
         if (!r.ok || r.json?.status !== 'completed') throw Error(`could not read attempt ${i + 1} of run ${other.id}`);

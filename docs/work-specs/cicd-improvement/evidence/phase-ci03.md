@@ -95,10 +95,10 @@ the commit comparison fails the mismatch test.
 
 `scripts/candidate-dispatch.mjs` transcribes this table row by row (`attribute` for A, `settle`
 for V); every answer names its row, and the test file has one case per row. The first matching
-row wins. R is the run GitHub returned for the dispatch. C is R as its own lookup returned it,
-plus every `configured-suite.yml` `workflow_dispatch` run at the requested commit, on any
-branch, listed by `head_sha` with no time window, R's listed snapshot included (so a re-run of
-R between the two reads is never lost). A run "cancelled while pending" is one whose latest attempt was cancelled and had
+row wins. R is the run GitHub returned for the dispatch; its own lookup proves identity only.
+C is every `configured-suite.yml` `workflow_dispatch` run at the requested commit, on any
+branch, listed by `head_sha` with no time window, R included. Statuses and attempts come from
+that one listing, and a second read of it must match before any pass. A run "cancelled while pending" is one whose latest attempt was cancelled and had
 no jobs started.
 
 | Row | When | Answer | Exit |
@@ -109,16 +109,17 @@ no jobs started.
 | A4 | the returned run cannot be read | `unresolved` | 1 |
 | A5 | the returned run is not a dispatch of this workflow on this branch at this commit | `mismatch` | 1 |
 | V1 | the record names another workflow | `refused` | 1 |
-| V2 | any run in C (even from a partial listing) has a latest attempt that finished neither `success` nor `cancelled` | failing, naming it | 1 |
+| V2 | any run seen in any read (R's lookup or the listing, even a partial one) has a latest attempt that finished neither `success` nor `cancelled` | failing, naming it | 1 |
 | V3 | the listing is incomplete or does not show R | `running` while R runs, else `unresolved` | 3 / 1 |
 | V4 | an earlier attempt of any run in C, re-run or cancelled re-run alike, did not succeed | failing; a runner-death re-run is the coordinator's call | 1 |
 | V5 | an earlier attempt of a run in C cannot be read | `unresolved` | 1 |
 | V6 | a run in C was cancelled after its jobs started (or that cannot be read) | `cancelled` (or `unresolved`) | 1 |
 | V7 | a run in C that was not cancelled is still running | `running` | 3 |
 | V8 | every run in C was cancelled while pending | `recover` if the branch head is still the commit, else `obsolete` | 2 |
-| V9 | otherwise: every remaining run in C passed on every attempt | pass | 0 |
+| V9 | a second read of the listing, after every check above, is incomplete or differs in any run of C (the set of runs, an attempt number, a status or a conclusion) | `running`; reconcile again (unreadable: `unresolved`) | 3 / 1 |
+| V10 | otherwise: every remaining run in C passed on every attempt, twice read | pass | 0 |
 
-When R itself was cancelled while pending, V2, V4, V7 and V9 answer `superseded` with the same
+When R itself was cancelled while pending, V2, V4, V7 and V10 answer `superseded` with the same
 exit code. No row passes from a partial listing, an unread attempt, a pending result or a run
 whose outcome is unknown.
 
@@ -207,7 +208,7 @@ ambiguity. These are fixtures.
 | Fresh `/so` on `509df299` (grade B) | a plain re-dispatch, `--recover` or a re-run attempt after a failure on the commit could still exit 0 | a failure on the commit is never hidden (third round of this family) | product defect | repeated family: a fresh reassessment of the rule model first (agreed with five corrections, all applied), then rule 8; tests first. Non-blocking: the runbook row now says the advisory runs before the head check |
 | Builder, live dispatch on `a7d85b74` | right after a dispatch the commit listing does not yet show the new run, so `dispatch` answered `unresolved` (exit 1) for a successful dispatch | an answer must match what is known | product defect | a run that is still running answers `running` (exit 3) while the listing lags; a finished run still needs the complete listing; test first |
 | Codex on `a7d85b74` (comment 4431931311) | a run whose attempt 1 failed and whose re-run was then cancelled while pending was dropped, erasing that failure | a failure on the commit is never hidden (same family) | product defect | the verdict rule became the decision table above, transcribed row by row with one test per row (V4 covers this case) |
-| Codex on `8e31f98c` (comment 4431949279) | R re-run between its own lookup and the listing: the listing's newer snapshot of R was dropped | a failure on the commit is never hidden | product defect | C keeps both snapshots of R (table definition); table cases for a newer failed and a newer running attempt, test first |
+| Codex on `8e31f98c` (comment 4431949279) | R re-run between its own lookup and the listing: the listing's newer snapshot of R was dropped | a failure on the commit is never hidden | product defect | first C kept both snapshots of R; then, at the coordinator's request, the whole class of two reads disagreeing was closed: R's lookup proves identity only, statuses come from one listing, and a second read must match before any pass (V9); table cases first |
 
 ## 7. Phase notes
 
