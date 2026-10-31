@@ -202,6 +202,15 @@
     "path-to-regexp": "6.3.0",
     "@vercel/cli-config": {
       "zod": "4.6.7"
+    },
+    "eslint": {
+      "minimatch": "11.0.2"
+    },
+    "@eslint/config-array": {
+      "minimatch": "11.0.2"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.2"
     }
   },
   "dependencies": {
