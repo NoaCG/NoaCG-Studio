@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ONE DISPATCH, ONE ATTRIBUTABLE RUN, ONE COMMIT.
 //
-//   node scripts/candidate-dispatch.mjs dispatch --ref <branch> [--sha <commit>] [--workflow configured-suite.yml]
+//   node scripts/candidate-dispatch.mjs dispatch --ref <branch> [--sha <commit>]
 //   node scripts/candidate-dispatch.mjs reconcile <record.json> [--recover]
 //
 // WHY. Plan-run workers dispatch configured-suite.yml on their reviewed head, and the coordinator
@@ -30,8 +30,9 @@
 //     after the send never sends a second suite.
 //   - The one exception, which same-branch supersession needs: a proved run that was cancelled
 //     takes its verdict from a later dispatch run of the same workflow on the same ref and
-//     commit. The workflow has no inputs and checks out github.sha, so that verdict is a fact
-//     about the commit, and the answer names the run it used. A run
+//     commit. That holds only because configured-suite.yml's dispatch takes no inputs and checks
+//     out github.sha, so its verdict is a fact about the commit; this helper therefore dispatches
+//     that workflow and no other. The answer names the run it used. A run
 //     cancelled while pending, with its commit still the branch head and nothing replacing it,
 //     is `recover`: `--recover` dispatches it again, once per record. A run someone cancelled
 //     after it started is never recovered automatically. A moved head makes the old commit
@@ -55,6 +56,8 @@ const REF = /^(?!-)(?!refs\/)[\w./-]+$/;
 const REPOSITORY = /^[\w.-]+\/[\w.-]+$/;
 // GitHub creates a dispatch run within seconds; past this a complete listing without it is final.
 export const SETTLE_MS = 5 * 60_000;
+// The only workflow served: its dispatch takes no inputs, which the supersession exception needs.
+export const WORKFLOW = 'configured-suite.yml';
 // Clock skew allowed between this machine and GitHub's created_at.
 const SKEW_MS = 60_000;
 const REFUSALS = ['refused', 'mismatch', 'unresolved'];
@@ -117,8 +120,10 @@ export function settle(intent, run, facts = {}) {
   const fact = (key) => (typeof facts[key] === 'function' ? facts[key]() : facts[key]);
   if (run.status !== 'completed') return { state: 'running', run };
   if (run.conclusion !== 'cancelled') return { state: 'verdict', run, conclusion: run.conclusion };
+  // Another workflow's runs may differ by their inputs: never adopt one of them.
+  const replaceable = intent.workflow === WORKFLOW;
   // Run IDs grow with creation; created_at has one-second resolution.
-  const replacement = (fact('runs') ?? []).filter((other) => ownRun(intent, other) && other.id > run.id && other.head_sha === intent.sha
+  const replacement = !replaceable ? undefined : (fact('runs') ?? []).filter((other) => ownRun(intent, other) && other.id > run.id && other.head_sha === intent.sha
       && other.conclusion !== 'cancelled').sort((a, b) => b.id - a.id)[0];
   if (replacement) {
     // The replacement's verdict is this commit's verdict: a failure must not hide behind the cancel.
@@ -167,10 +172,11 @@ export function reconcile(intent, { api = ghApi, now = Date.now } = {}) {
   } catch (error) { return { state: 'unresolved', reason: error.message }; }
 }
 
-export function dispatch({ repository, workflow = 'configured-suite.yml', ref, sha, recovers }, {
+export function dispatch({ repository, workflow = WORKFLOW, ref, sha, recovers }, {
   api = ghApi, observe = observeVerification, save, now = Date.now } = {}) {
-  if (!REPOSITORY.test(repository ?? '') || !REF.test(ref ?? '') || !SHA.test(sha ?? '') || !/^[\w.-]+\.ya?ml$/.test(workflow)) {
-    return { state: 'refused', reason: 'usage: a repository, a branch name, a full 40-character commit and a workflow file name' };
+  if (workflow !== WORKFLOW) return { state: 'refused', reason: `only ${WORKFLOW} is dispatched here; nothing dispatched` };
+  if (!REPOSITORY.test(repository ?? '') || !REF.test(ref ?? '') || !SHA.test(sha ?? '')) {
+    return { state: 'refused', reason: 'usage: a repository, a branch name and a full 40-character commit' };
   }
   // The advisory first: its reads must not widen the window between the head check and the dispatch.
   try { observe({ workflow, ref, expectedRevision: sha, repository, purpose: 'candidate verification', print: (line) => console.error(line) }); }
@@ -243,7 +249,7 @@ export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, 
     if (argv[0] === 'dispatch') {
       const repository = flag('--repo') ?? api('GET', 'repos/{owner}/{repo}').json?.full_name;
       const sha = flag('--sha') ?? spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim();
-      result = dispatch({ repository, workflow: flag('--workflow'), ref: flag('--ref'), sha },
+      result = dispatch({ repository, ref: flag('--ref'), sha },
         { ...deps, save: saver(flag('--records') ?? recordDir()) });
     } else if (argv[0] === 'reconcile' && argv[1]) {
       const file = path.resolve(argv[1]);
@@ -262,7 +268,7 @@ export function main(argv = process.argv.slice(2), { api = ghApi, observe, now, 
         }
       }
     } else {
-      result = { state: 'refused', reason: 'usage: dispatch --ref <branch> [--sha <commit>] [--workflow <file>] | reconcile <record.json> [--recover]' };
+      result = { state: 'refused', reason: 'usage: dispatch --ref <branch> [--sha <commit>] | reconcile <record.json> [--recover]' };
     }
   } catch (error) { result = { state: 'unresolved', reason: error.message }; }
   print(JSON.stringify(result));

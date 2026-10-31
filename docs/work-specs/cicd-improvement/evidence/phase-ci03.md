@@ -100,7 +100,9 @@ reassessment of the rule model came before the repair. It agreed with correction
    commit never stand in for it.
 2. Exception, needed by same-branch supersession: a proved run that was cancelled takes its
    verdict from a later dispatch run of the same workflow, ref and commit, named in the answer.
-   The workflow has no inputs and checks out `github.sha`, so that verdict is about the commit.
+   That workflow's dispatch takes no inputs and checks out `github.sha`, so that verdict is about
+   the commit. The helper therefore serves `configured-suite.yml` only (a test pins
+   `workflow_dispatch: {}`), and a run of any other workflow never adopts another's verdict.
 3. A run on another commit than requested is refused.
 4. Without a returned ID the record never gives a verdict. With no new run on the ref it is
    `absent`, then `not-delivered` after a complete listing five minutes on; with any new run it
@@ -157,6 +159,7 @@ ambiguity. These are fixtures.
 | Codex on `9dced3da` (comment 4431737832) | two dispatches of one commit in the same millisecond got one record name, and the second overwrote the first | run identity must be proved, not inferred | product defect | random suffix, created exclusively; failing test first |
 | Codex on `a0371da1` (comment 4431748828) | after a lost acknowledgement, the first reconcile adopted a concurrent run on the same ref and kept it, so the real run's failure could be missed | run identity must be proved, not inferred (repeated family) | product defect | rules above: no inference at all without a returned ID; failing test first |
 | Codex on `eec131b4` (comment 4431771414) | `--recover` sent its dispatch before recording the claim, so a restart or a concurrent caller could send a second full suite | run identity and delivery must be proved, not inferred (fourth round) | product defect | rule 7, swept across both send paths; restart and interleaving tests first |
+| Codex on `f121a8db` (comment 4431789152) | with `--workflow ci.yml`, a cancelled full run could adopt a replacement's pass made with a narrower `diff_base` | a verdict is adopted only from the same check | product defect | serve `configured-suite.yml` only; other workflows never adopt; test pins its input-free dispatch |
 
 ## 7. Phase notes
 

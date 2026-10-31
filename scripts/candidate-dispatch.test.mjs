@@ -6,7 +6,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { attribute, dispatch, exitCode, main, reconcile, saver, SETTLE_MS, settle } from './candidate-dispatch.mjs';
+import { attribute, dispatch, exitCode, main, reconcile, saver, SETTLE_MS, settle, WORKFLOW } from './candidate-dispatch.mjs';
 
 const workflowText = readFileSync(new URL('../.github/workflows/configured-suite.yml', import.meta.url), 'utf8');
 const REPO = 'NoaCG/fixture', WF = 'configured-suite.yml';
@@ -291,6 +291,24 @@ test('a superseded record carries its replacement\'s verdict and exit code', () 
   const running = settled({ status: 'in_progress', conclusion: null });
   assert.equal(running.conclusion, undefined);
   assert.equal(exitCode(running), 3);
+});
+
+test('only the input-free configured suite is served, and only it adopts a replacement\'s verdict', () => {
+  // Rule 2 rests on this: a dispatch with no inputs on one commit is one check.
+  assert.equal(WORKFLOW, 'configured-suite.yml');
+  assert.match(workflowText, /^ {2}workflow_dispatch: \{\}$/m, 'configured-suite.yml gained dispatch inputs: revisit supersession');
+  const h = harness({ 'claude/one': sha('1') });
+  try {
+    const other = dispatch({ repository: REPO, workflow: 'ci.yml', ref: 'claude/one', sha: sha('1') }, h.deps);
+    assert.equal(other.state, 'refused');
+    assert.equal(h.gh.posts, 0);
+  } finally { h.done(); }
+  const base = { event: 'workflow_dispatch', head_branch: 'claude/one', head_sha: sha('1'), path: '.github/workflows/ci.yml', created_at: '2026-10-31T12:00:00Z' };
+  const cancelled = { ...base, id: 10, status: 'completed', conclusion: 'cancelled' };
+  const narrower = { ...base, id: 11, status: 'completed', conclusion: 'success' }; // e.g. a diff_base run
+  const ci = settle({ workflow: 'ci.yml', ref: 'claude/one', sha: sha('1') }, cancelled, { runs: [cancelled, narrower], head: sha('1') });
+  assert.equal(ci.state, 'recover');
+  assert.notEqual(exitCode(ci), 0);
 });
 
 test('exit codes: 0 only for a passing verdict, 1 refused or failing, 2 act, 3 still running', () => {
