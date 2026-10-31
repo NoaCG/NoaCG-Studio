@@ -75,8 +75,9 @@ observable through `svgDraftWithProposal(draft, proposal)` (draft.ts), which val
   countdown under another behaviour, carries none. The machinery's changes join the reference; a
   decided row's reference is its decided value. A proposal that decides the only clock row is
   Text gets a timer with no clock, which `behaviourBindingGaps` reports, rather than a guess. At
-  most one ticked countdown row remains: where a kept correction holds one, the proposal's
-  countdown is not written.
+  most one ticked countdown row remains. A countdown the proposal makes gives way to one the
+  author holds (a corrected row, or any countdown while the author's own behaviour stays);
+  any other countdown is the reference's, and the proposal's replaces it, so it becomes Text.
 - **A7 A proposal never fights a kept correction.** Validation sees the proposal alone; after the
   merge, a proposal pick or field decision that conflicts with a kept correction is not written
   and `kept` names the correction. Conflicts: a field role on a row that is off, a display-target
@@ -171,9 +172,14 @@ is settled explicitly. A third round, from the final `/so` on `ce7c3ee`
 (`session_017SdbwQpooehha71gQNkZBd`, grade B), found that clearing the marker on every decided row
 also cleared it on a proposal's countdown under a new timer, so leaving that timer kept a ticking
 clock on a graphic with no behaviour. The ownership rule stands; the marker now follows it (A6).
-Tests pin each variant: a proposal deciding the only clock row is Text applied twice, a timer
+A fourth, from the Codex review of `ce7c3ee`: the one-countdown check gave way to any other
+countdown, including one an earlier apply had armed and the replacement was about to disarm, so
+the proposal's countdown was reverted, the armed one disarmed, and the timer had no clock until a
+second apply. The check now gives way only to a countdown the author holds. Tests pin each
+variant: a proposal deciding the only clock row is Text applied twice, a timer
 replaced by a quiz and by another timer, the author's own countdown under a proposal's timer, and
-two clock rows with one decided Text. Each fails under its mutation.
+two clock rows with one decided Text, and a second clock made the countdown after an earlier
+apply armed the first. Each fails under its mutation.
 
 ## Verification on this worker
 

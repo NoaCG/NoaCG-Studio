@@ -231,7 +231,14 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
     // Two clock rows, one decided Text, with a timer: the other is not guessed.
     const decidedText = { ...withField(q, 't0', { kind: 'text' }), components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'bar', layer: 's0' }] }] };
     const dt = apply(two, decidedText);
+    // An earlier apply turned the second clock off and armed the first; a later proposal ticks the second as the countdown,
+    // leaves the first unnamed and changes the bar: the second is the clock, once and again.
+    const firstTimer = apply(two, { ...q, fields: [...q.fields.filter((f) => f.layer !== 't0' && f.layer !== 't1'), { layer: 't1', on: false, kind: 'text' }], components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'bar', layer: 's0' }] }] });
+    const second = { ...q, fields: [...q.fields.filter((f) => f.layer !== 't0' && f.layer !== 't1'), { layer: 't1', on: true, kind: 'countdown' }], components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'clock', layer: 't1' }] }] };
+    const s1 = apply(firstTimer.next, second);
+    const s2 = apply(s1.next, second);
     out.countdown = {
+      secondClock: [row(firstTimer.next, 't0').kind, [row(s1.next, 't0').kind, row(s1.next, 't1').kind], JSON.stringify(s2.patch) === JSON.stringify(s1.patch), D.behaviourBindingGaps(s1.next)],
       saysText: [row(t1.next, clockRow).kind, row(t2.next, clockRow).kind, JSON.stringify(t2.patch) === JSON.stringify(t1.patch), D.behaviourBindingGaps(t1.next).length > 0],
       quizInstead: [row(q1.next, clockRow).kind, row(q1.next, clockRow).armedByTimer, D.disarmTimerClock(q1.next.svgFields).find((f) => f.candidateId === clockRow).kind],
       timerInstead: [tt.next.svgBehaviour?.kind, row(tt.next, clockRow).kind, row(tt.next, clockRow).armedByTimer, D.disarmTimerClock(tt.next.svgFields).find((f) => f.candidateId === clockRow).kind],
@@ -382,6 +389,7 @@ test('A6: the countdown machinery runs on replacement and one countdown remains'
     countdowns: 1,
     twoArmed: [null, 0],
     fight: ['text', 'countdown', ['t1.kind']],
+    secondClock: ['countdown', ['text', 'countdown'], true, []],
     saysText: ['text', 'text', true, true],
     quizInstead: ['countdown', false, 'countdown'],
     timerInstead: ['timer', 'countdown', true, 'text'],

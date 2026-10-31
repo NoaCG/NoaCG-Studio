@@ -193,13 +193,28 @@ export function applySvgProposal(proposal: unknown, input: SvgApplyInput): SvgAp
   }
 
   // A6: one ticked countdown, checked last, after A7 may have put an author's back. The
-  // proposal's countdown gives way to a kept one.
+  // proposal's countdown gives way to one the author holds: a corrected row, or any countdown
+  // while the author's own behaviour stays. Any other countdown is the reference's, the
+  // proposal's to replace: it becomes text, so the machinery has nothing left to undo.
   const countdowns = () => Object.keys(next).filter((id) => next[id].on && next[id].kind === 'countdown');
-  for (let rows = countdowns(); rows.length > 1; rows = countdowns()) {
-    const theirs = rows.find((id) => taken.has(`${id}.kind`) || taken.has(`${id}.on`));
-    if (!theirs) break;
-    revert(theirs, taken.has(`${theirs}.kind`) ? 'kind' : 'on');
-    for (const id of rows) if (id !== theirs && !taken.has(`${id}.kind`)) kept.add(`${id}.kind`);
+  /** The proposal made this row a countdown: it changed its kind or ticked it, not merely
+   *  restated a value the draft already held. */
+  const theirs = (id: string) =>
+    (taken.has(`${id}.kind`) && current.rows[id].kind !== 'countdown') || (taken.has(`${id}.on`) && !current.rows[id].on);
+  const held = (id: string) => !theirs(id) && (!replaceBehaviour || corrected(id, 'kind') || corrected(id, 'on'));
+  const rows = countdowns();
+  if (rows.length > 1 && rows.some(theirs)) {
+    const holder = rows.find(held);
+    for (const id of rows) {
+      if (holder && theirs(id)) {
+        for (const attr of ['kind', 'on'] as const) if (taken.has(`${id}.${attr}`)) revert(id, attr);
+      } else if (!holder && !theirs(id)) {
+        set(next, id, 'kind', 'text');
+        set(nextRef, id, 'kind', 'text');
+        taken.add(`${id}.kind`);
+      }
+    }
+    if (holder) kept.add(`${holder}.kind`);
   }
 
   const writes: SvgRowWrite[] = [];
