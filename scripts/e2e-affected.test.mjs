@@ -804,6 +804,9 @@ test('the Import-graphic folder plans the import road, and only the import road'
     'student-rehearsal.spec.ts',
     'project-format.spec.ts',
     'google-fonts.spec.ts',
+    // The jev-svg-import plan's row 6 journey (AC-20): its covers header names MapSvgFieldsStep.tsx
+    // and draft.ts, because it proves the step's selection and the draft's same-artwork drop.
+    'jev-svg-preparation.spec.ts',
   ];
   const { mode, specs } = planFor(['src/components/wizard/import/MapSvgFieldsStep.tsx']);
   assert.equal(mode, 'subset', 'the capability is mapped, so it must not escalate to the full suite');

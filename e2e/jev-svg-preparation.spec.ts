@@ -1,4 +1,6 @@
 // covers: src/components/wizard/import/{MapSvgFieldsStep.tsx,draft.ts}
+// The wizard shell mounts the step and passes it the draft, so a shell change runs this walk too.
+// covers: src/components/wizard/**, !src/components/wizard/import/**
 //
 // PREPARED FIELDS ARE INSPECTABLE AND A CORRECTION STAYS (docs/work-specs/jev-svg-import/spec.md,
 // row 6, AC-20). The mapping step is the existing surface: a row shows the field's editable

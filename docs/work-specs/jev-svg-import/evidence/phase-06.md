@@ -11,7 +11,8 @@ Builder: Claude Code cloud worker created by coordinator `session_017SdbwQ6d3pRa
 environment `env_017nuiDZBW9smUNLdWVQK8cf`. No model call, no spend; the holdout was not read.
 Allowed files: `src/components/wizard/import/MapSvgFieldsStep.tsx`, `AnalyzeProposalPanel.tsx`,
 `draft.ts`, `fieldAutoMap.ts`, `+e2e/jev-svg-preparation.spec.ts` and this file. Used: the
-step, `draft.ts`, the new spec and this file.
+step, `draft.ts`, the new spec and this file, plus one reconciled entry in
+`scripts/e2e-affected.test.mjs` (below).
 
 ## Pinned main
 
@@ -82,6 +83,16 @@ longer starts over.
   nudge line selects its row, and a row's focus clears a hover focus left behind (a behaviour
   picker still writes one, outside this row's files). The spec's new step failed on `44783ae6`
   (line 82) and passes after the fix.
+
+- CI Build of `44783ae6`, class faulty test expectation: `scripts/e2e-affected.test.mjs` pins the
+  exact specs an import-folder change plans, and the new spec joined them. Outside the row's
+  files, so the coordinator reconciled the boundary first (19:39Z): one entry added to that
+  test's `road` list, nothing else in the file. The same test requires every road spec to run on
+  a wizard shell change, so the new spec's own covers header now also names the shell, as the
+  other import specs do. `node --test scripts/e2e-affected.test.mjs` 115/115.
+- Configured suite on `44783ae6` (41234246878): 145 passed, 0 failed, 1 flaky,
+  `e2e/configured/late-send-abandoned.spec.ts` (failed then passed). It is already quarantined
+  and tracked in open issue #1805; playout code this row does not touch.
 
 ## What landed
 
