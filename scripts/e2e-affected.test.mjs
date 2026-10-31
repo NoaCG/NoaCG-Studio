@@ -304,7 +304,8 @@ test('the modules the runtime bench measures through raise the catalog flag', ()
 
 test('public legal pages select their clean-URL and responsive-layout spec, and the chrome screenshots', () => {
   for (const file of ['terms.html', 'privacy.html', 'src/legal.css']) {
-    const { mode, specs } = planFor([file]);
+    // The headers alone (`readers: null`); what the route readers add is pinned under ci05 below.
+    const { mode, specs } = planFor([file], { readers: null });
     assert.equal(mode, 'subset');
     assert.deepEqual(specs, ['legal.spec.ts', 'public-chrome-baseline.spec.ts']);
   }
@@ -316,7 +317,7 @@ test('public legal pages select their clean-URL and responsive-layout spec, and 
 // what makes an edit to a file a spec loads plan that spec; the rest of `docs/` stays ignored,
 // and so does this folder's own README.
 test('the SVG practice library plans the specs that load it, while the rest of docs stays ignored', () => {
-  const { mode, specs } = planFor(['docs/svg-samples/scorebug.svg']);
+  const { mode, specs } = planFor(['docs/svg-samples/scorebug.svg'], { readers: null });
   assert.equal(mode, 'subset');
   assert.deepEqual(specs, ['import-svg-behaviour.spec.ts', 'import-svg.spec.ts', 'motion-presets.spec.ts']);
   assert.equal(planFor(['docs/svg-samples/README.md']).mode, 'none');
@@ -542,7 +543,7 @@ test('public docs screenshots plan the docs edge without matching similar paths'
   assert.deepEqual(screenshot.specs, ['docs.spec.ts', 'landing.spec.ts']);
   assert.equal(screenshot.catalog, false);
 
-  const page = planFor(['docs.html']);
+  const page = planFor(['docs.html'], { readers: null });
   assert.equal(page.mode, 'subset');
   assert.deepEqual(page.specs, ['docs.spec.ts', 'landing.spec.ts', 'public-chrome-baseline.spec.ts']);
 
@@ -1354,11 +1355,16 @@ test('a source file no spec covers escalates to the full suite, exactly as befor
   assert.deepEqual(planFor(['cli/src/index.ts']).unmapped, []);
 });
 
-test('shortcut guard changes select the current focused-button workflow', () => {
-  const plan = planFor(['src/components/spaceKey.ts']);
-  assert.equal(plan.mode, 'subset');
-  assert.ok(plan.specs.includes('editor-usability.spec.ts'));
+// ci05: the header that names spaceKey.ts adds its spec and can no longer cancel the escalation the
+// CENTRAL comment documents. Before, it planned one spec unless the traced map happened to list it
+// as broad; `traced: null` is that case.
+test('shortcut guard changes escalate and keep the focused-button workflow their header names', () => {
+  const plan = planFor(['src/components/spaceKey.ts'], { traced: null });
+  assert.equal(plan.mode, 'full');
   assert.deepEqual(plan.unmapped, []);
+  const focused = planFor(['src/components/spaceKey.ts'], { traced: null, sprintFocus: true });
+  assert.equal(focused.focusApplied, true);
+  for (const s of [...FOCUS, 'editor-usability.spec.ts']) assert.ok(focused.specs.includes(s), s);
 });
 
 // THE POINT OF THE CHANGE, pinned: a new spec with a covers header is planned for a change to the
@@ -1941,7 +1947,9 @@ test('ci04: a script a catalog spec imports raises the catalog gate though the o
   assert.ok(checkoutCatalogReach().has('scripts/rules.mjs'), 'mark-height and multicol-containment import it');
   const plan = planFor(['scripts/rules.mjs'], { sprintFocus: true });
   assert.equal(plan.catalog, true);
-  assert.deepEqual(plan.specs, [], 'and still plans no offline spec');
+  // ci05: the offline specs that import it by path are its readers now; before, it planned none.
+  assert.deepEqual(plan.specs, ['creative-pilot.spec.ts', 'no-old-editor.spec.ts', 'project.spec.ts', 'stage-fit-determinism.spec.ts', 'template-escaping.spec.ts']);
+  assert.equal(plan.focusApplied, false);
 });
 
 test('ci04: a font file or a non-escalating module in the reach raises the catalog gate on its own', () => {
@@ -2024,4 +2032,176 @@ test('ci04: the catalog flag of a combined change is the union of its parts', ()
   const { catalog } = planFor(changed, { sprintFocus: true });
   assert.equal(catalog, parts.some(Boolean));
   assert.equal(catalog, true);
+});
+
+// ── ci05: path selection (cicd-improvement P1b, AC-4) ─────────────────────────
+// Each case reproduces a reported narrowing first (the defect is the `readers: null` or old-shape
+// answer), then pins the corrected plan.
+import { ESCALATES_WITH_HEADERS, PATH_ROUTE_PAGES, checkoutReaders, readerIndex, readersOf } from './e2e-affected.mjs';
+import { specRegexes } from './e2e-affected-copy.mjs';
+
+test('ci05: a rename contributes its old and its new path, committed or staged', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'e2e-affected-rename-'));
+  const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
+  const write = (rel, text) => {
+    mkdirSync(dirname(join(repo, rel)), { recursive: true });
+    writeFileSync(join(repo, rel), text);
+  };
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+    const body = Array.from({ length: 40 }, (_, i) => `export const v${i} = ${i};`).join('\n');
+    write('src/model/moved.ts', body);
+    write('src/model/staged.ts', `${body}\n// staged`);
+    git('add', '.');
+    git('commit', '-m', 'base');
+    const base = git('rev-parse', 'HEAD');
+    mkdirSync(join(repo, 'src/feature'));
+    git('mv', 'src/model/moved.ts', 'src/feature/moved.ts');
+    git('commit', '-m', 'move a core file out of src/model');
+    git('mv', 'src/model/staged.ts', 'src/feature/staged.ts');
+    write('src/feature/new dir/untracked file.ts', 'export const u = 1;');
+    // The defect: what `git diff --name-only` (rename detection on) reported, the new path alone.
+    assert.deepEqual(git('diff', '--name-only', `${base}...HEAD`).split('\n'), ['src/feature/moved.ts']);
+    const changed = changedFilesSince(base, repo).sort();
+    assert.deepEqual(changed, ['src/feature/moved.ts', 'src/feature/new dir/untracked file.ts', 'src/feature/staged.ts', 'src/model/moved.ts', 'src/model/staged.ts']);
+    const plan = planFor(changed, { traced: null, readers: null, catalogReach: null });
+    assert.equal(plan.mode, 'full', 'the old src/model path escalates as core');
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('ci05: readerIndex reads literal paths, routes and imports, and nothing it cannot resolve', () => {
+  const sources = new Map([
+    ['e2e/a.spec.ts', [
+      "import { drop } from './_helper';",
+      "readFileSync(new URL('./fixtures/one.svg', import.meta.url));",
+      'const show = (n) => new URL(`./fixtures/shows/${n}.svg`, import.meta.url);',
+      "await page.goto('/output?production=x');",
+    ].join('\n')],
+    ['e2e/_helper.ts', "export const drop = (p) => p.setInputFiles('e2e/fixtures/zips/' + name + '.zip');"],
+    ['e2e/b.spec.ts', "import { drop } from './_helper';\nreadFileSync(join(dir, 'fixtures', name));"],
+    ['e2e/c.spec.ts', [
+      "// readFileSync('e2e/fixtures/one.svg') in a comment is not a read",
+      "const kinds = ['fixtures', 'scoreboard'];",
+      "readFileSync(new URL('../scripts/fixtures/feed.json', import.meta.url));",
+      "await page.goto('/output-like');",
+      "await page.goto('/docs/tutorials/x');",
+    ].join('\n')],
+    ['e2e/catalog/d.spec.ts', "readFileSync(new URL('../fixtures/one.svg', import.meta.url));"],
+    ['e2e/j.spec.ts', "await page.goto('/join/studio');"],
+    ['e2e/k.spec.ts', [
+      "await page.setContent(`<p>it's\nmulti-line</p>`);",
+      "const quote = /it's/;",
+      "readFileSync(join(import.meta.dirname, 'fixtures/kept.svg'));",
+      "readdirSync('e2e/fixtures/svg/');",
+      "await request.get('/api/output?x=1');",
+      "await page.goto(`${origin}/output#live`);",
+    ].join('\n')],
+  ]);
+  const index = readerIndex(sources);
+  const of = (file) => readersOf(file, index);
+  assert.deepEqual(of('e2e/fixtures/one.svg'), { specs: ['a.spec.ts'], catalog: true, configured: false });
+  assert.deepEqual(of('e2e/fixtures/shows/intro.svg').specs, ['a.spec.ts'], 'a template names a prefix');
+  assert.deepEqual(of('e2e/fixtures/zips/riverlight.zip').specs, ['a.spec.ts', 'b.spec.ts'], 'through the helper that reads it');
+  assert.deepEqual(of('scripts/fixtures/feed.json').specs, ['c.spec.ts']);
+  assert.deepEqual(of('output.html').specs, ['a.spec.ts', 'k.spec.ts'], '/output-like and /api/output are other routes');
+  assert.deepEqual(of('docs.html').specs, [], '/docs/<page> is not docs.html');
+  assert.deepEqual(of('join.html').specs, ['j.spec.ts'], 'a PATH_PAGES route keeps its segment');
+  assert.deepEqual(of('e2e/fixtures/other.svg').specs, [], 'a path built at run time is not seen, and a word is not a path');
+  // A multi-line template and an apostrophe in a regex do not throw the literal scan out of step.
+  assert.deepEqual(of('e2e/fixtures/kept.svg').specs, ['k.spec.ts'], 'a literal without ./ resolves from its module too');
+  assert.deepEqual(of('e2e/fixtures/svg/a.svg').specs, ['k.spec.ts']);
+  assert.deepEqual(of('e2e/fixtures/svg-shows/a.svg').specs, [], 'a directory literal keeps its slash');
+  assert.ok(!readersOf('output.html', readerIndex(new Map([['e2e/x.spec.ts', "request.get('/api/output?x=1')"]]))).specs.length, '/api/output is not /output');
+  assert.ok(of('output.html').specs.includes('k.spec.ts'), 'a route after a template host');
+  // A module the tokenizer cannot follow reads everything, rather than nothing.
+  const broken = readerIndex(new Map([['e2e/z.spec.ts', 'const s = "unterminated']]));
+  assert.deepEqual(broken.unread, ['e2e/z.spec.ts']);
+  assert.deepEqual(readersOf('e2e/fixtures/anything.svg', broken).specs, ['z.spec.ts']);
+});
+
+test('ci05: the path pages the planner extends match vite.config.ts', () => {
+  const declared = /const PATH_PAGES = \[([^\]]*)\]/.exec(readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf8'))?.[1];
+  assert.ok(declared, 'PATH_PAGES moved in vite.config.ts');
+  assert.deepEqual([...declared.matchAll(/'\/([\w-]+)'/g)].map((m) => m[1]), PATH_ROUTE_PAGES);
+});
+
+test('ci05: output.html plans every spec that opens /output, not the one its header names', () => {
+  assert.deepEqual(planFor(['output.html'], { readers: null }).specs, ['productions.spec.ts'], 'the defect: the header alone');
+  const plan = planFor(['output.html'], { sprintFocus: true });
+  const openers = ['output-boot-resilience', 'output-prepare', 'output-ready', 'output-typed-recovery', 'playout-adjust', 'productions'].map((s) => `${s}.spec.ts`);
+  for (const s of openers) assert.ok(plan.specs.includes(s), s);
+  assert.ok(plan.specs.length >= 9, `${plan.specs.length} specs`);
+  assert.deepEqual(plan.readPlanned, ['output.html']);
+  // Additive for every root page: the header selection is still all there.
+  for (const page of ['terms.html', 'privacy.html', 'docs.html', 'join.html']) {
+    const withReaders = planFor([page]).specs;
+    for (const s of planFor([page], { readers: null }).specs) assert.ok(withReaders.includes(s), `${page}: ${s}`);
+  }
+});
+
+test('ci05: a fixture read from disk plans its readers and keeps the escalation it had', () => {
+  const nested = 'e2e/fixtures/fidelity-nested.svg';
+  const before = planFor([nested], { sprintFocus: true, readers: null });
+  assert.equal(before.focusApplied, true);
+  assert.ok(!before.specs.includes('editor-fidelity-trim.spec.ts'), 'the defect: the shared-change set without its readers');
+  const after = planFor([nested], { sprintFocus: true });
+  assert.equal(after.focusApplied, true, 'still escalates: readers add, never replace');
+  assert.equal(after.catalog, before.catalog);
+  for (const s of [...before.specs, 'editor-fidelity-trim.spec.ts', 'editor-command-task.spec.ts']) assert.ok(after.specs.includes(s), s);
+
+  // Under the ignored scripts/ a fixture planned nothing at all.
+  const feed = 'scripts/fixtures/youtube/live-chat.json';
+  assert.equal(planFor([feed], { readers: null }).mode, 'none', 'the defect');
+  assert.deepEqual(planFor([feed]).specs, ['production-chat-intake.spec.ts']);
+
+  // ci04's trap: the corpus ograf-parity reads from disk stays inside the catalog reach.
+  const corpus = planFor(['e2e/fixtures/svg-corpus/illustrator-live-vote-band.svg'], { sprintFocus: true });
+  assert.equal(corpus.catalog, true);
+  assert.ok(corpus.specs.includes('import-svg-corpus.spec.ts'));
+});
+
+test('ci05: no file under e2e/fixtures plans nothing', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const files = readdirSync(join(root, 'e2e/fixtures'), { recursive: true, withFileTypes: true })
+    .filter((d) => d.isFile())
+    .map((d) => `${join(d.parentPath ?? d.path, d.name).slice(root.length).replaceAll('\\', '/').replace(/^\//, '')}`);
+  assert.ok(files.length > 50, `${files.length} fixture files`);
+  const index = checkoutReaders();
+  assert.deepEqual(index.unread, [], 'every e2e module tokenises, so none is taken to read everything');
+  // Markdown is documentation (IGNORE) unless a spec reads it, which the readers then plan.
+  const silent = files.filter((f) => planFor([f], { sprintFocus: true, readers: index }).mode === 'none' && !f.endsWith('.md'));
+  assert.deepEqual(silent, []);
+});
+
+test('ci05: a short regex locator selects its spec for the wording it matches', () => {
+  const specs = new Map([
+    ['save.spec.ts', "await page.getByRole('button', { name: /save/i }).click();"],
+    ['ok.spec.ts', 'await expect(page.locator(".toast")).toHaveText(/^OK$/);'],
+    ['code.spec.ts', "const t = s.replace(/\\s+/g, ' '); const n = /\\d+/.exec(s);"],
+  ]);
+  assert.deepEqual(specRegexes(specs.get('code.spec.ts')), [], 'a regex with no wording in it reads no copy');
+  assert.deepEqual(specRegexes("expect(t).toHaveClass(/on/); expect(u).toHaveURL(/settings/); x.match(/[A-Za-z]{6,}/)"), [], 'a class, a URL or a character class is not wording');
+  // The defect: the phrase path alone found nothing, because `save` is shorter than a distinctive phrase.
+  assert.ok(!phraseMeets('save', 'save graphic'));
+  assert.deepEqual(specsNaming({ kind: 'text', terms: ['Save graphic', 'Store graphic'] }, specs), ['save.spec.ts']);
+  assert.deepEqual(specsNaming({ kind: 'text', terms: ['OK'] }, specs), ['ok.spec.ts']);
+  assert.deepEqual(specsNaming({ kind: 'text', terms: ['Close'] }, specs), []);
+  // A copy-only edit to a page keeps the readers that carry screenshot baselines, as it keeps such
+  // covering specs; readers that only open the page are not re-run for wording alone.
+  const page = planFor(['output.html'], { copyEdits: new Map([['output.html', { kind: 'text', terms: ['Waiting for cues'] }]]), specTexts: new Map(), baselined: ['output-ready.spec.ts'] });
+  assert.deepEqual(page.specs, ['output-ready.spec.ts']);
+  // And through the planner: a copy-only edit plans the spec whose regex reads the old wording.
+  const file = 'src/components/SaveBar.tsx';
+  const plan = planFor([file], { copyEdits: new Map([[file, { kind: 'text', terms: ['Save graphic', 'Store graphic'] }]]), specTexts: specs, readers: null });
+  assert.deepEqual(plan.specs, ['save.spec.ts']);
+});
+
+test('ci05: ESCALATES_WITH_HEADERS keeps a header from narrowing spaceKey.ts', () => {
+  assert.ok(ESCALATES_WITH_HEADERS.some((r) => r.test('src/components/spaceKey.ts')));
+  assert.ok(COVERAGE.some((c) => c.spec === 'editor-usability.spec.ts' && c.test('src/components/spaceKey.ts')), 'the header that used to narrow it is still there');
 });

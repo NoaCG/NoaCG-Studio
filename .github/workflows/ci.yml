@@ -617,16 +617,23 @@ jobs:
         # a non-matching pattern as its literal self; checked by expanding the real filters, which
         # come through byte-identical. It would stop being safe under `failglob` or `nullglob`,
         # so do not set either here.
+        #
+        # The second line is the same list by name, for the run-integrity reporter: a spec handed to
+        # this shard that plans no test (a test.only elsewhere, a filter that misses it, its tests
+        # gone) fails the shard instead of passing without it (scripts/e2e-run-integrity.mjs,
+        # cicd-improvement ci05). One node call prints both, so the two cannot drift apart.
         run: |
-          SPECS="$(node -e '
+          PLAN="$(node -e '
             const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");
             const mine = bins[Number(process.env.SHARD_INDEX) - 1];
             if (!Array.isArray(mine) || mine.length === 0) {
               console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);
               process.exit(1);
             }
-            import("./scripts/e2e-affected.mjs").then((m) => console.log(mine.map(m.specFilterArg).join(" ")));
+            import("./scripts/e2e-affected.mjs").then((m) => console.log(`${mine.map(m.specFilterArg).join(" ")}\n${mine.join(" ")}`));
           ')"
+          { read -r SPECS; read -r NOACG_E2E_EXPECTED_SPECS; } <<< "$PLAN"
+          export NOACG_E2E_EXPECTED_SPECS
           echo "::notice title=E2E shard ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"
           npm run test:e2e -- $SPECS
 

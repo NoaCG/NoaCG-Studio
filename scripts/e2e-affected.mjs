@@ -33,7 +33,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIGURED_TRIGGERS, COVERAGE, FOCUS } from './e2e-lists.mjs';
-import { COPY_PATH_FILE, copyEdit, specsNaming } from './e2e-affected-copy.mjs';
+import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
 import {
   budgetMinutes,
@@ -121,20 +121,29 @@ const isEntrypoint =
 //   - CENTRAL: source that is KNOWN and deliberately selects no spec. There is no spec to carry
 //     it, and without the row it would read as unmapped and escalate to the full suite.
 //
-// `components/spaceKey.ts` is deliberately in NONE of these. It answers who owns Space, Delete,
+// `components/spaceKey.ts` is in ESCALATES_WITH_HEADERS below. It answers who owns Space, Delete,
 // Escape, Ctrl+C and the arrows for the canvas, the timeline, every modal and every focused
 // control, so the set of specs a change to it can move is not a list anybody would keep correct.
-// It escalates as unmapped, and that is the decision rather than an omission.
+// It used to escalate as unmapped, which a spec header could cancel without anyone deciding to: a
+// `covers:` line naming it made it a one-spec file, and only the traced map's broad list still
+// escalated it (cicd-improvement ci05).
 export const CENTRAL = [
   // The CLI under cli/ has its own package tests (CI) and `npm run bench:cli`; a change there
-  // runs no e2e spec. (e2e/bridge-ograf.spec.ts imports the Bridge from cli/ and runs when it is
-  // edited itself, through the focus set and at night.)
+  // runs no e2e spec by this rule. A spec that imports a cli/ file by path (e2e/bridge-ograf.spec.ts
+  // imports the Bridge's server) is that file's reader and is planned for it (`readerIndex`, ci05).
   [/^cli\//, []],
   // The plugin marketplace entry (root .claude-plugin/) and the agent round's brief bank +
   // results (benchmarks/agent/): read by `claude plugin` and by scripts/agent-round-bench.mjs,
   // never by a spec.
   [/^(\.claude-plugin\/|benchmarks\/agent\/)/, []],
 ];
+
+/**
+ * Files that escalate like CORE whatever their headers say, while keeping the specs those headers
+ * name: a header adds coverage here and can never be what narrows the plan. CORE drops a file's
+ * header specs under sprint focus; these keep them beside the shared-change set.
+ */
+export const ESCALATES_WITH_HEADERS = [/^src\/components\/spaceKey\.ts$/];
 
 // Anything matching these runs the FULL suite - shared foundations with fan-out everywhere.
 const CORE = [
@@ -367,18 +376,27 @@ export function helperReach(sources, configs = []) {
   const reach = new Map();
   for (const helper of sources.keys()) {
     if (!/^e2e\/_[^/]+\.ts$/.test(helper)) continue;
-    const seen = new Set([helper]);
-    const queue = [helper];
-    while (queue.length) for (const by of importers.get(queue.pop()) ?? []) if (!seen.has(by)) { seen.add(by); queue.push(by); }
-    const all = [...seen];
-    reach.set(helper, {
-      specs: all.filter((f) => /^e2e\/[^/]+\.spec\.ts$/.test(f)).map((f) => f.slice('e2e/'.length)).sort(),
-      catalog: all.some((f) => /^e2e\/catalog\/.+\.spec\.ts$/.test(f)),
-      configured: all.some((f) => /^e2e\/configured\/.+\.spec\.ts$/.test(f)),
-      suiteWide: all.some(loaded),
-    });
+    const all = importedBy(importers, [helper]);
+    reach.set(helper, { ...specsAmong(all), suiteWide: all.some(loaded) });
   }
   return reach;
+}
+
+/** `start` and every module that imports one of them, directly or through another. */
+function importedBy(importers, start) {
+  const seen = new Set(start);
+  const queue = [...start];
+  while (queue.length) for (const by of importers.get(queue.pop()) ?? []) if (!seen.has(by)) { seen.add(by); queue.push(by); }
+  return [...seen];
+}
+
+/** Of e2e modules: the default-suite specs (bare names), and whether a catalog or configured spec is among them. */
+function specsAmong(files) {
+  return {
+    specs: files.filter((f) => /^e2e\/[^/]+\.spec\.ts$/.test(f)).map((f) => f.slice('e2e/'.length)).sort(),
+    catalog: files.some((f) => /^e2e\/catalog\/.+\.spec\.ts$/.test(f)),
+    configured: files.some((f) => /^e2e\/configured\/.+\.spec\.ts$/.test(f)),
+  };
 }
 
 /**
@@ -595,6 +613,145 @@ function resolveModule(base, read) {
   return candidates.find((f) => read(f) !== null) ?? null;
 }
 
+/**
+ * WHAT THE SUITE READS BY PATH (cicd-improvement ci05). A spec that reads a fixture from disk
+ * (`readFileSync(new URL('./fixtures/x.svg', import.meta.url))`, `setInputFiles('e2e/fixtures/...')`)
+ * or opens a page by its route (`page.goto('/output?production=...')`) depends on that file as
+ * surely as on a module it imports, and no import graph or browser trace sees the edge. Before this
+ * a changed fixture planned the shared-change set, which did not hold its readers, or nothing at
+ * all under the ignored `scripts/` (`scripts/fixtures/youtube/`), and `output.html` planned one spec
+ * while nine open `/output`.
+ *
+ * Read off each spec and each e2e module it imports, from its string and template literals as the
+ * copy path's tokenizer reads them (`scanScript`: comments, regex literals and multi-line templates
+ * are not mistaken for strings):
+ *   - every path-shaped literal (`e2e/fixtures/...`, `./fixtures/x.svg` in `new URL(...)`,
+ *     `public/fonts/inter.woff2`) is resolved both from the module's own directory and from the
+ *     repository root; a reference that names no file costs nothing;
+ *   - a template literal cut at its first `${`, or a literal ending in `/`, names a PREFIX
+ *     (`fixtures/svg-shows/${name}.svg` reads everything under `fixtures/svg-shows/`); a plain one
+ *     names that file or directory.
+ * A root page `<name>.html` is read by every module with a literal (or template piece) that opens
+ * its route: `/<name>`, alone or after a scheme and host, followed by `?`, `#`, `*`, `.html` or the
+ * end (or `/` for `PATH_ROUTE_PAGES`). `/api/output` is not `/output`.
+ *
+ * What it cannot see, stated: a path built at run time from parts (`join(dir, 'fixtures', name)`)
+ * and a route assembled from a variable. Such a reader is not found; the file then plans what it
+ * planned before (its headers, or the unmapped escalation), so the index only ever adds specs.
+ *
+ * @param {Map<string, string>} sources repo-relative path -> text: every spec and module under e2e/
+ * @returns {{ refs: Map<string, { path: string, prefix: boolean, all?: boolean }[]>, texts: Map<string, string[]>,
+ *             importers: Map<string, string[]>, unread: string[] }}
+ */
+export function readerIndex(sources) {
+  const refs = new Map();
+  const texts = new Map();
+  const importers = new Map();
+  const unread = [];
+  const has = (f) => (sources.has(f) ? f : null);
+  for (const [file, text] of sources) {
+    const dir = dirOf(file);
+    for (const spec of importSpecifiers(text)) {
+      const target = resolveModule(joinPath(dir, spec.replace(/\?.*$/, '')), has);
+      if (target && target !== file) importers.set(target, [...(importers.get(target) ?? []), file]);
+    }
+    let literals;
+    try {
+      literals = literalsOf(text);
+    } catch {
+      // A module the tokenizer cannot follow is taken to read everything: its specs join every plan
+      // that asks for readers until it can be read, and `unread` names it (a test keeps it empty).
+      unread.push(file);
+      refs.set(file, [{ path: '', prefix: true, all: true }]);
+      texts.set(file, []);
+      continue;
+    }
+    texts.set(file, literals.flatMap((l) => l.pieces));
+    const found = [];
+    for (const { text: lit, prefix } of literals) {
+      if (!lit.includes('/') || /\s|^[a-z][\w+.-]*:|^\/|^[#?*@]/i.test(lit) || /^\.{0,2}\/?$/.test(lit)) continue;
+      const isPrefix = prefix || lit.endsWith('/');
+      const tail = lit.endsWith('/') ? '/' : '';
+      for (const path of new Set([joinPath(dir, lit), joinPath('', lit)])) found.push({ path: path + tail, prefix: isPrefix });
+    }
+    refs.set(file, found);
+  }
+  return { refs, texts, importers, unread };
+}
+
+/**
+ * A module's string and template literals, as `scanScript` tokenises them: `text` is a string's
+ * value or a template's text up to its first `${` (`prefix` says it was cut there), and `pieces`
+ * every literal piece, for routes. One pass with a stack, so a template nested inside `${}` is its
+ * own literal. A file the tokenizer cannot follow throws, which a test over every e2e module pins.
+ */
+function literalsOf(text) {
+  const out = [];
+  const open = [];
+  for (const t of scanScript(text)) {
+    const top = open[open.length - 1];
+    if (t.t === 'str') out.push({ text: t.v, prefix: false, pieces: [t.v] });
+    else if (t.t === 'tplstart') open.push({ text: '', prefix: false, pieces: [] });
+    else if (t.t === 'tplend') out.push(open.pop());
+    else if (top && t.t === 'chunk') { top.pieces.push(t.v); if (!top.prefix) top.text += t.v; }
+    else if (top && t.t === 'code' && t.v === '${') top.prefix = true;
+  }
+  return out;
+}
+
+/**
+ * Does a reference name `file`: the file, a directory holding it, or, for a prefix, any path that
+ * starts with it (a directory prefix keeps its `/`, so `svg/` is not `svg-shows/`). A one-segment
+ * reference (`'e2e'`, a template cut to `src`) names nothing: it is a word, not evidence of a read.
+ */
+function refNames(ref, file) {
+  if (ref.all) return true;
+  if (!ref.path.replace(/\/$/, '').includes('/')) return false;
+  return ref.prefix ? file.startsWith(ref.path) : file === ref.path || file.startsWith(`${ref.path}/`);
+}
+
+/**
+ * The specs that read `file` by path or open it by route, through any module they import.
+ * `catalog` and `configured` say a catalog or configured spec is among them.
+ * @param {string} file repo-relative path
+ * @param {ReturnType<typeof readerIndex>} index
+ * @returns {{ specs: string[], catalog: boolean, configured: boolean }}
+ */
+export function readersOf(file, index) {
+  const page = /^([\w-]+)\.html$/.exec(file)?.[1];
+  const route = page && page !== 'index'
+    ? new RegExp(String.raw`^(?:[a-z][\w+.-]*://[^/]*)?/${page}(?:[?#*]|\.html|$${PATH_ROUTE_PAGES.includes(page) ? '|/' : ''})`, 'i')
+    : null;
+  const direct = [];
+  for (const [from, list] of index.refs) {
+    if (list.some((ref) => refNames(ref, file)) || (route && (index.texts.get(from) ?? []).some((piece) => route.test(piece)))) direct.push(from);
+  }
+  return specsAmong(importedBy(index.importers, direct));
+}
+
+/**
+ * The pages the dev server also serves under `/<name>/<segment>` (vite.config.ts `PATH_PAGES`), so a
+ * route with a further segment opens them too. Any other `/<name>/...` is a different page (the
+ * docs tree under `/docs/` is not docs.html). Pinned against vite.config.ts by a test.
+ */
+export const PATH_ROUTE_PAGES = ['join'];
+
+/** `readerIndex` over this checkout's e2e/ modules, read once per process. */
+let readerCache = null;
+export function checkoutReaders(root = REPO_ROOT) {
+  if (readerCache && root === REPO_ROOT) return readerCache;
+  const sources = new Map();
+  for (const rel of readdirSync(join(root, 'e2e'), { recursive: true })) {
+    const file = `e2e/${String(rel).replaceAll('\\', '/')}`;
+    // Fixture `.js` files are page scripts a spec reads as text, not modules it runs.
+    const module = file.startsWith('e2e/fixtures/') ? /\.(mjs|ts)$/.test(file) : /\.(m?[jt]s)$/.test(file);
+    if (module && !file.includes('/node_modules/')) sources.set(file, readCheckout(file, root) ?? '');
+  }
+  const index = readerIndex(sources);
+  if (root === REPO_ROOT) readerCache = index;
+  return index;
+}
+
 /** `catalogReachOf` over this checkout's e2e/catalog specs, read once per process. */
 let catalogReachCache;
 export function checkoutCatalogReach() {
@@ -664,6 +821,11 @@ const mayBeInReach = (changed) => changed.some((f) => /^(src|e2e|scripts)\//.tes
  * helper the map has no specs for, or one a config loads, falls through to CORE as before, and
  * with no map at all nothing changes.
  *
+ * A FILE A SPEC READS BY PATH OR OPENS BY ROUTE (`readers`, from `readerIndex`; this checkout's
+ * by default, null to leave it out) adds those specs wherever a header's specs would be added, and
+ * before IGNORE as well. It never replaces an escalation: an unmapped fixture still escalates, and
+ * its readers come on top (listed in `readPlanned`).
+ *
  * Two import graphs default to this checkout's: `devServer` (`devServerModules`), the modules the
  * dev server loads at startup, which IGNORE never swallows; and `rawImporters`
  * (`checkoutRawImporters`, read only when the change touches src/), which adds each changed `?raw` file's importers to the plan (listed in
@@ -678,12 +840,14 @@ const mayBeInReach = (changed) => changed.some((f) => /^(src|e2e|scripts)\//.tes
  *           devServer?: Set<string>, rawImporters?: Map<string, string[]> }} [opts]
  *   `traced` is the nightly's map (`readTracedMap`); null leaves it out, which only tests do.
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean, unmapped: string[],
- *             focusApplied: boolean, copyOnly: string[], helperPlanned: string[], rawPlanned: string[] }}
+ *             focusApplied: boolean, copyOnly: string[], helperPlanned: string[], rawPlanned: string[], readPlanned: string[] }}
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach, readers } = {},
 ) {
+  // Built on first use: a change of only specs, helpers or CORE files never reads e2e/ for it.
+  let readIndex = readers;
   // Read lazily: `outsideCatalog` is false for every non-src file whatever the reach says, so a
   // change with nothing the reach could hold has no use for it.
   const reachAsked = catalogReach !== undefined || mayBeInReach(changed);
@@ -698,6 +862,19 @@ export function planFor(
   const unmapped = [];
   const copyOnly = [];
   const helperPlanned = [];
+  const readPlanned = [];
+  /** Plans the specs that read `file` by path or route (those `keep` allows), with their flags. */
+  const addReaders = (file, keep = () => true) => {
+    if (readIndex === undefined) readIndex = checkoutReaders();
+    if (!readIndex) return;
+    const read = readersOf(file, readIndex);
+    const kept = read.specs.filter((s) => keep(s) && (!onDisk || onDisk.has(s)));
+    if (!kept.length && !read.catalog && !read.configured) return;
+    readPlanned.push(file);
+    for (const s of kept) specs.add(s);
+    if (read.catalog) catalog = true;
+    if (read.configured) configured = true;
+  };
   const fromTrace = new Set();
   const tracedEscalated = [];
   const tracedBroad = [];
@@ -721,7 +898,13 @@ export function planFor(
     // The catalog reach is asked before IGNORE for the same reason: a script a catalog spec imports
     // (scripts/rules.mjs) is ignored for the offline suite and is still something the gate runs.
     if (inCatalogReach(file, reach)) catalog = true;
-    if (IGNORE.some((r) => r.test(file)) && !devServer.has(file)) continue;
+    // The specs that read this file by path or open it by route (`readerIndex`), asked before
+    // IGNORE too: a fixture under the ignored `scripts/` is still something a spec reads. They join
+    // the plan wherever a header's specs would, and never stand in for an escalation.
+    if (IGNORE.some((r) => r.test(file)) && !devServer.has(file)) {
+      addReaders(file);
+      continue;
+    }
     if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
       const name = file.replace(/^e2e\//, '');
@@ -739,10 +922,11 @@ export function planFor(
     if (copy) {
       copyOnly.push(file);
       for (const s of specsNaming(copy, specTexts)) specs.add(s);
-      for (const c of coverage) {
-        const kept = baselined.includes(c.spec) || (copy.grew && measuring.includes(c.spec));
-        if (kept && c.test(file)) specs.add(c.spec);
-      }
+      const kept = (spec) => baselined.includes(spec) || (copy.grew && measuring.includes(spec));
+      for (const c of coverage) if (kept(c.spec) && c.test(file)) specs.add(c.spec);
+      // Its readers are coverage too, and keep it on the same terms: a reader with screenshot
+      // baselines, or one that measures when the wording grew.
+      addReaders(file, kept);
       continue;
     }
     const helper = helpers?.get(file);
@@ -778,12 +962,14 @@ export function planFor(
     }
     // A `?raw` file's importer is planned beside it, so that is its mapping even when no header
     // names the file itself; an unmapped importer still escalates on its own turn.
+    addReaders(file);
     if (covering.length === 0 && central.length === 0 && !rawEdges.has(file)) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
       escalate(file);
     } else {
       for (const c of covering) specs.add(c.spec);
       for (const [, list] of central) for (const s of list) specs.add(s);
+      if (ESCALATES_WITH_HEADERS.some((r) => r.test(file))) escalate(file);
     }
   }
 
@@ -816,7 +1002,7 @@ export function planFor(
   // still reports 'none' for this gate, and the printed line is what says otherwise.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
   return {
-    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly, helperPlanned, rawPlanned,
+    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly, helperPlanned, rawPlanned, readPlanned,
     traced: full ? [] : traceOnly,
     tracedProblem: tracedEscalated.length > 0 ? traced.problem : null,
     tracedEscalated,
@@ -1176,8 +1362,13 @@ function gitIn(cwd, ...cmd) {
  * and had a byte-identical copy of this, comment-free - including the porcelain-prefix regex whose
  * reason is the next paragraph. Two copies of "what changed" is two answers waiting to differ.
  *
- * Porcelain lines are `XY path` (a rename is `XY old -> new`); a global `trim()` would eat the
- * first line's leading status space, so the prefix is stripped by pattern, not by position.
+ * BOTH SIDES OF A RENAME (cicd-improvement ci05). With rename detection on (git's default)
+ * `--name-only` prints only a renamed file's NEW path, so moving a core file out of `src/preview/`
+ * planned what its new home selects and never escalated (seen in 3c64200e3). `--no-renames` lists
+ * a rename as the deletion of the old path and the addition of the new one, in the diff and in the
+ * working tree, as `scripts/deploy-affecting-paths.mjs` already reads it. `-z` turns off git's
+ * quoting of unusual paths, and `--untracked-files=all` names the files in a new directory rather
+ * than the directory (both measured in scripts/review-request.mjs `workingTreePaths`).
  *
  * @param {string} base  a ref; the diff is `base...HEAD`
  * @param {string} [cwd] the repository to ask - a linked worktree passes its own root
@@ -1218,11 +1409,13 @@ export function catalogSince(ref, log = () => {}) {
 }
 
 export function changedFilesSince(base, cwd = undefined) {
-  const opts = { encoding: 'utf8', ...(cwd ? { cwd } : {}), windowsHide: true };
-  const committed = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], opts).trim().split('\n');
-  const working = execFileSync('git', ['status', '--porcelain'], opts)
-    .split('\n')
-    .map((l) => l.replace(/^.{2} /, '').replace(/^.* -> /, '').trim());
+  const opts = { encoding: 'utf8', maxBuffer: 64 << 20, ...(cwd ? { cwd } : {}), windowsHide: true };
+  const committed = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', `${base}...HEAD`], opts).split('\0');
+  // `XY path` per NUL-separated entry; with --no-renames no entry carries a second path field.
+  const working = execFileSync('git', ['status', '--porcelain', '--no-renames', '--untracked-files=all', '-z'], opts)
+    .split('\0')
+    .filter((entry) => entry.length > 3)
+    .map((entry) => entry.slice(3));
   return [...new Set([...committed, ...working])].filter(Boolean).map((f) => f.replace(/\\/g, '/'));
 }
 
@@ -1621,7 +1814,7 @@ export function parseArgs(args) {
  * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
-function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], helperPlanned = [], rawPlanned = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [], catalogReachUnknown = false }, { count, noun, hypothetical, catalogHere = true }) {
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], helperPlanned = [], rawPlanned = [], readPlanned = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [], catalogReachUnknown = false }, { count, noun, hypothetical, catalogHere = true }) {
   // What made the plan escalate, so the line that says so names the cause the reader has to fix.
   const why = ['core/unmapped', tracedProblem && 'untraced', tracedBroad.length > 0 && BROAD_ESCALATES && 'broad'].filter(Boolean).join('/');
   if (catalogReachUnknown) {
@@ -1643,6 +1836,10 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
   if (copyOnly.length > 0) {
     log(`e2e-affected: ${copyOnly.length} file(s) changed only wording or class styling - planned by the specs that name what changed (scripts/e2e-affected-copy.mjs):`);
     for (const f of copyOnly) log('  -', f);
+  }
+  if (readPlanned.length > 0) {
+    log(`e2e-affected: ${readPlanned.length} file(s) a spec reads from disk or opens by route - their readers are planned beside them (readerIndex):`);
+    for (const f of readPlanned) log('  -', f);
   }
   if (helperPlanned.length > 0) {
     log(`e2e-affected: ${helperPlanned.length} e2e helper(s) planned by the specs that import them, directly or through another helper:`);

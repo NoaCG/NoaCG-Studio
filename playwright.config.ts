@@ -68,6 +68,9 @@ export default defineConfig({
   fullyParallel: true,
   workers: isCi ? 1 : localWorkers(),
   retries: 0,
+  // A committed `test.only` would drop every other test in the run; on CI it fails the run instead
+  // (cicd-improvement ci05; eslint.config.js refuses it before it is committed).
+  forbidOnly: Boolean(process.env.CI),
   // Blob reports make independently sharded runs mergeable. Keep a line reporter too so a
   // failure is readable in the live Actions log without downloading the combined report,
   // and the github reporter so each failing test lands as an annotation on the commit/PR.

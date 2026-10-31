@@ -43,6 +43,9 @@ export default defineConfig({
   // One retry: these specs cross the real network to Supabase, and the first auth call from a cold
   // browser context can stall past the expect timeout (observed 2026-07-08; identical re-run green).
   retries: 1,
+  // A committed `test.only` would drop every other test in the run; on CI it fails the run instead
+  // (cicd-improvement ci05; eslint.config.js refuses it before it is committed).
+  forbidOnly: Boolean(process.env.CI),
   reporter: [['list'], ['./scripts/e2e-run-integrity.mjs']],
   use: {
     // The live suite runs beside the offline one, so it takes the dev port's odd neighbour
