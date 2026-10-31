@@ -114,8 +114,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   let shards = CONFIGURED_SHARDS;
   if (values.specs !== undefined) {
     const asked = JSON.parse(values.specs);
-    const ghosts = asked.filter((f) => !suite.includes(f));
-    if (!Array.isArray(asked) || asked.length === 0 || ghosts.length) {
+    if (!Array.isArray(asked) || asked.length === 0 || asked.some((f) => !suite.includes(f))) {
       console.error(`configured-shards: --specs must name configured specs on disk; got ${values.specs}`);
       process.exit(1);
     }

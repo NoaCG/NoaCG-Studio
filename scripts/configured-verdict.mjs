@@ -218,7 +218,9 @@ const caseId = (spec) => spec.id || `${spec.file}:${spec.line ?? 0}:${spec.colum
  * which is what the run must report. Exact, both ways: an empty selection or listing, a selected
  * spec with no listed test, a listed test the report lacks, and a reported test nobody listed are
  * all problems, so a shard that died, a filter that drifted or a report from another selection
- * cannot pass. A skip is still judged by `allowedSkips`, as for a full run.
+ * cannot pass. A skip is still judged by `allowedSkips`, as for a full run, so a selection of an
+ * allowed-skip spec alone (bridge-real-server.spec.ts, which needs hardware no runner has) passes
+ * having run nothing: it was listed, reported and skipped as expected.
  *
  * @param {object} report the merged run report
  * @param {{ selected: string[], listed: object }} manifest `listed` is the `--list` JSON report
@@ -229,7 +231,7 @@ export function manifestProblems(report, { selected, listed }) {
   const got = allSpecs(report);
   const problems = [];
   if (!selected.length || !want.length) {
-    problems.push({ title: 'Empty selection', detail: `the plan selected ${selected.length} spec file(s) and the listing found ${want.length} test(s); a triggered run has to execute at least one selected test.` });
+    problems.push({ title: 'Empty selection', detail: `the plan selected ${selected.length} spec file(s) and the listing found ${want.length} test(s); a triggered run has to list and report at least one selected test.` });
     return problems;
   }
   const listedFiles = new Set(want.map((s) => s.file));

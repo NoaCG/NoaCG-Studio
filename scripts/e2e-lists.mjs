@@ -212,21 +212,14 @@ export const COVERAGE = coverageOf(SPEC_HEADERS);
 /** SPRINT FOCUS - the student-critical spec set (docs/GOALS_ARCHIVE.md "Student release"). */
 export const FOCUS = [...SPEC_HEADERS].filter(([, h]) => h.focus).map(([spec]) => spec);
 
-// THE CONFIGURED SUITE'S OWN FILES. These trigger the configured-suite line for every change, not
-// for one spec's sake, so they are the one part of the trigger list no configured spec's header
-// holds. `e2e/configured/**` is ignored by the offline plan outright (those specs need a real
-// Supabase project and a throwaway account), which is exactly why a change there must still say
-// the configured suite is owed.
-export const CONFIGURED_SUITE_FILES = [/^e2e\/configured\//, /^playwright\.live\.config\.ts$/];
-
 /**
- * THE CONFIGURED SUITE'S TRIGGERS: its own files, plus every `covers:` line a configured spec
- * declares. The offline plan pins the ABSENCE of a hosted-only surface, so a change to one of
- * these reports "covered" while the live path breaks; naming the trigger turns that hole into a
- * printed line, and it is then a decision rather than an oversight.
+ * THE CONFIGURED SPECS' HEADERS. The offline plan pins the ABSENCE of a hosted-only surface, so a
+ * change to what a configured spec covers reports "covered" offline while the live path breaks;
+ * each configured spec's `covers:` lines select it for ci.yml's configured job (cicd-improvement
+ * ci06). `e2e/configured/**` is ignored by the offline plan outright, which is exactly why the
+ * configured selection is asked before that ignore list.
  */
 export const CONFIGURED_HEADERS = readSpecHeaders('e2e/configured');
-export const CONFIGURED_TRIGGERS = [...CONFIGURED_SUITE_FILES, ...[...CONFIGURED_HEADERS.values()].flatMap((h) => h.covers)];
 
 /** The configured specs on disk (bare names), and which of them each changed file's header selects. */
 export const CONFIGURED_SPECS = [...CONFIGURED_HEADERS.keys()];

@@ -1180,8 +1180,8 @@ test('a nested .gitattributes plans nothing, and the root one still runs everyth
 // map from those headers. Until 2026-09-27 the map was one hand-kept list that 40 of 344 landings
 // had to edit (2026-09-06 to 2026-09-27), second only to the generated rule index.
 import {
+  CONFIGURED_COVERAGE,
   CONFIGURED_HEADERS,
-  CONFIGURED_TRIGGERS,
   COVERAGE,
   FOCUS,
   SPEC_HEADERS,
@@ -1341,7 +1341,7 @@ test('every spec header in the repository passes the refusals', () => {
   assert.deepEqual(problems, [], `the spec headers need fixing:\n  ${problems.join('\n  ')}`);
   assert.equal(SPEC_HEADERS.size, specFilesOnDisk().length, 'every spec on disk has had its header read');
   assert.ok(FOCUS.length >= 50, `the focus set comes from \`// focus\` headers - found ${FOCUS.length}`);
-  assert.ok(CONFIGURED_TRIGGERS.length > 2, "the configured triggers come from the configured specs' headers");
+  assert.ok(CONFIGURED_COVERAGE.length > 2, "the configured selection comes from the configured specs' headers");
 });
 
 // THE SAFE DIRECTION, pinned: a source file no spec covers still escalates to the full suite

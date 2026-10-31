@@ -493,13 +493,6 @@ jobs:
             ].join("\n"));
           ' "$PLAN" >> "$GITHUB_OUTPUT"
 
-      # THE CAPACITY LINE, estimated before a shard runs. How much of the full run's envelope
-      # (13 runners x the shard budget) the suite on disk uses with this change's spec files in
-      # it, from the table and the median for a spec it has never seen. Above 85% every pull
-      # request is warned; above 95% a change that ADDS spec-minutes needs an expiring exception
-      # in its work spec, and the gate below refuses without one. The report job measures the same
-      # files from this run's own blobs once they exist. Pull requests and merge groups only: main
-      # has landed already, and the weekly refresh pull request carries main's usage.
       # THE SELECTED CONFIGURED CHECK'S FLAG (cicd-improvement ci06). A pull request (or a
       # dispatched branch run, as queued mechanical PRs get) runs the configured specs its change
       # selects, on a local stack, in the `configured` jobs below, and the gate requires their
@@ -558,12 +551,14 @@ jobs:
           # Shard weights from the newest main report that has one, best effort: without it every
           # file weighs the same and the split is by count.
           REPORTS=""
-          for id in $(gh run list --workflow configured-suite.yml --branch main --event push --status success --limit 2 \
+          # As configured-suite.yml reads them: up to three of main's completed runs (a red run's
+          # report still weighs the files it finished), each download bounded so a slow artifact
+          # service cannot spend the plan job's budget.
+          for id in $(timeout 30 gh run list --workflow configured-suite.yml --branch main --status completed --limit 3 \
             --json databaseId --jq '.[].databaseId' 2>/dev/null || true); do
-            if gh run download "$id" --name configured-report --dir "previous/$id" >/dev/null 2>&1 \
+            if timeout 45 gh run download "$id" --name configured-report --dir "previous/$id" >/dev/null 2>&1 \
               && [ -f "previous/$id/configured-report.json" ]; then
-              REPORTS="previous/$id/configured-report.json"
-              break
+              REPORTS="$REPORTS previous/$id/configured-report.json"
             fi
           done
           SHARDS="$(node scripts/configured-shards.mjs --specs "$SPECS" $REPORTS)"
@@ -575,6 +570,13 @@ jobs:
             echo "matrix=$(jq -c '.matrix' <<<"$SHARDS")"
           } >> "$GITHUB_OUTPUT"
 
+      # THE CAPACITY LINE, estimated before a shard runs. How much of the full run's envelope
+      # (13 runners x the shard budget) the suite on disk uses with this change's spec files in
+      # it, from the table and the median for a spec it has never seen. Above 85% every pull
+      # request is warned; above 95% a change that ADDS spec-minutes needs an expiring exception
+      # in its work spec, and the gate below refuses without one. The report job measures the same
+      # files from this run's own blobs once they exist. Pull requests and merge groups only: main
+      # has landed already, and the weekly refresh pull request carries main's usage.
       - name: E2E capacity line (estimate)
         id: capacity
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
@@ -1259,7 +1261,8 @@ jobs:
           export NOACG_E2E_EXPECTED_SPECS="$(printf 'e2e/configured/%s ' $MINE)"
           echo "::notice title=Configured E2E ${SHARD_INDEX}::$(echo "$MINE" | wc -w) spec file(s): ${MINE}"
           code=0
-          npm run test:e2e:live -- --global-timeout=1500000 --reporter=list,blob $SPECS || code=$?
+          # The config's run-integrity reporter is named again: a CLI --reporter replaces the config's list.
+          npm run test:e2e:live -- --global-timeout=1500000 --reporter=list,blob,./scripts/e2e-run-integrity.mjs $SPECS || code=$?
           echo "exit=${code}" >> "$GITHUB_OUTPUT"
           for blob in blob-report/*.zip; do
             [ -f "$blob" ] && mv "$blob" "blob-report/report-${SHARD_INDEX}.zip"
@@ -1272,6 +1275,15 @@ jobs:
             echo "===== $c ====="
             docker logs --tail 60 "$c" 2>&1 || true
           done
+      # As the offline shards check: a spec that writes into the repository fails here.
+      - name: Tests left the tree clean
+        run: |
+          DIRTY="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$DIRTY" ]; then
+            echo "::error title=E2E wrote into the repository::A configured spec in this shard changed or created files git does not ignore. Write test output to testInfo.outputPath() instead."
+            echo "$DIRTY"
+            exit 1
+          fi
       - name: Upload shard report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}

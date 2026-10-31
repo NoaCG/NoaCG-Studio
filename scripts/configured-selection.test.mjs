@@ -319,6 +319,9 @@ test('ci06: the configured jobs run on the planner flag and read no hosted secre
   assert.match(shards, /uses: \.\/\.github\/actions\/configured-stack/);
   assert.doesNotMatch(shards, /secrets\./);
   assert.match(shards, /NOACG_E2E_EXPECTED_SPECS/);
+  // ...and the reporter that reads it still runs: a CLI --reporter replaces the config's list.
+  assert.match(shards, /--reporter=list,blob,\.\/scripts\/e2e-run-integrity\.mjs/);
+  assert.match(shards, /name: Tests left the tree clean/);
   const verdictJob = job('configured-verdict');
   assert.match(verdictJob, /--manifest configured-manifest\.json/);
   // The listing writes its own file: inheriting the merge step's PLAYWRIGHT_JSON_OUTPUT_NAME sent it
