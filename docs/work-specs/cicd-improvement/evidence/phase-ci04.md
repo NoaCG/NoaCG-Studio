@@ -46,16 +46,22 @@ Causes, in the base source:
    critical and shared sets) plus the curated selection. With `--full-escalation` it is the full
    suite. The constant stays the one-line revert.
 2. **The catalog reach.** `catalogReachOf` reads the catalog specs (`e2e/catalog/*.spec.ts`),
-   follows their Node imports (`e2e/_bench.ts`, `_catalogScope.ts`, `_ografParity.ts` and the
-   `src/` modules those import), collects every literal in-page `import('/src/...')`, and takes
-   the import closure of each with the planner's existing `importClosure`. At the base it has 839
-   files. A changed file in it raises the catalog gate whatever else the plan does.
+   follows their Node imports (`e2e/_bench.ts`, `_catalogScope.ts`, `_ografParity.ts`, the `src/`
+   modules those import, and scripts such as `scripts/rules.mjs` whose text feeds assertions),
+   every literal in-page `import('/src/...')`, CSS `@import`, and `new URL(..., import.meta.url)`,
+   including directories a spec reads from disk (`e2e/fixtures/svg-corpus/`, `public/fonts/`).
+   At the base it holds 857 entries. The walk is strict: an import, `@import` or URL it cannot
+   resolve, or an `import.meta.glob`, makes the whole reach unknown rather than smaller. A
+   changed file in it raises the catalog gate whatever else the plan does, before the offline
+   IGNORE list is consulted.
 3. **Conservative fallback.** When sprint focus intercepts an escalation, the gate is raised
    unless every escalating file is a `src/` module (`.ts`, `.tsx`, `.js`, `.mjs`, `.jsx`, `.css`)
    that the walk can see and did not reach (`outsideCatalog`). Anything else raises it: a
-   dependency manifest, the build config, `app.html`, a `public/` asset, an unknown root file, a
-   stale traced map's escalation, or any escalation at all when the reach is unknown (no catalog
-   spec, no page import, or a page import naming no file).
+   dependency manifest, the build config, `app.html`, a `public/` asset, an unknown root file, or
+   any escalation at all when the reach is unknown (no catalog spec, no page import, or an edge
+   the walk cannot resolve; the plan then says so, `catalogReachUnknown`). A stale traced map
+   escalates the offline plan; the catalog question is still answered by the import reach, which
+   the map does not inform.
 4. **Fonts.** `^public/fonts/` joins `CATALOG_TRIGGERS`.
 
 Why this shape: it reuses the dependency machinery the planner already has (`importClosure`,
@@ -66,18 +72,18 @@ a non-template file in the reach escalates the whole catalog there, as shared ma
 
 What the reach cannot see, stated: a non-literal `import(x)` inside a catalog spec (the one today,
 `_ografParity.ts` `import(url)`, loads the package the spec just built through `src/export`,
-which is in the reach), and files a catalog spec reads from disk (`ograf-parity.spec.ts` reads
-`e2e/fixtures/svg-corpus/`). Both are non-`src/` or non-module paths, so an escalation through
-them raises the gate by rule 3. A mapped fixture change does not escalate and so does not reach
-rule 3: that is the filesystem-read fixture case ci05 owns.
+which is in the reach); a disk read through a path built at run time rather than a literal
+`new URL`; and text a module only emits (a quoted `'./${lib.lottie}'` inside a template literal
+is skipped as output, not an import). The general filesystem-read fixture mapping for the
+offline suite stays ci05's.
 
 ## 3. Acceptance
 
 | Criterion | Evidence | Result |
 | --- | --- | --- |
 | (a) Reproduce broad-trace and catalog-fallback misses or correct the report with evidence | Section 1, at 55f98f9e6 and 99c461b8; the one wrong path in the report corrected | pass |
-| (a) shared/model/render/font changes reach affected contracts and catalog or conservatively escalate | tests `ci04: ... raises the catalog gate under sprint focus` (easings, composeDocument, package.json, package-lock.json, vite.config.ts; planner and CLI), `a font file or a non-escalating module in the reach raises the catalog gate on its own` (public/fonts, bundledFonts.ts), `the catalog reach ... holds what they render through` (catalog.ts, composeDocument, runtimeBench, easings, bundledFonts, ograf.ts). Render: `src/render/*` is the server video path, not in the reach; its headers keep selecting its 2-13 specs, and `src/preview`/`src/model` escalate | pass |
-| (b) Unknown, dynamic or unsupported dependencies cannot silently select nothing | tests `an unknown reach, an unknown root file or a stale map never plans an escalation without the catalog gate`, `catalogReachOf ... refuses what it cannot resolve` (no spec, no page import, a page import naming no file are all `null`, never empty) | pass |
+| (a) shared/model/render/font changes reach affected contracts and catalog or conservatively escalate | tests `ci04: ... raises the catalog gate under sprint focus` (easings, composeDocument, package.json, package-lock.json, vite.config.ts; planner and CLI), `a font file or a non-escalating module in the reach raises the catalog gate on its own` (public/fonts, bundledFonts.ts), `a script a catalog spec imports raises the catalog gate` (scripts/rules.mjs), `the catalog reach ... holds what they render through` (catalog.ts, composeDocument, runtimeBench, easings, bundledFonts, ograf.ts). Render: `src/render/*` is the server video path, not in the reach; its headers keep selecting its 2-13 specs, and `src/preview`/`src/model` escalate | pass |
+| (b) Unknown, dynamic or unsupported dependencies cannot silently select nothing | tests `an unknown reach, an unknown root file or a stale map never plans an escalation without the catalog gate`, `catalogReachOf ... refuses what it cannot resolve` (no spec, no page import, a page import naming no file, an unresolvable import, CSS `@import`, asset URL or a glob are all `null`, never a smaller set) | pass |
 | (b) preserve conservative shared protection until ci07 | the focus set is unchanged and is still what every escalation plans; broad files now reach it; replay (section 4): no landing planned fewer specs or lost its catalog gate | pass |
 
 Mutation check, each fix reverted alone with the new tests run: broad off 1 failure, the focus
@@ -118,8 +124,12 @@ escalate both the focus set and the catalog; mapping them is a selection change 
   set; until then the focus set is the conservative shared protection). The catalog reach is
   computed from the checkout once per process, not cached in a committed file, so it cannot go
   stale. Non-`src/` escalations raise the catalog rather than trying to prove them outside it.
-- Traps for later rows: ci05's fixture mapping must keep `e2e/fixtures/svg-corpus/` raising the
-  catalog gate (ograf-parity reads it from disk; once mapped it no longer escalates). ci07's
+- Traps for later rows: the catalog reach already raises the gate for `e2e/fixtures/svg-corpus/`
+  (ograf-parity reads it from disk); ci05's offline fixture mapping must not route those files
+  around that check, and a catalog spec that reads a fixture through a computed path is invisible
+  to the walk. `importClosure` (the dev-server walk) still resolves fewer extensions than the
+  reach's `resolveModule`; unifying them changes the dev-server closure and is left out of this
+  row on purpose. ci07's
   critical set must not shrink what a broad file plans below what this row pins without a reset
   under the runbook's selector-semantics class. `scripts/e2e-traced.json` is untouched (bot PR
   #1840 owns it).
@@ -128,7 +138,12 @@ escalate both the focus set and the catalog; mapping them is a selection change 
 
 - `node --test` over `scripts/e2e-affected.test.mjs`, `e2e-traced.test.mjs`,
   `catalog-affected.test.mjs`, `e2e-selection-misses.test.mjs`, `keyed-selection.test.mjs`,
-  `catalog-line-gate.test.mjs`: 262 pass, 0 fail.
+  `catalog-line-gate.test.mjs`: 264 pass, 0 fail.
+- `/check`: the code review's 10 findings were all confirmed and fixed (strict walk, lazy reach,
+  Node-side scripts in the reach, comment stripping, stale comments and narration, two weak tests,
+  fewer CLI starts); simplify merged the comment filter, cached reads and directory prefixes, and
+  replaced the escalation list with one `escalate()` helper. The replay in section 4 was rerun on
+  the final code with identical totals.
 - `npm run gates -- run --changed origin/main`: all gates ok, 150 tests pass.
 - `npx eslint` on the four changed scripts: clean.
 - No browser suite run here: the change is planner logic with no product surface; CI's own plan

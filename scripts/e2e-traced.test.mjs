@@ -129,7 +129,7 @@ test('a file most of the traced suite executes is broad', () => {
 
 // THE PLANNER'S HALF. A spec the curated headers miss is added; a map that cannot be trusted, or a
 // broad file, escalates; CENTRAL source never asks.
-const fresh = (files, broad = []) => ({ files: new Map(Object.entries(files)), broad: new Set(broad), problem: null });
+const fresh = (files, broad = [], broadEscalates = false) => ({ files: new Map(Object.entries(files)), broad: new Set(broad), broadEscalates, problem: null });
 
 test('the traced map adds the spec a covers header missed - the #927 shape', () => {
   // src/templates/importedDesign/svg.ts was covered by the import specs and not by
@@ -159,13 +159,13 @@ test('a broad file escalates like core by default (BROAD_ESCALATES), and keeps i
   const map = { 'src/shell.tsx': ['a.spec.ts', 'b.spec.ts'] };
   assert.equal(BROAD_ESCALATES, true, 'ci04: a file most of the suite executes must reach at least the shared-change set');
   assert.equal(BROAD_ESCALATES, tracedFrom({ version: 1, sha: 's', tracedAt: new Date().toISOString(), specs: 1, files: {} }).broadEscalates);
-  const escalated = planFor(['src/shell.tsx'], { coverage, traced: { ...fresh(map, ['src/shell.tsx']), broadEscalates: BROAD_ESCALATES } });
+  const escalated = planFor(['src/shell.tsx'], { coverage, traced: fresh(map, ['src/shell.tsx'], BROAD_ESCALATES) });
   assert.equal(escalated.mode, 'full');
   assert.deepEqual(escalated.tracedBroad, ['src/shell.tsx']);
-  const focused = planFor(['src/shell.tsx'], { coverage, sprintFocus: true, traced: { ...fresh(map, ['src/shell.tsx']), broadEscalates: BROAD_ESCALATES } });
+  const focused = planFor(['src/shell.tsx'], { coverage, sprintFocus: true, traced: fresh(map, ['src/shell.tsx'], BROAD_ESCALATES) });
   assert.equal(focused.focusApplied, true, 'under sprint focus it is the shared-change set');
   assert.ok(focused.specs.includes('legal.spec.ts'), 'the curated selection stays inside it');
-  const kept = planFor(['src/shell.tsx'], { coverage, traced: { ...fresh(map, ['src/shell.tsx']), broadEscalates: false } });
+  const kept = planFor(['src/shell.tsx'], { coverage, traced: fresh(map, ['src/shell.tsx']) });
   assert.equal(kept.mode, 'subset');
   assert.deepEqual(kept.specs, ['legal.spec.ts'], 'switched off: never fewer than the headers, and none of the broad list');
 });

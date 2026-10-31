@@ -387,7 +387,7 @@ export function helperReach(sources, configs = []) {
  * it would narrow a helper nothing imports instead of escalating it.
  */
 function importSpecifiers(text, prefix = String.raw`\.{1,2}\/`) {
-  const code = text.split('\n').filter((l) => !/^\s*(\/\/|\/?\*)/.test(l)).join('\n');
+  const code = withoutLineComments(text);
   const pattern = new RegExp(String.raw`(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"](${prefix}[^'"]+)['"]`, 'g');
   return [...code.matchAll(pattern)].map((m) => m[1]);
 }
@@ -531,8 +531,14 @@ const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helper
  * @param {(file: string) => string | null} read a repo-relative path's text, or null when absent
  * @returns {Set<string> | null} every repo-relative file the gate's specs load, specs included
  */
-export function catalogReachOf(specs, read) {
+export function catalogReachOf(specs, readFile) {
   if (specs.length === 0) return null;
+  // One read per path: a shared module is probed by every importer, and resolving tries several names.
+  const texts = new Map();
+  const read = (f) => {
+    if (!texts.has(f)) texts.set(f, readFile(f));
+    return texts.get(f);
+  };
   const reach = new Set();
   const queue = [];
   const add = (file) => {
@@ -542,7 +548,7 @@ export function catalogReachOf(specs, read) {
     if (read(spec) === null) return null;
     add(spec);
   }
-  let pageImports = 0;
+  let pageImports = false;
   while (queue.length) {
     const file = queue.pop();
     const code = withoutLineComments(read(file) ?? '');
@@ -570,14 +576,14 @@ export function catalogReachOf(specs, read) {
     if (file.startsWith('src/')) continue;
     for (const m of code.matchAll(/\bimport\(\s*['"`]\/(src\/[^'"`?]+)/g)) {
       if (read(m[1]) === null) return null;
-      pageImports += 1;
+      pageImports = true;
       add(m[1]);
     }
   }
-  return pageImports > 0 ? reach : null;
+  return pageImports ? reach : null;
 }
 
-/** Source text with whole-line comments dropped, as `importSpecifiers` reads it. */
+/** Source text with whole-line comments dropped: what `importSpecifiers` and the reach walk read. */
 function withoutLineComments(text) {
   return text.split('\n').filter((l) => !/^\s*(\/\/|\/?\*)/.test(l)).join('\n');
 }
@@ -616,11 +622,12 @@ export function outsideCatalog(file, reach) {
 }
 
 /** A file is in the reach when it is a member, or sits under a directory member (one ending in `/`). */
+const reachDirs = new WeakMap();
 export function inCatalogReach(file, reach) {
   if (!reach) return false;
   if (reach.has(file)) return true;
-  for (const entry of reach) if (entry.endsWith('/') && file.startsWith(entry)) return true;
-  return false;
+  if (!reachDirs.has(reach)) reachDirs.set(reach, [...reach].filter((e) => e.endsWith('/')));
+  return reachDirs.get(reach).some((dir) => file.startsWith(dir));
 }
 
 /** Only a src/ file or a catalog spec's Node-side import can be in the reach, so other changes never read it. */
@@ -675,7 +682,7 @@ const mayBeInReach = (changed) => changed.some((f) => /^(src|e2e|scripts)\//.tes
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach = undefined } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach } = {},
 ) {
   // Read lazily: `outsideCatalog` is false for every non-src file whatever the reach says, so a
   // change with nothing the reach could hold has no use for it.
@@ -694,8 +701,13 @@ export function planFor(
   const fromTrace = new Set();
   const tracedEscalated = [];
   const tracedBroad = [];
-  // Every file that asked for the whole suite, for the catalog question asked after sprint focus.
-  const escalating = [];
+  // Whether any file that asked for the whole suite could move the catalog: the question sprint
+  // focus leaves open once it has turned that escalation into the shared-change set.
+  let escalationReachesCatalog = false;
+  const escalate = (file) => {
+    full = true;
+    if (!outsideCatalog(file, reach)) escalationReachesCatalog = true;
+  };
   // A changed `?raw` file plans the module that inlines it as well as itself, with that module's
   // whole coverage: the copy path never narrows an importer brought in this way.
   const rawPlanned = changed.filter((f) => rawEdges.has(f));
@@ -742,8 +754,7 @@ export function planFor(
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
-      escalating.push(file);
-      full = true;
+      escalate(file);
       continue;
     }
     const covering = coverage.filter((c) => c.test(file));
@@ -757,14 +768,10 @@ export function planFor(
     if (traced && central.length === 0) {
       if (traced.problem) {
         tracedEscalated.push(file);
-        escalating.push(file);
-        full = true;
+        escalate(file);
       } else if (traced.broad.has(file)) {
         tracedBroad.push(file);
-        if (traced.broadEscalates) {
-          escalating.push(file);
-          full = true;
-        }
+        if (traced.broadEscalates) escalate(file);
       } else {
         for (const s of traced.files.get(file) ?? []) if (!onDisk || onDisk.has(s)) fromTrace.add(s);
       }
@@ -773,8 +780,7 @@ export function planFor(
     // names the file itself; an unmapped importer still escalates on its own turn.
     if (covering.length === 0 && central.length === 0 && !rawEdges.has(file)) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
-      escalating.push(file);
-      full = true;
+      escalate(file);
     } else {
       for (const c of covering) specs.add(c.spec);
       for (const [, list] of central) for (const s of list) specs.add(s);
@@ -798,7 +804,7 @@ export function planFor(
     full = false;
     focusApplied = true;
     for (const s of FOCUS) specs.add(s);
-    if (escalating.some((f) => !outsideCatalog(f, reach))) catalog = true;
+    if (escalationReachesCatalog) catalog = true;
   }
   // A core/unmapped change gets the same conservative default the offline suite gets: assume it
   // could touch the catalog too, rather than trusting CATALOG_TRIGGERS to have named every path.
@@ -1617,7 +1623,7 @@ export function parseArgs(args) {
  */
 function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], helperPlanned = [], rawPlanned = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [], catalogReachUnknown = false }, { count, noun, hypothetical, catalogHere = true }) {
   // What made the plan escalate, so the line that says so names the cause the reader has to fix.
-  const why = ['core/unmapped', ...(tracedProblem ? ['untraced'] : []), ...(tracedBroad.length > 0 && BROAD_ESCALATES ? ['broad'] : [])].join('/');
+  const why = ['core/unmapped', tracedProblem && 'untraced', tracedBroad.length > 0 && BROAD_ESCALATES && 'broad'].filter(Boolean).join('/');
   if (catalogReachUnknown) {
     log('e2e-affected: the catalog reach could not be read off e2e/catalog (an import it cannot resolve), so every escalation raises the catalog gate (checkoutCatalogReach).');
   }

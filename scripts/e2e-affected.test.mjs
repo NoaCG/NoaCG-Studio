@@ -1930,8 +1930,8 @@ for (const [file, why] of CI04_SHARED) {
   });
 }
 
-test('ci04: the CLI CI branches on raises the catalog gate for each of those files', () => {
-  for (const [file] of CI04_SHARED) {
+test('ci04: the CLI CI branches on raises the catalog gate for a reached module and a manifest', () => {
+  for (const file of ['src/model/easings.ts', 'package.json']) {
     const cli = JSON.parse(execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', file], { cwd: REPO_ROOT, encoding: 'utf8', env: CLI_ENV, windowsHide: true }));
     assert.equal(cli.catalog, true, file);
   }
@@ -2021,6 +2021,7 @@ test('ci04: catalogReachOf follows Node helpers and page imports, and refuses wh
 test('ci04: the catalog flag of a combined change is the union of its parts', () => {
   const changed = ['src/styles/base.css', 'src/model/easings.ts', 'docs/GOALS.md'];
   const parts = changed.map((f) => planFor([f], { sprintFocus: true }).catalog);
-  assert.equal(planFor(changed, { sprintFocus: true }).catalog, parts.some(Boolean));
-  assert.equal(planFor(changed, { sprintFocus: true }).catalog, true);
+  const { catalog } = planFor(changed, { sprintFocus: true });
+  assert.equal(catalog, parts.some(Boolean));
+  assert.equal(catalog, true);
 });
