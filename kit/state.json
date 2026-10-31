@@ -28,25 +28,30 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 2 builder: phase-02.md wording fix, new head gates, fresh separate-session /so",
-    "eta": "2026-10-31T13:40:00Z"
+    "what": "PR #1853 merge queue (merge-group CI) for phase 2",
+    "eta": "2026-10-31T13:25:00Z"
   },
   "inFlight": [
     {
       "phase": "2",
-      "step": "build (gates green except /so A-)",
+      "step": "build (queued)",
       "session": "session_017SdbwLoYJYFe2efH73A2vG",
       "nonce": "2-b-0f9c",
       "branch": "claude/plan-jev-svg-import-2-build",
       "source": "0b4e403da1f4762dee874e3fed18c29eb0497116",
       "launchedAt": "2026-10-31T11:20:13Z",
-      "note": "/so (subagent) on bec791a7: A- holds only on phase-02.md 69-71 wording; builder asked to fix docs, re-run gates and a fresh separate-session /so",
+      "note": "in merge queue; coordinator is #1853 repair owner through post-land",
       "pr": 1853,
       "head": "bec791a7fce3b1a8b507dded9cc25ad9f2525b98",
-      "configuredRun": 41197443186,
-      "ciRun": 41197423440,
-      "soGrade": "A- on bec791a7 (backup accepted; wording fix pending)",
-      "builderReceiptAt": "2026-10-31T11:56:03Z"
+      "configuredRun": 41202805959,
+      "ciRun": 41202802604,
+      "soGrade": "A",
+      "builderReceiptAt": "2026-10-31T11:56:03Z",
+      "reviewedHead": "37dfd8b6e267c596b7888c4b4a0356f6bb506cbf",
+      "soSession": "session_017SdbwPjGfUHDwqcAoB8rrK",
+      "stampRun": 41203831912,
+      "autoMergeEnabledAt": "2026-10-31T13:03:54Z",
+      "queuedAt": "2026-10-31T13:04:10Z"
     }
   ],
   "owner": [],
@@ -94,5 +99,15 @@
   ],
   "coordinatorNotes": [
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z)."
+  ],
+  "ownerOpen": [
+    {
+      "item": "Confirm jev-svg-evaluation environment deploys from main only (environments API refused through the proxy; rests on owner report). Optional: /so says A+ would need it.",
+      "phase": "2",
+      "severity": "optional"
+    }
+  ],
+  "followups": [
+    "corpus-receipt.json status still says independent admission pending (outside row 2 files)"
   ]
 }
