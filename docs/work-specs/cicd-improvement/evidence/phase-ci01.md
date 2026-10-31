@@ -41,9 +41,10 @@ it never cancels in progress. Nightly, post-land and the durations refresh each 
 ### Collection method and limits
 
 GitHub REST reads through `gh api`, with every immutable read (closed PR, completed run, its
-jobs, deployment statuses) cached by path and each collection pass stopped at 100 calls: twelve
-passes, 869 calls in all, never more than 100 in one, from a 15,000-per-hour limit that stayed
-above 14,600. Organisation endpoints (plan, billing) and repository environments are refused to
+jobs, deployment statuses) cached by path and each collection pass stopped at 100 calls:
+fourteen passes, about 1,000 calls in all plus a few single reads; one pass was cut short by a
+connection reset and the next resumed from the cache. The 15,000-per-hour limit never fell
+below 14,400 remaining. Organisation endpoints (plan, billing) and repository environments are refused to
 this session, so the account plan was not read directly. No log text beyond the failing test
 lines below was kept; no credential or signed URL is recorded. Run end times are `updated_at`;
 job times are `started_at` to `completed_at`.
@@ -113,7 +114,8 @@ own group). Runner-minutes by conclusion are in section 5.
 ### Eligible runner wait versus dependency wait
 
 GitHub creates a job record when its `needs` are satisfied, so job `created_at` to `started_at`
-is the eligible wait for a runner, and run start to job creation is dependency wait.
+is the eligible wait for a runner; run start to job creation is dependency wait, which
+holds build and plan jobs and is not tabulated separately here.
 In two dense windows (2026-10-25 04:30-08:00Z, 1,123 jobs from 168 runs; 2026-10-30
 21:00-23:00Z, 670 jobs from 98 runs) eligible runner wait was p50 0.03, p90 0.03-0.05, p99
 0.08-0.18 and max 0.3 minutes. No job waited a minute for a runner. Queue-to-merged time
@@ -188,7 +190,7 @@ runs at collection (2026-10-18 to 2026-10-31) hold five failures, all between 20
 
 | Run | Date | Failing job | Failure | Class | Status |
 | --- | --- | --- | --- | --- | --- |
-| 39201147576 | 10-19 schedule | Combined nightly report, "E2E time budget" | mean per-test time 6.09 s over the 5.50 s ceiling; like-for-like 12.4% slower over 2,148 tests | suite-wide slowdown, not a product fault | not repeated in 14 later runs; the trace-overhead reduction #1504 landed the same day (attribution by timing only, no replay) |
+| 39201147576 | 10-19 schedule | Combined nightly report, "E2E time budget" | mean per-test time 6.09 s over the 5.50 s ceiling; like-for-like 12.4% slower over 2,148 tests | suite-wide slowdown, not a product fault | budget step passed in all 13 later runs; the trace-overhead reduction #1504 landed the same day (attribution by timing only, no replay) |
 | 39323236011 | 10-19 dispatch | Nightly E2E 7/15 | `editor-arrangement.spec.ts:277`: execution context destroyed by a navigation | flaky spec (timing) | released from quarantine 10-17; no failure since; no dedicated issue |
 | 39372122320 | 10-20 schedule | Nightly E2E 9/15 | `wizard-shell.spec.ts:558`: cold open on a foreign step does not land on Entry | flaky spec | quarantined 10-23 (#1635), released 10-25 (#1707); cause open in **#1622** |
 | 39724997061 | 10-22 schedule | Nightly E2E 4/12 | `rundown-history.spec.ts:268`: Undo after Delete ignored | product race | fixed by #1650; #1649 closed 10-24 |
@@ -215,8 +217,11 @@ landings (statuses read per deployment record), minutes from merge:
 **In 24 of 24 landings, production and its migrations were live before the configured
 verdict**, by 9.5 to 11.4 minutes (p50 10.5). All 24 of those verdicts passed. Across all 122
 landings in 2026-10-24..30 the configured push run failed 4 times (runs 40177524989,
-40289330116, 40724937287, 41134775201) and was cancelled 3 times, each after its SHA deployed.
-Backend integration of the combined tree is never checked before production.
+40289330116, 40724937287, 41134775201) and was cancelled 3 times. All 7 SHAs had their
+migrations applied first. Three (failures 40177524989 and 40724937287, cancellation
+40093685213) also had a Vercel production deployment before the verdict; the other four show no
+Vercel success on their deployment record, so production kept an earlier build. Backend
+integration of the combined tree is never checked before migrations reach production.
 
 The existing incident path: a red configured run files or updates the rolling issue
 `Configured (authenticated) E2E suite is red`, which `scripts/alarm-issues.mjs` shows in every
@@ -257,10 +262,11 @@ distinct runner names so a job listed twice is not counted twice:
 | 2026-10-25 04:30-08:00Z | 1,123 | 55 | 17 s at 55 or more | 0.3 min |
 | 2026-10-30 21:00-23:00Z | 670 | **60** | 24 s at exactly 60, never above | 0.2 min |
 
-Actual concurrency is **60 concurrent standard Linux jobs**, matching GitHub's documented Team
-plan limit (https://docs.github.com/en/actions/reference/limits). The plan itself could not be
-read: organisation endpoints are refused to this session. The 20 is obsolete as a limit and the
-reported 60 is confirmed. **Neither number raises any ceiling**: `MAIN_RUNNERS` stays 13 for a
+Actual concurrency: **60 concurrent standard Linux jobs**. Up to 60 ran at once with no job
+waiting, and usage stopped at exactly 60, matching GitHub's documented Team plan limit
+(https://docs.github.com/en/actions/reference/limits). The 20 limit is obsolete. Not proved: the
+plan itself (organisation endpoints are refused to this session), and that jobs queue above 60,
+since no sampled moment had more than 60 eligible jobs. **Neither number raises any ceiling**: `MAIN_RUNNERS` stays 13 for a
 full offline run, `MAX_SHARDS` stays separate from it, and the merge queue keeps 5 builds.
 Slots and runner-minutes are reported separately; neither proves the other fits.
 
