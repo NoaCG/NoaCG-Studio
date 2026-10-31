@@ -18,11 +18,7 @@
     "heartbeat": "Actual comment ID returned after plan-kit heartbeat is posted after start.",
     "triggers": "Only actual qualified native check-in receipt after start; empty until then."
   },
-  "unavailableNow": [
-    "native Claude coordinator/worker/wake qualification",
-    "protected evaluation environment secret administration",
-    "Google OAuth token endpoint access"
-  ],
+  "unavailableNow": [],
   "prohibitedNow": [
     "wave open",
     "supervisor register/start-block/continue",

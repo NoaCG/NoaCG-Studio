@@ -66,7 +66,7 @@
 // becomes part of the session's context, so a quiet run means there was nothing to do.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readHookInput } from './lib.mjs';
@@ -119,12 +119,20 @@ export function aliasPinnedChromium(browsersDir, revisions) {
     if (!wanted) continue;
     const target = join(browsersDir, `${layout.folder}-${wanted}`);
     if (existsSync(join(target, layout.newDir, layout.newExe))) continue;
-    // The newest older build that ships the old layout.
-    const source = readdirSync(browsersDir)
+    const builds = readdirSync(browsersDir)
       .map((entry) => ({ entry, rev: Number(entry.slice(layout.folder.length + 1)) }))
       .filter(({ entry, rev }) => entry.startsWith(`${layout.folder}-`) && Number.isInteger(rev) && String(rev) !== wanted)
-      .filter(({ entry }) => existsSync(join(browsersDir, entry, layout.oldDir, layout.oldExe)))
-      .sort((a, b) => b.rev - a.rev)[0];
+      .sort((a, b) => b.rev - a.rev);
+    // An image build already in the pinned layout (1243 when 1228 was pinned, #1647): link it whole.
+    const sameLayout = builds.find(({ entry }) => existsSync(join(browsersDir, entry, layout.newDir, layout.newExe)));
+    if (sameLayout && !existsSync(target)) {
+      rmSync(target, { force: true }); // only a dangling link left by an earlier image can be here
+      symlinkSync(join(browsersDir, sameLayout.entry), target);
+      linked.push(`${layout.folder}-${wanted} -> ${sameLayout.entry}`);
+      continue;
+    }
+    // Otherwise the newest build that ships the old layout.
+    const source = builds.find(({ entry }) => existsSync(join(browsersDir, entry, layout.oldDir, layout.oldExe)));
     if (!source) continue;
     const from = join(browsersDir, source.entry, layout.oldDir);
     const into = join(target, layout.newDir);
