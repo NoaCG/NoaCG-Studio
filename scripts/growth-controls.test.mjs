@@ -644,3 +644,29 @@ test('(b) an exception never excepts more than the job it covers, and a spec cov
   const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [bx] }, measurement: { ...shards, tiers: { ...shards.tiers, backend: { perLanding: 50, perDay: 0, evidence: 'complete' } } }, items: [], today: TODAY });
   assert.match(r.tiers.backend.why, /^41\/117 per landing/, 'credited 9, the two shards, not the 20 claimed');
 });
+
+test('(d) a partial read keeps the unread PRs\' existing alarms and raises the read ones', () => {
+  const now = '2026-10-31T12:00:00Z';
+  const fake = (args) => {
+    const route = args.at(-1);
+    if (/\/pulls\?/.test(route)) return JSON.stringify([7, 8].map((n) => ({ number: n, created_at: '2026-10-31T07:00:00Z', head: { ref: 'f' }, draft: false })));
+    if (/pulls\/7\/commits/.test(route)) throw new Error('502');
+    if (/\/commits\?/.test(route)) return JSON.stringify([{ sha: 'c8' }]);
+    if (/\/statuses/.test(route)) return JSON.stringify([{ context: 'noacg/reviewed', state: 'success', created_at: '2026-10-31T08:00:00Z' }]);
+    return '[]';
+  };
+  const existing = 'Owner: o.\n\n- prReady #7 unfinished for 200 min, over its 120 minutes ceiling (clock from stamp 2026-10-31T06:40:00Z). Owner o; act by 2026-11-01.';
+  const r = ages({ ceilings: CEILINGS, now, reader: makeReader(20, fake), existing, carried: carriedStarts(existing) });
+  assert.match(r.body, /prReady #8 unfinished/);
+  assert.match(r.body, /prReady #7 unfinished for 200 min/, 'the unread #7 keeps its line and its start');
+});
+
+test('(b) overlapping active exceptions never credit the same job twice', () => {
+  const base = { tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
+  const first = { ...base, id: 'a', from: '2026-11-01', expires: '2026-11-30' };
+  const renewal = { ...base, id: 'b', from: '2026-11-20', expires: '2026-12-19', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-11-19' } };
+  const m = { ...measurement({ graphics: 30 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 17.7, perDay: 0 } } };
+  const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, renewal] }, measurement: m, items: [{ tier: 'graphics', id: 'spec:e2e/catalog/x.spec.ts', perLanding: 1, perDay: 0 }], today: '2026-11-25' });
+  assert.match(r.tiers.graphics.why, /^12\.3\/10 per landing/);
+  assert.equal(r.tiers.graphics.status, 'refuse');
+});

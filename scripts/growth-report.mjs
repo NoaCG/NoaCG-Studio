@@ -245,9 +245,10 @@ export function readJobs(reader, run) {
  */
 function openItems(reader, now, carried = {}) {
   const prs = reader.get(`repos/${REPO}/pulls?state=open&per_page=100`);
-  if (!prs) return { items: [], pending: [], complete: false };
+  if (!prs) return { items: [], pending: [], complete: false, unread: null };
   const items = [];
   const pending = [];
+  const unread = [];
   let complete = prs.length < 100;
   for (const pr of prs) {
     if (/^bot\/e2e-durations/.test(pr.head?.ref ?? '')) pending.push({ number: pr.number, opened: pr.created_at.slice(0, 10) });
@@ -262,13 +263,13 @@ function openItems(reader, now, carried = {}) {
       if (body.length < 100) break;
     }
     const ready = readyClock(reader, pr, now, { forcePushed: !timelineRead || events.some((e) => e.event === 'head_ref_force_pushed'), carried: carried[id] });
-    if (!ready.complete) complete = false;
+    if (!ready.complete || !timelineRead) { complete = false; unread.push(id); }
     items.push({ id, category: 'prReady', clock: ready.clock });
     if (!timelineRead) continue;
     const queued = events.filter((e) => e.event === 'added_to_merge_queue').map((e) => e.created_at);
     if (queued.length) items.push({ id: `${id} queue`, category: 'queue', clock: queueClock({ queued, now }) });
   }
-  return { items, pending, complete };
+  return { items, pending, complete: complete && prs.length < 100, unread: prs.length < 100 ? unread : null };
 }
 
 /**
@@ -431,13 +432,20 @@ export const PHASE_AGE_ISSUE = 'Plan phases past their age ceiling';
 export const WEEKLY_ISSUE = 'Growth controls: weekly actions';
 
 /** The per-item age check alone: cheap enough to run after every landing. */
-export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget), ledger = null, carried = {} }) {
+export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget), ledger = null, carried = {}, existing = '' }) {
   const open = openItems(reader, now, carried);
   const head = (what) => `Owner: ${ceilings.owner}. Checked ${now} (${reader.calls} API calls). Each ${what} below is past its age ceiling (docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4.3) and needs a corrective action by its date: land it, unblock it or close it with a reason.`;
   const text = (what, list) => (list.length ? [head(what), '', ...list.map((a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}.`)].join('\n') : '');
   const prActions = ageAlarms(open.items, ceilings, now);
-  // A partial read is not "nothing overdue": it raises what it found and never closes the issue.
-  const body = !open.complete && prActions.length === 0 ? null : text('pull request', prActions);
+  // A partial read is not "nothing overdue". The open PR list itself unread: leave the issue as
+  // it is. Some PRs unread: raise what was read and keep the issue's existing lines for the
+  // unread ones, so neither their action nor their recorded start is lost.
+  let body;
+  if (!open.complete && (open.unread === null || prActions.length === 0)) body = null;
+  else {
+    const kept = open.complete ? [] : String(existing ?? '').split('\n').filter((l) => open.unread.some((id) => new RegExp(`^- prReady ${id} |^- queue ${id} queue `).test(l)));
+    body = prActions.length || kept.length ? [head('pull request'), '', ...prActions.map((a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}.`), ...kept].join('\n') : '';
+  }
   // Phases come only from the plan-run ledger the coordinator passes, so they keep an issue of
   // their own: a check without the ledger (after a landing) never touches a phase alarm.
   let phaseBody;
@@ -484,9 +492,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
     const ledgerFile = value('--ledger');
     // Starts the open alarm issue already records outlive a rewritten head.
-    let carried;
-    try { carried = carriedStarts(findIssue(AGE_ISSUE)?.body); } catch { carried = {}; }
-    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null, carried });
+    let existing;
+    try { existing = findIssue(AGE_ISSUE)?.body ?? ''; } catch { existing = ''; }
+    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null, carried: carriedStarts(existing), existing });
     if (result.phaseBody !== undefined) {
       console.log(result.phaseBody || 'no plan phase past its age ceiling');
       if (args.includes('--issue')) console.log(rollingIssue(PHASE_AGE_ISSUE, result.phaseBody));

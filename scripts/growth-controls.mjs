@@ -347,10 +347,14 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     const ceiling = ceilings.tiers[tier];
     const ev = evidenceOf(measurement, tier, today, ceilings.freshnessDays);
     const m = measurement?.tiers?.[tier];
+    const credited = new Set();
     const mine = active.filter((e) => e.tier === tier).map((e) => {
       // Credit is capped at what the covered items cost: an exception never excepts more than the
-      // jobs or specs it names, and an unknown cost earns no credit at all.
-      const cost = e.covers.reduce((a, c) => { const x = coverCost(c); return { perLanding: a.perLanding + x.perLanding, perDay: a.perDay + x.perDay }; }, { perLanding: 0, perDay: 0 });
+      // jobs or specs it names, an unknown cost earns no credit at all, and a job already credited
+      // by an earlier active exception (an overlapping renewal) is not credited twice.
+      const fresh = e.covers.filter((c) => !credited.has(c));
+      for (const c of e.covers) credited.add(c);
+      const cost = fresh.reduce((a, c) => { const x = coverCost(c); return { perLanding: a.perLanding + x.perLanding, perDay: a.perDay + x.perDay }; }, { perLanding: 0, perDay: 0 });
       return { ...e, perLanding: Math.min(e.perLanding ?? 0, cost.perLanding), perDay: Math.min(e.perDay ?? 0, cost.perDay), claimed: { perLanding: e.perLanding ?? 0, perDay: e.perDay ?? 0 } };
     });
     const covered = (item) => mine.find((e) => e.covers.includes(item.id));
