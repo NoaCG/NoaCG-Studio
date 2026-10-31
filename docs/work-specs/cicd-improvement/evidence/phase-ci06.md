@@ -24,18 +24,25 @@ stays open: its three-plan cohort is ci14.
    and the specs it selected). The CLI's `--json` carries it as `configured: { mode, specs,
    quarantined, reasons }`, mode `none`, `subset` or `all`. Selection rules:
    - an edited configured spec, or its baselines, runs itself (a deleted one plans nothing);
-   - a configured `covers:` line runs its spec;
+   - a configured `covers:` line runs its spec, and so does every module a declared file imports,
+     transitively (`configuredByImports` over `sourceGraph`, the app's import graph of `src/` and
+     `api/`, built once per plan in about 0.4 s only when the change touches them). A spec whose
+     declared files reach an import that resolves to no file is selected by every `src/` or `api/`
+     change (none today, pinned by a test);
    - a changed root helper runs the configured specs that import it (the helper map now names
      them), a file a configured spec reads by path or route runs that spec (ci05's readers);
    - the **whole set** for the suite's shared ground: `CONFIGURED_FULL` in
      `scripts/e2e-lists.mjs` (anything under `e2e/configured/` but a spec or its baselines,
      `playwright.live.config.ts`, `supabase/`, ci.yml and `configured-suite.yml`,
-     `.github/actions/`, `package.json`, `package-lock.json`, `vite.config.ts`) and the toolchain
+     `.github/actions/`, `package.json`, `package-lock.json`, `vite.config.ts`), the toolchain
      read off imports (`configuredToolchain`: the planner, shard packer, verdict and run-integrity
-     reporter and everything they import);
+     reporter and everything they import) and the dev server's startup modules (its `/api`
+     plugins, such as `scripts/apiRouteTable.mjs`, serve every configured spec);
    - the **whole set** for backend-facing source no configured header names
      (`CONFIGURED_BACKEND`: `api/` and `src/backend/`, tests excluded), such as a shared server
-     module (`api/_lib/http.ts`, `auth.ts`) or a new route. Added after the first `/so` (section 10);
+     module (`api/_lib/http.ts`, `auth.ts`) or a new route, whatever its import closure says, and
+     for a module no declared closure holds that imports `src/backend/` (backend-only code the
+     offline gate never runs, such as `AccountSaveNotice.tsx`). Added after review (section 10);
    - the **whole set** for every file the offline plan escalates (CORE, unmapped, broad, a stale
      traced map, `ESCALATES_WITH_HEADERS`). The spec's "uncertain dependencies" are the planner's
      own uncertain class; a configured header that names such a file adds nothing it does not
@@ -80,6 +87,29 @@ stays open: its three-plan cohort is ci14.
 - R5. The full configured suite keeps running on every landing; nothing here changes
   `configured-suite.yml`'s triggers, quarantine or rolling issue.
 
+### Rules found after coding (the rule model, reassessed)
+
+Two successive `/so` rounds found variants of one missing rule (unnamed backend source, then
+modules a declared file imports), so a fresh read-only `/so` reassessed the model before any more
+patching (known-traps, Review checkpoints). It graded the proposed model B and its corrections are
+applied:
+
+- M1. A configured spec depends on its declared files and every module they import, transitively.
+  The walk resolves `.tsx`, `.jsx`, `.css`, `?raw` and `.json` targets (the old `importClosure`
+  stopped at every React component).
+- M2. A declared closure that reaches an unresolvable import is unknown: every source change
+  selects that spec.
+- M3. Backend-facing source no header names, and a module outside every closure that imports
+  `src/backend/`, select the whole set.
+- M4. Shared ground (now including the dev server's startup modules), every offline escalation, an
+  edited configured spec, root helpers and files a configured spec reads keep their rules.
+- M5. A file in no declared closure and none of the classes above selects nothing. That boundary
+  holds because the offline gate boots the same app on the same PR: an app entry point
+  (`src/main.tsx`, `App.tsx`, the global styles) escalates the offline plan and so selects the
+  whole set, and a module outside every closure that only the configured deployment runs is M3.
+  A miss here is caught by the per-landing full run as a red `main`, never as a deployed change
+  nobody tested, since the offline gate still runs it.
+
 ## 4. Acceptance
 
 | Criterion | Evidence | Result |
@@ -98,7 +128,9 @@ stays open: its three-plan cohort is ci14.
 Mutation check, each change reverted alone with the tests run: escalation not coupled (1
 failure), shared ground off (2), an edited spec not selected (2), the manifest check off (1), the
 extra-test check off (1), an empty flag read as 'false' in the gate (1), the merge-group check off
-(1), the configured header refusal off (1), the quarantine split off (1), the backend-facing rule off (1).
+(1), the configured header refusal off (1), the quarantine split off (1), the backend-facing rule off (1),
+the import closure off (1), the dev server modules off (1), the backend-importer rule off (1), the
+unresolved-import rule off (1), unresolved imports not recorded (1).
 
 ## 5. Real Actions runs
 
@@ -121,11 +153,14 @@ last offline or catalog job. The selection step adds 1 second to the plan job. G
 trigger or catalog rule changed, so **0 graphics runner-minutes** are added; nothing here leans
 on #1863.
 
-Selection share, replaying the 56 first-parent landings in this clone (`302d565b` to `11523106`)
-through the ci06 planner with sprint focus and the committed traced map (re-run after the
-backend-facing rule, identical: every landing in the window that touched unnamed backend source
-already selected the whole set for another reason): 31 select nothing, 3 a
-subset (about 3 test-minutes, one stack, about 6 runner-minutes), 22 the whole set. The whole-set
+Selection share, replaying the first-parent landings in this clone through the ci06 planner
+with sprint focus and the committed traced map. Before the review rounds: 56 landings (`302d565b`
+to `11523106`), 31 select nothing, 3 a subset, 22 the whole set. With the final model (backend
+rule, import closures, dev server modules), over the 57 landings to `874c589b` (JEV #1870
+included): **31 nothing, 3 a subset (about 3 test-minutes each, one stack, about 6 runner-minutes),
+23 the whole set**. The new rules moved no landing in this window: the ones that touched closure
+or backend source already escalated. A future change confined to, say, `src/control/` now selects
+most hosted specs (about 50) where it selected a handful. The whole-set
 reasons: an offline escalation (src/components broad files 6, unmapped 9, src/model 3,
 src/preview 2, others 4), dependency manifests (6 and 5), workflows (3), the planner's scripts
 (1), a configured helper (1).
@@ -244,3 +279,13 @@ From the next phase on, the coordinator:
   proven at landing; the cost depends on the dispatch stopping) are stated in sections 4, 6 and 8.
 - After coordinator input: the shared action retries the stack start once (#1865), pinned by a
   test that counts exactly two starts.
+- Second `/so` (head `6131c179`): AGREE WITH CORRECTIONS, B. Finding: `src/control/playoutLink.ts`,
+  `joinName.ts`, `realtimeControl.ts` select nothing though declared files import them. Same
+  family as the first, so the rule model was reassessed (section 3) before the fix; the fix and
+  its corrections are tested with five mutations. Class: product defect in the selector.
+- On `6131c179` the PR run's Build failed one timing test out of this diff's reach
+  (`scripts/ograf-foreign.test.mjs`, 3.35x against a 3x bound; main's control 2.0x): #1873. Its
+  selected configured verdict caught a flake (`production-data-key-tick.spec.ts` failed then passed
+  inside the run, and passed in the paired full run 41238521706 on the same head): #1874. Its
+  quarantine entry belongs on its own branch, which a plan-run worker may not push, so it is
+  handed to the coordinator. Neither failure is retried by this PR.

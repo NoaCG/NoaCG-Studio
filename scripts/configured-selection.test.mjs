@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { configuredFullFor, configuredManifest, configuredToolchain, planFor } from './e2e-affected.mjs';
+import { checkoutSourceGraph, configuredByImports, configuredFullFor, configuredManifest, configuredToolchain, planFor, sourceGraph } from './e2e-affected.mjs';
 import { CONFIGURED_HEADERS, CONFIGURED_SPECS } from './e2e-lists.mjs';
 import { manifestProblems, verdict } from './configured-verdict.mjs';
 import { CONFIGURED_SHARDS, selectedShardCount } from './configured-shards.mjs';
@@ -41,14 +41,58 @@ test('ci06: an edited configured spec runs itself, and a deleted one plans nothi
   assert.equal(gone.configured, false);
 });
 
-test('ci06: a covers line selects exactly its specs, by name', () => {
+test('ci06: a covers line selects its specs by name, and an untouched area selects nothing', () => {
   const p = plan(['src/control/logFollow.ts']);
   assert.equal(p.configuredAll, false);
-  assert.deepEqual(p.configuredSpecs, ['follow-status-is-visible.spec.ts', 'output-cold-boot.spec.ts', 'output-realtime-floor.spec.ts', 'relay-cold-boot.spec.ts']);
+  for (const s of ['follow-status-is-visible.spec.ts', 'output-cold-boot.spec.ts', 'output-realtime-floor.spec.ts', 'relay-cold-boot.spec.ts']) assert.ok(p.configuredSpecs.includes(s), s);
+  assert.ok(p.configuredReasons.files['src/control/logFollow.ts'].includes('follow-status-is-visible.spec.ts'));
   // A file no configured header names and the offline plan maps selects nothing (the untriggered case).
   const quiet = plan(['docs/GOALS.md']);
   assert.equal(quiet.configured, false);
   assert.deepEqual(quiet.configuredSpecs, []);
+});
+
+// THE RULE MODEL, reassessed after two /so rounds found variants of one gap (phase notes, section 3):
+// a configured spec depends on its declared files AND everything they import.
+test('ci06: a module a declared file imports selects that spec (playoutLink under hostedControl)', () => {
+  const viaHosted = plan(['src/control/hostedControl.ts']).configuredSpecs;
+  const p = plan(['src/control/playoutLink.ts']);
+  assert.equal(p.configuredAll, false);
+  for (const s of viaHosted) assert.ok(p.configuredSpecs.includes(s), `${s} declares hostedControl.ts, which imports playoutLink.ts`);
+  assert.ok(plan(['src/control/realtimeControl.ts']).configuredSpecs.length > 0, 'hostedReceiver.ts imports it');
+  // Outside every declared closure, with no backend import: nothing (M5; the offline gate boots it).
+  assert.deepEqual(plan(['src/components/wizard/WizardShell.tsx']).configuredSpecs, []);
+});
+
+test('ci06: the import walk follows every import kind and fails toward running more', () => {
+  const sources = new Map([
+    ['src/a.ts', "import { b } from './b';\nimport './style.css';\nimport t from './t.txt?raw';\nexport const a = b;"],
+    ['src/b.tsx', "export const b = await import('./c.jsx');"],
+    ['src/c.jsx', 'export default 1;'],
+    ['src/style.css', ''],
+    ['src/lost.ts', "import x from './gone';"],
+    ['src/far.ts', 'export const far = 1;'],
+  ]);
+  const graph = sourceGraph(sources, new Set([...sources.keys(), 'src/t.txt']));
+  assert.deepEqual([...graph.unresolved], ['src/lost.ts']);
+  const coverage = [{ spec: 'one.spec.ts', test: (f) => f === 'src/a.ts' }, { spec: 'lost.spec.ts', test: (f) => f === 'src/lost.ts' }];
+  for (const f of ['src/c.jsx', 'src/style.css', 'src/t.txt']) {
+    assert.ok(configuredByImports(f, graph, coverage).specs.includes('one.spec.ts'), `${f} is in src/a.ts's closure`);
+  }
+  // A spec whose closure holds an unresolvable import is selected by any source change.
+  const far = configuredByImports('src/far.ts', graph, coverage);
+  assert.deepEqual(far.specs, ['lost.spec.ts']);
+  assert.equal(far.outside, true);
+  // This checkout's graph resolves every relative import (a new hole would select specs widely, loudly).
+  assert.deepEqual([...checkoutSourceGraph().unresolved], []);
+});
+
+test('ci06: the dev server plugins and a backend-importing module outside every closure select the whole set', () => {
+  for (const file of ['scripts/apiRouteTable.mjs', 'scripts/meDevPlugin.mjs', 'scripts/dataDevPlugin.mjs']) {
+    assert.equal(plan([file]).configuredAll, true, `${file} serves /api to every configured spec`);
+  }
+  const p = plan(['src/components/AccountSaveNotice.tsx']);
+  assert.equal(p.configuredAll, true, 'imports src/backend/ and no declared closure holds it');
 });
 
 test('ci06: helpers, live config, setup, workflows and the toolchain select the whole configured set', () => {

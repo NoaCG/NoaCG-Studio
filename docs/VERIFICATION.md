@@ -128,11 +128,14 @@ starts it against the local production `.env`.
 **On a pull request, the selected configured specs are a required check** (cicd-improvement
 ci06). The plan emits a manifest (`configured` in `e2e-affected.mjs --json`): an edited
 configured spec runs itself, a `covers:` line runs its spec, a changed helper or read file runs
-the configured specs that import or read it, and the WHOLE configured set runs for the suite's
+the configured specs that import or read it, a changed module runs every configured spec whose
+declared files import it (transitively, through the app's import graph), and the WHOLE configured
+set runs for the suite's
 shared ground (`CONFIGURED_FULL` in `scripts/e2e-lists.mjs` and the toolchain scripts read off
 imports: helpers, `playwright.live.config.ts`, `supabase/`, the workflows and shared actions,
-dependency manifests, the planner and verdict), for backend-facing source (`api/`, `src/backend/`)
-that no configured header names, and for any change the offline plan escalates. A
+dependency manifests, the dev server's plugins, the planner and verdict), for backend-facing
+source (`api/`, `src/backend/`) that no configured header names or that imports `src/backend/`
+outside every declared closure, and for any change the offline plan escalates. A
 quarantined spec leaves the selection unless the change edits it. ci.yml's `configured` jobs run
 the selection on a local stack (`.github/actions/configured-stack`, shared with
 `configured-suite.yml`), and `configured-verdict` checks the merged report against a

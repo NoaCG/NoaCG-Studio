@@ -68,7 +68,7 @@ and the exact base and head SHAs. It picks its own probes.
   the suite's shared ground (its helpers, `playwright.live.config.ts`, `supabase/`, ci.yml or
   `configured-suite.yml`, `.github/actions/`, dependency manifests, the planner or verdict),
   `api/` or `src/backend/` source no configured header names, or anything the offline plan
-  escalates; or **untriggered**, an explicit notice that the change selects
+  escalates (a module a declared file imports selects that spec too); or **untriggered**, an explicit notice that the change selects
   no configured spec. The CI gate fails unless the jobs match that flag, so a green CI gate on your
   reviewed head is the configured evidence: put the CI run ID and the selection (mode, spec count)
   in your receipt. No separate pre-merge configured dispatch is owed.

@@ -835,10 +835,83 @@ export function configuredToolchain() {
 }
 
 /** Whether a changed file is shared configured ground: the whole configured set runs for it. */
-export function configuredFullFor(file, toolchain) {
+export function configuredFullFor(file, toolchain, devServer) {
   if (CONFIGURED_FULL.some((r) => r.test(file))) return true;
-  // Only a script or a root config can be in the toolchain, so nothing else reads it.
-  return /^(scripts\/|playwright\.)/.test(file) && (toolchain ?? configuredToolchain()).has(file);
+  // Only a script or a root config can be in the toolchain or the dev server's startup modules (its
+  // /api plugins serve every configured spec), so nothing else reads them.
+  if (!/^(scripts\/|playwright\.|vite\.)/.test(file)) return false;
+  return (toolchain ?? configuredToolchain()).has(file) || (devServer ?? devServerModules()).has(file);
+}
+
+/**
+ * THE APP'S IMPORT GRAPH (cicd-improvement ci06), for the configured selection: every module under
+ * src/ and api/ with the relative imports it makes (static, side-effect, literal `import()`, `?raw`,
+ * CSS), resolved as the bundler does (`resolveModule`: .ts, .tsx, .mjs, .js, .jsx, index files, a
+ * name written with its extension such as `x.css`). `unresolved` names every module with a relative
+ * import that names no file: what lies behind it is unknown.
+ *
+ * @param {Map<string, string>} sources repo-relative path -> text, of every module
+ * @param {Set<string>} [files] every file an import may name (a `?raw` text, a `.json`), modules included
+ * @returns {{ importers: Map<string, string[]>, imports: Map<string, string[]>, unresolved: Set<string> }}
+ */
+export function sourceGraph(sources, files = new Set(sources.keys())) {
+  const importers = new Map();
+  const imports = new Map();
+  const unresolved = new Set();
+  const has = (f) => (files.has(f) ? f : null);
+  for (const [file, text] of sources) {
+    const out = [];
+    for (const spec of importSpecifiers(text)) {
+      const target = resolveModule(joinPath(dirOf(file), spec.replace(/\?.*$/, '')), has);
+      if (!target) { unresolved.add(file); continue; }
+      if (target === file) continue;
+      out.push(target);
+      importers.set(target, [...(importers.get(target) ?? []), file]);
+    }
+    imports.set(file, out);
+  }
+  return { importers, imports, unresolved };
+}
+
+/** `sourceGraph` over this checkout's src/ and api/, read once per process. */
+let sourceGraphCache = null;
+export function checkoutSourceGraph() {
+  if (sourceGraphCache) return sourceGraphCache;
+  const sources = new Map();
+  const files = new Set();
+  for (const dir of ['src', 'api']) {
+    for (const rel of readdirSync(join(REPO_ROOT, dir), { recursive: true })) {
+      const file = `${dir}/${String(rel).replaceAll('\\', '/')}`;
+      files.add(file);
+      if (/\.(m?[jt]sx?|css)$/.test(file)) sources.set(file, readCheckout(file) ?? '');
+    }
+  }
+  sourceGraphCache = sourceGraph(sources, files);
+  return sourceGraphCache;
+}
+
+/**
+ * THE CONFIGURED SPECS A SOURCE CHANGE REACHES THROUGH IMPORTS (ci06, the rule model reassessed after
+ * two /so rounds). A configured spec depends on its declared files (its `covers:` lines) and on every
+ * module they import, transitively: a changed file selects each configured spec that declares the
+ * file itself or any module that imports it, directly or through others. A spec whose declared
+ * files reach a module with an unresolvable import has an unknown closure, and every src/ or api/
+ * change selects it. `outside` says no declared closure holds the file.
+ *
+ * @param {string} file repo-relative path under src/ or api/
+ * @param {ReturnType<typeof sourceGraph>} graph
+ * @param {{ spec: string, test: (f: string) => boolean }[]} coverage the configured specs' covers
+ * @returns {{ specs: string[], outside: boolean }}
+ */
+export function configuredByImports(file, graph, coverage) {
+  const up = importedBy(graph.importers, [file]);
+  const specs = new Set(coverage.filter((c) => up.some((f) => c.test(f))).map((c) => c.spec));
+  const outside = specs.size === 0;
+  for (const u of graph.unresolved) {
+    const behind = importedBy(graph.importers, [u]);
+    for (const c of coverage) if (behind.some((f) => c.test(f))) specs.add(c.spec);
+  }
+  return { specs: [...specs].sort(), outside };
 }
 
 /**
@@ -896,7 +969,7 @@ export function configuredFullFor(file, toolchain) {
 export function planFor(
   changed,
   { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach, readers,
-    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor } = {},
+    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor, appGraph } = {},
 ) {
   // Built on first use: a change of only specs, helpers or CORE files never reads e2e/ for it.
   let readIndex = readers;
@@ -963,10 +1036,23 @@ export function planFor(
     // change most needs the configured suite. An edited configured spec (or its baselines) runs
     // itself; shared configured ground runs the whole set; a covers line runs its spec.
     const configuredSpec = /^e2e\/configured\/([^/]+\.spec\.ts)(?:-snapshots\/|$)/.exec(file)?.[1];
-    const configuredNamed = configuredCoverage.filter((c) => c.test(file)).map((c) => c.spec);
+    // App source reaches the configured specs whose declared files import it (`configuredByImports`).
+    // Outside every declared closure, backend-facing source, or a module that imports src/backend/
+    // directly, is uncertain and selects the whole set.
+    // A backend-facing file no header names is shared by every spec that calls the backend, whatever
+    // its import closure says (api/_lib/http.ts sits in 13 declared closures and serves every route).
+    let configuredNamed = configuredCoverage.filter((c) => c.test(file)).map((c) => c.spec);
+    let backendOutside = !configuredNamed.length && CONFIGURED_BACKEND.some((r) => r.test(file));
+    if (/^(src|api)\//.test(file)) {
+      if (appGraph === undefined) appGraph = checkoutSourceGraph();
+      if (appGraph) {
+        const reach = configuredByImports(file, appGraph, configuredCoverage);
+        configuredNamed = [...new Set([...configuredNamed, ...reach.specs])];
+        if (reach.outside && (appGraph.imports.get(file) ?? []).some((f) => /^src\/backend\//.test(f))) backendOutside = true;
+      }
+    }
     if (configuredSpec) selectConfigured(file, [configuredSpec]);
-    // Shared ground, or backend-facing source no configured header names: uncertain, the whole set.
-    else if (configuredShared(file) || (!configuredNamed.length && CONFIGURED_BACKEND.some((r) => r.test(file)))) configuredWhole.add(file);
+    else if (configuredShared(file) || backendOutside) configuredWhole.add(file);
     selectConfigured(file, configuredNamed);
     // The catalog reach is asked before IGNORE for the same reason: a script a catalog spec imports
     // (scripts/rules.mjs) is ignored for the offline suite and is still something the gate runs.
