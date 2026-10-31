@@ -27,7 +27,10 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": null,
+  "waitingOn": {
+    "what": "phase 8 builder gates on PR #1883 (CI with selected configured, fresh /so)",
+    "eta": "2026-10-31T23:59:00Z"
+  },
   "inFlight": [
     {
       "phase": "8",
@@ -37,7 +40,9 @@
       "branch": "claude/plan-jev-svg-import-8-build",
       "source": "d06974d30c42f504073fc810f2d1316168eb1f8d",
       "launchedAt": "2026-10-31T22:40:57Z",
-      "note": "builder; carries row 6/7 forwards (flip CLOCK_RUNTIME_READY, CLOCK_NAME reservation, spec line 1281 boundary request) 22:46Z boundary approved: retire CLOCK_RUNTIME_READY (not flip); departures draft.ts (CLOCK_NAME seeded into taken), BehaviourSection.tsx (clockReady prop gone), jev-svg-contract.test.mjs (shipped-off assertions removed, live kept + Clock 2 block), e2e/import-svg-behaviour.spec.ts:1281 becomes the live walk; TIMER_SVG countdown proof kept. 22:59Z amendment approved: M:SS-only clock rows; picker modes No clock/Counts up/Duration (Target time off until row 10); duration length set only off air."
+      "note": "builder; carries row 6/7 forwards (flip CLOCK_RUNTIME_READY, CLOCK_NAME reservation, spec line 1281 boundary request) 22:46Z boundary approved: retire CLOCK_RUNTIME_READY (not flip); departures draft.ts (CLOCK_NAME seeded into taken), BehaviourSection.tsx (clockReady prop gone), jev-svg-contract.test.mjs (shipped-off assertions removed, live kept + Clock 2 block), e2e/import-svg-behaviour.spec.ts:1281 becomes the live walk; TIMER_SVG countdown proof kept. 22:59Z amendment approved: M:SS-only clock rows; picker modes No clock/Counts up/Duration (Target time off until row 10); duration length set only off air.",
+      "pr": 1883,
+      "head": "7979e5a40cc9edbc011e3dec89a6841ca17d79f6"
     }
   ],
   "owner": [],
