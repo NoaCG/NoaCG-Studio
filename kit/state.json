@@ -52,7 +52,7 @@
       "nonce": "ci03-b-24b9",
       "branch": "claude/plan-cicd-improvement-ci03-build",
       "launchedAt": "2026-10-31T12:00:56Z",
-      "note": "PR #1854 head 60d66b49 after 5 real Codex P2 fixes (verdict propagation, record collision, attribution proof, claim-before-send, input-free supersession only); 19/19 tests. Codex, configured-suite and final /so pending on the new head. Factory gates flake (double-stop ig06) on eec131b4 awaiting builder classification re-run.",
+      "note": "PR #1854 head 60d66b49: CI gate, configured-suite 41203979114, Codex clean; /so graded B at 13:24 (pass for failed commit under cancel-replace); builder idle since 13:22 nudged at 13:37 with the finding. Factory gates flake on eec131b4 classified (fail then pass on rerun).",
       "pr": 1854,
       "repairOwnerComment": 6543487751
     }
