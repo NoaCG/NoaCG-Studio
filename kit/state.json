@@ -27,20 +27,17 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": {
-    "what": "configured-suite 41228174293 attempt 2 on e99aa2d4, then phase 5 checker final verdict",
-    "eta": "2026-10-31T19:00:00Z"
-  },
+  "waitingOn": null,
   "inFlight": [
     {
-      "phase": "5",
-      "step": "check",
-      "session": "session_017SdbwMTGSHtax14wmvEa4b",
-      "nonce": "5-c-62b2",
-      "mergeSha": "e99aa2d4aeb37794d2e6b37cd3bf50c8fcedd030",
-      "pr": 1864,
-      "launchedAt": "2026-10-31T18:12:30Z",
-      "note": "checker UNAVAILABLE 18:29Z: all criteria pass, configured-suite 41228174293 shard 2 Supabase start infra (#1865); coordinator re-ran failed jobs once (attempt 2) 18:31Z; same checker waits and re-reports. No budget spent."
+      "phase": "6",
+      "step": "build",
+      "session": "session_017SdbwQKAr6E9sLBeHDSSW4",
+      "nonce": "6-b-472e",
+      "branch": "claude/plan-jev-svg-import-6-build",
+      "source": "11523106a407cb856e619e0d4ddbbfa3785d5739",
+      "launchedAt": "2026-10-31T18:44:47Z",
+      "note": "builder (visible UI row); coordinator becomes PR repair owner once the PR exists"
     }
   ],
   "owner": [],
@@ -102,6 +99,13 @@
       "mergeSha": "aa14e8650379ae1a9735b07317418d41c2faeee4",
       "pr": 1860,
       "checker": "session_017SdbwR5Y5dr7RVPGYfjKUr"
+    },
+    {
+      "phase": "5",
+      "mergeSha": "e99aa2d4aeb37794d2e6b37cd3bf50c8fcedd030",
+      "pr": 1864,
+      "checker": "session_017SdbwMTGSHtax14wmvEa4b",
+      "note": "configured-suite attempt 2 after #1865 infra"
     }
   ],
   "coordinatorNotes": [
