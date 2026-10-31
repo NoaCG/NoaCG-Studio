@@ -27,7 +27,10 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": null,
+  "waitingOn": {
+    "what": "phase 6 builder gates on PR #1870 head 59ab289e (CI, configured-suite, final /so)",
+    "eta": "2026-10-31T20:15:00Z"
+  },
   "inFlight": [
     {
       "phase": "6",
@@ -38,7 +41,7 @@
       "source": "11523106a407cb856e619e0d4ddbbfa3785d5739",
       "launchedAt": "2026-10-31T18:44:47Z",
       "note": "builder asked 19:38Z to touch scripts/e2e-affected.test.mjs (outside TOUCHES): one road entry for the authorized new spec; coordinator reconciled 19:39Z (exact set kept, departure in PR); cicd coordinator informed. Builder rerunning gates.",
-      "head": "fd2a08d6cb3cc688a7bb25042e1550537afc13fa",
+      "head": "59ab289eaf05dffdd7057dd6ceb0759f85c6a28b",
       "pr": 1870
     }
   ],
