@@ -61,7 +61,10 @@
       "session": "session_017SdbwPksekn9AFTtWPgZ2P",
       "nonce": "fix-1844-f-3dee",
       "branch": "claude/plan-cicd-improvement-fix-1844",
-      "launchedAt": "2026-10-31T08:14:12Z"
+      "launchedAt": "2026-10-31T08:14:12Z",
+      "pr": 1845,
+      "repairOwnerComment": 6541077937,
+      "note": "PR open at e2413e76; worker gates pending"
     }
   ],
   "triggers": {
