@@ -102,10 +102,11 @@ agent turns. This is measured occupancy, not active agent work; commit frequency
 events per PR: p50 2, p90 14, max 26 (122 in all). Review events are counted, not finding
 families: the ledger and timeline do not record families, so that measure stays **missing**.
 
-**Repair rounds.** 3 of 21 rows failed an independent check after landing: row 30 once, row 32
-twice. Row 32's two failures are one family (press-safety base and instance identity), so it
-is a repeated-family row. These are the cohort's **escaped defects**: product faults that passed
-every PR and merge-group gate and were found only by the post-landing checker.
+**Repair rounds.** 2 of 21 rows (9.5%) failed an independent check after landing, in 3 failed
+check attempts: row 30 once, row 32 twice. Row 32's two failures are one family (press-safety
+base and instance identity), so it is a repeated-family row. These 3 failed checks in 2 rows are
+the cohort's **escaped defects**: product faults that passed every PR and merge-group gate and
+were found only by the post-landing checker. Later comparisons count rows and attempts apart.
 
 **Cancelled and failed attempts.** Across the 24 PRs: 267 PR CI runs, 186 cancelled and 28
 failed; 197 configured-suite dispatches, 100 cancelled (mostly before #1816 gave each branch its
