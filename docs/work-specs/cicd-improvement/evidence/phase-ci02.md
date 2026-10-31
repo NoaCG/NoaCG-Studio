@@ -27,12 +27,13 @@ says one request per new head.
 | Routine work gets no new design-review ceremony | Ordinary row |
 | Stateful work states its observable rules first; a fresh reviewer challenges them before code when the feature changes them | Risky row |
 | Two successive confirmed rounds of one family pause patching for a focused independent reassessment | Repeated family row |
-| A stalled review is never implicitly clean; the existing recovery procedure applies | Stalled row (plan-run's wait step) |
+| A stalled review is never implicitly clean; the existing recovery procedure applies | Stalled row (plan-run's idle threshold and wait handling) |
 
-The observable signal for an outstanding Codex review is the summary comment Codex keeps on
-each PR: its `codex-review-state` marker carries `"status":"running"` and the commit while a
-review runs. That is how the stalled case below was found, and a worker can read it with one
-REST call.
+A request is outstanding from the moment it is made until its result is on the PR. For Codex,
+opening the PR is the first request, and the result is a review, a receipt comment or a 👍
+reaction. Meanwhile the summary comment Codex keeps on each PR carries `"status":"running"` and
+the commit in its `codex-review-state` marker. That is how the stalled case below was found,
+and a worker can read it with one REST call.
 
 **What it does not change (acceptance c).** No template, no procedure file, no workflow, check,
 test, limit or script. The coordinator still posts the head-bound `noacg/reviewed` stamp and
@@ -40,14 +41,14 @@ requests auto-merge at once with head checks before and after (`plan-run.md`, `q
 cloud step 5); GitHub still requires `CI gate` and `Reviewed` before admission (ruleset 22389043,
 as read in phase ci01). Checkers stay independent of builders and repairers, as the check
 template and plan-run require. The ordinary path is exactly today's: `/check`, the Codex review,
-a final fresh `/so`. Repair limits are restated, not changed. Parallel-plans D3 is marked
+a final fresh `/so`. Repair limits are those of queue-merge and plan-run, by reference, not restated. Parallel-plans D3 is marked
 fulfilled by this section, as the spec asks.
 
 ### Scenario exercise with a fresh reviewer
 
 A fresh, read-only Claude Code Cloud session that shares nothing with this builder read the
-section at the branch head and applied it to four real cases from the record. Its answers are
-in section 4.
+section at `893e16b4` and applied it to four real cases from the record. Its answers and what
+changed because of them are in section 4.
 
 | Scenario | Real case it was given |
 | --- | --- |
@@ -159,7 +160,35 @@ one PR. It stays with ci18; reports keep the stamp-based figure beside the recei
 
 ## 4. Fresh-reviewer exercise
 
-Pending: filled in from the fresh session's answers before the final assessment.
+Reviewer: Claude Code Cloud session `session_017SdbwMjxnCfwPxTfnZDeFe`, read-only, started with
+the section and the four cases only, told not to read this file first. It read `893e16b4`.
+
+| Case | What the section prescribes (reviewer) | What actually happened (reviewer) |
+| --- | --- | --- |
+| Ordinary, #1845 | nothing extra: `/check`, one Codex review per head, a fresh `/so` on the final diff | matched: `/so` graded B, the fixes went out as one head, one clean Codex review, merged |
+| Risky, row 30 (#1695, #1704) | Rules in the phase notes and PR before code, a fresh `/so` on them before code, coherent checkpoints, one repair after the failed check | no Rules section; about 20 heads of one-finding patches before a `/so` on the design; one second request on the same head |
+| Repeated family, row 32 (#1728, #1730, #1731) | after the second failed check in one family, stop patching, reassess the model, then repair | plan-run's diagnose made that model-level call and #1731 was the model fix; one same-head Codex re-ask on #1728 |
+| Stalled, #1763 | never clean, no second request, report pending, the coordinator recovers, no stamp meanwhile | labelled for landing 17 seconds after the request and merged with Codex still running |
+
+Its yes/no answers: one outstanding request per head and scope, mostly yes (two defects below);
+repair limits unchanged and no attempt added, yes; a new review step for ordinary work, no (the
+reply to a confirmed round now names its family and class, a few words in a reply that already
+exists); stamping, auto-merge request or required checks changed, no; reviewers independent of
+builders and repairers, yes.
+
+Defects it found, each fixed in the section:
+
+| Defect | Fix |
+| --- | --- |
+| "Outstanding" meant only the `running` state, missing a request not yet picked up and the review Codex starts on PR open, so the first head could get two requests | Outstanding now runs from the request to its result; opening the PR is the first head's request |
+| "Under plan-run's wait step" names a step with no review-stall handling, and no point at which a review counts as stalled | Stalled now starts at plan-run's existing 30-minute idle threshold; the coordinator's handling is spelled out as a wait that spends no attempt |
+| A replacement request contradicted "one outstanding", since the stalled Codex request still reads `running` | The coordinator first says on the PR that the request is stalled, which ends it as the outstanding one, then makes one new request |
+| "One repair then diagnose" left out plan-run's re-check after a blocked prerequisite and diagnose's last repair | Repair limits are now named by reference to queue-merge and plan-run |
+
+Its two smaller gaps were also closed. The Risky row was triggered by "sets" while the
+pre-code `/so` ran "when the phase changes them"; the row is now "sets or changes" and the
+`/so` always runs. For a repeated family in failed checks, plan-run's diagnose agent is the
+reassessment, and the repair follows only if an attempt remains.
 
 ## 5. Phase notes
 
@@ -172,8 +201,9 @@ Pending: filled in from the fresh session's answers before the final assessment.
     fixed and all link that file, and `plan-run.md` is at its 90-line limit.
   - "Revision" in the spec means the PR head. One outstanding request per head and scope; a
     `/so` on the Rules and a `/so` on the final diff are different scopes.
-  - Stalled reviews get no timer, as parallel-plans D3 forbids one: the worker reports the gate
-    pending and the coordinator reconciles it under plan-run's existing wait step.
+  - A stalled review is never treated as clean, as parallel-plans D3 requires. The point where
+    it counts as stalled reuses plan-run's 30-minute idle threshold rather than a new number;
+    the worker reports it pending and only the coordinator replaces the request.
   - The baseline is ci01's backend/stateful stratum, the comparable risky set that exists.
   - Collection scripts were scratch work and are not committed; the method and every number
     are here, with each PR named so it can be read again.
