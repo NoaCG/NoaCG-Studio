@@ -9,8 +9,8 @@ ten-row sample, which has not happened yet.
 
 **Where.** A new "Review checkpoints" section in
 [`docs/plan-runs/known-traps.md`](../../../plan-runs/known-traps.md). Every brief template in
-`docs/plan-runs/templates/` (build, check, repair, fix) already tells its worker to read that
-file in full, at the worker's source SHA. So the guidance reaches every builder, repairer and
+`docs/plan-runs/templates/` already sends its worker to that file at the worker's source SHA:
+build, repair and fix say to read it in full, check names it in its reading list. So the guidance reaches every builder, repairer and
 checker of every plan run, this one and the separately authorized JEV run alike, without
 changing a template, and it exists in one place. The one existing line it touched is the Codex
 gate bullet in the same file, which said "ask `@codex review` again after each fix push" and now
@@ -206,6 +206,9 @@ that an oracle must not repeat the production algorithm and D3's reference model
 unmade-product-decision rules, so marking D3 fulfilled overstated it. All three are now in the
 Risky row. Its other findings corrected the duplicate-request count, the #1763 description, the
 stratum wording, the JEV phase 1 line and the slots, and added the `plan-run.md` pointer.
+A second fresh `/so` (session `session_017SdbwMzRfxG3reJNQDpomr`) graded `5b823752` A with no
+blocking finding; its in-diff wording fixes (the review-request gate line, the scope of the D3
+note and the template reading claim) are in the final head.
 
 ## 5. Phase notes
 

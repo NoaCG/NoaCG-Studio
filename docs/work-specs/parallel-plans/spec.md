@@ -103,9 +103,11 @@ mark a cancelled or incomplete run as passed to complete the rollback.
 
 ### D3. Improve review convergence without reducing scrutiny
 
-Fulfilled by cicd-improvement phase ci02: the canonical guidance is "Review checkpoints" in
-`docs/plan-runs/known-traps.md`, which every plan-run brief template links. The text below is
-kept as its source.
+Review convergence is fulfilled by cicd-improvement phase ci02: rules stated before code, an
+independent reference model, unmade product decisions, the repeated-family reassessment, one
+request per revision and stalled requests are in "Review checkpoints" in
+`docs/plan-runs/known-traps.md`, which every plan-run brief template links. The rules on
+splitting large features, inactive foundations and infrastructure diagnosis stay here only.
 
 For ordering, ownership, retries or recovery work, the row brief states the invariants before
 implementation: attempted versus accepted versus observed operations, unknown outcomes,
