@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-31T00:03:03.141164+00:00",
+  "updatedAt": "2026-10-31T00:09:12.934705+00:00",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -684,5 +684,31 @@
     "1642": "Draft optional Analytics; notmerged",
     "1503": "Timing-table update needs separate measurement/budget review; notmerged",
     "1834": "Bot corpusquarantine proposal: wholefailedlogshows geometricfit-history assertion, notactive-content failure; notmerged bythisowner"
-  }
+  },
+  "cleanup": {
+    "removedFinishedWorktrees": [
+      "security-cli",
+      "security-render-worker",
+      "security-plugin-preview",
+      "security-svg",
+      "security-bridge",
+      "security-cli-zod",
+      "security-zod-preview",
+      "security-zod-pins",
+      "security-release",
+      "security-inline"
+    ],
+    "archive": "/workspace/security-evidence/worktree-archives; valuable generated output copied and SHA256/file/link verification passed before removal",
+    "retained": [
+      "primary NoaCG-Studio remains untouched on work at8cadd54a3",
+      "security-checkpoint: durable evidence branch",
+      "security-landed-review: read-only currentlanded9f575a235899c3f3e12e5fc8b515aa88994cccc8",
+      "security-inventory-review: read-only exported e333 snapshot",
+      "svg-security-review: read-only prepared47a snapshot",
+      "security-backlog: merged dependency worktree retained as node_modules source shared by the preparedreview snapshot; no activeimplementation"
+    ],
+    "ownedDevServers": "Three owned Viteprocesses reconciled by exactPID/arguments and stopped. Oldunifiedexecsession handles were unavailable after reattachment; processidentity was checked before stopping."
+  },
+  "finalNetworkRecheck": "After final environment starting->ready, Git origin/main and repositoryActions API preflight PASS again. Prior oauth2.googleapis.com routed through enforcedproxy withHTTP404; policy/credentials unchanged.",
+  "finalFollowup": "Current GitHubbanner3(1high2moderate), security list/detail APIs403 unchanged. Knownhigh56 blockedbySDKcontracts; two newmoderate metadata records remainunreadable andunmatched by refreshed npm/Yarnpublicadvisorychecks. Ownerexport requestpending. Credential-handling approval/privateincident is tracked in conversation; no values in repository."
 }
