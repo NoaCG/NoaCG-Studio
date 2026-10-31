@@ -42,28 +42,31 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci06 merge queue; quarantine PR #1877 gates; then ci06 landed record and checker",
-    "eta": "2026-10-31T22:10:00Z"
+    "what": "ci06 checker verdict on 26095c82; #1877 re-queue",
+    "eta": "2026-10-31T22:30:00Z"
   },
   "inFlight": [
     {
       "phase": "ci06",
-      "step": "queued",
-      "session": "session_017SdbwPCfuZxDW8WaBDH9Dm",
-      "nonce": "ci06-b-94e8",
-      "branch": "claude/plan-cicd-improvement-ci06-build",
-      "launchedAt": "2026-10-31T18:44:57Z",
-      "note": "Receipt 21:13Z; gates verified at source (CI attempt 2 green; attempt 1 Build fail-then-pass on unrelated timing test, #1873); stamp 41242695255; queued 21:15:45Z.",
+      "step": "check",
+      "session": "session_017SdbwLwL72Eo4iEEnxQKWh",
+      "nonce": "ci06-c-7596",
+      "actor": "checker-ci06-ci06-c-7596",
+      "launchedAt": "2026-10-31T21:31:16Z",
       "pr": 1872,
+      "mergeSha": "26095c826f1a0ee910d17070d42026a841b9f284",
+      "builder": "session_017SdbwPCfuZxDW8WaBDH9Dm",
       "reviewedHead": "b83dc98e82f08f342b405121cd2227bc3d197e3e",
-      "repairOwnerComment": 6549238470
+      "repairOwnerComment": 6549238470,
+      "note": "Merged 21:28:08Z (queue run 41242778650)."
     },
     {
       "phase": "ci06-repair",
       "step": "queued-fix",
       "pr": 1877,
       "branch": "claude/quarantine-production-data-key-tick",
-      "note": "Coordinator quarantine entry for #1874 (production-data-key-tick fail-then-pass on PR #1872 run 41238514372), head 06cabd05; needs CI, Codex, stamp."
+      "repairOwnerComment": 6549328402,
+      "note": "Quarantine entry for #1874, head 06cabd05. Dequeued 21:28Z by #1873 timing flake in merge group 41243467985 (data-only PR cannot cause it); re-queued once 21:29Z."
     }
   ],
   "owner": [],
