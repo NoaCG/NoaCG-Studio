@@ -40,9 +40,29 @@
     "github": "REST reads ok; whole failed job log 124462225477 (29107 lines) ok; commit-status write is a known proxy denial, not retried: stamp via cloud-queue-merge.yml dispatch",
     "open": "archived-session revival; wake delivery during an account usage-limit stop (2026-10-17 finding: not retried); remote owner fencing"
   },
-  "waitingOn": null,
-  "inFlight": [],
+  "waitingOn": {
+    "what": "ci01 builder and #1844 fix builder receipts"
+  },
+  "inFlight": [
+    {
+      "phase": "ci01",
+      "step": "build",
+      "session": "session_017SdbwPLYvBrBW7DyyvmdNr",
+      "nonce": "ci01-b-afc1",
+      "branch": "claude/plan-cicd-improvement-ci01-build",
+      "launchedAt": "2026-10-31T08:13:14Z"
+    }
+  ],
   "owner": [],
-  "fixes": [],
+  "fixes": [
+    {
+      "issue": 1844,
+      "step": "build",
+      "session": "session_017SdbwPksekn9AFTtWPgZ2P",
+      "nonce": "fix-1844-f-3dee",
+      "branch": "claude/plan-cicd-improvement-fix-1844",
+      "launchedAt": "2026-10-31T08:14:12Z"
+    }
+  ],
   "triggers": {}
 }
