@@ -42,7 +42,10 @@
   ],
   "owner": [],
   "fixes": [],
-  "triggers": {},
+  "triggers": {
+    "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
+    "checkinAt": "2026-10-31T11:03:00Z"
+  },
   "provider": {
     "name": "Claude Code Cloud",
     "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
@@ -57,8 +60,7 @@
     "github": "REST reads ok; GraphQL and branch deletion refused; direct commit-status writes 403: stamp via cloud-queue-merge.yml dispatch (first use pending, record receipt on first phase PR)",
     "open": "wake after container reclaim not observed; rely on the supervisor recovery checkpoint",
     "sanitizer": "e3337d7a on main 139a9724; scripts/svg-import-security.test.mjs 22/22",
-    "production": "row 45 PASS on 05baf75 (PR 1800, comment 6301497867); production-page paused on owner phases 51/52",
-    "qualifyWorkerArchived": false
+    "production": "row 45 PASS on 05baf75 (PR 1800, comment 6301497867); production-page paused on owner phases 51/52"
   },
   "block": {
     "id": "b10195f9-7d4f-4745-a3cb-f941f4586a1b",
