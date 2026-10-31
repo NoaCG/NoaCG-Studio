@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "project": "plan-jev-svg-import-2026-10-31",
+  "plan": "jev-svg-import",
+  "spec": "docs/work-specs/jev-svg-import/spec.md",
+  "issue": 1850,
+  "coordinator": {
+    "session": "session_017SdbwQ6d3pRaakjohGfCcC",
+    "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
+    "return": "send it with mcp__claude-code-remote__send_message to session_017SdbwQ6d3pRaakjohGfCcC, and also print it as your final answer; the coordinator reconciles the original task before any retry"
+  },
+  "authorization": {
+    "line": "Owner, 2026-10-31 12:19:44 +02:00 Europe/Helsinki, verbatim: \"Start the prepared jev-svg-import run.\" Scope: 40 phases and 26 criteria as written; $5 paid inference ($2 development, $3 holdout); 14 calendar days, fixed deadline; standing blockRenewal and reorder per preparation/start-contract.md. Never extend the budget or deadline.",
+    "startedAt": "2026-10-31T12:19:44+02:00",
+    "deadline": "2026-11-14T12:19:44+02:00",
+    "standing": {
+      "blockRenewal": "Each block can't wait for me, so the coordinator needs to renew the blocks. This hasn't been a problem in the production page run. It should continue without my intervening for the full run."
+    }
+  },
+  "brief": {
+    "read": [
+      "docs/work-specs/jev-svg-import/spec.md",
+      "docs/work-specs/jev-svg-import/runbook.md",
+      "docs/work-specs/jev-svg-import/readiness.md",
+      "docs/plan-runs/known-traps.md"
+    ],
+    "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
+  },
+  "branchPrefix": "claude",
+  "waitingOn": null,
+  "inFlight": null,
+  "owner": [],
+  "fixes": [],
+  "triggers": [],
+  "provider": {
+    "name": "Claude Code Cloud",
+    "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
+  },
+  "qualification": {
+    "coordinatorPreflight": [
+      "2026-10-31T10:21:41Z ok",
+      "2026-10-31T10:21:46Z ok"
+    ],
+    "freshWorker": "session_017SdbwPYFd9ZvWH1G8KV58A nonce jevq-6be893f08997: preflight ok 10:23:36Z and 10:23:39Z, HEAD 139a9724 clean, import-svg-behaviour 38/38 via queue j-0001, send_message receipt 10:26:44Z; follow-up nonce jevq-f2-91c4d0 acknowledged 10:27:01Z",
+    "wake": "send_later trig_011MB8hMUx31rrKP1rNiqfZR due 10:29:00Z, queued 10:29:11Z, resumed this session 10:29:14Z, same container, worktree intact",
+    "github": "REST reads ok; GraphQL and branch deletion refused; direct commit-status writes 403: stamp via cloud-queue-merge.yml dispatch (first use pending, record receipt on first phase PR)",
+    "open": "wake after container reclaim not observed; rely on the supervisor recovery checkpoint",
+    "sanitizer": "e3337d7a on main 139a9724; scripts/svg-import-security.test.mjs 22/22",
+    "production": "row 45 PASS on 05baf75 (PR 1800, comment 6301497867); production-page paused on owner phases 51/52"
+  },
+  "block": {
+    "id": "b10195f9-7d4f-4745-a3cb-f941f4586a1b",
+    "owner": "session_017SdbwQ6d3pRaakjohGfCcC",
+    "epoch": 1,
+    "deadline": "2026-11-01T12:30:00+02:00"
+  }
+}
