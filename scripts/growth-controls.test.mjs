@@ -106,7 +106,7 @@ test('(b) a new workflow job is priced per run it joins, and a scheduled one per
   const sweep = items.find((i) => i.id === 'job:fit-sweep.yml/Fit sweep extra');
   assert.equal(sweep.tier, 'graphics');
   assert.equal(sweep.perLanding, 0);
-  assert.equal(sweep.perDay, 4 * CEILINGS.estimates.newJobMinutes);
+  assert.ok(Math.abs(sweep.perDay - 4 * CEILINGS.estimates.newJobMinutesByTier.graphics) < 1e-9, 'a graphics job at the slowest measured graphics job');
   assert.equal(cronRunsPerDay('0 6 * * 1'), 1 / 7);
   assert.equal(cronRunsPerDay('43 5,11,17,23 * * *'), 4);
   assert.deepEqual(workflowShape(head).jobs, ['build', 'lint']);
@@ -179,6 +179,7 @@ test('(b) the ledger is append-only and the ceilings move only by a reviewed rev
   const revised = clone(raised); revised.version = 2; revised.revisions = [{ version: 2, rationale: 'measured', authority: 'owner', reviewed: 'https://x/2' }];
   assert.deepEqual(ledgerChanges({ base, head: revised }), []);
   assert.match(ledgerChanges({ base, head: clone(base), mainRunners: { base: 13, head: 15 } }).join(), /MAIN_RUNNERS rose/);
+  assert.match(ledgerChanges({ base, head: clone(base), shardCap: { base: 20, head: 25 } }).join(), /SHARD_CAP_MINUTES rose/);
 });
 
 test('(b) the ci04 catalog-gate exception holds to 2026-11-30, then its cost counts and growth is refused', () => {
@@ -339,7 +340,7 @@ test('(e) a breach gets an owner, a dated correction, then a growth stop if one 
   assert.deepEqual(w3.cleared, ['cost:backend']);
   assert.deepEqual(w3.stops, {}, 'back in bounds, growth resumes');
   const lat = carryBreaches({ previous: [{ key: 'latency:queue', since: '2026-11-02', due: '2026-11-09', owner: 'o', corrections: 1, state: 'correcting' }], current: [{ key: 'latency:queue' }], today: '2026-11-09' });
-  assert.deepEqual(Object.keys(lat.stops).sort(), ['backend', 'offline', 'overhead']);
+  assert.deepEqual(Object.keys(lat.stops).sort(), ['backend', 'graphics', 'offline', 'overhead']);
   const age = carryBreaches({ previous: [{ key: 'age:#9', since: '2026-11-02', due: '2026-11-03', owner: 'o', corrections: 1, state: 'correcting' }], current: [{ key: 'age:#9' }], today: '2026-11-03' });
   assert.equal(age.breaches[0].state, 'stopped');
   assert.deepEqual(age.stops, {}, 'an item-level age breach escalates but stops no tier');
@@ -468,7 +469,7 @@ test('(b) a more frequent schedule or trigger on an existing job is priced; an u
   const hourly = daily.replace("'0 3 * * *'", "'0 * * * *'");
   const [item] = priceAdditions({ workflows: { 'fit-sweep.yml': { base: daily, head: hourly } }, estimates: CEILINGS.estimates });
   assert.equal(item.tier, 'graphics');
-  assert.equal(item.perDay, 23 * CEILINGS.estimates.newJobMinutes);
+  assert.ok(Math.abs(item.perDay - 23 * CEILINGS.estimates.newJobMinutesByTier.graphics) < 1e-9);
   assert.deepEqual(priceAdditions({ workflows: { 'fit-sweep.yml': { base: daily, head: daily } }, estimates: CEILINGS.estimates }), []);
   assert.deepEqual(priceAdditions({ workflows: { 'fit-sweep.yml': { base: hourly, head: daily } }, estimates: CEILINGS.estimates }), [], 'a cheaper schedule adds nothing');
   const pushOnly = 'on:\n  push:\njobs:\n  a:\n    name: Post\n';
@@ -744,4 +745,25 @@ test('(b) a matrix entry added to an existing job is priced, and a growth stop r
   assert.equal(r.tiers.overhead.status, 'refuse');
   const dash = "on:\n  push:\njobs:\n  a:\n    name: A\n    strategy:\n      matrix:\n        os:\n          - x\n          - y\n        node: [1, 2, 3]\n    steps: []\n";
   assert.equal(workflowShape(dash).width.a, 6);
+});
+
+test('(b) a rename that moves a job into another tier brings its whole cost there, and new jobs are priced at their tier\'s slowest', () => {
+  const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const moved = ci.replace('name: Catalog calibration gate', 'name: Calibration gate');
+  const [item] = priceAdditions({ workflows: { 'ci.yml': { base: ci, head: moved } }, estimates: CEILINGS.estimates });
+  assert.equal(item.tier, 'overhead');
+  assert.match(item.how, /moved into this tier/);
+  assert.ok(item.perLanding > 0);
+  // An exception re-filed under the new tier for the renamed job is a renewal of ci04 and needs repayment.
+  const known = knownCovers({ 'ci.yml': moved }, []);
+  const refiled = { ...clone(CEILINGS.exceptions[0]), id: 'calibration', tier: 'overhead', covers: ['job:ci.yml/Calibration gate'], from: '2026-11-29', expires: '2026-12-28' };
+  assert.match(exceptionStatus([CEILINGS.exceptions[0], refiled], '2026-12-05', 30, known).invalid.find((e) => e.id === 'calibration').problems.join(), /renews the scope of ci04-catalog-gate/);
+  // A new backend job with eight static shards, and one whose matrix is built at run time.
+  const job = (matrix) => `on:\n  push:\njobs:\n  big:\n    name: Big backend\n    strategy:\n      matrix:\n        shard: ${matrix}\n    steps: []\n`;
+  const [eight] = priceAdditions({ workflows: { 'configured-suite.yml': { base: '', head: job('[1, 2, 3, 4, 5, 6, 7, 8]') } }, estimates: CEILINGS.estimates });
+  assert.ok(Math.abs(eight.perLanding - 8 * CEILINGS.estimates.newJobMinutesByTier.backend) < 1e-9);
+  const [dyn] = priceAdditions({ workflows: { 'configured-suite.yml': { base: '', head: job('${{ fromJSON(needs.plan.outputs.shards) }}') } }, estimates: CEILINGS.estimates });
+  assert.ok(Math.abs(dyn.perLanding - CEILINGS.estimates.dynamicMatrixWidth * CEILINGS.estimates.newJobMinutesByTier.backend) < 1e-9);
+  const r = assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 94 }), items: [eight], today: TODAY });
+  assert.equal(r.tiers.backend.status, 'refuse');
 });

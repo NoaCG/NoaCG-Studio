@@ -75,6 +75,7 @@ export function workflowShape(text) {
   const names = {};
   const width = {};
   const axes = {};
+  const dynamic = {};
   let inJobs = false;
   let current = null;
   let matrixIndent = null;
@@ -91,11 +92,13 @@ export function workflowShape(text) {
     // at run time (`${{ fromJSON(...) }}`) cannot be counted here and is measured weekly instead.
     const indent = line.search(/\S/);
     if (/^\s+matrix:\s*$/.test(line)) { matrixIndent = indent; axis = null; continue; }
+    if (/^\s+matrix:\s*\$\{\{/.test(line) && current) { dynamic[current] = true; continue; }
     if (matrixIndent === null || indent < 0) continue;
     if (indent <= matrixIndent) { matrixIndent = null; axis = null; continue; }
     const kv = /^\s+([A-Za-z0-9_-]+):\s*(.*?)\s*$/.exec(line);
     if (kv && indent === matrixIndent + 2) {
       axis = null;
+      if (/\$\{\{/.test(kv[2])) { dynamic[current] = true; continue; }
       if (kv[1] === 'include' || kv[1] === 'exclude') continue;
       const list = /^\[(.*)\]$/.exec(kv[2]);
       if (list) axes[current].push(list[1].split(',').filter((x) => x.trim()).length);
@@ -109,7 +112,7 @@ export function workflowShape(text) {
   const crons = [...on.matchAll(/cron:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
   const inline = /^on:[ \t]*\[?([^\n\]]*)\]?[ \t]*$/m.exec(String(text ?? ''))?.[1] ?? '';
   const triggers = new Set([...on.matchAll(/^ {2}([a-z_]+):/gm)].map((m) => m[1]).concat(inline.split(/[\s,]+/).filter(Boolean)));
-  return { jobs, names, crons, triggers, width };
+  return { jobs, names, crons, triggers, width, dynamic };
 }
 
 /** Runs per day of a five-field cron line (minute, hour, day-of-month, month, day-of-week). */
@@ -178,22 +181,27 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
     const now = cadence(after, e);
     // A renamed key or a renamed display name is the same job, not a new one. A removed job earns
     // no credit: pricing it would let a cheap removal pay for an expensive addition.
-    const beforeNames = new Set(before.jobs.map((j) => before.names[j] ?? j));
     for (const job of after.jobs) {
       const name = after.names[job] ?? job;
       const tier = tierOfJob(wf, name);
       if (tier === 'offline') continue; // offline work is the table line's to price
-      const fresh = !before.jobs.includes(job) && !beforeNames.has(name);
-      // A new job pays for every run of every matrix entry; an existing job pays for the runs a
-      // more frequent trigger or schedule adds (an hourly cron where a daily one was) and for any
-      // matrix entries it gains, never less than nothing.
-      const w = after.width[job] ?? 1;
       const oldKey = before.jobs.includes(job) ? job : before.jobs.find((j) => (before.names[j] ?? j) === name);
-      const wasW = fresh ? 0 : before.width[oldKey] ?? 1;
+      // A job moved into another tier by a rename brings its whole cost there: it is new to that
+      // tier, so its old tier's headroom or exceptions never cover it.
+      const moved = oldKey !== undefined && tierOfJob(wf, before.names[oldKey] ?? oldKey) !== tier;
+      const fresh = oldKey === undefined || moved;
+      // A new job pays for every run of every matrix entry, at the slowest measured job of its tier;
+      // an existing job pays for the runs a more frequent trigger or schedule adds and for any
+      // matrix entries it gains, never less than nothing. A matrix built at run time is counted at
+      // the widest one in the repository.
+      const widthOf = (shape, k) => (shape.dynamic[k] ? e.dynamicMatrixWidth : shape.width[k] ?? 1);
+      const w = widthOf(after, job);
+      const wasW = fresh ? 0 : widthOf(before, oldKey);
       const runs = fresh ? now.runs * w : Math.max(0, now.runs * w - was.runs * wasW);
       const daily = fresh ? now.daily * w : Math.max(0, now.daily * w - was.daily * wasW);
       if (runs <= 0 && daily <= 0) continue;
-      items.push({ tier, id: `job:${wf}/${name}`, perLanding: runs * e.newJobMinutes, perDay: daily * e.newJobMinutes, how: `${fresh ? 'new job' : 'more frequent job'} at ${e.newJobMinutes} runner-min${runs ? `, +${runs.toFixed(2)} runs per landing` : ''}${daily ? `, +${daily.toFixed(2)} runs per day (${after.crons.join(' + ')})` : ''}` });
+      const minutes = e.newJobMinutesByTier?.[tier] ?? e.newJobMinutes;
+      items.push({ tier, id: `job:${wf}/${name}`, perLanding: runs * minutes, perDay: daily * minutes, how: `${moved ? 'job moved into this tier' : fresh ? 'new job' : 'more runs of a job'} at ${minutes} runner-min${w > 1 ? ` x ${w} matrix entries` : ''}${runs ? `, +${runs.toFixed(2)} runs per landing` : ''}${daily ? `, +${daily.toFixed(2)} runs per day` : ''}` });
     }
   }
   return items;
@@ -305,9 +313,9 @@ export function exceptionProblems(e, earlier, maxDays, known = null) {
   if (!Number.isFinite(from) || !Number.isFinite(exp) || exp < from) p.push('no valid from/expires dates');
   else if (exp - from > maxDays * DAY) p.push(`runs ${Math.round((exp - from) / DAY)} days, over ${maxDays}`);
   if (Array.isArray(e.covers) && e.covers.length) {
-    // A renamed or removed job is no way round renewal: an earlier entry in the same tier whose
-    // cover no longer names anything real, and that ran within 30 days of this one, is the same scope.
-    const orphaned = (x) => known && x.tier === e.tier && x.covers.some((c) => !known.has(c)) && dayMs(x.expires) + maxDays * DAY >= dayMs(e.from);
+    // A renamed or removed job is no way round renewal, whatever tier it lands in: an earlier entry
+    // whose cover no longer names anything real, and that ran within 30 days of this one, is the same scope.
+    const orphaned = (x) => known && x.covers.some((c) => !known.has(c)) && dayMs(x.expires) + maxDays * DAY >= dayMs(e.from);
     const prior = earlier.filter((x) => Array.isArray(x.covers) && (overlaps(x, e) || orphaned(x)));
     if (prior.length) {
       const r = e.repaid;
@@ -344,9 +352,10 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 /**
  * What a change does to the ceilings file. The exception ledger is append-only; every other
  * field moves only with a higher version and a new revision naming a reviewed rationale and the
- * owner's authority. `mainRunners` is the offline line's MAIN_RUNNERS before and after.
+ * owner's authority. `mainRunners` and `shardCap` are the offline line's MAIN_RUNNERS and
+ * SHARD_CAP_MINUTES before and after: the two levers that set its capacity.
  */
-export function ledgerChanges({ base, head, mainRunners = null }) {
+export function ledgerChanges({ base, head, mainRunners = null, shardCap = null }) {
   const problems = [];
   if (!base || !head) return problems;
   const headById = new Map((head.exceptions ?? []).map((e) => [e.id, e]));
@@ -362,6 +371,7 @@ export function ledgerChanges({ base, head, mainRunners = null }) {
   const revised = head.version > base.version && (head.revisions ?? []).some((r) => r.version === head.version && r.rationale && r.authority && /^https?:\/\//.test(r.reviewed ?? ''));
   if (!same(stripLedger(base), stripLedger(head)) && !revised) problems.push('the frozen ceilings, estimates or measurement changed without a new version and a reviewed revision (rationale, authority)');
   if (mainRunners && mainRunners.head > mainRunners.base && !revised) problems.push(`MAIN_RUNNERS rose from ${mainRunners.base} to ${mainRunners.head}: more runners never buy budget without a reviewed revision`);
+  if (shardCap && shardCap.head > shardCap.base && !revised) problems.push(`SHARD_CAP_MINUTES rose from ${shardCap.base} to ${shardCap.head}: a longer shard never buys budget without a reviewed revision`);
   return problems;
 }
 
@@ -572,7 +582,7 @@ export function sustained(previous, current) {
 
 /**
  * Tiers whose growth a breach stops once its one correction has not fixed it. Only cost and
- * pre-merge latency breaches stop growth. The others stay owned, dated actions without a stop:
+ * pre-merge latency breaches (every tier with pre-merge jobs) stop growth. The others stay owned, dated actions without a stop:
  * an item's age and a phase's latency are not caused by added capacity; a stale table, a missing
  * report and an invalid or expiring exception already refuse growth through the evidence and
  * exception rules. A breach that clears and comes back is a new breach with a fresh correction;
@@ -581,7 +591,7 @@ export function sustained(previous, current) {
 export function affectedTiers(key) {
   const [kind, subject] = key.split(':');
   if (kind === 'cost') return [subject];
-  if (kind === 'latency' && (subject === 'prReady' || subject === 'queue')) return ['offline', 'backend', 'overhead'];
+  if (kind === 'latency' && (subject === 'prReady' || subject === 'queue')) return ['offline', 'backend', 'graphics', 'overhead'];
   return [];
 }
 

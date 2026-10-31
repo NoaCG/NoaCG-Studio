@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (50 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (51 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -181,6 +181,13 @@ issue, remain for ci17.
 - **Every trigger is priced.** Pull request, merge group and push by their runs per landing;
   `workflow_run`, `deployment_status` and check events as every run; any other trigger at least
   once per landing, except a `workflow_dispatch` beside a cron, which is that schedule's re-run.
+- **A new job is priced at the slowest measured job of its own tier** (backend 12.7, graphics
+  11.2, overhead 6.0), times its static matrix size; a matrix built at run time counts as 15
+  entries. A rename that moves a job into another tier brings its whole cost there. Making an
+  existing job longer (more steps, a longer timeout) is not priced at PR time: like tests added
+  inside a spec, it reaches the tier through the weekly measurement and slowdown attribution.
+- **Neither offline capacity lever moves quietly.** `MAIN_RUNNERS` and `SHARD_CAP_MINUTES` can
+  rise only with a reviewed revision of the ceilings file.
 - **Cadence counts as growth.** A more frequent cron, a new trigger on an existing job, or a new
   entry in a job's static matrix is priced as the runs it adds; a cheaper schedule adds nothing.
   A matrix built at run time cannot be counted from the file and is measured weekly.
@@ -213,8 +220,8 @@ issue, remain for ci17.
 - **Renaming a covered job is no way round renewal.** An earlier exception in the same tier whose
   cover no longer names a real job, and that ran within 30 days of a new one, counts as the same
   scope, so the new one needs a measured repayment.
-- **Which breaches stop growth.** Only cost (that tier) and ready or queue latency (the pre-merge
-  tiers). Age, phase latency, a stale table, a missing report and exception alarms are owned,
+- **Which breaches stop growth.** Only cost (that tier) and ready or queue latency (every tier
+  with pre-merge jobs, graphics included). Age, phase latency, a stale table, a missing report and exception alarms are owned,
   dated actions without a stop: an item's age is not caused by added capacity, and the others
   already refuse growth through the evidence and exception rules. A breach that clears and comes
   back is a new breach with a fresh correction; clearing needs a complete, in-bounds week.

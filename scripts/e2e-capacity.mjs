@@ -320,7 +320,8 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     const baseCeilings = gitShow(base, 'scripts/growth-ceilings.json', root);
     if (baseCeilings) {
       const before = JSON.parse(baseCeilings);
-      ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS } });
+      const capIn = (text) => Number(/export const SHARD_CAP_MINUTES = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
+      ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS }, shardCap: { base: capIn(gitShow(base, 'scripts/e2e-durations.mjs', root)), head: capIn(readFileSync(path.join(root, 'scripts', 'e2e-durations.mjs'), 'utf8')) } });
       // A PR that adds an exception is flagged for the separate review the spec requires; the
       // coordinator or owner decides, never the change's own author or an automatic repair.
       const before_ids = new Set((before.exceptions ?? []).map((e) => e.id));

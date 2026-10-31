@@ -52,7 +52,7 @@
     "pooledMinSamples": 12
   },
   "estimates": {
-    "why": "Conservative prices for work no complete run has measured yet. Per-case minutes are the slowest measured unit of each kind, so a new case is never priced below what one already costs: backend 2.6 test-minutes, the slowest of 68 configured specs in run 41233844505 (p90 1.47); graphics 4.1, the whole catalog's spec time in catalog-gates run 33896869659 (243 s); a new job 6.0, the Build job of run 41233844505, the longest fixed-overhead job. Runs per landing: backend 1 full push run + 2.84 PR run-equivalents x 0.40 that select the whole set (ci06); graphics 2.84 PR + 1 merge-group runs x 0.68 of landings that raise the catalog gate (ci04: 38 of 56); a new job by its triggers: 2.84 PR run-equivalents (ci01: 3.88 PR runs per landing, a cancelled one at half), 1 merge-group, 1 push. Stack setup 2.3 minutes per configured stack, one stack per ten test-minutes (ci06). Scheduled runs a new case joins each day: backend 1 (configured-suite.yml, 10 1 * * *) + 2/7 (hosted-latency.yml, Sundays and Wednesdays); graphics 2 (catalog-gates.yml, 50 11 * * *, and nightly.yml's catalog calibration tripwire, 20 0 * * *).",
+    "why": "Conservative prices for work no complete run has measured yet. Per-case minutes are the slowest measured unit of each kind, so a new case is never priced below what one already costs: backend 2.6 test-minutes, the slowest of 68 configured specs in run 41233844505 (p90 1.47); graphics 4.1, the whole catalog's spec time in catalog-gates run 33896869659 (243 s); a new job 6.0, the Build job of run 41233844505, the longest fixed-overhead job. Runs per landing: backend 1 full push run + 2.84 PR run-equivalents x 0.40 that select the whole set (ci06); graphics 2.84 PR + 1 merge-group runs x 0.68 of landings that raise the catalog gate (ci04: 38 of 56); a new job by its triggers: 2.84 PR run-equivalents (ci01: 3.88 PR runs per landing, a cancelled one at half), 1 merge-group, 1 push. Stack setup 2.3 minutes per configured stack, one stack per ten test-minutes (ci06). Scheduled runs a new case joins each day: backend 1 (configured-suite.yml, 10 1 * * *) + 2/7 (hosted-latency.yml, Sundays and Wednesdays); graphics 2 (catalog-gates.yml, 50 11 * * *, and nightly.yml's catalog calibration tripwire, 20 0 * * *). A new job is priced at the slowest measured job of its own tier (backend 12.7, a configured shard; graphics 11.2, the catalog gate, run 41204535069; overhead 6.0, Build), times its static matrix size; a matrix built at run time counts as 15 entries, the widest in the repository (the offline shard cap).",
     "backendCaseMinutes": 2.6,
     "backendStackSetupMinutes": 2.3,
     "backendStackQuantumMinutes": 10,
@@ -67,7 +67,13 @@
     "scheduledRunsPerDay": {
       "backend": 1.29,
       "graphics": 2
-    }
+    },
+    "newJobMinutesByTier": {
+      "backend": 12.7,
+      "graphics": 11.2,
+      "overhead": 6.0
+    },
+    "dynamicMatrixWidth": 15
   },
   "measurement": {
     "source": "phase-ci01.md section 4.2 reference week; backend re-measured by ci18 before ci06 landed; graphics plus the reviewed ci04 projection",
