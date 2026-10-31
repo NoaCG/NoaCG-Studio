@@ -28,7 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "phase 5 checker verdict on e99aa2d4 (exact-merge CI, configured-suite, post-land, browser specs)",
+    "what": "configured-suite 41228174293 attempt 2 on e99aa2d4, then phase 5 checker final verdict",
     "eta": "2026-10-31T19:00:00Z"
   },
   "inFlight": [
@@ -40,7 +40,7 @@
       "mergeSha": "e99aa2d4aeb37794d2e6b37cd3bf50c8fcedd030",
       "pr": 1864,
       "launchedAt": "2026-10-31T18:12:30Z",
-      "note": "checker judges AC-5 visible behaviour (no screen calls apply yet) and waits for exact-merge checks; coordinator remains #1864 repair owner through post-land"
+      "note": "checker UNAVAILABLE 18:29Z: all criteria pass, configured-suite 41228174293 shard 2 Supabase start infra (#1865); coordinator re-ran failed jobs once (attempt 2) 18:31Z; same checker waits and re-reports. No budget spent."
     }
   ],
   "owner": [],
