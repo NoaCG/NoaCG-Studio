@@ -27,7 +27,10 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": null,
+  "waitingOn": {
+    "what": "phase 2 builder gates on PR #1853 head bec791a7 (configured-suite 41197443186, /so)",
+    "eta": "2026-10-31T12:15:00Z"
+  },
   "inFlight": [
     {
       "phase": "2",
@@ -37,7 +40,7 @@
       "branch": "claude/plan-jev-svg-import-2-build",
       "source": "0b4e403da1f4762dee874e3fed18c29eb0497116",
       "launchedAt": "2026-10-31T11:20:13Z",
-      "note": "builder running gates; coordinator subscribed to #1853 as repair owner",
+      "note": "builder waiting on configured-suite 41197443186 on bec791a7; CI red only on Reviewed; coordinator subscribed to #1853",
       "pr": 1853,
       "head": "bec791a7fce3b1a8b507dded9cc25ad9f2525b98"
     }
