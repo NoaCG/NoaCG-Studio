@@ -51,7 +51,10 @@
       "session": "session_017SdbwM1zQ8e4iQTwVWQyD1",
       "nonce": "ci02-b-6015",
       "branch": "claude/plan-cicd-improvement-ci02-build",
-      "launchedAt": "2026-10-31T10:28:17Z"
+      "launchedAt": "2026-10-31T10:28:17Z",
+      "pr": 1852,
+      "repairOwnerComment": 6542394883,
+      "note": "PR open at 3e1e56b1 (known-traps.md, phase-ci02 evidence, parallel-plans spec); worker gates pending"
     }
   ],
   "owner": [],
