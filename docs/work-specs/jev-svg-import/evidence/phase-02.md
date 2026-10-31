@@ -60,16 +60,18 @@ ambiguous score-clock link. The holdout's composition is not visible to this wor
   being opened, and the log shows only the two PASS lines with both secrets masked. The job runs
   only on `refs/heads/main`; the environment's main-only branch rule rests on the owner's report
   (readiness), since the settings API is refused to this integration.
-- Private owner backup: not re-verified in this phase. This is a departure from the wording
+- Private owner backup: not opened by this worker. This is a departure from the wording
   "verify backup availability": the same acceptance says tuning workers receive neither the secret
   nor the backup, so a builder that opened the owner-only backup would break the separation it is
-  meant to prove. The receipt records the backup uploaded with owner-only permissions and a fresh
-  download hash-verified by the coordinator during preparation. A fresh check belongs to the
-  owner/custodian or the coordinator, recorded without content; until then this half rests on the
-  preparation record. **Owner of the fresh check: the coordinator**, which verified the backup in
-  preparation. It records the download's SHA-256 (must equal `93d8531d…53eaf3`), owner-only
-  permissions and the date in the run ledger before it accepts this row. Until that entry exists,
-  this half of the row's verification is open, and no tuning row (31 onward) may start.
+  meant to prove. The coordinator, which verified the backup in preparation, made a content-free
+  metadata check on 2026-10-31 and recorded it in
+  [this PR comment](https://github.com/NoaCG/NoaCG-Studio/pull/1853#issuecomment-6543526298): the
+  file and its folder are shared with the owner only, the file size equals the receipt's
+  `holdout_zip_bytes` (31,702), and the file is unmodified since its hash-verified upload (created
+  = modified 2026-10-29T21:27:29Z). Nothing was downloaded, so the receipt's exposure rule holds.
+  The Drive connector returned no `sha256Checksum` field, so there is no fresh byte-level match;
+  the SHA-256 binding is the preparation-time verification plus the sealed-secret digest above.
+  The environment's main-only branch rule still rests on the owner's report.
 - Retention: 90 days after run completion (receipt `planned_storage.retention`); readers are the
   owner/custodian, the main-only holdout job and the independent checker after configuration
   freeze. Tuning workers, including this one, received neither the secret nor the backup.
