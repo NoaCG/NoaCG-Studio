@@ -188,8 +188,9 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
   {
     const draft = drop(TIMER);
     const p = base(TIMER);
-    const none = apply(draft, { ...p, components: [] });
     const clockRow = draft.svgFields.find((f) => f.kind === 'countdown')?.candidateId;
+    // No behaviour, and nothing said about the clock row: the drop's arming is put back.
+    const none = apply(draft, { ...p, fields: p.fields.filter((f) => f.layer !== clockRow), components: [] });
     const rearmed = apply(none.next, p);
     // Two clock-shaped rows: nothing is armed at the drop; the author makes the second one the
     // countdown, and a proposal naming the first gives way.
@@ -197,7 +198,24 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
     const authored = { ...two, svgFields: two.svgFields.map((f) => (f.candidateId === 't1' ? { ...f, kind: 'countdown' } : f)) };
     const q = base(TWO_CLOCKS);
     const fight = apply(authored, { ...withField(q, 't0', { kind: 'countdown' }), components: [{ id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'clock', layer: 't0' }, ...(q.components[0]?.picks ?? [])] }] });
+    // The author's Text on the armed clock row survives a proposal that replaces the timer.
+    const textClock = { ...draft, svgFields: draft.svgFields.map((f) => (f.candidateId === clockRow ? { ...f, kind: 'text' } : f)) };
+    const timer = p.components[0];
+    const otherTimer = { ...p, components: [{ ...timer, picks: timer.picks.filter((k) => k.role !== 'bar') }] };
+    const keptText = apply(textClock, otherTimer);
+    // A countdown the proposal keeps survives the timer being replaced, and again.
+    const keepsClock = { ...p, components: [] };
+    const k1 = apply(draft, keepsClock);
+    const k2 = apply(k1.next, keepsClock);
+    // An author-changed timer keeps its clock: a proposal moving the countdown gives way, once.
+    const ownTimer = { id: 'countdown', recipe: 'countdown', intent: {}, picks: [{ role: 'clock', layer: 't0' }, { role: 'bar', layer: 's0' }] };
+    const p1 = apply(two, { ...withField(q, 't0', { kind: 'countdown' }), components: [ownTimer] });
+    const edited = { ...p1.next, svgBehaviour: { ...p1.next.svgBehaviour, bar: '' } };
+    const moved = apply(edited, { ...withField(withField(q, 't0', { kind: 'text' }), 't1', { kind: 'countdown' }), components: [{ ...ownTimer, picks: [{ role: 'clock', layer: 't1' }, { role: 'bar', layer: 's0' }] }] });
     out.countdown = {
+      keptText: [row(keptText.next, clockRow).kind, keptText.kept],
+      keepsClock: [row(k1.next, clockRow).kind, k1.next.svgBehaviour, JSON.stringify(k2.patch) === JSON.stringify(k1.patch)],
+      moved: [row(moved.next, 't0').kind, row(moved.next, 't1').kind, moved.kept],
       armed: [clockRow, row(draft, clockRow).armedByTimer],
       none: [row(none.next, clockRow).kind, row(none.next, clockRow).armedByTimer, none.next.svgBehaviour],
       rearmed: [row(rearmed.next, clockRow).kind, rearmed.next.svgBehaviour?.kind],
@@ -218,6 +236,11 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
     const reproposed = { ...p, fields: p.fields.filter((f) => f.layer !== answer) };
     const a = apply(off, reproposed);
     out.conflict = { answers: a.next.svgBehaviour.answers, on: row(a.next, answer).on, kept: a.kept, layer: answer };
+    // The last row's only pick gives way: the row stays, empty.
+    const last = p.components[0].picks.find((k) => k.role === 'answer' && k.row === 2).layer;
+    const lastOff = { ...draft, svgFields: draft.svgFields.map((f) => (f.candidateId === last ? { ...f, on: false } : f)) };
+    const onlyAnswers = { ...p, fields: p.fields.filter((f) => f.layer !== last), components: [{ ...p.components[0], picks: p.components[0].picks.filter((k) => k.role !== 'answer.selected') }] };
+    out.conflict.lastRow = apply(lastOff, onlyAnswers).next.svgBehaviour.answers;
   }
 
   // A8: unresolved intent stays explicit, on the draft, and the preview still builds.
@@ -237,6 +260,10 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
       answered: [answered.decisions, answered.next.svgBehaviour.options ?? null],
       none: apply(draft, p).decisions,
     };
+    // The author answers the open key in the step: it is no longer open.
+    const ticked = { ...a.next, svgBehaviour: { ...a.next.svgBehaviour, options: { ...a.next.svgBehaviour.options, lock: true } } };
+    const again = apply(ticked, open);
+    out.intent.authorAnswered = [D.svgProposalOfDraft(ticked).proposal.components[0].intent.lock, again.decisions, again.kept];
   }
 
   // A7 for a vote: a display target the author ticked back on loses its pick.
@@ -299,7 +326,7 @@ test('A1 AC-4: an invalid, stale, conflicting or injected proposal is refused wh
   ]);
 });
 
-test('A2: only what the draft can hold', () => {
+test('A2: only what the draft can hold; a second full recipe meets the one-full-recipe guard', () => {
   assert.deepEqual(rules.capability, { noLock: 'unsupported-capability', two: 'conflicting-ownership', clock: 'unsupported-capability,unsupported-capability' });
 });
 
@@ -331,11 +358,14 @@ test('A6: the countdown machinery runs on replacement and one countdown remains'
     countdowns: 1,
     twoArmed: [null, 0],
     fight: ['text', 'countdown', ['t1.kind']],
+    keptText: ['text', ['t0.kind']],
+    keepsClock: ['countdown', null, true],
+    moved: ['countdown', 'text', ['behaviour', 't0.kind']],
   });
 });
 
 test('A7: a proposal pick gives way to a kept correction', () => {
-  assert.deepEqual(rules.conflict, { answers: ['t1', '', 't3'], on: false, kept: ['t2.on'], layer: 't2' });
+  assert.deepEqual(rules.conflict, { answers: ['t1', '', 't3'], on: false, kept: ['t2.on'], layer: 't2', lastRow: ['t1', 't2', ''] });
 });
 
 test('A8 AC-5: unresolved intent stays open on the draft and only it asks; the preview still builds', () => {
@@ -348,6 +378,7 @@ test('A8 AC-5: unresolved intent stays open on the draft and only it asks; the p
   assert.deepEqual(i.roundTrip, { lock: 'unresolved', reveal: 'manual' });
   assert.deepEqual(i.answered, [[], { lock: true, autoReveal: false }]);
   assert.deepEqual(i.none, [], 'nothing ambiguous, nothing asked');
+  assert.deepEqual(i.authorAnswered, ['lock', [], ['behaviour']], 'an option the author set answers the key');
 });
 
 test('A10: a vote leaves out its written layers, and applies', () => {

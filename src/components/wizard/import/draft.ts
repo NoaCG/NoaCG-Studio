@@ -32,7 +32,7 @@ import {
   svgRecipeRoleTable,
   type SvgRowAnswer,
 } from '../../../ai/svgInterpretation/apply';
-import { boxPicksOf, withBoxPicks } from './fieldAutoMap';
+import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -1725,15 +1725,10 @@ function svgRowAnswers(d: SvgRows): Record<string, SvgRowAnswer> {
   };
 }
 
-/** Which recipe a behaviour draft is: the four shapes the wizard grew one at a time, or the
- *  generic one (fieldAutoMap's `recipeIdOf`, repeated here because that module imports this). */
-const recipeOfBehaviour = (b: SvgBehaviourDraft): string =>
-  b.kind === 'poll' ? 'vote' : b.kind === 'timer' ? 'countdown' : b.kind === 'recipe' ? b.recipe : b.kind;
-
 /** A behaviour as ONE proposal component: its filled boxes as picks, a timer's clock as the
  *  ticked countdown row, its options as intent (rule A8, read backwards). */
 function svgComponentOf(b: SvgBehaviourDraft, rows: Record<string, SvgRowAnswer>, open: readonly SvgUnresolvedIntent[]): SvgProposalComponent {
-  const recipe = recipeOfBehaviour(b);
+  const recipe = recipeIdOf(b);
   const picks: SvgProposalComponent['picks'] = boxPicksOf(b);
   if (b.kind === 'timer') {
     const clock = Object.entries(rows).find(([, r]) => r.on && r.kind === 'countdown')?.[0];
@@ -1742,9 +1737,10 @@ function svgComponentOf(b: SvgBehaviourDraft, rows: Record<string, SvgRowAnswer>
   const isOpen = (key: string) => open.some((u) => u.key === key);
   const intent: Record<string, string> = {};
   if (recipe === 'quiz') {
+    // An option the author set answers its key, whatever was open before.
     const options = b.kind === 'quiz' ? b.options : undefined;
-    intent.lock = isOpen('lock') ? 'unresolved' : options?.lock === true ? 'lock' : 'default';
-    intent.reveal = isOpen('reveal') ? 'unresolved' : options?.autoReveal === true ? 'automatic' : options?.autoReveal === false ? 'manual' : 'default';
+    intent.lock = options?.lock === true ? 'lock' : options?.lock === false ? 'default' : isOpen('lock') ? 'unresolved' : 'default';
+    intent.reveal = options?.autoReveal === true ? 'automatic' : options?.autoReveal === false ? 'manual' : isOpen('reveal') ? 'unresolved' : 'default';
   }
   if (recipe === 'credits') {
     intent.layout = isOpen('layout') ? 'unresolved' : 'default';
@@ -1755,8 +1751,7 @@ function svgComponentOf(b: SvgBehaviourDraft, rows: Record<string, SvgRowAnswer>
 
 /** A component as the draft shape of its recipe, every box set to its pick (rule A5). The
  *  timer's clock is not a box: the countdown row carries it. */
-function svgBehaviourOfComponent(c: SvgProposalComponent): SvgBehaviourDraft {
-  const count = c.picks.reduce((n, p) => (p.row === undefined ? n : Math.max(n, p.row + 1)), 0);
+function svgBehaviourOfComponent(c: SvgProposalComponent, count: number): SvgBehaviourDraft {
   const n = <T,>(make: () => T): T[] => Array.from({ length: count }, make);
   let empty: SvgBehaviourDraft;
   if (c.recipe === 'quiz') {
@@ -1836,7 +1831,7 @@ export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): 
   // A5: the component as the draft's own shape; every pick must land in a box.
   let behaviour = draft.svgBehaviour;
   if (result.replaceBehaviour) {
-    const built = result.component ? svgBehaviourOfComponent(result.component) : null;
+    const built = result.component ? svgBehaviourOfComponent(result.component, result.rowCount) : null;
     if (built && result.component) {
       const landed = boxPicksOf(built);
       const lost = result.component.picks.findIndex((p) => p.role !== 'clock' && !landed.some((l) => l.role === p.role && l.layer === p.layer && l.row === p.row));
@@ -1846,19 +1841,24 @@ export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): 
   }
   const replaced = !sameValue(behaviour, draft.svgBehaviour);
 
-  // A4: write only what the merge allowed. A6: the countdown machinery runs around it.
+  // A4: write only what the merge allowed. A6: the countdown machinery runs around it, and
+  // never over a kind the author corrected: that row keeps exactly what the merge left it.
   const write = <T extends { candidateId: string }>(list: T[]): T[] => list.map((row) => {
     const mine = result.writes.filter((w) => w.layer === row.candidateId);
     return mine.length === 0 ? row : { ...row, ...Object.fromEntries(mine.map((w) => [w.attr, w.value])) };
   });
-  const before = replaced ? disarmTimerClock(draft.svgFields) : draft.svgFields;
-  const svgFields = replaced ? armTimerClock(write(before), behaviour) : write(before);
+  const merged = write(draft.svgFields);
+  const kindCorrected = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind;
+  const machined = replaced ? armTimerClock(write(disarmTimerClock(draft.svgFields)), behaviour) : merged;
+  const svgFields = machined.map((f, i) => (kindCorrected(f.candidateId) ? merged[i] : f));
   // The machinery's own change is the proposal's, not a correction: it joins the reference.
   const referenceRows = { ...result.referenceRows };
-  for (const f of svgFields) {
-    const was = write(draft.svgFields).find((g) => g.candidateId === f.candidateId);
-    if (was && was.kind !== f.kind) referenceRows[f.candidateId] = { ...referenceRows[f.candidateId], kind: f.kind };
-  }
+  svgFields.forEach((f, i) => {
+    if (merged[i].kind !== f.kind) referenceRows[f.candidateId] = { ...referenceRows[f.candidateId], kind: f.kind };
+  });
+  // A8: open are the keys the behaviour it holds still leaves open; an option answers one.
+  const held = behaviour ? svgComponentOf(behaviour, svgRowAnswers({ ...draft, svgFields }), result.decisions) : null;
+  const decisions = result.decisions.filter((u) => held?.intent[u.key] === 'unresolved');
   return {
     ok: true,
     patch: {
@@ -1870,10 +1870,10 @@ export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): 
         revision: ref.revision,
         rows: referenceRows,
         behaviour: result.replaceBehaviour ? behaviour : ref.behaviour,
-        unresolved: result.decisions,
+        unresolved: decisions,
       },
     },
-    decisions: result.decisions,
+    decisions,
     kept: result.kept,
   };
 }
@@ -1889,7 +1889,8 @@ export function svgProposalOfDraft(draft: SvgImportDraft): { proposal: SvgPropos
   const svg = draft.designSvg;
   if (!svg) return null;
   const rows = svgRowAnswers(draft);
-  const open = draft.svgApplied?.revision === svgSourceRevision(svg.markup) ? draft.svgApplied.unresolved : [];
+  const revision = svgSourceRevision(svg.markup);
+  const open = draft.svgApplied?.revision === revision ? draft.svgApplied.unresolved : [];
   const text = new Set(svg.candidates.map((c) => c.id));
   const fields: SvgProposal['fields'] = Object.entries(rows).map(([layer, r]) => ({
     layer,
@@ -1899,7 +1900,7 @@ export function svgProposalOfDraft(draft: SvgImportDraft): { proposal: SvgPropos
   }));
   let proposal: SvgProposal = {
     version: 1,
-    sourceRevision: svgSourceRevision(svg.markup),
+    sourceRevision: revision,
     fields,
     components: draft.svgBehaviour ? [svgComponentOf(draft.svgBehaviour, rows, open)] : [],
   };

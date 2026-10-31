@@ -66,6 +66,9 @@ export type SvgApplyResult =
        *  null with `replaceBehaviour` false when the author's stays. */
       component: SvgProposalComponent | null;
       replaceBehaviour: boolean;
+      /** One past the highest row the proposal picked, so a row whose only pick gave way to a
+       *  correction stays as an empty row rather than vanishing. */
+      rowCount: number;
       /** The rows' reference after this apply: each written value, each corrected value's old
        *  reference. */
       referenceRows: Record<string, SvgRowAnswer>;
@@ -77,9 +80,8 @@ export type SvgApplyResult =
   | { ok: false; errors: SvgProposalError[] };
 
 /** The recipe role table, from the recipe declarations (src/templates/behaviours), so the
- *  contract never copies them. */
-export function svgRecipeRoleTable(): Record<string, SvgRecipeRoles> {
-  return Object.fromEntries(BEHAVIOUR_RECIPES.map((r) => [r.id, {
+ *  contract never copies them. Built once: the registry is fixed at load. */
+const ROLE_TABLE: Readonly<Record<string, SvgRecipeRoles>> = Object.fromEntries(BEHAVIOUR_RECIPES.map((r) => [r.id, {
     ...(r.instanced ? { instanced: true } : {}),
     ...(r.rows ? { rowsMax: r.rows.max } : {}),
     roles: Object.fromEntries(r.roles.map((role) => [role.id, {
@@ -89,6 +91,9 @@ export function svgRecipeRoleTable(): Record<string, SvgRecipeRoles> {
       ...(role.countdown ? { countdown: true } : {}),
     }])),
   }]));
+
+export function svgRecipeRoleTable(): Readonly<Record<string, SvgRecipeRoles>> {
+  return ROLE_TABLE;
 }
 
 /** A2: what today's draft can hold. One behaviour, so only full recipes; the countdown field;
@@ -104,7 +109,7 @@ export const SVG_DRAFT_CAPABILITIES: readonly string[] = [
 const ATTRS = ['on', 'kind', 'title'] as const;
 
 export function applySvgProposal(proposal: unknown, input: SvgApplyInput): SvgApplyResult {
-  const recipes = svgRecipeRoleTable();
+  const recipes = ROLE_TABLE;
   // A1: row 4's validator decides whether the proposal may be used at all.
   const verdict = validateSvgProposal(proposal, {
     inventory: input.inventory,
@@ -112,11 +117,9 @@ export function applySvgProposal(proposal: unknown, input: SvgApplyInput): SvgAp
     capabilities: input.capabilities ?? SVG_DRAFT_CAPABILITIES,
   });
   if (!verdict.ok) return verdict;
+  // A2: the draft holds one behaviour. Only full recipes are offered, so the validator's
+  // one-full-recipe guard has already refused a second component.
   const accepted = verdict.proposal;
-  // A2: the draft holds one behaviour.
-  if (accepted.components.length > 1) {
-    return { ok: false, errors: [{ code: 'unsupported-capability', at: 'components', detail: 'the import draft holds one behaviour' }] };
-  }
 
   const { current, reference } = input;
   const next: Record<string, SvgRowAnswer> = Object.fromEntries(Object.entries(current.rows).map(([id, r]) => [id, { ...r }]));
@@ -154,17 +157,8 @@ export function applySvgProposal(proposal: unknown, input: SvgApplyInput): SvgAp
   // A5: the behaviour is one answer, replaced only when untouched.
   const replaceBehaviour = !input.behaviourCorrected;
   const proposed = accepted.components[0] ?? null;
-  if (!replaceBehaviour && JSON.stringify(proposed) !== JSON.stringify(current.component)) kept.add('behaviour');
+  if (!replaceBehaviour && !sameComponent(proposed, current.component)) kept.add('behaviour');
   const active = replaceBehaviour ? proposed : current.component;
-
-  // A6: one ticked countdown. The proposal's countdown gives way to a kept one.
-  const countdowns = () => Object.keys(next).filter((id) => next[id].on && next[id].kind === 'countdown');
-  for (let rows = countdowns(); rows.length > 1; rows = countdowns()) {
-    const theirs = rows.find((id) => taken.has(`${id}.kind`) || taken.has(`${id}.on`));
-    if (!theirs) break;
-    revert(theirs, taken.has(`${theirs}.kind`) ? 'kind' : 'on');
-    for (const id of rows) if (id !== theirs && !taken.has(`${id}.kind`)) kept.add(`${id}.kind`);
-  }
 
   // A7: a proposal pick or decision never fights a kept correction.
   let picks = active?.picks ?? [];
@@ -197,21 +191,43 @@ export function applySvgProposal(proposal: unknown, input: SvgApplyInput): SvgAp
     });
   }
 
+  // A6: one ticked countdown, checked last, after A7 may have put an author's back. The
+  // proposal's countdown gives way to a kept one.
+  const countdowns = () => Object.keys(next).filter((id) => next[id].on && next[id].kind === 'countdown');
+  for (let rows = countdowns(); rows.length > 1; rows = countdowns()) {
+    const theirs = rows.find((id) => taken.has(`${id}.kind`) || taken.has(`${id}.on`));
+    if (!theirs) break;
+    revert(theirs, taken.has(`${theirs}.kind`) ? 'kind' : 'on');
+    for (const id of rows) if (id !== theirs && !taken.has(`${id}.kind`)) kept.add(`${id}.kind`);
+  }
+
   const writes: SvgRowWrite[] = [];
   for (const key of taken) {
     const dot = key.lastIndexOf('.');
     const layer = key.slice(0, dot);
     const attr = key.slice(dot + 1) as keyof SvgRowAnswer;
-    if (next[layer][attr] !== current.rows[layer][attr]) writes.push({ layer, attr, value: next[layer][attr] });
+    // Every value the proposal holds, changed or not: replacing the behaviour may disarm a
+    // countdown the proposal keeps, and the draft writes it back (A6).
+    writes.push({ layer, attr, value: next[layer][attr] });
   }
   return {
     ok: true,
     writes,
     component: replaceBehaviour && active ? { ...active, picks } : replaceBehaviour ? null : current.component,
     replaceBehaviour,
+    rowCount: (active?.picks ?? []).reduce((n, p) => (p.row === undefined ? n : Math.max(n, p.row + 1)), 0),
     referenceRows: nextRef,
     // A8: the open keys are the proposal's when its behaviour is held, the reference's otherwise.
     decisions: replaceBehaviour ? verdict.unresolved.map((u) => ({ ...u })) : input.open.map((u) => ({ ...u })),
     kept: [...kept].sort(),
   };
+}
+
+/** Two components say the same thing: one recipe, the same picks in any order, the same intent.
+ *  The id is the proposer's own name for it. */
+function sameComponent(a: SvgProposalComponent | null, b: SvgProposalComponent | null): boolean {
+  if (!a || !b) return a === b;
+  const picks = (c: SvgProposalComponent) => c.picks.map((p) => `${p.role}#${p.row ?? ''}=${p.layer}`).sort().join(' ');
+  const intent = (c: SvgProposalComponent) => Object.entries(c.intent).map(([k, v]) => `${k}=${v}`).sort().join(' ');
+  return a.recipe === b.recipe && picks(a) === picks(b) && intent(a) === intent(b);
 }

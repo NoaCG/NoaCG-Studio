@@ -35,8 +35,9 @@ observable through `svgDraftWithProposal(draft, proposal)` (draft.ts), which val
 - **A2 Only what today's draft can express.** The capabilities are what the draft can hold: every
   full recipe in the registry, `field.countdown`, `quiz.lock:lock`, `quiz.reveal:manual` and
   `quiz.reveal:automatic`. The true no-Lock quiz, the credits layout and playback values and the
-  `clock` recipe are refused as `unsupported-capability` until the rows that add them. More than
-  one component is refused the same way: the draft holds one behaviour.
+  `clock` recipe are refused as `unsupported-capability` until the rows that add them. The draft
+  holds one behaviour, and only full recipes are offered, so a second component is refused by
+  row 4's one-full-recipe guard (`conflicting-ownership`).
 - **A3 The reference.** `svgApplied` (draft-only, never read by the build) holds, per row and for
   the behaviour, the value the last accepted apply left as the proposal's; with none, or one for
   another revision, the reference is what the drop gives for this artwork (`svgDraftFromImport`'s
