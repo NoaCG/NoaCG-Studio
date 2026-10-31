@@ -53,7 +53,7 @@
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-10-31T18:30:00Z"
+    "checkinAt": "2026-10-31T13:25:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
