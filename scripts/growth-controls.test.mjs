@@ -457,4 +457,6 @@ test('(b) a renamed spec or job adds nothing; a job on an unpriced trigger is ne
   assert.equal(afterRun[0].perLanding, CEILINGS.estimates.runsPerLanding.everyRun * CEILINGS.estimates.newJobMinutes);
   const dispatch = priceAdditions({ workflows: { 'y.yml': { base: '', head: 'on:\n  workflow_dispatch:\njobs:\n  a:\n    name: Manual\n' } }, estimates: CEILINGS.estimates });
   assert.equal(dispatch[0].perLanding, CEILINGS.estimates.newJobMinutes, 'unknown frequency is at least once per landing');
+  const rerun = priceAdditions({ workflows: { 'z.yml': { base: '', head: "on:\n  schedule:\n    - cron: '0 6 * * 1'\n  workflow_dispatch: {}\njobs:\n  a:\n    name: Weekly\n" } }, estimates: CEILINGS.estimates });
+  assert.equal(rerun[0].perLanding, 0, 'a dispatch beside a cron is its manual re-run');
 });

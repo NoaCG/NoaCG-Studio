@@ -152,7 +152,9 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
       let runs = (has('pull_request') || has('pull_request_target') ? e.prRunsPerLanding : 0) + (has('merge_group') ? 1 : 0) + (has('push') ? 1 : 0);
       if (has('workflow_run') || has('deployment_status') || has('check_suite') || has('check_run') || has('status')) runs = Math.max(runs, e.runsPerLanding.everyRun);
       const known = new Set(['pull_request', 'pull_request_target', 'merge_group', 'push', 'schedule', 'workflow_run', 'deployment_status', 'check_suite', 'check_run', 'status']);
-      if ([...after.triggers].some((t) => !known.has(t))) runs = Math.max(runs, 1);
+      // A dispatch beside a cron is that schedule's manual re-run, not per-landing work.
+      const unknown = [...after.triggers].filter((t) => !known.has(t) && !(t === 'workflow_dispatch' && after.crons.length));
+      if (unknown.length) runs = Math.max(runs, 1);
       const perLanding = runs * e.newJobMinutes;
       items.push({ tier, id: `job:${wf}/${name}`, perLanding, perDay, how: `new job at ${e.newJobMinutes} runner-min${perLanding ? `, x ${runs.toFixed(2)} runs per landing` : ''}${perDay ? `, ${after.crons.join(' + ')} per day` : ''}` });
     }

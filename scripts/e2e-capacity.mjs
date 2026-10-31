@@ -298,12 +298,12 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   let status = tiers.status;
   for (const t of TIERS) if (tiers.tiers[t].status !== 'ok' && tiers.tiers[t].items.length) reasons.push(`${t} tier ${tiers.tiers[t].status}: ${tiers.tiers[t].why}`);
   if (ledger.length || offline.length || diffFailed) { status = 'refuse'; reasons.push(...ledger, ...offline); }
-  if (cadence.overdue) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
+  if (cadence.overdue && !unreadable) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
   if (fresh.stale) { reasons.push(fresh.reason); if (status === 'ok') status = 'warn'; }
   const markdown = [
     ...summarizeTiers(tiers),
     `- ${fresh.reason}.`,
-    `- ${cadence.reason}${report ? ` (week to ${report.measurement?.windowEnd})` : unreadable ? '; the newest report could not be read: no tier evidence' : `; tiers judged on the frozen seed measured to ${ceilings.measurement.windowEnd}`}.`,
+    unreadable ? '- The newest weekly growth report could not be read: no tier evidence, additions refused.' : `- ${cadence.reason}${report ? ` (week to ${report.measurement?.windowEnd})` : `; tiers judged on the frozen seed measured to ${ceilings.measurement.windowEnd}`}.`,
     ...ledger.map((p) => `- Ceilings file: ${p}.`),
     ...offline.map((p) => `- Budget exceptions: ${p}.`),
     '',
