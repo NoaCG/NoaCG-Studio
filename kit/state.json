@@ -27,20 +27,17 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": {
-    "what": "phase 4 checker verdict on aa14e865 (exact-merge CI, configured-suite, post-land)",
-    "eta": "2026-10-31T17:00:00Z"
-  },
+  "waitingOn": null,
   "inFlight": [
     {
-      "phase": "4",
-      "step": "check",
-      "session": "session_017SdbwR5Y5dr7RVPGYfjKUr",
-      "nonce": "4-c-290f",
-      "mergeSha": "aa14e8650379ae1a9735b07317418d41c2faeee4",
-      "pr": 1860,
-      "launchedAt": "2026-10-31T16:16:25Z",
-      "note": "checker judges row 4/5 split of AC-4 and waits for exact-merge checks; coordinator remains #1860 repair owner through post-land"
+      "phase": "5",
+      "step": "build",
+      "session": "session_017SdbwQLdfGt1qGm3R23bXH",
+      "nonce": "5-b-fba6",
+      "branch": "claude/plan-jev-svg-import-5-build",
+      "source": "b666f302d4eea1e22506a6769b058318fc30438a",
+      "launchedAt": "2026-10-31T16:34:36Z",
+      "note": "builder; coordinator becomes PR repair owner once the PR exists"
     }
   ],
   "owner": [],
@@ -96,6 +93,12 @@
       "mergeSha": "aa84e1e4e00fed784ec3e1d89af879aa948e866a",
       "pr": 1858,
       "checker": "session_017SdbwNmSrW7hcHFgiAZpAj"
+    },
+    {
+      "phase": "4",
+      "mergeSha": "aa14e8650379ae1a9735b07317418d41c2faeee4",
+      "pr": 1860,
+      "checker": "session_017SdbwR5Y5dr7RVPGYfjKUr"
     }
   ],
   "coordinatorNotes": [
