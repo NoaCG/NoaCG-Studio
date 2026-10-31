@@ -42,7 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci02 builder gates (configured-suite, final /so)"
+    "what": "ci02 configured-suite 41196329611 on eee4dc1f and builder receipt",
+    "eta": "2026-10-31T11:40:00Z"
   },
   "inFlight": [
     {
@@ -54,7 +55,7 @@
       "launchedAt": "2026-10-31T10:28:17Z",
       "pr": 1852,
       "repairOwnerComment": 6542394883,
-      "note": "PR #1852 head 5b823752: CI gate green (only Reviewed red, awaiting stamp), Codex clean; configured-suite and final /so pending. Coordinator container restarted 10:54Z with state intact."
+      "note": "PR #1852 head eee4dc1f after review rounds; CI gate green, Codex clean, /so assessments posted 11:25; configured-suite 41196329611 running"
     }
   ],
   "owner": [],
