@@ -47,12 +47,14 @@ main (41238345988) and deploy-verify (41238548569) all succeeded.
   is no longer a field binds nothing.
 - **C4 Saved countdowns are untouched.** A `timer` behaviour compiles to the same bytes as on
   `874c589b` (table, runtime, fields, holders, type, steps). Nothing converts a timer into a clock,
-  and the draft never emits a clock beside a timer or on a row bound as the countdown.
+  and the draft never emits a clock beside the old engine: a timer behaviour, a file whose names
+  propose the countdown, or any ticked row bound as a countdown (`svgClockRows`).
 - **C5 One clock choice per import.** The behaviour section offers a Clock select (No clock and
   the three modes) on the ticked rows whose sample reads as a time, plus a Time layer select when
   there is more than one. The old Countdown is offered only where the file's names propose it (it
   drew the moments only the countdown paints) or the draft already holds one; then the Clock is
-  not offered. The clock is chosen, never proposed from a name.
+  not offered. The graphic carries a clock only on a row the step offers, so a clock the step no
+  longer shows is never built. The clock is chosen, never proposed from a name.
 
 ## What landed
 

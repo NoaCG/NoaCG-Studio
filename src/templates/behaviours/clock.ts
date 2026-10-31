@@ -30,11 +30,11 @@ import { withRepaint } from './recipe';
 /** The modes a clock is imported in, as the proposal contract names them (SVG_INTENT.clock). */
 export type ClockMode = 'count-up' | 'duration' | 'target-time';
 
-/** The modes in the order the picker offers them, each in the words the operator reads. */
-export const CLOCK_MODES: readonly { mode: ClockMode; label: string }[] = [
-  { mode: 'count-up', label: 'Counts up. You start it.' },
-  { mode: 'duration', label: 'Counts down from its time. Starts on Take, holds at zero.' },
-  { mode: 'target-time', label: 'Counts down to a set time.' },
+/** The modes in the order the picker offers them: the picker's words, and the summary's. */
+export const CLOCK_MODES: readonly { mode: ClockMode; label: string; summary: string }[] = [
+  { mode: 'count-up', label: 'Counts up. You start it.', summary: 'a clock counting up' },
+  { mode: 'duration', label: 'Counts down from its time. Starts on Take, holds at zero.', summary: 'a clock counting down from its time' },
+  { mode: 'target-time', label: 'Counts down to a set time.', summary: 'a clock counting down to a set time' },
 ];
 
 /** The one name a clock instance carries: a graphic has one clock, so it needs no other. */

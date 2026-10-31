@@ -1129,13 +1129,30 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
   return out.length > 0 ? out : undefined;
 }
 
-/** The clock as the graphic carries it, or null: its row must still be a ticked text row, and
- *  never beside the countdown, whose engine would drive the same kind of readout twice. */
+/**
+ * The rows a CLOCK may show its time on: the ticked text rows whose sample reads as a time. None
+ * at all beside the old countdown, whether it is the behaviour, the moments the file drew for it
+ * (the names propose it) or a row bound as one: one clock engine per graphic. The mapping step
+ * offers exactly these, and the graphic carries a clock only on one of them, so a clock the step
+ * no longer shows is never built behind the author's back.
+ */
+export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
+  if (draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
+  if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
+  const driven = pollDrivenLayers(draft.svgBehaviour);
+  return draft.svgFields.filter((f) => f.on && f.clock && !driven.has(f.candidateId));
+}
+
+/** Whether the file drew the moments only the countdown paints: its names propose it, read the way
+ *  the drop reads them. */
+export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
+  return !!svg && bestProposal({ ...svg, candidates: svg.candidates.filter((c) => !c.outsideCanvas) })?.recipe === 'countdown';
+}
+
+/** The clock as the graphic carries it, or null. */
 export function svgClockOption(draft: SvgImportDraft): DesignSvgClock | null {
   const clock = draft.svgClock;
-  if (!clock || draft.svgBehaviour?.kind === 'timer') return null;
-  const row = draft.svgFields.find((f) => f.candidateId === clock.candidateId);
-  if (!row?.on || row.kind === 'countdown') return null;
+  if (!clock || !svgClockRows(draft).some((f) => f.candidateId === clock.candidateId)) return null;
   return { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
 }
 
@@ -1161,7 +1178,7 @@ export function behaviourSummary(draft: SvgImportDraft): string {
   if (switches.length > 0) parts.push(`${switches.length} ${switches.length === 1 ? 'switch' : 'switches'}`);
   for (const c of choices) if (c.kind === 'choice') parts.push(`a choice, ${c.name} (${c.options.map((o) => o.label).join(', ')})`);
   const clock = svgClockOption(draft);
-  if (clock) parts.push(`a clock: ${CLOCK_MODES.find((m) => m.mode === clock.mode)?.label.toLowerCase() ?? clock.mode}`);
+  if (clock) parts.push(CLOCK_MODES.find((m) => m.mode === clock.mode)?.summary ?? 'a clock');
   return parts.join(' · ');
 }
 

@@ -22,12 +22,13 @@ import {
   extraLayerName,
   scoreDrawnPool,
   svgClockOption,
+  svgClockRows,
+  svgCountdownDrawn,
 } from './draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_MODES } from '../../../templates/behaviours/clock';
-import { bestProposal } from '../../../templates/behaviours/naming';
 import {
   clearFill,
   fillGap,
@@ -253,25 +254,13 @@ export default function BehaviourSection({
   // (docs/GRAPHIC_BEHAVIOUR_PLAN.md §13).
   const timer = behaviour?.kind === 'timer' ? behaviour : null;
   // ONE CLOCK CHOICE PER IMPORT. The CLOCK is a part beside the behaviour, not one of them
-  // (templates/behaviours/clock.ts), so a score tracker and a clock are one graphic; it is offered
-  // on the ticked rows whose sample reads as a time. The old COUNTDOWN stays the choice only where
-  // the file drew the moments only it paints (a drain bar, a last stretch, a time-up plate), which
-  // is when the names propose it, and on a draft that already holds one: never both, and nothing
-  // a reader chose is converted.
-  const countdownDrawn = useMemo(
-    () => !!draft.designSvg && bestProposal({ ...draft.designSvg, candidates: draft.designSvg.candidates.filter((c) => !c.outsideCanvas) })?.recipe === 'countdown',
-    [draft.designSvg],
-  );
-  const clockRows = timer || countdownDrawn ? [] : onFields.filter((f) => f.clock && f.kind !== 'countdown');
+  // (templates/behaviours/clock.ts), so a score tracker and a clock are one graphic. The old
+  // COUNTDOWN stays the choice only where the file drew the moments only it paints, which is when
+  // the names propose it, or where the draft already holds one (draft.ts `svgClockRows`).
+  const countdownDrawn = useMemo(() => svgCountdownDrawn(draft.designSvg), [draft.designSvg]);
+  const clockRows = svgClockRows(draft);
   const clock = svgClockOption(draft) ? draft.svgClock : null;
-  const setClock = (next: SvgClockDraft | null) => {
-    // The row the clock shows the time on is plain text to the field list: the old countdown
-    // kind on the same row would be a second engine.
-    const svgFields = next
-      ? draft.svgFields.map((f) => (f.candidateId === next.candidateId && f.kind === 'countdown' ? { ...f, kind: 'text' as const, armedByTimer: false } : f))
-      : draft.svgFields;
-    onDraft({ svgClock: next, svgFields });
-  };
+  const setClock = (next: SvgClockDraft | null) => onDraft({ svgClock: next });
   // ANY OTHER RECIPE WITHOUT ROWS - the meter, the alert - is held generically and its pickers are
   // read off the recipe's own roles, so a recipe added tomorrow needs no new block here.
   const generic = behaviour?.kind === 'recipe' ? behaviour : null;
