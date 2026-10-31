@@ -27,20 +27,17 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": {
-    "what": "phase 7 checker verdict on c469facb (exact-merge CI, configured-suite, post-land, saved-countdown proof)",
-    "eta": "2026-10-31T23:10:00Z"
-  },
+  "waitingOn": null,
   "inFlight": [
     {
-      "phase": "7",
-      "step": "check",
-      "session": "session_017SdbwQSmznLue8PMtUwQER",
-      "nonce": "7-c-d7f3",
-      "mergeSha": "c469facba90f6ed04cb29b9ef5ac7b23d72e7ec3",
-      "pr": 1878,
-      "launchedAt": "2026-10-31T22:19:48Z",
-      "note": "checker judges coordinator decisions (flag off, clock outside BEHAVIOUR_RECIPES) and which AC-8 runtime parts are row 7s; coordinator remains #1878 repair owner through post-land"
+      "phase": "8",
+      "step": "build",
+      "session": "session_017SdbwMxgk4e9F5r8Ex9Q3C",
+      "nonce": "8-b-c08b",
+      "branch": "claude/plan-jev-svg-import-8-build",
+      "source": "d06974d30c42f504073fc810f2d1316168eb1f8d",
+      "launchedAt": "2026-10-31T22:40:57Z",
+      "note": "builder; carries row 6/7 forwards (flip CLOCK_RUNTIME_READY, CLOCK_NAME reservation, spec line 1281 boundary request)"
     }
   ],
   "owner": [],
