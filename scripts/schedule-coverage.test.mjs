@@ -147,6 +147,21 @@ test('drill: oldest uncovered landing and the repair-margin projection', () => {
   assert.match(render(slower, now), /PROJECTED BREACH/);
   // With nothing to project from there is no margin to claim.
   assert.equal(projectedBreach(coverageTimeline({ landings, runs: [], now }), now).breach, true);
+  // Before the day's run exists: the pending slot, not tomorrow's (2026-10-02T03:00, slot 00:20).
+  const early = coverageTimeline({ landings, runs: history, now: T('2026-10-02T03:00:00Z') });
+  const pe = projectedBreach(early, T('2026-10-02T03:00:00Z'));
+  assert.equal(pe.projection.at, T('2026-10-02T05:20:00Z'));
+  assert.equal(pe.projection.from, 'the slot not yet started');
+  // A scheduled run already going that contains the oldest landing: its start plus the worst duration.
+  const going = { ...run(72, 'a3', '2026-10-02T04:00:00Z', 0), status: 'in_progress', conclusion: null };
+  const dispatched = { ...going, id: 73, event: 'workflow_dispatch' };
+  assert.equal(projectedBreach(coverageTimeline({ landings, runs: [...history, dispatched], now: T('2026-10-02T04:05:00Z') }), T('2026-10-02T04:05:00Z')).projection.from, 'run 73, already going');
+  const g = projectedBreach(coverageTimeline({ landings, runs: [...history, going], now: T('2026-10-02T04:05:00Z') }), T('2026-10-02T04:05:00Z'));
+  assert.equal(g.projection.at, T('2026-10-02T04:20:00Z'));
+  // One going at a1 does not contain a2, the oldest uncovered, so the next slot is the one.
+  const goingEarly = { ...going, headSha: 'a1' };
+  const ge = projectedBreach(coverageTimeline({ landings, runs: [...history, goingEarly], now: T('2026-10-02T04:05:00Z') }), T('2026-10-02T04:05:00Z'));
+  assert.equal(ge.projection.from, 'the next slot');
   assert.equal(nextCron(T('2026-10-01T00:19:00Z')), T('2026-10-01T00:20:00Z'));
   assert.equal(nextCron(T('2026-10-01T00:20:00Z')), T('2026-10-02T00:20:00Z'));
 });

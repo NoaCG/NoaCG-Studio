@@ -163,13 +163,18 @@ export function nextCron(now, cron = NIGHTLY_CRON_UTC) {
 }
 
 /**
- * When the next nightly can be relied on to have finished: the next cron instant plus the WORST
- * observed start delay and the WORST observed duration among recent attributable complete runs.
- * Worst, not median: the bound is per landing, so every breach counts. With no history the
- * projection is unknown (null), and the caller treats that as no margin.
+ * When a nightly that contains `position` can be relied on to have finished, from the WORST
+ * observed start delay and the WORST observed duration among recent complete scheduled runs.
+ * Worst, not median: the bound is per landing, so every breach counts.
+ *
+ * Which nightly: a run on main already going that requested a commit at or after `position`
+ * (its creation plus the worst duration); otherwise the most recent cron slot, if no scheduled run
+ * has been created for it yet and the worst observed delay has not run out; otherwise the next
+ * slot. With no history the projection is unknown (null), and the caller treats that as no margin.
  */
-export function projectedCompletion(timeline, now, cron = NIGHTLY_CRON_UTC) {
-  const done = timeline.runs.filter((r) => r.event === 'schedule' && (r.verdict === 'green' || r.verdict === 'red'));
+export function projectedCompletion(timeline, now, position = 0, cron = NIGHTLY_CRON_UTC) {
+  const scheduled = timeline.runs.filter((r) => r.event === 'schedule');
+  const done = scheduled.filter((r) => r.verdict === 'green' || r.verdict === 'red');
   if (done.length === 0) return null;
   let startDelay = 0;
   let duration = 0;
@@ -178,7 +183,14 @@ export function projectedCompletion(timeline, now, cron = NIGHTLY_CRON_UTC) {
     startDelay = Math.max(startDelay, r.createdAt - slot);
     duration = Math.max(duration, r.completedAt - r.createdAt);
   }
-  return { at: nextCron(now, cron) + startDelay + duration, startDelayMs: startDelay, durationMs: duration };
+  const shape = (at, from) => ({ at, from, startDelayMs: startDelay, durationMs: duration });
+  // Any run on main already going counts, a dispatch included: it requested a landing too.
+  const going = timeline.runs.find((r) => r.verdict === 'pending' && r.attributable && r.position >= position);
+  if (going) return shape(going.createdAt + duration, `run ${going.id}, already going`);
+  const lastSlot = nextCron(now - 24 * HOUR, cron);
+  const created = scheduled.some((r) => r.createdAt >= lastSlot);
+  if (!created && lastSlot + startDelay + duration > now) return shape(lastSlot + startDelay + duration, 'the slot not yet started');
+  return shape(nextCron(now, cron) + startDelay + duration, 'the next slot');
 }
 
 /**
@@ -189,7 +201,8 @@ export function projectedCompletion(timeline, now, cron = NIGHTLY_CRON_UTC) {
 export function projectedBreach(timeline, now) {
   const oldest = oldestUncovered(timeline, now);
   if (!oldest) return null;
-  const projection = projectedCompletion(timeline, now);
+  const row = timeline.landings.findIndex((l) => !l.covered);
+  const projection = projectedCompletion(timeline, now, row);
   if (!projection) return { ...oldest, projection: null, breach: true, reason: 'no complete scheduled nightly to project from' };
   return { ...oldest, projection, breach: oldest.deadlineAt < projection.at, reason: null };
 }
@@ -298,7 +311,7 @@ export function render(timeline, now) {
   const projected = projectedBreach(timeline, now);
   if (projected) {
     lines.push('', `Oldest uncovered landing: ${projected.sha.slice(0, 8)}, landed ${iso(projected.at)}, waiting ${hours(projected.ageMs)}h, deadline ${iso(projected.deadlineAt)}.`);
-    if (projected.projection) lines.push(`Next nightly projected complete by ${iso(projected.projection.at)} (worst observed start delay ${hours(projected.projection.startDelayMs)}h, duration ${hours(projected.projection.durationMs)}h).`);
+    if (projected.projection) lines.push(`A nightly containing it projected complete by ${iso(projected.projection.at)}, ${projected.projection.from} (worst observed start delay ${hours(projected.projection.startDelayMs)}h, duration ${hours(projected.projection.durationMs)}h).`);
     lines.push(projected.breach ? `PROJECTED BREACH: ${projected.reason ?? 'its deadline falls before that'}. The repair is a nightly dispatch on main before the deadline.` : 'Inside the bound on the projection.');
   } else lines.push('', 'Every landing in the window is cleared.');
   for (const r of timeline.runs.filter((x) => x.attributable && x.verdict === 'incomplete')) lines.push(`- incomplete run ${r.id}: ${r.reasons.join('; ')}`);
@@ -308,7 +321,7 @@ export function render(timeline, now) {
 // ---- CLI: reads git and GitHub, read-only. ----
 
 function gh(args) {
-  return JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+  return JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true }));
 }
 
 export function parseArgs(argv) {
@@ -318,9 +331,11 @@ export function parseArgs(argv) {
     strict: true,
   });
   const now = values.now ? Date.parse(values.now) : Date.now();
-  // Five days: enough nightlies for the projection's worst start delay and duration, and every
-  // run in the window requested a landing inside it.
-  const since = values.since ? Date.parse(values.since) : now - 5 * 24 * HOUR;
+  // Fourteen days, about 16 API calls. The projection takes the WORST start delay and duration in
+  // the window, so a shorter window projects a looser margin: on 2026-11-01 the last five or
+  // fourteen days put the oldest landing a few minutes inside its deadline, and runs back to
+  // 2026-10-14 (one of them 24 minutes long) put it 44 seconds past.
+  const since = values.since ? Date.parse(values.since) : now - 14 * 24 * HOUR;
   if (!Number.isFinite(now) || !Number.isFinite(since)) throw new Error('--since and --now take ISO times');
   return { now, since, json: Boolean(values.json), summary: values.summary ?? null, ref: values.ref ?? 'origin/main' };
 }
@@ -329,7 +344,7 @@ function main() {
   const opts = parseArgs(process.argv.slice(2));
   const repo = process.env.GH_REPO;
   if (!repo) throw new Error('GH_REPO (owner/name) is required');
-  const log = execFileSync('git', ['log', '--first-parent', '--reverse', '--format=%H %cI', `--since=${iso(opts.since)}`, opts.ref], { encoding: 'utf8' });
+  const log = execFileSync('git', ['log', '--first-parent', '--reverse', '--format=%H %cI', `--since=${iso(opts.since)}`, opts.ref], { encoding: 'utf8', windowsHide: true });
   const landings = log.split('\n').filter(Boolean).map((line) => {
     const [sha, at] = line.split(' ');
     return { sha, at: Date.parse(at) };
