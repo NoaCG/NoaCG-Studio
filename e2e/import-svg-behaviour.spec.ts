@@ -719,18 +719,22 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const look = (token: string) => air.locator(`[data-noacg-role~="${token}"]`);
 
-  // The pick moves freely until the reveal; the drawn lock never shows.
+  // The drawn lock is no moment on this board: not bound, and never shown.
+  await expect(look('locked')).toHaveCount(0);
+  const badge = air.getByText('LOCKED IN');
+
+  // The pick moves freely until the reveal.
   await page.getByTestId('cue-pick-select-B').click();
   await expect(look('answer.selected/B')).toHaveClass(/imported-design-on/);
   await page.getByTestId('cue-pick-select-D').click();
   await expect(look('answer.selected/D')).toHaveClass(/imported-design-on/);
   await expect(look('answer.selected/B')).not.toHaveClass(/imported-design-on/);
-  await expect(look('locked')).not.toHaveClass(/imported-design-on/);
+  await expect(badge).toBeHidden();
 
   await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
   for (const row of ['A', 'B', 'D']) await expect(look(`answer.wrong/${row}`)).toHaveClass(/imported-design-on/);
-  await expect(look('locked')).not.toHaveClass(/imported-design-on/);
+  await expect(badge).toBeHidden();
 });
 
 test('a meter: the bar the designer drew fills toward the target as the figure goes up', async ({ page }, testInfo) => {
