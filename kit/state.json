@@ -28,7 +28,18 @@
   },
   "branchPrefix": "claude",
   "waitingOn": null,
-  "inFlight": [],
+  "inFlight": [
+    {
+      "phase": "13",
+      "step": "build",
+      "session": "session_017SdbwP6wrt8Gz3Qe4CEKLx",
+      "nonce": "13-b-1743",
+      "branch": "claude/plan-jev-svg-import-13-build",
+      "source": "b2f335fb353f799dc7866f23ca9200168205faad",
+      "launchedAt": "2026-11-01T12:44:42Z",
+      "note": "midpoint review builder; acceptance records only; defects filed not fixed"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": {
@@ -158,7 +169,8 @@
     "2026-11-01T07:00Z owner request (relayed by session_017SdbwQxsjW6RWBhZZg2Tix): archived 28 finished run sessions (builders/checkers 1-8, their /so and review sessions, row 10 final /so, qualification jevq-6be893f08997). Standing: after each pass, archive the builder, checker and every /so or review session the builder or repairer started, in the same turn.",
     "08:39Z phase 11 passed; archived 7 phase-11 sessions (builder, checker, 5 /so).",
     "10:13Z slip: re-requested @codex review on PR 1909 head b38bea5 while the builder request was outstanding (known-traps Review checkpoints). Do not repeat; a stalled Codex is an infrastructure wait.",
-    "10:30Z block renewed under standing blockRenewal: epoch 2, id 9b35de1c, deadline 2026-11-02T10:30:18Z."
+    "10:30Z block renewed under standing blockRenewal: epoch 2, id 9b35de1c, deadline 2026-11-02T10:30:18Z.",
+    "12:44Z phase 12 passed; archived 5 phase-12 sessions (builder, checker, 3 /so)."
   ],
   "ownerOpen": [
     {
