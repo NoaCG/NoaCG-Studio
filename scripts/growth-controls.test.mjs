@@ -1358,6 +1358,12 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
   const job75 = { tier: 'offline', id: 'job:ci.yml/E2E 2/2 (full)', perLanding: 75.02, perDay: 0, how: 'new job at 15.5 runner-min' };
   assert.equal(both([]), 'ok', '420 + 24.2 alone fits');
   assert.equal(both([job75]), 'refuse', '420 + 75.02 + 24.2 crosses 95% of 535 together');
+  // One allowance covering both is spent once: 40 waived of 99.22, never 40 for each.
+  const shared = { id: 'off', tier: 'offline', covers: [job75.id, 'spec:e2e/new.spec.ts'], perLanding: 40, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const m300 = measurement({ offline: 300 });
+  const g2 = { status: 'ok', reasons: [], stops: {}, estimates: CEILINGS.estimates, items: [job75], tiers: assessTiers({ ceilings: noExceptions, measurement: m300, items: [job75], today: TODAY, exceptions: [shared] }), assessWith: (items) => assessTiers({ ceilings: noExceptions, measurement: m300, items, today: TODAY, exceptions: [shared] }) };
+  assert.equal(Math.round(10 * g2.assessWith([job75, { tier: 'offline', id: 'spec:e2e/new.spec.ts', perLanding: 24.2, perDay: 5 }]).tiers.offline.addedLanding) / 10, 59.2);
+  assert.equal(applyOfflineStop({ ...g2, items: [] }, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'ok', 'the spec alone is waived in full');
   assert.equal(moved?.tier, 'overhead');
   assert.match(moved?.how ?? '', /moved into this tier/);
   // A copy under a new key that repeats an existing job's name is new, not the existing job.
