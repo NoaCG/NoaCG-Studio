@@ -37,9 +37,10 @@
       "branch": "claude/plan-jev-svg-import-12-build",
       "source": "7030eb18dcceef18243e0dc3e937a2b7ef51918e",
       "launchedAt": "2026-11-01T08:39:15Z",
-      "note": "builder; test-first qualification row; separate-session /so rule 08:44Z D1 reproduced (typed correction moves flash) -> behaviourRuntime.ts approved; D2 (reboot from report loses team flash) to be filed as issue + phase-note limit.",
+      "note": "builder; test-first qualification row; separate-session /so rule 08:44Z D1 reproduced (typed correction moves flash) -> behaviourRuntime.ts approved; D2 (reboot from report loses team flash) to be filed as issue + phase-note limit. 08:48Z D3 reproduced (clock Pause replays score flash pop) -> approved with D1.",
       "approvals": [
-        "behaviourRuntime.ts one condition (latch rise only during accepted-event drain) for D1, failing test first, native unchanged"
+        "behaviourRuntime.ts one condition (latch rise only during accepted-event drain) for D1, failing test first, native unchanged",
+        "behaviourRuntime.ts D3 (pop only when the named group was entered since last repaint; self-transition pops, snap/other-group does not) + animRuntime.ts noacgFire per-group entry count; failing tests first, native byte-identical"
       ]
     }
   ],
