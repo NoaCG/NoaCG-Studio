@@ -220,6 +220,12 @@ test('review fixes: a re-run attempt, a queued run, a failed plan and the push-t
   const q3 = projectedCompletion(coverageTimeline({ landings, runs: [...history, ahead, queued], now }), now, 2);
   assert.equal(q3.from, 'run 93, already queued');
   assert.equal(q3.at, T('2026-10-02T04:40:00Z'));
+  // A run going that started after it was created counts from its start, and an overdue one is
+  // projected no earlier than now (Codex, PR #1930).
+  const late = { ...ahead, startedAt: T('2026-10-02T04:25:00Z') };
+  assert.equal(projectedCompletion(coverageTimeline({ landings, runs: [...history, late], now }), now, 1).at, T('2026-10-02T04:45:00Z'));
+  const overdueNow = T('2026-10-02T05:00:00Z');
+  assert.equal(projectedCompletion(coverageTimeline({ landings, runs: [...history, ahead], now: overdueNow }), overdueNow, 1).at, overdueNow);
   // A failed plan skips every shard (their names never expand): incomplete, but a detection.
   const jobs = [{ name: 'Nightly shard plan', conclusion: 'failure' }, { name: 'Nightly E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}', conclusion: 'skipped' }, ...nightlyJobs(1).slice(2)];
   const failedPlan = run(94, 'a2', '2026-10-01T06:00:00Z', 5, { jobs });

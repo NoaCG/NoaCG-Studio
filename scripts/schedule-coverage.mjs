@@ -197,8 +197,11 @@ export function projectedCompletion(timeline, now, position = 0, cron = NIGHTLY_
     // false), so a queued run starts when that one is projected to end. The projection is of
     // completion; a red result clears nothing and the next report says so.
     const ahead = timeline.runs.find((r) => r !== going && r.status === 'in_progress');
-    const start = going.status === 'in_progress' || !ahead ? going.createdAt : Math.max(going.createdAt, (ahead.startedAt ?? ahead.createdAt) + duration);
-    return shape(start + duration, `run ${going.id}, already ${going.status === 'in_progress' ? 'going' : 'queued'}`);
+    // An attempt in progress counts from its own start (a re-run or a run that sat queued started
+    // later than it was created). A run still going has not finished yet, so never project the past.
+    const own = going.startedAt ?? going.createdAt;
+    const start = going.status === 'in_progress' || !ahead ? own : Math.max(own, (ahead.startedAt ?? ahead.createdAt) + duration);
+    return shape(Math.max(now, start + duration), `run ${going.id}, already ${going.status === 'in_progress' ? 'going' : 'queued'}`);
   }
   const lastSlot = nextCron(now - 24 * HOUR, cron);
   const created = scheduled.some((r) => r.createdAt >= lastSlot);
