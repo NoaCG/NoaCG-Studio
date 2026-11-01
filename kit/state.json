@@ -122,6 +122,12 @@
       "pr": 1878,
       "checker": "session_017SdbwQSmznLue8PMtUwQER",
       "note": "stand-in CI 41247810144 (main moved on with #1879)"
+    },
+    {
+      "phase": "8",
+      "mergeSha": "562452968ee7e1bd271329420d153b93b1912510",
+      "pr": 1883,
+      "checker": "session_017SdbwNv5WBxa9qnijkHNeV"
     }
   ],
   "coordinatorNotes": [
@@ -198,6 +204,13 @@
       ],
       "from": "8",
       "note": "Read #1884 (row 8 final /so low notes) before building."
+    },
+    {
+      "forPhases": [
+        "9"
+      ],
+      "from": "8 checker",
+      "note": "Wire and two-output recovery of the imported match clock are row 9 by spec row text; row 8 proved single-output recovery (imported-match-clock M5)."
     }
   ]
 }
