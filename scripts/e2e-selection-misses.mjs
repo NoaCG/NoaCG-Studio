@@ -6,7 +6,7 @@
 // suite in configured-suite.yml - is replayed against the ORIGINAL selection of each landing that
 // could have caused it, and the audit window is measured from the latest audit reset.
 //
-//   node scripts/e2e-selection-misses.mjs [--days 7] [--before 0] [--calls 100] [--ref HEAD] [--json]
+//   node scripts/e2e-selection-misses.mjs [--days 7] [--before 0] [--calls 100] [--ref HEAD] [--workflow <file>] [--json]
 //   node scripts/e2e-selection-misses.mjs resets [--ref HEAD] [--landings 400] [--json]
 //
 // THE ORIGINAL SELECTION, NOT TODAY'S PLANNER. The question is whether the plan that actually ran
@@ -26,7 +26,7 @@
 // commits carry a `Selection-audit-reset: <reason>` trailer (a mapping corrected after a miss, or
 // any other selection change the files alone do not show). Read from git, so it cannot go stale.
 import { execFileSync } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -69,21 +69,38 @@ export function parsePrintedPlan(log) {
 }
 
 /**
- * The failing configured specs a configured-suite verdict printed (`failure set (<hash>):` and its
- * indented `<spec>::<test>` lines), as repo paths, sorted. Pure. The configured jobs annotate no
- * spec, so this log is where their names are.
+ * The configured specs that REALLY failed in a configured-suite verdict's log, as repo paths,
+ * sorted. Pure. The verdict's `failure set (<hash>):` also holds skipped specs (it fingerprints a
+ * run), so it is never read as failures on its own:
+ *   - a `failing specs:` block (printed since ci07) is the exact list, read alone when present;
+ *   - otherwise (older logs) the annotated `##[error]<spec> - <test> (<statuses>)` lines, which name
+ *     every real failure up to the verdict's annotation cap. Only when the log says the cap was
+ *     passed (`further spec(s) were not clean`) are failure-set entries not in today's allowed
+ *     skips added too: that can count a skip allowed at the time as a failure (an audit then
+ *     over-reports, never hides), and an allowed-skip spec that really failed past the cap is missed.
+ * @param {string} log
+ * @param {{ allowedSkips?: Set<string> }} [options] bare spec names from e2e/configured/expected-run.json
  */
-export function configuredFailures(log) {
+export function configuredFailures(log, { allowedSkips = new Set() } = {}) {
   const lines = String(log ?? '').split('\n').map((l) => l.replace(/^\S+Z /, ''));
-  const out = new Set();
-  let inSet = false;
-  for (const line of lines) {
-    if (/^failure set \(/.test(line)) { inSet = true; continue; }
-    const m = inSet && /^\s+([\w.-]+\.spec\.ts)::/.exec(line);
-    if (m) out.add(`e2e/configured/${m[1]}`);
-    else inSet = false;
-  }
-  return [...out].sort();
+  const block = (header) => {
+    const out = new Set();
+    let inside = false;
+    let seen = false;
+    for (const line of lines) {
+      if (header.test(line)) { inside = true; seen = true; continue; }
+      const m = inside && /^\s+([\w.-]+\.spec\.ts)::/.exec(line);
+      if (m) out.add(m[1]);
+      else inside = false;
+    }
+    return seen ? out : null;
+  };
+  const exact = block(/^failing specs:$/);
+  const named = exact ?? new Set([
+    ...lines.map((l) => /^##\[error\]([\w.-]+\.spec\.ts) - .* \(([a-z ]+)\)\s*$/.exec(l)).filter((m) => m && !/^(?:skipped(?: then skipped)*)$/.test(m[2])).map((m) => m[1]),
+    ...(lines.some((l) => /further spec\(s\) were not clean/.test(l)) ? [...(block(/^failure set \(/) ?? [])].filter((name) => !allowedSkips.has(name)) : []),
+  ]);
+  return [...named].map((name) => `e2e/configured/${name}`).sort();
 }
 
 /**
@@ -310,6 +327,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const sinceIso = new Date(since).toISOString().slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);
   const store = readStore();
+  // The configured verdict's allowed skips: a skip listed there is clean, never a failing item.
+  const allowedSkips = new Set(Object.keys(JSON.parse(readFileSync(path.join(ROOT, 'e2e', 'configured', 'expected-run.json'), 'utf8')).allowedSkips ?? {}));
   const flaky = flakyIn(store, sinceIso);
   const incidents = quarantineIncidents(store, { ...(await loadIncidentContext()), today });
   const plans = new Map();
@@ -329,7 +348,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const listFrom = since - CONTEXT_DAYS * 86_400_000;
   const day = (t) => new Date(t).toISOString().slice(0, 10);
   const rows = [];
-  for (const [workflow, kind] of [['ci.yml', 'offline'], ['configured-suite.yml', 'configured']]) {
+  const only = value('--workflow', null); // replay one workflow alone (a bounded re-read)
+  for (const [workflow, kind] of [['ci.yml', 'offline'], ['configured-suite.yml', 'configured']].filter(([w]) => !only || w === only)) {
     let all = [];
     try {
       for (let page = 1; page <= 5; page++) {
@@ -364,7 +384,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         // a configured run always reads it and merges the two.
         if (kind === 'configured') items = mergeConfigured(items, (() => {
           const job = gh([`repos/${repo}/actions/runs/${r.id}/jobs?per_page=100`, '--jq', '.jobs[] | select(.name | startswith("Configured E2E (")) | .id'])[0];
-          return job ? configuredFailures(rawLog(job)) : [];
+          return job ? configuredFailures(rawLog(job), { allowedSkips }) : [];
         })());
         failing.set(r.id, items.length ? items : null);
       } catch { failing.set(r.id, null); }

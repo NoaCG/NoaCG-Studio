@@ -2,6 +2,7 @@
 // The AC-4 miss audit (cicd-improvement ci07, evidence/phase-ci07.md Rules A1 to A5 and Q5): red full
 // runs on main against their culprits' ORIGINAL plans, and the audit window from the latest reset.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -100,10 +101,23 @@ test('Rule A3: a configured failure is judged against the printed configured man
     '2026-10-31T22:32:33.6Z ##[group]Run actions/upload-artifact@v4',
     '2026-10-31T22:32:33.7Z   other.spec.ts::not in the set',
   ].join('\n');
-  assert.deepEqual(configuredFailures(log), ['e2e/configured/account.spec.ts', 'e2e/configured/connector-grants.spec.ts']);
+  // The failure set fingerprints a run and holds skips: alone it names no failure.
+  assert.deepEqual(configuredFailures(log), []);
+  const annotated = [
+    '2026-10-06T00:30:00.1Z ##[error]0 failed, 1 flaky.',
+    '2026-10-06T00:30:00.2Z ##[error]live-health.spec.ts - an output says who it is (failed then passed)',
+    '2026-10-06T00:30:00.3Z ##[error]bridge-real-server.spec.ts - airs a template (skipped)',
+    log,
+  ].join('\n');
+  assert.deepEqual(configuredFailures(annotated), ['e2e/configured/live-health.spec.ts'], 'an older log: the annotated real failures only');
+  const capped = `${annotated}\n2026-10-06T00:30:00.4Z ##[error]4 further spec(s) were not clean - the full list is in this log.`;
+  assert.deepEqual(configuredFailures(capped, { allowedSkips: new Set(['connector-grants.spec.ts']) }), ['e2e/configured/account.spec.ts', 'e2e/configured/live-health.spec.ts'], 'past the cap: the set minus allowed skips joins');
+  const exact = `${capped}\n2026-11-02T00:00:00.5Z failing specs:\n2026-11-02T00:00:00.6Z   panel-lease.spec.ts::two writers\n2026-11-02T00:00:00.7Z ##[group]Run next`;
+  assert.deepEqual(configuredFailures(exact), ['e2e/configured/panel-lease.spec.ts'], 'the uncapped list, when the verdict prints it, is read alone');
+  assert.match(readFileSync(new URL('./configured-verdict.mjs', import.meta.url), 'utf8'), /out\('failing specs:'\);\n\s+for \(const spec of v\.failing\) out\(` {2}\$\{spec\.file\}::\$\{spec\.title\}`\);/, 'the verdict prints the uncapped list');
   // Past the verdict's annotation cap, the log names the rest: both are merged, never one alone.
-  assert.deepEqual(mergeConfigured(['e2e/configured/account.spec.ts', 'job: Configured E2E (authenticated, local Supabase)', 'job: Configured E2E shard 4/4'], configuredFailures(log)),
-    ['e2e/configured/account.spec.ts', 'e2e/configured/connector-grants.spec.ts', 'job: Configured E2E shard 4/4']);
+  assert.deepEqual(mergeConfigured(['e2e/configured/account.spec.ts', 'job: Configured E2E (authenticated, local Supabase)', 'job: Configured E2E shard 4/4'], configuredFailures(exact)),
+    ['e2e/configured/account.spec.ts', 'e2e/configured/panel-lease.spec.ts', 'job: Configured E2E shard 4/4']);
   assert.deepEqual(mergeConfigured(['job: Configured E2E (x)'], []), ['job: Configured E2E (x)'], 'no log set: the items stand');
 });
 
