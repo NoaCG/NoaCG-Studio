@@ -43,7 +43,8 @@
         "designTypes.ts target?: string",
         "artworkFields.ts pass extra.target (1 line)",
         "draft.ts + BehaviourSection.tsx import-time target input only (row 11 keeps playout control exposure)",
-        "pre-approved jev-svg-contract.test.mjs picker expectation + e2e/import-svg-behaviour.spec.ts 3->4"
+        "pre-approved jev-svg-contract.test.mjs picker expectation + e2e/import-svg-behaviour.spec.ts 3->4",
+        "artworkFields.ts svgFields branch: resolved target clock field ftype hidden, value = stamped start (SPX/standalone correctness), with test"
       ]
     }
   ],
