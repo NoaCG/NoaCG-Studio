@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "owner: phase 14 PR #1919 /so A- on f9353c4 (9 rounds A-, all \"nothing blocks landing\"); accept with written reason, or split",
+  "waitingOn": null,
   "inFlight": [
     {
       "phase": "14",
@@ -46,7 +46,7 @@
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-01T20:26:30Z"
+    "checkinAt": "2026-11-01T20:57:40Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -182,7 +182,9 @@
     "Owner question pending: #1884 item 1, does an off-air Take of an imported duration count the configured length or the last sent value? (product decision, no owning row)",
     "13:46Z phase 13 passed; archived 5 phase-13 sessions (builder, checker, 3 /so).",
     "2026-11-01T16:06Z phase 14: final /so on cf6902b A-, only evidence wording left (phase-14.md:80, :140). Builder told to make one docs-only fix, one Codex request, one fresh separate /so; last round.",
-    "2026-11-01T16:13Z phase 14: /so session_017SdbwQ5mhAB6UGUm6b52ux on f9353c4 A-. Residuals: (1) saved-shape byte comparison script uncommitted, already row 15 carry; (2) No-lock untick memory lasts only within the step, documented safe states. Gate is /so A or A+ (plan-run.md:19); coordinator does not waive. Asked owner."
+    "2026-11-01T16:13Z phase 14: /so session_017SdbwQ5mhAB6UGUm6b52ux on f9353c4 A-. Residuals: (1) saved-shape byte comparison script uncommitted, already row 15 carry; (2) No-lock untick memory lasts only within the step, documented safe states. Gate is /so A or A+ (plan-run.md:19); coordinator does not waive. Asked owner.",
+    "2026-11-01 owner accepted phase 14 at A- verbatim: \"Accept phase 14 at A-: the remaining points are phase 15's committed byte-comparison test and a documented, safe No-lock memory limit. Land it.\" Recorded in PR #1919 body.",
+    "2026-11-01T20:2xZ STANDING OWNER RULE, verbatim: \"in the future A- may land when every remaining point is non-blocking and is either assigned to a later phase or a documented, safe limit\". Applies to /so gate; cite in PR body and stamp review text."
   ],
   "ownerOpen": [
     {
