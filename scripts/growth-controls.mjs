@@ -554,6 +554,11 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     const costOf = (e, key) => jobsIn(e.covers).reduce((a, k) => a + (jobCost[k][key] ?? 0), 0);
     const left = new Map(mine.map((e) => [e.id, { perLanding: Math.max(0, e.claimed.perLanding - costOf(e, 'perLanding')), perDay: Math.max(0, e.claimed.perDay - costOf(e, 'perDay')) }]));
     const charged = tierItems.map((i) => {
+      // Room rests on measured cost (Rule X10): with the tier's evidence missing, or for an
+      // existing job no measurement prices, the room is unknown, so nothing is waived. A spec, or
+      // a job new in this change, keeps its full allowance.
+      if (ev.state === 'missing') return i;
+      if (/^job:/.test(i.id) && jobsOf(i.id).length === 0 && !/^new job/.test(i.how ?? '')) return i;
       const rooms = mine.filter((e) => e.covers.includes(i.id)).map((e) => left.get(e.id));
       if (!rooms.length) return i;
       const waivedLanding = Math.min(i.perLanding, Math.max(...rooms.map((r) => r.perLanding)));
@@ -575,7 +580,9 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     let why = m ? `${round1(usedLanding)}/${ceiling.perLanding} per landing, ${round1(usedDay)}/${ceiling.perDay} per day (${Math.round(100 * share)}%)` : 'not measured';
     if (mine.length) why += `, ${mine.map((e) => `${e.id} excepts ${round1(e.perLanding)}/landing${e.perLanding < e.claimed.perLanding ? ` (claims ${e.claimed.perLanding}, capped at what it covers)` : ''} to ${e.expires}`).join('; ')}`;
     if (ev.state !== 'complete') why += `; evidence ${ev.state}: ${ev.why}`;
-    if (added && stops[tier]) { status = 'refuse'; why += `; growth stopped: ${stops[tier]}`; }
+    // A growth stop refuses any addition to its tier, waived by an exception or not (Rule E21).
+    const raw = tierItems.some((i) => i.perLanding > 0 || i.perDay > 0);
+    if (raw && stops[tier]) { status = 'refuse'; why += `; growth stopped: ${stops[tier]}`; }
     else if (added && ev.state === 'missing') { status = 'refuse'; why += '; headroom cannot be established, so added cost is refused'; }
     else if (added && after >= line) { status = 'refuse'; why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day, reaching ${Math.round(100 * after)}%, at or over the ${Math.round(100 * line)}% line${ev.state === 'complete' ? '' : ' that partial or stale evidence sets'}`; }
     else if ((after ?? 0) >= ceilings.warnShare || (added && ev.state !== 'complete') || stops[tier]) { status = 'warn'; if (added) why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day`; }

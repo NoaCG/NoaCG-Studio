@@ -1137,6 +1137,9 @@ test('Rule E17: on missing evidence any added cost is refused, and adding nothin
   const m = measurement({}); delete m.tiers.backend;
   assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [backendItem(0.1)], today: TODAY }).tiers.backend.status, 'refuse');
   assert.notEqual(assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY }).tiers.backend.status, 'refuse');
+  // An exception's room rests on measured cost, so it waives nothing here either.
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  assert.equal(assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: m, items: [backendItem(0.1)], today: TODAY }).tiers.backend.status, 'refuse');
 });
 
 test('Rule E18: a weekly report asked for and unreadable refuses any added cost, offline included', () => {
@@ -1145,6 +1148,13 @@ test('Rule E18: a weekly report asked for and unreadable refuses any added cost,
   const roomy = assessTiers({ ceilings: noExceptions, measurement: measurement({ offline: 100 }), items: [], today: TODAY });
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: roomy, estimates: CEILINGS.estimates }, { added: 0.1 }).status, 'ok');
   assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: roomy, estimates: CEILINGS.estimates, unreadable: true }, { added: 0.1 }).status, 'refuse');
+  // An exception present changes nothing: unread evidence gives no room, offline or not.
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  assert.equal(assessTiers({ ceilings: { ...CEILINGS, exceptions: [ex] }, measurement: null, items: [backendItem(0.1)], today: TODAY }).tiers.backend.status, 'refuse');
+  const offlineEx = { ...ex, tier: 'offline', covers: ['spec:e2e/new.spec.ts'] };
+  const ceilings = { ...CEILINGS, exceptions: [offlineEx] };
+  const growth = { status: 'ok', reasons: [], stops: {}, unreadable: true, estimates: CEILINGS.estimates, tiers: assessTiers({ ceilings, measurement: null, items: [], today: TODAY }), assessWith: (items) => assessTiers({ ceilings, measurement: null, items, today: TODAY }) };
+  assert.equal(applyOfflineStop(growth, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }, { paths: ['e2e/new.spec.ts'] }).status, 'refuse');
 });
 
 test('Rule E19: a stale durations table makes the offline table line refuse from 85%', () => {
@@ -1302,6 +1312,21 @@ test('Rule X10: a covered addition is waived up to the room left (allowance minu
   const added = { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] };
   assert.equal(applyOfflineStop(offlineGrowth([]), added, { paths: ['e2e/new.spec.ts'] }).status, 'refuse', '500 + 24.2 crosses 95% of 535');
   assert.equal(applyOfflineStop(offlineGrowth([offlineEx]), added, { paths: ['e2e/new.spec.ts'] }).status, 'ok', 'waived by the approved allowance');
+  // No measured figure for an existing job: its room is unknown, so nothing is waived; a new job keeps its allowance.
+  const jobEx = { id: 'j', tier: 'backend', covers: ['job:ci.yml/Configured E2E (${{ matrix.shard }})'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const jobItem = (how) => ({ tier: 'backend', id: 'job:ci.yml/Configured E2E (${{ matrix.shard }})', perLanding: 25, perDay: 0, how });
+  const added2 = (how) => assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 60 }), items: [jobItem(how)], today: TODAY, exceptions: [jobEx] }).tiers.backend.addedLanding;
+  assert.equal(added2('more runs of a job at 12.7 runner-min'), 25, 'an existing job no measurement prices');
+  assert.equal(added2('new job at 12.7 runner-min'), 0, 'a job new in this change');
+});
+
+test('Rule E21: a growth stop refuses any addition to its tier, waived by an exception or not', () => {
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const run = (items) => assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 60 }), items, today: TODAY, stops: { backend: 'cost:backend since 2026-10-10' }, exceptions: [ex] }).tiers.backend.status;
+  assert.equal(run([backendItem(1)]), 'refuse', 'fully waived, still refused');
+  assert.notEqual(run([]), 'refuse', 'adding nothing lands');
+  const offline = { status: 'ok', reasons: [], stops: { offline: 'x' }, estimates: CEILINGS.estimates, assessWith: () => ({ tiers: { offline: { addedLanding: 0, addedDay: 0 } } }) };
+  assert.equal(applyOfflineStop(offline, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }).status, 'refuse', 'offline: the stop is judged before the waiver');
 });
 
 test('Rule X11: credit never crosses tiers, and no exception moves a ceiling, an estimate, MAIN_RUNNERS or SHARD_CAP_MINUTES', () => {

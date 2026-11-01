@@ -255,6 +255,9 @@ export function changedSpecs(base, cwd = ROOT) {
  */
 export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refuseShare = HARD_SHARE, paths = [] } = {}) {
   if (!(result.added > 0)) return growth;
+  // A stop or an unreadable report refuses before any waiver (Rules E18, E21).
+  if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); return growth; }
+  if (growth.unreadable) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and no offline stop can be ruled out without the weekly report`); return growth; }
   const e = growth.estimates ?? {};
   let landing = result.added * (e.runsPerLanding?.everyRun ?? 1);
   let day = result.added * (e.scheduledRunsPerDay?.offline ?? 1);
@@ -271,9 +274,7 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   }
   const tier = growth.tiers?.tiers?.offline;
   const line = tier?.evidence === 'complete' ? refuseShare : warnShare;
-  if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); }
-  else if (growth.unreadable) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and no offline stop can be ruled out without the weekly report`); }
-  else if (!tier || tier.evidence === 'missing') { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and the offline tier has no measurement, so its headroom cannot be established`); }
+  if (!tier || tier.evidence === 'missing') { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and the offline tier has no measurement, so its headroom cannot be established`); }
   // The offline tier's measured runner-minutes, including any slowdown the weekly report
   // attributed, judge an offline addition too, as in every other tier: the added spec minutes run
   // in every CI run of a landing and in each nightly run, and the tier with them must stay under

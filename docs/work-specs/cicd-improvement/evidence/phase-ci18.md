@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (101 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (102 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -265,7 +265,7 @@ issue, remain for ci17.
 ### Rules
 
 The two rule families that kept recurring in review, written as observable lines. Each line has
-one test named after it (`Rule E1: ...` to `Rule X12: ...` in `scripts/growth-controls.test.mjs`),
+one test named after it (`Rule E1: ...` to `Rule E21: ...` and `Rule X1: ...` to `Rule X12: ...` in `scripts/growth-controls.test.mjs`),
 and each test fails when its line is broken in the code (mutation-checked). Where order matters,
 the first matching line wins.
 
@@ -287,8 +287,9 @@ A week's measurement is **partial for every tier** when any of these holds:
   budget cannot cover two reads per stratum or a read needs extra pages.
 - E9. A run was still unfinished at collection.
 - E10. A run's jobs were still full at the last permitted page; its jobs count as a lower bound.
-- E11. The window holds no landing. The gate then has no per-landing figure and reads the tier as
-  missing (E1), which is stricter.
+- E11. The window holds no landing. The weekly collector then publishes no report and fails for its
+  owner, so the gate keeps the previous report, which turns stale (E2). A measurement with no
+  per-landing figure reads as missing (E1).
 
 How runs become cost and slowdown points:
 
@@ -310,6 +311,8 @@ What each state lets the controls do. A change that adds nothing is never refuse
 - E20. A breach clears only on evidence that judges it, and is otherwise kept with its stop: cost
   when the tier is complete and at or under 100%; latency when the timing read is complete,
   adequate and in bounds; age when its read was complete.
+- E21. A growth stop refuses any addition to its tier, whether or not an exception waives it.
+  Offline included: the stop, like an unreadable report (E18), is judged before any waiver.
 
 **Exception scope and credit (X).**
 
@@ -329,6 +332,8 @@ What each state lets the controls do. A change that adds nothing is never refuse
     the same tier (any job, in any workflow file, or any spec in the same folder tier): a retired
     name's successor is unknown;
   - the earlier one has a cover that names nothing real and was never recorded.
+  The two offline lists are separate scopes: a `growth-ceilings.json` exception waives only the
+  tier check and a work-spec line only the table line (X10), so neither renews the other.
 - X5. An exception with the same scope as an earlier one needs a measured repayment receipt: a
   positive per-landing or per-day repayment, at least one run, measured on or after the latest
   earlier entry's start. Without one it is invalid. Offline exception lines need the same, except
@@ -344,7 +349,9 @@ What each state lets the controls do. A change that adds nothing is never refuse
 - X9. A spec cover earns no credit on measured cost.
 - X10. A covered addition is waived up to the room left: the allowance minus the measured cost of
   its jobs. Overlapping exceptions give the largest room, never the sum, and the waiver is spent in
-  all of them. Offline spec additions take the same route, so an approved offline-tier exception
+  all of them. No room is given when the tier's evidence is missing, or for an existing job no
+  measurement prices: only a spec, or a job new in this change, keeps its full allowance. Offline
+  spec additions take the same route, so an approved offline-tier exception
   in `growth-ceilings.json` waives them in the tier check. An offline line in a work spec
   (`- e2e/x.spec.ts: N min, ...`) clears only the table line.
 - X11. Credit never crosses tiers (X1, X2). No exception moves a ceiling, an estimate,
