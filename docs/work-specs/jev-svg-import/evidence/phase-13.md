@@ -24,10 +24,10 @@ merge-group CI, push CI, configured-suite, Post-landing and Quarantine all succe
 
 1. **Defects:** the rehearsal found no defect in rows 1 to 12. It found two new flaky tests in the
    already quarantined `e2e/import-svg.spec.ts`, in code no row changed (#1915, P3, area:e2e). Twelve tracked follow-ups were
-   reconciled (table below): two closed as moved, ten stay open, three of them P2. Seven of the ten have no later row with authority over
-   the code involved.
+   reconciled (table below): two closed as moved, ten stay open, three of them P2. Nine of the ten have no later row that can fix them (six product defects, three outside
+   the plan); #1884 item 2 could be fixed only in row 24 with a reconciled boundary.
 2. **Elapsed time:** 26 h 26 min of 336 h (8%), measured at 2026-11-01T12:45:51Z when this row started. Run start
-   2026-10-31T10:19:44Z. Row 12 landed at 2026-11-01T12:06:46Z. 12 of 40 rows are done (30%).
+   2026-10-31T10:19:44Z. Row 12 reached main at 2026-11-01T12:19:01Z (merge commit dated 12:06:46Z). 12 of 40 rows are done (30%).
 3. **Spend:** $0, no paid call. No inference path exists yet (rows 31 to 36), and the only
    workflow holding the evaluation key ran twice in the window, each time only the free credits
    check.
@@ -127,7 +127,7 @@ the main import spec) has been quarantined since 2026-10-31T22:01Z, between rows
 five entries. Quarantine incident #1907 records it: changes to `src/templates/**` and
 `src/components/wizard/import/**` merge without it blocking. Its repair is due 2026-11-14, the
 day this run ends, and cicd-improvement owns it. Rows 8 to 12 landed while it was out of the
-blocking gate, and rows 14 to 28 change the same code. This row reran it above: 66 of 68 passed, and the two failures were flakes (#1915). Until it is
+blocking gate, and most of rows 14 to 27 change the same code. This row reran it above: 66 of 68 passed, and the two failures were flakes (#1915). Until it is
 released, each row touching import or behaviour code should run it locally through the queue as
 part of its targeted checks. That restores no gate and changes no limit.
 
