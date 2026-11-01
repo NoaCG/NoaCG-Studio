@@ -60,11 +60,23 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
   After the review fixes, 39/40 (j-0002): the new journey still asserted the old bound lock
   layer, which the fix now clears. With that assertion corrected, every quiz test in the spec
   passed, 11/11 (j-0003). The other 29 tests do not touch the quiz and passed in j-0002.
+- After the first /so round (below), the journey also presses Next from a pick on a second
+  Take, and the badge check that could not fail was dropped: quiz tests 11/11 (j-0004).
+  Mutation check: with the Next arrow removed from `quiz.ts`, the journey fails at the Next
+  press (j-0005); the probe commit was dropped, never pushed.
 - Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
   the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
   and the configured suite. They run in CI on the PR. `e2e/import-svg.spec.ts` is quarantined
   (#1879, #1915) and is not this run's.
+
+## Review rounds
+
+- /so 1, session `session_017SdbwRKWDSULfSmTWBDXLw`, on `3343dc5`: AGREE, A-, nothing blocking.
+  Fixed: the Next arrow from the pick had no test (faulty evidence claim), and the LOCKED IN
+  check passed whatever happened (faulty test expectation). Left: the byte harness is not
+  committed (row 15 owns `scripts/quiz-no-lock.test.mjs`); unticking No lock gives the
+  optional-lock board (a documented choice for row 15's rehearsal to confirm).
 
 ## Decisions
 
