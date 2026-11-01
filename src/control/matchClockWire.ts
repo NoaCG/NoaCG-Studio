@@ -49,7 +49,36 @@ export interface ClockSpec {
    *  differ only on a clock element with no `data-start`, which the scoreboard emitter never
    *  produces (it always writes the attribute and the text together). */
   resetTo: string;
+  /** The three verbs, by the names this graphic's machine answers to. Absent on a native clock,
+   *  whose spec is exactly what it always was: the native names (`NATIVE_CLOCK_EVENTS`). */
+  events?: ClockEvents;
+  /** A clock that starts on the Take rather than on an operator's Start: an imported clock
+   *  counting down (templates/behaviours/clock.ts, "Duration starts on Take"). Absent: false. */
+  startsOnTake?: boolean;
 }
+
+/** What the match clock's three verbs are called on one graphic. */
+export interface ClockEvents {
+  start: string;
+  stop: string;
+  reset: string;
+}
+
+/** A native scorebug's verbs: the scorebug type's own clock group (types/sportsBugs.ts). */
+export const NATIVE_CLOCK_EVENTS: ClockEvents = { start: 'clockStart', stop: 'clockStop', reset: 'clockReset' };
+
+/**
+ * AN IMPORTED CLOCK'S VERBS. The clock an author picks on their own artwork is an INSTANCED recipe
+ * (templates/behaviours/clock.ts), so its group and events are namespaced by its instance, and a
+ * graphic carries one clock under the one name "Clock": `clock_start`, `clock_pause`,
+ * `clock_reset`. The wire cannot import the recipe (the layers keep control and templates apart),
+ * so the names are written here and pinned equal to what the recipe compiles by
+ * scripts/imported-clock-wire.test.mjs.
+ */
+export const IMPORTED_CLOCK_EVENTS: ClockEvents = { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' };
+
+/** The readout class an imported design's clock carries (importedDesign/svgBind.ts). */
+export const IMPORTED_CLOCK_CLASS = 'imported-design-clock';
 
 /**
  * Read the clock out of a published graphic's html, or null for a graphic with no clock (which
@@ -70,12 +99,17 @@ export function clockSpecFromHtml(html: string): ClockSpec | null {
   );
   if (!el || !el.id) return null;                  // a readout with no field id is not on the wire
   const dataStart = el.getAttribute('data-start');
-  return {
+  const countsDown = el.getAttribute('data-count') === 'down';
+  const spec: ClockSpec = {
     field: el.id,
-    countsDown: el.getAttribute('data-count') === 'down',
+    countsDown,
     seed: dataStart || (el.textContent ?? '').trim(),
     resetTo: dataStart || '0',
   };
+  // An imported clock says so; a native one's spec stays exactly what every page already reads.
+  return el.classList.contains(IMPORTED_CLOCK_CLASS)
+    ? { ...spec, events: IMPORTED_CLOCK_EVENTS, startsOnTake: countsDown }
+    : spec;
 }
 
 /** The value without its origin stamp — what a person reads, and what a held clock sends. */
@@ -110,6 +144,29 @@ export function formatClock(total: number): string {
   return `${Math.floor(safe / 60)}:${s < 10 ? `0${s}` : s}`;
 }
 
+// ── A DURATION'S LENGTH ON THE WIRE (docs/work-specs/jev-svg-import/evidence/phase-09.md, W4-W5) ──
+//
+// A clock that starts on the Take counts down from a LENGTH the operator sets, and Reset goes back
+// to it. The wire holds one value per field, and a Pause banks the paused time into it, so the
+// length rides in that same value, after the origin, where every reader already looks past it:
+// `"0:21@/0:30"` held, `"0:30@1800000000000/0:30"` running. `plainClockValue` reads the time,
+// `clockOriginOf` reads the origin (none, or the number before the slash), and the template's own
+// parsers read them the same way. Only a clock that starts on the Take ever carries one, so a
+// native clock's values are exactly what they were.
+
+/** The length a duration's value carries after its origin, or null when it carries none. */
+export function clockLengthOf(raw: string | undefined | null): string | null {
+  const text = String(raw ?? '');
+  const at = text.indexOf('@');
+  const slash = at === -1 ? -1 : text.indexOf('/', at);
+  return slash === -1 ? null : text.slice(slash + 1).trim() || null;
+}
+
+/** A time, its origin (null: held) and its length, as one wire value. */
+export function durationValue(time: string, origin: number | null, length: string): string {
+  return `${time}@${origin ?? ''}/${length}`;
+}
+
 /**
  * What the clock field's held value becomes when an `update` row writes it.
  *
@@ -128,8 +185,16 @@ export function formatClock(total: number): string {
  * already started from. No control surface can express that anyway (the field holds that text, so
  * there is no edit to send), and returning to a known value is `clockReset`'s job.
  */
-export function clockValueAfterUpdate(held: string | undefined, incoming: string): string {
+export function clockValueAfterUpdate(held: string | undefined, incoming: string, now = Date.now()): string {
   if (clockOriginOf(incoming) !== null) return incoming;         // a stamped value always wins
+  const length = clockLengthOf(held);
+  if (length !== null && clockLengthOf(incoming) === null) {
+    // A duration keeps its length through a typed time, which only a Take makes the new length.
+    // A time typed while it RUNS keeps it running from the moment it landed, as the graphic does
+    // (matchClockUpdate): held unstamped, every resend would read as a fresh correction there.
+    if (plainClockValue(held) === plainClockValue(incoming)) return held!;
+    return durationValue(plainClockValue(incoming), clockOriginOf(held) === null ? null : now, length);
+  }
   if (held === undefined || clockOriginOf(held) === null) return incoming;
   return plainClockValue(held) === plainClockValue(incoming) ? held : incoming;
 }
@@ -199,19 +264,57 @@ export function clockRowEffect(
   held: string | undefined,
   now: number,
 ): ClockEffect | null {
-  if (row.msg.t !== 'event') return null;
   const at = rowInstant(row.created_at, now);
   const from = held ?? clock.seed;
+  const events = clock.events ?? NATIVE_CLOCK_EVENTS;
+  if (clock.startsOnTake) return durationRowEffect(row, events, clock, from, at);
+  if (row.msg.t !== 'event') return null;
   switch (row.msg.event) {
-    case 'clockStart':
+    case events.start:
       return { value: startedClockValue(from, clock.countsDown, at), when: 'before' };
-    case 'clockStop':
+    case events.stop:
       return { value: heldClockValue(from, clock.countsDown, at), when: 'after' };
     // Reset banks `resetTo` — what the RUNTIME returns to — rather than what the element happens
     // to read, because the two must record the same number or a reboot after a reset would
     // recover a different time from the one on air.
-    case 'clockReset':
+    case events.reset:
       return { value: clock.resetTo, when: 'after' };
+    default:
+      return null;
+  }
+}
+
+/**
+ * A CLOCK THAT STARTS ON THE TAKE, row by row: the same three verbs, plus the Take, every value
+ * carrying the length (`durationValue`).
+ *
+ * THE TAKE stamps the count from the time the field holds when it is taken, which every Take
+ * resends, and that time becomes the length: `"0:30@<take>/0:30"`. BEFORE the play, as a start
+ * is: the graphic, still off air, keeps that origin for its entrance (importedDesign/svg.ts, its start),
+ * so the count is the server's from its first frame rather than this renderer's arrival.
+ * Start, Pause and Reset are the match clock's, the length carried through; Reset banks the
+ * length itself, which is what the graphic returns to.
+ */
+function durationRowEffect(
+  row: Pick<ControlEventRow, 'msg' | 'created_at'>,
+  events: ClockEvents,
+  clock: ClockSpec,
+  from: string,
+  at: number,
+): ClockEffect | null {
+  const length = clockLengthOf(from) ?? (plainClockValue(from) || clock.resetTo);
+  if (row.msg.t === 'play') {
+    const taken = plainClockValue(from) || clock.resetTo;
+    return { value: durationValue(taken, at, taken), when: 'before' };
+  }
+  if (row.msg.t !== 'event') return null;
+  switch (row.msg.event) {
+    case events.start:
+      return { value: durationValue(clockValueAt(from, true, at), at, length), when: 'before' };
+    case events.stop:
+      return { value: durationValue(clockValueAt(from, true, at), null, length), when: 'after' };
+    case events.reset:
+      return { value: durationValue(length, null, length), when: 'after' };
     default:
       return null;
   }
