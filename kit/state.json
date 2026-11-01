@@ -42,32 +42,18 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci10 checker verdict (session_017SdbwPbLAh3Uu1dRmNwZks)",
-    "eta": "2026-11-01T15:30:00Z"
+    "what": "ci11 builder receipt (session_017SdbwMP3C2VJwynfzdzgvv)",
+    "eta": "2026-11-01T18:00:00Z"
   },
   "inFlight": [
     {
-      "phase": "ci10",
-      "step": "check",
-      "session": "session_017SdbwQPCwTtHEHCFbfgDw5",
-      "nonce": "ci10-b-aa2f",
-      "branch": "claude/plan-cicd-improvement-ci10-build",
-      "launchedAt": "2026-11-01T12:54:02Z",
-      "note": "Merged editor-proposal-task into editor-command-task (UI walk 6 to 3 runs per full run; about -25% same-machine). Auto-merge on 14:12Z.",
-      "pr": 1918,
-      "reviewedHead": "19d1b9a9f030230eec18bce035a9fc9e81d97989",
-      "stampRun": 41314965616,
-      "repairOwnerComment": 6559098324,
-      "so": "session_017SdbwMcjCdUC1N9uqB2pXG",
-      "followUps": [
-        1920
-      ],
-      "mergeSha": "c2ca020a7670ac6a7f2e99150aec9a5108d1e6c6",
-      "landedAt": "2026-11-01T14:19:27Z",
-      "queueRun": 41315071742,
-      "checker": "session_017SdbwPbLAh3Uu1dRmNwZks",
-      "actor": "checker-ci10-ci10-c-d494",
-      "auditReset": "c2ca020a 2026-11-01T14:12:39+00:00 (protection removed or changed: 1 covers line)"
+      "phase": "ci11",
+      "step": "build",
+      "session": "session_017SdbwMP3C2VJwynfzdzgvv",
+      "nonce": "ci11-b-d8b0",
+      "branch": "claude/plan-cicd-improvement-ci11-build",
+      "launchedAt": "2026-11-01T14:56:22Z",
+      "note": "AC-3: observed faults per changed protection class; identity, persistence, export lifecycle, asset loading; cite ci08-10 fault evidence."
     }
   ],
   "owner": [],
@@ -255,6 +241,22 @@
       "candidate": "repeated playout setup in e2e/playout-folders.spec.ts (same-machine 468.8 s to 326.0 s; comparable Actions shard about -24%)",
       "postLand": "CI 41306864314, configured-suite 41306864224, Post-landing 41306864049, Quarantine 41306864168, Push on main 41306863822 success; deploy-verify skipped (no deploy); repair ownership complete",
       "pass": "2026-11-01T12:52Z by checker-ci09-ci09-c-a767 (session_017SdbwR9PmMVXT7Zo6Z6Cup)",
+      "archived": 3
+    },
+    {
+      "phase": "ci10",
+      "pr": 1918,
+      "mergeSha": "c2ca020a7670ac6a7f2e99150aec9a5108d1e6c6",
+      "builder": "session_017SdbwQPCwTtHEHCFbfgDw5",
+      "reviewedHead": "19d1b9a9f030230eec18bce035a9fc9e81d97989",
+      "repairOwnerComment": 6559098324,
+      "followUps": [
+        1920
+      ],
+      "candidate": "overlapping editor qualification walks: editor-proposal-task merged into editor-command-task (same-machine about -26%; Actions full run 264.4 s vs 379.7/362.6/340.7 s before)",
+      "auditReset": "c2ca020a 2026-11-01T14:12:39Z",
+      "postLand": "CI 41315616118, configured-suite 41315616120, Post-landing 41315616128, Quarantine 41315616119, Push on main 41315616095 success; deploy-verify skipped (no deploy); repair ownership complete",
+      "pass": "2026-11-01T14:54Z by checker-ci10-ci10-c-d494 (session_017SdbwPbLAh3Uu1dRmNwZks)",
       "archived": 3
     }
   ],
