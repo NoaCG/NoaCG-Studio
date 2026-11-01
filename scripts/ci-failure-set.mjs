@@ -257,10 +257,18 @@ export function fetchFailureSet(runId, { repo = process.env.GH_REPO, gh = ghJson
 /**
  * `gh api ... --jq` prints one JSON value per line; unreadable output is no answer, not a crash.
  * Shared with the quarantine and the revert, which read the same API the same way.
+ *
+ * `strict` is for an audit, where no answer must never read as "nothing there"
+ * (scripts/e2e-selection-misses.mjs): a failed call throws instead of answering `[]`. `raw` returns
+ * the body as text (a job log), and implies strict.
  */
-export function ghJsonLines(args) {
-  const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true });
-  if (res.status !== 0) return [];
+export function ghJsonLines(args, { strict = false, raw = false } = {}) {
+  const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true, ...(strict || raw ? { maxBuffer: 64 * 1024 * 1024 } : {}) });
+  if (res.status !== 0) {
+    if (strict || raw) throw new Error(`gh api ${args[0]} failed: ${String(res.stderr ?? '').trim().split('\n')[0]}`);
+    return [];
+  }
+  if (raw) return String(res.stdout ?? '');
   return String(res.stdout ?? '')
     .split('\n')
     .map((line) => line.trim())

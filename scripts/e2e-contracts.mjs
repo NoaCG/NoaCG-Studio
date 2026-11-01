@@ -20,9 +20,11 @@
 //
 // A check path that leaves the disk fails the build (Rule K3): deleting a mapped check needs this
 // map changed in the same pull request, where a reviewer sees the protection go.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { readTable } from './e2e-durations.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -42,7 +44,7 @@ export const LAYERS = ['node', 'browser', 'artifact', 'catalog', 'configured', '
  * @typedef {{ path: string, layer: string }} Check
  * @typedef {{ id: string, title: string, proof: string, defects: string[], layers: string[],
  *   checks: Check[], cadence: string, detection: string, gaps: string[],
- *   backend?: { specs: string[], runs: string, why: string } }} Contract
+ *   backend?: { runs: string, why: string } }} Contract   the backend exception's specs are its configured checks
  */
 
 /** @type {Contract[]} */
@@ -154,7 +156,6 @@ export const CONTRACTS = [
       { path: 'e2e/configured/hosted-control-recovery.spec.ts', layer: 'configured' },
     ],
     backend: {
-      specs: ['connector-grants.spec.ts', 'account.spec.ts', 'shared-lab-computer.spec.ts', 'output-url-cannot-push.spec.ts', 'panel-lease.spec.ts', 'hosted-control-recovery.spec.ts'],
       runs: 'selected on every triggered pull request (ci06) and the full configured suite on every landing; the merge group is exempt, so the combined tree is first checked after landing',
       why: 'grants, row-level security, leases and recovery need a real isolated database; an offline mock cannot fail on them',
     },
@@ -191,10 +192,8 @@ export function auditContracts({ contracts = CONTRACTS, headers, exists = (p) =>
     }
     if (journeys.get(c.id).length === 0) {
       if (!c.backend) problems.push(`${c.id}: no critical journey and no backend exception`);
-      else {
-        if (!c.backend.runs || !c.backend.why || c.backend.specs.length === 0) problems.push(`${c.id}: a backend exception names its configured specs, where they run and why`);
-        for (const s of c.backend.specs) if (!exists(`e2e/configured/${s}`)) problems.push(`${c.id}: backend exception names e2e/configured/${s}, which is not on disk`);
-      }
+      // The exception's specs are the contract's configured checks; K3 already holds them to the disk.
+      else if (!c.backend.runs || !c.backend.why || !c.checks.some((k) => k.layer === 'configured')) problems.push(`${c.id}: a backend exception names its configured checks, where they run and why`);
     }
   }
   return problems;
@@ -217,10 +216,8 @@ export function criticalBudget(specs, minutes) {
   const rounded = Math.round(total * 100) / 100;
   const over = rounded > CRITICAL_TARGET_MINUTES;
   const text = `Critical journeys: ${specs.length} spec(s), ${rounded} measured test-minutes against the ${CRITICAL_TARGET_MINUTES}-minute target${unmeasured.length ? `, ${unmeasured.length} unmeasured (${unmeasured.join(', ')}): the total is a lower bound` : ''}${over ? ' - over the target; reported, never met by removing a journey' : ''}.`;
-  return { minutes: rounded, unmeasured, target: CRITICAL_TARGET_MINUTES, over, text };
+  return { minutes: rounded, unmeasured, over, text };
 }
 
-/** The durations table's per-spec minutes (scripts/e2e-durations.json). */
-export function readMinutes(root = ROOT) {
-  return JSON.parse(readFileSync(join(root, 'scripts', 'e2e-durations.json'), 'utf8')).minutes ?? {};
-}
+/** The durations table's per-spec minutes (scripts/e2e-durations.json), through its own reader. */
+export const readMinutes = () => readTable().minutes;

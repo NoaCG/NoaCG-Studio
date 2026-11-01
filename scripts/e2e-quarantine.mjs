@@ -628,6 +628,10 @@ function main(argv) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // A plan that left nothing out as quarantined (the usual case) needs no headers read at all.
+  const planArg = process.argv.indexOf('--plan');
+  const plan = planArg > 0 ? JSON.parse(process.argv[planArg + 1] ?? 'null') : null;
+  if (plan && !(plan.quarantined ?? []).length && !(plan.configured?.quarantined ?? []).length) process.exit(0);
   if (process.argv[2] === 'incidents') {
     try { incidentContext = await loadIncidentContext(); } catch (e) {
       if (!process.argv.includes('--plan')) throw e;

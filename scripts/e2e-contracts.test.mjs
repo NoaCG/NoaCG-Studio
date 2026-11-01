@@ -53,11 +53,14 @@ test('Rule K3: every faithful layer has a check, and a mapped check missing from
 test('Rule K4: a contract with no critical journey needs a complete backend exception whose configured specs exist', () => {
   const none = new Map();
   assert.deepEqual(auditContracts({ contracts: [contract()], headers: none, exists: yes }), ['c1: no critical journey and no backend exception']);
-  const backend = { specs: ['grants.spec.ts'], runs: 'selected on triggered PRs, full per landing', why: 'needs a real database' };
-  assert.deepEqual(auditContracts({ contracts: [contract({ backend })], headers: none, exists: yes }), []);
-  assert.deepEqual(auditContracts({ contracts: [contract({ backend: { ...backend, why: '' } })], headers: none, exists: yes }), ['c1: a backend exception names its configured specs, where they run and why']);
-  const missing = auditContracts({ contracts: [contract({ backend })], headers: none, exists: (p) => p !== 'e2e/configured/grants.spec.ts' });
-  assert.deepEqual(missing, ['c1: backend exception names e2e/configured/grants.spec.ts, which is not on disk']);
+  const backend = { runs: 'selected on triggered PRs, full per landing', why: 'needs a real database' };
+  const checks = [{ path: 'e2e/configured/grants.spec.ts', layer: 'configured' }];
+  const why = ['c1: a backend exception names its configured checks, where they run and why'];
+  assert.deepEqual(auditContracts({ contracts: [contract({ layers: ['configured'], checks, backend })], headers: none, exists: yes }), []);
+  assert.deepEqual(auditContracts({ contracts: [contract({ layers: ['configured'], checks, backend: { ...backend, why: '' } })], headers: none, exists: yes }), why);
+  assert.deepEqual(auditContracts({ contracts: [contract({ backend })], headers: none, exists: yes }), why, 'an exception with no configured check carries nothing');
+  const missing = auditContracts({ contracts: [contract({ layers: ['configured'], checks, backend })], headers: none, exists: (p) => p !== 'e2e/configured/grants.spec.ts' });
+  assert.deepEqual(missing, ['c1: e2e/configured/grants.spec.ts is not on disk - a mapped check is removed only with this map changed']);
   // The real map's one exception is access and durability, carried by existing configured specs.
   assert.deepEqual(CONTRACTS.filter((c) => c.backend).map((c) => c.id), ['access-durability']);
 });

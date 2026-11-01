@@ -240,7 +240,6 @@ const incidentStore = {
     'e2e/configured/late-send-abandoned.spec.ts': { since: '2026-10-28', count: 16 },
   },
 };
-const readText = readFileSync;
 const glob = (g) => ({ globs: [g], test: () => true });
 const incidentHeaders = new Map([
   ['flows.spec.ts', { critical: ['site-entry'], covers: [glob('src/components/wizard/**')], none: null }],
@@ -285,7 +284,7 @@ test('Rule Q3: one rolling issue, opened with the first incident, updated when t
   assert.equal(incidentIssueAction([], { number: 1, body }, '2026-11-02').kind, 'close');
   assert.equal(incidentIssueAction([], null, '2026-11-02').kind, 'none');
   // An unread store or issue list throws before any action: the CLI reads both with throwing calls.
-  const cli = readText(new URL('./e2e-quarantine.mjs', import.meta.url), 'utf8');
+  const cli = readFileSync(new URL('./e2e-quarantine.mjs', import.meta.url), 'utf8');
   const block = cli.slice(cli.indexOf("if (command === 'incidents')"), cli.indexOf("if (command === 'release-due')"));
   assert.doesNotMatch(block, /allowFailure/, 'no read in the incidents command may fail quietly');
 });
@@ -297,8 +296,8 @@ test('Rule Q4: a plan that selects a quarantined spec states each gap on the run
   assert.match(gaps[1].warning, /^::warning title=Coverage gap::e2e\/flows\.spec\.ts is quarantined \(critical incident, repair due 2026-10-27 \(overdue\)\)/);
   assert.deepEqual(coverageGaps({ quarantined: [], configured: null }, incidents), []);
   // ci.yml prints them right after the plan, with no retry around them.
-  const ci = readText(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const ci = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
   assert.match(ci, /echo "plan: \$PLAN"\n(?:\s*#.*\n)*\s*node scripts\/e2e-quarantine\.mjs incidents --plan "\$PLAN"\n/);
-  const q = readText(new URL('../.github/workflows/quarantine.yml', import.meta.url), 'utf8');
+  const q = readFileSync(new URL('../.github/workflows/quarantine.yml', import.meta.url), 'utf8');
   assert.match(q, /node scripts\/e2e-quarantine\.mjs incidents --issue --run "\$RUN_URL"/);
 });

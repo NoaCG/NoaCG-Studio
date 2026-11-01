@@ -25,16 +25,17 @@
 // removes a shared-change (`// focus`) or critical-journey (`// critical:`) header line, or whose
 // commits carry a `Selection-audit-reset: <reason>` trailer (a mapping corrected after a miss, or
 // any other selection change the files alone do not show). Read from git, so it cannot go stale.
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { fetchFailureSet, resolveRepo } from './ci-failure-set.mjs';
+import { fetchFailureSet, ghJsonLines, resolveRepo } from './ci-failure-set.mjs';
 import { loadIncidentContext, quarantineIncidents, readStore } from './e2e-quarantine.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const gitIn = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
 
 /**
  * SELECTOR CODE (reset class "selector or header/list semantics" and "critical/shared membership").
@@ -87,7 +88,7 @@ export function configuredFailures(log) {
 
 /** One plan's answer for one failing spec. `plan` is null when it could not be read. */
 function verdictOf(spec, kind, plan) {
-  if (!plan) return 'unread';
+  if (!plan) return 'unknown';
   const name = spec.split('/').pop();
   if (kind === 'configured') {
     const m = plan.configured;
@@ -115,11 +116,9 @@ function verdictOf(spec, kind, plan) {
 export function classifyAgainst(spec, plans, { kind = 'offline', flaky = new Set() } = {}) {
   const flake = flaky.has(spec.split('/').pop());
   if (!/\.spec\.ts$/.test(spec)) return { spec, verdict: 'not-a-spec', flake };
-  const answers = plans.length ? plans.map((p) => verdictOf(spec, kind, p)) : ['unread'];
-  for (const [answer, verdict] of [['full', 'full'], ['selected', 'selected'], ['quarantined', 'quarantined'], ['unread', 'unknown'], ['no-selection', 'no-selection']]) {
-    if (answers.includes(answer)) return { spec, verdict, flake };
-  }
-  return { spec, verdict: 'miss', flake };
+  const answers = plans.length ? plans.map((p) => verdictOf(spec, kind, p)) : ['unknown'];
+  const verdict = ['full', 'selected', 'quarantined', 'unknown', 'no-selection'].find((v) => answers.includes(v)) ?? 'miss';
+  return { spec, verdict, flake };
 }
 
 /**
@@ -173,7 +172,7 @@ export function resetOf(landing) {
  * Returns `{ reset, read }`: `reset` null when none was found in the `landings` read, and `read`
  * false when the history could not be read (a shallow clone), which the status treats as unknown.
  */
-export function latestReset({ ref = 'HEAD', landings = 400, git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 }) } = {}) {
+export function latestReset({ ref = 'HEAD', landings = 400, git = gitIn } = {}) {
   let log;
   try {
     log = git('log', '--first-parent', `-${landings}`, '--format=%H %cI %P', ref).trim().split('\n').filter(Boolean);
@@ -227,28 +226,17 @@ export function summarize({ rows, status, reset, incidents }) {
   ].join('\n');
 }
 
-/**
- * `gh api ... --jq` that THROWS on a failed call. ghJsonLines answers a failure with `[]`, which is
- * right for an alarm and wrong here: an unread run list or failure set would read as nothing red.
- */
-export function ghStrict(args) {
-  const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-  if (res.status !== 0) throw new Error(`gh api ${args[0]} failed: ${String(res.stderr ?? '').trim().split('\n')[0]}`);
-  return String(res.stdout ?? '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => JSON.parse(l));
-}
+/** `gh api` for the audit: a failed call throws, so an unread answer is `unknown`, never "nothing red". */
+export const ghStrict = (args, { raw = false } = {}) => ghJsonLines(args, { strict: true, raw });
 
 /** A gh caller that refuses past its call budget (runbook: at most 100 calls a collection pass). */
 export function budgetedGh(limit, gh = ghStrict) {
   let used = 0;
-  const spend = () => {
+  const call = (args, options) => {
     if (used >= limit) throw new Error(`call budget of ${limit} spent`);
     used += 1;
+    return gh(args, options);
   };
-  const call = (args) => {
-    spend();
-    return gh(args);
-  };
-  call.spend = spend;
   call.used = () => used;
   return call;
 }
@@ -288,10 +276,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(2);
   }
   const gh = budgetedGh(Number(value('--calls', 100)));
-  const rawLog = (job) => {
-    gh.spend(); // a log read is one call of the budget too
-    return execFileSync('gh', ['api', `repos/${repo}/actions/jobs/${job}/logs`], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
-  };
+  const rawLog = (job) => gh([`repos/${repo}/actions/jobs/${job}/logs`], { raw: true });
   // `--before <days>` moves the window back, so older history is replayed in further bounded passes.
   const until = Date.now() - Number(value('--before', 0)) * 86_400_000;
   const since = until - days * 86_400_000;
@@ -306,7 +291,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!plans.has(key)) plans.set(key, originalPlanOf(sha, { repo, gh, rawLog, event }));
     return plans.get(key);
   };
-  const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', windowsHide: true });
+  const git = gitIn;
   // The configured question reads the pull request's own run: its head is the landing's second parent.
   const prHeadOf = (sha) => {
     try { return git('rev-parse', '--verify', '--quiet', `${sha}^2`).trim() || null; } catch { return null; }
@@ -344,7 +329,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     for (const r of all.filter((x) => x.conclusion === 'failure')) {
       try {
         let items = fetchFailureSet(r.id, { repo, gh }).items;
-        if (kind === 'configured') {
+        // The verdict annotates at most a few specs; past that the log's failure set names them.
+        if (kind === 'configured' && !items.some((i) => i.startsWith('e2e/configured/'))) {
           const job = gh([`repos/${repo}/actions/runs/${r.id}/jobs?per_page=100`, '--jq', '.jobs[] | select(.name | startswith("Configured E2E (")) | .id'])[0];
           const specs = job ? configuredFailures(rawLog(job)) : [];
           if (specs.length) items = [...specs, ...items.filter((i) => !/^job: Configured E2E/.test(i))];

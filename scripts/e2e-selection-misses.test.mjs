@@ -139,7 +139,7 @@ test('an unread API answer throws, so it is counted unknown and never read as no
 test('a collection pass spends at most its call budget, log reads included', () => {
   const gh = budgetedGh(2, () => ['ok']);
   gh(['a']);
-  gh.spend();
+  gh(['logs'], { raw: true });
   assert.throws(() => gh(['b']), /call budget of 2 spent/);
   assert.equal(gh.used(), 2);
 });
