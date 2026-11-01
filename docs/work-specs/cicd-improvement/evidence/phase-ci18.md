@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (102 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (103 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -212,6 +212,8 @@ issue, remain for ci17.
   from a clocks file that was read). Table, exception and report alarms are re-derived in full
   each week. Any other kind never clears by default. A week with an unsampled stratum or a
   cut-short run list publishes tier cost as a lower bound, marked before anything is judged.
+- **A ready clock survives a rewritten head, merged or still open.** The weekly collector hands its
+  recorded starts to the merged-PR reader too, and keeps a closed PR's start for 30 days.
 - **A ready clock survives a rewritten head.** A PR whose timeline shows a force-push gets an
   unknown clock and an incomplete read unless an earlier read recorded its start: the age job
   carries starts from its own open alarm issue, the weekly report in `openStarts`. A run still

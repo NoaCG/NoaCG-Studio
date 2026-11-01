@@ -15,7 +15,7 @@ import {
   ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, renamesOf, unrecordedRenames, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
+import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1337,4 +1337,20 @@ test('Rule X11: credit never crosses tiers, and no exception moves a ceiling, an
   assert.match(ledgerChanges({ base, head }).join(), /without a new version and a reviewed revision/);
   assert.match(ledgerChanges({ base, head: base, mainRunners: { base: 13, head: 20 } }).join(), /MAIN_RUNNERS rose/);
   assert.match(ledgerChanges({ base, head: base, shardCap: { base: 20, head: 40 } }).join(), /SHARD_CAP_MINUTES rose/);
+});
+
+test('(d) a merged PR whose head was rewritten keeps the start an earlier read recorded', () => {
+  const fake = (args) => {
+    const route = args.at(-1);
+    if (/pulls\?state=closed/.test(route)) return JSON.stringify([{ number: 9, created_at: '2026-10-28T07:00:00Z', merged_at: '2026-10-29T07:00:00Z', updated_at: '2026-10-29T07:00:00Z', head: { ref: 'f' } }]);
+    if (/timeline/.test(route)) return JSON.stringify([{ event: 'head_ref_force_pushed', created_at: '2026-10-28T12:00:00Z' }]);
+    if (/\/commits\?/.test(route)) return JSON.stringify([{ sha: 'new' }]);
+    if (/\/statuses/.test(route)) return JSON.stringify([{ context: 'noacg/reviewed', state: 'success', created_at: '2026-10-28T12:30:00Z' }]);
+    return '[]';
+  };
+  const window = [Date.parse('2026-10-24T00:00:00Z'), Date.parse('2026-10-31T00:00:00Z')];
+  assert.equal(finishedPrs(makeReader(20, fake), ...window, 5).complete, false, 'without the recorded start: unknown, incomplete');
+  const r = finishedPrs(makeReader(20, fake), ...window, 5, { '#9': '2026-10-28T08:00:00Z' });
+  assert.equal(r.complete, true);
+  assert.equal(r.samples.find((x) => x.measure === 'prReady').value, 23 * 60, 'from the recorded 08:00 start to the merge');
 });

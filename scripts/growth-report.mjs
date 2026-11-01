@@ -345,7 +345,7 @@ export const categoryOf = (ref = '') => (/^claude\/plan-jev/.test(ref) ? 'jev-pl
  * (stamp-based; receipts live outside the repository) and queue clock at landing, as pooled
  * samples. A PR whose start cannot be read is listed as unknown, never sampled as zero.
  */
-function finishedPrs(reader, from, to, limit) {
+export function finishedPrs(reader, from, to, limit, carried = {}) {
   const merged = [];
   let complete = true;
   for (let page = 1; ; page++) {
@@ -362,7 +362,8 @@ function finishedPrs(reader, from, to, limit) {
     const category = categoryOf(pr.head?.ref);
     const events = reader.get(`repos/${REPO}/issues/${pr.number}/timeline?per_page=100`);
     const timelineRead = Array.isArray(events) && events.length < 100;
-    const read = readyClock(reader, pr, pr.merged_at, { forcePushed: !timelineRead || events.some((e) => e.event === 'head_ref_force_pushed'), mergedAt: pr.merged_at });
+    // A start an earlier read recorded outlives a rewritten head here too, so a repaired PR keeps its sample.
+    const read = readyClock(reader, pr, pr.merged_at, { forcePushed: !timelineRead || events.some((e) => e.event === 'head_ref_force_pushed'), mergedAt: pr.merged_at, carried: carried[`#${pr.number}`] ?? null });
     const ready = read.clock;
     // Never stamped is a measurement (unknown, reported); a failed or rewritten read is not complete.
     if (!read.complete) complete = false;
@@ -437,7 +438,7 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   const runs = listed.runs;
   const open = openItems(reader, now, previous?.openStarts ?? {});
   // About a third of the budget for finished PRs' clocks (about five reads each), the rest for jobs.
-  const done = finishedPrs(reader, from, to, Math.max(5, Math.floor(budget / 15)));
+  const done = finishedPrs(reader, from, to, Math.max(5, Math.floor(budget / 15)), previous?.openStarts ?? {});
   const { strata, keys } = sampleJobs(reader, runs, budget);
   const clocks = readClocks(clocksFile, now, ledgerFile);
   const table = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'e2e-durations.json'), 'utf8'));
@@ -449,7 +450,8 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   // First observed ready starts of open PRs, carried so a rewritten head never restarts one.
   built.report.openStarts = { ...(previous?.openStarts ?? {}) };
   for (const i of open.items) if (i.category === 'prReady' && i.clock.start && (!built.report.openStarts[i.id] || i.clock.start < built.report.openStarts[i.id])) built.report.openStarts[i.id] = i.clock.start;
-  for (const id of Object.keys(built.report.openStarts)) if (!open.items.some((i) => i.id === id) && open.complete) delete built.report.openStarts[id];
+  // A closed PR's start is kept for 30 days: it may only be sampled as merged in a later week.
+  for (const id of Object.keys(built.report.openStarts)) if (!open.items.some((i) => i.id === id) && open.complete && Date.parse(built.report.openStarts[id]) < Date.parse(now) - 30 * DAY) delete built.report.openStarts[id];
   built.report.finishedPrs = { merged: done.merged, sampled: done.samples.filter((x) => x.measure === 'prReady').length + done.unknown.length };
   built.report.strata = Object.fromEntries(keys.map((key) => [key, { runs: strata[key].length, sampled: strata[key].filter((r) => r.jobs).length }]));
   return built;
