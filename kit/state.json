@@ -42,10 +42,20 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "launch ci07 builder; block 1 renewal at 08:12Z",
-    "eta": "2026-11-01T04:35:00Z"
+    "what": "ci07 builder; block 1 renewal at 08:12Z (send_later trig_012tAWn4vrQV1nxni9NSi1rE)",
+    "eta": "2026-11-01T05:30:00Z"
   },
-  "inFlight": [],
+  "inFlight": [
+    {
+      "phase": "ci07",
+      "step": "build",
+      "session": "session_017SdbwNHTrkTe3sSjW4uaz1",
+      "nonce": "ci07-b-f439",
+      "branch": "claude/plan-cicd-improvement-ci07-build",
+      "launchedAt": "2026-11-01T04:28:35Z",
+      "note": "Builder launched from fb15e6b8 with ci18 review lessons (Rules first, batched checkpoints). Tell it after the 08:12Z renewal that the window is extended."
+    }
+  ],
   "owner": [],
   "fixes": [
     {
