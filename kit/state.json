@@ -42,7 +42,7 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 builder: gates on final head and receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "what": "ci18 full-diff /so on e4217f24, then stamp; block 1 renewal due before 2026-11-01T08:10Z",
     "eta": "2026-11-01T01:35:00Z"
   },
   "inFlight": [
@@ -53,8 +53,9 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "PR #1880 head e4217f24 pushed 00:34Z; CI running (only Reviewed red, awaiting stamp); builder watching.",
-      "pr": 1880
+      "note": "Receipt 00:47Z on e4217f24: CI 41257174116 gate green, configured whole set 67 specs green, Codex receipt clean, merge-tree clean. Stamp withheld: final /so (session_017SdbwQ4b1GjqLrhXiwFf7X) read only the delta since 8f93242; 29 Codex findings over ~20 heads. Asked builder 00:53Z for one fresh full-diff /so plus the repeated-family answer; head unchanged unless blocking.",
+      "pr": 1880,
+      "reviewedHead": "e4217f24be56b3c08935ac02f4dd166d35e1d9c6"
     }
   ],
   "owner": [],
@@ -201,7 +202,8 @@
     1865,
     1871,
     1873,
-    1874
+    1874,
+    1885
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
@@ -231,6 +233,11 @@
       "at": "2026-10-31T21:50Z",
       "phase": "ci06",
       "decision": "Kit templates build/fix/repair replaced with ci06's versions from main (receipts name the CI run with its configured selection, not a configured-suite dispatch). Coordinator gate from ci18 on: CI gate green on the reviewed head including the plan job's Configured selection and both configured jobs (or the untriggered notice), Codex, /so A; no worker configured-suite dispatch unless a reason is named; still read the per-landing configured-suite run on the merge SHA."
+    },
+    {
+      "at": "2026-11-01T00:53Z",
+      "phase": "ci18",
+      "decision": "A chain of incremental /so reviews does not satisfy 'a fresh /so on the final diff'. Required one fresh read-only /so over merge-base..head before stamping, given 29 Codex findings across ~20 heads (repeated-family risk)."
     }
   ]
 }
