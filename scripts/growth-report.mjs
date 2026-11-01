@@ -117,10 +117,17 @@ export function seriesOf(runs) {
     .sort((a, b) => a.created.localeCompare(b.created));
   for (const r of pushes) {
     const per = Object.fromEntries(TIERS.map((t) => [t, 0]));
-    for (const j of r.jobs) per[tierOfJob(r.workflow, j.name)] += minutes(j);
+    const names = Object.fromEntries(TIERS.map((t) => [t, new Set()]));
+    for (const j of r.jobs) { const t = tierOfJob(r.workflow, j.name); per[t] += minutes(j); names[t].add(j.name); }
     // A run with unread jobs reads fast: as a baseline it would fake a slowdown, so it is never complete.
     const complete = r.conclusion === 'success' && !r.cutShort && r.jobs.every((j) => j.status === 'completed');
-    for (const t of TIERS) if (per[t] > 0) out[t].push({ sha: r.sha, at: r.created, complete, value: per[t] });
+    for (const t of TIERS) {
+      if (!(per[t] > 0)) continue;
+      // Only equal work is compared: a point's workload is its workflow and that tier's job names,
+      // and a selected or affected run's size is not in its names, so it is never a complete point.
+      const varies = [...names[t]].some((n) => /\b(selected|affected)\b/i.test(n));
+      out[t].push({ sha: r.sha, at: r.created, complete: complete && !varies, value: per[t], workload: `${r.workflow}|${[...names[t]].sort().join('|')}` });
+    }
   }
   return out;
 }

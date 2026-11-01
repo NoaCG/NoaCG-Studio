@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (62 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (63 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -52,6 +52,10 @@ no aggregate pull-request gate.
   point before and the first after: `(c) an indirect slowdown ... attributed to a landing range`.
 - One slow run is noise: `(c) one slow run is noise`. A step needs three complete points after it,
   every one above every point before.
+- Only equal work is compared: a point's workload is its workflow and that tier's job names, and a
+  selected or affected run (whose size its names do not show) is never a complete point. The
+  backend series therefore comes from the full configured suite on main, not CI's selections:
+  `(c) a slowdown is found only between equal workloads`.
 - The estimate rises and the ceiling does not; the NEXT additive change is refused while a change
   adding nothing still lands: `(c) the attributed slowdown raises the estimate...`.
 - A PR's own run never refuses it for an unchanged spec: `(c) a PR's own run never refuses it...`.

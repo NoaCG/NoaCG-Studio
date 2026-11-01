@@ -898,3 +898,17 @@ test('(c) a run with unread jobs is never a complete slowdown point, so it canno
   assert.deepEqual(series.map((p) => p.complete), [false, false, false, true, true, true]);
   assert.equal(detectSlowdown(series).found, false, "three 3-minute runs with unread jobs fake no 10x slowdown");
 });
+
+test('(c) a slowdown is found only between equal workloads: a full suite after a selection is not one', () => {
+  const job = (name, min) => ({ name, status: 'completed', started_at: '2026-10-30T00:00:00Z', completed_at: new Date(Date.parse('2026-10-30T00:00:00Z') + min * 60_000).toISOString() });
+  const at = (i) => `2026-10-${String(10 + i).padStart(2, '0')}T00:00:00Z`;
+  const selected = (i) => ({ id: i, workflow: 'ci.yml', event: 'push', branch: 'main', sha: `m${i}`, created: at(i), conclusion: 'success', jobs: [job('Configured E2E 1/1 (selected, local Supabase)', 3)] });
+  const full = (i, min) => ({ id: i, workflow: 'configured-suite.yml', event: 'push', branch: 'main', sha: `m${i}`, created: at(i), conclusion: 'success', jobs: [job('Configured E2E shard 1/4', min)] });
+  const mixed = seriesOf([selected(1), selected(2), selected(3), full(4, 30), full(5, 30), full(6, 30)]).backend;
+  assert.deepEqual(mixed.map((p) => p.complete), [false, false, false, true, true, true], 'a selected run is never a complete point');
+  assert.equal(detectSlowdown(mixed).found, false);
+  const shards = (i, min, n) => ({ ...full(i, min), jobs: [...Array(n)].map((_, s) => job(`Configured E2E shard ${s + 1}/${n}`, min / n)) });
+  assert.equal(detectSlowdown(seriesOf([shards(1, 12, 2), shards(2, 12, 2), shards(3, 12, 2), shards(4, 30, 4), shards(5, 30, 4), shards(6, 30, 4)]).backend).found, false, 'a re-sharded suite is another workload');
+  const same = seriesOf([full(1, 20), full(2, 20), full(3, 20), full(4, 24), full(5, 24), full(6, 24)]).backend;
+  assert.equal(detectSlowdown(same).found, true, 'the same suite slowing down is still found');
+});

@@ -501,7 +501,18 @@ const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.lengt
  * by `threshold`, and EVERY point after above every point before, so one slow run is noise.
  */
 export function detectSlowdown(series, { k = 3, threshold = 0.1 } = {}) {
-  const pts = series.filter((p) => p.complete && Number.isFinite(p.value));
+  const usable = series.filter((p) => p.complete && Number.isFinite(p.value));
+  // Points of different workloads are never compared: a full suite after a smaller one is not a slowdown.
+  const groups = new Map();
+  for (const p of usable) groups.set(p.workload ?? '', [...(groups.get(p.workload ?? '') ?? []), p]);
+  for (const pts of groups.values()) {
+    const found = slowdownIn(pts, k, threshold);
+    if (found) return found;
+  }
+  return { found: false, ignored: series.length - usable.length };
+}
+
+function slowdownIn(pts, k, threshold) {
   for (let i = k; i + k <= pts.length; i++) {
     const prior = pts.slice(i - k, i).map((p) => p.value);
     const before = median(prior);
@@ -511,7 +522,7 @@ export function detectSlowdown(series, { k = 3, threshold = 0.1 } = {}) {
       return { found: true, before, after, ratio: after / before, range: { after: pts[i - 1].sha, through: pts[i].sha }, at: pts[i].at };
     }
   }
-  return { found: false, ignored: series.length - pts.length };
+  return null;
 }
 
 /** The tier measurement after an attributed slowdown: the estimate rises; the ceiling never moves. */
