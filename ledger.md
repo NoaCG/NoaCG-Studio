@@ -71,3 +71,4 @@ Project: {"version":1,"id":"plan-cicd-improvement-2026-10-31","ownership":"local
 - Builders moved the head on late Codex results for older heads, restarting reviews that never finished: briefs now require one coherent checkpoint per round and holding the head until its own results are in.
 - The ograf timing test (#1873) dequeued PRs from the merge queue: raised to P1, fixed in an owner-started session outside this run.
 - The coordinator moved its own worktree HEAD and broke publish once: dropped as a one-off (read main with git show, never check out in the coordinator worktree).
+- 2026-11-01T10:09:38.398Z phase 10 build {"actor":"builder-ci09-ci09-b-7fc9","nonce":"ci09-b-7fc9","branch":"claude/plan-cicd-improvement-ci09-build","source":"23742966784b3c8a46858524ca7a8037a373e0b7","brief":"briefs/ci09-build-ci09-b-7fc9.txt","environment":"env_017nuiDZBW9smUNLdWVQK8cf","launch":"create_session intent; fresh Claude Code Cloud builder"}

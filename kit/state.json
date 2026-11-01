@@ -42,26 +42,10 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci08 checker verdict",
-    "eta": "2026-11-01T10:20:00Z"
+    "what": "launch ci09 builder",
+    "eta": "2026-11-01T10:15:00Z"
   },
-  "inFlight": [
-    {
-      "phase": "ci08",
-      "step": "check",
-      "session": "session_017SdbwNXukoELJphiZqTKGM",
-      "nonce": "ci08-c-e905",
-      "actor": "checker-ci08-ci08-c-e905",
-      "launchedAt": "2026-11-01T09:48:29Z",
-      "pr": 1910,
-      "mergeSha": "23742966784b3c8a46858524ca7a8037a373e0b7",
-      "builder": "session_017SdbwQQvsfeqE8Ba1L1dyi",
-      "so": "session_017SdbwLxp9rPacMekaq7jfv",
-      "reviewedHead": "928c81428cfc57213ec302088960c557132759ec",
-      "repairOwnerComment": 6556210144,
-      "note": "Merged 09:47:2xZ (queue run 41294000425). After PASS archive builder, its /so sessions and this checker."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -217,6 +201,22 @@
       "pass": "2026-11-01T08:24Z by checker-ci07-ci07-c-7590 (session_017SdbwNLNUDzYmz7NmDbPtQ)",
       "checkerFindings": "carry: #1900 open mapping gap; '// critical x' without colon silently ignored (minor); reset time is commit date not landing time (~70 min early). Latest audit reset 06d3836c.",
       "archived": 8
+    },
+    {
+      "phase": "ci08",
+      "pr": 1910,
+      "mergeSha": "23742966784b3c8a46858524ca7a8037a373e0b7",
+      "builder": "session_017SdbwQQvsfeqE8Ba1L1dyi",
+      "reviewedHead": "928c81428cfc57213ec302088960c557132759ec",
+      "repairOwnerComment": 6556210144,
+      "followUps": [
+        1911,
+        1912
+      ],
+      "candidate": "geometry cases in e2e/editor-arrangement.spec.ts (13.40 s to about 4-5 s per spec run)",
+      "postLand": "CI 41294635431, configured-suite 41294635322, Post-landing 41294635406, Quarantine 41294635319, Push on main 41294634964, deploy-verify 41294815610 all success; repair ownership complete",
+      "pass": "2026-11-01T10:08Z by checker-ci08-ci08-c-e905 (session_017SdbwNXukoELJphiZqTKGM)",
+      "archived": 3
     }
   ],
   "coordinatorNotes": [
@@ -316,6 +316,11 @@
       "at": "2026-11-01T08:13Z",
       "phase": "run",
       "decision": "Block 1 ended 08:10Z; renewed under the owner's standing blockRenewal: block 97d051d1, epoch 2, deadline 2026-11-02T08:13:02Z. In-flight checker told. Next renewal wake 2026-11-02T08:15Z."
+    },
+    {
+      "at": "2026-11-01T10:10Z",
+      "phase": "run",
+      "decision": "Midpoint retro written in the wave file (five findings, each closed). Kit templates build/repair/fix tightened: the final /so must read the whole diff from the merge base, not a delta."
     }
   ]
 }
