@@ -26,7 +26,7 @@ on it.
 - `src/components/wizard/import/BehaviourSection.tsx`: a "No lock at all" checkbox beside the
   quiz's options. Ticked, it writes `{ lock: false, noLock: true }`, clears the timed reveal and
   hides the lock option, the timed-reveal option and the Locked in picker, and switches off the
-  text rows drawn inside the Locked in layer. Unticked, it removes
+  text rows drawn inside the Locked in layer. Unticked, it switches those rows back on, removes
   `noLock` and leaves the optional-lock board with both options and the picker in view.
 - `e2e/import-svg-behaviour.spec.ts`: one journey, on a copy of the sample quiz whose lock layer
   is left visible. Tick No lock, the three controls are gone, the cue has no Lock it in or Reveal
@@ -39,7 +39,7 @@ on it.
 | Criterion | Evidence |
 |---|---|
 | Removes obsolete controls/paths, only in the new variant | Compiled no-Lock type: one branch `selected` with edges `select`, `select`, `judge`, `next`; buttons `select`, `judge` (and the `audience` entry every quiz carries, which has no arrow and is not shown); paint without `locked`; no `locked`, `sealed` or `revealChoice` anywhere in its machine or table. The e2e journey checks the same on the cue and the Program monitor |
-| Handles sealed selection | The sealed state is a lock state (lock from the question with the pick hidden), so the variant has none. A hidden pick stays possible as data: the Selected answer field can be set without pressing Select, and Reveal correct is legal from the question as on every quiz. Row 15 exercises it |
+| Handles sealed selection | The sealed state is a lock state (lock from the question with the pick hidden), so the variant has none. A hidden pick stays possible as data: the Selected answer field can be set without pressing Select, and Reveal correct is legal from the question as on every quiz; the journey reveals with no pick. Row 15 exercises the hidden pick itself |
 | Handles timers | The five-second timer leaves `locked`. Moving it onto the pick would change when a board reveals itself, so the pair is refused rather than resolved quietly: the wizard clears and hides the timed reveal when No lock is ticked, and the compiler throws a named error for `noLock` with `autoReveal: true` |
 | Preserves saved quiz behaviour | Byte comparison below: all seven saved option shapes compile byte-identical to main. The existing lock and optional-lock e2e tests pass unchanged |
 | Operator-supplied correct answers | Unchanged: Reveal correct still carries `correctAnswer` as its payload, and the e2e journey sets the key in the cue before Take |
@@ -72,6 +72,8 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 - With the untick step added after /so 2: quiz tests 11/11 (j-0008).
 - With the lock words switched off after /so 3: quiz tests 11/11 (j-0009); mutation j-0010
   fails as expected.
+- Whole behaviour spec on `e773067`: 40/40 (j-0011). After the /so 4 fixes: quiz tests 11/11
+  (j-0012); mutation j-0013 fails as expected.
 - Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
   the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
@@ -111,6 +113,12 @@ In order. Every round's result belongs to the head named.
    templates layer must not add (`src/templates/AGENTS.md`). Rule break, not a behaviour defect.
    Fixed in `8dd4074`: the look-rule type is read off `BehaviourRecipe['paint']`. Type-only; the
    byte comparison was re-run and all seven saved shapes still equal main.
+7. /so 4, session `session_017SdbwMPEba2MXmN4nhu318`, on `e773067`: AGREE, A-, nothing blocking.
+   Fixed in `5c89d53`: unticking No lock did not give the lock words' text rows back, so a tick
+   and untick left a different board from one never ticked (product defect, minor); the journey
+   checks the rows on tick, untick and tick again (mutation j-0013 fails at the untick check,
+   probe dropped). Reveal straight from the question was claimed but untested on this board
+   (faulty evidence claim); the journey now reveals with no pick on a third Take.
 
 ## Decisions
 
