@@ -1115,9 +1115,11 @@ var noacgEntered = {};      // group id -> entered by a transition since the las
 var noacgAwardMap = null;   // event -> the number field it adds to
 function noacgAwards() {
   if (noacgAwardMap) return noacgAwardMap;
+  // Read once the animation data exists; asked earlier, it answers none and asks again later.
+  if (typeof NOACG_ANIM === 'undefined') return {};
   noacgAwardMap = {};
   var kinds = NOACG_BEHAVIOUR.kinds || {};
-  var controls = (typeof NOACG_ANIM !== 'undefined' && NOACG_ANIM.machine && NOACG_ANIM.machine.controls) || [];
+  var controls = (NOACG_ANIM.machine && NOACG_ANIM.machine.controls) || [];
   for (var i = 0; i < controls.length; i++) {
     var adjust = controls[i].adjust || {};
     for (var key in adjust) {
