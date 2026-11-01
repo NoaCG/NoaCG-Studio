@@ -71,14 +71,17 @@ test('keyboard resize changes local width about the pivot and cancels exactly', 
 // (both references). This journey keeps the rendered, undoable path on both references and both axes.
 test('alignment edges reach rendered bounds against the selection and the canvas', async ({ page }) => {
   await open(page); const ids = await create(page); await select(page, ids);
-  for (const [reference, label, axis, fraction] of [['selection', 'Align horizontal center', 'x', .5], ['selection', 'Align bottom', 'y', 1], ['canvas', 'Align right', 'x', 1], ['canvas', 'Align vertical center', 'y', .5]] as const) {
+  // Each reference is chosen once, so its later rounds also prove the choice survives a click and an undo.
+  for (const [reference, rounds] of [['selection', [['Align horizontal center', 'x', .5], ['Align bottom', 'y', 1]]], ['canvas', [['Align top', 'y', 0], ['Align right', 'x', 1], ['Align vertical center', 'y', .5]]]] as const) {
     await page.getByRole('combobox', { name: 'Align to', exact: true }).selectOption(reference);
-    const before = await source(page), r = await rects(page, ids), size = axis === 'x' ? 'width' : 'height';
-    const start = reference === 'canvas' ? 0 : Math.min(...r.map(r => r[axis])), end = reference === 'canvas' ? before.resolution[size] : Math.max(...r.map(r => r[axis] + r[size]));
-    await page.getByRole('button', { name: label, exact: true }).click(); await ready(page);
-    const after = await rects(page, ids);
-    after.forEach(r => expect(Math.abs(r[axis] + fraction * r[size] - start - fraction * (end - start))).toBeLessThan(.12));
-    await undo(page); expect(await source(page)).toEqual(before);
+    for (const [label, axis, fraction] of rounds) {
+      const before = await source(page), r = await rects(page, ids), size = axis === 'x' ? 'width' : 'height';
+      const start = reference === 'canvas' ? 0 : Math.min(...r.map(r => r[axis])), end = reference === 'canvas' ? before.resolution[size] : Math.max(...r.map(r => r[axis] + r[size]));
+      await page.getByRole('button', { name: label, exact: true }).click(); await ready(page);
+      const after = await rects(page, ids);
+      after.forEach(r => expect(Math.abs(r[axis] + fraction * r[size] - start - fraction * (end - start))).toBeLessThan(.12));
+      await undo(page); expect(await source(page)).toEqual(before);
+    }
   }
   await select(page, [ids[0]]); await expect(page.getByRole('combobox', { name: 'Align to', exact: true })).toHaveValue('canvas');
   await expect(page.getByRole('button', { name: 'Distribute horizontally', exact: true })).toBeDisabled();
