@@ -42,19 +42,22 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci08 gates on final head and receipt",
+    "what": "ci08 merge queue, landed record and checker",
     "eta": "2026-11-01T10:30:00Z"
   },
   "inFlight": [
     {
       "phase": "ci08",
-      "step": "build",
+      "step": "queued",
       "session": "session_017SdbwQQvsfeqE8Ba1L1dyi",
       "nonce": "ci08-b-f2d7",
       "branch": "claude/plan-cicd-improvement-ci08-build",
       "launchedAt": "2026-11-01T08:26:14Z",
-      "note": "PR #1910 open, head 928c8142 (09:22Z); builder waiting on CI.",
-      "pr": 1910
+      "note": "Receipt 09:36Z; verified at source: CI 41292694691 gate green, Codex clean, full-diff /so A. Stamp 41293941479; queued 09:38:07Z. Candidate: geometry cases in editor-arrangement.spec.ts (13.40 s -> 5.21 s). Warn ci09/ci10: #1911 protection-check blind spot.",
+      "pr": 1910,
+      "reviewedHead": "928c81428cfc57213ec302088960c557132759ec",
+      "repairOwnerComment": 6556210144,
+      "so": "session_017SdbwLxp9rPacMekaq7jfv"
     }
   ],
   "owner": [],
@@ -238,7 +241,9 @@
     1885,
     1895,
     1900,
-    1904
+    1904,
+    1911,
+    1912
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
