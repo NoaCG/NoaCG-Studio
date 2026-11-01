@@ -624,9 +624,12 @@ export function readCreditsAnchors(root: Element, candidateIds: readonly string[
 function readOne(root: Element, text: Element, candidateId: string): CreditsReading {
   const runs = Array.from(text.children).filter((k) => k.tagName.toLowerCase() === 'tspan');
   const first = runs[0] ?? null;
+  // The first value of a position list, in user units; an `em` step is a multiple of the size.
+  let size = 16;
   const num = (el: Element | null, name: string) => {
-    const n = parseFloat((el?.getAttribute(name) ?? '').trim().split(/[\s,]+/)[0]);
-    return Number.isFinite(n) ? n : null;
+    const raw = (el?.getAttribute(name) ?? '').trim().split(/[\s,]+/)[0];
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? (/em$/i.test(raw) ? n * size : n) : null;
   };
   const view = text.ownerDocument.defaultView;
   // Laid out, the browser's own answer, so a stylesheet class counts; parsed, the layer's
@@ -643,7 +646,7 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     }
     return '';
   };
-  const size = parseFloat(prop('font-size')) || 16;
+  size = parseFloat(prop('font-size')) || 16;
   const look = [
     ...['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'stroke', 'opacity', 'letter-spacing', 'text-decoration'].map((p) => `${p}=${prop(p)}`),
     // Parsed, a stylesheet class is the only sign of what it sets; laid out, its effect is
@@ -653,8 +656,9 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   const anchorWord = prop('text-anchor');
   const anchor: CreditsAlign = anchorWord === 'middle' || anchorWord === 'end' ? anchorWord : 'start';
   // A run's own position is where it is drawn; the text's is only the default for it.
-  const lx = num(first, 'x') ?? num(text, 'x') ?? 0;
-  const ly = num(first, 'y') ?? num(text, 'y') ?? 0;
+  // Plus every relative step taken before the first character: the text's own, then its run's.
+  const lx = (num(first, 'x') ?? num(text, 'x') ?? 0) + (num(text, 'dx') ?? 0) + (num(first, 'dx') ?? 0);
+  const ly = (num(first, 'y') ?? num(text, 'y') ?? 0) + (num(text, 'dy') ?? 0) + (num(first, 'dy') ?? 0);
   // Every transform from the layer up to the root, composed: the layer's frame in the artwork's.
   let m = new DOMMatrix();
   for (let el: Element | null = text; el && el !== root; el = el.parentElement) {
@@ -669,7 +673,7 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   }
   const p = m.transformPoint(new DOMPoint(lx, ly));
   const baselines = new Set<number>();
-  let at = ly;
+  let at = (num(text, 'y') ?? 0) + (num(text, 'dy') ?? 0);
   for (const run of runs) {
     const y = num(run, 'y');
     at = y ?? at + (num(run, 'dy') ?? 0);

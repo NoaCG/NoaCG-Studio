@@ -46,6 +46,8 @@ const CASES = {
   // The anchor stated by a stylesheet class, and a run's own x drawn over the text's.
   classed: svg(`<style>.c{text-anchor:middle}</style>${t(500, 100, 24, 'Camera', ' fill="#fc0" class="c"')}${t(500, 160, 40, 'Jonas Berg', ' class="c"')}${t(500, 210, 40, 'Lena Fors', ' class="c"')}`),
   runX: svg(`<text x="50" y="0" font-size="24" fill="#fc0"><tspan x="300" y="100">Camera</tspan></text><text x="0" y="0" font-size="40"><tspan x="300" y="160">Jonas Berg</tspan></text>`),
+  // Positions stated as relative steps, in units and in ems (Inkscape writes them).
+  steps: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}<text x="100" y="100" font-size="40"><tspan dy="60">Alex Rivera</tspan></text><text x="100" y="100" font-size="40" dy="1em"><tspan dy="1.75em">Ida Lake</tspan></text>`),
   // One name look spelt by two classes that set the same values.
   twoSpellings: svg(`<style>.a{fill:#fff}.b{fill:#fff}</style>${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada Holm', ' class="a"')}${t(100, 210, 40, 'Bo Lind', ' class="b"')}`),
   oneLook: svg(`${t(100, 100, 40, 'Director')}${t(100, 160, 40, 'Alex Rivera')}`),
@@ -378,6 +380,15 @@ test('two class spellings of one look are one look once laid out', () => {
   assert.equal(out.ok, true, out.message);
   assert.deepEqual(out.style.anchors.map((a) => a.kind), ['role', 'name', 'name']);
   assert.equal(R.caseResults.twoSpellings.parsed.out.code, 'many-looks', 'parsed, a class is all there is to compare');
+});
+
+test('relative steps before the first character are part of where a layer is drawn', () => {
+  for (const mode of ['parsed', 'laid']) {
+    const { out } = R.caseResults.steps[mode];
+    assert.equal(out.ok, true, `${mode}: ${out.message}`);
+    assert.equal(out.style.layout, 'role-above');
+    assert.deepEqual(out.style.steps, { roleToName: 60, nameToName: 50 });
+  }
 });
 
 test('a saved centred binding validates on its own, laid out', () => {

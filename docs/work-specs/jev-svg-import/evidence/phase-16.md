@@ -46,6 +46,7 @@ names each.
   Alignment is read from the stated anchor, or from drawn widths where the text is laid out.
   Laid out, looks and the anchor are the browser's computed style, so stylesheet classes count
   and two class spellings of one look are one look; parsed, the class names are compared;
+  relative steps (`dx`, `dy`, in units or ems) before the first character count;
   validation lays the markup out whenever a page exists. A run's own x and y are where it is drawn.
   Steps (role to name, name to name, group gap, column) are measured where the sample shows them.
 - C6 A whole block turned or scaled as one reads as drawn; layers at different angles or scales
@@ -91,11 +92,11 @@ names each.
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 17/17. The same file with
+- `node --test scripts/imported-credits-model.test.mjs`: 18/18. The same file with
   `CREDITS_SRC` set to an export of main `e680acd1` gives identical pins (the model tests fail
   there, as they must). Mutations: a changed byte in the editable roll's runtime string, or in the
   artwork roll's, fails the pin test; reading the text's x before its run's fails the run-position
-  test.
+  test; dropping the relative `dy` fails the relative-steps test.
 - `npx tsc --noEmit -p .`, `npx eslint` on the four files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS.
 - `scripts/jev-svg-baseline.test.mjs` 19/19, `scripts/credits-parser.test.mjs` 16/16,
@@ -123,6 +124,8 @@ names each.
 - **The pins cover the whole emitted template**, not only the credits engine, because the brief
   asks that saved credits and fixed artwork not move at all. A later row that changes the shared
   emit re-takes them the same way: on main before the change and on its branch.
+- **The role-length limit (48) is a third copy** beside the parser and `control/contentFormats.ts`,
+  whose constant is not exported and lies outside this row's files.
 - **Ordinary review scenario.** This row adds a declaration and a pure reader with no runtime
   state, transitions, retries or writers, so the Rules were written in these notes rather than
   challenged before code.
@@ -136,12 +139,20 @@ names each.
 - **A parsed-only reading does not see stylesheet looks.** Without a page, class-set sizes and
   anchors are not resolved (classes still separate the looks). Every in-product caller has a page,
   and validation lays the markup out there.
+- **Drawn widths depend on the loaded fonts.** Centring with no stated anchor is read from
+  measured widths; measured before the design's faces load, a fallback face can turn a binding
+  the wizard accepted into `misaligned`. Nothing calls validation yet; the row that does (19)
+  validates after `document.fonts.ready`.
+- **The laid-out copy shares the page's styles for the moment it is measured.** Nothing paints
+  in between, so nothing shows; page-wide font rules could change widths, which only matters for
+  the limit above. An isolated frame is the fix if row 19 needs it.
 
 ## Follow-ups
 
 - #1937: rows 19 to 23 list only `creditsRoll.ts` among the importer files, but the engine is
   chosen in `svg.ts` and the layers are classed in `svgBind.ts`. The coordinator reconciles the
-  boundary before row 19.
+  boundary before row 19. `components/wizard/import/draft.ts` belongs to the same gap: it marks
+  every new credits import `options.artwork`, so the wizard cannot write a styled binding yet.
 
 ## Revert
 
