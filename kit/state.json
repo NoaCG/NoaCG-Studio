@@ -42,8 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci11 checker verdict (session_017SdbwNKpjRPTXvA1PK4zRR)",
-    "eta": "2026-11-01T19:45:00Z"
+    "what": "ci11 checker re-verdict with #1924",
+    "eta": "2026-11-01T19:30:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci11-b-d8b0",
       "branch": "claude/plan-cicd-improvement-ci11-build",
       "launchedAt": "2026-11-01T14:56:22Z",
-      "note": "10 faults F1-F10 observed; CORE files keep covers-header specs (selection widens only); audit reset trailer. #1895 evidence: critical set catches F1 and F8 only. Auto-merge on 18:14Z.",
+      "note": "Checker first verdict FAIL blocked (18:57Z): CI push run 41336665950 red on unrelated production-chat-intake.spec.ts:234 with no tracking issue (retry passed, gate green, quarantined via #1923). Coordinator opened #1924 and asked the checker to re-judge.",
       "pr": 1922,
       "reviewedHead": "1189cd7eeb4107dd8321fd92f129ae0dcf832970",
       "stampRun": 41335506658,
@@ -300,7 +300,8 @@
     1900,
     1904,
     1911,
-    1912
+    1912,
+    1924
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
