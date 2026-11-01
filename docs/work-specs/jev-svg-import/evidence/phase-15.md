@@ -53,14 +53,15 @@ No product source changed. This row is tests and notes.
 - `e2e/import-svg-behaviour.spec.ts`, two journeys:
   - **The standard quiz qualified** (timed reveal on): the hidden pick set as data (nothing
     painted), the seal from the question (Select greyed), no timer from the seal over 6.5 s,
-    Reveal choice showing the pick and starting the timer (the reveal comes no sooner than
-    4.5 s after), a wrong pick revealed (B picked, C the key), every press greyed after the
+    Reveal choice showing the pick and starting the timer (the reveal comes between 4.5 s
+    and 9 s after; the chip is re-read once a second), a wrong pick revealed (B picked, C the key), every press greyed after the
     reveal, reselection B to D, Reveal choice greyed outside the seal, reset out of the lock
     leaving the question for 6.5 s with nothing lit, a right pick revealed by the operator
     before the timer, and replay (Out, Take) from a clean question with the key kept. Reset
     (Recovery, Back to start) from the question, the seal, the reveal, the pick and the lock.
   - **The second author** (AC-22): the first author imports the quiz (with its lock drawing
-    visible, so its words are field F1) into a production and sets the key C in the cue. A new
+    visible, so its words are field F1 and the artwork's text runs f0 to f5) into a production
+    and sets the key C in the cue's answer key, f6. A new
     browser context made from the first one's saved storage opens that production, sees the
     standard quiz with Lock it in and the key C, then reopens the quiz through Import, ticks
     No lock (Require lock and the timed reveal disappear), and finishes it under the same name
@@ -69,7 +70,8 @@ No product source changed. This row is tests and notes.
     author's. The cue keeps the key C in F6 and has no Lock it in or Reveal choice; Recovery
     offers no Locked state. Take, Select, Reveal correct (C correct, the rest wrong, the drawn
     lock hidden), Reveal correct and Select greyed after the reveal, and reset from the
-    question, the pick and the reveal.
+    question, the pick and the reveal. Each reset is Recovery's Back to start (the board goes to
+    Off with nothing lit) and then Re-take (a clean question).
 
 ## Evidence per criterion
 
@@ -81,7 +83,7 @@ No product source changed. This row is tests and notes.
 | Five-second timer origin | Node: one timer arrow in any quiz, `locked -timer5-> reveal`. Journey: no reveal from the seal past 6.5 s; reveal at least 4.5 s after Reveal choice; reset from the lock stops it |
 | No-Lock and auto-reveal | Refused, not moved: the compiler throws `Behaviour: a quiz without a lock has no automatic reveal (the timer starts at the lock).` for every shape carrying both (node Q4); the wizard clears and hides the timed reveal when No lock is ticked (second-author journey, and row 14's journey), so an author cannot build the pair; no no-Lock machine has a timer (node Q2) |
 | Replay | Standard journey: Out and Take start from a clean question with the key kept |
-| Reset from every reachable state | Standard: question, sealed, reveal, selected, locked. No-Lock: question, selected, reveal |
+| Reset from every reachable state | Standard: question, sealed, reveal by the timer, reveal by the operator, selected, locked, and the replayed reveal. No-Lock: question, selected, reveal |
 | Invalid Reveal | Standard: after the reveal, Reveal correct, Lock it in, Reveal choice and Select are greyed; Reveal choice greyed on a pick. No-Lock: Reveal correct and Select greyed after the reveal |
 | Fresh context, reopen, No lock, save, Select→Reveal→Reset | Second-author journey |
 | Keep fields, styling, animation targets | Second-author journey compares the saved graphic before and after; node Q5 |
