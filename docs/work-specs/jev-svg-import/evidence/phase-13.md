@@ -26,7 +26,7 @@ merge-group CI, push CI, configured-suite, Post-landing and Quarantine all succe
    already quarantined `e2e/import-svg.spec.ts`, in code no row changed (#1915, P3, area:e2e). Twelve tracked follow-ups were
    reconciled (table below): two closed as moved, ten stay open, three of them P2. Seven of the ten have no later row with authority over
    the code involved.
-2. **Elapsed time:** 26 h 55 min of 336 h (8%) at 2026-11-01T13:15Z. Run start
+2. **Elapsed time:** 26 h 26 min of 336 h (8%), measured at 2026-11-01T12:45:51Z when this row started. Run start
    2026-10-31T10:19:44Z. Row 12 landed at 2026-11-01T12:06:46Z. 12 of 40 rows are done (30%).
 3. **Spend:** $0, no paid call. No inference path exists yet (rows 31 to 36), and the only
    workflow holding the evaluation key ran twice in the window, each time only the free credits
