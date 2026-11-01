@@ -36,6 +36,8 @@ import {
   expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
 } from './growth-controls.mjs';
 import { knownCoversOnDisk } from './e2e-capacity.mjs';
+import { CONFIGURED_HEADERS, SPEC_HEADERS } from './e2e-lists.mjs';
+import { quarantineIncidents, readStore, STORE_PATH as QUARANTINE_STORE } from './e2e-quarantine.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -138,7 +140,7 @@ export function seriesOf(runs) {
 }
 
 /** Assemble the report from collected facts. Pure, so the whole report replays from fixtures. */
-export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, listComplete = true, timingComplete = true, clocksRead = false, known = null, finished = [], pending = [], tableRecordedAt, collection }) {
+export function buildReport({ ceilings, runs, days, windowEnd, now, previous = null, openItems = [], openComplete = true, listComplete = true, timingComplete = true, clocksRead = false, known = null, finished = [], pending = [], tableRecordedAt, collection, quarantine = null }) {
   const priced = priceRuns(runs, { days });
   // An incomplete run list makes every tier partial BEFORE anything is judged from it.
   if (!listComplete) for (const t of TIERS) Object.assign(priced.tiers[t], { evidence: 'partial', lowerBound: true, why: 'the run list was cut short' });
@@ -211,7 +213,7 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
     assessment: { status: assessment.status, tiers: Object.fromEntries(TIERS.map((t) => [t, { status: assessment.tiers[t].status, why: assessment.tiers[t].why, evidence: assessment.tiers[t].evidence, share: assessment.tiers[t].share }])) },
     aggregate, table, exceptions: exceptions.map(({ id, tier, covers, expires, repayment, state, soon: s, problems }) => ({ id, tier, covers, expires, repayment, state, soon: s, problems })),
     timing, timingSamples: samples, unknownClocks: openItems.filter((i) => i.clock.source === 'unknown').map((i) => i.id),
-    breaches: carried.breaches, stops: carried.stops, cleared: carried.cleared, collection, ceilings: { tiers: ceilings.tiers, envelopeRunnerMinutesPerDay: ceilings.envelopeRunnerMinutesPerDay, timing: ceilings.timing },
+    breaches: carried.breaches, stops: carried.stops, cleared: carried.cleared, collection, quarantine, ceilings: { tiers: ceilings.tiers, envelopeRunnerMinutesPerDay: ceilings.envelopeRunnerMinutesPerDay, timing: ceilings.timing },
   };
   return { report, markdown: weeklyMarkdown({ ...report, ceilings: { ...report.ceilings }, assessment: { tiers: Object.fromEntries(TIERS.map((t) => [t, assessment.tiers[t]])) } }) };
 }
@@ -459,7 +461,12 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   const unfinished = runs.filter((r) => r.status !== 'completed').length;
   const sampled = runs.filter((r) => r.jobs).length;
   const collection = `${reader.calls} API call(s) of ${budget}, ${runs.length - unfinished} completed run(s) in ${keys.length} strata, ${sampled} sampled, ${unfinished} still running at the window end${reader.exhausted ? ', BUDGET EXHAUSTED' : ''}${listed.complete ? '' : ', RUN LIST INCOMPLETE'}${reader.failures ? `, ${reader.failures} failed read(s)` : ''}`;
-  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, listComplete: listed.complete, timingComplete: done.complete, clocksRead: clocks.read, known: knownCoversOnDisk(ROOT), finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection });
+  // The quarantine's open incidents, counted in this report (ci07): a store it cannot read is 'unread'.
+  let quarantine;
+  try {
+    quarantine = quarantineIncidents(readStore(QUARANTINE_STORE, { strict: true }), { headers: SPEC_HEADERS, configured: CONFIGURED_HEADERS, today: now.slice(0, 10), owner: ceilings.owner });
+  } catch { quarantine = 'unread'; }
+  const built = buildReport({ ceilings, runs, days, windowEnd: new Date(to).toISOString(), now, previous, openItems: [...open.items, ...clocks.open], openComplete: open.complete, listComplete: listed.complete, timingComplete: done.complete, clocksRead: clocks.read, known: knownCoversOnDisk(ROOT), finished: [...done.samples, ...clocks.finished], pending: open.pending, tableRecordedAt: table.source?.recordedAt, collection, quarantine });
   built.report.unknownClocks.push(...done.unknown);
   // First observed ready starts of open PRs, carried so a rewritten head never restarts one.
   built.report.openStarts = { ...(previous?.openStarts ?? {}) };

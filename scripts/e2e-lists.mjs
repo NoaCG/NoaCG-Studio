@@ -7,6 +7,7 @@
 //   // covers: src/components/wizard/**, !src/components/wizard/import/**
 //   // covers: none - <why no source change should select this spec>
 //   // focus
+//   // critical: production-playout
 //
 // - `covers:` takes comma-separated globs (`*`, `**`, `?`, `[...]`, `{a,b}`; dotfiles match).
 //   Several lines are a union. A glob written `!glob` EXCLUDES, and only from the globs on its
@@ -21,6 +22,11 @@
 //   rest (scripts/nightly-triage.mjs). The token keeps its sprint-era spelling for now; a member
 //   is a journey a shared change must not break, and the list is reviewed as one
 //   (docs/work-specs/e2e-suite-budget/evidence/selection-audit.md).
+//
+// - `critical: <contract>[, <contract>]` makes the spec a CRITICAL JOURNEY for those D2 contracts
+//   (scripts/e2e-contracts.mjs, cicd-improvement ci07): the small set a product change must keep
+//   green. A critical journey is always in the shared-change set as well (`focus`), so the two sets
+//   stay distinct and no escalation plans fewer than the critical journeys.
 //
 // Configured specs (`e2e/configured/*.spec.ts`) may carry `covers:` too: those globs are the
 // CONFIGURED TRIGGERS - files whose behaviour the offline suite structurally cannot cover, so the
@@ -124,7 +130,7 @@ function lineMatcher(globs) {
 }
 
 /**
- * The declarations in a spec's header: `{ covers: [{ globs, test }], none, focus }`.
+ * The declarations in a spec's header: `{ covers: [{ globs, test }], none, focus, critical }`.
  *
  * Read from the LEADING comment block only - `//` lines and blank lines before the first line of
  * code - so prose further down that happens to say "covers" is never a declaration. Inside that
@@ -132,7 +138,7 @@ function lineMatcher(globs) {
  * the line: a misspelt `// cover:` quietly covering nothing is the failure this exists to stop.
  */
 export function parseSpecHeader(text, file = '<spec>') {
-  const out = { covers: [], none: null, focus: false };
+  const out = { covers: [], none: null, focus: false, critical: [] };
   const lines = String(text ?? '').split(/\r?\n/);
   const refuse = (n, why) => {
     throw new Error(`${file}:${n + 1}: malformed spec header - ${why}`);
@@ -149,6 +155,14 @@ export function parseSpecHeader(text, file = '<spec>') {
       refuse(n, `a wrapped covers list - start the continuation with its own \`// covers:\`, got \`${line}\``);
     }
     afterCovers = false;
+    // A critical-journey line: `critical: <contract>, <contract>`. Anything that starts like one and
+    // does not parse is refused, so a misspelt id never quietly drops a journey from the set.
+    if (/^critical\s*(?::|$|-\s)/i.test(body)) {
+      const crit = /^critical:\s*([a-z][a-z0-9-]*(?:\s*,\s*[a-z][a-z0-9-]*)*)\s*$/.exec(body);
+      if (!crit) refuse(n, `write \`// critical: <contract>[, <contract>]\` with contract ids from scripts/e2e-contracts.mjs, got \`${line}\``);
+      out.critical.push(...splitList(crit[1]));
+      continue;
+    }
     // What LOOKS like a declaration: the keyword with a colon, a covers keyword followed by a
     // path, the focus keyword alone or with a colon, or `focus - <reason>`. Prose that merely
     // starts with the word ("covers the viewport", "focus set, like...") is left alone.

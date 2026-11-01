@@ -1,5 +1,6 @@
 // covers: src/components/editorFoundation/**, src/components/wizard/**, !src/components/wizard/import/**
 // focus
+// critical: graphics-runtime
 
 import { test, expect } from '@playwright/test';
 import { finishIntoNewEditor } from './_create';

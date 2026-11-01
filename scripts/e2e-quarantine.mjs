@@ -36,7 +36,8 @@
 //
 // Identity is the repo-relative path (`e2e/anim-engine.spec.ts`), the same string the failure set
 // and the annotations use; scripts/e2e-spec-names.mjs converts to the planner's bare name.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -92,6 +93,97 @@ export function staleIssueBody(stale, today) {
   ].join('\n');
 }
 
+/**
+ * QUARANTINE INCIDENTS (cicd-improvement ci07, evidence/phase-ci07.md Rules Q1 to Q5). A quarantined
+ * spec is protection the blocking gate stopped reading: the run on main that replaces it blocks
+ * nothing, so it is never counted as retained protection. Every entry is an incident - `critical`
+ * when the spec is a critical journey (its `// critical:` header line), `affected` otherwise,
+ * because the planner selects it for the changes its header or a central rule maps - with an owner,
+ * a repair due date and the coverage gap it leaves. Nothing here adds a retry or releases a spec:
+ * a spec still leaves only by its RELEASE_AFTER passes.
+ */
+export const INCIDENT_REPAIR_DAYS = { critical: 7, affected: STALE_AFTER_DAYS };
+
+/** The title of the one rolling issue `incidents --issue` keeps. */
+export const INCIDENT_ISSUE_TITLE = 'Quarantine incidents: protection out of the blocking gate';
+
+const addDays = (iso, days) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Every quarantined spec as an incident (Rules Q1, Q2). Pure.
+ * @param {{ specs: Record<string, { since: string, count?: number, run?: string }> }} store
+ * @param {{ headers: Map<string, object>, configured?: Map<string, object>, today: string, owner: string }} context
+ *   offline and configured spec headers (scripts/e2e-lists.mjs), keyed by bare name
+ * @returns {{ spec: string, severity: 'critical' | 'affected', since: string, due: string, overdue: boolean,
+ *   owner: string, gap: string, count: number, run: string }[]} critical first, then oldest first
+ */
+export function quarantineIncidents(store, { headers, configured = new Map(), today, owner }) {
+  return quarantinedSpecs(store).map((spec) => {
+    const e = store.specs[spec];
+    const name = spec.split('/').pop();
+    const h = (isConfiguredSpec(spec) ? configured : headers).get(name);
+    const critical = h?.critical?.length > 0;
+    const severity = critical ? 'critical' : 'affected';
+    const due = addDays(e.since, INCIDENT_REPAIR_DAYS[severity]);
+    const gap = critical
+      ? `critical journey for ${h.critical.join(', ')} is not blocking`
+      : h?.covers?.length
+        ? `changes to ${h.covers.map((c) => c.globs.join(' ')).join(', ')} merge without it blocking`
+        : h?.none
+          ? `full-run check out of the blocking gate (covers: none - ${h.none})`
+          : 'no header found for it: its selection is unknown';
+    return { spec, severity, since: e.since, due, overdue: today > due, owner, gap, count: e.count ?? 1, run: e.run ?? '' };
+  }).sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'critical' ? -1 : 1) || a.since.localeCompare(b.since) || a.spec.localeCompare(b.spec));
+}
+
+/** The rolling issue's body. The last line is the incident set's identity. */
+export function incidentIssueBody(incidents, today) {
+  return [
+    `Each spec below is quarantined (\`e2e/quarantine.json\`), so the blocking gate does not read it: the run on main that replaces it blocks nothing (read ${today}). Each is an incident with an owner and a repair due date, and every open incident stops affected narrowing and expansion until it is back in the blocking gate. Repair the cause and let its ${RELEASE_AFTER} passes release it. No retry and no nonblocking run counts as the repair.`,
+    '',
+    '| Spec | Severity | Since | Repair due | Owner | Coverage gap | Entries | Run |',
+    '|---|---|---|---|---|---|---|---|',
+    ...incidents.map((i) => `| \`${i.spec}\` | ${i.severity} | ${i.since} | ${i.due}${i.overdue ? ' **overdue**' : ''} | ${i.owner} | ${i.gap} | ${i.count} | ${i.run || '-'} |`),
+    '',
+    // The identity holds everything a reader acts on (severity, due date, overdue, owner, gap), so
+    // a change to any of them refreshes the issue; only the read date is left out.
+    `<!-- quarantine-incident-set: ${createHash('sha1').update(JSON.stringify(incidents.map((i) => [i.spec, i.severity, i.due, i.overdue, i.owner, i.gap]).sort())).digest('hex').slice(0, 16)} -->`,
+  ].join('\n');
+}
+
+/**
+ * What to do with the rolling issue (Rule Q3). Pure. `existing` is the open issue (or null) as read;
+ * the caller never gets here when the store or the issue list could not be read, so an unread
+ * state never closes it.
+ * @returns {{ kind: 'none' | 'close' | 'edit' | 'create', body?: string }}
+ */
+export function incidentIssueAction(incidents, existing, today) {
+  if (incidents.length === 0) return existing ? { kind: 'close' } : { kind: 'none' };
+  const body = incidentIssueBody(incidents, today);
+  if (existing && String(existing.body ?? '').includes(body.split('\n').at(-1))) return { kind: 'none' };
+  return { kind: existing ? 'edit' : 'create', body };
+}
+
+/**
+ * The coverage gaps one plan carries (Rule Q4): every spec it selected and left out as quarantined,
+ * offline and configured, as workflow warnings and summary lines. Pure.
+ * @param {{ quarantined?: string[], configured?: { quarantined?: string[] } | null }} plan
+ * @param {ReturnType<typeof quarantineIncidents>} incidents
+ */
+export function coverageGaps(plan, incidents) {
+  const bySpec = new Map(incidents.map((i) => [i.spec, i]));
+  const specs = [...new Set([...(plan.quarantined ?? []), ...(plan.configured?.quarantined ?? [])])].sort();
+  return specs.map((spec) => {
+    const i = bySpec.get(spec);
+    const what = i ? `${i.severity} incident, repair due ${i.due}${i.overdue ? ' (overdue)' : ''}` : 'incident not found in the store';
+    return {
+      spec,
+      warning: `::warning title=Coverage gap::${spec} is quarantined (${what}): this change selects it and this run does not block on it.`,
+      summary: `- Coverage gap: \`${spec}\` (${what}) is selected and not blocking here.`,
+    };
+  });
+}
+
 /** The commit status one quarantined spec's run posts (quarantine.yml, through `status` below). */
 export function statusContext(spec) {
   return `noacg/quarantine/${specPath(spec)}`;
@@ -106,12 +198,17 @@ export function emptyStore() {
   return { $comment: COMMENT, version: STORE_VERSION, specs: {}, released: {} };
 }
 
-/** Read the store; a missing file is an empty store, a newer version is refused rather than misread. */
-export function readStore(file = STORE_PATH) {
+/**
+ * Read the store; a missing file is an empty store, a newer version is refused rather than misread.
+ * `strict` refuses a missing or unreadable file too: the incident report must never read "no
+ * incident" off a store it did not read.
+ */
+export function readStore(file = STORE_PATH, { strict = false } = {}) {
   let text;
   try {
     text = readFileSync(file, 'utf8');
-  } catch {
+  } catch (e) {
+    if (strict) throw new Error(`e2e/quarantine.json could not be read (${e.code ?? e.message})`, { cause: e });
     return emptyStore();
   }
   const parsed = JSON.parse(text);
@@ -334,6 +431,19 @@ function releaseSpecs(specs, { queue, runUrl, reason }) {
   });
 }
 
+/** The store's incidents, with the spec headers and the plan's recorded owner read off the checkout. */
+export async function loadIncidentContext() {
+  const { SPEC_HEADERS, CONFIGURED_HEADERS } = await import('./e2e-lists.mjs');
+  const owner = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8')).owner;
+  if (!owner) throw new Error('scripts/growth-ceilings.json names no owner, so no incident would have one');
+  return { headers: SPEC_HEADERS, configured: CONFIGURED_HEADERS, owner };
+}
+let incidentContext = null;
+function readIncidents(todayIso) {
+  if (!incidentContext) throw new Error('the spec headers or the owner could not be read');
+  return quarantineIncidents(readStore(STORE_PATH, { strict: true }), { ...incidentContext, today: todayIso });
+}
+
 function main(argv) {
   const { command, rest, flags } = parseArgs(argv);
   const queue = flags.has('--queue');
@@ -458,6 +568,48 @@ function main(argv) {
     return 0;
   }
 
+  if (command === 'incidents') {
+    // The incident list (Rules Q1 to Q3), and with --issue the ONE rolling issue that carries it:
+    // opened when the first incident exists, body replaced when the set changes, closed only when
+    // the store holds none. A store or issue list that cannot be read throws before anything is
+    // closed. With --plan '<plan json>' it prints that plan's coverage gaps instead (Rule Q4).
+    const todayIso = String(flags.get('--today') ?? today());
+    if (flags.has('--plan')) {
+      // The plan step must not fail on a report: the planner already reads an unreadable store
+      // toward running more. The gaps are still stated, with their incident unknown.
+      let incidents = [];
+      try { incidents = readIncidents(todayIso); } catch (e) {
+        console.log(`::warning title=Coverage gap::the quarantine incidents could not be read (${String(e?.message ?? e).split('\n')[0]}); gaps below name no incident.`);
+      }
+      const gaps = coverageGaps(JSON.parse(String(flags.get('--plan'))), incidents);
+      for (const g of gaps) console.log(g.warning);
+      if (gaps.length && process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Coverage gaps\n\n${gaps.map((g) => g.summary).join('\n')}\n\n`);
+      return 0;
+    }
+    const incidents = readIncidents(todayIso);
+    for (const i of incidents) console.log(`incident: ${i.spec}  ${i.severity}  since ${i.since}  repair due ${i.due}${i.overdue ? ' OVERDUE' : ''}  owner ${i.owner}`);
+    if (incidents.length === 0) console.log('quarantine: no incident.');
+    if (!flags.has('--issue')) return 0;
+    if (!repo) {
+      console.error('incidents --issue: GH_REPO (or GITHUB_REPOSITORY) must name the repository.');
+      return 2;
+    }
+    const gh = spawnRunner('gh');
+    const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${INCIDENT_ISSUE_TITLE}" in:title`, '--json', 'number,body,title', '--jq', `[.[] | select(.title == "${INCIDENT_ISSUE_TITLE}")][0]`]).out;
+    const existing = found && found !== 'null' ? JSON.parse(found) : null;
+    const action = incidentIssueAction(incidents, existing, todayIso);
+    if (action.kind === 'close') {
+      gh(['issue', 'close', '-R', repo, String(existing.number), '--comment', `The quarantine holds no spec: every incident is repaired (${runUrl || 'quarantine.yml'}).`]);
+    } else if (action.kind === 'edit') {
+      gh(['issue', 'edit', '-R', repo, String(existing.number), '--body', action.body]);
+      gh(['issue', 'comment', '-R', repo, String(existing.number), '--body', `The incident set changed: ${incidents.map((i) => `${i.spec} (${i.severity}${i.overdue ? ', overdue' : ''})`).join(', ')}.`]);
+    } else if (action.kind === 'create') {
+      gh(['issue', 'create', '-R', repo, '--title', INCIDENT_ISSUE_TITLE, '--body', action.body, '--label', 'dev']);
+    }
+    console.log(`::notice title=Quarantine incidents::${incidents.length} open, ${incidents.filter((i) => i.severity === 'critical').length} critical, ${incidents.filter((i) => i.overdue).length} overdue; issue ${action.kind}.`);
+    return 0;
+  }
+
   if (command === 'release-due') {
     const store = readStore();
     const specs = quarantinedSpecs(store);
@@ -479,10 +631,20 @@ function main(argv) {
     return releaseSpecs(due, { queue, runUrl, reason: `${RELEASE_AFTER} consecutive passes on main` });
   }
 
-  console.error('usage: e2e-quarantine.mjs list | matrix | filter <spec> | status <spec> <outcome> --run <url> | enter <spec...> --run <url> [--queue] | release <spec> [--queue] | release-due [--queue] | stale [--issue] [--today YYYY-MM-DD]');
+  console.error('usage: e2e-quarantine.mjs list | matrix | filter <spec> | status <spec> <outcome> --run <url> | enter <spec...> --run <url> [--queue] | release <spec> [--queue] | release-due [--queue] | stale [--issue] [--today YYYY-MM-DD] | incidents [--issue] [--plan <json>] [--today YYYY-MM-DD]');
   return 2;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // A plan that left nothing out as quarantined (the usual case) needs no headers read at all.
+  const planArg = process.argv.indexOf('--plan');
+  const plan = planArg > 0 ? JSON.parse(process.argv[planArg + 1] ?? 'null') : null;
+  if (plan && !(plan.quarantined ?? []).length && !(plan.configured?.quarantined ?? []).length) process.exit(0);
+  if (process.argv[2] === 'incidents') {
+    try { incidentContext = await loadIncidentContext(); } catch (e) {
+      if (!process.argv.includes('--plan')) throw e;
+      incidentContext = null;
+    }
+  }
   process.exit(main(process.argv.slice(2)));
 }

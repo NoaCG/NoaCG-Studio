@@ -441,6 +441,10 @@ jobs:
             PLAN="$(node scripts/e2e-affected.mjs --json --integration "$BASE")"
           fi
           echo "plan: $PLAN"
+          # COVERAGE GAPS (cicd-improvement ci07). A spec this change selects that is quarantined
+          # left the blocking shards above; say so on this run, with its incident, rather than let
+          # the run on main stand in for it silently. Nothing is retried here.
+          node scripts/e2e-quarantine.mjs incidents --plan "$PLAN"
           echo "base=${BASE:-}" >> "$GITHUB_OUTPUT"
           # The shard count comes WITH the plan (scripts/e2e-affected.mjs `shardsFor`), sized from
           # measured minutes per spec file rather than from a file count. It used to be computed

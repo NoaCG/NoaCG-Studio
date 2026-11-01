@@ -451,6 +451,10 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
 
     out(`failure set (${v.failHash}):`);
     for (const entry of v.failSet) out(`  ${entry}`);
+    // The specs that really failed (the failure set above also holds skips, for its fingerprint),
+    // uncapped, for the miss audit (scripts/e2e-selection-misses.mjs `configuredFailures`).
+    out('failing specs:');
+    for (const spec of v.failing) out(`  ${spec.file}::${spec.title}`);
 
     if (process.env.GITHUB_STEP_SUMMARY) {
       const lines = [
