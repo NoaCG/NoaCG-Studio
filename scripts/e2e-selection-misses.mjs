@@ -336,6 +336,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           try { git('fetch', '--quiet', 'origin', previous.head_sha, run.head_sha); culprits = range(); rangeRead = true; } catch { /* unread: below */ }
         }
       }
+      // A red run on the commit the previous green run already had (a re-run on main) has an empty
+      // range; its candidate is that commit itself.
+      if (culprits.length === 0) culprits = [run.head_sha];
       const candidatePlans = [...culprits.map(planOf), ...(rangeRead ? [] : [null])];
       for (const spec of specs) rows.push({ ...classifyAgainst(spec, candidatePlans, { kind, flaky }), runId: run.id, workflow, culprits });
     }
