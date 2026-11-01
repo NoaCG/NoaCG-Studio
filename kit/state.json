@@ -42,31 +42,18 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci14 checker verdict (session_017SdbwQHNhMhD7V2PNewBbA)",
-    "eta": "2026-11-02T00:00:00Z"
+    "what": "ci15 builder receipt (session_017SdbwNtP4xJXZmRkUKq9R1)",
+    "eta": "2026-11-02T01:30:00Z"
   },
   "inFlight": [
     {
-      "phase": "ci14",
-      "step": "check",
-      "session": "session_017SdbwPiLbhnQs2cAumQAtk",
-      "nonce": "ci14-b-b9d3",
-      "branch": "claude/plan-cicd-improvement-ci14-build",
-      "launchedAt": "2026-11-01T21:59:51Z",
-      "note": "PENDING disposition; co-run p50 9.9/p90 12.4 min, 0 dequeues; GitHub 1h stamp offset 08-09Z corroborated by coordinator ledger. Auto-merge on 22:45Z.",
-      "pr": 1936,
-      "reviewedHead": "a62a6ba0b2dc627769ca92087e6c5a41ac271a92",
-      "stampRun": 41358724212,
-      "so": "session_017SdbwQJCon3KmkjDrtoh8i",
-      "followUps": [
-        1939
-      ],
-      "mergeSha": "5ca8b87ad19f22184346fc8e205c73e7fe0b3e0f",
-      "landedAt": "2026-11-01T22:53:23Z",
-      "queueRun": 41358817650,
-      "repairOwnerComment": 6565023558,
-      "checker": "session_017SdbwQHNhMhD7V2PNewBbA",
-      "actor": "checker-ci14-ci14-c-b100"
+      "phase": "ci15",
+      "step": "build",
+      "session": "session_017SdbwNtP4xJXZmRkUKq9R1",
+      "nonce": "ci15-b-b5fc",
+      "branch": "claude/plan-cicd-improvement-ci15-build",
+      "launchedAt": "2026-11-01T23:20:17Z",
+      "note": "Evidence-only qualification; expected NOT QUALIFIED now (ci13 demonstrated failure; audit window open until >= 2026-11-15T18:14Z)."
     }
   ],
   "owner": [],
@@ -319,6 +306,21 @@
       "postLand": "CI 41351909469, configured-suite 41351909474, Post-landing 41351909482, Quarantine 41351909468, Push on main 41351908710 success; deploy-verify skipped; repair ownership complete",
       "pass": "2026-11-01T21:58Z by checker-ci13-ci13-c-7158 (session_017SdbwR24EwAHLL1kBTJ7Yi)",
       "archived": 4
+    },
+    {
+      "phase": "ci14",
+      "pr": 1936,
+      "mergeSha": "5ca8b87ad19f22184346fc8e205c73e7fe0b3e0f",
+      "builder": "session_017SdbwPiLbhnQs2cAumQAtk",
+      "reviewedHead": "a62a6ba0b2dc627769ca92087e6c5a41ac271a92",
+      "repairOwnerComment": 6565023558,
+      "followUps": [
+        1939
+      ],
+      "candidate": "PENDING: no authorized cohort; AC-6 open; co-run operating evidence p50 9.9/p90 12.4 min, 0 dequeues",
+      "postLand": "CI 41359365006 gate success after unrelated production-data flake (retry passed; tracked #1603; quarantine PR #1940), configured-suite 41359364992, Post-landing 41359365100, Quarantine 41359364918, Push on main 41359364385 success; repair ownership complete",
+      "pass": "2026-11-01T23:17Z by checker-ci14-ci14-c-b100 (session_017SdbwQHNhMhD7V2PNewBbA)",
+      "archived": 6
     }
   ],
   "coordinatorNotes": [
