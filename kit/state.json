@@ -37,7 +37,12 @@
       "branch": "claude/plan-jev-svg-import-11-build",
       "source": "2518b42919123eefd876259f6ba009999ed2b2b4",
       "launchedAt": "2026-11-01T06:14:36Z",
-      "note": "builder; carry #1884/#1890/#1891/#1894, hours display, per-mode controls; pre-approved matchClockWire+test (#1890), airState+test (#1891), clockTarget+test (#1894); separate-session /so rule"
+      "note": "builder; carry #1884/#1890/#1891/#1894, hours display, per-mode controls; pre-approved matchClockWire+test (#1890), airState+test (#1891), clockTarget+test (#1894); separate-session /so rule",
+      "approvals": [
+        "svg.ts one call site: matchClockJs({hours:true}) for target-time only; default bytes unchanged",
+        "svg.ts importedClockJs re-fit (#1884 item 2) only if hours display overflows, target-time only, tested; else leave open",
+        "#1884 item 1 left open with product question"
+      ]
     }
   ],
   "owner": [],
