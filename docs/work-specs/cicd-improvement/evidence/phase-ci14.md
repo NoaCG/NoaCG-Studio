@@ -82,6 +82,8 @@ and one runner pool.
 | cicd | 15 | 9.3 | 12.4 | 71.4 | 7 | 1 | 1 |
 | JEV | 15 | 11.6 | 13.3 | 71.8 | 8 | 1 | 1 |
 
+Percentiles here and below interpolate linearly between ranks (nearest-rank gives JEV p90 13.4).
+
 Against the retained targets (p50 <= 10, p90 <= 20 minutes), the pooled co-run sits inside them
 (p50 9.9, p90 13.2). That is a description of an unmatched window, not a met AC-6 target. Two
 items breached the 30-minute per-item ceiling. Both are the tail in 2.3.
@@ -96,10 +98,11 @@ the ci01 phase clock.
 
 - **The tail: an hour of hold at job end, not the other plan's tests (#1935).** #1896 (ci07) and
   #1899 (JEV 11) were in the queue together, 07:53 to 09:10 on 2026-11-01. In both merge groups,
-  41286559823 and 41286921432, two to four shards (and the catalog gate in the first) stayed
-  running about 60 minutes after their logs ended. In `E2E 3/15`, for example, "84 passed (6.8m)"
-  at 08:00:42, the last log line at 08:00:45 and completion at 09:00:47. No test failed. The cause
-  looks like runner job completion.
+  41286559823 and 41286921432, jobs stayed running about 60 minutes after their logs ended: 3 of
+  30 jobs in the first (`E2E 3/15`, `E2E 11/15`, the catalog gate), and 18 of 29 in the second
+  (every E2E shard, `Build`, `Factory gates`, the catalog gate). In the first run's `E2E 3/15`,
+  for example, "84 passed (6.8m)" at 08:00:42, the last log line at 08:00:45 and completion at
+  09:00:47. No test failed. The cause looks like runner job completion.
 - **Dequeues: 0.** Every one of the 30 PRs has exactly one `added_to_merge_queue` and one
   `removed_from_merge_queue`, at its merge. No plan PR was dequeued by the other plan's flake or
   by anything else.
