@@ -199,7 +199,9 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
       const name = after.names[job] ?? job;
       const tier = tierOfJob(wf, name);
       if (tier === 'offline') continue; // offline work is the table line's to price
-      const oldKey = before.jobs.includes(job) ? job : before.jobs.find((j) => (before.names[j] ?? j) === name);
+      // A name finds the old job only when its old key is gone: a copy of a job under a new key,
+      // even with the same name, is a new job (Rule X10).
+      const oldKey = before.jobs.includes(job) ? job : before.jobs.find((j) => (before.names[j] ?? j) === name && !after.jobs.includes(j));
       // A job moved into another tier by a rename brings its whole cost there: it is new to that
       // tier, so its old tier's headroom or exceptions never cover it.
       // The old job's tier comes from its old file name: renaming the workflow file can move it too.
@@ -350,7 +352,7 @@ export function exceptionProblems(e, earlier, maxDays, known = null) {
     // Rule X3: a later exception in a tier needs a measured repayment, measured on or after the
     // latest earlier start in that tier. This never lapses.
     const latest = Math.max(...prior.map((x) => dayMs(x.from)));
-    if (!receiptAfter(e.repaid, latest)) p.push(`is not the first ${e.tier} exception (${ids} came before) and has no measured repayment receipt measured on or after ${Number.isFinite(latest) ? isoDay(latest) : 'the latest earlier start'}`);
+    if (!receiptAfter(e.repaid, latest, from)) p.push(`is not the first ${e.tier} exception (${ids} came before) and has no measured repayment receipt measured between ${Number.isFinite(latest) ? isoDay(latest) : 'the latest earlier start'} and its own start`);
     // Rule X4: one active exception per tier. A later one starts after every earlier one expires.
     const last = Math.max(...prior.map((x) => dayMs(x.expires)));
     if (!(from > last)) p.push(`overlaps an earlier ${e.tier} exception (${ids}): one active exception per tier, so it starts after ${Number.isFinite(last) ? isoDay(last) : 'the earlier one expires'}`);
@@ -358,9 +360,14 @@ export function exceptionProblems(e, earlier, maxDays, known = null) {
   return p;
 }
 
-/** A measured repayment receipt: positive repayment, at least one run, measured on or after `since`. */
-export function receiptAfter(r, since) {
-  return Boolean(r) && (r.perLanding > 0 || r.perDay > 0 || r.minutes > 0) && Array.isArray(r.runs) && r.runs.filter(Boolean).length > 0 && dayMs(r.measuredAt) >= since;
+/**
+ * A measured repayment receipt: positive repayment, at least one numeric run id, measured on or
+ * after `since` and on or before `until` (the exception's own start): a receipt from the future
+ * measures nothing.
+ */
+export function receiptAfter(r, since, until) {
+  const at = dayMs(r?.measuredAt);
+  return Boolean(r) && (r.perLanding > 0 || r.perDay > 0 || r.minutes > 0) && Array.isArray(r.runs) && r.runs.length > 0 && r.runs.every((x) => /^\d+$/.test(String(x))) && at >= since && at <= until;
 }
 
 /** Active exceptions on `today`, and the invalid ones with why. Expired ones are listed apart. */

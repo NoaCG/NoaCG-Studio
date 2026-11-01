@@ -152,15 +152,17 @@ export function offlineExceptionChanges(base, head, { today, baseEntries = [], n
   const problems = [];
   for (const e of base) if (!headKeys.has(key(e))) problems.push(`the budget exception for ${e.spec} in ${e.from} (expires ${e.expires}) was removed or moved: exception lines stay on record after they expire`);
   const lines = head.filter((e) => !baseKeys.has(key(e)));
+  // A new line starts the day it is judged and runs at most 30 days from it (Rule X5).
+  for (const e of lines) if (!(day(e.expires) >= day(today) && day(e.expires) - day(today) <= EXCEPTION_MAX_DAYS * 86_400_000)) problems.push(`the new budget exception for ${e.spec} expires ${e.expires}: a new line starts today (${today}) and runs at most ${EXCEPTION_MAX_DAYS} days`);
   if (lines.length && newEntries.length) problems.push(`this change adds offline lines and the offline exception ${newEntries.map((x) => x.id).join(', ')} in growth-ceilings.json: the offline tier is one scope with one exception at a time`);
   const earlier = [...base.map((b) => ({ start: b.expires, expires: b.expires })), ...baseEntries.map((x) => ({ start: x.from, expires: x.expires }))];
   if (!earlier.length) return problems;
   const latest = Math.max(...earlier.map((x) => day(x.start)));
   const last = Math.max(...earlier.map((x) => day(x.expires)));
-  for (const e of lines) if (!receiptAfter(e.repaid, latest)) problems.push(`the new budget exception for ${e.spec} is not the first offline exception and has no measured repayment receipt dated on or after ${iso(latest)} (\`, repaid <minutes> min in run <id> on <date>\`)`);
+  for (const e of lines) if (!receiptAfter(e.repaid, latest, day(today))) problems.push(`the new budget exception for ${e.spec} is not the first offline exception and has no measured repayment receipt dated between ${iso(latest)} and today (\`, repaid <minutes> min in run <id> on <date>\`)`);
   if (lines.length && !(day(today) > last)) problems.push(`the new offline budget exception starts ${today}, while an earlier offline exception runs to ${iso(last)}: one active exception per tier`);
   for (const x of newEntries) {
-    if (!receiptAfter(x.repaid, latest)) problems.push(`the offline exception ${x.id} is not the first offline exception and has no measured repayment receipt measured on or after ${iso(latest)}`);
+    if (!receiptAfter(x.repaid, latest, day(x.from))) problems.push(`the offline exception ${x.id} is not the first offline exception and has no measured repayment receipt measured between ${iso(latest)} and its start`);
     if (!(day(x.from) > last)) problems.push(`the offline exception ${x.id} starts ${x.from}, while an earlier offline exception runs to ${iso(last)}: one active exception per tier`);
   }
   return problems;

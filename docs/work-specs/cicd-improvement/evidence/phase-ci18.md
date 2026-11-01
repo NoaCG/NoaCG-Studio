@@ -343,8 +343,9 @@ from those can tie a renewal to what it renews; the tier is the one scope a chan
   expires dates at most 30 days apart.
 - X3. The first exception ever recorded in a tier needs no receipt. Every later exception in that
   tier (a renewal, a replacement or a new one, whatever its id, name, file or covers) needs a
-  measured repayment receipt: a positive repayment, at least one run id, measured on or after the
-  latest earlier exception's from-date in that tier. Without one it is invalid. This never lapses,
+  measured repayment receipt: a positive repayment, at least one run id, every run id numeric,
+  measured on or after the latest earlier exception's from-date in that tier and on or before its
+  own from-date. Without one it is invalid. This never lapses,
   and every earlier entry counts whatever its state today: a change cannot add an invalid entry, so
   one that reads invalid now was valid when it landed.
 - X4. At most one exception is active per tier: a later exception that starts on or before an
@@ -352,9 +353,12 @@ from those can tie a renewal to what it renews; the tier is the one scope a chan
 - X5. The offline tier is one scope across both lists: the offline exceptions in
   `growth-ceilings.json` and the lines in work specs (`- e2e/x.spec.ts: N min, ...`). The lines a
   change adds are one exception that starts the day the gate judges it. A line records no start, so
-  its expiry stands for it. Once any offline exception exists, X3 and X4 apply across both lists: a
-  new line carries `, repaid <minutes> min in run <run id> on <YYYY-MM-DD>` dated on or after the
-  latest earlier start, and every earlier offline exception has expired. A change may not add both
+  its expiry stands for it. A new line expires no earlier than the day it is judged and at most 30
+  days after it. Lines carry no owner or review link: the work spec that holds them and the pull
+  request that adds them are their record. Once any offline exception exists, X3 and X4 apply
+  across both lists: a new line carries `, repaid <minutes> min in run <run id> on <YYYY-MM-DD>`
+  dated between the latest earlier start and the day it is judged, and every earlier offline
+  exception has expired. A change may not add both
   a line and an offline `growth-ceilings.json` exception.
 - X6. The exception ledger is append-only and in order: an entry removed, edited, placed before an
   existing one, or repeating an existing id is refused at PR time. Offline lines stay on record.
@@ -369,11 +373,14 @@ from those can tie a renewal to what it renews; the tier is the one scope a chan
   the 30 days are the bound, and the next exception in the tier needs a receipt (X3).
 - X9. A covered addition is waived up to the room left: the allowance minus the measured cost of its
   jobs. No room is given when the tier's evidence is missing, or for an existing job no measurement
-  prices: only a spec, or a job new in this change, keeps its full allowance. Offline spec additions
+  prices: only a spec, or a job new to the repository in this change (not one moved into the tier,
+  X10), keeps its full allowance. Offline spec additions
   take the same route, so an approved offline exception in `growth-ceilings.json` waives them in
   the tier check; a work-spec line clears only the table line.
 - X10. Credit never crosses tiers (X1, X8), and a job moved into another tier, by its own name or
   its workflow file's name, is priced as new in that tier, so it has no measured room there (X9).
+  A job is an existing one only by its key, or by its name when its old key is gone from the head:
+  a copy under a new key that repeats an existing job's name is a new job.
   Offline work is the table line's to price, so a job moved into the offline tier is not priced
   as a job there (#1885 item 11).
   No exception moves a ceiling, an estimate, `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new

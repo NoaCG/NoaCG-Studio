@@ -198,7 +198,7 @@ test('(b) offline exception lines stay on record and a later offline line needs 
   const old = parseExceptions(md(['- e2e/sports.spec.ts: 1.1 min, protects the match clock, expires 2026-11-16'])).map((e) => ({ ...e, from: 'docs/work-specs/a/spec.md' }));
   assert.match(offlineExceptionChanges(old, [], { today: '2026-11-20' }).join(), /removed or moved/);
   const renew = parseExceptions(md(['- e2e/sports.spec.ts: 1.1 min, protects the clock again, expires 2026-12-10'])).map((e) => ({ ...e, from: 'docs/work-specs/b/spec.md' }));
-  assert.match(offlineExceptionChanges(old, [...old, ...renew], { today: '2026-11-20' }).join(), /is not the first offline exception and has no measured repayment receipt dated on or after 2026-11-16/);
+  assert.match(offlineExceptionChanges(old, [...old, ...renew], { today: '2026-11-20' }).join(), /is not the first offline exception and has no measured repayment receipt dated between 2026-11-16/);
   const repaid = parseExceptions(md(['- e2e/sports.spec.ts: 1.1 min, protects the clock again, repaid 0.6 min in run 41300000002 on 2026-11-17, expires 2026-12-10'])).map((e) => ({ ...e, from: 'docs/work-specs/b/spec.md' }));
   assert.deepEqual(repaid[0].repaid, { minutes: 0.6, runs: ['41300000002'], measuredAt: '2026-11-17' });
   assert.equal(repaid[0].protects, 'protects the clock again');
@@ -1211,11 +1211,13 @@ test('Rule X3: the first exception in a tier needs no receipt; every later one i
   for (const [r, why] of [[undefined, 'none'], [{ perLanding: 0, runs: ['1'], measuredAt: '2026-10-21' }, 'zero'], [{ perLanding: 2, runs: [], measuredAt: '2026-10-21' }, 'no run'], [{ perLanding: 2, runs: ['1'], measuredAt: '2026-09-30' }, 'before the earlier start'], [{ perLanding: 2, runs: ['1'] }, 'undated']]) {
     assert.match(later(r).join(), /is not the first backend exception \(a came before\) and has no measured repayment receipt/, why);
   }
+  assert.match(later({ perLanding: 2, runs: ['1'], measuredAt: '2026-10-26' }).join(), /no measured repayment receipt/, 'measured after its own start');
+  assert.match(later({ perLanding: 2, runs: ['x'], measuredAt: '2026-10-21' }).join(), /no measured repayment receipt/, 'a run id that is not a number');
   assert.match(exceptionProblems(ex('c', { from: '2028-01-01', expires: '2028-01-20' }), [first], 30).join(), /not the first backend exception/, 'it never lapses');
   assert.match(exceptionProblems(ex('c', { from: '2026-12-01', expires: '2026-12-20' }), [{ ...first, owner: '' }], 30).join(), /not the first backend exception/, 'an earlier entry counts whatever its state today');
   assert.deepEqual(exceptionProblems(ex('c', { tier: 'graphics', covers: ['spec:e2e/catalog/a.spec.ts'], from: '2026-10-25', expires: '2026-11-20' }), [first], 30), [], 'the first in another tier');
   const second = ex('b', { from: '2026-10-25', expires: '2026-11-20', repaid: { perLanding: 1, runs: ['1'], measuredAt: '2026-10-21' } });
-  assert.match(exceptionProblems(ex('c', { from: '2026-11-25', expires: '2026-12-20', repaid: { perLanding: 1, runs: ['2'], measuredAt: '2026-10-24' } }), [first, second], 30).join(), /on or after 2026-10-25/, 'the latest earlier start');
+  assert.match(exceptionProblems(ex('c', { from: '2026-11-25', expires: '2026-12-20', repaid: { perLanding: 1, runs: ['2'], measuredAt: '2026-10-24' } }), [first, second], 30).join(), /between 2026-10-25/, 'the latest earlier start');
 });
 
 test('Rule X4: at most one active exception per tier: a later one that starts on or before an earlier one expires is invalid', () => {
@@ -1238,7 +1240,7 @@ test('Rule X5: the offline tier is one scope across growth-ceilings.json and the
   assert.equal(ch([], [fresh('e2e/b.spec.ts')]), '', 'the first offline exception needs no receipt');
   assert.match(ch(old, [...old, fresh('e2e/b.spec.ts')]), /is not the first offline exception/, 'another spec in another work spec: one scope');
   assert.equal(ch(old, [...old, fresh('e2e/b.spec.ts', r('2026-11-16'))]), '', 'dated on or after the earlier line\'s expiry, which stands for its start');
-  assert.match(ch(old, [...old, fresh('e2e/b.spec.ts', r('2026-11-15'))]), /dated on or after 2026-11-16/);
+  assert.match(ch(old, [...old, fresh('e2e/b.spec.ts', r('2026-11-15'))]), /dated between 2026-11-16/);
   assert.match(ch(old, [...old, fresh('e2e/b.spec.ts', r('2026-11-16'))], { today: '2026-11-16' }), /one active exception per tier/, 'while an earlier line still runs');
   const entry = (id, from, expires, repaid) => ({ id, tier: 'offline', covers: ['spec:e2e/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from, expires, ...(repaid ? { repaid } : {}) });
   assert.match(ch([], [fresh('e2e/b.spec.ts')], { baseEntries: [entry('o1', '2026-10-01', '2026-10-30')] }), /is not the first offline exception/, 'a ceilings entry came first');
@@ -1246,6 +1248,10 @@ test('Rule X5: the offline tier is one scope across growth-ceilings.json and the
   assert.match(ch(old, old, { newEntries: [entry('o2', '2026-11-15', '2026-12-10', { perLanding: 1, runs: ['9'], measuredAt: '2026-11-16' })] }), /o2 starts 2026-11-15, while an earlier offline exception runs to 2026-11-16/);
   assert.equal(ch(old, old, { newEntries: [entry('o2', '2026-11-17', '2026-12-10', { perLanding: 1, runs: ['9'], measuredAt: '2026-11-16' })] }), '');
   assert.match(ch([], [fresh('e2e/b.spec.ts')], { newEntries: [entry('o2', '2026-11-21', '2026-12-10')] }), /one scope with one exception at a time/);
+  assert.match(ch(old, [...old, fresh('e2e/b.spec.ts', r('2026-11-21'))]), /dated between 2026-11-16 and today/, 'a receipt dated after the day judged');
+  const long = line('e2e/b.spec.ts', 'docs/work-specs/b/spec.md', '2027-06-01');
+  assert.match(ch([], [long]), /expires 2027-06-01: a new line starts today \(2026-11-20\) and runs at most 30 days/);
+  assert.match(ch([], [line('e2e/b.spec.ts', 'docs/work-specs/b/spec.md', '2026-11-19')]), /runs at most 30 days/, 'already expired');
 });
 
 test('Rule X6: the ledger is append-only and in order', () => {
@@ -1322,6 +1328,11 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
   const [moved] = priceAdditions({ workflows: { 'fit-sweep-renamed.yml': { base: sweep, head: sweep, baseFile: 'fit-sweep.yml' } }, estimates: CEILINGS.estimates });
   assert.equal(moved?.tier, 'overhead');
   assert.match(moved?.how ?? '', /moved into this tier/);
+  // A copy under a new key that repeats an existing job's name is new, not the existing job.
+  const build = 'on:\n  pull_request:\njobs:\n  build:\n    name: Build\n';
+  const [copy] = priceAdditions({ workflows: { 'ci.yml': { base: build, head: `${build}  build-copy:\n    name: Build\n` } }, estimates: CEILINGS.estimates });
+  assert.match(copy?.how ?? '', /^new job/);
+  assert.deepEqual(priceAdditions({ workflows: { 'ci.yml': { base: build, head: build.replace('  build:', '  compile:') } }, estimates: CEILINGS.estimates }), [], 'a renamed key with its name kept is the same job');
 });
 
 // Each earlier escape from same-scope renewal, replayed against the tier-scope rules with no rename
