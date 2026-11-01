@@ -55,6 +55,10 @@ export interface ClockSpec {
   /** A clock that starts on the Take rather than on an operator's Start: an imported clock
    *  counting down (templates/behaviours/clock.ts, "Duration starts on Take"). Absent: false. */
   startsOnTake?: boolean;
+  /** A clock counting down to a FIXED INSTANT (an imported target time, control/clockTarget.ts):
+   *  its `data-start` is already the stamped countdown to that instant, so nothing restarts,
+   *  holds or replaces it. Absent: false. */
+  fixedInstant?: boolean;
 }
 
 /** What the match clock's three verbs are called on one graphic. */
@@ -107,9 +111,11 @@ export function clockSpecFromHtml(html: string): ClockSpec | null {
     resetTo: dataStart || '0',
   };
   // An imported clock says so; a native one's spec stays exactly what every page already reads.
-  return el.classList.contains(IMPORTED_CLOCK_CLASS)
-    ? { ...spec, events: IMPORTED_CLOCK_EVENTS, startsOnTake: countsDown }
-    : spec;
+  if (!el.classList.contains(IMPORTED_CLOCK_CLASS)) return spec;
+  // A target time ships its instant as a stamped start (phase-10 T6); a count-up or a duration
+  // never does, so theirs is exactly the spec it was.
+  if (clockOriginOf(dataStart) !== null) return { ...spec, events: IMPORTED_CLOCK_EVENTS, startsOnTake: false, fixedInstant: true };
+  return { ...spec, events: IMPORTED_CLOCK_EVENTS, startsOnTake: countsDown };
 }
 
 /** The value without its origin stamp — what a person reads, and what a held clock sends. */
@@ -332,6 +338,9 @@ function importedRowEffect(
 ): ClockEffect | null {
   const msg = row.msg;
   if (msg.t !== 'update' && msg.t !== 'play' && msg.t !== 'stop' && msg.t !== 'event') return null;
+  // A FIXED INSTANT (phase-10 T7): the graphic's own stamped start is the clock on every Take and
+  // Update, so a cue holding an older or a plain value never moves it; Out and the verbs leave it.
+  if (clock.fixedInstant) return (msg.t === 'update' || msg.t === 'play') && from !== clock.seed ? { value: clock.seed, when: 'after' } : null;
   const read = durationOf(from);
   const time = (read ? read.time : plainClockValue(from)) || clock.resetTo;
   const length = read?.length ?? (clock.startsOnTake ? time : clock.resetTo);

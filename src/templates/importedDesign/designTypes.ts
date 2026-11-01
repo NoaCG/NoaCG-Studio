@@ -333,6 +333,9 @@ export interface DesignSvgClock {
   field: string;
   /** How it counts, chosen once by the author: never switched on air. */
   mode: 'count-up' | 'duration' | 'target-time';
+  /** A target time's instant with its zone, `2026-11-14T19:00:00+02:00[Europe/Helsinki]`
+   *  (control/clockTarget.ts). Absent on the other modes. */
+  target?: string;
 }
 
 /** One outlined-text group hidden in favour of a placed HTML field. */

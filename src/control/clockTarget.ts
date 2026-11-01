@@ -2,8 +2,8 @@
 //
 // An imported clock in target-time mode counts down to one fixed instant: 7 pm tonight, or
 // 2026-11-14 19:00 in Helsinki. This module turns what a person types (a time, an optional date,
-// a zone) into that instant, and the instant into the match clock's own wire value, so nothing
-// downstream learns a second clock format.
+// a zone) into that instant and its stored form; the graphic counts it on the match clock's own
+// stamped countdown, so nothing downstream learns a second clock format.
 //
 // THE RULES (phase-10 notes, T1-T6):
 //
@@ -17,15 +17,15 @@
 //       offers both instants and resolves with `fold: 'earlier' | 'later'`.
 //   T5  The instant is the truth. It is stored as an RFC 9557 string with its zone
 //       (`2026-11-14T19:00:00+02:00[Europe/Helsinki]`), and the wall time is never re-read.
-//   T6  On the wire it is the existing stamped countdown (control/matchClockWire.ts): the time
-//       left at an origin, `"R@origin"` with origin + R = the instant. Every reader paints
-//       R minus the seconds since the origin, so any resend, replay or reload of that value reads
-//       the same second, and it reaches 0:00 on the instant. An instant already reached is the
-//       held value "0:00": expired, nothing left to run.
+//   T6  The graphic counts it as the match clock's existing stamped countdown: the seconds left
+//       at a fixed origin, `"R@origin"` (templates/behaviours/clock.ts `clockTargetStart`). Every
+//       reader paints R minus the seconds since the origin, so any resend, replay or reload reads
+//       the same second, it reaches 0:00 on the instant, and a past instant shows 0:00.
+//   T7  On the wire it is a fixed instant (control/matchClockWire.ts `fixedInstant`): no Take
+//       restarts it, no Out holds it, and a Take or Update carrying any other value is answered
+//       with the graphic's own start.
 //
 // Pure: the caller injects `now` and the zone, so every case is testable without a clock.
-
-import { formatClock } from './matchClockWire.ts';
 
 /** What a person typed. `date` is YYYY-MM-DD in the zone; `zone` an IANA name. */
 export interface ClockTargetInput {
@@ -183,15 +183,4 @@ export function parseClockTarget(raw: string | null | undefined): { at: number; 
   if (!m || !zoneFormat(m[2])) return null;
   const at = Date.parse(m[1]);
   return Number.isFinite(at) ? { at, zone: m[2] } : null;
-}
-
-/**
- * T6: the instant as the match clock's stamped countdown, true at `stamp` (normally the row or
- * resolution time, never after the moment it is read). The origin is moved back to a whole number
- * of seconds before the instant, so every reader reaches 0:00 exactly on it.
- */
-export function targetClockValue(at: number, stamp: number): string {
-  if (at <= stamp) return formatClock(0);
-  const left = Math.ceil((at - stamp) / 1000);
-  return `${formatClock(left)}@${at - left * 1000}`;
 }

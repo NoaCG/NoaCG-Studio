@@ -1,21 +1,182 @@
-// guards: src/control/clockTarget.ts, src/control/matchClockWire.ts
+// gate: factory
+// needs: browser
+// guards: src/control/clockTarget.ts, src/control/matchClockWire.ts, src/templates/behaviours/clock.ts, src/templates/importedDesign/artworkFields.ts, src/components/wizard/import/draft.ts
 //
 // A CLOCK COUNTING DOWN TO A SET TIME (docs/work-specs/jev-svg-import/spec.md row 10, AC-9): what a
 // person types resolves to one instant in a zone, and that instant rides the match clock's existing
 // stamped countdown, so a resend, a replay or a reload reads the same second. `now` and the zone are
-// injected; the rules are T1-T6 in docs/work-specs/jev-svg-import/evidence/phase-10.md.
+// injected; the rules are T1-T7 in docs/work-specs/jev-svg-import/evidence/phase-10.md.
+//
+// The second half builds the graphic the way the wizard does (the real reader, the draft with a
+// resolved target, the real assembler) and runs it on a driven clock: two outputs over one hosted
+// log, replayed the way output/main.ts applies rows (as scripts/imported-clock-wire.test.mjs does),
+// and a third fed only by its fields and play(), as SPX or any host without the wire.
 //
 //   node --test scripts/clock-target.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { withBundledPage } from './catalog-emit.mjs';
+import { DRIVEN_CLOCK, installDrivenPage } from './driven-clock.mjs';
 import {
   formatClockTarget,
   parseClockTarget,
   parseTargetTime,
   resolveClockTarget,
-  targetClockValue,
 } from '../src/control/clockTarget.ts';
-import { clockValueAfterUpdate, clockValueAt } from '../src/control/matchClockWire.ts';
+import { clockRowEffect, clockValueAfterUpdate, clockValueAt } from '../src/control/matchClockWire.ts';
+
+// ── The built graphic on a driven clock ──
+
+const root = (rel) => fileURLToPath(new URL(`../${rel}`, import.meta.url));
+const SPECS = [
+  ['assets/svgImport.ts', 'NOACG_SVG'],
+  ['components/wizard/import/draft.ts', 'NOACG_DRAFT'],
+  ['templates/importedDesign/svg.ts', 'NOACG_IMPORTED'],
+  ['preview/composeDocument.ts', 'NOACG_COMPOSE'],
+  ['ai/svgInterpretation/contract.ts', 'NOACG_CONTRACT'],
+  ['control/matchClockWire.ts', 'NOACG_WIRE'],
+  ['templates/behaviours/clock.ts', 'NOACG_CLOCK'],
+].map(([rel, globalName]) => ({ entry: root(`src/${rel}`), globalName }));
+const SCORE_CLOCK = readFileSync(root('e2e/fixtures/jev-svg/dev/score-clock-1.svg'), 'utf8');
+
+/** The server's clock when the walk starts: 2027-01-15 08:00:00Z, 10:00 in Helsinki. */
+const WALL = 1800000000000;
+/** Noon in Helsinki that day: two hours after the walk starts. */
+const TARGET = '2027-01-15T12:00:00+02:00[Europe/Helsinki]';
+
+/** Runs in the browser: one walk of a built target clock over two hosted outputs and one plain host. */
+const WALK = async ({ markup, target, wall, driven, script }) => {
+  const { NOACG_SVG: R, NOACG_DRAFT: D, NOACG_IMPORTED: I, NOACG_CONTRACT: C, NOACG_WIRE: W, NOACG_COMPOSE: P } = window;
+  const draft = window.__importDraft(R.importSvgMarkup(markup));
+  const row = draft.svgFields.find((f) => f.on && f.clock);
+  const clockDraft = { candidateId: row.candidateId, mode: 'target-time', revision: C.svgSourceRevision(draft.designSvg.markup) };
+  const pending = D.svgClockOption({ ...draft, svgClock: clockDraft });
+  const template = I.IMPORTED_SVG.create({ designSvg: D.svgDesignOptions({ ...draft, svgClock: { ...clockDraft, target } }) });
+  const spec = W.clockSpecFromHtml(template.html);
+  const field = spec.field;
+  const values = Object.fromEntries(template.fields.filter((f) => f.field).map((f) => [f.field, String(f.value ?? '')]));
+  const prod = { wall, log: [], outputs: [] };
+  const mount = async (out) => {
+    const html = P.composeDocument(template).replace(/<head[^>]*>/i, (m) => m + driven.replace('var origin = 1700000000000', `var origin = ${prod.wall}`));
+    document.getElementById(`out-${out.name}`)?.remove();
+    const frame = document.createElement('iframe');
+    frame.id = `out-${out.name}`;
+    frame.style.cssText = `position:fixed;left:0;top:0;width:${template.resolution.width}px;height:${template.resolution.height}px;border:0;`;
+    await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = html; document.body.appendChild(frame); });
+    out.w = frame.contentWindow;
+  };
+  // output/main.ts `applyCommand`, the clock's half of it; a plain host just gets the row.
+  const deliver = (out, row) => {
+    const { w } = out;
+    let msg = row.msg;
+    if (out.plain) {
+      // Its panel never shows the hidden field, so it always sends that field's own value.
+      if (msg.t === 'update') w.update(JSON.stringify({ ...msg.data, [field]: values[field] }));
+      else if (msg.t === 'play') w.play();
+      else if (msg.t === 'stop') w.stop();
+      return;
+    }
+    if (msg.t === 'update') {
+      const merged = { ...out.held, ...msg.data };
+      if (msg.data[field] !== undefined) {
+        merged[field] = W.clockValueAfterUpdate(out.held[field], msg.data[field]);
+        msg = { ...msg, data: { ...msg.data, [field]: merged[field] } };
+      }
+      out.held = merged;
+    }
+    const effect = W.clockRowEffect(row, spec, out.held[field], w.Date.now());
+    const write = (value) => { out.held = { ...out.held, [field]: value }; w.update(JSON.stringify({ [field]: value })); };
+    if (effect?.when === 'before') write(effect.value);
+    if (msg.t === 'update') w.update(JSON.stringify(msg.data));
+    else if (msg.t === 'play') w.play();
+    else if (msg.t === 'stop') w.stop();
+    if (effect?.when === 'after') write(effect.value);
+    out.seen = row.seq;
+  };
+  const output = async (name, lag, plain = false) => {
+    const out = { name, lag, plain, held: {}, seen: 0, report: null };
+    await mount(out);
+    prod.outputs.push(out);
+    return out;
+  };
+  const advance = (ms) => { prod.wall += ms; for (const out of prod.outputs) out.w.__advance(ms); };
+  const send = (msg) => {
+    const row = { seq: prod.log.length + 1, msg, created_at: new Date(prod.wall).toISOString() };
+    prod.log.push(row);
+    let waited = 0;
+    for (const out of [...prod.outputs].sort((a, b) => a.lag - b.lag)) {
+      if (out.lag > waited) { advance(out.lag - waited); waited = out.lag; }
+      deliver(out, row);
+    }
+  };
+  const outs = { A: await output('A', 0), B: await output('B', 700), S: await output('S', 0, true) };
+  const read = (out) => ({ value: out.w.formatMatchClock(out.w.matchClockValue()), shown: out.w.document.getElementById(field)?.textContent ?? null });
+  const readings = [];
+  let cue = { ...values };
+  for (const [verb, arg] of script) {
+    if (verb === 'take') { send({ t: 'update', data: { ...cue } }); send({ t: 'play' }); }
+    else if (verb === 'update') send({ t: 'update', data: { ...cue } });
+    // A cue holding a plain time (an older cue, or a value set by hand on the wire).
+    else if (verb === 'cue') { cue = { ...cue, [field]: arg }; send({ t: 'update', data: { ...cue } }); }
+    else if (verb === 'out') send({ t: 'stop' });
+    else if (verb === 'wait') advance(arg);
+    else if (verb === 'report') outs[arg].report = { data: { ...outs[arg].held }, groups: outs[arg].w.noacgMachineState().groups, seq: outs[arg].seen };
+    else if (verb === 'reload') {
+      const out = outs[arg];
+      const report = out.report;
+      await mount(out);
+      out.held = { ...report.data };
+      out.w.update(JSON.stringify(report.data));
+      out.w.noacgSnap(report.groups, { timers: true });
+      out.w.update(JSON.stringify(report.data));
+      for (const row of prod.log.filter((r) => r.seq > report.seq)) deliver(out, row);
+    } else if (verb === 'read') readings.push({ label: arg, at: prod.wall - wall, A: read(outs.A), B: read(outs.B), S: read(outs.S) });
+  }
+  for (const out of prod.outputs) document.getElementById(`out-${out.name}`)?.remove();
+  const clockFieldDecl = template.fields.find((f) => f.field === field);
+  return { spec, readings, pending, field: { ftype: clockFieldDecl.ftype, value: clockFieldDecl.value }, dataStart: new DOMParser().parseFromString(template.html, 'text/html').getElementById(field)?.getAttribute('data-start') };
+};
+
+/** The template's readers, which import the type registry and so run in the bundle. */
+let clockTargetStart, clockReadout, CLOCK_PICKER_MODES;
+
+const walk = await withBundledPage(SPECS, async (page) => {
+  await installDrivenPage(page);
+  const stored = [
+    TARGET, '2026-11-01T19:00:00+02:00[Europe/Helsinki]', '2026-11-14T19:00:00+02:00[Europe/Helsinki]', '2026-10-25T03:30:00+02:00[Europe/Helsinki]',
+    '2026-10-25T03:30:00+03:00[Europe/Helsinki]', '2026-11-02T00:00:00-05:00[America/New_York]', '2026-10-31T19:00:00+02:00[Europe/Helsinki]', '', 'tonight', '2026-11-14T19:00:00+02:00', 'garbage',
+  ];
+  const readouts = [['target-time', '12:08', stored[2]], ['count-up', ' 12:08 ', stored[2]], ['duration', '0:30', stored[2]], ['target-time', '12:08', undefined], ['target-time', '12:08', 'garbage']];
+  const t = await page.evaluate(({ stored, readouts }) => ({
+    starts: Object.fromEntries(stored.map((x) => [x, window.NOACG_CLOCK.clockTargetStart(x)])),
+    readouts: readouts.map(([m, d, x]) => [JSON.stringify([m, d, x ?? null]), window.NOACG_CLOCK.clockReadout(m, d, x)]),
+    modes: window.NOACG_CLOCK.CLOCK_PICKER_MODES.map((m) => ({ mode: m.mode })),
+  }), { stored, readouts });
+  clockTargetStart = (x) => { assert.ok(x in t.starts, `unbundled reading of ${x}`); return t.starts[x]; };
+  const readoutMap = new Map(t.readouts);
+  clockReadout = (m, d, x) => readoutMap.get(JSON.stringify([m, d, x ?? null]));
+  CLOCK_PICKER_MODES = t.modes;
+  return page.evaluate(WALK, {
+    markup: SCORE_CLOCK,
+    target: TARGET,
+    wall: WALL,
+    driven: DRIVEN_CLOCK,
+    script: [
+      ['read', 'before the Take'],
+      ['take'], ['wait', 3000], ['read', 'taken'],
+      ['update'], ['wait', 500], ['read', 'a resend'],
+      ['cue', '12:08'], ['wait', 500], ['read', 'a plain time sent over it'],
+      ['report', 'B'], ['wait', 600_000], ['reload', 'B'], ['wait', 300], ['read', 'B reloaded ten minutes on'],
+      ['out'], ['wait', 5000], ['read', 'off air'],
+      ['take'], ['wait', 500], ['read', 'taken again'],
+      ['wait', 7_200_000], ['read', 'past the instant'],
+      ['report', 'A'], ['reload', 'A'], ['wait', 300], ['read', 'A reloaded past it'],
+      ['take'], ['wait', 500], ['read', 'taken after it'],
+    ],
+  });
+});
 
 const HEL = 'Europe/Helsinki';
 const NY = 'America/New_York';
@@ -121,37 +282,98 @@ test('T5: the stored form round-trips the instant and the zone', () => {
   }
 });
 
-test('T6: the instant is the stamped countdown, reaching 0:00 on it', () => {
-  const at = Date.parse('2026-11-01T17:00:00Z'); // 19:00 Helsinki
-  const value = targetClockValue(at, NOW);
-  assert.equal(value, `219:30@${NOW}`, '3 h 39 min 30 s left, true now');
-  assert.equal(targetClockValue(at, NOW + 400), `219:30@${NOW}`, 'an origin between seconds moves back to the whole second before the instant');
-  assert.equal(clockValueAt(value, true, NOW), '219:30');
-  assert.equal(clockValueAt(value, true, at - 61_000), '1:01');
-  assert.equal(clockValueAt(value, true, at - 1), '0:01');
-  assert.equal(clockValueAt(value, true, at), '0:00');
-  assert.equal(clockValueAt(value, true, at + 3_600_000), '0:00', 'it holds at zero after the instant');
+test('T6: the stored instant starts the clock as the stamped countdown, reaching 0:00 on it', () => {
+  const stored = '2026-11-01T19:00:00+02:00[Europe/Helsinki]';
+  const at = parseClockTarget(stored).at;
+  const start = clockTargetStart(stored);
+  assert.match(start, /^\d+:\d{2}@\d+$/);
+  assert.equal((at - Number(start.split('@')[1])) % 1000, 0, 'a whole number of seconds before the instant');
+  assert.equal(clockValueAt(start, true, NOW), '219:30', '3 h 39 min 30 s left');
+  assert.equal(clockValueAt(start, true, at - 61_000), '1:01');
+  assert.equal(clockValueAt(start, true, at - 1), '0:01');
+  assert.equal(clockValueAt(start, true, at), '0:00', 'zero on the instant');
+  assert.equal(clockValueAt(start, true, at + 3_600_000), '0:00', 'and held there');
+  assert.equal(clockTargetStart(stored), start, 'a pure function of the instant: the same build is the same bytes');
+  // The two readers of the stored form agree: the template's start counts to the control's instant.
+  for (const r of [resolved({ time: '03:30', date: '2026-10-25', zone: HEL, fold: 'later' }), resolved({ time: '12 am', zone: NY })]) {
+    const s2 = clockTargetStart(formatClockTarget(r));
+    assert.equal(clockValueAt(s2, true, r.at - 5_000), '0:05', formatClockTarget(r));
+    assert.equal(clockValueAt(s2, true, r.at), '0:00');
+  }
+  for (const bad of ['', 'tonight', '2026-11-14T19:00:00+02:00']) assert.equal(clockTargetStart(bad), null, bad);
 });
 
-test('T6: an expired target is held at 0:00 and never counts', () => {
+test('T6: an expired target shows 0:00 from the first frame and never counts', () => {
   const past = resolved({ time: '19:00', date: '2026-10-31', zone: HEL });
-  assert.equal(targetClockValue(past.at, NOW), '0:00');
-  assert.equal(clockValueAt(targetClockValue(past.at, NOW), true, NOW + 3_600_000), '0:00');
-  assert.equal(targetClockValue(past.at, past.at), '0:00', 'reached exactly is reached');
+  const start = clockTargetStart(formatClockTarget(past));
+  assert.equal(clockValueAt(start, true, NOW), '0:00');
+  assert.equal(clockValueAt(start, true, NOW + 86_400_000), '0:00');
+});
+
+test('the readout and the picker: a resolved target is offered, and only a target time takes it', () => {
+  assert.deepEqual(CLOCK_PICKER_MODES.map((m) => m.mode), ['count-up', 'duration', 'target-time']);
+  const stored = '2026-11-14T19:00:00+02:00[Europe/Helsinki]';
+  assert.deepEqual(clockReadout('target-time', '12:08', stored), { count: 'down', start: clockTargetStart(stored) });
+  // Every other clock is exactly what it was.
+  assert.deepEqual(clockReadout('count-up', ' 12:08 ', stored), { count: 'up', start: '12:08' });
+  assert.deepEqual(clockReadout('duration', '0:30', stored), { count: 'down', start: '0:30' });
+  assert.deepEqual(clockReadout('target-time', '12:08'), { count: 'down', start: '12:08' });
+  assert.deepEqual(clockReadout('target-time', '12:08', 'garbage'), { count: 'down', start: '12:08' });
+});
+
+test('T7: the wire never restarts, holds or replaces a fixed instant', () => {
+  const seed = clockTargetStart('2026-11-01T19:00:00+02:00[Europe/Helsinki]');
+  const spec = { field: 'f2', countsDown: true, seed, resetTo: seed, events: { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' }, startsOnTake: false, fixedInstant: true };
+  const iso = new Date(NOW).toISOString();
+  const row = (msg) => ({ msg, created_at: iso });
+  assert.equal(clockRowEffect(row({ t: 'play' }), spec, seed, NOW), null, 'a Take of the start it holds changes nothing');
+  assert.equal(clockRowEffect(row({ t: 'update', data: {} }), spec, seed, NOW), null);
+  assert.deepEqual(clockRowEffect(row({ t: 'update', data: { f2: '12:08' } }), spec, '12:08', NOW), { value: seed, when: 'after' }, 'a plain time from a cue is answered with the instant');
+  assert.deepEqual(clockRowEffect(row({ t: 'play' }), spec, undefined, NOW), null, 'nothing held: the seed stands in, and is the instant');
+  assert.deepEqual(clockRowEffect(row({ t: 'play' }), spec, '5:00@1700000000000', NOW), { value: seed, when: 'after' }, 'an older instant from a cue');
+  assert.equal(clockRowEffect(row({ t: 'stop' }), spec, seed, NOW), null, 'an Out holds nothing');
+  for (const event of ['clock_start', 'clock_pause', 'clock_reset']) assert.equal(clockRowEffect(row({ t: 'event', event }), spec, seed, NOW), null, event);
 });
 
 test('T6: a resend, a replay at another time and a reload all read the same second', () => {
-  const at = resolved({ time: '19:00', date: '2026-11-14', zone: HEL }).at;
-  const takeAt = NOW;
-  const first = targetClockValue(at, takeAt);
-  // A replay of the log, or a re-resolution an hour later, may stamp another origin: same reading.
-  const replayed = targetClockValue(at, takeAt + 3_600_000 + 123);
-  for (const read of [takeAt + 3_600_000 + 500, takeAt + 86_400_000 * 3 + 999, at - 1_500]) {
-    assert.equal(clockValueAt(first, true, read), clockValueAt(replayed, true, read), `read at ${read}`);
+  const start = clockTargetStart('2026-11-14T19:00:00+02:00[Europe/Helsinki]');
+  assert.equal(clockValueAfterUpdate(start, start), start, 'an Update resending it keeps it');
+  assert.equal(clockValueAfterUpdate(undefined, start), start);
+  for (const read of [NOW, NOW + 3_600_500, NOW + 86_400_000 * 3 + 999]) {
+    assert.equal(clockValueAt(clockValueAfterUpdate(start, start), true, read), clockValueAt(start, true, read));
   }
-  // The wire's own merge: an Update resending the same stamped value keeps it, and so does a resend
-  // of a re-stamped one; a plain resend of the time it read does not replace the instant.
-  assert.equal(clockValueAfterUpdate(first, first), first);
-  assert.equal(clockValueAfterUpdate(first, replayed), replayed);
-  assert.equal(clockValueAfterUpdate(first, first.split('@')[0]), first);
+});
+
+const reading = (label) => {
+  const r = walk.readings.find((o) => o.label === label);
+  assert.ok(r, `no reading "${label}"`);
+  return r;
+};
+/** The time left at `ms` after the walk starts: the instant is two hours on. */
+const left = (ms) => {
+  const s = Math.max(0, Math.ceil((7_200_000 - ms) / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+test('the built graphic: a resolved target ships its instant', () => {
+  assert.equal(walk.pending.target, undefined, 'a target time with no instant carries none (rows 7-9 compile it as before)');
+  assert.equal(walk.spec.fixedInstant, true);
+  assert.equal(walk.spec.startsOnTake, false);
+  assert.equal(walk.dataStart, clockTargetStart(TARGET));
+  assert.deepEqual(walk.field, { ftype: 'hidden', value: clockTargetStart(TARGET) }, 'no drawn time for a cue or SPX to send over it');
+});
+
+test('the built graphic counts to the instant on every output, through resends, reloads, Outs and Takes', () => {
+  const live = ['before the Take', 'taken', 'a resend', 'a plain time sent over it', 'B reloaded ten minutes on', 'off air', 'taken again'];
+  for (const label of live) {
+    const r = reading(label);
+    assert.equal(r.A.value, left(r.at), `${label}: output A, ${r.at} ms into the walk`);
+    assert.equal(r.B.value, r.A.value, `${label}: B, 700 ms behind on every row, reads A's second`);
+    assert.equal(r.S.value, r.A.value, `${label}: a host with no wire reads it too`);
+  }
+  for (const label of ['past the instant', 'A reloaded past it', 'taken after it']) {
+    const r = reading(label);
+    assert.deepEqual([r.A.value, r.B.value, r.S.value], ['0:00', '0:00', '0:00'], `${label}: held at zero, never rolled forward`);
+  }
+  assert.equal(reading('taken').A.shown, reading('taken').A.value, 'the layer shows the time, never the raw wire value');
 });

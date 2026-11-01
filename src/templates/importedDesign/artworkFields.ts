@@ -19,7 +19,7 @@ export function boundClock(svg: DesignSvg): { index: number; mode: ClockMode; co
   const index = svg.fields.findIndex((f) => f.candidateId === extra.field);
   if (index === -1) return null;
   const mode = asClockMode(extra.mode);
-  return { index, mode, ...clockReadout(mode, svg.fields[index].sample) };
+  return { index, mode, ...clockReadout(mode, svg.fields[index].sample, extra.target) };
 }
 
 /** The ONE countdown field of a design (plan P2 "clock ftype"): the first text layer bound
@@ -38,6 +38,8 @@ export function countdownIndex(svg: DesignSvg): number {
  *  picture layer. */
 export function svgFields(svg: DesignSvg): SpxField[] {
   const clock = countdownIndex(svg);
+  const bound = boundClock(svg);
+  const fixedClock = bound && bound.start.includes('@') ? bound : null;
   const credits = creditsIndex(svg);
   const artworkCredits = creditsArtworkFields(svg);
   return [
@@ -53,6 +55,9 @@ export function svgFields(svg: DesignSvg): SpxField[] {
           value: String(clockSampleMinutes(f.sample) ?? 5),
         };
       }
+      // A target time counts to its instant with nothing to correct: its field carries the start
+      // the graphic counts, hidden, so a Take or SPX never sends the drawn time over it.
+      if (i === fixedClock?.index) return { field: `f${i}`, ftype: 'hidden', title: f.title, value: fixedClock.start };
       if (i === credits) {
         // The whole credit list in one box, one line per drawn baseline (docs/END_CREDITS.md):
         // the operator pastes into it, and the drawn layer becomes the sample the looks are

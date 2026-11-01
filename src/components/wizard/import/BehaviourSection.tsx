@@ -29,6 +29,7 @@ import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
+import { formatClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
   clearFill,
@@ -636,7 +637,7 @@ export default function BehaviourSection({
                     const found = CLOCK_PICKER_MODES.find((m) => m.mode === mode);
                     if (!found) return setClock(null);
                     const row = clockRows.find((f) => f.candidateId === clock?.candidateId) ?? clockRows[0];
-                    setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? '') });
+                    setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? ''), ...(found.mode === 'target-time' ? { target: clock?.target ?? proposedClockTarget() } : {}) });
                   }}
                   data-testid="map-svg-clock-mode"
                 >
@@ -666,6 +667,9 @@ export default function BehaviourSection({
                 </label>
               )}
             </div>
+          )}
+          {clock?.mode === 'target-time' && (
+            <ClockTargetFields target={clock.target} onTarget={(target) => setClock({ ...clock, target })} />
           )}
           {/* THE HIDDEN LAYERS DID NOT ARRIVE. Illustrator's Export As writes no hidden layer at
               all (measured on 30.1, https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/illustrator-export-as-drops-hidden-layers.md), so
@@ -1301,5 +1305,97 @@ export default function BehaviourSection({
         </div>
       )}
     </>
+  );
+}
+
+/** A target time's first proposal: the next whole hour in the author's own zone, shown with its
+ *  date and zone so it is confirmed or changed, never taken silently. */
+function proposedClockTarget(): string | undefined {
+  const now = Date.now();
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const hour = (Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hourCycle: 'h23' }).format(now)) + 1) % 24;
+  const r = resolveClockTarget({ time: `${String(hour).padStart(2, '0')}:00`, zone }, now);
+  return r.kind === 'resolved' ? formatClockTarget(r) : undefined;
+}
+
+/** The zones the target can be set in: the runtime's list, with the author's own zone on it. */
+function timeZones(local: string): string[] {
+  const intl = Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] };
+  const listed = intl.supportedValuesOf ? intl.supportedValuesOf('timeZone') : [];
+  return listed.includes(local) ? listed : [local, ...listed];
+}
+
+/**
+ * A TARGET TIME'S INSTANT (control/clockTarget.ts): a time, an optional date and a zone. A time
+ * alone is the next one, and the line under the fields says which day and zone that is. A time the
+ * clocks skip asks for another; one they repeat asks which. Only a resolved instant reaches the
+ * draft, so a clock never counts to a time that does not exist.
+ */
+function ClockTargetFields({ target, onTarget }: { target?: string; onTarget: (target: string) => void }) {
+  const local = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
+  const zones = useMemo(() => timeZones(local), [local]);
+  const stored = target ? /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}):\d{2}[+-]\d{2}:\d{2}\[([^\]]+)\]$/.exec(target) : null;
+  const [time, setTime] = useState(stored?.[2] ?? '');
+  const [date, setDate] = useState(stored?.[1] ?? '');
+  const [zone, setZone] = useState(stored?.[3] ?? local);
+  const [fold, setFold] = useState<'earlier' | 'later' | undefined>(undefined);
+  const [result, setResult] = useState<ClockTargetResolution | null>(null);
+  const apply = (next: { time?: string; date?: string; zone?: string; fold?: 'earlier' | 'later' }) => {
+    const input = { time, date, zone, fold, ...next };
+    setTime(input.time);
+    setDate(input.date);
+    setZone(input.zone);
+    setFold(input.fold);
+    const r = input.time ? resolveClockTarget(input, Date.now()) : null;
+    setResult(r);
+    // Only an instant reaches the draft: until a new one resolves, the last one stands.
+    if (r?.kind === 'resolved') onTarget(formatClockTarget(r));
+  };
+  const shown = result ?? (stored ? { kind: 'stored' as const } : null);
+  const wall = (at: number) => new Intl.DateTimeFormat(undefined, { timeZone: zone, dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' }).format(at);
+  return (
+    <div className="map-svg-row" data-testid="map-svg-clock-target">
+      <label className="save-field">
+        <span>Time</span>
+        <input type="time" value={time} onChange={(e) => apply({ time: e.target.value, fold: undefined })} data-testid="map-svg-clock-target-time" />
+      </label>
+      <label className="save-field">
+        <span>Date</span>
+        <input type="date" value={date} onChange={(e) => apply({ date: e.target.value, fold: undefined })} data-testid="map-svg-clock-target-date" />
+      </label>
+      <label className="save-field grow">
+        <span>Zone</span>
+        <select value={zone} onChange={(e) => apply({ zone: e.target.value, fold: undefined })} data-testid="map-svg-clock-target-zone">
+          {zones.map((z) => (
+            <option key={z} value={z}>
+              {z}
+            </option>
+          ))}
+        </select>
+      </label>
+      {shown?.kind === 'fold' && (
+        <label className="save-field grow">
+          <span>Which one</span>
+          <select value="" onChange={(e) => apply({ fold: e.target.value as 'earlier' | 'later' })} data-testid="map-svg-clock-target-fold">
+            <option value="" disabled>
+              The clocks go back: choose
+            </option>
+            <option value="earlier">{wall(shown.earlier)}</option>
+            <option value="later">{wall(shown.later)}</option>
+          </select>
+        </label>
+      )}
+      {shown && shown.kind !== 'fold' && (
+        <p className="map-svg-note" data-testid="map-svg-clock-target-reads">
+          {shown.kind === 'resolved'
+            ? `${wall(shown.at)}${shown.expired ? ', already past: it shows 0:00' : ''}`
+            : shown.kind === 'stored'
+              ? wall(Date.parse(target!.slice(0, target!.indexOf('['))))
+              : shown.kind === 'gap'
+                ? 'The clocks skip that time. Choose another.'
+                : 'Choose a time.'}
+        </p>
+      )}
+    </div>
   );
 }

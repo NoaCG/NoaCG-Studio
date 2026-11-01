@@ -653,8 +653,8 @@ test('a new import offers exactly one Clock choice with its modes, and no Countd
 
   const ready = render(props);
   const clock = options(select(ready, 'map-svg-clock-mode'));
-  // The target time waits for its instant (row 10): only modes that can change the graphic are offered.
-  assert.deepEqual(clock.map(([v]) => v), ['none', 'count-up', 'duration'], 'one Clock choice, with the modes');
+  // The target time is offered with its own date, time and zone input (row 10).
+  assert.deepEqual(clock.map(([v]) => v), ['none', 'count-up', 'duration', 'target-time'], 'one Clock choice, with the modes');
   assert.equal((ready.match(/data-testid="map-svg-clock-mode"/g) ?? []).length, 1);
   const kinds = options(select(ready, 'map-svg-behaviour-kind')).map(([v]) => v);
   assert.ok(!kinds.includes('timer') && !kinds.includes('clock'), kinds.join());

@@ -39,9 +39,9 @@ export const CLOCK_MODES: readonly { mode: ClockMode; label: string; summary: st
 ];
 
 /** The modes the import step OFFERS: a control is offered only when it can change the graphic
- *  (wizard/offer-control-can-change-graphic-front), and a target time has no instant to count to
- *  until row 10 resolves one, so it waits for that row. A stored one still compiles. */
-export const CLOCK_PICKER_MODES = CLOCK_MODES.filter((m) => m.mode !== 'target-time');
+ *  (wizard/offer-control-can-change-graphic-front). A target time is offered with its own date,
+ *  time and zone, and builds a clock only once they resolve to an instant (row 10). */
+export const CLOCK_PICKER_MODES = CLOCK_MODES;
 
 /** The one name a clock instance carries: a graphic has one clock, so it needs no other. */
 export const CLOCK_NAME = 'Clock';
@@ -50,10 +50,34 @@ export const CLOCK_NAME = 'Clock';
  * THE READOUT'S TWO ATTRIBUTES, as the match-clock runtime reads them off its element
  * (templates/shared/matchClock.ts): which way it counts, and the time Reset returns to. The time is
  * the one the designer drew, as a native scorebug's is its period length; a duration counts down
- * from it, and so does a target time until its instant lands (row 10).
+ * from it. A target time with a resolved instant starts as the countdown TO that instant
+ * (`clockTargetStart`), so every output, reload and replay reads the same second from it.
  */
-export function clockReadout(mode: ClockMode, drawn: string): { count: 'up' | 'down'; start: string } {
-  return { count: mode === 'count-up' ? 'up' : 'down', start: drawn.trim() };
+export function clockReadout(mode: ClockMode, drawn: string, target?: string): { count: 'up' | 'down'; start: string } {
+  const fixed = mode === 'target-time' && target ? clockTargetStart(target) : null;
+  return { count: mode === 'count-up' ? 'up' : 'down', start: fixed ?? drawn.trim() };
+}
+
+/** The origin a target time's start is stamped with: one fixed second (1970-01-01T00:00:01Z),
+ *  before any moment a graphic is read, so the start is a pure function of the stored instant and
+ *  the same build is the same bytes. The runtime counts it down by the wall clock to 0:00 on the
+ *  instant and holds there, so a target already past shows 0:00 and never rolls forward. */
+const TARGET_ORIGIN = 1000;
+
+/**
+ * A stored target (`2026-11-14T19:00:00+02:00[Europe/Helsinki]`, control/clockTarget.ts
+ * `formatClockTarget`) as the match clock's stamped countdown: the seconds left at
+ * `TARGET_ORIGIN`, `"<minutes>:<ss>@<origin>"`, or null for one that does not read. Templates
+ * import nothing from control, so the format is read here too; scripts/clock-target.test.mjs pins
+ * the two readers equal.
+ */
+export function clockTargetStart(target: string): string | null {
+  const m = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2})\[[^\]]+\]$/.exec(target.trim());
+  const at = m ? Date.parse(m[1]) : NaN;
+  if (!Number.isFinite(at) || at <= TARGET_ORIGIN) return null;
+  const left = Math.ceil((at - TARGET_ORIGIN) / 1000);
+  const s = left % 60;
+  return `${Math.floor(left / 60)}:${s < 10 ? `0${s}` : s}@${at - left * 1000}`;
 }
 
 /** A time the match clock reads as written: minutes and seconds ("12:08"). It parses "1:30:00"
