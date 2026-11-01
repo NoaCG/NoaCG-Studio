@@ -42,22 +42,24 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci08 merge queue, landed record and checker",
-    "eta": "2026-11-01T10:30:00Z"
+    "what": "ci08 checker verdict",
+    "eta": "2026-11-01T10:20:00Z"
   },
   "inFlight": [
     {
       "phase": "ci08",
-      "step": "queued",
-      "session": "session_017SdbwQQvsfeqE8Ba1L1dyi",
-      "nonce": "ci08-b-f2d7",
-      "branch": "claude/plan-cicd-improvement-ci08-build",
-      "launchedAt": "2026-11-01T08:26:14Z",
-      "note": "Receipt 09:36Z; verified at source: CI 41292694691 gate green, Codex clean, full-diff /so A. Stamp 41293941479; queued 09:38:07Z. Candidate: geometry cases in editor-arrangement.spec.ts (13.40 s -> 5.21 s). Warn ci09/ci10: #1911 protection-check blind spot.",
+      "step": "check",
+      "session": "session_017SdbwNXukoELJphiZqTKGM",
+      "nonce": "ci08-c-e905",
+      "actor": "checker-ci08-ci08-c-e905",
+      "launchedAt": "2026-11-01T09:48:29Z",
       "pr": 1910,
+      "mergeSha": "23742966784b3c8a46858524ca7a8037a373e0b7",
+      "builder": "session_017SdbwQQvsfeqE8Ba1L1dyi",
+      "so": "session_017SdbwLxp9rPacMekaq7jfv",
       "reviewedHead": "928c81428cfc57213ec302088960c557132759ec",
       "repairOwnerComment": 6556210144,
-      "so": "session_017SdbwLxp9rPacMekaq7jfv"
+      "note": "Merged 09:47:2xZ (queue run 41294000425). After PASS archive builder, its /so sessions and this checker."
     }
   ],
   "owner": [],
