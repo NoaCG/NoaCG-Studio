@@ -28,18 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": null,
-  "inFlight": [
-    {
-      "phase": "11",
-      "step": "check",
-      "session": "session_017SdbwN6ACixGir1Bqqs7QT",
-      "nonce": "11-c-5be2",
-      "mergeSha": "7030eb18dcceef18243e0dc3e937a2b7ef51918e",
-      "pr": 1899,
-      "launchedAt": "2026-11-01T08:11:48Z",
-      "note": "independent checker; brief + coordinator note (departures, follow-ups, PR CI infra rerun). On pass archive builder session_017SdbwQSCmJsdfGNomv58Wr and its /so sessions (M6keZWcg48A7omhot, Pva4FHMtNDapHBAwc, QZrQCK9A3NqCKAJgo, R5541AfgyH9pyJeu6, Pz7dUFS9EjqVBUoqS)."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": {
@@ -137,6 +126,12 @@
       "mergeSha": "2518b42919123eefd876259f6ba009999ed2b2b4",
       "pr": 1893,
       "checker": "session_017SdbwQYeTdNrAY1DfW93Zi"
+    },
+    {
+      "phase": "11",
+      "mergeSha": "7030eb18dcceef18243e0dc3e937a2b7ef51918e",
+      "pr": 1899,
+      "checker": "session_017SdbwN6ACixGir1Bqqs7QT"
     }
   ],
   "coordinatorNotes": [
