@@ -17,6 +17,7 @@
 // any number of rows without gaining a state - the model's central rule, unchanged.
 
 import { ANSWER_BOARD_CONTROLS, ANSWER_BOARD_MACHINE, ANSWER_PICK_LOCK_OPTIONAL_SECTION, ANSWER_PICK_SECTION } from '../types/answerBoard';
+import type { LookRule } from '../../blocks/behaviourData';
 import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 import type { TypeBranch, TypeMachine } from '../types/graphicType';
@@ -65,25 +66,18 @@ function assertNoLockSupported(ctx: RecipeContext): void {
  */
 function quizMachine(ctx: RecipeContext): TypeMachine {
   assertNoLockSupported(ctx);
-  if (quizHasNoLock(ctx.options)) {
-    // Only the pick survives. Reveal correct is legal from it, and Next rejoins the walk from it
-    // too, as it does from `locked` on a board with a lock: a playout server's Continue must
-    // still get past a pick when no lock is there to press first.
-    const selected = (ANSWER_BOARD_MACHINE.main?.branches ?? []).filter((b) => b.id === 'selected').map((b) => ({
-      ...b,
-      edges: [
-        ...b.edges,
-        { from: 'selected', to: { waypoint: 1 }, trigger: 'operator' as const, event: 'judge' },
-        { from: 'selected', to: { waypoint: 1 }, trigger: 'operator' as const, event: 'next' },
-      ],
-    }));
-    return withRepaint({ main: { ...ANSWER_BOARD_MACHINE.main, branches: selected } });
-  }
+  const noLock = quizHasNoLock(ctx.options);
+  // A no-Lock board drops the lock's two states, so no arrow can reach them.
+  const dropped = noLock ? ['audience', 'locked', 'sealed'] : ['audience'];
   const branches: TypeBranch[] = (ANSWER_BOARD_MACHINE.main?.branches ?? [])
-    .filter((b) => b.id !== 'audience')
+    .filter((b) => !dropped.includes(b.id))
     .map((b) => {
-      if (b.id === 'selected' && ctx.options.lock === false) {
-        return { ...b, edges: [...b.edges, { from: 'selected', to: { waypoint: 1 }, trigger: 'operator', event: 'judge' }] };
+      if (b.id === 'selected' && (noLock || ctx.options.lock === false)) {
+        const edges: TypeBranch['edges'] = [...b.edges, { from: 'selected', to: { waypoint: 1 }, trigger: 'operator', event: 'judge' }];
+        // With no lock to press first, Next rejoins the walk from the pick, as it does from
+        // `locked` on a board with one: a playout server's Continue must get past a pick.
+        if (noLock) edges.push({ from: 'selected', to: { waypoint: 1 }, trigger: 'operator', event: 'next' });
+        return { ...b, edges };
       }
       if (b.id === 'locked' && ctx.options.autoReveal === true) {
         return { ...b, edges: [...b.edges, { from: 'locked', to: { waypoint: 1 }, trigger: 'timer', after: AUTO_REVEAL_AFTER }] };
@@ -143,17 +137,17 @@ export const quizRecipe: BehaviourRecipe = {
       : ctx.options.lock === false
       ? ANSWER_BOARD_CONTROLS.map((c) => (c.section === ANSWER_PICK_SECTION ? { ...c, section: ANSWER_PICK_LOCK_OPTIONAL_SECTION } : c))
       : ANSWER_BOARD_CONTROLS,
-  paint: (ctx) =>
-    quizHasNoLock(ctx.options)
-      ? [
-          { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
-          { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
-          { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
-        ]
-      : [
-          { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
-          { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
-          { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
-          { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
-        ],
+  paint: (ctx) => {
+    const rules: LookRule[] = [
+      { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
+      { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
+      { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
+      { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
+    ];
+    if (!quizHasNoLock(ctx.options)) return rules;
+    // No lock: its look goes, and no rule names a state the machine no longer has.
+    return rules
+      .filter((r) => r.look !== 'locked')
+      .map((r) => (r.when?.state ? { ...r, when: { ...r.when, state: r.when.state.filter((st) => st !== 'main/locked' && st !== 'main/sealed') } } : r));
+  },
 };

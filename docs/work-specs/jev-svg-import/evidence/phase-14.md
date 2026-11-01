@@ -25,8 +25,9 @@ on it.
   heading reads "Pick, then reveal".
 - `src/components/wizard/import/BehaviourSection.tsx`: a "No lock at all" checkbox beside the
   quiz's options. Ticked, it writes `{ lock: false, noLock: true }`, clears the timed reveal and
-  hides the lock option, the timed-reveal option and the Locked in picker. Unticked, it removes
-  `noLock` and leaves the optional-lock board.
+  the Locked in layer, and hides the lock option, the timed-reveal option and the Locked in
+  picker. Unticked, it removes `noLock` and leaves the optional-lock board with both options in
+  view.
 - `e2e/import-svg-behaviour.spec.ts`: one journey. Tick No lock, the three controls are gone, the
   cue has no Lock it in or Reveal choice, the pick moves B to D, the drawn lock never shows, and
   Reveal correct paints the key (C) correct and the rest wrong.
@@ -74,8 +75,11 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 - **Next leaves the pick.** On a board with a lock, Next rejoins the walk from `locked`. With no
   lock, a playout server's Continue after a pick would otherwise stop, so the same rejoin leaves
   `selected`.
-- **A bound Locked in layer stays bound.** On a no-Lock board no rule shows it, so the drawn layer
-  stays hidden. Unticking No lock gives the binding back.
+- **Ticking No lock clears the Locked in layer.** No rule on a no-Lock board would show it, and a
+  binding hidden from the wizard would still stamp the layer as a look. Unticking does not bring
+  it back; the picker returns and it can be picked again.
+- **The no-Lock machine and paint are derived from the lock board's**, filtered, not written a
+  second time, so the two variants cannot drift.
 
 ## Follow-ups and reads
 

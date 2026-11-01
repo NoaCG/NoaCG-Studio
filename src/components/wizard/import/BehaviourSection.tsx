@@ -154,12 +154,13 @@ function RecipeOptions({
 /**
  * THE TRUE NO-LOCK QUIZ (behaviours/quiz.ts `quizHasNoLock`). Unticking "Require lock" keeps the
  * lock as an optional beat; this removes it. Ticking it hides the lock and timer options and the
- * Locked in picker, because none of them can change this board, and clears the timer, whose
- * arrow starts at the lock. Unticking it gives back the optional-lock board it came from.
+ * Locked in picker, because none of them can change this board, and clears the timer (its arrow
+ * starts at the lock) and the Locked in layer (no rule would ever show it). Unticking it leaves
+ * the optional-lock board, with both options back in view to set again.
  */
 function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
   return (
-    <label className="save-field" title="Pick, then Reveal correct. No Lock it in button, no locked look, no timed reveal.">
+    <label className="save-field" title="Pick, then Reveal correct.">
       <input
         type="checkbox"
         checked={quizHasNoLock(values)}
@@ -1192,7 +1193,10 @@ export default function BehaviourSection({
                 onChange={(options) => patchQuiz({ options })}
                 hide={quizHasNoLock(quiz.options) ? ['lock', 'autoReveal'] : []}
               >
-                <NoLockOption values={quiz.options ?? {}} onChange={(options) => patchQuiz({ options })} />
+                <NoLockOption
+                  values={quiz.options ?? {}}
+                  onChange={(options) => patchQuiz(quizHasNoLock(options) ? { options, locked: '' } : { options })}
+                />
               </RecipeOptions>
               <div className="map-svg-row hinted">
                 <label className="save-field grow">
