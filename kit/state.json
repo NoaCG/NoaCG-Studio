@@ -28,18 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": null,
-  "inFlight": [
-    {
-      "phase": "12",
-      "step": "check",
-      "session": "session_017SdbwR2EQSpUDPfqdG5kLs",
-      "nonce": "12-c-b21b",
-      "mergeSha": "a961bec063354da0ad5af6460367a840396b798b",
-      "pr": 1909,
-      "launchedAt": "2026-11-01T12:20:07Z",
-      "note": "independent checker; note lists departures, #1908 item 2 limit. On pass archive builder session_017SdbwMcLNvmXJHxwzybuWk and its /so sessions (session_017SdbwMnfVg8PFKa938xPA9, session_017SdbwMF1zGQEbCVKEdoW4n, session_017SdbwPE8Ty9ZGLxUbjfF6b + any other children)."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": {
@@ -143,6 +132,12 @@
       "mergeSha": "7030eb18dcceef18243e0dc3e937a2b7ef51918e",
       "pr": 1899,
       "checker": "session_017SdbwN6ACixGir1Bqqs7QT"
+    },
+    {
+      "phase": "12",
+      "mergeSha": "a961bec063354da0ad5af6460367a840396b798b",
+      "pr": 1909,
+      "checker": "session_017SdbwR2EQSpUDPfqdG5kLs"
     }
   ],
   "coordinatorNotes": [
