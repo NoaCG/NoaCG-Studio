@@ -42,13 +42,13 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "PR #1922 merge queue, then ci11 checker",
-    "eta": "2026-11-01T19:00:00Z"
+    "what": "ci11 checker verdict (session_017SdbwNKpjRPTXvA1PK4zRR)",
+    "eta": "2026-11-01T19:45:00Z"
   },
   "inFlight": [
     {
       "phase": "ci11",
-      "step": "landing",
+      "step": "check",
       "session": "session_017SdbwMP3C2VJwynfzdzgvv",
       "nonce": "ci11-b-d8b0",
       "branch": "claude/plan-cicd-improvement-ci11-build",
@@ -60,7 +60,14 @@
       "so": "session_017SdbwM4UUnDVyt19RPgzy3",
       "followUps": [
         1921
-      ]
+      ],
+      "mergeSha": "8e84002dc9a82fbf8430616db4e027ee24fa4d52",
+      "landedAt": "2026-11-01T18:26:56Z",
+      "queueRun": 41335614126,
+      "repairOwnerComment": 6561908774,
+      "checker": "session_017SdbwNKpjRPTXvA1PK4zRR",
+      "actor": "checker-ci11-ci11-c-3847",
+      "auditReset": "8e84002d 2026-11-01T18:14:35Z (selector code, declared trailer)"
     }
   ],
   "owner": [],
@@ -379,6 +386,11 @@
       "at": "2026-11-01T14:21Z",
       "phase": "run",
       "decision": "Latest audit reset is now c2ca020a7670ac6a7f2e99150aec9a5108d1e6c6 (ci10 merge, 2026-11-01T14:12:39Z, removed covers line), read from e2e-selection-misses resets on current main. The 14-day audit window restarts from it; earlier reset 06d3836c (ci07)."
+    },
+    {
+      "at": "2026-11-01T18:28Z",
+      "phase": "run",
+      "decision": "Latest audit reset is now 8e84002dc9a82fbf8430616db4e027ee24fa4d52 (ci11 merge, 2026-11-01T18:14:35Z, selector code scripts/e2e-affected.mjs with a declared Selection-audit-reset trailer). The 14-day window restarts from it. #1895 evidence from ci11 (to confirm by checker): the 10 critical specs catch F1 and F8 only."
     }
   ]
 }
