@@ -237,7 +237,7 @@ ${duration ? `  // A duration's length is a time the operator typed while the gr
   var slash = at === -1 ? -1 : value.indexOf('/', at);
   var length = slash === -1 ? '' : value.slice(slash + 1);
   if (/${CLOCK_TIME.source}/.test(length)) el.setAttribute('data-start', length);
-  if (offAir) importedClockTakeAt = matchClockOriginOf(value);
+  importedClockTakeAt = offAir ? matchClockOriginOf(value) : null;   // on air, nothing is pending
 ` : ''}}${duration ? `
 
 // THE TAKE'S ORIGIN. The entrance starts a duration (resetMatchClock, startMatchClock) on its first

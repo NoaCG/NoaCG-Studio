@@ -167,6 +167,16 @@ export function durationValue(time: string, origin: number | null, length: strin
   return `${time}@${origin ?? ''}/${length}`;
 }
 
+/** The origin of a time corrected while it runs, until the update row's effect stamps it: 0, which
+ *  every parser reads as no origin, so for that moment it reads as the corrected time, held. */
+const CORRECTED_ORIGIN = 0;
+
+/** Whether a duration's value is a running correction its row has yet to stamp. */
+function awaitsRowOrigin(raw: string): boolean {
+  const at = raw.indexOf('@');
+  return at !== -1 && clockLengthOf(raw) !== null && raw.slice(at + 1, raw.indexOf('/', at)) === String(CORRECTED_ORIGIN);
+}
+
 /**
  * What the clock field's held value becomes when an `update` row writes it.
  *
@@ -185,15 +195,17 @@ export function durationValue(time: string, origin: number | null, length: strin
  * already started from. No control surface can express that anyway (the field holds that text, so
  * there is no edit to send), and returning to a known value is `clockReset`'s job.
  */
-export function clockValueAfterUpdate(held: string | undefined, incoming: string, now = Date.now()): string {
+export function clockValueAfterUpdate(held: string | undefined, incoming: string): string {
   if (clockOriginOf(incoming) !== null) return incoming;         // a stamped value always wins
+  if (clockLengthOf(incoming) !== null) return incoming;         // …and so does any wire value
   const length = clockLengthOf(held);
-  if (length !== null && clockLengthOf(incoming) === null) {
+  if (length !== null) {
     // A duration keeps its length through a typed time, which only a Take makes the new length.
-    // A time typed while it RUNS keeps it running from the moment it landed, as the graphic does
-    // (matchClockUpdate): held unstamped, every resend would read as a fresh correction there.
+    // A time typed while it RUNS keeps running from the update row's own instant, which this
+    // function does not know: it is marked as running from that row (`CORRECTED_ORIGIN`), and the
+    // row's clock effect stamps it with the row's server time straight after (durationRowEffect).
     if (plainClockValue(held) === plainClockValue(incoming)) return held!;
-    return durationValue(plainClockValue(incoming), clockOriginOf(held) === null ? null : now, length);
+    return durationValue(plainClockValue(incoming), clockOriginOf(held) === null ? null : CORRECTED_ORIGIN, length);
   }
   if (held === undefined || clockOriginOf(held) === null) return incoming;
   return plainClockValue(held) === plainClockValue(incoming) ? held : incoming;
@@ -303,6 +315,11 @@ function durationRowEffect(
   at: number,
 ): ClockEffect | null {
   const length = clockLengthOf(from) ?? (plainClockValue(from) || clock.resetTo);
+  // A time typed while it runs counts from the update row's server time, on every output and in
+  // every replay. AFTER the row, which has already handed the graphic the time to count from.
+  if (row.msg.t === 'update') {
+    return awaitsRowOrigin(from) ? { value: durationValue(plainClockValue(from), at, length), when: 'after' } : null;
+  }
   if (row.msg.t === 'play') {
     const taken = plainClockValue(from) || clock.resetTo;
     return { value: durationValue(taken, at, taken), when: 'before' };

@@ -198,9 +198,12 @@ async function clockIn(graphic: FrameLocator): Promise<{ at: number | null; text
   }));
 }
 
-/** An output page on the production, its graphic taken once it is visibly on air. */
+/** Errors thrown on an output page: the clock runtime throwing is a failure, not a log line. */
+const outputErrors: string[] = [];
+
+/** An output page on the production. */
 async function openOutput(page: Page, slug: string): Promise<FrameLocator> {
-  page.on('pageerror', (e) => console.log('[output pageerror]', e.message));
+  page.on('pageerror', (e) => outputErrors.push(e.message));
   await page.goto(`/output?production=${encodeURIComponent(slug)}&debug=1`);
   return page.frameLocator('iframe');
 }
@@ -295,6 +298,7 @@ test('an imported clock starts, holds and resets from the server on two real out
   await expect(a.locator('.imported-design-clock')).toHaveText('12:08', { timeout: 20_000 });
   await expect(b.locator('.imported-design-clock')).toHaveText('12:08', { timeout: 20_000 });
   await expect(a.locator('#f1')).toHaveText('3');
+  expect(outputErrors, 'no output page threw').toEqual([]);
 
   await page.getByTestId('verb-out').click();
   await unpublishForCleanup(page);

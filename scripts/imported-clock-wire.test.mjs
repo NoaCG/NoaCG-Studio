@@ -261,6 +261,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['report', 'B'], ['reload', 'B'], ['wait', 300], ['read', 'B reloaded while paused'],
       ['type', '0:20'], ['wait', 600], ['read', 'corrected while paused'],
       ['disconnect', 'B'], ['event', 'clock_start'], ['wait', 2000], ['reconnect', 'B'], ['wait', 600], ['read', 'B reconnected while running'],
+      ['disconnect', 'B'], ['type', '0:12'], ['wait', 3000], ['reconnect', 'B'], ['wait', 600], ['read', 'corrected while running, B caught up'],
       ['wait', 30000], ['read', 'run out'],
       ['report', 'A'], ['reload', 'A'], ['wait', 300], ['read', 'A reloaded at zero'],
       ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'reset'],
@@ -389,6 +390,10 @@ test('a duration is stamped by its Take: both outputs count the server origin fr
   const back = at(r, 'B reconnected while running');
   agree(back, 'B reconnected');
   assert.equal(back.A.value, '0:17', 'three seconds and a hop since Start, counted while B was gone');
+  const corrected = at(r, 'corrected while running, B caught up');
+  agree(corrected, 'a correction while running, replayed late');
+  assert.match(corrected.A.held, /^0:12@\d+\/0:30$/, 'a time typed while it runs keeps running, from the row\'s own time, and keeps the length');
+  assert.equal(corrected.A.value, '0:08', 'counted from the update row (4.3 s ago), not from when B heard it');
   const out = at(r, 'run out');
   agree(out, 'run out');
   assert.deepEqual([out.A.value, out.A.expired, out.B.expired], ['0:00', true, true]);

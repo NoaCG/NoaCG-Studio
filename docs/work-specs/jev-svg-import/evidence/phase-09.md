@@ -54,9 +54,11 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
   frame. A playout host with no wire still starts from now, as before.
 - **W5 A duration's length rides on the wire.** After the origin, where every existing reader
   already stops: held `0:21@/0:30`, running `0:30@<origin>/0:30`. Pause and Start carry it; Reset
-  banks `0:30@/0:30`; a typed time keeps it (a time typed while it runs is stamped with the moment
-  it lands, as the graphic's own correction is). The graphic takes its `data-start` from it, so a
-  reload knows the length and Reset returns to it. Only a Take sets a new length.
+  banks `0:30@/0:30`; a typed time keeps it, and a time typed while it runs keeps running from the
+  update row's own server time (the merge marks it, the row's effect stamps it), so outputs and
+  replays agree. A value that already carries a length is taken as it is. The graphic takes its
+  `data-start` from the length, so a reload knows it and Reset returns to it. Only a Take sets a
+  new length; a pending Take origin is dropped by any value that arrives on air.
 - **W6 Native clocks are unchanged.** No native value ever carries a length, so every native path
   through `clockValueAfterUpdate` and `clockRowEffect` is the code it was.
 
@@ -99,7 +101,7 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
   within the fast road's spread); Start, Pause and Reset are exact. The exported control page and
   the production controller page keep their own copy of the native decision and do not yet press
   the namespaced verbs' effects. A correction typed while a NATIVE clock runs is still banked held,
-  as before this row.
+  as before this row (W6 keeps every native path as it was).
 - Trap: the corpus harness `scripts/svg-import-passes.test.mjs` fails the same four records
   (inventory, bind, emit, runtime) on `5624529` and on this branch on this cloud image (#1647); CI
   runs it on the pinned browser.
