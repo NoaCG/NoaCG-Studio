@@ -84,6 +84,12 @@ fixes each narrow one existing rule, stated here as observable lines.
   hours (native clocks unchanged); the off-air monitor seed takes only a wire value; the never-taken
   rule applies to Reset and Pause only, so an Out still banks a plain value; the "still counts to"
   line names the instant in its own zone. Each has a test.
+- **First /so (`session_017SdbwM6keZWcg48A7omhot`, grade B on `380356c`):** a host that reports
+  painted text seeded the dashboard's monitor with "3:39:30" for a target (read as 219 s) and with a
+  plain duration that the never-taken rule (C4) then read as off air on a Pause. Same family as the
+  review round's hosted-text finding. Fixed at the one place both enter, the on-air seed
+  (`airState.ts` `importedClockSeed`): a target seeds its own stamped start, a plain duration seeds
+  as held on air, as it read before C4. Test first in `scripts/air-state.test.mjs`.
 - A local fail-then-pass in four `import-svg-behaviour` export tests (the export window not open
   within 7 s under load; no code in reach changed) is filed as #1897.
 - Trap: commit messages carry no co-author trailer, and the command guard scans a whole command,

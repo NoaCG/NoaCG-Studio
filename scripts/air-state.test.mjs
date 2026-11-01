@@ -413,3 +413,15 @@ test('a dashboard reloaded while an imported clock is off air seeds its last rep
   const native = seedFromResolve(NO_AIR, { liveCue: {}, live: { score: { data: { f5: '7:00' } } } }, [], airAtRequest(NO_AIR), CUES, CLOCKS);
   assert.equal('score' in native.clocks, false);
 });
+
+test('a host that reports the painted layer text never misleads the monitor about an imported clock on air (row 11 /so)', () => {
+  // A target time: its own stamped start is the truth (phase-10 T6/T7), whatever text was painted.
+  const TARGET = { field: 'f2', countsDown: true, seed: '219:30@1000', resetTo: '219:30@1000', events: DURATION.events, fixedInstant: true };
+  const targets = { clocks: new Map([['bug', TARGET]]), pairs: new Map() };
+  const seeded = seedFromResolve(NO_AIR, { liveCue: { bug: 'c1' }, live: { bug: { data: { f2: '3:39:30' } } } }, [], airAtRequest(NO_AIR), [{ id: 'c1', values: { f2: '219:30@1000' } }], targets);
+  assert.equal(seeded.clocks.bug, '219:30@1000');
+  // A duration on air reported as "0:21": on air and held, as before; a Pause never marks it off air.
+  const on = seedFromResolve(NO_AIR, { liveCue: { bug: 'c1' }, live: { bug: { data: { f2: '0:21' } } } }, [], airAtRequest(NO_AIR), [{ id: 'c1', values: { f2: '0:30' } }], DURATIONS);
+  const paused = programItems(on, [{ graphic: 'bug', msg: { t: 'event', event: 'clock_pause' }, created_at: at(1) }], DURATIONS, T).air.clocks.bug;
+  assert.equal(paused, '0:21@/0:21/0:21');
+});

@@ -323,9 +323,9 @@ function formatMatchClock(total) {
   return Math.floor(total / 60) + ':' + (s < 10 ? '0' + s : s);
 }`;
 
-/** With hours, the painted "3:39:30" reads back as it was painted: a host that reports the
- *  layer's text (control/hostedReceiver.ts `harvest`) rebuilds from it, so it must not read as
- *  3 minutes 39. Native clocks keep reading "1:30:00" as 1:30. */
+/** With hours, the painted "3:39:30" reads back as the hours it shows, never as 3 minutes 39: a
+ *  host that reports the layer's text (control/hostedReceiver.ts `harvest`) hands that text back
+ *  to this parser on its reboot. Native clocks keep reading "1:30:00" as 1:30. */
 const HOURS_PARSE = `  if (parts.length > 2) return Math.max(0, mins * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseInt(parts[2], 10) || 0));
 `;
 
