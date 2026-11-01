@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": null,
+  "waitingOn": "owner: phase 14 PR #1919 /so A- on f9353c4 (9 rounds A-, all \"nothing blocks landing\"); accept with written reason, or split",
   "inFlight": [
     {
       "phase": "14",
@@ -39,14 +39,14 @@
       "launchedAt": "2026-11-01T13:46:06Z",
       "note": "no-Lock quiz variant builder; saved/optional-Lock bytes unchanged 14:17Z PR 1919 open; subscribed. 15:20Z Codex clean on 70d5c1f (P1 boundary + P2 lock rows fixed); editor-pen.spec failure on 4d644fd not yet re-observed; CI running. 15:32Z 70d5c1f run 41320269865: E2E 3/15 production-controls.spec.ts:2660 selectOption timeout (unrelated); retry job skipped; coordinator reran failed jobs once (attempt 2). Earlier: 4d644fd editor-pen.spec.ts:220 context destroyed (unrelated, never retried). Pass on rerun = fail-then-pass -> report to cicd quarantine owner. 15:42Z receipt on 70d5c1f: CI gate green after rerun (attempt 2); 7 /so rounds all A- (final session_017SdbwMASuVsaW1tTLg19bF). Gate requires A: not waived. Sent back for one final bounded round: (1) case-robust Locked-in label check, (2) test/fix field-id shift on tick vs saved cue values; then one fresh /so; if still A-, escalate to owner. Reported production-controls.spec.ts:2660 fail-then-pass and editor-pen.spec.ts:220 single failure to cicd coordinator (quarantine owner). 15:44Z cicd: no quarantine from PR branches; production-controls.spec.ts:2660 is known #1778 (occurrence added); editor-pen single failure: no action unless it recurs.",
       "pr": 1919,
-      "head": "cf6902bcbef122db68ae31dbc80bed8f8a4c654f"
+      "head": "f9353c41c20f30012adf30d02c63b161907ac76f"
     }
   ],
   "owner": [],
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-01T16:21:26Z"
+    "checkinAt": "2026-11-01T16:52:25Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -180,7 +180,9 @@
     "10:30Z block renewed under standing blockRenewal: epoch 2, id 9b35de1c, deadline 2026-11-02T10:30:18Z.",
     "12:44Z phase 12 passed; archived 5 phase-12 sessions (builder, checker, 3 /so).",
     "Owner question pending: #1884 item 1, does an off-air Take of an imported duration count the configured length or the last sent value? (product decision, no owning row)",
-    "13:46Z phase 13 passed; archived 5 phase-13 sessions (builder, checker, 3 /so)."
+    "13:46Z phase 13 passed; archived 5 phase-13 sessions (builder, checker, 3 /so).",
+    "2026-11-01T16:06Z phase 14: final /so on cf6902b A-, only evidence wording left (phase-14.md:80, :140). Builder told to make one docs-only fix, one Codex request, one fresh separate /so; last round.",
+    "2026-11-01T16:13Z phase 14: /so session_017SdbwQ5mhAB6UGUm6b52ux on f9353c4 A-. Residuals: (1) saved-shape byte comparison script uncommitted, already row 15 carry; (2) No-lock untick memory lasts only within the step, documented safe states. Gate is /so A or A+ (plan-run.md:19); coordinator does not waive. Asked owner."
   ],
   "ownerOpen": [
     {
