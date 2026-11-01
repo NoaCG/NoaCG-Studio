@@ -53,7 +53,8 @@
       "nonce": "ci11-b-d8b0",
       "branch": "claude/plan-cicd-improvement-ci11-build",
       "launchedAt": "2026-11-01T14:56:22Z",
-      "note": "AC-3: observed faults per changed protection class; identity, persistence, export lifecycle, asset loading; cite ci08-10 fault evidence."
+      "note": "AC-3: observed faults per changed protection class; identity, persistence, export lifecycle, asset loading; cite ci08-10 fault evidence.",
+      "pr": 1922
     }
   ],
   "owner": [],
