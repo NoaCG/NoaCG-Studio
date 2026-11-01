@@ -42,7 +42,7 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci07 checker verdict; block 1 renewal at 08:12Z",
+    "what": "ci07 checker verdict",
     "eta": "2026-11-01T08:40:00Z"
   },
   "inFlight": [
@@ -290,6 +290,11 @@
       "at": "2026-11-01T07:53Z",
       "phase": "ci07",
       "decision": "#1895 (run the critical journey set on every product change, D2) is outside ci07's acceptance ('distinguish' the sets, done). Carry it to ci17 as a D2 item reported pending until decided; raised to the owner."
+    },
+    {
+      "at": "2026-11-01T08:13Z",
+      "phase": "run",
+      "decision": "Block 1 ended 08:10Z; renewed under the owner's standing blockRenewal: block 97d051d1, epoch 2, deadline 2026-11-02T08:13:02Z. In-flight checker told. Next renewal wake 2026-11-02T08:15Z."
     }
   ]
 }
