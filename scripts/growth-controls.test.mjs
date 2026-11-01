@@ -15,7 +15,7 @@ import {
   ceilingsRevision, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, seriesOf, spread } from './growth-report.mjs';
+import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -924,4 +924,34 @@ test('(b) an offline addition counts toward its tier: a spec that would cross th
   assert.match(r.reasons.join(), /48\.4 runner-minutes per landing/);
   assert.equal(grow(300, 3).status, 'ok', 'room left: the table line decides');
   assert.equal(grow(502.9, 0).status, 'ok', 'adding nothing lands');
+});
+
+test('(e) a planned job read the budget stopped makes its stratum partial, so a thin sample never clears a stop', () => {
+  const at = (i) => new Date(Date.parse('2026-11-17T00:00:00Z') + i * 600_000).toISOString();
+  const runs = () => [...Array(200)].map((_, i) => ({ id: 1000 + i, workflow: 'configured-suite.yml', event: 'workflow_dispatch', branch: 'main', sha: `d${i}`, created: at(i), conclusion: 'success', status: 'completed', jobs: null }))
+    .concat([...Array(4)].map((_, i) => ({ id: 2000 + i, workflow: 'ci.yml', event: 'push', branch: 'main', sha: `m${i}`, created: at(i), conclusion: 'success', status: 'completed', jobs: null })));
+  const cheap = JSON.stringify({ total_count: 1, jobs: [{ name: 'Configured E2E shard 1/4', status: 'completed', started_at: '2026-11-17T00:00:00Z', completed_at: '2026-11-17T00:00:30Z', run_attempt: 1 }] });
+  // One call left for jobs: the clocks spent the rest of the budget.
+  const reader = makeReader(1, () => cheap);
+  const thin = runs();
+  sampleJobs(reader, thin, 1);
+  assert.ok(reader.exhausted);
+  assert.ok(thin.some((r) => r.unread), 'the planned reads the budget stopped are marked');
+  const priced = priceRuns(thin, { days: 7 });
+  assert.equal(priced.tiers.backend.evidence, 'partial');
+  assert.match(priced.tiers.backend.why, /call budget ran out/);
+  const stopped = { key: 'cost:backend', since: '2026-11-02', due: '2026-11-09', owner: 'o', corrections: 1, state: 'stopped', detail: 'x' };
+  const previous = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped], stops: { backend: 'x' }, timing: [] };
+  const { report } = buildReport({ ceilings: CEILINGS, runs: thin, days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', previous, tableRecordedAt: '2026-11-20', collection: 'fixture' });
+  assert.ok(report.stops.backend, 'a cheap thin sample never clears the stop');
+});
+
+test('(c) a re-run landing is one attempt\'s work in the slowdown series, never the sum of its attempts', () => {
+  const job = (min, attempt) => ({ name: 'Configured E2E shard 1/4', status: 'completed', started_at: '2026-10-30T00:00:00Z', completed_at: new Date(Date.parse('2026-10-30T00:00:00Z') + min * 60_000).toISOString(), attempt });
+  const run = (i, attempts) => ({ id: i, workflow: 'configured-suite.yml', event: 'push', branch: 'main', sha: `m${i}`, created: `2026-10-${String(10 + i).padStart(2, '0')}T00:00:00Z`, conclusion: 'success', jobs: [...Array(attempts)].map((_, a) => job(20, a + 1)) });
+  const series = seriesOf([run(1, 1), run(2, 1), run(3, 1), run(4, 2), run(5, 2), run(6, 2)]).backend;
+  assert.deepEqual(series.map((p) => p.value), [20, 20, 20, 20, 20, 20]);
+  assert.equal(detectSlowdown(series).found, false, 'three re-run landings are not a 2x slowdown');
+  const landing = { id: 99, workflow: 'ci.yml', event: 'push', branch: 'main', sha: 'm4', created: '2026-10-14T00:00:00Z', conclusion: 'success', jobs: [] };
+  assert.equal(priceRuns([run(4, 2), landing], { days: 7 }).tiers.backend.perLanding, 40, 'cost still counts every attempt: 20 + 20');
 });

@@ -80,6 +80,8 @@ export function priceRuns(runs, { days }) {
     const unfinished = list.filter((r) => r.status && r.status !== 'completed').length;
     if (sampled.length === 0) { for (const t of TIERS) totals[t].partial.push(`${key}: ${list.length} run(s) not sampled`); continue; }
     if (missing) for (const t of TIERS) totals[t].partial.push(`${key}: ${missing} read(s) failed`);
+    const unread = list.filter((r) => r.unread).length;
+    if (unread) for (const t of TIERS) totals[t].partial.push(`${key}: ${unread} planned read(s) not made, the call budget ran out`);
     const cutShort = list.filter((r) => r.cutShort).length;
     if (cutShort) for (const t of TIERS) totals[t].partial.push(`${key}: ${cutShort} run(s) with more jobs than were read`);
     if (unfinished) for (const t of TIERS) totals[t].partial.push(`${key}: ${unfinished} run(s) still unfinished`);
@@ -118,7 +120,10 @@ export function seriesOf(runs) {
   for (const r of pushes) {
     const per = Object.fromEntries(TIERS.map((t) => [t, 0]));
     const names = Object.fromEntries(TIERS.map((t) => [t, new Set()]));
-    for (const j of r.jobs) { const t = tierOfJob(r.workflow, j.name); per[t] += minutes(j); names[t].add(j.name); }
+    // `filter=all` returns every attempt's jobs: cost counts them all, but a series point is the work
+    // of one attempt, or a re-run landing would read as a slowdown.
+    const last = Math.max(1, ...r.jobs.map((j) => j.attempt ?? 1));
+    for (const j of r.jobs.filter((x) => (x.attempt ?? 1) === last)) { const t = tierOfJob(r.workflow, j.name); per[t] += minutes(j); names[t].add(j.name); }
     // A run with unread jobs reads fast: as a baseline it would fake a slowdown, so it is never complete.
     const complete = r.conclusion === 'success' && !r.cutShort && r.jobs.every((j) => j.status === 'completed');
     for (const t of TIERS) {
@@ -242,7 +247,7 @@ export function readJobs(reader, run) {
   for (let page = 1; page <= 3; page++) {
     const body = reader.get(`repos/${REPO}/actions/runs/${run.id}/jobs?filter=all&per_page=100&page=${page}`);
     if (!body) return null;
-    jobs.push(...(body.jobs ?? []).map((j) => ({ name: j.name, status: j.status, started_at: j.started_at, completed_at: j.completed_at })));
+    jobs.push(...(body.jobs ?? []).map((j) => ({ name: j.name, status: j.status, started_at: j.started_at, completed_at: j.completed_at, attempt: j.run_attempt ?? 1 })));
     if ((body.jobs ?? []).length < 100) return { jobs, complete: true };
   }
   // Still full at the last permitted page: later jobs went unread, so the run is a lower bound.
@@ -372,17 +377,12 @@ function readClocks(file, now, ledgerFile = null) {
   return { finished, open, read: true };
 }
 
-export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ledgerFile = null, ceilings }) {
-  const reader = makeReader(budget);
-  const to = Date.parse(now) - 6 * 3_600_000;
-  const from = to - days * DAY;
-  const listed = listRuns(reader, from, to);
-  // Runs still queued or running at collection stay in their stratum, unsampled: their cost is
-  // unknown, so the tiers they touch are partial and cannot establish recovery.
-  const runs = listed.runs;
-  const open = openItems(reader, now, previous?.openStarts ?? {});
-  // About a third of the budget for finished PRs' clocks (about five reads each), the rest for jobs.
-  const done = finishedPrs(reader, from, to, Math.max(5, Math.floor(budget / 15)));
+/**
+ * Sample each stratum's completed runs for their jobs, round-robin within what is left of the
+ * budget. Mutates the runs: `jobs` when read, `cutShort` when read past the page cap, `unread`
+ * when the budget stopped a planned read, `failed` when the read failed.
+ */
+export function sampleJobs(reader, runs, budget) {
   const strata = {};
   for (const r of runs) (strata[`${r.workflow}|${r.event}`] ??= []).push(r);
   const keys = Object.keys(strata);
@@ -401,9 +401,26 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
       if (round >= picks.length) continue;
       const run = list[picks[round]];
       const read = readJobs(reader, run);
-      if (read) { run.jobs = read.jobs; if (!read.complete) run.cutShort = true; } else if (!reader.exhausted) run.failed = true;
+      // A planned read the budget stopped is unread, never silently unsampled: a thin sample left by
+      // an exhausted budget is partial evidence, so it cannot clear a stop.
+      if (read) { run.jobs = read.jobs; if (!read.complete) run.cutShort = true; } else if (reader.exhausted) run.unread = true; else run.failed = true;
     }
   }
+  return { strata, keys };
+}
+
+export function collect({ days = 7, budget = 550, now = new Date().toISOString(), previous = null, clocksFile = null, ledgerFile = null, ceilings }) {
+  const reader = makeReader(budget);
+  const to = Date.parse(now) - 6 * 3_600_000;
+  const from = to - days * DAY;
+  const listed = listRuns(reader, from, to);
+  // Runs still queued or running at collection stay in their stratum, unsampled: their cost is
+  // unknown, so the tiers they touch are partial and cannot establish recovery.
+  const runs = listed.runs;
+  const open = openItems(reader, now, previous?.openStarts ?? {});
+  // About a third of the budget for finished PRs' clocks (about five reads each), the rest for jobs.
+  const done = finishedPrs(reader, from, to, Math.max(5, Math.floor(budget / 15)));
+  const { strata, keys } = sampleJobs(reader, runs, budget);
   const clocks = readClocks(clocksFile, now, ledgerFile);
   const table = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'e2e-durations.json'), 'utf8'));
   const unfinished = runs.filter((r) => r.status !== 'completed').length;

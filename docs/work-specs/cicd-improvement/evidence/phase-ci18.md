@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (64 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (66 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -236,7 +236,10 @@ issue, remain for ci17.
 - **A capped read is a partial read.** A timeline, a commit's statuses or a run's jobs still
   full at the last permitted page leaves the read incomplete: unread history neither raises nor
   clears an alarm, and a run with unread jobs is a lower bound that never clears a stop and is
-  never a complete slowdown point.
+  never a complete slowdown point. A planned job read that the call budget stopped is unread,
+  and its stratum is partial, so a thin sample left by an exhausted budget never clears a stop.
+- **A series point is one attempt's work.** Job reads return every attempt; cost counts them all,
+  but a slowdown point uses the latest attempt only, so a re-run landing is not a slowdown.
 - **Which breaches stop growth.** Only cost (that tier) and ready or queue latency (every tier
   with pre-merge jobs, graphics included). Age, phase latency, a stale table, a missing report and exception alarms are owned,
   dated actions without a stop: an item's age is not caused by added capacity, and the others
