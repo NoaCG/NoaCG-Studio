@@ -1387,10 +1387,8 @@ test('ci11: a CORE file keeps the specs its covers headers name beside the share
   for (const s of [...FOCUS, 'save-transaction.spec.ts']) assert.ok(plan.specs.includes(s), s);
   // Its configured selection is unchanged: CORE still selects the whole configured set.
   assert.equal(planFor(['src/model/project.ts'], { traced: null, coverage }).mode, 'full');
-  // The real headers: every spec that names the file is planned for it.
-  const real = planFor(['src/model/project.ts'], { traced: null, sprintFocus: true });
-  for (const s of COVERAGE.filter((c) => c.test('src/model/project.ts')).map((c) => c.spec)) assert.ok(real.specs.includes(s), s);
-  assert.ok(real.specs.includes('save-transaction.spec.ts'));
+  // The real headers: the spec that fails on the #1402 fault is planned for its file.
+  assert.ok(planFor(['src/model/project.ts'], { traced: null, sprintFocus: true }).specs.includes('save-transaction.spec.ts'));
 });
 
 // THE POINT OF THE CHANGE, pinned: a new spec with a covers header is planned for a change to the
@@ -1859,8 +1857,8 @@ test('a shared model, rendering or storage change runs the shared-change set, an
   }
 });
 
-// #1349: importTemplate is CORE, so its covers header is bypassed before the shared set is
-// applied. Pin the journey through the default CLI too; a full-suite plan would hide this miss.
+// #1349: importTemplate is CORE, and until ci11 its covers header was bypassed before the shared
+// set was applied. Pin the journey through the default CLI too; a full-suite plan would hide a miss.
 for (const [shape, changed] of [
   ['package import', ['src/model/importTemplate.ts']],
   ['shared model', ['src/model/structure.ts']],

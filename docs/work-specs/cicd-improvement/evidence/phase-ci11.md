@@ -78,8 +78,9 @@ The configured runs (F6, F7) used the same local stack the CI job uses: Supabase
 accounts; no hosted project or credential was read. F9's catalog runs are the battery command
 `catalog-affected` prints for the slice (`node scripts/catalog-specs.mjs --only lt63`).
 
-Selection held for every fault but F2 and half of F3: today's planner plans a check that fails on
-the fault. F2 and the `saveActions.ts` half of F3 are the CORE gap of section 4.
+Selection held for every fault but F2: today's planner plans a check that fails on the fault. F2
+is the CORE gap of section 4. F3's `saveActions.ts` half alone sits in the same gap, but it does
+not fail the spec on its own (section 6), so only F2 is a fault the old plan missed.
 
 ## 3. Oracles: why each failure is for the right reason
 
@@ -100,23 +101,27 @@ continue;`, before the header lookup. Under the shared-change escalation that pl
 escalation says the shared set is planned "union with whatever the mapped rules already named".
 ci05 recorded the behaviour ("CORE drops header specs under sprint focus") and worked around it for
 one file (`ESCALATES_WITH_HEADERS`); it was never measured against a fault. F2 measured it: for
-`src/model/project.ts`, eight specs whose header names the file were dropped
+`src/model/project.ts`, the six specs whose `covers:` header names the file were dropped
 (`save-transaction`, `save-transaction-holds`, `-leave`, `-leave-modal`, `-leave-shortcut`,
-`-wizard`, `save-copy-arrival`, `studio-evening-reliability`), no shared-change spec mentions a
-reservation, and the critical set passes under F2 (section 5). The #1402 regression would have
+`-wizard`), no shared-change spec mentions a reservation, and the critical set passes under F2 (section 5). The #1402 regression would have
 been found only by the full run after landing.
 
-**Correction.** A CORE file now keeps the specs its `covers:` headers and `CENTRAL` rules name,
-beside the shared-change set, like `ESCALATES_WITH_HEADERS`. Test: `ci11: a CORE file keeps the
+**Correction.** A CORE file now keeps the specs its `covers:` headers name, beside the
+shared-change set, like `ESCALATES_WITH_HEADERS`. It does not add the specs that read a CORE file
+by path or route (`readersOf`): every spec opens `app.html`, so that would plan 223 specs for one
+file, a cost decision outside this row (#1921). Test: `ci11: a CORE file keeps the
 specs its covers headers name beside the shared-change set` in `scripts/e2e-affected.test.mjs`;
 with the one added line removed, it fails. Nothing narrows: the plan only grows.
 
-**Cost.** Of 134 CORE files, 40 gain specs. The largest additions, in measured test-minutes from
-the durations table: `router.ts` 16.3, `durableStore.ts` 15.6, `saveActions.ts` 15.5,
-`templateStore.ts` 14.0, `structure.ts` 13.7, `project.ts` 12.8, `gsap.min.js` 10.7; the median
-CORE file adds nothing and the 90th percentile adds 1.6, against about 53 minutes of the
-shared-change set. They run in the same sharded plan job, so wall time grows by at most a shard
-for the save and storage files.
+**Cost.** Of 181 tracked files under a CORE pattern, 44 gain specs (`planFor` per file, before
+and after). The largest additions, in measured test-minutes from the durations table:
+`src/templates/contract.ts` 40 specs, 30.2; `gsap.min.js` 22.9 (through its `?raw` importers);
+`router.ts` 16.3; `durableStore.ts` 15.6; `saveActions.ts` 15.5; `templateStore.ts` 14.0;
+`structure.ts` 13.7; `project.ts` 12.8. The median CORE file adds nothing and the 90th percentile
+1.3, against about 53 minutes of the shared-change set. The plan stays at 15 shards; the slowest
+predicted shard grows from 4.9 to 6.0 minutes for `contract.ts`, 5.6 for `saveActions.ts` and
+`project.ts`, 7.2 to 7.6 for `gsap.min.js`; no plan goes over the shard cap (`overCap` 0). Runner
+minutes grow by the added test-minutes on those changes.
 
 **Reset.** This is a dependency mapping corrected because of a miss, and it changes selector code
 (`SELECTION_CODE`), so under the runbook's "Audit reset and coverage rules" its merge **is an audit
@@ -161,7 +166,7 @@ Reported, not counted as passes:
   `long-value-containment` gate passes, scoped to lt63 with either edit alone or both, and unscoped
   with both. The spec header still says "Removing
   lt63's trailing reserve turns this red naming lt63"; on today's code it does not, so that
-  mutation claim is stale. Filed as a follow-up (section 9). F9 uses a realistic fault instead.
+  mutation claim is stale. Filed in #1921. F9 uses a realistic fault instead.
 
 ## 7. Boundaries not proved here (acceptance b)
 
@@ -187,9 +192,20 @@ Reported, not counted as passes:
   every pair.
 - `node --test scripts/e2e-affected.test.mjs scripts/configured-selection.test.mjs
   scripts/e2e-*.test.mjs`: 311 pass, 0 fail. The new test fails with the correction removed.
+- `/check` review (delegated, medium): 9 findings, all checked. Fixed: the cost figures (they
+  missed `contract.ts`, the largest addition), the dropped-spec count (six, not eight), the
+  section 2 claim about F3's `saveActions.ts` half, a dead `CENTRAL` loop, a stale #1349 test
+  comment, the `docs/TEST_SELECTION.md` row and a circular test loop. Not fixed, filed in #1921:
+  CORE files still plan no reader specs (a cost decision). Not taken: folding CORE into the
+  ordinary mapping path, which would bring readers with it.
+- Simplify (inline; the code diff is four lines): `covering` is computed once and used by both
+  branches.
+- `npm run gates -- run --changed origin/main`, `npx eslint` on the changed scripts,
+  `node scripts/check-e2e-protection.mjs --changed origin/main`: clean.
 
 ## 9. Phase notes
 
+- Follow-ups: #1921 (CORE files plan no reader specs; the stale lt63 mutation claim).
 - Previous verified main: `c2ca020a7670ac6a7f2e99150aec9a5108d1e6c6` (ci10 merge, #1918).
 - Revert: `git revert -m 1 <this PR's merge commit>`, landed through `/queue-merge`. The revert
   changes selector code too, so it is itself an audit reset.

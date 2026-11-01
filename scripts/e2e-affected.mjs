@@ -1120,17 +1120,18 @@ export function planFor(
       if (helper.configured && !(helper.configuredSpecs ?? []).length) configuredWhole.add(file);
       continue;
     }
+    const covering = coverage.filter((c) => c.test(file));
     if (CORE.some((r) => r.test(file))) {
       escalate(file);
       // A CORE file keeps the specs whose own header names it, beside the shared-change set: a
       // `src/model/project.ts` change planned the 77 shared specs, none of which reads a
       // reservation, and dropped save-transaction.spec.ts, which names the file and fails on
       // the #1402 regression (cicd-improvement ci11, fault F2).
-      for (const c of coverage) if (c.test(file)) specs.add(c.spec);
-      for (const [r, list] of CENTRAL) if (r.test(file)) for (const s of list) specs.add(s);
+      // Readers are not added here: every spec reads app.html, so a reader rule on CORE is a
+      // separate cost decision, not a header mapping.
+      for (const c of covering) specs.add(c.spec);
       continue;
     }
-    const covering = coverage.filter((c) => c.test(file));
     const central = CENTRAL.filter(([r]) => r.test(file));
     // THE TRACED HALF: the specs whose browser executed this file on the last nightly
     // (scripts/e2e-traced.mjs), added to whatever the curated headers name. A map that cannot be
