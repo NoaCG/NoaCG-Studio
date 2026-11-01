@@ -135,7 +135,8 @@ const RUN = async ({ template, scoreFields, script }) => {
       }
       out.held = merged;
     } else if (msg.t === 'event' && msg.payload) {
-      // The renderer holds a payload only for an event the graphic took: asked of the graphic's own answer below.
+      // Merged optimistically, as output/main.ts does: the renderer does not ask the graphic.
+      out.held = { ...out.held, ...msg.payload };
     }
     const effect = spec ? W.clockRowEffect(row, spec, out.held[clockField], w.Date.now()) : null;
     const write = (value) => { out.held = { ...out.held, [clockField]: value }; w.update(JSON.stringify({ [clockField]: value })); };
@@ -146,7 +147,6 @@ const RUN = async ({ template, scoreFields, script }) => {
     else if (msg.t === 'event') {
       w.noacgEventAt = W.rowInstant(row.created_at, w.Date.now());
       w.noacgDispatch(msg.event, msg.payload);
-      if (msg.payload) for (const key of Object.keys(msg.payload)) out.held = { ...out.held, [key]: w.document.getElementById(key)?.textContent ?? '' };
     }
     if (effect?.when === 'after') write(effect.value);
   };

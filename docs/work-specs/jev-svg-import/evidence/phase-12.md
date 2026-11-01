@@ -83,6 +83,13 @@ Those clauses stay **open**. The landed test asserts neither 1 nor 3 and says wh
   resolve hook `scripts/graphic-verbs-walk.test.mjs` uses.
 - Trap: a board can draw numbers that are not team figures (`scoreboard-3.svg`'s year). Take the
   figures from the `+1` buttons' `adjust`, not from every number field.
+- **The renderer's report takes an event's payload without asking the graphic**
+  (`output/main.ts`, "event payloads merged optimistically"). So a payload riding an event the
+  graphic drops would still reach the report and a reboot. The score board cannot reach it: every
+  event that carries figures (`+1`, `−1`, New game) has an arrow from every state, and the
+  surfaces grey the rest. Recorded, not changed; the test's outputs merge the same way.
+- **The test's two-output harness repeats part of `imported-clock-wire.test.mjs`'s** rather than
+  sharing it: extracting one would reshape row 9's landed test for no behaviour.
 - Mutation checks: moving `noacgApplyPayload` before the legality check fails S3; writing the cue
   before the answer fails S6's failed-send case.
 
