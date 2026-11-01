@@ -118,7 +118,8 @@ export function seriesOf(runs) {
   for (const r of pushes) {
     const per = Object.fromEntries(TIERS.map((t) => [t, 0]));
     for (const j of r.jobs) per[tierOfJob(r.workflow, j.name)] += minutes(j);
-    const complete = r.conclusion === 'success' && r.jobs.every((j) => j.status === 'completed');
+    // A run with unread jobs reads fast: as a baseline it would fake a slowdown, so it is never complete.
+    const complete = r.conclusion === 'success' && !r.cutShort && r.jobs.every((j) => j.status === 'completed');
     for (const t of TIERS) if (per[t] > 0) out[t].push({ sha: r.sha, at: r.created, complete, value: per[t] });
   }
   return out;

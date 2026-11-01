@@ -15,7 +15,7 @@ import {
   ceilingsRevision, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, spread } from './growth-report.mjs';
+import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, seriesOf, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -889,4 +889,12 @@ test('(e) a run with more jobs than were read is a lower bound: its tier is part
   const previous = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped], stops: { backend: 'x' }, timing: [] };
   const { report } = buildReport({ ceilings: CEILINGS, runs, days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', previous, tableRecordedAt: '2026-11-20', collection: 'fixture' });
   assert.ok(report.stops.backend, 'an unread job never clears a stop');
+});
+
+test('(c) a run with unread jobs is never a complete slowdown point, so it cannot fake a fast baseline', () => {
+  const job = (min) => ({ name: 'Configured 1/4', status: 'completed', started_at: '2026-10-30T00:00:00Z', completed_at: new Date(Date.parse('2026-10-30T00:00:00Z') + min * 60_000).toISOString() });
+  const run = (i, min, cutShort) => ({ id: i, workflow: 'configured-suite.yml', event: 'push', branch: 'main', sha: `m${i}`, created: `2026-10-2${i}T00:00:00Z`, conclusion: 'success', jobs: [job(min)], ...(cutShort ? { cutShort } : {}) });
+  const series = seriesOf([run(1, 3, true), run(2, 3, true), run(3, 3, true), run(4, 30), run(5, 30), run(6, 30)]).backend;
+  assert.deepEqual(series.map((p) => p.complete), [false, false, false, true, true, true]);
+  assert.equal(detectSlowdown(series).found, false, "three 3-minute runs with unread jobs fake no 10x slowdown");
 });
