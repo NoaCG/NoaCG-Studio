@@ -268,6 +268,23 @@ test('an imported duration on the monitor holds the value air holds, through an 
   assert.match(air(walks['a new length typed off air, reset, taken']), /^0:45@\d+\/0:45\/0:45$/, 'a time typed off air is the length');
 });
 
+test('the monitor is sent the imported clock it holds, so a resend never resets a paused clock on PROGRAM', () => {
+  let part = NO_AIR;
+  const step = (row) => {
+    const run = programItems(part, [{ graphic: 'bug', ...row }], DURATIONS, T);
+    part = run.air;
+    return run.out;
+  };
+  step({ msg: { t: 'update', data: { f2: '0:30' } }, created_at: at(0) });
+  step({ msg: { t: 'play' }, created_at: at(0) });
+  step({ msg: { t: 'event', event: 'clock_pause' }, created_at: at(0.15) });
+  const held = part.clocks.bug;
+  assert.match(held, /^0:21@\/0:30\/0:30$/);
+  const resend = step({ msg: { t: 'update', data: { f0: 'HOME', f2: '0:30' } }, created_at: at(0.2) });
+  assert.equal(part.clocks.bug, held, 'the resend is a resend');
+  assert.deepEqual(resend.map((i) => i.msg.data), [{ f0: 'HOME', f2: held }], 'and PROGRAM is sent the held value, not the cue\'s');
+});
+
 test('a row with no server time is stamped with the monitor\'s own receive instant', () => {
   const run = programItems(NO_AIR, [{ graphic: 'score', msg: { t: 'event', event: 'clockStart' } }], CLOCKS, T + 42);
   assert.equal(run.out[0].msg.data.f5, `10:00@${T + 42}`, 'from the seed, at now');

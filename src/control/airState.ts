@@ -182,13 +182,19 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
     // An imported clock keeps its value through an Out, as the renderer does: it says the clock is
     // off air, and what its next Take counts (control/matchClockWire.ts).
     if (msg.t === 'stop' && item.graphic in clocks && !clock.events) clocks = without(clocks, item.graphic);
+    // An imported clock's monitor is sent what it holds, not what the row carried, as the renderer
+    // does (src/output/main.ts): its runtime guards a resend only against the last value it was
+    // sent, and a Pause has banked another since.
+    const staged: ControlSendItem = clock.events && msg.t === 'update' && value !== undefined
+      ? { ...item, msg: { ...msg, data: { ...msg.data, [clock.field]: clocks[item.graphic] } } }
+      : item;
     const effect = clockRowEffect({ msg, created_at: item.created_at }, clock, clocks[item.graphic], now);
     if (!effect) {
-      out.push(item);
+      out.push(staged);
       continue;
     }
     clocks = { ...clocks, [item.graphic]: effect.value };
-    around(item, { graphic: item.graphic, msg: { t: 'update', data: { [clock.field]: effect.value } } }, effect.when);
+    around(staged, { graphic: item.graphic, msg: { t: 'update', data: { [clock.field]: effect.value } } }, effect.when);
   }
   return { air: clocks === air.clocks && speaking === air.speaking ? air : { ...air, clocks, speaking }, out };
 }

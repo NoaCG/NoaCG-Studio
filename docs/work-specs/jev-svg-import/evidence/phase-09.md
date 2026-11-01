@@ -65,7 +65,8 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
   update row's own server time (the merge marks it `@0/`, the row's effect stamps it). Pause, Start
   and Reset carry the length; Reset returns to it, on air or off. The graphic takes its
   `data-start` from it. The program monitor (`control/airState.ts`) keeps an imported clock's
-  value through an Out, as the renderer does, so the two never disagree.
+  value through an Out and is sent the value it holds, as the renderer is, so the two never
+  disagree. Off air, any time other than the one last sent is the new length.
 - **W6 Native clocks are unchanged.** No native value ever carries a length, so every native path
   through `clockValueAfterUpdate` and `clockRowEffect` is the code it was.
 
@@ -107,8 +108,9 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
   length aired the old one; a score sent while a corrected duration was paused moved it; an
   imported count-up paused and resent jumped back (a regression against row 8, whose wire banked
   no imported pause); a cue edit equal to the time shown hid the next edit; a correction typed
-  while paused on air became the next length; and the program monitor forgot an imported clock on
-  Out. The model that closes them is W4 and W5: every imported clock remembers what the cue last
+  while paused on air became the next length; the program monitor forgot an imported clock on
+  Out, and was sent the cue's time rather than the merged one, so a resend reset a paused clock
+  there; and a length typed off air equal to the time banked at Out was read as no change. The model that closes them is W4 and W5: every imported clock remembers what the cue last
   sent, and the Out says the clock is off air. Each variant is a case in
   `scripts/imported-clock-wire.test.mjs` or `scripts/air-state.test.mjs` that fails without its rule.
 - **Departures reconciled with the coordinator: `src/control/airState.ts` and

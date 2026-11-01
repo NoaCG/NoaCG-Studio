@@ -219,8 +219,8 @@ export function clockValueAfterUpdate(held: string | undefined, incoming: string
     // stamps it with the row's server time.
     const time = plainClockValue(incoming);
     if (time === read.sent) return held!;
-    if (time === read.time) return durationValue(read.time, read.slot, read.length, time);
     if (read.slot === OFF_AIR) return durationValue(time, OFF_AIR, time, time);
+    if (time === read.time) return durationValue(read.time, read.slot, read.length, time);
     return durationValue(time, clockOriginOf(held) === null ? '' : CORRECTED_ORIGIN, read.length, time);
   }
   if (held === undefined || clockOriginOf(held) === null) return incoming;

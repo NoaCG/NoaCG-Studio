@@ -181,6 +181,8 @@ const RUN = async ({ markup, mode, script }) => {
     if (verb === 'lag') outs[arg].lag = extra;
     else if (verb === 'type') { cue = { ...cue, [clockField]: arg }; prod.send({ t: 'update', data: { ...cue } }); }
     // The operator types the time the clock shows (a cue edit that happens to equal it).
+    // …or the time the wire banked it at, exactly.
+    else if (verb === 'typeBanked') { cue = { ...cue, [clockField]: String(outs.A.held[clockField]).split('@')[0] }; prod.send({ t: 'update', data: { ...cue } }); }
     else if (verb === 'typeShown') { cue = { ...cue, [clockField]: prod.read(outs.A).value }; prod.send({ t: 'update', data: { ...cue } }); }
     else if (verb === 'take') { prod.send({ t: 'update', data: { ...cue } }); prod.send({ t: 'play' }); }
     else if (verb === 'out') prod.send({ t: 'stop' });
@@ -294,6 +296,8 @@ const runs = await withBundledPage(SPECS, async (page) => {
       // A length typed OFF AIR stands through a Reset pressed off air, and the Take counts it.
       ['out'], ['wait', 2000], ['type', '0:45'], ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'a length typed off air, then Reset'],
       ['take'], ['wait', 500], ['read', 'taken after it'],
+      // Run, out, and the time it was banked at typed off air: that is the new length too.
+      ['wait', 3000], ['out'], ['wait', 2000], ['typeBanked'], ['take'], ['wait', 500], ['read', 'the banked time typed off air, taken'],
     ]),
   };
 });
@@ -497,4 +501,7 @@ test('a duration tells a resend from a change by what the cue last sent: a score
   const taken = at(r, 'taken after it');
   agree(taken, 'taken after it');
   assert.match(taken.A.held, /^0:45@\d+\/0:45\/0:45$/, 'and the Take counts it');
+  const banked = at(r, 'the banked time typed off air, taken');
+  agree(banked, 'the banked time typed off air, taken');
+  assert.match(banked.A.held, /^(0:\d\d)@\d+\/\1\/\1$/, 'a length typed off air equal to the time it was banked at is still the new length');
 });
