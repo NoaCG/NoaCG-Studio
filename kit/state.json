@@ -31,18 +31,13 @@
   "inFlight": [
     {
       "phase": "9",
-      "step": "queued",
-      "session": "session_017SdbwLqLTF4tDwpMzAPPqv",
-      "nonce": "9-b-c271",
-      "branch": "claude/plan-jev-svg-import-9-build",
-      "source": "562452968ee7e1bd271329420d153b93b1912510",
-      "launchedAt": "2026-11-01T00:26:24Z",
-      "note": "builder; edits a configured spec (in TOUCHES), no configured-suite infra 00:35Z boundary approved: svg.ts importedClockJs duration branch only (server origin on Take, length from Take-time field value so Reset banks); prove two-output duration agreement after Take and Reset banked across reload; saved designs byte-identical. 00:49Z: hosted fast-road Take of a duration is not server-stamped (outputs agree within delivery spread); agreed follow-up issue (P2 playout, latency trade-off for owner), not in this PR. 01:26Z PR #1888; three review rounds on one rule family (duration resend vs change); approved airState.ts one line (keep held imported clock on stop) + air-state.test.mjs case; told builder: last bounded round, stop below A and report. #1886 = hosted fast-road follow-up. 01:36Z Codex on 41e15df: 2 P2s same family (PROGRAM forwards cue value after pause; off-air length edit equal to readout swallowed). Told builder: fix both test-first, fresh /so; hard stop on any further finding in the family, report to coordinator. 01:59Z 774eff2 fixes both P2s; Codex no findings; CI gate + configured selected green; awaiting fresh /so and receipt. 03:01Z builder waiting on its /so of 774eff2 (started 01:39Z); prior /so on 41e15df graded B with one more variant (Reset/Pause before first Take drops an off-air length); builder holding per hard stop and will hand findings back. 03:33Z /so session_017SdbwNyxAtZFG6XD9BGjQn graded A on 774eff2 at 01:43Z (non-blocking: equal-readout line untested/running case; monitor forgets off-air clock after dashboard reload). Builder went idle before collecting; nudged to record verdict in body, check 41e15df Reset/Pause variant on 774eff2, file follow-ups (row 11 owner), send receipt. 03:36Z receipt received; gates verified on 774eff2; stamped; added_to_merge_queue.",
+      "step": "check",
+      "session": "session_017SdbwRHJWwbCZ7MkXiJhoX",
+      "nonce": "9-c-ba38",
+      "mergeSha": "e6eadadcc4ec745ebb51dbca7248c62bc61981c5",
       "pr": 1888,
-      "head": "774eff281b3016ebef02357630f4b1e617d85073",
-      "receipt": "/home/user/noacg-state/jev/receipt-9-b.txt",
-      "stamp": "cloud-queue-merge run 41269791042 success; Reviewed green",
-      "queuedAt": "2026-11-01T03:36:18Z"
+      "launchedAt": "2026-11-01T03:49:41Z",
+      "note": "independent checker; brief plus coordinator note listing recorded decisions #1886 #1887 #1889 #1890 #1891"
     }
   ],
   "owner": [],
