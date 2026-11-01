@@ -1,6 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 import { devPort } from './scripts/dev-port.mjs';
 import { localWorkers, validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
+import { replacesReporters } from './scripts/e2e-run-integrity.mjs';
+
+// A `--reporter` on the command line replaces the reporters below, the scope guard among them, so
+// `npm run test:e2e:catalog -- --reporter=dot` would bench without checking what it measured.
+if (replacesReporters(process.argv)) {
+  throw new Error('playwright.catalog.config.ts: --reporter would replace the catalog scope guard (e2e/catalog/_bench-scope.mjs); run without it.');
+}
 
 // The catalog-wide quality gate: e2e/catalog/catalog-bench.spec.ts's calibration tripwire benches
 // every catalog variant across every category. It's excluded from the default offline suite
@@ -29,7 +36,10 @@ export default defineConfig({
   // A committed `test.only` would drop every other test in the run; on CI it fails the run instead
   // (cicd-improvement ci05; eslint.config.js refuses it before it is committed).
   forbidOnly: Boolean(process.env.CI),
-  reporter: [['list'], ['./scripts/e2e-run-integrity.mjs']],
+  // The scope guard (e2e/catalog/_bench-scope.mjs) fails a run whose bench units did not measure
+  // exactly the selected designs, scoped or full (cicd-improvement ci12). Before the integrity
+  // reporter, which stays last.
+  reporter: [['list'], ['./e2e/catalog/_bench-scope.mjs'], ['./scripts/e2e-run-integrity.mjs']],
   // Also the cross-checkout queue: two suites on one 16 GB laptop exhaust it rather than
   // sharing it, and this one overlapping anything else is the worst case of that.
   globalSetup: './e2e/_offline-guard.ts',

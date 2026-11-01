@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { toApp, HELPERS } from '../_bench';
 import { ONLY_DESIGNS, SCOPE_NOTE, categoryOutOfScope } from '../_catalogScope';
+import { BENCH_CATEGORIES, REPORT, benchSlices, unitLabel } from './_bench-scope.mjs';
 
 // The CALIBRATION TRIPWIRE: every catalog variant's create() output must pass its own runtime
 // bench (src/validation/runtimeBench.ts) - the house catalog is the ground truth the thresholds
@@ -11,55 +12,22 @@ import { ONLY_DESIGNS, SCOPE_NOTE, categoryOutOfScope } from '../_catalogScope';
 // the catalog itself or to the bench, same as `node scripts/type-floor.mjs` and
 // `node scripts/overflow-sweep.mjs` - see AGENTS.md's "Catalog quality gates" section.
 
-const CATEGORIES = [
-  'lower-third',
-  'info-card',
-  'end-credits',
-  'ticker',
-  'starting-soon',
-  'game-timer',
-  'scoreboard',
-  'corner-bug',
-  'infographic',
-  'versus',
-  'quiz',
-  'frame',
-  'transition',
-  'alert',
-  'public-info',
-  'esports-score',
-  'matchup',
-  'results-board',
-  'reveal',
-  'poll',
-  'audience',
-  'stream-notification',
-] as const;
-
-// Slice budgets: a large category benches as SLICES[category] parallel test units (variant i
-// belongs to slice i % slices, so every variant is covered by construction). At ~1-1.5 s per
-// variant a single test's 120 s timeout caps a category near 80 designs - lower-third reached
-// 90 - and slicing turns growth into more parallel units instead of one longer test. Bump a
-// category's number when a slice nears ~40 variants; a category not named here runs whole.
-const SLICES: Partial<Record<(typeof CATEGORIES)[number], number>> = {
-  'lower-third': 4,
-  'info-card': 4,
-  'corner-bug': 2,
-  'infographic': 2,
-};
-
+// The categories and slice budgets live in e2e/catalog/_bench-scope.mjs, beside the reporter that
+// checks a run measured every selected design: the two must agree, so there is one list.
 test.describe('catalog calibration tripwire', () => {
-  for (const category of CATEGORIES) {
-    const slices = SLICES[category] ?? 1;
+  for (const category of BENCH_CATEGORIES) {
+    const slices = benchSlices(category);
     for (let slice = 0; slice < slices; slice++) {
-      const label = slices === 1 ? category : `${category} slice ${slice + 1} of ${slices}`;
-      test(`every ${label} variant passes the bench${SCOPE_NOTE}`, async ({ page }) => {
+      const label = unitLabel(category, slice, slices);
+      // The annotation names the unit for the scope guard even when the unit is skipped.
+      const unit = { type: REPORT, description: JSON.stringify({ category, slice, slices }) };
+      test(`every ${label} variant passes the bench${SCOPE_NOTE}`, { annotation: unit }, async ({ page }) => {
         // BEFORE THE APP BOOTS, not after. The in-page filter below decides which designs are
         // benched; this decides whether the unit runs at all. Without it a run scoped to one lower
         // third still paid 30 app boots and 30 catalog imports to bench one design, which is most
         // of the cost this scoping exists to remove. The category list only ever arrives from
-        // scripts/catalog-affected.mjs, and e2e/catalog/scope-guard.spec.ts fails the run if it
-        // leaves out a category the scoped designs live in.
+        // scripts/catalog-affected.mjs, and the scope guard (e2e/catalog/_bench-scope.mjs) fails
+        // the run if it leaves out a category the scoped designs live in.
         test.skip(categoryOutOfScope(category), `${category} holds none of the scoped designs`);
         test.setTimeout(120_000);
         await toApp(page);
@@ -80,9 +48,17 @@ test.describe('catalog calibration tripwire', () => {
           return out;
         })(${JSON.stringify(category)}, ${slice}, ${slices}, ${JSON.stringify(ONLY_DESIGNS)})`);
         const measured = rows as { id: string; ok: boolean; errors: string[] }[];
-        // An empty unit is only ever legitimate under an explicit scope. Unscoped, it means the
-        // category vanished or the slice arithmetic broke - a gate measuring nothing and saying
-        // it passed is the failure mode this whole file exists to avoid.
+        // WHAT THIS UNIT MEASURED, for the scope guard, before any assertion can stop the test: a
+        // unit that fails still measured its designs, and the guard checks the run's units
+        // together measured exactly the selected designs.
+        await test.info().attach(REPORT, {
+          body: JSON.stringify(measured.map((r) => ({ id: r.id, ok: r.ok }))),
+          contentType: 'application/json',
+        });
+        // An empty unit is only ever legitimate under an explicit scope, and even then only when
+        // the run's units together measured every selected design (the scope guard, rule S8).
+        // Unscoped, it means the category vanished or the slice arithmetic broke - a gate
+        // measuring nothing and saying it passed is the failure mode this whole file exists to avoid.
         if (!ONLY_DESIGNS) expect(measured.length, `${label} benched no variants`).toBeGreaterThan(0);
         const failed = measured.filter((r) => !r.ok);
         expect(failed, JSON.stringify(failed, null, 2)).toEqual([]);
