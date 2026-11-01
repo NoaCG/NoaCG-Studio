@@ -37,7 +37,7 @@
       "branch": "claude/plan-jev-svg-import-9-build",
       "source": "562452968ee7e1bd271329420d153b93b1912510",
       "launchedAt": "2026-11-01T00:26:24Z",
-      "note": "builder; edits a configured spec (in TOUCHES), no configured-suite infra 00:35Z boundary approved: svg.ts importedClockJs duration branch only (server origin on Take, length from Take-time field value so Reset banks); prove two-output duration agreement after Take and Reset banked across reload; saved designs byte-identical. 00:49Z: hosted fast-road Take of a duration is not server-stamped (outputs agree within delivery spread); agreed follow-up issue (P2 playout, latency trade-off for owner), not in this PR. 01:26Z PR #1888; three review rounds on one rule family (duration resend vs change); approved airState.ts one line (keep held imported clock on stop) + air-state.test.mjs case; told builder: last bounded round, stop below A and report. #1886 = hosted fast-road follow-up. 01:36Z Codex on 41e15df: 2 P2s same family (PROGRAM forwards cue value after pause; off-air length edit equal to readout swallowed). Told builder: fix both test-first, fresh /so; hard stop on any further finding in the family, report to coordinator. 01:59Z 774eff2 fixes both P2s; Codex no findings; CI gate + configured selected green; awaiting fresh /so and receipt.",
+      "note": "builder; edits a configured spec (in TOUCHES), no configured-suite infra 00:35Z boundary approved: svg.ts importedClockJs duration branch only (server origin on Take, length from Take-time field value so Reset banks); prove two-output duration agreement after Take and Reset banked across reload; saved designs byte-identical. 00:49Z: hosted fast-road Take of a duration is not server-stamped (outputs agree within delivery spread); agreed follow-up issue (P2 playout, latency trade-off for owner), not in this PR. 01:26Z PR #1888; three review rounds on one rule family (duration resend vs change); approved airState.ts one line (keep held imported clock on stop) + air-state.test.mjs case; told builder: last bounded round, stop below A and report. #1886 = hosted fast-road follow-up. 01:36Z Codex on 41e15df: 2 P2s same family (PROGRAM forwards cue value after pause; off-air length edit equal to readout swallowed). Told builder: fix both test-first, fresh /so; hard stop on any further finding in the family, report to coordinator. 01:59Z 774eff2 fixes both P2s; Codex no findings; CI gate + configured selected green; awaiting fresh /so and receipt. 03:01Z builder waiting on its /so of 774eff2 (started 01:39Z); prior /so on 41e15df graded B with one more variant (Reset/Pause before first Take drops an off-air length); builder holding per hard stop and will hand findings back.",
       "pr": 1888,
       "head": "774eff281b3016ebef02357630f4b1e617d85073"
     }
@@ -46,7 +46,7 @@
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-01T03:00:05Z"
+    "checkinAt": "2026-11-01T03:31:26Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
