@@ -77,7 +77,7 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 - Whole behaviour spec on `e773067`: 40/40 (j-0011). After the /so 4 fixes: quiz tests 11/11
   (j-0012); mutation j-0013 fails as expected.
 - After the /so 5 fix: quiz tests 11/11 (j-0014); mutation j-0015 fails as expected.
-- Whole behaviour spec after the last source change (`9ed5485`): 40/40 (j-0016).
+- Whole behaviour spec after the last source change (`f818c26`): 40/40 (j-0021).
 - Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
   the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
@@ -138,7 +138,8 @@ In order. Every round's result belongs to the head named.
    artwork (`takenOff` in `draft.ts`). The remembered restore keeps those off; the fallback
    without a remembered tick (after leaving the step) switched them on again. Fixed in
    `9ed5485`: that fallback skips rows answered "take it off the artwork". Not covered by the
-   journey, which never leaves the step between tick and untick.
+   journey, which never leaves the step between tick and untick. Round 11 removed this text-row
+   fallback with all other text-row handling; the Decisions section is current.
 10. /so 6, session `session_017SdbwMd53Jt8ecqVzmuu5D`, on `0a7ea82`: AGREE, A-, nothing blocking.
     Fixed in `2236f6f`: the remembered board was not tied to the artwork, so
     replacing the artwork or its lock layer while No lock was ticked could restore another
