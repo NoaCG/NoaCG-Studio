@@ -7,11 +7,6 @@
       "count": 16,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40763025050"
     },
-    "e2e/configured/production-data-key-tick.spec.ts": {
-      "since": "2026-10-31",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41238514372"
-    },
     "e2e/import-svg.spec.ts": {
       "since": "2026-10-31",
       "count": 5,
@@ -75,6 +70,10 @@
     "e2e/configured/playout-switch-mid-flight.spec.ts": {
       "count": 1,
       "last": "2026-10-22"
+    },
+    "e2e/configured/production-data-key-tick.spec.ts": {
+      "count": 1,
+      "last": "2026-11-01"
     },
     "e2e/configured/production-data-key.spec.ts": {
       "count": 5,
