@@ -219,7 +219,7 @@ paintMatchClock = function () {
 
 // importedClockUpdate(fields): the match clock adopts what update() just wrote into its layer.
 ${duration ? `var importedClockLast = null;     // the clock field's last value, to tell a typed time from a resend
-var importedClockTakeAt = null;   // the origin the wire stamped for the next Take, while off air
+var importedClockTakeAt = null;   // the origin the wire last stamped, for the next start
 ` : ''}function importedClockUpdate(fields) {
   var el = matchClockEl();
   if (!el || !fields || !Object.prototype.hasOwnProperty.call(fields, el.id)) return;
@@ -231,18 +231,19 @@ ${duration ? `  // A duration's length is a time the operator typed while the gr
   var offAir = typeof noacgMachineState === 'function' && noacgMachineState().groups.main === 'off';
   if (offAir && /${CLOCK_TIME.source}/.test(value)) el.setAttribute('data-start', value);
   // ON THE WIRE the length rides after the origin ("0:21@/0:30", control/matchClockWire.ts), so a
-  // reload and every output learn it; and a value stamped while off air is the Take's own origin,
-  // kept for the entrance's start (below) rather than minted again on its first frame.
+  // reload and every output learn it; and the origin the wire last stamped is kept for the next
+  // start (below): the Take's, which the entrance would otherwise mint again on its first frame.
   var at = value.indexOf('@');
   var slash = at === -1 ? -1 : value.indexOf('/', at);
   var length = slash === -1 ? '' : value.slice(slash + 1);
   if (/${CLOCK_TIME.source}/.test(length)) el.setAttribute('data-start', length);
-  importedClockTakeAt = offAir ? matchClockOriginOf(value) : null;   // on air, nothing is pending
+  importedClockTakeAt = matchClockOriginOf(value);
 ` : ''}}${duration ? `
 
 // THE TAKE'S ORIGIN. The entrance starts a duration (resetMatchClock, startMatchClock) on its first
-// frame; its start counts from the origin the wire stamped for this Take when there is one, and
-// from now otherwise (a playout host with no wire), so every output counts the same second.
+// frame, off air or on a re-take; its start counts from the origin the wire last stamped when there
+// is one, and from now otherwise (a playout host with no wire), so every output counts the same
+// second.
 var importedClockMatchStart = startMatchClock;
 startMatchClock = function () {
   if (importedClockTakeAt !== null) {

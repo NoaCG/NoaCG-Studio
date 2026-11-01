@@ -255,6 +255,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['goal', 1], ['wait', SETTLE], ['read', 'a goal'],
       ['report', 'B'], ['wait', 6000], ['reload', 'B'], ['wait', 300], ['read', 'B reloaded'],
       ['event', 'clock_pause'], ['wait', SETTLE], ['read', 'paused'], ['wait', 3000], ['read', 'held'],
+      ['update'], ['wait', 600], ['read', 'a resend while paused'],
       ['report', 'B'], ['reload', 'B'], ['wait', 300], ['read', 'B reloaded while paused'],
       ['type', '0:20'], ['wait', 600], ['read', 'corrected while paused'],
       ['disconnect', 'B'], ['event', 'clock_start'], ['wait', 2000], ['reconnect', 'B'], ['wait', 600], ['read', 'B reconnected while running'],
@@ -266,6 +267,10 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['out'], ['wait', 3000], ['type', '0:09'], ['take'], ['wait', 500], ['read', 'a second Take, with a new length'],
       ['wait', 2000], ['read', 'two seconds into it'],
       ['report', 'B'], ['wait', 5000], ['reload', 'B'], ['wait', 300], ['read', 'B reloaded into the second Take'],
+      // A Take of a graphic already on air: the entrance plays again, from a new server origin.
+      ['wait', 2000], ['take'], ['wait', 500], ['read', 're-taken on air'], ['wait', 3000], ['read', 'three seconds into the re-take'],
+      // Paused, taken out and taken again with nothing typed: a new count of the length.
+      ['event', 'clock_pause'], ['wait', SETTLE], ['out'], ['wait', 3000], ['take'], ['wait', 500], ['read', 'a Take after a pause'],
     ]),
   };
 });
@@ -379,11 +384,14 @@ test('a duration is stamped by its Take: both outputs count the server origin fr
   agree(paused, 'paused');
   assert.match(paused.A.held, /^\d+:\d{2}@\/0:30$/, 'Pause banks the time and keeps the length');
   assert.equal(at(r, 'held').A.value, paused.A.value);
+  const pausedResend = at(r, 'a resend while paused');
+  agree(pausedResend, 'a resend while paused');
+  assert.deepEqual([pausedResend.A.value, pausedResend.A.held], [paused.A.value, paused.A.held], 'a resend of the cue\'s length never pulls a paused clock back');
   const pausedReload = at(r, 'B reloaded while paused');
   agree(pausedReload, 'B reloaded while paused');
   assert.equal(pausedReload.B.clock, 'stopped');
   agree(at(r, 'corrected while paused'), 'corrected while paused');
-  assert.equal(at(r, 'corrected while paused').A.held, '0:20@/0:30', 'a correction keeps the length');
+  assert.equal(at(r, 'corrected while paused').A.held, '0:20@typed/0:30', 'a correction keeps the length, marked as the operator\'s');
   const back = at(r, 'B reconnected while running');
   agree(back, 'B reconnected');
   assert.equal(back.A.value, '0:17', 'three seconds and a hop since Start, counted while B was gone');
@@ -414,4 +422,14 @@ test('a duration\'s Reset goes back to its length on every output and is banked,
   assert.equal(at(r, 'two seconds into it').A.value, '0:06');
   agree(at(r, 'B reloaded into the second Take'), 'B reloaded into the second Take');
   assert.equal(at(r, 'B reloaded into the second Take').B.value, '0:01');
+  const retake = at(r, 're-taken on air');
+  agree(retake, 're-taken on air');
+  assert.match(retake.A.held, /^0:09@\d+\/0:09$/);
+  assert.notEqual(retake.A.held, again.A.held, 'a re-take is a new origin');
+  assert.equal(retake.A.value, '0:08');
+  agree(at(r, 'three seconds into the re-take'), 'three seconds into the re-take');
+  const afterPause = at(r, 'a Take after a pause');
+  agree(afterPause, 'a Take after a pause');
+  assert.match(afterPause.A.held, /^0:09@\d+\/0:09$/, 'a paused clock is taken again from its length, not from where it paused');
+  assert.equal(afterPause.A.value, '0:08');
 });

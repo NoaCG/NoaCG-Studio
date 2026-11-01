@@ -163,13 +163,24 @@ function clockLengthOf(raw: string | undefined | null): string | null {
 }
 
 /** A time, its origin (null: held) and its length, as one wire value. */
-function durationValue(time: string, origin: number | null, length: string): string {
+function durationValue(time: string, origin: number | string | null, length: string): string {
   return `${time}@${origin ?? ''}/${length}`;
 }
 
 /** The origin of a time corrected while it runs, until the update row's effect stamps it: 0, which
  *  every parser reads as no origin, so for that moment it reads as the corrected time, held. */
 const CORRECTED_ORIGIN = 0;
+
+/** The origin slot of a time the operator TYPED while the clock was held: no origin to any parser,
+ *  but it says the time is theirs, so the next Take counts from it rather than from the length. */
+const TYPED_ORIGIN = 'typed';
+
+/** What sits between a duration value's `@` and its `/`: a number, a marker or nothing. */
+function originSlot(raw: string): string {
+  const at = raw.indexOf('@');
+  const slash = at === -1 ? -1 : raw.indexOf('/', at);
+  return slash === -1 ? '' : raw.slice(at + 1, slash);
+}
 
 
 /**
@@ -196,11 +207,15 @@ export function clockValueAfterUpdate(held: string | undefined, incoming: string
   const length = clockLengthOf(held);
   if (length !== null) {
     // A duration keeps its length through a typed time, which only a Take makes the new length.
+    // The cue holds the length it was taken with, so a resend of THAT is a resend too: it never
+    // pulls a paused clock back (returning to the length is Reset's job, as on a native clock).
     // A time typed while it RUNS keeps running from the update row's own instant, which this
     // function does not know: it is marked as running from that row (`CORRECTED_ORIGIN`), and the
     // row's clock effect stamps it with the row's server time straight after (durationRowEffect).
-    if (plainClockValue(held) === plainClockValue(incoming)) return held!;
-    return durationValue(plainClockValue(incoming), clockOriginOf(held) === null ? null : CORRECTED_ORIGIN, length);
+    // A time typed while it is HELD is marked as the operator's (`TYPED_ORIGIN`).
+    const time = plainClockValue(incoming);
+    if (time === plainClockValue(held) || time === length) return held!;
+    return durationValue(time, clockOriginOf(held) === null ? TYPED_ORIGIN : CORRECTED_ORIGIN, length);
   }
   if (held === undefined || clockOriginOf(held) === null) return incoming;
   return plainClockValue(held) === plainClockValue(incoming) ? held : incoming;
@@ -310,14 +325,20 @@ function durationRowEffect(
 ): ClockEffect | null {
   const msg = row.msg;
   if (msg.t !== 'update' && msg.t !== 'play' && msg.t !== 'event') return null;
-  const taken = plainClockValue(from) || clock.resetTo;
-  if (msg.t === 'play') return { value: durationValue(taken, at, taken), when: 'before' };
+  const slot = originSlot(from);
+  const time = plainClockValue(from) || clock.resetTo;
+  const length = clockLengthOf(from) ?? time;
+  // The Take counts from a time the operator typed, or else from the length: a paused, reset or
+  // run-out clock is taken from the top, as the graphic's own entrance does.
+  if (msg.t === 'play') {
+    const taken = slot === TYPED_ORIGIN ? time : length;
+    return { value: durationValue(taken, at, taken), when: 'before' };
+  }
   // A time typed while it runs counts from the update row's server time, on every output and in
   // every replay. AFTER the row, which has already handed the graphic the time to count from.
-  const corrected = from.includes(`@${CORRECTED_ORIGIN}/`);
-  if (msg.t === 'update' && !corrected) return null;
-  const length = clockLengthOf(from) ?? taken;
-  if (msg.t === 'update') return { value: durationValue(taken, at, length), when: 'after' };
+  if (msg.t === 'update') {
+    return slot === String(CORRECTED_ORIGIN) ? { value: durationValue(time, at, length), when: 'after' } : null;
+  }
   const events = clock.events ?? IMPORTED_CLOCK_EVENTS;
   switch (msg.event) {
     case events.start:

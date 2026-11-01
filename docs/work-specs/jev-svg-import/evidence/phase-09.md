@@ -47,16 +47,20 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
 - **W3 Unrelated rows leave the clock alone.** An update resending the cue's time keeps the
   origin; a score's +1, −1 or New game moves the scores and the flash and never the clock; a clock
   row never moves a score or the flash. New game does not reset the clock.
-- **W4 A duration is stamped by its Take.** Before the play, the wire writes the time the field
-  holds when it is taken, stamped with the row's time, and that time is the length:
-  `0:30@<take>/0:30`. The graphic, still off air, keeps that origin and its entrance's start counts
-  from it (`importedClockJs`, duration only), so every output counts the same second from the first
-  frame. A playout host with no wire still starts from now, as before.
+- **W4 A duration is stamped by its Take.** Before the play, the wire writes the Take's count,
+  stamped with the row's time, and that count is the length: `0:30@<take>/0:30`. It is a time the
+  operator typed while the clock was held, or else the length, so a paused, reset or run-out clock
+  is taken again from the top, as the graphic's entrance does. The graphic keeps the origin the
+  wire last stamped and its entrance's start counts from it (`importedClockJs`, duration only),
+  off air or on a re-take, so every output counts the same second from the first frame. A playout
+  host with no wire still starts from now, as before.
 - **W5 A duration's length rides on the wire.** After the origin, where every existing reader
   already stops: held `0:21@/0:30`, running `0:30@<origin>/0:30`. Pause and Start carry it; Reset
   banks `0:30@/0:30`; a typed time keeps it, and a time typed while it runs keeps running from the
   update row's own server time (the merge marks it, the row's effect stamps it), so outputs and
-  replays agree. A value that already carries a length is taken as it is. The graphic takes its
+  replays agree. A time typed while it is held is marked as the operator's (`0:20@typed/0:30`).
+  A resend of the time it holds, or of its length (what the cue holds after the Take), is a
+  resend: it never pulls a paused clock back. Returning to the length is Reset's job. A value that already carries a length is taken as it is. The graphic takes its
   `data-start` from the length, so a reload knows it and Reset returns to it. Only a Take sets a
   new length; a pending Take origin is dropped by any value that arrives on air.
 - **W6 Native clocks are unchanged.** No native value ever carries a length, so every native path
@@ -94,6 +98,10 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
   every report and every page already hold; a second field would be a new operator field and a
   new report shape. Readers that stop at `@` see the time; the origin parsers read the number
   before the slash, so a held value with a length still reads as held.
+- **Found by the PR review, fixed (rules after coding):** an unrelated Update after a Pause
+  resent the cue's length and pulled the paused clock back to it; a re-take while on air dropped
+  the wire's origin, so its entrance minted a local one. Typing the length itself while paused is
+  now read as a resend, the honest limit a native clock already has for its start time.
 - **A target time also starts on the Take on the wire.** It counts down from its drawn time until
   row 10 resolves its instant, and its entrance already adopts a stamped origin.
 - **Out of reach here, filed (#1886, #1887):** a Take may ride the fast road, which carries no server time, so on
