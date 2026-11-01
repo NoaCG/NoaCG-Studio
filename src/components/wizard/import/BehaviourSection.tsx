@@ -1325,6 +1325,11 @@ function timeZones(...own: string[]): string[] {
   return [...new Set([...own, ...RUNTIME_ZONES])];
 }
 
+/** An instant as the target's line names it, in `zone`. */
+function targetFormat(zone: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+}
+
 /** What the line under the fields says for a target that does not resolve. */
 const TARGET_UNRESOLVED: Record<'gap' | 'time' | 'date' | 'zone', string> = {
   gap: 'The clocks skip that time. Choose another.',
@@ -1358,25 +1363,23 @@ function ClockTargetFields({ target, proposed, onTarget }: { target?: string; pr
     // Only an instant reaches the draft: until a new one resolves, the last one stands.
     if (r.kind === 'resolved') onTarget(formatClockTarget(r), r.proposed);
   };
-  const format = useMemo(
-    () => new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }),
-    [zone],
-  );
+  const format = useMemo(() => targetFormat(zone), [zone]);
   // T10: the line names what the graphic would store NOW, kept current while the step is open.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
   }, []);
-  const at = parseClockTarget(svgClockTarget({ target, targetProposed: proposed }, now))?.at;
-  const counts = at === undefined ? '' : `${format.format(at)}${at <= now ? ', already past: it shows 0:00' : ''}`;
+  const counting = parseClockTarget(svgClockTarget({ target, targetProposed: proposed }, now));
+  const at = counting?.at;
+  // Named in its OWN zone: while the author tries another zone the stored instant has not moved.
+  const countingZone = counting?.zone ?? zone;
+  const countingFormat = countingZone === zone ? format : targetFormat(countingZone);
+  const counts = at === undefined ? '' : `${countingFormat.format(at)}${at <= now ? ', already past: it shows 0:00' : ''}`;
   // A proposal whose next occurrence the clocks repeat asks which, as a typed one does (#1894):
   // left alone it would keep its passed instant and show 0:00.
-  const fold = result?.kind === 'fold'
-    ? result
-    : !result && proposed && stored && at !== undefined && at <= now
-      ? ((r) => (r.kind === 'fold' ? r : null))(resolveClockTarget({ time: stored.time, zone: stored.zone }, now))
-      : null;
+  const again = !result && proposed && stored && at !== undefined && at <= now ? resolveClockTarget({ time: stored.time, zone: stored.zone }, now) : null;
+  const fold = result?.kind === 'fold' ? result : again?.kind === 'fold' ? again : null;
   const reads = ((): string | null => {
     // Until another instant resolves, the last one stands: the line says so (#1894).
     const still = counts && `It still counts to ${counts}.`;

@@ -524,6 +524,8 @@ test('a duration never taken is off air: a Reset or a Pause before the first Tak
     const taken = wireAfter(duration, [...before, [0.3, { t: 'play' }]]);
     assert.equal(taken, `0:50@${W0 + 0.3 * 60_000}/0:50/0:50`, `${verb}, then the Take counts the 0:50 the field shows`);
   }
+  // An Out over a plain value still banks it off air, as before.
+  assert.equal(wireAfter(duration, [[0, { t: 'update', data: { f2: '0:45' } }], [0.1, { t: 'stop' }]]), '0:45@out/0:45/0:45');
 });
 
 test('while a clock runs, a time typed equal to the time it started from sets it back to that time (#1890)', () => {

@@ -208,8 +208,9 @@ function durationValue(time: string, origin: number | string | null, length: str
  * precisely because the origin write is ours, not the operator's — the operator's `"10:00"` has
  * not changed just because we stamped it.
  *
- * The honest limit, unchanged from the runtime's: an operator cannot re-apply the time the clock
- * already started from. No control surface can express that anyway (the field holds that text, so
+ * The honest limit, unchanged from the runtime's for a native clock: an operator cannot re-apply
+ * the time the clock already started from (an imported clock can while it runs, #1890, because its
+ * value says what the cue last sent). No control surface can express that anyway (the field holds that text, so
  * there is no edit to send), and returning to a known value is `clockReset`'s job.
  */
 export function clockValueAfterUpdate(held: string | undefined, incoming: string): string {
@@ -347,9 +348,11 @@ function importedRowEffect(
   const time = (read ? read.time : plainClockValue(from)) || clock.resetTo;
   const length = read?.length ?? (clock.startsOnTake ? time : clock.resetTo);
   const sent = read?.sent ?? time;
-  // A clock that starts on the Take and has never been taken is off air too: only a Take puts it
-  // on, so a Reset or a Pause before it keeps a time typed afterwards the length (#1890).
-  const offAir = read ? read.slot === OFF_AIR : clock.startsOnTake === true;
+  const offAir = read?.slot === OFF_AIR;
+  // A clock that starts on the Take and has never been taken (a bare time, no slot yet) is off air
+  // for its verbs: only a Take puts it on, so a Reset or a Pause before it keeps a time typed
+  // afterwards the length (#1890).
+  const verbOffAir = offAir || (!read && clock.startsOnTake === true);
   if (msg.t === 'play') {
     if (!clock.startsOnTake) return null;
     const taken = read ? length : time;
@@ -369,9 +372,9 @@ function importedRowEffect(
     case events.start:
       return { value: durationValue(clockValueAt(from, clock.countsDown, at), at, length, sent), when: 'before' };
     case events.stop:
-      return { value: durationValue(clockValueAt(from, clock.countsDown, at), offAir ? OFF_AIR : '', length, sent), when: 'after' };
+      return { value: durationValue(clockValueAt(from, clock.countsDown, at), verbOffAir ? OFF_AIR : '', length, sent), when: 'after' };
     case events.reset:
-      return { value: durationValue(length, offAir ? OFF_AIR : '', length, sent), when: 'after' };
+      return { value: durationValue(length, verbOffAir ? OFF_AIR : '', length, sent), when: 'after' };
     default:
       return null;
   }

@@ -50,8 +50,8 @@
  *     styles each of the three without any of them being a separate state to animate.
  *
  * `hours` paints an hour or more as "3:39:30" rather than "219:30" (an imported clock counting
- * down to a set time, jev-svg-import row 11, AC-9). Only the PAINT changes: the field and the wire
- * keep minutes and seconds, which every parser reads. Without it the emitted runtime is byte for
+ * down to a set time, jev-svg-import row 11, AC-9), and reads that text back the same way. The
+ * field's value and the wire keep minutes and seconds, which every parser reads. Without it the emitted runtime is byte for
  * byte what every native board already ships, where 67 minutes reads "67:00".
  */
 export function matchClockJs(prefix: string, opts: { hours?: boolean } = {}): string {
@@ -88,7 +88,7 @@ function parseMatchClock(text) {
   var parts = raw.trim().split(':');
   var mins = parseInt(parts[0], 10) || 0;
   if (parts.length < 2) return Math.max(0, mins);          // a bare number is seconds
-  return Math.max(0, mins * 60 + (parseInt(parts[1], 10) || 0));
+${opts.hours ? HOURS_PARSE : ''}  return Math.max(0, mins * 60 + (parseInt(parts[1], 10) || 0));
 }
 
 // matchClockOriginOf(): the epoch ms an "@"-stamped value was true, or null for a plain (held)
@@ -322,6 +322,12 @@ function formatMatchClock(total) {
   var s = total % 60;
   return Math.floor(total / 60) + ':' + (s < 10 ? '0' + s : s);
 }`;
+
+/** With hours, the painted "3:39:30" reads back as it was painted: a host that reports the
+ *  layer's text (control/hostedReceiver.ts `harvest`) rebuilds from it, so it must not read as
+ *  3 minutes 39. Native clocks keep reading "1:30:00" as 1:30. */
+const HOURS_PARSE = `  if (parts.length > 2) return Math.max(0, mins * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseInt(parts[2], 10) || 0));
+`;
 
 /** The hours formatter: under an hour exactly the native one, from an hour "3:39:30". */
 const HOURS_FORMAT = `// formatMatchClock(): 2700 -> "45:00" · 13170 -> "3:39:30". Under an hour it reads as the native

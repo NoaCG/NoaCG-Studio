@@ -659,6 +659,8 @@ test('an imported count-up waits for Start; Pause holds it and Reset returns to 
   await expect(page.getByTestId('cue-action-clock_pause')).toBeEnabled();
   await expect.poll(async () => secondsOf(await clock.textContent()), { timeout: 5000 }).toBeGreaterThan(secondsOf(DRAWN));
   await page.getByTestId('cue-action-clock_pause').click();
+  // Held once the graphic's machine says so (the button greys from the monitor's own state).
+  await expect(page.getByTestId('cue-action-clock_pause')).toBeDisabled();
   const held = await clock.textContent();
   await page.waitForTimeout(1500);
   await expect(clock).toHaveText(held!);

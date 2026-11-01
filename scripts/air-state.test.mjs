@@ -406,6 +406,9 @@ test('a dashboard reloaded while an imported clock is off air seeds its last rep
   const monitor = take.reduce((part, r) => programItems(part, [{ graphic: 'bug', ...r }], DURATIONS, T).air, seeded).clocks.bug;
   assert.equal(monitor, air([...before, ...take]));
   assert.match(monitor, /^0:45@\d+\/0:45\/0:20$/);
+  // A host that reports the layer's painted text ("0:20") says nothing about off air or the length.
+  const painted = seedFromResolve(NO_AIR, { liveCue: {}, live: { bug: { data: { f2: '0:20' } } } }, [], airAtRequest(NO_AIR), CUES, DURATIONS);
+  assert.equal('bug' in painted.clocks, false);
   // A native clock off air is still forgotten, as it always was.
   const native = seedFromResolve(NO_AIR, { liveCue: {}, live: { score: { data: { f5: '7:00' } } } }, [], airAtRequest(NO_AIR), CUES, CLOCKS);
   assert.equal('score' in native.clocks, false);

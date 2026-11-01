@@ -440,3 +440,21 @@ test('T1 and T4 (#1894): a bare time in a gap already behind today is tomorrow\'
   // A dated gap stays a gap, past or not.
   assert.equal(resolveClockTarget({ time: '03:30', date: '2026-03-29', zone: HEL }, springLater).kind, 'gap');
 });
+
+test('row 11: a target paints hours and reads its painted text back as hours; a native clock is unchanged', async () => {
+  const { matchClockJs } = await import('../src/templates/shared/matchClock.ts');
+  const runtime = (opts) => {
+    const js = matchClockJs('x', opts);
+    const pick = (name) => `function ${name}${js.split(`function ${name}`)[1].split('\n}\n')[0]}\n}`;
+    return new Function(`${pick('parseMatchClock')}\n${pick('formatMatchClock')}\nreturn { parse: parseMatchClock, format: formatMatchClock };`)();
+  };
+  const hours = runtime({ hours: true });
+  assert.deepEqual([0, 3599, 3600, 13170].map(hours.format), ['0:00', '59:59', '1:00:00', '3:39:30']);
+  // A host that reports the layer's text (hostedReceiver harvest) rebuilds from "3:39:30".
+  assert.equal(hours.parse('3:39:30'), 13170);
+  assert.equal(hours.parse('219:30@1000'), 13170, 'the wire keeps minutes and seconds');
+  const native = runtime();
+  assert.equal(native.format(4020), '67:00', 'a native match clock keeps minutes');
+  assert.equal(native.parse('1:30:00'), 90, 'and reads three parts as it always has');
+  assert.equal(matchClockJs('scoreboard'), matchClockJs('scoreboard', {}), 'without hours the runtime is the same text');
+});
