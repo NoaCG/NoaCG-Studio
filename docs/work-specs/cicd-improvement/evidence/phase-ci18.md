@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (56 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (58 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -223,7 +223,10 @@ issue, remain for ci17.
   scope, so the new one needs a measured repayment.
 - **An exception waives added cost only up to its allowance.** What it already excepts of the
   measured cost is spent first; growing an excepted job beyond its recorded allowance is charged
-  to the tier like any addition.
+  to the tier like any addition. Where a renewal overlaps its predecessor, an item draws the
+  larger allowance left, never the sum of both.
+- **A capped read is a partial read.** A timeline or a commit's statuses still full at the last
+  permitted page leaves the read incomplete, so unread history neither raises nor clears an alarm.
 - **Which breaches stop growth.** Only cost (that tier) and ready or queue latency (every tier
   with pre-merge jobs, graphics included). Age, phase latency, a stale table, a missing report and exception alarms are owned,
   dated actions without a stop: an item's age is not caused by added capacity, and the others

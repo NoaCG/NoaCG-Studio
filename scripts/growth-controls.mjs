@@ -434,16 +434,17 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     const covered = (item) => mine.find((e) => e.covers.includes(item.id));
     const tierItems = items.filter((i) => i.tier === tier);
     // An exception waives added cost only up to what is left of its approved allowance after the
-    // measured cost it already excepts: growing an excepted job needs approval for the growth.
-    const left = new Map(mine.map((e) => [e.id, { perLanding: Math.max(0, e.claimed.perLanding - e.perLanding), perDay: Math.max(0, e.claimed.perDay - e.perDay) }]));
+    // measured cost of what it covers: growing an excepted job needs approval for the growth.
+    // Overlapping entries on one item (a renewal beside its predecessor) approve the larger
+    // allowance, never the sum, so an item draws the largest room left and spends it in all of them.
+    const costOf = (e, key) => e.covers.reduce((a, c) => a + (coverCost(c)?.[key] ?? 0), 0);
+    const left = new Map(mine.map((e) => [e.id, { perLanding: Math.max(0, e.claimed.perLanding - costOf(e, 'perLanding')), perDay: Math.max(0, e.claimed.perDay - costOf(e, 'perDay')) }]));
     const charged = tierItems.map((i) => {
-      const e = covered(i);
-      if (!e) return i;
-      const room = left.get(e.id);
-      const waivedLanding = Math.min(i.perLanding, room.perLanding);
-      const waivedDay = Math.min(i.perDay, room.perDay);
-      room.perLanding -= waivedLanding;
-      room.perDay -= waivedDay;
+      const rooms = mine.filter((e) => e.covers.includes(i.id)).map((e) => left.get(e.id));
+      if (!rooms.length) return i;
+      const waivedLanding = Math.min(i.perLanding, Math.max(...rooms.map((r) => r.perLanding)));
+      const waivedDay = Math.min(i.perDay, Math.max(...rooms.map((r) => r.perDay)));
+      for (const r of rooms) { r.perLanding = Math.max(0, r.perLanding - waivedLanding); r.perDay = Math.max(0, r.perDay - waivedDay); }
       return { ...i, perLanding: i.perLanding - waivedLanding, perDay: i.perDay - waivedDay };
     });
     const addedLanding = charged.reduce((a, i) => a + i.perLanding, 0);

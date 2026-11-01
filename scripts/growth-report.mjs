@@ -261,6 +261,8 @@ function openItems(reader, now, carried = {}) {
       if (!body) { timelineRead = false; break; }
       events.push(...body);
       if (body.length < 100) break;
+      // Still full at the last permitted page: unread history could hold the queue entry.
+      if (page === 5) timelineRead = false;
     }
     const ready = readyClock(reader, pr, now, { forcePushed: !timelineRead || events.some((e) => e.event === 'head_ref_force_pushed'), carried: carried[id] });
     if (!ready.complete || !timelineRead) { complete = false; unread.push(id); }
@@ -284,11 +286,12 @@ function readyClock(reader, pr, now, { forcePushed = false, carried = null, merg
   const stamps = carried ? [{ at: carried }] : [];
   for (const c of known ? commits : []) {
     // Every page of a commit's statuses: the first stamp can sit past the first hundred.
-    for (let page = 1; ; page++) {
+    for (let page = 1; page <= 5; page++) {
       const statuses = reader.get(`repos/${REPO}/commits/${c.sha}/statuses?per_page=100&page=${page}`);
-      if (!statuses || page > 5) { known = false; break; }
+      if (!statuses) { known = false; break; }
       for (const st of statuses) if (st.context === 'noacg/reviewed' && st.state === 'success') stamps.push({ at: st.created_at, head: c.sha });
       if (statuses.length < 100) break;
+      if (page === 5) known = false;
     }
     if (!known) break;
   }

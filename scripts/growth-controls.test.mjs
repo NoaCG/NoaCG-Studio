@@ -830,3 +830,29 @@ test('(b) a review link must be an issue comment in this repository', () => {
   assert.match(exceptionStatus([{ ...ex, reviewed: 'https://github.com/someone/else/issues/1#issuecomment-1' }], TODAY, 30).invalid[0].problems.join(), /no separate review/);
   assert.equal(exceptionStatus([{ ...ex, reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' }], TODAY, 30).active.length, 1);
 });
+
+test('(b) a renewal\'s allowance waives growth of what it covers, by the larger allowance and never the sum', () => {
+  const base = { tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
+  const first = { ...base, id: 'a', perLanding: 17.7, from: '2026-11-01', expires: '2026-11-30' };
+  const renewal = { ...base, id: 'b', perLanding: 30, from: '2026-11-20', expires: '2026-12-19', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-11-19' } };
+  const m = { ...measurement({ graphics: 25.5 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 17.7, perDay: 0 } } };
+  const grow = (perLanding) => assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, renewal] }, measurement: m, items: [{ tier: 'graphics', id: 'job:ci.yml/Catalog calibration gate', perLanding, perDay: 0 }], today: '2026-11-25' });
+  assert.equal(grow(10).tiers.graphics.addedLanding, 0, '17.7 + 10 is inside the renewal\'s 30');
+  assert.equal(Math.round(10 * grow(20).tiers.graphics.addedLanding) / 10, 7.7, 'past 30 is charged: 12.3 waived, not 12.3 + 17.7');
+});
+
+test('(d) a timeline still full at the last permitted page is a partial read', () => {
+  const now = '2026-10-31T12:00:00Z';
+  const full = [...Array(100)].map(() => ({ event: 'commented', created_at: '2026-10-31T09:00:00Z' }));
+  const fake = (args) => {
+    const route = args.at(-1);
+    if (/\/pulls\?/.test(route)) return JSON.stringify([{ number: 6, created_at: '2026-10-31T07:00:00Z', head: { ref: 'f' }, draft: false }]);
+    if (/\/commits\?/.test(route)) return JSON.stringify([{ sha: 'c1' }]);
+    if (/timeline/.test(route)) return JSON.stringify(full);
+    return '[]';
+  };
+  const existing = '- queue #6 queue unfinished for 300 min, over its 240 minutes ceiling. Owner o; act by 2026-11-01.';
+  const r = ages({ ceilings: CEILINGS, now, reader: makeReader(30, fake), existing });
+  assert.equal(r.complete, false);
+  assert.notEqual(r.body, '', 'unread history never clears an existing queue alarm');
+});
