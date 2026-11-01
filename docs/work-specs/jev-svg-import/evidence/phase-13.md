@@ -24,8 +24,9 @@ merge-group CI, push CI, configured-suite, Post-landing and Quarantine all succe
 
 1. **Defects:** the rehearsal found no defect in rows 1 to 12. It found two new flaky tests in the
    already quarantined `e2e/import-svg.spec.ts`, in code no row changed (#1915, P3, area:e2e). Twelve tracked follow-ups were
-   reconciled (table below): two closed as moved, ten stay open, three of them P2. Nine of the ten have no later row that can fix them (six product defects, three outside
-   the plan); #1884 item 2 could be fixed only in row 24 with a reconciled boundary.
+   reconciled (table below): two closed as moved, ten stay open, three of them P2. Seven of the ten have no later row that can fix them (five product defects, two outside
+   the plan). Three touch a file a later row lists, for another purpose: #1884 item 2 (row
+   24), #1898 (row 27) and #1897 (rows 14, 15); fixing them there needs a reconciled boundary.
 2. **Elapsed time:** 26 h 26 min of 336 h (8%), measured at 2026-11-01T12:45:51Z when this row started. Run start
    2026-10-31T10:19:44Z. Row 12 reached main at 2026-11-01T12:19:01Z (merge commit dated 12:06:46Z). 12 of 40 rows are done (30%).
 3. **Spend:** $0, no paid call. No inference path exists yet (rows 31 to 36), and the only
@@ -55,8 +56,9 @@ merge-group CI, push CI, configured-suite, Post-landing and Quarantine all succe
 | 11 | #1899 | `7030eb18` | success | success | success |
 | 12 | #1909 | `a961bec0` | success | success | success |
 
-Merge-group CI succeeded on every merge. Row 7's push runs were superseded 77 s later by quarantine
-PR #1879 (`d06974d`). A CI dispatch on `c469facb` succeeded (41247810144). On `d06974d`,
+Merge-group CI succeeded on every merge. Row 7 (#1878) and quarantine PR #1879 reached
+main in one push at 2026-10-31T22:18:41Z, so the push runs ran on #1879's merge (`d06974d`), whose
+tree contains row 7. A CI dispatch on `c469facb` succeeded (41247810144). On `d06974d`,
 configured-suite 41247602152 failed in shard 4 before any test ran: the local Supabase stack could
 not bind port 54322 (#1865). The next landing that included row 7 (`5624529`, row 8) passed
 configured-suite. That is reconciled as infrastructure, not a row 7 defect.
@@ -98,8 +100,8 @@ that fixture was not probed.
 
 ## Follow-ups, reconciled on 2026-11-01
 
-All were read again just before this PR. "Later row" means a row whose file list could repair the
-cause. Rows 29 and 38 only test: they will run into a cause but cannot change it.
+All were read again just before this PR. "Later row" compares the files each issue names as its
+cause with every later row's allowed files in `phases.json`. Rows 29 and 38 only test: they will run into a cause but cannot change it.
 
 | Issue | Labels | What is open | Later row that can fix it | Will run into it |
 |---|---|---|---|---|
@@ -108,12 +110,12 @@ cause. Rows 29 and 38 only test: they will run into a cause but cannot change it
 | #1887 | P2, area:playout | Exported control panel and production controller send imported clock verbs without a wire stamp | none | 29 (exports) |
 | #1890 | P2, area:playout | Second half fixed by row 11. First half moved to #1903. Still open because the `Closes` line was in an early branch commit | closed in this row (completed): nothing left in it | n/a |
 | #1891 | P3, area:playout | Moved whole to #1906. Still open for the same reason | closed in this row as a duplicate of #1906 | n/a |
-| #1903 | P3, area: control | A Reset or Pause before a duration's first Take keeps the old length | none (row 9 owned `matchClockWire.ts`) | 38 |
+| #1903 | P3, area: control | A Reset or Pause before a duration's first Take keeps the old length | none: its code (`output/main.ts`, `hostedReceiver.ts`, `airState.ts`) is in no later row | 38 |
 | #1906 | P3, area: control | The program monitor forgets an off-air imported clock on reload | none (`hostedControl.ts`) | 38 |
 | #1884 items 1, 2 | P3, create | 1: should an off-air Take count the clock's length or the field's last sent value? An owner product decision. 2: the clock's text is not re-fitted as it ticks (`svg.ts` `importedClockJs`) | 1: owner. 2: row 24 lists `svg.ts`, but for linked data only; fixing it there would need a reconciled boundary | 38 |
-| #1898 | P3, area: control | An undated target passing into a DST fold before the build counts to 0:00 | none (row 10 owned `clockTarget.ts`) | none |
+| #1898 | P3, area: control | An undated target passing into a DST fold before the build counts to 0:00 | row 27 lists the file (`draft.ts`, `svgClockTarget`), but for reimport; fixing it there needs a reconciled boundary | none |
 | #1889 | P3, area:playout | Native scorebug clock: a score Update after a Pause pulls the clock back. Native, not imported | outside this plan | none |
-| #1897 | P3, area:e2e | The export window sometimes takes over 7 s to open under load | outside this plan (test infrastructure) | 29 |
+| #1897 | P3, area:e2e | The export window sometimes takes over 7 s to open under load | rows 14 and 15 list the spec (`import-svg-behaviour.spec.ts`), but not the export window's cause; a reconciled boundary at most, and never a longer timeout | 29 |
 | #1865 | P3, ci, area:e2e | The configured suite's local Supabase stack sometimes fails to start (port in use). One start retry exists | cicd-improvement run | every row with a configured selection |
 
 Also read, as row 1 asked: #1833 (question fit changes after attaching quiz behaviour) is still open
@@ -123,9 +125,9 @@ and unlabelled. Rows 14 and 15 own `quiz.ts` and should read it first. Quarantin
 cicd-improvement and was not touched here.
 
 **A gap in the gates, recorded rather than worked around.** `e2e/import-svg.spec.ts` (68 tests,
-the main import spec) has been quarantined since 2026-10-31T22:01Z, between rows 7 and 8, with
-five entries. Quarantine incident #1907 records it: changes to `src/templates/**` and
-`src/components/wizard/import/**` merge without it blocking. Its repair is due 2026-11-14, the
+the main import spec) has been quarantined since PR #1879 reached main at 2026-10-31T22:18:41Z, together with row 7, with
+five entries. Quarantine incident #1907 records it: changes to the paths it lists, chiefly `src/templates/**`
+and `src/components/wizard/**`, merge without it blocking. Its repair is due 2026-11-14, the
 day this run ends, and cicd-improvement owns it. Rows 8 to 12 landed while it was out of the
 blocking gate, and most of rows 14 to 27 change the same code. This row reran it above: 66 of 68 passed, and the two failures were flakes (#1915). Until it is
 released, each row touching import or behaviour code should run it locally through the queue as
@@ -163,6 +165,10 @@ Order, file lists and checks are as registered in `phases.json`; nothing here ch
   are flakes in code that predates the run. Their issue names the quarantine owner (#1907), not a
   row, and says the drag one may be a discarded-gesture defect worth fault injection. Closing #1890 and #1891 here is tidying, not a fix: each one's
   own comment already said what was left and where it moved, and the close comment points there.
+- **The reach column is derived, not judged.** Two review rounds each corrected one entry, so
+  every entry was redone the same way: the files each issue names as its cause, checked against
+  every later row's allowed files. Times are GitHub's `merged_at`, when a PR reached main, not the
+  merge commit's date.
 - **The quarantined import spec was rehearsed, not released.** Releasing it belongs to
   cicd-improvement (#1907). Running it here gives evidence without touching the quarantine.
 - **The probe reused row 12's harness rather than a new one,** with only the fixture inputs
