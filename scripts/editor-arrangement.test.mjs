@@ -1,10 +1,14 @@
-// guards: src/blocks/arrangementGeometry.ts
+// guards: src/blocks/arrangementGeometry.ts, src/components/editorFoundation/arrangementCommands.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rolldown } from 'rolldown';
-const bundle = await rolldown({ input: 'src/blocks/arrangementGeometry.ts', platform: 'neutral', logLevel: 'silent' });
-const { output } = await bundle.generate({ format: 'esm', codeSplitting: false }); await bundle.close();
-const { arrangementDeltas } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
+const load = async (input) => {
+  const bundle = await rolldown({ input, platform: 'neutral', logLevel: 'silent' });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false }); await bundle.close();
+  return import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
+};
+const { arrangementDeltas } = await load('src/blocks/arrangementGeometry.ts');
+const { ARRANGEMENT_COMMANDS } = await load('src/components/editorFoundation/arrangementCommands.ts');
 const parts = [{ selector: '#a', x: -50, y: 30, width: 70, height: 20 }, { selector: '#b', x: 120, y: 95, width: 30, height: 50 }, { selector: '#c', x: 300, y: 190, width: 110, height: 30 }];
 test('all alignment edges use rendered selection extent and canvas dimensions', () => {
   for (const axis of ['x', 'y']) for (const [edge, fraction] of [['start', 0], ['center', .5], ['end', 1]]) for (const canvas of [undefined, { width: 1920, height: 1080 }]) {
@@ -41,4 +45,30 @@ test('distribution pins the rendered extremes even when a wider item starts befo
   assert.equal(deltas[0].x,0); assert.equal(deltas[1].x,0);
   assert.equal(50+deltas[2].x-10,30-(50+deltas[2].x+10));
   assert.throws(() => arrangementDeltas([{...bounds[0],width:200},bounds[1],bounds[2]], {kind:'distribute',axis:'x'}), /outer/);
+});
+// The toolbar renders ARRANGEMENT_COMMANDS as its buttons (align commands under Align, distribute
+// commands under Distribute), so each button's meaning is checked here from the words of its label, against both
+// references. editor-arrangement.spec.ts keeps the rendered, undoable journey on both references.
+test('every arrangement button does what its label says against the selection and the canvas', () => {
+  const align = { left: ['x', 0], 'horizontal center': ['x', .5], right: ['x', 1], top: ['y', 0], 'vertical center': ['y', .5], bottom: ['y', 1] };
+  assert.deepEqual(ARRANGEMENT_COMMANDS.map(c => c.label), [...Object.keys(align).map(w => `Align ${w}`), 'Distribute horizontally', 'Distribute vertically']);
+  assert.equal(new Set(ARRANGEMENT_COMMANDS.map(c => c.short)).size, 8);
+  assert.deepEqual(ARRANGEMENT_COMMANDS.map(c => c.command.kind), [...Array(6).fill('align'), 'distribute', 'distribute']);
+  for (const { label, command } of ARRANGEMENT_COMMANDS.filter(c => c.command.kind === 'align')) {
+    const [axis, fraction] = align[label.slice('Align '.length)], size = axis === 'x' ? 'width' : 'height';
+    for (const canvas of [undefined, { width: 1920, height: 1080 }]) {
+      const start = canvas ? 0 : Math.min(...parts.map(p => p[axis])), end = canvas ? canvas[size] : Math.max(...parts.map(p => p[axis] + p[size]));
+      arrangementDeltas(parts, command, canvas).forEach((d, i) => {
+        assert.equal(d[axis === 'x' ? 'y' : 'x'], 0, `${label} moves only along ${axis}`);
+        assert.equal(parts[i][axis] + d[axis] + fraction * parts[i][size], start + fraction * (end - start), label);
+      });
+    }
+  }
+  for (const { label, command } of ARRANGEMENT_COMMANDS.filter(c => c.command.kind === 'distribute')) {
+    const axis = label.endsWith('horizontally') ? 'x' : 'y', size = axis === 'x' ? 'width' : 'height', other = axis === 'x' ? 'y' : 'x';
+    const d = arrangementDeltas(parts, command), at = parts.map((p, i) => p[axis] + d[i][axis]);
+    assert.ok(d.every(m => m[other] === 0), `${label} moves only along ${axis}`);
+    assert.equal(d[0][axis], 0, `${label} keeps the first item`); assert.equal(d[2][axis], 0, `${label} keeps the last item`);
+    assert.equal(at[1] - at[0] - parts[0][size], at[2] - at[1] - parts[1][size], label);
+  }
 });

@@ -34,12 +34,6 @@ async function rects(page: Page, ids: string[]) {
 }
 async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
 
-test('baseline probe: current alignment and canvas arrow capability', async ({ page }) => {
-  await open(page); const ids = await create(page); await select(page, [ids[0]]);
-  const before = await source(page); await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('ArrowRight'); await ready(page);
-  console.log({ align: await page.getByRole('button', { name: 'Align left', exact: true }).count(), distribute: await page.getByRole('button', { name: 'Distribute horizontally', exact: true }).count(), arrowChangesSource: JSON.stringify(await source(page)) !== JSON.stringify(before) });
-});
-
 test('selection alignment uses rendered bounds, one undo and unchanged motion', async ({ page }) => {
   await open(page); const ids = await create(page); await select(page, ids); const before = await source(page);
   await page.getByRole('button', { name: 'Align left', exact: true }).click(); await ready(page);
@@ -73,16 +67,21 @@ test('keyboard resize changes local width about the pivot and cancels exactly', 
   await page.getByTestId('foundation-canvas').focus(); await page.keyboard.down('ArrowDown'); await page.keyboard.press('Escape'); await page.keyboard.up('ArrowDown'); await ready(page); expect(await source(page)).toEqual(before);
 });
 
-for (const reference of ['selection', 'canvas']) test('six alignment edges against ' + reference, async ({ page }) => {
+// What each of the eight buttons means is checked from its label in scripts/editor-arrangement.test.mjs
+// (both references). This journey keeps the rendered, undoable path on both references and both axes.
+test('alignment edges reach rendered bounds against the selection and the canvas', async ({ page }) => {
   await open(page); const ids = await create(page); await select(page, ids);
-  await page.getByRole('combobox', { name: 'Align to', exact: true }).selectOption(reference);
-  for (const [label, axis, fraction] of [['Align left', 'x', 0], ['Align horizontal center', 'x', .5], ['Align right', 'x', 1], ['Align top', 'y', 0], ['Align vertical center', 'y', .5], ['Align bottom', 'y', 1]] as const) {
-    const before = await source(page), r = await rects(page, ids), size = axis === 'x' ? 'width' : 'height';
-    const start = reference === 'canvas' ? 0 : Math.min(...r.map(r => r[axis])), end = reference === 'canvas' ? before.resolution[size] : Math.max(...r.map(r => r[axis] + r[size]));
-    await page.getByRole('button', { name: label, exact: true }).click(); await ready(page);
-    const after = await rects(page, ids);
-    after.forEach(r => expect(Math.abs(r[axis] + fraction * r[size] - start - fraction * (end - start))).toBeLessThan(.12));
-    await undo(page); expect(await source(page)).toEqual(before);
+  // Each reference is chosen once, so its later rounds also prove the choice survives a click and an undo.
+  for (const [reference, rounds] of [['selection', [['Align horizontal center', 'x', .5], ['Align bottom', 'y', 1]]], ['canvas', [['Align top', 'y', 0], ['Align right', 'x', 1], ['Align vertical center', 'y', .5]]]] as const) {
+    await page.getByRole('combobox', { name: 'Align to', exact: true }).selectOption(reference);
+    for (const [label, axis, fraction] of rounds) {
+      const before = await source(page), r = await rects(page, ids), size = axis === 'x' ? 'width' : 'height';
+      const start = reference === 'canvas' ? 0 : Math.min(...r.map(r => r[axis])), end = reference === 'canvas' ? before.resolution[size] : Math.max(...r.map(r => r[axis] + r[size]));
+      await page.getByRole('button', { name: label, exact: true }).click(); await ready(page);
+      const after = await rects(page, ids);
+      after.forEach(r => expect(Math.abs(r[axis] + fraction * r[size] - start - fraction * (end - start))).toBeLessThan(.12));
+      await undo(page); expect(await source(page)).toEqual(before);
+    }
   }
   await select(page, [ids[0]]); await expect(page.getByRole('combobox', { name: 'Align to', exact: true })).toHaveValue('canvas');
   await expect(page.getByRole('button', { name: 'Distribute horizontally', exact: true })).toBeDisabled();
