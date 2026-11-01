@@ -146,7 +146,31 @@ and its scope, none in the selector:
 
 ## 4. Scoped and full results compared in Actions
 
-PENDING
+Two catalog-gates dispatches on this branch at the same commit, `88f1fc87` (the guard's first
+pushed state; later commits changed the guard's code layout and S9, not how either selection
+below is judged), one after the other on standard runners:
+
+- full: run 41341006340, `designs=all`, 19:17:48 to 19:30:06 UTC, success;
+- scoped: run 41341021616, `designs=lt01,lt02,card01,bug01,ig01,sb01,tk01,imp01,svg01`,
+  19:30:09 to 19:32:07 UTC, success.
+
+The scoped set covers 7 categories: two sliced categories where some slices hold a selected design
+and some do not (`lower-third`, `info-card`, `corner-bug`, `infographic`), two whole ones
+(`scoreboard`, `ticker`), and both declared designs.
+
+| Gate | Full run | Scoped run | Same designs agree |
+| --- | --- | --- | --- |
+| Bench guard | full: measured 526 of 526 expected over 30 units, 0 empty, 2 declared (`imp01`, `svg01`), no problems | scoped: measured 7 of 7 expected in 6 categories over 14 units, 7 empty units, the same 2 declared, no problems | yes: the uploaded reports give `ok: true` for each of the 7 benched designs in both |
+| Calibration and other catalog specs | 61 passed | 28 passed, 33 skipped (out of scope) | yes |
+| Catalog emit | PASS, 528 designs | PASS, 9 of 528 | yes |
+| type-floor | PASS, 526 | PASS, 7 of 526 (imported exempt) | yes |
+| overflow-sweep | PASS; for these 9 only `tk01` is listed off-frame (12 boxes of the scrolling track) | PASS; the same 12 `tk01` boxes, off by 1 px of scroll | yes |
+| field-coverage | PASS, 526 | PASS, 7 of 526; `bug01` f1 listed not driven (the full run's list stops at 20 of 105 entries) | yes |
+| numerals | PASS, 349 | PASS, 6 of 349 | yes |
+
+The 7 empty units passed only because the other units measured every selected benched design
+(S8), and the full run's guard summary confirms the whole catalog minus the two declared designs.
+The comparison read 4 job logs and 2 artifacts; no signed URL is kept here.
 
 ## 5. Audit reset classification
 
