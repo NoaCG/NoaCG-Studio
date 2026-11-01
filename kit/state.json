@@ -273,6 +273,11 @@
       "at": "2026-11-01T03:11Z",
       "phase": "ci18",
       "decision": "Offline workflow job deltas must be priced at PR time so the offline 95% refusal and growth stop see them (acceptance b, E21); folded into ci18, not deferred to #1885. Offline budget and 13-runner line untouched."
+    },
+    {
+      "at": "2026-11-01T06:45Z",
+      "phase": "run",
+      "decision": "Owner request relayed by session_017SdbwQxsjW6RWBhZZg2Tix: archived 30 finished run sessions (builders, checkers, /so and review sessions for ci01-ci06 and ci18, the ci18 diagnose, the #1844 fix, the ci01 /so and the fresh-worker preflight); kept the coordinator and the in-flight ci07 builder and its /so sessions. Standing practice from now on: when a phase's pass is recorded (or a fix lands), archive that phase's builder, repairer, checker, diagnose and their /so or review sessions in the same turn."
     }
   ]
 }
