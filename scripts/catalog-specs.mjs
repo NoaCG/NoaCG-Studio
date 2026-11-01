@@ -34,6 +34,12 @@ const REPO = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
 const { ids: only } = parseOnly(args);
 const passthrough = args.filter((a, i) => a !== '--only' && args[i - 1] !== '--only');
+// A `--reporter` on the command line replaces the config's reporters, and with them the scope
+// guard that checks the bench measured every selected design (e2e/catalog/_bench-scope.mjs).
+if (passthrough.some((a) => a === '--reporter' || a.startsWith('--reporter='))) {
+  console.error('catalog-specs: --reporter would replace the catalog scope guard; run without it.');
+  process.exit(2);
+}
 
 const env = { ...process.env };
 if (only) {

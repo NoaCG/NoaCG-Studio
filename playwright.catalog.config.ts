@@ -29,7 +29,10 @@ export default defineConfig({
   // A committed `test.only` would drop every other test in the run; on CI it fails the run instead
   // (cicd-improvement ci05; eslint.config.js refuses it before it is committed).
   forbidOnly: Boolean(process.env.CI),
-  reporter: [['list'], ['./scripts/e2e-run-integrity.mjs']],
+  // The scope guard (e2e/catalog/_bench-scope.mjs) fails a run whose bench units did not measure
+  // exactly the selected designs, scoped or full (cicd-improvement ci12). Before the integrity
+  // reporter, which stays last.
+  reporter: [['list'], ['./e2e/catalog/_bench-scope.mjs'], ['./scripts/e2e-run-integrity.mjs']],
   // Also the cross-checkout queue: two suites on one 16 GB laptop exhaust it rather than
   // sharing it, and this one overlapping anything else is the worst case of that.
   globalSetup: './e2e/_offline-guard.ts',
