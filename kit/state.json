@@ -42,19 +42,25 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci11 builder receipt (session_017SdbwMP3C2VJwynfzdzgvv)",
-    "eta": "2026-11-01T18:00:00Z"
+    "what": "PR #1922 merge queue, then ci11 checker",
+    "eta": "2026-11-01T19:00:00Z"
   },
   "inFlight": [
     {
       "phase": "ci11",
-      "step": "build",
+      "step": "landing",
       "session": "session_017SdbwMP3C2VJwynfzdzgvv",
       "nonce": "ci11-b-d8b0",
       "branch": "claude/plan-cicd-improvement-ci11-build",
       "launchedAt": "2026-11-01T14:56:22Z",
-      "note": "AC-3: observed faults per changed protection class; identity, persistence, export lifecycle, asset loading; cite ci08-10 fault evidence.",
-      "pr": 1922
+      "note": "10 faults F1-F10 observed; CORE files keep covers-header specs (selection widens only); audit reset trailer. #1895 evidence: critical set catches F1 and F8 only. Auto-merge on 18:14Z.",
+      "pr": 1922,
+      "reviewedHead": "1189cd7eeb4107dd8321fd92f129ae0dcf832970",
+      "stampRun": 41335506658,
+      "so": "session_017SdbwM4UUnDVyt19RPgzy3",
+      "followUps": [
+        1921
+      ]
     }
   ],
   "owner": [],
