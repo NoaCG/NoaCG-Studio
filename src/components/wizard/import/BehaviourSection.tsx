@@ -47,7 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
-import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
+import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
 
 /** The two empty choices every behaviour picker offers, written once. One string rather than
@@ -151,22 +151,15 @@ function RecipeOptions({
   );
 }
 
-/** The candidates drawn inside one layer of the artwork. */
-function candidatesInside(markup: string, layerId: string): Set<string> {
-  const layer = new DOMParser().parseFromString(markup, 'image/svg+xml').querySelector(`[${SVG_CANDIDATE_ATTR}="${layerId}"]`);
-  return new Set([...(layer?.querySelectorAll(`[${SVG_CANDIDATE_ATTR}]`) ?? [])].map((n) => n.getAttribute(SVG_CANDIDATE_ATTR) ?? ''));
-}
-
 /**
  * THE TRUE NO-LOCK QUIZ (behaviours/quiz.ts `quizHasNoLock`). Unticking "Require lock" keeps the
  * lock as an optional beat; this removes it. Ticking it hides the lock and timer options and the
  * Locked in picker, and clears the timer, whose arrow starts at the lock. The Locked in layer stays
  * bound: it is the drawing of a moment this board never reaches, so no rule shows it and it stays
- * hidden on air, even when the designer left it visible. Text drawn inside it stops being an
- * operator field, since it would edit a drawing nobody sees. Unticking No lock gives back the
- * board as it was before the tick: its options and those text rows, each as the author left them
- * (remembered for this visit to the step; without a remembered tick, the optional-lock board with
- * those rows on, except one the author took off the artwork).
+ * hidden on air, even when the designer left it visible. Its text rows are NOT touched: switching
+ * one off would renumber every later field, and a saved cue keyed to those ids would read its
+ * values into the wrong fields. Unticking No lock gives back the options as they were before the
+ * tick (remembered for this visit to the step and this artwork).
  */
 function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
   return (
@@ -336,30 +329,17 @@ export default function BehaviourSection({
   const scoreDrawn = scoreDrawnPool(draft.designSvg ?? { groups: [], shapes: [] });
 
   /** The quiz as it was before No lock was ticked, so unticking gives exactly that back. */
-  const beforeNoLock = useRef<{ art: string; options: Record<string, boolean>; rowsOn: Set<string> } | null>(null);
+  const beforeNoLock = useRef<{ art: string; options: Record<string, boolean> } | null>(null);
   const toggleNoLock = (options: Record<string, boolean>) => {
     if (!quiz) return;
-    const inside = quiz.locked && draft.designSvg ? candidatesInside(draft.designSvg.markup, quiz.locked) : new Set<string>();
     // The memory belongs to this artwork and lock layer; another one's is never restored here.
     const art = `${quiz.locked}\n${draft.designSvg?.markup ?? ''}`;
-    let rowsOn = new Set<string>();
-    if (quizHasNoLock(options)) {
-      beforeNoLock.current = {
-        art,
-        options: quiz.options ?? {},
-        rowsOn: new Set(draft.svgFields.filter((f) => f.on && inside.has(f.candidateId)).map((f) => f.candidateId)),
-      };
-    } else {
-      const before = beforeNoLock.current?.art === art ? beforeNoLock.current : null;
+    if (quizHasNoLock(options)) beforeNoLock.current = { art, options: quiz.options ?? {} };
+    else {
+      if (beforeNoLock.current?.art === art) options = beforeNoLock.current.options;
       beforeNoLock.current = null;
-      // With nothing remembered, a row the author took off the artwork stays off.
-      rowsOn = before?.rowsOn ?? new Set(draft.svgFields.filter((f) => inside.has(f.candidateId) && f.whenOff !== 'remove').map((f) => f.candidateId));
-      options = before?.options ?? options;
     }
-    onDraft({
-      svgBehaviour: { ...quiz, options },
-      ...(inside.size > 0 ? { svgFields: draft.svgFields.map((f) => (inside.has(f.candidateId) ? { ...f, on: rowsOn.has(f.candidateId) } : f)) } : {}),
-    });
+    patchQuiz({ options });
   };
   const patchQuiz = (patch: Partial<SvgQuizDraft>) => {
     if (quiz) onDraft({ svgBehaviour: { ...quiz, ...patch } });

@@ -707,7 +707,9 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   expect(sample).toContain(lockTag);
   writeFileSync(visibleLock, sample.replace(lockTag, '<g id="Locked_x20_in" data-name="Locked in">'));
   await openImportDoor(page, visibleLock);
-  // The visible lock's own words are a text row like any other, until the lock goes.
+  // The visible lock's own words are a text row like any other. No lock leaves the row alone:
+  // switching it off would renumber every field after it, and a saved cue keyed to those ids
+  // would read its values into the wrong fields.
   const lockWords = page.getByTestId(`map-svg-row-${await rowLabelled(page, /Locked in/i)}`).locator('input[type="checkbox"]');
   await expect(lockWords).toBeChecked();
   const noLock = page.getByTestId('map-svg-option-noLock');
@@ -718,21 +720,15 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   await expect(lock).toHaveCount(0);
   await expect(autoReveal).toHaveCount(0);
   await expect(page.getByTestId('map-svg-quiz-locked')).toHaveCount(0);
-  await expect(lockWords).not.toBeChecked();
+  await expect(lockWords).toBeChecked();
   // Unticked, the board is exactly what it was: lock required, the timed reveal on, the Locked in
-  // layer still picked and its words a field again.
+  // layer still picked.
   await noLock.uncheck();
   await expect(lock).toBeChecked();
   await expect(autoReveal).toBeChecked();
   await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('Locked in');
   await expect(lockWords).toBeChecked();
-  // A row the author had switched off before ticking stays off when unticked.
-  await lockWords.uncheck();
   await noLock.check();
-  await noLock.uncheck();
-  await expect(lockWords).not.toBeChecked();
-  await noLock.check();
-  await expect(lockWords).not.toBeChecked();
   await intoProduction(page, 'No lock quiz', 'Quiz Night');
   await settleDurableWrites(page);
 
@@ -742,9 +738,10 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   await expect(actions).not.toContainText('Lock it in');
   await expect(actions).not.toContainText('Reveal choice');
 
-  // The visible lock's own words are no operator field: they would edit a drawing nobody sees.
-  await expect(page.getByText(/^F\d+ · Locked in$/)).toHaveCount(0);
-  await page.getByTestId('cue-field-f5-opt-C').click();
+  // Field identity holds: the lock's words keep their field (f1), so the answer key is f6, exactly
+  // as on the same artwork with a lock.
+  await expect(page.getByText(/^F1 · Locked in$/i)).toHaveCount(1);
+  await page.getByTestId('cue-field-f6-opt-C').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
