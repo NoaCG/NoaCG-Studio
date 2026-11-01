@@ -110,7 +110,39 @@ line, so the check sees no declaration change at all; its finding here is the de
 
 ## 5. Before and after: time and runner cost (acceptance a)
 
-TIME_TABLE
+Per-file time is the sum of the files' test durations from Playwright's JSON report, so it does not
+depend on how workers share the tests. The comparable figure is the same-machine alternating pair:
+same cloud worker, same queue, two workers, old pair and merged spec run back to back in both orders.
+
+| Sample, one cloud worker (4 CPUs, 2 browser workers) | Before: both old files (6 tests) | After: merged (3 tests) | Change |
+|---|---|---|---|
+| Pair 1, before first (j-0002, j-0003) | 430.3 s (199.2 + 231.1) | 321.3 s | -109.0 s, -25.3% |
+| Pair 2, after first (j-0016, j-0017) | 447.6 s (207.0 + 240.6) | 332.2 s | -115.4 s, -25.8% |
+
+The saving is the removed UI walk at each viewport: the old proposal and command tests took 77 to 81
+and 64 to 71 s here, the merged test 103 to 114 s, so one UI walk is about 33 to 37 s per viewport.
+Each merged test stays well inside its unchanged 360 s timeout, and under the gate's 120 s
+per-test ceiling on this worker too.
+
+Actions, before (the same two files in three full main runs, shards 3/15 and 4/15, each a 16-spec
+shard on one worker; blob reports merged per shard):
+
+| Main run (head) | proposal-task, shard 3 | command-task, shard 4 | Sum |
+|---|---|---|---|
+| 41306864314 (`b2f335fb`) | 205.6 s | 174.1 s | 379.7 s |
+| 41305901072 (`a961bec0`) | 209.1 s | 153.5 s | 362.6 s |
+| 41294635431 (`23742966`) | 182.2 s | 158.5 s | 340.7 s |
+
+ACTIONS_AFTER
+
+Runner cost. The offline shards run on standard Linux runners, billed by the minute. At the
+same-machine ratio (25% of the pair's 361 s mean on Actions, about 90 runner-seconds) the change
+saves about 1.5 runner-minutes each time the walks run: every full main run (once per landing) and
+every pull request plan that selects them, which the inventory measured at 11 to 19% of landings.
+It also takes one 3.5-table-minute spec out of the packer's input; the durations table keeps
+`editor-command-task` at 2.92 until its next refresh records the merged file.
+
+Growth controls, `node scripts/e2e-capacity.mjs --changed origin/main`: CAPACITY
 
 ## 6. Integration kept (acceptance b)
 
