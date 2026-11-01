@@ -143,3 +143,53 @@ and its scope, none in the selector:
     passed because the complete manifest ran (S8).
 - `npx playwright test --config=playwright.catalog.config.ts --list --reporter=dot` refuses with
   the guard's message (S12).
+
+## 4. Scoped and full results compared in Actions
+
+PENDING
+
+## 5. Audit reset classification
+
+**Not a reset**, under the runbook's definition (a landed change to selector code, header/list
+interpretation, critical/shared set membership, or a dependency mapping corrected because of a
+miss). The latest reset stays `8e84002d` (ci11, 2026-11-01T18:14:35Z). Stated so ci15 can
+disagree with the facts in hand:
+
+- What a change selects is unchanged. `catalog-affected.mjs`, `e2e-affected.mjs`, the
+  traced map and the headers are untouched; for every changed file the plan names the same
+  designs and specs as before. The guard only refuses a run whose evidence does not cover that
+  selection.
+- What the bench measures is unchanged: the same 22 categories, the same slices, the same
+  designs. `imported-design` was never benched and still is not; it is now declared and printed.
+- One side effect on the planner, measured, and only in the direction of more protection: the
+  catalog reach (ci04) is computed from what the catalog specs import, and the bench now imports
+  the guard, which reads the catalog through `scripts/catalog-emit.mjs`. So the reach grows by
+  four files (`e2e/catalog/_bench-scope.mjs`, `scripts/catalog-emit.mjs`,
+  `scripts/catalog-scope.mjs`, `scripts/rolldown-raw.mjs`, 857 to 862 entries) and a change to
+  the last three now raises ci.yml's catalog gate, which it did not at the base (`planFor` on each:
+  catalog false at `a37f0a76`, true here). That is an additive dependency of a catalog spec, the
+  same as any new import in one, and it selects more, never less. If the coordinator classifies
+  it as a selection change, it is a reset at this merge.
+
+## 6. Phase notes
+
+- Previous verified main: `a37f0a765267a3399a96a1cfb3417852f6ee9c84` (the quarantine merge
+  #1923 after ci11's `8e84002d`).
+- Revert: `git revert -m 1 <this PR's merge commit>`. That restores the hand-typed category list
+  and removes the guard; nothing else depends on it.
+- No CI calibration narrowing: ci.yml's catalog job still runs `npm run test:e2e:catalog` over
+  the whole catalog when its flag is true, now judged by the guard as a full run. Activation is ci16's.
+- Decisions: the guard is a reporter, not the cited `scope-guard.spec.ts` (section 2); it judges
+  full runs too; `imported-design` is declared not benched with #1926 instead of benched red or
+  left silent; a selection of only declared designs fails (S9, changed in review); a run filtered
+  to some units fails S5 with a hint, because it cannot prove completeness.
+- Traps for later rows:
+  - ci16 reuses this scoped path: a scoped ci.yml run must go through
+    `scripts/catalog-specs.mjs` (or set both scope variables exactly), or S3 fails it.
+  - Adding a catalog category now fails every bench run until it joins `BENCH_CATEGORIES` or
+    `NOT_BENCHED` (S4). JEV rows that add a category need that line.
+  - A scoped catalog-gates run whose selection is only `svg01`/`imp01` fails the bench until #1926
+    is resolved. That is the intended S9 outcome, not a flake.
+  - The other catalog specs (footprint, long-value, mark-height, multicol, stage-fit, ograf
+    parity) and the four sweeps keep their own scoped vacancy rules; this row guards the
+    calibration bench, as AC-5 names it.
