@@ -525,6 +525,8 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
   refuseCollisions(parts);
   const owned = parts.flatMap((p) => p.owned);
   const withClock = parts.some((p) => Object.values(p.table.kinds ?? {}).some((spec) => spec.kind === 'clock'));
+  // A figure a press adds to (the score board's): who scored is said by the press (behaviourRuntime.ts).
+  const withAwards = parts.some((p) => Object.values(p.table.kinds ?? {}).some((spec) => spec.kind === 'number'));
 
   const table = (): BehaviourData => {
     const merged: BehaviourData = {
@@ -566,7 +568,7 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
     <!-- The behaviour's own values. SPX writes them here; the rules in template.js read them.
          None of these is ever drawn - the artwork's own layers are what the audience sees. -->
 ${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}">${field.value}</div>`).join('\n')}`,
-    js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock)}`,
+    js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock, withAwards)}`,
     updateHook: `  if (typeof noacgRepaintData === 'function') noacgRepaintData();  // the behaviour's looks, gauges and readouts (below)`,
     steps: (data) => {
       const paths = parts.map((p) => p.path).filter((p): p is RecipePath => !!p);
