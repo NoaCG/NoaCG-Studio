@@ -37,7 +37,9 @@
       "branch": "claude/plan-jev-svg-import-9-build",
       "source": "562452968ee7e1bd271329420d153b93b1912510",
       "launchedAt": "2026-11-01T00:26:24Z",
-      "note": "builder; edits a configured spec (in TOUCHES), no configured-suite infra 00:35Z boundary approved: svg.ts importedClockJs duration branch only (server origin on Take, length from Take-time field value so Reset banks); prove two-output duration agreement after Take and Reset banked across reload; saved designs byte-identical. 00:49Z: hosted fast-road Take of a duration is not server-stamped (outputs agree within delivery spread); agreed follow-up issue (P2 playout, latency trade-off for owner), not in this PR."
+      "note": "builder; edits a configured spec (in TOUCHES), no configured-suite infra 00:35Z boundary approved: svg.ts importedClockJs duration branch only (server origin on Take, length from Take-time field value so Reset banks); prove two-output duration agreement after Take and Reset banked across reload; saved designs byte-identical. 00:49Z: hosted fast-road Take of a duration is not server-stamped (outputs agree within delivery spread); agreed follow-up issue (P2 playout, latency trade-off for owner), not in this PR. 01:26Z PR #1888; three review rounds on one rule family (duration resend vs change); approved airState.ts one line (keep held imported clock on stop) + air-state.test.mjs case; told builder: last bounded round, stop below A and report. #1886 = hosted fast-road follow-up.",
+      "pr": 1888,
+      "head": "e8dd5da"
     }
   ],
   "owner": [],
@@ -155,7 +157,8 @@
     "#1867 (P3, from phase 5 builder): contract test keeps its own copy of the role table; row 4 doc nit",
     "#1875 (P2): owner Illustrator clock example, then one-line move of clockRecipe into BEHAVIOUR_RECIPES",
     "#1876 (P2): the field row own Countdown kind still offers the old engine on one layer",
-    "#1884 (P3, from row 8 /so): three low notes for rows 10 and 11"
+    "#1884 (P3, from row 8 /so): three low notes for rows 10 and 11",
+    "#1886 (P2 playout): hosted fast-road Take/correction of an imported clock carries no server time; latency trade-off for the owner"
   ],
   "carryForward": [
     {
