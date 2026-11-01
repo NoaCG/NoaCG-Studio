@@ -42,10 +42,20 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "launch ci09 builder",
-    "eta": "2026-11-01T10:15:00Z"
+    "what": "ci09 builder: PR and gates",
+    "eta": "2026-11-01T11:15:00Z"
   },
-  "inFlight": [],
+  "inFlight": [
+    {
+      "phase": "ci09",
+      "step": "build",
+      "session": "session_017SdbwLjYgq9sMg5YkzFfJ2",
+      "nonce": "ci09-b-7fc9",
+      "branch": "claude/plan-cicd-improvement-ci09-build",
+      "launchedAt": "2026-11-01T10:10:08Z",
+      "note": "Builder launched from 23742966; picks repeated playout setup or editor qualification walks; warned about #1911."
+    }
+  ],
   "owner": [],
   "fixes": [
     {
