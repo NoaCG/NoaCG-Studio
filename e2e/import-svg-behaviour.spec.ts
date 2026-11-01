@@ -707,10 +707,17 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   expect(sample).toContain(lockTag);
   writeFileSync(visibleLock, sample.replace(lockTag, '<g id="Locked_x20_in" data-name="Locked in">'));
   await openImportDoor(page, visibleLock);
-  await page.getByTestId('map-svg-option-noLock').check();
+  const noLock = page.getByTestId('map-svg-option-noLock');
+  await noLock.check();
   await expect(page.getByTestId('map-svg-option-lock')).toHaveCount(0);
   await expect(page.getByTestId('map-svg-option-autoReveal')).toHaveCount(0);
   await expect(page.getByTestId('map-svg-quiz-locked')).toHaveCount(0);
+  // Unticked, it is the optional-lock board again, its Locked in layer still picked.
+  await noLock.uncheck();
+  await expect(page.getByTestId('map-svg-option-lock')).not.toBeChecked();
+  await expect(page.getByTestId('map-svg-option-autoReveal')).not.toBeChecked();
+  await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('Locked in');
+  await noLock.check();
   await intoProduction(page, 'No lock quiz', 'Quiz Night');
   await settleDurableWrites(page);
 

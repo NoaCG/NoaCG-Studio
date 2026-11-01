@@ -82,6 +82,15 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
   committed (row 15 owns `scripts/quiz-no-lock.test.mjs`); unticking No lock gives the
   optional-lock board (a documented choice for row 15's rehearsal to confirm).
 
+- /so 2, session `session_017SdbwPXQ2MqyHe6zSQFrG1`, on `559f034`: AGREE WITH CORRECTIONS, A-,
+  nothing blocking. Fixed: the untick claim had no check (faulty evidence claim); the journey now
+  unticks No lock and sees the optional-lock board with its Locked in layer still picked, then
+  ticks it again. Not changed: on the visible-lock copy, the lock's own text "LOCKED IN" is an
+  operator field (f1). That is the mapping step's rule for every visible text layer (each
+  detected row starts on, and the author can switch it off), the same on a board with a lock;
+  the sample hides its lock layer, so its text is no field. Not a lock control this row adds.
+  Byte harness: as in round 1. CI was still running.
+- Codex on `559f034`: clean.
 - Codex on `3343dc5` (P2): unbinding the Locked in layer left lock artwork drawn visible on
   air for good. Product defect, family: what a no-Lock board does with a moment it removed.
   Fixed by keeping the binding, with a journey on visible lock artwork.
