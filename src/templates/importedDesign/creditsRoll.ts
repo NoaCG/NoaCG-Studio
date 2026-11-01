@@ -566,6 +566,8 @@ export interface CreditsReading {
   x: number;
   y: number;
   anchor: CreditsAlign;
+  /** Right to left: its start is the right end and its end the left. */
+  rtl?: true;
   /** The drawn advance in the layer's own units, where the text is laid out. */
   width?: number;
   /** The font size in the layer's own units. */
@@ -648,19 +650,38 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     return '';
   };
   size = parseFloat(prop('font-size')) || 16;
+  // THE LOOK IS WHAT THE FIRST RUN IS PAINTED WITH. Inherited properties are the run's own
+  // resolved value. Two are not inherited and act from every enclosing element instead: opacity
+  // multiplies down the chain, and a text-decoration drawn by an ancestor draws through the run.
+  const chain: Element[] = [];
+  for (let el: Element | null = first ?? text; el && el !== root.parentElement; el = el.parentElement) chain.push(el);
+  const own = (el: Element, name: string): string => {
+    if (laid) return view.getComputedStyle(el).getPropertyValue(name).trim();
+    const inline = (el.getAttribute('style') ?? '').split(';').map((d) => d.split(':')).find(([k]) => k?.trim() === name);
+    return (inline && inline[1] !== undefined ? inline.slice(1).join(':') : el.getAttribute(name) ?? '').trim();
+  };
+  const opacity = chain.reduce((product, el) => {
+    const v = parseFloat(own(el, 'opacity'));
+    return product * (Number.isFinite(v) ? v : 1);
+  }, 1);
+  const decoration = chain.map((el) => own(el, 'text-decoration-line') || own(el, 'text-decoration'))
+    .filter((v) => v && !/^none\b/.test(v)).join('+');
   const look = [
-    ...['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'fill-opacity', 'stroke', 'stroke-opacity', 'stroke-width', 'opacity', 'letter-spacing', 'text-decoration'].map((p) => `${p}=${prop(p)}`),
+    ...['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'fill-opacity', 'stroke', 'stroke-opacity', 'stroke-width', 'letter-spacing'].map((p) => `${p}=${prop(p)}`),
+    `opacity=${Math.round(opacity * 1000) / 1000}`,
+    `text-decoration=${decoration}`,
     // Parsed, a stylesheet class is the only sign of what it sets; laid out, its effect is
     // already in the computed values, and two class spellings of one look are one look.
     ...(laid ? [] : [`class=${text.getAttribute('class') ?? ''}/${first?.getAttribute('class') ?? ''}`]),
   ].join(';');
   const anchorWord = prop('text-anchor');
   const anchor: CreditsAlign = anchorWord === 'middle' || anchorWord === 'end' ? anchorWord : 'start';
+  const rtl = prop('direction') === 'rtl';
   // WHERE THE FIRST CHARACTER IS DRAWN, in the layer's own units. Laid out, the browser says so
   // (its start is the line's left end, so the anchor point is found along the drawn advance).
   // Parsed, SVG's rule: each of x, y, dx and dy for that character is the NEAREST element's
   // value - the run's where it states one, else the text's - and the steps are never summed.
-  const advance = laid ? (text as SVGTextContentElement).getComputedTextLength() : 0;
+  let advance = 0;
   // A run's position attribute is the one for its first character, then each enclosing element's
   // while the run starts it, up to the text.
   const nearest = (run: Element | null, name: string): number | null => {
@@ -673,10 +694,13 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   };
   let lx = (nearest(first, 'x') ?? 0) + (nearest(first, 'dx') ?? 0);
   let ly = (nearest(first, 'y') ?? 0) + (nearest(first, 'dy') ?? 0);
-  if (laid && advance > 0 && (text as SVGTextContentElement).getNumberOfChars() > 0) {
-    const start = (text as SVGTextContentElement).getStartPositionOfChar(0);
-    lx = start.x + { start: 0, middle: 0.5, end: 1 }[anchor] * advance;
-    ly = start.y;
+  // Laid out, the line's drawn box gives its left end whichever way it runs (the first
+  // character of right-to-left text is at its right end), and the first character its baseline.
+  const box = laid && (text as SVGTextContentElement).getNumberOfChars() > 0 ? (text as SVGGraphicsElement).getBBox() : null;
+  if (box && box.width > 0) {
+    advance = box.width;
+    lx = box.x + creditsEdgeFraction(anchor, rtl) * advance;
+    ly = (text as SVGTextContentElement).getStartPositionOfChar(0).y;
   }
   // Every transform from the layer up to the root, composed: the layer's frame in the artwork's.
   let m = new DOMMatrix();
@@ -713,12 +737,20 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     x: p.x,
     y: p.y,
     anchor,
+    ...(rtl ? { rtl: true as const } : {}),
     ...(advance > 0 ? { width: advance } : {}),
     size,
     look,
     linear: [m.a, m.b, m.c, m.d],
     lines: Math.max(1, baselines.size),
   };
+}
+
+/** Where an edge sits along a drawn line, from its left end: `start` is the right end of a
+ *  right-to-left line, as `text-anchor` reads it. */
+function creditsEdgeFraction(edge: CreditsAlign, rtl: boolean): number {
+  const f = edge === 'start' ? 0 : edge === 'middle' ? 0.5 : 1;
+  return rtl ? 1 - f : f;
 }
 
 /**
@@ -790,11 +822,11 @@ export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[]
   if (new Set(paired.map((g) => g.beside)).size > 1) return refuse('mixed-layout', 'Some roles sit beside their names and others above them.', paired.map((g) => g.role.r.candidateId));
   const layout: CreditsLayout = paired[0].beside ? 'role-beside' : 'role-above';
 
-  const frac = { start: 0, middle: 0.5, end: 1 } as const;
   const edgeAt = (it: Item, edge: CreditsAlign): number | null => {
     if (edge === it.r.anchor) return it.x;
     if (it.r.width === undefined) return null;
-    return it.x - frac[it.r.anchor] * it.r.width + frac[edge] * it.r.width;
+    const at = (e: CreditsAlign) => creditsEdgeFraction(e, it.r.rtl === true) * it.r.width!;
+    return it.x - at(it.r.anchor) + at(edge);
   };
   const alignOf = (list: Item[]): { edge: CreditsAlign; at: number } | null => {
     const edges: CreditsAlign[] = [list[0].r.anchor, 'start', 'middle', 'end'];

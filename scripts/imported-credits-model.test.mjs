@@ -53,6 +53,14 @@ const CASES = {
   steps: svg(`<text x="50" y="100" dx="30" font-size="24" fill="#fc0"><tspan x="100" dx="0">Director</tspan></text><text x="100" y="100" font-size="40"><tspan dy="60">Alex Rivera</tspan></text><text x="100" y="100" font-size="40" dy="1em"><tspan dy="2.75em">Ida Lake</tspan></text>`),
   // Roles set apart by paint alone: half-transparent fill, same size and colour.
   paint: svg(`${t(100, 100, 40, 'Director', ' fill-opacity="0.5"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 260, 40, 'Sound', ' fill-opacity="0.5"')}${t(100, 320, 40, 'Ari Moss')}`),
+  // Roles set apart only by what an enclosing element does: a translucent group, an underline
+  // on the text around its run. Neither is inherited, so the run's own value would read as none.
+  groupOpacity: svg(`<g opacity="0.5"><text x="100" y="100" font-size="40"><tspan>Director</tspan></text></g>${t(100, 160, 40, 'Alex Rivera')}<g opacity="0.5"><text x="100" y="260" font-size="40"><tspan>Sound</tspan></text></g>${t(100, 320, 40, 'Ari Moss')}`),
+  underline: svg(`<text x="100" y="100" font-size="40" text-decoration="underline"><tspan>Director</tspan></text>${t(100, 160, 40, 'Alex Rivera')}`),
+  // Right-to-left credits centred on one x (Hebrew role and names).
+  hebrew: svg(`${t(500, 100, 24, 'במאי', ' fill="#fc0" text-anchor="middle" direction="rtl"')}${t(500, 160, 40, 'דנה לוי', ' text-anchor="middle" direction="rtl"')}${t(500, 210, 40, 'יוסי כהן', ' text-anchor="middle" direction="rtl"')}`),
+  // ... and set against their start, which is the right end.
+  hebrewStart: svg(`${t(900, 100, 24, 'במאי', ' fill="#fc0" direction="rtl"')}${t(900, 160, 40, 'דנה לוי', ' direction="rtl"')}${t(900, 210, 40, 'יוסי כהן', ' direction="rtl"')}`),
   // One name look spelt by two classes that set the same values.
   twoSpellings: svg(`<style>.a{fill:#fff}.b{fill:#fff}</style>${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada Holm', ' class="a"')}${t(100, 210, 40, 'Bo Lind', ' class="b"')}`),
   oneLook: svg(`${t(100, 100, 40, 'Director')}${t(100, 160, 40, 'Alex Rivera')}`),
@@ -393,7 +401,7 @@ test('two class spellings of one look are one look once laid out', () => {
   assert.equal(R.caseResults.twoSpellings.parsed.out.code, 'many-looks', 'parsed, a class is all there is to compare');
 });
 
-test('relative steps are read as SVG draws them: the nearest one, never summed', () => {
+test('positions are read as SVG draws them: the nearest step, either direction, both readings agreeing', () => {
   // Laid out, the position is the browser's own; the parsed reading must agree with it.
   for (const mode of ['parsed', 'laid']) {
     const { out } = R.caseResults.steps[mode];
@@ -402,17 +410,32 @@ test('relative steps are read as SVG draws them: the nearest one, never summed',
     assert.deepEqual(out.style.align, { role: 'start', name: 'start' });
     assert.deepEqual(out.style.steps, { roleToName: 60, nameToName: 50 });
   }
+  // Every drawing reads the same both ways, except where only the page can see the difference:
+  // centring drawn without an anchor (widths) and two class spellings of one look (styles).
   for (const k of Object.keys(R.caseResults)) {
     const { parsed, laid } = R.caseResults[k];
+    if (k !== 'centred' && k !== 'twoSpellings') {
+      assert.equal(parsed.out.ok, laid.out.ok, `${k}: both readings accept or refuse`);
+      assert.equal(parsed.out.code, laid.out.code, `${k}: both readings refuse for one reason`);
+    }
     if (parsed.out.ok && laid.out.ok) assert.deepEqual(parsed.out.style.steps, laid.out.style.steps, `${k}: parsed and laid-out steps agree`);
+  }
+  for (const k of ['hebrew', 'hebrewStart']) {
+    for (const mode of ['parsed', 'laid']) {
+      const { out } = R.caseResults[k][mode];
+      assert.equal(out.ok, true, `${k} ${mode}: ${out.message}`);
+      assert.deepEqual(out.style.align, k === 'hebrew' ? { role: 'middle', name: 'middle' } : { role: 'start', name: 'start' }, `${k} ${mode}`);
+    }
   }
 });
 
-test('paint opacity alone sets a look apart', () => {
-  for (const mode of ['parsed', 'laid']) {
-    const { out } = R.caseResults.paint[mode];
-    assert.equal(out.ok, true, `${mode}: ${out.message}`);
-    assert.deepEqual(out.style.anchors.map((a) => a.kind), ['role', 'name', 'role', 'name']);
+test('paint opacity, an enclosing opacity or an enclosing underline sets a look apart', () => {
+  for (const [k, kinds] of [['paint', ['role', 'name', 'role', 'name']], ['groupOpacity', ['role', 'name', 'role', 'name']], ['underline', ['role', 'name']]]) {
+    for (const mode of ['parsed', 'laid']) {
+      const { out } = R.caseResults[k][mode];
+      assert.equal(out.ok, true, `${k} ${mode}: ${out.message}`);
+      assert.deepEqual(out.style.anchors.map((a) => a.kind), kinds, `${k} ${mode}`);
+    }
   }
 });
 

@@ -46,12 +46,15 @@ names each.
   Alignment is read from the stated anchor, or from drawn widths where the text is laid out.
   Laid out, looks and the anchor are the browser's computed style, so stylesheet classes count
   and two class spellings of one look are one look; parsed, the class names are compared;
-  where a layer is drawn is its first character's position: laid out, the browser's own
-  (`getStartPositionOfChar(0)`, with the anchor point found along the drawn advance); parsed,
+  where a layer is drawn is its first character's position: laid out, the browser's own (the
+  drawn box's left end and the first character's baseline, with the anchor point found along the
+  box, `start` being the right end of right-to-left text); parsed,
   each of x, y, dx and dy is the nearest element's value (the run's where it states one, else the
   text's), never a sum, in units or ems; the two readings must agree. A layer's runs are its
   character runs at any depth, and laid out, its lines are the browser's baselines under its
-  characters. Validation lays the markup out whenever a page exists.
+  characters. The look is what the first run is painted with: its own resolved inherited
+  properties, plus `opacity` multiplied and `text-decoration` collected along every enclosing
+  element, since neither is inherited. Validation lays the markup out whenever a page exists.
   Steps (role to name, name to name, group gap, column) are measured where the sample shows them.
 - C6 A whole block turned or scaled as one reads as drawn; layers at different angles or scales
   are refused (`mixed-angles`).
@@ -139,6 +142,13 @@ names each.
   follows SVG's nearest-value rule, and the test holds the two against each other. the automated PR review on
   `7ee670f3` then found lines hidden in a wrapper run; the same correction covers it, since lines
   are now the browser's baselines when laid out and the parsed walk takes runs at any depth.
+- **Looks are what the run is painted with** (the automated PR review on `c8fbdae2`): a translucent group or an
+  underline on an enclosing element now sets a look apart, read along the run's ancestors.
+- **Right-to-left lines** (`/so` on `c8fbdae2`, grade A-): laid out, a centred or end-set Hebrew
+  or Arabic line was refused because its first character is at the right end. The left end now
+  comes from the drawn box and `start`/`end` follow the text's direction; the test also requires
+  both readings to accept or refuse alike, for the same reason, on every drawing except the two
+  only a page can tell apart.
 - **Looks compare paint too** (the automated PR review on `7c066818`): `fill-opacity`, `stroke-opacity` and
   `stroke-width` join the look, so roles set apart by opacity alone read as two looks.
 - **Ordinary review scenario.** This row adds a declaration and a pure reader with no runtime
@@ -153,8 +163,9 @@ names each.
   confirm in row 18's preview (AC-23); nothing here guesses further.
 - **A parsed-only reading is a fallback; the laid-out one is the authority.** Without a page,
   class-set sizes and anchors are not resolved (classes still separate the looks); a percentage
-  position reads as a plain number; and loose text before the first run with its own `dx` is read
-  from that run. Every in-product caller has a page, and validation lays the markup out there.
+  position reads as a plain number; loose text before the first run with its own `dx` is read
+  from that run; and a per-character position list (`dy="0 0 0 60"`) is read by its first value,
+  so only the laid-out reading sees the second line. Every in-product caller has a page, and validation lays the markup out there.
 - **Nested `<svg>` offsets and CSS `transform` styles are not part of a layer's frame** in either
   reading. Spacing between layers stays right unless they sit in different nested viewports.
 - **Drawn widths depend on the loaded fonts.** Centring with no stated anchor is read from
