@@ -76,6 +76,7 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 - Whole behaviour spec on `e773067`: 40/40 (j-0011). After the /so 4 fixes: quiz tests 11/11
   (j-0012); mutation j-0013 fails as expected.
 - After the /so 5 fix: quiz tests 11/11 (j-0014); mutation j-0015 fails as expected.
+- Whole behaviour spec after the last source change (`9ed5485`): 40/40 (j-0016).
 - Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
   the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
