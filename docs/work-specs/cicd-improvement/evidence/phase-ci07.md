@@ -39,23 +39,28 @@ Three rule families, written before the code. Each line has one test named after
   cannot read never closes the issue.
 - Q4. A plan that selects a quarantined spec (offline or configured) states it on that run as a
   coverage gap naming its severity, and adds no retry and no nonblocking run counted as a pass.
-- Q5. While a critical incident is open, or any incident is overdue, the miss audit reports
-  `blocked` and never `clean`, whatever its miss count.
+- Q5. While any incident is open, the miss audit reports `blocked` and never `clean`, whatever its
+  miss count: affected narrowing and expansion wait until the protection is back in the blocking
+  gate (runbook, "Audit reset and coverage rules"). Corrected after review; the first wording
+  blocked only critical or overdue incidents.
 
 **Miss audit and resets (A).**
 
 - A1. A red full run on main is replayed against the ORIGINAL selection of every candidate
   culprit landing (each landing since the previous completed full run): the plan its merge-group
   CI run printed (`plan: {...}` in the plan job's log), not today's planner.
-- A2. Per failing spec: `full` when a candidate's plan ran everything; `selected` when a candidate's
-  plan selected it; `quarantined` (a coverage gap, Q) when a plan left it out as quarantined;
-  `miss` when every candidate's plan was read and none selected it; `unknown` when none selected
-  it and a plan could not be read. A spec the quarantine store knows from the window keeps its
-  verdict and is marked `flake` for investigation, never dropped.
+- A2. Offline, the NEWEST candidate's plan decides alone: its merge group's tree is the failing
+  commit, so an older candidate that ran the spec and passed explains nothing. Its answer, first
+  match: `quarantined` (a coverage gap, Q), `full`, `selected`, else `miss`; an unread plan is
+  `unknown`. Every candidate's answer is kept on the row. A spec the quarantine store knows from
+  the window keeps its verdict and is marked `flake` for investigation, never dropped. Corrected
+  after review; the first wording took `selected` from any candidate.
 - A3. A red configured-suite run on main is replayed against the configured manifest printed by
   the culprit's PULL REQUEST run on its head (the landing's second parent), because the merge group
-  skips the configured job. A culprit whose plan carries no manifest (it landed before ci06) is
-  `no-selection`: no pre-merge configured check existed, so it is listed and never `selected`.
+  skips the configured job. Each candidate was checked only on its own pull request tree, so the
+  verdict is `selected` only when every candidate selected the spec; one that left it out makes a
+  `miss`; then `unknown`, then `no-selection` (a culprit that landed before ci06 carries no
+  manifest: no pre-merge configured check existed), then `quarantined`.
 - A4. A first-parent landing on main is an audit reset when its diff touches selector code
   (`SELECTION_CODE`), adds or removes a `// focus` or `// critical:` header line in a spec, or one
   of its commits carries a `Selection-audit-reset: <reason>` trailer. The reset names its class
@@ -66,7 +71,15 @@ Three rule families, written before the code. Each line has one test named after
 
 ### Rules found after coding
 
-The `/check` review (section 6) found these; each is folded into the line it belongs to and tested:
+The `/check` review, the PR's automated review and the first `/so` (section 6) found these; each is
+folded into the line it belongs to and tested:
+
+- A2 (first `/so`): the newest candidate decides an offline verdict; configured needs every candidate.
+- Q5 (first `/so`): any open incident blocks, not only critical or overdue ones.
+- A3 (PR review): a configured run merges its verdict log's full failure set with its annotations,
+  which stop at a few specs.
+- Q3 (PR review): the incident report reads the store strictly, so a missing store throws instead
+  of reading as "no incident" and closing the issue.
 
 - A2: a full plan still leaves quarantined specs out of its shards, so `quarantined` is read before
   `full`.
@@ -133,8 +146,9 @@ The `/check` review (section 6) found these; each is folded into the line it bel
   summary line on that run (Q4). The quarantine run on main still blocks nothing and is never
   counted as protection; nothing adds a retry.
 - Counted under AC-4 and AC-8: the miss audit lists a quarantined spec its culprit's plan left out
-  as `quarantined`, and reports `blocked` while a critical incident is open or any is overdue
-  (Q5), which is what ci15 and ci16 read before any narrowing or expansion. The incident issue is
+  as `quarantined`, and reports `blocked` while any incident is open (Q5), which is what ci15 and
+  ci16 read before any narrowing or expansion. With today's three incidents the audit reads
+  `blocked`. The incident issue is
   the owned, dated action the AC-8 report names.
 
 ## 4. The miss audit and the reset (acceptance c)
@@ -154,45 +168,56 @@ confirms it with the same command on `main`.
 ### Replay of existing full-main failures
 
 Every red full run on `main` from 2026-09-20 to 2026-11-01 (42 days: `ci.yml` and
-`configured-suite.yml` push runs), replayed in 2-day passes of at most 100 API calls (1,068 calls
-in all) with the final code, plus 1-day re-passes where a pass ran out of budget. 97 failing items:
+`configured-suite.yml` push runs), replayed with the final code in 2-day passes of at most 100 API
+calls, then 1-day re-passes where a pass spent its budget (2,100 calls in all). **Every row, with
+its run, culprits and each culprit plan's answer, is in
+[phase-ci07-replay.json](phase-ci07-replay.json).** 185 failing items:
 
 | Workflow | Verdict | Items |
 | --- | --- | ---: |
-| ci.yml | miss (no culprit's original plan selected it) | 38 |
-| ci.yml | selected (a culprit's plan ran it before merge) | 7 |
-| ci.yml | quarantined (a coverage gap) | 1 |
+| ci.yml | miss, flake-marked | 35 |
+| ci.yml | miss, not flake-marked | 10 |
+| ci.yml | selected by the newest culprit's plan, flake-marked | 4 |
 | ci.yml | not-a-spec (Build, Factory gates, a lost shard, the retry job) | 17 |
-| ci.yml | unknown in the 2-day pass, resolved by the 1-day re-pass (2 flake misses, 1 selected) | 3 |
-| configured-suite.yml | no-selection (culprit landed before ci06: no pre-merge configured check existed) | 24 |
-| configured-suite.yml | selected (`connector-grants` at run 41247602152, with a lost shard: #1865) | 1 |
-| configured-suite.yml | not-a-spec | 4 |
-| configured-suite.yml | unknown (budget spent; every run in it is from before ci06, so it cannot be `selected`) | 2 |
+| configured-suite.yml | no-selection (culprit landed before ci06: no pre-merge configured check existed) | 73 |
+| configured-suite.yml | miss | 1 |
+| configured-suite.yml | not-a-spec | 11 |
+| configured-suite.yml | unknown (budget spent, see below) | 34 |
 
-**Every miss investigated:**
+**The misses:**
 
-- **28 are marked `flake`**: the quarantine store records the spec entering or leaving with a
-  fail-then-pass on one commit inside the window. That receipt is what classes them; the diffs
-  sampled (b5652ae6, 0df77f74, af39c249, 081b42af..a1c9efb5, ec723a49) are docs, plan or
-  quarantine-only landings that cannot reach the spec. They are the quarantine's coverage gaps,
-  which ci07 now makes incidents, not selection misses.
-- **4 are flakes the window's flake set did not mark**: `editor-arrangement` (76afb8cb) and
-  `editor-groups` (742a5a65) were quarantined and released before their window, `import-svg-corpus`
-  (0df77f74, a docs landing) is the fail-then-pass bot PR #1834 is quarantining, and
-  `video-hyperframes` (a2523f82 `.gitignore`, aa2717b3 docs) failed on landings that cannot reach it.
-- **6 are real selection misses, all corrected before the latest reset**: `editor-fidelity-trim`
-  at 5619f765..45ec97b2 (#927, the miss the old weekly audit found) and at 14c0a5a5 (`svgFit.js`),
-  `public-chrome-baseline` at 20367f21 (a `docs/whats-new` page) and at 20bda886..7c59efcb
-  (`docs.html`), `downloads` at 92c8a616 (`index.html`) and `editor-cli-round-trip` at
-  7009ebbb..84a10763 (`src/model/importTemplate.ts`). Today's planner selects each of them for its
-  culprit's files (checked with `planFor` on the same files), so each mapping was corrected after
-  the miss, before 26095c82.
+- **35 flake-marked**: the quarantine store records the spec (by file name) entering or leaving
+  with a fail-then-pass on one commit inside the pass's window. That record is per spec, not per
+  run, so it classes them; it does not prove each one. The diffs sampled (b5652ae6, 0df77f74,
+  af39c249, 081b42af..a1c9efb5, ec723a49) are docs, plan or quarantine-only landings that cannot
+  reach the spec. They are the quarantine's coverage gaps that ci07 now makes incidents, not
+  selection misses; a per-run proof of each is not claimed.
+- **4 of the 10 unmarked are flakes the window's flake set missed**: `editor-arrangement` (76afb8cb)
+  and `editor-groups` (742a5a65) were quarantined and released before their window,
+  `import-svg-corpus` (0df77f74, a docs landing) is the fail-then-pass bot PR #1834 is quarantining,
+  and `video-hyperframes` (a2523f82 `.gitignore`, aa2717b3 docs) failed on landings that cannot
+  reach it.
+- **6 of the 10 are real selection misses, all corrected before the latest reset**:
+  `editor-fidelity-trim` at 5619f765..45ec97b2 (#927, the miss the old weekly audit found) and at
+  14c0a5a5 (`svgFit.js`), `public-chrome-baseline` at 20367f21 (a `docs/whats-new` page) and at
+  20bda886..7c59efcb (`docs.html`), `downloads` at 92c8a616 (`index.html`) and
+  `editor-cli-round-trip` at 7009ebbb..84a10763 (`src/model/importTemplate.ts`). Today's planner
+  selects each for its culprit's files (`planFor` on the same files), so each mapping was corrected
+  after the miss, before 26095c82.
+- **The configured miss**: `connector-grants` at run 41247602152. The newest culprit d06974d3 is a
+  quarantine-only landing that left it out; the run also lost a shard (118 of 133 tests, #1865), and
+  every configured run on main after it is green. Infrastructure, not selection.
+- **The 4 flake-marked `selected`**: run before merge on the failing tree by the newest culprit's
+  plan and passed there; flakes, not misses. (Under the first, wrong attribution rule 7 items read
+  `selected`; the 3 with several candidates are misses under the corrected A2 and are flake-marked.)
 
-**Zero unexplained misses in the replayed window.** That is necessary, not proof of completeness;
-the full runs on `main` stay. Three things are reported as limits, not hidden: the 2 configured
-`unknown` items stay unread (pre-ci06, so the answer cannot be `selected`); a red run's failing
-specs come from check annotations, so a failure that annotates nothing is listed as `not-a-spec`;
-and a configured verdict annotates at most a few specs, past which the audit reads its log.
+**No unexplained offline miss in the replayed window.** That is necessary, not proof of
+completeness; the full runs on `main` stay. Limits, stated: the **34 configured `unknown` items**
+are from 2026-10-03 to 2026-10-05, when the configured suite was red on 17 runs in a day and the
+passes ran out of calls reading their logs. They landed before ci06, so no pre-merge configured
+check existed and none could read `selected`, but they are left unread rather than called
+`no-selection`. A red run's failing specs come from check annotations and, for configured runs,
+the verdict log; a failure that names nothing is `not-a-spec`. Job logs expire after 90 days.
 
 ### Continuing comparison
 
@@ -204,11 +229,9 @@ run was added.
 
 ## 5. Mutation check
 
-Each Rule line broken alone in the code, with its tests run (scratch script, not committed): all
-22 mutations fail their named test. K1 (parse refusal; unknown id), K2, K3, K4, K5 (over target;
-unmeasured), Q1, Q2, Q3, Q4, Q5, A1 (merge-group event; unread failure set resets nothing), A2
-(unknown dropped; flake dropped; quarantine read after full), A3 (pre-ci06 read as not selected;
-no PR head), A4 (membership; trailer), A5.
+Each Rule line broken alone in the code, with its tests run: all 27 mutations fail their named
+test. The list, with the exact replacement for each, is
+[phase-ci07-mutations.json](phase-ci07-mutations.json), so a reviewer can re-apply any of them.
 
 ## 6. Verification
 

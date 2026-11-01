@@ -1,0 +1,194 @@
+{
+ "how": "For each entry: replace `old` with `new` once in `file`, run `node --test scripts/<test>.test.mjs`, expect a failure in the test named after the rule, then restore the file. Applied by a scratch script on the final code; every entry failed its test.",
+ "mutations": [
+  {
+   "rule": "K1",
+   "file": "scripts/e2e-lists.mjs",
+   "old": "if (!crit) refuse(n,",
+   "new": "if (false) refuse(n,",
+   "test": "e2e-contracts"
+  },
+  {
+   "rule": "K1b",
+   "file": "scripts/e2e-contracts.mjs",
+   "old": "if (!ids.has(id)) problems.push",
+   "new": "if (false) problems.push",
+   "test": "e2e-contracts"
+  },
+  {
+   "rule": "K2",
+   "file": "scripts/e2e-contracts.mjs",
+   "old": "&& !h.focus) problems",
+   "new": "&& false) problems",
+   "test": "e2e-contracts"
+  },
+  {
+   "rule": "K3",
+   "file": "scripts/e2e-contracts.mjs",
+   "old": "if (!exists(check.path)) problems",
+   "new": "if (false) problems",
+   "test": "e2e-contracts"
+  },
+  {
+   "rule": "K4",
+   "file": "scripts/e2e-contracts.mjs",
+   "old": "if (!c.backend) problems.push",
+   "new": "if (false) problems.push",
+   "test": "e2e-contracts"
+  },
+  {
+   "rule": "K5",
+   "file": "scripts/e2e-contracts.mjs",
+   "old": "const over = rounded > CRITICAL_TARGET_MINUTES;",
+   "new": "const over = false;",
+   "test": "e2e-contracts"
+  },
+  {
+   "rule": "K5b",
+   "file": "scripts/e2e-contracts.mjs",
+   "old": "filter((s) => typeof minutes[s] !== 'number')",
+   "new": "filter(() => false)",
+   "test": "e2e-contracts"
+  },
+  {
+   "rule": "Q1",
+   "file": "scripts/e2e-quarantine.mjs",
+   "old": "const critical = h?.critical?.length > 0;",
+   "new": "const critical = false;",
+   "test": "e2e-quarantine"
+  },
+  {
+   "rule": "Q2",
+   "file": "scripts/e2e-quarantine.mjs",
+   "old": "overdue: today > due",
+   "new": "overdue: false",
+   "test": "e2e-quarantine"
+  },
+  {
+   "rule": "Q3",
+   "file": "scripts/e2e-quarantine.mjs",
+   "old": "if (incidents.length === 0) return existing ? { kind: 'close' } : { kind: 'none' };",
+   "new": "if (incidents.length <= 1) return existing ? { kind: 'close' } : { kind: 'none' };",
+   "test": "e2e-quarantine"
+  },
+  {
+   "rule": "Q4",
+   "file": "scripts/e2e-quarantine.mjs",
+   "old": "...(plan.configured?.quarantined ?? [])",
+   "new": "",
+   "test": "e2e-quarantine"
+  },
+  {
+   "rule": "Q5",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "const blocking = incidents;",
+   "new": "const blocking = incidents.filter((i) => i.severity === 'critical' || i.overdue);",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A1",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "event = 'merge_group' }",
+   "new": "event = 'push' }",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A1b",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "if (run.specs === null) continue;",
+   "new": "",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A2c",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "  if ((plan.quarantined ?? []).includes(spec)) return 'quarantined';\n  if (plan.mode === 'full') return 'full';",
+   "new": "  if (plan.mode === 'full') return 'full';\n  if ((plan.quarantined ?? []).includes(spec)) return 'quarantined';",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A3b",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "if (!sha) return null;",
+   "new": "",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A2",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "? named(answers[0])",
+   "new": "? (['full', 'selected', 'quarantined'].find((v) => answers.includes(v)) ?? named(answers[0]))",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A2d",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "plans.map((p) => verdictOf(spec, kind, p)) : ['unknown']",
+   "new": "plans.map((p) => verdictOf(spec, kind, p)).reverse() : ['unknown']",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A3d",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "['not-selected', 'unknown', 'no-selection', 'quarantined']",
+   "new": "['unknown', 'no-selection', 'quarantined']",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A2b",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "const flake = flaky.has(spec.split('/').pop());",
+   "new": "const flake = false;",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A3",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "if (!m || typeof m !== 'object' || !Array.isArray(m.specs)) return 'no-selection';",
+   "new": "if (!m) return 'not-selected';",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A4",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "if (membership.length) reasons.push",
+   "new": "if (false) reasons.push",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A4b",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "if (trailers.length) reasons.push",
+   "new": "if (false) reasons.push",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A5",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "misses.length || unknown.length || !reset.read",
+   "new": "misses.length || unknown.length",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A3c",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "if (!logged.length) return items;",
+   "new": "return items;",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "Q3b",
+   "file": "scripts/e2e-quarantine.mjs",
+   "old": "readStore(STORE_PATH, { strict: true })",
+   "new": "readStore(STORE_PATH)",
+   "test": "e2e-quarantine"
+  },
+  {
+   "rule": "Q3c",
+   "file": "scripts/e2e-quarantine.mjs",
+   "old": "    if (strict) throw new Error",
+   "new": "    if (false) throw new Error",
+   "test": "e2e-quarantine"
+  }
+ ]
+}

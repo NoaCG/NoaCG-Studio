@@ -1,0 +1,2635 @@
+{
+ "window": "2026-09-20 to 2026-11-01, main push runs of ci.yml and configured-suite.yml",
+ "base": "fb15e6b8f6358ef8b0fad080cf71552b4da37187",
+ "command": "node scripts/e2e-selection-misses.mjs --days <n> --before <n> --ref origin/main --json",
+ "note": "2-day passes, then 1-day re-passes where a pass spent its 100-call budget; a re-pass answer replaces an unknown row. answers: each candidate culprit plan, newest first.",
+ "calls": 2100,
+ "passes": [
+  {
+   "pass": "w0",
+   "days": 2,
+   "calls": 51
+  },
+  {
+   "pass": "w2",
+   "days": 2,
+   "calls": 22
+  },
+  {
+   "pass": "w4",
+   "days": 2,
+   "calls": 20
+  },
+  {
+   "pass": "w6",
+   "days": 2,
+   "calls": 16
+  },
+  {
+   "pass": "w8",
+   "days": 2,
+   "calls": 22
+  },
+  {
+   "pass": "w10",
+   "days": 2,
+   "calls": 36
+  },
+  {
+   "pass": "w12",
+   "days": 2,
+   "calls": 56
+  },
+  {
+   "pass": "w14",
+   "days": 2,
+   "calls": 100
+  },
+  {
+   "pass": "w16",
+   "days": 2,
+   "calls": 99
+  },
+  {
+   "pass": "w18",
+   "days": 2,
+   "calls": 33
+  },
+  {
+   "pass": "w20",
+   "days": 2,
+   "calls": 34
+  },
+  {
+   "pass": "w22",
+   "days": 2,
+   "calls": 100
+  },
+  {
+   "pass": "w24",
+   "days": 2,
+   "calls": 98
+  },
+  {
+   "pass": "w26",
+   "days": 2,
+   "calls": 100
+  },
+  {
+   "pass": "w28",
+   "days": 2,
+   "calls": 100
+  },
+  {
+   "pass": "w30",
+   "days": 2,
+   "calls": 69
+  },
+  {
+   "pass": "w32",
+   "days": 2,
+   "calls": 66
+  },
+  {
+   "pass": "w34",
+   "days": 2,
+   "calls": 43
+  },
+  {
+   "pass": "w36",
+   "days": 2,
+   "calls": 62
+  },
+  {
+   "pass": "w38",
+   "days": 2,
+   "calls": 47
+  },
+  {
+   "pass": "w40",
+   "days": 2,
+   "calls": 2
+  },
+  {
+   "pass": "d14",
+   "days": 1,
+   "calls": 44
+  },
+  {
+   "pass": "d15",
+   "days": 1,
+   "calls": 76
+  },
+  {
+   "pass": "d16",
+   "days": 1,
+   "calls": 55
+  },
+  {
+   "pass": "d17",
+   "days": 1,
+   "calls": 99
+  },
+  {
+   "pass": "d22",
+   "days": 1,
+   "calls": 100
+  },
+  {
+   "pass": "d23",
+   "days": 1,
+   "calls": 96
+  },
+  {
+   "pass": "d24",
+   "days": 1,
+   "calls": 84
+  },
+  {
+   "pass": "d25",
+   "days": 1,
+   "calls": 38
+  },
+  {
+   "pass": "d26",
+   "days": 1,
+   "calls": 32
+  },
+  {
+   "pass": "d27",
+   "days": 1,
+   "calls": 100
+  },
+  {
+   "pass": "d28",
+   "days": 1,
+   "calls": 100
+  },
+  {
+   "pass": "d29",
+   "days": 1,
+   "calls": 100
+  }
+ ],
+ "totals": {
+  "configured-suite.yml unknown": 32,
+  "configured-suite.yml no-selection": 55,
+  "configured-suite.yml no-selection (flake)": 18,
+  "ci.yml miss (flake)": 35,
+  "ci.yml not-a-spec": 17,
+  "configured-suite.yml not-a-spec": 11,
+  "ci.yml miss": 10,
+  "ci.yml selected (flake)": 4,
+  "configured-suite.yml unknown (flake)": 2,
+  "configured-suite.yml miss": 1
+ },
+ "rows": [
+  {
+   "workflow": "configured-suite.yml",
+   "run": "-",
+   "spec": "job: configured-suite.yml runs unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 35755733408,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "6f5855d94b53fe682521b3eb2b93b59041de3353"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 35853344074,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "add4e943f31c3c6a487300f135472ae19c8d9799"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 35853344074,
+   "spec": "e2e/configured/dashboard-hosted-walk.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "add4e943f31c3c6a487300f135472ae19c8d9799"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 35854633700,
+   "spec": "e2e/import-svg-corpus.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "8bfb475b164d7841e50e9782dc2d4d0f066020e1"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 35854633700,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "8bfb475b164d7841e50e9782dc2d4d0f066020e1"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 35902433466,
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "2cdca924dbc6ccbe2ad81a00d28a7abf1e1f7b69"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 35917836409,
+   "spec": "e2e/cross-tab.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "cf0e6fbf95aca182df35b7f4c9631564e2286b0c"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 35917836409,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "cf0e6fbf95aca182df35b7f4c9631564e2286b0c"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36029912722,
+   "spec": "e2e/configured/agent-access.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "18aa69c02e13f0fd4e8cd5c94488423c0019bd07"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36029912722,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "18aa69c02e13f0fd4e8cd5c94488423c0019bd07"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/agent-access.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/audience-live.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/dashboard-hosted-walk.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/deep-link-boot.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/follow-status-is-visible.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/homebase.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/hosted-control-profile.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/hosted-control-recovery.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/hosted-space-modes.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/imported-quiz-output.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/output-cold-boot.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/output-realtime-floor.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/output-url-cannot-push.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/playout-both-roads.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/pro-wizard.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/production-data-key.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/production-links.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/quiz-output.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/relay-cold-boot.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/scorebug-output.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36069827692,
+   "spec": "e2e/configured/teams.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36246036302,
+   "spec": "e2e/editor-foundation.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "e219158fe662f6a4c4a10c2887c9722a6bf222b1"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36246036302,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "e219158fe662f6a4c4a10c2887c9722a6bf222b1"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36349216276,
+   "spec": "e2e/downloads.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "92c8a6160962b58cde5d1b3f0f0ee9d4632fc4c3"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36406162516,
+   "spec": "e2e/import-svg.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "49ac0e7f8cf90e919b7a64e2a8cbc9543ba8e7d4"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36466437423,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36466437423,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36466437423,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36466437423,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36466437423,
+   "spec": "e2e/configured/hosted-reveal-after-reload.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36466437423,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36466437423,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36543147142,
+   "spec": "e2e/editor-keys.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "a1fb8bdfbdae0579bee0835c6a9980363cdbb07f"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36554159260,
+   "spec": "e2e/editor-base-edits.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "ac390a25bd1ccd11820121925b74b54a019bec65"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36578292146,
+   "spec": "e2e/import-svg.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "c0d19d488228347eb57c23535e75484c06d7a645"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36597679829,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36597679829,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36597679829,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36597679829,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36597679829,
+   "spec": "e2e/configured/hosted-reveal-after-reload.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36597679829,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36597679829,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36597679836,
+   "spec": "e2e/editor-foundation.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403",
+    "709fdd3add22d69e0e59281dae4a45d57e06a4c4",
+    "9709aa345f627a1a737681af246b46238d9045f3",
+    "3cb2759b5100b89b825d6495c97ba37e4d5d748a",
+    "b0331ecb36bcaa4646d8ddae511aa4bcdfd5e290"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36597679836,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "04c509a800e8e4d38cda2d79eb31bc8735fa1403",
+    "709fdd3add22d69e0e59281dae4a45d57e06a4c4",
+    "9709aa345f627a1a737681af246b46238d9045f3",
+    "3cb2759b5100b89b825d6495c97ba37e4d5d748a",
+    "b0331ecb36bcaa4646d8ddae511aa4bcdfd5e290"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36743992299,
+   "spec": "e2e/editor-keys.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "0c9d2cc022a7adeeabd3bd5d7f69c25330e85ac4"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36743992299,
+   "spec": "e2e/wizard-shell.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "0c9d2cc022a7adeeabd3bd5d7f69c25330e85ac4"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36776426554,
+   "spec": "e2e/editor-base-edits.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "b1038916854a8eeaaeaed96fb0e79cbc43a8f33a",
+    "05ddeacb5e81e74164d8048e816aaf796389cead"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36776426554,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "b1038916854a8eeaaeaed96fb0e79cbc43a8f33a",
+    "05ddeacb5e81e74164d8048e816aaf796389cead"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36784706053,
+   "spec": "e2e/cross-tab.spec.ts",
+   "verdict": "selected",
+   "flake": true,
+   "culprits": [
+    "3d2fa00ccd986f8528b8ac5bd326c0aa9ae08e5f"
+   ],
+   "answers": [
+    "selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36784706053,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "3d2fa00ccd986f8528b8ac5bd326c0aa9ae08e5f"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36932722985,
+   "spec": "e2e/editor-base-edits.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "2db3e6a6ef7e50b7758656f553967de33093c71a",
+    "97311f157021043e3f2ae49b065984e17bf340ec",
+    "54e4c88110d97168787f952770b5394fcf6b1c89",
+    "25727d3c2f646b45e1a3f7047c9a4fb91d7e91e4",
+    "ded0eb16d0c000606200821a7ce6e2e2874e8639",
+    "4abaa4a5f4b8aaf1f53ada8b097c5a5fc2179077",
+    "14b1e78d6436abe00ba0417f7686018aeb9564f7"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36932722985,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "2db3e6a6ef7e50b7758656f553967de33093c71a",
+    "97311f157021043e3f2ae49b065984e17bf340ec",
+    "54e4c88110d97168787f952770b5394fcf6b1c89",
+    "25727d3c2f646b45e1a3f7047c9a4fb91d7e91e4",
+    "ded0eb16d0c000606200821a7ce6e2e2874e8639",
+    "4abaa4a5f4b8aaf1f53ada8b097c5a5fc2179077",
+    "14b1e78d6436abe00ba0417f7686018aeb9564f7"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36974119344,
+   "spec": "e2e/wizard-shell.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e",
+    "cc78b2da684aec82bee20386c05139709a2104df",
+    "7d83ced083a3b6fb95b9ce655db8613d98daddc2",
+    "4b2f81a6ce24944bc645b17d80bf891f3c5b84f0",
+    "74b2ed373f4e943b6c7dc01f5d32d443e70f0981",
+    "ec030df9ac69da70630725a256cf1ce20aa72a1d",
+    "75505514ad1ca9093b8a7d77ae6771996ee10ef7",
+    "113e9fe94bc128b85f8b21c4c944fd9148fb8cd2",
+    "9d87f0b37bddf7eadc0c63fa5b33deb259aa91b9"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "selected",
+    "not-selected",
+    "selected",
+    "selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36974119396,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "unknown",
+   "flake": true,
+   "culprits": [
+    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36974119396,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36974119396,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36974119396,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36974119396,
+   "spec": "e2e/configured/live-prepare.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36974119396,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36974119396,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36982621173,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "unknown",
+   "flake": true,
+   "culprits": [
+    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36982621173,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36982621173,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36982621173,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36982621173,
+   "spec": "e2e/configured/live-prepare.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36982621173,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36982621173,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
+   ],
+   "answers": [
+    "unknown"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 36985533946,
+   "spec": "e2e/editor-base-edits.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "8ce08b39012375074936e720f8716aa61ff44749",
+    "561f649cfaabaa741ec08dc5643c7eebadd97c31"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36987105517,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36991205912,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "9fb165e2fe177286e5a853a9c993734f1cb51326"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36991854932,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "b623f2da0b8b393bde577e088b668d433f8df99e"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36993588776,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "d5fcf6fb7af5d27cb5f92a2c713ddec22896fff7"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36998384426,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "27660868df61a5f12984a25a4787aec50aaddeaf"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37000361229,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "1ee6a2cb92c4982082ee604bbb9eebc5cbffae4f"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37003276615,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "94177d561c23f2a1f0045bb7301b3bb6ddeb997a"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37006634298,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "71aca2e1f8dfc09ff6ce7195923d9785a0086be6"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37007103340,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "75620b9a6522ee73c689ad9afe2c145889ab4301"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37014699819,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "c81d4e2f4c2343180cbc6108428e60bba3de830a"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37014964783,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "08161b19e107bcc6a648e1b58536d68929670db6"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37016061559,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "811c09c95746abc7c17506f40ab4a29e776e3d9b"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37021949784,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "80765b6c56f12214fb1f1238d9ff97ac08966395"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37026641032,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "f5cae71dafe01fc9134c9b0c1becf810a1fbf8bc"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37033028611,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "975b0606c2acd276141f5f9fd6bf25098d2a9229"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37096120413,
+   "spec": "e2e/layout.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "a7c0b414b09414e431032f34a8d334d160e225e7",
+    "9459ba4c60f7fa0062d94017d5a5f8b677a71b4c",
+    "8742187f3f99da22ae7ebcb6ee4ea03311fafa8a",
+    "c0732328495c578171834434928f7cd591513b3e",
+    "c1df51aaa48c986f412fb1a3cdead3bf37277375",
+    "696f122e0f77a02e0f5dd8080b030bffb3bd5c3f",
+    "b9037956213eaa91b168a195d0d5a1b8adb9f5fe",
+    "6d780c2fbb4ae00fef301df90431920fe904b29d",
+    "fa03471808fe8639a13d887e87f555ea64a9bb9d",
+    "56f3b3f14146c2a40806f4326eac2e8b7c726f12",
+    "6c6fdb2c4045b7bcb04b6437370e8281764a05e5"
+   ],
+   "answers": [
+    "not-selected",
+    "quarantined",
+    "quarantined",
+    "quarantined",
+    "quarantined",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "quarantined"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37096120413,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "a7c0b414b09414e431032f34a8d334d160e225e7",
+    "9459ba4c60f7fa0062d94017d5a5f8b677a71b4c",
+    "8742187f3f99da22ae7ebcb6ee4ea03311fafa8a",
+    "c0732328495c578171834434928f7cd591513b3e",
+    "c1df51aaa48c986f412fb1a3cdead3bf37277375",
+    "696f122e0f77a02e0f5dd8080b030bffb3bd5c3f",
+    "b9037956213eaa91b168a195d0d5a1b8adb9f5fe",
+    "6d780c2fbb4ae00fef301df90431920fe904b29d",
+    "fa03471808fe8639a13d887e87f555ea64a9bb9d",
+    "56f3b3f14146c2a40806f4326eac2e8b7c726f12",
+    "6c6fdb2c4045b7bcb04b6437370e8281764a05e5"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37104930027,
+   "spec": "job: Factory gates",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "358cb5035a8c6916a6cc96eed53d60a4fbdb4f53"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37110685912,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "579d12bc44a6974d132146c515f1589516b9155c"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37118148332,
+   "spec": "e2e/layout.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "f48659e950de724b9f766d2ee73a165f20ce50cf"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37118148332,
+   "spec": "job: Build",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "f48659e950de724b9f766d2ee73a165f20ce50cf"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37118148332,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "f48659e950de724b9f766d2ee73a165f20ce50cf"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37155254392,
+   "spec": "e2e/layout.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "3b1de749edbaf9ce9db63734c1d7f2113818f9b8",
+    "5f79c85a3b8ab118573fc186e1f2aa8c7fda5e85"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37163639314,
+   "spec": "e2e/playout-feedback-health.spec.ts",
+   "verdict": "selected",
+   "flake": true,
+   "culprits": [
+    "754f101e1f5748d0e74cbc5cbf2c46167752f191"
+   ],
+   "answers": [
+    "selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37194873845,
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "9ed8107e3438cd52ec8191252e3f905f103a4d9c"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37248006050,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37392704287,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37392704287,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37392704287,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37392704287,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37392704287,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37392704287,
+   "spec": "e2e/configured/live-health.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37392704287,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37392704287,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37497838085,
+   "spec": "e2e/_create.ts",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "da8efaab1a91e2fcd32802d68efa9417d02797b8"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37544676687,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37544676687,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37544676687,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37544676687,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37544676687,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37544676687,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37544676687,
+   "spec": "e2e/configured/teams.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37689764015,
+   "spec": "e2e/_create.ts",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "55245ba226593993617c25ba3f1bcaf9d3f21ebf",
+    "222b8379723c4a02a2d21e851a8cf0e63263d0a4"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37774551409,
+   "spec": "e2e/editor-foundation.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "95c4ece8ae9317a491749155d4d4ac54f9831da0",
+    "745c6f2dcd9ce5e82cc6655c652e08f0568800fd",
+    "0b7759891e6150830a2db4eeaefb786b6f4aef9d"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37828961726,
+   "spec": "e2e/editor-groups.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "a2523f820ad371718ffc58087e895c8f31739f2c",
+    "aa2717b3b148ae7a063d2685b7b91ca6c0bcc4ed"
+   ],
+   "answers": [
+    "not-selected",
+    "selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37828961726,
+   "spec": "e2e/video-hyperframes.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "a2523f820ad371718ffc58087e895c8f31739f2c",
+    "aa2717b3b148ae7a063d2685b7b91ca6c0bcc4ed"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37915047615,
+   "spec": "e2e/editor-images.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "e5da2464cf5d2f63a0ba3be1088b35df13616517",
+    "e7a0528ae5a094705faad32e122ea0c1730b8f87",
+    "3e4a0a2a1c6162a7a01972c49493158cc2427aaf"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37995096729,
+   "spec": "e2e/editor-pen.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "951d944a6f8ed60cac2594957c16b2157ef122d2",
+    "b18836011252ba9e1885842cb9a1a982dff217e2",
+    "b9d83ad0528c4e91d5e16c6a006a73cccb4d6b2d"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 37999855026,
+   "spec": "e2e/editor-arrangement.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "6abbae14b85f6f494d72eb5b460f3f4a25fb1136",
+    "c763ef9ab111979cbf74fcba6cb46d26d085b6da",
+    "74f624c64bebb6ae0e5a58be56ac9f682116cc5a",
+    "0f862430aca0cf851aeba427a0e1517fbf7d1f24"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38015497259,
+   "spec": "e2e/editor-fidelity-trim.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "5619f765cee64a618d2cbba09d22b6281ade095c",
+    "6dd97b7d5c565c0016f758cdd58d66f924546240",
+    "d203e0f69ee13e48836e21ff368a9a888a58937d",
+    "45ec97b2eedeaeb0dc1ac56891e0c288fa3f4073"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38052366628,
+   "spec": "e2e/editor-groups.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "ec723a491563967655da18da1b3bb2e04c8542a6",
+    "d882bc47de4ce0d46e91f3550c598481a86f881e"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38151862819,
+   "spec": "job: Vercel accepted the commit",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "c4f5861d1486430ca28a012246782a9cea74b788"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38212038188,
+   "spec": "e2e/public-chrome-baseline.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "20367f214b0b4c3c484b6e5dd17722caa546f2f1"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 38299878376,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 38299878376,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 38299878376,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 38299878376,
+   "spec": "e2e/configured/connector-grants.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 38299878376,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38459008195,
+   "spec": "e2e/rundown-history.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "ef3ada8f664d7da3976ad71bbaf33c58384590f9"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38529110448,
+   "spec": "e2e/editor-fidelity-trim.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "14c0a5a52d4b92939ad602a7acd5664659788b36"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 38540884286,
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "321c078a0a4eb5d791085283943010c532cd97fa"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38544327747,
+   "spec": "e2e/public-chrome-baseline.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "20bda886797650bd3a079570fd4e1a6b2a60776f",
+    "f033d163efc18a03addbe6fe1fd697563c0e7f60",
+    "8474e38df9d2d6ff98ba4c195c2d8de0ec8cc8c1",
+    "321c078a0a4eb5d791085283943010c532cd97fa",
+    "759772ddd98a91f0d58b8e12b5573e4f080a2c1c",
+    "dbf475e7090740da03f3af03b639750c2f6eabdc",
+    "7c59efcb0ba3bd5d032411d7d2f6c492ab6b1b01"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38553431322,
+   "spec": "job: E2E retry (failed specs, same commit)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "d343b655a06cfdc77c20ca9371aa675047db1e27"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38861074022,
+   "spec": "e2e/editor-arrangement.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "6e05d78ea46ffc23e2eb83c29e1b8bfbc3b816bd"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 38966657393,
+   "spec": "e2e/editor-cli-round-trip.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "7009ebbb624a5b9269fa9c9c390e425fdfbc9875",
+    "a4f58b319a08888cbcdc84e61e824b85c6dcce25",
+    "84a107635f688ec90c1628cab8e186eac3b3e659"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39015354033,
+   "spec": "e2e/editor-groups.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "8e4358dbaab519163939485d145efeddf89e30e8"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39066173428,
+   "spec": "e2e/publish-output-setup.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "081b42afb0bf5998f1c8963665c996e8b5755039",
+    "116022568682d61351b4be3578b3c67026f767ee",
+    "67c247f910d036c9aa8c638dcf0934abc8831abd",
+    "a1c9efb564fe6057f3f4af5669bda8d6eebb5267"
+   ],
+   "answers": [
+    "not-selected",
+    "not-selected",
+    "not-selected",
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 39099452797,
+   "spec": "failure set unread",
+   "verdict": "unknown",
+   "flake": false,
+   "culprits": [
+    "0bdf5a47a322f27aa4376d3a6225c17411b0494f"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 39099452797,
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "0bdf5a47a322f27aa4376d3a6225c17411b0494f",
+    "5957d6c09de4aa4981e4c70c2610dde7ad2c912b"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39148411585,
+   "spec": "e2e/editor-arrangement.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "76afb8cb6512c3570fe141bf2405039b96e057d3"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39148411585,
+   "spec": "e2e/import-svg-behaviour.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "76afb8cb6512c3570fe141bf2405039b96e057d3"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39153808662,
+   "spec": "job: E2E shard",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "edc451f176960a4d3adef5474205efdf0d8515d5"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39250656173,
+   "spec": "e2e/editor-groups.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "742a5a655f78b4276acc02cd38a19ea6e19c9119"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39259495974,
+   "spec": "e2e/editor-keys.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "901116aab4a9f19843631940cf4596b2595c9f1e"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39358824342,
+   "spec": "e2e/wizard-shell.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "4c69d916fc10239037e44894bab10dc835e6723a"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39389253794,
+   "spec": "e2e/import-svg-behaviour.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "5b843f32d3df48bcd10ca64ea2c957ae7b2810c1"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 39537388015,
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "4c1ae76b0d489ca59b0348024b2ae76059ce26f4"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39549063877,
+   "spec": "e2e/rundown-history.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "304a440a121c51d650f78437496ffc2e1bd56d0a"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39949920559,
+   "spec": "e2e/import-svg.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "dedd4576804cfaa0ced57076d9ad0fedf4a54c6e"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 39964759151,
+   "spec": "e2e/wizard-shell.spec.ts",
+   "verdict": "selected",
+   "flake": true,
+   "culprits": [
+    "919fbc9b74ee3726c5152b6ba26d953edcba6303"
+   ],
+   "answers": [
+    "selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40177524989,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "70c28888c84d47a2efb28cf4a54976fa1d4878fc"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40177524989,
+   "spec": "e2e/configured/connector-grants.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "70c28888c84d47a2efb28cf4a54976fa1d4878fc"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40177524989,
+   "spec": "job: Configured E2E shard 3/4",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "70c28888c84d47a2efb28cf4a54976fa1d4878fc"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40289330116,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8abde8e7103715f21ccf7384f08cb1dbc22a9bfa"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40289330116,
+   "spec": "e2e/configured/connector-grants.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "8abde8e7103715f21ccf7384f08cb1dbc22a9bfa"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40289330116,
+   "spec": "job: Configured E2E shard 1/4",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "8abde8e7103715f21ccf7384f08cb1dbc22a9bfa"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 40501378385,
+   "spec": "e2e/import-svg.spec.ts",
+   "verdict": "selected",
+   "flake": true,
+   "culprits": [
+    "55621f973f582121dcb52950b01d3ca9c77a4ddb"
+   ],
+   "answers": [
+    "selected"
+   ]
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 40653478764,
+   "spec": "job: Factory gates",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "6dd736c121300601208fdba6dda31f6fbdb75985"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40724937287,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "55f98f9e6671723497adee9af34d0d5c27a641f1"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40724937287,
+   "spec": "e2e/configured/connector-grants.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "55f98f9e6671723497adee9af34d0d5c27a641f1"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 40724937287,
+   "spec": "job: Configured E2E shard 3/4",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "55f98f9e6671723497adee9af34d0d5c27a641f1"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 41027970852,
+   "spec": "e2e/editor-transform-qualification.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "b5652ae6b1617faf467c8519b1c1e8c990fcaefd"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 41134775201,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "0df77f74e142fed3955756f6c89314309dc9bbf1"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 41134775201,
+   "spec": "job: Configured E2E shard 2/4",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "0df77f74e142fed3955756f6c89314309dc9bbf1"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 41134775210,
+   "spec": "e2e/import-svg-corpus.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "0df77f74e142fed3955756f6c89314309dc9bbf1"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 41205531471,
+   "spec": "e2e/configured/connector-grants.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "6b3592c3fc70e9306a54a41bbf87ab9674d894f5"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 41205531471,
+   "spec": "job: Configured E2E shard 4/4",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "6b3592c3fc70e9306a54a41bbf87ab9674d894f5"
+   ],
+   "answers": []
+  },
+  {
+   "workflow": "ci.yml",
+   "run": 41244292482,
+   "spec": "e2e/import-svg.spec.ts",
+   "verdict": "miss",
+   "flake": true,
+   "culprits": [
+    "af39c2490121c16b849e5b5d767ef57c626123ef"
+   ],
+   "answers": [
+    "not-selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 41247602152,
+   "spec": "e2e/configured/connector-grants.spec.ts",
+   "verdict": "miss",
+   "flake": false,
+   "culprits": [
+    "d06974d30c42f504073fc810f2d1316168eb1f8d",
+    "c469facba90f6ed04cb29b9ef5ac7b23d72e7ec3"
+   ],
+   "answers": [
+    "not-selected",
+    "selected"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 41247602152,
+   "spec": "job: Configured E2E shard 4/4",
+   "verdict": "not-a-spec",
+   "flake": false,
+   "culprits": [
+    "d06974d30c42f504073fc810f2d1316168eb1f8d",
+    "c469facba90f6ed04cb29b9ef5ac7b23d72e7ec3"
+   ],
+   "answers": []
+  }
+ ]
+}
