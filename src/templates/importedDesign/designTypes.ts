@@ -5,6 +5,7 @@
 // and `designArt` members of WizardOptions.
 
 import type { CustomFont } from '../../model/fonts';
+import type { CREDITS_LAYOUTS, CREDITS_PLAYBACKS } from '../behaviours/credits';
 
 /**
  * An imported SVG graphic: the sanitized markup (candidates tagged with
@@ -154,6 +155,43 @@ export interface DesignSvgRecipeBehaviour {
   rows?: string[];
   /** The recipe's structural options as chosen (a checkbox each). */
   options?: Record<string, boolean>;
+  /** The credits recipe only: credits written into the artwork's own repeated role and name
+   *  styling. ADDITIVE: absent keeps the editable roll or, with `options.artwork`, the original
+   *  artwork roll, exactly as saved. The two engines never combine. */
+  credits?: DesignSvgCredits;
+}
+
+/**
+ * IMPORTED CREDITS IN THE ARTWORK'S OWN STYLING (templates/importedDesign/creditsRoll.ts
+ * `analyseCreditsStyle`). The designer draws a few roles and names as separate text layers; their
+ * looks and spacing are the style, and the operator's credits are ONE list in the native format
+ * (docs/END_CREDITS.md), carried by the recipe's one `credits` field, never a field per name.
+ *
+ * Only the author's choices and the source anchors are stored. Looks, alignment and spacing are
+ * read off the markup again on every build, so they cannot drift from the artwork they describe.
+ */
+export interface DesignSvgCredits {
+  /** The shape's version. */
+  v: 1;
+  /** How a role sits against its names, as the drawing shows it and the author confirmed. */
+  layout: CreditsLayout;
+  /** How the list plays. Chosen by the author: artwork does not say. */
+  playback: CreditsPlayback;
+  /** Cards only: seconds each card holds before the next. Absent = the operator's Next. */
+  advance?: number;
+  /** The drawn role and name layers the style is read from, in reading order. */
+  anchors: DesignSvgCreditsAnchor[];
+}
+
+export type CreditsLayout = (typeof CREDITS_LAYOUTS)[number];
+export type CreditsPlayback = (typeof CREDITS_PLAYBACKS)[number];
+
+/** One drawn layer the credits style is read from. */
+export interface DesignSvgCreditsAnchor {
+  /** The text layer's data-noacg-candidate marker value in the markup. */
+  candidateId: string;
+  /** What the layer shows in the sample. */
+  kind: 'role' | 'name';
 }
 
 /**

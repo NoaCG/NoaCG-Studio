@@ -30,9 +30,13 @@
 
 import { SVG_CANDIDATE_ATTR } from '../../assets/svgImport';
 import type { DesignSvg } from '../../model/wizard';
+import type { CreditsLayout, CreditsPlayback, DesignSvgCredits, DesignSvgCreditsAnchor } from './designTypes';
 import {
   CREDITS_BOX_ROLE,
+  CREDITS_CARD_SECONDS,
   CREDITS_FIELD_ROLE,
+  CREDITS_LAYOUTS,
+  CREDITS_PLAYBACKS,
   CREDITS_RECIPE_ID,
   CREDITS_ROLL_CALL,
   CREDITS_SPEED_KEY,
@@ -541,4 +545,445 @@ if (document.readyState === 'loading') {
 }
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(creditsRender);
 `;
+}
+
+// ── Credits in the artwork's own styling (DesignSvgCredits) ──────────────────────────────────
+//
+// The designer draws a few roles and names as SEPARATE text layers, the way a credits page is
+// drawn; the looks and the spacing between them are the style. This part reads that style back
+// and says plainly when it cannot: nothing here renders, and nothing here ever falls back to a
+// catalog design. A drawing it cannot describe stays the artwork it is (the original-text roll or
+// fixed artwork), with the reason named.
+
+/** Which edge of a line the drawing lines up, in `text-anchor` words. */
+export type CreditsAlign = 'start' | 'middle' | 'end';
+
+/** One drawn text layer as the analysis reads it. Positions are in the artwork's frame. */
+export interface CreditsReading {
+  candidateId: string;
+  text: string;
+  /** The point the layer's stated anchor sits on, and that anchor. */
+  x: number;
+  y: number;
+  anchor: CreditsAlign;
+  /** Right to left: its start is the right end and its end the left. */
+  rtl?: true;
+  /** The drawn advance in the layer's own units, where the text is laid out. */
+  width?: number;
+  /** The font size in the layer's own units. */
+  size: number;
+  /** Everything that makes the look, as one comparable string. */
+  look: string;
+  /** The rotation, scale and skew the layer is drawn with: a, b, c, d of its matrix. */
+  linear: [number, number, number, number];
+  /** How many baselines the one layer draws. */
+  lines: number;
+}
+
+export type CreditsUnsupported =
+  | 'unknown-anchor'
+  | 'too-few'
+  | 'several-lines'
+  | 'mixed-angles'
+  | 'one-look'
+  | 'many-looks'
+  | 'mixed-layout'
+  | 'side-by-side'
+  | 'misaligned'
+  | 'not-list-format';
+
+/** The style the drawing repeats, ready for an engine to copy. */
+export interface CreditsStyle {
+  layout: CreditsLayout;
+  anchors: DesignSvgCreditsAnchor[];
+  align: { role: CreditsAlign; name: CreditsAlign };
+  /** Steps between baselines, in the layers' own units; each only where the sample shows it.
+   *  `column` is the name column's distance from the role column, beside only. */
+  steps: { roleToName?: number; nameToName?: number; groupGap?: number; column?: number };
+  /** The sample as the credits list: what the one content field starts with. */
+  list: string;
+}
+
+export type CreditsAnalysis =
+  | { ok: true; style: CreditsStyle }
+  | { ok: false; code: CreditsUnsupported; message: string; anchors: string[]; fallback: 'artwork' };
+
+/** The longest role the list format reads before its colon (`ROLE_LABEL_MAX` in the parser). */
+const CREDITS_ROLE_MAX = 48;
+
+/**
+ * Read the given text layers for `analyseCreditsStyle`. A layer the markup does not hold reads
+ * as null. Widths come only from a laid-out document; a parsed one gives positions and looks.
+ */
+export function readCreditsAnchors(root: Element, candidateIds: readonly string[]): (CreditsReading | null)[] {
+  return candidateIds.map((candidateId) => {
+    const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
+    const text = el?.closest('text');
+    return text ? readOne(root, text, candidateId) : null;
+  });
+}
+
+function readOne(root: Element, text: Element, candidateId: string): CreditsReading {
+  // The runs that hold characters, at any depth: a wrapper run around runs holds none.
+  const runs = Array.from(text.querySelectorAll('tspan')).filter((t) => !t.querySelector('tspan'));
+  const first = runs[0] ?? null;
+  // The first value of a position list, in user units; an `em` step is a multiple of the size.
+  let size = 16;
+  const num = (el: Element | null, name: string) => {
+    const raw = (el?.getAttribute(name) ?? '').trim().split(/[\s,]+/)[0];
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? (/em$/i.test(raw) ? n * size : n) : null;
+  };
+  const view = text.ownerDocument.defaultView;
+  // Laid out, the browser's own answer, so a stylesheet class counts; parsed, the layer's
+  // attributes and inline styles from its first run up through each ancestor.
+  const laid = !!view && text.isConnected;
+  const computed = laid ? view.getComputedStyle(first ?? text) : null;
+  const prop = (name: string): string => {
+    if (computed) return computed.getPropertyValue(name).trim();
+    for (let el: Element | null = first ?? text; el && el !== root.parentElement; el = el.parentElement) {
+      const inline = (el.getAttribute('style') ?? '').split(';').map((d) => d.split(':')).find(([k]) => k?.trim() === name);
+      if (inline && inline[1] !== undefined) return inline.slice(1).join(':').trim();
+      const attr = el.getAttribute(name);
+      if (attr !== null) return attr.trim();
+    }
+    return '';
+  };
+  size = parseFloat(prop('font-size')) || 16;
+  // THE LOOK IS WHAT THE FIRST RUN IS PAINTED WITH. Inherited properties are the run's own
+  // resolved value. Two are not inherited and act from every enclosing element instead: opacity
+  // multiplies down the chain, and a text-decoration drawn by an ancestor draws through the run.
+  const chain: Element[] = [];
+  for (let el: Element | null = first ?? text; el && el !== root.parentElement; el = el.parentElement) chain.push(el);
+  const own = (el: Element, name: string): string => {
+    if (laid) return view.getComputedStyle(el).getPropertyValue(name).trim();
+    const inline = (el.getAttribute('style') ?? '').split(';').map((d) => d.split(':')).find(([k]) => k?.trim() === name);
+    return (inline && inline[1] !== undefined ? inline.slice(1).join(':') : el.getAttribute(name) ?? '').trim();
+  };
+  const opacity = chain.reduce((product, el) => {
+    const v = parseFloat(own(el, 'opacity'));
+    return product * (Number.isFinite(v) ? v : 1);
+  }, 1);
+  const decoration = chain.map((el) => own(el, 'text-decoration-line') || own(el, 'text-decoration'))
+    .filter((v) => v && !/^none\b/.test(v)).join('+');
+  const look = [
+    ...['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'fill-opacity', 'stroke', 'stroke-opacity', 'stroke-width', 'letter-spacing'].map((p) => `${p}=${prop(p)}`),
+    `opacity=${Math.round(opacity * 1000) / 1000}`,
+    `text-decoration=${decoration}`,
+    // Parsed, a stylesheet class is the only sign of what it sets; laid out, its effect is
+    // already in the computed values, and two class spellings of one look are one look.
+    ...(laid ? [] : [`class=${text.getAttribute('class') ?? ''}/${first?.getAttribute('class') ?? ''}`]),
+  ].join(';');
+  const anchorWord = prop('text-anchor');
+  const anchor: CreditsAlign = anchorWord === 'middle' || anchorWord === 'end' ? anchorWord : 'start';
+  const rtl = prop('direction') === 'rtl';
+  // WHERE THE FIRST CHARACTER IS DRAWN, in the layer's own units. Laid out, the browser says so
+  // (its start is the line's left end, so the anchor point is found along the drawn advance).
+  // Parsed, SVG's rule: each of x, y, dx and dy for that character is the NEAREST element's
+  // value - the run's where it states one, else the text's - and the steps are never summed.
+  let advance = 0;
+  // A run's position attribute is the one for its first character, then each enclosing element's
+  // while the run starts it, up to the text.
+  const nearest = (run: Element | null, name: string): number | null => {
+    for (let el: Element | null = run ?? text; el; el = el === text ? null : el.parentElement) {
+      const v = num(el, name);
+      if (v !== null) return v;
+      if (el !== text && el.parentElement && runs.find((r) => el!.parentElement!.contains(r)) !== run) return null;
+    }
+    return null;
+  };
+  let lx = (nearest(first, 'x') ?? 0) + (nearest(first, 'dx') ?? 0);
+  let ly = (nearest(first, 'y') ?? 0) + (nearest(first, 'dy') ?? 0);
+  // Laid out, the line's drawn box gives its left end whichever way it runs (the first
+  // character of right-to-left text is at its right end), and the first character its baseline.
+  const box = laid && (text as SVGTextContentElement).getNumberOfChars() > 0 ? (text as SVGGraphicsElement).getBBox() : null;
+  if (box && box.width > 0) {
+    advance = box.width;
+    lx = box.x + creditsEdgeFraction(anchor, rtl) * advance;
+    ly = (text as SVGTextContentElement).getStartPositionOfChar(0).y;
+  }
+  // Every transform from the layer up to the root, composed: the layer's frame in the artwork's.
+  let m = new DOMMatrix();
+  for (let el: Element | null = text; el && el !== root; el = el.parentElement) {
+    // Item by item: `consolidate()` would rewrite the designer's transform attribute.
+    const list = (el as SVGGraphicsElement).transform?.baseVal;
+    let own = new DOMMatrix();
+    for (let i = 0; list && i < list.numberOfItems; i++) {
+      const t = list.getItem(i).matrix;
+      own = own.multiply(new DOMMatrix([t.a, t.b, t.c, t.d, t.e, t.f]));
+    }
+    m = own.multiply(m);
+  }
+  const p = m.transformPoint(new DOMPoint(lx, ly));
+  // HOW MANY LINES the one layer draws. Laid out, the browser's baseline under each character;
+  // parsed, each run's start by the same nearest rule, plus the text's own loose characters.
+  const baselines = new Set<number>();
+  const chars = laid ? (text as SVGTextContentElement).getNumberOfChars() : 0;
+  if (chars > 0) {
+    for (let i = 0; i < Math.min(chars, 500); i++) {
+      baselines.add(Math.round((text as SVGTextContentElement).getStartPositionOfChar(i).y * 2) / 2);
+    }
+  } else {
+    let at = (num(text, 'y') ?? 0) + (num(text, 'dy') ?? 0);
+    if (Array.from(text.childNodes).some((n) => n.nodeType === 3 && (n.textContent ?? '').trim())) baselines.add(Math.round(at * 2) / 2);
+    for (const run of runs) {
+      at = (nearest(run, 'y') ?? at) + (nearest(run, 'dy') ?? 0);
+      if ((run.textContent ?? '').trim()) baselines.add(Math.round(at * 2) / 2);
+    }
+  }
+  return {
+    candidateId,
+    text: (text.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    x: p.x,
+    y: p.y,
+    anchor,
+    ...(rtl ? { rtl: true as const } : {}),
+    ...(advance > 0 ? { width: advance } : {}),
+    size,
+    look,
+    linear: [m.a, m.b, m.c, m.d],
+    lines: Math.max(1, baselines.size),
+  };
+}
+
+/** Where an edge sits along a drawn line, from its left end: `start` is the right end of a
+ *  right-to-left line, as `text-anchor` reads it. */
+function creditsEdgeFraction(edge: CreditsAlign, rtl: boolean): number {
+  const f = edge === 'start' ? 0 : edge === 'middle' ? 0.5 : 1;
+  return rtl ? 1 - f : f;
+}
+
+/**
+ * THE STYLE A DRAWING REPEATS, or the reason it repeats none. Rules, in order:
+ *
+ * - Every layer is real, there are at least two, and each draws one line.
+ * - They share one angle and scale; positions are then compared in that shared frame, so a block
+ *   turned as a whole is read as drawn and islands turned differently are refused.
+ * - Exactly two looks. Reading order is top to bottom, then left to right; the look of the first
+ *   layer read is the ROLE look, the other the NAME look.
+ * - A line holds one layer, or a role and then its first name: role BESIDE. A first name on a
+ *   lower line is role ABOVE. Every role with names must agree.
+ * - Above, roles and names share one aligned edge; beside, the roles share one and the names
+ *   another. Read from the stated anchor, or from the drawn widths where the layout gives them.
+ * - Every role and name can be written in the list format as it is.
+ */
+export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[], ids: readonly string[]): CreditsAnalysis {
+  const refuse = (code: CreditsUnsupported, message: string, anchors: string[]): CreditsAnalysis =>
+    ({ ok: false, code, message, anchors, fallback: 'artwork' });
+  const missing = ids.filter((_, i) => !readings[i]);
+  if (missing.length > 0) return refuse('unknown-anchor', 'A chosen layer is not a text layer of this artwork.', missing);
+  const all = readings as CreditsReading[];
+  if (all.length < 2) return refuse('too-few', 'Credits need at least one role and one name drawn.', all.map((r) => r.candidateId));
+  const several = all.filter((r) => r.lines > 1);
+  if (several.length > 0) return refuse('several-lines', 'A layer draws several lines; each role and name needs its own layer.', several.map((r) => r.candidateId));
+
+  const [a, b, c, d] = all[0].linear;
+  const close = (x: number, y: number) => Math.abs(x - y) <= 1e-3 * Math.max(1, Math.abs(x), Math.abs(y));
+  const turned = all.filter((r) => !r.linear.every((v, i) => close(v, all[0].linear[i])));
+  if (turned.length > 0) return refuse('mixed-angles', 'The roles and names are drawn at different angles or scales, so no one style describes them.', turned.map((r) => r.candidateId));
+  // Into the shared frame: undo the common angle and scale, keep each layer's own offset.
+  const det = a * d - b * c || 1;
+  const items = all.map((r) => ({ r, x: (d * r.x - c * r.y) / det, y: (-b * r.x + a * r.y) / det }));
+
+  const looks = [...new Set(all.map((r) => r.look))];
+  if (looks.length === 1) return refuse('one-look', 'Roles and names share one look, so they cannot be told apart.', all.map((r) => r.candidateId));
+  if (looks.length > 2) return refuse('many-looks', 'More than two looks are drawn; credits repeat one role look and one name look.', all.map((r) => r.candidateId));
+
+  const minSize = Math.min(...all.map((r) => r.size));
+  const tolY = 0.25 * minSize;
+  const tolX = Math.max(1, 0.1 * minSize);
+  const byY = [...items].sort((p, q) => p.y - q.y || p.x - q.x);
+  const rows: (typeof items)[] = [];
+  for (const it of byY) {
+    const row = rows[rows.length - 1];
+    if (row && it.y - row[0].y <= tolY) row.push(it);
+    else rows.push([it]);
+  }
+  rows.forEach((row) => row.sort((p, q) => p.x - q.x));
+  const roleLook = rows[0][0].r.look;
+  const kindOf = (it: (typeof items)[number]) => (it.r.look === roleLook ? 'role' : 'name');
+  const crowded = rows.filter((row) => row.length > 2 || (row.length === 2 && (kindOf(row[0]) !== 'role' || kindOf(row[1]) !== 'name')));
+  if (crowded.length > 0) return refuse('side-by-side', 'Names or roles are drawn side by side; a line holds one layer, or a role and its first name.', crowded.flat().map((it) => it.r.candidateId));
+
+  const order = rows.flat();
+  type Item = (typeof items)[number];
+  const groups: { role: Item; names: Item[]; beside: boolean }[] = [];
+  for (const it of order) {
+    // The first layer read is a role by definition, so every name has a role above it.
+    if (kindOf(it) === 'role') groups.push({ role: it, names: [], beside: false });
+    else {
+      const g = groups[groups.length - 1];
+      if (g.names.length === 0) g.beside = rows.some((row) => row.includes(g.role) && row.includes(it));
+      g.names.push(it);
+    }
+  }
+  // Two looks and the role look first: at least one role has a name.
+  const paired = groups.filter((g) => g.names.length > 0);
+  if (new Set(paired.map((g) => g.beside)).size > 1) return refuse('mixed-layout', 'Some roles sit beside their names and others above them.', paired.map((g) => g.role.r.candidateId));
+  const layout: CreditsLayout = paired[0].beside ? 'role-beside' : 'role-above';
+
+  const edgeAt = (it: Item, edge: CreditsAlign): number | null => {
+    if (edge === it.r.anchor) return it.x;
+    if (it.r.width === undefined) return null;
+    const at = (e: CreditsAlign) => creditsEdgeFraction(e, it.r.rtl === true) * it.r.width!;
+    return it.x - at(it.r.anchor) + at(edge);
+  };
+  const alignOf = (list: Item[]): { edge: CreditsAlign; at: number } | null => {
+    const edges: CreditsAlign[] = [list[0].r.anchor, 'start', 'middle', 'end'];
+    for (const edge of edges) {
+      const at = list.map((it) => edgeAt(it, edge));
+      if (at.some((v) => v === null)) continue;
+      const v = at as number[];
+      if (Math.max(...v) - Math.min(...v) <= tolX) return { edge, at: v.reduce((s, n) => s + n, 0) / v.length };
+    }
+    return null;
+  };
+  const roles = groups.map((g) => g.role);
+  const names = groups.flatMap((g) => g.names);
+  let align: CreditsStyle['align'];
+  let column: number | undefined;
+  if (layout === 'role-above') {
+    const one = alignOf(order);
+    if (!one) return refuse('misaligned', 'The roles and names do not line up on one edge.', order.map((it) => it.r.candidateId));
+    align = { role: one.edge, name: one.edge };
+  } else {
+    const r = alignOf(roles);
+    const n = alignOf(names);
+    if (!r || !n) return refuse('misaligned', `The ${r ? 'names' : 'roles'} do not line up in one column.`, (r ? names : roles).map((it) => it.r.candidateId));
+    align = { role: r.edge, name: n.edge };
+    column = n.at - r.at;
+  }
+
+  const firstWith = (min: number) => paired.find((g) => g.names.length >= min);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const step = (from: Item | undefined, to: Item | undefined) => (from && to ? round2(to.y - from.y) : undefined);
+  const twoNames = firstWith(2);
+  const gapFrom = groups.length > 1 ? groups[0] : undefined;
+  const steps: CreditsStyle['steps'] = {
+    ...(layout === 'role-above' ? { roleToName: step(paired[0].role, paired[0].names[0]) } : {}),
+    ...(twoNames ? { nameToName: step(twoNames.names[0], twoNames.names[1]) } : {}),
+    ...(gapFrom ? { groupGap: step(gapFrom.names[gapFrom.names.length - 1] ?? gapFrom.role, groups[1].role) } : {}),
+    ...(column !== undefined ? { column: round2(column) } : {}),
+  };
+
+  const roleWord = (s: string) => s.replace(/\s*[:;]\s*$/, '');
+  const badRole = roles.filter((it) => {
+    const w = roleWord(it.r.text);
+    return !w || /[:;|\t]/.test(w) || w.startsWith('#') || w.length > CREDITS_ROLE_MAX;
+  });
+  const badName = names.filter((it) => {
+    const mark = it.r.text.search(/[:;]/);
+    return !it.r.text || /[|\t]/.test(it.r.text) || it.r.text.startsWith('#') || (mark > 0 && mark <= CREDITS_ROLE_MAX);
+  });
+  const bad = [...badRole, ...badName];
+  if (bad.length > 0) return refuse('not-list-format', 'A role or name cannot be written in the credits list format as drawn.', bad.map((it) => it.r.candidateId));
+
+  const list = groups.flatMap((g) => [`${roleWord(g.role.r.text)}:`, ...g.names.map((it) => it.r.text)]).join('\n');
+  return {
+    ok: true,
+    style: {
+      layout,
+      anchors: order.map((it) => ({ candidateId: it.r.candidateId, kind: kindOf(it) })),
+      align,
+      steps,
+      list,
+    },
+  };
+}
+
+/** Which credits engine a saved design selects: the original-text roll, the artwork's own
+ *  styling, the editable roll, or none. One answer per design. The original-text marker wins, as
+ *  it does in the assembler, so a binding carrying both (`conflicting-engine`) never half-builds
+ *  as styled. The assembler does not build 'styled' yet; #1937 carries that seam. */
+export function creditsEngine(svg: DesignSvg): 'styled' | 'artwork' | 'editable' | null {
+  const behaviour = svg.behaviour;
+  if (behaviour?.kind !== 'recipe' || behaviour.recipe !== CREDITS_RECIPE_ID) return null;
+  if (behaviour.options?.artwork === true) return 'artwork';
+  return behaviour.credits ? 'styled' : 'editable';
+}
+
+/**
+ * WHAT HAPPENS WHEN THE CREDITS DO NOT FIT, decided once per playback. Nothing is ever dropped,
+ * clipped, or moved to another layout or a catalog design.
+ *
+ * - `wide`: a role or name wider than its column's room shrinks, is reported past 55% through the
+ *   graphic's overflow report and stops at the 30% floor (the SVG fit ladder's numbers).
+ * - `tall`, roll: the list runs through whatever its length.
+ * - `tall`, static: the whole list shrinks together to the same floor; past it the take is refused
+ *   with the overflow reported.
+ * - `tall`, cards: a group that fits stays whole on one card; a longer one continues on the next
+ *   card at a name boundary under its role repeated; one name taller than a card is reported.
+ */
+export const CREDITS_OVERFLOW: Readonly<Record<CreditsPlayback, { wide: 'shrink-report'; tall: 'run-through' | 'shrink-then-refuse' | 'next-card' }>> = {
+  roll: { wide: 'shrink-report', tall: 'run-through' },
+  static: { wide: 'shrink-report', tall: 'shrink-then-refuse' },
+  cards: { wide: 'shrink-report', tall: 'next-card' },
+};
+
+/**
+ * Every reason a saved styled credits binding cannot be built as it stands, empty when it can.
+ * The stored layout and anchor kinds must be what the markup still shows, so a stale binding
+ * fails whole rather than half-applying.
+ */
+export function validateCreditsBinding(svg: DesignSvg, root?: Element): string[] {
+  const behaviour = svg.behaviour;
+  if (behaviour?.kind !== 'recipe' || !behaviour.credits) return [];
+  const model = behaviour.credits;
+  const errors: string[] = [];
+  if (behaviour.recipe !== CREDITS_RECIPE_ID) errors.push('wrong-recipe: only the credits recipe carries a credits style.');
+  if (behaviour.options?.artwork === true) errors.push('conflicting-engine: the original-artwork roll and the styled credits cannot both be chosen.');
+  if (model.v !== 1) errors.push(`unknown-version: ${String(model.v)}.`);
+  if (!(CREDITS_LAYOUTS as readonly string[]).includes(model.layout)) errors.push(`invalid-layout: ${String(model.layout)}.`);
+  if (!(CREDITS_PLAYBACKS as readonly string[]).includes(model.playback)) errors.push(`invalid-playback: ${String(model.playback)}.`);
+  if (model.advance !== undefined) {
+    if (model.playback !== 'cards') errors.push('invalid-advance: only cards advance on a timer.');
+    else if (!Number.isFinite(model.advance) || model.advance < CREDITS_CARD_SECONDS.min || model.advance > CREDITS_CARD_SECONDS.max) {
+      errors.push(`invalid-advance: a card holds ${CREDITS_CARD_SECONDS.min} to ${CREDITS_CARD_SECONDS.max} seconds.`);
+    }
+  }
+  const content = creditsIndex(svg);
+  if (content === -1) errors.push('no-content-field: the credits list needs its one field.');
+  const ids = (model.anchors ?? []).map((x) => x.candidateId);
+  // Laid out where there is a page, so drawn widths and stylesheet looks read as the wizard
+  // read them; a parsed document only where there is none.
+  const laid = root ? null : creditsLaidOut(svg.markup);
+  const scope = root ?? laid?.root ?? new DOMParser().parseFromString(svg.markup, 'image/svg+xml').documentElement;
+  try {
+    // Layers compared as the text each one draws, since a run's id names its whole text.
+    const textOf = (id: string | undefined) => (id ? scope.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`)?.closest('text') ?? null : null);
+    const texts = ids.map(textOf).filter((el) => el !== null);
+    if (new Set(texts).size !== texts.length) errors.push('duplicate-anchor: a layer is named twice.');
+    const contentText = textOf(svg.fields[content]?.candidateId);
+    const perName = svg.fields.filter((f) => {
+      const own = textOf(f.candidateId);
+      return own !== null && own !== contentText && texts.includes(own);
+    });
+    if (perName.length > 0) errors.push(`field-per-name: ${perName.map((f) => f.candidateId).join(', ')} would each be a field.`);
+    analyseInto(errors, model, analyseCreditsStyle(readCreditsAnchors(scope, ids), ids));
+  } finally {
+    laid?.done();
+  }
+  return errors;
+}
+
+/** The markup placed on the page, unseen, for as long as a reading takes; null without a page. */
+function creditsLaidOut(markup: string): { root: Element; done: () => void } | null {
+  if (typeof document === 'undefined' || !document.body) return null;
+  const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml').documentElement;
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = 'position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none';
+  host.appendChild(parsed);              // adopted into the page by the append
+  document.body.appendChild(host);
+  return { root: host.firstElementChild as Element, done: () => host.remove() };
+}
+
+function analyseInto(errors: string[], model: DesignSvgCredits, analysis: CreditsAnalysis): void {
+  if (!analysis.ok) {
+    errors.push(`${analysis.code}: ${analysis.message} (${analysis.anchors.join(', ')})`);
+    return;
+  }
+  if (analysis.style.layout !== model.layout) errors.push(`stale-layout: the artwork shows ${analysis.style.layout}.`);
+  const kinds = analysis.style.anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',');
+  if (kinds !== model.anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',')) errors.push('stale-anchors: the layers no longer read in this order or role.');
 }
