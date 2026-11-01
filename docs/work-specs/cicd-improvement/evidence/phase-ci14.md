@@ -82,6 +82,7 @@ This file uses the corrected times for the events this touches:
 | #1899 (JEV 11) merged | 09:10:47 | 08:10:47 |
 | ci07 check comment | 09:23:35 | 08:23:35 |
 | JEV 11 check comment | 09:37:49 | 08:37:49 |
+| #1909 (JEV 12) opened | 09:52:47 | 08:52:47 |
 
 The first version of this file read the stamps literally. It reported a 71-minute queue tail and
 two early admissions, and filed #1934 and #1935 for them. All three were artifacts of this clock,
@@ -117,7 +118,7 @@ unmatched window. It is not a met AC-6 target.
 
 Other durations, as a description only:
 
-- PR opened to landed: p50 54, p90 160, max 388 minutes. This is gross time and includes review,
+- PR opened to landed: p50 54, p90 169, max 388 minutes. This is gross time and includes review,
   repair and owner waits.
 - First branch commit to the independent check comment: p50 1.69 h, p90 3.62 h for cicd (n=14),
   and p50 1.75 h, p90 3.79 h for JEV (n=13). The first commit comes later than a ledger `build`
@@ -215,7 +216,7 @@ What still stays open in AC-6:
 | #1896 | cicd ci07 (corrected, section 2) | 11-01T05:25 | 11-01T07:53 | 11-01T08:04 | 11.4 | 3.80 |
 | #1899 | JEV 11 (corrected, section 2) | 11-01T06:41 | 11-01T07:59 | 11-01T08:10 | 11.8 | 2.31 |
 | #1910 | cicd ci08 | 11-01T09:04 | 11-01T09:38 | 11-01T09:47 | 9.3 | 1.52 |
-| #1909 | JEV 12 | 11-01T09:52 | 11-01T12:06 | 11-01T12:19 | 12.2 | 3.93 |
+| #1909 | JEV 12 (corrected, section 2) | 11-01T08:52 | 11-01T12:06 | 11-01T12:19 | 12.2 | 3.93 |
 | #1913 | cicd ci09 | 11-01T11:46 | 11-01T12:24 | 11-01T12:30 | 6.8 | 2.41 |
 | #1916 | JEV 13 | 11-01T12:58 | 11-01T13:20 | 11-01T13:27 | 7.0 | 0.86 |
 | #1918 | cicd ci10 | 11-01T13:55 | 11-01T14:12 | 11-01T14:19 | 6.7 | 1.87 |
@@ -244,8 +245,8 @@ still record a PASS.
   - JEV repair-owner uniqueness is reported unverified rather than inferred. Its PRs carry no
     marker, and this row reads JEV records only.
   - The clock correction relies on step times, run IDs and comment IDs, and is applied to the
-    four events in section 2. The first version of this file missed it; the second /so review
-    found it.
+    five events in section 2. The first version of this file missed it; the second /so review
+    found it, and the third found the #1909 stamp.
 - Traps for later rows:
   - GitHub stamps events from 2026-11-01 08:00 to 09:00 UTC one hour late, the US Pacific
     fall-back hour. Expect the same on any fall-back day. Before believing a gap of about one hour
