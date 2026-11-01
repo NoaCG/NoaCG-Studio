@@ -29,7 +29,7 @@ import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
-import { formatClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
+import { formatClockTarget, parseClockTarget, resolveClockTarget, splitClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
   clearFill,
@@ -1308,22 +1308,34 @@ export default function BehaviourSection({
   );
 }
 
-/** A target time's first proposal: the next whole hour in the author's own zone, shown with its
- *  date and zone so it is confirmed or changed, never taken silently. */
+/** A target time's first proposal: the next whole hour in the author's own zone that the clocks
+ *  neither skip nor repeat, shown with its date and zone so it is confirmed or changed, never taken
+ *  silently. */
 function proposedClockTarget(): string | undefined {
   const now = Date.now();
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  const hour = (Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hourCycle: 'h23' }).format(now)) + 1) % 24;
-  const r = resolveClockTarget({ time: `${String(hour).padStart(2, '0')}:00`, zone }, now);
-  return r.kind === 'resolved' ? formatClockTarget(r) : undefined;
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hourCycle: 'h23' }).format(now));
+  for (let ahead = 1; ahead <= 3; ahead++) {
+    const r = resolveClockTarget({ time: `${String((hour + ahead) % 24).padStart(2, '0')}:00`, zone }, now);
+    if (r.kind === 'resolved') return formatClockTarget(r);
+  }
+  return undefined;
 }
 
-/** The zones the target can be set in: the runtime's list, with the author's own zone on it. */
-function timeZones(local: string): string[] {
+/** The zones the target can be set in: the runtime's list, with the author's own and the stored one on it. */
+function timeZones(...own: string[]): string[] {
   const intl = Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] };
   const listed = intl.supportedValuesOf ? intl.supportedValuesOf('timeZone') : [];
-  return listed.includes(local) ? listed : [local, ...listed];
+  return [...new Set([...own, ...listed])];
 }
+
+/** What the line under the fields says for a target that does not resolve. */
+const TARGET_UNRESOLVED: Record<string, string> = {
+  gap: 'The clocks skip that time. Choose another.',
+  time: 'Choose a time.',
+  date: 'Choose another date.',
+  zone: 'Choose another zone.',
+};
 
 /**
  * A TARGET TIME'S INSTANT (control/clockTarget.ts): a time, an optional date and a zone. A time
@@ -1333,39 +1345,45 @@ function timeZones(local: string): string[] {
  */
 function ClockTargetFields({ target, onTarget }: { target?: string; onTarget: (target: string) => void }) {
   const local = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
-  const zones = useMemo(() => timeZones(local), [local]);
-  const stored = target ? /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}):\d{2}[+-]\d{2}:\d{2}\[([^\]]+)\]$/.exec(target) : null;
-  const [time, setTime] = useState(stored?.[2] ?? '');
-  const [date, setDate] = useState(stored?.[1] ?? '');
-  const [zone, setZone] = useState(stored?.[3] ?? local);
-  const [fold, setFold] = useState<'earlier' | 'later' | undefined>(undefined);
+  const stored = splitClockTarget(target);
+  const [time, setTime] = useState(stored?.time ?? '');
+  const [date, setDate] = useState(stored?.date ?? '');
+  const [zone, setZone] = useState(stored?.zone ?? local);
+  const zones = useMemo(() => timeZones(local, zone), [local, zone]);
   const [result, setResult] = useState<ClockTargetResolution | null>(null);
   const apply = (next: { time?: string; date?: string; zone?: string; fold?: 'earlier' | 'later' }) => {
-    const input = { time, date, zone, fold, ...next };
+    const input = { time, date, zone, ...next };
     setTime(input.time);
     setDate(input.date);
     setZone(input.zone);
-    setFold(input.fold);
-    const r = input.time ? resolveClockTarget(input, Date.now()) : null;
+    const r = resolveClockTarget(input, Date.now());
     setResult(r);
     // Only an instant reaches the draft: until a new one resolves, the last one stands.
-    if (r?.kind === 'resolved') onTarget(formatClockTarget(r));
+    if (r.kind === 'resolved') onTarget(formatClockTarget(r));
   };
-  const shown = result ?? (stored ? { kind: 'stored' as const } : null);
-  const wall = (at: number) => new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }).format(at);
+  const format = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }),
+    [zone],
+  );
+  const storedAt = parseClockTarget(target)?.at;
+  const reads = !result
+    ? storedAt !== undefined ? format.format(storedAt) : null
+    : result.kind === 'resolved'
+      ? `${format.format(result.at)}${result.expired ? ', already past: it shows 0:00' : ''}`
+      : result.kind === 'fold' ? null : TARGET_UNRESOLVED[result.kind === 'gap' ? 'gap' : result.reason];
   return (
     <div className="map-svg-row" data-testid="map-svg-clock-target">
       <label className="save-field">
         <span>Time</span>
-        <input type="time" value={time} onChange={(e) => apply({ time: e.target.value, fold: undefined })} data-testid="map-svg-clock-target-time" />
+        <input type="time" value={time} onChange={(e) => apply({ time: e.target.value })} data-testid="map-svg-clock-target-time" />
       </label>
       <label className="save-field">
         <span>Date</span>
-        <input type="date" value={date} onChange={(e) => apply({ date: e.target.value, fold: undefined })} data-testid="map-svg-clock-target-date" />
+        <input type="date" value={date} onChange={(e) => apply({ date: e.target.value })} data-testid="map-svg-clock-target-date" />
       </label>
       <label className="save-field grow">
         <span>Zone</span>
-        <select value={zone} onChange={(e) => apply({ zone: e.target.value, fold: undefined })} data-testid="map-svg-clock-target-zone">
+        <select value={zone} onChange={(e) => apply({ zone: e.target.value })} data-testid="map-svg-clock-target-zone">
           {zones.map((z) => (
             <option key={z} value={z}>
               {z}
@@ -1373,27 +1391,21 @@ function ClockTargetFields({ target, onTarget }: { target?: string; onTarget: (t
           ))}
         </select>
       </label>
-      {shown?.kind === 'fold' && (
+      {result?.kind === 'fold' && (
         <label className="save-field grow">
           <span>Which one</span>
           <select value="" onChange={(e) => apply({ fold: e.target.value as 'earlier' | 'later' })} data-testid="map-svg-clock-target-fold">
             <option value="" disabled>
               The clocks go back: choose
             </option>
-            <option value="earlier">{wall(shown.earlier)}</option>
-            <option value="later">{wall(shown.later)}</option>
+            <option value="earlier">{format.format(result.earlier)}</option>
+            <option value="later">{format.format(result.later)}</option>
           </select>
         </label>
       )}
-      {shown && shown.kind !== 'fold' && (
+      {reads && (
         <p className="map-svg-note" data-testid="map-svg-clock-target-reads">
-          {shown.kind === 'resolved'
-            ? `${wall(shown.at)}${shown.expired ? ', already past: it shows 0:00' : ''}`
-            : shown.kind === 'stored'
-              ? wall(Date.parse(target!.slice(0, target!.indexOf('['))))
-              : shown.kind === 'gap'
-                ? 'The clocks skip that time. Choose another.'
-                : 'Choose a time.'}
+          {reads}
         </p>
       )}
     </div>

@@ -24,6 +24,7 @@ import {
   parseClockTarget,
   parseTargetTime,
   resolveClockTarget,
+  splitClockTarget,
 } from '../src/control/clockTarget.ts';
 import { clockRowEffect, clockValueAfterUpdate, clockValueAt } from '../src/control/matchClockWire.ts';
 
@@ -270,6 +271,11 @@ test('T4: a DST fold offers both instants and resolves only on a choice', () => 
   assert.deepEqual([later.at, later.offset], [fold.later, '+02:00']);
   assert.equal(formatClockTarget(later), '2026-10-25T03:30:00+02:00[Europe/Helsinki]');
   assert.equal(parseClockTarget(formatClockTarget(earlier)).at, fold.earlier, 'the offset keeps the choice');
+  // A bare time on the fold day is the next occurrence: once the first has gone, only the repeat.
+  const between = Date.parse('2026-10-25T00:50:00Z'); // 03:50 summer time
+  const next = resolved({ time: '03:45', zone: HEL }, between);
+  assert.deepEqual([next.at, next.offset, next.expired], [Date.parse('2026-10-25T01:45:00Z'), '+02:00', false]);
+  assert.equal(resolveClockTarget({ time: '03:45', zone: HEL }, Date.parse('2026-10-25T00:30:00Z')).kind, 'fold', 'both still ahead: a choice');
   // The hour either side is plain.
   assert.equal(resolved({ time: '04:00', date: '2026-10-25', zone: HEL }).offset, '+02:00');
 });
@@ -277,9 +283,13 @@ test('T4: a DST fold offers both instants and resolves only on a choice', () => 
 test('T5: the stored form round-trips the instant and the zone', () => {
   const r = resolved({ time: '19:00', date: '2026-11-14', zone: HEL });
   assert.deepEqual(parseClockTarget(formatClockTarget(r)), { at: r.at, zone: HEL });
+  assert.deepEqual(splitClockTarget(formatClockTarget(r)), { date: '2026-11-14', time: '19:00', zone: HEL });
   for (const bad of [null, '', '2026-11-14T19:00:00+02:00', '2026-11-14T19:00:00+02:00[Nowhere/Here]', 'tonight']) {
     assert.equal(parseClockTarget(bad), null, String(bad));
+    assert.equal(splitClockTarget(bad), null, String(bad));
   }
+  // A historic local mean time has no whole-minute offset, so it has no stored form either.
+  assert.deepEqual(resolveClockTarget({ time: '12:00', date: '1900-01-01', zone: HEL }, NOW), { kind: 'invalid', reason: 'date' });
 });
 
 test('T6: the stored instant starts the clock as the stamped countdown, reaching 0:00 on it', () => {

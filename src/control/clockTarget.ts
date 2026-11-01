@@ -37,7 +37,7 @@ export interface ClockTargetInput {
 }
 
 /** A wall time read in a zone. */
-interface Wall {
+export interface Wall {
   date: string;
   time: string;
   zone: string;
@@ -165,16 +165,25 @@ export function resolveClockTarget(input: ClockTargetInput, now: number): ClockT
   }
   const wall = day + minutes * 60_000;
   const where: Wall = { date: isoDate(day), time: isoTime(minutes), zone: input.zone };
-  const instants = instantsOf(f, wall);
+  // T1 on a fold day: a proposal is the next occurrence, so a repeat already gone is no choice.
+  const instants = instantsOf(f, wall).filter((at, _, all) => !proposed || all.length < 2 || at > now);
   if (instants.length === 0) return { ...where, kind: 'gap' };
   if (instants.length > 1 && !input.fold) return { ...where, kind: 'fold', earlier: instants[0], later: instants[instants.length - 1] };
   const at = input.fold === 'later' ? instants[instants.length - 1] : instants[0];
+  // The stored form keeps whole-minute offsets (T5); a historic local mean time has none.
+  if ((wall - at) % 60_000 !== 0) return { kind: 'invalid', reason: 'date' };
   return { ...where, kind: 'resolved', at, offset: isoOffset(wall - at), proposed, expired: at <= now };
 }
 
 /** T5: the stored form, `2026-11-14T19:00:00+02:00[Europe/Helsinki]`. */
 export function formatClockTarget(r: Extract<ClockTargetResolution, { kind: 'resolved' }>): string {
   return `${r.date}T${r.time}:00${r.offset}[${r.zone}]`;
+}
+
+/** The stored form's wall parts, as a person typed them: `{ date, time, zone }`, or null. */
+export function splitClockTarget(raw: string | null | undefined): Wall | null {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}):00[+-]\d{2}:\d{2}\[([^\]]+)\]$/.exec(String(raw ?? '').trim());
+  return m && parseClockTarget(raw) ? { date: m[1], time: m[2], zone: m[3] } : null;
 }
 
 /** The stored form read back: its instant and zone, or null. The offset fixes the instant (T5). */
