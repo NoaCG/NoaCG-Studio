@@ -30,16 +30,12 @@
   "waitingOn": null,
   "inFlight": [
     {
-      "phase": "14",
-      "step": "build",
-      "session": "session_017SdbwPhG7ageXVethNsCxg",
-      "nonce": "14-b-bfc9",
-      "branch": "claude/plan-jev-svg-import-14-build",
-      "source": "043fcccb08313e321dbfe6ef1c633f37d98a8eaf",
-      "launchedAt": "2026-11-01T13:46:06Z",
-      "note": "no-Lock quiz variant builder; saved/optional-Lock bytes unchanged 14:17Z PR 1919 open; subscribed. 15:20Z Codex clean on 70d5c1f (P1 boundary + P2 lock rows fixed); editor-pen.spec failure on 4d644fd not yet re-observed; CI running. 15:32Z 70d5c1f run 41320269865: E2E 3/15 production-controls.spec.ts:2660 selectOption timeout (unrelated); retry job skipped; coordinator reran failed jobs once (attempt 2). Earlier: 4d644fd editor-pen.spec.ts:220 context destroyed (unrelated, never retried). Pass on rerun = fail-then-pass -> report to cicd quarantine owner. 15:42Z receipt on 70d5c1f: CI gate green after rerun (attempt 2); 7 /so rounds all A- (final session_017SdbwMASuVsaW1tTLg19bF). Gate requires A: not waived. Sent back for one final bounded round: (1) case-robust Locked-in label check, (2) test/fix field-id shift on tick vs saved cue values; then one fresh /so; if still A-, escalate to owner. Reported production-controls.spec.ts:2660 fail-then-pass and editor-pen.spec.ts:220 single failure to cicd coordinator (quarantine owner). 15:44Z cicd: no quarantine from PR branches; production-controls.spec.ts:2660 is known #1778 (occurrence added); editor-pen single failure: no action unless it recurs.",
-      "pr": 1919,
-      "head": "f9353c41c20f30012adf30d02c63b161907ac76f"
+      "phase": 14,
+      "role": "check",
+      "session": "session_017SdbwNvHAAS4G6uySf6uo6",
+      "nonce": "14-c-0ddb",
+      "mergeSha": "d7b4927b87f037a74411883b69a6282b780b9c19",
+      "pr": 1919
     }
   ],
   "owner": [],
