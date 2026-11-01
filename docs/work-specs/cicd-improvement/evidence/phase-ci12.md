@@ -71,3 +71,75 @@ refusal were added in the same round.
 
 The bench's own per-design verdicts (a design failing its runtime bench) stay the bench's
 failures; the guard does not repeat them.
+
+## 1. Reproduction at the base
+
+At `a37f0a76`, before any change, on this cloud worker through the job queue (`j-0001`):
+
+    NOACG_ONLY_DESIGNS=imp01 NOACG_ONLY_CATEGORIES=imported-design \
+      npx playwright test --config=playwright.catalog.config.ts catalog-bench
+    30 skipped        exit 0
+
+A scoped bench run measured nothing and passed. Four holes made that possible, all in the bench
+and its scope, none in the selector:
+
+- The bench's category list was typed by hand and nothing compared it with the catalog.
+  `imported-design` (2 designs, `imp01` and `svg01`) joined the catalog on 2026-10-29 (#1820) and
+  was never added, so full runs in CI and the nightly have skipped both since, with no message.
+- A unit skipped its whole category when `NOACG_ONLY_CATEGORIES` left it out, and nothing checked
+  that list against the designs. A wrong list (`NOACG_ONLY_DESIGNS=lt01 NOACG_ONLY_CATEGORIES=ticker`)
+  skipped `lower-third` and passed.
+- Under a scope, a unit that measured nothing passed by design (the empty slice), and nothing
+  checked that the units together measured every selected design.
+- The comment in the bench cited `e2e/catalog/scope-guard.spec.ts` as the check for the second
+  hole. That file does not exist at the base (the spec says so).
+
+## 2. Design (decided by the builder)
+
+- **One manifest, one guard.** The bench's categories and slice budgets move into
+  `e2e/catalog/_bench-scope.mjs`, which both the bench and the guard read, so they cannot disagree.
+  The guard is a Playwright reporter on `playwright.catalog.config.ts`, the config every catalog
+  entry point uses: `npm run test:e2e:catalog` (ci.yml's calibration job and the nightly) and
+  `scripts/catalog-specs.mjs` (catalog-gates and local scoped runs). No second selector or report
+  path: the selection still comes only from `catalog-affected.mjs`, and the guard only checks the
+  evidence. It judges full runs too, against the whole catalog: a full run that skipped a
+  category is the same defect.
+- **Why a reporter, not a spec.** A spec cannot see what other tests measured. The cited
+  `scope-guard.spec.ts` would have covered only the category list (hole two); the reporter sees
+  every unit's result at the end of the run, which holes three and four need. Each unit attaches
+  what it measured as a JSON attachment, and names itself with a test annotation that is present
+  even when the unit is skipped.
+- **The oracle is independent of the report.** The guard reads the catalog itself
+  (`catalogIndex` in `scripts/catalog-emit.mjs`, about 3 s), not from the units, so a unit that
+  measured the wrong thing cannot also define what was right.
+- **`imported-design` is declared, not benched.** Benching it locally (the category added to the
+  list, `j-0002`): `imp01` passes, `svg01` fails `bench-entrance` (not visible after play()) and
+  `bench-replay` (play() after stop() does not bring it back). Adding the category would turn
+  ci.yml's catalog job red for every catalog-touching change, for a design defect or rule mismatch
+  this row may not decide (the bench's comment says a bench change that fails the catalog is a
+  bench bug, and the design is the JEV plan's). So `NOT_BENCHED` names it with that reason and
+  issue #1926; every run prints it, and a scoped selection with no benched design fails (S9).
+  Relative to the base this loosens nothing: the category was never measured; it is now visible.
+- **catalog-gates keeps the guard's summary.** `NOACG_CATALOG_BENCH_REPORT` makes the guard write
+  what each design's bench verdict was; catalog-gates uploads it on every run, which is how
+  section 4 compares a scoped run with a full one.
+
+## 3. Verification of the guard
+
+- `node --test scripts/catalog-bench-scope.test.mjs`: 13 tests, one per rule, all pass.
+- Mutation check: 23 mutations of the guard, each removing one check (every clause of S2, S3, S5
+  and S6 separately), run against that file
+  (`mutate.py` in the builder's scratchpad, not committed). Each fails the test named after its own
+  rule. S6 also fails S8's test, which uses an omitted design as its failing case. The S8
+  mutation (fail any empty unit) fails eight tests, every one whose honest scoped run has an
+  empty slice.
+- Real runs on this worker through the job queue, at the guard's first commit:
+  - `j-0003`, `NOACG_ONLY_DESIGNS=lt01 NOACG_ONLY_CATEGORIES=ticker`: failed (exit 1) with S3
+    (left out `lower-third`, named `ticker`), S5 (four `lower-third` slices skipped) and S6 (`lt01`
+    never measured). At the base the same run passes, as `j-0001` did.
+  - `j-0004`, `NOACG_ONLY_DESIGNS=lt01,lt02,sb01,imp01` with their three categories: passed,
+    "measured 3 of 3 expected design(s) in 2 categories over 5 unit(s), from 4 selected; 1
+    declared not benched (imp01); 2 unit(s) held none of them". Two empty lower-third slices
+    passed because the complete manifest ran (S8).
+- `npx playwright test --config=playwright.catalog.config.ts --list --reporter=dot` refuses with
+  the guard's message (S12).
