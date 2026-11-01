@@ -46,9 +46,6 @@ fixes each narrow one existing rule, stated here as observable lines.
 - **C5 (#1890) "An edit equal to the time shown" holds only for a held clock.** While a clock runs,
   its value's time is the time it started from; typing that time sets the clock back to it, from
   the update row's server time.
-- **C6 (#1891) The program monitor remembers an off-air imported clock across a dashboard reload**
-  from the renderer's report, unless it already holds a newer value. Native clocks are still
-  forgotten on Out.
 - **C7 (#1894) A bare time in a DST gap already behind the zone's clock is tomorrow's.** One still
   ahead today is today's gap; a dated gap stays a gap.
 - **C8 (#1894) The import step's line says what the clock still counts to** while the input does
@@ -64,10 +61,11 @@ fixes each narrow one existing rule, stated here as observable lines.
   a target time only.
 - `src/templates/behaviours/clock.ts`: the header says what row 11 adds; the controls were already
   per mode, so no code change there.
-- `src/control/matchClockWire.ts` (C5), `src/control/airState.ts` (C6, and the target seed of H1a),
+- `src/control/matchClockWire.ts` (C5), `src/control/airState.ts` (the target seed of H1a, the
+  imported-clock monitor only),
   `src/control/clockTarget.ts` (C7): the pre-approved boundary, each with a test that failed first.
 - `src/components/wizard/import/BehaviourSection.tsx` (C8).
-- Tests: `scripts/imported-clock-wire.test.mjs` (C5), `scripts/air-state.test.mjs` (C6, H1a seed),
+- Tests: `scripts/imported-clock-wire.test.mjs` (C5), `scripts/air-state.test.mjs` (H1a seed),
   `scripts/clock-target.test.mjs` (C7, painted text before the Take, taken and past the instant,
   hours on the built graphic, and an output rebooting from painted text an hour old, H1a),
   `e2e/playout-clock.spec.ts` (C1-C3 on the production page, and
@@ -83,7 +81,10 @@ fixes each narrow one existing rule, stated here as observable lines.
 - **The existing target test's expected text changed from minutes to hours** (`left()` in
   `scripts/clock-target.test.mjs`): phase 10 recorded minutes as the interim form "until row 11".
   The wire assertion (`219:30`) is unchanged, which pins C3's "only the paint".
-- **Left open:** the first half of #1890 (a Reset or Pause before the first Take), #1903: see the
+- **Left open:** #1891 (the monitor forgetting an off-air imported clock on reload), #1906: the
+  reseed from the report (C6) was withdrawn after the Codex review on `4cee560` showed the report
+  can predate an Out and an off-air edit, and the rows after it are fetched only for on-air
+  graphics (`hostedControl.ts` `bootMonitorReplay`, outside this row). The first half of #1890 (a Reset or Pause before the first Take), #1903: see the
   review rounds. #1884 item 1 (the same length typed twice off air) is a product decision: whether
   an off-air Take counts the length or the field's last sent value; rows 9 and 10 and #1891 assume
   the length. #1884 item 2 (re-fit as the clock ticks) lives in `svg.ts` `importedClockJs`, beyond
@@ -92,7 +93,7 @@ fixes each narrow one existing rule, stated here as observable lines.
   boundary; the step itself now asks. Filed as #1898.
 - **Review rounds, in order.** All three found one family: readers of a host's painted text.
   - `/check` review: the hours text a host reads back parsed as minutes; the off-air monitor seed
-    must take only a wire value; the "still counts to" line must name the instant in its own zone.
+    must take only a wire value (C6, later withdrawn); the "still counts to" line must name the instant in its own zone.
   - First /so (`session_017SdbwM6keZWcg48A7omhot`, B on `380356c`): the monitor seeded a target with
     "3:39:30" (219 s to the wire), and a plain on-air duration read as never taken by C4.
   - Second /so (`session_017SdbwPva4FHMtNDapHBAwc`, B on `3def054`): a hosted output rebooting from
@@ -103,6 +104,9 @@ fixes each narrow one existing rule, stated here as observable lines.
     plain value from a hosted report in the `/output` renderer's boot too (`src/output/main.ts`),
     outside this row. So C4 is withdrawn, the first half of #1890 stays open (#1903), and the
     hours parse that the `/check` round added is replaced by H1a, which needs no parse at all.
+  - Final /so (`session_017SdbwR5541AfgyH9pyJeu6`, A on `4cee560`).
+  - Codex on `4cee560` (P2): the off-air seed (C6) adopts a report older than an Out and an off-air
+    edit. Confirmed; C6 needs `hostedControl.ts`, so it is withdrawn (#1906), not patched.
   - Rules found after coding: H1, H1a, H1b. None was stated before the code.
 - A local fail-then-pass in four `import-svg-behaviour` export tests (the export window not open
   within 7 s under load; no code in reach changed) is filed as #1897.

@@ -387,33 +387,6 @@ test('lines written here take local ids counting down from -1, a line that says 
   assert.equal(log.localId, -4, 'a row from the wire spends no local id');
 });
 
-test('a dashboard reloaded while an imported clock is off air seeds its last reported value, so the next Take counts what air counts (#1891)', () => {
-  const air = (rows) => rows.reduce((held, row) => {
-    const merged = row.msg.t === 'update' ? clockValueAfterUpdate(held, row.msg.data.f2) : held;
-    return clockRowEffect(row, DURATION, merged, T)?.value ?? merged;
-  }, undefined);
-  const row = (mins, msg) => ({ msg, created_at: at(mins) });
-  // Taken at 0:45, corrected on air to 0:20, taken Out: air holds the length off air.
-  const before = [row(0, { t: 'update', data: { f2: '0:45' } }), row(0, { t: 'play' }), row(0.1, { t: 'update', data: { f2: '0:20' } }), row(0.2, { t: 'stop' })];
-  const reported = air(before);
-  assert.match(reported, /^0:\d\d@out\/0:45\/0:20$/);
-  // The dashboard reloads: nothing is on air, the renderer's report still holds the clock.
-  const seeded = seedFromResolve(NO_AIR, { liveCue: {}, live: { bug: { data: { f0: 'HOME', f2: reported } } } }, [], airAtRequest(NO_AIR), CUES, DURATIONS);
-  assert.equal(seeded.clocks.bug, reported, 'the monitor remembers the off-air clock');
-  assert.deepEqual(seeded.aired, {}, 'and nothing comes back on air');
-  // The next Take resends the cue's 0:20: air counts the length, and so does the monitor.
-  const take = [row(1, { t: 'update', data: { f2: '0:20' } }), row(1, { t: 'play' })];
-  const monitor = take.reduce((part, r) => programItems(part, [{ graphic: 'bug', ...r }], DURATIONS, T).air, seeded).clocks.bug;
-  assert.equal(monitor, air([...before, ...take]));
-  assert.match(monitor, /^0:45@\d+\/0:45\/0:20$/);
-  // A host that reports the layer's painted text ("0:20") says nothing about off air or the length.
-  const painted = seedFromResolve(NO_AIR, { liveCue: {}, live: { bug: { data: { f2: '0:20' } } } }, [], airAtRequest(NO_AIR), CUES, DURATIONS);
-  assert.equal('bug' in painted.clocks, false);
-  // A native clock off air is still forgotten, as it always was.
-  const native = seedFromResolve(NO_AIR, { liveCue: {}, live: { score: { data: { f5: '7:00' } } } }, [], airAtRequest(NO_AIR), CUES, CLOCKS);
-  assert.equal('score' in native.clocks, false);
-});
-
 test('a host that reports a target\'s painted text never moves the monitor off its stamped start (row 11 /so)', () => {
   // A target time: its own stamped start is the truth (phase-10 T6/T7), whatever text was painted.
   const TARGET = { field: 'f2', countsDown: true, seed: '219:30@1000', resetTo: '219:30@1000', events: DURATION.events, fixedInstant: true };

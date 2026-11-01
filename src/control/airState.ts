@@ -305,15 +305,6 @@ export function seedFromResolve(
     }
     if (Object.keys(values).length > 0) seed[graphic] = values;
   }
-  // AN IMPORTED CLOCK OFF AIR is remembered too (#1891): its value says it is off air and what the
-  // next Take counts, and `programItems` keeps it through an Out as the renderer does. Only the
-  // report holds it after a reload; a memory this page already has is newer than the report. Only
-  // a wire value (with its `@` slot) says that: a host reporting the layer's painted text does not.
-  for (const [graphic, clock] of specs.clocks) {
-    if (!clock.events || resolved.liveCue[graphic] || graphic in clocks) continue;
-    const reported = resolved.live[graphic]?.data?.[clock.field];
-    if (reported?.includes('@')) clocks = { ...clocks, [graphic]: reported };
-  }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
   // A command applied here while the read was out is newer than every report: the looks stay.
   let looks: AppliedLooks = { ...(air.looks ?? {}) };
