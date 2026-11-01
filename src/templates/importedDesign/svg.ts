@@ -433,7 +433,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
       : '') +
     '\n' +
     (clockField ? `\n${clockRuntimeJs(PREFIX, clockField.field)}\n` : '') +
-    (matchClock ? `\n${matchClockJs(PREFIX)}\n\n${importedClockJs(matchClock.mode === 'duration')}\n` : '') +
+    (matchClock ? `\n${matchClockJs(PREFIX, { hours: matchClock.mode === 'target-time' })}\n\n${importedClockJs(matchClock.mode === 'duration')}\n` : '') +
     // The point shifters a path panel grows by and a path gauge fills by.
     (grows || behaviour?.fillsGauge ? `\n${SHAPE_SHIFT_JS}` : '') +
     (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +

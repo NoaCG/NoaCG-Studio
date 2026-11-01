@@ -395,10 +395,13 @@ const reading = (label) => {
   assert.ok(r, `no reading "${label}"`);
   return r;
 };
-/** The time left at `ms` after the walk starts: the instant is two hours on. */
+/** The time left at `ms` after the walk starts: the instant is two hours on, painted in hours from
+ *  row 11 ("1:59:58"; the wire keeps minutes and seconds), under an hour as minutes ("59:59"). */
 const left = (ms) => {
   const s = Math.max(0, Math.ceil((7_200_000 - ms) / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const m = Math.floor(s / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return m < 60 ? `${m}:${ss}` : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${ss}`;
 };
 
 test('the built graphic: a resolved target ships its instant', () => {

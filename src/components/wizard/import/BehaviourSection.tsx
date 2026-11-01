@@ -1368,12 +1368,21 @@ function ClockTargetFields({ target, proposed, onTarget }: { target?: string; pr
     const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
   }, []);
+  const at = parseClockTarget(svgClockTarget({ target, targetProposed: proposed }, now))?.at;
+  const counts = at === undefined ? '' : `${format.format(at)}${at <= now ? ', already past: it shows 0:00' : ''}`;
+  // A proposal whose next occurrence the clocks repeat asks which, as a typed one does (#1894):
+  // left alone it would keep its passed instant and show 0:00.
+  const fold = result?.kind === 'fold'
+    ? result
+    : !result && proposed && stored && at !== undefined && at <= now
+      ? ((r) => (r.kind === 'fold' ? r : null))(resolveClockTarget({ time: stored.time, zone: stored.zone }, now))
+      : null;
   const reads = ((): string | null => {
-    if (result && result.kind === 'fold') return null;
-    if (result && result.kind !== 'resolved') return TARGET_UNRESOLVED[result.kind === 'gap' ? 'gap' : result.reason];
-    const at = parseClockTarget(svgClockTarget({ target, targetProposed: proposed }, now))?.at;
-    if (at === undefined) return null;
-    return `${format.format(at)}${at <= now ? ', already past: it shows 0:00' : ''}`;
+    // Until another instant resolves, the last one stands: the line says so (#1894).
+    const still = counts && `It still counts to ${counts}.`;
+    if (fold) return still || null;
+    if (result && result.kind !== 'resolved' && result.kind !== 'fold') return [TARGET_UNRESOLVED[result.kind === 'gap' ? 'gap' : result.reason], still].filter(Boolean).join(' ');
+    return counts || null;
   })();
   return (
     <div className="map-svg-row" data-testid="map-svg-clock-target">
@@ -1395,15 +1404,15 @@ function ClockTargetFields({ target, proposed, onTarget }: { target?: string; pr
           ))}
         </select>
       </label>
-      {result?.kind === 'fold' && (
+      {fold && (
         <label className="save-field grow">
           <span>Which one</span>
           <select value="" onChange={(e) => apply({ fold: e.target.value as 'earlier' | 'later' })} data-testid="map-svg-clock-target-fold">
             <option value="" disabled>
               The clocks go back: choose
             </option>
-            <option value="earlier">{format.format(result.earlier)}</option>
-            <option value="later">{format.format(result.later)}</option>
+            <option value="earlier">{format.format(fold.earlier)}</option>
+            <option value="later">{format.format(fold.later)}</option>
           </select>
         </label>
       )}

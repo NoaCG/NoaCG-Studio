@@ -48,8 +48,13 @@
  *   - the root `.{prefix}` gains `.{prefix}-final` at full time, `.{prefix}-break` during an
  *     interval, and `.{prefix}-expired` when a counting-down clock reaches zero, so a design
  *     styles each of the three without any of them being a separate state to animate.
+ *
+ * `hours` paints an hour or more as "3:39:30" rather than "219:30" (an imported clock counting
+ * down to a set time, jev-svg-import row 11, AC-9). Only the PAINT changes: the field and the wire
+ * keep minutes and seconds, which every parser reads. Without it the emitted runtime is byte for
+ * byte what every native board already ships, where 67 minutes reads "67:00".
  */
-export function matchClockJs(prefix: string): string {
+export function matchClockJs(prefix: string, opts: { hours?: boolean } = {}): string {
   return `// ---- Match clock (playout, not motion — the machine's clock group calls into this) ----
 // The clock element also carries a data field id, so an operator can correct a drifting
 // clock by typing into it; matchClockUpdate() below re-seeds the tick from what they typed.
@@ -116,13 +121,7 @@ function matchClockValue() {
   return matchClockBase + elapsed;
 }
 
-// formatMatchClock(): 2700 -> "45:00". Minutes are never zero-padded (broadcast reads "7:05",
-// not "07:05"); seconds always are.
-function formatMatchClock(total) {
-  if (total < 0) total = 0;
-  var s = total % 60;
-  return Math.floor(total / 60) + ':' + (s < 10 ? '0' + s : s);
-}
+${opts.hours ? HOURS_FORMAT : MINUTES_FORMAT}
 
 // initMatchClock(): read the element's own starting value once. The field's default text IS
 // the starting value, so a design never repeats the number in two places.
@@ -314,3 +313,25 @@ if (document.readyState === 'loading') {
   initMatchClock();                // DOM already parsed (e.g. an inline preview build)
 }`;
 }
+
+/** The native formatter, unchanged: minutes past 60 stay minutes ("67:00"). */
+const MINUTES_FORMAT = `// formatMatchClock(): 2700 -> "45:00". Minutes are never zero-padded (broadcast reads "7:05",
+// not "07:05"); seconds always are.
+function formatMatchClock(total) {
+  if (total < 0) total = 0;
+  var s = total % 60;
+  return Math.floor(total / 60) + ':' + (s < 10 ? '0' + s : s);
+}`;
+
+/** The hours formatter: under an hour exactly the native one, from an hour "3:39:30". */
+const HOURS_FORMAT = `// formatMatchClock(): 2700 -> "45:00" · 13170 -> "3:39:30". Under an hour it reads as the native
+// clock does; from an hour the hours lead and the minutes are padded. Only the paint: the field
+// and the wire keep "<minutes>:<ss>", which parseMatchClock reads.
+function formatMatchClock(total) {
+  if (total < 0) total = 0;
+  var s = total % 60;
+  var m = Math.floor(total / 60);
+  if (m < 60) return m + ':' + (s < 10 ? '0' + s : s);
+  var mm = m % 60;
+  return Math.floor(m / 60) + ':' + (mm < 10 ? '0' + mm : mm) + ':' + (s < 10 ? '0' + s : s);
+}`;
