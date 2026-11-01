@@ -42,25 +42,10 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 checker verdict on fb15e6b8 and post-land runs; block 1 ends 2026-11-01T08:10Z: renew at the first check-in after it",
-    "eta": "2026-11-01T05:00:00Z"
+    "what": "launch ci07 builder; block 1 renewal at 08:12Z",
+    "eta": "2026-11-01T04:35:00Z"
   },
-  "inFlight": [
-    {
-      "phase": "ci18",
-      "step": "check",
-      "session": "session_017SdbwQmfJh51VRpXzgQdwS",
-      "nonce": "ci18-c-1360",
-      "actor": "checker-ci18-ci18-c-1360",
-      "launchedAt": "2026-11-01T04:10:26Z",
-      "pr": 1880,
-      "mergeSha": "fb15e6b8f6358ef8b0fad080cf71552b4da37187",
-      "builder": "session_017SdbwNNAPG9N5nzygqtK99",
-      "reviewedHead": "d0ff91f9e5804eabfcd61a6da976168e3790cb0e",
-      "repairOwnerComment": 6553123397,
-      "note": "Merged 04:08:53Z (queue run 41271128774). Leftover branch claude/plan-cicd-improvement-ci18-pending is an ancestor of main (fully merged); coordinator delete was denied by the session's permission classifier, left for the owner."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -183,6 +168,21 @@
       "postLand": "CI 41243723122, configured-suite 41243723141, Post-landing 41243723069, Quarantine 41243723106, Push on main 41243722930 all success; merge group exempt as designed; repair ownership complete",
       "pass": "2026-10-31T21:48Z by checker-ci06-ci06-c-7596 (session_017SdbwLwL72Eo4iEEnxQKWh)",
       "checkerFindings": "cost correction: JEV workers still dispatch full configured-suite, so the ~102/117 backend projection is not yet in effect (no-offset case); nit runbook.md:36 'configured run head_sha' wording"
+    },
+    {
+      "phase": "ci18",
+      "pr": 1880,
+      "mergeSha": "fb15e6b8f6358ef8b0fad080cf71552b4da37187",
+      "builder": "session_017SdbwNNAPG9N5nzygqtK99",
+      "reviewedHead": "d0ff91f9e5804eabfcd61a6da976168e3790cb0e",
+      "repairOwnerComment": 6553123397,
+      "followUps": [
+        1885,
+        1892
+      ],
+      "postLand": "CI 41271930424, configured-suite 41271930429, Post-landing 41271930467, Quarantine 41271930434, Push on main 41271929976, deploy-verify 41272095729 all success; repair ownership complete",
+      "pass": "2026-11-01T04:27Z by checker-ci18-ci18-c-1360 (session_017SdbwQmfJh51VRpXzgQdwS)",
+      "checkerFindings": "non-blocking: no 85% warning on offline per-landing tier for spec additions (#1885 item 1; table line still warns). Exception scope = tier; ci04 graphics exception first in tier, expires 2026-11-30."
     }
   ],
   "coordinatorNotes": [
