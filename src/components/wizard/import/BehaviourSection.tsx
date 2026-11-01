@@ -166,7 +166,7 @@ function candidatesInside(markup: string, layerId: string): Set<string> {
  * operator field, since it would edit a drawing nobody sees. Unticking No lock gives back the
  * board as it was before the tick: its options and those text rows, each as the author left them
  * (remembered for this visit to the step; without a remembered tick, the optional-lock board with
- * those rows on).
+ * those rows on, except one the author took off the artwork).
  */
 function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
   return (
@@ -347,7 +347,8 @@ export default function BehaviourSection({
         rowsOn: new Set(draft.svgFields.filter((f) => f.on && inside.has(f.candidateId)).map((f) => f.candidateId)),
       };
     } else {
-      rowsOn = beforeNoLock.current?.rowsOn ?? inside;
+      // With nothing remembered, a row the author took off the artwork stays off.
+      rowsOn = beforeNoLock.current?.rowsOn ?? new Set(draft.svgFields.filter((f) => inside.has(f.candidateId) && f.whenOff !== 'remove').map((f) => f.candidateId));
       options = beforeNoLock.current?.options ?? options;
       beforeNoLock.current = null;
     }
