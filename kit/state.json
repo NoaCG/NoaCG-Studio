@@ -42,8 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 full-diff /so on e4217f24, then stamp; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T01:35:00Z"
+    "what": "ci18 gates on 19f73f02 (Codex, CI gate, fresh full-diff /so) and receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "eta": "2026-11-01T02:00:00Z"
   },
   "inFlight": [
     {
@@ -53,9 +53,9 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Receipt 00:47Z on e4217f24: CI 41257174116 gate green, configured whole set 67 specs green, Codex receipt clean, merge-tree clean. Stamp withheld: final /so (session_017SdbwQ4b1GjqLrhXiwFf7X) read only the delta since 8f93242; 29 Codex findings over ~20 heads. Asked builder 00:53Z for one fresh full-diff /so plus the repeated-family answer; head unchanged unless blocking.",
+      "note": "Full-diff /so (session_017SdbwNyDHNZ6Lmfnw2hm5V) on e4217f24 graded B: budget-stopped job reads left silently unsampled could clear a growth stop (family 1). Fixed in 19f73f02 with tests; latest-attempt-only slowdown series too. Four repeated families confirmed; full-diff /so served as reassessment. Builder re-earning Codex, CI and a fresh full-diff /so on 19f73f02.",
       "pr": 1880,
-      "reviewedHead": "e4217f24be56b3c08935ac02f4dd166d35e1d9c6"
+      "reviewedHead": null
     }
   ],
   "owner": [],
