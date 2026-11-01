@@ -183,18 +183,15 @@ const RUN = async ({ markup, mode, script }) => {
     else if (verb === 'take') { prod.send({ t: 'update', data: { ...cue } }); prod.send({ t: 'play' }); }
     else if (verb === 'out') prod.send({ t: 'stop' });
     else if (verb === 'event') prod.send({ t: 'event', event: arg, ...(extra ? { payload: extra } : {}) });
-    // A goal: the surface moves the figure by one and it rides the event (score.ts `adjust`).
-    else if (verb === 'goal') {
+    // A goal or its correction: the surface moves the figure by one and it rides the event (score.ts `adjust`).
+    else if (verb === 'goal' || verb === 'unscore') {
       const f = scoreFields[arg];
-      cue = { ...cue, [f]: String(Number(cue[f]) + 1) };
-      prod.send({ t: 'event', event: `score${arg + 1}`, payload: { [f]: cue[f] } });
-    } else if (verb === 'unscore') {
-      const f = scoreFields[arg];
-      cue = { ...cue, [f]: String(Number(cue[f]) - 1) };
-      prod.send({ t: 'event', event: `unscore${arg + 1}`, payload: { [f]: cue[f] } });
+      cue = { ...cue, [f]: String(Number(cue[f]) + (verb === 'goal' ? 1 : -1)) };
+      prod.send({ t: 'event', event: `${verb === 'goal' ? 'score' : 'unscore'}${arg + 1}`, payload: { [f]: cue[f] } });
     } else if (verb === 'newGame') {
-      cue = { ...cue, ...Object.fromEntries(scoreFields.map((f) => [f, '0'])) };
-      prod.send({ t: 'event', event: 'newGame', payload: Object.fromEntries(scoreFields.map((f) => [f, '0'])) });
+      const zero = Object.fromEntries(scoreFields.map((f) => [f, '0']));
+      cue = { ...cue, ...zero };
+      prod.send({ t: 'event', event: 'newGame', payload: zero });
     } else if (verb === 'update') prod.send({ t: 'update', data: { ...cue } });
     else if (verb === 'wait') prod.advance(arg);
     else if (verb === 'report') prod.report(outs[arg]);

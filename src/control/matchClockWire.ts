@@ -58,14 +58,14 @@ export interface ClockSpec {
 }
 
 /** What the match clock's three verbs are called on one graphic. */
-export interface ClockEvents {
+interface ClockEvents {
   start: string;
   stop: string;
   reset: string;
 }
 
 /** A native scorebug's verbs: the scorebug type's own clock group (types/sportsBugs.ts). */
-export const NATIVE_CLOCK_EVENTS: ClockEvents = { start: 'clockStart', stop: 'clockStop', reset: 'clockReset' };
+const NATIVE_CLOCK_EVENTS: ClockEvents = { start: 'clockStart', stop: 'clockStop', reset: 'clockReset' };
 
 /**
  * AN IMPORTED CLOCK'S VERBS. The clock an author picks on their own artwork is an INSTANCED recipe
@@ -75,10 +75,10 @@ export const NATIVE_CLOCK_EVENTS: ClockEvents = { start: 'clockStart', stop: 'cl
  * so the names are written here and pinned equal to what the recipe compiles by
  * scripts/imported-clock-wire.test.mjs.
  */
-export const IMPORTED_CLOCK_EVENTS: ClockEvents = { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' };
+const IMPORTED_CLOCK_EVENTS: ClockEvents = { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' };
 
 /** The readout class an imported design's clock carries (importedDesign/svgBind.ts). */
-export const IMPORTED_CLOCK_CLASS = 'imported-design-clock';
+const IMPORTED_CLOCK_CLASS = 'imported-design-clock';
 
 /**
  * Read the clock out of a published graphic's html, or null for a graphic with no clock (which
@@ -155,7 +155,7 @@ export function formatClock(total: number): string {
 // native clock's values are exactly what they were.
 
 /** The length a duration's value carries after its origin, or null when it carries none. */
-export function clockLengthOf(raw: string | undefined | null): string | null {
+function clockLengthOf(raw: string | undefined | null): string | null {
   const text = String(raw ?? '');
   const at = text.indexOf('@');
   const slash = at === -1 ? -1 : text.indexOf('/', at);
@@ -163,7 +163,7 @@ export function clockLengthOf(raw: string | undefined | null): string | null {
 }
 
 /** A time, its origin (null: held) and its length, as one wire value. */
-export function durationValue(time: string, origin: number | null, length: string): string {
+function durationValue(time: string, origin: number | null, length: string): string {
   return `${time}@${origin ?? ''}/${length}`;
 }
 
@@ -171,11 +171,6 @@ export function durationValue(time: string, origin: number | null, length: strin
  *  every parser reads as no origin, so for that moment it reads as the corrected time, held. */
 const CORRECTED_ORIGIN = 0;
 
-/** Whether a duration's value is a running correction its row has yet to stamp. */
-function awaitsRowOrigin(raw: string): boolean {
-  const at = raw.indexOf('@');
-  return at !== -1 && clockLengthOf(raw) !== null && raw.slice(at + 1, raw.indexOf('/', at)) === String(CORRECTED_ORIGIN);
-}
 
 /**
  * What the clock field's held value becomes when an `update` row writes it.
@@ -276,11 +271,11 @@ export function clockRowEffect(
   held: string | undefined,
   now: number,
 ): ClockEffect | null {
+  if (clock.startsOnTake) return durationRowEffect(row, clock, held ?? clock.seed, rowInstant(row.created_at, now));
+  if (row.msg.t !== 'event') return null;
   const at = rowInstant(row.created_at, now);
   const from = held ?? clock.seed;
   const events = clock.events ?? NATIVE_CLOCK_EVENTS;
-  if (clock.startsOnTake) return durationRowEffect(row, events, clock, from, at);
-  if (row.msg.t !== 'event') return null;
   switch (row.msg.event) {
     case events.start:
       return { value: startedClockValue(from, clock.countsDown, at), when: 'before' };
@@ -309,23 +304,22 @@ export function clockRowEffect(
  */
 function durationRowEffect(
   row: Pick<ControlEventRow, 'msg' | 'created_at'>,
-  events: ClockEvents,
   clock: ClockSpec,
   from: string,
   at: number,
 ): ClockEffect | null {
-  const length = clockLengthOf(from) ?? (plainClockValue(from) || clock.resetTo);
+  const msg = row.msg;
+  if (msg.t !== 'update' && msg.t !== 'play' && msg.t !== 'event') return null;
+  const taken = plainClockValue(from) || clock.resetTo;
+  if (msg.t === 'play') return { value: durationValue(taken, at, taken), when: 'before' };
   // A time typed while it runs counts from the update row's server time, on every output and in
   // every replay. AFTER the row, which has already handed the graphic the time to count from.
-  if (row.msg.t === 'update') {
-    return awaitsRowOrigin(from) ? { value: durationValue(plainClockValue(from), at, length), when: 'after' } : null;
-  }
-  if (row.msg.t === 'play') {
-    const taken = plainClockValue(from) || clock.resetTo;
-    return { value: durationValue(taken, at, taken), when: 'before' };
-  }
-  if (row.msg.t !== 'event') return null;
-  switch (row.msg.event) {
+  const corrected = from.includes(`@${CORRECTED_ORIGIN}/`);
+  if (msg.t === 'update' && !corrected) return null;
+  const length = clockLengthOf(from) ?? taken;
+  if (msg.t === 'update') return { value: durationValue(taken, at, length), when: 'after' };
+  const events = clock.events ?? IMPORTED_CLOCK_EVENTS;
+  switch (msg.event) {
     case events.start:
       return { value: durationValue(clockValueAt(from, true, at), at, length), when: 'before' };
     case events.stop:

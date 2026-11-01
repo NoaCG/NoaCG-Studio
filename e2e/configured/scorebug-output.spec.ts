@@ -20,7 +20,7 @@ import { publishProduction } from '../_publish';
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { dropSvg, intoProduction } from '../_svg-import';
-import { haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 
 // THE PUBLISHED SPORTS PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 4): a scorebug driven from
 // the production dashboard and rendered by the REAL /output page over the REAL hosted log.
@@ -217,16 +217,7 @@ test('an imported clock starts, holds and resets from the server on two real out
   test.setTimeout(240_000);
   await signIn(page);
   // Clean slate, for the reason the walk above gives.
-  await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
-    for (const s of loadShows()) {
-      if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
-      deleteShow(s.id);
-    }
-    const { syncNow } = await import('/src/backend/syncController.ts');
-    await syncNow();
-  });
+  await clearPublishedShows(page);
 
   // The author's own artwork, the clock chosen on its time layer: counting up, so Start is the
   // operator's and the verbs are the namespaced ones.
@@ -247,24 +238,21 @@ test('an imported clock starts, holds and resets from the server on two real out
   }, showName);
   expect(outputSlug).toBeTruthy();
 
-  const outA = await context.newPage();
-  const outB = await context.newPage();
-  const a = await openOutput(outA, outputSlug!);
-  const b = await openOutput(outB, outputSlug!);
+  const [outA, outB] = await Promise.all([context.newPage(), context.newPage()]);
+  const [a, b] = await Promise.all([openOutput(outA, outputSlug!), openOutput(outB, outputSlug!)]);
 
   await page.getByTestId('verb-take').click();
-  await onAir(a);
-  await onAir(b);
+  await Promise.all([onAir(a), onAir(b)]);
   // Counting up waits for Start: nothing runs on the Take.
   expect((await clockIn(a)).at).toBeNull();
 
   // ── START, on both outputs from one server instant. ──
   await page.getByTestId('cue-action-clock_start').click();
-  await expect.poll(async () => (await clockIn(a)).at, { timeout: 20_000 }).not.toBeNull();
-  await expect.poll(async () => (await clockIn(b)).at, { timeout: 20_000 }).not.toBeNull();
-  const origin = (await clockIn(a)).at;
-  expect((await clockIn(b)).at, 'both outputs count from the Start row\'s own server time').toBe(origin);
-  const started = (await clockIn(a)).text;
+  await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBeNull()));
+  const [startA, startB] = await Promise.all([clockIn(a), clockIn(b)]);
+  const origin = startA.at;
+  expect(startB.at, 'both outputs count from the Start row\'s own server time').toBe(origin);
+  const started = startA.text;
   await expect.poll(async () => (await clockIn(a)).text, { timeout: 30_000 }).not.toBe(started);
 
   // ── AN UNRELATED UPDATE: a score typed and sent while the clock runs. ──
@@ -284,8 +272,7 @@ test('an imported clock starts, holds and resets from the server on two real out
 
   // ── PAUSE holds both at one banked time. ──
   await page.getByTestId('cue-action-clock_pause').click();
-  await expect.poll(async () => (await clockIn(a)).at, { timeout: 20_000 }).toBeNull();
-  await expect.poll(async () => (await clockIn(b)).at, { timeout: 20_000 }).toBeNull();
+  await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).toBeNull()));
   await outA.waitForTimeout(1500);
   const held = (await clockIn(a)).text;
   expect((await clockIn(b)).text).toBe(held);
