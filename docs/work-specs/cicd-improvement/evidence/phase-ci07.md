@@ -256,7 +256,8 @@ test. The list, with the exact replacement for each, is
 
 ## 7. Phase notes
 
-- Previous verified main: `fb15e6b8f6358ef8b0fad080cf71552b4da37187` (ci18 merge).
+- Previous verified main: `fb15e6b8f6358ef8b0fad080cf71552b4da37187` (ci18 merge). The branch took
+  in `main` at `2518b429` (JEV #1893, product files only; the latest reset on `main` is still `26095c82`).
 - Revert: `git revert -m 1 <this PR's merge commit>`, landed through `/queue-merge`. It removes
   the critical lines, the contract map, the incident issue step, the coverage-gap line and the
   audit changes together. The revert also changes `e2e-lists.mjs`, so it is itself a reset.
