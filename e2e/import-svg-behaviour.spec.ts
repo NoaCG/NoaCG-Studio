@@ -711,18 +711,26 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   const lockWords = page.getByTestId(`map-svg-row-${await rowLabelled(page, /Locked in/i)}`).locator('input[type="checkbox"]');
   await expect(lockWords).toBeChecked();
   const noLock = page.getByTestId('map-svg-option-noLock');
+  const lock = page.getByTestId('map-svg-option-lock');
+  const autoReveal = page.getByTestId('map-svg-option-autoReveal');
+  await autoReveal.check();
   await noLock.check();
-  await expect(page.getByTestId('map-svg-option-lock')).toHaveCount(0);
-  await expect(page.getByTestId('map-svg-option-autoReveal')).toHaveCount(0);
+  await expect(lock).toHaveCount(0);
+  await expect(autoReveal).toHaveCount(0);
   await expect(page.getByTestId('map-svg-quiz-locked')).toHaveCount(0);
   await expect(lockWords).not.toBeChecked();
-  // Unticked, it is the optional-lock board again: its Locked in layer still picked, its words a
-  // field again.
+  // Unticked, the board is exactly what it was: lock required, the timed reveal on, the Locked in
+  // layer still picked and its words a field again.
   await noLock.uncheck();
-  await expect(page.getByTestId('map-svg-option-lock')).not.toBeChecked();
-  await expect(page.getByTestId('map-svg-option-autoReveal')).not.toBeChecked();
+  await expect(lock).toBeChecked();
+  await expect(autoReveal).toBeChecked();
   await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('Locked in');
   await expect(lockWords).toBeChecked();
+  // A row the author had switched off before ticking stays off when unticked.
+  await lockWords.uncheck();
+  await noLock.check();
+  await noLock.uncheck();
+  await expect(lockWords).not.toBeChecked();
   await noLock.check();
   await expect(lockWords).not.toBeChecked();
   await intoProduction(page, 'No lock quiz', 'Quiz Night');

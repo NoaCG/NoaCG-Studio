@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
   SvgBehaviourDraft,
@@ -163,8 +163,10 @@ function candidatesInside(markup: string, layerId: string): Set<string> {
  * Locked in picker, and clears the timer, whose arrow starts at the lock. The Locked in layer stays
  * bound: it is the drawing of a moment this board never reaches, so no rule shows it and it stays
  * hidden on air, even when the designer left it visible. Text drawn inside it stops being an
- * operator field, since it would edit a drawing nobody sees. Unticking No lock leaves the
- * optional-lock board, with both options, the picker and those text fields back.
+ * operator field, since it would edit a drawing nobody sees. Unticking No lock gives back the
+ * board as it was before the tick: its options and those text rows, each as the author left them
+ * (remembered for this visit to the step; without a remembered tick, the optional-lock board with
+ * those rows on).
  */
 function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
   return (
@@ -333,6 +335,27 @@ export default function BehaviourSection({
   // is bound to and touching the select loses that binding.
   const scoreDrawn = scoreDrawnPool(draft.designSvg ?? { groups: [], shapes: [] });
 
+  /** The quiz as it was before No lock was ticked, so unticking gives exactly that back. */
+  const beforeNoLock = useRef<{ options: Record<string, boolean>; rowsOn: Set<string> } | null>(null);
+  const toggleNoLock = (options: Record<string, boolean>) => {
+    if (!quiz) return;
+    const inside = quiz.locked && draft.designSvg ? candidatesInside(draft.designSvg.markup, quiz.locked) : new Set<string>();
+    let rowsOn = new Set<string>();
+    if (quizHasNoLock(options)) {
+      beforeNoLock.current = {
+        options: quiz.options ?? {},
+        rowsOn: new Set(draft.svgFields.filter((f) => f.on && inside.has(f.candidateId)).map((f) => f.candidateId)),
+      };
+    } else {
+      rowsOn = beforeNoLock.current?.rowsOn ?? inside;
+      options = beforeNoLock.current?.options ?? options;
+      beforeNoLock.current = null;
+    }
+    onDraft({
+      svgBehaviour: { ...quiz, options },
+      ...(inside.size > 0 ? { svgFields: draft.svgFields.map((f) => (inside.has(f.candidateId) ? { ...f, on: rowsOn.has(f.candidateId) } : f)) } : {}),
+    });
+  };
   const patchQuiz = (patch: Partial<SvgQuizDraft>) => {
     if (quiz) onDraft({ svgBehaviour: { ...quiz, ...patch } });
   };
@@ -1201,17 +1224,7 @@ export default function BehaviourSection({
                 onChange={(options) => patchQuiz({ options })}
                 hide={quizHasNoLock(quiz.options) ? ['lock', 'autoReveal'] : []}
               >
-                <NoLockOption
-                  values={quiz.options ?? {}}
-                  onChange={(options) => {
-                    const on = !quizHasNoLock(options);
-                    const inside = quiz.locked && draft.designSvg ? candidatesInside(draft.designSvg.markup, quiz.locked) : new Set<string>();
-                    onDraft({
-                      svgBehaviour: { ...quiz, options },
-                      ...(inside.size > 0 ? { svgFields: draft.svgFields.map((f) => (inside.has(f.candidateId) ? { ...f, on } : f)) } : {}),
-                    });
-                  }}
-                />
+                <NoLockOption values={quiz.options ?? {}} onChange={toggleNoLock} />
               </RecipeOptions>
               <div className="map-svg-row hinted">
                 <label className="save-field grow">
