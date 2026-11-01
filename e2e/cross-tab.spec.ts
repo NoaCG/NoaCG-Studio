@@ -1,5 +1,6 @@
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 // focus
+// critical: edit-save-reopen
 //
 // Restricted-network resilience (docs/GOALS.md "the SVG road"): the boot watchdog and the
 // inline connection check live in app.html, the hydration timeout in the durable store, and

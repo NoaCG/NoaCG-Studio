@@ -1,5 +1,6 @@
 // covers: src/control/**, src/templates/**
 // focus
+// critical: graphics-runtime
 //
 // The browser-output renderer (docs/CLOUD_PLAYOUT.md): its own MPA entry + the stage module.
 // covers: src/output/**
