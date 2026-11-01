@@ -227,7 +227,24 @@ commit's landing does, and the coordinator records its SHA and time from the rea
 
 ## 9. Verification
 
-VERIFICATION
+- `/check`: the review (delegated, medium, merge base `b2f335fb`, the four files and the deleted
+  one, scope matched) returned 8 findings. Fixed: the two parity checks became one assertion over
+  both modes; the evidence's duration figures were made consistent; the placeholders were filled.
+  Disclosed (section 8): a semantic failure stops the proposal walk, one quarantine covers both
+  paths, the title change, the stale durations table and the Actions per-test time. Kept: the
+  editor-model-proposals `check.md` record of a past check. Simplify: inline, no change (the diff is
+  one dispatcher and three mode guards).
+- Fault matrix: F0 to F6, the old pair and the merged spec in one `--cap 5` queued job each per
+  fault (j-0002 to j-0015), results in section 4; tree clean afterwards.
+- Browser, this machine: the merged spec passes in full three times (j-0003, j-0016 and, after the
+  review fix, j-0018: 337.2 s, 106 to 117 s per test); the old pair passed in j-0002 and j-0017.
+- `npm run gates -- run --changed origin/main`, `npx eslint e2e/editor-command-task.spec.ts`: clean.
+- `node scripts/check-e2e-protection.mjs --changed origin/main`: passes with the entry (section 8).
+- `node scripts/e2e-capacity.mjs --changed origin/main`, and on `main`: section 5.
+- Selection sweep and reset reader: section 7.
+- No production build: no build input changed. Rendered judgment: none needed; nothing visible
+  changes (the screenshots the walks write are their own test output, unchanged).
+- Actions: CI_LINE
 
 ## 10. Phase notes
 
