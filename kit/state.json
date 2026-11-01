@@ -34,7 +34,12 @@
       "role": "build",
       "session": "session_017SdbwRJSj3WrC4CvozbCAh",
       "nonce": "16-b-5cfc",
-      "branch": "claude/plan-jev-svg-import-16-build"
+      "branch": "claude/plan-jev-svg-import-16-build",
+      "pr": 1938,
+      "head": "a9559f395d108d49b86db63dcc94f1488450b546",
+      "stampRun": 41361561171,
+      "ciRun": 41360339956,
+      "so": "session_017SdbwQnfq7zEs62pku46FY A- (standing owner rule)"
     }
   ],
   "owner": [],
@@ -181,7 +186,8 @@
     "2026-11-01T16:06Z phase 14: final /so on cf6902b A-, only evidence wording left (phase-14.md:80, :140). Builder told to make one docs-only fix, one Codex request, one fresh separate /so; last round.",
     "2026-11-01T16:13Z phase 14: /so session_017SdbwQ5mhAB6UGUm6b52ux on f9353c4 A-. Residuals: (1) saved-shape byte comparison script uncommitted, already row 15 carry; (2) No-lock untick memory lasts only within the step, documented safe states. Gate is /so A or A+ (plan-run.md:19); coordinator does not waive. Asked owner.",
     "2026-11-01 owner accepted phase 14 at A- verbatim: \"Accept phase 14 at A-: the remaining points are phase 15's committed byte-comparison test and a documented, safe No-lock memory limit. Land it.\" Recorded in PR #1919 body.",
-    "2026-11-01T20:2xZ STANDING OWNER RULE, verbatim: \"in the future A- may land when every remaining point is non-blocking and is either assigned to a later phase or a documented, safe limit\". Applies to /so gate; cite in PR body and stamp review text."
+    "2026-11-01T20:2xZ STANDING OWNER RULE, verbatim: \"in the future A- may land when every remaining point is non-blocking and is either assigned to a later phase or a documented, safe limit\". Applies to /so gate; cite in PR body and stamp review text.",
+    "2026-11-01 #1937: rows 19-23 need svg.ts, svgBind.ts, draft.ts for the styled credits engine; reconcile as a boundary request before row 19."
   ],
   "ownerOpen": [
     {
