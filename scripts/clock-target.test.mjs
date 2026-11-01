@@ -423,3 +423,14 @@ test('the built graphic counts to the instant on every output, through resends, 
   }
   assert.equal(reading('taken').A.shown, reading('taken').A.value, 'the layer shows the time, never the raw wire value');
 });
+
+test('T1 and T4 (#1894): a bare time in a gap already behind today is tomorrow\'s; one still ahead is today\'s gap', () => {
+  // Helsinki skips 03:00-03:59 on 2026-03-29. At 05:00 local the skipped 03:30 is behind.
+  const springLater = Date.parse('2026-03-29T02:00:00Z');
+  const next = resolved({ time: '03:30', zone: HEL }, springLater);
+  assert.deepEqual([next.date, next.at, next.offset, next.proposed], ['2026-03-30', Date.parse('2026-03-30T00:30:00Z'), '+03:00', true]);
+  // At 02:30 local the gap is still ahead: it asks for another time.
+  assert.equal(resolveClockTarget({ time: '03:30', zone: HEL }, Date.parse('2026-03-29T00:30:00Z')).kind, 'gap');
+  // A dated gap stays a gap, past or not.
+  assert.equal(resolveClockTarget({ time: '03:30', date: '2026-03-29', zone: HEL }, springLater).kind, 'gap');
+});

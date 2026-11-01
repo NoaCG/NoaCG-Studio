@@ -226,7 +226,9 @@ export function clockValueAfterUpdate(held: string | undefined, incoming: string
     const time = plainClockValue(incoming);
     if (time === read.sent) return held!;
     if (read.slot === OFF_AIR) return durationValue(time, OFF_AIR, time, time);
-    if (time === read.time) return durationValue(read.time, read.slot, read.length, time);
+    // Held only: a running value's time is the time it STARTED from, not the one on screen, so
+    // typing it while it runs sets the clock back to it (#1890).
+    if (time === read.time && clockOriginOf(held) === null) return durationValue(read.time, read.slot, read.length, time);
     return durationValue(time, clockOriginOf(held) === null ? '' : CORRECTED_ORIGIN, read.length, time);
   }
   if (held === undefined || clockOriginOf(held) === null) return incoming;
@@ -345,7 +347,9 @@ function importedRowEffect(
   const time = (read ? read.time : plainClockValue(from)) || clock.resetTo;
   const length = read?.length ?? (clock.startsOnTake ? time : clock.resetTo);
   const sent = read?.sent ?? time;
-  const offAir = read?.slot === OFF_AIR;
+  // A clock that starts on the Take and has never been taken is off air too: only a Take puts it
+  // on, so a Reset or a Pause before it keeps a time typed afterwards the length (#1890).
+  const offAir = read ? read.slot === OFF_AIR : clock.startsOnTake === true;
   if (msg.t === 'play') {
     if (!clock.startsOnTake) return null;
     const taken = read ? length : time;
