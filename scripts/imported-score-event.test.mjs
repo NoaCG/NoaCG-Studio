@@ -12,13 +12,14 @@
 // - S1 `+1` awards exactly one point and lights that team's flash, a second press during the
 //   flash too (the self-transition replays the moment, score.ts).
 // - S2 `-1` takes the point and the flash down; a figure TYPED up or down (an Update, no event)
-//   never awards and never replays the pop. Which team's flash stays lit after a figure typed up
-//   during a flash is #1908 (open), and so is a reloaded output's flash and a clock row's pop.
+//   never awards, never moves the flash to another team and never replays the pop. A +1 bound to
+//   shared data (no figure rides it) names its team by the press itself.
 // - S3 an event the machine has no arrow for is dropped before its payload lands, and the
 //   surfaces grey the same button (`eventLegality`).
-// - S4 clock rows leave the scores and the lit flash alone, and score rows the clock: New game zeroes
+// - S4 clock rows leave the scores and the flash alone and replay nothing, and score rows the clock: New game zeroes
 //   the scores and leaves the clock running; Full time, Out and Take keep both figures.
-// - S5 an output that missed rows and caught up agrees with one that saw them all.
+// - S5 an output that missed rows and caught up agrees with one that saw them all, and a snap
+//   recovers the moment without replaying it. A reboot from a report does not yet (#1908, item 2).
 // - S6 at the surface, the recipe's own buttons through the real `pressSend` and verbs: a failed
 //   send writes nothing into the cue, and an event that went while its shared value did not move
 //   says so in words distinct from a failed send.
@@ -191,6 +192,8 @@ const RUN = async ({ template, scoreFields, script }) => {
       cue = { ...cue, ...zero };
       send({ t: 'event', event: 'newGame', payload: zero });
     } else if (verb === 'event') send({ t: 'event', event: arg, ...(extra ? { payload: extra } : {}) });
+    else if (verb === 'award') send({ t: 'event', event: `score${arg + 1}` });
+    else if (verb === 'snap') for (const out of outputs) out.w.noacgSnap(out.w.noacgMachineState().groups, { timers: true });
     else if (verb === 'wait') advance(arg);
     else if (verb === 'disconnect') B.connected = false;
     else if (verb === 'reconnect') { B.connected = true; for (const row of B.missed.splice(0)) deliver(B, row); }
@@ -255,9 +258,22 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['event', 'clock_start'], s, r('clock restarted'),
       ['event', 'final'], s, r('Full time'),
       ['newGame'], s, r('New game'), ['wait', 3000], r('three seconds into the new game'),
-      ['+1', 1], s, ['event', 'clock_reset'], s, r('clock reset after a point'),
+      ['+1', 1], s, r('a point before the reset'), ['event', 'clock_reset'], s, r('clock reset after a point'),
       ['out'], ['wait', 2000], r('out'),
       ['take'], s, r('taken again'),
+    ]),
+    bound: await run(four, [
+      ['take'], s,
+      ['+1', 0], s, r('+1 Marsh'),
+      // A figure bound to the production's shared data: the press carries no figure, and the
+      // shared value arrives afterwards as a data write.
+      ['award', 2], s, r('a bound +1 for Reef, its figure not here yet'),
+      ['type', 2, 9], s, r('Reef\'s shared figure arrives'),
+      ['award', 2], ['wait', 120], ['type', 2, 10], s, r('a second bound +1 during the flash'),
+    ]),
+    snap: await run(twoClock, [
+      ['take'], s, ['+1', 1], s, r('+1 SHORE'),
+      ['snap'], s, r('snapped to where it stands'),
     ]),
     reconnect: await run(twoClock, [
       ['take'], s, ['event', 'clock_start'], s,
@@ -320,7 +336,7 @@ test('+1 awards exactly one point with that team\'s flash, a press during the fl
   assert.deepEqual(grove.A.pops, { 'team.flash/3': 3, 'team.flash/1': 1, 'team.flash/4': 1 }, 'one pop per point, each on its own team');
 });
 
-test('-1 and a typed figure never award: no point and no pop (S2, AC-21)', () => {
+test('-1 and a typed figure never award: no point, no flash moved and no pop (S2, AC-21)', () => {
   const r = runs.corrections;
   const dune = at(r, '+1 Dune');
   flashOnly(dune, 2, '+1 Dune');
@@ -333,9 +349,8 @@ test('-1 and a typed figure never award: no point and no pop (S2, AC-21)', () =>
     const x = at(r, label);
     scoresAre(x, scores, label);
     assert.equal(x.A.flag, 'shown', `${label}: no award and no correction of the moment`);
+    flashOnly(x, 2, `${label}: the flash stays on the team that scored`);
     assert.deepEqual(x.A.pops, popsAfterPoint, `${label}: nothing replays`);
-    // Not asserted: which team's flash is lit after a figure TYPED up while a flash is up. Today
-    // the flash follows the figure that rose last, data writes included (#1908, item 1).
   }
   const minus = at(r, '-1 Dune');
   scoresAre(minus, ['12', '8', '8', '2'], '-1 Dune');
@@ -389,13 +404,13 @@ test('clock rows keep the scores and the flash; score rows, Full time and New ga
     scoresAre(x, ['3', '5'], label);
     assert.equal(x.A.flag, 'shown', `${label}: the flash stays`);
     flashOnly(x, 2, label);
-    // Not asserted: that the pop does not play again. Today any state entry, a clock's included,
-    // replays every lit pop (#1908, item 3).
+    assert.deepEqual(x.A.pops, point.A.pops, `${label}: nothing replays`);
   }
   assert.equal(at(r, 'clock corrected').A.time, '40:00');
   assert.equal(at(r, 'clock paused').A.clock, 'stopped');
   const full = at(r, 'Full time');
   assert.equal(full.A.final, true);
+  assert.deepEqual(full.A.pops, point.A.pops, 'Full time does not replay the flash');
   assert.equal(full.A.clock, 'running', 'Full time does not stop the clock: that is the operator\'s Pause');
   scoresAre(full, ['3', '5'], 'Full time');
   const game = at(r, 'New game');
@@ -408,6 +423,7 @@ test('clock rows keep the scores and the flash; score rows, Full time and New ga
   const reset = at(r, 'clock reset after a point');
   scoresAre(reset, ['0', '1'], 'a clock reset');
   flashOnly(reset, 2, 'a clock reset keeps the flash');
+  assert.deepEqual(reset.A.pops, at(r, 'a point before the reset').A.pops, 'a clock reset does not replay the flash');
   const out = at(r, 'out');
   scoresAre(out, ['0', '1'], 'Out');
   const again = at(r, 'taken again');
@@ -428,6 +444,31 @@ test('an output that missed the rows and caught up agrees with the one that saw 
   assert.deepEqual(later.B.scores, later.A.scores);
   flashOnly(later, 2, 'caught up after a point');
   assert.equal(later.B.time, later.A.time);
+});
+
+test('a +1 bound to shared data lights its team at the press, and the figure arriving later moves nothing (S1, AC-21)', () => {
+  const r = runs.bound;
+  flashOnly(at(r, '+1 Marsh'), 1, '+1 Marsh');
+  const press = at(r, 'a bound +1 for Reef, its figure not here yet');
+  scoresAre(press, ['8', '3', '8', '5'], 'no figure rode the press');
+  assert.equal(press.A.flag, 'shown');
+  flashOnly(press, 3, 'the press itself names its team');
+  const arrived = at(r, 'Reef\'s shared figure arrives');
+  scoresAre(arrived, ['8', '3', '9', '5'], 'the shared figure');
+  flashOnly(arrived, 3, 'the shared figure arriving');
+  assert.deepEqual(arrived.A.pops, press.A.pops, 'the data write plays nothing');
+  const again = at(r, 'a second bound +1 during the flash');
+  flashOnly(again, 3, 'a second bound press');
+  assert.equal(again.A.pops['team.flash/3'], press.A.pops['team.flash/3'] + 1, 'one pop for the second point');
+});
+
+test('a snap recovers the moment without replaying it (S5, AC-10)', () => {
+  const r = runs.snap;
+  const point = at(r, '+1 SHORE');
+  const snapped = at(r, 'snapped to where it stands');
+  assert.equal(snapped.A.flag, 'shown');
+  flashOnly(snapped, 2, 'snapped');
+  assert.deepEqual(snapped.A.pops, point.A.pops, 'a snap is instant: no pop');
 });
 
 // ── S6: the surface ──────────────────────────────────────────────────────────────────────────
