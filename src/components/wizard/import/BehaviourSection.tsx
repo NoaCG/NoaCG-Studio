@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
   SvgBehaviourDraft,
@@ -30,6 +30,7 @@ import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
+import { quizHasNoLock } from '../../../templates/behaviours/quiz';
 import { formatClockTarget, localTimeZone, parseClockTarget, proposeClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
@@ -119,13 +120,19 @@ function RecipeOptions({
   recipeId,
   values,
   onChange,
+  hide = [],
+  children,
 }: {
   recipeId: string;
   values: Record<string, boolean>;
   onChange: (values: Record<string, boolean>) => void;
+  /** Options the chosen variant does not have (a no-Lock quiz has no lock and no timer). */
+  hide?: string[];
+  /** A recipe's own extra choice, in the same row. */
+  children?: ReactNode;
 }) {
-  const options = recipeById(recipeId)?.options ?? [];
-  if (options.length === 0) return null;
+  const options = (recipeById(recipeId)?.options ?? []).filter((o) => !hide.includes(o.key));
+  if (options.length === 0 && !children) return null;
   return (
     <div className="map-svg-row" data-testid="map-svg-options">
       {options.map((o) => (
@@ -139,7 +146,40 @@ function RecipeOptions({
           <span>{o.label}</span>
         </label>
       ))}
+      {children}
     </div>
+  );
+}
+
+/**
+ * THE TRUE NO-LOCK QUIZ (behaviours/quiz.ts `quizHasNoLock`). Unticking "Require lock" keeps the
+ * lock as an optional beat; this removes it. Ticking it hides the lock and timer options and the
+ * Locked in picker, and clears the timer, whose arrow starts at the lock. The Locked in layer stays
+ * bound: it is the drawing of a moment this board never reaches, so no rule shows it and it stays
+ * hidden on air, even when the designer left it visible. Its text rows are NOT touched: switching
+ * one off would renumber every later field, and a saved cue keyed to those ids would read its
+ * values into the wrong fields. Unticking No lock gives back the options as they were before the
+ * tick (remembered for this visit to the step and this artwork).
+ */
+function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
+  return (
+    <label className="save-field" title="Pick, then Reveal correct.">
+      <input
+        type="checkbox"
+        checked={quizHasNoLock(values)}
+        onChange={(e) => {
+          const next = { ...values };
+          delete next.noLock;
+          if (e.target.checked) {
+            delete next.autoReveal;
+            Object.assign(next, { lock: false, noLock: true });
+          }
+          onChange(next);
+        }}
+        data-testid="map-svg-option-noLock"
+      />
+      <span>No lock at all</span>
+    </label>
   );
 }
 
@@ -288,6 +328,19 @@ export default function BehaviourSection({
   // is bound to and touching the select loses that binding.
   const scoreDrawn = scoreDrawnPool(draft.designSvg ?? { groups: [], shapes: [] });
 
+  /** The quiz as it was before No lock was ticked, so unticking gives exactly that back. */
+  const beforeNoLock = useRef<{ art: string; options: Record<string, boolean> } | null>(null);
+  const toggleNoLock = (options: Record<string, boolean>) => {
+    if (!quiz) return;
+    // The memory belongs to this artwork and lock layer; another one's is never restored here.
+    const art = `${quiz.locked}\n${draft.designSvg?.markup ?? ''}`;
+    if (quizHasNoLock(options)) beforeNoLock.current = { art, options: quiz.options ?? {} };
+    else {
+      if (beforeNoLock.current?.art === art) options = beforeNoLock.current.options;
+      beforeNoLock.current = null;
+    }
+    patchQuiz({ options });
+  };
   const patchQuiz = (patch: Partial<SvgQuizDraft>) => {
     if (quiz) onDraft({ svgBehaviour: { ...quiz, ...patch } });
   };
@@ -1150,7 +1203,14 @@ export default function BehaviourSection({
           )}
           {quiz && (
             <>
-              <RecipeOptions recipeId="quiz" values={quiz.options ?? {}} onChange={(options) => patchQuiz({ options })} />
+              <RecipeOptions
+                recipeId="quiz"
+                values={quiz.options ?? {}}
+                onChange={(options) => patchQuiz({ options })}
+                hide={quizHasNoLock(quiz.options) ? ['lock', 'autoReveal'] : []}
+              >
+                <NoLockOption values={quiz.options ?? {}} onChange={toggleNoLock} />
+              </RecipeOptions>
               <div className="map-svg-row hinted">
                 <label className="save-field grow">
                   <span>Question</span>
@@ -1237,6 +1297,7 @@ export default function BehaviourSection({
                   </div>
                 </div>
               ))}
+              {!quizHasNoLock(quiz.options) && (
               <label className="save-field">
                 <span>Locked in</span>
                 <select
@@ -1254,6 +1315,7 @@ export default function BehaviourSection({
                 </select>
                 {hintFor('locked', undefined, quiz.locked, 'map-svg-quiz-locked')}
               </label>
+              )}
             </>
           )}
         </div>
