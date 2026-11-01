@@ -412,15 +412,19 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     const m = measurement?.tiers?.[tier];
     // Credit is capped at what the covered items cost: an exception never excepts more than the
     // jobs or specs it names and an unknown cost earns no credit. Each cover's measured cost is a
-    // pool that active exceptions draw on in ledger order, so overlapping entries (a renewal with a
-    // larger allowance) together never credit more than the cover costs, and none is starved.
+    // pool that active exceptions draw on in ledger order. Overlapping entries (a renewal beside its
+    // predecessor) approve the larger allowance, never the sum: an entry credits only what its own
+    // allowance adds beyond the credit its covers already received, and never more than they cost.
     const pool = new Map();
     const draw = (covers, want, key) => {
+      for (const c of covers) if (!pool.has(c)) pool.set(c, { left: { ...coverCost(c) }, credited: { perLanding: 0, perDay: 0 } });
+      const prior = covers.reduce((a, c) => a + pool.get(c).credited[key], 0);
+      const budget = Math.max(0, want - prior);
       let got = 0;
       for (const c of covers) {
-        if (!pool.has(c)) pool.set(c, { ...coverCost(c) });
-        const take = Math.min(want - got, pool.get(c)[key]);
-        pool.get(c)[key] -= take;
+        const take = Math.min(budget - got, pool.get(c).left[key]);
+        pool.get(c).left[key] -= take;
+        pool.get(c).credited[key] += take;
         got += take;
       }
       return got;

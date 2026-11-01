@@ -15,7 +15,7 @@ import {
   ceilingsRevision, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { ages, buildReport, carriedStarts, fetchLatest, makeReader, phaseIssueTitle, priceRuns, spread } from './growth-report.mjs';
+import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -855,4 +855,22 @@ test('(d) a timeline still full at the last permitted page is a partial read', (
   const r = ages({ ceilings: CEILINGS, now, reader: makeReader(30, fake), existing });
   assert.equal(r.complete, false);
   assert.notEqual(r.body, '', 'unread history never clears an existing queue alarm');
+});
+
+test('(b) overlapping exceptions credit measured cost up to the larger allowance, never the sum', () => {
+  const base = { tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
+  const first = { ...base, id: 'a', perLanding: 17.7, from: '2026-11-01', expires: '2026-11-30' };
+  const renewal = { ...base, id: 'b', perLanding: 30, from: '2026-11-20', expires: '2026-12-19', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-11-19' } };
+  const m = { ...measurement({ graphics: 52.8 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 45, perDay: 0 } } };
+  const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, renewal] }, measurement: m, items: [{ tier: 'graphics', id: 'spec:e2e/catalog/x.spec.ts', perLanding: 1, perDay: 0 }], today: '2026-11-25' });
+  assert.match(r.tiers.graphics.why, /^22\.8\/10 per landing/, '30 credited, not 17.7 + 30');
+  assert.equal(r.tiers.graphics.status, 'refuse');
+});
+
+test('(d) an alarm issue opened by the coordinator\'s account is found; an outsider\'s with the same title is not', () => {
+  const issue = (number, login, type, association) => ({ number, title: AGE_ISSUE, user: { login, type }, author_association: association });
+  const gh = (list) => () => JSON.stringify(list);
+  assert.equal(findIssue(AGE_ISSUE, gh([issue(1, 'stranger', 'User', 'NONE'), issue(2, 'owner', 'User', 'OWNER')]))?.number, 2);
+  assert.equal(findIssue(AGE_ISSUE, gh([issue(3, 'github-actions[bot]', 'Bot', 'NONE')]))?.number, 3);
+  assert.equal(findIssue(AGE_ISSUE, gh([issue(4, 'stranger', 'User', 'CONTRIBUTOR')])), null);
 });

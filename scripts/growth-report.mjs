@@ -413,22 +413,23 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
  * Keep ONE rolling issue per alarm title: open or update it with `body`, or close it when `body`
  * is empty. Only a run about main may raise or withdraw an alarm (the caller checks the ref).
  */
+/**
+ * An open alarm issue by exact title. It may have been opened by the workflow token, an app, or
+ * the coordinator's own account on a plan-run check-in, so any bot or repository member counts;
+ * an outsider's issue with the same title is never taken for it.
+ */
 export function findIssue(title, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
+  const trusted = (i) => i.user?.type === 'Bot' || ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(i.author_association);
   for (let page = 1; page <= 10; page++) {
-    const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&creator=github-actions%5Bbot%5D&per_page=100&page=${page}`]) || '[]');
-    const found = list.find((i) => i.title === title && !i.pull_request);
+    const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&per_page=100&page=${page}`]) || '[]');
+    const found = list.find((i) => i.title === title && !i.pull_request && trusted(i));
     if (found || list.length < 100) return found ?? null;
   }
   return null;
 }
 
 export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
-  let found;
-  for (let page = 1; page <= 10 && !found; page++) {
-    const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&creator=github-actions%5Bbot%5D&per_page=100&page=${page}`]) || '[]');
-    found = list.find((i) => i.title === title && !i.pull_request);
-    if (list.length < 100) break;
-  }
+  const found = findIssue(title, gh);
   if (body && found) { gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', `body=${body}`]); return `updated #${found.number}`; }
   if (body) { const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-f', `body=${body}`])); return `opened #${made.number}`; }
   if (found) { gh(['api', '-X', 'POST', `repos/${REPO}/issues/${found.number}/comments`, '-f', 'body=Nothing overdue any more; closing.']); gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', 'state=closed']); return `closed #${found.number}`; }
