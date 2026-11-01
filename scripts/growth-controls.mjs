@@ -366,9 +366,15 @@ export function renamesOf({ specChanges = [], workflows = {} }) {
  * offline exception lines name.
  */
 export function unrecordedRenames({ renames = [], covers = [], offlineSpecs = [], renamed = [] }) {
+  // A name is covered directly or through the recorded rename chain: after A to B is recorded, a
+  // cover naming A covers B, so renaming B again needs its own record.
+  const scope = scopeIdentity(renamed);
+  const base = (x) => x.split('/').pop();
+  const specScope = scopeIdentity((renamed ?? []).filter((x) => /^spec:/.test(x.from ?? '') && /^spec:/.test(x.to ?? '')).map((x) => ({ from: base(x.from), to: base(x.to) })));
   const named = (r) => {
+    if (covers.some((c) => scope(c) === scope(r.from))) return true;
     const spec = /^spec:(.+)$/.exec(r.from);
-    if (spec) return covers.includes(r.from) || offlineSpecs.includes(spec[1].split('/').pop());
+    if (spec) return offlineSpecs.some((n) => specScope(n) === specScope(base(spec[1])));
     const job = /^job:([^/]+)\/(.+)$/.exec(r.from);
     return Boolean(job) && covers.some((c) => coverNames(c, job[1], job[2]));
   };
@@ -414,10 +420,16 @@ export function exceptionProblems(e, earlier, maxDays, known = null, jobsOf = nu
     const scope = scopeIdentity(renamed);
     const recorded = new Set((renamed ?? []).map((r) => r.from));
     const sameName = (x) => x.covers.some((c) => e.covers.some((d) => scope(c) === scope(d)));
+    // A retired name has an unknown successor: replacing a covered job or spec (new key, new name)
+    // is recorded as a removal, so a later cover of the same kind and tier (a job in the same
+    // workflow, a spec in the same folder tier) is the same scope, at any age.
+    const retired = new Set((renamed ?? []).filter((r) => r.retired).map((r) => scope(r.from)));
+    const successor = (c, d) => tierOfCover(c) === tierOfCover(d) && (/^spec:/.test(c) ? /^spec:/.test(d) : /^job:/.test(d) && c.split('/')[0] === d.split('/')[0]);
+    const retiredScope = (x) => x.covers.some((c) => retired.has(scope(c)) && e.covers.some((d) => successor(c, d)));
     const orphaned = (x) => known && x.covers.some((c) => !known.has(c) && !known.has(scope(c)) && !recorded.has(c));
     // Covers over the same measured job are the same scope, however each is worded.
     const sameJobs = (x) => jobsOf && x.covers.some((c) => jobsOf(c).some((k) => e.covers.some((d) => jobsOf(d).includes(k))));
-    const prior = earlier.filter((x) => Array.isArray(x.covers) && (sameName(x) || sameJobs(x) || orphaned(x)));
+    const prior = earlier.filter((x) => Array.isArray(x.covers) && (sameName(x) || sameJobs(x) || retiredScope(x) || orphaned(x)));
     if (prior.length) {
       const r = e.repaid;
       const latest = Math.max(...prior.map((x) => dayMs(x.from)));

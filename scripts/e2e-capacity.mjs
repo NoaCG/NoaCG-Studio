@@ -145,13 +145,18 @@ export function offlineExceptionChanges(base, head, renamed = []) {
   const specNames = (renamed ?? []).filter((r) => /^spec:/.test(r.from ?? '') && /^spec:/.test(r.to ?? '')).map((r) => ({ from: r.from.split('/').pop(), to: r.to.split('/').pop() }));
   const scope = scopeIdentity(specNames);
   const name = (e) => scope(e.spec.split('/').pop());
+  // A retired spec has an unknown successor: once an excepted spec is recorded as removed, any new
+  // offline line in the same folder tier renews its scope (Rule X4).
+  const folder = (spec) => (/(^|\/)configured\//.test(spec) ? 'configured' : /(^|\/)catalog\//.test(spec) ? 'catalog' : 'offline');
+  const retired = (renamed ?? []).filter((r) => r.retired && /^spec:/.test(r.from ?? '')).map((r) => r.from.slice(5));
+  const retiredBase = (e) => base.some((b) => retired.some((r) => scope(r.split('/').pop()) === name(b) && folder(r) === folder(e.spec)));
   const baseKeys = new Set(base.map(key));
   const headKeys = new Set(head.map(key));
   const problems = [];
   for (const e of base) if (!headKeys.has(key(e))) problems.push(`the budget exception for ${e.spec} in ${e.from} (expires ${e.expires}) was removed or moved: exception lines stay on record after they expire`);
   for (const e of head) {
     if (baseKeys.has(key(e))) continue;
-    if (base.some((b) => name(b) === name(e)) && !(e.repaid?.minutes > 0)) problems.push(`the new budget exception for ${e.spec} renews an earlier one for the same spec without a measured repayment (\`, repaid <minutes> min in run <id>\`)`);
+    if ((base.some((b) => name(b) === name(e)) || retiredBase(e)) && !(e.repaid?.minutes > 0)) problems.push(`the new budget exception for ${e.spec} renews an earlier one for the same spec without a measured repayment (\`, repaid <minutes> min in run <id>\`)`);
   }
   return problems;
 }
@@ -248,8 +253,22 @@ export function changedSpecs(base, cwd = ROOT) {
  * The weekly report's offline stop reaches the table line: a stop on the offline tier, or a report
  * that could not be read (so no stop can be ruled out), refuses a change that adds offline minutes.
  */
-export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refuseShare = HARD_SHARE } = {}) {
+export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refuseShare = HARD_SHARE, paths = [] } = {}) {
   if (!(result.added > 0)) return growth;
+  const e = growth.estimates ?? {};
+  let landing = result.added * (e.runsPerLanding?.everyRun ?? 1);
+  let day = result.added * (e.scheduledRunsPerDay?.offline ?? 1);
+  // An offline addition goes through the same bounded exception waiver as every other tier
+  // (Rule X10): an approved offline exception waives up to its room, and only what is left is
+  // judged below.
+  if (growth.assessWith && Array.isArray(result.details)) {
+    const pathOf = (name) => paths.find((p) => p.split('/').pop() === name) ?? `e2e/${name}`;
+    const items = result.details.filter((d) => d.delta > 0).map((d) => ({ tier: 'offline', id: `spec:${pathOf(d.spec)}`, perLanding: d.delta * (e.runsPerLanding?.everyRun ?? 1), perDay: d.delta * (e.scheduledRunsPerDay?.offline ?? 1) }));
+    const t = growth.assessWith(items).tiers.offline;
+    landing = t.addedLanding;
+    day = t.addedDay;
+    if (!(landing > 0) && !(day > 0)) return growth;
+  }
   const tier = growth.tiers?.tiers?.offline;
   const line = tier?.evidence === 'complete' ? refuseShare : warnShare;
   if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); }
@@ -260,9 +279,6 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   // in every CI run of a landing and in each nightly run, and the tier with them must stay under
   // its line (95%, or 85% on partial or stale evidence). The table line prices them separately.
   else if (tier?.used && tier?.ceiling) {
-    const e = growth.estimates ?? {};
-    const landing = result.added * (e.runsPerLanding?.everyRun ?? 1);
-    const day = result.added * (e.scheduledRunsPerDay?.offline ?? 1);
     const after = Math.max((tier.used.perLanding + landing) / tier.ceiling.perLanding, (tier.used.perDay + day) / tier.ceiling.perDay);
     if (after >= line) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
   }
@@ -379,7 +395,8 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     ...offline.map((p) => `- Budget exceptions: ${p}.`),
     '',
   ].join('\n');
-  return { status, reasons, markdown, table: fresh, tiers, items, stops: report?.stops ?? {}, unreadable, estimates: ceilings.estimates };
+  const assessWith = (extra) => assessTiers({ ceilings, measurement, items: extra, today, stops: report?.stops ?? {}, known });
+  return { status, reasons, markdown, table: fresh, tiers, items, stops: report?.stops ?? {}, unreadable, estimates: ceilings.estimates, assessWith };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -408,7 +425,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const wallMinutes = value('--wall-minutes') !== undefined ? Number(value('--wall-minutes')) : null;
   // A growth stop on the offline tier (a cost or pre-merge latency breach whose one correction
   // failed) refuses added offline minutes too, whatever the table line says.
-  applyOfflineStop(growth, result);
+  applyOfflineStop(growth, result, { paths: changed });
   const order = { ok: 0, warn: 1, refuse: 2 };
   if (order[growth.status] > order[result.status]) result.status = growth.status;
   if (growth.status !== 'ok' && growth.reasons.length) result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;

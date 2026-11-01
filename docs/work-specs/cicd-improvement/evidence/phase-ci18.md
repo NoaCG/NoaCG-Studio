@@ -285,7 +285,8 @@ A week's measurement is **partial for every tier** when any of these holds:
 - E8. A planned job read was stopped by the call budget.
 - E9. A run was still unfinished at collection.
 - E10. A run's jobs were still full at the last permitted page; its jobs count as a lower bound.
-- E11. The window holds no landing.
+- E11. The window holds no landing. The gate then has no per-landing figure and reads the tier as
+  missing (E1), which is stricter.
 
 How runs become cost and slowdown points:
 
@@ -319,12 +320,17 @@ What each state lets the controls do. A change that adds nothing is never refuse
   exception's tier and naming a real job or spec; a positive per-landing or per-day allowance; an
   owner; a review link that is an issue comment in NoaCG/NoaCG-Studio; and from and expires dates at
   most 30 days apart.
-- X4. Two exceptions are the same scope when they share a cover after following recorded renames
-  (X12), share a measured job (X2), or the earlier one has a cover that names nothing real and was
-  never recorded as renamed or retired. None of these lapse with time.
+- X4. Two exceptions are the same scope when any of these holds; none lapses with time:
+  - they share a cover after following recorded renames (X12);
+  - they share a measured job (X2);
+  - the earlier one covers a name recorded as retired, and the later one covers the same kind in
+    the same tier (a job in the same workflow, or a spec in the same folder tier): a retired name's
+    successor is unknown;
+  - the earlier one has a cover that names nothing real and was never recorded.
 - X5. An exception with the same scope as an earlier one needs a measured repayment receipt: a
   positive per-landing or per-day repayment, at least one run, measured on or after the latest
-  earlier entry's start. Without one it is invalid. The same holds for offline exception lines.
+  earlier entry's start. Without one it is invalid. Offline exception lines need the same, except
+  that their repayment clause (`, repaid <minutes> min in run <id>`) carries no date to check.
 - X6. The exception ledger is append-only and in order: an entry removed, edited, or placed before
   an existing one is refused at PR time.
 - X7. Status, first match wins: invalid (no credit, covers nothing); expired (no credit, counted
@@ -336,14 +342,16 @@ What each state lets the controls do. A change that adds nothing is never refuse
 - X9. A spec cover earns no credit on measured cost.
 - X10. A covered addition is waived up to the room left: the allowance minus the measured cost of
   its jobs. Overlapping exceptions give the largest room, never the sum, and the waiver is spent in
-  all of them.
+  all of them. Offline spec additions take the same route, so an approved offline exception
+  waives them too.
 - X11. Credit never crosses tiers (X1, X2). No exception moves a ceiling, an estimate,
   `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new version and a reviewed revision, and are
   still named for the owner.
-- X12. A change that renames or removes a spec or a job that any exception names (offline lines
-  included) must record it in `growth-ceilings.json` `renamed`, as `{ from, to }` or
-  `{ from, retired: true }`; otherwise it is refused. A job keeps its key across a display-name
-  rename. The `renamed` list is append-only.
+- X12. A change that renames or removes a spec or a job that any exception names must record it in
+  `growth-ceilings.json` `renamed`, as `{ from, to }` or `{ from, retired: true }`; otherwise it is
+  refused. "Names" includes offline lines, and names reached through the recorded rename chain
+  (after A to B, a cover of A names B). A job keeps its key across a display-name rename; a new key
+  and a new name together is a removal. The `renamed` list is append-only.
 
 - **Previous verified main:** `26095c826f1a0ee910d17070d42026a841b9f284` (ci06 merge: push CI,
   configured suite, post-land and quarantine green). The branch starts at `af39c249`, whose
