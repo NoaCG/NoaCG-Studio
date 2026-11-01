@@ -42,18 +42,26 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci12 builder receipt (session_017SdbwNhaBmxumsVW6k2AHU)",
-    "eta": "2026-11-01T22:30:00Z"
+    "what": "PR #1927 merge queue, then ci12 checker",
+    "eta": "2026-11-01T20:30:00Z"
   },
   "inFlight": [
     {
       "phase": "ci12",
-      "step": "build",
+      "step": "landing",
       "session": "session_017SdbwNhaBmxumsVW6k2AHU",
       "nonce": "ci12-b-86a8",
       "branch": "claude/plan-cicd-improvement-ci12-build",
       "launchedAt": "2026-11-01T19:01:04Z",
-      "note": "Scoped-catalog report integrity: Rules-first guard, report mutations fail, rendered scoped/full Actions comparison; no calibration narrowing."
+      "note": "Bench scope guard S1-S13; imported-design declared NOT_BENCHED (never benched at base; svg01 fails bench, #1926); not an audit reset. Auto-merge on.",
+      "pr": 1927,
+      "reviewedHead": "d755f4d618eaf5ed9092ce4172373af90faab39e",
+      "stampRun": 41343765760,
+      "so": "session_017SdbwQ8WQTFLCw1SNSEosh",
+      "followUps": [
+        1926,
+        1928
+      ]
     }
   ],
   "owner": [],
@@ -304,7 +312,9 @@
     1904,
     1911,
     1912,
-    1924
+    1924,
+    1926,
+    1928
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
