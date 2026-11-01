@@ -171,21 +171,22 @@ in all) with the final code, plus 1-day re-passes where a pass ran out of budget
 
 **Every miss investigated:**
 
-- **30 are flakes**: the spec entered the quarantine with a fail-then-pass on one commit (marked
-  `flake`), and in each case the candidate culprits could not reach it (docs, plan files,
-  quarantine-only landings) or the spec failed on a docs-only landing and passed on the next.
-  They are not selection misses; they are the quarantine's coverage gaps, which ci07 now makes
-  incidents.
-- **4 more are flakes the window's flake set did not mark**: `editor-arrangement` (76afb8cb) and
+- **28 are marked `flake`**: the quarantine store records the spec entering or leaving with a
+  fail-then-pass on one commit inside the window. That receipt is what classes them; the diffs
+  sampled (b5652ae6, 0df77f74, af39c249, 081b42af..a1c9efb5, ec723a49) are docs, plan or
+  quarantine-only landings that cannot reach the spec. They are the quarantine's coverage gaps,
+  which ci07 now makes incidents, not selection misses.
+- **4 are flakes the window's flake set did not mark**: `editor-arrangement` (76afb8cb) and
   `editor-groups` (742a5a65) were quarantined and released before their window, `import-svg-corpus`
   (0df77f74, a docs landing) is the fail-then-pass bot PR #1834 is quarantining, and
   `video-hyperframes` (a2523f82 `.gitignore`, aa2717b3 docs) failed on landings that cannot reach it.
-- **4 are real selection misses, all corrected before the latest reset**: `editor-fidelity-trim`
+- **6 are real selection misses, all corrected before the latest reset**: `editor-fidelity-trim`
   at 5619f765..45ec97b2 (#927, the miss the old weekly audit found) and at 14c0a5a5 (`svgFit.js`),
   `public-chrome-baseline` at 20367f21 (a `docs/whats-new` page) and at 20bda886..7c59efcb
-  (`docs.html`), and `downloads` at 92c8a616 (`index.html`). Today's planner selects each of them
-  for its culprit's files (checked with `planFor` on the same files), so each mapping was corrected
-  after the miss, before 26095c82.
+  (`docs.html`), `downloads` at 92c8a616 (`index.html`) and `editor-cli-round-trip` at
+  7009ebbb..84a10763 (`src/model/importTemplate.ts`). Today's planner selects each of them for its
+  culprit's files (checked with `planFor` on the same files), so each mapping was corrected after
+  the miss, before 26095c82.
 
 **Zero unexplained misses in the replayed window.** That is necessary, not proof of completeness;
 the full runs on `main` stay. Three things are reported as limits, not hidden: the 2 configured
